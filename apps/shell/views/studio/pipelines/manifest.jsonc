@@ -2,7 +2,7 @@
 // docs/ship-adrs/references/docs/view-directory-convention.md.
 {
   "name": "pipelines",
-  "path": "/pipelines",
+  "path": "/studio/pipelines",
   "title": "Pipelines",
   "layout": "default",
   "auth": "user",

@@ -62,16 +62,16 @@ export default controller<Scope>({
       const params = new URLSearchParams()
       if (qInput) params.set('q', String(qInput))
       if (pipelineInput) params.set('pipeline', String(pipelineInput))
-      navigate('/pipelines/history' + (params.toString() ? '?' + params.toString() : ''))
+      navigate('/studio/pipelines/history' + (params.toString() ? '?' + params.toString() : ''))
     },
-    clearFilter: ({ navigate }: any) => navigate('/pipelines/history'),
+    clearFilter: ({ navigate }: any) => navigate('/studio/pipelines/history'),
     prevPage: ({ navigate, offset, limit, q, pipelineFilter }: any) => {
       const params = new URLSearchParams()
       params.set('offset', String(Math.max(0, (offset as number) - (limit as number))))
       params.set('limit', String(limit))
       if (q) params.set('q', String(q))
       if (pipelineFilter) params.set('pipeline', String(pipelineFilter))
-      navigate('/pipelines/history?' + params.toString())
+      navigate('/studio/pipelines/history?' + params.toString())
     },
     nextPage: ({ navigate, offset, limit, q, pipelineFilter }: any) => {
       const params = new URLSearchParams()
@@ -79,7 +79,7 @@ export default controller<Scope>({
       params.set('limit', String(limit))
       if (q) params.set('q', String(q))
       if (pipelineFilter) params.set('pipeline', String(pipelineFilter))
-      navigate('/pipelines/history?' + params.toString())
+      navigate('/studio/pipelines/history?' + params.toString())
     },
   },
 })

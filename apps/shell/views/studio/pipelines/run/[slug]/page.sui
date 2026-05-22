@@ -28,7 +28,7 @@
     <div class="ship-run-detail-head">
       <div>
         <div class="ship-run-detail-title-row">
-          <sui-button size="sm" variant="ghost" on:click={() => navigate('/pipelines')}>
+          <sui-button size="sm" variant="ghost" on:click={() => navigate('/studio/pipelines')}>
             <sui-icon slot="leading" name="chevron-left"></sui-icon>All runs
           </sui-button>
           <span class="ship-run-detail-slug">{run().slug}</span>

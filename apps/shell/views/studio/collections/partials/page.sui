@@ -26,8 +26,8 @@
       {:ok}
       <div class="data-card-grid">
         {#for c of collections().value.items key={c.id}}
-          <a class="data-card" attr:href={'/collections?collection=' + c.id}
-            on:click={(e) => { e.preventDefault(); navigate('/collections?collection=' + c.id) }}>
+          <a class="data-card" attr:href={'/studio/collections?collection=' + c.id}
+            on:click={(e) => { e.preventDefault(); navigate('/studio/collections?collection=' + c.id) }}>
             <sui-cluster gap="2" align="center">
               <span class="data-card-icon"><sui-icon name="database"></sui-icon></span>
               <div class="data-card-identity">

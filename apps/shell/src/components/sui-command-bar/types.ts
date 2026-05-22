@@ -170,7 +170,7 @@ export const CREATE_SURFACES: CreateSurfaceDef[] = [
 export const NAV_DESTINATIONS: NavDest[] = [
   { label: 'Home',                  path: '/home',         icon: 'home',     keywords: 'overview dashboard start'  },
   { label: 'Canvas',                path: '/canvas',       icon: 'image',    keywords: 'docs visual feedback'      },
-  { label: 'Collections',           path: '/collections',  icon: 'folder',   keywords: 'data items query'          },
+  { label: 'Collections',           path: '/studio/collections',  icon: 'folder',   keywords: 'data items query'          },
   { label: 'Artifacts',             path: '/artifacts',    icon: 'file',     keywords: 'outputs files exports'     },
   { label: 'Agents',                path: '/studio/agents', icon: 'users',   keywords: 'configure profiles studio' },
   { label: 'Skills',                path: '/studio/skills', icon: 'zap',     keywords: 'browse edit files'         },

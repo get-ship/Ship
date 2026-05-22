@@ -15,7 +15,7 @@
         <p class="ship-pipelines-sub">{statsSubtitle()}</p>
       </div>
       <sui-cluster gap="2">
-        <sui-button variant="outline" size="sm" on:click={() => navigate('/pipelines/history')}>
+        <sui-button variant="outline" size="sm" on:click={() => navigate('/studio/pipelines/history')}>
           <sui-icon slot="leading" name="list" size="sm"></sui-icon>History
         </sui-button>
         {#if workspaceId()}
@@ -41,7 +41,7 @@
         {#for run of activeRuns() key={run.slug}}
           <sui-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
             <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
-            <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/pipelines/run/' + run.slug)}>
+            <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/studio/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
             </sui-button>
             <sui-button slot="actions" variant="outline" size="sm" tone="destructive" on:click={() => stopRun(run.job_id)}>
@@ -79,7 +79,7 @@
       {#if defs().length > 0}
       <div class="ship-pipelines-def-list">
         {#for def of defs() key={def.name}}
-          <sui-card interactive status-rail attr:tone={def.active_runs > 0 ? 'info' : (def.last_run_tone ?? 'muted')} on:click={() => navigate('/pipelines/focus/' + def.name)}>
+          <sui-card interactive status-rail attr:tone={def.active_runs > 0 ? 'info' : (def.last_run_tone ?? 'muted')} on:click={() => navigate('/studio/pipelines/focus/' + def.name)}>
             <div class="ship-def-title">
               <span class="ship-def-name">{def.name}</span>
               {#if def.active_runs > 0}<sui-badge tone="info">{def.active_runs} running</sui-badge>{/if}

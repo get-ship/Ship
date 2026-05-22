@@ -41,7 +41,7 @@
   <div class="ship-hist-wrap">
     <header class="ship-hist-head">
       <div>
-        <sui-button variant="ghost" size="sm" style="margin-bottom: var(--space-2)" on:click={() => navigate('/pipelines')}>
+        <sui-button variant="ghost" size="sm" style="margin-bottom: var(--space-2)" on:click={() => navigate('/studio/pipelines')}>
           <sui-icon slot="leading" name="chevron-left" size="xs"></sui-icon>All pipelines
         </sui-button>
         <h1 class="ship-hist-title">History</h1>
@@ -90,7 +90,7 @@
         </thead>
         <tbody>
           {#for row of rows() key={row.slug}}
-          <tr on:click={() => navigate('/pipelines/run/' + row.slug)}>
+          <tr on:click={() => navigate('/studio/pipelines/run/' + row.slug)}>
             <td><span class="ship-hist-slug">{row.slug}</span></td>
             <td>{#if row.pipeline}<code>{row.pipeline}</code>{:else}<span class="ship-hist-agent">—</span>{/if}</td>
             <td><sui-badge attr:tone={row.tone} size="sm">{row.state}</sui-badge></td>

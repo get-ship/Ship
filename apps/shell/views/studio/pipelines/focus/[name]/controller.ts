@@ -124,7 +124,7 @@ export default controller<Scope>({
           `/api/v1/workspaces/${encodeURIComponent(ws)}/pipelines/${encodeURIComponent(nm)}`,
           { method: 'DELETE', credentials: 'include' },
         )
-        if (resp.ok) { window.location.href = '/pipelines'; return }
+        if (resp.ok) { window.location.href = '/studio/pipelines'; return }
         const body = await resp.json().catch(() => ({}))
         window.alert('Delete failed: ' + (body?.data ?? `HTTP ${resp.status}`))
       } catch (err: any) { window.alert('Delete failed: ' + (err?.message ?? String(err))) }

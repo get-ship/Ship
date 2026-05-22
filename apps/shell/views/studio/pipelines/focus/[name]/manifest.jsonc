@@ -2,7 +2,7 @@
 // docs/ship-adrs/references/docs/view-directory-convention.md.
 {
   "name": "pipeline-focus",
-  "path": "/pipelines/focus/[name]",
+  "path": "/studio/pipelines/focus/[name]",
   "title": "Pipeline",
   "layout": "default",
   "auth": "user"

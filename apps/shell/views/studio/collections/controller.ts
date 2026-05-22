@@ -343,7 +343,7 @@ export default controller<Scope>({
       s.newColDraftId = ''
       s.newColDraftName = ''
       s.drawerError = ''
-      ;(s as { navigate: (p: string) => void }).navigate('/collections?collection=' + id)
+      ;(s as { navigate: (p: string) => void }).navigate('/studio/collections?collection=' + id)
     },
     createFromExample: async (s, exampleId: string) => {
       const ex = EXAMPLES.find(e => e.id === exampleId)
@@ -358,7 +358,7 @@ export default controller<Scope>({
         s.drawerError = err instanceof Error ? err.message : 'Request failed'
         return
       }
-      ;(s as { navigate: (p: string) => void }).navigate('/collections?collection=' + ex.id)
+      ;(s as { navigate: (p: string) => void }).navigate('/studio/collections?collection=' + ex.id)
     },
   },
 })

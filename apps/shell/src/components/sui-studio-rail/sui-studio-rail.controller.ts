@@ -40,8 +40,8 @@ const CONFIGURE: ReadonlyArray<RailEntry> = [
   { id: 'skills', label: 'Skills', icon: 'zap', href: '/studio/skills' },
   { id: 'components', label: 'Components', icon: 'layers', href: '/studio/components' },
   { id: 'themes', label: 'Themes', icon: 'palette', href: '/studio/themes' },
-  { id: 'collections', label: 'Collections', icon: 'database', href: '/collections' },
-  { id: 'pipelines', label: 'Pipelines', icon: 'workflow' },
+  { id: 'collections', label: 'Collections', icon: 'database', href: '/studio/collections' },
+  { id: 'pipelines', label: 'Pipelines', icon: 'workflow', href: '/studio/pipelines' },
   { id: 'mcp', label: 'MCP servers', icon: 'terminal' },
   { id: 'permissions', label: 'Permissions', icon: 'shield' },
 ]

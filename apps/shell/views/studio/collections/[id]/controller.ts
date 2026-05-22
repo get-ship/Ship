@@ -11,7 +11,7 @@
 import { controller, signal, derived, live, unwrap, defineRoutes } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
-defineRoutes([{ pattern: '/collections/:id' }])
+defineRoutes([{ pattern: '/studio/collections/:id' }])
 
 interface SchemaField {
   name: string

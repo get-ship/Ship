@@ -28,7 +28,7 @@ export default controller<Scope>({
       state.newColId = ''
       state.newColName = ''
       state.drawerError = ''
-      navigate('/collections?collection=' + id)
+      navigate('/studio/collections?collection=' + id)
     },
   },
 })

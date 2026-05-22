@@ -31,7 +31,7 @@
   <div class="ship-focus-wrap">
     <header class="ship-focus-head">
       <div class="ship-focus-title-block">
-        <sui-button variant="ghost" size="sm" style="width: fit-content" on:click={() => navigate('/pipelines')}>
+        <sui-button variant="ghost" size="sm" style="width: fit-content" on:click={() => navigate('/studio/pipelines')}>
           <sui-icon slot="leading" name="chevron-left" size="xs"></sui-icon>All pipelines
         </sui-button>
         <h1 class="ship-focus-title">
@@ -77,7 +77,7 @@
         {#for run of activeForPipeline() key={run.slug}}
           <ship-pipeline-run class="ship-live-run" attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent} on:ship-log-tick={(e) => pulseRun(e.currentTarget)}>
             <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
-            <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/pipelines/run/' + run.slug)}>
+            <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/studio/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
             </sui-button>
             <sui-button slot="actions" variant="outline" size="sm" tone="destructive" on:click={() => stopRun(run.job_id)}>
@@ -175,7 +175,7 @@
           {#if !opsMode() || (run.state !== 'dispatched' && run.state !== 'pending' && run.state !== 'gate-pending')}
           <ship-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
             <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
-            <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/pipelines/run/' + run.slug)}>
+            <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/studio/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
             </sui-button>
             {#if run.error}

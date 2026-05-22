@@ -2,7 +2,7 @@
 // docs/ship-adrs/references/docs/view-directory-convention.md.
 {
   "name": "pipeline-run",
-  "path": "/pipelines/run/[slug]",
+  "path": "/studio/pipelines/run/[slug]",
   "title": "Run",
   "layout": "default",
   "auth": "user"

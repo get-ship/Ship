@@ -89,7 +89,9 @@ defineRoutes([
   { pattern: '/studio/themes/:id' },
   { pattern: '/studio/components/:name' },
   { pattern: '/studio/skills/:id' },
-  { pattern: '/collections/:id' },
+  { pattern: '/studio/collections/:id' },
+  { pattern: '/studio/pipelines/focus/:name' },
+  { pattern: '/studio/pipelines/run/:slug' },
   { pattern: '/artifacts/:id' },
   { pattern: '/workspaces/:id' },
 ])

@@ -10,8 +10,8 @@
   {:else}
 
     <div class="cd-head">
-      <a class="cd-back" attr:href={'/collections'}
-        on:click={(e) => { e.preventDefault(); navigate('/collections') }}>
+      <a class="cd-back" attr:href={'/studio/collections'}
+        on:click={(e) => { e.preventDefault(); navigate('/studio/collections') }}>
         <sui-icon name="chevron-left" size="sm"></sui-icon>
         <span>Collections</span>
       </a>

@@ -1,6 +1,6 @@
 {
   "name": "collections-detail",
-  "path": "/collections/[id]",
+  "path": "/studio/collections/[id]",
   "title": "Collection",
   "layout": "default",
   "auth": "user",
