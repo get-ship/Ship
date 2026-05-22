@@ -42,7 +42,7 @@ use crate::wire::MeshResponse;
 pub async fn serve_schema() -> Json<MeshResponse> {
     Json(MeshResponse {
         ok: true,
-        data: serde_json::json!({ "ops": OPS }),
+        data: serde_json::json!({ "ops": OPS, "commands": COMMANDS }),
     })
 }
 

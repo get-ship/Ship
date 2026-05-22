@@ -64,6 +64,12 @@ pub enum Commands {
     /// Daemon build/version, via the ConnectRPC op surface (ship.ops.v1)
     Meta,
 
+    /// List or invoke the daemon op surface over ConnectRPC (the agent interface)
+    Ops {
+        #[command(subcommand)]
+        action: OpsCommands,
+    },
+
     /// Pair a browser session (Studio) with the local daemon
     Auth {
         #[command(subcommand)]
@@ -359,6 +365,20 @@ pub enum Commands {
     Openapi {
         #[command(subcommand)]
         action: OpenapiCommands,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum OpsCommands {
+    /// List the available ops (reads + commands) from the registry
+    List,
+    /// Invoke an op by name over ConnectRPC
+    Call {
+        /// Op name, e.g. `git.status` or `pipeline.update_status`
+        name: String,
+        /// JSON args object, e.g. `{"workspace_id":"x"}`
+        #[arg(long)]
+        json: Option<String>,
     },
 }
 

@@ -2,6 +2,7 @@ mod add;
 mod audit;
 mod auth;
 mod meta_cmd;
+mod ops_cmd;
 mod build;
 mod cli;
 mod commands;
@@ -101,6 +102,10 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             Commands::Logout => auth::run_logout(),
             Commands::Whoami => auth::run_whoami(),
             Commands::Meta => meta_cmd::run(),
+            Commands::Ops { action } => match action {
+                cli::OpsCommands::List => ops_cmd::list(),
+                cli::OpsCommands::Call { name, json } => ops_cmd::call(&name, json),
+            },
             Commands::Auth { action } => {
                 use cli::AuthCommands;
                 match action {
