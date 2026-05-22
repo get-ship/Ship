@@ -1,3 +1,4 @@
+pub mod apple_container;
 pub mod docker;
 pub mod lima;
 pub mod srt;
@@ -12,6 +13,7 @@ pub mod youki;
 #[cfg(all(feature = "youki-backend", feature = "sidecar-mode", target_os = "linux"))]
 pub mod youki_sidecar;
 
+pub use apple_container::{AppleContainer, AppleContainerConfig};
 pub use docker::{Docker, DockerConfig};
 pub use lima::{Lima, LimaConfig};
 pub use srt::{render_settings, SrtSettings};

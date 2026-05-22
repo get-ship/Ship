@@ -23,16 +23,17 @@ in earlier drafts — k8s baggage avoided).
 
 **Next steps, prioritized:**
 1. **Per-OS legs (mac/Windows) — in progress.**
-   - **Lima (mac): 🟡 done-pending-Mac.** Isolator written + wired into the
-     spawn path/recommender; Linux POC verified (boots under nested QEMU+KVM
-     in WSL2, `limactl shell` runs the sidecar). Remaining: a Mac to make the
-     host↔guest transport green (needs a substrate Lima template with an
-     explicit `portForwards` range — auto-forward is env-dependent) + a
-     `lima_sidecar_live` cell, and workspace/resource-cap application.
-   - **Apple Container (mac arm): registered, backend deferred.** Recommendable
-     (`has_impl=false` → refuses under enforce); the `container`-CLI backend
-     needs an Apple-Silicon Mac (untestable on Intel/Linux) — build test-first
-     there.
+   - **Lima (mac): 🟡 turnkey, pending a Mac run.** Isolator wired; Linux POC
+     verified the launch/reap mechanics. Now drafted for the Mac:
+     `contrib/lima/ship-substrate.yaml` (explicit `portForwards`),
+     `lima_sidecar_live`, steps in `contrib/macos-substrates.md`. Remaining: the
+     Mac run (transport green) + workspace/resource-cap application.
+   - **Apple Container (mac arm): 🟡 draft backend, pending Apple Silicon.**
+     Registered + recommendable; a draft `container`-CLI backend
+     (`backends/apple_container.rs`, microVM-per-container) + `apple_container_live`
+     cell exist for verification. `has_impl=false` (not in the prod spawn path)
+     until a friend verifies on Apple Silicon — the one unverified bit is
+     `ip_from_inspect`; then flip has_impl + add the spawn arm.
    - **WSL (Windows): 🟡 done-pending-Windows.** Topology decided — `shipd`
      runs natively on Windows; WSL is the tier-strategy substrate it reaches
      for the higher tiers (symmetric with Lima/Firecracker). Isolator written
