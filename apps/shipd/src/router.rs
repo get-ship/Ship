@@ -6,9 +6,6 @@ use axum::{
     body::Body,
     response::Response,
 };
-use rmcp::transport::streamable_http_server::{
-    StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
-};
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use utoipa::OpenApi;
@@ -38,26 +35,14 @@ pub fn build_router(
     session_registry: auth::SessionRegistry,
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
-    mcp_ct: CancellationToken,
+    _mcp_ct: CancellationToken,
     daemon_mode: deck::DaemonMode,
 ) -> Router {
     use crate::routes::{Route, ShipRouterExt};
-    // The single daemon-hosted MCP server: the full `ShipServer` surface,
-    // gated per-connection by the token's scopes (see `inject_mcp_auth`).
-    // Replaces the mesh-only `NetworkServer` mount.
-    let mcp_kernel = rt.kernel().clone();
-    let mcp_data = rt.data_service_arc();
-    let service: StreamableHttpService<mcp::ShipServer, LocalSessionManager> =
-        StreamableHttpService::new(
-            move || Ok(mcp::ShipServer::with_runtime(mcp_kernel.clone(), mcp_data.clone())),
-            Default::default(),
-            StreamableHttpServerConfig {
-                cancellation_token: mcp_ct,
-                sse_retry: None,
-                sse_keep_alive: None,
-                ..Default::default()
-            },
-        );
+    // Internal MCP server retired (#75): agents use the ConnectRPC op surface
+    // via `ship ops` + capability-skills; external MCP clients use the
+    // standalone `apps/mcp` adapter. The registry browser (`mcp_registry`) and
+    // the `mcp.*` catalog reads stay.
 
     let st = rt.clone();
     // Non-enumerated third-party routes (telegram webhook + hooks) stay on
@@ -301,7 +286,6 @@ pub fn build_router(
         .merge(api_ship_routes)
         .nest("/api/v1", hook_routes)
         .nest("/api", webhook_routes)
-        .nest_service("/mcp", service)
         // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
         // auth_middleware below so the gate sees AuthContext. See ops_rpc.
         .merge(crate::ops_rpc::router(rt.clone()))
