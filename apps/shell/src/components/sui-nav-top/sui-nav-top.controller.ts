@@ -93,14 +93,6 @@ export default controller<Scope>({
       e.preventDefault()
       navigateDoc('/')
     }
-    function onRailToggle(): void {
-      hostEl?.dispatchEvent(
-        new CustomEvent('sui:rail:toggle', { bubbles: true, composed: true }),
-      )
-    }
-    function onDockToggle(): void {
-      chrome.dock.toggle()
-    }
     function onFullscreen(): void {
       if (document.fullscreenElement) void document.exitFullscreen()
       else void document.documentElement.requestFullscreen()
@@ -108,8 +100,7 @@ export default controller<Scope>({
 
     return {
       labels, dockOpen, crumbs,
-      onCrumbClick, onBrand, onRailToggle,
-      onDockToggle, onFullscreen,
+      onCrumbClick, onBrand, onFullscreen,
     }
   },
 

@@ -180,17 +180,8 @@
 <span class="spacer"></span>
 <span class="cmd-slot"><slot name="command-bar"></slot></span>
 <span class="spacer"></span>
-<sui-button variant="ghost" size="sm" part="rail-toggle"
-  title="Toggle navigation (⌘B)" aria-label="Toggle navigation" on:click={onRailToggle}>
-  <sui-icon slot="leading" name="menu"></sui-icon>
-</sui-button>
 <sui-theme-picker placement="bottom-end" part="theme-picker" label-style="compact"></sui-theme-picker>
 <sui-account-menu placement="bottom-end" part="account-menu"></sui-account-menu>
-<sui-button variant="ghost" size="sm" part="dock-toggle"
-  title="Toggle CLI / debug panel (⌘J)" aria-label="Toggle CLI / debug panel"
-  aria-pressed={dockOpen() ? 'true' : 'false'} on:click={onDockToggle}>
-  <sui-icon slot="leading" name="terminal"></sui-icon>
-</sui-button>
 <sui-button variant="ghost" size="sm" part="fullscreen"
   title="Fullscreen (F11)" aria-label="Toggle fullscreen" on:click={onFullscreen}>
   <sui-icon slot="leading" name="maximize"></sui-icon>
