@@ -1,0 +1,14 @@
+// Route metadata for views/activity/. Placeholder scaffold — owner-level,
+// cross-space monitor of running agents/compute (what `mesh` shows today,
+// rebuilt fresh). See .artifacts/launch-ui/MODEL.md.
+{
+  "name": "activity",
+  "path": "/activity",
+  "title": "Activity",
+  "layout": "default",
+  "auth": "user",
+  "rail": {
+    "label": "Activity",
+    "icon": "activity"
+  }
+}
