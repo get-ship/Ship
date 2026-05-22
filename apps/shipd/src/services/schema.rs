@@ -197,6 +197,26 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         blast_radius: "C1_WORKSPACE",
         sensitive: false,
     },
+    // ── agent control ─────────────────────────────────────────────
+    CommandDescriptor {
+        name: "agent.stop",
+        description: "Stop a running agent by slug.",
+        args: &[ArgDescriptor { name: "slug", kind: "string", required: true }],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agent.steer",
+        description: "Inject a message into a running agent.",
+        args: &[
+            ArgDescriptor { name: "slug", kind: "string", required: true },
+            ArgDescriptor { name: "message", kind: "string", required: true },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
 ];
 
 /// The full registry op catalog. Order mirrors `services::registry::call`'s

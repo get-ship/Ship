@@ -16,6 +16,7 @@ use serde_json::Value;
 use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 
+mod agent;
 mod git;
 mod mesh;
 mod pipeline;
@@ -51,6 +52,13 @@ impl CommandError {
             status: axum::http::StatusCode::NOT_FOUND,
             code: "unknown_command",
             message: format!("unknown command `{name}`"),
+        }
+    }
+    pub fn not_found(msg: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::NOT_FOUND,
+            code: "not_found",
+            message: msg.into(),
         }
     }
     pub fn forbidden(msg: impl Into<String>) -> Self {
@@ -94,6 +102,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = git::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = agent::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     Err(CommandError::unknown_command(name))
