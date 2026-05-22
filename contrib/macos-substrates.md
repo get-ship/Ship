@@ -37,12 +37,13 @@ so it's *not* in the production spawn path yet. The live cell constructs it
 directly, so your friend can verify it in isolation.
 
 ```sh
-# 1. Build/load an arm64 image with ship-sidecar baked in. Adapt
-#    scripts/build-agent-image.sh to `container build` (or `container images
-#    load`) — the agent-runner Dockerfile is OCI-standard.
+# 1. Build an arm64 image with ship-sidecar baked in. This compiles the
+#    sidecar INSIDE a Linux build stage, so you don't cross-compile a Linux
+#    binary from macOS:
+container build -t ship/agent-runner:dev -f contrib/apple/agent-runner.Dockerfile .
 
-# 2. Drive it:
-SHIP_APPLE_IMAGE=<that-image> \
+# 2. Drive it (Rust must be installed on the host to run the test harness):
+SHIP_APPLE_IMAGE=ship/agent-runner:dev \
   cargo test -p ship-isolation --test apple_container_live -- --nocapture
 ```
 

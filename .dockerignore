@@ -1,0 +1,10 @@
+# Keep the build context small for image builds (e.g. the agent-runner
+# multi-stage build that compiles ship-sidecar in-container). The in-container
+# build produces its own target/; the host's is irrelevant and huge.
+target
+node_modules
+**/node_modules
+.git
+dist
+**/dist
+.artifacts
