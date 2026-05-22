@@ -14,7 +14,7 @@
 
 use super::registry::SandboxRegistry;
 use super::types::{
-    RuntimeEndpoint, SandboxError, SandboxId, SandboxLifetime, SandboxName,
+    RuntimeEndpoint, SandboxError, SandboxLifetime, SandboxName,
     SandboxState,
 };
 use chrono::{Duration as ChronoDuration, Utc};
