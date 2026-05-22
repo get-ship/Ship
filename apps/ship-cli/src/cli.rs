@@ -61,6 +61,9 @@ pub enum Commands {
     /// Show current identity
     Whoami,
 
+    /// Daemon build/version, via the ConnectRPC op surface (ship.ops.v1)
+    Meta,
+
     /// Pair a browser session (Studio) with the local daemon
     Auth {
         #[command(subcommand)]
