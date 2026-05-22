@@ -38,9 +38,7 @@
   .hw-link { margin-left: auto; font-family: var(--font-body); text-transform: none; letter-spacing: 0; font-size: var(--text-xs); color: var(--primary); text-decoration: none; cursor: pointer; }
   .hw-link:hover { text-decoration: underline; }
   .hw-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); flex: 1; align-content: center; }
-  .hw-stat { display: flex; flex-direction: column; }
-  .hw-n { font-family: var(--heading-font, var(--font-display)); font-size: var(--text-xl); font-weight: var(--font-weight-semibold); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-  .hw-l { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted-foreground); }
+  /* Workspace stats now render via <sui-stat>; row layout only below. */
   .hw-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); flex: 1; min-height: 0; overflow-y: auto; }
   .hw-list-wide { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-1) var(--space-5); align-content: start; }
   .hw-row { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); min-width: 0; }
@@ -98,10 +96,10 @@
       <article class="hw" style="grid-column: 9 / span 4; grid-row: 1 / span 2;">
         <h2 class="hw-h">Workspace</h2>
         <div class="hw-stat-row">
-          <div class="hw-stat"><span class="hw-n">{totalJobs()}</span><span class="hw-l">jobs</span></div>
-          <div class="hw-stat"><span class="hw-n">{agentCount()}</span><span class="hw-l">agents</span></div>
-          <div class="hw-stat"><span class="hw-n">{totalEvents()}</span><span class="hw-l">events</span></div>
-          <div class="hw-stat"><span class="hw-n">{collectionsCount()}</span><span class="hw-l">colls</span></div>
+          <sui-stat size="sm"><span slot="label">jobs</span>{totalJobs()}</sui-stat>
+          <sui-stat size="sm"><span slot="label">agents</span>{agentCount()}</sui-stat>
+          <sui-stat size="sm"><span slot="label">events</span>{totalEvents()}</sui-stat>
+          <sui-stat size="sm"><span slot="label">colls</span>{collectionsCount()}</sui-stat>
         </div>
       </article>
 
