@@ -318,7 +318,7 @@ sui-input { width: 160px; }
                   <sui-select name="value" size="sm" aria-labelledby="s-label-provider"
                     prop:value={settings().value.default_provider}
                     on:sui-change={(e) => e.target.closest('form')?.requestSubmit()}>
-                    {#for p of settings().value.providers key={p.id}}
+                    {#for p of (settings().value.providers ?? []) key={p.id}}
                       <option value={p.id}>{p.id}</option>
                     {/for}
                   </sui-select>
@@ -345,10 +345,10 @@ sui-input { width: 160px; }
               </span>
             </sui-list-tile>
 
-            {#if settings().value.providers.length > 0}
+            {#if (settings().value.providers ?? []).length > 0}
               <div class="s-provider-list">
                 <div class="s-provider-label">Installed providers</div>
-                {#for p of settings().value.providers key={p.id}}
+                {#for p of (settings().value.providers ?? []) key={p.id}}
                   <sui-list-tile density="compact" class="s-prov-tile">
                     <sui-provider-blob slot="leading" provider={p.id} size="sm" variant="glyph"
                       style={p.available ? '' : 'opacity:0.45;filter:grayscale(1)'}></sui-provider-blob>
@@ -387,7 +387,7 @@ sui-input { width: 160px; }
                   <sui-select name="value" size="sm" aria-labelledby="s-label-term"
                     prop:value={settings().value.terminal.program}
                     on:sui-change={(e) => e.target.closest('form')?.requestSubmit()}>
-                    {#for opt of settings().value.terminal.options key={opt.value}}
+                    {#for opt of (settings().value.terminal?.options ?? []) key={opt.value}}
                       <option value={opt.value}>{opt.label}</option>
                     {/for}
                   </sui-select>
