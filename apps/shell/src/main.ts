@@ -288,15 +288,17 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
     return showLanding(slot)
   }
 
-  // home is first-party CHROME (apps/shell/src/components/sui-home), not a
-  // daemon-served view. Render the registered <sui-home> element directly —
-  // it self-mounts via customElements + the SUI runtime. The shell hides the
-  // status strip for body[data-view="home"] (layout.css).
-  if (r.view === 'home' && !r.sub) {
+  // First-party CHROME surfaces (apps/shell/src/components/*) — rendered
+  // directly as registered custom elements, NOT daemon-served views. They
+  // self-mount via customElements + the SUI runtime. Map of route → tag.
+  const chromeTag = !r.sub
+    ? ({ home: 'sui-home', activity: 'sui-activity' } as Record<string, string>)[r.view]
+    : undefined
+  if (chromeTag) {
     disposeCurrentMount()
     publishScope(null)
-    slot.innerHTML = '<sui-home></sui-home>'
-    document.body.dataset.view = 'home'
+    slot.innerHTML = `<${chromeTag}></${chromeTag}>`
+    document.body.dataset.view = r.view
     currentRoute = r
     currentViewId = null
     return

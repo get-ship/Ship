@@ -1,15 +1,9 @@
-// Mesh view controller — owns the `snap` live signal end-to-end.
-//
-// View-host (`/sui/<name>`) mounts views without a `ship` SDK client in
-// ctx, so the compiler-emitted `<data live>` path (which closes over
-// `ctx.ship`) sticks on `loading`. Wire the live source directly to
-// the daemon's `/_sui/data?expr=…` SSE channel instead — same data
-// path the sdk-client would take, just without the importmap dance
-// that `@ship/sdk-client` requires.
-
+// <sui-activity> — owner-level, cross-space runtime monitor. First-party CHROME
+// (apps/shell): the shell renders it at /activity. Live `ship.mesh.snapshot()`
+// over @ship/sdk-client. (Relocated from views/activity; was the mesh draft.)
 import { controller, derived, live, signal, unwrap } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
-import type { Scope } from './page.sui'
+import type { Scope } from './sui-activity.sui'
 
 function formatTs(raw: string | null | undefined): string {
   if (!raw) return '—'
@@ -33,23 +27,20 @@ export default controller<Scope>({
     const actorsFormatted = derived(() => {
       const v = unwrap(snap)
       const list = v?.actors ?? []
-      return list.map(a => ({ ...a, last_event_at_pretty: formatTs(a.last_event_at) }))
+      return list.map((a) => ({ ...a, last_event_at_pretty: formatTs(a.last_event_at) }))
     })
-    // Open `<sui-agent-attach>` in a drawer when set. Cleared on close.
     const attachSlug = signal<string>('')
     const attachOpen = signal(false)
     return { snap, actorsFormatted, attachSlug, attachOpen }
   },
   on: {
     openAttach: (state, slug: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ds = state as any
+      const ds = state as unknown as { attachSlug: string; attachOpen: boolean }
       ds.attachSlug = slug
       ds.attachOpen = true
     },
     closeAttach: (state) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ds = state as any
+      const ds = state as unknown as { attachSlug: string; attachOpen: boolean }
       ds.attachOpen = false
       ds.attachSlug = ''
     },
