@@ -1,0 +1,30 @@
+<!--
+  <sui-pipeline-definition> — the editable definition. Two panes: form fields
+  on the left, generated YAML on the right. Both panes are slotted so the host
+  owns the layout + the consumer owns the form controls / YAML source.
+
+  Slots:  fields = the form fields (left) · yaml = the generated YAML (right)
+  Parts:  definition · fields · yaml
+-->
+<style>
+  :host { display: block; }
+  :host([hidden]) { display: none; }
+
+  .grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 10px; min-height: 0; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+
+  .fields { display: flex; flex-direction: column; gap: 8px; font-size: 12px; min-width: 0; }
+
+  .yaml {
+    margin: 0; padding: 10px 12px;
+    background: color-mix(in oklch, var(--muted) 70%, var(--card));
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    font-family: var(--font-mono); font-size: 10.5px; line-height: 1.5;
+    color: var(--foreground); overflow: auto; white-space: pre; min-width: 0;
+  }
+</style>
+
+<div class="grid" part="definition">
+  <div class="fields" part="fields"><slot name="fields"></slot></div>
+  <div class="yaml" part="yaml"><slot name="yaml"></slot></div>
+</div>
