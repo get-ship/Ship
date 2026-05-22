@@ -217,38 +217,51 @@ pub async fn step_done(
     Path(slug): Path<String>,
     Json(body): Json<StepDoneReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    match step_done_core(&state, &slug, body).await {
+        Ok(value) => Ok(ok_response(value)),
+        Err((code, msg)) => Err(err_response(code, &msg)),
+    }
+}
 
+/// Core of the step-done command, shared by the REST handler and the ConnectRPC
+/// `CommandOpsService`. Resolves the active step from the projection and emits
+/// `step.done_declared`. Transport-neutral errors.
+pub(crate) async fn step_done_core(
+    state: &ApiState,
+    slug: &str,
+    body: StepDoneReq,
+) -> Result<serde_json::Value, (StatusCode, String)> {
     let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir())
-        .map_err(|e| err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     let job = jobs
         .values()
         .find(|j| j.slug == slug)
         .cloned()
-        .ok_or_else(|| {
-            err_response(StatusCode::NOT_FOUND, &format!("no job with slug '{slug}'"))
-        })?;
-    let step_id = job.current_step.clone().ok_or_else(|| {
-        err_response(StatusCode::BAD_REQUEST, &format!("no active step for job '{slug}'"))
-    })?;
+        .ok_or_else(|| (StatusCode::NOT_FOUND, format!("no job with slug '{slug}'")))?;
+    let step_id = job
+        .current_step
+        .clone()
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, format!("no active step for job '{slug}'")))?;
 
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::events::pipeline::{PipelineStepDoneDeclaredPayload, event_types};
 
     let payload = PipelineStepDoneDeclaredPayload {
         pipeline_run_id: job.pipeline_run_id.clone(),
-        slug: slug.clone(),
+        slug: slug.to_string(),
         step_id: step_id.clone(),
         summary: body.summary,
         outputs: body.outputs,
     };
-    let envelope = EventEnvelope::new(event_types::PIPELINE_STEP_DONE_DECLARED, &job.pipeline_run_id, &payload)
-        .map_err(|e| err_response(StatusCode::BAD_REQUEST, &e.to_string()))?;
+    let envelope =
+        EventEnvelope::new(event_types::PIPELINE_STEP_DONE_DECLARED, &job.pipeline_run_id, &payload)
+            .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     state
         .persist_and_route(&envelope)
         .await
-        .map_err(|e| err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    Ok(ok_response(json!({ "slug": slug, "step_id": step_id })))
+    Ok(json!({ "slug": slug, "step_id": step_id }))
 }
 
 #[cfg(test)]

@@ -13,8 +13,8 @@ use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_ops_rpc::{
     CommandOpsService, CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
     OwnedActivateProjectRequestView, OwnedDispatchAgentRequestView, OwnedMetaRequestView,
-    OwnedSteerAgentRequestView, OwnedStopAgentRequestView, OwnedUpdateJobStatusRequestView,
-    ReadOpsServiceExt,
+    OwnedStepDoneRequestView, OwnedSteerAgentRequestView, OwnedStopAgentRequestView,
+    OwnedUpdateJobStatusRequestView, ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -235,6 +235,29 @@ impl CommandOpsService for OpsImpl {
         } else {
             Err(ConnectError::internal(mesh.data.to_string()))
         }
+    }
+
+    // Agent declares the current pipeline step complete (shared core with REST). C1.
+    #[allow(refining_impl_trait)]
+    async fn step_done(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedStepDoneRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let body = crate::project_api::jobs_status::StepDoneReq {
+            summary: (!req.summary.is_empty()).then(|| req.summary.to_string()),
+            outputs: req.outputs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+        };
+        let value = crate::project_api::jobs_status::step_done_core(&self.state, req.slug, body)
+            .await
+            .map_err(|(code, msg)| {
+                if code.is_client_error() {
+                    ConnectError::invalid_argument(msg)
+                } else {
+                    ConnectError::internal(msg)
+                }
+            })?;
+        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
 }
 
