@@ -1,16 +1,150 @@
-<div class="ship-view" data-test="activity-view">
-  <header class="view-head">
-    <sui-cluster gap="2" align="center">
-      <sui-icon name="activity" aria-hidden="true"></sui-icon>
-      <h1>Activity</h1>
-      <sui-badge tone="muted" variant="outline" size="sm">scaffold</sui-badge>
-    </sui-cluster>
-  </header>
+<div class="ship-view ship-mesh" data-test="activity-view">
 
-  <sui-empty-state icon="activity" variant="default">
-    <span slot="title">What's running, every space</span>
-    Owner-level, cross-space monitor of running agents and compute — what
-    <code>mesh</code> shows today, rebuilt fresh on the live snapshot.
-    Not built yet — this is the placeholder so the surface exists and is reachable.
-  </sui-empty-state>
+  {#async snap}
+    {:loading}
+    <sui-stack gap="5" aria-busy="true" aria-label="Loading mesh">
+      <div class="mesh-skel-head">
+        <sui-skeleton shape="line" size="lg" style="width:120px"></sui-skeleton>
+        <sui-skeleton shape="line" size="sm" style="width:320px"></sui-skeleton>
+      </div>
+      {#for n of [0, 1] key={n}}
+        <section class="mesh-skel-section">
+          <sui-skeleton shape="line" size="md" style="width:140px"></sui-skeleton>
+          {#for r of [0, 1, 2] key={r}}
+            <div class="mesh-skel-row">
+              <sui-skeleton shape="circle" size="sm"></sui-skeleton>
+              <sui-skeleton shape="line" size="md"></sui-skeleton>
+            </div>
+          {/for}
+        </section>
+      {/for}
+    </sui-stack>
+  
+    {:error err}
+    <sui-error-state variant="default" size="md" title="Couldn't load mesh">
+      {err.message}
+    </sui-error-state>
+  
+    {:ok}
+    <header class="mesh-head">
+      <h1>Activity</h1>
+      <div class="mesh-sub">what's running — across every space on this box</div>
+      <div class="mesh-counts">
+        <span><strong>{snap().value.counts.actors}</strong> actors</span>
+        <span><strong>{snap().value.counts.processes}</strong> processes</span>
+        <span><strong>{snap().value.counts.integrations}</strong> integrations</span>
+      </div>
+    </header>
+
+    <section class="mesh-section">
+      <header class="mesh-section-head">
+        <h2>Actors</h2>
+        <span class="n">{snap().value.actors.length}</span>
+        <span class="desc">live mailboxes — anything reachable via target_actor_id</span>
+      </header>
+      {#if snap().value.actors.length === 0}
+        <div class="mesh-empty">No actors on the mesh. Spawn an agent or run a pipeline.</div>
+      {:else}
+        <table class="mesh-table">
+          <thead>
+            <tr><th></th><th>Kind</th><th>Name</th><th>Provider</th><th>Workspace</th><th>Pid</th><th>Last activity</th><th></th></tr>
+          </thead>
+          <tbody>
+            {#for a of actorsFormatted() key={a.actor_id}}
+              <tr>
+                <td><span class="dot dot-live"></span></td>
+                <td><span class="mesh-badge">{a.kind}</span></td>
+                <td>
+                  {#if a.agent_id}
+                    {a.agent_id}<div class="mesh-id mesh-muted">{a.actor_id}</div>
+                  {:else}
+                    <span class="mesh-id">{a.actor_id}</span>
+                  {/if}
+                </td>
+                <td>{a.provider || '—'}{a.transport ? ' · ' + a.transport : ''}</td>
+                <td>{a.workspace_id || '—'}</td>
+                <td class="mesh-pid">{a.pid || '—'}</td>
+                <td class="mesh-ts">{a.last_event_at_pretty}</td>
+                <td class="mesh-actions">
+                  {#if a.transport === 'pty'}
+                    <sui-button size="sm" variant="outline"
+                      on:click={() => openAttach(a.actor_id)}
+                      data-test="attach-action">
+                      Attach
+                    </sui-button>
+                  {/if}
+                </td>
+              </tr>
+            {/for}
+          </tbody>
+        </table>
+      {/if}
+    </section>
+
+    <section class="mesh-section">
+      <header class="mesh-section-head">
+        <h2>Ship processes</h2>
+        <span class="n">{snap().value.processes.length}</span>
+        <span class="desc">OS-level processes Ship spawned on your machine</span>
+      </header>
+      {#if snap().value.processes.length === 0}
+        <div class="mesh-empty">No process info available.</div>
+      {:else}
+        <table class="mesh-table">
+          <thead>
+            <tr><th></th><th>Name</th><th>Role</th><th>Pid</th><th>Detail</th></tr>
+          </thead>
+          <tbody>
+            {#for p of snap().value.processes key={p.pid + '_' + p.name}}
+              <tr>
+                <td><span class={p.alive ? 'dot dot-live' : 'dot dot-dead'}></span></td>
+                <td><strong>{p.name}</strong></td>
+                <td><span class="mesh-badge">{p.role}</span></td>
+                <td class="mesh-pid">{p.pid}</td>
+                <td class="mesh-muted" style="font-size:var(--text-xs)">
+                  {p.version || ''}{p.log ? ' · ' + p.log : ''}{p.cmdline_preview || ''}
+                </td>
+              </tr>
+            {/for}
+          </tbody>
+        </table>
+      {/if}
+    </section>
+
+    <section class="mesh-section">
+      <header class="mesh-section-head">
+        <h2>Integrations</h2>
+        <span class="n">{snap().value.integrations.length}</span>
+        <span class="desc">external bridges + channel capabilities</span>
+      </header>
+      <table class="mesh-table">
+        <thead><tr><th></th><th>Name</th><th>Kind</th><th>Hint</th></tr></thead>
+        <tbody>
+          {#for i of snap().value.integrations key={i.name}}
+            <tr>
+              <td><span class={i.active ? 'dot dot-live' : 'dot dot-dead'}></span></td>
+              <td><strong>{i.name}</strong></td>
+              <td><span class="mesh-badge">{i.kind}</span></td>
+              <td class="mesh-muted">{i.hint}</td>
+            </tr>
+          {/for}
+        </tbody>
+      </table>
+    </section>
+  
+  {/async}
+
+  <sui-drawer
+    size="lg"
+    prop:open={attachOpen()}
+    on:sui-close={closeAttach}
+    on:sui-dismiss={closeAttach}>
+    <span slot="title">Agent session</span>
+    <span slot="description">{attachSlug()}</span>
+    <div class="mesh-attach-body" style="height: 60vh; min-height: 320px; display: flex;">
+      {#if attachOpen() && attachSlug()}
+        <sui-agent-attach slug={attachSlug()} style="flex: 1; min-height: 0"></sui-agent-attach>
+      {/if}
+    </div>
+  </sui-drawer>
 </div>
