@@ -36,6 +36,20 @@ pub fn resolve(
 
     let mut attempts: Vec<String> = Vec::new();
 
+    // First-party bundled views ship in apps/shell/views (e.g. studio) — they
+    // take precedence over project `views/` (reference) and `.ship/views` (user).
+    // The three roots mirror the distribution buckets.
+    {
+        let fp_root = project_root.join("apps").join("shell").join("views").join(name);
+        let mut fp_params: HashMap<String, String> = HashMap::new();
+        let mut fp_tried: Vec<PathBuf> = Vec::new();
+        if let Some(found) =
+            walk_disk_with_leaf(&fp_root, &segments, "page.sui", &mut fp_params, &mut fp_tried)
+        {
+            return read_resolved(found, fp_params);
+        }
+    }
+
     let new_root = project_root.join("views").join(name);
     let mut params: HashMap<String, String> = HashMap::new();
     let mut tried: Vec<PathBuf> = Vec::new();
