@@ -141,6 +141,12 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.views.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+
+  // Post an annotation (canvas/observation). Identity-bound. C1.
+  rpc PostAnnotation(PostAnnotationRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.annotations.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -243,4 +249,9 @@ message ViewSignalRequest {
 message ViewEditModeRequest {
   string view = 1;
   string session_id = 2;
+}
+
+message PostAnnotationRequest {
+  // AnnotationEvent, serialized as JSON (nested target/intent/note/etc.).
+  string event_json = 1;
 }

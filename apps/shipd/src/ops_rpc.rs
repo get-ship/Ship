@@ -16,8 +16,8 @@ use ship_ops_rpc::{
     OwnedGitPathsRequestView, OwnedGitPushRequestView, OwnedGitRemoteRequestView,
     OwnedMeshBroadcastRequestView, OwnedMeshSendRequestView, OwnedMetaRequestView,
     OwnedStepDoneRequestView, OwnedSteerAgentRequestView, OwnedStopAgentRequestView,
-    OwnedUpdateJobStatusRequestView, OwnedViewEditModeRequestView, OwnedViewPatchRequestView,
-    OwnedViewSignalRequestView, ReadOpsServiceExt,
+    OwnedPostAnnotationRequestView, OwnedUpdateJobStatusRequestView, OwnedViewEditModeRequestView,
+    OwnedViewPatchRequestView, OwnedViewSignalRequestView, ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -576,6 +576,36 @@ impl CommandOpsService for OpsImpl {
                 .to_string(),
             ..Default::default()
         }))
+    }
+
+    // Post an annotation. Bridges the shared core's axum Response → JsonResponse
+    // (the #78 service-lift will give the core a typed result and drop this).
+    #[allow(refining_impl_trait)]
+    async fn post_annotation(
+        &self,
+        ctx: RequestContext,
+        req: OwnedPostAnnotationRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let auth = ctx
+            .extensions
+            .get::<AuthContext>()
+            .ok_or_else(|| ConnectError::unauthenticated("agent identity required"))?;
+        let ev: ship_substrate::events::annotation::AnnotationEvent =
+            serde_json::from_str(req.event_json)
+                .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
+        let resp = crate::routes::annotations_api::post_annotation_core(&self.state, auth, ev).await;
+        let status = resp.status();
+        let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
+            .await
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        let text = String::from_utf8_lossy(&bytes).into_owned();
+        if status.is_success() {
+            Ok(Response::new(JsonResponse { json: text, ..Default::default() }))
+        } else if status.is_client_error() {
+            Err(ConnectError::invalid_argument(text))
+        } else {
+            Err(ConnectError::internal(text))
+        }
     }
 }
 
