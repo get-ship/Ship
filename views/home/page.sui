@@ -61,6 +61,16 @@
           <h2 class="home-hero-greet" data-test="home-hero">{greeting()}.</h2>
           <p class="home-hero-sub">{heroLine()}</p>
         </div>
+
+        <section class="home-launchpad" data-test="home-launchpad" aria-label="Apps" data-view-enter>
+          {#for app of apps() key={app.href}}
+            <a class="home-launch" href={app.href} on:click={(e) => goNav(e, app.href)} data-test="home-launch">
+              <span class="home-launch-ico"><sui-icon name={app.icon} aria-hidden="true"></sui-icon></span>
+              <span class="home-launch-label">{app.name}</span>
+            </a>
+          {/for}
+        </section>
+
         <div class="home-stats" role="list" aria-label="Workspace statistics" data-test="home-stats" data-view-enter>
           <div class="home-stat-wrap home-stat-wrap--jobs" role="listitem">
             <sui-stat>

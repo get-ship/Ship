@@ -76,6 +76,19 @@ const LINKS: readonly QuickLink[] = [
   { key: 'settings',  label: 'Settings',  icon: 'settings', href: '/settings'    },
 ]
 
+// Desktop app launchers — the agreed surfaces, surfaced as a launchpad on the
+// per-space home. View-local for now (the launcher tile is not yet a pack).
+interface AppLauncher { name: string; icon: string; href: string }
+const APPS: readonly AppLauncher[] = [
+  { name: 'Canvas',      icon: 'image',      href: '/canvas' },
+  { name: 'Pipelines',   icon: 'workflow',   href: '/pipelines' },
+  { name: 'Collections', icon: 'database',   href: '/collections' },
+  { name: 'Git',         icon: 'git-branch', href: '/git' },
+  { name: 'Studio',      icon: 'sliders',    href: '/studio' },
+  { name: 'Library',     icon: 'package',    href: '/library' },
+  { name: 'Activity',    icon: 'activity',   href: '/activity' },
+]
+
 interface AgentRow extends DashAgent { initials: string }
 
 const initialOf = (agent: DashAgent): string =>
@@ -116,6 +129,7 @@ export default controller<Scope>({
       initials: initialOf(a),
     })),
     quickLinks:       () => LINKS,
+    apps:             () => APPS,
     isFirstRun: (s) => {
       const d = readDash(s)
       return d.stats.active + d.stats.history === 0
