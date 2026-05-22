@@ -17,10 +17,13 @@ use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 
 mod agent;
+mod annotations;
 mod git;
 mod mesh;
 mod pipeline;
 mod project;
+mod surfaces;
+mod views;
 
 /// Ambient context for a command: the runtime + the authenticated caller
 /// (identity + emit context). The write-side analog of passing `&ApiState` to
@@ -107,10 +110,27 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
     if let Some(value) = agent::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
+    if let Some(value) = surfaces::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = views::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = annotations::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
     Err(CommandError::unknown_command(name))
 }
 
 // ── arg helpers (shared by domain handlers) ──────────────────────────
+
+/// The caller's agent id (identity-bound commands require it).
+pub(crate) fn require_agent(ctx: &CommandCtx<'_>) -> Result<String, CommandError> {
+    ctx.auth
+        .agent_id
+        .clone()
+        .ok_or_else(|| CommandError::forbidden("agent identity required"))
+}
 
 pub(crate) fn req_str(args: &Value, key: &str) -> Result<String, CommandError> {
     args.get(key)
@@ -124,6 +144,46 @@ pub(crate) fn opt_str(args: &Value, key: &str) -> Option<String> {
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
         .map(str::to_string)
+}
+
+/// String-array arg (e.g. `paths`, `depends_on`).
+pub(crate) fn str_array(args: &Value, key: &str) -> Vec<String> {
+    args.get(key)
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .unwrap_or_default()
+}
+
+/// `<string,string>` map arg (e.g. `vars`, `outputs`).
+pub(crate) fn str_map(args: &Value, key: &str) -> std::collections::BTreeMap<String, String> {
+    args.get(key)
+        .and_then(|v| v.as_object())
+        .map(|m| {
+            m.iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Bridge an interim axum-`Response` core into a command `Value`/error. The #78
+/// service-lift removes this once those cores return typed values directly.
+pub(crate) async fn response_to_value(
+    resp: axum::response::Response,
+) -> Result<Value, CommandError> {
+    let status = resp.status();
+    let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
+        .await
+        .map_err(|e| CommandError::service(e.to_string()))?;
+    if status.is_success() {
+        Ok(serde_json::from_slice(&bytes).unwrap_or(Value::Null))
+    } else {
+        Err(CommandError {
+            status,
+            code: if status.is_client_error() { "bad_args" } else { "service_error" },
+            message: String::from_utf8_lossy(&bytes).into_owned(),
+        })
+    }
 }
 
 #[cfg(test)]

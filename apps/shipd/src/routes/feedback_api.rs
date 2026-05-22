@@ -94,6 +94,17 @@ impl FeedbackGuard {
 
 // ───────────────────────── Handler ─────────────────────────
 
+/// Process-wide feedback guard for the command-registry path (the REST route
+/// still injects its own via Extension; both unify when REST thins to
+/// `command::call` in the #78 lift).
+static FEEDBACK_GUARD: std::sync::LazyLock<Arc<FeedbackGuard>> =
+    std::sync::LazyLock::new(FeedbackGuard::new);
+
+/// Shared feedback guard for callers without a request-extension guard.
+pub fn shared_guard() -> &'static FeedbackGuard {
+    &FEEDBACK_GUARD
+}
+
 #[utoipa::path(
     operation_id = "postFeedback",
     post,
