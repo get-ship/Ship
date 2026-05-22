@@ -128,6 +128,75 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         blast_radius: "C1_WORKSPACE",
         sensitive: false,
     },
+    // ── git (caller's worktree) ───────────────────────────────────
+    CommandDescriptor {
+        name: "git.push",
+        description: "Push the caller's worktree to a remote.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "remote", kind: "string?", required: false },
+            ArgDescriptor { name: "force", kind: "bool?", required: false },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.fetch",
+        description: "Fetch a remote in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "remote", kind: "string?", required: false },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.pull",
+        description: "Pull (ff-only) in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "remote", kind: "string?", required: false },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.stage",
+        description: "Stage paths in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "paths", kind: "string[]", required: true },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.unstage",
+        description: "Unstage paths in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "paths", kind: "string[]", required: true },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.commit",
+        description: "Commit staged changes in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "message", kind: "string", required: true },
+            ArgDescriptor { name: "author", kind: "string?", required: false },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
 ];
 
 /// The full registry op catalog. Order mirrors `services::registry::call`'s

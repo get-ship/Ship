@@ -16,6 +16,7 @@ use serde_json::Value;
 use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 
+mod git;
 mod mesh;
 mod pipeline;
 mod project;
@@ -90,6 +91,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = git::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     Err(CommandError::unknown_command(name))
