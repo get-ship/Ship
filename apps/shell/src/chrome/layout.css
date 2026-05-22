@@ -167,9 +167,10 @@ body.focus-mode #ship-shell-bottom {
   display: none;
 }
 
-/* Home is a chrome-like surface — it owns its own dock, so the shell status
-   strip is redundant there. Keeps nav-top (cmdk · spaces · account). */
-body[data-view="home"] #ship-shell-bottom {
+/* First-party layout contract: a surface declares its chrome `layout` (set on
+   body[data-layout] by the shell). "desktop" owns its own dock, so the status
+   strip is redundant — hide it. Keeps nav-top (cmdk · spaces · account). */
+body[data-layout="desktop"] #ship-shell-bottom {
   display: none;
 }
 

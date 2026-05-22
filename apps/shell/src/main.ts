@@ -293,14 +293,28 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
   // First-party CHROME surfaces (apps/shell/src/components/*) — rendered
   // directly as registered custom elements, NOT daemon-served views. They
   // self-mount via customElements + the SUI runtime. Map of route → tag.
-  const chromeTag = !r.sub
-    ? ({ home: 'sui-home', activity: 'sui-activity', account: 'sui-account', library: 'sui-library', setup: 'sui-setup', settings: 'sui-settings', canvas: 'sui-canvas-app' } as Record<string, string>)[r.view]
+  // Each first-party chrome surface declares a chrome `layout`. The shell
+  // applies it via body[data-layout], which layout.css honors — e.g. "desktop"
+  // hides the status strip (home owns its own dock). This is the first-party
+  // layout contract (GAP-5): only these declare a layout; daemon/3rd-party
+  // views are always "default" and get no chrome privilege.
+  const chromeSurface = !r.sub
+    ? ({
+        home:     { tag: 'sui-home',        layout: 'desktop' },
+        activity: { tag: 'sui-activity' },
+        account:  { tag: 'sui-account' },
+        library:  { tag: 'sui-library' },
+        setup:    { tag: 'sui-setup' },
+        settings: { tag: 'sui-settings' },
+        canvas:   { tag: 'sui-canvas-app' },
+      } as Record<string, { tag: string; layout?: string }>)[r.view]
     : undefined
-  if (chromeTag) {
+  if (chromeSurface) {
     disposeCurrentMount()
     publishScope(null)
-    slot.innerHTML = `<${chromeTag}></${chromeTag}>`
+    slot.innerHTML = `<${chromeSurface.tag}></${chromeSurface.tag}>`
     document.body.dataset.view = r.view
+    document.body.dataset.layout = chromeSurface.layout ?? 'default'
     currentRoute = r
     currentViewId = null
     return
@@ -371,11 +385,13 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
     currentHandle = handle
     currentRoute = r
     currentViewId = nextViewId
-    // Tag the body with the active view so chrome CSS can adapt per-surface.
-    // home is chrome-like (owns its own dock) — layout.css hides the status
-    // strip there. NB: the view payload doesn't carry the manifest `layout`,
-    // so this is view-name-keyed for now (see PLATFORM-GAPS GAP-5).
+    // Tag the body with the active view; daemon-served views get the "default"
+    // chrome layout (no privilege). First-party chrome surfaces declare their
+    // own layout above. (When the daemon surfaces manifest `layout` in the
+    // payload, read it here to extend the contract to first-party daemon views
+    // — PLATFORM-GAPS GAP-5 part b.)
     document.body.dataset.view = r.view
+    document.body.dataset.layout = 'default'
     publishScope(handle.scope as unknown as Record<string, unknown>)
     // View-authoring chrome subscribes per (project, view). Pass the
     // view name; the chrome reads the persisted edit-mode signal and
