@@ -85,6 +85,12 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.mesh.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+
+  // Broadcast a mesh message (optionally capability-filtered). Caller-as-self. C1.
+  rpc MeshBroadcast(MeshBroadcastRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.mesh.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -140,4 +146,11 @@ message MeshSendRequest {
   string to = 2;
   // Arbitrary JSON message body, serialized as a string.
   string body_json = 3;
+}
+
+message MeshBroadcastRequest {
+  string from = 1;
+  string body_json = 2;
+  // Optional capability filter (empty = all actors).
+  string capability_filter = 3;
 }
