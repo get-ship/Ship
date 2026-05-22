@@ -196,6 +196,18 @@
         "vitest": "^4.1.5",
       },
     },
+    "packages/components/pipelines": {
+      "name": "@ship/pipelines",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/sui-build": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "vitest": "^4.1.5",
+      },
+    },
     "packages/components/primitives": {
       "name": "@ship/primitives",
       "version": "0.1.0",
@@ -918,6 +930,8 @@
     "@ship/deck-bundler": ["@ship/deck-bundler@workspace:packages/deck/bundler"],
 
     "@ship/docs": ["@ship/docs@workspace:apps/docs"],
+
+    "@ship/pipelines": ["@ship/pipelines@workspace:packages/components/pipelines"],
 
     "@ship/primitives": ["@ship/primitives@workspace:packages/components/primitives"],
 
