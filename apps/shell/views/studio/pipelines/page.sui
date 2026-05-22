@@ -1,14 +1,8 @@
+<data name="summaries" source="ship.pipelines.summaries()" live />
+
 <div class="studio-view" data-test="studio-view">
   <sui-studio-rail></sui-studio-rail>
   <main class="studio-content" data-test="studio-content">
-{#async ctx}
-  {:loading}
-  <sui-spinner size="md" centered></sui-spinner>
-
-  {:error err}
-  <sui-alert tone="destructive">Failed to load pipelines: {err.message}</sui-alert>
-
-  {:ok}
 {#if defs() !== undefined}
 <div class="ship-view ship-view-pipelines">
   <div class="ship-pipelines-wrap">
@@ -171,6 +165,5 @@
   {/if}
 </div>
 {/if}
-{/async}
   </main>
 </div>

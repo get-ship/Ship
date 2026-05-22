@@ -1,4 +1,4 @@
-import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type PipelineDef = {
@@ -17,34 +17,21 @@ type SummariesCtx = {
 }
 
 const EMPTY: SummariesCtx = { stats_subtitle: '', defs: [], active_runs: [], providers: [] }
-const read = (envelope: unknown): SummariesCtx => {
-  const env = envelope as { kind?: string; value?: SummariesCtx } | undefined
-  return env?.kind === 'ok' && env.value ? env.value : EMPTY
+// The view feeds data through the top-level `<data name="summaries">` element
+// (the agents pattern). derived: sections receive the live envelope as a scope
+// arg; unwrap → the value (or null while loading).
+const read = (summaries: unknown): SummariesCtx => {
+  const v = unwrap(summaries) as SummariesCtx | undefined
+  return v && Array.isArray(v.defs) ? v : EMPTY
 }
 
 export default controller<Scope>({
-  scope: ({ ship, route }) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const s = ship as any
+  scope: ({ route }) => {
     const q = derived(() => String(route.query.q() ?? ''))
     const agent = derived(() => String(route.query.agent() ?? ''))
     const pipeline = derived(() => String(route.query.pipeline() ?? ''))
     const status = derived(() => String(route.query.status() ?? ''))
     const tab = derived(() => String(route.query.tab() ?? ''))
-    const ctx = live(() => s.pipelines.summaries({
-      q: q(), agent: agent(), pipeline: pipeline(), status: status(), tab: tab(),
-    }))
-    const defs = derived(() => read(ctx()).defs.map((d) => ({
-      ...d, success_pct: Math.floor(d.success_rate * 100),
-    })))
-    const activeRuns = derived(() => read(ctx()).active_runs.map((r) => ({
-      ...r,
-      state_attr: r.state.replace('-', ''),
-      steps: r.steps?.map((step, i, arr) => ({ ...step, isLast: i === arr.length - 1 })),
-    })))
-    const providers = derived(() => read(ctx()).providers)
-    const workspaceId = derived(() => read(ctx()).workspace_id ?? null)
-    const statsSubtitle = derived(() => read(ctx()).stats_subtitle)
     const dispatchOpen = signal(false)
     const dispatchSpec = signal('')
     const dispatchPipeline = signal('')
@@ -55,23 +42,33 @@ export default controller<Scope>({
     const newPipeError = signal('')
     const newPipeCreating = signal(false)
     return {
-      ctx, q, agent, pipeline, status, tab,
-      defs, activeRuns, providers, workspaceId, statsSubtitle,
+      q, agent, pipeline, status, tab,
       dispatchOpen, dispatchSpec, dispatchPipeline, dispatchProvider, dispatchHeadless,
       newPipeOpen, newPipeName, newPipeError, newPipeCreating,
     }
   },
+  derived: {
+    defs: ({ summaries }) => read(summaries).defs.map((d) => ({
+      ...d, success_pct: Math.floor(d.success_rate * 100),
+    })),
+    activeRuns: ({ summaries }) => read(summaries).active_runs.map((r) => ({
+      ...r,
+      state_attr: r.state.replace('-', ''),
+      steps: r.steps?.map((step, i, arr) => ({ ...step, isLast: i === arr.length - 1 })),
+    })),
+    providers: ({ summaries }) => read(summaries).providers,
+    workspaceId: ({ summaries }) => read(summaries).workspace_id ?? null,
+    statsSubtitle: ({ summaries }) => read(summaries).stats_subtitle,
+  },
   on: {
     openDispatch: (s) => {
-      const ds = s as any
-      if (!ds.dispatchPipeline && (ds.defs as PipelineDef[]).length > 0) {
-        ds.dispatchPipeline = (ds.defs as PipelineDef[])[0].name
-      }
+      const ds = s as unknown as { dispatchPipeline: string; defs: PipelineDef[]; dispatchOpen: boolean }
+      if (!ds.dispatchPipeline && ds.defs.length > 0) ds.dispatchPipeline = ds.defs[0].name
       ds.dispatchOpen = true
     },
-    closeDispatch: (s) => { (s as any).dispatchOpen = false },
+    closeDispatch: (s) => { (s as unknown as { dispatchOpen: boolean }).dispatchOpen = false },
     dispatchRun: async (s) => {
-      const ds = s as any
+      const ds = s as unknown as { dispatchPipeline: string; dispatchSpec: string; dispatchProvider: string; dispatchHeadless: boolean; dispatchOpen: boolean }
       const name = String(ds.dispatchPipeline)
       if (!name) return
       await fetch(`/api/v1/pipelines/${encodeURIComponent(name)}/dispatch`, {
@@ -81,11 +78,11 @@ export default controller<Scope>({
       })
       ds.dispatchOpen = false
     },
-    openNewPipe: (s) => { const ds = s as any; ds.newPipeOpen = true; ds.newPipeName = ''; ds.newPipeError = '' },
-    closeNewPipe: (s) => { (s as any).newPipeOpen = false },
+    openNewPipe: (s) => { const ds = s as unknown as { newPipeOpen: boolean; newPipeName: string; newPipeError: string }; ds.newPipeOpen = true; ds.newPipeName = ''; ds.newPipeError = '' },
+    closeNewPipe: (s) => { (s as unknown as { newPipeOpen: boolean }).newPipeOpen = false },
     createPipeline: async (s) => {
-      const ds = s as any
-      const ws = ds.workspaceId as string | null
+      const ds = s as unknown as { workspaceId: string | null; newPipeName: string; newPipeError: string; newPipeCreating: boolean }
+      const ws = ds.workspaceId
       if (!ws) return
       const name = String(ds.newPipeName).trim()
       if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {
@@ -100,8 +97,8 @@ export default controller<Scope>({
         )
         if (resp.ok) { window.location.href = `/pipelines/focus/${encodeURIComponent(name)}?edit=1`; return }
         const parsed = await resp.json().catch(() => ({}))
-        ds.newPipeError = parsed?.data?.error ?? `HTTP ${resp.status}`
-      } catch (err: any) { ds.newPipeError = 'network: ' + (err?.message ?? String(err)) }
+        ds.newPipeError = (parsed as { data?: { error?: string } })?.data?.error ?? `HTTP ${resp.status}`
+      } catch (err) { ds.newPipeError = 'network: ' + ((err as Error)?.message ?? String(err)) }
       finally { ds.newPipeCreating = false }
     },
     stopRun: async (_s, jobId: string) => {
