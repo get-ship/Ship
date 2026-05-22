@@ -14,6 +14,9 @@ use ship_ops_rpc::{
     JsonResponse, MetaResponse, OpsService, OpsServiceExt, OwnedMetaRequestView, ReadOpsServiceExt,
 };
 
+use ship_substrate::events::CallerKind;
+
+use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 
 /// Daemon-side `OpsService`. Holds `ApiState` so ported ops can reach the
@@ -67,7 +70,53 @@ pub fn router(state: ApiState) -> axum::Router {
     let svc = Arc::new(OpsImpl { state });
     let router = OpsServiceExt::register(svc.clone(), connectrpc::Router::new());
     let router = ReadOpsServiceExt::register(svc, router);
-    router.into_axum_router()
+    router
+        .into_axum_router()
+        .layer(axum::middleware::from_fn(gate))
+}
+
+// ── Enforcement ─────────────────────────────────────────────────────────────
+
+/// Decide whether `auth` may call an op with this policy. C2
+/// (Ship/cloud-dangerous) is off the agent surface — only a human-operator
+/// credential (a CLI caller that is not a minted agent session) may call it.
+/// C0/C1 allow any authenticated caller (C1 = the user's own-space risk).
+///
+/// NOTE: a host agent that reads the on-disk daemon token also presents as a
+/// CLI caller — fully closing the C2 boundary needs the human-session
+/// credential of the elevated surface (#72). This is the credential-level gate.
+fn gate_decision(policy: &OpPolicy, auth: &AuthContext) -> Result<(), &'static str> {
+    match policy.blast_radius {
+        BlastRadius::C2Elevated => {
+            if matches!(auth.caller_kind, CallerKind::Cli) && auth.agent_id.is_none() {
+                Ok(())
+            } else {
+                Err("op requires a human-operator credential")
+            }
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Axum middleware on the op routes: look up the method's policy and enforce
+/// `gate_decision` against the `AuthContext` injected by `auth_middleware`.
+async fn gate(req: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    let path = req.uri().path().to_string();
+    if let Some(policy) = policy_for(&path) {
+        match req.extensions().get::<AuthContext>() {
+            Some(auth) => {
+                if let Err(msg) = gate_decision(policy, auth) {
+                    return (axum::http::StatusCode::FORBIDDEN, msg).into_response();
+                }
+            }
+            None => {
+                return (axum::http::StatusCode::UNAUTHORIZED, "missing auth context")
+                    .into_response();
+            }
+        }
+    }
+    next.run(req).await
 }
 
 // ── Policy gate ─────────────────────────────────────────────────────────────
@@ -194,6 +243,36 @@ mod tests {
         assert_eq!(p.blast_radius, BlastRadius::C0Safe);
     }
 
+    fn auth(kind: CallerKind, agent: Option<&str>) -> AuthContext {
+        AuthContext {
+            caller_kind: kind,
+            agent_id: agent.map(str::to_string),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+        }
+    }
+
+    fn policy(blast: BlastRadius) -> OpPolicy {
+        OpPolicy { capability: "ship.x.op".into(), blast_radius: blast, sensitive: false }
+    }
+
+    #[test]
+    fn gate_allows_c0_c1_for_any_authenticated_caller() {
+        let agent = auth(CallerKind::Mcp, Some("rust-lane"));
+        assert!(gate_decision(&policy(BlastRadius::C0Safe), &agent).is_ok());
+        assert!(gate_decision(&policy(BlastRadius::C1Workspace), &agent).is_ok());
+    }
+
+    #[test]
+    fn gate_denies_c2_for_agents_allows_human_operator() {
+        let c2 = policy(BlastRadius::C2Elevated);
+        // Minted agent session → denied.
+        assert!(gate_decision(&c2, &auth(CallerKind::Mcp, Some("rust-lane"))).is_err());
+        // Human operator (CLI, no agent id) → allowed.
+        assert!(gate_decision(&c2, &auth(CallerKind::Cli, None)).is_ok());
+    }
+
     // Full vertical: serve the real router (with test ApiState) on an ephemeral
     // port and call Meta through the generated client. Multi-thread flavor so
     // any block_in_place in ported ops is safe.
@@ -205,7 +284,14 @@ mod tests {
         let harness = crate::test_harness::TestDaemon::new().await;
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
-        let app = router(harness.state.clone());
+        // Inject an AuthContext the way the daemon's auth_middleware does (the
+        // gate requires one); a human-operator credential clears any class.
+        let app = router(harness.state.clone()).layer(axum::middleware::from_fn(
+            |mut req: axum::extract::Request, next: axum::middleware::Next| async move {
+                req.extensions_mut().insert(auth(CallerKind::Cli, None));
+                next.run(req).await
+            },
+        ));
         tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
 
         let uri: http::Uri = format!("http://{addr}").parse().unwrap();
