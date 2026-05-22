@@ -77,6 +77,18 @@ because** the streaming/polyglot/sidecar reasons already commit you to Connect �
 they didn't, Rust→specta is fine and proto is pure overhead. The benefit is deleting
 a parallel toolchain, not "proto > specta" in the abstract.
 
+## Read-op porting (decided during #74 build)
+
+The registry already exists on main (`schema::OPS` + per-domain
+`try_dispatch(name, args, …) -> Value`). Port the 54 **read** ops as **per-op
+Connect methods returning a shared `JsonResponse { string json }`**: each method
+carries its own `capability`/`blast_radius` proto options (the gate stays per-op,
+#67a holds for policy), but the body is the existing projection `Value`, wrapped —
+the impl calls `try_dispatch`. Ports all reads cheaply, no per-op message modeling;
+upgrade to a typed response message per-op only where a stable contract earns it.
+**Commands get fully-typed messages from the start** (they're the contracts that
+matter). Requires `OpsImpl` to hold `ApiState`.
+
 ## Decision 3 — capability + the gate
 
 Every op carries a **capability** and a **blast-radius class**. One central gate at
