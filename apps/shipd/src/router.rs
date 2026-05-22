@@ -304,7 +304,7 @@ pub fn build_router(
         .nest_service("/mcp", service)
         // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
         // auth_middleware below so the gate sees AuthContext. See ops_rpc.
-        .merge(crate::ops_rpc::router())
+        .merge(crate::ops_rpc::router(rt.clone()))
         .layer(axum::Extension(feedback_guard))
         .layer(axum::Extension(account_service))
         // Project the authed caller's identity + scopes into the shared

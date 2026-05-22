@@ -17,6 +17,13 @@ service OpsService {
     option (ship.ops.v1.capability) = "ship.meta.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+
+  // Account/session snapshot for the signed-in chip. First ported read op —
+  // body is the existing registry projection JSON (see JsonResponse). C0.
+  rpc AccountState(AccountStateRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.account.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
 }
 
 message MetaRequest {}
@@ -26,4 +33,12 @@ message MetaResponse {
   string version = 1;
   // Build identifier (git sha / build-info string).
   string build = 2;
+}
+
+message AccountStateRequest {}
+
+// Migration shape for ported read ops: the op's projection serialized as JSON.
+// Typed messages replace this per-op where a stable contract earns it.
+message JsonResponse {
+  string json = 1;
 }

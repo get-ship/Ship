@@ -9,12 +9,32 @@ use std::sync::{Arc, LazyLock};
 
 use buffa::{Message, UnknownFieldData};
 use buffa_descriptor::generated::descriptor::FileDescriptorSet;
-use connectrpc::{RequestContext, Response, ServiceResult};
-use ship_ops_rpc::{MetaResponse, OpsService, OpsServiceExt, OwnedMetaRequestView};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use ship_ops_rpc::{
+    JsonResponse, MetaResponse, OpsService, OpsServiceExt, OwnedAccountStateRequestView,
+    OwnedMetaRequestView,
+};
 
-/// Daemon-side `OpsService`. Stateless for the C0 `Meta` op; later ops will
-/// carry the daemon's shared state.
-pub struct OpsImpl;
+use crate::ship_runtime::ApiState;
+
+/// Daemon-side `OpsService`. Holds `ApiState` so ported ops can reach the
+/// registry dispatch (`services::registry::call`).
+pub struct OpsImpl {
+    state: ApiState,
+}
+
+impl OpsImpl {
+    /// Run a registry op by name and wrap its JSON projection in `JsonResponse`
+    /// — the migration shape for ported read ops (see ops.proto / the spec).
+    fn dispatch_json(&self, op: &str) -> ServiceResult<JsonResponse> {
+        let value = crate::services::registry::call(op, &serde_json::Value::Null, &self.state)
+            .map_err(|e| ConnectError::internal(format!("{op}: {e}")))?;
+        Ok(Response::new(JsonResponse {
+            json: value.to_string(),
+            ..Default::default()
+        }))
+    }
+}
 
 impl OpsService for OpsImpl {
     // The trait declares `-> impl Encodable<MetaResponse>`; the documented impl
@@ -34,13 +54,24 @@ impl OpsService for OpsImpl {
             ..Default::default()
         }))
     }
+
+    // Account/session snapshot. First ported read op — delegates to the
+    // existing registry dispatch and returns its JSON projection.
+    #[allow(refining_impl_trait)]
+    async fn account_state(
+        &self,
+        _ctx: RequestContext,
+        _request: OwnedAccountStateRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        self.dispatch_json("account.state")
+    }
 }
 
 /// The ConnectRPC op surface as an `axum::Router`, merged into the daemon's
 /// authenticated routes so `auth_middleware` wraps it (the gate will read the
 /// injected `AuthContext`). Wire paths: `/ship.ops.v1.OpsService/<Method>`.
-pub fn router() -> axum::Router {
-    Arc::new(OpsImpl)
+pub fn router(state: ApiState) -> axum::Router {
+    Arc::new(OpsImpl { state })
         .register(connectrpc::Router::new())
         .into_axum_router()
 }
@@ -158,5 +189,37 @@ mod tests {
         assert_eq!(p.capability, "ship.meta.read");
         assert_eq!(p.blast_radius, BlastRadius::C0Safe);
         assert!(!p.sensitive);
+    }
+
+    #[test]
+    fn ported_read_op_carries_its_policy() {
+        // account.state ported as a per-op method keeps its own proto policy.
+        let p = policy_for("ship.ops.v1.OpsService/AccountState")
+            .expect("AccountState policy must be present");
+        assert_eq!(p.capability, "ship.account.read");
+        assert_eq!(p.blast_radius, BlastRadius::C0Safe);
+    }
+
+    // Full vertical: serve the real router (with test ApiState) on an ephemeral
+    // port and call Meta through the generated client. Multi-thread flavor so
+    // any block_in_place in ported ops is safe.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn meta_round_trip_through_generated_client() {
+        use connectrpc::client::{ClientConfig, HttpClient};
+        use ship_ops_rpc::{MetaRequest, OpsServiceClient};
+
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = router(harness.state.clone());
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+
+        let uri: http::Uri = format!("http://{addr}").parse().unwrap();
+        let client = OpsServiceClient::new(HttpClient::plaintext(), ClientConfig::new(uri));
+        let resp = client
+            .meta(MetaRequest::default())
+            .await
+            .expect("Meta RPC should succeed over the wire");
+        assert_eq!(resp.view().version, env!("CARGO_PKG_VERSION"));
     }
 }
