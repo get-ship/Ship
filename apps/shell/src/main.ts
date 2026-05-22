@@ -292,7 +292,7 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
   // directly as registered custom elements, NOT daemon-served views. They
   // self-mount via customElements + the SUI runtime. Map of route → tag.
   const chromeTag = !r.sub
-    ? ({ home: 'sui-home', activity: 'sui-activity' } as Record<string, string>)[r.view]
+    ? ({ home: 'sui-home', activity: 'sui-activity', account: 'sui-account' } as Record<string, string>)[r.view]
     : undefined
   if (chromeTag) {
     disposeCurrentMount()
