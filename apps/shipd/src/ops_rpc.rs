@@ -16,8 +16,9 @@ use ship_ops_rpc::{
     OwnedGitPathsRequestView, OwnedGitPushRequestView, OwnedGitRemoteRequestView,
     OwnedMeshBroadcastRequestView, OwnedMeshSendRequestView, OwnedMetaRequestView,
     OwnedStepDoneRequestView, OwnedSteerAgentRequestView, OwnedStopAgentRequestView,
-    OwnedPostAnnotationRequestView, OwnedUpdateJobStatusRequestView, OwnedViewEditModeRequestView,
-    OwnedViewPatchRequestView, OwnedViewSignalRequestView, ReadOpsServiceExt,
+    OwnedPostAnnotationRequestView, OwnedPostFeedbackRequestView, OwnedUpdateJobStatusRequestView,
+    OwnedViewEditModeRequestView, OwnedViewPatchRequestView, OwnedViewSignalRequestView,
+    ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -594,18 +595,30 @@ impl CommandOpsService for OpsImpl {
             serde_json::from_str(req.event_json)
                 .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
         let resp = crate::routes::annotations_api::post_annotation_core(&self.state, auth, ev).await;
-        let status = resp.status();
-        let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
-            .await
-            .map_err(|e| ConnectError::internal(e.to_string()))?;
-        let text = String::from_utf8_lossy(&bytes).into_owned();
-        if status.is_success() {
-            Ok(Response::new(JsonResponse { json: text, ..Default::default() }))
-        } else if status.is_client_error() {
-            Err(ConnectError::invalid_argument(text))
-        } else {
-            Err(ConnectError::internal(text))
-        }
+        bridge_axum_response(resp).await
+    }
+
+    // Post feedback (rate-limited via FeedbackGuard from ctx.extensions). C1.
+    #[allow(refining_impl_trait)]
+    async fn post_feedback(
+        &self,
+        ctx: RequestContext,
+        req: OwnedPostFeedbackRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let auth = ctx
+            .extensions
+            .get::<AuthContext>()
+            .ok_or_else(|| ConnectError::unauthenticated("agent identity required"))?;
+        let guard = ctx
+            .extensions
+            .get::<std::sync::Arc<crate::routes::feedback_api::FeedbackGuard>>()
+            .ok_or_else(|| ConnectError::internal("feedback guard missing"))?;
+        let ev: ship_substrate::events::feedback::FeedbackEvent =
+            serde_json::from_str(req.event_json)
+                .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
+        let resp =
+            crate::routes::feedback_api::post_feedback_core(&self.state, auth, guard, ev).await;
+        bridge_axum_response(resp).await
     }
 }
 
@@ -640,6 +653,23 @@ fn require_agent(ctx: &RequestContext) -> Result<String, ConnectError> {
         .get::<AuthContext>()
         .and_then(|a| a.agent_id.clone())
         .ok_or_else(|| ConnectError::unauthenticated("agent identity required"))
+}
+
+/// Bridge a shared core's axum Response into a Connect JsonResponse/error.
+/// Interim — the #78 service-lift gives the cores typed results and removes this.
+async fn bridge_axum_response(resp: axum::response::Response) -> ServiceResult<JsonResponse> {
+    let status = resp.status();
+    let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
+        .await
+        .map_err(|e| ConnectError::internal(e.to_string()))?;
+    let text = String::from_utf8_lossy(&bytes).into_owned();
+    if status.is_success() {
+        Ok(Response::new(JsonResponse { json: text, ..Default::default() }))
+    } else if status.is_client_error() {
+        Err(ConnectError::invalid_argument(text))
+    } else {
+        Err(ConnectError::internal(text))
+    }
 }
 
 fn gate_decision(policy: &OpPolicy, auth: &AuthContext) -> Result<(), &'static str> {

@@ -112,7 +112,18 @@ pub async fn post_feedback(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Extension(guard): Extension<Arc<FeedbackGuard>>,
-    Json(mut ev): Json<FeedbackEvent>,
+    Json(ev): Json<FeedbackEvent>,
+) -> Response {
+    post_feedback_core(&state, &auth, &guard, ev).await
+}
+
+/// Shared core for the REST handler and the Connect command (#78 will give it a
+/// typed result + move it into a service).
+pub(crate) async fn post_feedback_core(
+    state: &ApiState,
+    auth: &AuthContext,
+    guard: &FeedbackGuard,
+    mut ev: FeedbackEvent,
 ) -> Response {
     // Allow server-side id generation for view-authored feedback where the
     // template can't easily produce a ULID. Empty string or any string that
@@ -155,13 +166,13 @@ pub async fn post_feedback(
         if let Err(e) = state.view_sessions().broadcast_feedback(&view_id, &payload).await {
             return session_err(e);
         }
-        if let Err(resp) = emit_kernel(&state, &auth, &ev, &view_id).await {
+        if let Err(resp) = emit_kernel(state, auth, &ev, &view_id).await {
             return resp;
         }
     } else {
         // Workspace broadcast path. Use the feedback id as the entity id so
         // every broadcast is independently addressable on the event log.
-        if let Err(resp) = emit_kernel(&state, &auth, &ev, &ev.id).await {
+        if let Err(resp) = emit_kernel(state, auth, &ev, &ev.id).await {
             return resp;
         }
     }

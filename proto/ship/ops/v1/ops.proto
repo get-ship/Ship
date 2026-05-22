@@ -147,6 +147,12 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.annotations.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+
+  // Post feedback (canvas/observation; rate-limited). Identity-bound. C1.
+  rpc PostFeedback(PostFeedbackRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.feedback.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -253,5 +259,10 @@ message ViewEditModeRequest {
 
 message PostAnnotationRequest {
   // AnnotationEvent, serialized as JSON (nested target/intent/note/etc.).
+  string event_json = 1;
+}
+
+message PostFeedbackRequest {
+  // FeedbackEvent, serialized as JSON.
   string event_json = 1;
 }
