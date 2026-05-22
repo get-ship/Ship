@@ -1,0 +1,66 @@
+<!--
+  <sui-pipeline-trigger> — the trigger primitive. One shape, four glyphs:
+  webhook · cron · file · manual. Hue + glyph keyed to kind; `active` lights it.
+
+  Props:  kind (webhook|cron|file|manual) · active
+  Slots:  default = label (the trigger expr) · sub = secondary detail
+  Parts:  trigger · glyph · kind
+-->
+<prop name="kind" values="webhook|cron|file|manual" default="manual" reflect />
+<prop name="active" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: block;
+    --type-agent: oklch(0.6 0.18 35);
+    --type-gate:  oklch(0.6 0.16 260);
+    --hue: var(--muted-foreground);
+  }
+  :host([hidden]) { display: none; }
+  :host([kind='webhook']) { --hue: var(--type-agent); }
+  :host([kind='cron'])    { --hue: var(--type-gate); }
+  :host([kind='file'])    { --hue: var(--success); }
+  :host([kind='manual'])  { --hue: var(--warning); }
+
+  .trigger {
+    display: flex; gap: 10px; padding: 6px 8px; align-items: center;
+    border-radius: var(--radius-md); border: 1px solid transparent;
+  }
+  :host([active]) .trigger {
+    background: color-mix(in oklch, var(--hue) 8%, transparent);
+    border-color: color-mix(in oklch, var(--hue) 35%, var(--border));
+  }
+  .glyph {
+    width: 24px; height: 24px; border-radius: var(--radius-sm);
+    display: grid; place-items: center; font-family: var(--font-mono);
+    font-size: 13px; flex-shrink: 0;
+    background: color-mix(in oklch, var(--hue) 14%, transparent); color: var(--hue);
+  }
+  :host([kind='webhook']) .glyph::before { content: '↘'; }
+  :host([kind='cron'])    .glyph::before { content: '◴'; }
+  :host([kind='file'])    .glyph::before { content: '◫'; }
+  :host([kind='manual'])  .glyph::before { content: '▶'; }
+
+  .body { min-width: 0; }
+  .kind {
+    font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase;
+    letter-spacing: 0.1em; font-weight: 700; color: var(--hue);
+  }
+  :host([kind='webhook']) .kind::before { content: 'webhook'; }
+  :host([kind='cron'])    .kind::before { content: 'cron'; }
+  :host([kind='file'])    .kind::before { content: 'file'; }
+  :host([kind='manual'])  .kind::before { content: 'manual'; }
+
+  .label { font-family: var(--font-mono); font-size: 11px; color: var(--foreground); }
+  .sub { font-family: var(--font-mono); font-size: 9.5px; color: var(--muted-foreground); }
+  .sub:not(:has(::slotted(*))) { display: none; }
+</style>
+
+<div class="trigger" part="trigger">
+  <span class="glyph" part="glyph"></span>
+  <div class="body">
+    <div class="kind" part="kind"></div>
+    <div class="label"><slot></slot></div>
+    <div class="sub"><slot name="sub"></slot></div>
+  </div>
+</div>
