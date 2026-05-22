@@ -12,7 +12,8 @@ use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_ops_rpc::{
     CommandOpsService, CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
-    OwnedMetaRequestView, OwnedUpdateJobStatusRequestView, ReadOpsServiceExt,
+    OwnedActivateProjectRequestView, OwnedMetaRequestView, OwnedUpdateJobStatusRequestView,
+    ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -104,6 +105,31 @@ impl CommandOpsService for OpsImpl {
             }
         })?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    // Switch the daemon's active project. Calls the platform service directly
+    // (already a reusable core — no extraction needed). C1.
+    #[allow(refining_impl_trait)]
+    async fn activate_project(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedActivateProjectRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let record = ship_platform::projects::switch_to(self.state.kernel(), req.id)
+            .await
+            .map_err(|e| {
+                let msg = e.to_string();
+                if msg.contains("not known") {
+                    ConnectError::invalid_argument(msg)
+                } else {
+                    ConnectError::internal(msg)
+                }
+            })?;
+        let json = serde_json::json!({
+            "ok": true,
+            "active": { "id": record.id, "name": record.name, "path": record.path },
+        });
+        Ok(Response::new(JsonResponse { json: json.to_string(), ..Default::default() }))
     }
 }
 

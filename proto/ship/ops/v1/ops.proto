@@ -48,6 +48,12 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.runtime.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+
+  // Switch the daemon's active project. C1 — the user's own daemon state.
+  rpc ActivateProject(ActivateProjectRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.projects.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -59,4 +65,8 @@ message UpdateJobStatusRequest {
   string gate_agent = 5;
   string blocker = 6;
   string error = 7;
+}
+
+message ActivateProjectRequest {
+  string id = 1;
 }
