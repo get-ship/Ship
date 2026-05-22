@@ -1,4 +1,5 @@
 pub mod docker;
+pub mod lima;
 pub mod srt;
 
 #[cfg(target_os = "linux")]
@@ -11,6 +12,7 @@ pub mod youki;
 pub mod youki_sidecar;
 
 pub use docker::{Docker, DockerConfig};
+pub use lima::{Lima, LimaConfig};
 pub use srt::{render_settings, SrtSettings};
 
 #[cfg(target_os = "linux")]
