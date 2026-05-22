@@ -10,6 +10,7 @@ members = [
     "crates/core/ship-pipelines",
     "crates/core/ship-types",
     "crates/core/ship-gateway-client",
+    "crates/core/ship-ops-rpc",
     "crates/core/ship-analytics",
     "crates/core/ship-supervisor",
     "crates/sui/compiler",
