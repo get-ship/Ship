@@ -1,6 +1,7 @@
-import { controller, signal, derived, ref } from '@ship/sui-runtime'
+import { controller, signal, derived, ref, live } from '@ship/sui-runtime'
+import { liveExpr } from '@ship/sdk-client'
 import { route as routeFactory } from '@ship/sui-runtime/route'
-import type { Scope } from './page.sui'
+import type { Scope } from './sui-canvas-app.sui'
 
 const SUI_CANVAS_BUNDLE = '/_sui/sui-components/sui-canvas.js'
 // The shell SPA preloads the chrome aggregate; the SUI view-host
@@ -76,7 +77,9 @@ function newCanvasId(): string {
 }
 
 export default controller<Scope>({
-  scope: ({ agentsSummaries, artifactsList }) => {
+  scope: () => {
+    const agentsSummaries = live(() => liveExpr('ship.agents.summaries()'))
+    const artifactsList = live(() => liveExpr('ship.artifacts.list()'))
     const route = routeFactory()
     const initialId = route.query.canvas() || newCanvasId()
     const canvasId = signal(initialId)
@@ -118,7 +121,7 @@ export default controller<Scope>({
     return {
       canvasId, pairedAgentId, recentOpen, annMode, annThread, statusText,
       canvasEl, annLayerEl, shortId, annCount, pairedAgentLabel,
-      recentItems,
+      recentItems, agentsSummaries, artifactsList,
     }
   },
 
