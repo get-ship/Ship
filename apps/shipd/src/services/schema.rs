@@ -69,6 +69,45 @@ fn is_false(v: &bool) -> bool { !v }
 
 const PROJECT_SCOPE: ArgDescriptor = ArgDescriptor { name: "scope", kind: "string?", required: false };
 
+/// A mutation op. The write-side analog of `OpDescriptor`: same shape minus
+/// `returns` (commands return a status JSON), plus `blast_radius` for the gate
+/// + the generated proto policy. `services::command::call` dispatches these;
+/// `cargo xtask gen-ops` projects them onto `CommandOpsService`. One source for
+/// the write surface, exactly as `OPS` is for reads.
+#[derive(Serialize, Clone, Copy)]
+pub struct CommandDescriptor {
+    pub name: &'static str,
+    pub description: &'static str,
+    pub args: &'static [ArgDescriptor],
+    pub permission: &'static str,
+    /// Gate class: "C1_WORKSPACE" | "C2_ELEVATED".
+    pub blast_radius: &'static str,
+    #[serde(skip_serializing_if = "is_false")]
+    pub sensitive: bool,
+}
+
+/// The mutation catalog. Order mirrors `services::command::call`'s dispatch.
+/// Grows as route-level command logic is lifted into the command layer (#78).
+pub const COMMANDS: &[CommandDescriptor] = &[
+    // ── pipeline lifecycle ────────────────────────────────────────
+    CommandDescriptor {
+        name: "pipeline.update_status",
+        description: "Advance a pipeline run's lifecycle/gate state (the agent's own run).",
+        args: &[
+            ArgDescriptor { name: "pipeline_run_id", kind: "string", required: true },
+            ArgDescriptor { name: "status", kind: "string", required: true },
+            ArgDescriptor { name: "worktree", kind: "string?", required: false },
+            ArgDescriptor { name: "pid", kind: "number?", required: false },
+            ArgDescriptor { name: "gate_agent", kind: "string?", required: false },
+            ArgDescriptor { name: "blocker", kind: "string?", required: false },
+            ArgDescriptor { name: "error", kind: "string?", required: false },
+        ],
+        permission: "ship.runtime.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+];
+
 /// The full registry op catalog. Order mirrors `services::registry::call`'s
 /// match arms so drift between the two is visible in diff.
 pub const OPS: &[OpDescriptor] = &[
