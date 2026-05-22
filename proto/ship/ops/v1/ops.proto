@@ -54,6 +54,18 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+
+  // Stop a running agent by slug. C1 — cross-actor control, space-bound.
+  rpc StopAgent(StopAgentRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+
+  // Inject a message into a running agent. C1.
+  rpc SteerAgent(SteerAgentRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -69,4 +81,13 @@ message UpdateJobStatusRequest {
 
 message ActivateProjectRequest {
   string id = 1;
+}
+
+message StopAgentRequest {
+  string slug = 1;
+}
+
+message SteerAgentRequest {
+  string slug = 1;
+  string message = 2;
 }

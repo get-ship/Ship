@@ -12,8 +12,8 @@ use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_ops_rpc::{
     CommandOpsService, CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
-    OwnedActivateProjectRequestView, OwnedMetaRequestView, OwnedUpdateJobStatusRequestView,
-    ReadOpsServiceExt,
+    OwnedActivateProjectRequestView, OwnedMetaRequestView, OwnedSteerAgentRequestView,
+    OwnedStopAgentRequestView, OwnedUpdateJobStatusRequestView, ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -130,6 +130,59 @@ impl CommandOpsService for OpsImpl {
             "active": { "id": record.id, "name": record.name, "path": record.path },
         });
         Ok(Response::new(JsonResponse { json: json.to_string(), ..Default::default() }))
+    }
+
+    // Stop a running agent by slug — via the dispatch handle. C1.
+    #[allow(refining_impl_trait)]
+    async fn stop_agent(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedStopAgentRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let dh = self
+            .state
+            .dispatch_handle()
+            .ok_or_else(|| ConnectError::unavailable("dispatch service not initialized"))?;
+        let handle = {
+            let mut reg = dh.registry.lock().await;
+            reg.take(req.slug)
+        }
+        .ok_or_else(|| {
+            ConnectError::invalid_argument(format!("no running agent with slug '{}'", req.slug))
+        })?;
+        dh.executor
+            .stop(&handle)
+            .await
+            .map_err(|e| ConnectError::internal(format!("failed to stop agent: {e}")))?;
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!(format!("stopped: {}", req.slug)).to_string(),
+            ..Default::default()
+        }))
+    }
+
+    // Inject a message into a running agent. C1.
+    #[allow(refining_impl_trait)]
+    async fn steer_agent(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedSteerAgentRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let dh = self
+            .state
+            .dispatch_handle()
+            .ok_or_else(|| ConnectError::unavailable("dispatch service not initialized"))?;
+        let reg = dh.registry.lock().await;
+        let handle = reg.get(req.slug).ok_or_else(|| {
+            ConnectError::invalid_argument(format!("no running agent with slug '{}'", req.slug))
+        })?;
+        dh.executor
+            .send(handle, req.message)
+            .await
+            .map_err(|e| ConnectError::internal(format!("failed to steer agent: {e}")))?;
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!(format!("steered: {}", req.slug)).to_string(),
+            ..Default::default()
+        }))
     }
 }
 
