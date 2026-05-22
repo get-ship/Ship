@@ -699,6 +699,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55cb80f9eb09b593a96880eb1c2588ac6319b129519de8c672f9b8b4ffdeaece"
 dependencies = [
  "async-compression",
+ "axum",
  "base64",
  "buffa",
  "bytes",
@@ -4405,6 +4406,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-ops-rpc"
+version = "0.1.0"
+dependencies = [
+ "buffa",
+ "connectrpc",
+ "connectrpc-build",
+ "http",
+ "http-body",
+ "protoc-bin-vendored",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "ship-pipelines"
 version = "0.1.0"
 dependencies = [
@@ -4545,9 +4560,12 @@ dependencies = [
  "async-trait",
  "axum",
  "base64",
+ "buffa",
+ "buffa-descriptor",
  "build-info",
  "chrono",
  "compiler",
+ "connectrpc",
  "ctor",
  "datastar",
  "deck",
@@ -4573,6 +4591,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "ship-analytics",
+ "ship-ops-rpc",
  "ship-pipelines",
  "ship-platform",
  "ship-substrate",
