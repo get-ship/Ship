@@ -66,6 +66,12 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.agents.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+
+  // Dispatch a single agent session — the canonical agent command. C1.
+  rpc DispatchAgent(DispatchAgentRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.runtime.dispatch";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -90,4 +96,22 @@ message StopAgentRequest {
 message SteerAgentRequest {
   string slug = 1;
   string message = 2;
+}
+
+message DispatchAgentRequest {
+  string agent = 1;
+  string spec = 2;
+  string prompt = 3;
+  bool resume = 4;
+  string harness = 5;
+  string model = 6;
+  optional bool open_tab = 7;   // defaults true when unset (REST default)
+  string invocation = 8;        // "pty" (default) | "print" | "stream"
+  optional bool keepalive = 9;  // defaults true when unset
+  string workspace = 10;
+  string slug = 11;
+  string branch = 12;
+  string source_spec_path = 13;
+  repeated string depends_on = 14;
+  map<string, string> vars = 15;
 }

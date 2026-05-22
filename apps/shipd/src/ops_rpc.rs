@@ -12,8 +12,9 @@ use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_ops_rpc::{
     CommandOpsService, CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
-    OwnedActivateProjectRequestView, OwnedMetaRequestView, OwnedSteerAgentRequestView,
-    OwnedStopAgentRequestView, OwnedUpdateJobStatusRequestView, ReadOpsServiceExt,
+    OwnedActivateProjectRequestView, OwnedDispatchAgentRequestView, OwnedMetaRequestView,
+    OwnedSteerAgentRequestView, OwnedStopAgentRequestView, OwnedUpdateJobStatusRequestView,
+    ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -183,6 +184,57 @@ impl CommandOpsService for OpsImpl {
             json: serde_json::json!(format!("steered: {}", req.slug)).to_string(),
             ..Default::default()
         }))
+    }
+
+    // Dispatch a single agent session — maps the typed request to the shared
+    // dispatch core (REST + Connect, one logic). C1. proto3 `optional` carries
+    // the REST `true` defaults for open_tab/keepalive.
+    #[allow(refining_impl_trait)]
+    async fn dispatch_agent(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedDispatchAgentRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        use ship_substrate::events::agent_session::InvocationMode;
+        let opt = |s: &str| (!s.is_empty()).then(|| s.to_string());
+        let invocation = match req.invocation {
+            "print" => InvocationMode::Print,
+            "stream" => InvocationMode::Stream,
+            _ => InvocationMode::Pty,
+        };
+        let depends_on: Vec<String> = req.depends_on.iter().map(|s| s.to_string()).collect();
+        let vars: std::collections::HashMap<String, String> =
+            req.vars.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        let dreq = crate::routes::runtime_api::dispatch::DispatchRequest {
+            agent: req.agent.to_string(),
+            spec: opt(req.spec),
+            prompt: opt(req.prompt),
+            resume: req.resume,
+            harness: opt(req.harness),
+            model: opt(req.model),
+            open_tab: req.open_tab.unwrap_or(true),
+            invocation,
+            keepalive: req.keepalive.unwrap_or(true),
+            workspace: opt(req.workspace),
+            slug: opt(req.slug),
+            branch: opt(req.branch),
+            source_spec_path: opt(req.source_spec_path),
+            depends_on: (!depends_on.is_empty()).then_some(depends_on),
+            vars: (!vars.is_empty()).then_some(vars),
+        };
+        let (status, axum::Json(mesh)) =
+            crate::routes::runtime_api::dispatch::dispatch_agent_session_core(&self.state, dreq)
+                .await;
+        if status.is_success() {
+            Ok(Response::new(JsonResponse {
+                json: mesh.data.to_string(),
+                ..Default::default()
+            }))
+        } else if status == axum::http::StatusCode::BAD_REQUEST {
+            Err(ConnectError::invalid_argument(mesh.data.to_string()))
+        } else {
+            Err(ConnectError::internal(mesh.data.to_string()))
+        }
     }
 }
 

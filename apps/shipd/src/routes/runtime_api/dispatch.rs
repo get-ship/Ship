@@ -200,6 +200,16 @@ pub async fn dispatch_agent_session(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<DispatchRequest>,
 ) -> impl IntoResponse {
+    dispatch_agent_session_core(&state, req).await
+}
+
+/// Transport-neutral core of single-agent dispatch — shared by the REST
+/// handler above and the ConnectRPC `CommandOpsService`. Behavior is verbatim;
+/// only the entry shape differs (owned extractors vs a typed request).
+pub(crate) async fn dispatch_agent_session_core(
+    state: &ApiState,
+    req: DispatchRequest,
+) -> (StatusCode, Json<MeshResponse>) {
     // Validate the (open_tab × invocation × keepalive) matrix.
     if let Err(message) = validate_axes(&req) {
         return (
