@@ -1,4 +1,5 @@
-import { controller, signal, derived, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
+import { liveExpr } from '@ship/sdk-client'
 import type { LiveSignal, MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
@@ -22,16 +23,21 @@ type SummariesCtx = {
 }
 
 const EMPTY: SummariesCtx = { stats_subtitle: '', defs: [], active_runs: [], providers: [] }
-// The view feeds data through the top-level `<data name="summaries">` element
-// (the agents pattern). derived: sections receive the live envelope as a scope
-// arg; unwrap → the value (or null while loading).
+// `summaries` is a live signal the controller owns: subscribe directly to the
+// `/_sui/data?expr=ship.pipelines.summaries()` SSE channel via `liveExpr` (the
+// pattern views/events + the history view use). The shell SDK object has no
+// `pipelines` surface, so the call form would throw — `liveExpr` wires the
+// channel by name instead. `{#async summaries}` + derived args read the signal.
 const read = (summaries: unknown): SummariesCtx => {
-  const v = unwrap(summaries as LiveSignal<SummariesCtx>)
-  return v && Array.isArray(v.defs) ? v : EMPTY
+  const v = unwrap(summaries as LiveSignal<Partial<SummariesCtx>>)
+  // Merge over EMPTY: the payload omits empty collections (active_runs,
+  // providers) — fall back so `{#for}` / `.length` never hit undefined.
+  return v && Array.isArray(v.defs) ? { ...EMPTY, ...v } : EMPTY
 }
 
 export default controller<Scope>({
   scope: ({ route }) => {
+    const summaries = live(() => liveExpr<SummariesCtx>('ship.pipelines.summaries()'))
     const q = derived(() => String(route.query.q() ?? ''))
     const agent = derived(() => String(route.query.agent() ?? ''))
     const pipeline = derived(() => String(route.query.pipeline() ?? ''))
@@ -47,6 +53,7 @@ export default controller<Scope>({
     const newPipeError = signal('')
     const newPipeCreating = signal(false)
     return {
+      summaries,
       q, agent, pipeline, status, tab,
       dispatchOpen, dispatchSpec, dispatchPipeline, dispatchProvider, dispatchHeadless,
       newPipeOpen, newPipeName, newPipeError, newPipeCreating,
@@ -111,7 +118,7 @@ export default controller<Scope>({
           `/api/v1/workspaces/${encodeURIComponent(ws)}/pipelines/${encodeURIComponent(name)}`,
           { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) },
         )
-        if (resp.ok) { window.location.href = `/pipelines/focus/${encodeURIComponent(name)}?edit=1`; return }
+        if (resp.ok) { window.location.href = `/studio/pipelines/focus/${encodeURIComponent(name)}?edit=1`; return }
         const parsed = await resp.json().catch(() => ({}))
         ds.newPipeError = (parsed as { data?: { error?: string } })?.data?.error ?? `HTTP ${resp.status}`
       } catch (err) { ds.newPipeError = 'network: ' + ((err as Error)?.message ?? String(err)) }

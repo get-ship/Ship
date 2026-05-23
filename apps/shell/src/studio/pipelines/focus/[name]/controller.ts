@@ -1,4 +1,5 @@
-import { controller, signal, derived, live, ref, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, live, ref } from '@ship/sui-runtime'
+import { liveExpr } from '@ship/sdk-client'
 import type { MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
@@ -21,9 +22,34 @@ type FocusCtx = {
 
 const EMPTY_DEF: PipelineDef = { total_runs: 0, active_runs: 0, success_rate: 0, step_count: 0 }
 const EMPTY_CTX: FocusCtx = { def: EMPTY_DEF, doc: { steps: [] }, raw: '', format: 'jsonc', runs: [], active_for_pipeline: [], other_for_pipeline: [], ops_mode: false, providers: [] }
-const read = (ctx: unknown): FocusCtx => (unwrap(ctx as any) as FocusCtx | undefined) ?? EMPTY_CTX
+// `envelope` is the live signal's current value (`focusCtx()`): pull the `ok`
+// value, falling back to EMPTY_CTX while loading / on error. Guards `.value`
+// for null on the focus op (returns 404→error, never a null ok value).
+const read = (envelope: unknown): FocusCtx => {
+  const env = envelope as { kind?: string; value?: Partial<FocusCtx> } | undefined
+  if (env?.kind !== 'ok' || !env.value) return EMPTY_CTX
+  // Merge over EMPTY_CTX: the payload omits optional collections (e.g.
+  // `providers`, `active_for_pipeline`) when empty — fall back so `{#for}`
+  // and `.map` never hit undefined.
+  return { ...EMPTY_CTX, ...env.value }
+}
 
 type Ed = HTMLElement & { value: string; getAttribute(n: string): string | null; setDiagnostics?(d: unknown[]): void }
+
+// `sui-code-editor` ships as a lazy island bundle (`/_sui/sui-components/<tag>.js`).
+// The daemon eagerly injects islands it finds by static-scanning templates, but the
+// editor only renders inside the `editMode` branch — fetch it on demand so the
+// element upgrades when the user opens the editor.
+// The active beforeUnload listener for this view instance. Module-scoped
+// because the writable state proxy only accepts declared template-state keys.
+let beforeUnloadListener: ((e: BeforeUnloadEvent) => void) | null = null
+let editorIslandLoaded = false
+function ensureEditorIsland(): void {
+  if (editorIslandLoaded || customElements.get('sui-code-editor')) { editorIslandLoaded = true; return }
+  editorIslandLoaded = true
+  const tag = 'sui-code-editor'
+  import(/* @vite-ignore */ `/_sui/sui-components/${tag}.js`).catch(() => { editorIslandLoaded = false })
+}
 
 const decorateRun = (r: RunView) => ({
   ...r,
@@ -49,27 +75,28 @@ const decorateStep = (step: StepDef, i: number) => ({
 })
 
 export default controller<Scope>({
-  scope: ({ ship, route }) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const s = ship as any
+  scope: ({ route }) => {
     // `route` is a RouteSignals object; `params.name` is a Signal — read it via
     // `route.params.name?.()` (matches every other studio dynamic-route view).
     // Requires the `/studio/pipelines/focus/:name` pattern registered via
     // defineRoutes at shell startup; absent that, name() is undefined → ''.
     const name = derived(() => String(route.params.name?.() ?? ''))
-    const ctx = live(() => s.pipelines.focus({ name: name() }))
-    const def = derived(() => decorateDef(read(ctx()).def))
+    // Subscribe to the focus op by name via `liveExpr` — the shell SDK object
+    // exposes no `pipelines` surface, so the call form would throw. Re-subscribes
+    // when `name()` changes. `liveExpr` wraps the SSE channel as a LiveSource.
+    const focusCtx = live(() => liveExpr<FocusCtx>(`ship.pipelines.focus(${JSON.stringify({ name: name() })})`))
+    const def = derived(() => decorateDef(read(focusCtx()).def))
     const doc = derived(() => {
-      const d = read(ctx()).doc
+      const d = read(focusCtx()).doc
       return { ...d, steps: d.steps.map(decorateStep) }
     })
-    const raw = derived(() => read(ctx()).raw)
-    const format = derived(() => read(ctx()).format)
-    const workspaceId = derived(() => read(ctx()).workspace_id ?? null)
-    const runs = derived(() => read(ctx()).runs.map(decorateRun))
-    const activeForPipeline = derived(() => read(ctx()).active_for_pipeline.map(decorateRun))
-    const opsMode = derived(() => read(ctx()).ops_mode)
-    const providers = derived(() => read(ctx()).providers)
+    const raw = derived(() => read(focusCtx()).raw)
+    const format = derived(() => read(focusCtx()).format)
+    const workspaceId = derived(() => read(focusCtx()).workspace_id ?? null)
+    const runs = derived(() => read(focusCtx()).runs.map(decorateRun))
+    const activeForPipeline = derived(() => read(focusCtx()).active_for_pipeline.map(decorateRun))
+    const opsMode = derived(() => read(focusCtx()).ops_mode)
+    const providers = derived(() => read(focusCtx()).providers)
     const editMode = signal(false)
     const editSaving = signal(false)
     const editError = signal('')
@@ -83,13 +110,13 @@ export default controller<Scope>({
     const deleteOpen = signal(false)
     const editorRef = ref<Ed>(null)
     return {
-      ctx, name, def, doc, raw, format, workspaceId, runs, activeForPipeline, opsMode, providers,
+      focusCtx, name, def, doc, raw, format, workspaceId, runs, activeForPipeline, opsMode, providers,
       editMode, editSaving, editError, editErrorLine, editErrorCol, editIssueCount,
       dispatchOpen, dispatchSpec, dispatchProvider, dispatchHeadless, deleteOpen, editorRef,
     }
   },
   on: {
-    startEdit: (s: S) => { const ds = s as any; ds.editMode = true; ds.editError = ''; ds.editIssueCount = 0 },
+    startEdit: (s: S) => { ensureEditorIsland(); const ds = s as any; ds.editMode = true; ds.editError = ''; ds.editIssueCount = 0 },
     cancelEdit: (s: S) => {
       const ds = s as any
       ds.editMode = false; ds.editError = ''; ds.editIssueCount = 0
@@ -162,7 +189,7 @@ export default controller<Scope>({
     },
   },
   mount: (s) => {
-    if (/[?&]edit=1(&|$)/.test(window.location.search)) (s as any).editMode = true
+    if (/[?&]edit=1(&|$)/.test(window.location.search)) { ensureEditorIsland(); (s as any).editMode = true }
     const beforeUnload = (e: BeforeUnloadEvent) => {
       if (!(s as any).editMode) return
       const ed = (s as any).editorRef as Ed | null
@@ -170,10 +197,15 @@ export default controller<Scope>({
       if (ed.value !== (ed.getAttribute('value') ?? '')) { e.preventDefault(); e.returnValue = '' }
     }
     window.addEventListener('beforeunload', beforeUnload)
-    ;(s as any).__beforeUnload = beforeUnload
+    // Hold the listener at module scope: the runtime ignores writes to keys
+    // that aren't declared template state, so stashing it on `s` would drop it
+    // and leak the listener past unmount.
+    beforeUnloadListener = beforeUnload
   },
-  unmount: (s) => {
-    const fn = (s as any).__beforeUnload
-    if (fn) window.removeEventListener('beforeunload', fn)
+  unmount: () => {
+    if (beforeUnloadListener) {
+      window.removeEventListener('beforeunload', beforeUnloadListener)
+      beforeUnloadListener = null
+    }
   },
 })

@@ -1,9 +1,28 @@
-<data name="summaries" source="ship.pipelines.summaries()" live />
-
 <div class="studio-view" data-test="studio-view">
   <sui-studio-rail></sui-studio-rail>
   <main class="studio-content" data-test="studio-content">
-{#if defs() !== undefined}
+{#async summaries}
+  {:loading}
+  <div class="ship-pipelines-wrap" data-test="loading" role="status" aria-busy="true" aria-label="Loading pipelines">
+    <sui-stack gap="4">
+      <sui-skeleton shape="line" size="lg" style="width:14rem"></sui-skeleton>
+      <div class="ship-pipelines-def-list" aria-hidden="true">
+        {#for n of [0,1,2,3,4,5] key={n}}
+          <sui-skeleton shape="block" size="lg" style="height:6rem"></sui-skeleton>
+        {/for}
+      </div>
+    </sui-stack>
+  </div>
+
+  {:error err}
+  <div class="ship-pipelines-wrap">
+    <sui-error-state title="Couldn't load pipelines" data-test="error" role="alert">
+      {err.message}
+      <sui-button slot="action" tone="primary" variant="solid" on:click={() => window.location.reload()}>Retry</sui-button>
+    </sui-error-state>
+  </div>
+
+  {:ok}
 <div class="ship-view ship-view-pipelines">
   <div class="ship-pipelines-wrap">
     <header class="ship-pipelines-head">
@@ -141,6 +160,6 @@
   </sui-dialog>
   {/if}
 </div>
-{/if}
+{/async}
   </main>
 </div>
