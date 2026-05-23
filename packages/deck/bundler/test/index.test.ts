@@ -214,7 +214,7 @@ describe('bundler worker', () => {
     //
     // This test requires the daemon to actually be watching, so we use a real
     // source file in the views tree that already exists.
-    const suiFile = resolve(repoRoot, 'views/home/page.sui')
+    const suiFile = resolve(repoRoot, 'views/git/page.sui')
     const worker = await spawnWorker()
 
     try {
