@@ -22,15 +22,17 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/types.proto.
  */
 export const file_ship_ops_v1_types: GenFile = /*@__PURE__*/
-  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKQoMUnVsZU11dGF0aW9uEgoKAmlkGAEgASgJEg0KBXNjb3BlGAIgASgJYgZwcm90bzM");
+  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAliBnByb3RvMw");
 
 /**
- * Result of a rules.create / rules.put / rules.delete mutation: the rule's id
- * and the scope it resolved to ("Project" | "User").
+ * Result of a scope-resolving config mutation (rules / mcp / permissions /
+ * collections CRUD): the entity's id and the scope it resolved to
+ * ("Project" | "User"). One shared shape — these commands all answer the same
+ * question ("which id, which scope?"), so they share one typed return.
  *
- * @generated from message ship.ops.v1.RuleMutation
+ * @generated from message ship.ops.v1.ScopedMutation
  */
-export type RuleMutation = Message<"ship.ops.v1.RuleMutation"> & {
+export type ScopedMutation = Message<"ship.ops.v1.ScopedMutation"> & {
   /**
    * @generated from field: string id = 1;
    */
@@ -43,9 +45,9 @@ export type RuleMutation = Message<"ship.ops.v1.RuleMutation"> & {
 };
 
 /**
- * Describes the message ship.ops.v1.RuleMutation.
- * Use `create(RuleMutationSchema)` to create a new message.
+ * Describes the message ship.ops.v1.ScopedMutation.
+ * Use `create(ScopedMutationSchema)` to create a new message.
  */
-export const RuleMutationSchema: GenMessage<RuleMutation> = /*@__PURE__*/
+export const ScopedMutationSchema: GenMessage<ScopedMutation> = /*@__PURE__*/
   messageDesc(file_ship_ops_v1_types, 0);
 

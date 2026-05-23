@@ -13,9 +13,11 @@ syntax = "proto3";
 
 package ship.ops.v1;
 
-// Result of a rules.create / rules.put / rules.delete mutation: the rule's id
-// and the scope it resolved to ("Project" | "User").
-message RuleMutation {
+// Result of a scope-resolving config mutation (rules / mcp / permissions /
+// collections CRUD): the entity's id and the scope it resolved to
+// ("Project" | "User"). One shared shape — these commands all answer the same
+// question ("which id, which scope?"), so they share one typed return.
+message ScopedMutation {
   string id = 1;
   string scope = 2;
 }

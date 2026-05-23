@@ -19,15 +19,15 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.runtime.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
-  rpc RulesCreate(RulesCreateRequest) returns (RuleMutation) {
+  rpc RulesCreate(RulesCreateRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.rules.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
-  rpc RulesPut(RulesPutRequest) returns (RuleMutation) {
+  rpc RulesPut(RulesPutRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.rules.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
-  rpc RulesDelete(RulesDeleteRequest) returns (RuleMutation) {
+  rpc RulesDelete(RulesDeleteRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.rules.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }

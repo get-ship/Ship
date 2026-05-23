@@ -154,7 +154,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.rules.write",
         blast_radius: "C1_WORKSPACE",
-        response_type: "RuleMutation",
+        response_type: "ScopedMutation",
         sensitive: false,
     },
     CommandDescriptor {
@@ -167,7 +167,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.rules.write",
         blast_radius: "C1_WORKSPACE",
-        response_type: "RuleMutation",
+        response_type: "ScopedMutation",
         sensitive: false,
     },
     CommandDescriptor {
@@ -179,7 +179,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.rules.write",
         blast_radius: "C1_WORKSPACE",
-        response_type: "RuleMutation",
+        response_type: "ScopedMutation",
         sensitive: false,
     },
     // ── project ───────────────────────────────────────────────────
