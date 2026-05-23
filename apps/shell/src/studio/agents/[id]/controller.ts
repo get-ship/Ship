@@ -1,4 +1,5 @@
 import { controller, derived, effect, live, signal, unwrap } from '@ship/sui-runtime'
+import type { LiveSignal, MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { HUES, pickHue, pickInitials } from './hue'
 
@@ -32,6 +33,13 @@ type AgentDetail = {
 type WireResp = { agent?: AgentDetail } | null | undefined
 type Banner = { ok: true; msg: string } | { ok: false; msg: string } | null
 
+// `on:` handlers receive the writable state proxy; annotate explicitly
+// since the OnSection union blocks contextual inference.
+type S = MutableState<Scope>
+// `navigate` is injected onto the proxy by the runtime mount context but
+// is not a template-declared scope key, so it isn't on `MutableState`.
+type Nav = { navigate: (path: string) => void }
+
 async function readActiveAgent(): Promise<string> {
   try {
     const resp = await fetch('/api/v1/settings/shell.agent.active', { credentials: 'same-origin' })
@@ -52,7 +60,8 @@ export default controller<Scope>({
   scope: ({ route, ship }) => {
     const agentId = derived(() => route.params.id() ?? '')
     const wireCtx = live(() => ship.agents.wire({ id: agentId() }))
-    const wireData = derived(() => (unwrap(wireCtx as unknown) ?? null) as WireResp)
+    // `wireCtx` emits as `unknown` (emitter gap); narrow to a LiveSignal.
+    const wireData = derived(() => (unwrap(wireCtx as LiveSignal<WireResp>) ?? null) as WireResp)
 
     const agent = derived<AgentDetail | null>(() => {
       const d = wireData()
@@ -60,7 +69,7 @@ export default controller<Scope>({
     })
 
     const notFound = derived(() => {
-      const ctx = unwrap(wireCtx as unknown)
+      const ctx = unwrap(wireCtx as LiveSignal<WireResp>)
       if (typeof ctx === 'undefined') return false
       const d = ctx as WireResp
       return !(d && d.agent && typeof d.agent.id === 'string')
@@ -195,16 +204,18 @@ export default controller<Scope>({
     }
   },
   on: {
-    goWire: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId}/wire`),
-    goSettings: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId}/settings`),
+    goWire: (s: S) => (s as unknown as Nav).navigate(`/studio/agents/${s.agentId as string}/wire`),
+    goSettings: (s: S) => (s as unknown as Nav).navigate(`/studio/agents/${s.agentId as string}/settings`),
     // Segmented tabs: the control swallows per-option clicks, so navigate off
     // its sui-change event instead. overview → detail root; else → sub-route.
-    goTab: ({ navigate, agentId }, value: string) =>
-      navigate(value === 'overview' ? `/studio/agents/${agentId}` : `/studio/agents/${agentId}/${value}`),
-    goBack: ({ navigate }) => navigate('/studio/agents'),
-    goSkill: ({ navigate }, id: string) => navigate(`/studio/skills/${id}`),
+    goTab: (s: S, value: string) => {
+      const id = s.agentId as string
+      return (s as unknown as Nav).navigate(value === 'overview' ? `/studio/agents/${id}` : `/studio/agents/${id}/${value}`)
+    },
+    goBack: (s: S) => (s as unknown as Nav).navigate('/studio/agents'),
+    goSkill: (s: S, id: string) => (s as unknown as Nav).navigate(`/studio/skills/${id}`),
 
-    activate: async (s) => {
+    activate: async (s: S) => {
       if (s.activating) return
       s.activating = true
       s.banner = null
@@ -220,7 +231,7 @@ export default controller<Scope>({
           s.banner = { ok: false, msg: text || `Activate failed (${resp.status})` }
           return
         }
-        s.activeAgentId = s.agentId
+        s.activeAgentId = s.agentId as string
         s.banner = { ok: true, msg: 'Agent activated.' }
       } catch (err) {
         s.banner = { ok: false, msg: (err as Error).message ?? 'Activate failed.' }
@@ -228,7 +239,7 @@ export default controller<Scope>({
         s.activating = false
       }
     },
-    deactivate: async (s) => {
+    deactivate: async (s: S) => {
       if (s.activating) return
       s.activating = true
       s.banner = null

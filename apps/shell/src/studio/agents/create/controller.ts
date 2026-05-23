@@ -1,5 +1,13 @@
 import { controller, signal, derived, live } from '@ship/sui-runtime'
+import type { MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+
+// `on:` handlers receive the writable state proxy; annotate explicitly
+// since the OnSection union blocks contextual inference.
+type S = MutableState<Scope>
+// `navigate` is injected onto the proxy by the runtime mount context but
+// is not a template-declared scope key, so it isn't on `MutableState`.
+type Nav = { navigate: (path: string) => void }
 
 type TemplateEntry = {
   id: string
@@ -90,34 +98,34 @@ export default controller<Scope>({
     }
   },
   on: {
-    cancel: ({ navigate }) => navigate('/studio/agents'),
-    back: (s) => { s.step = Math.max(0, (s.step as number) - 1) },
-    next: (s) => {
+    cancel: (s: S) => (s as unknown as Nav).navigate('/studio/agents'),
+    back: (s: S) => { s.step = Math.max(0, (s.step as number) - 1) },
+    next: (s: S) => {
       if (!s.stepValid) return
       s.step = Math.min(3, (s.step as number) + 1)
     },
-    goTo: (s, n: number) => { if (n <= (s.step as number)) s.step = n },
-    selectTemplate: (s, t: TemplateEntry) => {
+    goTo: (s: S, n: number) => { if (n <= (s.step as number)) s.step = n },
+    selectTemplate: (s: S, t: TemplateEntry) => {
       s.template = t.id
       s.preset = t.permission_preset
       s.hue = t.hue
       s.templateSkills = Array.isArray(t.skill_ids) ? t.skill_ids : []
     },
-    toggleProvider: (s, p: string) => {
+    toggleProvider: (s: S, p: string) => {
       const cur = s.providers as string[]
       s.providers = cur.includes(p) ? cur.filter(x => x !== p) : [...cur, p]
     },
-    nameInput: (s, e: CustomEvent<{ value: string }>) => {
+    nameInput: (s: S, e: CustomEvent<{ value: string }>) => {
       s.name = e.detail.value
       if (!(s.id as string) && e.detail.value) {
         s.id = slugify(e.detail.value)
       }
     },
-    idInput: (s, e: CustomEvent<{ value: string }>) => {
+    idInput: (s: S, e: CustomEvent<{ value: string }>) => {
       s.id = slugify(e.detail.value)
     },
-    descInput: (s, e: CustomEvent<{ value: string }>) => { s.desc = e.detail.value },
-    create: async (s) => {
+    descInput: (s: S, e: CustomEvent<{ value: string }>) => { s.desc = e.detail.value },
+    create: async (s: S) => {
       if (!s.stepValid) return
       s.creating = true
       s.err = ''

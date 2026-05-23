@@ -1,4 +1,5 @@
 import { controller, signal, unwrap, live, derived } from '@ship/sui-runtime'
+import type { LiveSignal, MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 // Reuse the agent-detail hue derivation so a card's tile and the detail
 // page it links to land on the same colour — one source of truth, no
@@ -19,6 +20,16 @@ interface AgentSummary {
 interface EventRow { event_type: string; actor: string; timestamp: string }
 interface EventsEnvelope { groups: Array<{ rows: EventRow[] }> }
 interface KindFilter { id: 'all' | 'project' | 'user'; label: string; count: number }
+interface AgentsList { items: AgentSummary[] }
+
+// `on:`/`mount` handlers receive the writable state proxy. TS can't
+// contextually infer it (OnSection is a union of two function shapes),
+// so annotate explicitly with `MutableState<Scope>` — widening it would
+// break assignability to the OnSection overload.
+type S = MutableState<Scope>
+// `navigate` is injected onto the proxy by the runtime mount context but
+// is not a template-declared scope key, so it isn't on `MutableState`.
+type Nav = { navigate: (path: string) => void }
 
 export default controller<Scope>({
   scope: ({ ship }) => {
@@ -48,9 +59,9 @@ export default controller<Scope>({
     return { q, kind, agentEvents, agentStatus }
   },
   derived: {
-    items: ({ agents }) => (unwrap(agents)?.items ?? []) as AgentSummary[],
+    items: ({ agents }) => (unwrap(agents as LiveSignal<AgentsList>)?.items ?? []) as AgentSummary[],
     filteredItems: ({ agents, q, kind }) => {
-      const all = (unwrap(agents)?.items ?? []) as AgentSummary[]
+      const all = (unwrap(agents as LiveSignal<AgentsList>)?.items ?? []) as AgentSummary[]
       // Derived scope-args arrive as signal getters, not unwrapped values.
       // Call them before using; cast assertions don't unwrap at runtime.
       const k = (typeof kind === 'function' ? kind() : kind) as KindFilter['id']
@@ -62,11 +73,11 @@ export default controller<Scope>({
         .map((a) => ({ ...a, hue: pickHue(a.id) }))
     },
     activeId: ({ agents }) => {
-      const all = (unwrap(agents)?.items ?? []) as AgentSummary[]
+      const all = (unwrap(agents as LiveSignal<AgentsList>)?.items ?? []) as AgentSummary[]
       return all.find((a) => a.active)?.id ?? ''
     },
     kindFilters: ({ agents }) => {
-      const all = (unwrap(agents)?.items ?? []) as AgentSummary[]
+      const all = (unwrap(agents as LiveSignal<AgentsList>)?.items ?? []) as AgentSummary[]
       const project = all.filter((a) => a.source === 'PROJECT AGENTS').length
       const user = all.filter((a) => a.source === 'USER AGENTS').length
       return [
@@ -77,12 +88,14 @@ export default controller<Scope>({
     },
   },
   on: {
-    goCreate: ({ navigate }) => navigate('/studio/agents/create'),
-    onSearchInput: (s, e: Event) => {
+    goCreate: (s: S) => (s as unknown as Nav).navigate('/studio/agents/create'),
+    onSearchInput: (s: S, e: Event) => {
       const target = e.target as HTMLInputElement
       s.q = target.value ?? ''
     },
-    clearSearch: (s) => { s.q = '' },
-    resetFilters: (s) => { s.q = ''; s.kind = 'all' },
+    clearSearch: (s: S) => { s.q = '' },
+    // `kind` emits as `unknown` (emitter gap), so it isn't a MutableState
+    // key — assign through a narrowed view.
+    resetFilters: (s: S) => { s.q = ''; (s as unknown as { kind: KindFilter['id'] }).kind = 'all' },
   },
 })

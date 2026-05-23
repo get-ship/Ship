@@ -1,5 +1,15 @@
 import { controller, signal, derived, effect, live, unwrap } from '@ship/sui-runtime'
+import type { MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+
+// `on:`/`mount` handlers receive the writable state proxy; annotate
+// explicitly since the OnSection union blocks contextual inference.
+type S = MutableState<Scope>
+// `navigate` is injected onto the proxy by the runtime mount context but
+// is not a template-declared scope key, so it isn't on `MutableState`.
+type Nav = { navigate: (path: string) => void }
+type DraftKey = 'allowDraft' | 'askDraft' | 'denyDraft'
+type ArrKey = 'pAllow' | 'pAsk' | 'pDeny'
 
 export default controller<Scope>({
   scope: ({ ship, route }) => {
@@ -35,17 +45,19 @@ export default controller<Scope>({
     return { agentId, settings, agent, catalogs, providers, pAllow, pAsk, pDeny, pPreset, pDirty, pSaving, allowDraft, askDraft, denyDraft, pickerOpen, pickerKind, pickerSelected, _settStop }
   },
   on: {
-    goWire: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId}/wire`),
-    goTab: ({ navigate, agentId }, value: string) =>
-      navigate(value === 'overview' ? `/studio/agents/${agentId}` : `/studio/agents/${agentId}/${value}`),
-    goBack: ({ navigate }) => navigate('/studio/agents'),
-    openPicker: (s, kind: string) => { s.pickerKind = kind; s.pickerSelected = []; s.pickerOpen = true },
-    closePicker: (s) => { s.pickerOpen = false; s.pickerSelected = [] },
-    togglePick: (s, id: string) => {
+    goWire: (s: S) => (s as unknown as Nav).navigate(`/studio/agents/${s.agentId as string}/wire`),
+    goTab: (s: S, value: string) => {
+      const id = s.agentId as string
+      return (s as unknown as Nav).navigate(value === 'overview' ? `/studio/agents/${id}` : `/studio/agents/${id}/${value}`)
+    },
+    goBack: (s: S) => (s as unknown as Nav).navigate('/studio/agents'),
+    openPicker: (s: S, kind: string) => { s.pickerKind = kind; s.pickerSelected = []; s.pickerOpen = true },
+    closePicker: (s: S) => { s.pickerOpen = false; s.pickerSelected = [] },
+    togglePick: (s: S, id: string) => {
       const cur = s.pickerSelected as string[]
       s.pickerSelected = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]
     },
-    savePicker: (s) => {
+    savePicker: (s: S) => {
       const selected = s.pickerSelected as string[]
       if (!selected.length) { s.pickerOpen = false; return }
       const kind = s.pickerKind as string
@@ -59,32 +71,32 @@ export default controller<Scope>({
         body: JSON.stringify(selected.map(sid => ({ op: 'add', path: `/${path}/${sub}/-`, value: sid }))),
       }).then(() => { s.pickerOpen = false; s.pickerSelected = []; window.location.reload() })
     },
-    addPerm: (s, e: KeyboardEvent, kind: string) => {
+    addPerm: (s: S, e: KeyboardEvent, kind: string) => {
       if (e.key !== 'Enter') return
-      const draftKey = kind === 'allow' ? 'allowDraft' : kind === 'ask' ? 'askDraft' : 'denyDraft'
+      const draftKey: DraftKey = kind === 'allow' ? 'allowDraft' : kind === 'ask' ? 'askDraft' : 'denyDraft'
       const draft = (s[draftKey] as string).trim()
       if (!draft) return
-      const arrKey = kind === 'allow' ? 'pAllow' : kind === 'ask' ? 'pAsk' : 'pDeny'
+      const arrKey: ArrKey = kind === 'allow' ? 'pAllow' : kind === 'ask' ? 'pAsk' : 'pDeny'
       const arr = s[arrKey] as string[]
       if (!arr.includes(draft)) { s[arrKey] = [...arr, draft]; s.pDirty = true }
       s[draftKey] = ''
       e.preventDefault()
     },
-    commitPerm: (s, kind: string) => {
-      const draftKey = kind === 'allow' ? 'allowDraft' : kind === 'ask' ? 'askDraft' : 'denyDraft'
+    commitPerm: (s: S, kind: string) => {
+      const draftKey: DraftKey = kind === 'allow' ? 'allowDraft' : kind === 'ask' ? 'askDraft' : 'denyDraft'
       const draft = (s[draftKey] as string).trim()
       if (!draft) return
-      const arrKey = kind === 'allow' ? 'pAllow' : kind === 'ask' ? 'pAsk' : 'pDeny'
+      const arrKey: ArrKey = kind === 'allow' ? 'pAllow' : kind === 'ask' ? 'pAsk' : 'pDeny'
       const arr = s[arrKey] as string[]
       if (!arr.includes(draft)) { s[arrKey] = [...arr, draft]; s.pDirty = true }
       s[draftKey] = ''
     },
-    removePerm: (s, kind: string, pattern: string) => {
-      const arrKey = kind === 'allow' ? 'pAllow' : kind === 'ask' ? 'pAsk' : 'pDeny'
+    removePerm: (s: S, kind: string, pattern: string) => {
+      const arrKey: ArrKey = kind === 'allow' ? 'pAllow' : kind === 'ask' ? 'pAsk' : 'pDeny'
       s[arrKey] = (s[arrKey] as string[]).filter(x => x !== pattern)
       s.pDirty = true
     },
-    savePermissions: (s) => {
+    savePermissions: (s: S) => {
       s.pSaving = true
       const id = s.agentId as string
       fetch(`/api/v1/agents/${id}`, {
