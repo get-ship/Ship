@@ -561,6 +561,48 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "ScopedMutation",
         sensitive: false,
     },
+    // ── pipelines (definition CRUD; reads are pipelines.list/get) ──
+    // Default C1: a pipeline is a workflow composition over existing
+    // agents/skills. `pipelines.*` (plural) edits definitions; `pipeline.*`
+    // (singular) is runtime lifecycle. Scope-resolving → ScopedMutation (id = name).
+    CommandDescriptor {
+        name: "pipelines.put",
+        description: "Create or replace a pipeline definition (by name).",
+        args: &[
+            ArgDescriptor { name: "name", kind: "string", required: true },
+            ArgDescriptor { name: "doc_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.pipelines.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "pipelines.patch",
+        description: "Apply RFC-6902 ops to a pipeline definition.",
+        args: &[
+            ArgDescriptor { name: "name", kind: "string", required: true },
+            ArgDescriptor { name: "patch_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.pipelines.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "pipelines.delete",
+        description: "Delete a pipeline definition (scope omitted walks project → user).",
+        args: &[
+            ArgDescriptor { name: "name", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.pipelines.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.activate",

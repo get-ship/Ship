@@ -88,8 +88,8 @@ pub fn classify(name: &str) -> Domain {
         // restricted ship-authoring here is defense in depth on the grant axis.
         "permissions" => Domain { group: "ship-authoring", restricted: true },
         // default — ordinary workspace mutation
-        "pipeline" | "project" | "mesh" | "git" | "annotation" | "annotations" | "feedback"
-        | "rules" | "artifacts" | "collections" => {
+        "pipeline" | "pipelines" | "project" | "mesh" | "git" | "annotation" | "annotations"
+        | "feedback" | "rules" | "artifacts" | "collections" => {
             Domain { group: "ship-workspace", restricted: false }
         }
         // unknown — fail closed

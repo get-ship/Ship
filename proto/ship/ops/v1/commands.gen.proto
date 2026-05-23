@@ -143,6 +143,18 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.agents.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc PipelinesPut(PipelinesPutRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.pipelines.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc PipelinesPatch(PipelinesPatchRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.pipelines.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc PipelinesDelete(PipelinesDeleteRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.pipelines.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc ProjectActivate(ProjectActivateRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -429,6 +441,23 @@ message AgentsMoveScopeRequest {
   string id = 1;
   string from = 2;
   string to = 3;
+}
+
+message PipelinesPutRequest {
+  string name = 1;
+  string doc_json = 2;
+  string scope = 3;
+}
+
+message PipelinesPatchRequest {
+  string name = 1;
+  string patch_json = 2;
+  string scope = 3;
+}
+
+message PipelinesDeleteRequest {
+  string name = 1;
+  string scope = 2;
 }
 
 message ProjectActivateRequest {

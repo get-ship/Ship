@@ -624,6 +624,62 @@ impl ::ship_ops_rpc::CommandOpsService for OpsImpl {
             Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
         }
     }
+    async fn pipelines_put(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedPipelinesPutRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::ScopedMutation> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("name".to_string(), ::serde_json::json!(req.name));
+        args.insert("doc_json".to_string(), ::serde_json::json!(req.doc_json));
+        args.insert("scope".to_string(), ::serde_json::json!(req.scope));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("pipelines.put", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::ScopedMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode pipelines.put response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn pipelines_patch(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedPipelinesPatchRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::ScopedMutation> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("name".to_string(), ::serde_json::json!(req.name));
+        args.insert("patch_json".to_string(), ::serde_json::json!(req.patch_json));
+        args.insert("scope".to_string(), ::serde_json::json!(req.scope));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("pipelines.patch", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::ScopedMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode pipelines.patch response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn pipelines_delete(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedPipelinesDeleteRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::ScopedMutation> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("name".to_string(), ::serde_json::json!(req.name));
+        args.insert("scope".to_string(), ::serde_json::json!(req.scope));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("pipelines.delete", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::ScopedMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode pipelines.delete response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
     async fn project_activate(
         &self,
         ctx: ::connectrpc::RequestContext,

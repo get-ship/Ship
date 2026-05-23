@@ -25,6 +25,7 @@ mod git;
 mod mcp;
 mod mesh;
 mod permissions;
+mod pipelines;
 mod skills;
 mod pipeline;
 mod project;
@@ -116,6 +117,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         }
     }
     if let Some(value) = pipeline::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = pipelines::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = project::try_dispatch(name, args, ctx).await? {
