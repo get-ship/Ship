@@ -328,6 +328,12 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
   const runtime = await (w.__suiRuntimeReady ?? Promise.resolve(w.__suiRuntime))
   if (!runtime?.mount) throw new Error('shell: SUI runtime did not load')
 
+  // Reserve the viewId before the try so the catch can release it on a failed
+  // mount — declaring it inside try left `nextViewId` out of scope in catch,
+  // turning any mount failure into a ReferenceError instead of the error UI.
+  const nextViewId = nextId()
+  window.__suiCurrentViewId = nextViewId
+
   try {
     const moduleOverride: unknown = opts.module
     const res = await fetch(payloadUrl(r), { credentials: 'same-origin' })
@@ -353,8 +359,6 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
     // CSS-loss flicker on every navigation, especially under load.)
     const previous = currentHandle
     const previousViewId = currentViewId
-    const nextViewId = nextId()
-    window.__suiCurrentViewId = nextViewId
     const handle = await runtime.mount(slot, payload, {
       cssScope: 'adjacent',
       // SUI views call `ship.<domain>.<op>()` inside `<data live>`
