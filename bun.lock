@@ -109,6 +109,7 @@
         "@ship/sui-dom": "workspace:*",
         "@ship/sui-lsp-browser": "workspace:*",
         "@ship/sui-runtime": "workspace:*",
+        "@ship/ui-components": "workspace:*",
         "@tiptap/core": "^3.21.0",
         "@tiptap/extension-code-block-lowlight": "^3.21.0",
         "@tiptap/extension-image": "^3.21.0",

@@ -36,6 +36,7 @@
     "@ship/sdk-client": "workspace:*",
     "@ship/sui-build": "workspace:*",
     "@ship/sui-dom": "workspace:*",
+    "@ship/ui-components": "workspace:*",
     "@ship/sui-lsp-browser": "workspace:*",
     "@ship/sui-runtime": "workspace:*",
     "@tiptap/core": "^3.21.0",

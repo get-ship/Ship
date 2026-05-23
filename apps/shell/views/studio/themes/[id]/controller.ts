@@ -14,7 +14,7 @@ import {
   readStoredTheme,
   isValidTheme,
   type ThemeId,
-} from '../../../../packages/components/ui-components/src/tokens/themes'
+} from '@ship/ui-components/tokens/themes'
 import { LAYERS, ALL_TOKENS, type TokenType } from './token-catalog'
 import type { Scope } from './page.sui'
 

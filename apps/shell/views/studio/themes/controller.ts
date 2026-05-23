@@ -8,7 +8,7 @@ import {
   THEMES,
   readStoredTheme,
   type ThemeId,
-} from '../../../packages/components/ui-components/src/tokens/themes'
+} from '@ship/ui-components/tokens/themes'
 import type { Scope } from './page.sui'
 
 type FilterId = 'all' | 'light' | 'dark'
