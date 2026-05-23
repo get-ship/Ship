@@ -182,6 +182,60 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "ScopedMutation",
         sensitive: false,
     },
+    // ── mcp (external MCP-server config; reads are mcp.list/get) ───
+    // Restricted (ship-authoring): registering a server adds tools agents can
+    // call. JSON-valued args travel as JSON-string args (server_json/patch_json).
+    CommandDescriptor {
+        name: "mcp.create",
+        description: "Register a new external MCP server (errors if the id is taken).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "server_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.mcp.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "mcp.put",
+        description: "Replace an MCP server's config (use mcp.create for net-new).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "server_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.mcp.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "mcp.patch",
+        description: "Apply RFC-6902 ops to an MCP server's config body.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "patch_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.mcp.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "mcp.delete",
+        description: "Remove an MCP server entry (scope omitted walks project → user).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.mcp.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.activate",

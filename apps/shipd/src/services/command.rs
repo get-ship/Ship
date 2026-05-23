@@ -19,6 +19,7 @@ use crate::ship_runtime::ApiState;
 mod agent;
 mod annotations;
 mod git;
+mod mcp;
 mod mesh;
 mod pipeline;
 mod project;
@@ -116,6 +117,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = rules::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = mcp::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
@@ -343,17 +347,58 @@ mod tests {
         // user scope writes to the test's TempDir user root (isolated); project
         // scope would resolve to the cwd repo, so it's deliberately user here.
         let args = serde_json::json!({
-            "id": "no-slop", "content": "# No slop\nBe precise.", "scope": "user"
+            "id": "test-fixture-rule", "content": "# Fixture\nBody.", "scope": "user"
         });
         let created = call("rules.create", &args, &ctx).await.expect("worker may create a rule");
         assert_eq!(created["ok"], true);
         // The read side sees it (read at user scope, same TempDir root).
         let got = crate::services::registry::call(
             "rules.get",
-            &serde_json::json!({ "id": "no-slop", "scope": "user" }),
+            &serde_json::json!({ "id": "test-fixture-rule", "scope": "user" }),
             &harness.state,
         )
         .expect("rule readable after create");
-        assert!(got["body"].as_str().unwrap_or("").contains("No slop"));
+        assert!(got["body"].as_str().unwrap_or("").contains("Fixture"));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn mcp_create_is_restricted_and_writes_through_for_authoring() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let args = serde_json::json!({
+            "id": "fixture-server",
+            "server_json": "{\"command\":\"ship\",\"args\":[\"mcp\",\"serve\"]}",
+            "scope": "user"
+        });
+
+        // A worker (no grants): mcp is restricted (ship-authoring), so the gate
+        // denies it before any write — registering a server expands agent tools.
+        let worker = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("worker-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec![],
+        };
+        let err = call("mcp.create", &args, &CommandCtx { state: &harness.state, auth: &worker })
+            .await
+            .unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+
+        // The operator clears the gate and the write lands (user scope = the
+        // test's isolated TempDir root), echoing the typed {id, scope} shape.
+        let op = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec![],
+        };
+        let created = call("mcp.create", &args, &CommandCtx { state: &harness.state, auth: &op })
+            .await
+            .expect("operator may register an mcp server");
+        assert_eq!(created["id"], "fixture-server");
+        assert_eq!(created["scope"], "user");
     }
 }

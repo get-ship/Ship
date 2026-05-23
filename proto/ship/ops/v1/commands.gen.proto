@@ -31,6 +31,22 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.rules.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc McpCreate(McpCreateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.mcp.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc McpPut(McpPutRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.mcp.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc McpPatch(McpPatchRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.mcp.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc McpDelete(McpDeleteRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.mcp.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc ProjectActivate(ProjectActivateRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -150,6 +166,29 @@ message RulesPutRequest {
 }
 
 message RulesDeleteRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message McpCreateRequest {
+  string id = 1;
+  string server_json = 2;
+  string scope = 3;
+}
+
+message McpPutRequest {
+  string id = 1;
+  string server_json = 2;
+  string scope = 3;
+}
+
+message McpPatchRequest {
+  string id = 1;
+  string patch_json = 2;
+  string scope = 3;
+}
+
+message McpDeleteRequest {
   string id = 1;
   string scope = 2;
 }

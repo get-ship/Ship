@@ -20,7 +20,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/commands.gen.proto.
  */
 export const file_ship_ops_v1_commands_gen: GenFile = /*@__PURE__*/
-  fileDesc("Ch5zaGlwL29wcy92MS9jb21tYW5kcy5nZW4ucHJvdG8SC3NoaXAub3BzLnYxIpkBChtQaXBlbGluZVVwZGF0ZVN0YXR1c1JlcXVlc3QSFwoPcGlwZWxpbmVfcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIQCgh3b3JrdHJlZRgDIAEoCRILCgNwaWQYBCABKAMSEgoKZ2F0ZV9hZ2VudBgFIAEoCRIPCgdibG9ja2VyGAYgASgJEg0KBWVycm9yGAcgASgJIqwBChdQaXBlbGluZVN0ZXBEb25lUmVxdWVzdBIMCgRzbHVnGAEgASgJEg8KB3N1bW1hcnkYAiABKAkSQgoHb3V0cHV0cxgDIAMoCzIxLnNoaXAub3BzLnYxLlBpcGVsaW5lU3RlcERvbmVSZXF1ZXN0Lk91dHB1dHNFbnRyeRouCgxPdXRwdXRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJAChJSdWxlc0NyZWF0ZVJlcXVlc3QSCgoCaWQYASABKAkSDwoHY29udGVudBgCIAEoCRINCgVzY29wZRgDIAEoCSI9Cg9SdWxlc1B1dFJlcXVlc3QSCgoCaWQYASABKAkSDwoHY29udGVudBgCIAEoCRINCgVzY29wZRgDIAEoCSIvChJSdWxlc0RlbGV0ZVJlcXVlc3QSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJAoWUHJvamVjdEFjdGl2YXRlUmVxdWVzdBIKCgJpZBgBIAEoCSI+Cg9NZXNoU2VuZFJlcXVlc3QSDAoEZnJvbRgBIAEoCRIKCgJ0bxgCIAEoCRIRCglib2R5X2pzb24YAyABKAkiUgoUTWVzaEJyb2FkY2FzdFJlcXVlc3QSDAoEZnJvbRgBIAEoCRIRCglib2R5X2pzb24YAiABKAkSGQoRY2FwYWJpbGl0eV9maWx0ZXIYAyABKAkiVAoOR2l0UHVzaFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg4KBnJlbW90ZRgCIAEoCRISCgVmb3JjZRgDIAEoCEgAiAEBQggKBl9mb3JjZSI3Cg9HaXRGZXRjaFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg4KBnJlbW90ZRgCIAEoCSI2Cg5HaXRQdWxsUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDgoGcmVtb3RlGAIgASgJIjYKD0dpdFN0YWdlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDQoFcGF0aHMYAiADKAkiOAoRR2l0VW5zdGFnZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg0KBXBhdGhzGAIgAygJIkkKEEdpdENvbW1pdFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSDgoGYXV0aG9yGAMgASgJIiAKEEFnZW50U3RvcFJlcXVlc3QSDAoEc2x1ZxgBIAEoCSIyChFBZ2VudEdyYW50UmVxdWVzdBINCgVhZ2VudBgBIAEoCRIOCgZncmFudHMYAiADKAkiMgoRQWdlbnRTdGVlclJlcXVlc3QSDAoEc2x1ZxgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIqgDChRBZ2VudERpc3BhdGNoUmVxdWVzdBINCgVhZ2VudBgBIAEoCRIMCgRzcGVjGAIgASgJEg4KBnByb21wdBgDIAEoCRITCgZyZXN1bWUYBCABKAhIAIgBARIPCgdoYXJuZXNzGAUgASgJEg0KBW1vZGVsGAYgASgJEhUKCG9wZW5fdGFiGAcgASgISAGIAQESEgoKaW52b2NhdGlvbhgIIAEoCRIWCglrZWVwYWxpdmUYCSABKAhIAogBARIRCgl3b3Jrc3BhY2UYCiABKAkSDAoEc2x1ZxgLIAEoCRIOCgZicmFuY2gYDCABKAkSGAoQc291cmNlX3NwZWNfcGF0aBgNIAEoCRISCgpkZXBlbmRzX29uGA4gAygJEjkKBHZhcnMYDyADKAsyKy5zaGlwLm9wcy52MS5BZ2VudERpc3BhdGNoUmVxdWVzdC5WYXJzRW50cnkaKwoJVmFyc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCCQoHX3Jlc3VtZUILCglfb3Blbl90YWJCDAoKX2tlZXBhbGl2ZSJVChRDcmVhdGVTdXJmYWNlUmVxdWVzdBIPCgdzdXJmYWNlGAEgASgJEgwKBG5hbWUYAiABKAkSDQoFc2hhcGUYAyABKAkSDwoHcHVycG9zZRgEIAEoCSJFChdWaWV3UGF0Y2hTZXNzaW9uUmVxdWVzdBIKCgJpZBgBIAEoCRIQCghzZWxlY3RvchgCIAEoCRIMCgRodG1sGAMgASgJIkYKGFZpZXdBcHBlbmRTZXNzaW9uUmVxdWVzdBIKCgJpZBgBIAEoCRIQCghzZWxlY3RvchgCIAEoCRIMCgRodG1sGAMgASgJIkgKGFZpZXdTaWduYWxTZXNzaW9uUmVxdWVzdBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnZhbHVlX2pzb24YAyABKAkiPAoYVmlld0VudGVyRWRpdE1vZGVSZXF1ZXN0EgwKBHZpZXcYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCSI7ChdWaWV3RXhpdEVkaXRNb2RlUmVxdWVzdBIMCgR2aWV3GAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkiUgoPVmlld1Rvb2xSZXF1ZXN0EgwKBHZpZXcYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIKCgJvcBgDIAEoCRIRCglhcmdzX2pzb24YBCABKAkiKwoVQW5ub3RhdGlvblBvc3RSZXF1ZXN0EhIKCmV2ZW50X2pzb24YASABKAkiKQoTRmVlZGJhY2tQb3N0UmVxdWVzdBISCgpldmVudF9qc29uGAEgASgJMoEWChFDb21tYW5kT3BzU2VydmljZRJ3ChRQaXBlbGluZVVwZGF0ZVN0YXR1cxIoLnNoaXAub3BzLnYxLlBpcGVsaW5lVXBkYXRlU3RhdHVzUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIairUYEnNoaXAucnVudGltZS53cml0ZZC1GAISbwoQUGlwZWxpbmVTdGVwRG9uZRIkLnNoaXAub3BzLnYxLlBpcGVsaW5lU3RlcERvbmVSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhqKtRgSc2hpcC5ydW50aW1lLndyaXRlkLUYAhJlCgtSdWxlc0NyZWF0ZRIfLnNoaXAub3BzLnYxLlJ1bGVzQ3JlYXRlUmVxdWVzdBobLnNoaXAub3BzLnYxLlNjb3BlZE11dGF0aW9uIhiKtRgQc2hpcC5ydWxlcy53cml0ZZC1GAISXwoIUnVsZXNQdXQSHC5zaGlwLm9wcy52MS5SdWxlc1B1dFJlcXVlc3QaGy5zaGlwLm9wcy52MS5TY29wZWRNdXRhdGlvbiIYirUYEHNoaXAucnVsZXMud3JpdGWQtRgCEmUKC1J1bGVzRGVsZXRlEh8uc2hpcC5vcHMudjEuUnVsZXNEZWxldGVSZXF1ZXN0Ghsuc2hpcC5vcHMudjEuU2NvcGVkTXV0YXRpb24iGIq1GBBzaGlwLnJ1bGVzLndyaXRlkLUYAhJuCg9Qcm9qZWN0QWN0aXZhdGUSIy5zaGlwLm9wcy52MS5Qcm9qZWN0QWN0aXZhdGVSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhuKtRgTc2hpcC5wcm9qZWN0cy53cml0ZZC1GAISXAoITWVzaFNlbmQSHC5zaGlwLm9wcy52MS5NZXNoU2VuZFJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiF4q1GA9zaGlwLm1lc2gud3JpdGWQtRgCEmYKDU1lc2hCcm9hZGNhc3QSIS5zaGlwLm9wcy52MS5NZXNoQnJvYWRjYXN0UmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIXirUYD3NoaXAubWVzaC53cml0ZZC1GAISWQoHR2l0UHVzaBIbLnNoaXAub3BzLnYxLkdpdFB1c2hSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhaKtRgOc2hpcC5naXQud3JpdGWQtRgCElsKCEdpdEZldGNoEhwuc2hpcC5vcHMudjEuR2l0RmV0Y2hSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhaKtRgOc2hpcC5naXQud3JpdGWQtRgCElkKB0dpdFB1bGwSGy5zaGlwLm9wcy52MS5HaXRQdWxsUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIWirUYDnNoaXAuZ2l0LndyaXRlkLUYAhJbCghHaXRTdGFnZRIcLnNoaXAub3BzLnYxLkdpdFN0YWdlUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIWirUYDnNoaXAuZ2l0LndyaXRlkLUYAhJfCgpHaXRVbnN0YWdlEh4uc2hpcC5vcHMudjEuR2l0VW5zdGFnZVJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiFoq1GA5zaGlwLmdpdC53cml0ZZC1GAISXQoJR2l0Q29tbWl0Eh0uc2hpcC5vcHMudjEuR2l0Q29tbWl0UmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIWirUYDnNoaXAuZ2l0LndyaXRlkLUYAhJgCglBZ2VudFN0b3ASHS5zaGlwLm9wcy52MS5BZ2VudFN0b3BSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhmKtRgRc2hpcC5hZ2VudHMud3JpdGWQtRgCEmIKCkFnZW50R3JhbnQSHi5zaGlwLm9wcy52MS5BZ2VudEdyYW50UmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIZirUYEXNoaXAuYWdlbnRzLmdyYW50kLUYAxJiCgpBZ2VudFN0ZWVyEh4uc2hpcC5vcHMudjEuQWdlbnRTdGVlclJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGYq1GBFzaGlwLmFnZW50cy53cml0ZZC1GAISbAoNQWdlbnREaXNwYXRjaBIhLnNoaXAub3BzLnYxLkFnZW50RGlzcGF0Y2hSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIh2KtRgVc2hpcC5ydW50aW1lLmRpc3BhdGNokLUYAhJqCg1DcmVhdGVTdXJmYWNlEiEuc2hpcC5vcHMudjEuQ3JlYXRlU3VyZmFjZVJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiG4q1GBNzaGlwLnN1cmZhY2VzLndyaXRlkLUYAhJtChBWaWV3UGF0Y2hTZXNzaW9uEiQuc2hpcC5vcHMudjEuVmlld1BhdGNoU2Vzc2lvblJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGIq1GBBzaGlwLnZpZXdzLndyaXRlkLUYAhJvChFWaWV3QXBwZW5kU2Vzc2lvbhIlLnNoaXAub3BzLnYxLlZpZXdBcHBlbmRTZXNzaW9uUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAudmlld3Mud3JpdGWQtRgCEm8KEVZpZXdTaWduYWxTZXNzaW9uEiUuc2hpcC5vcHMudjEuVmlld1NpZ25hbFNlc3Npb25SZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhiKtRgQc2hpcC52aWV3cy53cml0ZZC1GAISbwoRVmlld0VudGVyRWRpdE1vZGUSJS5zaGlwLm9wcy52MS5WaWV3RW50ZXJFZGl0TW9kZVJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGIq1GBBzaGlwLnZpZXdzLndyaXRlkLUYAhJtChBWaWV3RXhpdEVkaXRNb2RlEiQuc2hpcC5vcHMudjEuVmlld0V4aXRFZGl0TW9kZVJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGIq1GBBzaGlwLnZpZXdzLndyaXRlkLUYAhJdCghWaWV3VG9vbBIcLnNoaXAub3BzLnYxLlZpZXdUb29sUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAudmlld3Mud3JpdGWQtRgCEm8KDkFubm90YXRpb25Qb3N0EiIuc2hpcC5vcHMudjEuQW5ub3RhdGlvblBvc3RSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIh6KtRgWc2hpcC5hbm5vdGF0aW9ucy53cml0ZZC1GAISaAoMRmVlZGJhY2tQb3N0EiAuc2hpcC5vcHMudjEuRmVlZGJhY2tQb3N0UmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIbirUYE3NoaXAuZmVlZGJhY2sud3JpdGWQtRgCYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_ops, file_ship_ops_v1_types]);
+  fileDesc("Ch5zaGlwL29wcy92MS9jb21tYW5kcy5nZW4ucHJvdG8SC3NoaXAub3BzLnYxIpkBChtQaXBlbGluZVVwZGF0ZVN0YXR1c1JlcXVlc3QSFwoPcGlwZWxpbmVfcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIQCgh3b3JrdHJlZRgDIAEoCRILCgNwaWQYBCABKAMSEgoKZ2F0ZV9hZ2VudBgFIAEoCRIPCgdibG9ja2VyGAYgASgJEg0KBWVycm9yGAcgASgJIqwBChdQaXBlbGluZVN0ZXBEb25lUmVxdWVzdBIMCgRzbHVnGAEgASgJEg8KB3N1bW1hcnkYAiABKAkSQgoHb3V0cHV0cxgDIAMoCzIxLnNoaXAub3BzLnYxLlBpcGVsaW5lU3RlcERvbmVSZXF1ZXN0Lk91dHB1dHNFbnRyeRouCgxPdXRwdXRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJAChJSdWxlc0NyZWF0ZVJlcXVlc3QSCgoCaWQYASABKAkSDwoHY29udGVudBgCIAEoCRINCgVzY29wZRgDIAEoCSI9Cg9SdWxlc1B1dFJlcXVlc3QSCgoCaWQYASABKAkSDwoHY29udGVudBgCIAEoCRINCgVzY29wZRgDIAEoCSIvChJSdWxlc0RlbGV0ZVJlcXVlc3QSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiQgoQTWNwQ3JlYXRlUmVxdWVzdBIKCgJpZBgBIAEoCRITCgtzZXJ2ZXJfanNvbhgCIAEoCRINCgVzY29wZRgDIAEoCSI/Cg1NY3BQdXRSZXF1ZXN0EgoKAmlkGAEgASgJEhMKC3NlcnZlcl9qc29uGAIgASgJEg0KBXNjb3BlGAMgASgJIkAKD01jcFBhdGNoUmVxdWVzdBIKCgJpZBgBIAEoCRISCgpwYXRjaF9qc29uGAIgASgJEg0KBXNjb3BlGAMgASgJIi0KEE1jcERlbGV0ZVJlcXVlc3QSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJAoWUHJvamVjdEFjdGl2YXRlUmVxdWVzdBIKCgJpZBgBIAEoCSI+Cg9NZXNoU2VuZFJlcXVlc3QSDAoEZnJvbRgBIAEoCRIKCgJ0bxgCIAEoCRIRCglib2R5X2pzb24YAyABKAkiUgoUTWVzaEJyb2FkY2FzdFJlcXVlc3QSDAoEZnJvbRgBIAEoCRIRCglib2R5X2pzb24YAiABKAkSGQoRY2FwYWJpbGl0eV9maWx0ZXIYAyABKAkiVAoOR2l0UHVzaFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg4KBnJlbW90ZRgCIAEoCRISCgVmb3JjZRgDIAEoCEgAiAEBQggKBl9mb3JjZSI3Cg9HaXRGZXRjaFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg4KBnJlbW90ZRgCIAEoCSI2Cg5HaXRQdWxsUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDgoGcmVtb3RlGAIgASgJIjYKD0dpdFN0YWdlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDQoFcGF0aHMYAiADKAkiOAoRR2l0VW5zdGFnZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg0KBXBhdGhzGAIgAygJIkkKEEdpdENvbW1pdFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSDgoGYXV0aG9yGAMgASgJIiAKEEFnZW50U3RvcFJlcXVlc3QSDAoEc2x1ZxgBIAEoCSIyChFBZ2VudEdyYW50UmVxdWVzdBINCgVhZ2VudBgBIAEoCRIOCgZncmFudHMYAiADKAkiMgoRQWdlbnRTdGVlclJlcXVlc3QSDAoEc2x1ZxgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIqgDChRBZ2VudERpc3BhdGNoUmVxdWVzdBINCgVhZ2VudBgBIAEoCRIMCgRzcGVjGAIgASgJEg4KBnByb21wdBgDIAEoCRITCgZyZXN1bWUYBCABKAhIAIgBARIPCgdoYXJuZXNzGAUgASgJEg0KBW1vZGVsGAYgASgJEhUKCG9wZW5fdGFiGAcgASgISAGIAQESEgoKaW52b2NhdGlvbhgIIAEoCRIWCglrZWVwYWxpdmUYCSABKAhIAogBARIRCgl3b3Jrc3BhY2UYCiABKAkSDAoEc2x1ZxgLIAEoCRIOCgZicmFuY2gYDCABKAkSGAoQc291cmNlX3NwZWNfcGF0aBgNIAEoCRISCgpkZXBlbmRzX29uGA4gAygJEjkKBHZhcnMYDyADKAsyKy5zaGlwLm9wcy52MS5BZ2VudERpc3BhdGNoUmVxdWVzdC5WYXJzRW50cnkaKwoJVmFyc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCCQoHX3Jlc3VtZUILCglfb3Blbl90YWJCDAoKX2tlZXBhbGl2ZSJVChRDcmVhdGVTdXJmYWNlUmVxdWVzdBIPCgdzdXJmYWNlGAEgASgJEgwKBG5hbWUYAiABKAkSDQoFc2hhcGUYAyABKAkSDwoHcHVycG9zZRgEIAEoCSJFChdWaWV3UGF0Y2hTZXNzaW9uUmVxdWVzdBIKCgJpZBgBIAEoCRIQCghzZWxlY3RvchgCIAEoCRIMCgRodG1sGAMgASgJIkYKGFZpZXdBcHBlbmRTZXNzaW9uUmVxdWVzdBIKCgJpZBgBIAEoCRIQCghzZWxlY3RvchgCIAEoCRIMCgRodG1sGAMgASgJIkgKGFZpZXdTaWduYWxTZXNzaW9uUmVxdWVzdBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnZhbHVlX2pzb24YAyABKAkiPAoYVmlld0VudGVyRWRpdE1vZGVSZXF1ZXN0EgwKBHZpZXcYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCSI7ChdWaWV3RXhpdEVkaXRNb2RlUmVxdWVzdBIMCgR2aWV3GAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkiUgoPVmlld1Rvb2xSZXF1ZXN0EgwKBHZpZXcYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIKCgJvcBgDIAEoCRIRCglhcmdzX2pzb24YBCABKAkiKwoVQW5ub3RhdGlvblBvc3RSZXF1ZXN0EhIKCmV2ZW50X2pzb24YASABKAkiKQoTRmVlZGJhY2tQb3N0UmVxdWVzdBISCgpldmVudF9qc29uGAEgASgJMv0YChFDb21tYW5kT3BzU2VydmljZRJ3ChRQaXBlbGluZVVwZGF0ZVN0YXR1cxIoLnNoaXAub3BzLnYxLlBpcGVsaW5lVXBkYXRlU3RhdHVzUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIairUYEnNoaXAucnVudGltZS53cml0ZZC1GAISbwoQUGlwZWxpbmVTdGVwRG9uZRIkLnNoaXAub3BzLnYxLlBpcGVsaW5lU3RlcERvbmVSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhqKtRgSc2hpcC5ydW50aW1lLndyaXRlkLUYAhJlCgtSdWxlc0NyZWF0ZRIfLnNoaXAub3BzLnYxLlJ1bGVzQ3JlYXRlUmVxdWVzdBobLnNoaXAub3BzLnYxLlNjb3BlZE11dGF0aW9uIhiKtRgQc2hpcC5ydWxlcy53cml0ZZC1GAISXwoIUnVsZXNQdXQSHC5zaGlwLm9wcy52MS5SdWxlc1B1dFJlcXVlc3QaGy5zaGlwLm9wcy52MS5TY29wZWRNdXRhdGlvbiIYirUYEHNoaXAucnVsZXMud3JpdGWQtRgCEmUKC1J1bGVzRGVsZXRlEh8uc2hpcC5vcHMudjEuUnVsZXNEZWxldGVSZXF1ZXN0Ghsuc2hpcC5vcHMudjEuU2NvcGVkTXV0YXRpb24iGIq1GBBzaGlwLnJ1bGVzLndyaXRlkLUYAhJfCglNY3BDcmVhdGUSHS5zaGlwLm9wcy52MS5NY3BDcmVhdGVSZXF1ZXN0Ghsuc2hpcC5vcHMudjEuU2NvcGVkTXV0YXRpb24iFoq1GA5zaGlwLm1jcC53cml0ZZC1GAISWQoGTWNwUHV0Ehouc2hpcC5vcHMudjEuTWNwUHV0UmVxdWVzdBobLnNoaXAub3BzLnYxLlNjb3BlZE11dGF0aW9uIhaKtRgOc2hpcC5tY3Aud3JpdGWQtRgCEl0KCE1jcFBhdGNoEhwuc2hpcC5vcHMudjEuTWNwUGF0Y2hSZXF1ZXN0Ghsuc2hpcC5vcHMudjEuU2NvcGVkTXV0YXRpb24iFoq1GA5zaGlwLm1jcC53cml0ZZC1GAISXwoJTWNwRGVsZXRlEh0uc2hpcC5vcHMudjEuTWNwRGVsZXRlUmVxdWVzdBobLnNoaXAub3BzLnYxLlNjb3BlZE11dGF0aW9uIhaKtRgOc2hpcC5tY3Aud3JpdGWQtRgCEm4KD1Byb2plY3RBY3RpdmF0ZRIjLnNoaXAub3BzLnYxLlByb2plY3RBY3RpdmF0ZVJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiG4q1GBNzaGlwLnByb2plY3RzLndyaXRlkLUYAhJcCghNZXNoU2VuZBIcLnNoaXAub3BzLnYxLk1lc2hTZW5kUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIXirUYD3NoaXAubWVzaC53cml0ZZC1GAISZgoNTWVzaEJyb2FkY2FzdBIhLnNoaXAub3BzLnYxLk1lc2hCcm9hZGNhc3RSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIheKtRgPc2hpcC5tZXNoLndyaXRlkLUYAhJZCgdHaXRQdXNoEhsuc2hpcC5vcHMudjEuR2l0UHVzaFJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiFoq1GA5zaGlwLmdpdC53cml0ZZC1GAISWwoIR2l0RmV0Y2gSHC5zaGlwLm9wcy52MS5HaXRGZXRjaFJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiFoq1GA5zaGlwLmdpdC53cml0ZZC1GAISWQoHR2l0UHVsbBIbLnNoaXAub3BzLnYxLkdpdFB1bGxSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhaKtRgOc2hpcC5naXQud3JpdGWQtRgCElsKCEdpdFN0YWdlEhwuc2hpcC5vcHMudjEuR2l0U3RhZ2VSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhaKtRgOc2hpcC5naXQud3JpdGWQtRgCEl8KCkdpdFVuc3RhZ2USHi5zaGlwLm9wcy52MS5HaXRVbnN0YWdlUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIWirUYDnNoaXAuZ2l0LndyaXRlkLUYAhJdCglHaXRDb21taXQSHS5zaGlwLm9wcy52MS5HaXRDb21taXRSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhaKtRgOc2hpcC5naXQud3JpdGWQtRgCEmAKCUFnZW50U3RvcBIdLnNoaXAub3BzLnYxLkFnZW50U3RvcFJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGYq1GBFzaGlwLmFnZW50cy53cml0ZZC1GAISYgoKQWdlbnRHcmFudBIeLnNoaXAub3BzLnYxLkFnZW50R3JhbnRSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhmKtRgRc2hpcC5hZ2VudHMuZ3JhbnSQtRgDEmIKCkFnZW50U3RlZXISHi5zaGlwLm9wcy52MS5BZ2VudFN0ZWVyUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIZirUYEXNoaXAuYWdlbnRzLndyaXRlkLUYAhJsCg1BZ2VudERpc3BhdGNoEiEuc2hpcC5vcHMudjEuQWdlbnREaXNwYXRjaFJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiHYq1GBVzaGlwLnJ1bnRpbWUuZGlzcGF0Y2iQtRgCEmoKDUNyZWF0ZVN1cmZhY2USIS5zaGlwLm9wcy52MS5DcmVhdGVTdXJmYWNlUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIbirUYE3NoaXAuc3VyZmFjZXMud3JpdGWQtRgCEm0KEFZpZXdQYXRjaFNlc3Npb24SJC5zaGlwLm9wcy52MS5WaWV3UGF0Y2hTZXNzaW9uUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAudmlld3Mud3JpdGWQtRgCEm8KEVZpZXdBcHBlbmRTZXNzaW9uEiUuc2hpcC5vcHMudjEuVmlld0FwcGVuZFNlc3Npb25SZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhiKtRgQc2hpcC52aWV3cy53cml0ZZC1GAISbwoRVmlld1NpZ25hbFNlc3Npb24SJS5zaGlwLm9wcy52MS5WaWV3U2lnbmFsU2Vzc2lvblJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGIq1GBBzaGlwLnZpZXdzLndyaXRlkLUYAhJvChFWaWV3RW50ZXJFZGl0TW9kZRIlLnNoaXAub3BzLnYxLlZpZXdFbnRlckVkaXRNb2RlUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAudmlld3Mud3JpdGWQtRgCEm0KEFZpZXdFeGl0RWRpdE1vZGUSJC5zaGlwLm9wcy52MS5WaWV3RXhpdEVkaXRNb2RlUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAudmlld3Mud3JpdGWQtRgCEl0KCFZpZXdUb29sEhwuc2hpcC5vcHMudjEuVmlld1Rvb2xSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhiKtRgQc2hpcC52aWV3cy53cml0ZZC1GAISbwoOQW5ub3RhdGlvblBvc3QSIi5zaGlwLm9wcy52MS5Bbm5vdGF0aW9uUG9zdFJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiHoq1GBZzaGlwLmFubm90YXRpb25zLndyaXRlkLUYAhJoCgxGZWVkYmFja1Bvc3QSIC5zaGlwLm9wcy52MS5GZWVkYmFja1Bvc3RSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhuKtRgTc2hpcC5mZWVkYmFjay53cml0ZZC1GAJiBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_ops, file_ship_ops_v1_types]);
 
 /**
  * @generated from message ship.ops.v1.PipelineUpdateStatusRequest
@@ -173,6 +173,109 @@ export const RulesDeleteRequestSchema: GenMessage<RulesDeleteRequest> = /*@__PUR
   messageDesc(file_ship_ops_v1_commands_gen, 4);
 
 /**
+ * @generated from message ship.ops.v1.McpCreateRequest
+ */
+export type McpCreateRequest = Message<"ship.ops.v1.McpCreateRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string server_json = 2;
+   */
+  serverJson: string;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.McpCreateRequest.
+ * Use `create(McpCreateRequestSchema)` to create a new message.
+ */
+export const McpCreateRequestSchema: GenMessage<McpCreateRequest> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_commands_gen, 5);
+
+/**
+ * @generated from message ship.ops.v1.McpPutRequest
+ */
+export type McpPutRequest = Message<"ship.ops.v1.McpPutRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string server_json = 2;
+   */
+  serverJson: string;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.McpPutRequest.
+ * Use `create(McpPutRequestSchema)` to create a new message.
+ */
+export const McpPutRequestSchema: GenMessage<McpPutRequest> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_commands_gen, 6);
+
+/**
+ * @generated from message ship.ops.v1.McpPatchRequest
+ */
+export type McpPatchRequest = Message<"ship.ops.v1.McpPatchRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string patch_json = 2;
+   */
+  patchJson: string;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.McpPatchRequest.
+ * Use `create(McpPatchRequestSchema)` to create a new message.
+ */
+export const McpPatchRequestSchema: GenMessage<McpPatchRequest> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_commands_gen, 7);
+
+/**
+ * @generated from message ship.ops.v1.McpDeleteRequest
+ */
+export type McpDeleteRequest = Message<"ship.ops.v1.McpDeleteRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.McpDeleteRequest.
+ * Use `create(McpDeleteRequestSchema)` to create a new message.
+ */
+export const McpDeleteRequestSchema: GenMessage<McpDeleteRequest> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_commands_gen, 8);
+
+/**
  * @generated from message ship.ops.v1.ProjectActivateRequest
  */
 export type ProjectActivateRequest = Message<"ship.ops.v1.ProjectActivateRequest"> & {
@@ -187,7 +290,7 @@ export type ProjectActivateRequest = Message<"ship.ops.v1.ProjectActivateRequest
  * Use `create(ProjectActivateRequestSchema)` to create a new message.
  */
 export const ProjectActivateRequestSchema: GenMessage<ProjectActivateRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 5);
+  messageDesc(file_ship_ops_v1_commands_gen, 9);
 
 /**
  * @generated from message ship.ops.v1.MeshSendRequest
@@ -214,7 +317,7 @@ export type MeshSendRequest = Message<"ship.ops.v1.MeshSendRequest"> & {
  * Use `create(MeshSendRequestSchema)` to create a new message.
  */
 export const MeshSendRequestSchema: GenMessage<MeshSendRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 6);
+  messageDesc(file_ship_ops_v1_commands_gen, 10);
 
 /**
  * @generated from message ship.ops.v1.MeshBroadcastRequest
@@ -241,7 +344,7 @@ export type MeshBroadcastRequest = Message<"ship.ops.v1.MeshBroadcastRequest"> &
  * Use `create(MeshBroadcastRequestSchema)` to create a new message.
  */
 export const MeshBroadcastRequestSchema: GenMessage<MeshBroadcastRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 7);
+  messageDesc(file_ship_ops_v1_commands_gen, 11);
 
 /**
  * @generated from message ship.ops.v1.GitPushRequest
@@ -268,7 +371,7 @@ export type GitPushRequest = Message<"ship.ops.v1.GitPushRequest"> & {
  * Use `create(GitPushRequestSchema)` to create a new message.
  */
 export const GitPushRequestSchema: GenMessage<GitPushRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 8);
+  messageDesc(file_ship_ops_v1_commands_gen, 12);
 
 /**
  * @generated from message ship.ops.v1.GitFetchRequest
@@ -290,7 +393,7 @@ export type GitFetchRequest = Message<"ship.ops.v1.GitFetchRequest"> & {
  * Use `create(GitFetchRequestSchema)` to create a new message.
  */
 export const GitFetchRequestSchema: GenMessage<GitFetchRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 9);
+  messageDesc(file_ship_ops_v1_commands_gen, 13);
 
 /**
  * @generated from message ship.ops.v1.GitPullRequest
@@ -312,7 +415,7 @@ export type GitPullRequest = Message<"ship.ops.v1.GitPullRequest"> & {
  * Use `create(GitPullRequestSchema)` to create a new message.
  */
 export const GitPullRequestSchema: GenMessage<GitPullRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 10);
+  messageDesc(file_ship_ops_v1_commands_gen, 14);
 
 /**
  * @generated from message ship.ops.v1.GitStageRequest
@@ -334,7 +437,7 @@ export type GitStageRequest = Message<"ship.ops.v1.GitStageRequest"> & {
  * Use `create(GitStageRequestSchema)` to create a new message.
  */
 export const GitStageRequestSchema: GenMessage<GitStageRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 11);
+  messageDesc(file_ship_ops_v1_commands_gen, 15);
 
 /**
  * @generated from message ship.ops.v1.GitUnstageRequest
@@ -356,7 +459,7 @@ export type GitUnstageRequest = Message<"ship.ops.v1.GitUnstageRequest"> & {
  * Use `create(GitUnstageRequestSchema)` to create a new message.
  */
 export const GitUnstageRequestSchema: GenMessage<GitUnstageRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 12);
+  messageDesc(file_ship_ops_v1_commands_gen, 16);
 
 /**
  * @generated from message ship.ops.v1.GitCommitRequest
@@ -383,7 +486,7 @@ export type GitCommitRequest = Message<"ship.ops.v1.GitCommitRequest"> & {
  * Use `create(GitCommitRequestSchema)` to create a new message.
  */
 export const GitCommitRequestSchema: GenMessage<GitCommitRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 13);
+  messageDesc(file_ship_ops_v1_commands_gen, 17);
 
 /**
  * @generated from message ship.ops.v1.AgentStopRequest
@@ -400,7 +503,7 @@ export type AgentStopRequest = Message<"ship.ops.v1.AgentStopRequest"> & {
  * Use `create(AgentStopRequestSchema)` to create a new message.
  */
 export const AgentStopRequestSchema: GenMessage<AgentStopRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 14);
+  messageDesc(file_ship_ops_v1_commands_gen, 18);
 
 /**
  * @generated from message ship.ops.v1.AgentGrantRequest
@@ -422,7 +525,7 @@ export type AgentGrantRequest = Message<"ship.ops.v1.AgentGrantRequest"> & {
  * Use `create(AgentGrantRequestSchema)` to create a new message.
  */
 export const AgentGrantRequestSchema: GenMessage<AgentGrantRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 15);
+  messageDesc(file_ship_ops_v1_commands_gen, 19);
 
 /**
  * @generated from message ship.ops.v1.AgentSteerRequest
@@ -444,7 +547,7 @@ export type AgentSteerRequest = Message<"ship.ops.v1.AgentSteerRequest"> & {
  * Use `create(AgentSteerRequestSchema)` to create a new message.
  */
 export const AgentSteerRequestSchema: GenMessage<AgentSteerRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 16);
+  messageDesc(file_ship_ops_v1_commands_gen, 20);
 
 /**
  * @generated from message ship.ops.v1.AgentDispatchRequest
@@ -531,7 +634,7 @@ export type AgentDispatchRequest = Message<"ship.ops.v1.AgentDispatchRequest"> &
  * Use `create(AgentDispatchRequestSchema)` to create a new message.
  */
 export const AgentDispatchRequestSchema: GenMessage<AgentDispatchRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 17);
+  messageDesc(file_ship_ops_v1_commands_gen, 21);
 
 /**
  * @generated from message ship.ops.v1.CreateSurfaceRequest
@@ -563,7 +666,7 @@ export type CreateSurfaceRequest = Message<"ship.ops.v1.CreateSurfaceRequest"> &
  * Use `create(CreateSurfaceRequestSchema)` to create a new message.
  */
 export const CreateSurfaceRequestSchema: GenMessage<CreateSurfaceRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 18);
+  messageDesc(file_ship_ops_v1_commands_gen, 22);
 
 /**
  * @generated from message ship.ops.v1.ViewPatchSessionRequest
@@ -590,7 +693,7 @@ export type ViewPatchSessionRequest = Message<"ship.ops.v1.ViewPatchSessionReque
  * Use `create(ViewPatchSessionRequestSchema)` to create a new message.
  */
 export const ViewPatchSessionRequestSchema: GenMessage<ViewPatchSessionRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 19);
+  messageDesc(file_ship_ops_v1_commands_gen, 23);
 
 /**
  * @generated from message ship.ops.v1.ViewAppendSessionRequest
@@ -617,7 +720,7 @@ export type ViewAppendSessionRequest = Message<"ship.ops.v1.ViewAppendSessionReq
  * Use `create(ViewAppendSessionRequestSchema)` to create a new message.
  */
 export const ViewAppendSessionRequestSchema: GenMessage<ViewAppendSessionRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 20);
+  messageDesc(file_ship_ops_v1_commands_gen, 24);
 
 /**
  * @generated from message ship.ops.v1.ViewSignalSessionRequest
@@ -644,7 +747,7 @@ export type ViewSignalSessionRequest = Message<"ship.ops.v1.ViewSignalSessionReq
  * Use `create(ViewSignalSessionRequestSchema)` to create a new message.
  */
 export const ViewSignalSessionRequestSchema: GenMessage<ViewSignalSessionRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 21);
+  messageDesc(file_ship_ops_v1_commands_gen, 25);
 
 /**
  * @generated from message ship.ops.v1.ViewEnterEditModeRequest
@@ -666,7 +769,7 @@ export type ViewEnterEditModeRequest = Message<"ship.ops.v1.ViewEnterEditModeReq
  * Use `create(ViewEnterEditModeRequestSchema)` to create a new message.
  */
 export const ViewEnterEditModeRequestSchema: GenMessage<ViewEnterEditModeRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 22);
+  messageDesc(file_ship_ops_v1_commands_gen, 26);
 
 /**
  * @generated from message ship.ops.v1.ViewExitEditModeRequest
@@ -688,7 +791,7 @@ export type ViewExitEditModeRequest = Message<"ship.ops.v1.ViewExitEditModeReque
  * Use `create(ViewExitEditModeRequestSchema)` to create a new message.
  */
 export const ViewExitEditModeRequestSchema: GenMessage<ViewExitEditModeRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 23);
+  messageDesc(file_ship_ops_v1_commands_gen, 27);
 
 /**
  * @generated from message ship.ops.v1.ViewToolRequest
@@ -720,7 +823,7 @@ export type ViewToolRequest = Message<"ship.ops.v1.ViewToolRequest"> & {
  * Use `create(ViewToolRequestSchema)` to create a new message.
  */
 export const ViewToolRequestSchema: GenMessage<ViewToolRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 24);
+  messageDesc(file_ship_ops_v1_commands_gen, 28);
 
 /**
  * @generated from message ship.ops.v1.AnnotationPostRequest
@@ -737,7 +840,7 @@ export type AnnotationPostRequest = Message<"ship.ops.v1.AnnotationPostRequest">
  * Use `create(AnnotationPostRequestSchema)` to create a new message.
  */
 export const AnnotationPostRequestSchema: GenMessage<AnnotationPostRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 25);
+  messageDesc(file_ship_ops_v1_commands_gen, 29);
 
 /**
  * @generated from message ship.ops.v1.FeedbackPostRequest
@@ -754,7 +857,7 @@ export type FeedbackPostRequest = Message<"ship.ops.v1.FeedbackPostRequest"> & {
  * Use `create(FeedbackPostRequestSchema)` to create a new message.
  */
 export const FeedbackPostRequestSchema: GenMessage<FeedbackPostRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_commands_gen, 26);
+  messageDesc(file_ship_ops_v1_commands_gen, 30);
 
 /**
  * @generated from service ship.ops.v1.CommandOpsService
@@ -798,6 +901,38 @@ export const CommandOpsService: GenService<{
   rulesDelete: {
     methodKind: "unary";
     input: typeof RulesDeleteRequestSchema;
+    output: typeof ScopedMutationSchema;
+  },
+  /**
+   * @generated from rpc ship.ops.v1.CommandOpsService.McpCreate
+   */
+  mcpCreate: {
+    methodKind: "unary";
+    input: typeof McpCreateRequestSchema;
+    output: typeof ScopedMutationSchema;
+  },
+  /**
+   * @generated from rpc ship.ops.v1.CommandOpsService.McpPut
+   */
+  mcpPut: {
+    methodKind: "unary";
+    input: typeof McpPutRequestSchema;
+    output: typeof ScopedMutationSchema;
+  },
+  /**
+   * @generated from rpc ship.ops.v1.CommandOpsService.McpPatch
+   */
+  mcpPatch: {
+    methodKind: "unary";
+    input: typeof McpPatchRequestSchema;
+    output: typeof ScopedMutationSchema;
+  },
+  /**
+   * @generated from rpc ship.ops.v1.CommandOpsService.McpDelete
+   */
+  mcpDelete: {
+    methodKind: "unary";
+    input: typeof McpDeleteRequestSchema;
     output: typeof ScopedMutationSchema;
   },
   /**

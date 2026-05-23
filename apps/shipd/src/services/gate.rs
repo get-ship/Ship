@@ -74,7 +74,10 @@ pub fn classify(name: &str) -> Domain {
     match name.split('.').next().unwrap_or(name) {
         // restricted — capability-defining
         "agent" => Domain { group: "ship-orchestration", restricted: true },
-        "create" | "view" => Domain { group: "ship-authoring", restricted: true },
+        // `mcp` registers external MCP servers → new tools agents can call, so
+        // configuring it is authoring agent capability, not ordinary workspace
+        // mutation. Gated behind the ship-authoring grant.
+        "create" | "view" | "mcp" => Domain { group: "ship-authoring", restricted: true },
         // default — ordinary workspace mutation
         "pipeline" | "project" | "mesh" | "git" | "annotation" | "annotations" | "feedback"
         | "rules" => {
