@@ -420,9 +420,20 @@ async fn island_tags_listed() {
 #[tokio::test(flavor = "multi_thread")]
 async fn first_party_view_payload_works() {
     let _g = lock_with_dir(repo_root());
-    let resp = serve_view_payload(None, Path("agents".to_string())).await;
+    // First-party views live under the ship host's `apps/shell/src`, supplied
+    // via `SHIP_FIRST_PARTY_VIEWS` (the resolver's first-party bucket). `studio`
+    // is a first-party view — it resolves there, not under the project's
+    // top-level `views/`. (Was `agents`, which the studio reorg moved into
+    // `apps/shell/src/studio/`.)
+    let fp_prev = std::env::var_os("SHIP_FIRST_PARTY_VIEWS");
+    unsafe { std::env::set_var("SHIP_FIRST_PARTY_VIEWS", repo_root().join("apps/shell/src")); }
+    let resp = serve_view_payload(None, Path("studio".to_string())).await;
+    match fp_prev {
+        Some(v) => unsafe { std::env::set_var("SHIP_FIRST_PARTY_VIEWS", v) },
+        None => unsafe { std::env::remove_var("SHIP_FIRST_PARTY_VIEWS") },
+    }
     assert_eq!(resp.status(), StatusCode::OK);
     let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
-    assert_eq!(v["name"], "agents");
-    assert_eq!(v["moduleUrl"], "/_sui/views/agents/view.js");
+    assert_eq!(v["name"], "studio");
+    assert_eq!(v["moduleUrl"], "/_sui/views/studio/view.js");
 }

@@ -80,7 +80,7 @@ async fn view_template_prod_must_revalidate_and_etag() {
     let _lock = crate::test_lock::lock();
     let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
     unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", repo_root()); }
-    let resp = crate::view::serve_sui_view_template(prod(), Path("agents".to_string())).await;
+    let resp = crate::view::serve_sui_view_template(prod(), Path("git".to_string())).await;
     match prev {
         Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
         None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
@@ -118,7 +118,7 @@ async fn view_template_dev_no_cache_no_etag() {
     let _lock = crate::test_lock::lock();
     let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
     unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", repo_root()); }
-    let resp = crate::view::serve_sui_view_template(dev(), Path("agents".to_string())).await;
+    let resp = crate::view::serve_sui_view_template(dev(), Path("git".to_string())).await;
     match prev {
         Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
         None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },

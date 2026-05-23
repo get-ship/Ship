@@ -307,11 +307,11 @@ mod tests {
         clippy::await_holding_lock,
         reason = "test serializes env-var mutation across the await — the whole point of this lock"
     )]
-    async fn agents_template_served_verbatim() {
+    async fn view_template_served_verbatim() {
         let _lock = test_lock();
         let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
         unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", repo_root()); }
-        let resp = serve_sui_view_template(None, Path("agents".to_string())).await;
+        let resp = serve_sui_view_template(None, Path("git".to_string())).await;
         match prev {
             Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
             None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },

@@ -122,7 +122,7 @@ mod tests {
         // view path must resolve to a real file (no `packages/packages/…`).
         let root = resolve_workspace_root().expect("workspace root resolves");
         assert!(!root.ends_with("packages"), "root wrongly in packages/: {}", root.display());
-        let (abs, _) = validate_file("views/agents/page.sui").expect("known view resolves");
+        let (abs, _) = validate_file("views/git/page.sui").expect("known view resolves");
         assert!(abs.exists(), "resolved path should exist: {}", abs.display());
         assert!(!abs.to_string_lossy().contains("packages/packages"));
     }
@@ -160,7 +160,7 @@ mod tests {
 
     #[tokio::test]
     async fn dependencies_returns_tags_and_events_in_process() {
-        let out = sui_dependencies("views/agents/page.sui").await;
+        let out = sui_dependencies("views/git/page.sui").await;
         assert!(!out.starts_with("Error:"), "expected JSON, got: {out}");
         let v: Value = serde_json::from_str(&out).expect("parses as JSON");
         let tags = v.get("tags").and_then(|t| t.as_array()).expect("tags array");
