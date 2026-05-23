@@ -40,7 +40,7 @@
   }
   details > summary::-webkit-details-marker { display: none; }
   .op { color: var(--primary); }
-  .op.soft::before { content: 'try · '; color: var(--muted-foreground); }
+  .op .soft-tag { color: var(--muted-foreground); }
   .op.unknown { color: var(--destructive); }
   .perm { color: var(--muted-foreground); }
   .desc { color: var(--muted-foreground); }
@@ -80,7 +80,7 @@
     {#for r of refs() key={r.op + (r.soft ? '-soft' : '')}}
       <details>
         <summary>
-          <span class="op" class:soft={r.soft} class:unknown={!r.known}>{r.op}</span>
+          <span class="op" class:unknown={!r.known}>{#if r.soft}<span class="soft-tag">try · </span>{/if}{r.op}</span>
           <span class="desc">{r.description}</span>
           <span class="perm">{r.permission}</span>
         </summary>
