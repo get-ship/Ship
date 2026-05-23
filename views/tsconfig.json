@@ -15,10 +15,10 @@
     "types": [],
     // Controllers do `import type { Scope } from './page.sui'`. The
     // sui-compiler emits `page.sui.d.ts` into the project mirror tree
-    // at `<repo-root>/.sui-out/views/<name>/`. `rootDirs` lets tsc
+    // at `<repo-root>/.ship/sui-out/views/<name>/`. `rootDirs` lets tsc
     // treat the source tree and its mirror as a single virtual root for
     // relative module resolution.
-    "rootDirs": [".", "../.sui-out/views"]
+    "rootDirs": [".", "../.ship/sui-out/views"]
   },
   "include": ["**/*.ts"],
   "exclude": ["**/node_modules", "**/dist"]

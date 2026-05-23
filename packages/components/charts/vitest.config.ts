@@ -7,7 +7,7 @@ import { spawnBoundedOrThrow } from '../../../scripts/spawn-bounded.mjs'
 
 const repoRoot = resolve(__dirname, '../../..')
 const compilerBin = resolve(repoRoot, 'target/debug/sui-compiler')
-const mirrorRoot = resolve(repoRoot, '.sui-out')
+const mirrorRoot = resolve(repoRoot, '.ship/sui-out')
 
 // Test-time fallback for the watch/HMR loop. The `pretest` hook (see
 // package.json) precompiles every `.sui` ahead of vitest, so cold runs
@@ -25,7 +25,7 @@ function compileSui(suiPath: string, stem: string): void {
 
 // Map a `.compiled.js` virtual import to its mirror-tree artifact path.
 // Source layout: `<repo>/<src-rel>/<stem>.sui` → emit at
-// `<repo>/.sui-out/<src-rel>/<stem>.compiled.js`.
+// `<repo>/.ship/sui-out/<src-rel>/<stem>.compiled.js`.
 function mirrorArtifactFor(sourceDir: string, stem: string): string {
   const srcRel = relative(repoRoot, sourceDir)
   return resolve(mirrorRoot, srcRel, `${stem}.compiled.js`)

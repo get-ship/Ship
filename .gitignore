@@ -84,9 +84,10 @@ typings/
 
 dist/
 
-# sui-compiler tooling outputs (dev-time only; production bundles live
-# in apps/shipd/assets/ and crates/deck/deck-server/assets/).
-.sui-out/
+# sui-compiler tooling output mirror (dev-time only). Default `.ship/sui-out`
+# (configurable via SUI_OUT_DIR) — this monorepo is a Ship project, so the
+# mirror lives under `.ship/` exactly as it does on customer machines.
+.ship/sui-out/
 
 # Added by cargo
 /target

@@ -282,7 +282,7 @@ function locateCompiler(): string {
 const compilerPath = locateCompiler()
 
 // CEM cache, populated as components are compiled. Used to materialise
-// per-component CEMs into `.sui-out/` so `@ship/sui-catalog` (run
+// per-component CEMs into `.ship/sui-out/` so `@ship/sui-catalog` (run
 // after every build_all) sees a fresh tree. Keyed by .sui path so repeat
 // compiles overwrite cleanly.
 const cemCache = new Map<string, unknown>()
@@ -351,7 +351,7 @@ async function compileSuiFile(
   }
 }
 
-// Persist every cached CEM into `.sui-out/<source-mirror>/<stem>.custom-elements.json`
+// Persist every cached CEM into `.ship/sui-out/<source-mirror>/<stem>.custom-elements.json`
 // (SUI's per-file compiler output), then run `@ship/sui-catalog` to AGGREGATE
 // them into `.deck/catalogs/{workspace,published}.json`. The catalog is a deck
 // concern (a cross-component index), so it lives in deck's build output, not in
@@ -363,7 +363,7 @@ async function refreshCatalog(): Promise<{ workspace: number; published: number 
     const rel = filePath.startsWith(repoRoot + '/') ? filePath.slice(repoRoot.length + 1) : filePath
     const stem = basename(rel, '.sui')
     const dir = dirname(rel)
-    const out = resolve(repoRoot, '.sui-out', dir, `${stem}.custom-elements.json`)
+    const out = resolve(repoRoot, '.ship/sui-out', dir, `${stem}.custom-elements.json`)
     mkdirSync(dirname(out), { recursive: true })
     await Bun.write(out, JSON.stringify(cem, null, 2) + '\n')
   }
@@ -411,7 +411,7 @@ function suiPlugin() {
       // so the plugin transforms them fresh. Post dist-relocation, imports
       // name the artifact next to its source (`<tag>/<tag>.compiled.js`
       // shadowing `<tag>/<tag>.sui`) — the actual artifact lives in the
-      // project mirror tree at `<repo-root>/.sui-out/`, but the
+      // project mirror tree at `<repo-root>/.ship/sui-out/`, but the
       // bundler reads the .sui directly so no on-disk shadow is needed.
       build.onResolve({ filter: /\.compiled\.js$/ }, ({ path: id, importer }: any) => {
         const abs = isAbsolute(id) ? id : resolve(dirname(importer ?? ''), id)

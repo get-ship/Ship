@@ -7,11 +7,11 @@ import type { SuiBuildConfig } from '@ship/sui-build'
 // harness-blob, auth-dialog, graph-canvas).
 //
 // The walker in `@ship/sui-catalog` reads the per-component CEMs
-// emitted under `.sui-out/` and (because this package declares
+// emitted under `.ship/sui-out/` and (because this package declares
 // `customElements` would mean aggregated only) here we don't declare
 // it — the umbrella bundle is consumed by the daemon's
 // `/_sui/components.js` route and component-level catalog data flows
-// through `.sui-out/` directly.
+// through `.ship/sui-out/` directly.
 
 const config: SuiBuildConfig = {
   entries: {

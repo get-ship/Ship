@@ -32,7 +32,7 @@ pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, Compile
 | `schema` | Prop schema JSON — read by `decode.ts` to validate runtime prop values. |
 | `dts` | Typed `Scope` for the paired controller. Includes both `<data>` names and `scope:` factory keys. |
 | `meta` | `.sui.meta.json` — binding kinds / exprs / deps / renderKey. Developer-tooling fuel; the runtime never loads it. |
-| `ssr_html` | Static SSR body fragment (view mode only). Written to `<repo-root>/.sui-out/<src-rel>/<stem>.ssr.html`. |
+| `ssr_html` | Static SSR body fragment (view mode only). Written to `<repo-root>/.ship/sui-out/<src-rel>/<stem>.ssr.html`. |
 
 Pipeline (`src/lib.rs:165` `compile()`): `parse::parse` → `check::run` → `bindings::build` → `lower::lower` → `emit::js::emit_module` (+ `emit::cem`, `emit::schema`, `emit::dts`, `emit::meta`, `emit::ssr`). Diagnostics carry byte spans (`src/diagnostics.rs`).
 

@@ -3,7 +3,7 @@
   <sui-devtools-components> — SUI inventory browser.
   Reads /api/sui/catalog/workspace (workspace catalog emitted by
   @ship/sui-catalog: walks every workspace package's customElements
-  manifest plus per-component CEMs under .sui-out/) and renders
+  manifest plus per-component CEMs under .ship/sui-out/) and renders
   an attribute/slot reference with a copy-to-clipboard snippet.
   Read-only.
 -->

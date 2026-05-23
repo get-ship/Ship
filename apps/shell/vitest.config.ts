@@ -7,7 +7,7 @@ import { spawnBoundedOrThrow } from '../../scripts/spawn-bounded.mjs'
 
 const repoRoot = resolve(__dirname, '../..')
 const compilerBin = resolve(repoRoot, 'target/debug/sui-compiler')
-const mirrorRoot = resolve(repoRoot, '.sui-out')
+const mirrorRoot = resolve(repoRoot, '.ship/sui-out')
 
 function compileSui(suiPath: string, stem: string): void {
   const hasBin = existsSync(compilerBin)

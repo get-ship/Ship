@@ -19,12 +19,12 @@
     "noEmit": false,
     // Controllers do `import type { Scope } from './<stem>.sui'`. The
     // sui-compiler emits `<stem>.sui.d.ts` into the project mirror tree
-    // at `<repo-root>/.sui-out/<src-rel>/`. `rootDirs` lets tsc
+    // at `<repo-root>/.ship/sui-out/<src-rel>/`. `rootDirs` lets tsc
     // treat the source tree and its mirror as a single virtual root for
     // relative module resolution.
     "rootDirs": [
       "src",
-      "../../../.sui-out/packages/components/pipelines/src"
+      "../../../.ship/sui-out/packages/components/pipelines/src"
     ]
   },
   "include": ["src/**/*"],

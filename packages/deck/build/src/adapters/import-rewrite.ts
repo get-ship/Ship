@@ -13,7 +13,7 @@ export function findWorkspaceRoot(startDir: string): string {
 
 /**
  * Bundler plugin: rewrite `./<dir>/<stem>.compiled.js` imports to the project
- * mirror tree (`<repo-root>/.sui-out/<src-rel>/<stem>.compiled.js`) and
+ * mirror tree (`<repo-root>/.ship/sui-out/<src-rel>/<stem>.compiled.js`) and
  * re-anchor the emitted code's `@ship/*` imports to the workspace source
  * packages.
  *
@@ -28,7 +28,7 @@ export function findWorkspaceRoot(startDir: string): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mirrorResolverPlugin(packageRoot: string): any {
   const repoRoot = findWorkspaceRoot(packageRoot)
-  const mirrorRoot = join(repoRoot, '.sui-out')
+  const mirrorRoot = join(repoRoot, '.ship/sui-out')
   const packagesRoot = join(repoRoot, 'packages')
   // Workspace package dirs are nested one or two levels under packages/
   // (e.g. packages/sui/runtime, packages/deck/build, packages/components/primitives,

@@ -2,7 +2,7 @@
 //!
 //! Tooling outputs (`.compiled.js`, `.sui.d.ts`, `.custom-elements.json`,
 //! `.schema.json`, `.sui.meta.json`, `.ssr.html`) land under one project-
-//! level mirror tree at `<repo-root>/.sui-out/<source-rel>/` instead
+//! level mirror tree at `<repo-root>/.ship/sui-out/<source-rel>/` instead
 //! of a per-component sibling `dist/` directory.
 //!
 //! Production-distribution bundles (`crates/deck/deck-server/assets/sui-*.js`)
@@ -15,11 +15,22 @@ use std::path::{Path, PathBuf};
 /// the ancestor walk so the mirror layout works the same from any cwd.
 const WORKSPACE_MARKER: &str = "[workspace]";
 
-/// Project-root sub-directory that holds the SUI compiler's mirror tree.
-/// SUI-owned and deck-agnostic — the compiler never writes into deck's `.deck`
-/// build output (that would be SUI knowing about deck). `.sui-out` and `.deck`
-/// are sibling layer-outputs at the repo root.
-const SUI_OUT_DIR: &str = ".sui-out";
+/// Default mirror sub-directory, relative to the repo root. SUI is a mechanical
+/// part of Ship and this monorepo is a Ship project, so the output lives where
+/// it lives on customer machines: under `.ship/` (gitignored). It is NOT a fixed
+/// constant — a host configures it via `SUI_OUT_DIR` (a non-Ship SUI consumer
+/// would point it elsewhere). We just don't dump at the repo root by default.
+const DEFAULT_SUI_OUT_DIR: &str = ".ship/sui-out";
+
+/// The mirror sub-directory in effect: `SUI_OUT_DIR` env override, else the
+/// default. Relative to the repo root. Kept a function (not a const) so the
+/// host can configure where compiler artifacts land.
+fn sui_out_dir() -> String {
+    std::env::var("SUI_OUT_DIR")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_SUI_OUT_DIR.to_string())
+}
 
 /// Walk upward from `start` looking for a workspace `Cargo.toml`.
 /// Returns `None` if no marker is found before reaching the filesystem root.
@@ -49,7 +60,8 @@ pub fn find_repo_root(start: &Path) -> Option<PathBuf> {
 
 /// Resolve the canonical mirror directory for a given `.sui` source path.
 ///
-/// Layout: `<repo-root>/.sui-out/<source-dir-relative-to-repo-root>/`.
+/// Layout: `<repo-root>/<SUI_OUT_DIR>/<source-dir-relative-to-repo-root>/`,
+/// where `<SUI_OUT_DIR>` defaults to `.ship/sui-out` and is host-configurable.
 ///
 /// Returns `None` when no repo root can be located OR the source path is
 /// outside the repo (e.g. a tempdir test fixture). Callers fall back to a
@@ -59,7 +71,7 @@ pub fn mirror_dir_for(sui_path: &Path) -> Option<PathBuf> {
     let root = find_repo_root(&abs)?;
     let src_dir = abs.parent()?;
     let rel = src_dir.strip_prefix(&root).ok()?;
-    Some(root.join(SUI_OUT_DIR).join(rel))
+    Some(root.join(sui_out_dir()).join(rel))
 }
 
 /// Returns the mirror directory for a `.sui` source path, falling back to
@@ -103,6 +115,6 @@ mod tests {
         let sui = src_dir.join("bar.sui");
         std::fs::write(&sui, "x").unwrap();
         let out = mirror_dir_for(&sui).unwrap();
-        assert_eq!(out, tmp.path().join(".sui-out/packages/foo/src"));
+        assert_eq!(out, tmp.path().join(".ship/sui-out/packages/foo/src"));
     }
 }
