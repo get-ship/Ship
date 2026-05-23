@@ -62,13 +62,25 @@ pub struct Domain {
 /// - `ship-orchestration` — `agent.*` (dispatch / stop / steer: spawn & control actors)
 /// - `ship-authoring`    — `create.*`, `view.*` (write skills / agents / views)
 ///
-/// Everything else (pipeline, project, mesh, git, annotations, …) is an
-/// ordinary workspace mutation: the default group, open to any in-scope agent.
+/// Ordinary workspace mutations (pipeline, project, mesh, git, annotations) are
+/// the default group, open to any in-scope agent.
+///
+/// **An unrecognized prefix fails closed** to a restricted, ungrantable group:
+/// a newly-added op domain that nobody has classified is gated to the operator
+/// until someone consciously places it here. The `command_prefixes_are_all_classified`
+/// conformance test fails the build if a `COMMANDS` entry lands in this bucket,
+/// so the fail-closed path is a tripwire, not a silent denial in production.
 pub fn classify(name: &str) -> Domain {
     match name.split('.').next().unwrap_or(name) {
+        // restricted — capability-defining
         "agent" => Domain { group: "ship-orchestration", restricted: true },
         "create" | "view" => Domain { group: "ship-authoring", restricted: true },
-        _ => Domain { group: "ship-workspace", restricted: false },
+        // default — ordinary workspace mutation
+        "pipeline" | "project" | "mesh" | "git" | "annotation" | "annotations" | "feedback" => {
+            Domain { group: "ship-workspace", restricted: false }
+        }
+        // unknown — fail closed
+        _ => Domain { group: "ship-unclassified", restricted: true },
     }
 }
 
@@ -186,6 +198,33 @@ mod tests {
         // C2 is human-only regardless of grants.
         assert!(matches!(
             decide(BlastRadius::C2Elevated, &default, &worker),
+            Decision::Deny(_)
+        ));
+    }
+
+    #[test]
+    fn command_prefixes_are_all_classified() {
+        // Every registered command must classify to a real group — never the
+        // fail-closed `ship-unclassified` bucket. If this fails, a new command
+        // prefix was added without placing it in `classify` (default vs
+        // restricted), which would silently gate (or ungate) it. Classify it.
+        for cmd in crate::services::schema::COMMANDS {
+            let domain = classify(cmd.name);
+            assert_ne!(
+                domain.group, "ship-unclassified",
+                "command `{}` has an unclassified domain prefix — add it to gate::classify",
+                cmd.name
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_prefix_fails_closed_for_agents() {
+        let agent = caller(false, &[]);
+        let unknown = classify("brandnew.op");
+        assert!(unknown.restricted);
+        assert!(matches!(
+            decide(BlastRadius::C1Workspace, &unknown, &agent),
             Decision::Deny(_)
         ));
     }
