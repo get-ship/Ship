@@ -1,5 +1,6 @@
 import { controller, signal, effect } from '@ship/sui-runtime'
 import { defineRoutes } from '@ship/sui-runtime/route'
+import type { MountSection, MutableState, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { loadCatalog, type CatalogEntry } from '../catalog'
 import {
@@ -12,7 +13,13 @@ import { slotLabel } from './slot-compositions'
 import { buildSnippet } from './snippet'
 import { readSearchParams, writeSearchParams, highlightActiveCell } from './deep-link'
 
-type StudioFilterKind = 'all' | 'sui' | 'view'
+// `on:`/`mount` handlers receive the writable state proxy; annotate
+// explicitly since the OnSection union blocks contextual inference.
+type S = MutableState<Scope>
+// Sibling `derived` keys — present on the resolved scope at runtime but
+// not on the compiler-emitted `Scope` interface.
+type WithEntry = ViewScope<Scope> & { entry: () => CatalogEntry | null }
+type WithAxes = ViewScope<Scope> & { matrixAxes: () => MatrixAxis[] }
 
 // Canonical access path is /studio/components/:name (the shell route) and
 // /sui/studio/components/:name (view-host standalone, e.g. dev-panel popouts).
@@ -90,37 +97,41 @@ export default controller<Scope>({
       if (!name) return null
       return (allCatalog() as CatalogEntry[]).find(e => e.id === name) ?? null
     },
-    hasProps: ({ entry }) => {
-      const e = entry() as CatalogEntry | null
+    hasProps: (scope: ViewScope<Scope>) => {
+      const e = (scope as WithEntry).entry()
       return e !== null && (e.props ?? []).length > 0
     },
-    matrixAxes: ({ entry }) => {
-      const e = entry() as CatalogEntry | null
+    matrixAxes: (scope: ViewScope<Scope>) => {
+      const e = (scope as WithEntry).entry()
       // Skip the matrix for view-kind entries (iframe previews) and any
       // sui-kind component without enum props.
       if (!e || e.kind !== 'sui') return [] as MatrixAxis[]
       return deriveAxes(e.props ?? [])
     },
-    matrixCells: ({ matrixAxes }) => buildCells(matrixAxes() as MatrixAxis[]),
-    matrixAxesLabel: ({ matrixAxes }) => {
-      const axes = matrixAxes() as MatrixAxis[]
+    matrixCells: (scope: ViewScope<Scope>) => buildCells((scope as WithAxes).matrixAxes()),
+    matrixAxesLabel: (scope: ViewScope<Scope>) => {
+      const axes = (scope as WithAxes).matrixAxes()
       if (axes.length === 0) return ''
       return axes.map(a => a.name).join(' × ')
     },
   },
 
   on: {
-    setProp: (state, propName: string, value: unknown) => {
-      state.propValues = {
-        ...state.propValues,
+    // `propValues` / `_dispose` emit as `unknown` (emitter gap), so they
+    // drop off `MutableState`; access through a narrowed view.
+    setProp: (state: S, propName: string, value: unknown) => {
+      const s = state as S & { propValues: Record<string, unknown> }
+      s.propValues = {
+        ...s.propValues,
         [propName]: value,
       }
     },
-    copyCode: (state, entry: CatalogEntry | null) => {
+    copyCode: (state: S, entry: CatalogEntry | null) => {
       if (!entry) return
+      const s = state as S & { propValues: Record<string, unknown> }
       const snippet = buildSnippet(
         entry.tag,
-        state.propValues,
+        s.propValues,
         entry.props ?? [],
         entry.examples?.[0]?.slots,
       )
@@ -130,7 +141,11 @@ export default controller<Scope>({
     },
   },
 
-  mount: async (state, el) => {
+  // mount may be async; the runtime awaits it. MountSection's return is
+  // sync-only, so cast the function to satisfy the section contract.
+  // `propValues` / `_dispose` emit as `unknown`, so the writable proxy is
+  // typed with their concrete shapes here.
+  mount: (async (state: S & { propValues: Record<string, unknown>; _dispose: (() => void) | null }, el: HTMLElement) => {
     const all = await loadCatalog()
     state.allCatalog = all
 
@@ -308,9 +323,9 @@ export default controller<Scope>({
     // swaps it (different tag). Just stop the prior reactive binding
     // so attribute writes don't leak across components.
     state._dispose = () => { stopEffect() }
-  },
+  }) as unknown as MountSection<Scope>,
 
   unmount: (state) => {
-    state._dispose?.()
+    (state as { _dispose?: (() => void) | null })._dispose?.()
   },
 })

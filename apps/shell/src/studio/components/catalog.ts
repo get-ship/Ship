@@ -74,15 +74,17 @@ async function loadSuiCatalog(): Promise<Map<string, SuiCatalogEntry>> {
     for (const e of doc.entries ?? []) {
       if (!e.tagName) continue
       out.set(e.tagName, {
-        props: (e.attributes ?? []).map(a => ({
+        props: (e.attributes ?? []).map((a): PropEntry => ({
           name: a.name,
           type: a.type?.text ?? 'string',
-          default: a.default,
-          description: a.description,
-          values: Array.isArray(a.values) ? a.values as string[] : undefined,
+          // exactOptionalPropertyTypes: omit optional keys rather than
+          // assigning `undefined`.
+          ...(a.default === undefined ? {} : { default: a.default }),
+          ...(a.description === undefined ? {} : { description: a.description }),
+          ...(Array.isArray(a.values) ? { values: a.values as string[] } : {}),
         })),
-        examples: e.examples,
-        description: e.description,
+        ...(e.examples === undefined ? {} : { examples: e.examples }),
+        ...(e.description === undefined ? {} : { description: e.description }),
       })
     }
     return out

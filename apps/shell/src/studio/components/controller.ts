@@ -13,10 +13,15 @@
 // User mode shows pack roots only; Dev mode shows everything. Persisted so the
 // choice sticks across reloads.
 import { controller, signal } from '@ship/sui-runtime'
+import type { MountSection, MutableState, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { loadCatalog, type CatalogEntry } from './catalog'
 
 type Mode = 'user' | 'dev'
+
+// `on:`/`mount` handlers receive the writable state proxy; annotate
+// explicitly since the OnSection union blocks contextual inference.
+type S = MutableState<Scope>
 
 const MODE_KEY = 'studio-components-mode'
 const readMode = (): Mode => {
@@ -54,24 +59,29 @@ export default controller<Scope>({
         .map((e) => ({ ...e, parts: childCountOf(e.tag) }))
     },
     totalCount: ({ sui }) => (sui() as CatalogEntry[]).length,
-    filteredCount: ({ filtered }) => (filtered() as CatalogEntry[]).length,
+    // `filtered` is a sibling `derived` key — present on the resolved
+    // scope at runtime but not on the compiler-emitted `Scope`.
+    filteredCount: (scope: ViewScope<Scope>) =>
+      ((scope as unknown as { filtered: () => CatalogEntry[] }).filtered()).length,
   },
 
   on: {
-    onSearchInput: (s, e: Event) => {
+    onSearchInput: (s: S, e: Event) => {
       s.filterText = (e.target as HTMLInputElement).value ?? ''
     },
-    clearSearch: (s) => {
+    clearSearch: (s: S) => {
       s.filterText = ''
     },
-    setMode: (s, id: string) => {
+    setMode: (s: S, id: string) => {
       s.mode = id as Mode
       if (typeof localStorage !== 'undefined') localStorage.setItem(MODE_KEY, id)
     },
   },
 
-  mount: async (state) => {
+  // mount may be async; the runtime awaits it. MountSection's return type
+  // is sync-only, so cast the function to satisfy the section contract.
+  mount: (async (state: S) => {
     state.sui = await loadCatalog()
     state.loading = false
-  },
+  }) as unknown as MountSection<Scope>,
 })
