@@ -15,7 +15,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc AgentsSummaries(AgentsSummariesRequest) returns (JsonResponse) {
+  rpc AgentsSummaries(AgentsSummariesRequest) returns (AgentsSummariesResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -39,15 +39,15 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc AgentsTemplates(AgentsTemplatesRequest) returns (JsonResponse) {
+  rpc AgentsTemplates(AgentsTemplatesRequest) returns (AgentTemplatesResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc AgentsPermissionPresets(AgentsPermissionPresetsRequest) returns (JsonResponse) {
+  rpc AgentsPermissionPresets(AgentsPermissionPresetsRequest) returns (PermissionPresetsResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc AgentsHarnesses(AgentsHarnessesRequest) returns (JsonResponse) {
+  rpc AgentsHarnesses(AgentsHarnessesRequest) returns (HarnessesResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

@@ -50,6 +50,11 @@ const TYPED_READS: &[&str] = &[
     "SpecGetResponse",
     "ActorsListResponse",
     "AgentIndexResponse",
+    // agent catalogs + summaries
+    "AgentTemplatesResponse",
+    "PermissionPresetsResponse",
+    "HarnessesResponse",
+    "AgentsSummariesResponse",
 ];
 
 struct ReadOp {

@@ -14,8 +14,8 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedAgentsSummariesRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("agents.summaries")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::AgentsSummariesResponse> {
+        self.dispatch_typed::<::ship_ops_rpc::AgentsSummariesResponse>("agents.summaries", ::serde_json::Value::Null)
     }
     async fn agents_detail(
         &self,
@@ -65,22 +65,22 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedAgentsTemplatesRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("agents.templates")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::AgentTemplatesResponse> {
+        self.dispatch_typed::<::ship_ops_rpc::AgentTemplatesResponse>("agents.templates", ::serde_json::Value::Null)
     }
     async fn agents_permission_presets(
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedAgentsPermissionPresetsRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("agents.permission_presets")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::PermissionPresetsResponse> {
+        self.dispatch_typed::<::ship_ops_rpc::PermissionPresetsResponse>("agents.permission_presets", ::serde_json::Value::Null)
     }
     async fn agents_harnesses(
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedAgentsHarnessesRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("agents.harnesses")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::HarnessesResponse> {
+        self.dispatch_typed::<::ship_ops_rpc::HarnessesResponse>("agents.harnesses", ::serde_json::Value::Null)
     }
     async fn agents_create_ctx(
         &self,

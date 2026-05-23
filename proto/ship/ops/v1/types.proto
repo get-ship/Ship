@@ -328,6 +328,48 @@ message AgentIndexResponse {
   repeated IndexEntry items = 1;
 }
 
+// ── agent catalogs + summaries (create-wizard + rail) ────────────────
+
+message AgentTemplate {
+  string id = 1;
+  string label = 2;
+  string description = 3;
+  string letter = 4;
+  string hue = 5;
+  repeated string skill_ids = 6;
+  string permission_preset = 7;
+}
+message AgentTemplatesResponse {
+  repeated AgentTemplate items = 1;
+}
+message PermissionPreset {
+  string id = 1;
+  string label = 2;
+  string description = 3;
+}
+message PermissionPresetsResponse {
+  repeated PermissionPreset items = 1;
+}
+// agents.harnesses — known harness ids.
+message HarnessesResponse {
+  repeated string items = 1;
+}
+message AgentSummary {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  uint64 skills_count = 4;
+  uint64 mcp_count = 5;
+  uint64 rules_count = 6;
+  string letter = 7;
+  string source = 8;
+  repeated string tags = 9;
+  bool active = 10;
+}
+message AgentsSummariesResponse {
+  repeated AgentSummary items = 1;
+}
+
 // A registered project — the typed return of project.add. Mirrors
 // `ship_platform::projects::ProjectRecord`.
 message ProjectRecord {
