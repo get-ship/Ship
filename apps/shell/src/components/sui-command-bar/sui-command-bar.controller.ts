@@ -4,31 +4,14 @@ import type { Signal } from '@ship/sui-runtime'
 import {
   type BarMode, type SessionSummary, type AgentSummary, type ThreadLine, type CreateSurface,
   type SlashCommand, type SearchHit,
-  SLASH_COMMANDS, CREATE_SURFACES,
   loadSlashCommands, cachedSlashCommands, slashCacheAge, SLASH_CACHE_TTL_MS,
   searchEntities,
-  detectMode, isKebab, navigateTo,
+  detectMode, navigateTo,
+  type CommandBarScope,
 } from './types'
 
-// Full scope shape for use in mount: casts.
-type BarState = {
-  open: Signal<boolean>; mode: Signal<BarMode>; value: Signal<string>
-  session: Signal<SessionSummary | null>; agents: Signal<AgentSummary[]>
-  harnesses: Signal<string[]>; allSessions: Signal<SessionSummary[]>
-  views: Signal<string[]>; selectedIdx: Signal<number>
-  sessionPickerOpen: Signal<boolean>; spawnAgent: Signal<string>
-  spawnHarness: Signal<string>; spawning: Signal<boolean>
-  spawnError: Signal<string | null>; thread: Signal<ThreadLine[]>
-  workspaceId: Signal<string>; createSurface: Signal<CreateSurface>
-  createName: Signal<string>; createPurpose: Signal<string>
-  createShape: Signal<string>; createSubmitting: Signal<boolean>
-  createError: Signal<string | null>; dialogRef: Signal<HTMLElement | null>
-  slashCommands: Signal<SlashCommand[]>; sendKey: Signal<'enter' | 'cmd+enter'>
-  searchHits: Signal<SearchHit[]>; searching: Signal<boolean>
-  daemonOnline: Signal<boolean>
-  recentSends: Signal<string[]>; historyIdx: Signal<number>
-  sendError: Signal<string | null>
-}
+// Full scope shape for use in mount: casts — the exported shared contract.
+type BarState = CommandBarScope
 
 export default controller<Scope>({
   scope: (init) => {
@@ -114,23 +97,12 @@ export default controller<Scope>({
     const selectedIdx  = st.selectedIdx
     const spawnAgent   = st.spawnAgent
     const spawnHarness = st.spawnHarness
-    const spawning     = st.spawning
-    const spawnError   = st.spawnError
     const thread       = st.thread
-    const workspaceId  = st.workspaceId
-    const createSurface    = st.createSurface
-    const createName       = st.createName
-    const createPurpose    = st.createPurpose
-    const createShape      = st.createShape
-    const createSubmitting = st.createSubmitting
-    const createError      = st.createError
     const slashCommands    = st.slashCommands
     const sendKey          = st.sendKey
     const searchHits       = st.searchHits
     const searching        = st.searching
     const daemonOnline     = st.daemonOnline
-    const recentSends      = st.recentSends
-    const sendError        = st.sendError
 
     const dialogRef = st.dialogRef?.() as (HTMLElement & { show(): void; close(): void }) | null
 
@@ -481,7 +453,7 @@ export default controller<Scope>({
     // Expose endSession + loadCurrentSession on the shared context
     // so palette/chat controllers can call them.
     const ctxKey = '__sui_ctx_sui-command-bar'
-    const ctx = (host as Record<string, unknown>)[ctxKey] as Record<string, unknown> | undefined
+    const ctx = (host as unknown as Record<string, unknown>)[ctxKey] as Record<string, unknown> | undefined
     if (ctx) {
       ctx['endSession'] = endSession
       ctx['loadCurrentSession'] = loadCurrentSession

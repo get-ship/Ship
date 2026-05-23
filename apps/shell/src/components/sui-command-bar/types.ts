@@ -1,6 +1,7 @@
 // Shared types, constants, and utilities for the sui-command-bar component family.
 
 import { chrome } from '@ship/sui-runtime'
+import type { Signal } from '@ship/sui-runtime'
 
 export type BarMode = 'ai' | 'command' | 'find' | 'mention' | 'create'
 
@@ -97,7 +98,7 @@ export async function searchEntities(
   try {
     const resp = await fetch(`/api/v1/search?${params.toString()}`, {
       credentials: 'same-origin',
-      signal: opts.signal,
+      signal: opts.signal ?? null,
     })
     if (!resp.ok) return null
     return await resp.json() as SearchResponse
@@ -203,7 +204,48 @@ export function detectMode(value: string, fallback: BarMode): BarMode {
 }
 
 export async function navigateTo(path: string): Promise<void> {
-  const w = window as Record<string, unknown> & { ship?: { navigate?: (p: string) => void } }
+  const w = window as unknown as Record<string, unknown> & { ship?: { navigate?: (p: string) => void } }
   if (w.ship?.navigate) { w.ship.navigate(path); return }
   chrome.navigate(path)
+}
+
+// The shared reactive scope sui-command-bar provisions (via `shared(...)`) for
+// its sibling panels (palette, chat) to consume through
+// `useShared<CommandBarScope>(host, 'sui-command-bar')`. This is the typed
+// contract for that boundary — the compiler-generated `Scope` types every
+// field `unknown` (its scope heuristic can't read this controller's factory),
+// so descendants must reference this interface to get real signal types.
+export interface CommandBarScope {
+  open: Signal<boolean>
+  mode: Signal<BarMode>
+  value: Signal<string>
+  session: Signal<SessionSummary | null>
+  agents: Signal<AgentSummary[]>
+  harnesses: Signal<string[]>
+  allSessions: Signal<SessionSummary[]>
+  views: Signal<string[]>
+  selectedIdx: Signal<number>
+  sessionPickerOpen: Signal<boolean>
+  spawnAgent: Signal<string>
+  spawnHarness: Signal<string>
+  spawning: Signal<boolean>
+  spawnError: Signal<string | null>
+  thread: Signal<ThreadLine[]>
+  workspaceId: Signal<string>
+  createSurface: Signal<CreateSurface>
+  createName: Signal<string>
+  createPurpose: Signal<string>
+  createShape: Signal<string>
+  createSubmitting: Signal<boolean>
+  createError: Signal<string | null>
+  isChat: Signal<boolean>
+  dialogRef: Signal<HTMLElement | null>
+  slashCommands: Signal<SlashCommand[]>
+  sendKey: Signal<'enter' | 'cmd+enter'>
+  searchHits: Signal<SearchHit[]>
+  searching: Signal<boolean>
+  daemonOnline: Signal<boolean>
+  recentSends: Signal<string[]>
+  historyIdx: Signal<number>
+  sendError: Signal<string | null>
 }

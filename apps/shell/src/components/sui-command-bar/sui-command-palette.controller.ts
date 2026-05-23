@@ -1,15 +1,15 @@
 import { controller, derived, useShared } from '@ship/sui-runtime'
 import type { Scope } from './sui-command-palette.sui'
-import type { Scope as BarScope } from './sui-command-bar.sui'
 import {
   type CreateSurface, type SessionSummary, type SearchHit, type SearchEntityKind,
+  type CommandBarScope,
   CREATE_SURFACES, SEARCH_KIND_LABELS,
   detectMode, isKebab, navigateTo,
 } from './types'
 
 export default controller<Scope>({
   scope: (_, host) => {
-    const bar = useShared<BarScope>(host!, 'sui-command-bar')
+    const bar = useShared<CommandBarScope>(host!, 'sui-command-bar')
 
     const modeGlyph = derived(() => {
       const glyphs: Record<string, string> = {
