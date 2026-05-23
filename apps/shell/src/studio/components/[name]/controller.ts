@@ -2,7 +2,7 @@ import { controller, signal, effect } from '@ship/sui-runtime'
 import { defineRoutes } from '@ship/sui-runtime/route'
 import type { MountSection, MutableState, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
-import { loadCatalog, type CatalogEntry } from '../catalog'
+import { loadCatalog, type CatalogEntry, type PropEntry } from '../catalog'
 import {
   buildCells,
   deriveAxes,
@@ -21,6 +21,24 @@ type S = MutableState<Scope>
 type WithEntry = ViewScope<Scope> & { entry: () => CatalogEntry | null }
 type WithAxes = ViewScope<Scope> & { matrixAxes: () => MatrixAxis[] }
 
+const BOOL_TYPES = new Set(['boolean', 'Boolean', 'bool'])
+const isBoolType = (t: string | undefined) => t !== undefined && BOOL_TYPES.has(t)
+
+// One playground knob, classified for the template's typed control set:
+// enum → segmented buttons, bool → checkbox, string → text input.
+interface Knob {
+  name: string
+  kind: 'enum' | 'bool' | 'string'
+  values: string[]
+}
+
+function classifyKnob(p: PropEntry): Knob {
+  if (Array.isArray(p.values) && p.values.length > 0)
+    return { name: p.name, kind: 'enum', values: p.values }
+  if (isBoolType(p.type)) return { name: p.name, kind: 'bool', values: [] }
+  return { name: p.name, kind: 'string', values: [] }
+}
+
 // Canonical access path is /studio/components/:name (the shell route) and
 // /sui/studio/components/:name (view-host standalone, e.g. dev-panel popouts).
 defineRoutes([
@@ -28,27 +46,17 @@ defineRoutes([
   { pattern: '/sui/studio/components/:name' },
 ])
 
-// Shared across mounts. Each rapid catalog click previously created a
-// new iframe — the prior one's dispose ran async after re-mount, so
-// in-flight iframes (+ their SSE/reactive scopes) compounded until
-// the tab froze. Holding one frame at module scope and only setting
-// .src on it keeps the SSE connection alive across navigations and
-// caps DOM iframe count at 1. Same idea for the sui-kind preview
-// node: reuse when the tag matches, recreate only on tag change.
+// Shared across mounts: one iframe + one preview node at module scope. Holding
+// them caps DOM iframe count at 1 (the SSE connection survives navigations) and
+// lets the sui-kind preview reuse the same host element across same-tag mounts.
 let sharedFrame: HTMLIFrameElement | null = null
 let sharedNode: HTMLElement | null = null
 let sharedNodeTag: string | null = null
 
-// Components shipped as their own separate bundle at
-// `/_sui/sui-components/<tag>.js`. The daemon normally injects these into the
-// host page by static-scanning view templates for the tag, but the
-// studio creates host nodes via `document.createElement(tag)` at
-// runtime — the daemon can't see those, so the bundle module never
-// runs and the host never upgrades. Eagerly fetch the bundle when the
-// studio is about to render one of these tags. The other separate-bundle
-// tags (panel-dock, nav-top, command-bar, rail, terminal, launcher,
-// devtools) live on STUDIO_HIDE_TAGS in catalog.ts so they don't
-// reach this code path.
+// Components shipped as their own bundle at `/_sui/sui-components/<tag>.js`. The
+// daemon injects these by static-scanning view templates for the tag, but the
+// studio creates host nodes via createElement at runtime — the daemon can't see
+// those, so eagerly fetch the bundle when about to render one of these tags.
 const ISLAND_TAGS = new Set<string>([
   'sui-code-editor',
   'sui-markdown-editor',
@@ -61,13 +69,7 @@ function ensureIsland(tag: string): void {
     return
   }
   islandsLoaded.add(tag)
-  // Fire-and-forget. The host node is already in the DOM; once the
-  // module evaluates it calls customElements.define and the existing
-  // element upgrades in place — no need to re-create the host.
   import(/* @vite-ignore */ `/_sui/sui-components/${tag}.js`).catch(() => {
-    // Leave the host un-upgraded on failure so the studio visibly
-    // fails for the offending tag rather than silently pretending the
-    // component is present.
     islandsLoaded.delete(tag)
   })
 }
@@ -81,13 +83,9 @@ export default controller<Scope>({
     copyFeedback: signal(false),
     // Authoritative subroute slug — seeded from `location.pathname` at
     // mount() rather than `route.params.name()`. The shell pre-registers
-    // the dynamic pattern as `/ship-ui-studio/:component` (see
-    // apps/shell/src/main.ts), so the view's own `defineRoutes` call
-    // above lands in a different runtime instance and the shell's
-    // shared `route` proxy never seeds `params.name`. Reading the
-    // pathname sidesteps that mismatch entirely — every catalog click
-    // full-remounts this view, so we don't need reactive route params
-    // to track nav.
+    // the dynamic pattern, so the view's own `defineRoutes` lands in a
+    // different runtime instance and the shell's shared `route` proxy
+    // never seeds `params.name`. Reading the pathname sidesteps that.
     currentName: signal<string>(''),
   }),
 
@@ -101,10 +99,34 @@ export default controller<Scope>({
       const e = (scope as WithEntry).entry()
       return e !== null && (e.props ?? []).length > 0
     },
+    // Knobs for the playground, classified into enum / bool / string.
+    knobs: (scope: ViewScope<Scope>) => {
+      const e = (scope as WithEntry).entry()
+      if (!e) return [] as Knob[]
+      return (e.props ?? []).map(classifyKnob)
+    },
+    slotList: (scope: ViewScope<Scope>) => {
+      const e = (scope as WithEntry).entry()
+      return (e?.slots ?? []) as { name?: string; description?: string }[]
+    },
+    metaLabel: (scope: ViewScope<Scope>) => {
+      const e = (scope as WithEntry).entry()
+      if (!e) return ''
+      const p = (e.props ?? []).length
+      const s = (e.slots ?? []).length
+      const parts: string[] = [`${p} prop${p === 1 ? '' : 's'}`]
+      if (s > 0) parts.push(`${s} slot${s === 1 ? '' : 's'}`)
+      return parts.join(' · ')
+    },
+    // Live source snippet, recomputed as the knobs change.
+    snippet: (scope: ViewScope<Scope>) => {
+      const s = scope as WithEntry & { propValues: () => Record<string, unknown> }
+      const e = s.entry()
+      if (!e) return ''
+      return buildSnippet(e.tag, s.propValues(), e.props ?? [], e.examples?.[0]?.slots)
+    },
     matrixAxes: (scope: ViewScope<Scope>) => {
       const e = (scope as WithEntry).entry()
-      // Skip the matrix for view-kind entries (iframe previews) and any
-      // sui-kind component without enum props.
       if (!e || e.kind !== 'sui') return [] as MatrixAxis[]
       return deriveAxes(e.props ?? [])
     },
@@ -121,10 +143,7 @@ export default controller<Scope>({
     // drop off `MutableState`; access through a narrowed view.
     setProp: (state: S, propName: string, value: unknown) => {
       const s = state as S & { propValues: Record<string, unknown> }
-      s.propValues = {
-        ...s.propValues,
-        [propName]: value,
-      }
+      s.propValues = { ...s.propValues, [propName]: value }
     },
     copyCode: (state: S, entry: CatalogEntry | null) => {
       if (!entry) return
@@ -143,14 +162,10 @@ export default controller<Scope>({
 
   // mount may be async; the runtime awaits it. MountSection's return is
   // sync-only, so cast the function to satisfy the section contract.
-  // `propValues` / `_dispose` emit as `unknown`, so the writable proxy is
-  // typed with their concrete shapes here.
   mount: (async (state: S & { propValues: Record<string, unknown>; _dispose: (() => void) | null }, el: HTMLElement) => {
     const all = await loadCatalog()
     state.allCatalog = all
 
-    // Derive name from pathname since route signals are seeded from
-    // defineRoutes above, but mount runs before the first reactive tick.
     const segments = location.pathname.split('/').filter(Boolean)
     const name = segments[segments.length - 1] ?? ''
     state.currentName = name
@@ -162,7 +177,7 @@ export default controller<Scope>({
     }
 
     // Seed prop defaults. For size props, prefer the largest enum variant
-    // so small components (badge, kbd, status-dot) are legible in the preview.
+    // so small components (badge, kbd, status-dot) are legible.
     const initVals: Record<string, unknown> = {}
     for (const prop of entry.props ?? []) {
       if (prop.name === 'size' && prop.values && prop.values.length > 0) {
@@ -171,24 +186,18 @@ export default controller<Scope>({
         initVals[prop.name] = prop.default
       }
     }
-    // URL ?key=value overrides defaults so shared links land on the right state.
     const fromUrl = readSearchParams(location.search, entry.props ?? [])
     Object.assign(initVals, fromUrl)
     state.propValues = initVals
     state.loading = false
 
-    // Wait one tick for the template to re-render with loading=false
+    // Wait one tick for the template to re-render with loading=false.
     await new Promise<void>(r => setTimeout(r, 0))
 
     const slot = el.querySelector('[data-render-slot]') as HTMLElement | null
     if (!slot) return
 
     if (entry.kind === 'view') {
-      // Render the actual view via the daemon's standalone /sui/<id>
-      // route, sandboxed in an iframe so its reactive scope stays
-      // isolated from the studio. Same-origin so authentication
-      // cookies flow; ship-ui-studio inside ship-ui-studio works
-      // because each iframe is its own document.
       if (sharedNode?.parentElement) sharedNode.parentElement.removeChild(sharedNode)
       if (!sharedFrame) {
         sharedFrame = document.createElement('iframe')
@@ -202,19 +211,12 @@ export default controller<Scope>({
       sharedFrame.title = `${entry.id} preview`
       const nextHref = new URL(`/sui/${entry.id}`, location.href).href
       if (sharedFrame.src !== nextHref) sharedFrame.src = `/sui/${entry.id}`
-      // No teardown — the iframe (and its SSE connection) lives at
-      // module scope so the next view-kind mount reuses it. When the
-      // studio itself unmounts the browser drops the page; nothing
-      // to clean up here.
       state._dispose = () => {}
       return
     }
 
-    // Detach iframe if we're coming from a view-kind preview.
     if (sharedFrame?.parentElement) sharedFrame.parentElement.removeChild(sharedFrame)
 
-    // Reuse one host node per tag across mounts. Tag change ⇒ swap;
-    // otherwise the effect() below mutates attrs on the same element.
     if (sharedNode && sharedNodeTag !== entry.tag) {
       sharedNode.remove()
       sharedNode = null
@@ -227,17 +229,8 @@ export default controller<Scope>({
     }
     ensureIsland(entry.tag)
     const node = sharedNode
-    // Reset transform (cleared in case the prior mount applied ZOOM)
     node.style.transform = ''
     node.style.transformOrigin = ''
-    // Seed the default slot. Compound components get a typical-use
-    // composition parsed into a DocumentFragment; the parser upgrades
-    // any <sui-*> elements as nodes are adopted into the live document
-    // on appendChild. Atomic components get a plain "example" text
-    // node BEFORE the host observes slot occupancy (avoids icon-only
-    // collapse on tags like sui-button that reflect-empty into
-    // data-icon-only). Using a fragment instead of .innerHTML keeps
-    // controller-purity happy and preserves the host's own attributes.
     const compose = entry.examples?.[0]?.slots
     if (compose) {
       const range = document.createRange()
@@ -259,27 +252,9 @@ export default controller<Scope>({
       node.style.transformOrigin = 'center'
     }
 
-    // <select> ignores its `value` attribute — the matching <option>
-    // must be marked `selected`, or the select.value property must be
-    // assigned post-render. The studio's prop panel uses native
-    // <select> so author markup stays simple; sync the JS-property
-    // here once the DOM exists.
-    const syncSelects = () => {
-      for (const sel of el.querySelectorAll<HTMLSelectElement>('.prop-select')) {
-        const propName = sel.id.replace(/^prop-/, '')
-        const v = state.propValues[propName]
-        if (v != null) sel.value = String(v)
-      }
-    }
-    syncSelects()
-
-    // Apply prop values to the rendered host. Boolean attributes follow
-    // HTML semantics: presence ≡ true, regardless of value — so
-    // `disabled="false"` would still mark the button disabled. Strip
-    // boolean attrs entirely when the value is falsy. For string props,
-    // setAttribute(k, '') deliberately keeps the attribute (some
-    // components reflect emptiness). For unset / `undefined` props, the
-    // attribute is removed so the component falls back to its declared
+    // Apply prop values to the rendered host. Boolean attrs follow HTML
+    // semantics (presence ≡ true) — strip entirely when falsy. String
+    // props: remove on null/empty so the component keeps its declared
     // default.
     const props = entry.props ?? []
     const propTypes = new Map(props.map(p => [p.name, p.type]))
@@ -287,8 +262,7 @@ export default controller<Scope>({
       for (const p of props) {
         const v = vals[p.name]
         const t = propTypes.get(p.name)
-        const isBool = t === 'boolean' || t === 'Boolean' || t === 'bool'
-        if (isBool) {
+        if (isBoolType(t)) {
           const truthy = v === true || v === 'true'
           if (truthy) node.setAttribute(p.name, '')
           else node.removeAttribute(p.name)
@@ -301,12 +275,8 @@ export default controller<Scope>({
     applyProps(initVals)
 
     // Reactively sync propValues → element attributes + URL search params,
-    // and re-highlight the matching matrix cell so the deep-link stays
-    // visible as the user clicks around the prop panel. The render-slot
-    // div carries the `morph` directive so any controller-driven re-render
-    // patches in place rather than wholesale-replacing the live preview
-    // node — keeps focus / scroll / custom-element state stable while
-    // the prop panel toggles attributes on the host.
+    // and re-highlight the matching matrix cell. The render-slot carries
+    // `morph` so controller-driven re-renders patch in place.
     const stopEffect = effect(() => {
       const vals = state.propValues
       applyProps(vals)
@@ -314,14 +284,9 @@ export default controller<Scope>({
       highlightActiveCell(el, vals)
     })
 
-    // Populate state-matrix cells. Independent of `state.propValues` —
-    // the prop panel only drives the single preview above.
     mountMatrixCells(el, entry.tag, () => entry.examples?.[0]?.slots)
     highlightActiveCell(el, state.propValues)
 
-    // Leave the node attached — next mount reuses it (same tag) or
-    // swaps it (different tag). Just stop the prior reactive binding
-    // so attribute writes don't leak across components.
     state._dispose = () => { stopEffect() }
   }) as unknown as MountSection<Scope>,
 

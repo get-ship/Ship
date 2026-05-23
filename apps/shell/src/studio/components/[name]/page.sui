@@ -1,131 +1,183 @@
 <div class="studio-view" data-test="studio-view">
   <sui-studio-rail></sui-studio-rail>
   <main class="studio-content" data-test="studio-content">
-    <div class="studio-main studio-detail-main">
-    {#if loading()}
-      <div class="studio-loading">
-        <sui-spinner size="md"></sui-spinner>
-      </div>
-    {:else if entry()}
-      <header class="detail-header">
-        <div class="detail-header-meta">
-          <code class="detail-tag">{entry().tag}</code>
-          <sui-badge tone={entry().kind === 'sui' ? 'primary' : 'info'} variant="soft" size="sm">{entry().kind}</sui-badge>
-          {#if entry().kind === 'sui'}
-            <a
-              class="detail-source-link"
-              href={'/_sui/source/' + entry().tag}
-              target="_blank"
-              rel="noopener"
-              data-test="source-link"
-            >
-              <sui-icon name="file-code" size="sm"></sui-icon>
-              <span>View source</span>
-            </a>
-          {/if}
-        </div>
-        {#if entry().description}
-          <p class="detail-description">{entry().description}</p>
-        {/if}
-      </header>
+    <div class="ship-view detail-view">
+      {#if loading()}
+        <div class="detail-loading"><sui-spinner size="md" centered></sui-spinner></div>
+      {:else if entry()}
+        <article class="detail-wrap" data-test="component-detail">
 
-      <div class="detail-body">
-        {#if hasProps()}
-          <aside class="detail-props" data-test="props-panel">
-            <h3 class="props-heading">Props</h3>
-            {#for prop of entry().props key={prop.name}}
-              <div class="prop-row" data-test="prop-row">
-                <label class="prop-meta" for={'prop-' + prop.name}>
-                  <span class="prop-name">{prop.name}</span>
-                  {#if prop.values && prop.values.length > 0}
-                    <span class="prop-type">enum</span>
-                  {:else}
-                    <span class="prop-type">{prop.type}</span>
-                  {/if}
-                </label>
-                {#if prop.type === 'boolean' || prop.type === 'Boolean'}
-                  <input
-                    class="prop-checkbox"
-                    type="checkbox"
-                    id={'prop-' + prop.name}
-                    checked={propValues()[prop.name] === 'true' || propValues()[prop.name] === true}
-                    on:change={(e) => setProp(prop.name, e.target.checked ? 'true' : 'false')}
-                  />
-                {:else if prop.values && prop.values.length > 0}
-                  <select
-                    class="prop-select"
-                    id={'prop-' + prop.name}
-                    value={(propValues()[prop.name] ?? prop.default ?? '') + ''}
-                    on:change={(e) => setProp(prop.name, e.target.value)}
-                  >
-                    {#for v of prop.values key={v}}
-                      <option value={v}>{v}</option>
-                    {/for}
-                  </select>
-                {:else}
-                  <input
-                    class="prop-input"
-                    type="text"
-                    id={'prop-' + prop.name}
-                    value={(propValues()[prop.name] ?? prop.default ?? '') + ''}
-                    on:input={(e) => setProp(prop.name, e.target.value)}
-                    placeholder={prop.default ?? ''}
-                  />
+          <a class="detail-back" href="/studio/components" data-test="detail-back">
+            <sui-icon name="chevron-left" size="xs"></sui-icon>
+            Components
+          </a>
+
+          <header class="detail-head">
+            <span class="detail-glyph" aria-hidden="true">&lt;/&gt;</span>
+            <div class="detail-head-body">
+              <h1 class="detail-name">{entry().tag}</h1>
+              <div class="detail-meta">
+                <code>{entry().category}</code>
+                <span class="detail-meta-sep" aria-hidden="true"></span>
+                <span>{metaLabel()}</span>
+                {#if entry().pkg}
+                  <span class="detail-meta-sep" aria-hidden="true"></span>
+                  <code>{entry().pkg}</code>
                 {/if}
               </div>
-            {/for}
-          </aside>
-        {/if}
-
-        <div class="detail-render-wrap">
-          {#if entry().kind === 'sui'}
-            <div class="detail-render-toolbar">
-              <button
-                type="button"
-                class="copy-code-btn"
-                data-test="copy-code"
-                data-copied={copyFeedback() ? 'true' : 'false'}
-                on:click={() => copyCode(entry())}
-              >{copyFeedback() ? 'Copied' : 'Copy code'}</button>
+              <div class="detail-rule" aria-hidden="true"></div>
             </div>
+            <div class="detail-actions">
+              {#if entry().sourcePath}
+                <sui-button variant="outline" size="sm"
+                  attr:href={'/_sui/source/' + entry().tag}
+                  data-test="source-link">
+                  <sui-icon slot="leading" name="file-code" size="xs"></sui-icon>
+                  Open source
+                </sui-button>
+              {/if}
+            </div>
+          </header>
+
+          {#if entry().description}
+            <p class="detail-prose">{entry().description}</p>
           {/if}
-          <div class="detail-render-stage" data-stage-kind={entry().kind}>
-            <div class="detail-render" data-render-slot data-test="render-slot" morph></div>
-          </div>
-          {#if entry().kind === 'sui'}
-            <div class="detail-render-caption">Live preview — edit props above</div>
-          {:else}
-            <div class="detail-render-caption">Live view · <code>/sui/{entry().id}</code></div>
-          {/if}
+
+          <!-- Matrix -->
           {#if matrixCells().length > 0}
-            <section class="detail-matrix-section" data-test="state-matrix">
-              <header class="detail-matrix-header">
-                <h3 class="detail-matrix-title">State matrix</h3>
-                <span class="detail-matrix-meta">{matrixAxesLabel()} · {matrixCells().length} cells</span>
-              </header>
+            <section class="detail-sec" data-test="state-matrix">
+              <div class="detail-sec-head">
+                <h2 class="detail-sec-h">Matrix <span class="detail-sec-count">· {matrixAxesLabel()}</span></h2>
+                <span class="detail-sec-meta">{matrixCells().length} cells</span>
+              </div>
               <div class="detail-matrix">
                 {#for cell of matrixCells() key={cell.id}}
-                  <div class="matrix-cell" data-test="matrix-cell" data-label={cell.label}>
-                    <div
-                      class="matrix-cell-host"
-                      data-matrix-tag={entry().tag}
-                      data-matrix-cell={cell.id}
-                      data-props={cell.propsJson}
-                      morph
-                    ></div>
+                  <div class="matrix-cell" data-test="matrix-cell" attr:data-label={cell.label}>
+                    <div class="matrix-cell-host"
+                      attr:data-matrix-tag={entry().tag}
+                      attr:data-matrix-cell={cell.id}
+                      attr:data-props={cell.propsJson}
+                      morph></div>
                     <div class="matrix-cell-label">{cell.label}</div>
                   </div>
                 {/for}
               </div>
             </section>
           {/if}
+
+          <!-- Playground -->
+          <section class="detail-sec" data-test="playground">
+            <div class="detail-sec-head">
+              <h2 class="detail-sec-h">Playground</h2>
+              <button type="button" class="detail-copy"
+                data-test="copy-code" attr:data-copied={copyFeedback()}
+                on:click={() => copyCode(entry())}>
+                {copyFeedback() ? 'Copied' : 'Copy code'}
+              </button>
+            </div>
+
+            {#if knobs().length > 0}
+              <div class="detail-knobs" data-test="knobs">
+                {#for knob of knobs() key={knob.name}}
+                  <div class="detail-knob" data-test="knob" attr:data-prop={knob.name}>
+                    <span class="detail-knob-label">{knob.name}</span>
+                    {#if knob.kind === 'enum'}
+                      <div class="detail-seg" role="group">
+                        {#for v of knob.values key={v}}
+                          <button type="button" class="detail-seg-btn" data-test="seg"
+                            attr:data-active={(propValues()[knob.name] ?? '') + '' === v}
+                            on:click={() => setProp(knob.name, v)}>{v}</button>
+                        {/for}
+                      </div>
+                    {:else if knob.kind === 'bool'}
+                      <label class="detail-knob-bool">
+                        <input type="checkbox" data-test="knob-bool"
+                          checked={propValues()[knob.name] === true || propValues()[knob.name] === 'true'}
+                          on:change={(e) => setProp(knob.name, e.target.checked ? 'true' : 'false')} />
+                        <span>{(propValues()[knob.name] === true || propValues()[knob.name] === 'true') ? 'on' : 'off'}</span>
+                      </label>
+                    {:else}
+                      <input type="text" class="detail-knob-text" data-test="knob-text"
+                        value={(propValues()[knob.name] ?? '') + ''}
+                        placeholder={knob.name}
+                        on:input={(e) => setProp(knob.name, e.target.value)} />
+                    {/if}
+                  </div>
+                {/for}
+              </div>
+            {/if}
+
+            <div class="detail-live-stage" data-stage-kind={entry().kind}>
+              <div class="detail-render" data-render-slot data-test="render-slot" morph></div>
+            </div>
+
+            {#if entry().kind === 'sui'}
+              <pre class="detail-code" data-test="code-output">{snippet()}</pre>
+            {:else}
+              <div class="detail-render-caption">Live view · <code>/sui/{entry().id}</code></div>
+            {/if}
+          </section>
+
+          <!-- Props -->
+          {#if hasProps()}
+            <section class="detail-sec" data-test="props-table">
+              <div class="detail-sec-head">
+                <h2 class="detail-sec-h">Props <span class="detail-sec-count">· {entry().props.length}</span></h2>
+              </div>
+              <table class="detail-props">
+                <thead>
+                  <tr><th>name</th><th>type</th><th>default</th></tr>
+                </thead>
+                <tbody>
+                  {#for prop of entry().props key={prop.name}}
+                    <tr data-test="prop-row">
+                      <td><code>{prop.name}</code></td>
+                      <td><code class="detail-props-type">{prop.type}</code></td>
+                      <td>{#if prop.default}<code>{prop.default}</code>{:else}<span class="detail-props-dim">—</span>{/if}</td>
+                    </tr>
+                  {/for}
+                </tbody>
+              </table>
+            </section>
+          {/if}
+
+          <!-- Slots -->
+          {#if slotList().length > 0}
+            <section class="detail-sec" data-test="slots">
+              <div class="detail-sec-head">
+                <h2 class="detail-sec-h">Slots <span class="detail-sec-count">· {slotList().length}</span></h2>
+              </div>
+              <div class="detail-slots">
+                {#for s of slotList() key={s.name}}
+                  <div class="detail-slot">
+                    <span class="detail-slot-name">{s.name ? 'slot="' + s.name + '"' : '(default)'}</span>
+                    {#if s.description}<span class="detail-slot-desc">— {s.description}</span>{/if}
+                  </div>
+                {/for}
+              </div>
+            </section>
+          {/if}
+
+          <!-- Source -->
+          {#if entry().sourcePath}
+            <section class="detail-sec" data-test="source">
+              <div class="detail-sec-head">
+                <h2 class="detail-sec-h">Source</h2>
+              </div>
+              <div class="detail-source">{entry().sourcePath}</div>
+            </section>
+          {/if}
+
+        </article>
+      {:else}
+        <div class="detail-loading">
+          <sui-empty-state icon="search-x" variant="default" size="md" data-test="not-found">
+            <span slot="title">Component not found</span>
+            <span>No component matched this path.</span>
+            <sui-button slot="action" variant="outline" size="sm" href="/studio/components">Back to components</sui-button>
+          </sui-empty-state>
         </div>
-      </div>
-    {:else}
-      <div class="studio-welcome">
-        <p class="detail-not-found">Component not found.</p>
-      </div>
-    {/if}
+      {/if}
     </div>
   </main>
 </div>
