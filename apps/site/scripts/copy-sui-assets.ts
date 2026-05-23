@@ -15,20 +15,25 @@ import { fileURLToPath } from 'node:url';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, '../../..');
 const PUBLIC_DIR = join(SCRIPT_DIR, '../public');
+// Two source roots, by layer:
+//   * deck's OWN runtime bundles live in deck's crate (baked product).
+//   * the app-focused `sui-marketing.js` is deck *build output* and lives in
+//     the project's `.deck/` (deck's `.next`-equivalent).
 const SUI_ASSETS_DIR = join(REPO_ROOT, 'crates/deck/deck-server/assets');
+const DECK_OUT_DIR = join(REPO_ROOT, '.deck');
 const SHIPD_ASSETS_DIR = join(REPO_ROOT, 'apps/shipd/assets');
 
-const SUI_BUNDLES = [
-  'sui-runtime.js',
-  'sui-dom.js',
-  'sui-sdk-client.js',
+const SUI_BUNDLES: ReadonlyArray<{ name: string; from: string }> = [
+  { name: 'sui-runtime.js', from: SUI_ASSETS_DIR },
+  { name: 'sui-dom.js', from: SUI_ASSETS_DIR },
+  { name: 'sui-sdk-client.js', from: SUI_ASSETS_DIR },
   // `sui-marketing.js` is the focused bundle for apps/site — registers
   // only the ~12 `<sui-*>` tags marketing actually mounts (~140 KB).
   // The full `sui-components.js` umbrella (~740 KB) was 5× larger and
   // contained 80+ tags the marketing pages never instantiate. If a new
   // tag is added to apps/site/src, append it to the `sui-marketing`
-  // bundle target in `packages/deck/bundler/index.ts`.
-  'sui-marketing.js',
+  // bundle target in `packages/deck/bundler/index.ts`. It builds to `.deck/`.
+  { name: 'sui-marketing.js', from: DECK_OUT_DIR },
 ] as const;
 
 // <sui-theme-picker> injects a <link rel="stylesheet" href="/api/assets/view-tokens.css">
@@ -41,12 +46,12 @@ const DAEMON_API_ASSETS: ReadonlyArray<{ src: string; dst: string }> = [
 mkdirSync(PUBLIC_DIR, { recursive: true });
 
 let copied = 0;
-for (const name of SUI_BUNDLES) {
-  const src = join(SUI_ASSETS_DIR, name);
+for (const { name, from } of SUI_BUNDLES) {
+  const src = join(from, name);
   if (!existsSync(src)) {
     console.log(
       `[copy-sui-assets] ${name} not found at ${src}. ` +
-      `Run 'cd packages/components/ui-components && bun run build' first.`,
+      `Run 'bun run packages/deck/bundler/index.ts --all' first.`,
     );
     continue;
   }
