@@ -1,5 +1,11 @@
 import { controller, signal } from '@ship/sui-runtime'
+import type { MutableState } from '@ship/sui-runtime'
 import type { Scope } from './sui-setup.sui'
+
+// `on:`/`mount` handlers receive the writable state proxy. TS can't
+// contextually infer it (OnSection is a union of two function shapes), so
+// annotate explicitly — this is the real typed view, not `any`.
+type S = MutableState<Scope>
 
 const STORAGE_KEY = 'ship-setup-state'
 const TOTAL_STEPS = 6
@@ -126,17 +132,17 @@ export default controller<Scope>({
     }
   },
   on: {
-    goNext: (s) => {
+    goNext: (s: S) => {
       const next = Math.min(TOTAL_STEPS, (s.step as number) + 1)
       s.step = next
       persistFromState(s as unknown as Record<string, unknown>)
     },
-    goBack: (s) => {
+    goBack: (s: S) => {
       const prev = Math.max(1, (s.step as number) - 1)
       s.step = prev
       persistFromState(s as unknown as Record<string, unknown>)
     },
-    submitIdentity: (s) => {
+    submitIdentity: (s: S) => {
       const name = String(s.identityName ?? '').trim()
       if (!name) {
         s.identityError = 'Please enter a display name.'
@@ -146,7 +152,7 @@ export default controller<Scope>({
       s.step = 3
       persistFromState(s as unknown as Record<string, unknown>)
     },
-    selectProvider: (s, id: string) => {
+    selectProvider: (s: S, id: string) => {
       s.provider = id
       s.providerTestOk = false
       s.providerError = ''
@@ -167,7 +173,7 @@ export default controller<Scope>({
         persistFromState(s as unknown as Record<string, unknown>)
       })()
     },
-    validateProvider: (s) => {
+    validateProvider: (s: S) => {
       const id = String(s.provider ?? '')
       if (!id) return
       // Re-trigger by clearing then re-selecting through the same path.
@@ -186,13 +192,13 @@ export default controller<Scope>({
         persistFromState(s as unknown as Record<string, unknown>)
       })()
     },
-    submitProvider: (s) => {
+    submitProvider: (s: S) => {
       // Provider may be unvalidated (CLI missing) but user can still continue;
       // the wizard captures the choice and Settings can finish credentials.
       s.step = 4
       persistFromState(s as unknown as Record<string, unknown>)
     },
-    submitProject: (s) => {
+    submitProject: (s: S) => {
       const name = String(s.projectName ?? '').trim()
       if (!name) return
       const path = String(s.projectPath ?? '').trim() || defaultProjectPath(name)
@@ -218,24 +224,24 @@ export default controller<Scope>({
         persistFromState(s as unknown as Record<string, unknown>)
       })()
     },
-    submitSample: (s) => {
+    submitSample: (s: S) => {
       s.step = 6
       persistFromState(s as unknown as Record<string, unknown>)
     },
-    finish: (s) => {
+    finish: (s: S) => {
       persistFromState(s as unknown as Record<string, unknown>, true)
       try { localStorage.setItem('ship-setup-completed', '1') } catch { /* best-effort */ }
       window.location.href = '/'
     },
-    requestExit: (s) => { s.confirmingExit = true },
-    cancelExit: (s) => { s.confirmingExit = false },
-    confirmExit: (s) => {
+    requestExit: (s: S) => { s.confirmingExit = true },
+    cancelExit: (s: S) => { s.confirmingExit = false },
+    confirmExit: (s: S) => {
       s.confirmingExit = false
       persistFromState(s as unknown as Record<string, unknown>, true)
       try { localStorage.setItem('ship-setup-completed', '1') } catch { /* best-effort */ }
       window.location.href = '/'
     },
-    onFieldKeydown: (s, e: KeyboardEvent) => {
+    onFieldKeydown: (s: S, e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         const target = e.target as (HTMLInputElement & { blur(): void }) | null
         target?.blur()
@@ -250,7 +256,7 @@ export default controller<Scope>({
       }
     },
   },
-  mount: (state, _el) => {
+  mount: (state: S, _el) => {
     // Cmd+. (or Ctrl+.) dismisses the wizard with confirmation.
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === '.') {
@@ -261,9 +267,9 @@ export default controller<Scope>({
       // Top-level Enter advances the welcome / sample / done steps.
       if (e.key === 'Enter' && !(e.target instanceof HTMLInputElement)) {
         const step = state.step as number
-        if (step === 1) (state as Record<string, () => void>).goNext?.()
-        else if (step === 5) (state as Record<string, () => void>).submitSample?.()
-        else if (step === 6) (state as Record<string, () => void>).finish?.()
+        if (step === 1) (state as unknown as Record<string, () => void>).goNext?.()
+        else if (step === 5) (state as unknown as Record<string, () => void>).submitSample?.()
+        else if (step === 6) (state as unknown as Record<string, () => void>).finish?.()
       }
     }
     window.addEventListener('keydown', onKey, true)

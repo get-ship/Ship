@@ -1,7 +1,12 @@
 import { controller, signal, derived, ref, live } from '@ship/sui-runtime'
+import type { MutableState } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
 import { route as routeFactory } from '@ship/sui-runtime/route'
 import type { Scope } from './sui-canvas-app.sui'
+
+// Writable state proxy seen by `on:` handlers — annotated because TS can't
+// contextually infer it through OnSection's function union.
+type S = MutableState<Scope>
 
 const SUI_CANVAS_BUNDLE = '/_sui/sui-components/sui-canvas.js'
 // The shell SPA preloads the chrome aggregate; the SUI view-host
@@ -126,7 +131,7 @@ export default controller<Scope>({
   },
 
   on: {
-    pair: (s, agentId: string) => {
+    pair: (s: S, agentId: string) => {
       const cid = s.canvasId as string
       ;(s as unknown as { navigate: (path: string) => void }).navigate(
         '/canvas?canvas=' + encodeURIComponent(cid),
@@ -134,12 +139,12 @@ export default controller<Scope>({
       s.pairedAgentId = agentId as never
       writePair(cid, agentId)
     },
-    unpair: (s) => {
+    unpair: (s: S) => {
       writePair(s.canvasId as string, '')
       s.pairedAgentId = '' as never
     },
-    toggleRecent: (s) => { s.recentOpen = !(s.recentOpen as boolean) as never },
-    newCanvas: (s) => {
+    toggleRecent: (s: S) => { s.recentOpen = !(s.recentOpen as boolean) as never },
+    newCanvas: (s: S) => {
       const id = newCanvasId()
       const nav = (s as unknown as { navigate: (path: string) => void }).navigate
       s.canvasId = id as never
@@ -148,13 +153,13 @@ export default controller<Scope>({
       s.statusText = 'new canvas' as never
       nav('/canvas?canvas=' + encodeURIComponent(id))
     },
-    setAnnMode: (s, mode: AnnMode) => { s.annMode = mode as never },
-    clearAnnotations: (s) => {
+    setAnnMode: (s: S, mode: AnnMode) => { s.annMode = mode as never },
+    clearAnnotations: (s: S) => {
       const layer = (s as unknown as { annLayerEl: AnnotationLayerHost | null }).annLayerEl
       if (layer) layer.clear()
       s.annThread = [] as never
     },
-    sendAnnotations: async (s) => {
+    sendAnnotations: async (s: S) => {
       const cid = s.canvasId as string
       const agentId = s.pairedAgentId as string
       const layer = (s as unknown as { annLayerEl: AnnotationLayerHost | null }).annLayerEl
@@ -176,7 +181,7 @@ export default controller<Scope>({
       s.annThread = [] as never
       s.statusText = (`sent ${staged.length} annotation${staged.length === 1 ? '' : 's'}`) as never
     },
-    saveCanvas: async (s) => {
+    saveCanvas: async (s: S) => {
       const cid = s.canvasId as string
       const el = (s as unknown as { canvasEl: CanvasHostEl | null }).canvasEl
       if (!el) { s.statusText = 'canvas not ready' as never; return }
@@ -201,7 +206,7 @@ export default controller<Scope>({
       const body = await resp.json().catch(() => ({})) as { data?: { id?: string } }
       s.statusText = (`saved · artifact ${(body.data?.id || '').slice(0, 8)}`) as never
     },
-    loadArtifact: async (s, artifactId: string) => {
+    loadArtifact: async (s: S, artifactId: string) => {
       const resp = await fetch(`/api/v1/artifacts/${encodeURIComponent(artifactId)}`, {
         credentials: 'same-origin',
       })
