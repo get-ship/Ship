@@ -26,9 +26,19 @@ ship-types = { path = "../../crates/core/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-analytics" }
 compiler = { path = "../../crates/core/compiler" }
 build-info = { path = "../../crates/core/build-info" }
+ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
+connectrpc = { version = "0.4", features = ["axum", "client"] }
+# Descriptor decode for the op-policy gate (reads proto custom options).
+buffa = "0.5"
+buffa-descriptor = "0.5"
+http = "1"
 deck = { path = "../../crates/deck/deck" }
 sui-compiler = { path = "../../crates/sui/compiler" }
 sui-signals = { path = "../../crates/sui/signals" }
+# The MCP server surface. shipd mounts ShipServer at /mcp (the single
+# daemon-hosted MCP transport). Acyclic: mcp reaches shipd only over HTTP,
+# never as a crate dep.
+mcp = { path = "../mcp" }
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }

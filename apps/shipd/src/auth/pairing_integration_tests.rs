@@ -35,6 +35,7 @@ fn full_auth() -> AuthContext {
         workspace_id: None,
         session_id: None,
         scopes: vec![Scope::Full],
+        grants: vec![],
     }
 }
 
@@ -45,6 +46,7 @@ fn no_auth() -> AuthContext {
         workspace_id: None,
         session_id: None,
         scopes: vec![Scope::ReadWorkspace],
+        grants: vec![],
     }
 }
 
@@ -193,6 +195,7 @@ async fn persisted_session_survives_hydrate() {
         token: "ship_sess_abc123".to_string(),
         agent_id: "studio".to_string(),
         scopes: vec![Scope::Full],
+        grants: vec![],
         workspace_id: None,
         created_at: std::time::Instant::now(),
         expires_at_unix: Some(chrono::Utc::now().timestamp() + 3600),
@@ -220,6 +223,7 @@ async fn expired_session_is_purged_on_hydrate() {
         token: "ship_sess_expired".to_string(),
         agent_id: "studio".to_string(),
         scopes: vec![Scope::Full],
+        grants: vec![],
         workspace_id: None,
         created_at: std::time::Instant::now(),
         expires_at_unix: Some(chrono::Utc::now().timestamp() - 3600),
@@ -245,6 +249,7 @@ async fn ephemeral_session_not_persisted() {
         token: "ship_sess_ephemeral".to_string(),
         agent_id: "studio-dev".to_string(),
         scopes: vec![Scope::Full],
+        grants: vec![],
         workspace_id: None,
         created_at: std::time::Instant::now(),
         expires_at_unix: None,

@@ -184,7 +184,6 @@ fn cursor_hooks_not_emitted_for_other_harnesses() {
         ..resolved(vec![])
     };
     assert!(compile(&r, "claude").unwrap().cursor_hooks_patch.is_none());
-    assert!(compile(&r, "gemini").unwrap().cursor_hooks_patch.is_none());
     assert!(compile(&r, "codex").unwrap().cursor_hooks_patch.is_none());
 }
 
@@ -217,7 +216,6 @@ fn cursor_raw_event_bypasses_trigger_mapping() {
         matcher: None,
         command: "ship log".to_string(),
         cursor_event: Some("customEvent".to_string()),
-        gemini_event: None,
     };
     let r = ResolvedConfig {
         hooks: vec![hook],
@@ -238,7 +236,10 @@ fn cursor_raw_event_bypasses_trigger_mapping() {
 fn cursor_environment_json_populated() {
     let env = serde_json::json!({ "NODE_ENV": "production", "API_URL": "https://api.example.com" });
     let r = ResolvedConfig {
-        cursor_environment: Some(env.clone()),
+        cursor: crate::compile::CursorSettings {
+            environment: Some(env.clone()),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "cursor").unwrap();
@@ -267,7 +268,10 @@ fn cursor_mcp_env_file_emitted_for_stdio() {
 #[test]
 fn cursor_settings_extra_merged_into_cli_json() {
     let r = ResolvedConfig {
-        cursor_settings_extra: Some(serde_json::json!({ "customSetting": true })),
+        cursor: crate::compile::CursorSettings {
+            settings_extra: Some(serde_json::json!({ "customSetting": true })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "cursor").unwrap();
@@ -285,6 +289,6 @@ fn cursor_env_file_not_emitted_for_other_harnesses() {
     // Only cursor gets envFile; others should not have it.
     let claude_out = compile(&r, "claude").unwrap();
     assert!(claude_out.mcp_servers["my-server"].get("envFile").is_none());
-    let gemini_out = compile(&r, "gemini").unwrap();
-    assert!(gemini_out.mcp_servers["my-server"].get("envFile").is_none());
+    let codex_out = compile(&r, "codex").unwrap();
+    assert!(codex_out.mcp_servers["my-server"].get("envFile").is_none());
 }

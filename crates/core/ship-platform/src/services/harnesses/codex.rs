@@ -10,8 +10,24 @@ use crate::services::harness_adapter::{
 
 pub struct CodexAdapter;
 
+#[async_trait::async_trait]
 impl HarnessAdapter for CodexAdapter {
     fn id(&self) -> &str { "codex" }
+
+    /// Codex ships an app-server (`codex app-server`) we hold as a persistent
+    /// session. Spawn it; on failure return None so routing falls back to the
+    /// one-shot `codex exec` path.
+    async fn spawn_server_session(
+        &self,
+    ) -> Option<std::sync::Arc<dyn ship_substrate::services::server_session::ServerSession>> {
+        match super::codex_session::CodexSession::spawn().await {
+            Ok(session) => Some(std::sync::Arc::new(session)),
+            Err(err) => {
+                tracing::warn!(%err, "codex: server-session spawn failed; falling back to one-shot exec");
+                None
+            }
+        }
+    }
 
     fn caps(&self) -> HarnessCapabilities {
         HarnessCapabilities {

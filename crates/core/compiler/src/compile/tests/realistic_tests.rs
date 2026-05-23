@@ -16,12 +16,7 @@ fn full_agent() -> ResolvedConfig {
     github.timeout_secs = Some(30);
 
     ResolvedConfig {
-        harnesses: vec![
-            "claude".into(),
-            "gemini".into(),
-            "codex".into(),
-            "cursor".into(),
-        ],
+        harnesses: vec!["claude".into(), "codex".into(), "cursor".into()],
         model: Some("claude-opus-4-6".into()),
         max_cost_per_session: Some(10.0),
         max_turns: Some(50),
@@ -162,7 +157,7 @@ fn realistic_agent_mcp_has_both_servers_plus_ship() {
 #[test]
 fn realistic_agent_all_harnesses_have_context_with_rules() {
     let r = full_agent();
-    for harness in &["claude", "gemini", "codex"] {
+    for harness in &["claude", "codex"] {
         let ctx = compile(&r, harness)
             .unwrap()
             .context_content
@@ -187,7 +182,6 @@ fn realistic_agent_all_harnesses_have_skill_files() {
     let r = full_agent();
     let paths: HashMap<&str, &str> = [
         ("claude", ".claude/skills"),
-        ("gemini", ".agents/skills"),
         ("codex", ".agents/skills"),
         ("cursor", ".cursor/skills"),
     ]
@@ -204,7 +198,7 @@ fn realistic_agent_all_harnesses_have_skill_files() {
 #[test]
 fn realistic_agent_all_harnesses_have_mcp_servers() {
     let r = full_agent();
-    for harness in &["claude", "gemini", "codex", "cursor"] {
+    for harness in &["claude", "codex", "cursor"] {
         let obj = compile(&r, harness).unwrap().mcp_servers;
         let mcp = obj.as_object().unwrap();
         assert!(mcp.contains_key("ship"), "{harness}: ship");
@@ -223,12 +217,6 @@ fn realistic_agent_harness_patches_are_exclusive() {
             .is_some()
     );
     assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .claude_settings_patch
-            .is_none()
-    );
-    assert!(
         compile(&r, "codex")
             .unwrap()
             .claude_settings_patch
@@ -242,8 +230,6 @@ fn realistic_agent_harness_patches_are_exclusive() {
     );
     assert!(compile(&r, "codex").unwrap().codex_config_patch.is_some());
     assert!(compile(&r, "claude").unwrap().codex_config_patch.is_none());
-    assert!(compile(&r, "gemini").unwrap().gemini_policy_patch.is_some());
-    assert!(compile(&r, "claude").unwrap().gemini_policy_patch.is_none());
 }
 
 // ── Test 3: Deny-only must not leak allow ────────────────────────────────────
@@ -289,33 +275,12 @@ fn permission_deny_only_no_allow_leak_cursor() {
     assert!(!patch["permissions"]["deny"].as_array().unwrap().is_empty());
 }
 
-#[test]
-fn permission_deny_only_no_allow_leak_gemini() {
-    let r = ResolvedConfig {
-        permissions: Permissions {
-            tools: ToolPermissions {
-                allow: vec![],
-                ask: vec![],
-                deny: vec!["Bash(rm -rf *)".into(), "Write".into()],
-            },
-            ..Default::default()
-        },
-        ..empty_agent()
-    };
-    let toml_str = compile(&r, "gemini").unwrap().gemini_policy_patch.unwrap();
-    assert!(
-        !toml_str.contains(r#"decision = "allow""#),
-        "deny-only must not leak allow in gemini"
-    );
-    assert!(toml_str.contains(r#"decision = "deny""#));
-}
-
 // ── Test 4: Empty agent compiles without errors ──────────────────────────────
 
 #[test]
 fn empty_agent_compiles_for_all_harnesses() {
     let r = empty_agent();
-    for harness in &["claude", "gemini", "codex", "cursor"] {
+    for harness in &["claude", "codex", "cursor"] {
         let out = compile(&r, harness).unwrap();
         assert!(
             out.mcp_servers.as_object().unwrap().contains_key("ship"),
@@ -352,19 +317,6 @@ fn both_stop_hooks_emit_to_claude_settings() {
 }
 
 #[test]
-fn stop_hook_maps_to_gemini_session_end() {
-    let r = ResolvedConfig {
-        hooks: vec![make_hook(HookTrigger::Stop, "ship end-session", None)],
-        ..empty_agent()
-    };
-    let patch = compile(&r, "gemini")
-        .unwrap()
-        .gemini_settings_patch
-        .unwrap();
-    assert!(patch["hooks"]["SessionEnd"].is_array());
-}
-
-#[test]
 fn stop_hook_maps_to_cursor_session_end() {
     let r = ResolvedConfig {
         hooks: vec![make_hook(HookTrigger::Stop, "ship end-session", None)],
@@ -385,9 +337,6 @@ fn subagent_stop_dropped_for_non_claude_harnesses() {
         ..empty_agent()
     };
     // SubagentStop is dropped, but lifecycle hooks are still present.
-    let gemini_patch = compile(&r, "gemini").unwrap().gemini_settings_patch
-        .expect("lifecycle hooks must exist");
-    assert!(gemini_patch["hooks"].get("SubagentStop").is_none());
     let cursor_patch = compile(&r, "cursor").unwrap().cursor_hooks_patch
         .expect("lifecycle hooks must exist");
     assert!(cursor_patch.get("SubagentStop").is_none());

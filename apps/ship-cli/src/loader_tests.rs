@@ -419,3 +419,28 @@ fn skill_stable_id_invalid_is_ignored() {
     let skill = parse_skill("my-skill", raw);
     assert!(skill.stable_id.is_none());
 }
+
+#[test]
+fn skill_parses_grants_block() {
+    // The `grants:` frontmatter declares capability grants (restricted
+    // op-domains) the skill confers — same list syntax as allowed-tools.
+    let raw = "---\nname: ship-orchestration\ngrants: ship-orchestration\n---\n\nContent.";
+    let skill = parse_skill("ship-orchestration", raw);
+    assert_eq!(skill.grants, vec!["ship-orchestration"]);
+}
+
+#[test]
+fn skill_grants_empty_when_absent() {
+    let raw = "---\nname: my-skill\ndescription: x\n---\n\nContent.";
+    let skill = parse_skill("my-skill", raw);
+    assert!(skill.grants.is_empty());
+}
+
+#[test]
+fn skill_parses_requires_block() {
+    // `requires:` declares a capability dependency (authored, confers nothing).
+    let raw = "---\nname: my-workflow\nrequires: ship-orchestration\n---\n\nContent.";
+    let skill = parse_skill("my-workflow", raw);
+    assert_eq!(skill.requires, vec!["ship-orchestration"]);
+    assert!(skill.grants.is_empty());
+}

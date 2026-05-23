@@ -44,7 +44,7 @@ use crate::wire::MeshResponse;
 pub async fn serve_schema() -> Json<MeshResponse> {
     Json(MeshResponse {
         ok: true,
-        data: serde_json::json!({ "ops": &*OPS }),
+        data: serde_json::json!({ "ops": &*OPS, "commands": COMMANDS }),
     })
 }
 
@@ -83,6 +83,321 @@ pub(crate) const PROJECT_SCOPE: ArgDescriptor = ArgDescriptor { name: "scope", k
 /// `DOMAIN_ORDER` and pulls each domain's slice from whichever source owns it,
 /// so the catalog order is identical to the original hand-written array.
 pub static OPS: LazyLock<Vec<OpDescriptor>> = LazyLock::new(build_ops);
+
+/// A mutation op. The write-side analog of `OpDescriptor`: same shape minus
+/// `returns` (commands return a status JSON), plus `blast_radius` for the gate
+/// + the generated proto policy. `services::command::call` dispatches these;
+/// `cargo xtask gen-ops` projects them onto `CommandOpsService`. One source for
+/// the write surface, exactly as `OPS` is for reads.
+#[derive(Serialize, Clone, Copy)]
+pub struct CommandDescriptor {
+    pub name: &'static str,
+    pub description: &'static str,
+    pub args: &'static [ArgDescriptor],
+    pub permission: &'static str,
+    /// Gate class: "C1_WORKSPACE" | "C2_ELEVATED".
+    pub blast_radius: &'static str,
+    #[serde(skip_serializing_if = "is_false")]
+    pub sensitive: bool,
+}
+
+/// The mutation catalog. Order mirrors `services::command::call`'s dispatch.
+/// Grows as route-level command logic is lifted into the command layer (#78).
+pub const COMMANDS: &[CommandDescriptor] = &[
+    // ── pipeline lifecycle ────────────────────────────────────────
+    CommandDescriptor {
+        name: "pipeline.update_status",
+        description: "Advance a pipeline run's lifecycle/gate state (the agent's own run).",
+        args: &[
+            ArgDescriptor { name: "pipeline_run_id", kind: "string", required: true },
+            ArgDescriptor { name: "status", kind: "string", required: true },
+            ArgDescriptor { name: "worktree", kind: "string?", required: false },
+            ArgDescriptor { name: "pid", kind: "number?", required: false },
+            ArgDescriptor { name: "gate_agent", kind: "string?", required: false },
+            ArgDescriptor { name: "blocker", kind: "string?", required: false },
+            ArgDescriptor { name: "error", kind: "string?", required: false },
+        ],
+        permission: "ship.runtime.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "pipeline.step_done",
+        description: "Agent declares the current pipeline step complete.",
+        args: &[
+            ArgDescriptor { name: "slug", kind: "string", required: true },
+            ArgDescriptor { name: "summary", kind: "string?", required: false },
+            ArgDescriptor { name: "outputs", kind: "map", required: false },
+        ],
+        permission: "ship.runtime.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    // ── project ───────────────────────────────────────────────────
+    CommandDescriptor {
+        name: "project.activate",
+        description: "Switch the daemon's active project.",
+        args: &[ArgDescriptor { name: "id", kind: "string", required: true }],
+        permission: "ship.projects.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    // ── mesh ──────────────────────────────────────────────────────
+    CommandDescriptor {
+        name: "mesh.send",
+        description: "Send a directed mesh message to another actor (caller-as-self).",
+        args: &[
+            ArgDescriptor { name: "from", kind: "string", required: true },
+            ArgDescriptor { name: "to", kind: "string", required: true },
+            ArgDescriptor { name: "body_json", kind: "string?", required: false },
+        ],
+        permission: "ship.mesh.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "mesh.broadcast",
+        description: "Broadcast a mesh message (optional capability filter; caller-as-self).",
+        args: &[
+            ArgDescriptor { name: "from", kind: "string", required: true },
+            ArgDescriptor { name: "body_json", kind: "string?", required: false },
+            ArgDescriptor { name: "capability_filter", kind: "string?", required: false },
+        ],
+        permission: "ship.mesh.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    // ── git (caller's worktree) ───────────────────────────────────
+    CommandDescriptor {
+        name: "git.push",
+        description: "Push the caller's worktree to a remote.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "remote", kind: "string?", required: false },
+            ArgDescriptor { name: "force", kind: "bool?", required: false },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.fetch",
+        description: "Fetch a remote in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "remote", kind: "string?", required: false },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.pull",
+        description: "Pull (ff-only) in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "remote", kind: "string?", required: false },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.stage",
+        description: "Stage paths in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "paths", kind: "string[]", required: true },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.unstage",
+        description: "Unstage paths in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "paths", kind: "string[]", required: true },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.commit",
+        description: "Commit staged changes in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "message", kind: "string", required: true },
+            ArgDescriptor { name: "author", kind: "string?", required: false },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    // ── agent control ─────────────────────────────────────────────
+    CommandDescriptor {
+        name: "agent.stop",
+        description: "Stop a running agent by slug.",
+        args: &[ArgDescriptor { name: "slug", kind: "string", required: true }],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agent.grant",
+        description: "Grant restricted capabilities to an agent (operator approval). \
+                      Upgrades the agent's live sessions; the next gated call passes. \
+                      C2 — operator-only, the human-in-the-loop approval point.",
+        args: &[
+            ArgDescriptor { name: "agent", kind: "string", required: true },
+            ArgDescriptor { name: "grants", kind: "string[]", required: true },
+        ],
+        permission: "ship.agents.grant",
+        blast_radius: "C2_ELEVATED",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agent.steer",
+        description: "Inject a message into a running agent.",
+        args: &[
+            ArgDescriptor { name: "slug", kind: "string", required: true },
+            ArgDescriptor { name: "message", kind: "string", required: true },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agent.dispatch",
+        description: "Dispatch a single agent session (the canonical agent command).",
+        args: &[
+            ArgDescriptor { name: "agent", kind: "string", required: true },
+            ArgDescriptor { name: "spec", kind: "string?", required: false },
+            ArgDescriptor { name: "prompt", kind: "string?", required: false },
+            ArgDescriptor { name: "resume", kind: "bool?", required: false },
+            ArgDescriptor { name: "harness", kind: "string?", required: false },
+            ArgDescriptor { name: "model", kind: "string?", required: false },
+            ArgDescriptor { name: "open_tab", kind: "bool?", required: false },
+            ArgDescriptor { name: "invocation", kind: "string?", required: false },
+            ArgDescriptor { name: "keepalive", kind: "bool?", required: false },
+            ArgDescriptor { name: "workspace", kind: "string?", required: false },
+            ArgDescriptor { name: "slug", kind: "string?", required: false },
+            ArgDescriptor { name: "branch", kind: "string?", required: false },
+            ArgDescriptor { name: "source_spec_path", kind: "string?", required: false },
+            ArgDescriptor { name: "depends_on", kind: "string[]", required: false },
+            ArgDescriptor { name: "vars", kind: "map", required: false },
+        ],
+        permission: "ship.runtime.dispatch",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    // ── surfaces (authoring) ──────────────────────────────────────
+    CommandDescriptor {
+        name: "create.surface",
+        description: "Scaffold a new surface (view | skill).",
+        args: &[
+            ArgDescriptor { name: "surface", kind: "string", required: true },
+            ArgDescriptor { name: "name", kind: "string", required: true },
+            ArgDescriptor { name: "shape", kind: "string", required: true },
+            ArgDescriptor { name: "purpose", kind: "string?", required: false },
+        ],
+        permission: "ship.surfaces.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    // ── view authoring ────────────────────────────────────────────
+    CommandDescriptor {
+        name: "view.patch_session",
+        description: "Patch a fragment in the caller's view session.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "selector", kind: "string", required: true },
+            ArgDescriptor { name: "html", kind: "string", required: true },
+        ],
+        permission: "ship.views.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "view.append_session",
+        description: "Append a fragment in the caller's view session.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "selector", kind: "string", required: true },
+            ArgDescriptor { name: "html", kind: "string", required: true },
+        ],
+        permission: "ship.views.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "view.signal_session",
+        description: "Deliver a signal to the caller's view session.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "name", kind: "string", required: true },
+            ArgDescriptor { name: "value_json", kind: "string?", required: false },
+        ],
+        permission: "ship.views.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "view.enter_edit_mode",
+        description: "Grant the session view-edit mode for a view.",
+        args: &[
+            ArgDescriptor { name: "view", kind: "string", required: true },
+            ArgDescriptor { name: "session_id", kind: "string", required: true },
+        ],
+        permission: "ship.views.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "view.exit_edit_mode",
+        description: "Revoke the session's view-edit grant (idempotent).",
+        args: &[
+            ArgDescriptor { name: "view", kind: "string", required: true },
+            ArgDescriptor { name: "session_id", kind: "string", required: true },
+        ],
+        permission: "ship.views.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "view.tool",
+        description: "View-authoring tool dispatch for a session in view-edit mode.",
+        args: &[
+            ArgDescriptor { name: "view", kind: "string", required: true },
+            ArgDescriptor { name: "session_id", kind: "string", required: true },
+            ArgDescriptor { name: "op", kind: "string", required: true },
+            ArgDescriptor { name: "args_json", kind: "string?", required: false },
+        ],
+        permission: "ship.views.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    // ── canvas / observation ──────────────────────────────────────
+    CommandDescriptor {
+        name: "annotation.post",
+        description: "Post an annotation (canvas/observation).",
+        args: &[ArgDescriptor { name: "event_json", kind: "string", required: true }],
+        permission: "ship.annotations.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "feedback.post",
+        description: "Post feedback (canvas/observation; rate-limited).",
+        args: &[ArgDescriptor { name: "event_json", kind: "string", required: true }],
+        permission: "ship.feedback.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+];
+
 
 /// Domain emit order — matches the original `OPS` array exactly.
 const DOMAIN_ORDER: &[&str] = &[

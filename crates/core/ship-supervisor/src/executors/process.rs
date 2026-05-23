@@ -137,7 +137,7 @@ impl SessionExecutor for ProcessExecutor {
         let launch = if ctx.keepalive {
             adapter.build_interactive(&ctx.slug, &ctx.launch)
         } else {
-            build_headless_with_default_prompt(adapter.as_ref(), &ctx.slug, &ctx.launch)?
+            build_headless_with_default_prompt(adapter, &ctx.slug, &ctx.launch)?
         };
 
         // Per-step log under .artifacts/. The supervisor primitive owns
@@ -463,7 +463,7 @@ mod tests {
             ..Default::default()
         };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile).unwrap();
+        let cmd = build_headless_with_default_prompt(adapter, "my-slug", &profile).unwrap();
         assert_eq!(cmd.bin, "codex");
         assert_eq!(cmd.args[0], "exec");
         assert_eq!(cmd.args.last().unwrap(), DEFAULT_AUTOSTART_PROMPT);
@@ -473,7 +473,7 @@ mod tests {
     fn dispatch_defaults_to_claude_when_harness_is_none() {
         let profile = LaunchProfile { persist_session: true, ..Default::default() };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile).unwrap();
+        let cmd = build_headless_with_default_prompt(adapter, "my-slug", &profile).unwrap();
         assert_eq!(cmd.bin, "claude");
         // Default prompt is injected as the `-p` value (instead of the
         // adapter's own "go" fallback) so the Claude flow gets the same
@@ -491,7 +491,7 @@ mod tests {
             ..Default::default()
         };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "s", &profile).unwrap();
+        let cmd = build_headless_with_default_prompt(adapter, "s", &profile).unwrap();
         assert_eq!(cmd.args.last().unwrap(), "custom");
     }
 
@@ -508,25 +508,25 @@ mod tests {
             ..Default::default()
         };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "slug-x", &profile).unwrap();
+        let cmd = build_headless_with_default_prompt(adapter, "slug-x", &profile).unwrap();
         let idx = cmd.args.iter().position(|a| a == "--resume").expect("--resume flag");
         assert_eq!(cmd.args[idx + 1], "sess-resume-1");
     }
 
     #[test]
     fn dispatch_surfaces_resume_unsupported_error() {
-        // Gemini has no resume — the adapter returns Err and the executor
+        // Cursor has no resume — the adapter returns Err and the executor
         // bubbles that up rather than silently falling back to a fresh
         // launch.
         let profile = LaunchProfile {
-            harness: Some("gemini".to_string()),
+            harness: Some("cursor".to_string()),
             resume_session: Some("anything".to_string()),
             persist_session: true,
             ..Default::default()
         };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let err = build_headless_with_default_prompt(adapter.as_ref(), "s", &profile)
-            .expect_err("gemini resume must fail");
+        let err = build_headless_with_default_prompt(adapter, "s", &profile)
+            .expect_err("cursor resume must fail");
         let msg = err.to_string();
         assert!(msg.contains("does not support session resume"), "got: {msg}");
     }
@@ -598,6 +598,19 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[cfg_attr(not(unix), ignore)]
     async fn process_executor_emits_process_killed_on_sigterm_path() {
+        // Real-PTY integration test: forks an actual child under a PTY and
+        // SIGTERMs it. The PTY/fork races sibling spawns suite-wide, so it's
+        // flaky in the default parallel run. Opt in with SHIP_TMUX_TESTS=1
+        // (the real-spawn integration switch).
+        if ship_substrate::env::read_raw(ship_substrate::env::Var::TmuxTests)
+            .ok()
+            .as_deref()
+            != Some("1")
+        {
+            eprintln!("skipping: set SHIP_TMUX_TESTS=1 to run real-PTY integration test");
+            return;
+        }
+        let _spawn_guard = crate::executors::real_spawn_guard();
         let (_dir, kernel, db) = setup_kernel();
         let (_tmp, state) = spawn_sleep_state("proc-sigterm");
 

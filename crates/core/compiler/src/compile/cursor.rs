@@ -216,7 +216,7 @@ pub(super) fn build_cursor_cli_permissions(permissions: &Permissions) -> Option<
 /// Build the `.cursor/environment.json` content from `cursor_environment`.
 /// Returns `None` when not set.
 pub(super) fn build_cursor_environment(resolved: &ResolvedConfig) -> Option<Json> {
-    resolved.cursor_environment.clone()
+    resolved.cursor.environment.clone()
 }
 
 // ─── Cursor cli.json (settings_extra merge) ───────────────────────────────────
@@ -225,7 +225,8 @@ pub(super) fn build_cursor_environment(resolved: &ResolvedConfig) -> Option<Json
 pub(super) fn build_cursor_cli_json(resolved: &ResolvedConfig) -> Option<Json> {
     let permissions_json = build_cursor_cli_permissions(&resolved.permissions);
     let has_extra = resolved
-        .cursor_settings_extra
+        .cursor
+        .settings_extra
         .as_ref()
         .is_some_and(|v| !v.is_null());
 
@@ -236,7 +237,7 @@ pub(super) fn build_cursor_cli_json(resolved: &ResolvedConfig) -> Option<Json> {
     let mut out = permissions_json.unwrap_or_else(|| serde_json::json!({ "version": 1 }));
 
     // Merge cursor_settings_extra verbatim.
-    if let Some(extra) = &resolved.cursor_settings_extra
+    if let Some(extra) = &resolved.cursor.settings_extra
         && let Some(obj) = extra.as_object()
     {
         for (k, v) in obj {
@@ -270,15 +271,18 @@ pub(super) fn build_cursor_server_entry(
 pub(super) fn build_cursor_mcp_servers(
     desc: &super::harness::HarnessDescriptor,
     servers: &[McpServerConfig],
-    studio_url: Option<&str>,
     ship_home_dir: Option<&str>,
+    scoped_launch: bool,
 ) -> Json {
     let mut map = serde_json::Map::new();
 
-    // Ship server always first.
-    let ship_entry = match studio_url {
-        Some(url) => super::mcp::ship_server_entry_http(url, desc.emit_type_field),
-        None => super::mcp::ship_server_entry(desc.emit_type_field, ship_home_dir),
+    // Ship server always first: daemon-hosted authed HTTP on a scoped launch
+    // where the harness supports it, else the local stdio shim. (Cursor is not
+    // yet verified for authed HTTP → stdio regardless.)
+    let ship_entry = if scoped_launch && desc.supports_authed_http_mcp {
+        super::mcp::ship_server_entry_authed_http(desc)
+    } else {
+        super::mcp::ship_server_entry(desc.emit_type_field, ship_home_dir)
     };
     map.insert("ship".to_string(), ship_entry);
 
@@ -327,4 +331,27 @@ fn format_cursor_rule(rule: &Rule) -> String {
     fm.push_str("---\n\n");
     fm.push_str(rule.content.trim());
     fm
+}
+
+/// Populate Cursor-native outputs (rules, hooks + lifecycle, cli perms, env).
+pub(super) fn build_settings(
+    _desc: &super::harness::HarnessDescriptor,
+    resolved: &crate::resolve::ResolvedConfig,
+    out: &mut super::CompileOutput,
+) {
+    out.rule_files = build_cursor_rule_files(&resolved.rules);
+    out.cursor_hooks_patch = build_cursor_hooks_patch(&resolved.hooks);
+    let patch = out
+        .cursor_hooks_patch
+        .get_or_insert_with(|| serde_json::json!({}));
+    inject_ship_lifecycle_hooks(patch);
+    out.cursor_cli_permissions = build_cursor_cli_json(resolved);
+    out.cursor_environment_json = build_cursor_environment(resolved);
+}
+
+/// Cursor's typed settings delta from the Ship agent.
+#[derive(Debug, Clone, Default)]
+pub struct CursorSettings {
+    pub environment: Option<serde_json::Value>,
+    pub settings_extra: Option<serde_json::Value>,
 }

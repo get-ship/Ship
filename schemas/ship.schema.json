@@ -30,7 +30,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["claude", "cursor", "codex", "gemini", "opencode"]
+            "enum": ["claude", "cursor", "codex", "opencode", "pi"]
           },
           "description": "AI harness targets for this project."
         },
@@ -60,17 +60,6 @@
                 {
                   "properties": {
                     "mcp_servers": false
-                  }
-                }
-              ]
-            },
-            "gemini": {
-              "allOf": [
-                { "$ref": "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/schemas/settings.schema.json" },
-                {
-                  "properties": {
-                    "hooks": false,
-                    "mcpServers": false
                   }
                 }
               ]

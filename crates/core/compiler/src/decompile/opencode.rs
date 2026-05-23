@@ -198,10 +198,6 @@ fn parse_opencode_mcp_server(id: &str, entry: &Json) -> Option<McpServerConfig> 
         timeout_secs,
         codex_enabled_tools: vec![],
         codex_disabled_tools: vec![],
-        gemini_trust: None,
-        gemini_include_tools: vec![],
-        gemini_exclude_tools: vec![],
-        gemini_timeout_ms: None,
         cursor_env_file: None,
     })
 }

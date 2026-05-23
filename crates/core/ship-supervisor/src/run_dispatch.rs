@@ -37,6 +37,8 @@ pub async fn subscribe_job_events(
     kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
     _ship_dir: PathBuf,
     health_registry: &ship_substrate::task_health::HealthRegistry,
+    session_registry: ship_platform::auth::scopes::SessionRegistry,
+    daemon_url: String,
 ) -> Option<DispatchHandle> {
     // RoutingExecutor picks TmuxWindowExecutor (interactive-attach) or
     // ProcessExecutor (headless) per-job based on the `headless` flag set
@@ -54,6 +56,8 @@ pub async fn subscribe_job_events(
         registry: registry.clone(),
         executor: executor.clone(),
         kernel: kernel.clone(),
+        session_registry,
+        daemon_base_url: daemon_url,
     });
 
     let activity_txs = Arc::new(Mutex::new(HashMap::new()));

@@ -1,0 +1,54 @@
+// Codegen for the Ship ops ConnectRPC surface. Inputs at proto/ship/ops/v1/
+// (repo root), shared with the TS pipeline via buf. Output (the OpsService
+// trait + client + message types) lands in OUT_DIR; src/lib.rs include!s it.
+//
+// We compile the FileDescriptorSet ourselves with protoc (--include_imports),
+// because connectrpc-build can only *read* a precompiled set or run protoc to a
+// throwaway temp path — and the daemon gate needs the set on disk to read the
+// custom method options (capability / blast_radius / sensitive). So protoc runs
+// once and feeds both: connectrpc-build (codegen) and lib.rs (include_bytes! →
+// the gate). Proto is the single source for shapes + policy (decision #67a).
+//
+// protoc is sourced via protoc-bin-vendored so fresh clones need no install.
+fn main() {
+    let proto_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../proto")
+        .canonicalize()
+        .expect("proto root not found");
+    let descriptor =
+        std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("ops_descriptor.bin");
+    let protoc = protoc_bin_vendored::protoc_bin_path().expect("vendored protoc binary missing");
+
+    // 1. Compile the descriptor set. cwd = proto_root + `-I.` so the file names
+    //    recorded in the set are proto-relative ("ship/ops/v1/ops.proto"),
+    //    which is what connectrpc-build's `files()` matches against.
+    let status = std::process::Command::new(&protoc)
+        .current_dir(&proto_root)
+        .arg("--include_imports")
+        .arg(format!("--descriptor_set_out={}", descriptor.display()))
+        .arg("-I.")
+        .arg("ship/ops/v1/policy.proto")
+        .arg("ship/ops/v1/ops.proto")
+        .arg("ship/ops/v1/reads.gen.proto")
+        .arg("ship/ops/v1/commands.gen.proto")
+        .arg("ship/ops/v1/stream.proto")
+        .status()
+        .expect("failed to spawn protoc");
+    assert!(status.success(), "protoc descriptor compile failed");
+
+    // 2. Generate Rust (service trait + client + messages) from the set. Only
+    //    ops.proto needs codegen; policy.proto's enum + options live in the set
+    //    and are read by the gate via reflection.
+    connectrpc_build::Config::new()
+        .descriptor_set(&descriptor)
+        .files(&[
+            "ship/ops/v1/ops.proto",
+            "ship/ops/v1/reads.gen.proto",
+            "ship/ops/v1/commands.gen.proto",
+            "ship/ops/v1/stream.proto",
+        ])
+        .compile()
+        .expect("connectrpc-build codegen failed");
+
+    println!("cargo:rerun-if-changed=../../../proto");
+}

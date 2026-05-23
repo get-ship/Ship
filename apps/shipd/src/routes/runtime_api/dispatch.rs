@@ -200,6 +200,16 @@ pub async fn dispatch_agent_session(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<DispatchRequest>,
 ) -> impl IntoResponse {
+    dispatch_agent_session_core(&state, req).await
+}
+
+/// Transport-neutral core of single-agent dispatch — shared by the REST
+/// handler above and the ConnectRPC `CommandOpsService`. Behavior is verbatim;
+/// only the entry shape differs (owned extractors vs a typed request).
+pub(crate) async fn dispatch_agent_session_core(
+    state: &ApiState,
+    req: DispatchRequest,
+) -> (StatusCode, Json<MeshResponse>) {
     // Validate the (open_tab × invocation × keepalive) matrix.
     if let Err(message) = validate_axes(&req) {
         return (
@@ -541,6 +551,7 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: vec![Scope::Full],
+            grants: vec![],
         })
     }
 
@@ -772,12 +783,12 @@ mod tests {
 
     #[test]
     fn load_session_file_unsupported_harness_returns_400() {
-        // Gemini/cursor: session.json on disk but adapter refuses resume.
+        // Cursor: session.json on disk but adapter refuses resume.
         // Dispatch must surface a 400 — never silently fresh-launch.
         let tmp = TempDir::new().unwrap();
-        write_session_file(tmp.path(), "gemini", "anything", "rust-lane").unwrap();
+        write_session_file(tmp.path(), "cursor", "anything", "rust-lane").unwrap();
         let err = load_and_validate_session_file(tmp.path(), "slug-x", None)
-            .expect_err("gemini resume must 400");
+            .expect_err("cursor resume must 400");
         match err {
             ResumeResolveError::Status { status, message } => {
                 assert_eq!(status, StatusCode::BAD_REQUEST);

@@ -96,38 +96,12 @@ async fn get(path: &str) -> Result<String> {
     request(reqwest::Method::GET, path, None, None).await
 }
 
-pub async fn mesh_register(agent_id: &str, capabilities: Vec<String>) -> Result<String> {
-    post("/mesh/register", serde_json::json!({
-        "agent_id": agent_id,
-        "capabilities": capabilities,
-    })).await
-}
-
-pub async fn mesh_send(from: &str, to: &str, body: Value) -> Result<String> {
-    post("/mesh/send", serde_json::json!({
-        "from": from,
-        "to": to,
-        "body": body,
-    })).await
-}
-
-pub async fn mesh_broadcast(from: &str, body: Value, capability_filter: Option<String>) -> Result<String> {
-    post("/mesh/broadcast", serde_json::json!({
-        "from": from,
-        "body": body,
-        "capability_filter": capability_filter,
-    })).await
-}
-
+// Mesh discovery backs the read-only `ship://mesh` resource. The mesh
+// *write* paths (send/broadcast/status/register) are no longer agent MCP
+// tools — production mesh is implicit (directed delivery + the registry are
+// platform-internal), and dev probing lives on the `ship` CLI.
 pub async fn mesh_discover() -> Result<String> {
     get("/mesh/discover").await
-}
-
-pub async fn mesh_status(agent_id: &str, status: &str) -> Result<String> {
-    post("/mesh/status", serde_json::json!({
-        "agent_id": agent_id,
-        "status": status,
-    })).await
 }
 
 /// Spawn an actor in the daemon's KernelRouter with the given config.

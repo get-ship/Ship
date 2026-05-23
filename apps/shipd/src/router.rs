@@ -6,15 +6,12 @@ use axum::{
     body::Body,
     response::Response,
 };
-use rmcp::transport::streamable_http_server::{
-    StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
-};
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use utoipa::OpenApi;
 
 use crate::{
-    NetworkServer, auth, project_api, services, ship_runtime,
+    auth, project_api, services, ship_runtime,
     sessions, views,
 };
 use crate::routes::{
@@ -38,22 +35,14 @@ pub fn build_router(
     session_registry: auth::SessionRegistry,
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
-    mcp_ct: CancellationToken,
+    _mcp_ct: CancellationToken,
     daemon_mode: deck::DaemonMode,
 ) -> Router {
     use crate::routes::{Route, ShipRouterExt};
-    let kernel_factory = rt.kernel().clone();
-    let service: StreamableHttpService<NetworkServer, LocalSessionManager> =
-        StreamableHttpService::new(
-            move || Ok(NetworkServer::new(kernel_factory.clone())),
-            Default::default(),
-            StreamableHttpServerConfig {
-                cancellation_token: mcp_ct,
-                sse_retry: None,
-                sse_keep_alive: None,
-                ..Default::default()
-            },
-        );
+    // Internal MCP server retired (#75): agents use the ConnectRPC op surface
+    // via `ship ops` + capability-skills; external MCP clients use the
+    // standalone `apps/mcp` adapter. The registry browser (`mcp_registry`) and
+    // the `mcp.*` catalog reads stay.
 
     let st = rt.clone();
     // Non-enumerated third-party routes (telegram webhook + hooks) stay on
@@ -297,9 +286,17 @@ pub fn build_router(
         .merge(api_ship_routes)
         .nest("/api/v1", hook_routes)
         .nest("/api", webhook_routes)
-        .nest_service("/mcp", service)
+        // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
+        // auth_middleware below so the gate sees AuthContext. See ops_rpc.
+        .merge(crate::ops_rpc::router(rt.clone()))
         .layer(axum::Extension(feedback_guard))
         .layer(axum::Extension(account_service))
+        // Project the authed caller's identity + scopes into the shared
+        // `McpAuth` carrier so the in-daemon MCP gate (in the `mcp` crate,
+        // which can't see shipd's `AuthContext`) can read it from the
+        // request `Parts` rmcp forwards into the tool context. Inner to
+        // `auth_middleware` below, so `AuthContext` is already present.
+        .layer(axum::middleware::from_fn(inject_mcp_auth))
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with
         // auth) so requests must carry a valid bearer before short-circuit.
@@ -339,6 +336,27 @@ pub fn build_router(
         ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
+}
+
+/// Project the request's `AuthContext` (shipd-internal) into the shared
+/// `ship_platform::auth::scopes::McpAuth` carrier and insert it into request
+/// extensions. The in-daemon-mounted MCP server (the `mcp` crate) reads this
+/// from the HTTP `Parts` rmcp forwards into the tool context to gate tools by
+/// the connection's token scopes. No-op when there's no `AuthContext` (the
+/// stdio shim path carries none and falls back to a trusted-local default).
+async fn inject_mcp_auth(
+    mut req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    if let Some(auth) = req.extensions().get::<auth::AuthContext>().cloned() {
+        req.extensions_mut()
+            .insert(ship_platform::auth::scopes::McpAuth {
+                agent_id: auth.agent_id.unwrap_or_default(),
+                scopes: auth.scopes,
+                workspace_id: auth.workspace_id,
+            });
+    }
+    next.run(req).await
 }
 
 /// Stamp `X-Shipd-Build` on every response so clients can detect daemon

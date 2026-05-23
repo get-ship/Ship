@@ -3,6 +3,7 @@ name = "ship-types"
 version = "0.1.0"
 edition = "2024"
 publish = false
+description = "Shared domain types across the Ship workspace — EventEnvelope, ActorIdentity, Scope, Vector, CallerKind. Zero internal dependencies; every other Ship crate may depend on this."
 
 [dependencies]
 serde = { workspace = true }

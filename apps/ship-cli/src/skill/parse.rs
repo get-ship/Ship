@@ -16,6 +16,8 @@ pub fn parse_skill(id: &str, raw: &str) -> Skill {
     let mut compatibility = None;
     let mut allowed_tools = vec![];
     let mut artifacts = vec![];
+    let mut grants = vec![];
+    let mut requires = vec![];
     let mut metadata: HashMap<String, String> = HashMap::new();
     let mut content_start = 0usize;
 
@@ -61,6 +63,27 @@ pub fn parse_skill(id: &str, raw: &str) -> Skill {
                     .filter(|s| !s.is_empty())
                     .map(str::to_string)
                     .collect();
+            } else if let Some(v) = line.strip_prefix("grants:") {
+                // Capability grants (restricted op-domains this skill confers).
+                // Compiler-issued only — feeds the auth gate's grant set. See
+                // `.artifacts/auth-gate-synthesis.md` + `signed-grants-design.md`.
+                let trimmed = v.trim().trim_start_matches('[').trim_end_matches(']');
+                grants = trimmed
+                    .split(|c: char| c == ',' || c.is_whitespace())
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string)
+                    .collect();
+            } else if let Some(v) = line.strip_prefix("requires:") {
+                // Capabilities this skill depends on (authored). Confers nothing;
+                // unmet at compile => error. Same list syntax as `grants`.
+                let trimmed = v.trim().trim_start_matches('[').trim_end_matches(']');
+                requires = trimmed
+                    .split(|c: char| c == ',' || c.is_whitespace())
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string)
+                    .collect();
             } else if line.trim_end() == "metadata:" {
                 in_metadata = true;
             } else if let Some(v) = line.strip_prefix("version:") {
@@ -90,6 +113,8 @@ pub fn parse_skill(id: &str, raw: &str) -> Skill {
         compatibility,
         allowed_tools,
         artifacts,
+        grants,
+        requires,
         metadata,
         content,
         source: SkillSource::default(),

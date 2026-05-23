@@ -1,7 +1,7 @@
 //! Tests for CursorAdapter — the Cursor CLI harness adapter.
 
 use crate::services::dispatch_ports::LaunchProfile;
-use crate::services::harness_adapter::HarnessAdapter;
+use crate::services::harness_adapter::{HarnessAdapter, HarnessEvent};
 use super::CursorAdapter;
 
 fn default_profile() -> LaunchProfile {
@@ -11,10 +11,10 @@ fn default_profile() -> LaunchProfile {
 // ── Launch command tests ────────────────────────────────────────────────────
 
 #[test]
-fn interactive_emits_agent_binary() {
+fn interactive_emits_cursor_agent_binary() {
     let adapter = CursorAdapter;
     let cmd = adapter.build_interactive("my-job", &default_profile());
-    assert_eq!(cmd.bin, "agent");
+    assert_eq!(cmd.bin, "cursor-agent");
 }
 
 #[test]
@@ -46,9 +46,12 @@ fn headless_emits_print_force_command() {
         ..Default::default()
     };
     let cmd = adapter.build_headless("test-slug", &profile);
-    assert_eq!(cmd.bin, "agent");
+    assert_eq!(cmd.bin, "cursor-agent");
     assert!(cmd.args.contains(&"-p".to_string()));
     assert!(cmd.args.contains(&"--force".to_string()));
+    // stream-json is what makes parse_output see anything.
+    let fmt = cmd.args.iter().position(|a| a == "--output-format").expect("--output-format");
+    assert_eq!(cmd.args[fmt + 1], "stream-json");
     assert_eq!(cmd.args.last().unwrap(), "test prompt");
     assert_eq!(
         cmd.env.get("SHIP_ACTOR_ID").map(String::as_str),
@@ -91,10 +94,83 @@ fn id_is_cursor() {
     assert_eq!(CursorAdapter.id(), "cursor");
 }
 
+// ── parse_output: stream-json → HarnessEvent ─────────────────────────────────
+// Fixture lines follow the documented --output-format stream-json schema
+// (cursor.com/docs/cli/headless). Live-stream verification needs `agent
+// login`; these pin the mapping against the documented shapes.
+
 #[test]
-fn parse_output_returns_none() {
-    let adapter = CursorAdapter;
-    assert!(adapter.parse_output("anything").is_none());
+fn parse_assistant_message_collects_text() {
+    let line = r#"{"type":"assistant","timestamp_ms":1,"message":{"content":[{"text":"Hello "},{"text":"world"}]}}"#;
+    match CursorAdapter.parse_output(line) {
+        Some(HarnessEvent::Message { text }) => assert_eq!(text, "Hello world"),
+        other => panic!("expected Message, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_read_tool_call_started() {
+    let line = r#"{"type":"tool_call","subtype":"started","tool_call":{"readToolCall":{"args":{"path":"src/main.rs"}}}}"#;
+    match CursorAdapter.parse_output(line) {
+        Some(HarnessEvent::ToolUse { tool, input_preview }) => {
+            assert_eq!(tool, "read");
+            assert_eq!(input_preview, "src/main.rs");
+        }
+        other => panic!("expected ToolUse, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_write_tool_call_started() {
+    let line = r#"{"type":"tool_call","subtype":"started","tool_call":{"writeToolCall":{"args":{"path":"hi.txt"}}}}"#;
+    match CursorAdapter.parse_output(line) {
+        Some(HarnessEvent::ToolUse { tool, input_preview }) => {
+            assert_eq!(tool, "write");
+            assert_eq!(input_preview, "hi.txt");
+        }
+        other => panic!("expected ToolUse, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_tool_call_completed_is_dropped() {
+    // `completed` events would double-count the tool use; only `started`
+    // produces a ToolUse.
+    let line = r#"{"type":"tool_call","subtype":"completed","tool_call":{"readToolCall":{"result":{"success":{"totalLines":10}}}}}"#;
+    assert!(CursorAdapter.parse_output(line).is_none());
+}
+
+#[test]
+fn parse_result_ends_turn() {
+    let line = r#"{"type":"result","duration_ms":1234}"#;
+    match CursorAdapter.parse_output(line) {
+        Some(HarnessEvent::TurnComplete { stop_reason }) => assert_eq!(stop_reason, "end_turn"),
+        other => panic!("expected TurnComplete, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_result_error_flags_stop_reason() {
+    let line = r#"{"type":"result","duration_ms":5,"is_error":true}"#;
+    match CursorAdapter.parse_output(line) {
+        Some(HarnessEvent::TurnComplete { stop_reason }) => assert_eq!(stop_reason, "error"),
+        other => panic!("expected TurnComplete, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_system_init_yields_nothing() {
+    // model is present but there's no session id; cursor emits no
+    // SessionStarted (no resume).
+    let line = r#"{"type":"system","subtype":"init","model":"sonnet-4"}"#;
+    assert!(CursorAdapter.parse_output(line).is_none());
+}
+
+#[test]
+fn parse_non_json_or_unknown_is_none() {
+    assert!(CursorAdapter.parse_output("not json").is_none());
+    assert!(CursorAdapter.parse_output("").is_none());
+    assert!(CursorAdapter.parse_output(r#"{"type":"user","message":{}}"#).is_none());
 }
 
 // ── Capabilities ────────────────────────────────────────────────────────────

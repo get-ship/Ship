@@ -40,18 +40,6 @@ pub(crate) fn serialize_mcp_servers(
         if !s.codex_disabled_tools.is_empty() {
             entry["codex_disabled_tools"] = serde_json::json!(s.codex_disabled_tools);
         }
-        if let Some(trust) = s.gemini_trust {
-            entry["gemini_trust"] = serde_json::json!(trust);
-        }
-        if !s.gemini_include_tools.is_empty() {
-            entry["gemini_include_tools"] = serde_json::json!(s.gemini_include_tools);
-        }
-        if !s.gemini_exclude_tools.is_empty() {
-            entry["gemini_exclude_tools"] = serde_json::json!(s.gemini_exclude_tools);
-        }
-        if let Some(ms) = s.gemini_timeout_ms {
-            entry["gemini_timeout_ms"] = serde_json::json!(ms);
-        }
         if let Some(f) = &s.cursor_env_file {
             entry["cursor_env_file"] = serde_json::json!(f);
         }

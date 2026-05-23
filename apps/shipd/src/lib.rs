@@ -26,6 +26,7 @@ pub mod managers;
 pub mod project_api;
 pub mod routes;
 pub mod router;
+pub mod ops_rpc;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;
@@ -48,7 +49,6 @@ mod integration_tests;
 mod ship_runtime_tests;
 
 pub use daemon::{network_status, network_stop};
-pub use transport::NetworkServer;
 pub use deck::DaemonMode;
 
 /// Test-only: build a minimal router with the CORS middleware for testing.
@@ -222,7 +222,14 @@ pub async fn run_network(
     runtime.set_mesh_registry(mesh_registry);
     let rt = Arc::new(runtime);
 
-    let run_mgr = managers::RunManager::init(rt.kernel().clone(), global_dir.clone(), rt.health_registry()).await;
+    let run_mgr = managers::RunManager::init(
+        rt.kernel().clone(),
+        global_dir.clone(),
+        rt.health_registry(),
+        rt.session_registry().clone(),
+        rt.daemon_origin(),
+    )
+    .await;
     if let Some(dh) = run_mgr.dispatch_handle {
         rt.set_dispatch_handle(dh);
     }

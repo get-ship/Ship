@@ -3,6 +3,28 @@ use crate::types::{
     HookConfig, HookTrigger, McpServerConfig, McpServerType, Permissions, Rule, Skill,
 };
 
+/// Every registered harness id, sourced from the compiler registry — for tests
+/// that assert a property across the whole roster. Add/drop a harness and these
+/// loops update with no edits.
+#[allow(dead_code)]
+pub fn all_harness_ids() -> Vec<&'static str> {
+    crate::compile::list_harnesses()
+        .iter()
+        .map(|d| d.id)
+        .collect()
+}
+
+/// Every harness except `owner` — for "owned output must not leak to other
+/// harnesses" checks. Registry-driven, so a newly registered harness is
+/// automatically held to the no-leak contract (the old hardcoded subsets
+/// silently skipped harnesses added after they were written).
+pub fn others(owner: &str) -> Vec<&'static str> {
+    all_harness_ids()
+        .into_iter()
+        .filter(|id| *id != owner)
+        .collect()
+}
+
 pub fn make_server(id: &str) -> McpServerConfig {
     McpServerConfig {
         id: id.to_string(),
@@ -17,10 +39,6 @@ pub fn make_server(id: &str) -> McpServerConfig {
         timeout_secs: None,
         codex_enabled_tools: vec![],
         codex_disabled_tools: vec![],
-        gemini_trust: None,
-        gemini_include_tools: vec![],
-        gemini_exclude_tools: vec![],
-        gemini_timeout_ms: None,
         cursor_env_file: None,
     }
 }
@@ -39,6 +57,8 @@ pub fn make_skill(id: &str) -> Skill {
         source: Default::default(),
         vars: Default::default(),
         artifacts: vec![],
+        grants: vec![],
+        requires: vec![],
     }
 }
 
@@ -49,7 +69,6 @@ pub fn make_hook(trigger: HookTrigger, command: &str, matcher: Option<&str>) -> 
         matcher: matcher.map(str::to_string),
         command: command.to_string(),
         cursor_event: None,
-        gemini_event: None,
     }
 }
 
@@ -76,33 +95,14 @@ pub fn resolved(servers: Vec<McpServerConfig>) -> ResolvedConfig {
         hooks: vec![],
         active_agent: None,
         plugins: Default::default(),
-        claude_settings_extra: None,
         agent_profiles: vec![],
-        claude_team_agents: vec![],
         env: Default::default(),
         available_models: vec![],
-        codex_sandbox: None,
-        gemini_default_approval_mode: None,
-        gemini_max_session_turns: None,
-        gemini_disable_yolo_mode: None,
-        gemini_disable_always_allow: None,
-        gemini_tools_sandbox: None,
-        gemini_settings_extra: None,
-        codex_approval_policy: None,
-        codex_reasoning_effort: None,
-        codex_max_threads: None,
-        codex_max_depth: None,
-        codex_job_max_runtime_seconds: None,
-        codex_shell_env_policy: None,
-        codex_notify: None,
-        codex_settings_extra: None,
-        opencode_settings_extra: None,
-        cursor_environment: None,
-        cursor_settings_extra: None,
-        claude_theme: None,
-        claude_auto_updates: None,
-        claude_include_co_authored_by: None,
-        studio_mcp_url: None,
+        claude: Default::default(),
+        codex: Default::default(),
+        opencode: Default::default(),
+        cursor: Default::default(),
         ship_home_dir: None,
+        scoped_launch: false,
     }
 }

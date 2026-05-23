@@ -31,6 +31,7 @@ fn compile_writes_claude_md() {
         active_agent: None,
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let content = std::fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
@@ -49,6 +50,7 @@ fn compile_writes_mcp_json() {
         active_agent: None,
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let content = std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
@@ -73,6 +75,7 @@ fn mcp_json_ship_server_args_exact() {
         active_agent: None,
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let content = std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
@@ -100,50 +103,13 @@ fn compile_dry_run_writes_nothing() {
         active_agent: None,
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     assert!(!tmp.path().join("CLAUDE.md").exists(), "dry-run must not write files");
     assert!(!tmp.path().join(".mcp.json").exists());
 }
 
-#[test]
-fn compile_gemini_writes_settings_json_with_mcp_and_context() {
-    let tmp = TempDir::new().unwrap();
-    setup_minimal_project(&tmp);
-    run_compile(CompileOptions {
-        project_root: tmp.path(),
-        output_root: None,
-        harness: Some("gemini"),
-        dry_run: false,
-        active_agent: None,
-        extra_skills: vec![],
-            plugins_installed: vec![],
-    })
-    .unwrap();
-    let path = tmp.path().join(".gemini/settings.json");
-    assert!(path.exists(), ".gemini/settings.json must be written for gemini");
-    let parsed: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-    assert!(parsed["mcpServers"]["ship"].is_object());
-}
-
-#[test]
-fn compile_gemini_writes_gemini_md_with_rules() {
-    let tmp = TempDir::new().unwrap();
-    setup_minimal_project(&tmp);
-    run_compile(CompileOptions {
-        project_root: tmp.path(),
-        output_root: None,
-        harness: Some("gemini"),
-        dry_run: false,
-        active_agent: None,
-        extra_skills: vec![],
-            plugins_installed: vec![],
-    })
-    .unwrap();
-    let content = std::fs::read_to_string(tmp.path().join("GEMINI.md")).unwrap();
-    assert!(content.contains("Use explicit types."), "GEMINI.md must contain rules");
-}
 
 #[test]
 fn compile_codex_writes_agents_md_with_rules() {
@@ -157,6 +123,7 @@ fn compile_codex_writes_agents_md_with_rules() {
         active_agent: None,
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let content = std::fs::read_to_string(tmp.path().join("AGENTS.md")).unwrap();
@@ -175,6 +142,7 @@ fn compile_codex_writes_toml_config_with_mcp_servers() {
         active_agent: None,
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let path = tmp.path().join(".codex/config.toml");
@@ -196,6 +164,7 @@ fn compile_cursor_writes_mdc_rule_files() {
         active_agent: None,
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let mdc = tmp.path().join(".cursor/rules/style.mdc");
@@ -217,6 +186,7 @@ fn compile_opencode_writes_agents_md_with_rules() {
         active_agent: None,
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let content = std::fs::read_to_string(tmp.path().join("AGENTS.md")).unwrap();
@@ -235,6 +205,7 @@ fn compile_opencode_writes_opencode_json_with_mcp() {
         active_agent: None,
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let path = tmp.path().join("opencode.json");
@@ -257,6 +228,7 @@ fn compile_opencode_dry_run_writes_nothing() {
         active_agent: None,
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     assert!(!tmp.path().join("opencode.json").exists(), "dry-run must not write opencode.json");
@@ -275,6 +247,7 @@ fn compile_codex_writes_hooks_json() {
         active_agent: None,
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let path = tmp.path().join(".codex/hooks.json");

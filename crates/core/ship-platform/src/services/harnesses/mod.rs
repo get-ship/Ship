@@ -2,8 +2,8 @@ pub mod claude;
 pub mod codex;
 pub mod codex_session;
 pub mod cursor;
-pub mod gemini;
 pub mod opencode;
+pub mod pi;
 pub mod opencode_session;
 pub mod session_file;
 

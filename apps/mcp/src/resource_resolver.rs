@@ -103,6 +103,28 @@ pub async fn resolve_resource_uri(
     if uri == "ship://mesh" {
         return resolve_mesh_agents().await;
     }
+    // Running agents — read-only (was the `list_agents` tool).
+    if uri == "ship://agents" {
+        return Some(crate::tools::dispatch::list_agents().await);
+    }
+    // Artifact metadata by id — read-only (was the `get_artifact` tool).
+    if let Some(id) = uri.strip_prefix("ship://artifacts/")
+        && !id.is_empty()
+    {
+        return Some(crate::tools::artifacts::artifact_get(id).await);
+    }
+    // Collection item by id — read-only (was the `get_doc` tool).
+    // Parameterized queries stay the `query_docs` tool (no clean URI form).
+    if let Some(rest) = uri.strip_prefix("ship://collections/")
+        && let Some((collection, item_id)) = rest.split_once('/')
+        && !collection.is_empty()
+        && !item_id.is_empty()
+    {
+        return match crate::network_client::get_doc(collection, item_id).await {
+            Ok(raw) => Some(raw),
+            Err(err) => Some(format!("Error: {}", err)),
+        };
+    }
     if let Some(result) = resolve_workspace_uri(uri, &ship_dir) {
         return Some(result);
     }

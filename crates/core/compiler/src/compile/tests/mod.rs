@@ -8,8 +8,6 @@ mod cross_harness_tests;
 mod cursor_rules_tests;
 mod cursor_tests;
 mod format_edge_tests;
-mod gemini_policy_tests;
-mod gemini_tests;
 mod mcp_tests;
 mod opencode_tests;
 mod harness_tests;

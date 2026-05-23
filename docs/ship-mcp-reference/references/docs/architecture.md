@@ -10,6 +10,17 @@ audience: internal
 
 `apps/mcp/`. The MCP server speaks the Model Context Protocol over stdio or HTTP, exposes Ship's operations as tools, and relays kernel events back to the client as MCP notifications. Built on the `rmcp` crate + Ship's internal `mcp-framework` abstraction.
 
+## Surface doctrine
+
+The default answer to "should this be a tool" is **no** — every tool costs context on every agent turn. Decide in order, stop at the first that fits:
+
+- **Skill (default).** Workflow / knowledge the agent performs with its own `Edit`/`Write`/`Bash`. A skill teaches the pattern; no server, versioned as files. If it's "do this sequence of edits a particular way," it's a skill.
+- **MCP tool.** Only on **effect** (mutates daemon/actor/kernel state across the agent's process boundary — dispatch, step_done, emit_event), **structure** (compiler/LSP output the model can't synthesize — compile_check, diagnostics), or **privilege** (a capability the agent process lacks — managed artifact store). A "tool" that's really `Write` against a repo file is not a tool.
+- **MCP resource.** Read-only context the agent pulls (`ship://…`) — project info, SDK schema, doc/collection reads. Served over the MCP transport, so air-gapped agents keep it. Cheaper than a tool; can't have side effects.
+- **REST/Connect.** The daemon's contract for typed clients (shell, CLI). MCP is a thin veneer over a *subset* for the ~15 things agents call — never a 1:1 mirror.
+
+One MCP server, daemon-hosted at `$DAEMON/mcp` behind `auth_middleware`. The SUI/designer tools are a capability-gated group (`Scope::SuiAuthoring`) keyed on the connection's scoped token — not a self-declared role. Dev/inspection (mesh probe, event tail) lives on the `ship` CLI, not MCP; both are veneers over one Rust service layer.
+
 ## Layout
 
 ```

@@ -84,7 +84,6 @@ fn harness_meta(id: &str) -> (&'static str, &'static str) {
     match id {
         "claude" => ("Anthropic Claude", "\u{2726}"),
         "openai" | "codex" => ("OpenAI", "\u{25C6}"),
-        "gemini" => ("Google Gemini", "\u{25C7}"),
         "grok" => ("xAI Grok", "\u{25C8}"),
         "opencode" => ("OpenCode", "\u{25C9}"),
         _ => ("Harness", "\u{25CB}"),

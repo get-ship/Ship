@@ -9,7 +9,7 @@ use serde_json::json;
 use tempfile::TempDir;
 
 use crate::decompile::{
-    decompile_claude, decompile_codex, decompile_cursor, decompile_gemini, decompile_opencode,
+    decompile_claude, decompile_codex, decompile_cursor, decompile_opencode,
 };
 use crate::resolve::ProjectLibrary;
 use crate::types::{
@@ -45,10 +45,6 @@ fn test_library() -> ProjectLibrary {
             timeout_secs: None,
             codex_enabled_tools: vec![],
             codex_disabled_tools: vec![],
-            gemini_trust: None,
-            gemini_include_tools: vec![],
-            gemini_exclude_tools: vec![],
-            gemini_timeout_ms: None,
             cursor_env_file: None,
         }],
         rules: vec![Rule {
@@ -74,7 +70,6 @@ fn test_library() -> ProjectLibrary {
             command: "echo done".to_string(),
             matcher: None,
             cursor_event: None,
-            gemini_event: None,
         }],
         model: Some("test-model".to_string()),
         env: {
@@ -202,50 +197,6 @@ fn codex_roundtrip_preserves_model_and_mcp() {
     assert!(!decompiled.rules.is_empty());
 }
 
-// ── Gemini round-trip ────────────────────────────────────────────────────────
-
-#[test]
-fn gemini_roundtrip_preserves_model_and_mcp() {
-    let mut library = test_library();
-    library.gemini_default_approval_mode = Some("default".to_string());
-    library.gemini_max_session_turns = Some(50);
-
-    let resolved = resolve_library(&library, None, None);
-    let output = compile(&resolved, "gemini").unwrap();
-
-    let tmp = TempDir::new().unwrap();
-
-    // GEMINI.md
-    if let Some(content) = &output.context_content {
-        write_file(&tmp, "GEMINI.md", content);
-    }
-
-    // .gemini/settings.json — merge MCP servers + settings patch
-    let mut settings = json!({});
-    settings["mcpServers"] = output.mcp_servers.clone();
-    if let Some(patch) = &output.gemini_settings_patch
-        && let Some(obj) = patch.as_object()
-    {
-        for (k, v) in obj {
-            settings[k] = v.clone();
-        }
-    }
-    write_file(
-        &tmp,
-        ".gemini/settings.json",
-        &serde_json::to_string_pretty(&settings).unwrap(),
-    );
-
-    let decompiled = decompile_gemini(tmp.path());
-
-    assert_eq!(decompiled.model.as_deref(), Some("test-model"));
-    assert!(decompiled.gemini_default_approval_mode.is_some());
-    assert_eq!(decompiled.gemini_max_session_turns, Some(50));
-    assert!(decompiled.mcp_servers.iter().any(|s| s.id == "ship"));
-    assert!(!decompiled.rules.is_empty());
-}
-
-// ── Cursor round-trip ────────────────────────────────────────────────────────
 
 #[test]
 fn cursor_roundtrip_preserves_mcp_and_rules() {

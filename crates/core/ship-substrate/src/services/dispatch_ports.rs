@@ -330,6 +330,23 @@ pub trait AgentPlatform: Send + Sync {
 
     /// Clean up orphaned worktrees from previous daemon runs.
     async fn cleanup_orphaned_worktrees(&self);
+
+    /// Mint a scoped session token for a daemon-spawned agent (`agent_id`,
+    /// optional `role`), to inject as `$SHIP_TOKEN` so the agent authenticates
+    /// to the daemon-hosted MCP server with role-appropriate scopes.
+    ///
+    /// Default `None` — hosts that don't issue tokens (tests, mocks) need no
+    /// impl, and a `None` token simply means the agent's compiled config falls
+    /// back to the stdio shim. Only the real daemon platform mints.
+    async fn mint_session_token(&self, _agent_id: &str, _role: Option<&str>) -> Option<String> {
+        None
+    }
+
+    /// The daemon's own base URL (e.g. `http://127.0.0.1:8080`), to inject as
+    /// `$SHIP_DAEMON_URL`. Default `None` (no daemon-hosted endpoint to point at).
+    fn daemon_url(&self) -> Option<String> {
+        None
+    }
 }
 
 /// Port: process handle registry for tracking spawned agents.
@@ -359,6 +376,16 @@ pub trait ProcessRegistryPort: Send + Sync {
     /// coherence sweep to evict dead handles before the drift checks run.
     /// Default `vec![]` for registries that don't track handles.
     async fn drain_dead(&self, _executor: &dyn SessionExecutor) -> Vec<String> { vec![] }
+    /// Record that `slug` was cancelled while no handle was registered — i.e.
+    /// a cancel that may have landed mid-spawn. A dispatch that's currently
+    /// spawning consults [`take_if_cancelled`] after it registers (and before
+    /// it spawns) so it can tear down the just-spawned child instead of
+    /// leaking it. Tombstones are TTL-bounded. Default: no-op (test doubles
+    /// don't need the window-closing logic).
+    async fn mark_cancelled(&self, _slug: &str) {}
+    /// Consume the cancellation tombstone for `slug`, returning true if one
+    /// was set. Default: false.
+    async fn take_if_cancelled(&self, _slug: &str) -> bool { false }
 }
 
 /// Sample of the liveness state of a dispatched process tree.

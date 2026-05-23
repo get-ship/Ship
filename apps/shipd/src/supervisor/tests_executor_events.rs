@@ -265,6 +265,8 @@ fn build_platform(kernel: Arc<Mutex<KernelRouter>>) -> ship_supervisor::platform
         registry: Arc::new(Mutex::new(ProcessRegistry::new())),
         executor: Arc::new(NoopJobExecutor),
         kernel,
+        session_registry: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
+        daemon_base_url: String::new(),
     }
 }
 

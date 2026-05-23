@@ -85,9 +85,6 @@ pub(crate) fn apply_agent_to_library(
     if let Some(v) = profile.harness_settings.get("claude") {
         library.claude_settings_extra = Some(v.clone());
     }
-    if let Some(v) = profile.harness_settings.get("gemini") {
-        library.gemini_settings_extra = Some(v.clone());
-    }
     if let Some(v) = profile.harness_settings.get("codex") {
         library.codex_settings_extra = Some(v.clone());
     }
@@ -110,7 +107,6 @@ fn push_hook(library: &mut ProjectLibrary, id: String, trigger: HookTrigger, com
         command: command.to_string(),
         matcher: None,
         cursor_event: None,
-        gemini_event: None,
     });
 }
 

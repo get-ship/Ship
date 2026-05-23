@@ -85,6 +85,7 @@ mod tests {
             workspace_id: Some("ws-1".into()),
             session_id: Some("sess-1".into()),
             scopes: vec![Scope::Full],
+            grants: vec![],
         };
         let ctx = auth.to_emit_context();
         assert_eq!(ctx.caller_kind, CallerKind::Mcp);
@@ -100,6 +101,7 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: vec![Scope::ReadWorkspace, Scope::LogProgress],
+            grants: vec![],
         };
         assert!(auth.has_scope(Scope::ReadWorkspace));
         assert!(!auth.has_scope(Scope::CreateRuns));

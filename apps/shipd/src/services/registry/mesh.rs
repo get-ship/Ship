@@ -117,7 +117,6 @@ fn snapshot(state: &ApiState) -> Result<MeshSnapshotResponse, RegistryError> {
                 ("claude", "claude"),
                 ("codex", "codex"),
                 ("opencode", "opencode"),
-                ("gemini", "gemini"),
                 ("cursor", "cursor"),
             ];
             if let Ok(entries) = std::fs::read_dir("/proc") {

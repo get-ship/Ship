@@ -25,9 +25,17 @@ impl RunManager {
         kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
         ship_dir: PathBuf,
         health_registry: &ship_substrate::task_health::HealthRegistry,
+        session_registry: crate::auth::SessionRegistry,
+        daemon_url: String,
     ) -> Self {
-        let dispatch_handle =
-            run_dispatch::subscribe_job_events(kernel, ship_dir, health_registry).await;
+        let dispatch_handle = run_dispatch::subscribe_job_events(
+            kernel,
+            ship_dir,
+            health_registry,
+            session_registry,
+            daemon_url,
+        )
+        .await;
         Self { dispatch_handle }
     }
 }

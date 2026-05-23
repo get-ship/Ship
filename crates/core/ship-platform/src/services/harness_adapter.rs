@@ -4,6 +4,10 @@
 //! without knowing which harness they're running.
 
 use std::path::Path;
+use std::sync::Arc;
+
+use async_trait::async_trait;
+use ship_substrate::services::server_session::ServerSession;
 
 use super::dispatch_ports::{LaunchCommand, LaunchProfile};
 
@@ -118,9 +122,26 @@ impl HarnessCapabilities {
 }
 
 /// Complete lifecycle adapter for a harness CLI.
+#[async_trait]
 pub trait HarnessAdapter: Send + Sync {
     /// Harness identifier (e.g. "claude", "codex").
     fn id(&self) -> &str;
+
+    /// True when `id` names this harness — its canonical `id()` or an alias
+    /// (e.g. claude also answers to "claude-code"). Single place an adapter
+    /// declares the names it owns; `adapter_for` resolves through it.
+    fn matches(&self, id: &str) -> bool {
+        id == self.id()
+    }
+
+    /// Executable name to look up on PATH / invoke. Defaults to the harness
+    /// id — claude/codex/opencode ship binaries named exactly that.
+    /// Cursor's CLI installs as `cursor-agent`, so it overrides; without this
+    /// the PATH pre-flight checks for a `cursor` binary that never exists and
+    /// rejects a working install.
+    fn binary(&self) -> &str {
+        self.id()
+    }
 
     /// Declarative capability flags — what this harness supports.
     fn caps(&self) -> HarnessCapabilities;
@@ -162,46 +183,65 @@ pub trait HarnessAdapter: Send + Sync {
 
     /// Extract session metadata from the work directory after launch.
     fn extract_session_meta(&self, _work_dir: &Path) -> Option<serde_json::Value> { None }
+
+    /// Spawn a fresh server-mode session for this harness (codex app-server,
+    /// opencode serve). Returns `None` for harnesses without server mode and
+    /// when the spawn fails — the caller then falls through to the one-shot
+    /// Process/Tmux path. The adapter owns *how* to spawn its session; the
+    /// caller (RoutingExecutor) owns caching and registry placement. This is
+    /// what lets routing select server mode generically over the registry
+    /// instead of branching per harness id.
+    async fn spawn_server_session(&self) -> Option<Arc<dyn ServerSession>> {
+        None
+    }
+}
+
+/// The single source of truth for which harnesses exist. `adapter_for`, the
+/// `Known:` error string, and `capabilities()` all derive from this slice —
+/// adding or dropping a harness is one edit here plus the adapter module, not
+/// a sweep across parallel match arms and enumerations. Adapters are zero-
+/// sized unit structs, so this is a `&'static` slice of const-promoted refs
+/// with no allocation.
+const REGISTRY: &[&dyn HarnessAdapter] = &[
+    &super::harnesses::claude::ClaudeAdapter,
+    &super::harnesses::codex::CodexAdapter,
+    &super::harnesses::cursor::CursorAdapter,
+    &super::harnesses::opencode::OpenCodeAdapter,
+    &super::harnesses::pi::PiAdapter,
+];
+
+/// Comma-separated list of canonical harness ids, for error messages.
+fn known_ids() -> String {
+    REGISTRY
+        .iter()
+        .map(|a| a.id())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// Resolve a harness name to its adapter.
 /// Returns Err for unknown harnesses (no silent default) so a `foo-typo`
 /// config doesn't silently run as Claude with weird flags.
-pub fn adapter_for(harness: &str) -> Result<Box<dyn HarnessAdapter>, String> {
-    match harness {
-        "claude" | "claude-code" => Ok(Box::new(super::harnesses::claude::ClaudeAdapter)),
-        "codex" => Ok(Box::new(super::harnesses::codex::CodexAdapter)),
-        "cursor" => Ok(Box::new(super::harnesses::cursor::CursorAdapter)),
-        "gemini" => Ok(Box::new(super::harnesses::gemini::GeminiAdapter)),
-        "opencode" => Ok(Box::new(super::harnesses::opencode::OpenCodeAdapter)),
-        unknown => Err(format!(
-            "unknown harness '{unknown}'. Known: claude, codex, cursor, gemini, opencode."
-        )),
-    }
+pub fn adapter_for(harness: &str) -> Result<&'static dyn HarnessAdapter, String> {
+    REGISTRY
+        .iter()
+        .copied()
+        .find(|a| a.matches(harness))
+        .ok_or_else(|| format!("unknown harness '{harness}'. Known: {}.", known_ids()))
 }
 
 /// Convenience: resolve an Option<&str>, falling back to "claude" when None.
 /// Used by executors that want a default for unconfigured pipelines.
 pub fn adapter_for_or_default(
     harness: Option<&str>,
-) -> Result<Box<dyn HarnessAdapter>, String> {
+) -> Result<&'static dyn HarnessAdapter, String> {
     adapter_for(harness.unwrap_or("claude"))
 }
 
 /// Enumerate all known harnesses and their capabilities.
 /// Used by `ship status --harnesses` and Studio's harness picker.
 pub fn capabilities() -> Vec<(&'static str, HarnessCapabilities)> {
-    use super::harnesses::{
-        claude::ClaudeAdapter, codex::CodexAdapter, cursor::CursorAdapter,
-        gemini::GeminiAdapter, opencode::OpenCodeAdapter,
-    };
-    vec![
-        ("claude", ClaudeAdapter.caps()),
-        ("codex", CodexAdapter.caps()),
-        ("cursor", CursorAdapter.caps()),
-        ("gemini", GeminiAdapter.caps()),
-        ("opencode", OpenCodeAdapter.caps()),
-    ]
+    REGISTRY.iter().map(|a| (a.id(), a.caps())).collect()
 }
 
 #[cfg(test)]
@@ -214,7 +254,7 @@ mod adapter_for_tests {
         // turns. If a new harness lands without persistent_session=true,
         // it'd quietly fall to the legacy per-turn-respawn path; this
         // test pins the parity contract.
-        for name in ["claude", "codex", "cursor", "gemini", "opencode"] {
+        for name in ["claude", "codex", "cursor", "opencode", "pi"] {
             let adapter = adapter_for(name).unwrap();
             assert!(
                 adapter.caps().persistent_session,
@@ -232,8 +272,8 @@ mod adapter_for_tests {
             ("claude", Channel),
             ("codex", Stdin),
             ("cursor", Stdin),
-            ("gemini", Stdin),
             ("opencode", Stdin),
+            ("pi", Stdin),
         ];
         for (name, want) in expected {
             assert_eq!(
@@ -247,11 +287,6 @@ mod adapter_for_tests {
     #[test]
     fn adapter_for_cursor_returns_cursor_adapter() {
         assert_eq!(adapter_for("cursor").unwrap().id(), "cursor");
-    }
-
-    #[test]
-    fn adapter_for_gemini_returns_gemini_adapter() {
-        assert_eq!(adapter_for("gemini").unwrap().id(), "gemini");
     }
 
     #[test]
@@ -285,10 +320,38 @@ mod adapter_for_tests {
     }
 
     #[test]
-    fn capabilities_lists_all_five_harnesses() {
+    fn binary_defaults_to_id_except_cursor() {
+        // The PATH pre-flight + server-session spawn look up binary(), not
+        // id(). cursor diverges (id "cursor", executable "cursor-agent");
+        // every other harness's binary is its id. Drift here is a dispatch
+        // bug (rejecting an installed harness), so pin it.
+        for (id, _) in capabilities() {
+            let want = if id == "cursor" { "cursor-agent" } else { id };
+            assert_eq!(adapter_for(id).unwrap().binary(), want, "binary() wrong for {id}");
+        }
+    }
+
+    #[test]
+    fn registry_is_single_source_of_truth() {
+        // adapter_for, capabilities(), and the Known: error string all derive
+        // from REGISTRY. Pin the invariant: every id capabilities() reports
+        // resolves back through adapter_for to an adapter with that id, and
+        // shows up in the unknown-harness error list. Adding a harness to the
+        // slice satisfies all three at once — no parallel list to forget.
+        let known = adapter_for("definitely-not-a-harness")
+            .err()
+            .expect("unknown harness must error");
+        for (id, _caps) in capabilities() {
+            assert_eq!(adapter_for(id).unwrap().id(), id, "adapter_for disagrees for {id}");
+            assert!(known.contains(id), "Known: list missing {id}: {known}");
+        }
+    }
+
+    #[test]
+    fn capabilities_lists_registered_harnesses() {
         let caps = capabilities();
         let ids: Vec<&str> = caps.iter().map(|(id, _)| *id).collect();
-        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "opencode"]);
+        assert_eq!(ids, vec!["claude", "codex", "cursor", "opencode", "pi"]);
     }
 
     #[test]

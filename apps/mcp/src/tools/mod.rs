@@ -13,6 +13,5 @@ pub mod sui_lsp;
 pub mod view;
 pub mod view_authoring;
 pub mod view_errors;
-pub mod view_scaffold;
 
 pub mod stability;

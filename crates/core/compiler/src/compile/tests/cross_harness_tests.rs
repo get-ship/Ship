@@ -1,12 +1,16 @@
-use crate::compile::compile;
+use crate::compile::harness::ContextFile;
+use crate::compile::{CompileOutput, compile, list_harnesses};
 use crate::resolve::ResolvedConfig;
 use crate::types::{HookTrigger, Permissions, Rule, ToolPermissions};
 
 use super::fixtures::*;
 
-// ── Idempotency ───────────────────────────────────────────────────────────────
+// ── Determinism ───────────────────────────────────────────────────────────────
 
-/// Compiling the same input twice must produce identical output.
+/// Compiling the same input twice must produce identical output. `compile` is
+/// pure, so the only way this regresses is a nondeterministically-serialized
+/// collection (e.g. an unordered map) leaking into an output field — one
+/// harness is enough to catch that; the property is harness-independent.
 #[test]
 fn compile_is_idempotent() {
     use crate::types::AgentLimits;
@@ -53,121 +57,23 @@ fn compile_is_idempotent() {
     );
 }
 
-/// Every harness must produce identical output when compiled twice.
-#[test]
-fn all_harnesses_are_idempotent() {
-    let r = ResolvedConfig {
-        mcp_servers: vec![make_server("github"), make_server("linear")],
+// ── Conformance: properties every registered harness must satisfy ─────────────
+//
+// These iterate `list_harnesses()` so adding or dropping a harness updates
+// coverage with zero test edits — the registry is the single source of truth.
+// (Replaces the old hardcoded `["claude","codex","cursor"]` loops, which both
+// duplicated the roster and re-asserted properties already covered elsewhere.)
+
+/// Exercises every output channel — MCP servers, a skill, a rule, a hook, and a
+/// deny permission — enough to trigger each harness's owned patch outputs.
+fn conformance_config() -> ResolvedConfig {
+    ResolvedConfig {
+        mcp_servers: vec![make_server("github")],
         skills: vec![{
-            let mut s = make_skill("workflow");
-            s.content = "Do the thing.".into();
+            let mut s = make_skill("refactor");
+            s.content = "Refactor carefully.".into();
             s
         }],
-        rules: vec![Rule {
-            file_name: "style.md".into(),
-            content: "Keep it clean.".into(),
-            always_apply: true,
-            globs: vec![],
-            description: None,
-        }],
-        hooks: vec![make_hook(
-            HookTrigger::PreToolUse,
-            "ship check",
-            Some("Bash"),
-        )],
-        ..resolved(vec![])
-    };
-    for harness in &["claude", "gemini", "codex", "cursor"] {
-        let a = compile(&r, harness).unwrap();
-        let b = compile(&r, harness).unwrap();
-        assert_eq!(
-            serde_json::to_string(&a.mcp_servers).unwrap(),
-            serde_json::to_string(&b.mcp_servers).unwrap(),
-            "{harness}: mcp_servers not idempotent"
-        );
-        assert_eq!(
-            a.context_content, b.context_content,
-            "{harness}: context not idempotent"
-        );
-        assert_eq!(
-            a.skill_files, b.skill_files,
-            "{harness}: skill_files not idempotent"
-        );
-        assert_eq!(
-            serde_json::to_string(&a.claude_settings_patch).unwrap(),
-            serde_json::to_string(&b.claude_settings_patch).unwrap(),
-            "{harness}: claude_settings_patch not idempotent"
-        );
-        assert_eq!(
-            a.codex_config_patch, b.codex_config_patch,
-            "{harness}: codex_config_patch not idempotent"
-        );
-        assert_eq!(
-            serde_json::to_string(&a.gemini_settings_patch).unwrap(),
-            serde_json::to_string(&b.gemini_settings_patch).unwrap(),
-            "{harness}: gemini_settings_patch not idempotent"
-        );
-        assert_eq!(
-            serde_json::to_string(&a.cursor_hooks_patch).unwrap(),
-            serde_json::to_string(&b.cursor_hooks_patch).unwrap(),
-            "{harness}: cursor_hooks_patch not idempotent"
-        );
-        assert_eq!(
-            serde_json::to_string(&a.cursor_cli_permissions).unwrap(),
-            serde_json::to_string(&b.cursor_cli_permissions).unwrap(),
-            "{harness}: cursor_cli_permissions not idempotent"
-        );
-        assert_eq!(
-            a.rule_files, b.rule_files,
-            "{harness}: rule_files not idempotent"
-        );
-        assert_eq!(
-            a.gemini_policy_patch, b.gemini_policy_patch,
-            "{harness}: gemini_policy_patch not idempotent"
-        );
-    }
-}
-
-/// All four harnesses compile the same skill set correctly.
-#[test]
-fn all_harnesses_emit_skills() {
-    let mut skill = make_skill("refactor");
-    skill.content = "Refactor carefully.".into();
-    let r = ResolvedConfig {
-        skills: vec![skill],
-        ..resolved(vec![])
-    };
-    assert!(
-        compile(&r, "claude")
-            .unwrap()
-            .skill_files
-            .contains_key(".claude/skills/refactor/SKILL.md")
-    );
-    assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .skill_files
-            .contains_key(".agents/skills/refactor/SKILL.md")
-    );
-    assert!(
-        compile(&r, "codex")
-            .unwrap()
-            .skill_files
-            .contains_key(".agents/skills/refactor/SKILL.md")
-    );
-    assert!(
-        compile(&r, "cursor")
-            .unwrap()
-            .skill_files
-            .contains_key(".cursor/skills/refactor/SKILL.md")
-    );
-}
-
-/// Claude, Gemini, Codex emit a context file when rules are present.
-/// Cursor uses per-file .mdc rules instead.
-#[test]
-fn all_harnesses_emit_context_file() {
-    let r = ResolvedConfig {
         rules: vec![Rule {
             file_name: "style.md".into(),
             content: "Write clean code.".into(),
@@ -175,42 +81,7 @@ fn all_harnesses_emit_context_file() {
             globs: vec![],
             description: None,
         }],
-        ..resolved(vec![])
-    };
-    assert!(
-        compile(&r, "claude").unwrap().context_content.is_some(),
-        "claude needs CLAUDE.md"
-    );
-    assert!(
-        compile(&r, "gemini").unwrap().context_content.is_some(),
-        "gemini needs GEMINI.md"
-    );
-    assert!(
-        compile(&r, "codex").unwrap().context_content.is_some(),
-        "codex needs AGENTS.md"
-    );
-    assert!(
-        compile(&r, "cursor").unwrap().context_content.is_none(),
-        "cursor uses rule_files"
-    );
-    assert!(
-        !compile(&r, "cursor").unwrap().rule_files.is_empty(),
-        "cursor must populate rule_files"
-    );
-}
-
-/// No harness emits a patch output it doesn't own.
-#[test]
-fn patch_outputs_are_harness_exclusive() {
-    let r = ResolvedConfig {
-        rules: vec![Rule {
-            file_name: "r.md".into(),
-            content: "x".into(),
-            always_apply: true,
-            globs: vec![],
-            description: None,
-        }],
-        hooks: vec![make_hook(HookTrigger::PreToolUse, "cmd", None)],
+        hooks: vec![make_hook(HookTrigger::PreToolUse, "ship check", Some("Bash"))],
         permissions: Permissions {
             tools: ToolPermissions {
                 deny: vec!["Bash(rm -rf *)".into()],
@@ -219,72 +90,130 @@ fn patch_outputs_are_harness_exclusive() {
             ..Default::default()
         },
         ..resolved(vec![])
+    }
+}
+
+/// Each harness emits its declared context file (CLAUDE.md / AGENTS.md / …)
+/// when rules are present. A harness with no context file (cursor) emits
+/// per-file rules instead.
+#[test]
+fn conformance_context_output_matches_descriptor() {
+    let r = conformance_config();
+    for desc in list_harnesses() {
+        let out = compile(&r, desc.id).unwrap();
+        if desc.context_file == ContextFile::None {
+            assert!(
+                !out.rule_files.is_empty(),
+                "{}: has no context file, so must emit per-file rules",
+                desc.id
+            );
+        } else {
+            assert!(
+                out.context_content.is_some(),
+                "{}: declares context file {:?} but emitted no context_content",
+                desc.id,
+                desc.context_file.file_name()
+            );
+        }
+    }
+}
+
+/// Skills land in each harness's declared skills directory.
+#[test]
+fn conformance_skills_land_in_declared_dir() {
+    let r = conformance_config();
+    for desc in list_harnesses() {
+        let Some(base) = desc.skills_dir.base_path() else {
+            continue; // harness doesn't surface skills as on-disk files
+        };
+        let out = compile(&r, desc.id).unwrap();
+        let expected = format!("{base}/refactor/SKILL.md");
+        assert!(
+            out.skill_files.contains_key(&expected),
+            "{}: skill must land at {expected}; got {:?}",
+            desc.id,
+            out.skill_files.keys().collect::<Vec<_>>()
+        );
+    }
+}
+
+/// Owned patch outputs are exclusive: each appears only for the harness that
+/// owns it. The owner is explicit (each output is harness-specific); the
+/// "everyone else must NOT emit it" sweep is registry-driven, so a newly
+/// registered harness is automatically held to the no-leak contract.
+#[test]
+fn conformance_patch_outputs_are_owner_exclusive() {
+    let r = conformance_config();
+    let outs: Vec<(&str, CompileOutput)> = list_harnesses()
+        .iter()
+        .map(|d| (d.id, compile(&r, d.id).unwrap()))
+        .collect();
+
+    let owned: &[(&str, &str, fn(&CompileOutput) -> bool)] = &[
+        ("claude_settings_patch", "claude", |o| {
+            o.claude_settings_patch.is_some()
+        }),
+        ("codex_config_patch", "codex", |o| {
+            o.codex_config_patch.is_some()
+        }),
+        ("opencode_config_patch", "opencode", |o| {
+            o.opencode_config_patch.is_some()
+        }),
+        ("cursor_hooks_patch", "cursor", |o| {
+            o.cursor_hooks_patch.is_some()
+        }),
+        ("cursor_cli_permissions", "cursor", |o| {
+            o.cursor_cli_permissions.is_some()
+        }),
+        ("rule_files", "cursor", |o| !o.rule_files.is_empty()),
+    ];
+
+    for (label, owner, present) in owned {
+        for (id, out) in &outs {
+            let got = present(out);
+            let want = id == owner;
+            assert_eq!(
+                got, want,
+                "{label}: emitted={got} for harness {id}, but it is owned by {owner} only"
+            );
+        }
+    }
+}
+
+/// A scoped (daemon-spawned) launch emits the authed-HTTP `ship` MCP entry
+/// (Bearer `${SHIP_TOKEN}`, no on-disk secret) exactly for harnesses that
+/// declare `supports_authed_http_mcp`; every other harness keeps the stdio
+/// shim with no auth header. Registry-driven, so flipping a harness's
+/// capability flag is a deliberate, tested change — and a flip made without
+/// the harness actually expanding `${ENV}` headers is caught the moment its
+/// emit shape is asserted here.
+#[test]
+fn conformance_scoped_launch_authed_http_matches_capability() {
+    let r = ResolvedConfig {
+        scoped_launch: true,
+        ..conformance_config()
     };
-    // claude_settings_patch: claude only
-    assert!(
-        compile(&r, "claude")
-            .unwrap()
-            .claude_settings_patch
-            .is_some()
-    );
-    for p in &["gemini", "codex", "cursor"] {
-        assert!(
-            compile(&r, p).unwrap().claude_settings_patch.is_none(),
-            "{p} must not get claude patch"
-        );
-    }
-    // codex_config_patch: codex only
-    assert!(compile(&r, "codex").unwrap().codex_config_patch.is_some());
-    for p in &["claude", "gemini", "cursor"] {
-        assert!(
-            compile(&r, p).unwrap().codex_config_patch.is_none(),
-            "{p} must not get codex patch"
-        );
-    }
-    // gemini_settings_patch: gemini only
-    assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .gemini_settings_patch
-            .is_some()
-    );
-    for p in &["claude", "codex", "cursor"] {
-        assert!(
-            compile(&r, p).unwrap().gemini_settings_patch.is_none(),
-            "{p} must not get gemini patch"
-        );
-    }
-    // cursor_hooks_patch: cursor only
-    assert!(compile(&r, "cursor").unwrap().cursor_hooks_patch.is_some());
-    for p in &["claude", "gemini", "codex"] {
-        assert!(
-            compile(&r, p).unwrap().cursor_hooks_patch.is_none(),
-            "{p} must not get cursor patch"
-        );
-    }
-    // cursor_cli_permissions: cursor only
-    assert!(
-        compile(&r, "cursor")
-            .unwrap()
-            .cursor_cli_permissions
-            .is_some()
-    );
-    for p in &["claude", "gemini", "codex"] {
-        assert!(
-            compile(&r, p).unwrap().cursor_cli_permissions.is_none(),
-            "{p} must not get cursor cli permissions"
-        );
-    }
-    // rule_files: cursor only
-    assert!(
-        !compile(&r, "cursor").unwrap().rule_files.is_empty(),
-        "cursor must have rule_files"
-    );
-    for p in &["claude", "gemini", "codex"] {
-        assert!(
-            compile(&r, p).unwrap().rule_files.is_empty(),
-            "{p} must not get rule_files"
-        );
+    for desc in list_harnesses() {
+        let out = compile(&r, desc.id).unwrap();
+        let ship = &out.mcp_servers["ship"];
+        let bearer = ship
+            .get("headers")
+            .and_then(|h| h.get("Authorization"))
+            .and_then(|v| v.as_str());
+        if desc.supports_authed_http_mcp {
+            assert_eq!(
+                bearer,
+                Some("Bearer ${SHIP_TOKEN}"),
+                "{}: scoped + authed-HTTP-capable must emit the env-reference bearer header",
+                desc.id
+            );
+        } else {
+            assert!(
+                bearer.is_none(),
+                "{}: not authed-HTTP-capable → must fall back to stdio with no auth header",
+                desc.id
+            );
+        }
     }
 }
 
