@@ -13,7 +13,7 @@
 //!   * `GET /_sui/packs/<pack-id>/custom-elements.json` — aggregated CEM
 //!
 //! Workspace-catalog endpoints (`/api/sui/catalog/{workspace,published}`)
-//! read pre-aggregated JSON from `.ship/sui-out/catalogs/` (emitted by
+//! read pre-aggregated JSON from `.deck/catalogs/` (emitted by
 //! `bun packages/deck/catalog/src/cli.ts`). They live in this module so
 //! all pack-discovery + catalog plumbing sits together.
 
@@ -215,7 +215,7 @@ fn serve_catalog_file(name: &str, mode: DaemonMode) -> Response {
     let Some(repo) = repo_root() else {
         return json_response(EMPTY_CATALOG.as_bytes().to_vec(), mode);
     };
-    let path = repo.join(".ship/sui-out/catalogs").join(name);
+    let path = repo.join(".deck/catalogs").join(name);
     match std::fs::read(&path) {
         Ok(bytes) => json_response(bytes, mode),
         Err(_) => json_response(EMPTY_CATALOG.as_bytes().to_vec(), mode),

@@ -156,7 +156,7 @@ pub fn build_router(
         // projections (workspace = every component, published = only
         // non-private packaged components) emitted by
         // `bun packages/deck/catalog/src/cli.ts` to
-        // `.ship/sui-out/catalogs/{workspace,published}.json`.
+        // `.deck/catalogs/{workspace,published}.json`.
         .ship_public_route(Route::SuiCatalogWorkspace, deck::serve_catalog_workspace)
         .ship_public_route(Route::SuiCatalogPublished, deck::serve_catalog_published)
         // Generalized pack-bundle handler — serves

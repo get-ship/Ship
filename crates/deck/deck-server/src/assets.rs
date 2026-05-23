@@ -14,7 +14,7 @@ use crate::{DaemonMode, asset_cache, compute_etag, mode_from_ext};
 // is the source of truth for what lands there. The previous
 // hand-maintained `is_known_island` allowlist was retired alongside
 // the workspace-catalog cut-over — origin metadata in
-// `.ship/sui-out/catalogs/workspace.json` makes per-tag gating
+// `.deck/catalogs/workspace.json` makes per-tag gating
 // redundant. Path-traversal is rejected explicitly in
 // `serve_sui_island` so a missing-bundle 404 is the only failure mode.
 

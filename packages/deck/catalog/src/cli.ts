@@ -1,10 +1,11 @@
-// sui-catalog CLI — emits `.ship/sui-out/catalogs/{workspace,published}.json`
-// for the current repo.
+// sui-catalog CLI — emits `.deck/catalogs/{workspace,published}.json`
+// for the current repo. The catalog is deck's aggregated component index, so it
+// lands in deck's build output (`.deck/`), not the SUI compiler's output tree.
 //
 // Usage:
 //   sui-catalog                    # run from repo root (default)
 //   sui-catalog --root <dir>       # explicit repo root
-//   sui-catalog --out <dir>        # output dir (default: <root>/.ship/sui-out/catalogs)
+//   sui-catalog --out <dir>        # output dir (default: <root>/.deck/catalogs)
 //
 // No watch mode — this is a one-shot post-build step that the bundler
 // invokes after every full sui-build pass.
@@ -30,15 +31,15 @@ function parseArgs(argv: string[]): CliArgs {
     else if (a === '--quiet' || a === '-q') quiet = true
     else if (a === '--help' || a === '-h') {
       process.stdout.write(
-        'sui-catalog — emit .ship/sui-out/catalogs/{workspace,published}.json\n' +
+        'sui-catalog — emit .deck/catalogs/{workspace,published}.json\n' +
           '\n  --root <dir>   repo root (default: cwd)\n' +
-          '  --out  <dir>   output directory (default: <root>/.ship/sui-out/catalogs)\n' +
+          '  --out  <dir>   output directory (default: <root>/.deck/catalogs)\n' +
           '  --quiet        suppress progress output\n',
       )
       process.exit(0)
     }
   }
-  const out = outOverride ?? resolve(root, '.ship/sui-out/catalogs')
+  const out = outOverride ?? resolve(root, '.deck/catalogs')
   return { root, out, quiet }
 }
 

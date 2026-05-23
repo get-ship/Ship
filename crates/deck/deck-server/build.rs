@@ -9,7 +9,7 @@
 //! sui-runtime, sui-dom, sui-sdk-client, sui-components + per-tag
 //! islands, views/*/view.js, and the lucide icon registry). The
 //! aggregated CEM was retired in favour of `@ship/sui-catalog`, which
-//! emits `.ship/sui-out/catalogs/{workspace,published}.json` and is
+//! emits `.deck/catalogs/{workspace,published}.json` and is
 //! read at runtime by `src/packs.rs`. The in-daemon Bun worker at
 //! `~/.ship/runtime/bundler.ts` refreshes the same set on demand
 //! while shipd runs in dev mode.

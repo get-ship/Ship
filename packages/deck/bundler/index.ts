@@ -351,10 +351,12 @@ async function compileSuiFile(
   }
 }
 
-// Persist every cached CEM into `.ship/sui-out/<source-mirror>/<stem>.custom-elements.json`,
-// then run `@ship/sui-catalog` to emit `.ship/sui-out/catalogs/{workspace,published}.json`.
-// The daemon's `/api/sui/catalog/{workspace,published}` endpoints read
-// the second of those files at request time.
+// Persist every cached CEM into `.ship/sui-out/<source-mirror>/<stem>.custom-elements.json`
+// (SUI's per-file compiler output), then run `@ship/sui-catalog` to AGGREGATE
+// them into `.deck/catalogs/{workspace,published}.json`. The catalog is a deck
+// concern (a cross-component index), so it lives in deck's build output, not in
+// the SUI compiler's output tree. The daemon's `/api/sui/catalog/*` endpoints
+// read the aggregated files at request time.
 async function refreshCatalog(): Promise<{ workspace: number; published: number }> {
   for (const [filePath, cem] of cemCache.entries()) {
     if (!cem || typeof cem !== 'object') continue
@@ -367,7 +369,7 @@ async function refreshCatalog(): Promise<{ workspace: number; published: number 
   }
   const { buildCatalogs, stringifyCatalog } = await loadSuiCatalogLib()
   const { workspace, published } = await buildCatalogs({ repoRoot })
-  const outDir = resolve(repoRoot, '.ship/sui-out/catalogs')
+  const outDir = resolve(repoRoot, '.deck/catalogs')
   mkdirSync(outDir, { recursive: true })
   await Bun.write(resolve(outDir, 'workspace.json'), stringifyCatalog(workspace))
   await Bun.write(resolve(outDir, 'published.json'), stringifyCatalog(published))

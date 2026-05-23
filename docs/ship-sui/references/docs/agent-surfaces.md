@@ -109,7 +109,7 @@ nav, devtools, …) stay in the `@ship/ui-components` umbrella and ship
 via the daemon's `sui-components.js` aggregate.
 
 The `@ship/sui-catalog` walker produces two projections under
-`.ship/sui-out/catalogs/`:
+`.deck/catalogs/`:
 
 | File | Contains | Agent use |
 |---|---|---|

@@ -299,7 +299,7 @@ build: _sui-compiler-lib
     bun run --filter @ship/ui-components build
     echo "[6/9] view bundles + sui-* bundles (packages/deck/bundler/index.ts --all)"
     bun packages/deck/bundler/index.ts --all
-    echo "[7/9] sui-catalog walk (→ .ship/sui-out/catalogs/{workspace,published}.json)"
+    echo "[7/9] sui-catalog walk (→ .deck/catalogs/{workspace,published}.json)"
     bun run --filter @ship/sui-catalog build
     bun packages/deck/catalog/src/cli.ts
     echo "[8/9] cargo build --release (ship-cli + shipd + mcp)"
@@ -315,7 +315,7 @@ build: _sui-compiler-lib
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in crates/deck/deck-server/assets/sui-runtime.js crates/deck/deck-server/assets/sui-components.js packages/components/primitives/dist/sui-primitives.js packages/components/charts/dist/sui-charts.js .ship/sui-out/catalogs/workspace.json .ship/sui-out/catalogs/published.json; do
+    for asset in crates/deck/deck-server/assets/sui-runtime.js crates/deck/deck-server/assets/sui-components.js packages/components/primitives/dist/sui-primitives.js packages/components/charts/dist/sui-charts.js .deck/catalogs/workspace.json .deck/catalogs/published.json; do
         if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1
