@@ -52,6 +52,13 @@ message ArtifactRecord {
   string created_at = 15;
 }
 
+// The typed return of settings.set: the key and its new value (serialized
+// JSON, since a setting value is arbitrary). Mirrors the route's echo.
+message SettingValue {
+  string key = 1;
+  string value_json = 2;
+}
+
 // A collection item — the typed return of collections.create_item /
 // .update_item. The envelope (id/collection/timestamps) is typed; `data_json`
 // carries the user's schema-defined payload as serialized JSON. Proto Struct

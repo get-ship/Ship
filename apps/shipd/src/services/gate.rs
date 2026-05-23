@@ -89,7 +89,7 @@ pub fn classify(name: &str) -> Domain {
         "permissions" => Domain { group: "ship-authoring", restricted: true },
         // default — ordinary workspace mutation
         "pipeline" | "pipelines" | "project" | "mesh" | "git" | "annotation" | "annotations"
-        | "feedback" | "rules" | "artifacts" | "collections" => {
+        | "feedback" | "rules" | "artifacts" | "collections" | "settings" => {
             Domain { group: "ship-workspace", restricted: false }
         }
         // unknown — fail closed

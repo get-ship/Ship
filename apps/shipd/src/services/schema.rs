@@ -603,6 +603,21 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "ScopedMutation",
         sensitive: false,
     },
+    // ── settings (runtime config; reads are settings.list/get) ────
+    // Default C1 — workspace/user prefs. NOTE(#82): security-relevant keys
+    // (ask-policy, dispatch defaults) must move to per-key C2 when that lands.
+    CommandDescriptor {
+        name: "settings.set",
+        description: "Set a runtime setting (value is arbitrary JSON).",
+        args: &[
+            ArgDescriptor { name: "key", kind: "string", required: true },
+            ArgDescriptor { name: "value_json", kind: "string", required: true },
+        ],
+        permission: "ship.settings.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "SettingValue",
+        sensitive: false,
+    },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.activate",
