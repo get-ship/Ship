@@ -22,6 +22,7 @@ mod git;
 mod mesh;
 mod pipeline;
 mod project;
+mod rules;
 mod surfaces;
 mod views;
 
@@ -112,6 +113,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = project::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = rules::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
@@ -320,5 +324,36 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn rules_create_is_default_c1_and_writes_through_the_service() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        // A worker agent (no grants): rules is a default workspace domain, so
+        // the gate allows it — and it actually creates via RulesService.
+        let auth = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("worker-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec![],
+        };
+        let ctx = CommandCtx { state: &harness.state, auth: &auth };
+        // user scope writes to the test's TempDir user root (isolated); project
+        // scope would resolve to the cwd repo, so it's deliberately user here.
+        let args = serde_json::json!({
+            "id": "no-slop", "content": "# No slop\nBe precise.", "scope": "user"
+        });
+        let created = call("rules.create", &args, &ctx).await.expect("worker may create a rule");
+        assert_eq!(created["ok"], true);
+        // The read side sees it (read at user scope, same TempDir root).
+        let got = crate::services::registry::call(
+            "rules.get",
+            &serde_json::json!({ "id": "no-slop", "scope": "user" }),
+            &harness.state,
+        )
+        .expect("rule readable after create");
+        assert!(got["body"].as_str().unwrap_or("").contains("No slop"));
     }
 }

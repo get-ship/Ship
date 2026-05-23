@@ -18,6 +18,18 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.runtime.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc RulesCreate(RulesCreateRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.rules.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc RulesPut(RulesPutRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.rules.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc RulesDelete(RulesDeleteRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.rules.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc ProjectActivate(ProjectActivateRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -122,6 +134,23 @@ message PipelineStepDoneRequest {
   string slug = 1;
   string summary = 2;
   map<string, string> outputs = 3;
+}
+
+message RulesCreateRequest {
+  string id = 1;
+  string content = 2;
+  string scope = 3;
+}
+
+message RulesPutRequest {
+  string id = 1;
+  string content = 2;
+  string scope = 3;
+}
+
+message RulesDeleteRequest {
+  string id = 1;
+  string scope = 2;
 }
 
 message ProjectActivateRequest {

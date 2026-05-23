@@ -133,6 +133,42 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         blast_radius: "C1_WORKSPACE",
         sensitive: false,
     },
+    // ── rules (markdown behavior config; reads are rules.list/get) ──
+    CommandDescriptor {
+        name: "rules.create",
+        description: "Create a new markdown rule (errors if the id is taken).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "content", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.rules.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "rules.put",
+        description: "Replace a rule's body (use rules.create for net-new).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "content", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.rules.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "rules.delete",
+        description: "Trash a rule (scope omitted walks project → user).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.rules.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.activate",

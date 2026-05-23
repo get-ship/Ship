@@ -76,7 +76,8 @@ pub fn classify(name: &str) -> Domain {
         "agent" => Domain { group: "ship-orchestration", restricted: true },
         "create" | "view" => Domain { group: "ship-authoring", restricted: true },
         // default — ordinary workspace mutation
-        "pipeline" | "project" | "mesh" | "git" | "annotation" | "annotations" | "feedback" => {
+        "pipeline" | "project" | "mesh" | "git" | "annotation" | "annotations" | "feedback"
+        | "rules" => {
             Domain { group: "ship-workspace", restricted: false }
         }
         // unknown — fail closed
