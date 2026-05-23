@@ -52,12 +52,11 @@ export default controller<Scope>({
   scope: ({ ship, route }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = ship as any
-    // BUG (latent, pre-existing): `route` is a `RouteSignals` object, not a
-    // function — `route()` throws at runtime, and `.params.name` is a Signal
-    // (should be `route.params.name?.()`). Other studio views use the correct
-    // `route.params.X()` form. Cast preserves current behavior; the runtime
-    // bug needs a separate behavior fix (out of scope for this type pass).
-    const name = derived(() => String((route as unknown as () => typeof route)().params.name ?? ''))
+    // `route` is a RouteSignals object; `params.name` is a Signal — read it via
+    // `route.params.name?.()` (matches every other studio dynamic-route view).
+    // Requires the `/studio/pipelines/focus/:name` pattern registered via
+    // defineRoutes at shell startup; absent that, name() is undefined → ''.
+    const name = derived(() => String(route.params.name?.() ?? ''))
     const ctx = live(() => s.pipelines.focus({ name: name() }))
     const def = derived(() => decorateDef(read(ctx()).def))
     const doc = derived(() => {

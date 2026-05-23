@@ -21,12 +21,11 @@ export default controller<Scope>({
   scope: ({ ship, route }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = ship as any
-    // BUG (latent, pre-existing): `route` is a `RouteSignals` object, not a
-    // function — `route()` throws at runtime, and `.params.slug` is a Signal
-    // (should be `route.params.slug?.()`). Other studio views use the correct
-    // `route.params.X()` form. Cast preserves current behavior; the runtime
-    // bug needs a separate behavior fix (out of scope for this type pass).
-    const ctx = live(() => s.pipelines.run({ slug: (route as unknown as () => typeof route)().params.slug }))
+    // `route` is a RouteSignals object; `params.slug` is a Signal — read it via
+    // `route.params.slug?.()` (matches every other studio dynamic-route view).
+    // Requires the `/studio/pipelines/run/:slug` pattern registered via
+    // defineRoutes at shell startup; absent that, slug is undefined.
+    const ctx = live(() => s.pipelines.run({ slug: route.params.slug?.() ?? '' }))
     const run = derived(() => read(ctx()).run)
     const observations = derived(() => read(ctx()).observations)
     const timeline = derived(() => read(ctx()).timeline)
