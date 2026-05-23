@@ -15,11 +15,11 @@ import { resolve } from 'node:path'
 // status-bar, etc.
 import { setIconRegistry } from '../../../packages/components/primitives/src/sui-icon/registry'
 
-// Vitest runs from the package root; the bundle asset is checked into
-// the Rust server crate alongside the rest of the SUI bundle.
+// Vitest runs from the package root; lucide-icons.json is deck's own baked
+// product, in the deck-core crate (moved there in the deck-core/deck-axum split).
 const ICON_REGISTRY_PATH = resolve(
   process.cwd(),
-  '../../crates/deck/deck-server/assets/lucide-icons.json',
+  '../../crates/deck/deck-core/assets/lucide-icons.json',
 )
 setIconRegistry(JSON.parse(readFileSync(ICON_REGISTRY_PATH, 'utf8')))
 
