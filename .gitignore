@@ -164,12 +164,6 @@ apps/docs/public/ship-*.js
 crates/deck/deck-server/assets/*.js
 crates/deck/deck-server/assets/lucide-icons.json
 crates/deck/deck-server/assets/sui-custom-elements.json
-# App content (chrome islands + view bundles) must NEVER live in deck's crate —
-# it builds to `.deck/` now. Ignored defensively: a stale deployed daemon
-# bundler (`~/.ship/runtime/bundler.ts`, pre-reshape) can still emit here until
-# the runtime is refreshed. Keeps stray writes out of the tree.
-crates/deck/deck-server/assets/sui-components/
-crates/deck/deck-server/assets/views/
 
 # deck build output — app/user view + chrome bundles (deck's `.next/`-equivalent).
 # View bundles (.deck/views/<name>/view.js) and code-split chrome/islands
