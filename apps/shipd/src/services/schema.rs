@@ -620,6 +620,18 @@ pub const COMMANDS: &[CommandDescriptor] = &[
     },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
+        name: "project.add",
+        description: "Register a directory as a project (ensures its .ship/ exists).",
+        args: &[
+            ArgDescriptor { name: "path", kind: "string", required: true },
+            ArgDescriptor { name: "name", kind: "string?", required: false },
+        ],
+        permission: "ship.projects.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ProjectRecord",
+        sensitive: false,
+    },
+    CommandDescriptor {
         name: "project.activate",
         description: "Switch the daemon's active project.",
         args: &[ArgDescriptor { name: "id", kind: "string", required: true }],

@@ -22,7 +22,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/types.proto.
  */
 export const file_ship_ops_v1_types: GenFile = /*@__PURE__*/
-  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJwoIRGVsZXRpb24SCgoCaWQYASABKAkSDwoHZGVsZXRlZBgCIAEoCCKvAwoOQXJ0aWZhY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBHNpemUYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVzY29wZRgGIAEoCRIXCgpwcm9qZWN0X2lkGAcgASgJSACIAQESEwoGcnVuX2lkGAggASgJSAGIAQESFAoHdXNlcl9pZBgJIAEoCUgCiAEBEhkKDGNvbnRlbnRfaGFzaBgKIAEoCUgDiAEBEhcKCmV4cGlyZXNfYXQYCyABKAlIBIgBARIYCgtvd25lcl9hY3RvchgMIAEoCUgFiAEBEhoKDWNvbGxlY3Rpb25faWQYDSABKAlIBogBARIUCgdpdGVtX2lkGA4gASgJSAeIAQESEgoKY3JlYXRlZF9hdBgPIAEoCUINCgtfcHJvamVjdF9pZEIJCgdfcnVuX2lkQgoKCF91c2VyX2lkQg8KDV9jb250ZW50X2hhc2hCDQoLX2V4cGlyZXNfYXRCDgoMX293bmVyX2FjdG9yQhAKDl9jb2xsZWN0aW9uX2lkQgoKCF9pdGVtX2lkIi8KDFNldHRpbmdWYWx1ZRILCgNrZXkYASABKAkSEgoKdmFsdWVfanNvbhgCIAEoCSKTAQoOQ29sbGVjdGlvbkl0ZW0SCgoCaWQYASABKAkSEgoKY29sbGVjdGlvbhgCIAEoCRIRCglkYXRhX2pzb24YAyABKAkSFwoKY3JlYXRlZF9ieRgEIAEoCUgAiAEBEhIKCmNyZWF0ZWRfYXQYBSABKAkSEgoKdXBkYXRlZF9hdBgGIAEoCUINCgtfY3JlYXRlZF9ieWIGcHJvdG8z");
+  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJwoIRGVsZXRpb24SCgoCaWQYASABKAkSDwoHZGVsZXRlZBgCIAEoCCKvAwoOQXJ0aWZhY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBHNpemUYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVzY29wZRgGIAEoCRIXCgpwcm9qZWN0X2lkGAcgASgJSACIAQESEwoGcnVuX2lkGAggASgJSAGIAQESFAoHdXNlcl9pZBgJIAEoCUgCiAEBEhkKDGNvbnRlbnRfaGFzaBgKIAEoCUgDiAEBEhcKCmV4cGlyZXNfYXQYCyABKAlIBIgBARIYCgtvd25lcl9hY3RvchgMIAEoCUgFiAEBEhoKDWNvbGxlY3Rpb25faWQYDSABKAlIBogBARIUCgdpdGVtX2lkGA4gASgJSAeIAQESEgoKY3JlYXRlZF9hdBgPIAEoCUINCgtfcHJvamVjdF9pZEIJCgdfcnVuX2lkQgoKCF91c2VyX2lkQg8KDV9jb250ZW50X2hhc2hCDQoLX2V4cGlyZXNfYXRCDgoMX293bmVyX2FjdG9yQhAKDl9jb2xsZWN0aW9uX2lkQgoKCF9pdGVtX2lkImEKDVByb2plY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEcGF0aBgCIAEoCRIMCgRuYW1lGAMgASgJEhIKCmNyZWF0ZWRfYXQYBCABKAkSFAoMbGFzdF9zZWVuX2F0GAUgASgJIi8KDFNldHRpbmdWYWx1ZRILCgNrZXkYASABKAkSEgoKdmFsdWVfanNvbhgCIAEoCSKTAQoOQ29sbGVjdGlvbkl0ZW0SCgoCaWQYASABKAkSEgoKY29sbGVjdGlvbhgCIAEoCRIRCglkYXRhX2pzb24YAyABKAkSFwoKY3JlYXRlZF9ieRgEIAEoCUgAiAEBEhIKCmNyZWF0ZWRfYXQYBSABKAkSEgoKdXBkYXRlZF9hdBgGIAEoCUINCgtfY3JlYXRlZF9ieWIGcHJvdG8z");
 
 /**
  * Result of a scope-resolving config mutation (rules / mcp / permissions /
@@ -170,6 +170,46 @@ export const ArtifactRecordSchema: GenMessage<ArtifactRecord> = /*@__PURE__*/
   messageDesc(file_ship_ops_v1_types, 2);
 
 /**
+ * A registered project — the typed return of project.add. Mirrors
+ * `ship_platform::projects::ProjectRecord`.
+ *
+ * @generated from message ship.ops.v1.ProjectRecord
+ */
+export type ProjectRecord = Message<"ship.ops.v1.ProjectRecord"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string name = 3;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string created_at = 4;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string last_seen_at = 5;
+   */
+  lastSeenAt: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.ProjectRecord.
+ * Use `create(ProjectRecordSchema)` to create a new message.
+ */
+export const ProjectRecordSchema: GenMessage<ProjectRecord> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 3);
+
+/**
  * The typed return of settings.set: the key and its new value (serialized
  * JSON, since a setting value is arbitrary). Mirrors the route's echo.
  *
@@ -192,7 +232,7 @@ export type SettingValue = Message<"ship.ops.v1.SettingValue"> & {
  * Use `create(SettingValueSchema)` to create a new message.
  */
 export const SettingValueSchema: GenMessage<SettingValue> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_types, 3);
+  messageDesc(file_ship_ops_v1_types, 4);
 
 /**
  * A collection item — the typed return of collections.create_item /
@@ -244,5 +284,5 @@ export type CollectionItem = Message<"ship.ops.v1.CollectionItem"> & {
  * Use `create(CollectionItemSchema)` to create a new message.
  */
 export const CollectionItemSchema: GenMessage<CollectionItem> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_types, 4);
+  messageDesc(file_ship_ops_v1_types, 5);
 

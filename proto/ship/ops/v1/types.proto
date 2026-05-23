@@ -52,6 +52,16 @@ message ArtifactRecord {
   string created_at = 15;
 }
 
+// A registered project — the typed return of project.add. Mirrors
+// `ship_platform::projects::ProjectRecord`.
+message ProjectRecord {
+  string id = 1;
+  string path = 2;
+  string name = 3;
+  string created_at = 4;
+  string last_seen_at = 5;
+}
+
 // The typed return of settings.set: the key and its new value (serialized
 // JSON, since a setting value is arbitrary). Mirrors the route's echo.
 message SettingValue {
