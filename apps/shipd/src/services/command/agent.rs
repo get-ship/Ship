@@ -12,6 +12,34 @@ pub async fn try_dispatch(
     ctx: &CommandCtx<'_>,
 ) -> Result<Option<Value>, CommandError> {
     match name {
+        // Operator approval (C2 — the gate restricts this to the human operator):
+        // add restricted grants to every live session of `agent`, so the agent's
+        // next gated call passes without a re-mint. The dynamic half of the
+        // approval flow (.artifacts/capability-provisioning-and-approval.md); the
+        // install-time baseline read at mint is the follow-on.
+        "agent.grant" => {
+            let agent = req_str(args, "agent")?;
+            let new_grants = str_array(args, "grants");
+            let mut upgraded = 0usize;
+            {
+                let mut reg = ctx.state.session_registry().lock().await;
+                for session in reg.values_mut() {
+                    if session.agent_id == agent {
+                        for g in &new_grants {
+                            if !session.grants.contains(g) {
+                                session.grants.push(g.clone());
+                            }
+                        }
+                        upgraded += 1;
+                    }
+                }
+            }
+            Ok(Some(serde_json::json!({
+                "agent": agent,
+                "grants": new_grants,
+                "sessions_upgraded": upgraded,
+            })))
+        }
         "agent.stop" => {
             let slug = req_str(args, "slug")?;
             let dh = ctx

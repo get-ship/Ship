@@ -264,4 +264,61 @@ mod tests {
             );
         }
     }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn agent_grant_upgrades_live_session_and_is_operator_only() {
+        use ship_platform::auth::scopes::DaemonSession;
+        let harness = crate::test_harness::TestDaemon::new().await;
+        // A live worker session with no restricted grants.
+        let token = "sess-grant-test";
+        {
+            let mut reg = harness.state.session_registry().lock().await;
+            reg.insert(
+                token.to_string(),
+                DaemonSession {
+                    token: token.to_string(),
+                    agent_id: "worker-x".to_string(),
+                    scopes: vec![],
+                    grants: vec![],
+                    workspace_id: None,
+                    created_at: std::time::Instant::now(),
+                    expires_at_unix: None,
+                    ephemeral: true,
+                },
+            );
+        }
+        let args = serde_json::json!({ "agent": "worker-x", "grants": ["ship-orchestration"] });
+
+        // Operator approves → the live session is upgraded.
+        let op = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec![],
+        };
+        let v = call("agent.grant", &args, &CommandCtx { state: &harness.state, auth: &op })
+            .await
+            .expect("operator may grant");
+        assert_eq!(v["sessions_upgraded"], 1);
+        {
+            let reg = harness.state.session_registry().lock().await;
+            assert!(reg.get(token).unwrap().grants.iter().any(|g| g == "ship-orchestration"));
+        }
+
+        // A non-operator agent calling agent.grant is denied (C2 gate).
+        let agent = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("x".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec!["ship-orchestration".to_string()],
+        };
+        let err = call("agent.grant", &args, &CommandCtx { state: &harness.state, auth: &agent })
+            .await
+            .unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+    }
 }

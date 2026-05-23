@@ -231,6 +231,19 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         sensitive: false,
     },
     CommandDescriptor {
+        name: "agent.grant",
+        description: "Grant restricted capabilities to an agent (operator approval). \
+                      Upgrades the agent's live sessions; the next gated call passes. \
+                      C2 — operator-only, the human-in-the-loop approval point.",
+        args: &[
+            ArgDescriptor { name: "agent", kind: "string", required: true },
+            ArgDescriptor { name: "grants", kind: "string[]", required: true },
+        ],
+        permission: "ship.agents.grant",
+        blast_radius: "C2_ELEVATED",
+        sensitive: false,
+    },
+    CommandDescriptor {
         name: "agent.steer",
         description: "Inject a message into a running agent.",
         args: &[
