@@ -41,7 +41,8 @@ async fn send(router: Router, req: Request<Body>) -> (StatusCode, String) {
     (status, body)
 }
 
-const TEST_TOKEN: &str = "a]1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6abc";
+// 64-char lowercase hex — a well-formed daemon token (`is_daemon_token`).
+const TEST_TOKEN: &str = "a01b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6abc";
 
 // ── Localhost exemption must be dead ─────────────────────────────────────
 
@@ -305,4 +306,20 @@ async fn query_token_accepted_on_raw_view_path() {
         .unwrap();
     let (status, _) = send(router, req).await;
     assert_eq!(status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn anomalous_token_format_fails_closed() {
+    // A token that equals `expected_token` but is neither the 64-hex daemon
+    // format nor an SDK prefix must be rejected, not granted Cli + Full. The
+    // pre-hardening catch-all returned 200; fail-closed returns 401.
+    let weird = "not-hex-not-sdk-prefix";
+    let router = test_router(weird);
+    let req = Request::builder()
+        .uri("/test")
+        .header("authorization", format!("Bearer {weird}"))
+        .body(Body::empty())
+        .unwrap();
+    let (status, _) = send(router, req).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED, "anomalous credential format must fail closed");
 }

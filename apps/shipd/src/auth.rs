@@ -262,11 +262,17 @@ pub async fn auth_middleware(
     }
 
     let (caller_kind, scopes) = if is_daemon_token(token) {
+        // The daemon token is the operator's human-bootstrap credential.
         (CallerKind::Cli, vec![Scope::Full])
     } else if token.starts_with("ship_") {
         (CallerKind::Sdk, vec![Scope::Full])
     } else {
-        (CallerKind::Cli, vec![Scope::Full])
+        // The token equals `expected_token` but matches neither the daemon-token
+        // format (64-char hex) nor an SDK prefix — an anomalous/misconfigured
+        // credential. Fail closed rather than granting Cli + Full. A correct
+        // daemon token always takes the first branch, so this never fires in
+        // normal operation.
+        return (StatusCode::UNAUTHORIZED, "unrecognized credential format").into_response();
     };
 
     let agent_id = header_string(&req, "x-ship-agent-id");
