@@ -16,7 +16,6 @@ import { controller, signal } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { loadCatalog, type CatalogEntry } from './catalog'
 
-type FilterKind = 'all' | 'sui' | 'view'
 type Mode = 'user' | 'dev'
 
 const MODE_KEY = 'studio-components-mode'
@@ -28,19 +27,14 @@ const readMode = (): Mode => {
 export default controller<Scope>({
   scope: () => ({
     sui: signal<CatalogEntry[]>([]),
-    views: signal<CatalogEntry[]>([]),
     loading: signal(true),
-    filterKind: signal<FilterKind>('all'),
     filterText: signal(''),
     mode: signal<Mode>(readMode()),
   }),
 
   derived: {
-    allItems: ({ sui, views }) =>
-      [...(sui() as CatalogEntry[]), ...(views() as CatalogEntry[])],
-    filtered: ({ filterKind, filterText, allItems, mode }) => {
-      const items = allItems() as CatalogEntry[]
-      const kind = filterKind() as FilterKind
+    filtered: ({ filterText, sui, mode }) => {
+      const items = sui() as CatalogEntry[]
       const text = (filterText() as string).toLowerCase()
       const m = mode() as Mode
       const tags = items.map((i) => i.tag)
@@ -51,16 +45,15 @@ export default controller<Scope>({
       return items
         .filter((e) => {
           const modeMatch = m === 'dev' || !isSubcomponent(e.tag)
-          const kindMatch = kind === 'all' || e.kind === kind
           const textMatch =
             !text ||
             e.id.toLowerCase().includes(text) ||
             (e.description ?? '').toLowerCase().includes(text)
-          return modeMatch && kindMatch && textMatch
+          return modeMatch && textMatch
         })
         .map((e) => ({ ...e, parts: childCountOf(e.tag) }))
     },
-    totalCount: ({ allItems }) => (allItems() as CatalogEntry[]).length,
+    totalCount: ({ sui }) => (sui() as CatalogEntry[]).length,
     filteredCount: ({ filtered }) => (filtered() as CatalogEntry[]).length,
   },
 
@@ -71,9 +64,6 @@ export default controller<Scope>({
     clearSearch: (s) => {
       s.filterText = ''
     },
-    setKind: (s, id: string) => {
-      s.filterKind = id as FilterKind
-    },
     setMode: (s, id: string) => {
       s.mode = id as Mode
       if (typeof localStorage !== 'undefined') localStorage.setItem(MODE_KEY, id)
@@ -81,9 +71,7 @@ export default controller<Scope>({
   },
 
   mount: async (state) => {
-    const catalog = await loadCatalog()
-    state.sui = catalog.sui
-    state.views = catalog.views
+    state.sui = await loadCatalog()
     state.loading = false
   },
 })

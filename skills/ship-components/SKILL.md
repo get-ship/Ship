@@ -170,16 +170,35 @@ Authors don't call `component()` directly — the compiler emits it.
 9. **`on:<event>` event names must match the platform whitelist:** DOM events, `sui-*` / `ship-*` custom-event families, `tag:event`-prefixed cross-component events. `sui-event-name` lint warns on typos with Levenshtein suggestions.
 10. **Form-aware components use `form-value` / `form-disabled` on `<prop>`** — never hand-roll `attachInternals()` / `setFormValue` / `formResetCallback`. See "Form-aware components" above.
 
-## Agent surfaces (MCP)
+## Verify before "done"
+
+**The gate is the compiler, and it is always available.** Run
+`sui-compiler build <tag.sui | component-dir>` after every edit — it ships on
+PATH (`~/.cargo/bin/sui-compiler`, `just install-dev`), needs no MCP and no
+daemon, and runs grammar + semantic checks **and the full lint pass** (the
+oxc-based controller lint in `crates/sui/lint`, e.g. `sui-controller-purity`,
+`sui-css-content-text`). A printed `Error:` is a hard fail. Never substitute
+`tsc` — Ship does not bundle TypeScript; the compiler's lint is the source of truth.
+
+```sh
+sui-compiler build packages/components/ui-components/src/sui-X/sui-X.sui
+```
+
+## Agent surfaces (MCP — transitional, being retired)
+
+> The `mcp__ship__*` tools below are being **removed** in favour of generated
+> skills + CLI. They wrap the **same** analyser as `sui-compiler build`, so they
+> add nothing the gate above doesn't already cover — use them for structured
+> output only if present, and **do not build new reliance on them**.
 
 The view-authoring tools all apply to components since components
-are just `<sui-*>` views with shadow DOM. Full catalog +
-groupings: `docs/ship-sui/references/docs/agent-surfaces.md`.
+are just `<sui-*>` views with shadow DOM. Full catalog:
+`docs/ship-sui/references/docs/agent-surfaces.md`.
 The component-specific essentials:
 
 | Tool | When |
 |---|---|
-| `mcp__ship__sui_diagnostics({ file })` | First thing after editing. Catches parse errors, missing `<prop>` / `<state>` attrs, unbound identifiers, invalid template expressions. |
+| `mcp__ship__sui_diagnostics({ file })` | Structured parse + analyse. Catches parse errors, missing `<prop>` / `<state>` attrs, unbound identifiers, invalid template expressions. |
 | `mcp__ship__sui_hover({ file, line, col })` | Declaration source + setup return type at a cursor. |
 | `mcp__ship__sui_dependencies({ file })` | What sibling `<sui-*>` tags + signals this component reaches into. |
 | `mcp__ship__view_compile_check({ file })` | Full lowering pipeline. Use after `sui_diagnostics` is clean to catch lowering-only issues. |

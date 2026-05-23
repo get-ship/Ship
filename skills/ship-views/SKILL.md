@@ -461,21 +461,39 @@ groupings + the LSP CLI + `@ship/sui-eval` scoring lives in
 
 ### Verify before "done"
 
-Three gates, smallest first:
+**The gate is the compiler, and it is always available. Run it.** Do not skip
+this because an MCP tool is missing, and never substitute `tsc` — Ship does not
+bundle TypeScript. Controller checking is the oxc-based lint pass *inside* the
+compiler (`crates/sui/lint`), so the compiler is the one source of truth for
+both template and controller correctness.
 
-1. **`mcp__ship__sui_diagnostics`** — parse + analyse. Sub-second.
-2. **`mcp__ship__view_compile_check`** — full lowering. Catches more, slightly heavier.
-3. **`@ship/sui-eval`** — programmatic behavioural scoring against a spec. Use when you authored against a behavioural contract (interaction script + asserts). Sub-scores: `compile / scope / behaviour`. See `docs/ship-sui/references/docs/agent-surfaces.md` § 3.
+**Gate 0 — `sui-compiler build` (zero setup, no MCP, no daemon).** The compiler
+ships on PATH (`~/.cargo/bin/sui-compiler`, installed by `just install-dev`).
+It runs grammar + semantic checks **and the full lint pass** (the same rules the
+LSP and `view_lint` surface, e.g. `sui-css-content-text`, `sui-controller-purity`).
+A non-zero exit / printed `Error:` is a hard fail — fix and re-run until clean:
 
-```ts
-// Pseudocode of the loop:
-// 1. write template + controller
-// 2. mcp__ship__sui_diagnostics({ file: "views/tasks/page.sui" })
-//    → fix any errors, repeat until []
-// 3. mcp__ship__view_compile_check({ file: "views/tasks/page.sui" })
-//    → fix any lowering-only errors
-// 4. (optional) runEval({ description, spec, catalog }) from @ship/sui-eval
-//    → if score < threshold, rewrite and loop
+```sh
+sui-compiler build views/tasks/page.sui     # one file
+sui-compiler build views/tasks/             # whole view dir (template + siblings)
+```
+
+This is the gate you can *always* run — in any session, with or without the
+Ship MCP server connected. If you only do one thing before declaring done, do this.
+
+> **Transitional — the `mcp__ship__*` tools are being retired** in favour of
+> generated skills + CLI. They wrap the same analyser as `sui-compiler build`
+> and may still be present (`sui_diagnostics`, `view_compile_check`); use them
+> for structured output if they are, but **do not build new reliance on them** —
+> `sui-compiler build` is the durable gate. `@ship/sui-eval`
+> (`runEval({ description, spec, catalog })`) remains the behavioural-scoring
+> path when you authored against an interaction-script + asserts contract.
+
+```sh
+# The verify loop:
+# 1. write template + controller
+# 2. sui-compiler build views/tasks/   # the gate — fix every error, repeat until clean
+# 3. web-qa skill                       # render + console + theme evidence
 ```
 
 ## LSP integration

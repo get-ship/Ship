@@ -27,12 +27,6 @@
               </button>
             {/if}
           </div>
-          <sui-segmented value={filterKind()} size="sm" aria-label="Filter by kind"
-            on:sui-change={(e) => setKind(e.detail.value)}>
-            <sui-segmented-option value="all">All</sui-segmented-option>
-            <sui-segmented-option value="sui">Components</sui-segmented-option>
-            <sui-segmented-option value="view">Views</sui-segmented-option>
-          </sui-segmented>
           <sui-segmented value={mode()} size="sm" aria-label="Catalog mode"
             on:sui-change={(e) => setMode(e.detail.value)} data-test="mode">
             <sui-segmented-option value="user">User</sui-segmented-option>
@@ -56,7 +50,7 @@
                   attr:data-id={item.id} attr:href={'/studio/components/' + item.id}>
                   <div class="component-card-head">
                     <code class="component-card-tag">{item.tag}</code>
-                    <sui-badge tone={item.kind === 'view' ? 'info' : 'primary'} variant="soft" size="sm">{item.kind === 'view' ? 'view' : 'component'}</sui-badge>
+                    <sui-badge tone="primary" variant="soft" size="sm">component</sui-badge>
                   </div>
                   {#if item.description}
                     <p class="component-card-desc">{item.description}</p>

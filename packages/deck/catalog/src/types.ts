@@ -42,6 +42,17 @@ export interface CemCssPart {
   description?: string
 }
 
+/** A co-located showcase scenario, merged into the CEM at build time from
+ *  the component's `<tag>.examples.ts`. Mirrors `ComponentExample` in
+ *  `@ship/sui-runtime` — kept structurally here so the catalog package stays
+ *  dependency-free and third-party packs can ship the same field. */
+export interface CemExample {
+  name: string
+  description?: string
+  props?: Record<string, string | boolean | number>
+  slots?: string
+}
+
 export interface CemDeclaration {
   kind?: string
   name: string
@@ -54,6 +65,7 @@ export interface CemDeclaration {
   members?: CemMethod[]
   cssProperties?: CemCssProperty[]
   cssParts?: CemCssPart[]
+  examples?: CemExample[]
 }
 
 export interface CemModule {
@@ -105,6 +117,9 @@ export interface CatalogEntry {
   methods: CemMethod[]
   cssProperties: CemCssProperty[]
   cssParts: CemCssPart[]
+  /** Co-located showcase scenarios (fun fixtures) merged from
+   *  `<tag>.examples.ts`. The picker/explorer/docs render these. */
+  examples: CemExample[]
 }
 
 export interface CatalogDocument {

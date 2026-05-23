@@ -1,12 +1,16 @@
 // Shared catalog loader for ship-ui-studio.
 // Fetches three sources: Lit CEM, SUI registry, daemon views.
 
+import type { ComponentExample } from '@ship/sui-runtime'
+
 export interface CatalogEntry {
   id: string
   tag: string
   kind: 'lit' | 'sui' | 'view'
   description?: string
   props?: PropEntry[]
+  /** Co-located showcase scenarios, read from the component's CEM declaration. */
+  examples?: ComponentExample[]
 }
 
 export interface PropEntry {
@@ -20,103 +24,32 @@ export interface PropEntry {
   values?: string[]
 }
 
-// Baked SUI views not surfaced by /api/v1/views. The endpoint currently
-// reports every view as `type: "html"`, so the kind=='sui' filter in
-// loadDaemonViews() yields zero entries — these baked ids keep the
-// `view` row populated until the daemon emits the SUI type. Every id
-// here must resolve to an actual /_sui/views/<id> payload, otherwise
-// the studio's iframe preview hits a 404 and renders blank.
-const BAKED_SUI_VIEWS: CatalogEntry[] = [
-  { id: 'agents', tag: 'agents', kind: 'view', description: 'Agent list' },
-  { id: 'git',    tag: 'git',    kind: 'view', description: 'Git overview' },
-]
-
-interface CemAttribute {
-  name: string
-  type?: { text: string }
-  default?: string
-  description?: string
-  values?: string[]
-}
-
-interface CemDeclaration {
-  kind: string
-  tagName?: string
-  description?: string
-  attributes?: CemAttribute[]
-  members?: Array<{
-    kind: string
-    name: string
-    type?: { text: string }
-    default?: string
-    description?: string
-    privacy?: string
-  }>
-}
-
-interface CemModule {
-  declarations?: CemDeclaration[]
-  exports?: Array<{ kind: string; name: string; declaration?: { name: string } }>
-}
-
-interface CemRoot {
-  modules?: CemModule[]
-}
-
-async function loadLitComponents(): Promise<CatalogEntry[]> {
-  try {
-    const res = await fetch('/api/assets/custom-elements.json', { credentials: 'same-origin' })
-    if (!res.ok) return []
-    const cem = await res.json() as CemRoot
-    const entries: CatalogEntry[] = []
-    for (const mod of cem.modules ?? []) {
-      for (const decl of mod.declarations ?? []) {
-        if (decl.kind !== 'class' || !decl.tagName) continue
-        const props: PropEntry[] = (decl.members ?? [])
-          .filter(m => m.kind === 'field' && !m.name.startsWith('_') && m.privacy !== 'private')
-          .map(m => ({
-            name: m.name,
-            type: m.type?.text ?? 'string',
-            default: m.default,
-            description: m.description,
-          }))
-        entries.push({
-          id: decl.tagName,
-          tag: decl.tagName,
-          kind: 'lit',
-          description: decl.description,
-          props,
-        })
-      }
-    }
-    return entries
-  } catch {
-    return []
-  }
-}
-
+// The SUI catalog (`@ship/sui-catalog`, served at /api/sui/catalog/published)
+// is the single source of truth for installed-pack components: tag, props,
+// examples, and routing. There is no Lit path and no per-tag hide list — the
+// catalog already excludes shell-local chrome and view-local components.
 async function loadSuiComponents(): Promise<CatalogEntry[]> {
-  // Source of truth: the published catalog from @ship/sui-catalog. These
-  // are components shipped from real packs (charts, primitives, …) — the
-  // catalog already excludes shell-local chrome and view-local components,
-  // so no per-tag hide list is needed.
-  const propsByTag = await loadSuiPropMap()
-  return Object.keys(propsByTag)
+  const byTag = await loadSuiCatalog()
+  return [...byTag.keys()]
     .sort()
-    .map(tag => ({
-      id: tag,
-      tag,
-      kind: 'sui' as const,
-      props: propsByTag[tag] ?? [],
-    }))
+    .map(tag => {
+      const e = byTag.get(tag)!
+      return {
+        id: tag,
+        tag,
+        kind: 'sui' as const,
+        props: e.props,
+        ...(e.description ? { description: e.description } : {}),
+        ...(e.examples?.length ? { examples: e.examples } : {}),
+      }
+    })
 }
 
-// Fetch the daemon's workspace catalog (emitted by @ship/sui-catalog)
-// and project it down to the prop shape the studio's prop panel
-// renders. Empty map on any error so the catalog still renders even
-// if the endpoint is unreachable.
+// One wire entry from the published catalog. Carries the standard CEM fields
+// the studio needs plus the co-located `examples` (fun fixtures).
 interface CatalogEntryWire {
   tagName: string
+  description?: string
   attributes?: Array<{
     name: string
     type?: { text?: string }
@@ -124,74 +57,42 @@ interface CatalogEntryWire {
     description?: string
     values?: unknown
   }>
+  examples?: ComponentExample[]
 }
-async function loadSuiPropMap(): Promise<Record<string, PropEntry[]>> {
+interface SuiCatalogEntry {
+  props: PropEntry[]
+  examples?: ComponentExample[]
+  description?: string
+}
+
+async function loadSuiCatalog(): Promise<Map<string, SuiCatalogEntry>> {
+  const out = new Map<string, SuiCatalogEntry>()
   try {
     const res = await fetch('/api/sui/catalog/published', { credentials: 'same-origin' })
-    if (!res.ok) return {}
+    if (!res.ok) return out
     const doc = await res.json() as { entries?: CatalogEntryWire[] }
-    const out: Record<string, PropEntry[]> = {}
     for (const e of doc.entries ?? []) {
       if (!e.tagName) continue
-      const attrs = e.attributes ?? []
-      out[e.tagName] = attrs.map(a => ({
-        name: a.name,
-        type: a.type?.text ?? 'string',
-        default: a.default,
-        description: a.description,
-        values: Array.isArray(a.values) ? a.values as string[] : undefined,
-      }))
+      out.set(e.tagName, {
+        props: (e.attributes ?? []).map(a => ({
+          name: a.name,
+          type: a.type?.text ?? 'string',
+          default: a.default,
+          description: a.description,
+          values: Array.isArray(a.values) ? a.values as string[] : undefined,
+        })),
+        examples: e.examples,
+        description: e.description,
+      })
     }
     return out
   } catch {
-    return {}
+    return out
   }
 }
 
-interface ApiView {
-  name: string
-  type?: string
-  rail?: { label?: string; icon?: string }
-}
-
-async function loadDaemonViews(): Promise<CatalogEntry[]> {
-  try {
-    const res = await fetch('/api/v1/views', { credentials: 'same-origin' })
-    if (!res.ok) return []
-    const body = await res.json() as { data?: { views?: ApiView[] } }
-    return (body.data?.views ?? [])
-      .filter(v => v.type === 'sui')
-      .map(v => ({
-        id: v.name,
-        tag: v.name,
-        kind: 'view' as const,
-        description: v.rail?.label,
-      }))
-  } catch {
-    return []
-  }
-}
-
-export interface CatalogResult {
-  lit: CatalogEntry[]
-  sui: CatalogEntry[]
-  views: CatalogEntry[]
-}
-
-export async function loadCatalog(): Promise<CatalogResult> {
-  // Storybook documents SUI components only. Lit primitives are
-  // legacy production stack; documenting them in the SUI studio is
-  // wasted effort unless we're doing intentional side-by-side
-  // comparison work, which we're not.
-  const [daemonViews, sui] = await Promise.all([
-    loadDaemonViews(),
-    loadSuiComponents(),
-  ])
-
-  // Merge baked views; skip any already returned by the daemon endpoint.
-  const daemonIds = new Set(daemonViews.map(v => v.id))
-  const extraViews = BAKED_SUI_VIEWS.filter(v => !daemonIds.has(v.id))
-  const views = [...daemonViews, ...extraViews]
-
-  return { lit: [], sui, views }
+// The components explorer shows installed-pack components — sourced entirely
+// from the SUI catalog. Views are not components; they live in the view-picker.
+export async function loadCatalog(): Promise<CatalogEntry[]> {
+  return loadSuiComponents()
 }

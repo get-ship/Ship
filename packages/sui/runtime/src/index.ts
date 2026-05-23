@@ -96,6 +96,8 @@ export type { Disposer } from './bind'
 export { on, matchesKey } from './on'
 export type { OnOptions, Modifier } from './on'
 
+export type { ComponentExample } from './component-example'
+
 export {
   emit,
   expose,

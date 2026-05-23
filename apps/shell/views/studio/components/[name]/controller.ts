@@ -8,7 +8,7 @@ import {
   mountMatrixCells,
   type MatrixAxis,
 } from './matrix'
-import { SLOT_COMPOSITIONS, slotLabel } from './slot-compositions'
+import { slotLabel } from './slot-compositions'
 import { buildSnippet } from './snippet'
 import { readSearchParams, writeSearchParams, highlightActiveCell } from './deep-link'
 
@@ -122,7 +122,7 @@ export default controller<Scope>({
         entry.tag,
         state.propValues,
         entry.props ?? [],
-        SLOT_COMPOSITIONS[entry.tag],
+        entry.examples?.[0]?.slots,
       )
       void navigator.clipboard.writeText(snippet)
       state.copyFeedback = true
@@ -131,8 +131,7 @@ export default controller<Scope>({
   },
 
   mount: async (state, el) => {
-    const catalog = await loadCatalog()
-    const all = [...catalog.lit, ...catalog.sui, ...catalog.views]
+    const all = await loadCatalog()
     state.allCatalog = all
 
     // Derive name from pathname since route signals are seeded from
@@ -224,7 +223,7 @@ export default controller<Scope>({
     // collapse on tags like sui-button that reflect-empty into
     // data-icon-only). Using a fragment instead of .innerHTML keeps
     // controller-purity happy and preserves the host's own attributes.
-    const compose = SLOT_COMPOSITIONS[entry.tag]
+    const compose = entry.examples?.[0]?.slots
     if (compose) {
       const range = document.createRange()
       range.selectNodeContents(node)
@@ -302,7 +301,7 @@ export default controller<Scope>({
 
     // Populate state-matrix cells. Independent of `state.propValues` —
     // the prop panel only drives the single preview above.
-    mountMatrixCells(el, entry.tag, (tag) => SLOT_COMPOSITIONS[tag])
+    mountMatrixCells(el, entry.tag, () => entry.examples?.[0]?.slots)
     highlightActiveCell(el, state.propValues)
 
     // Leave the node attached — next mount reuses it (same tag) or

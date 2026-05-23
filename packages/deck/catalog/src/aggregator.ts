@@ -94,6 +94,7 @@ function declToEntryBase(decl: CemDeclaration): Omit<
     methods: decl.members ?? [],
     cssProperties: decl.cssProperties ?? [],
     cssParts: decl.cssParts ?? [],
+    examples: decl.examples ?? [],
   }
 }
 
