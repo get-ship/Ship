@@ -36,13 +36,58 @@ On every request the middleware:
 2. On GET requests only, falls back to `?token=` query param (for browser
    EventSource/WebSocket, which can't set headers)
 3. Classifies by prefix and dispatches:
-   - `ship_sess_` → looked up in `SessionRegistry`, granted the scopes bound at creation
+   - `ship_sess_` → looked up in `SessionRegistry`, granted the scopes **and grants** bound at creation
    - 64 hex chars → compared to the daemon token, granted `Scope::Full`
    - `ship_` prefix → SDK token path, granted `Scope::Full`
    - `ship_hook_` → rejected (the hook-token class is removed)
+   - anything else that matches the expected token but fits no known format →
+     **rejected (fail closed)**, not granted `Cli`/`Full`
 4. Identity binding for session tokens: `agent_id` and `workspace_id` come from the
    session registry, **not** from client-supplied `x-ship-*` headers. This is intentional
    defense against session-token-wielding agents impersonating other agents.
+
+## Capability gate
+
+Identity (above) answers *who is calling*; the **gate** answers *may they call this*.
+It is one decision, enforced at the dispatch chokepoint — `services::gate`, invoked by
+`services::command::call` — so every write reaches it identically over REST and Connect
+(there is no per-transport gate). Reads are C0, authenticated at the edge.
+
+The model is **caller × blast-radius × grant**:
+
+- **`blast_radius`** is a property of the op, carried on its registry descriptor:
+  **C0** (read / own-scope) · **C1** (workspace-mutating — the user's own risk) ·
+  **C2** (Ship/cloud-dangerous: credential mint, billing, changing another actor).
+  An unrecognized value fails closed to C2.
+- **Grants** are the restricted capability domains a caller holds —
+  `ship-orchestration` (dispatch / stop / steer agents) and `ship-authoring`
+  (write skills / agents / views). They are minted into the session at dispatch
+  and read from `AuthContext.grants`.
+
+| Caller | C0 / C1, default domain | C0 / C1, restricted domain | C2 |
+|--------|-------------------------|----------------------------|----|
+| operator (human: CLI/browser, no `agent_id`) | allow | allow | allow |
+| agent (minted session token) | allow | allow iff domain ∈ grants | **deny** |
+
+<ship-alert tone="warning">
+C1 enforcement is happy-path hardening + least-privilege, **not** a Tier-1 security
+boundary — a host agent shares the uid and can act outside the daemon. The real
+boundary is credential location (C2 capability never lands on disk; it lives in the
+GUI/2FA session) plus Tier-2+ isolation for untrusted work.
+</ship-alert>
+
+### Grants: declared, minted, approved
+
+- A skill declares **`requires:`** (public, authored — "won't operate without this
+  capability"); the compiler issues **`grants:`** on capability-skills (never
+  hand-authored). An unmet requirement is a compile error.
+- An agent's grants are **minted at dispatch** (today from its role via
+  `grants_for_role`; the [provisioning model](/reference/architecture/agent-access-and-skills-api/)
+  refines this to per-agent operator-approved sets). The token is an opaque handle;
+  grants are server-side state in the session registry.
+- **`agent.grant`** (C2, operator-only) is the human-in-the-loop approval: it adds
+  grants to an agent's live sessions so the next gated call passes — no re-mint, no
+  recompile.
 
 ## Three auth paths for browser clients
 
@@ -174,22 +219,20 @@ The flag is a **process-level CLI argument**. Agents can set environment variabl
 modify config files, but they can't re-exec the daemon process with `--dev`. Only the
 human who started the daemon can enable it.
 
-## Scopes
+## Scopes (legacy — REST route-auth + artifacts)
 
-Coarse-grained capability scopes, checked by handlers via `require_scope()`:
+The capability model is the **gate** above (caller × blast-radius × grant). The
+older `Scope` enum is now narrowed to two jobs and is **slated for removal with the
+REST surface**:
 
-| Scope | Grants |
-|-------|--------|
-| `ReadWorkspace` | GET workspace/session state |
-| `WriteWorkspace` | Write session files, agent profiles, pipelines, PTY access |
-| `ReadJobs` / `CreateJobs` / `ManageJobs` | Job lifecycle operations |
-| `EmitEvents` | Emit events to the kernel |
-| `MeshSend` / `MeshBroadcast` | Send/broadcast via mesh |
-| `LogProgress` / `StepDone` | Progress reporting |
-| `AdminDaemon` | Settings mutations, rebuild-projections |
-| `Full` | Bypass — granted by daemon token and paired sessions |
+- **REST route-auth** — `RequiredAuth::Scope(...)` / `@auth scope ...` on the
+  remaining REST routes (`Scope::Full` is effectively the operator marker).
+- **Artifact permissions** — `can_read/write/delete_artifacts`.
 
-Role-based defaults for MCP-issued session tokens live in `scopes_for_role()`.
+`Scope` is multi-purpose (operator marker + artifact perms + route-auth), so it
+can't be deleted until the REST routes that consume it are removed; until then
+`scopes` rides alongside `grants` on `AuthContext` as a migration state. New
+capability decisions go through the gate, not `require_scope()`.
 
 ## Persistence
 
@@ -202,22 +245,25 @@ Audit log rows (pair confirm, pair revoke) are written to the `auth.audit` names
 
 ## Known limitations (unresolved)
 
-### Daemon token file access
+### Daemon token grants Full (on-disk = should be C0/C1 only)
 `~/.ship/machine/daemon/token` is mode 0o600 but readable by any process running as the
-same user. We don't use OS keyrings yet. Consequence: a compromised agent running as your
-user can read the daemon token and escalate to `Scope::Full`.
+same user, and today it grants `Scope::Full`. The intended posture is **nothing on disk
+is ever C2**: the daemon token should bootstrap C0/C1 only, and the elevated (C2)
+credential should live in the GUI/2FA session, never on disk — so a compromised agent
+that reads the token gets the user's own-workspace risk (acceptable) but cannot escalate.
 
-**Mitigation path**: move to OS-keyring-backed storage (macOS Keychain, Linux Secret
-Service, Windows Credential Manager).
+**Mitigation path**: downgrade the daemon token from `Scope::Full` to C0/C1; mint C2 in
+the GUI/2FA elevated session. (Tracked.)
 
 ### MCP session role claim
-`POST /api/session/register` trusts the `role` field in the request body. An MCP server
-that claims `role: "contributor"` gets `Scope::Full`. Today the MCP server is trusted
-because it's spawned by the daemon itself, but this trust boundary isn't enforced.
+`POST /api/session/register` (used by the external `apps/mcp` adapter) trusts the `role`
+field in the request body. The **gate now blunts the escalation**: a session token is
+`CallerKind::Mcp`, so it is denied every C2 op regardless of the role it claimed — a
+self-declared `contributor` can no longer reach credential/escalation ops.
 
-**Mitigation path**: daemon stores approved role per agent/workspace in platform.db at
-`ship use` time; `session_register` looks up the approved role instead of trusting the
-request.
+**Mitigation path**: the daemon stores an operator-approved grant set per agent (the
+[provisioning model](/reference/architecture/agent-access-and-skills-api/)) and mints
+from it, rather than trusting the request's role.
 
 ## File layout
 

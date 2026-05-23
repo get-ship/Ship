@@ -3,15 +3,28 @@ group: Architecture
 title: Connect-All-In — One Op Registry, One Gate, Skills as Capability Clients
 description: Unify internal transport on ConnectRPC projected from one op registry; bring commands into the registry; classify ops by blast radius and gate the dangerous class; generate capability-skills from the registry. Multi-session tracking doc.
 audience: internal
-status: proposal
+status: partially-implemented
 ---
 
 # Connect-all-in
 
-Status: **proposal**, tracked across sessions. Supersedes the earlier
-macaroon-centric draft of this doc (macaroons are out — see Rejected). Extends
-[Daemon authentication model](../auth-model.md) and the sidecar RFC
-(`crates/core/ship-isolation/docs/sidecar-protocol.md`).
+Status: **partially implemented** (the gate, grants, the Connect op surface +
+client + streams are on `main`; the deletions remain). Supersedes the earlier
+macaroon-centric draft (macaroons are out — see Rejected). The landed daemon
+auth model is documented in [Daemon authentication model](/reference/architecture/auth-model/);
+this page is the arc + what's left.
+
+<ship-alert tone="info">
+**Landed** (steps 1–4): one capability gate at the dispatch chokepoint
+(`services::gate` via `command::call`); blast-radius on the registry descriptors,
+fail-closed; grants minted at dispatch + `requires:`/`grants:` split; `agent.grant`
+operator approval; the ConnectRPC op surface (reads + commands generated from the
+registry), the `@ship/sdk` TS client, and Connect adapters for the event-bus + PTY
+streams.
+**Remaining**: the GUI flip to Connect (step 5), then the deletions this arc exists
+for — REST + OpenAPI, specta, and the full `Scope` enum — plus install-time grant
+provisioning + the on-disk-is-C0/C1 / C2-in-GUI posture.
+</ship-alert>
 
 ## Goal
 
@@ -160,19 +173,23 @@ Connect, REST, and SSE coexist on one axum server (distinct paths) — so this i
 - `apps/shell` (GUI) — fetch + **two SSE streams**: terminal PTY bytes
   (`/sessions/{id}/stream`), view-edit compile events (`sui_view_edit_sse`).
 - `apps/mcp` (`network_client.rs`), `crates/sui/ship-sui-server` (browser runtime),
-  `apps/ship-cli` + hooks, `packages/sdk` (new, untracked).
+  `apps/ship-cli` + hooks, `@ship/sdk` (`packages/deck/sdk` — now carries the
+  generated Connect-Web client at `src/connect.ts`).
 
 None break under additive coexistence; only the CLI is force-migrated first, by
 choice.
 
 ## Deferred decisions (not now, but named)
 
-- **Streaming adaptor** (SSE → Connect server-streams) + GUI move. Dovetails Tauri.
-- **Elevated surface** (where the C2 capability lives). Strongest pro-Tauri
-  argument: in Tauri the C2 capability can live in the Rust core, never in the
-  webview JS heap, so SUI XSS can't exfiltrate it — a browser can't separate that.
-  Gated on (a) C2 ops existing locally and (b) the GUI being their home; the audit
-  sizes it. Likely too much to take on alongside Connect now.
+- **Streaming adaptor** (SSE → Connect server-streams) — ✅ landed for the event-bus
+  (`StreamService.Events`) and PTY (`StreamService.SessionBytes`); the GUI consumes
+  them in step 5. `ViewStream`/datastar view-morph is legacy and dies with the j2
+  shell, not migrated.
+- **Elevated surface** (where the C2 capability lives). The posture is settled —
+  **nothing on disk is ever C2**: the on-disk token is C0/C1, C2 lives in the GUI/2FA
+  session. In Tauri the C2 credential can live in the Rust core, never the webview JS
+  heap (SUI XSS can't exfiltrate it); a browser can't separate that. The
+  daemon-token-downgrade (`Full` → C0/C1) is the concrete first step.
 - **Macaroons** — only if edge-verification-without-a-DB becomes a *measured* cost
   at cloud scale. Not launch, not near-term.
 
@@ -202,10 +219,32 @@ load-bearing security.
 
 ## Tracked plan
 
-1. **Op-classification + blast-radius audit** — enumerate the legacy mutation
-   routes (the registry is read-only today), classify C0/C1/C2, define write perms,
-   identify the C2 set. Feeds Decisions 2–3.
-2. **proto-from-`ship_ops!` decision** + conformance-test shape (Decision 2).
-3. **Connect op service, additive** + migrate CLI + scoped `--help` (Decision 1).
-4. **Generate capability-skills** from the registry (Decision 4).
-5. **GUI streaming → Connect** + the elevated-surface/Tauri decision (deferred).
+1. ✅ **Op-classification + blast-radius audit** (C0/C1/C2).
+2. ✅ **proto-from-registry** + conformance (Decision 2).
+3. ✅ **Connect op service, additive** + migrate CLI + scoped `--help` (Decision 1).
+4. ✅ **Generate capability-skills** from the registry (Decision 4).
+5. ⏳ **GUI streaming + fetches → Connect** — the only step that touches the SUI
+   surface; done on the UI branch atop `@ship/sdk/connect`. Unblocks the deletions.
+
+### Then the deletions (the payoff this arc exists for)
+
+The migration has been **additive** — Connect stands beside REST/OpenAPI/SSE/specta,
+deleting nothing yet. The consolidation only pays once step 5 lands and these go:
+
+- **REST + OpenAPI** — relocate the route cores into `command::call` / platform
+  services, then delete the mutation routes + `utoipa` annotations. **No
+  strangler-fig** (no external consumers — delete, don't wrap).
+- **specta** — once TS types come from buf, strip `derive(specta::Type)` from the
+  domain crates.
+- **`Scope`** — the enum dies with the REST route-auth (`RequiredAuth::Scope`) +
+  artifact perms that still consume it.
+
+### Capability provisioning (the grant source)
+
+`grants_for_role` is the interim mint source. The target is **operator-approved,
+per-agent provisioned grants**: a skill declares `requires:`; the operator approves
+at install/config (marketplace prompt or inline SUI notification) or at runtime
+(`agent.grant`); the approved set is persisted and minted at dispatch. Authority is
+the operator approval → provisioned set → minted token — **not** a compile-time
+signature (an agent controls its own skill files, so a signature proves "the daemon
+compiled it," not "the human authorized it").
