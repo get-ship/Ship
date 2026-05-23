@@ -370,6 +370,59 @@ message AgentsSummariesResponse {
   repeated AgentSummary items = 1;
 }
 
+// ── detail-view reads (agents.detail / specs.detail) ─────────────────
+
+message AgentPermissions {
+  string preset = 1;
+  repeated string tools_allow = 2;
+  repeated string tools_ask = 3;
+  repeated string tools_deny = 4;
+}
+message AgentDetail {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string letter = 4;
+  optional string icon = 5;
+  optional string version = 6;
+  repeated string tags = 7;
+  repeated string skills = 8;
+  repeated string mcp_servers = 9;
+  repeated string rules = 10;
+  string inline_rules = 11;
+  string permissions_tier = 12;
+  AgentPermissions permissions = 13;
+  string source = 14;
+}
+message AcceptanceItem {
+  string text = 1;
+  bool done = 2;
+}
+message SpecDetail {
+  string id = 1;
+  string title = 2;
+  string body = 3;
+  string status = 4;
+  string status_label = 5;
+  optional string pipeline = 6;
+  string pipeline_label = 7;
+  string agent = 8;
+  string agent_id = 9;
+  string vars_display = 10;
+  string branch = 11;
+  string tone = 12;
+  string goal_md = 13;
+  string scope_md = 14;
+  string linked_md = 15;
+  repeated AcceptanceItem acceptance = 16;
+  string other_md = 17;
+  string launch_label = 18;
+  string launch_hint = 19;
+  string title_js = 20;
+  string body_js = 21;
+  string pipeline_js = 22;
+}
+
 // A registered project — the typed return of project.add. Mirrors
 // `ship_platform::projects::ProjectRecord`.
 message ProjectRecord {

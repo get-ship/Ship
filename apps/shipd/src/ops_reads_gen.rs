@@ -21,10 +21,10 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         req: ::ship_ops_rpc::OwnedAgentsDetailRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::AgentDetail> {
         let mut args = ::serde_json::Map::new();
         args.insert("id".to_string(), ::serde_json::json!(req.id));
-        self.dispatch_json_args("agents.detail", ::serde_json::Value::Object(args))
+        self.dispatch_typed::<::ship_ops_rpc::AgentDetail>("agents.detail", ::serde_json::Value::Object(args))
     }
     async fn agents_catalogs(
         &self,
@@ -290,10 +290,10 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         req: ::ship_ops_rpc::OwnedSpecsDetailRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::SpecDetail> {
         let mut args = ::serde_json::Map::new();
         args.insert("id".to_string(), ::serde_json::json!(req.id));
-        self.dispatch_json_args("specs.detail", ::serde_json::Value::Object(args))
+        self.dispatch_typed::<::ship_ops_rpc::SpecDetail>("specs.detail", ::serde_json::Value::Object(args))
     }
     async fn git_status(
         &self,

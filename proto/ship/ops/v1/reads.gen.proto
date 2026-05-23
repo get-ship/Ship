@@ -19,7 +19,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc AgentsDetail(AgentsDetailRequest) returns (JsonResponse) {
+  rpc AgentsDetail(AgentsDetailRequest) returns (AgentDetail) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -143,7 +143,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.specs.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SpecsDetail(SpecsDetailRequest) returns (JsonResponse) {
+  rpc SpecsDetail(SpecsDetailRequest) returns (SpecDetail) {
     option (ship.ops.v1.capability) = "ship.specs.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

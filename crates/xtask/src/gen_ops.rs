@@ -55,6 +55,9 @@ const TYPED_READS: &[&str] = &[
     "PermissionPresetsResponse",
     "HarnessesResponse",
     "AgentsSummariesResponse",
+    // detail-view reads (one nested leaf each — Permissions / AcceptanceItem)
+    "AgentDetail",
+    "SpecDetail",
 ];
 
 struct ReadOp {
