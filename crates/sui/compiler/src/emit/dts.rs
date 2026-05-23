@@ -55,14 +55,33 @@ pub fn emit_dts(program: &Program, controller: Option<&ParsedController>) -> Str
             .to_string();
     }
 
-    let needs_live_state = members.iter().any(|(_, t)| t.contains("LiveState"));
+    // Which runtime type aliases the emitted members reference. `Signal<…>`
+    // covers `<data>` (`Signal<unknown>`) and most scope-factory entries;
+    // `LiveState<…>` is the live-`<data>` envelope; `LiveSignal<…>` is the
+    // controller's `live(…)` factory entries (= `Signal<LiveState<T>>`).
+    // `LiveSignal<` is a superstring of `Signal<` only by suffix, so test it
+    // explicitly rather than relying on the `Signal<` substring scan.
+    let needs_live_state = members.iter().any(|(_, t)| t.contains("LiveState<"));
+    let needs_live_signal = scope_factory_fields.iter().any(|(_, t)| t.contains("LiveSignal<"))
+        || members.iter().any(|(_, t)| t.contains("LiveSignal<"));
     let needs_signal = members.iter().any(|(_, t)| t.contains("Signal<"))
-        || scope_factory_fields.iter().any(|(_, t)| t.contains("Signal<"));
-    let import_line = match (needs_signal, needs_live_state) {
-        (true, true) => "import type { Signal, LiveState } from '@ship/sui-runtime'\n",
-        (true, false) => "import type { Signal } from '@ship/sui-runtime'\n",
-        (false, true) => "import type { LiveState } from '@ship/sui-runtime'\n",
-        (false, false) => "",
+        || scope_factory_fields
+            .iter()
+            .any(|(_, t)| t.contains("Signal<") && !t.contains("LiveSignal<"));
+    let mut imports: Vec<&str> = Vec::new();
+    if needs_signal {
+        imports.push("Signal");
+    }
+    if needs_live_signal {
+        imports.push("LiveSignal");
+    }
+    if needs_live_state {
+        imports.push("LiveState");
+    }
+    let import_line = if imports.is_empty() {
+        String::new()
+    } else {
+        format!("import type {{ {} }} from '@ship/sui-runtime'\n", imports.join(", "))
     };
 
     let mut out = String::with_capacity(256);
@@ -72,7 +91,7 @@ pub fn emit_dts(program: &Program, controller: Option<&ParsedController>) -> Str
         "// _compilerVersion {{\"cargo\":\"{}\",\"git\":\"{}\",\"dirty\":{},\"builtAt\":\"{}\"}}\n",
         cv.cargo, cv.git, cv.dirty, cv.built_at,
     ));
-    out.push_str(import_line);
+    out.push_str(&import_line);
     if !import_line.is_empty() {
         out.push('\n');
     }
@@ -286,4 +305,69 @@ fn to_camel(kebab: &str) -> String {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::check::controller_parse::parse as parse_controller;
+    use crate::diagnostics::Span;
+    use std::path::PathBuf;
+
+    /// An empty (template-less) `Program` — the d.ts under test draws all of
+    /// its members from the paired controller's `scope:` factory.
+    fn empty_program() -> Program {
+        Program {
+            data: Vec::new(),
+            props: Vec::new(),
+            styles: String::new(),
+            template: Vec::new(),
+            source_len: 0,
+            span: Span::new(0, 0),
+        }
+    }
+
+    fn ctrl(src: &str) -> crate::check::controller_parse::ParsedController {
+        parse_controller(PathBuf::from("controller.ts"), src.to_string()).expect("parsed")
+    }
+
+    #[test]
+    fn live_scope_entry_imports_live_signal() {
+        let c = ctrl(
+            "export default controller({\n  \
+             scope: () => ({\n    \
+               q: signal(''),\n    \
+               rail: live(() => liveExpr(`ship.skills.summaries()`)),\n  \
+             }),\n});",
+        );
+        let dts = emit_dts(&empty_program(), Some(&c));
+        // Both Signal (for `q`) and LiveSignal (for `rail`) are imported, once.
+        assert!(
+            dts.contains("import type { Signal, LiveSignal } from '@ship/sui-runtime'"),
+            "expected combined Signal + LiveSignal import, got:\n{dts}"
+        );
+        assert!(dts.contains("rail: LiveSignal<unknown>"), "got:\n{dts}");
+        assert!(dts.contains("q: Signal<string>"), "got:\n{dts}");
+    }
+
+    #[test]
+    fn live_only_scope_imports_live_signal_not_signal() {
+        let c = ctrl(
+            "export default controller({\n  \
+             scope: () => ({\n    \
+               rail: live<Foo>(() => x()),\n  \
+             }),\n});",
+        );
+        let dts = emit_dts(&empty_program(), Some(&c));
+        assert!(
+            dts.contains("import type { LiveSignal } from '@ship/sui-runtime'"),
+            "expected LiveSignal-only import, got:\n{dts}"
+        );
+        // `LiveSignal<` must not have tripped the bare-`Signal<` import scan.
+        assert!(
+            !dts.contains("{ Signal,") && !dts.contains("{ Signal }"),
+            "Signal must not be imported when only LiveSignal is used, got:\n{dts}"
+        );
+        assert!(dts.contains("rail: LiveSignal<Foo>"), "got:\n{dts}");
+    }
 }

@@ -35,8 +35,6 @@ interface RailValue {
   kind_counts: Array<{ id: string; label: string; count: number; selected: boolean }>
 }
 
-type LiveResult = { kind: string; value?: RailValue }
-
 export default controller<Scope>({
   scope: () => {
     const q = signal('')
@@ -50,17 +48,18 @@ export default controller<Scope>({
   },
 
   derived: {
-    // `rail` emits as `unknown` (emitter gap); read it as the live thunk.
-    loading: ({ rail }: ViewScope<Scope>) => ((rail as () => LiveResult)()).kind !== 'ok',
+    // `rail` is a `LiveSignal<unknown>` — call it directly and narrow the
+    // `ok` envelope's `value` (unknown to the type system) to the payload.
+    loading: ({ rail }: ViewScope<Scope>) => rail().kind !== 'ok',
     items: ({ rail }: ViewScope<Scope>) => {
-      const r = (rail as () => LiveResult)()
-      if (r.kind !== 'ok' || !r.value) return []
-      return r.value.groups.flatMap((g) => g.skills)
+      const r = rail()
+      if (r.kind !== 'ok') return []
+      return (r.value as RailValue).groups.flatMap((g) => g.skills)
     },
     total: ({ rail }: ViewScope<Scope>) => {
-      const r = (rail as () => LiveResult)()
-      if (r.kind !== 'ok' || !r.value) return 0
-      return r.value.kind_counts.find((k) => k.id === 'all')?.count ?? 0
+      const r = rail()
+      if (r.kind !== 'ok') return 0
+      return (r.value as RailValue).kind_counts.find((k) => k.id === 'all')?.count ?? 0
     },
   },
 
