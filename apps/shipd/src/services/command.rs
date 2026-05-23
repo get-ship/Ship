@@ -95,6 +95,19 @@ impl std::error::Error for CommandError {}
 /// Dispatch a named command. Each domain submodule's `try_dispatch` returns
 /// `Ok(Some(value))` when it owns `name`, `Ok(None)` to fall through.
 pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Value, CommandError> {
+    // The one capability gate (spec: .artifacts/auth-gate-synthesis.md). Every
+    // write surface — REST and Connect — reaches commands through here, so this
+    // is the single enforcement point. Unknown names fall through ungated to the
+    // dispatch chain, which returns `unknown_command`.
+    if let Some(desc) = crate::services::schema::COMMANDS.iter().find(|c| c.name == name) {
+        use crate::services::gate;
+        let blast = gate::BlastRadius::from_descriptor(desc.blast_radius);
+        let domain = gate::classify(name);
+        let caller = gate::caller_from_auth(ctx.auth);
+        if let gate::Decision::Deny(msg) = gate::decide(blast, &domain, &caller) {
+            return Err(CommandError::forbidden(msg));
+        }
+    }
     if let Some(value) = pipeline::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
@@ -202,5 +215,24 @@ mod tests {
         // Unknown command falls through to a structured error.
         let err = call("pipeline.nope", &args, &ctx).await.unwrap_err();
         assert_eq!(err.code, "unknown_command");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn gate_denies_ungranted_agent_a_restricted_command() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        // A worker-role MCP agent: no orchestration grant, not the operator.
+        let auth = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("worker-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: ship_platform::auth::scopes::scopes_for_role(Some("worker")),
+        };
+        let ctx = CommandCtx { state: &harness.state, auth: &auth };
+        let args = serde_json::json!({ "agent": "rust-lane" });
+        // agent.dispatch is a restricted (capability-defining) op — denied
+        // before any dispatch logic runs.
+        let err = call("agent.dispatch", &args, &ctx).await.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
     }
 }
