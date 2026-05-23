@@ -1,0 +1,33 @@
+[package]
+name = "deck-core"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "SUI framework hosting logic — transport-agnostic. Produces DeckResponse; adapters (deck-axum, …) bind it to a server."
+
+[lib]
+name = "deck_core"
+path = "src/lib.rs"
+
+[features]
+default = []
+specta = ["dep:specta", "deck-host/specta"]
+
+[dependencies]
+deck-host = { path = "../deck-host" }
+sui-compiler = { path = "../../sui/compiler" }
+sui-signals = { path = "../../sui/signals" }
+ship-substrate = { path = "../../core/ship-substrate" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+specta = { workspace = true, features = ["serde_json"], optional = true }
+
+anyhow = { workspace = true }
+tracing = { workspace = true }
+notify = { workspace = true }
+tempfile = "3"
+
+[dev-dependencies]
+tempfile = "3"
+filetime = "0.2"

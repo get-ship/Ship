@@ -18,6 +18,7 @@ members = [
     "crates/sui/lsp",
     "crates/sui/signals",
     "crates/deck/deck-host",
+    "crates/deck/deck-core",
     "crates/deck/deck-server",
     "crates/deck/deck",
     "crates/xtask",
