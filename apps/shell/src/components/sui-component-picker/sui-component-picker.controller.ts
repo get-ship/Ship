@@ -247,7 +247,7 @@ export default controller<Scope>({
     const h = host as HostWithProps
 
     function emitPicked(tags: string[]): void {
-      host.dispatchEvent(new CustomEvent('sui:component:picked', {
+      host?.dispatchEvent(new CustomEvent('sui:component:picked', {
         detail: { tags }, bubbles: true, composed: true,
       }))
     }

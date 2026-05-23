@@ -133,7 +133,7 @@ function createBridge(): CanvasBridge {
     }
     const body = await resp.json().catch(() => ({})) as { data?: { id?: string } }
     void emit('canvas.saved', { canvas_id: canvasId, artifact_id: body.data?.id ?? '' })
-    return { ok: true, id: body.data?.id }
+    return { ok: true, ...(body.data?.id !== undefined ? { id: body.data.id } : {}) }
   }
 
   return { subscribe, postInteraction, postAnnotations, postSave }

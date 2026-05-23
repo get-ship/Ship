@@ -2,7 +2,7 @@
 // shell renders it at /settings. Relocated from views/settings; the two <data>
 // sources are now controller-side live() over @ship/sdk-client.
 import { controller, signal, derived, live, unwrapOr } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { Signal, LiveSignal, AccountState } from '@ship/sui-runtime'
 import {
   liveExpr,
   accountDisplayName,
@@ -49,7 +49,7 @@ export default controller<Scope>({
 
     const accountBusy = signal(false)
     const accountError = signal('')
-    const accountIdentity = derived(() => readAccountIdentity(unwrapOr(account, null)))
+    const accountIdentity = derived(() => readAccountIdentity(unwrapOr(account as LiveSignal<AccountState | null>, null)))
     const accountName = derived(() => accountDisplayName(accountIdentity()))
     const accountInitialsSig = derived(() => accountInitials(accountIdentity()) || '··')
     const accountPlan = derived(() => accountPlanLabel(accountIdentity()))

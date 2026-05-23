@@ -1,14 +1,10 @@
 import { controller, signal, effect, chrome } from '@ship/sui-runtime'
 import type { Scope } from './sui-va-components.sui'
 
+// window.__viewMcp is declared canonically in src/chrome/view-mcp.ts; this
+// local shape is the subset readSourceWithRetry needs.
 interface ViewMcp {
   readSource(name: string): Promise<{ source: string }>
-}
-
-declare global {
-  interface Window {
-    __viewMcp?: ViewMcp
-  }
 }
 
 // Read source via the chrome's view-MCP bridge, retrying once on

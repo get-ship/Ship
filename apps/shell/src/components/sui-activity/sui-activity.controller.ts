@@ -2,8 +2,11 @@
 // (apps/shell): the shell renders it at /activity. Live `ship.mesh.snapshot()`
 // over @ship/sdk-client. (Relocated from views/activity; was the mesh draft.)
 import { controller, derived, live, signal, unwrap } from '@ship/sui-runtime'
+import type { MutableState } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
 import type { Scope } from './sui-activity.sui'
+
+type S = MutableState<Scope>
 
 function formatTs(raw: string | null | undefined): string {
   if (!raw) return '—'
@@ -34,12 +37,12 @@ export default controller<Scope>({
     return { snap, actorsFormatted, attachSlug, attachOpen }
   },
   on: {
-    openAttach: (state, slug: string) => {
+    openAttach: (state: S, slug: string) => {
       const ds = state as unknown as { attachSlug: string; attachOpen: boolean }
       ds.attachSlug = slug
       ds.attachOpen = true
     },
-    closeAttach: (state) => {
+    closeAttach: (state: S) => {
       const ds = state as unknown as { attachSlug: string; attachOpen: boolean }
       ds.attachOpen = false
       ds.attachSlug = ''

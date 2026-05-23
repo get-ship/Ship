@@ -404,7 +404,7 @@ export default controller<Scope>({
       compileErrorSig.set(`${d?.file ?? 'view'}${loc} — ${d?.message ?? 'compile failed'}`)
       pushDiagnosticsToEditor([{
         line: d?.line ?? 1,
-        col: d?.col,
+        ...(d?.col !== undefined ? { col: d.col } : {}),
         severity: d?.severity ?? 'error',
         message: d?.message ?? 'compile failed',
         source: 'sui-compiler',

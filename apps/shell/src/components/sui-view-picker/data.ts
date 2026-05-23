@@ -89,8 +89,8 @@ export async function fetchViews(url: string): Promise<ApiView[]> {
   try {
     const resp = await fetch(url, { credentials: 'same-origin' })
     if (!resp.ok) return []
-    const body = (await resp.json()) as { data?: { views?: ApiView[] } } | { views?: ApiView[] }
-    const inferred = 'data' in body ? (body.data?.views ?? []) : (body.views ?? [])
+    const body = (await resp.json()) as { data?: { views?: ApiView[] }; views?: ApiView[] }
+    const inferred = body.data?.views ?? body.views ?? []
     return (inferred ?? []).filter((v) => !HIDDEN_VIEWS.has(v.name))
   } catch { return [] }
 }
