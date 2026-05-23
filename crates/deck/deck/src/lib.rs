@@ -20,9 +20,9 @@ pub use deck_core::{
     mode_str,
 };
 
-// Submodule surfaces shipd reaches into directly.
+// Submodule surfaces consumers reach into directly (shipd, xtask SDK gen).
 //
 // `render_helpers` lives in deck-axum (its `not_found` returns an axum
-// response); `resolver` is pure and lives in deck-core.
+// response); `resolver` + `view_payload` are pure and live in deck-core.
 pub use deck_axum::render_helpers;
-pub use deck_core::resolver;
+pub use deck_core::{resolver, view_payload};

@@ -1088,9 +1088,41 @@ dependencies = [
 name = "deck"
 version = "0.1.0"
 dependencies = [
+ "deck-axum",
+ "deck-core",
  "deck-host",
- "deck-server",
  "specta",
+]
+
+[[package]]
+name = "deck-axum"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "deck-core",
+ "serde",
+ "serde_json",
+ "specta",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "deck-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "deck-host",
+ "filetime",
+ "notify",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "specta",
+ "sui-compiler",
+ "sui-signals",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]
@@ -1104,30 +1136,6 @@ dependencies = [
  "sui-compiler",
  "sui-signals",
  "tempfile",
-]
-
-[[package]]
-name = "deck-server"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "datastar",
- "deck-host",
- "filetime",
- "futures-util",
- "notify",
- "serde",
- "serde_json",
- "ship-substrate",
- "specta",
- "sui-compiler",
- "sui-signals",
- "tempfile",
- "tokio",
- "tokio-stream",
- "tracing",
 ]
 
 [[package]]
