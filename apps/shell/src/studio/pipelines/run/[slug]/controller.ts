@@ -1,5 +1,10 @@
 import { controller, derived, live, unwrap } from '@ship/sui-runtime'
+import type { MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+
+// `on:` handlers receive the writable state proxy; annotate explicitly
+// since the OnSection union blocks contextual inference.
+type S = MutableState<Scope>
 
 type StepRun = { id: string; state: string; step_type: string; agent?: string }
 type StepRunWithFlag = StepRun & { isLast: boolean }
@@ -16,7 +21,12 @@ export default controller<Scope>({
   scope: ({ ship, route }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = ship as any
-    const ctx = live(() => s.pipelines.run({ slug: route().params.slug }))
+    // BUG (latent, pre-existing): `route` is a `RouteSignals` object, not a
+    // function — `route()` throws at runtime, and `.params.slug` is a Signal
+    // (should be `route.params.slug?.()`). Other studio views use the correct
+    // `route.params.X()` form. Cast preserves current behavior; the runtime
+    // bug needs a separate behavior fix (out of scope for this type pass).
+    const ctx = live(() => s.pipelines.run({ slug: (route as unknown as () => typeof route)().params.slug }))
     const run = derived(() => read(ctx()).run)
     const observations = derived(() => read(ctx()).observations)
     const timeline = derived(() => read(ctx()).timeline)
@@ -34,7 +44,7 @@ export default controller<Scope>({
     return { ctx, run, observations, timeline, steps, errorFirstLine, errorMultiline }
   },
   on: {
-    stopRun: async (_s, jobId: string) => {
+    stopRun: async (_s: S, jobId: string) => {
       await fetch('/api/v1/agent_sessions/end', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

@@ -1,5 +1,10 @@
 import { controller, signal, derived, unwrap } from '@ship/sui-runtime'
+import type { LiveSignal, MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+
+// `on:` handlers receive the writable state proxy; annotate explicitly
+// since the OnSection union blocks contextual inference.
+type S = MutableState<Scope>
 
 type PipelineDef = {
   name: string; description?: string; step_count: number; total_runs: number;
@@ -21,7 +26,7 @@ const EMPTY: SummariesCtx = { stats_subtitle: '', defs: [], active_runs: [], pro
 // (the agents pattern). derived: sections receive the live envelope as a scope
 // arg; unwrap → the value (or null while loading).
 const read = (summaries: unknown): SummariesCtx => {
-  const v = unwrap(summaries) as SummariesCtx | undefined
+  const v = unwrap(summaries as LiveSignal<SummariesCtx>)
   return v && Array.isArray(v.defs) ? v : EMPTY
 }
 
@@ -72,13 +77,13 @@ export default controller<Scope>({
     statsSubtitle: ({ summaries }) => read(summaries).stats_subtitle,
   },
   on: {
-    openDispatch: (s) => {
+    openDispatch: (s: S) => {
       const ds = s as unknown as { dispatchPipeline: string; defs: PipelineDef[]; dispatchOpen: boolean }
       if (!ds.dispatchPipeline && ds.defs.length > 0) ds.dispatchPipeline = ds.defs[0].name
       ds.dispatchOpen = true
     },
-    closeDispatch: (s) => { (s as unknown as { dispatchOpen: boolean }).dispatchOpen = false },
-    dispatchRun: async (s) => {
+    closeDispatch: (s: S) => { (s as unknown as { dispatchOpen: boolean }).dispatchOpen = false },
+    dispatchRun: async (s: S) => {
       const ds = s as unknown as { dispatchPipeline: string; dispatchSpec: string; dispatchProvider: string; dispatchHeadless: boolean; dispatchOpen: boolean }
       const name = String(ds.dispatchPipeline)
       if (!name) return
@@ -89,9 +94,9 @@ export default controller<Scope>({
       })
       ds.dispatchOpen = false
     },
-    openNewPipe: (s) => { const ds = s as unknown as { newPipeOpen: boolean; newPipeName: string; newPipeError: string }; ds.newPipeOpen = true; ds.newPipeName = ''; ds.newPipeError = '' },
-    closeNewPipe: (s) => { (s as unknown as { newPipeOpen: boolean }).newPipeOpen = false },
-    createPipeline: async (s) => {
+    openNewPipe: (s: S) => { const ds = s as unknown as { newPipeOpen: boolean; newPipeName: string; newPipeError: string }; ds.newPipeOpen = true; ds.newPipeName = ''; ds.newPipeError = '' },
+    closeNewPipe: (s: S) => { (s as unknown as { newPipeOpen: boolean }).newPipeOpen = false },
+    createPipeline: async (s: S) => {
       const ds = s as unknown as { workspaceId: string | null; newPipeName: string; newPipeError: string; newPipeCreating: boolean }
       const ws = ds.workspaceId
       if (!ws) return
@@ -112,7 +117,7 @@ export default controller<Scope>({
       } catch (err) { ds.newPipeError = 'network: ' + ((err as Error)?.message ?? String(err)) }
       finally { ds.newPipeCreating = false }
     },
-    stopRun: async (_s, jobId: string) => {
+    stopRun: async (_s: S, jobId: string) => {
       await fetch('/api/v1/agent_sessions/end', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

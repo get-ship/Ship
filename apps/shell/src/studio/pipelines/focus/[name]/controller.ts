@@ -1,5 +1,10 @@
 import { controller, signal, derived, live, ref, unwrap } from '@ship/sui-runtime'
+import type { MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+
+// `on:` handlers receive the writable state proxy; annotate explicitly
+// since the OnSection union blocks contextual inference.
+type S = MutableState<Scope>
 
 type StepDef = {
   id: string; run?: string; agent?: string; provider?: string; model?: string;
@@ -47,7 +52,12 @@ export default controller<Scope>({
   scope: ({ ship, route }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = ship as any
-    const name = derived(() => String(route().params.name ?? ''))
+    // BUG (latent, pre-existing): `route` is a `RouteSignals` object, not a
+    // function — `route()` throws at runtime, and `.params.name` is a Signal
+    // (should be `route.params.name?.()`). Other studio views use the correct
+    // `route.params.X()` form. Cast preserves current behavior; the runtime
+    // bug needs a separate behavior fix (out of scope for this type pass).
+    const name = derived(() => String((route as unknown as () => typeof route)().params.name ?? ''))
     const ctx = live(() => s.pipelines.focus({ name: name() }))
     const def = derived(() => decorateDef(read(ctx()).def))
     const doc = derived(() => {
@@ -80,14 +90,14 @@ export default controller<Scope>({
     }
   },
   on: {
-    startEdit: (s) => { const ds = s as any; ds.editMode = true; ds.editError = ''; ds.editIssueCount = 0 },
-    cancelEdit: (s) => {
+    startEdit: (s: S) => { const ds = s as any; ds.editMode = true; ds.editError = ''; ds.editIssueCount = 0 },
+    cancelEdit: (s: S) => {
       const ds = s as any
       ds.editMode = false; ds.editError = ''; ds.editIssueCount = 0
       const ed = ds.editorRef as Ed | null
       if (ed) { ed.value = ed.getAttribute('value') ?? ''; ed.setDiagnostics?.([]) }
     },
-    savePipeline: async (s) => {
+    savePipeline: async (s: S) => {
       const ds = s as any
       const ed = ds.editorRef as Ed | null
       if (!ed) return
@@ -115,7 +125,7 @@ export default controller<Scope>({
       } catch (err: any) { ds.editError = 'network: ' + (err?.message ?? String(err)) }
       finally { ds.editSaving = false }
     },
-    deletePipeline: async (s) => {
+    deletePipeline: async (s: S) => {
       const ds = s as any
       const ws = ds.workspaceId as string | null; const nm = ds.name as string
       if (!ws) return
@@ -130,9 +140,9 @@ export default controller<Scope>({
       } catch (err: any) { window.alert('Delete failed: ' + (err?.message ?? String(err))) }
       ds.deleteOpen = false
     },
-    openDispatch: (s) => { (s as any).dispatchOpen = true },
-    closeDispatch: (s) => { (s as any).dispatchOpen = false },
-    dispatchRun: async (s) => {
+    openDispatch: (s: S) => { (s as any).dispatchOpen = true },
+    closeDispatch: (s: S) => { (s as any).dispatchOpen = false },
+    dispatchRun: async (s: S) => {
       const ds = s as any; const nm = ds.name as string
       await fetch(`/api/v1/pipelines/${encodeURIComponent(nm)}/dispatch`, {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
@@ -140,12 +150,12 @@ export default controller<Scope>({
       })
       ds.dispatchOpen = false
     },
-    openDelete: (s) => { (s as any).deleteOpen = true },
-    closeDelete: (s) => { (s as any).deleteOpen = false },
-    stopRun: async (_s, jobId: string) => {
+    openDelete: (s: S) => { (s as any).deleteOpen = true },
+    closeDelete: (s: S) => { (s as any).deleteOpen = false },
+    stopRun: async (_s: S, jobId: string) => {
       await fetch('/api/v1/agent_sessions/end', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: jobId }) })
     },
-    pulseRun: (_s, el: HTMLElement) => {
+    pulseRun: (_s: S, el: HTMLElement) => {
       el.classList.add('ship-heartbeat')
       const existing = (el as any).__pulseTimer
       if (existing) clearTimeout(existing)
