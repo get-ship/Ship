@@ -115,6 +115,34 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc AgentsCreate(AgentsCreateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsPut(AgentsPutRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsPatch(AgentsPatchRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsDelete(AgentsDeleteRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsRename(AgentsRenameRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsDuplicate(AgentsDuplicateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsMoveScope(AgentsMoveScopeRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc ProjectActivate(ProjectActivateRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -356,6 +384,48 @@ message SkillsWriteBodyRequest {
 }
 
 message SkillsMoveScopeRequest {
+  string id = 1;
+  string from = 2;
+  string to = 3;
+}
+
+message AgentsCreateRequest {
+  string id = 1;
+  string doc_json = 2;
+  string scope = 3;
+}
+
+message AgentsPutRequest {
+  string id = 1;
+  string doc_json = 2;
+  string scope = 3;
+}
+
+message AgentsPatchRequest {
+  string id = 1;
+  string patch_json = 2;
+  string scope = 3;
+}
+
+message AgentsDeleteRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message AgentsRenameRequest {
+  string id = 1;
+  string new_id = 2;
+  string scope = 3;
+}
+
+message AgentsDuplicateRequest {
+  string id = 1;
+  string new_id = 2;
+  string scope = 3;
+  string to = 4;
+}
+
+message AgentsMoveScopeRequest {
   string id = 1;
   string from = 2;
   string to = 3;

@@ -466,6 +466,101 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "ScopedMutation",
         sensitive: false,
     },
+    // ── agents (profile authoring; restricted ship-authoring) ─────
+    // `agents.*` (plural) authors profiles — defines agent capability, gated by
+    // the ship-authoring grant. Distinct from `agent.*` (singular) runtime
+    // control. Scope-resolving → ScopedMutation; doc/patch ride as JSON strings.
+    CommandDescriptor {
+        name: "agents.create",
+        description: "Create a new agent profile from a doc.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "doc_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agents.put",
+        description: "Replace an agent profile's doc (use agents.create for net-new).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "doc_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agents.patch",
+        description: "Apply RFC-6902 ops to an agent profile's doc.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "patch_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agents.delete",
+        description: "Delete an agent profile (scope omitted walks project → user).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agents.rename",
+        description: "Rename an agent profile's id.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "new_id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agents.duplicate",
+        description: "Copy an agent profile to a new id.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "new_id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+            ArgDescriptor { name: "to", kind: "string?", required: false },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agents.move_scope",
+        description: "Move an agent profile between project and user scope.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "from", kind: "string", required: true },
+            ArgDescriptor { name: "to", kind: "string", required: true },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.activate",

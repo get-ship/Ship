@@ -17,6 +17,7 @@ use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 
 mod agent;
+mod agents;
 mod annotations;
 mod artifacts;
 mod collections;
@@ -136,6 +137,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = skills::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = agents::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
@@ -542,6 +546,49 @@ mod tests {
                 .await
                 .expect("ship-authoring grant clears the gate and the skill is created");
         assert_eq!(created["id"], "fixture-skill");
+        assert_eq!(created["scope"], "user");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn agents_create_needs_authoring_not_orchestration_grant() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let args = serde_json::json!({
+            "id": "fixture-agent",
+            "doc_json": "{\"role\":\"worker\"}",
+            "scope": "user"
+        });
+
+        // A commander holds ship-orchestration (dispatch/steer) — but authoring a
+        // profile is ship-authoring. The singular/plural prefix split means the
+        // orchestration grant does NOT clear agents.create.
+        let commander = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("commander-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec!["ship-orchestration".to_string()],
+        };
+        let err =
+            call("agents.create", &args, &CommandCtx { state: &harness.state, auth: &commander })
+                .await
+                .unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+
+        // A designer holds ship-authoring → cleared, writes through.
+        let designer = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("designer-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec!["ship-authoring".to_string()],
+        };
+        let created =
+            call("agents.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
+                .await
+                .expect("ship-authoring grant clears agents.create");
+        assert_eq!(created["id"], "fixture-agent");
         assert_eq!(created["scope"], "user");
     }
 }

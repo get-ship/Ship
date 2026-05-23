@@ -72,8 +72,11 @@ pub struct Domain {
 /// so the fail-closed path is a tripwire, not a silent denial in production.
 pub fn classify(name: &str) -> Domain {
     match name.split('.').next().unwrap_or(name) {
-        // restricted — capability-defining
+        // restricted — capability-defining. Note the singular/plural split:
+        // `agent.*` is runtime control (dispatch/stop/steer → orchestration);
+        // `agents.*` authors profiles (defines capability → ship-authoring).
         "agent" => Domain { group: "ship-orchestration", restricted: true },
+        "agents" => Domain { group: "ship-authoring", restricted: true },
         // `mcp` registers external MCP servers → new tools agents can call, so
         // configuring it is authoring agent capability, not ordinary workspace
         // mutation. Gated behind the ship-authoring grant.
