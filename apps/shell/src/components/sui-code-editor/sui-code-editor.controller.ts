@@ -18,7 +18,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import {
   closeBrackets, closeBracketsKeymap,
   autocompletion,
-  type CompletionContext, type CompletionResult,
+  type CompletionContext, type CompletionResult, type Completion,
 } from '@codemirror/autocomplete'
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
 import { lintGutter, setDiagnostics as cmSetDiagnostics, type Diagnostic } from '@codemirror/lint'
@@ -184,8 +184,8 @@ export default controller<Scope>({
     }
 
     const el = host as HTMLElement & {
-      setDiagnostics?: (d: SuiDiagnostic[]) => void
-      setCompletions?: (src: SuiCompletionSource[]) => void
+      setDiagnostics?: ((d: SuiDiagnostic[]) => void) | undefined
+      setCompletions?: ((src: SuiCompletionSource[]) => void) | undefined
       focus?: () => void
     }
     el.setDiagnostics = (diags: SuiDiagnostic[]) => {
@@ -248,8 +248,8 @@ export default controller<Scope>({
       lspInit = (async () => {
         try {
           const [diag, comp] = await Promise.all([
-            import('@ship/sui-lsp-browser/diagnostics') as Promise<{ diagnose: LspDiagnoseFn }>,
-            import('@ship/sui-lsp-browser/completions') as Promise<{ allSources: LspAllSourcesFn }>,
+            import('@ship/sui-lsp-browser/diagnostics') as unknown as Promise<{ diagnose: LspDiagnoseFn }>,
+            import('@ship/sui-lsp-browser/completions') as unknown as Promise<{ allSources: LspAllSourcesFn }>,
           ])
           lspDiagnose = diag.diagnose
           try { el.setCompletions?.(comp.allSources()) } catch { /* best-effort */ }
@@ -303,7 +303,7 @@ export default controller<Scope>({
       for (const d of disposers) d()
       el.setDiagnostics = undefined
       el.setCompletions = undefined
-      el.focus = undefined
+      // Leave el.focus — shadows native HTMLElement.focus; nulling breaks it.
       try {
         delete (host as unknown as Record<string, unknown>).value
       } catch {
@@ -314,6 +314,15 @@ export default controller<Scope>({
     }
   },
 })
+
+// CodeMirror's Completion treats absent detail/info as "none"; under
+// exactOptionalPropertyTypes we can't pass `undefined` for them, so omit.
+function toCmCompletion(it: SuiCompletionSource['items'][number]): Completion {
+  const c: Completion = { label: it.label, apply: it.insert ?? it.label }
+  if (it.detail !== undefined) c.detail = it.detail
+  if (it.info !== undefined) c.info = it.info
+  return c
+}
 
 function makeCompletionSource(src: SuiCompletionSource) {
   return (ctx: CompletionContext): CompletionResult | null => {
@@ -329,16 +338,12 @@ function makeCompletionSource(src: SuiCompletionSource) {
       if (before !== trig) return null
       return {
         from: word.from,
-        options: src.items.map((it) => ({
-          label: it.label, detail: it.detail, info: it.info, apply: it.insert ?? it.label,
-        })),
+        options: src.items.map(toCmCompletion),
       }
     }
     return {
       from: pos,
-      options: src.items.map((it) => ({
-        label: it.label, detail: it.detail, info: it.info, apply: it.insert ?? it.label,
-      })),
+      options: src.items.map(toCmCompletion),
     }
   }
 }
