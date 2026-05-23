@@ -2,7 +2,8 @@
 // in apps/shell, not views/): the shell renders it at `/`. Owns its dock; the
 // shell hides the status strip for it. Data comes over @ship/sdk-client live
 // sources (chrome has no `ctx.ship` the way daemon-served views do).
-import { controller, derived, live, unwrapOr, chrome } from '@ship/sui-runtime'
+import { controller, live, unwrapOr, chrome } from '@ship/sui-runtime'
+import type { LiveSignal } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
 import type { GitOverview } from '@ship/sdk-client'
 import type { Scope } from './sui-home.sui'
@@ -32,8 +33,8 @@ const EMPTY_DASH: DashState = { stats: { active: 0, history: 0 }, agents: [], re
 const EMPTY_GIT: GitOverview = { workspace_id: null, branch: '', head_short: '', clean: true, total_changed: 0, staged: [], modified: [], untracked: [], commits: [], branches: [], ahead: 0, behind: 0 }
 
 const initialOf = (a: DashAgent): string => (a.letter ?? (a.name ?? a.id).slice(0, 1) ?? '?').toString().toUpperCase()
-const readDash = ({ dash }: Scope): DashState => unwrapOr(dash, EMPTY_DASH as unknown) as DashState
-const readGit = ({ git }: Scope): GitOverview => unwrapOr(git, EMPTY_GIT)
+const readDash = ({ dash }: Scope): DashState => unwrapOr(dash as LiveSignal<DashState>, EMPTY_DASH)
+const readGit = ({ git }: Scope): GitOverview => unwrapOr(git as LiveSignal<GitOverview>, EMPTY_GIT)
 
 export default controller<Scope>({
   scope: () => ({

@@ -1,4 +1,4 @@
-import { controller, signal, derived, ref, effect } from '@ship/sui-runtime'
+import { controller, signal, derived, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-component-picker.sui'
 import { SLOT_COMPOSITIONS } from '../picker-slot-compositions'
 

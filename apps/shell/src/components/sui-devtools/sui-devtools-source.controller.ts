@@ -167,7 +167,7 @@ export default controller<Scope>({
         // daemon creates a snapshot on every successful save, so users
         // expect to see it appear without closing + reopening the panel.
         if (snapshotsOpen()) {
-          const mcp = (window as unknown as { __viewMcp?: typeof import('../../../../apps/shell/src/chrome/view-mcp').viewMcp }).__viewMcp
+          const mcp = (window as unknown as { __viewMcp?: typeof import('../../chrome/view-mcp').viewMcp }).__viewMcp
           if (mcp) {
             mcp.listSnapshots(name, 50).then((r) => {
               snapshots.set(r.snapshots ?? [])
@@ -188,7 +188,7 @@ export default controller<Scope>({
       if (!snapshotsOpen()) return
       snapshotsLoading.set(true)
       snapshotsError.set(null)
-      const mcp = (window as unknown as { __viewMcp?: typeof import('../../../../apps/shell/src/chrome/view-mcp').viewMcp }).__viewMcp
+      const mcp = (window as unknown as { __viewMcp?: typeof import('../../chrome/view-mcp').viewMcp }).__viewMcp
       if (!mcp) {
         snapshotsError.set('MCP not available — enter edit mode first.')
         snapshotsLoading.set(false)
@@ -206,7 +206,7 @@ export default controller<Scope>({
 
     async function onRestoreSnapshot(snapshot_id: string): Promise<void> {
       const name = viewName()
-      const mcp = (window as unknown as { __viewMcp?: typeof import('../../../../apps/shell/src/chrome/view-mcp').viewMcp }).__viewMcp
+      const mcp = (window as unknown as { __viewMcp?: typeof import('../../chrome/view-mcp').viewMcp }).__viewMcp
       if (!name || !mcp) return
       try {
         await mcp.restoreSnapshot(name, snapshot_id)

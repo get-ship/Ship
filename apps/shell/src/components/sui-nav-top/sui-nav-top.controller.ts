@@ -48,7 +48,7 @@ function navigateDoc(to: string): void {
 }
 
 export default controller<Scope>({
-  scope: (state, host) => {
+  scope: (state, _host) => {
     const path = (state as { path: () => string }).path
     const projectProp = (state as { project: () => string }).project
     const viewProp = (state as { view: () => string }).view
@@ -83,7 +83,6 @@ export default controller<Scope>({
       return out
     })
 
-    const hostEl = host as HTMLElement | null
 
     function onCrumbClick(e: MouseEvent, href: string): void {
       e.preventDefault()
