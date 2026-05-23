@@ -25,6 +25,7 @@ pub struct ResolveError {
 
 pub fn resolve(
     project_root: &Path,
+    first_party_root: Option<&Path>,
     name: &str,
     sub_path: Option<&str>,
 ) -> Result<ResolvedView, ResolveError> {
@@ -36,11 +37,12 @@ pub fn resolve(
 
     let mut attempts: Vec<String> = Vec::new();
 
-    // First-party bundled views ship in apps/shell/views (e.g. studio) — they
-    // take precedence over project `views/` (reference) and `.ship/views` (user).
-    // The three roots mirror the distribution buckets.
-    {
-        let fp_root = project_root.join("apps").join("shell").join("views").join(name);
+    // First-party views: the HOST supplies their root (deck is app-agnostic and
+    // knows no app layout — see .artifacts/asset-architecture.md). When set,
+    // they take precedence over project `views/` (reference) and `.ship/views`
+    // (user). When unset (a non-ship host), there is no first-party bucket.
+    if let Some(fp_base) = first_party_root {
+        let fp_root = fp_base.join(name);
         let mut fp_params: HashMap<String, String> = HashMap::new();
         let mut fp_tried: Vec<PathBuf> = Vec::new();
         if let Some(found) =

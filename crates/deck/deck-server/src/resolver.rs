@@ -2,9 +2,17 @@ use std::path::PathBuf;
 
 pub use deck_host::resolver::{ResolvedView, ResolveError, render_resolved};
 
+/// First-party view root, supplied by the ship host via `SHIP_FIRST_PARTY_VIEWS`
+/// (e.g. `<repo>/apps/shell/src`). deck never hardcodes the app's layout — when
+/// the env is unset (a non-ship host) there is no first-party bucket.
+fn first_party_root() -> Option<PathBuf> {
+    std::env::var("SHIP_FIRST_PARTY_VIEWS").ok().map(PathBuf::from)
+}
+
 pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, ResolveError> {
+    let fp = first_party_root();
     if let Some(dir) = resolve_project_root() {
-        deck_host::resolver::resolve(&dir, name, sub_path)
+        deck_host::resolver::resolve(&dir, fp.as_deref(), name, sub_path)
     } else {
         let cwd = match std::env::current_dir() {
             Ok(c) => c,
@@ -16,7 +24,7 @@ pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, Resol
         };
         if let Some(ship_dir) = ship_substrate::project::resolve_project_ship_dir(&cwd) {
             let project_root = ship_dir.parent().unwrap_or(&ship_dir).to_path_buf();
-            deck_host::resolver::resolve(&project_root, name, sub_path)
+            deck_host::resolver::resolve(&project_root, fp.as_deref(), name, sub_path)
         } else {
             Err(ResolveError {
                 message: format!(

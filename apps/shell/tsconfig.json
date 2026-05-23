@@ -18,11 +18,9 @@
     "verbatimModuleSyntax": true,
     "rootDirs": [
       "src",
-      "views",
-      "../../.ship/sui-out/apps/shell/src",
-      "../../.ship/sui-out/views"
+      "../../.ship/sui-out/apps/shell/src"
     ]
   },
-  "include": ["src/**/*", "views/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

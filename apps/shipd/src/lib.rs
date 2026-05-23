@@ -131,6 +131,21 @@ pub async fn run_network(
         None => home.daemon_dir(),
     };
 
+    // The ship host configures deck's first-party view root — deck itself knows
+    // no app layout (see .artifacts/asset-architecture.md). Dev-only: serve the
+    // shell's own surfaces (e.g. studio) from `apps/shell/src` for HMR. In prod
+    // the shell bundle owns first-party views; the daemon serves only
+    // user/published views, so the env stays unset and there is no first-party bucket.
+    if dev && let Some(root) = worktree_root.as_ref() {
+        // SAFETY: set once at startup, before any request thread reads it.
+        unsafe {
+            std::env::set_var(
+                "SHIP_FIRST_PARTY_VIEWS",
+                root.join("apps").join("shell").join("src"),
+            );
+        }
+    }
+
     // One-time hint for the worktree footgun: if `ProjectRoot::discover`
     // redirects to a different (main) checkout and there's a live daemon
     // sitting at the OLD (main-root) hash, surface it so the operator can
