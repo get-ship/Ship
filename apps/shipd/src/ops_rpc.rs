@@ -16,9 +16,6 @@ use ship_ops_rpc::{
     StreamServiceExt,
 };
 
-use ship_substrate::events::CallerKind;
-
-use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 
 /// Daemon-side `OpsService`. Holds `ApiState` so ported ops can reach the
@@ -125,20 +122,22 @@ impl StreamService for OpsImpl {
 }
 
 /// The ConnectRPC op surface as an `axum::Router`, merged into the daemon's
-/// authenticated routes so `auth_middleware` wraps it (the gate will read the
-/// injected `AuthContext`). Wire paths: `/ship.ops.v1.OpsService/<Method>`.
+/// authenticated routes so `auth_middleware` wraps it (injecting `AuthContext`).
+/// Wire paths: `/ship.ops.v1.OpsService/<Method>`.
+///
+/// No transport-level gate: enforcement lives at the dispatch chokepoint
+/// (`services::gate::decide`, invoked by `services::command::call`), so commands
+/// are gated identically on every transport — REST and Connect — rather than
+/// once per surface. Reads are C0 (authenticated at the edge). This is the "one
+/// gate" of `.artifacts/auth-gate-synthesis.md`.
 pub fn router(state: ApiState) -> axum::Router {
     let svc = Arc::new(OpsImpl { state });
     let router = OpsServiceExt::register(svc.clone(), connectrpc::Router::new());
     let router = ReadOpsServiceExt::register(svc.clone(), router);
     let router = CommandOpsServiceExt::register(svc.clone(), router);
     let router = StreamServiceExt::register(svc, router);
-    router
-        .into_axum_router()
-        .layer(axum::middleware::from_fn(gate))
+    router.into_axum_router()
 }
-
-// ── Enforcement ─────────────────────────────────────────────────────────────
 
 /// Map a `CommandError` (from `services::command::call`) to a `ConnectError`,
 /// preserving the status → code mapping. Used by the generated `CommandOpsService`.
@@ -152,49 +151,12 @@ pub fn command_error_to_connect(e: crate::services::command::CommandError) -> Co
     }
 }
 
-/// Decide whether `auth` may call an op with this policy. C2
-/// (Ship/cloud-dangerous) is off the agent surface — only a human-operator
-/// credential (a CLI caller that is not a minted agent session) may call it.
-/// C0/C1 allow any authenticated caller (C1 = the user's own-space risk).
-///
-/// NOTE: a host agent that reads the on-disk daemon token also presents as a
-/// CLI caller — fully closing the C2 boundary needs the human-session
-/// credential of the elevated surface (#72). This is the credential-level gate.
-fn gate_decision(policy: &OpPolicy, auth: &AuthContext) -> Result<(), &'static str> {
-    match policy.blast_radius {
-        BlastRadius::C2Elevated => {
-            if matches!(auth.caller_kind, CallerKind::Cli) && auth.agent_id.is_none() {
-                Ok(())
-            } else {
-                Err("op requires a human-operator credential")
-            }
-        }
-        _ => Ok(()),
-    }
-}
-
-/// Axum middleware on the op routes: look up the method's policy and enforce
-/// `gate_decision` against the `AuthContext` injected by `auth_middleware`.
-async fn gate(req: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
-    use axum::response::IntoResponse;
-    let path = req.uri().path().to_string();
-    if let Some(policy) = policy_for(&path) {
-        match req.extensions().get::<AuthContext>() {
-            Some(auth) => {
-                if let Err(msg) = gate_decision(policy, auth) {
-                    return (axum::http::StatusCode::FORBIDDEN, msg).into_response();
-                }
-            }
-            None => {
-                return (axum::http::StatusCode::UNAUTHORIZED, "missing auth context")
-                    .into_response();
-            }
-        }
-    }
-    next.run(req).await
-}
-
-// ── Policy gate ─────────────────────────────────────────────────────────────
+// ── Policy introspection (not the enforcement path) ───────────────────────────
+//
+// Enforcement is `services::gate` via `command::call`. The map below reads the
+// capability / blast-radius / sensitive method options that `gen-ops` projects
+// into the proto `FileDescriptorSet` — kept so the contract is visible to every
+// generated client (TS/docs/SDK) and conformance-tested here, NOT to gate calls.
 //
 // Proto owns op policy (#67a): the capability / blast-radius / sensitive method
 // options are compiled into the FileDescriptorSet. We read them once at first
@@ -297,6 +259,8 @@ pub fn policy_for(path: &str) -> Option<&'static OpPolicy> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::AuthContext;
+    use ship_substrate::events::CallerKind;
 
     #[test]
     fn meta_op_policy_read_from_proto_descriptor() {
@@ -328,25 +292,9 @@ mod tests {
         }
     }
 
-    fn policy(blast: BlastRadius) -> OpPolicy {
-        OpPolicy { capability: "ship.x.op".into(), blast_radius: blast, sensitive: false }
-    }
-
-    #[test]
-    fn gate_allows_c0_c1_for_any_authenticated_caller() {
-        let agent = auth(CallerKind::Mcp, Some("rust-lane"));
-        assert!(gate_decision(&policy(BlastRadius::C0Safe), &agent).is_ok());
-        assert!(gate_decision(&policy(BlastRadius::C1Workspace), &agent).is_ok());
-    }
-
-    #[test]
-    fn gate_denies_c2_for_agents_allows_human_operator() {
-        let c2 = policy(BlastRadius::C2Elevated);
-        // Minted agent session → denied.
-        assert!(gate_decision(&c2, &auth(CallerKind::Mcp, Some("rust-lane"))).is_err());
-        // Human operator (CLI, no agent id) → allowed.
-        assert!(gate_decision(&c2, &auth(CallerKind::Cli, None)).is_ok());
-    }
+    // Gate enforcement moved to `services::gate` (invoked by `command::call`);
+    // its decision is unit-tested there. This module keeps only the proto-policy
+    // introspection + projection conformance above.
 
     // Full vertical: serve the real router (with test ApiState) on an ephemeral
     // port and call Meta through the generated client. Multi-thread flavor so
