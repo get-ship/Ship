@@ -98,15 +98,14 @@ All app binaries live under `apps/`:
 The Ship daemon — an Axum HTTP server that hosts the `ShipRuntime`. Responsibilities:
 
 - **ShipRuntime** — central manager owning the kernel, mesh registry, and lazily-initialized managers (`JobManager`, `MeshManager`, `SessionScanner`)
-- **HTTP API** — REST endpoints for workspaces, sessions, jobs, events, mesh operations
-- **Job dispatch** — process executor that spawns agent processes in worktrees
-- **Pipeline orchestrator** — advances pipelines step-by-step as jobs complete
-- **Session registry** — scoped sessions with per-agent capability enforcement
-- **PTY bridge** — WebSocket-to-tmux terminal bridge
+- **Op surface** — one ConnectRPC service (`ship.ops.v1`) generated from the op registry: reads, commands (gated at the dispatch chokepoint), and server-streams (events, PTY bytes). The legacy REST + OpenAPI surface is being migrated onto it and then deleted.
+- **Pipeline orchestrator** — advances pipelines step-by-step as agent sessions complete
+- **Session registry** — scoped sessions; grants minted at dispatch, read by the gate
+- **PTY bridge** — terminal I/O over the Connect `SessionBytes` stream (and an SSE adapter during migration)
 
-### mcp (MCP server)
+### mcp (external adapter)
 
-Stdio sidecar for AI agents. Exposes Ship's capabilities as MCP tools (`start_session`, `log_progress`, `end_session`, `step_done`, etc.). Connects to the daemon over HTTP.
+A standalone MCP adapter (`apps/mcp`) over the daemon's op surface, for MCP-speaking tools. The daemon-hosted internal MCP server was retired — agents now use **skills + the Connect op surface** (`ship ops`) as their interface, not an in-daemon MCP tool gate.
 
 ### ship-cli
 
@@ -130,6 +129,6 @@ The runtime has four concepts — no `workspace` primitive. **Project** is a dir
 
 Pipelines use a simplified JSONC format. The short form (`agents: [...]`) auto-chains agents into sequential steps. The long form (`steps: [...]`) supports mixed step types: agent strings, `run:` commands, `human:` pauses, and `parallel:` fan-out groups. Template variables (`{{ var }}`) are interpolated at dispatch time.
 
-### Session scopes
+### Capability gate
 
-The daemon enforces per-agent capabilities via scoped sessions. When an MCP server registers, it receives a session token with role-based scopes (`ReadWorkspace`, `WriteWorkspace`, `CreateJobs`, `ManageJobs`, `MeshSend`, `StepDone`, etc.). Roles include `commander`, `lead`, `contributor`, and `worker`, each with different permission sets.
+The daemon enforces per-agent capability at **one gate** on the dispatch chokepoint (`services::gate`, invoked by `services::command::call`), decided on **caller × blast-radius × grant**: C0 reads / C1 workspace writes are open to any in-scope agent; restricted domains (`ship-orchestration`, `ship-authoring`) require a grant minted at dispatch; C2 (credential/escalation) is operator-only. See [Daemon authentication model](/reference/architecture/auth-model/). The legacy `Scope` enum now serves only REST route-auth + artifact perms and is slated for deletion with the REST surface.
