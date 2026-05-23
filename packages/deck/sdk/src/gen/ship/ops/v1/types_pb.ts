@@ -22,7 +22,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/types.proto.
  */
 export const file_ship_ops_v1_types: GenFile = /*@__PURE__*/
-  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAliBnByb3RvMw");
+  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJwoIRGVsZXRpb24SCgoCaWQYASABKAkSDwoHZGVsZXRlZBgCIAEoCCKvAwoOQXJ0aWZhY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBHNpemUYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVzY29wZRgGIAEoCRIXCgpwcm9qZWN0X2lkGAcgASgJSACIAQESEwoGcnVuX2lkGAggASgJSAGIAQESFAoHdXNlcl9pZBgJIAEoCUgCiAEBEhkKDGNvbnRlbnRfaGFzaBgKIAEoCUgDiAEBEhcKCmV4cGlyZXNfYXQYCyABKAlIBIgBARIYCgtvd25lcl9hY3RvchgMIAEoCUgFiAEBEhoKDWNvbGxlY3Rpb25faWQYDSABKAlIBogBARIUCgdpdGVtX2lkGA4gASgJSAeIAQESEgoKY3JlYXRlZF9hdBgPIAEoCUINCgtfcHJvamVjdF9pZEIJCgdfcnVuX2lkQgoKCF91c2VyX2lkQg8KDV9jb250ZW50X2hhc2hCDQoLX2V4cGlyZXNfYXRCDgoMX293bmVyX2FjdG9yQhAKDl9jb2xsZWN0aW9uX2lkQgoKCF9pdGVtX2lkYgZwcm90bzM");
 
 /**
  * Result of a scope-resolving config mutation (rules / mcp / permissions /
@@ -50,4 +50,122 @@ export type ScopedMutation = Message<"ship.ops.v1.ScopedMutation"> & {
  */
 export const ScopedMutationSchema: GenMessage<ScopedMutation> = /*@__PURE__*/
   messageDesc(file_ship_ops_v1_types, 0);
+
+/**
+ * Result of a delete-by-id command. `deleted` is false when the id resolved to
+ * nothing (idempotent delete). Shared by any command whose service returns a
+ * bool deletion result (artifacts, collection items, …).
+ *
+ * @generated from message ship.ops.v1.Deletion
+ */
+export type Deletion = Message<"ship.ops.v1.Deletion"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: bool deleted = 2;
+   */
+  deleted: boolean;
+};
+
+/**
+ * Describes the message ship.ops.v1.Deletion.
+ * Use `create(DeletionSchema)` to create a new message.
+ */
+export const DeletionSchema: GenMessage<Deletion> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 1);
+
+/**
+ * An artifact's metadata record — the typed return of artifacts.patch /
+ * .promote (the byte-moving store/get stay on serving routes). Mirrors
+ * `ship_platform::artifacts::ArtifactRecord`; snake-case JSON decodes via the
+ * generated field aliases.
+ *
+ * @generated from message ship.ops.v1.ArtifactRecord
+ */
+export type ArtifactRecord = Message<"ship.ops.v1.ArtifactRecord"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string mime = 3;
+   */
+  mime: string;
+
+  /**
+   * @generated from field: uint64 size = 4;
+   */
+  size: bigint;
+
+  /**
+   * @generated from field: string path = 5;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string scope = 6;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: optional string project_id = 7;
+   */
+  projectId?: string | undefined;
+
+  /**
+   * @generated from field: optional string run_id = 8;
+   */
+  runId?: string | undefined;
+
+  /**
+   * @generated from field: optional string user_id = 9;
+   */
+  userId?: string | undefined;
+
+  /**
+   * @generated from field: optional string content_hash = 10;
+   */
+  contentHash?: string | undefined;
+
+  /**
+   * @generated from field: optional string expires_at = 11;
+   */
+  expiresAt?: string | undefined;
+
+  /**
+   * @generated from field: optional string owner_actor = 12;
+   */
+  ownerActor?: string | undefined;
+
+  /**
+   * @generated from field: optional string collection_id = 13;
+   */
+  collectionId?: string | undefined;
+
+  /**
+   * @generated from field: optional string item_id = 14;
+   */
+  itemId?: string | undefined;
+
+  /**
+   * @generated from field: string created_at = 15;
+   */
+  createdAt: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.ArtifactRecord.
+ * Use `create(ArtifactRecordSchema)` to create a new message.
+ */
+export const ArtifactRecordSchema: GenMessage<ArtifactRecord> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 2);
 

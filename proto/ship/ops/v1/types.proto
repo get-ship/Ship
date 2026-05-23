@@ -21,3 +21,33 @@ message ScopedMutation {
   string id = 1;
   string scope = 2;
 }
+
+// Result of a delete-by-id command. `deleted` is false when the id resolved to
+// nothing (idempotent delete). Shared by any command whose service returns a
+// bool deletion result (artifacts, collection items, …).
+message Deletion {
+  string id = 1;
+  bool deleted = 2;
+}
+
+// An artifact's metadata record — the typed return of artifacts.patch /
+// .promote (the byte-moving store/get stay on serving routes). Mirrors
+// `ship_platform::artifacts::ArtifactRecord`; snake-case JSON decodes via the
+// generated field aliases.
+message ArtifactRecord {
+  string id = 1;
+  string name = 2;
+  string mime = 3;
+  uint64 size = 4;
+  string path = 5;
+  string scope = 6;
+  optional string project_id = 7;
+  optional string run_id = 8;
+  optional string user_id = 9;
+  optional string content_hash = 10;
+  optional string expires_at = 11;
+  optional string owner_actor = 12;
+  optional string collection_id = 13;
+  optional string item_id = 14;
+  string created_at = 15;
+}

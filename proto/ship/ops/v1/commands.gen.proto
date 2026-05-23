@@ -63,6 +63,18 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.permissions.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
+  rpc ArtifactsPatch(ArtifactsPatchRequest) returns (ArtifactRecord) {
+    option (ship.ops.v1.capability) = "ship.artifacts.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc ArtifactsPromote(ArtifactsPromoteRequest) returns (ArtifactRecord) {
+    option (ship.ops.v1.capability) = "ship.artifacts.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc ArtifactsDelete(ArtifactsDeleteRequest) returns (Deletion) {
+    option (ship.ops.v1.capability) = "ship.artifacts.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc ProjectActivate(ProjectActivateRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -230,6 +242,24 @@ message PermissionsPatchRequest {
 message PermissionsDeleteRequest {
   string id = 1;
   string scope = 2;
+}
+
+message ArtifactsPatchRequest {
+  string id = 1;
+  string name = 2;
+  string owner_actor = 3;
+  string expires_at = 4;
+}
+
+message ArtifactsPromoteRequest {
+  string id = 1;
+  string target_scope = 2;
+  string run_id = 3;
+  string user_id = 4;
+}
+
+message ArtifactsDeleteRequest {
+  string id = 1;
 }
 
 message ProjectActivateRequest {

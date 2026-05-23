@@ -290,6 +290,46 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "ScopedMutation",
         sensitive: false,
     },
+    // ── artifacts (metadata mutations; bytes move on serving routes) ─
+    // Default C1, but each op honors the per-artifact scope ACL. Reads are
+    // artifacts.list/get_record; store/get (blobs) stay serving routes.
+    CommandDescriptor {
+        name: "artifacts.patch",
+        description: "Patch an artifact's metadata (name / owner / expiry).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "name", kind: "string?", required: false },
+            ArgDescriptor { name: "owner_actor", kind: "string?", required: false },
+            ArgDescriptor { name: "expires_at", kind: "string?", required: false },
+        ],
+        permission: "ship.artifacts.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ArtifactRecord",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "artifacts.promote",
+        description: "Promote an artifact to a target scope (run → project → user).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "target_scope", kind: "string", required: true },
+            ArgDescriptor { name: "run_id", kind: "string?", required: false },
+            ArgDescriptor { name: "user_id", kind: "string?", required: false },
+        ],
+        permission: "ship.artifacts.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ArtifactRecord",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "artifacts.delete",
+        description: "Soft-delete an artifact by id.",
+        args: &[ArgDescriptor { name: "id", kind: "string", required: true }],
+        permission: "ship.artifacts.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "Deletion",
+        sensitive: false,
+    },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.activate",

@@ -18,6 +18,7 @@ use crate::ship_runtime::ApiState;
 
 mod agent;
 mod annotations;
+mod artifacts;
 mod git;
 mod mcp;
 mod mesh;
@@ -124,6 +125,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = permissions::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = artifacts::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
@@ -446,5 +450,33 @@ mod tests {
                 .expect("operator may write a permission preset");
         assert_eq!(created["id"], "fixture-preset");
         assert_eq!(created["scope"], "user");
+    }
+
+    #[test]
+    fn artifact_record_value_decodes_into_the_typed_proto_message() {
+        // The typed contract's load-bearing step: the generated Connect handler
+        // maps the command's serde_json::Value onto the proto message via
+        // from_value. ArtifactRecord exercises the risky shapes — a `uint64`
+        // (size) as a JSON number, snake_case keys, and absent optionals — so
+        // assert the round-trip the handler relies on actually holds.
+        let value = serde_json::json!({
+            "id": "art-1",
+            "name": "out.log",
+            "mime": "text/plain",
+            "size": 4096,
+            "path": "runs/r1/out.log",
+            "scope": "run",
+            "project_id": "proj",
+            "run_id": "r1",
+            "created_at": "2026-05-23T00:00:00Z"
+            // content_hash / expires_at / owner_actor / collection_id / item_id
+            // deliberately absent — proto3 optionals, must default to None.
+        });
+        let msg: ship_ops_rpc::ArtifactRecord =
+            serde_json::from_value(value).expect("artifact value decodes into the proto message");
+        assert_eq!(msg.id, "art-1");
+        assert_eq!(msg.size, 4096);
+        assert_eq!(msg.run_id.as_deref(), Some("r1"));
+        assert_eq!(msg.content_hash, None);
     }
 }
