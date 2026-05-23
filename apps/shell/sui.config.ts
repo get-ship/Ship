@@ -42,6 +42,13 @@ const config: SuiBuildConfig = {
     'sui-view-authoring':   'src/components/sui-view-authoring/index.ts',
     'sui-account-menu':     'src/components/sui-account-menu/index.ts',
   },
+  // Studio VIEW trees (`src/studio/**/page.sui` + nested chrome elements).
+  // These are loaded by the daemon view-host, not bundled into the chrome
+  // aggregate, but their controllers import the generated `Scope` from a
+  // sibling `.sui`. Compiling them emits each `page.sui.d.ts` into the
+  // mirror tree so those `./page.sui` type imports resolve under tsc's
+  // `rootDirs`. Recursive — covers dynamic `[id]`/`[name]` route segments.
+  compileDirs: ['src/studio'],
   outdir: '../../.deck',
   lazyOutSubdir: 'sui-components',
 }
