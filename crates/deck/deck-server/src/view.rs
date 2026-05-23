@@ -9,7 +9,7 @@ use sui_compiler::{CompileOpts, compile};
 use deck_host::resolver::ResolvedView;
 
 use crate::{DaemonMode, compute_etag, mode_from_ext, view_cache};
-use crate::assets::{resolve_view_js, resolve_view_js_baked, resolve_view_css_baked};
+use crate::assets::resolve_view_js;
 use crate::resolver::resolve;
 
 pub async fn serve_sui_view_template(
@@ -47,9 +47,6 @@ pub async fn serve_sui_view_setup(
     if q.sub.is_none() {
         if let Some(js) = resolve_view_js(&name) {
             return js_response_mode(js, mode);
-        }
-        if let Some(baked) = resolve_view_js_baked(&name) {
-            return js_response_mode(baked.to_string(), mode);
         }
     }
     match resolve(&name, q.sub.as_deref()) {
@@ -124,11 +121,6 @@ pub async fn serve_sui_view_css(
     let mode = mode_from_ext(mode);
     if !is_valid_view_name(&name) {
         return not_found("invalid view name");
-    }
-    if q.sub.is_none()
-        && let Some(css) = resolve_view_css_baked(&name)
-    {
-        return css_response_mode(css.to_string(), mode);
     }
     let body: String = match resolve(&name, q.sub.as_deref()) {
         Ok(r) => {

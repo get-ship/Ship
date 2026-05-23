@@ -54,33 +54,13 @@ const SUI_CODE_EDITOR_ISLAND_JS: &str = include_str!("../assets/sui-components/s
 const SUI_MARKDOWN_EDITOR_ISLAND_JS: &str =
     include_str!("../assets/sui-components/sui-markdown-editor.js");
 
-// Baked view JS + CSS for first-party views (production fallback).
-
-const AGENTS_VIEW_CSS: &str = include_str!("../../../../apps/shell/src/studio/agents/style.css");
-const AGENTS_VIEW_JS: &str = include_str!("../assets/views/agents/view.js");
-const GIT_VIEW_CSS: &str = include_str!("../../../../views/git/style.css");
-const GIT_VIEW_JS: &str = include_str!("../assets/views/git/view.js");
-
-// Public helpers (used by view.rs)
+// Public helpers (used by view.rs). deck bakes NO app views — it serves compiled
+// view JS generically from the assets dir (or compiles on demand). First-party
+// production fallback, if needed, is the ship binary's concern, not the
+// framework's (see .artifacts/asset-architecture.md).
 
 pub fn resolve_view_js(name: &str) -> Option<String> {
     read_asset(&format!("views/{name}/view.js"))
-}
-
-pub fn resolve_view_js_baked(name: &str) -> Option<&'static str> {
-    match name {
-        "agents" => Some(AGENTS_VIEW_JS),
-        "git" => Some(GIT_VIEW_JS),
-        _ => None,
-    }
-}
-
-pub fn resolve_view_css_baked(name: &str) -> Option<&'static str> {
-    match name {
-        "agents" => Some(AGENTS_VIEW_CSS),
-        "git" => Some(GIT_VIEW_CSS),
-        _ => None,
-    }
 }
 
 // Framework bundle handlers
