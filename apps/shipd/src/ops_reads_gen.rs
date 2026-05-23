@@ -93,8 +93,8 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedSkillsListRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("skills.list")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::SkillsIndexResponse> {
+        self.dispatch_typed::<::ship_ops_rpc::SkillsIndexResponse>("skills.list", ::serde_json::Value::Null)
     }
     async fn skills_summaries(
         &self,
@@ -120,11 +120,11 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         req: ::ship_ops_rpc::OwnedSkillsFileRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::SkillFileResponse> {
         let mut args = ::serde_json::Map::new();
         args.insert("id".to_string(), ::serde_json::json!(req.id));
         args.insert("path".to_string(), ::serde_json::json!(req.path));
-        self.dispatch_json_args("skills.file", ::serde_json::Value::Object(args))
+        self.dispatch_typed::<::ship_ops_rpc::SkillFileResponse>("skills.file", ::serde_json::Value::Object(args))
     }
     async fn skills_get(
         &self,
@@ -198,8 +198,8 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedPipelinesListRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("pipelines.list")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::PipelinesIndexResponse> {
+        self.dispatch_typed::<::ship_ops_rpc::PipelinesIndexResponse>("pipelines.list", ::serde_json::Value::Null)
     }
     async fn pipelines_get(
         &self,
@@ -400,7 +400,7 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         req: ::ship_ops_rpc::OwnedArtifactsListRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::ArtifactsListResponse> {
         let mut args = ::serde_json::Map::new();
         if !req.scope.is_empty() { args.insert("scope".to_string(), ::serde_json::json!(req.scope)); }
         if !req.mime.is_empty() { args.insert("mime".to_string(), ::serde_json::json!(req.mime)); }
@@ -411,7 +411,7 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         if !req.sort.is_empty() { args.insert("sort".to_string(), ::serde_json::json!(req.sort)); }
         if req.limit != 0 { args.insert("limit".to_string(), ::serde_json::json!(req.limit)); }
         if req.offset != 0 { args.insert("offset".to_string(), ::serde_json::json!(req.offset)); }
-        self.dispatch_json_args("artifacts.list", ::serde_json::Value::Object(args))
+        self.dispatch_typed::<::ship_ops_rpc::ArtifactsListResponse>("artifacts.list", ::serde_json::Value::Object(args))
     }
     async fn chat_state(
         &self,
@@ -440,8 +440,8 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedWorkspacesActiveRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("workspaces.active")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::WorkspaceActiveResponse> {
+        self.dispatch_typed::<::ship_ops_rpc::WorkspaceActiveResponse>("workspaces.active", ::serde_json::Value::Null)
     }
     async fn account_state(
         &self,

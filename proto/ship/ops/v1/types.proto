@@ -93,6 +93,34 @@ message ToolPatternsResponse {
   repeated ToolPattern patterns = 1;
 }
 
+// skills.list / pipelines.list — IndexEntry items (like rules/mcp).
+message SkillsIndexResponse {
+  repeated IndexEntry items = 1;
+}
+message PipelinesIndexResponse {
+  repeated IndexEntry items = 1;
+}
+
+// skills.file — HTML-escaped file content (all scalar).
+message SkillFileResponse {
+  string path = 1;
+  string name = 2;
+  string ext = 3;
+  string content = 4;
+}
+
+// workspaces.active — the active project id (None when unset).
+message WorkspaceActiveResponse {
+  optional string id = 1;
+}
+
+// artifacts.list — a page of artifact records (reuses ArtifactRecord).
+message ArtifactsListResponse {
+  repeated ArtifactRecord items = 1;
+  uint64 count = 2;
+  string scope = 3;
+}
+
 // A registered project — the typed return of project.add. Mirrors
 // `ship_platform::projects::ProjectRecord`.
 message ProjectRecord {

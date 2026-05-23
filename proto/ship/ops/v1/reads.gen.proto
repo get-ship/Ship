@@ -55,7 +55,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SkillsList(SkillsListRequest) returns (JsonResponse) {
+  rpc SkillsList(SkillsListRequest) returns (SkillsIndexResponse) {
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -67,7 +67,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SkillsFile(SkillsFileRequest) returns (JsonResponse) {
+  rpc SkillsFile(SkillsFileRequest) returns (SkillFileResponse) {
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -103,7 +103,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc PipelinesList(PipelinesListRequest) returns (JsonResponse) {
+  rpc PipelinesList(PipelinesListRequest) returns (PipelinesIndexResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -195,7 +195,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.collections.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc ArtifactsList(ArtifactsListRequest) returns (JsonResponse) {
+  rpc ArtifactsList(ArtifactsListRequest) returns (ArtifactsListResponse) {
     option (ship.ops.v1.capability) = "ship.artifacts.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -211,7 +211,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.workspaces.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc WorkspacesActive(WorkspacesActiveRequest) returns (JsonResponse) {
+  rpc WorkspacesActive(WorkspacesActiveRequest) returns (WorkspaceActiveResponse) {
     option (ship.ops.v1.capability) = "ship.workspaces.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

@@ -22,7 +22,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/types.proto.
  */
 export const file_ship_ops_v1_types: GenFile = /*@__PURE__*/
-  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJwoIRGVsZXRpb24SCgoCaWQYASABKAkSDwoHZGVsZXRlZBgCIAEoCCKvAwoOQXJ0aWZhY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBHNpemUYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVzY29wZRgGIAEoCRIXCgpwcm9qZWN0X2lkGAcgASgJSACIAQESEwoGcnVuX2lkGAggASgJSAGIAQESFAoHdXNlcl9pZBgJIAEoCUgCiAEBEhkKDGNvbnRlbnRfaGFzaBgKIAEoCUgDiAEBEhcKCmV4cGlyZXNfYXQYCyABKAlIBIgBARIYCgtvd25lcl9hY3RvchgMIAEoCUgFiAEBEhoKDWNvbGxlY3Rpb25faWQYDSABKAlIBogBARIUCgdpdGVtX2lkGA4gASgJSAeIAQESEgoKY3JlYXRlZF9hdBgPIAEoCUINCgtfcHJvamVjdF9pZEIJCgdfcnVuX2lkQgoKCF91c2VyX2lkQg8KDV9jb250ZW50X2hhc2hCDQoLX2V4cGlyZXNfYXRCDgoMX293bmVyX2FjdG9yQhAKDl9jb2xsZWN0aW9uX2lkQgoKCF9pdGVtX2lkIicKCkluZGV4RW50cnkSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiPAoSUnVsZXNJbmRleFJlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc2hpcC5vcHMudjEuSW5kZXhFbnRyeSI6Cg9SdWxlR2V0UmVzcG9uc2USCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEYm9keRgDIAEoCSI6ChBNY3BJbmRleFJlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc2hpcC5vcHMudjEuSW5kZXhFbnRyeSJCChhQZXJtaXNzaW9uc0luZGV4UmVzcG9uc2USJgoFaXRlbXMYASADKAsyFy5zaGlwLm9wcy52MS5JbmRleEVudHJ5Ij0KC1Rvb2xQYXR0ZXJuEg8KB3BhdHRlcm4YASABKAkSDQoFbGFiZWwYAiABKAkSDgoGc291cmNlGAMgASgJIkIKFFRvb2xQYXR0ZXJuc1Jlc3BvbnNlEioKCHBhdHRlcm5zGAEgAygLMhguc2hpcC5vcHMudjEuVG9vbFBhdHRlcm4iYQoNUHJvamVjdFJlY29yZBIKCgJpZBgBIAEoCRIMCgRwYXRoGAIgASgJEgwKBG5hbWUYAyABKAkSEgoKY3JlYXRlZF9hdBgEIAEoCRIUCgxsYXN0X3NlZW5fYXQYBSABKAkiLwoMU2V0dGluZ1ZhbHVlEgsKA2tleRgBIAEoCRISCgp2YWx1ZV9qc29uGAIgASgJIpMBCg5Db2xsZWN0aW9uSXRlbRIKCgJpZBgBIAEoCRISCgpjb2xsZWN0aW9uGAIgASgJEhEKCWRhdGFfanNvbhgDIAEoCRIXCgpjcmVhdGVkX2J5GAQgASgJSACIAQESEgoKY3JlYXRlZF9hdBgFIAEoCRISCgp1cGRhdGVkX2F0GAYgASgJQg0KC19jcmVhdGVkX2J5YgZwcm90bzM");
+  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJwoIRGVsZXRpb24SCgoCaWQYASABKAkSDwoHZGVsZXRlZBgCIAEoCCKvAwoOQXJ0aWZhY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBHNpemUYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVzY29wZRgGIAEoCRIXCgpwcm9qZWN0X2lkGAcgASgJSACIAQESEwoGcnVuX2lkGAggASgJSAGIAQESFAoHdXNlcl9pZBgJIAEoCUgCiAEBEhkKDGNvbnRlbnRfaGFzaBgKIAEoCUgDiAEBEhcKCmV4cGlyZXNfYXQYCyABKAlIBIgBARIYCgtvd25lcl9hY3RvchgMIAEoCUgFiAEBEhoKDWNvbGxlY3Rpb25faWQYDSABKAlIBogBARIUCgdpdGVtX2lkGA4gASgJSAeIAQESEgoKY3JlYXRlZF9hdBgPIAEoCUINCgtfcHJvamVjdF9pZEIJCgdfcnVuX2lkQgoKCF91c2VyX2lkQg8KDV9jb250ZW50X2hhc2hCDQoLX2V4cGlyZXNfYXRCDgoMX293bmVyX2FjdG9yQhAKDl9jb2xsZWN0aW9uX2lkQgoKCF9pdGVtX2lkIicKCkluZGV4RW50cnkSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiPAoSUnVsZXNJbmRleFJlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc2hpcC5vcHMudjEuSW5kZXhFbnRyeSI6Cg9SdWxlR2V0UmVzcG9uc2USCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEYm9keRgDIAEoCSI6ChBNY3BJbmRleFJlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc2hpcC5vcHMudjEuSW5kZXhFbnRyeSJCChhQZXJtaXNzaW9uc0luZGV4UmVzcG9uc2USJgoFaXRlbXMYASADKAsyFy5zaGlwLm9wcy52MS5JbmRleEVudHJ5Ij0KC1Rvb2xQYXR0ZXJuEg8KB3BhdHRlcm4YASABKAkSDQoFbGFiZWwYAiABKAkSDgoGc291cmNlGAMgASgJIkIKFFRvb2xQYXR0ZXJuc1Jlc3BvbnNlEioKCHBhdHRlcm5zGAEgAygLMhguc2hpcC5vcHMudjEuVG9vbFBhdHRlcm4iPQoTU2tpbGxzSW5kZXhSZXNwb25zZRImCgVpdGVtcxgBIAMoCzIXLnNoaXAub3BzLnYxLkluZGV4RW50cnkiQAoWUGlwZWxpbmVzSW5kZXhSZXNwb25zZRImCgVpdGVtcxgBIAMoCzIXLnNoaXAub3BzLnYxLkluZGV4RW50cnkiTQoRU2tpbGxGaWxlUmVzcG9uc2USDAoEcGF0aBgBIAEoCRIMCgRuYW1lGAIgASgJEgsKA2V4dBgDIAEoCRIPCgdjb250ZW50GAQgASgJIjEKF1dvcmtzcGFjZUFjdGl2ZVJlc3BvbnNlEg8KAmlkGAEgASgJSACIAQFCBQoDX2lkImEKFUFydGlmYWN0c0xpc3RSZXNwb25zZRIqCgVpdGVtcxgBIAMoCzIbLnNoaXAub3BzLnYxLkFydGlmYWN0UmVjb3JkEg0KBWNvdW50GAIgASgEEg0KBXNjb3BlGAMgASgJImEKDVByb2plY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEcGF0aBgCIAEoCRIMCgRuYW1lGAMgASgJEhIKCmNyZWF0ZWRfYXQYBCABKAkSFAoMbGFzdF9zZWVuX2F0GAUgASgJIi8KDFNldHRpbmdWYWx1ZRILCgNrZXkYASABKAkSEgoKdmFsdWVfanNvbhgCIAEoCSKTAQoOQ29sbGVjdGlvbkl0ZW0SCgoCaWQYASABKAkSEgoKY29sbGVjdGlvbhgCIAEoCRIRCglkYXRhX2pzb24YAyABKAkSFwoKY3JlYXRlZF9ieRgEIAEoCUgAiAEBEhIKCmNyZWF0ZWRfYXQYBSABKAkSEgoKdXBkYXRlZF9hdBgGIAEoCUINCgtfY3JlYXRlZF9ieWIGcHJvdG8z");
 
 /**
  * Result of a scope-resolving config mutation (rules / mcp / permissions /
@@ -327,6 +327,124 @@ export const ToolPatternsResponseSchema: GenMessage<ToolPatternsResponse> = /*@_
   messageDesc(file_ship_ops_v1_types, 9);
 
 /**
+ * skills.list / pipelines.list — IndexEntry items (like rules/mcp).
+ *
+ * @generated from message ship.ops.v1.SkillsIndexResponse
+ */
+export type SkillsIndexResponse = Message<"ship.ops.v1.SkillsIndexResponse"> & {
+  /**
+   * @generated from field: repeated ship.ops.v1.IndexEntry items = 1;
+   */
+  items: IndexEntry[];
+};
+
+/**
+ * Describes the message ship.ops.v1.SkillsIndexResponse.
+ * Use `create(SkillsIndexResponseSchema)` to create a new message.
+ */
+export const SkillsIndexResponseSchema: GenMessage<SkillsIndexResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 10);
+
+/**
+ * @generated from message ship.ops.v1.PipelinesIndexResponse
+ */
+export type PipelinesIndexResponse = Message<"ship.ops.v1.PipelinesIndexResponse"> & {
+  /**
+   * @generated from field: repeated ship.ops.v1.IndexEntry items = 1;
+   */
+  items: IndexEntry[];
+};
+
+/**
+ * Describes the message ship.ops.v1.PipelinesIndexResponse.
+ * Use `create(PipelinesIndexResponseSchema)` to create a new message.
+ */
+export const PipelinesIndexResponseSchema: GenMessage<PipelinesIndexResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 11);
+
+/**
+ * skills.file — HTML-escaped file content (all scalar).
+ *
+ * @generated from message ship.ops.v1.SkillFileResponse
+ */
+export type SkillFileResponse = Message<"ship.ops.v1.SkillFileResponse"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string ext = 3;
+   */
+  ext: string;
+
+  /**
+   * @generated from field: string content = 4;
+   */
+  content: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.SkillFileResponse.
+ * Use `create(SkillFileResponseSchema)` to create a new message.
+ */
+export const SkillFileResponseSchema: GenMessage<SkillFileResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 12);
+
+/**
+ * workspaces.active — the active project id (None when unset).
+ *
+ * @generated from message ship.ops.v1.WorkspaceActiveResponse
+ */
+export type WorkspaceActiveResponse = Message<"ship.ops.v1.WorkspaceActiveResponse"> & {
+  /**
+   * @generated from field: optional string id = 1;
+   */
+  id?: string | undefined;
+};
+
+/**
+ * Describes the message ship.ops.v1.WorkspaceActiveResponse.
+ * Use `create(WorkspaceActiveResponseSchema)` to create a new message.
+ */
+export const WorkspaceActiveResponseSchema: GenMessage<WorkspaceActiveResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 13);
+
+/**
+ * artifacts.list — a page of artifact records (reuses ArtifactRecord).
+ *
+ * @generated from message ship.ops.v1.ArtifactsListResponse
+ */
+export type ArtifactsListResponse = Message<"ship.ops.v1.ArtifactsListResponse"> & {
+  /**
+   * @generated from field: repeated ship.ops.v1.ArtifactRecord items = 1;
+   */
+  items: ArtifactRecord[];
+
+  /**
+   * @generated from field: uint64 count = 2;
+   */
+  count: bigint;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.ArtifactsListResponse.
+ * Use `create(ArtifactsListResponseSchema)` to create a new message.
+ */
+export const ArtifactsListResponseSchema: GenMessage<ArtifactsListResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 14);
+
+/**
  * A registered project — the typed return of project.add. Mirrors
  * `ship_platform::projects::ProjectRecord`.
  *
@@ -364,7 +482,7 @@ export type ProjectRecord = Message<"ship.ops.v1.ProjectRecord"> & {
  * Use `create(ProjectRecordSchema)` to create a new message.
  */
 export const ProjectRecordSchema: GenMessage<ProjectRecord> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_types, 10);
+  messageDesc(file_ship_ops_v1_types, 15);
 
 /**
  * The typed return of settings.set: the key and its new value (serialized
@@ -389,7 +507,7 @@ export type SettingValue = Message<"ship.ops.v1.SettingValue"> & {
  * Use `create(SettingValueSchema)` to create a new message.
  */
 export const SettingValueSchema: GenMessage<SettingValue> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_types, 11);
+  messageDesc(file_ship_ops_v1_types, 16);
 
 /**
  * A collection item — the typed return of collections.create_item /
@@ -441,5 +559,5 @@ export type CollectionItem = Message<"ship.ops.v1.CollectionItem"> & {
  * Use `create(CollectionItemSchema)` to create a new message.
  */
 export const CollectionItemSchema: GenMessage<CollectionItem> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_types, 12);
+  messageDesc(file_ship_ops_v1_types, 17);
 

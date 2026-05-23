@@ -30,6 +30,12 @@ const TYPED_READS: &[&str] = &[
     "McpIndexResponse",
     "PermissionsIndexResponse",
     "ToolPatternsResponse",
+    // list/index + scalar reads reusing already-typed leaves
+    "SkillsIndexResponse",
+    "PipelinesIndexResponse",
+    "SkillFileResponse",
+    "WorkspaceActiveResponse",
+    "ArtifactsListResponse",
 ];
 
 struct ReadOp {
