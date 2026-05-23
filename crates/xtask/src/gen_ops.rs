@@ -42,6 +42,14 @@ const TYPED_READS: &[&str] = &[
     "GitOverviewResponse",
     "GitDiffResponse",
     "StatusBuckets",
+    // sessions / chat / events / specs / actors / agents index
+    "SessionsListResponse",
+    "ChatStateResponse",
+    "EventsListResponse",
+    "SpecsListResponse",
+    "SpecGetResponse",
+    "ActorsListResponse",
+    "AgentIndexResponse",
 ];
 
 struct ReadOp {

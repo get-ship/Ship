@@ -11,7 +11,7 @@ import "ship/ops/v1/ops.proto";
 import "ship/ops/v1/types.proto";
 
 service ReadOpsService {
-  rpc AgentsList(AgentsListRequest) returns (JsonResponse) {
+  rpc AgentsList(AgentsListRequest) returns (AgentIndexResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -127,15 +127,15 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc EventsList(EventsListRequest) returns (JsonResponse) {
+  rpc EventsList(EventsListRequest) returns (EventsListResponse) {
     option (ship.ops.v1.capability) = "ship.events.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SpecsList(SpecsListRequest) returns (JsonResponse) {
+  rpc SpecsList(SpecsListRequest) returns (SpecsListResponse) {
     option (ship.ops.v1.capability) = "ship.specs.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SpecsGet(SpecsGetRequest) returns (JsonResponse) {
+  rpc SpecsGet(SpecsGetRequest) returns (SpecGetResponse) {
     option (ship.ops.v1.capability) = "ship.specs.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -199,11 +199,11 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.artifacts.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc ChatState(ChatStateRequest) returns (JsonResponse) {
+  rpc ChatState(ChatStateRequest) returns (ChatStateResponse) {
     option (ship.ops.v1.capability) = "ship.chat.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SessionsList(SessionsListRequest) returns (JsonResponse) {
+  rpc SessionsList(SessionsListRequest) returns (SessionsListResponse) {
     option (ship.ops.v1.capability) = "ship.sessions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
