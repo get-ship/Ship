@@ -9,7 +9,15 @@
 // uses.
 
 import { controller, signal, derived, live, unwrap, defineRoutes } from '@ship/sui-runtime'
+import type { MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+
+// `on:` handlers receive the writable state proxy; annotate explicitly
+// since the OnSection union blocks contextual inference.
+type S = MutableState<Scope>
+// `rowDraft` emits as `unknown` (emitter gap) so it drops off
+// `MutableState`; narrow through `SExt` at the use site.
+type SExt = S & { rowDraft: Record<string, unknown> }
 
 defineRoutes([{ pattern: '/studio/collections/:id' }])
 
@@ -155,10 +163,11 @@ export default controller<Scope>({
     }
   },
   on: {
-    setDraftField: (state, name: string, value: unknown) => {
-      state.rowDraft = { ...(state.rowDraft as Record<string, unknown>), [name]: value }
+    setDraftField: (state: S, name: string, value: unknown) => {
+      const st = state as SExt
+      st.rowDraft = { ...st.rowDraft, [name]: value }
     },
-    cycleStatus: async (state, item: { id: string; data?: Record<string, unknown> }) => {
+    cycleStatus: async (state: S, item: { id: string; data?: Record<string, unknown> }) => {
       const detail = state.detailValue as CollectionDetail | null
       const statusField = detail?.schema.fields?.find(f => f.name === 'status')
       const values = statusField?.values ?? []
@@ -174,30 +183,30 @@ export default controller<Scope>({
         body: JSON.stringify({ data: { ...(item.data ?? {}), status: next } }),
       }).catch(() => undefined)
     },
-    openNewRow: (state) => {
-      state.rowDraft = {}
+    openNewRow: (state: S) => {
+      (state as SExt).rowDraft = {}
       state.drawerError = ''
       state.newRowOpen = true
     },
-    closeNewRow: (state) => {
+    closeNewRow: (state: S) => {
       state.newRowOpen = false
       state.drawerError = ''
     },
-    saveNewRow: async (state) => {
+    saveNewRow: async (state: S) => {
       const id = state.collectionId as string
       if (!id) { state.drawerError = 'No collection id'; return }
       const res = await fetch(`/api/v1/collections/${id}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ data: state.rowDraft }),
+        body: JSON.stringify({ data: (state as SExt).rowDraft }),
       })
       if (!res.ok) {
         state.drawerError = await res.text().catch(() => 'Request failed')
         return
       }
       state.newRowOpen = false
-      state.rowDraft = {}
+      ;(state as SExt).rowDraft = {}
       state.drawerError = ''
     },
   },
