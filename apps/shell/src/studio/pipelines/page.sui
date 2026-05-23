@@ -117,7 +117,7 @@
     <span>Best experienced on desktop</span>
   </div>
 
-  <sui-dialog prop:open={dispatchOpen()} size="lg" on:sui-close={closeDispatch}>
+  <sui-dialog attr:open={dispatchOpen()} size="lg" on:sui-close={closeDispatch}>
     <span slot="header">Dispatch pipeline run</span>
     <sui-field label="Pipeline">
       <sui-select bind:value={dispatchPipeline}>
@@ -145,7 +145,7 @@
   </sui-dialog>
 
   {#if workspaceId()}
-  <sui-dialog prop:open={newPipeOpen()} size="sm" on:sui-close={closeNewPipe}>
+  <sui-dialog attr:open={newPipeOpen()} size="sm" on:sui-close={closeNewPipe}>
     <span slot="header">New pipeline</span>
     <sui-field label="Name" hint="Lowercase, kebab-case. Becomes the filename.">
       <sui-input bind:value={newPipeName} placeholder="my-pipeline" autofocus></sui-input>
