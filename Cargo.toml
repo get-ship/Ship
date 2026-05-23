@@ -19,7 +19,7 @@ members = [
     "crates/sui/signals",
     "crates/deck/deck-host",
     "crates/deck/deck-core",
-    "crates/deck/deck-server",
+    "crates/deck/deck-axum",
     "crates/deck/deck",
     "crates/xtask",
     "packages/sui/grammar",

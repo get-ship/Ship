@@ -1,66 +1,42 @@
-use axum::{
-    Extension,
-    body::Body,
-    extract::{Path, Query},
-    http::{StatusCode, header},
-    response::Response,
-};
 use sui_compiler::{CompileOpts, compile};
 use deck_host::resolver::ResolvedView;
 
-use crate::{DaemonMode, compute_etag, mode_from_ext, view_cache};
+use crate::{DaemonMode, DeckResponse};
 use crate::assets::resolve_view_js;
 use crate::resolver::resolve;
-
-pub async fn serve_sui_view_template(
-    mode: Option<Extension<DaemonMode>>,
-    Path(name): Path<String>,
-) -> Response {
-    let mode = mode_from_ext(mode);
-    if !is_valid_view_name(&name) {
-        return not_found("invalid view name");
-    }
-    let body = match resolve(&name, None) {
-        Ok(r) => r.source,
-        Err(e) => return not_found(&e.message),
-    };
-    let cache = view_cache(mode);
-    let mut builder = Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-        .header(header::CACHE_CONTROL, cache);
-    if mode == DaemonMode::Production {
-        builder = builder.header(header::ETAG, compute_etag(body.as_bytes()));
-    }
-    builder.body(Body::from(body)).unwrap_or_else(|_| Response::new(Body::from("response build failed")))
-}
-
-pub async fn serve_sui_view_setup(
-    mode: Option<Extension<DaemonMode>>,
-    Path(name): Path<String>,
-    Query(q): Query<ViewSetupQuery>,
-) -> Response {
-    let mode = mode_from_ext(mode);
-    if !is_valid_view_name(&name) {
-        return not_found("invalid view name");
-    }
-    if q.sub.is_none() {
-        if let Some(js) = resolve_view_js(&name) {
-            return js_response_mode(js, mode);
-        }
-    }
-    match resolve(&name, q.sub.as_deref()) {
-        Ok(r) => compile_view_js(&name, &r, mode),
-        Err(e) => not_found(&e.message),
-    }
-}
 
 #[derive(Debug, serde::Deserialize)]
 pub struct ViewSetupQuery {
     pub sub: Option<String>,
 }
 
-fn compile_view_js(name: &str, resolved: &ResolvedView, mode: DaemonMode) -> Response {
+pub fn serve_sui_view_template(mode: DaemonMode, name: &str) -> DeckResponse {
+    if !is_valid_view_name(name) {
+        return DeckResponse::not_found("invalid view name");
+    }
+    let body = match resolve(name, None) {
+        Ok(r) => r.source,
+        Err(e) => return DeckResponse::not_found(e.message),
+    };
+    DeckResponse::text_view(body, mode)
+}
+
+pub fn serve_sui_view_setup(mode: DaemonMode, name: &str, sub: Option<&str>) -> DeckResponse {
+    if !is_valid_view_name(name) {
+        return DeckResponse::not_found("invalid view name");
+    }
+    if sub.is_none() {
+        if let Some(js) = resolve_view_js(name) {
+            return DeckResponse::js_view(js, mode);
+        }
+    }
+    match resolve(name, sub) {
+        Ok(r) => compile_view_js(name, &r, mode),
+        Err(e) => DeckResponse::not_found(e.message),
+    }
+}
+
+fn compile_view_js(name: &str, resolved: &ResolvedView, mode: DaemonMode) -> DeckResponse {
     let ts_filename = match resolved
         .source_path
         .as_ref()
@@ -88,54 +64,41 @@ fn compile_view_js(name: &str, resolved: &ResolvedView, mode: DaemonMode) -> Res
     };
     let out = match compile(&resolved.source, opts) {
         Ok(o) => o,
-        Err(err) => return render_error(err.render(&resolved.source), mode),
+        Err(err) => return DeckResponse::render_error(err.render(&resolved.source), mode),
     };
 
     let final_js = match (ts_path, resolved.source_path.as_deref()) {
         (Some(ts), Some(sui)) => match deck_host::bundle::bundle_view(name, &out.js, sui, &ts) {
             Ok(b) => b,
-            Err(e) => return render_error(e, mode),
+            Err(e) => return DeckResponse::render_error(e, mode),
         },
         _ => out.js,
     };
 
-    let mut builder = Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(header::CACHE_CONTROL, view_cache(mode))
-        .header(
-            "X-Sui-View",
-            name.chars().filter(|c| c.is_ascii()).collect::<String>(),
-        );
-    if mode == DaemonMode::Production {
-        builder = builder.header(header::ETAG, compute_etag(final_js.as_bytes()));
-    }
-    builder.body(Body::from(final_js)).unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+    DeckResponse::js_view(final_js, mode).with_header(
+        "X-Sui-View",
+        name.chars().filter(|c| c.is_ascii()).collect::<String>(),
+    )
 }
 
-pub async fn serve_sui_view_css(
-    mode: Option<Extension<DaemonMode>>,
-    Path(name): Path<String>,
-    Query(q): Query<ViewSetupQuery>,
-) -> Response {
-    let mode = mode_from_ext(mode);
-    if !is_valid_view_name(&name) {
-        return not_found("invalid view name");
+pub fn serve_sui_view_css(mode: DaemonMode, name: &str, sub: Option<&str>) -> DeckResponse {
+    if !is_valid_view_name(name) {
+        return DeckResponse::not_found("invalid view name");
     }
-    let body: String = match resolve(&name, q.sub.as_deref()) {
+    let body: String = match resolve(name, sub) {
         Ok(r) => {
             let mut buf = String::new();
             if let Some(parent_dir) = r
                 .source_path
                 .as_ref()
-                .and_then(|p| top_level_view_dir(p, &name))
+                .and_then(|p| top_level_view_dir(p, name))
                 && let Ok(s) = std::fs::read_to_string(parent_dir.join("style.css"))
                     .or_else(|_| std::fs::read_to_string(parent_dir.join("index.css")))
                     .or_else(|_| std::fs::read_to_string(parent_dir.join("view.css")))
             {
                 buf.push_str(&s);
             }
-            if q.sub.is_some()
+            if sub.is_some()
                 && let Some(sub_dir) = r.source_path.as_ref().and_then(|p| p.parent())
                 && let Ok(s) = std::fs::read_to_string(sub_dir.join("style.css"))
                     .or_else(|_| std::fs::read_to_string(sub_dir.join("index.css")))
@@ -147,31 +110,9 @@ pub async fn serve_sui_view_css(
             }
             buf
         }
-        Err(e) => return not_found(&e.message),
+        Err(e) => return DeckResponse::not_found(e.message),
     };
-    css_response_mode(body, mode)
-}
-
-fn css_response_mode(body: String, mode: DaemonMode) -> Response {
-    let mut builder = Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/css; charset=utf-8")
-        .header(header::CACHE_CONTROL, view_cache(mode));
-    if mode == DaemonMode::Production {
-        builder = builder.header(header::ETAG, compute_etag(body.as_bytes()));
-    }
-    builder.body(Body::from(body)).unwrap_or_else(|_| Response::new(Body::from("response build failed")))
-}
-
-fn js_response_mode(body: String, mode: DaemonMode) -> Response {
-    let mut builder = Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(header::CACHE_CONTROL, view_cache(mode));
-    if mode == DaemonMode::Production {
-        builder = builder.header(header::ETAG, compute_etag(body.as_bytes()));
-    }
-    builder.body(Body::from(body)).unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+    DeckResponse::css_view(body, mode)
 }
 
 fn top_level_view_dir(p: &std::path::Path, view_name: &str) -> Option<std::path::PathBuf> {
@@ -182,14 +123,6 @@ fn top_level_view_dir(p: &std::path::Path, view_name: &str) -> Option<std::path:
         }
         cur = cur.parent()?;
     }
-}
-
-fn not_found(msg: &str) -> Response {
-    Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-        .body(Body::from(msg.to_string()))
-        .unwrap_or_else(|_| Response::new(Body::from("not found")))
 }
 
 pub(crate) fn is_valid_view_name(s: &str) -> bool {
@@ -212,20 +145,6 @@ pub(crate) fn is_valid_view_name(s: &str) -> bool {
         }
     }
     true
-}
-
-fn render_error(message: String, mode: DaemonMode) -> Response {
-    let body = if mode == DaemonMode::Production {
-        "render error".to_string()
-    } else {
-        message
-    };
-    Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-        .header(header::CACHE_CONTROL, "no-cache")
-        .body(Body::from(body))
-        .unwrap_or_else(|_| Response::new(Body::from("compile error")))
 }
 
 #[cfg(test)]
@@ -302,20 +221,16 @@ mod tests {
         assert!(!is_valid_view_name("foo/../bar"));
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    #[allow(
-        clippy::await_holding_lock,
-        reason = "test serializes env-var mutation across the await — the whole point of this lock"
-    )]
-    async fn view_template_served_verbatim() {
+    #[test]
+    fn view_template_served_verbatim() {
         let _lock = test_lock();
         let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
         unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", repo_root()); }
-        let resp = serve_sui_view_template(None, Path("git".to_string())).await;
+        let resp = serve_sui_view_template(DaemonMode::Development, "git");
         match prev {
             Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
             None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
         }
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status, 200);
     }
 }

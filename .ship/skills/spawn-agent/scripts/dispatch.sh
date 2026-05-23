@@ -180,17 +180,17 @@ if [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
       cp "$LAUNCH_REPO_ROOT"/apps/shipd/assets/ship-*.js "$WORKTREE_PATH/apps/shipd/assets/" 2>/dev/null || true
     fi
     # deck's OWN baked product — sui-runtime/dom/sdk-client + the primitives
-    # umbrella + lucide registry. Embedded by crates/deck/deck-server/src/assets.rs;
+    # umbrella + lucide registry. Embedded by crates/deck/deck-core/src/assets.rs;
     # build.rs panics if any are missing or empty.
-    if [[ -d "$LAUNCH_REPO_ROOT/crates/deck/deck-server/assets" ]]; then
-      mkdir -p "$WORKTREE_PATH/crates/deck/deck-server/assets"
-      cp "$LAUNCH_REPO_ROOT"/crates/deck/deck-server/assets/sui-*.js \
-         "$LAUNCH_REPO_ROOT"/crates/deck/deck-server/assets/sui-custom-elements.json \
-         "$LAUNCH_REPO_ROOT"/crates/deck/deck-server/assets/lucide-icons.json \
-         "$WORKTREE_PATH/crates/deck/deck-server/assets/" 2>/dev/null || true
+    if [[ -d "$LAUNCH_REPO_ROOT/crates/deck/deck-core/assets" ]]; then
+      mkdir -p "$WORKTREE_PATH/crates/deck/deck-core/assets"
+      cp "$LAUNCH_REPO_ROOT"/crates/deck/deck-core/assets/sui-*.js \
+         "$LAUNCH_REPO_ROOT"/crates/deck/deck-core/assets/sui-custom-elements.json \
+         "$LAUNCH_REPO_ROOT"/crates/deck/deck-core/assets/lucide-icons.json \
+         "$WORKTREE_PATH/crates/deck/deck-core/assets/" 2>/dev/null || true
     fi
     # deck BUILD output (.deck/) — app/user view bundles + code-split chrome
-    # islands, read at runtime by deck-server's read_deck_asset. Not baked, so
+    # islands, read at runtime by deck-core's read_deck_asset. Not baked, so
     # not required for `cargo build`, but copying it spares the fresh worktree a
     # cold bundler pass before chrome renders.
     if [[ -d "$LAUNCH_REPO_ROOT/.deck" ]]; then
@@ -218,7 +218,7 @@ if [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
 
   # Rebuild fallback: if any required artifact still missing, regenerate it
   # locally so a fresh clone (no launch repo) still boots cleanly.
-  if [[ ! -s "$WORKTREE_PATH/crates/deck/deck-server/assets/sui-runtime.js" ]]; then
+  if [[ ! -s "$WORKTREE_PATH/crates/deck/deck-core/assets/sui-runtime.js" ]]; then
     echo "Regenerating SUI framework bundles (slow path; launch-repo copy was unavailable)"
     (cd "$WORKTREE_PATH" && \
        bun run --filter '@ship/sui-runtime' bundle && \

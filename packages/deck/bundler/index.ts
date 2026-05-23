@@ -48,7 +48,7 @@ const litAssetsDir = resolve(repoRoot, 'apps/shipd/assets')
 // deck's OWN product — the runtime bundles deck ships and bakes into its
 // binary (sui-runtime/dom/sdk-client + the primitives umbrella). These are
 // deck's, like Next shipping its own runtime; they stay in the crate.
-const deckOwnAssetsDir = resolve(repoRoot, 'crates/deck/deck-server/assets')
+const deckOwnAssetsDir = resolve(repoRoot, 'crates/deck/deck-core/assets')
 // deck's BUILD output for app/user content — code-split view + chrome bundles.
 // `.deck/` is to a deck app what `.next/` is to a Next app: the framework's
 // build output, owned by the project, never inside the framework's own crate.
@@ -76,7 +76,7 @@ const workspaceRoot = resolve(workspaceArg() ?? repoRoot)
 // discovery + watch attachment don't run twice for the same directory.
 const sourceRoots: string[] = workspaceRoot === repoRoot ? [repoRoot] : [repoRoot, workspaceRoot]
 
-// deck's own runtime bundles — baked into the deck-server binary. Everything
+// deck's own runtime bundles — baked into the deck-core crate. Everything
 // else under `sui-`/`views/` is app or user content and goes to `.deck/`.
 const DECK_OWN_BUNDLES = new Set(['sui-runtime', 'sui-dom', 'sui-sdk-client', 'sui-components'])
 
@@ -660,7 +660,7 @@ function emit(msg: Response | Event) {
 // ── Main loop ─────────────────────────────────────────────────────────────────
 
 // CLI mode: `--all` runs a one-shot build of the sui-* family + views and
-// exits. This is the asset set `crates/deck/deck-server/build.rs` requires
+// exits. This is the asset set `crates/deck/deck-core/build.rs` requires
 // via its ASSETS const, so the root `bun run build:bundles` script can fan
 // out here in CI without scripting the stdin/stdout JSON protocol.
 //

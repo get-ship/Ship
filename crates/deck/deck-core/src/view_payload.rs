@@ -1,49 +1,26 @@
-use axum::{
-    Extension,
-    body::Body,
-    extract::Path,
-    http::{StatusCode, header},
-    response::Response,
-};
 use serde::Serialize;
 use sui_compiler::{bindings, islands, parse, render};
 pub use deck_host::view_payload::ViewPayload;
 
-use crate::{DaemonMode, compute_etag, mode_from_ext, view_cache};
+use crate::{CachePolicy, DaemonMode, DeckResponse};
 use crate::resolver::resolve;
 
-pub async fn serve_view_payload(
-    mode: Option<Extension<DaemonMode>>,
-    Path(name): Path<String>,
-) -> Response {
-    let mode = mode_from_ext(mode);
-    serve(&name, None, mode)
+pub fn serve_view_payload(mode: DaemonMode, name: &str) -> DeckResponse {
+    serve(name, None, mode)
 }
 
-pub async fn serve_view_payload_subpath(
-    mode: Option<Extension<DaemonMode>>,
-    Path((name, sub_path)): Path<(String, String)>,
-) -> Response {
-    let mode = mode_from_ext(mode);
-    serve(&name, Some(sub_path.as_str()), mode)
+pub fn serve_view_payload_subpath(mode: DaemonMode, name: &str, sub_path: &str) -> DeckResponse {
+    serve(name, Some(sub_path), mode)
 }
 
-fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> Response {
+fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
     if !crate::view::is_valid_view_name(name) {
-        return json_error(
-            StatusCode::NOT_FOUND,
-            PayloadErrorBody::InvalidName { name: name.to_string() },
-            mode,
-        );
+        return json_error(404, PayloadErrorBody::InvalidName { name: name.to_string() });
     }
     let resolved = match resolve(name, sub_path) {
         Ok(r) => r,
         Err(_) => {
-            return json_error(
-                StatusCode::NOT_FOUND,
-                PayloadErrorBody::ViewNotFound { name: name.to_string() },
-                mode,
-            );
+            return json_error(404, PayloadErrorBody::ViewNotFound { name: name.to_string() });
         }
     };
     let program = match parse::parse(&resolved.source) {
@@ -138,22 +115,20 @@ fn compile_error_response(
     source: &str,
     err: sui_compiler::diagnostics::CompileError,
     mode: DaemonMode,
-) -> Response {
+) -> DeckResponse {
     if mode == DaemonMode::Production {
-        return json_error(StatusCode::INTERNAL_SERVER_ERROR,
-            PayloadErrorBody::RedactedError {}, mode);
+        return json_error(500, PayloadErrorBody::RedactedError {});
     }
     let (line, col) = position_from(&err, source);
     let message = err.render(source);
     json_error(
-        StatusCode::INTERNAL_SERVER_ERROR,
+        500,
         PayloadErrorBody::CompileError {
             name: name.to_string(),
             line,
             col,
             message,
         },
-        mode,
     )
 }
 
@@ -175,16 +150,9 @@ fn position_from(err: &sui_compiler::diagnostics::CompileError, source: &str) ->
     (line, col)
 }
 
-fn json_ok<T: Serialize>(body: &T, mode: DaemonMode) -> Response {
+fn json_ok<T: Serialize>(body: &T, mode: DaemonMode) -> DeckResponse {
     let body_str = serde_json::to_string(body).unwrap_or_else(|_| "{}".into());
-    let mut builder = Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
-        .header(header::CACHE_CONTROL, view_cache(mode));
-    if mode == DaemonMode::Production {
-        builder = builder.header(header::ETAG, compute_etag(body_str.as_bytes()));
-    }
-    builder.body(Body::from(body_str)).unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+    DeckResponse::json_view(body_str, mode)
 }
 
 #[derive(Debug, Serialize)]
@@ -201,14 +169,10 @@ enum PayloadErrorBody {
     RedactedError {},
 }
 
-fn json_error(status: StatusCode, body: PayloadErrorBody, _mode: DaemonMode) -> Response {
+fn json_error(status: u16, body: PayloadErrorBody) -> DeckResponse {
     let body = serde_json::to_string(&PayloadError { error: body })
         .unwrap_or_else(|_| "{\"error\":{\"code\":\"serialize_failed\"}}".into());
-    Response::builder()
-        .status(status)
-        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
-        .header(header::CACHE_CONTROL, "no-cache")
-        .body(Body::from(body))
-        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+    // Errors are never cached and carry no ETag — CachePolicy::None handles
+    // both regardless of mode.
+    DeckResponse::new(status, "application/json; charset=utf-8", CachePolicy::None, DaemonMode::Development, body.into_bytes())
 }
-

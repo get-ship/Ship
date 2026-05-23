@@ -17,19 +17,12 @@
 //! `bun packages/deck/catalog/src/cli.ts`). They live in this module so
 //! all pack-discovery + catalog plumbing sits together.
 
-use axum::{
-    Extension,
-    body::Body,
-    extract::Path,
-    http::{StatusCode, header},
-    response::Response,
-};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path as StdPath, PathBuf};
 use std::sync::OnceLock;
 
-use crate::{DaemonMode, asset_cache, compute_etag, mode_from_ext};
+use crate::{DaemonMode, DeckResponse};
 
 #[derive(Clone, Debug)]
 struct PackRecord {
@@ -42,7 +35,7 @@ struct PackRecord {
 static PACK_INDEX: OnceLock<HashMap<String, PackRecord>> = OnceLock::new();
 
 fn repo_root() -> Option<PathBuf> {
-    // deck-server lives at crates/deck/deck-server. Repo root is
+    // deck-core lives at crates/deck/deck-core. Repo root is
     // three parents up from CARGO_MANIFEST_DIR. Used as the workspace
     // discovery anchor and the catalog directory base.
     StdPath::new(env!("CARGO_MANIFEST_DIR"))
@@ -153,25 +146,11 @@ fn pack_index() -> &'static HashMap<String, PackRecord> {
     PACK_INDEX.get_or_init(build_pack_index)
 }
 
-/// Public reset hook for tests + dev-loop scenarios where the workspace
-/// composition changes between requests. Production callers leave it
-/// alone — the OnceLock initialiser is sufficient.
-#[cfg(test)]
-pub fn reset_pack_index_for_tests() {
-    // OnceLock has no `reset`; this helper rebuilds + drops the cached
-    // value's leak by writing into a new OnceLock at startup. In test we
-    // simply don't rely on caching — tests build the index inline.
-}
-
 /// `GET /_sui/packs/{pack_id}/{file}` — serves either the pack's
 /// `dist/<file>` JS bundle or its aggregated `custom-elements.json`.
-pub async fn serve_pack_asset(
-    mode: Option<Extension<DaemonMode>>,
-    Path((pack_id, file)): Path<(String, String)>,
-) -> Response {
-    let mode = mode_from_ext(mode);
-    let Some(record) = pack_index().get(&pack_id) else {
-        return not_found(&format!("unknown pack '{pack_id}'"));
+pub fn serve_pack_asset(mode: DaemonMode, pack_id: &str, file: &str) -> DeckResponse {
+    let Some(record) = pack_index().get(pack_id) else {
+        return DeckResponse::not_found(format!("unknown pack '{pack_id}'"));
     };
     // Custom-elements.json: serve the file the package declared via its
     // `customElements` manifest field, regardless of where it lives in
@@ -179,83 +158,47 @@ pub async fn serve_pack_asset(
     if file == "custom-elements.json" {
         let abs = record.root.join(&record.custom_elements);
         return match std::fs::read(&abs) {
-            Ok(bytes) => json_response(bytes, mode),
-            Err(_) => not_found(&format!("manifest missing: {}", abs.display())),
+            Ok(bytes) => DeckResponse::json_asset(bytes, mode),
+            Err(_) => DeckResponse::not_found(format!("manifest missing: {}", abs.display())),
         };
     }
     // Bundle files: confine reads to `<root>/dist/` and reject path
     // traversal. `file` may contain a `.js.map` suffix (sourcemap).
     if file.contains("..") || file.contains('/') {
-        return not_found("invalid file");
+        return DeckResponse::not_found("invalid file");
     }
-    let abs = record.root.join("dist").join(&file);
+    let abs = record.root.join("dist").join(file);
     if !abs.starts_with(&record.root) {
-        return not_found("path escape");
+        return DeckResponse::not_found("path escape");
     }
     match std::fs::read(&abs) {
-        Ok(bytes) => js_response(bytes, mode),
-        Err(_) => not_found(&format!("bundle missing: dist/{file}")),
+        Ok(bytes) => DeckResponse::js_asset(bytes, mode),
+        Err(_) => DeckResponse::not_found(format!("bundle missing: dist/{file}")),
     }
 }
 
 /// `GET /api/sui/catalog/workspace` — every component the workspace knows about.
-pub async fn serve_catalog_workspace(mode: Option<Extension<DaemonMode>>) -> Response {
-    serve_catalog_file("workspace.json", mode_from_ext(mode))
+pub fn serve_catalog_workspace(mode: DaemonMode) -> DeckResponse {
+    serve_catalog_file("workspace.json", mode)
 }
 
 /// `GET /api/sui/catalog/published` — only components from non-private packages
 /// with a `customElements` field. Used by future library-consumer UIs.
-pub async fn serve_catalog_published(mode: Option<Extension<DaemonMode>>) -> Response {
-    serve_catalog_file("published.json", mode_from_ext(mode))
+pub fn serve_catalog_published(mode: DaemonMode) -> DeckResponse {
+    serve_catalog_file("published.json", mode)
 }
 
 const EMPTY_CATALOG: &str = "{\"schemaVersion\":\"1\",\"count\":0,\"entries\":[]}\n";
 
-fn serve_catalog_file(name: &str, mode: DaemonMode) -> Response {
+fn serve_catalog_file(name: &str, mode: DaemonMode) -> DeckResponse {
     let Some(repo) = repo_root() else {
-        return json_response(EMPTY_CATALOG.as_bytes().to_vec(), mode);
+        return DeckResponse::json_asset(EMPTY_CATALOG.as_bytes().to_vec(), mode);
     };
     let path = repo.join(".deck/catalogs").join(name);
     match std::fs::read(&path) {
-        Ok(bytes) => json_response(bytes, mode),
-        Err(_) => json_response(EMPTY_CATALOG.as_bytes().to_vec(), mode),
+        Ok(bytes) => DeckResponse::json_asset(bytes, mode),
+        Err(_) => DeckResponse::json_asset(EMPTY_CATALOG.as_bytes().to_vec(), mode),
     }
-}
-
-fn json_response(bytes: Vec<u8>, mode: DaemonMode) -> Response {
-    let cache = asset_cache(mode);
-    let mut builder = Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
-        .header(header::CACHE_CONTROL, cache);
-    if mode == DaemonMode::Production {
-        builder = builder.header(header::ETAG, compute_etag(&bytes));
-    }
-    builder
-        .body(Body::from(bytes))
-        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
-}
-
-fn js_response(bytes: Vec<u8>, mode: DaemonMode) -> Response {
-    let cache = asset_cache(mode);
-    let mut builder = Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(header::CACHE_CONTROL, cache);
-    if mode == DaemonMode::Production {
-        builder = builder.header(header::ETAG, compute_etag(&bytes));
-    }
-    builder
-        .body(Body::from(bytes))
-        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
-}
-
-fn not_found(msg: &str) -> Response {
-    Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-        .body(Body::from(msg.to_string()))
-        .unwrap_or_else(|_| Response::new(Body::from("not found")))
 }
 
 #[cfg(test)]
@@ -269,27 +212,22 @@ mod tests {
         assert_eq!(pack_id_for_name("@scope/sub-pack"), "sub-pack");
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn catalog_workspace_returns_json() {
-        let resp = serve_catalog_workspace(None).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let ct = resp.headers().get(header::CONTENT_TYPE).unwrap();
-        assert!(ct.to_str().unwrap().contains("application/json"));
+    #[test]
+    fn catalog_workspace_returns_json() {
+        let resp = serve_catalog_workspace(DaemonMode::Development);
+        assert_eq!(resp.status, 200);
+        assert!(resp.content_type.contains("application/json"));
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn catalog_published_returns_json() {
-        let resp = serve_catalog_published(None).await;
-        assert_eq!(resp.status(), StatusCode::OK);
+    #[test]
+    fn catalog_published_returns_json() {
+        let resp = serve_catalog_published(DaemonMode::Development);
+        assert_eq!(resp.status, 200);
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn pack_unknown_id_returns_404() {
-        let resp = serve_pack_asset(
-            None,
-            Path(("not-a-real-pack".to_string(), "anything.js".to_string())),
-        )
-        .await;
-        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    #[test]
+    fn pack_unknown_id_returns_404() {
+        let resp = serve_pack_asset(DaemonMode::Development, "not-a-real-pack", "anything.js");
+        assert_eq!(resp.status, 404);
     }
 }

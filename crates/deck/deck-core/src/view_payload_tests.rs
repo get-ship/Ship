@@ -1,13 +1,8 @@
 use std::fs;
 
-use axum::Extension;
-use axum::extract::Path;
-use axum::extract::OriginalUri;
-use axum::http::{StatusCode, header};
-
 use crate::DaemonMode;
 use crate::view_host::{serve_view_host, ssr_cache};
-use crate::view_payload::serve_view_payload;
+use crate::view_payload::{serve_view_payload, serve_view_payload_subpath};
 
 const VAR: &str = "SHIP_DEV_PROJECT_DIR";
 
@@ -30,23 +25,15 @@ fn lock_with_dir(p: &std::path::Path) -> EnvGuard {
     EnvGuard { _lock: lock, prev }
 }
 
-fn dev() -> Option<Extension<DaemonMode>> { Some(Extension(DaemonMode::Development)) }
-fn prod() -> Option<Extension<DaemonMode>> { Some(Extension(DaemonMode::Production)) }
-
-async fn body_str(resp: axum::response::Response) -> String {
-    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
-    String::from_utf8(bytes.to_vec()).unwrap()
-}
-
-fn make_uri(path: &str) -> OriginalUri {
-    OriginalUri(format!("http://localhost{path}").parse().unwrap())
+fn body_str(resp: &crate::DeckResponse) -> String {
+    String::from_utf8(resp.body.clone()).unwrap()
 }
 
 /// When a pre-compiled `.ssr.html` file exists in `dist/`, the payload
 /// endpoint must return its contents in the `html` field rather than
 /// re-rendering at request time.
-#[tokio::test(flavor = "multi_thread")]
-async fn payload_uses_precompiled_ssr_html() {
+#[test]
+fn payload_uses_precompiled_ssr_html() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
 
@@ -57,9 +44,9 @@ async fn payload_uses_precompiled_ssr_html() {
     let ssr_content = "<div><p data-ssr=\"1\">precompiled</p></div>";
     fs::write(dist_dir.join("index.ssr.html"), ssr_content).unwrap();
 
-    let resp = serve_view_payload(None, Path("ssr-payload-precompiled".to_string())).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
+    let resp = serve_view_payload(DaemonMode::Development, "ssr-payload-precompiled");
+    assert_eq!(resp.status, 200);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     assert_eq!(
         v["html"].as_str().unwrap(),
         ssr_content,
@@ -69,8 +56,8 @@ async fn payload_uses_precompiled_ssr_html() {
 
 /// When no `.ssr.html` file exists the endpoint gracefully falls back to
 /// the runtime-rendered HTML (existing behaviour is preserved).
-#[tokio::test(flavor = "multi_thread")]
-async fn payload_falls_back_to_runtime_render_without_ssr_file() {
+#[test]
+fn payload_falls_back_to_runtime_render_without_ssr_file() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
 
@@ -78,9 +65,9 @@ async fn payload_falls_back_to_runtime_render_without_ssr_file() {
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(view_dir.join("index.sui"), "<div><p>runtime</p></div>").unwrap();
 
-    let resp = serve_view_payload(None, Path("ssr-payload-fallback".to_string())).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
+    let resp = serve_view_payload(DaemonMode::Development, "ssr-payload-fallback");
+    assert_eq!(resp.status, 200);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     let html = v["html"].as_str().unwrap();
     assert!(
         html.contains("<p>"),
@@ -90,8 +77,8 @@ async fn payload_falls_back_to_runtime_render_without_ssr_file() {
 
 /// `/view-host/<name>` with a matching `.ssr.html` must splice the SSR
 /// content into the shell's `<div id="sui-root">`.
-#[tokio::test(flavor = "multi_thread")]
-async fn view_host_splices_precompiled_ssr() {
+#[test]
+fn view_host_splices_precompiled_ssr() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
 
@@ -108,9 +95,9 @@ async fn view_host_splices_precompiled_ssr() {
         cache.remove("ssr-host-test-splice");
     }
 
-    let resp = serve_view_host(None, make_uri("/view-host/ssr-host-test-splice")).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let body = body_str(resp).await;
+    let resp = serve_view_host(DaemonMode::Development, "/view-host/ssr-host-test-splice");
+    assert_eq!(resp.status, 200);
+    let body = body_str(&resp);
     assert!(
         body.contains(ssr_content),
         "view-host must splice SSR content into shell; got: {body}"
@@ -123,8 +110,8 @@ async fn view_host_splices_precompiled_ssr() {
 
 /// When no `.ssr.html` exists, `/view-host/<name>` live-emits SSR from
 /// source so the client has real markup to morph onto (no blank flash).
-#[tokio::test(flavor = "multi_thread")]
-async fn view_host_without_ssr_live_emits_from_source() {
+#[test]
+fn view_host_without_ssr_live_emits_from_source() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
 
@@ -132,9 +119,9 @@ async fn view_host_without_ssr_live_emits_from_source() {
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
 
-    let resp = serve_view_host(None, make_uri("/view-host/ssr-host-test-empty")).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let body = body_str(resp).await;
+    let resp = serve_view_host(DaemonMode::Development, "/view-host/ssr-host-test-empty");
+    assert_eq!(resp.status, 200);
+    let body = body_str(&resp);
     assert!(
         body.contains("<!doctype html>"),
         "shell must be valid HTML; got: {body}"
@@ -154,8 +141,8 @@ async fn view_host_without_ssr_live_emits_from_source() {
 
 /// In production mode, view-host uses the SSR cache — a second request
 /// returns the originally-cached content even after the file changes.
-#[tokio::test(flavor = "multi_thread")]
-async fn view_host_prod_uses_ssr_cache() {
+#[test]
+fn view_host_prod_uses_ssr_cache() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
     let view_name = "ssr-mode-cache-test";
@@ -172,23 +159,23 @@ async fn view_host_prod_uses_ssr_cache() {
     }
 
     // First request in prod — populates cache with v1.
-    let resp = serve_view_host(prod(), make_uri(&format!("/view-host/{view_name}"))).await;
-    assert!(body_str(resp).await.contains("content-v1"), "first prod request must read from disk");
+    let resp = serve_view_host(DaemonMode::Production, &format!("/view-host/{view_name}"));
+    assert!(body_str(&resp).contains("content-v1"), "first prod request must read from disk");
 
     // Change file on disk.
     fs::write(&ssr_file, "content-v2").unwrap();
 
     // Second prod request — must still return cached v1.
-    let resp = serve_view_host(prod(), make_uri(&format!("/view-host/{view_name}"))).await;
-    let body = body_str(resp).await;
+    let resp = serve_view_host(DaemonMode::Production, &format!("/view-host/{view_name}"));
+    let body = body_str(&resp);
     assert!(body.contains("content-v1"), "prod second request must use cache (got v2 instead)");
     assert!(!body.contains("content-v2"), "prod must not bypass cache");
 }
 
 /// In development mode, view-host bypasses the SSR cache — each request
 /// reads fresh content from disk.
-#[tokio::test(flavor = "multi_thread")]
-async fn view_host_dev_bypasses_ssr_cache() {
+#[test]
+fn view_host_dev_bypasses_ssr_cache() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
     let view_name = "ssr-mode-dev-bypass";
@@ -204,60 +191,58 @@ async fn view_host_dev_bypasses_ssr_cache() {
         cache.remove(view_name);
     }
 
-    let resp = serve_view_host(dev(), make_uri(&format!("/view-host/{view_name}"))).await;
-    assert!(body_str(resp).await.contains("dev-v1"), "dev first request reads from disk");
+    let resp = serve_view_host(DaemonMode::Development, &format!("/view-host/{view_name}"));
+    assert!(body_str(&resp).contains("dev-v1"), "dev first request reads from disk");
 
     fs::write(&ssr_file, "dev-v2").unwrap();
 
-    let resp = serve_view_host(dev(), make_uri(&format!("/view-host/{view_name}"))).await;
-    let body = body_str(resp).await;
+    let resp = serve_view_host(DaemonMode::Development, &format!("/view-host/{view_name}"));
+    let body = body_str(&resp);
     assert!(body.contains("dev-v2"), "dev must bypass cache and read fresh content");
 }
 
 /// Production mode: view-payload response has must-revalidate cache header and ETag.
-#[tokio::test(flavor = "multi_thread")]
-async fn view_payload_prod_cache_header_and_etag() {
+#[test]
+fn view_payload_prod_cache_header_and_etag() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/prod-cache-check");
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(view_dir.join("index.sui"), "<div><p>hello</p></div>").unwrap();
 
-    let resp = serve_view_payload(prod(), Path("prod-cache-check".to_string())).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let cc = resp.headers().get(header::CACHE_CONTROL).unwrap().to_str().unwrap();
-    assert!(cc.contains("must-revalidate"), "prod must have must-revalidate; got: {cc}");
-    assert!(resp.headers().contains_key(header::ETAG), "prod must have ETag header");
+    let resp = serve_view_payload(DaemonMode::Production, "prod-cache-check");
+    assert_eq!(resp.status, 200);
+    assert!(resp.cache_control.contains("must-revalidate"), "prod must have must-revalidate; got: {}", resp.cache_control);
+    assert!(resp.etag.is_some(), "prod must have ETag header");
 }
 
 /// Development mode: view-payload response has no-cache header and no ETag.
-#[tokio::test(flavor = "multi_thread")]
-async fn view_payload_dev_no_cache_no_etag() {
+#[test]
+fn view_payload_dev_no_cache_no_etag() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/dev-cache-check");
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(view_dir.join("index.sui"), "<div><p>hello</p></div>").unwrap();
 
-    let resp = serve_view_payload(dev(), Path("dev-cache-check".to_string())).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let cc = resp.headers().get(header::CACHE_CONTROL).unwrap().to_str().unwrap();
-    assert_eq!(cc, "no-cache", "dev must use no-cache; got: {cc}");
-    assert!(!resp.headers().contains_key(header::ETAG), "dev must not have ETag header");
+    let resp = serve_view_payload(DaemonMode::Development, "dev-cache-check");
+    assert_eq!(resp.status, 200);
+    assert_eq!(resp.cache_control, "no-cache", "dev must use no-cache; got: {}", resp.cache_control);
+    assert!(resp.etag.is_none(), "dev must not have ETag header");
 }
 
 /// Production mode: compile errors in view-payload are redacted (no source positions).
-#[tokio::test(flavor = "multi_thread")]
-async fn view_payload_prod_compile_error_redacted() {
+#[test]
+fn view_payload_prod_compile_error_redacted() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/broken-prod");
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(view_dir.join("index.sui"), "<div><span></div>").unwrap();
 
-    let resp = serve_view_payload(prod(), Path("broken-prod".to_string())).await;
-    assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
-    let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
+    let resp = serve_view_payload(DaemonMode::Production, "broken-prod");
+    assert_eq!(resp.status, 500);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     assert!(
         v["error"]["redacted_error"].is_object(),
         "prod must redact compile errors; got: {v}"
@@ -265,17 +250,17 @@ async fn view_payload_prod_compile_error_redacted() {
 }
 
 /// Development mode: compile errors include source position detail.
-#[tokio::test(flavor = "multi_thread")]
-async fn view_payload_dev_compile_error_includes_detail() {
+#[test]
+fn view_payload_dev_compile_error_includes_detail() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/broken-dev");
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(view_dir.join("index.sui"), "<div><span></div>").unwrap();
 
-    let resp = serve_view_payload(dev(), Path("broken-dev".to_string())).await;
-    assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
-    let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
+    let resp = serve_view_payload(DaemonMode::Development, "broken-dev");
+    assert_eq!(resp.status, 500);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     let body = &v["error"]["compile_error"];
     assert!(body["line"].as_u64().unwrap() >= 1, "dev must include line number; got: {v}");
     assert!(!body["message"].as_str().unwrap_or("").is_empty(), "dev must include message; got: {v}");
@@ -283,7 +268,6 @@ async fn view_payload_dev_compile_error_includes_detail() {
 
 // ── Migrated tests from view_payload.rs inline block ─────────────────────────
 
-use crate::view_payload::serve_view_payload_subpath;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
@@ -308,8 +292,8 @@ fn repo_root() -> &'static std::path::Path {
     ROOT.get().unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn top_level_view_payload_shape() {
+#[test]
+fn top_level_view_payload_shape() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/demo");
@@ -320,9 +304,9 @@ async fn top_level_view_payload_shape() {
         "import { controller, signal } from '@ship/sui-runtime'\nexport default controller({ scope: () => ({ count: signal(0) }) })\n").unwrap();
     fs::write(view_dir.join("index.css"), "p { color: red; }").unwrap();
 
-    let resp = serve_view_payload(None, Path("demo".to_string())).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
+    let resp = serve_view_payload(DaemonMode::Development, "demo");
+    assert_eq!(resp.status, 200);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     assert_eq!(v["name"], "demo");
     assert!(v["sub"].is_null());
     let html = v["html"].as_str().unwrap();
@@ -335,8 +319,8 @@ async fn top_level_view_payload_shape() {
     assert!(v["islands"].as_array().unwrap().is_empty());
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn sub_path_payload_concatenates_css() {
+#[test]
+fn sub_path_payload_concatenates_css() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/demo");
@@ -347,11 +331,9 @@ async fn sub_path_payload_concatenates_css() {
     fs::write(sub_dir.join("index.sui"), r#"<span></span>"#).unwrap();
     fs::write(sub_dir.join("index.css"), ".child {}").unwrap();
 
-    let resp = serve_view_payload_subpath(
-        None, Path(("demo".to_string(), "anything".to_string()))
-    ).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
+    let resp = serve_view_payload_subpath(DaemonMode::Development, "demo", "anything");
+    assert_eq!(resp.status, 200);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     assert_eq!(v["sub"], "anything");
     let css = v["css"].as_str().unwrap();
     assert!(css.contains(".parent"), "css missing parent: {css}");
@@ -363,45 +345,45 @@ async fn sub_path_payload_concatenates_css() {
     assert_eq!(v["moduleUrl"], "/_sui/views/demo/view.js?sub=anything");
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn unknown_view_returns_404_json() {
+#[test]
+fn unknown_view_returns_404_json() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
-    let resp = serve_view_payload(None, Path("nope".to_string())).await;
-    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-    let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
+    let resp = serve_view_payload(DaemonMode::Development, "nope");
+    assert_eq!(resp.status, 404);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     assert_eq!(v["error"]["view_not_found"]["name"], "nope");
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn invalid_name_returns_404_json() {
+#[test]
+fn invalid_name_returns_404_json() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
-    let resp = serve_view_payload(None, Path("..".to_string())).await;
-    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-    let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
+    let resp = serve_view_payload(DaemonMode::Development, "..");
+    assert_eq!(resp.status, 404);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     assert!(v["error"]["invalid_name"].is_object(), "got: {v}");
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn compile_error_returns_500_with_position() {
+#[test]
+fn compile_error_returns_500_with_position() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/broken");
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(view_dir.join("index.sui"), "<div><span></div>").unwrap();
 
-    let resp = serve_view_payload(None, Path("broken".to_string())).await;
-    assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
-    let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
+    let resp = serve_view_payload(DaemonMode::Development, "broken");
+    assert_eq!(resp.status, 500);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     let body = &v["error"]["compile_error"];
     assert_eq!(body["name"], "broken");
     assert!(body["line"].as_u64().unwrap() >= 1);
     assert!(!body["message"].as_str().unwrap().is_empty());
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn island_tags_listed() {
+#[test]
+fn island_tags_listed() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/term-view");
@@ -409,16 +391,16 @@ async fn island_tags_listed() {
     fs::write(view_dir.join("index.sui"),
         r#"<div><sui-terminal rows={24} cols={80}></sui-terminal></div>"#).unwrap();
 
-    let resp = serve_view_payload(None, Path("term-view".to_string())).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
+    let resp = serve_view_payload(DaemonMode::Development, "term-view");
+    assert_eq!(resp.status, 200);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     let islands = v["islands"].as_array().unwrap();
     assert_eq!(islands.len(), 1);
     assert_eq!(islands[0], "sui-terminal");
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn first_party_view_payload_works() {
+#[test]
+fn first_party_view_payload_works() {
     let _g = lock_with_dir(repo_root());
     // First-party views live under the ship host's `apps/shell/src`, supplied
     // via `SHIP_FIRST_PARTY_VIEWS` (the resolver's first-party bucket). `studio`
@@ -427,13 +409,13 @@ async fn first_party_view_payload_works() {
     // `apps/shell/src/studio/`.)
     let fp_prev = std::env::var_os("SHIP_FIRST_PARTY_VIEWS");
     unsafe { std::env::set_var("SHIP_FIRST_PARTY_VIEWS", repo_root().join("apps/shell/src")); }
-    let resp = serve_view_payload(None, Path("studio".to_string())).await;
+    let resp = serve_view_payload(DaemonMode::Development, "studio");
     match fp_prev {
         Some(v) => unsafe { std::env::set_var("SHIP_FIRST_PARTY_VIEWS", v) },
         None => unsafe { std::env::remove_var("SHIP_FIRST_PARTY_VIEWS") },
     }
-    assert_eq!(resp.status(), StatusCode::OK);
-    let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
+    assert_eq!(resp.status, 200);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     assert_eq!(v["name"], "studio");
     assert_eq!(v["moduleUrl"], "/_sui/views/studio/view.js");
 }

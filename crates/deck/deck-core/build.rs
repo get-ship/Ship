@@ -57,7 +57,7 @@ fn main() {
         .parent()
         .and_then(|p| p.parent())
         .and_then(|p| p.parent())
-        .expect("repo root (three levels above crates/deck/deck-server)")
+        .expect("repo root (three levels above crates/deck/deck-core)")
         .to_path_buf();
 
     fs::create_dir_all(&assets)
@@ -84,7 +84,7 @@ fn main() {
             .join("\n");
         panic!(
             "build.rs: SUI bundle assets are missing or empty.\n{lines}\n\n\
-             Every asset under crates/deck/deck-server/assets/ is gitignored.\n\
+             Every asset under crates/deck/deck-core/assets/ is gitignored.\n\
              On fresh worktrees, dispatch.sh bootstraps them automatically.\n\
              For a standalone cargo build, regenerate by running (in order):\n\n  \
              bun install --frozen-lockfile\n  \

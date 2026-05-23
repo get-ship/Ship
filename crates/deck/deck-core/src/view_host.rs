@@ -1,17 +1,9 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
-use axum::{
-    Extension,
-    body::Body,
-    extract::OriginalUri,
-    http::{StatusCode, header},
-    response::Response,
-};
-
 use sui_compiler::{bindings, parse, render};
 
-use crate::{DaemonMode, compute_etag, mode_from_ext, view_cache};
+use crate::{DaemonMode, DeckResponse};
 use crate::resolver::resolve;
 
 const VIEW_HOST_SHELL: &str = include_str!("../assets/view-host.html");
@@ -20,7 +12,7 @@ const VIEW_NAME_PLACEHOLDER: &str = "<!-- SUI_VIEW_NAME -->";
 
 static SSR_CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
 
-pub(crate) fn ssr_cache() -> &'static Mutex<HashMap<String, String>> {
+pub fn ssr_cache() -> &'static Mutex<HashMap<String, String>> {
     SSR_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
@@ -75,15 +67,11 @@ pub(crate) fn live_emit_ssr(name: &str) -> Option<String> {
     Some(output.html)
 }
 
-pub async fn serve_view_host(
-    mode: Option<Extension<DaemonMode>>,
-    OriginalUri(uri): OriginalUri,
-) -> Response {
-    let mode = mode_from_ext(mode);
+pub fn serve_view_host(mode: DaemonMode, path: &str) -> DeckResponse {
     // Dev: always re-read from disk (no cache). Prod: use in-memory cache.
     // If no precompiled SSR exists, fall back to live-emit so the shell
     // never ships an empty #sui-root — the client morphs onto real markup.
-    let view_name = view_name_from_path(uri.path());
+    let view_name = view_name_from_path(path);
     let ssr_content = view_name
         .as_deref()
         .map(|name| {
@@ -105,32 +93,19 @@ pub async fn serve_view_host(
             &render::escape_attr_value(view_name.as_deref().unwrap_or_default()),
         )
         .replace(SSR_PLACEHOLDER, &ssr_content);
-    let mut builder = Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
-        .header(header::CACHE_CONTROL, view_cache(mode));
-    if mode == DaemonMode::Production {
-        builder = builder.header(header::ETAG, compute_etag(body.as_bytes()));
-    }
-    builder.body(Body::from(body)).unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+    DeckResponse::html_view(body, mode)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn make_uri(path: &str) -> OriginalUri {
-        OriginalUri(format!("http://localhost{path}").parse().unwrap())
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn serves_html_with_correct_headers() {
-        let resp = serve_view_host(None, make_uri("/view-host")).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let ct = resp.headers().get(header::CONTENT_TYPE).unwrap();
-        assert!(ct.to_str().unwrap().contains("text/html"));
-        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
-        let body = std::str::from_utf8(&bytes).unwrap();
+    #[test]
+    fn serves_html_with_correct_headers() {
+        let resp = serve_view_host(DaemonMode::Development, "/view-host");
+        assert_eq!(resp.status, 200);
+        assert!(resp.content_type.contains("text/html"));
+        let body = std::str::from_utf8(&resp.body).unwrap();
         assert!(body.contains("<!doctype html>"));
         assert!(body.contains("import { mount } from '@ship/sui-runtime'"));
         assert!(body.contains("/_sui/views/"));
@@ -139,12 +114,11 @@ mod tests {
         assert!(imap < module, "importmap must come before any module script");
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn no_ssr_file_leaves_root_empty() {
-        let resp = serve_view_host(None, make_uri("/view-host/no-such-view-xyzzy")).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
-        let body = std::str::from_utf8(&bytes).unwrap();
+    #[test]
+    fn no_ssr_file_leaves_root_empty() {
+        let resp = serve_view_host(DaemonMode::Development, "/view-host/no-such-view-xyzzy");
+        assert_eq!(resp.status, 200);
+        let body = std::str::from_utf8(&resp.body).unwrap();
         // The content placeholder collapses to empty, but the root keeps
         // its `data-sui-root` / `data-view` scoping attributes.
         assert!(
@@ -155,31 +129,25 @@ mod tests {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn root_carries_view_name_from_path() {
-        let resp = serve_view_host(None, make_uri("/view-host/some-view/sub")).await;
-        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
-        let body = std::str::from_utf8(&bytes).unwrap();
+    #[test]
+    fn root_carries_view_name_from_path() {
+        let resp = serve_view_host(DaemonMode::Development, "/view-host/some-view/sub");
+        let body = std::str::from_utf8(&resp.body).unwrap();
         assert!(
             body.contains("data-sui-root data-view=\"some-view\""),
             "root must advertise the resolved view name; got: {body}"
         );
         // The bare host landing (no view in URL) leaves the name empty.
-        let resp = serve_view_host(None, make_uri("/view-host")).await;
-        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
-        let body = std::str::from_utf8(&bytes).unwrap();
+        let resp = serve_view_host(DaemonMode::Development, "/view-host");
+        let body = std::str::from_utf8(&resp.body).unwrap();
         assert!(
             body.contains("data-sui-root data-view=\"\""),
             "bare /view-host must leave data-view empty; got: {body}"
         );
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    #[allow(
-        clippy::await_holding_lock,
-        reason = "test serializes env-var mutation across the await — the whole point of this lock"
-    )]
-    async fn ssr_file_spliced_into_root() {
+    #[test]
+    fn ssr_file_spliced_into_root() {
         let _lock = crate::test_lock::lock();
         let tmp = tempfile::tempdir().unwrap();
         let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
@@ -198,15 +166,14 @@ mod tests {
             cache.remove("ssr-host-splice");
         }
 
-        let resp = serve_view_host(None, make_uri("/view-host/ssr-host-splice")).await;
+        let resp = serve_view_host(DaemonMode::Development, "/view-host/ssr-host-splice");
         match prev {
             Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
             None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
         }
 
-        assert_eq!(resp.status(), StatusCode::OK);
-        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
-        let body = std::str::from_utf8(&bytes).unwrap();
+        assert_eq!(resp.status, 200);
+        let body = std::str::from_utf8(&resp.body).unwrap();
         assert!(
             body.contains(ssr_content),
             "SSR content must be spliced into shell; got: {body}"
