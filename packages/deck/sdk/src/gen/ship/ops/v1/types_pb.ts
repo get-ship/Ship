@@ -22,7 +22,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/types.proto.
  */
 export const file_ship_ops_v1_types: GenFile = /*@__PURE__*/
-  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJwoIRGVsZXRpb24SCgoCaWQYASABKAkSDwoHZGVsZXRlZBgCIAEoCCKvAwoOQXJ0aWZhY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBHNpemUYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVzY29wZRgGIAEoCRIXCgpwcm9qZWN0X2lkGAcgASgJSACIAQESEwoGcnVuX2lkGAggASgJSAGIAQESFAoHdXNlcl9pZBgJIAEoCUgCiAEBEhkKDGNvbnRlbnRfaGFzaBgKIAEoCUgDiAEBEhcKCmV4cGlyZXNfYXQYCyABKAlIBIgBARIYCgtvd25lcl9hY3RvchgMIAEoCUgFiAEBEhoKDWNvbGxlY3Rpb25faWQYDSABKAlIBogBARIUCgdpdGVtX2lkGA4gASgJSAeIAQESEgoKY3JlYXRlZF9hdBgPIAEoCUINCgtfcHJvamVjdF9pZEIJCgdfcnVuX2lkQgoKCF91c2VyX2lkQg8KDV9jb250ZW50X2hhc2hCDQoLX2V4cGlyZXNfYXRCDgoMX293bmVyX2FjdG9yQhAKDl9jb2xsZWN0aW9uX2lkQgoKCF9pdGVtX2lkIicKCkluZGV4RW50cnkSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiPAoSUnVsZXNJbmRleFJlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc2hpcC5vcHMudjEuSW5kZXhFbnRyeSI6Cg9SdWxlR2V0UmVzcG9uc2USCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEYm9keRgDIAEoCSJhCg1Qcm9qZWN0UmVjb3JkEgoKAmlkGAEgASgJEgwKBHBhdGgYAiABKAkSDAoEbmFtZRgDIAEoCRISCgpjcmVhdGVkX2F0GAQgASgJEhQKDGxhc3Rfc2Vlbl9hdBgFIAEoCSIvCgxTZXR0aW5nVmFsdWUSCwoDa2V5GAEgASgJEhIKCnZhbHVlX2pzb24YAiABKAkikwEKDkNvbGxlY3Rpb25JdGVtEgoKAmlkGAEgASgJEhIKCmNvbGxlY3Rpb24YAiABKAkSEQoJZGF0YV9qc29uGAMgASgJEhcKCmNyZWF0ZWRfYnkYBCABKAlIAIgBARISCgpjcmVhdGVkX2F0GAUgASgJEhIKCnVwZGF0ZWRfYXQYBiABKAlCDQoLX2NyZWF0ZWRfYnliBnByb3RvMw");
+  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJwoIRGVsZXRpb24SCgoCaWQYASABKAkSDwoHZGVsZXRlZBgCIAEoCCKvAwoOQXJ0aWZhY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBHNpemUYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVzY29wZRgGIAEoCRIXCgpwcm9qZWN0X2lkGAcgASgJSACIAQESEwoGcnVuX2lkGAggASgJSAGIAQESFAoHdXNlcl9pZBgJIAEoCUgCiAEBEhkKDGNvbnRlbnRfaGFzaBgKIAEoCUgDiAEBEhcKCmV4cGlyZXNfYXQYCyABKAlIBIgBARIYCgtvd25lcl9hY3RvchgMIAEoCUgFiAEBEhoKDWNvbGxlY3Rpb25faWQYDSABKAlIBogBARIUCgdpdGVtX2lkGA4gASgJSAeIAQESEgoKY3JlYXRlZF9hdBgPIAEoCUINCgtfcHJvamVjdF9pZEIJCgdfcnVuX2lkQgoKCF91c2VyX2lkQg8KDV9jb250ZW50X2hhc2hCDQoLX2V4cGlyZXNfYXRCDgoMX293bmVyX2FjdG9yQhAKDl9jb2xsZWN0aW9uX2lkQgoKCF9pdGVtX2lkIicKCkluZGV4RW50cnkSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiPAoSUnVsZXNJbmRleFJlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc2hpcC5vcHMudjEuSW5kZXhFbnRyeSI6Cg9SdWxlR2V0UmVzcG9uc2USCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEYm9keRgDIAEoCSI6ChBNY3BJbmRleFJlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc2hpcC5vcHMudjEuSW5kZXhFbnRyeSJCChhQZXJtaXNzaW9uc0luZGV4UmVzcG9uc2USJgoFaXRlbXMYASADKAsyFy5zaGlwLm9wcy52MS5JbmRleEVudHJ5Ij0KC1Rvb2xQYXR0ZXJuEg8KB3BhdHRlcm4YASABKAkSDQoFbGFiZWwYAiABKAkSDgoGc291cmNlGAMgASgJIkIKFFRvb2xQYXR0ZXJuc1Jlc3BvbnNlEioKCHBhdHRlcm5zGAEgAygLMhguc2hpcC5vcHMudjEuVG9vbFBhdHRlcm4iYQoNUHJvamVjdFJlY29yZBIKCgJpZBgBIAEoCRIMCgRwYXRoGAIgASgJEgwKBG5hbWUYAyABKAkSEgoKY3JlYXRlZF9hdBgEIAEoCRIUCgxsYXN0X3NlZW5fYXQYBSABKAkiLwoMU2V0dGluZ1ZhbHVlEgsKA2tleRgBIAEoCRISCgp2YWx1ZV9qc29uGAIgASgJIpMBCg5Db2xsZWN0aW9uSXRlbRIKCgJpZBgBIAEoCRISCgpjb2xsZWN0aW9uGAIgASgJEhEKCWRhdGFfanNvbhgDIAEoCRIXCgpjcmVhdGVkX2J5GAQgASgJSACIAQESEgoKY3JlYXRlZF9hdBgFIAEoCRISCgp1cGRhdGVkX2F0GAYgASgJQg0KC19jcmVhdGVkX2J5YgZwcm90bzM");
 
 /**
  * Result of a scope-resolving config mutation (rules / mcp / permissions /
@@ -243,6 +243,90 @@ export const RuleGetResponseSchema: GenMessage<RuleGetResponse> = /*@__PURE__*/
   messageDesc(file_ship_ops_v1_types, 5);
 
 /**
+ * Wire shape of mcp.list / permissions.list (both → IndexEntry items). The
+ * matching *.get reads return an embedded opaque config Value (entry), so they
+ * stay JsonResponse — same open-payload line as the command surface.
+ *
+ * @generated from message ship.ops.v1.McpIndexResponse
+ */
+export type McpIndexResponse = Message<"ship.ops.v1.McpIndexResponse"> & {
+  /**
+   * @generated from field: repeated ship.ops.v1.IndexEntry items = 1;
+   */
+  items: IndexEntry[];
+};
+
+/**
+ * Describes the message ship.ops.v1.McpIndexResponse.
+ * Use `create(McpIndexResponseSchema)` to create a new message.
+ */
+export const McpIndexResponseSchema: GenMessage<McpIndexResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 6);
+
+/**
+ * @generated from message ship.ops.v1.PermissionsIndexResponse
+ */
+export type PermissionsIndexResponse = Message<"ship.ops.v1.PermissionsIndexResponse"> & {
+  /**
+   * @generated from field: repeated ship.ops.v1.IndexEntry items = 1;
+   */
+  items: IndexEntry[];
+};
+
+/**
+ * Describes the message ship.ops.v1.PermissionsIndexResponse.
+ * Use `create(PermissionsIndexResponseSchema)` to create a new message.
+ */
+export const PermissionsIndexResponseSchema: GenMessage<PermissionsIndexResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 7);
+
+/**
+ * One autocomplete entry from permissions.tool_patterns.
+ *
+ * @generated from message ship.ops.v1.ToolPattern
+ */
+export type ToolPattern = Message<"ship.ops.v1.ToolPattern"> & {
+  /**
+   * @generated from field: string pattern = 1;
+   */
+  pattern: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string source = 3;
+   */
+  source: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.ToolPattern.
+ * Use `create(ToolPatternSchema)` to create a new message.
+ */
+export const ToolPatternSchema: GenMessage<ToolPattern> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 8);
+
+/**
+ * @generated from message ship.ops.v1.ToolPatternsResponse
+ */
+export type ToolPatternsResponse = Message<"ship.ops.v1.ToolPatternsResponse"> & {
+  /**
+   * @generated from field: repeated ship.ops.v1.ToolPattern patterns = 1;
+   */
+  patterns: ToolPattern[];
+};
+
+/**
+ * Describes the message ship.ops.v1.ToolPatternsResponse.
+ * Use `create(ToolPatternsResponseSchema)` to create a new message.
+ */
+export const ToolPatternsResponseSchema: GenMessage<ToolPatternsResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 9);
+
+/**
  * A registered project — the typed return of project.add. Mirrors
  * `ship_platform::projects::ProjectRecord`.
  *
@@ -280,7 +364,7 @@ export type ProjectRecord = Message<"ship.ops.v1.ProjectRecord"> & {
  * Use `create(ProjectRecordSchema)` to create a new message.
  */
 export const ProjectRecordSchema: GenMessage<ProjectRecord> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_types, 6);
+  messageDesc(file_ship_ops_v1_types, 10);
 
 /**
  * The typed return of settings.set: the key and its new value (serialized
@@ -305,7 +389,7 @@ export type SettingValue = Message<"ship.ops.v1.SettingValue"> & {
  * Use `create(SettingValueSchema)` to create a new message.
  */
 export const SettingValueSchema: GenMessage<SettingValue> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_types, 7);
+  messageDesc(file_ship_ops_v1_types, 11);
 
 /**
  * A collection item — the typed return of collections.create_item /
@@ -357,5 +441,5 @@ export type CollectionItem = Message<"ship.ops.v1.CollectionItem"> & {
  * Use `create(CollectionItemSchema)` to create a new message.
  */
 export const CollectionItemSchema: GenMessage<CollectionItem> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_types, 8);
+  messageDesc(file_ship_ops_v1_types, 12);
 

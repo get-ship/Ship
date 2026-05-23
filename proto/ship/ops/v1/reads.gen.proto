@@ -83,7 +83,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.rules.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc McpList(McpListRequest) returns (JsonResponse) {
+  rpc McpList(McpListRequest) returns (McpIndexResponse) {
     option (ship.ops.v1.capability) = "ship.mcp.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -91,7 +91,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.mcp.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc PermissionsList(PermissionsListRequest) returns (JsonResponse) {
+  rpc PermissionsList(PermissionsListRequest) returns (PermissionsIndexResponse) {
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -99,7 +99,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc PermissionsToolPatterns(PermissionsToolPatternsRequest) returns (JsonResponse) {
+  rpc PermissionsToolPatterns(PermissionsToolPatternsRequest) returns (ToolPatternsResponse) {
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

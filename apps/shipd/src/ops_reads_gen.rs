@@ -157,8 +157,8 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedMcpListRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("mcp.list")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::McpIndexResponse> {
+        self.dispatch_typed::<::ship_ops_rpc::McpIndexResponse>("mcp.list", ::serde_json::Value::Null)
     }
     async fn mcp_get(
         &self,
@@ -174,8 +174,8 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedPermissionsListRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("permissions.list")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::PermissionsIndexResponse> {
+        self.dispatch_typed::<::ship_ops_rpc::PermissionsIndexResponse>("permissions.list", ::serde_json::Value::Null)
     }
     async fn permissions_get(
         &self,
@@ -191,8 +191,8 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedPermissionsToolPatternsRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("permissions.tool_patterns")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::ToolPatternsResponse> {
+        self.dispatch_typed::<::ship_ops_rpc::ToolPatternsResponse>("permissions.tool_patterns", ::serde_json::Value::Null)
     }
     async fn pipelines_list(
         &self,

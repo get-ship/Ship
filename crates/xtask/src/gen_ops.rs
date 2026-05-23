@@ -25,6 +25,11 @@ const TYPED_READS: &[&str] = &[
     // rules
     "RulesIndexResponse",
     "RuleGetResponse",
+    // mcp / permissions — list + tool_patterns (the *.get reads carry an
+    // embedded opaque config Value, so they stay JsonResponse).
+    "McpIndexResponse",
+    "PermissionsIndexResponse",
+    "ToolPatternsResponse",
 ];
 
 struct ReadOp {

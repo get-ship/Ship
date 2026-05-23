@@ -73,6 +73,26 @@ message RuleGetResponse {
   string body = 3;
 }
 
+// Wire shape of mcp.list / permissions.list (both → IndexEntry items). The
+// matching *.get reads return an embedded opaque config Value (entry), so they
+// stay JsonResponse — same open-payload line as the command surface.
+message McpIndexResponse {
+  repeated IndexEntry items = 1;
+}
+message PermissionsIndexResponse {
+  repeated IndexEntry items = 1;
+}
+
+// One autocomplete entry from permissions.tool_patterns.
+message ToolPattern {
+  string pattern = 1;
+  string label = 2;
+  string source = 3;
+}
+message ToolPatternsResponse {
+  repeated ToolPattern patterns = 1;
+}
+
 // A registered project — the typed return of project.add. Mirrors
 // `ship_platform::projects::ProjectRecord`.
 message ProjectRecord {
