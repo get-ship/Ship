@@ -101,7 +101,7 @@ describe('runner', () => {
     // Populate the cache + artifact
     await run(config, ctx, mockAdapter(), spawn)
     const afterFirst = spawned.length
-    // Wipe the artifact (simulates `rm -rf .ship/sui-out` while
+    // Wipe the artifact (simulates `rm -rf .sui-out` while
     // `.sui-build-cache.json` still records the source's mtime)
     const artifact = join(tmpDir, 'src', 'dist', 'hello.compiled.js')
     expect(existsSync(artifact)).toBe(true)
@@ -205,7 +205,7 @@ describe.skipIf(!isBun || !hasCdylib)('runner FFI path', () => {
     const suiPath = join(ffiTmpDir, 'src', 'hello.sui')
     await spawn!(suiPath, 'hello')
     // Outside the workspace, the compiler falls back to a sibling
-    // `dist/` directory; in-tree it lands in the `.ship/sui-out/` mirror
+    // `dist/` directory; in-tree it lands in the `.sui-out/` mirror
     // (see sui-compiler::out_layout::resolve_out_dir).
     const dtsPath = join(ffiTmpDir, 'src', 'dist', 'hello.sui.d.ts')
     expect(existsSync(dtsPath)).toBe(true)

@@ -40,7 +40,7 @@ export async function makeFfiSpawn(libPath: string): Promise<CompileSpawn | null
   }
   return async (suiPath: string, stem: string): Promise<void> => {
     // Empty out_dir tells the compiler to use its canonical mirror tree
-    // (`<repo-root>/.ship/sui-out/<src-rel>/`). Resolution happens inside
+    // (`<repo-root>/.sui-out/<src-rel>/`). Resolution happens inside
     // the Rust crate so the FFI surface stays minimal.
     const rawPtr = lib.symbols.sui_compiler_compile(
       toCString(suiPath),

@@ -7,7 +7,7 @@ import { spawnBoundedOrThrow } from '../../../scripts/spawn-bounded.mjs'
 
 const repoRoot = resolve(__dirname, '../../..')
 const compilerBin = resolve(repoRoot, 'target/debug/sui-compiler')
-const mirrorRoot = resolve(repoRoot, '.ship/sui-out')
+const mirrorRoot = resolve(repoRoot, '.sui-out')
 
 // Test-time fallback for the watch/HMR loop. The `pretest` hook (see
 // package.json) precompiles every .sui ahead of vitest, so cold runs
@@ -25,7 +25,7 @@ function compileSui(suiPath: string, stem: string): void {
 
 // Map a `.compiled.js` virtual import to its mirror-tree artifact path.
 // Source layout: `<repo>/<src-rel>/<stem>.sui` → emit at
-// `<repo>/.ship/sui-out/<src-rel>/<stem>.compiled.js`.
+// `<repo>/.sui-out/<src-rel>/<stem>.compiled.js`.
 function mirrorArtifactFor(sourceDir: string, stem: string): string {
   const srcRel = relative(repoRoot, sourceDir)
   return resolve(mirrorRoot, srcRel, `${stem}.compiled.js`)
@@ -49,7 +49,7 @@ export default defineConfig({
   },
   // `<tag>.compiled.js` shim. Production bundles use AOT-compiled modules
   // emitted by the Rust sui-compiler into the project mirror tree at
-  // `<repo-root>/.ship/sui-out/<src-rel>/`.
+  // `<repo-root>/.sui-out/<src-rel>/`.
   // For tests, an `import '.../<stem>.compiled.js'` is resolved as:
   //   (a) `<mirror-root>/<src-rel>/<stem>.compiled.js` if it already exists.
   //   (b) Otherwise, CLI-compile the sibling `<stem>.sui`.

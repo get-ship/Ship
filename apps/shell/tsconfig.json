@@ -18,7 +18,7 @@
     "verbatimModuleSyntax": true,
     "rootDirs": [
       "src",
-      "../../.ship/sui-out/apps/shell/src"
+      "../../.sui-out/apps/shell/src"
     ]
   },
   "include": ["src/**/*"],

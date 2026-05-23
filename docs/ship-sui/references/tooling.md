@@ -9,7 +9,7 @@ The chain from `.sui` source on disk to a live, hot-reloaded view in the browser
 
 ```sh
 # Compile a single file. Emits to the project mirror tree
-# (<repo-root>/.ship/sui-out/<src-rel>/<stem>.compiled.js by default):
+# (<repo-root>/.sui-out/<src-rel>/<stem>.compiled.js by default):
 cargo run -q -p sui-compiler -- build views/home/page.sui
 
 # Compile a directory recursively, into a single output dir (legacy <stem>.js):
@@ -25,7 +25,7 @@ Flags (from `crates/sui/compiler/src/bin/sui-compiler.rs`):
 
 | Flag | Purpose |
 |---|---|
-| `--out <dir>` | Single output directory (legacy `<stem>.js` naming). When omitted, emits to `<repo-root>/.ship/sui-out/<src-rel>/<stem>.compiled.js`. |
+| `--out <dir>` | Single output directory (legacy `<stem>.js` naming). When omitted, emits to `<repo-root>/.sui-out/<src-rel>/<stem>.compiled.js`. |
 | `--clean` | Remove each source file's mirror directory (or `--out` directory) before emitting. Idempotent rebuilds. |
 | `--mode <view\|component\|auto>` | Override mode (otherwise auto-detected from `--component-name`). |
 | `--no-dts` | Suppress `.sui.d.ts` emission. |

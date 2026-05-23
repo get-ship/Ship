@@ -22,7 +22,7 @@ export interface InjectOptions {
   sources: string[]
   /**
    * Map an examples file path to the CEM file that should carry its examples.
-   * Defaults to the sui-out mirror: `.ship/sui-out/<repo-rel>/<tag>.custom-elements.json`.
+   * Defaults to the sui-out mirror: `.sui-out/<repo-rel>/<tag>.custom-elements.json`.
    */
   cemFor: (examplesPath: string) => string
   warn?: (msg: string) => void
@@ -122,7 +122,7 @@ export function packDistCemFor(examplesPath: string): string {
   return join(packRoot, 'dist', 'custom-elements.json')
 }
 
-/** Default mirror mapping: repo-relative source → `.ship/sui-out/<rel>` CEM. */
+/** Default mirror mapping: repo-relative source → `.sui-out/<rel>` CEM. */
 export function suiOutCemFor(repoRoot: string): (examplesPath: string) => string {
   return (examplesPath) => {
     const rel = examplesPath.startsWith(repoRoot)

@@ -8,7 +8,7 @@ use crate::render::{self, RenderOpts};
 ///
 /// Returns the body HTML **with** the `<script id="__set_init__">` seed
 /// island appended — written to the project mirror tree as
-/// `<repo-root>/.ship/sui-out/<src-rel>/<stem>.ssr.html`. The daemon's
+/// `<repo-root>/.sui-out/<src-rel>/<stem>.ssr.html`. The daemon's
 /// from-disk SSR path (`load_ssr_from_disk`) splices this verbatim into
 /// the host page, so the precompiled artifact must carry the seed for
 /// prod to match dev's live-emit path.

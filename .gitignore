@@ -86,7 +86,7 @@ dist/
 
 # sui-compiler tooling outputs (dev-time only; production bundles live
 # in apps/shipd/assets/ and crates/deck/deck-server/assets/).
-.ship/sui-out/
+.sui-out/
 
 # Added by cargo
 /target

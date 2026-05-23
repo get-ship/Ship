@@ -2,7 +2,7 @@
 //!
 //! Tooling outputs (`.compiled.js`, `.sui.d.ts`, `.custom-elements.json`,
 //! `.schema.json`, `.sui.meta.json`, `.ssr.html`) land under one project-
-//! level mirror tree at `<repo-root>/.ship/sui-out/<source-rel>/` instead
+//! level mirror tree at `<repo-root>/.sui-out/<source-rel>/` instead
 //! of a per-component sibling `dist/` directory.
 //!
 //! Production-distribution bundles (`crates/deck/deck-server/assets/sui-*.js`)
@@ -15,8 +15,11 @@ use std::path::{Path, PathBuf};
 /// the ancestor walk so the mirror layout works the same from any cwd.
 const WORKSPACE_MARKER: &str = "[workspace]";
 
-/// Sub-directory under `.ship/` that holds the mirror tree.
-const SUI_OUT_DIR: &str = ".ship/sui-out";
+/// Project-root sub-directory that holds the SUI compiler's mirror tree.
+/// SUI-owned and deck-agnostic — the compiler never writes into deck's `.deck`
+/// build output (that would be SUI knowing about deck). `.sui-out` and `.deck`
+/// are sibling layer-outputs at the repo root.
+const SUI_OUT_DIR: &str = ".sui-out";
 
 /// Walk upward from `start` looking for a workspace `Cargo.toml`.
 /// Returns `None` if no marker is found before reaching the filesystem root.
@@ -46,7 +49,7 @@ pub fn find_repo_root(start: &Path) -> Option<PathBuf> {
 
 /// Resolve the canonical mirror directory for a given `.sui` source path.
 ///
-/// Layout: `<repo-root>/.ship/sui-out/<source-dir-relative-to-repo-root>/`.
+/// Layout: `<repo-root>/.sui-out/<source-dir-relative-to-repo-root>/`.
 ///
 /// Returns `None` when no repo root can be located OR the source path is
 /// outside the repo (e.g. a tempdir test fixture). Callers fall back to a
@@ -100,6 +103,6 @@ mod tests {
         let sui = src_dir.join("bar.sui");
         std::fs::write(&sui, "x").unwrap();
         let out = mirror_dir_for(&sui).unwrap();
-        assert_eq!(out, tmp.path().join(".ship/sui-out/packages/foo/src"));
+        assert_eq!(out, tmp.path().join(".sui-out/packages/foo/src"));
     }
 }

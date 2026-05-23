@@ -124,7 +124,7 @@ describe('buildCatalogs', () => {
     expect(published.count).toBe(1)
   })
 
-  it('tags non-packaged components from .ship/sui-out by origin', async () => {
+  it('tags non-packaged components from .sui-out by origin', async () => {
     await write(
       'package.json',
       JSON.stringify({
@@ -135,12 +135,12 @@ describe('buildCatalogs', () => {
     )
     // Shell-local: lives under apps/shell/...
     await write(
-      '.ship/sui-out/apps/shell/src/components/sui-rail/sui-rail.custom-elements.json',
+      '.sui-out/apps/shell/src/components/sui-rail/sui-rail.custom-elements.json',
       cem('sui-rail', 'SuiRail'),
     )
     // View-local: lives under views/<name>/...
     await write(
-      '.ship/sui-out/views/agents/components/agents-row/agents-row.custom-elements.json',
+      '.sui-out/views/agents/components/agents-row/agents-row.custom-elements.json',
       cem('agents-row', 'AgentsRow'),
     )
 
@@ -162,7 +162,7 @@ describe('buildCatalogs', () => {
     expect(originForNonPackagedSource('docs/page.sui')).toBe('workspace:docs')
   })
 
-  it('handles missing .ship/sui-out cleanly', async () => {
+  it('handles missing .sui-out cleanly', async () => {
     await write(
       'package.json',
       JSON.stringify({ name: 'empty', private: true, workspaces: { packages: [] } }),
@@ -192,7 +192,7 @@ describe('buildCatalogs', () => {
     await write('packages/widgets/dist/fx-widgets.js', '/* bundle */')
     // Stale sui-out CEM for the same tag — must be skipped (under packaged root).
     await write(
-      '.ship/sui-out/packages/widgets/src/fx-button/fx-button.custom-elements.json',
+      '.sui-out/packages/widgets/src/fx-button/fx-button.custom-elements.json',
       cem('fx-button', 'FxButton'),
     )
 

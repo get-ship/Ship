@@ -162,7 +162,7 @@ pub struct CompileOutput {
     pub meta: Option<serde_json::Value>,
     /// Static SSR HTML body fragment, present when `CompileOpts::emit_ssr` is
     /// true and mode is `View`. Written to the project mirror tree as
-    /// `<repo-root>/.ship/sui-out/<src-rel>/<stem>.ssr.html` by the CLI.
+    /// `<repo-root>/.sui-out/<src-rel>/<stem>.ssr.html` by the CLI.
     pub ssr_html: Option<String>,
 }
 

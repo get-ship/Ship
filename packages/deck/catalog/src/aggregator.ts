@@ -1,6 +1,6 @@
 // Core aggregator — given a repo root, walks per-component CEMs from
 // published packages (each package's `customElements` manifest) AND from
-// `.ship/sui-out/**/*.custom-elements.json` (non-packaged origins:
+// `.sui-out/**/*.custom-elements.json` (non-packaged origins:
 // shell-local, view-local). Merges into the canonical CatalogDocument
 // shape defined in `./types.ts`.
 //
@@ -21,7 +21,7 @@ import type {
 } from './types.js'
 import { discoverWorkspacePackages, packIdForName } from './workspace.js'
 
-const SUI_OUT = '.ship/sui-out'
+const SUI_OUT = '.sui-out'
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'target', '.git'])
 const CEM_SUFFIX = '.custom-elements.json'
 
@@ -49,7 +49,7 @@ async function walkCemFiles(dir: string, out: string[]): Promise<void> {
   }
 }
 
-/** Decide origin tag for a non-packaged CEM. `.ship/sui-out/` mirrors the
+/** Decide origin tag for a non-packaged CEM. `.sui-out/` mirrors the
  *  repo source tree under `packages/...`, `apps/<app>/...`, `views/<name>/...`.
  *  Anything starting with `apps/shell/` is shell-local; `views/<name>/` is
  *  view-local; everything else (rare) gets a `workspace:` fallback so the
@@ -65,7 +65,7 @@ export function originForNonPackagedSource(repoRelativeSourcePath: string): Comp
 }
 
 /** Repo-relative source path for a per-component CEM. CEMs land at
- *  `.ship/sui-out/<mirrored-source-tree>/<stem>.custom-elements.json`;
+ *  `.sui-out/<mirrored-source-tree>/<stem>.custom-elements.json`;
  *  the `.sui` source for the component sits at the same mirrored path
  *  with the `.custom-elements.json` swapped for `.sui`. */
 function sourcePathForCem(repoRoot: string, cemAbs: string): string {
@@ -257,7 +257,7 @@ export async function buildCatalogs(
   const all = [...packagedEntries, ...nonPackagedEntries]
   all.sort((a, b) => a.tagName.localeCompare(b.tagName))
   // Dedup by tagName — first-occurrence wins. Packaged entries come first
-  // so a duplicate from `.ship/sui-out/` for a packaged tag is dropped.
+  // so a duplicate from `.sui-out/` for a packaged tag is dropped.
   const seen = new Set<string>()
   const deduped: CatalogEntry[] = []
   for (const e of all) {

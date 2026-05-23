@@ -10,7 +10,7 @@ use crate::{compile, CompileMode, ComponentMeta, CompileOpts};
 /// Compile a .sui file by path, writing outputs to out_dir.
 ///
 /// When `out_dir` is empty or null, outputs land in the project mirror
-/// tree at `<repo-root>/.ship/sui-out/<source-rel>/` (resolved per-call
+/// tree at `<repo-root>/.sui-out/<source-rel>/` (resolved per-call
 /// from the .sui path so the binary works regardless of caller cwd).
 ///
 /// Returns JSON: `{"ok":true,"outputs":[...]}` or `{"ok":false,"error":"..."}`.

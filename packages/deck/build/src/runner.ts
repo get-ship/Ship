@@ -33,7 +33,7 @@ function expectedCompiledPath(suiPath: string, repoRoot: string): string {
     && (srcDir === repoRoot || srcDir.startsWith(repoRoot + '/'))
   if (inRepo) {
     const rel = srcDir === repoRoot ? '' : srcDir.slice(repoRoot.length + 1)
-    return join(repoRoot, '.ship/sui-out', rel, `${stem}.compiled.js`)
+    return join(repoRoot, '.sui-out', rel, `${stem}.compiled.js`)
   }
   return join(srcDir, 'dist', `${stem}.compiled.js`)
 }
@@ -164,11 +164,11 @@ export async function run(
 
 function resolveCemSources(config: SuiBuildConfig, ctx: AdapterContext): string[] {
   // CEM artifacts live in the project mirror tree at
-  // `<repo-root>/.ship/sui-out/<src-rel>/`. Translate each configured
+  // `<repo-root>/.sui-out/<src-rel>/`. Translate each configured
   // source dir into its mirror-tree counterpart so aggregateCem walks
   // the right location.
   const root = findWorkspaceRoot(ctx.packageRoot)
-  const mirrorRoot = join(root, '.ship/sui-out')
+  const mirrorRoot = join(root, '.sui-out')
   const toMirror = (absSrc: string): string => {
     const rel = absSrc.startsWith(root + '/') ? absSrc.slice(root.length + 1) : absSrc
     return join(mirrorRoot, rel)
