@@ -21,6 +21,7 @@ mod annotations;
 mod git;
 mod mcp;
 mod mesh;
+mod permissions;
 mod pipeline;
 mod project;
 mod rules;
@@ -120,6 +121,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = mcp::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = permissions::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
@@ -399,6 +403,48 @@ mod tests {
             .await
             .expect("operator may register an mcp server");
         assert_eq!(created["id"], "fixture-server");
+        assert_eq!(created["scope"], "user");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn permissions_create_is_c2_operator_only() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let args = serde_json::json!({
+            "id": "fixture-preset",
+            "preset_json": "{\"allow\":[\"Read(*)\"]}",
+            "scope": "user"
+        });
+
+        // Even a designer holding the ship-authoring grant is denied: editing the
+        // security policy is C2, which no grant clears — only the operator.
+        let designer = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("designer-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec!["ship-authoring".to_string()],
+        };
+        let err =
+            call("permissions.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
+                .await
+                .unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+
+        // The operator clears C2 and the write lands.
+        let op = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec![],
+        };
+        let created =
+            call("permissions.create", &args, &CommandCtx { state: &harness.state, auth: &op })
+                .await
+                .expect("operator may write a permission preset");
+        assert_eq!(created["id"], "fixture-preset");
         assert_eq!(created["scope"], "user");
     }
 }

@@ -236,6 +236,60 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "ScopedMutation",
         sensitive: false,
     },
+    // ── permissions (preset config; reads are permissions.list/get) ─
+    // C2 (operator-only): a preset IS the security policy governing agents, so
+    // agents never edit it. JSON args travel as JSON-string (preset_json/patch_json).
+    CommandDescriptor {
+        name: "permissions.create",
+        description: "Create a new permission preset (errors if the id is taken).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "preset_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.permissions.write",
+        blast_radius: "C2_ELEVATED",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "permissions.put",
+        description: "Replace a permission preset's body (use permissions.create for net-new).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "preset_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.permissions.write",
+        blast_radius: "C2_ELEVATED",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "permissions.patch",
+        description: "Apply RFC-6902 ops to a permission preset's body.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "patch_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.permissions.write",
+        blast_radius: "C2_ELEVATED",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "permissions.delete",
+        description: "Remove a permission preset (scope omitted walks project → user).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.permissions.write",
+        blast_radius: "C2_ELEVATED",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.activate",

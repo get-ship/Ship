@@ -78,6 +78,10 @@ pub fn classify(name: &str) -> Domain {
         // configuring it is authoring agent capability, not ordinary workspace
         // mutation. Gated behind the ship-authoring grant.
         "create" | "view" | "mcp" => Domain { group: "ship-authoring", restricted: true },
+        // `permissions` edits the security policy that governs agents. It is
+        // C2 (operator-only) at the blast axis, so agents are denied regardless;
+        // restricted ship-authoring here is defense in depth on the grant axis.
+        "permissions" => Domain { group: "ship-authoring", restricted: true },
         // default — ordinary workspace mutation
         "pipeline" | "project" | "mesh" | "git" | "annotation" | "annotations" | "feedback"
         | "rules" => {

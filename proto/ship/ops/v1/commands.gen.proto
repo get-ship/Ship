@@ -47,6 +47,22 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.mcp.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc PermissionsCreate(PermissionsCreateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.permissions.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc PermissionsPut(PermissionsPutRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.permissions.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc PermissionsPatch(PermissionsPatchRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.permissions.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc PermissionsDelete(PermissionsDeleteRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.permissions.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
   rpc ProjectActivate(ProjectActivateRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -189,6 +205,29 @@ message McpPatchRequest {
 }
 
 message McpDeleteRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message PermissionsCreateRequest {
+  string id = 1;
+  string preset_json = 2;
+  string scope = 3;
+}
+
+message PermissionsPutRequest {
+  string id = 1;
+  string preset_json = 2;
+  string scope = 3;
+}
+
+message PermissionsPatchRequest {
+  string id = 1;
+  string patch_json = 2;
+  string scope = 3;
+}
+
+message PermissionsDeleteRequest {
   string id = 1;
   string scope = 2;
 }
