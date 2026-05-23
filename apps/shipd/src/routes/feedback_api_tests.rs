@@ -48,6 +48,7 @@ fn mcp_auth(agent: &str) -> AuthContext {
         workspace_id: None,
         session_id: None,
         scopes: vec![crate::auth::Scope::Full],
+        grants: vec![],
     }
 }
 

@@ -200,6 +200,7 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: vec![],
+            grants: vec![],
         };
         let ctx = CommandCtx { state: &harness.state, auth: &auth };
         let args = serde_json::json!({
@@ -227,6 +228,7 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: ship_platform::auth::scopes::scopes_for_role(Some("worker")),
+            grants: vec![],
         };
         let ctx = CommandCtx { state: &harness.state, auth: &auth };
         let args = serde_json::json!({ "agent": "rust-lane" });
@@ -234,5 +236,32 @@ mod tests {
         // before any dispatch logic runs.
         let err = call("agent.dispatch", &args, &ctx).await.unwrap_err();
         assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn gate_allows_agent_with_minted_orchestration_grant() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        // A commander-role agent: grants_for_role mints ship-orchestration into
+        // the session, so the gate lets agent.dispatch past (it fails later on
+        // missing args, NOT on the gate — proving the grant cleared it).
+        let auth = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("commander-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: ship_platform::auth::scopes::grants_for_role(Some("commander")),
+        };
+        let ctx = CommandCtx { state: &harness.state, auth: &auth };
+        let args = serde_json::json!({ "agent": "rust-lane" });
+        // The grant cleared the gate: whether dispatch then succeeds or fails
+        // downstream, it must NOT be a FORBIDDEN gate denial.
+        if let Err(e) = call("agent.dispatch", &args, &ctx).await {
+            assert_ne!(
+                e.status,
+                axum::http::StatusCode::FORBIDDEN,
+                "minted orchestration grant should clear the gate"
+            );
+        }
     }
 }

@@ -71,6 +71,10 @@ pub struct AuthContext {
     pub session_id: Option<String>,
     /// Granted scopes for this request. Daemon token gets `[Full]`.
     pub scopes: Vec<Scope>,
+    /// Restricted capability grants (the gate's grant axis), minted from the
+    /// session's provisioned set. Empty for the operator (cleared by is_operator)
+    /// and for agents with no restricted domains. Distinct from `scopes`.
+    pub grants: Vec<String>,
 }
 
 impl AuthContext {
@@ -172,6 +176,7 @@ pub async fn auth_middleware(
                             workspace_id: session.workspace_id.clone(),
                             session_id: None,
                             scopes: session.scopes.clone(),
+                            grants: session.grants.clone(),
                         };
                         req.extensions_mut().insert(auth);
                         return next.run(req).await;
@@ -245,6 +250,8 @@ pub async fn auth_middleware(
                     workspace_id: session.workspace_id.clone(),
                     session_id,
                     scopes: session.scopes.clone(),
+                    // The minted restricted grants — the gate's grant axis.
+                    grants: session.grants.clone(),
                 };
                 drop(registry);
                 req.extensions_mut().insert(auth);
@@ -285,6 +292,9 @@ pub async fn auth_middleware(
         workspace_id,
         session_id,
         scopes,
+        // Daemon/SDK tokens are operator-class (is_operator clears the gate);
+        // no restricted grants needed on this path.
+        grants: vec![],
     };
 
     req.extensions_mut().insert(auth);

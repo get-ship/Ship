@@ -181,6 +181,28 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
     }
 }
 
+/// Restricted capability grants for a role — the gate's grant axis (distinct
+/// from `scopes`, which still drives REST route-auth + artifact perms until
+/// those die with the REST surface). Restricted domains are capability-defining
+/// (`ship-orchestration` = dispatch/control agents; `ship-authoring` = write
+/// skills/agents/views) and are never default — only these roles confer them.
+/// Default (C0/C1 non-restricted) domains need no grant.
+///
+/// This is the role-derived provisioning source today; the install/approval
+/// flow (`.artifacts/capability-provisioning-and-approval.md`) refines it into
+/// per-agent operator-approved grant sets.
+pub fn grants_for_role(role: Option<&str>) -> Vec<String> {
+    let g: &[&str] = match role {
+        Some("commander") | Some("lead") => &["ship-orchestration"],
+        Some("designer") => &["ship-authoring"],
+        // contributor = the operator's own profile: every restricted domain.
+        Some("contributor") => &["ship-orchestration", "ship-authoring"],
+        // worker / unknown: no restricted grants (default C0/C1 only).
+        _ => &[],
+    };
+    g.iter().map(|s| s.to_string()).collect()
+}
+
 // ── Session registry ────────────────────────────────────────────────────────
 
 /// A daemon-scoped session — maps a session token to an agent's granted scopes.
@@ -189,6 +211,10 @@ pub struct DaemonSession {
     pub token: String,
     pub agent_id: String,
     pub scopes: Vec<Scope>,
+    /// Restricted capability grants (the gate's grant axis) — minted from the
+    /// agent's provisioned set at register. Distinct from `scopes` (REST
+    /// route-auth + artifacts). See `.artifacts/capability-provisioning-and-approval.md`.
+    pub grants: Vec<String>,
     pub workspace_id: Option<String>,
     pub created_at: std::time::Instant,
     /// Unix seconds when this session expires. None = never expires (in-memory only).
@@ -307,6 +333,9 @@ pub async fn hydrate_sessions(registry: &SessionRegistry) {
             token: row.token.clone(),
             agent_id: row.agent_id,
             scopes,
+            // Persisted sessions are operator/paired (is_operator clears grants);
+            // restricted grants aren't persisted — re-minted on register.
+            grants: vec![],
             workspace_id: row.project_id,
             created_at: std::time::Instant::now(),
             expires_at_unix: Some(row.expires_at_unix),

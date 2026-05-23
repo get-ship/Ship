@@ -69,6 +69,7 @@ async fn spawn_server() -> (TempDir, std::net::SocketAddr, Arc<Mutex<ProcessRegi
         workspace_id: None,
         session_id: None,
         scopes: vec![Scope::Full],
+        grants: vec![],
     };
 
     let app = Router::new()

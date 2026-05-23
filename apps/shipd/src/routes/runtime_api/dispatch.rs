@@ -551,6 +551,7 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: vec![Scope::Full],
+            grants: vec![],
         })
     }
 

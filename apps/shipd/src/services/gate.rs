@@ -103,28 +103,15 @@ pub struct Caller {
     pub restricted_grants: Vec<String>,
 }
 
-/// Map today's `AuthContext` onto the gate's [`Caller`]. **Behavior-preserving
-/// bridge** (slice A): the operator line and the restricted grants are derived
-/// from the existing scope set so the new gate re-expresses current policy
-/// without changing it. Slice B replaces the grant source with the agent's
-/// compiled skill-domains and deletes the `Scope` mapping.
+/// Map `AuthContext` onto the gate's [`Caller`]. The restricted grants are the
+/// real minted set (`auth.grants`), provisioned from the agent's role/skills at
+/// session-register — no longer derived from `scopes`. The operator line still
+/// reads `Scope::Full` (the operator marker, a separate axis from grants that
+/// dies with the REST route-auth conversion in P4).
 pub fn caller_from_auth(auth: &AuthContext) -> Caller {
-    // Operator = a present human (CLI/browser, no minted agent identity) OR any
-    // full-trust credential (daemon token, SDK, contributor). These clear every
-    // class, including C2 — matching today's `Scope::Full` bypass.
     let is_operator = (matches!(auth.caller_kind, CallerKind::Cli) && auth.agent_id.is_none())
         || auth.has_scope(Scope::Full);
-
-    let mut restricted_grants = Vec::new();
-    // Orchestration (dispatch/stop/steer) ≈ today's run-management capability.
-    if auth.has_scope(Scope::CreateRuns) || auth.has_scope(Scope::ManageRuns) {
-        restricted_grants.push("ship-orchestration".to_string());
-    }
-    // Authoring (skills/agents/views) ≈ today's gated SUI-authoring capability.
-    if auth.has_scope(Scope::SuiAuthoring) {
-        restricted_grants.push("ship-authoring".to_string());
-    }
-    Caller { is_operator, restricted_grants }
+    Caller { is_operator, restricted_grants: auth.grants.clone() }
 }
 
 /// The decision. Pure — no I/O, no auth lookups.

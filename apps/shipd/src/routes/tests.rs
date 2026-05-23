@@ -104,6 +104,7 @@ async fn ship_route_registers_handler_end_to_end() {
             workspace_id: None,
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
+            grants: vec![],
         }));
     let req = Request::builder()
         .method("GET")
