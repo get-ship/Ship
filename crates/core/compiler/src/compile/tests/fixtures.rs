@@ -58,6 +58,7 @@ pub fn make_skill(id: &str) -> Skill {
         vars: Default::default(),
         artifacts: vec![],
         grants: vec![],
+        requires: vec![],
     }
 }
 

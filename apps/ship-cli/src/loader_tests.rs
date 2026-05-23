@@ -435,3 +435,12 @@ fn skill_grants_empty_when_absent() {
     let skill = parse_skill("my-skill", raw);
     assert!(skill.grants.is_empty());
 }
+
+#[test]
+fn skill_parses_requires_block() {
+    // `requires:` declares a capability dependency (authored, confers nothing).
+    let raw = "---\nname: my-workflow\nrequires: ship-orchestration\n---\n\nContent.";
+    let skill = parse_skill("my-workflow", raw);
+    assert_eq!(skill.requires, vec!["ship-orchestration"]);
+    assert!(skill.grants.is_empty());
+}

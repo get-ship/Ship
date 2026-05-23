@@ -460,6 +460,7 @@ mod tests {
             vars: Default::default(),
             artifacts: vec![],
             grants: vec![],
+            requires: vec![],
         }
     }
 

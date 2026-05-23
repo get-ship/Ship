@@ -25,6 +25,7 @@ fn make_skill(id: &str) -> Skill {
         vars: Default::default(),
         artifacts: vec![],
         grants: vec![],
+        requires: vec![],
     }
 }
 
@@ -322,6 +323,7 @@ fn runtime_agents_injected_into_skill_template() {
         vars: Default::default(),
         artifacts: vec![],
         grants: vec![],
+        requires: vec![],
     };
 
     let library = ProjectLibrary {
@@ -369,6 +371,7 @@ fn runtime_harnesses_injected_into_skill_template() {
         vars: Default::default(),
         artifacts: vec![],
         grants: vec![],
+        requires: vec![],
     };
 
     let library = ProjectLibrary {
@@ -408,6 +411,7 @@ fn runtime_skills_injected_into_skill_template() {
         vars: Default::default(),
         artifacts: vec![],
         grants: vec![],
+        requires: vec![],
     };
 
     let library = ProjectLibrary {

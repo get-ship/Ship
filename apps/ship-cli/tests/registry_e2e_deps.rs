@@ -106,6 +106,7 @@ fn resolve_single(ref_str: &str, lock: &ShipLock, cache: &Path) -> anyhow::Resul
         vars: Default::default(),
         artifacts: vec![],
         grants: vec![],
+        requires: vec![],
     })
 }
 
@@ -359,6 +360,7 @@ fn local_and_dep_skills_both_appear_in_compiled_output() {
         vars: Default::default(),
         artifacts: vec![],
         grants: vec![],
+        requires: vec![],
     };
     let dep_ref = "github.com/owner/remotepkg/skills/remote-skill".to_string();
     let dep_skills = resolve_deps(
