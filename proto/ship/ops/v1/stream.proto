@@ -17,6 +17,21 @@ service StreamService {
     option (ship.ops.v1.capability) = "ship.events.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+
+  // Raw PTY byte stream for a session: replay the log then tail live output.
+  // `bytes` is byte-exact (Connect-JSON base64-encodes on the wire; the client
+  // decodes to a Uint8Array straight into xterm — no CR/LF mangling like SSE).
+  // Retires the `/api/v1/sessions/{id}/stream` SSE route. C0: observe a session.
+  rpc SessionBytes(SessionStreamRequest) returns (stream BytesChunk) {
+    option (ship.ops.v1.capability) = "ship.sessions.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
 }
 
 message EventsRequest {}
+message SessionStreamRequest {
+  string session_id = 1;
+}
+message BytesChunk {
+  bytes data = 1;
+}

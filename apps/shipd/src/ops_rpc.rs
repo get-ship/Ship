@@ -11,9 +11,9 @@ use buffa::{Message, UnknownFieldData};
 use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use ship_ops_rpc::{
-    CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
-    OwnedEventsRequestView, OwnedMetaRequestView, ReadOpsServiceExt, StreamService,
-    StreamServiceExt,
+    BytesChunk, CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
+    OwnedEventsRequestView, OwnedMetaRequestView, OwnedSessionStreamRequestView,
+    ReadOpsServiceExt, StreamService, StreamServiceExt,
 };
 
 use crate::ship_runtime::ApiState;
@@ -114,6 +114,42 @@ impl StreamService for OpsImpl {
             while let Some(event) = mb.recv().await {
                 if let Ok(json) = serde_json::to_string(&event) {
                     yield Ok::<JsonResponse, ConnectError>(JsonResponse { json, ..Default::default() });
+                }
+            }
+        };
+        Ok(Response::new(Box::pin(stream)))
+    }
+
+    // Raw PTY byte stream — the Connect adapter for a session, mirroring
+    // `sessions::api::io::stream_session` (the SSE route it retires): replay the
+    // log snapshot, then tail the live broadcast. `bytes` is byte-exact, so the
+    // CR/LF mangling that forced base64 over SSE is gone.
+    #[allow(refining_impl_trait)]
+    async fn session_bytes(
+        &self,
+        _ctx: RequestContext,
+        request: OwnedSessionStreamRequestView,
+    ) -> ServiceResult<ServiceStream<BytesChunk>> {
+        let id = request.session_id.to_string();
+        let (log_path, mut rx) = if let Some(entry) = self.state.actor_sessions().get(&id) {
+            (entry.log_path(), entry.subscribe())
+        } else if let Some(session) = self.state.pty_sessions().get(&id) {
+            (session.0.log_path.clone(), session.subscribe())
+        } else {
+            return Err(ConnectError::not_found(format!("session '{id}' not found")));
+        };
+        let replay = tokio::fs::read(&log_path).await.unwrap_or_default();
+        let stream = async_stream::stream! {
+            if !replay.is_empty() {
+                yield Ok::<BytesChunk, ConnectError>(BytesChunk { data: replay, ..Default::default() });
+            }
+            loop {
+                match rx.recv().await {
+                    Ok(bytes) => yield Ok(BytesChunk { data: bytes, ..Default::default() }),
+                    // Slow consumer dropped frames — keep tailing rather than abort.
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    // Sender gone — session ended.
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 }
             }
         };
