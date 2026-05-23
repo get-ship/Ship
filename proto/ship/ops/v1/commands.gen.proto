@@ -75,6 +75,18 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.artifacts.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc CollectionsCreateItem(CollectionsCreateItemRequest) returns (CollectionItem) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc CollectionsUpdateItem(CollectionsUpdateItemRequest) returns (CollectionItem) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc CollectionsDeleteItem(CollectionsDeleteItemRequest) returns (Deletion) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc ProjectActivate(ProjectActivateRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -260,6 +272,23 @@ message ArtifactsPromoteRequest {
 
 message ArtifactsDeleteRequest {
   string id = 1;
+}
+
+message CollectionsCreateItemRequest {
+  string collection = 1;
+  string data_json = 2;
+  string id = 3;
+}
+
+message CollectionsUpdateItemRequest {
+  string collection = 1;
+  string id = 2;
+  string data_json = 3;
+}
+
+message CollectionsDeleteItemRequest {
+  string collection = 1;
+  string id = 2;
 }
 
 message ProjectActivateRequest {

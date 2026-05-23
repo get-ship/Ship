@@ -19,6 +19,7 @@ use crate::ship_runtime::ApiState;
 mod agent;
 mod annotations;
 mod artifacts;
+mod collections;
 mod git;
 mod mcp;
 mod mesh;
@@ -128,6 +129,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = artifacts::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = collections::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
@@ -478,5 +482,25 @@ mod tests {
         assert_eq!(msg.size, 4096);
         assert_eq!(msg.run_id.as_deref(), Some("r1"));
         assert_eq!(msg.content_hash, None);
+    }
+
+    #[test]
+    fn collection_item_value_decodes_into_the_typed_proto_message() {
+        // The open `data` payload rides as a `data_json` string; the envelope is
+        // typed. Assert the handler's from_value round-trip holds, including an
+        // absent optional (created_by).
+        let value = serde_json::json!({
+            "id": "item-1",
+            "collection": "notes",
+            "data_json": "{\"title\":\"hi\"}",
+            "created_at": "2026-05-23T00:00:00Z",
+            "updated_at": "2026-05-23T00:00:00Z"
+        });
+        let msg: ship_ops_rpc::CollectionItem =
+            serde_json::from_value(value).expect("collection item value decodes");
+        assert_eq!(msg.id, "item-1");
+        assert_eq!(msg.collection, "notes");
+        assert_eq!(msg.data_json, "{\"title\":\"hi\"}");
+        assert_eq!(msg.created_by, None);
     }
 }

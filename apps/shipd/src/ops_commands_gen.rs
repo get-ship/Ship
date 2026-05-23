@@ -302,6 +302,62 @@ impl ::ship_ops_rpc::CommandOpsService for OpsImpl {
             Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
         }
     }
+    async fn collections_create_item(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedCollectionsCreateItemRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::CollectionItem> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("collection".to_string(), ::serde_json::json!(req.collection));
+        args.insert("data_json".to_string(), ::serde_json::json!(req.data_json));
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("collections.create_item", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::CollectionItem>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode collections.create_item response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn collections_update_item(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedCollectionsUpdateItemRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::CollectionItem> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("collection".to_string(), ::serde_json::json!(req.collection));
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        args.insert("data_json".to_string(), ::serde_json::json!(req.data_json));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("collections.update_item", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::CollectionItem>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode collections.update_item response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn collections_delete_item(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedCollectionsDeleteItemRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::Deletion> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("collection".to_string(), ::serde_json::json!(req.collection));
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("collections.delete_item", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::Deletion>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode collections.delete_item response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
     async fn project_activate(
         &self,
         ctx: ::connectrpc::RequestContext,

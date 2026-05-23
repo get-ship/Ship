@@ -330,6 +330,47 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "Deletion",
         sensitive: false,
     },
+    // ── collections (item CRUD; reads are get_item/query_items) ────
+    // Default C1 — collection items are the user's own data. Open `data` payload
+    // travels as data_json; schema CRUD is a separate (nested-schema) piece.
+    CommandDescriptor {
+        name: "collections.create_item",
+        description: "Create an item in a collection (id auto-generated if omitted).",
+        args: &[
+            ArgDescriptor { name: "collection", kind: "string", required: true },
+            ArgDescriptor { name: "data_json", kind: "string", required: true },
+            ArgDescriptor { name: "id", kind: "string?", required: false },
+        ],
+        permission: "ship.collections.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "CollectionItem",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "collections.update_item",
+        description: "Replace a collection item's data by id.",
+        args: &[
+            ArgDescriptor { name: "collection", kind: "string", required: true },
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "data_json", kind: "string", required: true },
+        ],
+        permission: "ship.collections.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "CollectionItem",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "collections.delete_item",
+        description: "Delete a collection item by id.",
+        args: &[
+            ArgDescriptor { name: "collection", kind: "string", required: true },
+            ArgDescriptor { name: "id", kind: "string", required: true },
+        ],
+        permission: "ship.collections.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "Deletion",
+        sensitive: false,
+    },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.activate",

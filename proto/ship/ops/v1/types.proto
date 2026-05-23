@@ -51,3 +51,21 @@ message ArtifactRecord {
   optional string item_id = 14;
   string created_at = 15;
 }
+
+// A collection item — the typed return of collections.create_item /
+// .update_item. The envelope (id/collection/timestamps) is typed; `data_json`
+// carries the user's schema-defined payload as serialized JSON. Proto Struct
+// would model `data` as a native object, but it pulls the `buffa-types` crate
+// (a fragile version match against connectrpc's transitive buffa — see
+// ship-ops-rpc/Cargo.toml), so we use the JSON-string convention already in use
+// for open payloads (server_json / patch_json / value_json). The consumer
+// parses one field against its own runtime schema — which it must do anyway,
+// since collection data is schema-dynamic. Mirrors `…::collections::store::Item`.
+message CollectionItem {
+  string id = 1;
+  string collection = 2;
+  string data_json = 3;
+  optional string created_by = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}

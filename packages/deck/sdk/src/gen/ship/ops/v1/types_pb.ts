@@ -22,7 +22,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/types.proto.
  */
 export const file_ship_ops_v1_types: GenFile = /*@__PURE__*/
-  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJwoIRGVsZXRpb24SCgoCaWQYASABKAkSDwoHZGVsZXRlZBgCIAEoCCKvAwoOQXJ0aWZhY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBHNpemUYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVzY29wZRgGIAEoCRIXCgpwcm9qZWN0X2lkGAcgASgJSACIAQESEwoGcnVuX2lkGAggASgJSAGIAQESFAoHdXNlcl9pZBgJIAEoCUgCiAEBEhkKDGNvbnRlbnRfaGFzaBgKIAEoCUgDiAEBEhcKCmV4cGlyZXNfYXQYCyABKAlIBIgBARIYCgtvd25lcl9hY3RvchgMIAEoCUgFiAEBEhoKDWNvbGxlY3Rpb25faWQYDSABKAlIBogBARIUCgdpdGVtX2lkGA4gASgJSAeIAQESEgoKY3JlYXRlZF9hdBgPIAEoCUINCgtfcHJvamVjdF9pZEIJCgdfcnVuX2lkQgoKCF91c2VyX2lkQg8KDV9jb250ZW50X2hhc2hCDQoLX2V4cGlyZXNfYXRCDgoMX293bmVyX2FjdG9yQhAKDl9jb2xsZWN0aW9uX2lkQgoKCF9pdGVtX2lkYgZwcm90bzM");
+  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJwoIRGVsZXRpb24SCgoCaWQYASABKAkSDwoHZGVsZXRlZBgCIAEoCCKvAwoOQXJ0aWZhY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBHNpemUYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVzY29wZRgGIAEoCRIXCgpwcm9qZWN0X2lkGAcgASgJSACIAQESEwoGcnVuX2lkGAggASgJSAGIAQESFAoHdXNlcl9pZBgJIAEoCUgCiAEBEhkKDGNvbnRlbnRfaGFzaBgKIAEoCUgDiAEBEhcKCmV4cGlyZXNfYXQYCyABKAlIBIgBARIYCgtvd25lcl9hY3RvchgMIAEoCUgFiAEBEhoKDWNvbGxlY3Rpb25faWQYDSABKAlIBogBARIUCgdpdGVtX2lkGA4gASgJSAeIAQESEgoKY3JlYXRlZF9hdBgPIAEoCUINCgtfcHJvamVjdF9pZEIJCgdfcnVuX2lkQgoKCF91c2VyX2lkQg8KDV9jb250ZW50X2hhc2hCDQoLX2V4cGlyZXNfYXRCDgoMX293bmVyX2FjdG9yQhAKDl9jb2xsZWN0aW9uX2lkQgoKCF9pdGVtX2lkIpMBCg5Db2xsZWN0aW9uSXRlbRIKCgJpZBgBIAEoCRISCgpjb2xsZWN0aW9uGAIgASgJEhEKCWRhdGFfanNvbhgDIAEoCRIXCgpjcmVhdGVkX2J5GAQgASgJSACIAQESEgoKY3JlYXRlZF9hdBgFIAEoCRISCgp1cGRhdGVkX2F0GAYgASgJQg0KC19jcmVhdGVkX2J5YgZwcm90bzM");
 
 /**
  * Result of a scope-resolving config mutation (rules / mcp / permissions /
@@ -168,4 +168,56 @@ export type ArtifactRecord = Message<"ship.ops.v1.ArtifactRecord"> & {
  */
 export const ArtifactRecordSchema: GenMessage<ArtifactRecord> = /*@__PURE__*/
   messageDesc(file_ship_ops_v1_types, 2);
+
+/**
+ * A collection item — the typed return of collections.create_item /
+ * .update_item. The envelope (id/collection/timestamps) is typed; `data_json`
+ * carries the user's schema-defined payload as serialized JSON. Proto Struct
+ * would model `data` as a native object, but it pulls the `buffa-types` crate
+ * (a fragile version match against connectrpc's transitive buffa — see
+ * ship-ops-rpc/Cargo.toml), so we use the JSON-string convention already in use
+ * for open payloads (server_json / patch_json / value_json). The consumer
+ * parses one field against its own runtime schema — which it must do anyway,
+ * since collection data is schema-dynamic. Mirrors `…::collections::store::Item`.
+ *
+ * @generated from message ship.ops.v1.CollectionItem
+ */
+export type CollectionItem = Message<"ship.ops.v1.CollectionItem"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string collection = 2;
+   */
+  collection: string;
+
+  /**
+   * @generated from field: string data_json = 3;
+   */
+  dataJson: string;
+
+  /**
+   * @generated from field: optional string created_by = 4;
+   */
+  createdBy?: string | undefined;
+
+  /**
+   * @generated from field: string created_at = 5;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string updated_at = 6;
+   */
+  updatedAt: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.CollectionItem.
+ * Use `create(CollectionItemSchema)` to create a new message.
+ */
+export const CollectionItemSchema: GenMessage<CollectionItem> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 3);
 
