@@ -3,9 +3,14 @@
 // the studio version splits list and detail into deck-routed views like agents.
 // Data: ship.skills.summaries({q,kind,tag}) via liveExpr (server-side filtered,
 // re-subscribes as q/kind change) — /sui-hosted views have no SDK client in ctx.
-import { controller, signal, derived, live } from '@ship/sui-runtime'
+import { controller, signal, live } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
+import type { MutableState, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+
+// `on:` handlers receive the writable state proxy; annotate explicitly
+// since the OnSection union blocks contextual inference.
+type S = MutableState<Scope>
 
 type KindFilter = 'all' | 'smart' | 'docs'
 
@@ -45,27 +50,28 @@ export default controller<Scope>({
   },
 
   derived: {
-    loading: ({ rail }) => (rail() as LiveResult).kind !== 'ok',
-    items: ({ rail }) => {
-      const r = rail() as LiveResult
+    // `rail` emits as `unknown` (emitter gap); read it as the live thunk.
+    loading: ({ rail }: ViewScope<Scope>) => ((rail as () => LiveResult)()).kind !== 'ok',
+    items: ({ rail }: ViewScope<Scope>) => {
+      const r = (rail as () => LiveResult)()
       if (r.kind !== 'ok' || !r.value) return []
       return r.value.groups.flatMap((g) => g.skills)
     },
-    total: ({ rail }) => {
-      const r = rail() as LiveResult
+    total: ({ rail }: ViewScope<Scope>) => {
+      const r = (rail as () => LiveResult)()
       if (r.kind !== 'ok' || !r.value) return 0
       return r.value.kind_counts.find((k) => k.id === 'all')?.count ?? 0
     },
   },
 
   on: {
-    onSearchInput: (s, e: Event) => {
+    onSearchInput: (s: S, e: Event) => {
       s.q = (e.target as HTMLInputElement).value ?? ''
     },
-    clearSearch: (s) => {
+    clearSearch: (s: S) => {
       s.q = ''
     },
-    setKind: (s, id: string) => {
+    setKind: (s: S, id: string) => {
       s.kind = id as KindFilter
     },
   },

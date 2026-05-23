@@ -7,6 +7,7 @@
 //  • Tokens are grouped by category (tabs), each row typed (color → swatch +
 //    picker, length/number/font → appropriate control), with an override dot.
 import { controller, signal, derived, effect, onCleanup } from '@ship/sui-runtime'
+import type { MutableState } from '@ship/sui-runtime'
 import {
   THEMES,
   applyTheme,
@@ -17,6 +18,12 @@ import {
 } from '@ship/ui-components/tokens/themes'
 import { LAYERS, ALL_TOKENS, type TokenType } from './token-catalog'
 import type { Scope } from './page.sui'
+
+// `on:` handlers receive the writable state proxy; annotate explicitly
+// since the OnSection union blocks contextual inference. `overrides`
+// emits as `unknown` (emitter gap) so narrow it through `SExt`.
+type S = MutableState<Scope>
+type SExt = S & { overrides: Record<string, string> }
 
 const CATEGORIES = [{ id: 'all', label: 'All' }, ...LAYERS.map((l) => ({ id: l.id, label: l.label }))]
 // Common font-weight options for the number control.
@@ -117,12 +124,13 @@ export default controller<Scope>({
   },
 
   on: {
-    setCat: (s, id: string) => { s.activeCat = id },
-    setToken: (s, name: string, value: string) => {
-      s.overrides = { ...(s.overrides as Record<string, string>), [name]: value }
+    setCat: (s: S, id: string) => { s.activeCat = id },
+    setToken: (s: S, name: string, value: string) => {
+      const st = s as SExt
+      st.overrides = { ...st.overrides, [name]: value }
     },
-    resetAll: (s) => { s.overrides = {} },
-    setActive: (s) => {
+    resetAll: (s: S) => { (s as SExt).overrides = {} },
+    setActive: (s: S) => {
       applyTheme(s.themeId as ThemeId)
       persistTheme(s.themeId as ThemeId)
       s.committed = true
