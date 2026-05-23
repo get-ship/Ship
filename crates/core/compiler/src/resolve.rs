@@ -459,6 +459,7 @@ mod tests {
             source: Default::default(),
             vars: Default::default(),
             artifacts: vec![],
+            grants: vec![],
         }
     }
 

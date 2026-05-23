@@ -16,6 +16,7 @@ pub fn parse_skill(id: &str, raw: &str) -> Skill {
     let mut compatibility = None;
     let mut allowed_tools = vec![];
     let mut artifacts = vec![];
+    let mut grants = vec![];
     let mut metadata: HashMap<String, String> = HashMap::new();
     let mut content_start = 0usize;
 
@@ -61,6 +62,17 @@ pub fn parse_skill(id: &str, raw: &str) -> Skill {
                     .filter(|s| !s.is_empty())
                     .map(str::to_string)
                     .collect();
+            } else if let Some(v) = line.strip_prefix("grants:") {
+                // Capability grants (restricted op-domains this skill confers),
+                // same list syntax as `artifacts`. Feeds the auth gate's grant
+                // set — see `.artifacts/auth-gate-synthesis.md`.
+                let trimmed = v.trim().trim_start_matches('[').trim_end_matches(']');
+                grants = trimmed
+                    .split(|c: char| c == ',' || c.is_whitespace())
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string)
+                    .collect();
             } else if line.trim_end() == "metadata:" {
                 in_metadata = true;
             } else if let Some(v) = line.strip_prefix("version:") {
@@ -90,6 +102,7 @@ pub fn parse_skill(id: &str, raw: &str) -> Skill {
         compatibility,
         allowed_tools,
         artifacts,
+        grants,
         metadata,
         content,
         source: SkillSource::default(),

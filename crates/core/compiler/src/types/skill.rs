@@ -51,6 +51,25 @@ pub struct Skill {
     /// Used to infer platform event subscriptions at actor spawn time.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub artifacts: Vec<String>,
+    /// Capability grants this skill confers (the `grants:` frontmatter block),
+    /// e.g. `["ship-orchestration"]`. A capability-skill grants a restricted
+    /// op-domain; knowledge-only skills leave this empty. The agent's grant set
+    /// is the union of its resolved skills' grants — the Decision-4 loop where a
+    /// skill set IS a credential scope. See `.artifacts/auth-gate-synthesis.md`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub grants: Vec<String>,
+}
+
+/// The union (deduped) of capability grants across a set of resolved skills —
+/// an agent's grant set. The gate checks an op's restricted domain against this.
+pub fn grants_from_skills(skills: &[Skill]) -> Vec<String> {
+    let mut seen = std::collections::BTreeSet::new();
+    for skill in skills {
+        for grant in &skill.grants {
+            seen.insert(grant.clone());
+        }
+    }
+    seen.into_iter().collect()
 }
 
 pub fn is_valid_skill_name(name: &str) -> bool {
@@ -105,6 +124,7 @@ mod tests {
             source: SkillSource::Custom,
             vars: HashMap::new(),
             artifacts: vec![],
+            grants: vec![],
         };
         assert!(skill.stable_id.is_none());
         assert!(skill.license.is_none());
@@ -113,5 +133,33 @@ mod tests {
         assert!(skill.metadata.is_empty());
         assert!(skill.vars.is_empty());
         assert!(skill.artifacts.is_empty());
+        assert!(skill.grants.is_empty());
+    }
+
+    #[test]
+    fn grants_from_skills_unions_and_dedups() {
+        let mk = |id: &str, grants: &[&str]| Skill {
+            id: id.to_string(),
+            name: id.to_string(),
+            stable_id: None,
+            description: None,
+            license: None,
+            compatibility: None,
+            allowed_tools: vec![],
+            metadata: HashMap::new(),
+            content: String::new(),
+            source: SkillSource::Custom,
+            vars: HashMap::new(),
+            artifacts: vec![],
+            grants: grants.iter().map(|s| s.to_string()).collect(),
+        };
+        let skills = vec![
+            mk("orch", &["ship-orchestration"]),
+            mk("author", &["ship-authoring"]),
+            mk("dup", &["ship-orchestration"]), // duplicate grant
+            mk("knowledge", &[]),               // no grant
+        ];
+        let grants = grants_from_skills(&skills);
+        assert_eq!(grants, vec!["ship-authoring", "ship-orchestration"]); // sorted, deduped
     }
 }

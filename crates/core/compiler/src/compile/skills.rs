@@ -168,6 +168,7 @@ mod tests {
             compatibility: None,
             allowed_tools: vec![],
             artifacts: vec![],
+            grants: vec![],
             metadata: HashMap::new(),
             content: "Instructions here.".to_string(),
             source: Default::default(),
