@@ -147,23 +147,23 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.specs.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc GitStatus(GitStatusRequest) returns (JsonResponse) {
+  rpc GitStatus(GitStatusRequest) returns (StatusBuckets) {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc GitLog(GitLogRequest) returns (JsonResponse) {
+  rpc GitLog(GitLogRequest) returns (GitLogResponse) {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc GitBranches(GitBranchesRequest) returns (JsonResponse) {
+  rpc GitBranches(GitBranchesRequest) returns (GitBranchesResponse) {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc GitOverview(GitOverviewRequest) returns (JsonResponse) {
+  rpc GitOverview(GitOverviewRequest) returns (GitOverviewResponse) {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc GitDiff(GitDiffRequest) returns (JsonResponse) {
+  rpc GitDiff(GitDiffRequest) returns (GitDiffResponse) {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

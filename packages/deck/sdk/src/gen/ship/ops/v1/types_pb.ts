@@ -22,7 +22,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/types.proto.
  */
 export const file_ship_ops_v1_types: GenFile = /*@__PURE__*/
-  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJwoIRGVsZXRpb24SCgoCaWQYASABKAkSDwoHZGVsZXRlZBgCIAEoCCKvAwoOQXJ0aWZhY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBHNpemUYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVzY29wZRgGIAEoCRIXCgpwcm9qZWN0X2lkGAcgASgJSACIAQESEwoGcnVuX2lkGAggASgJSAGIAQESFAoHdXNlcl9pZBgJIAEoCUgCiAEBEhkKDGNvbnRlbnRfaGFzaBgKIAEoCUgDiAEBEhcKCmV4cGlyZXNfYXQYCyABKAlIBIgBARIYCgtvd25lcl9hY3RvchgMIAEoCUgFiAEBEhoKDWNvbGxlY3Rpb25faWQYDSABKAlIBogBARIUCgdpdGVtX2lkGA4gASgJSAeIAQESEgoKY3JlYXRlZF9hdBgPIAEoCUINCgtfcHJvamVjdF9pZEIJCgdfcnVuX2lkQgoKCF91c2VyX2lkQg8KDV9jb250ZW50X2hhc2hCDQoLX2V4cGlyZXNfYXRCDgoMX293bmVyX2FjdG9yQhAKDl9jb2xsZWN0aW9uX2lkQgoKCF9pdGVtX2lkIicKCkluZGV4RW50cnkSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiPAoSUnVsZXNJbmRleFJlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc2hpcC5vcHMudjEuSW5kZXhFbnRyeSI6Cg9SdWxlR2V0UmVzcG9uc2USCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEYm9keRgDIAEoCSI6ChBNY3BJbmRleFJlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc2hpcC5vcHMudjEuSW5kZXhFbnRyeSJCChhQZXJtaXNzaW9uc0luZGV4UmVzcG9uc2USJgoFaXRlbXMYASADKAsyFy5zaGlwLm9wcy52MS5JbmRleEVudHJ5Ij0KC1Rvb2xQYXR0ZXJuEg8KB3BhdHRlcm4YASABKAkSDQoFbGFiZWwYAiABKAkSDgoGc291cmNlGAMgASgJIkIKFFRvb2xQYXR0ZXJuc1Jlc3BvbnNlEioKCHBhdHRlcm5zGAEgAygLMhguc2hpcC5vcHMudjEuVG9vbFBhdHRlcm4iPQoTU2tpbGxzSW5kZXhSZXNwb25zZRImCgVpdGVtcxgBIAMoCzIXLnNoaXAub3BzLnYxLkluZGV4RW50cnkiQAoWUGlwZWxpbmVzSW5kZXhSZXNwb25zZRImCgVpdGVtcxgBIAMoCzIXLnNoaXAub3BzLnYxLkluZGV4RW50cnkiTQoRU2tpbGxGaWxlUmVzcG9uc2USDAoEcGF0aBgBIAEoCRIMCgRuYW1lGAIgASgJEgsKA2V4dBgDIAEoCRIPCgdjb250ZW50GAQgASgJIjEKF1dvcmtzcGFjZUFjdGl2ZVJlc3BvbnNlEg8KAmlkGAEgASgJSACIAQFCBQoDX2lkImEKFUFydGlmYWN0c0xpc3RSZXNwb25zZRIqCgVpdGVtcxgBIAMoCzIbLnNoaXAub3BzLnYxLkFydGlmYWN0UmVjb3JkEg0KBWNvdW50GAIgASgEEg0KBXNjb3BlGAMgASgJImEKDVByb2plY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEcGF0aBgCIAEoCRIMCgRuYW1lGAMgASgJEhIKCmNyZWF0ZWRfYXQYBCABKAkSFAoMbGFzdF9zZWVuX2F0GAUgASgJIi8KDFNldHRpbmdWYWx1ZRILCgNrZXkYASABKAkSEgoKdmFsdWVfanNvbhgCIAEoCSKTAQoOQ29sbGVjdGlvbkl0ZW0SCgoCaWQYASABKAkSEgoKY29sbGVjdGlvbhgCIAEoCRIRCglkYXRhX2pzb24YAyABKAkSFwoKY3JlYXRlZF9ieRgEIAEoCUgAiAEBEhIKCmNyZWF0ZWRfYXQYBSABKAkSEgoKdXBkYXRlZF9hdBgGIAEoCUINCgtfY3JlYXRlZF9ieWIGcHJvdG8z");
+  fileDesc("ChdzaGlwL29wcy92MS90eXBlcy5wcm90bxILc2hpcC5vcHMudjEiKwoOU2NvcGVkTXV0YXRpb24SCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiJwoIRGVsZXRpb24SCgoCaWQYASABKAkSDwoHZGVsZXRlZBgCIAEoCCKvAwoOQXJ0aWZhY3RSZWNvcmQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBHNpemUYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVzY29wZRgGIAEoCRIXCgpwcm9qZWN0X2lkGAcgASgJSACIAQESEwoGcnVuX2lkGAggASgJSAGIAQESFAoHdXNlcl9pZBgJIAEoCUgCiAEBEhkKDGNvbnRlbnRfaGFzaBgKIAEoCUgDiAEBEhcKCmV4cGlyZXNfYXQYCyABKAlIBIgBARIYCgtvd25lcl9hY3RvchgMIAEoCUgFiAEBEhoKDWNvbGxlY3Rpb25faWQYDSABKAlIBogBARIUCgdpdGVtX2lkGA4gASgJSAeIAQESEgoKY3JlYXRlZF9hdBgPIAEoCUINCgtfcHJvamVjdF9pZEIJCgdfcnVuX2lkQgoKCF91c2VyX2lkQg8KDV9jb250ZW50X2hhc2hCDQoLX2V4cGlyZXNfYXRCDgoMX293bmVyX2FjdG9yQhAKDl9jb2xsZWN0aW9uX2lkQgoKCF9pdGVtX2lkIicKCkluZGV4RW50cnkSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkiPAoSUnVsZXNJbmRleFJlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc2hpcC5vcHMudjEuSW5kZXhFbnRyeSI6Cg9SdWxlR2V0UmVzcG9uc2USCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEYm9keRgDIAEoCSI6ChBNY3BJbmRleFJlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc2hpcC5vcHMudjEuSW5kZXhFbnRyeSJCChhQZXJtaXNzaW9uc0luZGV4UmVzcG9uc2USJgoFaXRlbXMYASADKAsyFy5zaGlwLm9wcy52MS5JbmRleEVudHJ5Ij0KC1Rvb2xQYXR0ZXJuEg8KB3BhdHRlcm4YASABKAkSDQoFbGFiZWwYAiABKAkSDgoGc291cmNlGAMgASgJIkIKFFRvb2xQYXR0ZXJuc1Jlc3BvbnNlEioKCHBhdHRlcm5zGAEgAygLMhguc2hpcC5vcHMudjEuVG9vbFBhdHRlcm4iPQoTU2tpbGxzSW5kZXhSZXNwb25zZRImCgVpdGVtcxgBIAMoCzIXLnNoaXAub3BzLnYxLkluZGV4RW50cnkiQAoWUGlwZWxpbmVzSW5kZXhSZXNwb25zZRImCgVpdGVtcxgBIAMoCzIXLnNoaXAub3BzLnYxLkluZGV4RW50cnkiTQoRU2tpbGxGaWxlUmVzcG9uc2USDAoEcGF0aBgBIAEoCRIMCgRuYW1lGAIgASgJEgsKA2V4dBgDIAEoCRIPCgdjb250ZW50GAQgASgJIjEKF1dvcmtzcGFjZUFjdGl2ZVJlc3BvbnNlEg8KAmlkGAEgASgJSACIAQFCBQoDX2lkImEKFUFydGlmYWN0c0xpc3RSZXNwb25zZRIqCgVpdGVtcxgBIAMoCzIbLnNoaXAub3BzLnYxLkFydGlmYWN0UmVjb3JkEg0KBWNvdW50GAIgASgEEg0KBXNjb3BlGAMgASgJIoQBCg1Db21taXRTdW1tYXJ5EgsKA3NoYRgBIAEoCRIRCglzaG9ydF9zaGEYAiABKAkSDgoGYXV0aG9yGAMgASgJEgwKBGRhdGUYBCABKAkSDwoHc3ViamVjdBgFIAEoCRIRCglhZGRpdGlvbnMYBiABKAQSEQoJZGVsZXRpb25zGAcgASgEIlkKClN0YXR1c0ZpbGUSDAoEcGF0aBgBIAEoCRIQCghiYXNlbmFtZRgCIAEoCRIOCgZzdGF0dXMYAyABKAkSDAoEdG9uZRgEIAEoCRINCgVsYWJlbBgFIAEoCSJwCg1CcmFuY2hTdW1tYXJ5EgwKBG5hbWUYASABKAkSDgoGYWN0aXZlGAIgASgIEhUKCHVwc3RyZWFtGAMgASgJSACIAQESDQoFYWhlYWQYBCABKAQSDgoGYmVoaW5kGAUgASgEQgsKCV91cHN0cmVhbSJtCghEaWZmTGluZRIMCgRraW5kGAEgASgJEg8KB2NvbnRlbnQYAiABKAkSFAoHb2xkX251bRgDIAEoDUgAiAEBEhQKB25ld19udW0YBCABKA1IAYgBAUIKCghfb2xkX251bUIKCghfbmV3X251bSJACghEaWZmSHVuaxIOCgZoZWFkZXIYASABKAkSJAoFbGluZXMYAiADKAsyFS5zaGlwLm9wcy52MS5EaWZmTGluZSJoCgxEaWZmRmlsZVZpZXcSDAoEcGF0aBgBIAEoCRIRCglhZGRpdGlvbnMYAiABKA0SEQoJZGVsZXRpb25zGAMgASgNEiQKBWh1bmtzGAQgAygLMhUuc2hpcC5vcHMudjEuRGlmZkh1bmsiaAoKUGFyc2VkRGlmZhIoCgVmaWxlcxgBIAMoCzIZLnNoaXAub3BzLnYxLkRpZmZGaWxlVmlldxIXCg90b3RhbF9hZGRpdGlvbnMYAiABKA0SFwoPdG90YWxfZGVsZXRpb25zGAMgASgNIq0BCg1TdGF0dXNCdWNrZXRzEg0KBWNsZWFuGAEgASgIEg0KBXRvdGFsGAIgASgEEicKBnN0YWdlZBgDIAMoCzIXLnNoaXAub3BzLnYxLlN0YXR1c0ZpbGUSKQoIbW9kaWZpZWQYBCADKAsyFy5zaGlwLm9wcy52MS5TdGF0dXNGaWxlEioKCXVudHJhY2tlZBgFIAMoCzIXLnNoaXAub3BzLnYxLlN0YXR1c0ZpbGUiPQoOR2l0TG9nUmVzcG9uc2USKwoHY29tbWl0cxgBIAMoCzIaLnNoaXAub3BzLnYxLkNvbW1pdFN1bW1hcnkiYgoTR2l0QnJhbmNoZXNSZXNwb25zZRIsCghicmFuY2hlcxgBIAMoCzIaLnNoaXAub3BzLnYxLkJyYW5jaFN1bW1hcnkSDQoFYWhlYWQYAiABKAQSDgoGYmVoaW5kGAMgASgEIqkDChNHaXRPdmVydmlld1Jlc3BvbnNlEhkKDHdvcmtzcGFjZV9pZBgBIAEoCUgAiAEBEhMKBmJyYW5jaBgCIAEoCUgBiAEBEhcKCmhlYWRfc2hvcnQYAyABKAlIAogBARINCgVjbGVhbhgEIAEoCBIVCg10b3RhbF9jaGFuZ2VkGAUgASgEEicKBnN0YWdlZBgGIAMoCzIXLnNoaXAub3BzLnYxLlN0YXR1c0ZpbGUSKQoIbW9kaWZpZWQYByADKAsyFy5zaGlwLm9wcy52MS5TdGF0dXNGaWxlEioKCXVudHJhY2tlZBgIIAMoCzIXLnNoaXAub3BzLnYxLlN0YXR1c0ZpbGUSKwoHY29tbWl0cxgJIAMoCzIaLnNoaXAub3BzLnYxLkNvbW1pdFN1bW1hcnkSLAoIYnJhbmNoZXMYCiADKAsyGi5zaGlwLm9wcy52MS5CcmFuY2hTdW1tYXJ5Eg0KBWFoZWFkGAsgASgEEg4KBmJlaGluZBgMIAEoBEIPCg1fd29ya3NwYWNlX2lkQgkKB19icmFuY2hCDQoLX2hlYWRfc2hvcnQigQEKD0dpdERpZmZSZXNwb25zZRILCgNzaGEYASABKAkSEQoJc2hvcnRfc2hhGAIgASgJEhIKCmlzX3dvcmtpbmcYAyABKAgSEQoJZGlmZl90ZXh0GAQgASgJEicKBnBhcnNlZBgFIAEoCzIXLnNoaXAub3BzLnYxLlBhcnNlZERpZmYiYQoNUHJvamVjdFJlY29yZBIKCgJpZBgBIAEoCRIMCgRwYXRoGAIgASgJEgwKBG5hbWUYAyABKAkSEgoKY3JlYXRlZF9hdBgEIAEoCRIUCgxsYXN0X3NlZW5fYXQYBSABKAkiLwoMU2V0dGluZ1ZhbHVlEgsKA2tleRgBIAEoCRISCgp2YWx1ZV9qc29uGAIgASgJIpMBCg5Db2xsZWN0aW9uSXRlbRIKCgJpZBgBIAEoCRISCgpjb2xsZWN0aW9uGAIgASgJEhEKCWRhdGFfanNvbhgDIAEoCRIXCgpjcmVhdGVkX2J5GAQgASgJSACIAQESEgoKY3JlYXRlZF9hdBgFIAEoCRISCgp1cGRhdGVkX2F0GAYgASgJQg0KC19jcmVhdGVkX2J5YgZwcm90bzM");
 
 /**
  * Result of a scope-resolving config mutation (rules / mcp / permissions /
@@ -445,6 +445,440 @@ export const ArtifactsListResponseSchema: GenMessage<ArtifactsListResponse> = /*
   messageDesc(file_ship_ops_v1_types, 14);
 
 /**
+ * @generated from message ship.ops.v1.CommitSummary
+ */
+export type CommitSummary = Message<"ship.ops.v1.CommitSummary"> & {
+  /**
+   * @generated from field: string sha = 1;
+   */
+  sha: string;
+
+  /**
+   * @generated from field: string short_sha = 2;
+   */
+  shortSha: string;
+
+  /**
+   * @generated from field: string author = 3;
+   */
+  author: string;
+
+  /**
+   * @generated from field: string date = 4;
+   */
+  date: string;
+
+  /**
+   * @generated from field: string subject = 5;
+   */
+  subject: string;
+
+  /**
+   * @generated from field: uint64 additions = 6;
+   */
+  additions: bigint;
+
+  /**
+   * @generated from field: uint64 deletions = 7;
+   */
+  deletions: bigint;
+};
+
+/**
+ * Describes the message ship.ops.v1.CommitSummary.
+ * Use `create(CommitSummarySchema)` to create a new message.
+ */
+export const CommitSummarySchema: GenMessage<CommitSummary> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 15);
+
+/**
+ * @generated from message ship.ops.v1.StatusFile
+ */
+export type StatusFile = Message<"ship.ops.v1.StatusFile"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string basename = 2;
+   */
+  basename: string;
+
+  /**
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string tone = 4;
+   */
+  tone: string;
+
+  /**
+   * @generated from field: string label = 5;
+   */
+  label: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.StatusFile.
+ * Use `create(StatusFileSchema)` to create a new message.
+ */
+export const StatusFileSchema: GenMessage<StatusFile> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 16);
+
+/**
+ * @generated from message ship.ops.v1.BranchSummary
+ */
+export type BranchSummary = Message<"ship.ops.v1.BranchSummary"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: bool active = 2;
+   */
+  active: boolean;
+
+  /**
+   * @generated from field: optional string upstream = 3;
+   */
+  upstream?: string | undefined;
+
+  /**
+   * @generated from field: uint64 ahead = 4;
+   */
+  ahead: bigint;
+
+  /**
+   * @generated from field: uint64 behind = 5;
+   */
+  behind: bigint;
+};
+
+/**
+ * Describes the message ship.ops.v1.BranchSummary.
+ * Use `create(BranchSummarySchema)` to create a new message.
+ */
+export const BranchSummarySchema: GenMessage<BranchSummary> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 17);
+
+/**
+ * @generated from message ship.ops.v1.DiffLine
+ */
+export type DiffLine = Message<"ship.ops.v1.DiffLine"> & {
+  /**
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string content = 2;
+   */
+  content: string;
+
+  /**
+   * @generated from field: optional uint32 old_num = 3;
+   */
+  oldNum?: number | undefined;
+
+  /**
+   * @generated from field: optional uint32 new_num = 4;
+   */
+  newNum?: number | undefined;
+};
+
+/**
+ * Describes the message ship.ops.v1.DiffLine.
+ * Use `create(DiffLineSchema)` to create a new message.
+ */
+export const DiffLineSchema: GenMessage<DiffLine> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 18);
+
+/**
+ * @generated from message ship.ops.v1.DiffHunk
+ */
+export type DiffHunk = Message<"ship.ops.v1.DiffHunk"> & {
+  /**
+   * @generated from field: string header = 1;
+   */
+  header: string;
+
+  /**
+   * @generated from field: repeated ship.ops.v1.DiffLine lines = 2;
+   */
+  lines: DiffLine[];
+};
+
+/**
+ * Describes the message ship.ops.v1.DiffHunk.
+ * Use `create(DiffHunkSchema)` to create a new message.
+ */
+export const DiffHunkSchema: GenMessage<DiffHunk> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 19);
+
+/**
+ * @generated from message ship.ops.v1.DiffFileView
+ */
+export type DiffFileView = Message<"ship.ops.v1.DiffFileView"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: uint32 additions = 2;
+   */
+  additions: number;
+
+  /**
+   * @generated from field: uint32 deletions = 3;
+   */
+  deletions: number;
+
+  /**
+   * @generated from field: repeated ship.ops.v1.DiffHunk hunks = 4;
+   */
+  hunks: DiffHunk[];
+};
+
+/**
+ * Describes the message ship.ops.v1.DiffFileView.
+ * Use `create(DiffFileViewSchema)` to create a new message.
+ */
+export const DiffFileViewSchema: GenMessage<DiffFileView> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 20);
+
+/**
+ * @generated from message ship.ops.v1.ParsedDiff
+ */
+export type ParsedDiff = Message<"ship.ops.v1.ParsedDiff"> & {
+  /**
+   * @generated from field: repeated ship.ops.v1.DiffFileView files = 1;
+   */
+  files: DiffFileView[];
+
+  /**
+   * @generated from field: uint32 total_additions = 2;
+   */
+  totalAdditions: number;
+
+  /**
+   * @generated from field: uint32 total_deletions = 3;
+   */
+  totalDeletions: number;
+};
+
+/**
+ * Describes the message ship.ops.v1.ParsedDiff.
+ * Use `create(ParsedDiffSchema)` to create a new message.
+ */
+export const ParsedDiffSchema: GenMessage<ParsedDiff> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 21);
+
+/**
+ * git.status — working tree bucketed.
+ *
+ * @generated from message ship.ops.v1.StatusBuckets
+ */
+export type StatusBuckets = Message<"ship.ops.v1.StatusBuckets"> & {
+  /**
+   * @generated from field: bool clean = 1;
+   */
+  clean: boolean;
+
+  /**
+   * @generated from field: uint64 total = 2;
+   */
+  total: bigint;
+
+  /**
+   * @generated from field: repeated ship.ops.v1.StatusFile staged = 3;
+   */
+  staged: StatusFile[];
+
+  /**
+   * @generated from field: repeated ship.ops.v1.StatusFile modified = 4;
+   */
+  modified: StatusFile[];
+
+  /**
+   * @generated from field: repeated ship.ops.v1.StatusFile untracked = 5;
+   */
+  untracked: StatusFile[];
+};
+
+/**
+ * Describes the message ship.ops.v1.StatusBuckets.
+ * Use `create(StatusBucketsSchema)` to create a new message.
+ */
+export const StatusBucketsSchema: GenMessage<StatusBuckets> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 22);
+
+/**
+ * git.log
+ *
+ * @generated from message ship.ops.v1.GitLogResponse
+ */
+export type GitLogResponse = Message<"ship.ops.v1.GitLogResponse"> & {
+  /**
+   * @generated from field: repeated ship.ops.v1.CommitSummary commits = 1;
+   */
+  commits: CommitSummary[];
+};
+
+/**
+ * Describes the message ship.ops.v1.GitLogResponse.
+ * Use `create(GitLogResponseSchema)` to create a new message.
+ */
+export const GitLogResponseSchema: GenMessage<GitLogResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 23);
+
+/**
+ * git.branches
+ *
+ * @generated from message ship.ops.v1.GitBranchesResponse
+ */
+export type GitBranchesResponse = Message<"ship.ops.v1.GitBranchesResponse"> & {
+  /**
+   * @generated from field: repeated ship.ops.v1.BranchSummary branches = 1;
+   */
+  branches: BranchSummary[];
+
+  /**
+   * @generated from field: uint64 ahead = 2;
+   */
+  ahead: bigint;
+
+  /**
+   * @generated from field: uint64 behind = 3;
+   */
+  behind: bigint;
+};
+
+/**
+ * Describes the message ship.ops.v1.GitBranchesResponse.
+ * Use `create(GitBranchesResponseSchema)` to create a new message.
+ */
+export const GitBranchesResponseSchema: GenMessage<GitBranchesResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 24);
+
+/**
+ * git.overview — one-call default route payload.
+ *
+ * @generated from message ship.ops.v1.GitOverviewResponse
+ */
+export type GitOverviewResponse = Message<"ship.ops.v1.GitOverviewResponse"> & {
+  /**
+   * @generated from field: optional string workspace_id = 1;
+   */
+  workspaceId?: string | undefined;
+
+  /**
+   * @generated from field: optional string branch = 2;
+   */
+  branch?: string | undefined;
+
+  /**
+   * @generated from field: optional string head_short = 3;
+   */
+  headShort?: string | undefined;
+
+  /**
+   * @generated from field: bool clean = 4;
+   */
+  clean: boolean;
+
+  /**
+   * @generated from field: uint64 total_changed = 5;
+   */
+  totalChanged: bigint;
+
+  /**
+   * @generated from field: repeated ship.ops.v1.StatusFile staged = 6;
+   */
+  staged: StatusFile[];
+
+  /**
+   * @generated from field: repeated ship.ops.v1.StatusFile modified = 7;
+   */
+  modified: StatusFile[];
+
+  /**
+   * @generated from field: repeated ship.ops.v1.StatusFile untracked = 8;
+   */
+  untracked: StatusFile[];
+
+  /**
+   * @generated from field: repeated ship.ops.v1.CommitSummary commits = 9;
+   */
+  commits: CommitSummary[];
+
+  /**
+   * @generated from field: repeated ship.ops.v1.BranchSummary branches = 10;
+   */
+  branches: BranchSummary[];
+
+  /**
+   * @generated from field: uint64 ahead = 11;
+   */
+  ahead: bigint;
+
+  /**
+   * @generated from field: uint64 behind = 12;
+   */
+  behind: bigint;
+};
+
+/**
+ * Describes the message ship.ops.v1.GitOverviewResponse.
+ * Use `create(GitOverviewResponseSchema)` to create a new message.
+ */
+export const GitOverviewResponseSchema: GenMessage<GitOverviewResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 25);
+
+/**
+ * git.diff
+ *
+ * @generated from message ship.ops.v1.GitDiffResponse
+ */
+export type GitDiffResponse = Message<"ship.ops.v1.GitDiffResponse"> & {
+  /**
+   * @generated from field: string sha = 1;
+   */
+  sha: string;
+
+  /**
+   * @generated from field: string short_sha = 2;
+   */
+  shortSha: string;
+
+  /**
+   * @generated from field: bool is_working = 3;
+   */
+  isWorking: boolean;
+
+  /**
+   * @generated from field: string diff_text = 4;
+   */
+  diffText: string;
+
+  /**
+   * @generated from field: ship.ops.v1.ParsedDiff parsed = 5;
+   */
+  parsed?: ParsedDiff | undefined;
+};
+
+/**
+ * Describes the message ship.ops.v1.GitDiffResponse.
+ * Use `create(GitDiffResponseSchema)` to create a new message.
+ */
+export const GitDiffResponseSchema: GenMessage<GitDiffResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_types, 26);
+
+/**
  * A registered project — the typed return of project.add. Mirrors
  * `ship_platform::projects::ProjectRecord`.
  *
@@ -482,7 +916,7 @@ export type ProjectRecord = Message<"ship.ops.v1.ProjectRecord"> & {
  * Use `create(ProjectRecordSchema)` to create a new message.
  */
 export const ProjectRecordSchema: GenMessage<ProjectRecord> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_types, 15);
+  messageDesc(file_ship_ops_v1_types, 27);
 
 /**
  * The typed return of settings.set: the key and its new value (serialized
@@ -507,7 +941,7 @@ export type SettingValue = Message<"ship.ops.v1.SettingValue"> & {
  * Use `create(SettingValueSchema)` to create a new message.
  */
 export const SettingValueSchema: GenMessage<SettingValue> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_types, 16);
+  messageDesc(file_ship_ops_v1_types, 28);
 
 /**
  * A collection item — the typed return of collections.create_item /
@@ -559,5 +993,5 @@ export type CollectionItem = Message<"ship.ops.v1.CollectionItem"> & {
  * Use `create(CollectionItemSchema)` to create a new message.
  */
 export const CollectionItemSchema: GenMessage<CollectionItem> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_types, 17);
+  messageDesc(file_ship_ops_v1_types, 29);
 

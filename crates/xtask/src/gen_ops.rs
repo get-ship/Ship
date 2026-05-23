@@ -36,6 +36,12 @@ const TYPED_READS: &[&str] = &[
     "SkillFileResponse",
     "WorkspaceActiveResponse",
     "ArtifactsListResponse",
+    // git — all fully structured
+    "GitLogResponse",
+    "GitBranchesResponse",
+    "GitOverviewResponse",
+    "GitDiffResponse",
+    "StatusBuckets",
 ];
 
 struct ReadOp {

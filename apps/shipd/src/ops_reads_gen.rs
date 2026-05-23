@@ -299,44 +299,44 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedGitStatusRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("git.status")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::StatusBuckets> {
+        self.dispatch_typed::<::ship_ops_rpc::StatusBuckets>("git.status", ::serde_json::Value::Null)
     }
     async fn git_log(
         &self,
         _ctx: ::connectrpc::RequestContext,
         req: ::ship_ops_rpc::OwnedGitLogRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::GitLogResponse> {
         let mut args = ::serde_json::Map::new();
         if req.limit != 0 { args.insert("limit".to_string(), ::serde_json::json!(req.limit)); }
-        self.dispatch_json_args("git.log", ::serde_json::Value::Object(args))
+        self.dispatch_typed::<::ship_ops_rpc::GitLogResponse>("git.log", ::serde_json::Value::Object(args))
     }
     async fn git_branches(
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedGitBranchesRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("git.branches")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::GitBranchesResponse> {
+        self.dispatch_typed::<::ship_ops_rpc::GitBranchesResponse>("git.branches", ::serde_json::Value::Null)
     }
     async fn git_overview(
         &self,
         _ctx: ::connectrpc::RequestContext,
         req: ::ship_ops_rpc::OwnedGitOverviewRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::GitOverviewResponse> {
         let mut args = ::serde_json::Map::new();
         if !req.workspace_id.is_empty() { args.insert("workspace_id".to_string(), ::serde_json::json!(req.workspace_id)); }
         if req.limit != 0 { args.insert("limit".to_string(), ::serde_json::json!(req.limit)); }
-        self.dispatch_json_args("git.overview", ::serde_json::Value::Object(args))
+        self.dispatch_typed::<::ship_ops_rpc::GitOverviewResponse>("git.overview", ::serde_json::Value::Object(args))
     }
     async fn git_diff(
         &self,
         _ctx: ::connectrpc::RequestContext,
         req: ::ship_ops_rpc::OwnedGitDiffRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::GitDiffResponse> {
         let mut args = ::serde_json::Map::new();
         args.insert("commit".to_string(), ::serde_json::json!(req.commit));
         if !req.workspace_id.is_empty() { args.insert("workspace_id".to_string(), ::serde_json::json!(req.workspace_id)); }
-        self.dispatch_json_args("git.diff", ::serde_json::Value::Object(args))
+        self.dispatch_typed::<::ship_ops_rpc::GitDiffResponse>("git.diff", ::serde_json::Value::Object(args))
     }
     async fn git_annotations(
         &self,

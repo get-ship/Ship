@@ -121,6 +121,94 @@ message ArtifactsListResponse {
   string scope = 3;
 }
 
+// ── git reads (all fully structured — no embedded Value) ──────────────
+
+message CommitSummary {
+  string sha = 1;
+  string short_sha = 2;
+  string author = 3;
+  string date = 4;
+  string subject = 5;
+  uint64 additions = 6;
+  uint64 deletions = 7;
+}
+message StatusFile {
+  string path = 1;
+  string basename = 2;
+  string status = 3;
+  string tone = 4;
+  string label = 5;
+}
+message BranchSummary {
+  string name = 1;
+  bool active = 2;
+  optional string upstream = 3;
+  uint64 ahead = 4;
+  uint64 behind = 5;
+}
+message DiffLine {
+  string kind = 1;
+  string content = 2;
+  optional uint32 old_num = 3;
+  optional uint32 new_num = 4;
+}
+message DiffHunk {
+  string header = 1;
+  repeated DiffLine lines = 2;
+}
+message DiffFileView {
+  string path = 1;
+  uint32 additions = 2;
+  uint32 deletions = 3;
+  repeated DiffHunk hunks = 4;
+}
+message ParsedDiff {
+  repeated DiffFileView files = 1;
+  uint32 total_additions = 2;
+  uint32 total_deletions = 3;
+}
+// git.status — working tree bucketed.
+message StatusBuckets {
+  bool clean = 1;
+  uint64 total = 2;
+  repeated StatusFile staged = 3;
+  repeated StatusFile modified = 4;
+  repeated StatusFile untracked = 5;
+}
+// git.log
+message GitLogResponse {
+  repeated CommitSummary commits = 1;
+}
+// git.branches
+message GitBranchesResponse {
+  repeated BranchSummary branches = 1;
+  uint64 ahead = 2;
+  uint64 behind = 3;
+}
+// git.overview — one-call default route payload.
+message GitOverviewResponse {
+  optional string workspace_id = 1;
+  optional string branch = 2;
+  optional string head_short = 3;
+  bool clean = 4;
+  uint64 total_changed = 5;
+  repeated StatusFile staged = 6;
+  repeated StatusFile modified = 7;
+  repeated StatusFile untracked = 8;
+  repeated CommitSummary commits = 9;
+  repeated BranchSummary branches = 10;
+  uint64 ahead = 11;
+  uint64 behind = 12;
+}
+// git.diff
+message GitDiffResponse {
+  string sha = 1;
+  string short_sha = 2;
+  bool is_working = 3;
+  string diff_text = 4;
+  ParsedDiff parsed = 5;
+}
+
 // A registered project — the typed return of project.add. Mirrors
 // `ship_platform::projects::ProjectRecord`.
 message ProjectRecord {
