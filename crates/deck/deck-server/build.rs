@@ -27,18 +27,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+// deck's OWN baked product only. App/user bundles (views, chrome islands) are
+// no longer here — they build to the project's `.deck/` and are read at runtime
+// (see src/assets.rs::read_deck_asset). deck bakes only the runtime it ships.
 const ASSETS: &[&str] = &[
     "sui-runtime.js",
     "sui-dom.js",
     "sui-sdk-client.js",
     "sui-components.js",
-    "sui-components/sui-chrome.js",
-    "sui-components/sui-terminal.js",
-    "sui-components/sui-command-bar.js",
-    "sui-components/sui-devtools.js",
-    "sui-components/sui-launcher.js",
-    "sui-components/sui-panel-dock.js",
-    "sui-components/sui-nav-top.js",
     "lucide-icons.json",
 ];
 
@@ -64,10 +60,8 @@ fn main() {
         .expect("repo root (three levels above crates/deck/deck-server)")
         .to_path_buf();
 
-    fs::create_dir_all(assets.join("sui-components"))
-        .unwrap_or_else(|e| panic!("build.rs: mkdir sui-components: {e}"));
-    fs::create_dir_all(assets.join("views"))
-        .unwrap_or_else(|e| panic!("build.rs: mkdir views: {e}"));
+    fs::create_dir_all(&assets)
+        .unwrap_or_else(|e| panic!("build.rs: mkdir assets: {e}"));
 
     // Verify every required asset exists and is non-empty.
     let mut missing: Vec<&str> = Vec::new();

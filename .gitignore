@@ -152,7 +152,8 @@ apps/shipd/assets/custom-elements.json
 apps/shipd/assets/ship-elements.md
 apps/docs/public/ship-elements.js
 apps/docs/public/ship-*.js
-# SUI framework + view bundles are generated build outputs, consumed by
+# deck's OWN baked product — sui-runtime/dom/sdk-client + the primitives
+# umbrella (sui-components.js) + lucide. Generated build outputs consumed by
 # `cargo build -p shipd` via include_str! in crates/deck/deck-server/src/assets.rs
 # (build.rs panics if missing). NOT tracked — produced on demand by:
 #   * `just bootstrap` / `just dev-build-all` (bun packages/deck/bundler/index.ts)
@@ -160,11 +161,14 @@ apps/docs/public/ship-*.js
 #   * `dispatch.sh`, which bootstraps fresh worktrees from the launching repo
 # `view-host.html` is hand-authored source and stays tracked.
 crates/deck/deck-server/assets/*.js
-crates/deck/deck-server/assets/sui-components/
-crates/deck/deck-server/assets/sui-islands/
-crates/deck/deck-server/assets/views/
 crates/deck/deck-server/assets/lucide-icons.json
 crates/deck/deck-server/assets/sui-custom-elements.json
+
+# deck build output — app/user view + chrome bundles (deck's `.next/`-equivalent).
+# View bundles (.deck/views/<name>/view.js) and code-split chrome/islands
+# (.deck/sui-components/<tag>.js) build here; deck-server reads them from the
+# project's `.deck/` at runtime via read_deck_asset. Never tracked.
+.deck/
 # Stale dir retired by islands-rename — bundler now emits to
 # crates/deck/deck-server/assets/ exclusively. Keep ignored in case
 # any stale tooling tries to write here.

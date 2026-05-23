@@ -179,32 +179,23 @@ if [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
       mkdir -p "$WORKTREE_PATH/apps/shipd/assets"
       cp "$LAUNCH_REPO_ROOT"/apps/shipd/assets/ship-*.js "$WORKTREE_PATH/apps/shipd/assets/" 2>/dev/null || true
     fi
-    # SUI framework bundles + view bundles + lucide registry, emitted by the
-    # in-daemon Bun worker and `bun run --filter '@ship/ui-components' build`. Embedded
-    # by crates/deck/deck-server/src/assets.rs; build.rs panics if any are
-    # missing or empty.
+    # deck's OWN baked product — sui-runtime/dom/sdk-client + the primitives
+    # umbrella + lucide registry. Embedded by crates/deck/deck-server/src/assets.rs;
+    # build.rs panics if any are missing or empty.
     if [[ -d "$LAUNCH_REPO_ROOT/crates/deck/deck-server/assets" ]]; then
-      mkdir -p "$WORKTREE_PATH/crates/deck/deck-server/assets/sui-components" \
-               "$WORKTREE_PATH/crates/deck/deck-server/assets/views"
+      mkdir -p "$WORKTREE_PATH/crates/deck/deck-server/assets"
       cp "$LAUNCH_REPO_ROOT"/crates/deck/deck-server/assets/sui-*.js \
          "$LAUNCH_REPO_ROOT"/crates/deck/deck-server/assets/sui-custom-elements.json \
          "$LAUNCH_REPO_ROOT"/crates/deck/deck-server/assets/lucide-icons.json \
          "$WORKTREE_PATH/crates/deck/deck-server/assets/" 2>/dev/null || true
-      # Code-split component bundles — sui-components/ replaced the old
-      # sui-islands/ dir after the islands-rename merge. Copy whichever
-      # one(s) exist in the launch repo (defensive against half-migrated
-      # checkouts).
-      if [[ -d "$LAUNCH_REPO_ROOT/crates/deck/deck-server/assets/sui-components" ]]; then
-        cp -r "$LAUNCH_REPO_ROOT"/crates/deck/deck-server/assets/sui-components/. \
-              "$WORKTREE_PATH/crates/deck/deck-server/assets/sui-components/" 2>/dev/null || true
-      fi
-      if [[ -d "$LAUNCH_REPO_ROOT/crates/deck/deck-server/assets/sui-islands" ]]; then
-        mkdir -p "$WORKTREE_PATH/crates/deck/deck-server/assets/sui-islands"
-        cp -r "$LAUNCH_REPO_ROOT"/crates/deck/deck-server/assets/sui-islands/. \
-              "$WORKTREE_PATH/crates/deck/deck-server/assets/sui-islands/" 2>/dev/null || true
-      fi
-      cp -r "$LAUNCH_REPO_ROOT"/crates/deck/deck-server/assets/views/. \
-            "$WORKTREE_PATH/crates/deck/deck-server/assets/views/" 2>/dev/null || true
+    fi
+    # deck BUILD output (.deck/) — app/user view bundles + code-split chrome
+    # islands, read at runtime by deck-server's read_deck_asset. Not baked, so
+    # not required for `cargo build`, but copying it spares the fresh worktree a
+    # cold bundler pass before chrome renders.
+    if [[ -d "$LAUNCH_REPO_ROOT/.deck" ]]; then
+      mkdir -p "$WORKTREE_PATH/.deck"
+      cp -r "$LAUNCH_REPO_ROOT"/.deck/. "$WORKTREE_PATH/.deck/" 2>/dev/null || true
     fi
     # SDK manifests emitted by `cargo run -p xtask -- gen-sdk`, embedded by
     # apps/shipd/src/routes/sdk_manifest.rs.

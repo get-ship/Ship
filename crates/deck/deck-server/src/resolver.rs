@@ -36,6 +36,14 @@ pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, Resol
     }
 }
 
+/// Project root for locating the `.deck` build-output tree. deck reads app +
+/// user view/chrome bundles from `<project_root>/.deck/` — never from its own
+/// crate (that holds only deck's baked runtime). Same resolution as view
+/// source, so the built bundles sit beside the source tree they came from.
+pub(crate) fn deck_out_root() -> Option<PathBuf> {
+    resolve_project_root().map(|p| p.join(".deck"))
+}
+
 /// Resolution order:
 /// 1. `SHIP_DEV_PROJECT_DIR` env var — tests and dev tooling.
 /// 2. The current daemon's `machine/daemons/<hash>/workspace` file — persisted

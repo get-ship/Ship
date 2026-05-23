@@ -59,7 +59,7 @@ const ART_DIR = path.resolve(__dirname, '..', '..', '..', '.artifacts', 'web-qa'
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..')
 const ATTACH_BUNDLE = path.join(
   REPO_ROOT,
-  'crates/deck/deck-server/assets/sui-components/sui-agent-attach.js',
+  '.deck/sui-components/sui-agent-attach.js',
 )
 // <sui-agent-attach> calls host.fit() on the inner <sui-terminal>, which
 // only exists on the freshly-built bundle. Serve that from disk too so a
@@ -67,7 +67,7 @@ const ATTACH_BUNDLE = path.join(
 // stale copy.
 const TERMINAL_BUNDLE = path.join(
   REPO_ROOT,
-  'crates/deck/deck-server/assets/sui-components/sui-terminal.js',
+  '.deck/sui-components/sui-terminal.js',
 )
 
 /// Synthesized harness that loads the sui-terminal + sui-agent-attach

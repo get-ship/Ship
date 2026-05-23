@@ -20,47 +20,35 @@ use crate::{DaemonMode, asset_cache, compute_etag, mode_from_ext};
 
 const ASSETS_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
+/// deck's OWN baked product (sui-runtime/dom/sdk-client + primitives umbrella +
+/// lucide). These ship inside the deck-server crate, like Next shipping its own
+/// runtime. App + user content is NOT here — see `read_deck_asset`.
 fn read_asset(rel: &str) -> Option<String> {
     let path = std::path::Path::new(ASSETS_DIR).join("assets").join(rel);
     std::fs::read_to_string(path).ok()
 }
 
-// Baked-in fallbacks (production / no-workspace).
-//
-// Canonical asset layout under `crates/deck/deck-server/assets/`:
-//   * top-level (`assets/<name>.js`) — always-loaded framework bundles
-//     (sui-runtime, sui-dom, sui-sdk-client, sui-components) and
-//     out-of-band assets (lucide-icons.json).
-//   * `assets/sui-components/<name>.js` — every code-split component bundle
-//     (opted in via `<bundle separate />` in the component's .sui source).
-//     Both writers (packages/deck/bundler/index.ts and packages/deck/build via
-//     ui-components/sui.config.ts `lazyOutSubdir`) emit here. Adding a
-//     second location is forbidden; see job/bundle-output-canonical.
-//   * `assets/views/<name>/view.js` — per-view bundles.
+/// App + user build output, read from the host-supplied `.deck/` tree (deck's
+/// `.next`-equivalent). deck bakes none of this — view + chrome bundles are the
+/// project's content, served from where the project built them. Returns None
+/// when there is no project root (the on-demand compile path then takes over).
+fn read_deck_asset(rel: &str) -> Option<String> {
+    let root = crate::resolver::deck_out_root()?;
+    std::fs::read_to_string(root.join(rel)).ok()
+}
 
 const SUI_RUNTIME_JS: &str = include_str!("../assets/sui-runtime.js");
 const SUI_DOM_JS: &str = include_str!("../assets/sui-dom.js");
 const SUI_SDK_CLIENT_JS: &str = include_str!("../assets/sui-sdk-client.js");
 const SUI_COMPONENTS_JS: &str = include_str!("../assets/sui-components.js");
 const SUI_LUCIDE_ICONS_JSON: &str = include_str!("../assets/lucide-icons.json");
-const SUI_TERMINAL_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-terminal.js");
-const SUI_COMMAND_BAR_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-command-bar.js");
-const SUI_DEVTOOLS_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-devtools.js");
-const SUI_LAUNCHER_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-launcher.js");
-const SUI_PANEL_DOCK_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-panel-dock.js");
-const SUI_NAV_TOP_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-nav-top.js");
-const SUI_RAIL_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-rail.js");
-const SUI_CODE_EDITOR_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-code-editor.js");
-const SUI_MARKDOWN_EDITOR_ISLAND_JS: &str =
-    include_str!("../assets/sui-components/sui-markdown-editor.js");
 
-// Public helpers (used by view.rs). deck bakes NO app views — it serves compiled
-// view JS generically from the assets dir (or compiles on demand). First-party
-// production fallback, if needed, is the ship binary's concern, not the
-// framework's (see .artifacts/asset-architecture.md).
+// Public helper (used by view.rs). deck bakes NO app views — per-view bundles
+// live in the project's `.deck/views/<name>/view.js`; absent that, view.rs
+// compiles on demand from source.
 
 pub fn resolve_view_js(name: &str) -> Option<String> {
-    read_asset(&format!("views/{name}/view.js"))
+    read_deck_asset(&format!("views/{name}/view.js"))
 }
 
 // Framework bundle handlers
@@ -127,31 +115,13 @@ pub async fn serve_sui_island(mode: Option<Extension<DaemonMode>>, Path(file): P
     // forbids mixing path-params with literal suffixes in the same segment.
     // Strip the `.js` to recover the bundle name.
     let bundle = file.strip_suffix(".js").unwrap_or(&file).to_string();
-    // Single canonical path: `assets/sui-components/<bundle>.js`. Both
-    // writers (packages/deck/bundler/index.ts + packages/deck/build) target it.
-    // Try the on-disk bundle first — that's the live-rebuilt artifact in
-    // development and the canonical install layout in production.
+    // Single canonical path: the project's `.deck/sui-components/<bundle>.js`.
+    // Code-split component + chrome bundles are app/user content, so they live
+    // in the project's deck build output — never baked into deck's own crate.
+    // A missing bundle is a 404 with an actionable hint (no baked fallback).
     let rel = format!("sui-components/{bundle}.js");
-    if let Some(js) = read_asset(&rel) {
-        return js_response_mode(js, mode);
-    }
-    // Fall back to baked-in copies for the framework islands shipped in
-    // the binary. New islands rely on the on-disk path above; missing
-    // bundles surface as 404 with an actionable hint.
-    let embedded: Option<&'static str> = match bundle.as_str() {
-        "sui-terminal" => Some(SUI_TERMINAL_ISLAND_JS),
-        "sui-command-bar" => Some(SUI_COMMAND_BAR_ISLAND_JS),
-        "sui-devtools" => Some(SUI_DEVTOOLS_ISLAND_JS),
-        "sui-launcher" => Some(SUI_LAUNCHER_ISLAND_JS),
-        "sui-panel-dock" => Some(SUI_PANEL_DOCK_ISLAND_JS),
-        "sui-nav-top" => Some(SUI_NAV_TOP_ISLAND_JS),
-        "sui-rail" => Some(SUI_RAIL_ISLAND_JS),
-        "sui-code-editor" => Some(SUI_CODE_EDITOR_ISLAND_JS),
-        "sui-markdown-editor" => Some(SUI_MARKDOWN_EDITOR_ISLAND_JS),
-        _ => None,
-    };
-    match embedded {
-        Some(js) => js_response_mode(js.to_string(), mode),
+    match read_deck_asset(&rel) {
+        Some(js) => js_response_mode(js, mode),
         None => not_found("island bundle missing — run `bun run packages/deck/bundler/index.ts --all`"),
     }
 }
@@ -193,24 +163,11 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn island_terminal_returns_js_bundle() {
-        let resp = serve_sui_island(None, Path("sui-terminal".to_string())).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let ct = resp.headers().get(header::CONTENT_TYPE).unwrap();
-        assert!(ct.to_str().unwrap().contains("application/javascript"));
-        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        assert!(bytes.len() > 1000, "island bundle unexpectedly small: {} bytes", bytes.len());
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn island_unknown_returns_404() {
-        // A bundle name with no matching `sui-components/<name>.js` on
-        // disk and no baked-in fallback falls through to a 404 with the
-        // run-bundler hint. The hand-maintained allowlist was retired
-        // when the workspace catalog took over origin metadata; file
-        // existence + path-traversal guards are the only gates now.
+    async fn island_missing_returns_404() {
+        // Islands are app/user content read from the project's `.deck/`; deck
+        // bakes no island fallback (chrome is the shell app's, not the
+        // framework's). A name with no `.deck/sui-components/<name>.js` 404s
+        // with the bundler hint — there is no embedded copy to mask it.
         let resp = serve_sui_island(None, Path("definitely-not-a-real-bundle".to_string())).await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
