@@ -195,6 +195,9 @@ struct CommandOp {
     capability: String,
     blast: String,
     args: Vec<CmdArg>,
+    /// Typed proto response message (from `CommandDescriptor.response_type`).
+    /// Empty = the legacy `JsonResponse` blob.
+    response_type: String,
 }
 
 fn cmd_arg_kind(kind: &str) -> CmdArgKind {
@@ -225,6 +228,7 @@ fn collect_commands() -> Vec<CommandOp> {
                 .iter()
                 .map(|a| CmdArg { name: a.name.to_string(), kind: cmd_arg_kind(a.kind) })
                 .collect(),
+            response_type: c.response_type.to_string(),
         })
         .collect()
 }
@@ -250,16 +254,19 @@ fn render_commands_proto(ops: &[CommandOp]) -> String {
          syntax = \"proto3\";\n\n\
          package ship.ops.v1;\n\n\
          import \"ship/ops/v1/policy.proto\";\n\
-         import \"ship/ops/v1/ops.proto\";\n\n\
+         import \"ship/ops/v1/ops.proto\";\n\
+         import \"ship/ops/v1/types.proto\";\n\n\
          service CommandOpsService {\n",
     );
     for o in ops {
+        let ret = if o.response_type.is_empty() { "JsonResponse" } else { &o.response_type };
         let _ = write!(
             s,
-            "  rpc {m}({m}Request) returns (JsonResponse) {{\n    \
+            "  rpc {m}({m}Request) returns ({ret}) {{\n    \
              option (ship.ops.v1.capability) = \"{cap}\";\n    \
              option (ship.ops.v1.blast_radius) = BLAST_RADIUS_{blast};\n  }}\n",
             m = o.method,
+            ret = ret,
             cap = o.capability,
             blast = o.blast,
         );
@@ -303,14 +310,20 @@ fn render_commands_rust(ops: &[CommandOp]) -> String {
          impl ::ship_ops_rpc::CommandOpsService for OpsImpl {\n",
     );
     for o in ops {
+        let ret = if o.response_type.is_empty() {
+            "::ship_ops_rpc::JsonResponse".to_string()
+        } else {
+            format!("::ship_ops_rpc::{}", o.response_type)
+        };
         let _ = write!(
             s,
             "    async fn {snake}(\n        &self,\n        \
              ctx: ::connectrpc::RequestContext,\n        \
              req: ::ship_ops_rpc::Owned{m}RequestView,\n    ) -> \
-             ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {{\n",
+             ::connectrpc::ServiceResult<{ret}> {{\n",
             snake = o.snake,
             m = o.method,
+            ret = ret,
         );
         s.push_str(
             "        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated(\"auth context required\"))?;\n",
@@ -319,13 +332,26 @@ fn render_commands_rust(ops: &[CommandOp]) -> String {
         for arg in &o.args {
             s.push_str(&cmd_build_arg(arg));
         }
+        // The Ok arm: typed ops decode the command's JSON value onto their proto
+        // message (buffa serde, snake-alias + unknown-field tolerant); untyped
+        // ops carry the raw JSON in a `JsonResponse` blob.
+        let ok_arm = if o.response_type.is_empty() {
+            "Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse { json: value.to_string(), ..Default::default() })),".to_string()
+        } else {
+            format!(
+                "Ok(value) => {{\n                let msg = ::serde_json::from_value::<{ret}>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!(\"decode {op} response: {{e}}\")))?;\n                Ok(::connectrpc::Response::new(msg))\n            }}",
+                ret = ret,
+                op = o.op,
+            )
+        };
         let _ = write!(
             s,
             "        let cmd_ctx = crate::services::command::CommandCtx {{ state: &self.state, auth }};\n        \
              match crate::services::command::call(\"{op}\", &::serde_json::Value::Object(args), &cmd_ctx).await {{\n            \
-             Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse {{ json: value.to_string(), ..Default::default() }})),\n            \
+             {ok_arm}\n            \
              Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),\n        }}\n    }}\n",
             op = o.op,
+            ok_arm = ok_arm,
         );
     }
     s.push_str("}\n");

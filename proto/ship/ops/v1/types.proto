@@ -1,0 +1,21 @@
+// Hand-authored typed response messages for the command surface.
+//
+// The proto-canonical contract: commands that have settled on a stable return
+// shape name a message here via `CommandDescriptor.response_type`, and
+// `cargo xtask gen-ops` emits `returns (<Message>)` for that rpc instead of the
+// legacy `JsonResponse` blob. The impl maps the command's `serde_json::Value`
+// onto the message with `serde_json::from_value` — buffa messages derive serde
+// (camelCase rename + snake_case alias) and ignore unknown fields, so the
+// command's existing JSON return decodes without hand-mapping.
+//
+// Add a message here, set the descriptor's `response_type`, re-run gen-ops.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+// Result of a rules.create / rules.put / rules.delete mutation: the rule's id
+// and the scope it resolved to ("Project" | "User").
+message RuleMutation {
+  string id = 1;
+  string scope = 2;
+}

@@ -99,6 +99,14 @@ pub struct CommandDescriptor {
     pub blast_radius: &'static str,
     #[serde(skip_serializing_if = "is_false")]
     pub sensitive: bool,
+    /// Typed proto response message (hand-authored in `proto/ship/ops/v1/types.proto`).
+    /// Empty = `JsonResponse` (the legacy blob, for not-yet-typed ops). When set,
+    /// `gen-ops` emits `returns ({response_type})` and the impl maps the
+    /// command's `Value` → the typed message via `serde_json::from_value`
+    /// (buffa messages derive serde + ignore unknown fields). This is the
+    /// proto-canonical typed contract — see `runtime-op-surface-declaration.md`.
+    #[serde(skip_serializing_if = "str::is_empty")]
+    pub response_type: &'static str,
 }
 
 /// The mutation catalog. Order mirrors `services::command::call`'s dispatch.
@@ -119,6 +127,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.runtime.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -131,6 +140,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.runtime.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── rules (markdown behavior config; reads are rules.list/get) ──
@@ -144,6 +154,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.rules.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "RuleMutation",
         sensitive: false,
     },
     CommandDescriptor {
@@ -156,6 +167,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.rules.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "RuleMutation",
         sensitive: false,
     },
     CommandDescriptor {
@@ -167,6 +179,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.rules.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "RuleMutation",
         sensitive: false,
     },
     // ── project ───────────────────────────────────────────────────
@@ -176,6 +189,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         args: &[ArgDescriptor { name: "id", kind: "string", required: true }],
         permission: "ship.projects.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── mesh ──────────────────────────────────────────────────────
@@ -189,6 +203,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.mesh.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -201,6 +216,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.mesh.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── git (caller's worktree) ───────────────────────────────────
@@ -214,6 +230,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.git.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -225,6 +242,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.git.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -236,6 +254,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.git.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -247,6 +266,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.git.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -258,6 +278,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.git.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -270,6 +291,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.git.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── agent control ─────────────────────────────────────────────
@@ -279,6 +301,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         args: &[ArgDescriptor { name: "slug", kind: "string", required: true }],
         permission: "ship.agents.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -292,6 +315,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.agents.grant",
         blast_radius: "C2_ELEVATED",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -303,6 +327,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.agents.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -327,6 +352,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.runtime.dispatch",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── surfaces (authoring) ──────────────────────────────────────
@@ -341,6 +367,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.surfaces.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── view authoring ────────────────────────────────────────────
@@ -354,6 +381,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.views.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -366,6 +394,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.views.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -378,6 +407,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.views.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -389,6 +419,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.views.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -400,6 +431,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.views.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -413,6 +445,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.views.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── canvas / observation ──────────────────────────────────────
@@ -422,6 +455,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         args: &[ArgDescriptor { name: "event_json", kind: "string", required: true }],
         permission: "ship.annotations.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -430,6 +464,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         args: &[ArgDescriptor { name: "event_json", kind: "string", required: true }],
         permission: "ship.feedback.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
 ];

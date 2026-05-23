@@ -43,7 +43,7 @@ impl ::ship_ops_rpc::CommandOpsService for OpsImpl {
         &self,
         ctx: ::connectrpc::RequestContext,
         req: ::ship_ops_rpc::OwnedRulesCreateRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::RuleMutation> {
         let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
         let mut args = ::serde_json::Map::new();
         args.insert("id".to_string(), ::serde_json::json!(req.id));
@@ -51,7 +51,10 @@ impl ::ship_ops_rpc::CommandOpsService for OpsImpl {
         args.insert("scope".to_string(), ::serde_json::json!(req.scope));
         let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
         match crate::services::command::call("rules.create", &::serde_json::Value::Object(args), &cmd_ctx).await {
-            Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse { json: value.to_string(), ..Default::default() })),
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::RuleMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode rules.create response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
             Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
         }
     }
@@ -59,7 +62,7 @@ impl ::ship_ops_rpc::CommandOpsService for OpsImpl {
         &self,
         ctx: ::connectrpc::RequestContext,
         req: ::ship_ops_rpc::OwnedRulesPutRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::RuleMutation> {
         let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
         let mut args = ::serde_json::Map::new();
         args.insert("id".to_string(), ::serde_json::json!(req.id));
@@ -67,7 +70,10 @@ impl ::ship_ops_rpc::CommandOpsService for OpsImpl {
         args.insert("scope".to_string(), ::serde_json::json!(req.scope));
         let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
         match crate::services::command::call("rules.put", &::serde_json::Value::Object(args), &cmd_ctx).await {
-            Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse { json: value.to_string(), ..Default::default() })),
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::RuleMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode rules.put response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
             Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
         }
     }
@@ -75,14 +81,17 @@ impl ::ship_ops_rpc::CommandOpsService for OpsImpl {
         &self,
         ctx: ::connectrpc::RequestContext,
         req: ::ship_ops_rpc::OwnedRulesDeleteRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::RuleMutation> {
         let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
         let mut args = ::serde_json::Map::new();
         args.insert("id".to_string(), ::serde_json::json!(req.id));
         args.insert("scope".to_string(), ::serde_json::json!(req.scope));
         let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
         match crate::services::command::call("rules.delete", &::serde_json::Value::Object(args), &cmd_ctx).await {
-            Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse { json: value.to_string(), ..Default::default() })),
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::RuleMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode rules.delete response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
             Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
         }
     }

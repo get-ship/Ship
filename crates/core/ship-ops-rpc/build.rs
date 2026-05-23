@@ -29,6 +29,7 @@ fn main() {
         .arg("-I.")
         .arg("ship/ops/v1/policy.proto")
         .arg("ship/ops/v1/ops.proto")
+        .arg("ship/ops/v1/types.proto")
         .arg("ship/ops/v1/reads.gen.proto")
         .arg("ship/ops/v1/commands.gen.proto")
         .arg("ship/ops/v1/stream.proto")
@@ -43,6 +44,7 @@ fn main() {
         .descriptor_set(&descriptor)
         .files(&[
             "ship/ops/v1/ops.proto",
+            "ship/ops/v1/types.proto",
             "ship/ops/v1/reads.gen.proto",
             "ship/ops/v1/commands.gen.proto",
             "ship/ops/v1/stream.proto",

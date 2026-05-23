@@ -8,6 +8,7 @@ package ship.ops.v1;
 
 import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/ops.proto";
+import "ship/ops/v1/types.proto";
 
 service CommandOpsService {
   rpc PipelineUpdateStatus(PipelineUpdateStatusRequest) returns (JsonResponse) {
@@ -18,15 +19,15 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.runtime.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
-  rpc RulesCreate(RulesCreateRequest) returns (JsonResponse) {
+  rpc RulesCreate(RulesCreateRequest) returns (RuleMutation) {
     option (ship.ops.v1.capability) = "ship.rules.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
-  rpc RulesPut(RulesPutRequest) returns (JsonResponse) {
+  rpc RulesPut(RulesPutRequest) returns (RuleMutation) {
     option (ship.ops.v1.capability) = "ship.rules.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
-  rpc RulesDelete(RulesDeleteRequest) returns (JsonResponse) {
+  rpc RulesDelete(RulesDeleteRequest) returns (RuleMutation) {
     option (ship.ops.v1.capability) = "ship.rules.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
