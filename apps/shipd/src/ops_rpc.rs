@@ -41,6 +41,22 @@ impl OpsImpl {
             ..Default::default()
         }))
     }
+
+    /// Typed read dispatch: run the registry op and decode its JSON projection
+    /// onto the proto message `T` (buffa messages derive serde with snake-case
+    /// aliases + ignore unknown fields, so the wire struct's JSON decodes with
+    /// no hand-mapping). The typed analog of `dispatch_json` — the generated
+    /// read methods whose return type has a proto message call this.
+    fn dispatch_typed<T>(&self, op: &str, args: serde_json::Value) -> ServiceResult<T>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let value = crate::services::registry::call(op, &args, &self.state)
+            .map_err(|e| ConnectError::internal(format!("{op}: {e}")))?;
+        let msg = serde_json::from_value::<T>(value)
+            .map_err(|e| ConnectError::internal(format!("{op} decode: {e}")))?;
+        Ok(Response::new(msg))
+    }
 }
 
 impl OpsService for OpsImpl {

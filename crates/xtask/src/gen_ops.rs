@@ -15,6 +15,18 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
+/// Read return-types that have a hand-authored proto message (named identically
+/// to the Rust wire struct) in `proto/ship/ops/v1/types.proto`. A read whose
+/// `OpDescriptor.returns` is listed here gets a typed Connect return
+/// (`returns (<Type>)` + a `from_value` decode); every other read stays on the
+/// `JsonResponse` blob. Grows as wire structs are mirrored into proto, one
+/// service at a time — the read half of the typed contract.
+const TYPED_READS: &[&str] = &[
+    // rules
+    "RulesIndexResponse",
+    "RuleGetResponse",
+];
+
 struct ReadOp {
     /// Registry op name, e.g. `account.state`.
     op: String,
@@ -26,6 +38,9 @@ struct ReadOp {
     capability: String,
     /// Request parameters (empty for no-arg reads).
     args: Vec<Arg>,
+    /// Proto response message name when typed (in `TYPED_READS`); else empty
+    /// (the read returns `JsonResponse`).
+    response_type: String,
 }
 
 struct Arg {
@@ -70,12 +85,18 @@ fn collect() -> Vec<ReadOp> {
                 }
             })
             .collect();
+        let response_type = if TYPED_READS.contains(&op.returns) {
+            op.returns.to_string()
+        } else {
+            String::new()
+        };
         out.push(ReadOp {
             op: op.name.to_string(),
             method: pascal(op.name),
             snake: op.name.replace('.', "_"),
             capability: op.permission.to_string(),
             args,
+            response_type,
         });
     }
     out
@@ -91,16 +112,19 @@ fn render_proto(ops: &[ReadOp]) -> String {
          syntax = \"proto3\";\n\n\
          package ship.ops.v1;\n\n\
          import \"ship/ops/v1/policy.proto\";\n\
-         import \"ship/ops/v1/ops.proto\";\n\n\
+         import \"ship/ops/v1/ops.proto\";\n\
+         import \"ship/ops/v1/types.proto\";\n\n\
          service ReadOpsService {\n",
     );
     for o in ops {
+        let ret = if o.response_type.is_empty() { "JsonResponse" } else { &o.response_type };
         let _ = write!(
             s,
-            "  rpc {m}({m}Request) returns (JsonResponse) {{\n    \
+            "  rpc {m}({m}Request) returns ({ret}) {{\n    \
              option (ship.ops.v1.capability) = \"{cap}\";\n    \
              option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;\n  }}\n",
             m = o.method,
+            ret = ret,
             cap = o.capability,
         );
     }
@@ -132,18 +156,34 @@ fn render_rust(ops: &[ReadOp]) -> String {
     );
     for o in ops {
         let req_binding = if o.args.is_empty() { "_req" } else { "req" };
+        let ret_ty = if o.response_type.is_empty() {
+            "::ship_ops_rpc::JsonResponse".to_string()
+        } else {
+            format!("::ship_ops_rpc::{}", o.response_type)
+        };
         let _ = write!(
             s,
             "    async fn {snake}(\n        &self,\n        \
              _ctx: ::connectrpc::RequestContext,\n        \
              {req}: ::ship_ops_rpc::Owned{m}RequestView,\n    ) -> \
-             ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {{\n",
+             ::connectrpc::ServiceResult<{ret_ty}> {{\n",
             snake = o.snake,
             m = o.method,
             req = req_binding,
+            ret_ty = ret_ty,
         );
+        // No-arg reads pass Null; typed reads decode onto their proto message.
         if o.args.is_empty() {
-            let _ = write!(s, "        self.dispatch_json(\"{op}\")\n    }}\n", op = o.op);
+            let call = if o.response_type.is_empty() {
+                format!("        self.dispatch_json(\"{op}\")\n    }}\n", op = o.op)
+            } else {
+                format!(
+                    "        self.dispatch_typed::<{ret_ty}>(\"{op}\", ::serde_json::Value::Null)\n    }}\n",
+                    ret_ty = ret_ty,
+                    op = o.op,
+                )
+            };
+            s.push_str(&call);
             continue;
         }
         s.push_str("        let mut args = ::serde_json::Map::new();\n");
@@ -160,11 +200,19 @@ fn render_rust(ops: &[ReadOp]) -> String {
                 let _ = write!(s, "        if req.{n} != 0 {{ {insert} }}\n", n = arg.name);
             }
         }
-        let _ = write!(
-            s,
-            "        self.dispatch_json_args(\"{op}\", ::serde_json::Value::Object(args))\n    }}\n",
-            op = o.op,
-        );
+        let call = if o.response_type.is_empty() {
+            format!(
+                "        self.dispatch_json_args(\"{op}\", ::serde_json::Value::Object(args))\n    }}\n",
+                op = o.op,
+            )
+        } else {
+            format!(
+                "        self.dispatch_typed::<{ret_ty}>(\"{op}\", ::serde_json::Value::Object(args))\n    }}\n",
+                ret_ty = ret_ty,
+                op = o.op,
+            )
+        };
+        s.push_str(&call);
     }
     s.push_str("}\n");
     s

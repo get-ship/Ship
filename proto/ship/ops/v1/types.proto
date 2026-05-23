@@ -52,6 +52,27 @@ message ArtifactRecord {
   string created_at = 15;
 }
 
+// ── Read return types (mirror the platform wire structs) ──────────────
+
+// One entry in a scope-resolving index (the `*.list` reads). Shared shape —
+// every service's `IndexEntry` is {id, scope}, like ScopedMutation.
+message IndexEntry {
+  string id = 1;
+  string scope = 2;
+}
+
+// Wire shape of rules.list.
+message RulesIndexResponse {
+  repeated IndexEntry items = 1;
+}
+
+// Wire shape of rules.get — raw rule body at the resolved scope.
+message RuleGetResponse {
+  string id = 1;
+  string scope = 2;
+  string body = 3;
+}
+
 // A registered project — the typed return of project.add. Mirrors
 // `ship_platform::projects::ProjectRecord`.
 message ProjectRecord {

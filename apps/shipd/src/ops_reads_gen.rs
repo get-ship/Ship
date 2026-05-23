@@ -140,18 +140,18 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedRulesListRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("rules.list")
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::RulesIndexResponse> {
+        self.dispatch_typed::<::ship_ops_rpc::RulesIndexResponse>("rules.list", ::serde_json::Value::Null)
     }
     async fn rules_get(
         &self,
         _ctx: ::connectrpc::RequestContext,
         req: ::ship_ops_rpc::OwnedRulesGetRequestView,
-    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::RuleGetResponse> {
         let mut args = ::serde_json::Map::new();
         args.insert("id".to_string(), ::serde_json::json!(req.id));
         if !req.scope.is_empty() { args.insert("scope".to_string(), ::serde_json::json!(req.scope)); }
-        self.dispatch_json_args("rules.get", ::serde_json::Value::Object(args))
+        self.dispatch_typed::<::ship_ops_rpc::RuleGetResponse>("rules.get", ::serde_json::Value::Object(args))
     }
     async fn mcp_list(
         &self,

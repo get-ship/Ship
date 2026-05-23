@@ -8,6 +8,7 @@ package ship.ops.v1;
 
 import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/ops.proto";
+import "ship/ops/v1/types.proto";
 
 service ReadOpsService {
   rpc AgentsList(AgentsListRequest) returns (JsonResponse) {
@@ -74,11 +75,11 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc RulesList(RulesListRequest) returns (JsonResponse) {
+  rpc RulesList(RulesListRequest) returns (RulesIndexResponse) {
     option (ship.ops.v1.capability) = "ship.rules.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc RulesGet(RulesGetRequest) returns (JsonResponse) {
+  rpc RulesGet(RulesGetRequest) returns (RuleGetResponse) {
     option (ship.ops.v1.capability) = "ship.rules.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

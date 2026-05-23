@@ -599,4 +599,27 @@ mod tests {
         assert_eq!(created["id"], "fixture-agent");
         assert_eq!(created["scope"], "user");
     }
+
+    #[test]
+    fn typed_read_values_decode_into_their_proto_messages() {
+        // The read half of the typed contract: dispatch_typed decodes the
+        // registry's JSON projection onto the proto message. Exercise the new
+        // shapes — a nested repeated message (RulesIndexResponse → IndexEntry)
+        // and a flat record (RuleGetResponse) — the way the generated read
+        // handler does.
+        let index = serde_json::json!({
+            "items": [ { "id": "no-slop", "scope": "user" }, { "id": "style", "scope": "project" } ]
+        });
+        let msg: ship_ops_rpc::RulesIndexResponse =
+            serde_json::from_value(index).expect("rules.list value decodes");
+        assert_eq!(msg.items.len(), 2);
+        assert_eq!(msg.items[0].id, "no-slop");
+        assert_eq!(msg.items[1].scope, "project");
+
+        let detail = serde_json::json!({ "id": "no-slop", "scope": "user", "body": "# No slop" });
+        let got: ship_ops_rpc::RuleGetResponse =
+            serde_json::from_value(detail).expect("rules.get value decodes");
+        assert_eq!(got.id, "no-slop");
+        assert_eq!(got.body, "# No slop");
+    }
 }
