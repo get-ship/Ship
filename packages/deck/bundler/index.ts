@@ -367,6 +367,35 @@ async function refreshCatalog(): Promise<{ workspace: number; published: number 
     mkdirSync(dirname(out), { recursive: true })
     await Bun.write(out, JSON.stringify(cem, null, 2) + '\n')
   }
+  // Merge co-located `<tag>.examples.ts` fixtures into the freshly-written CEMs
+  // before aggregation. The Rust compiler can't execute TS examples, so this
+  // bun step writes the `examples` custom property onto each declaration — the
+  // pack-portable channel the Studio explorer + docs read.
+  try {
+    const inj = (await import(
+      resolve(repoRoot, 'packages/deck/build/src/inject-examples.ts')
+    )) as {
+      injectExamples: (o: {
+        sources: string[]
+        cemFor: (p: string) => string
+      }) => Promise<{ injected: number }>
+      suiOutCemFor: (root: string) => (p: string) => string
+      packDistCemFor: (p: string) => string
+    }
+    const sources = [
+      resolve(repoRoot, 'packages/components'),
+      resolve(repoRoot, 'apps/shell/src'),
+    ]
+    // The aggregator reads PUBLISHED packs from their `dist/custom-elements.json`
+    // and non-packaged origins from the `.ship/sui-out` mirror. Inject into both
+    // so examples reach whichever projection the entry comes from. Each pass
+    // skips tags whose target CEM doesn't exist.
+    const pack = (await inj.injectExamples({ sources, cemFor: inj.packDistCemFor })).injected
+    const mirror = (await inj.injectExamples({ sources, cemFor: inj.suiOutCemFor(repoRoot) })).injected
+    if (pack + mirror > 0) process.stdout.write(`✓ inject-examples (pack=${pack}, mirror=${mirror})\n`)
+  } catch (err) {
+    process.stderr.write(`[bundler] inject-examples skipped: ${String(err)}\n`)
+  }
   const { buildCatalogs, stringifyCatalog } = await loadSuiCatalogLib()
   const { workspace, published } = await buildCatalogs({ repoRoot })
   const outDir = resolve(repoRoot, '.deck/catalogs')
