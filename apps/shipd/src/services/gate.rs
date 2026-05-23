@@ -77,7 +77,9 @@ pub fn classify(name: &str) -> Domain {
         // `mcp` registers external MCP servers → new tools agents can call, so
         // configuring it is authoring agent capability, not ordinary workspace
         // mutation. Gated behind the ship-authoring grant.
-        "create" | "view" | "mcp" => Domain { group: "ship-authoring", restricted: true },
+        // `skills` are themselves capability groups — authoring one defines what
+        // agents can do. Restricted ship-authoring, like create/view/mcp.
+        "create" | "view" | "mcp" | "skills" => Domain { group: "ship-authoring", restricted: true },
         // `permissions` edits the security policy that governs agents. It is
         // C2 (operator-only) at the blast axis, so agents are denied regardless;
         // restricted ship-authoring here is defense in depth on the grant axis.

@@ -24,6 +24,7 @@ mod git;
 mod mcp;
 mod mesh;
 mod permissions;
+mod skills;
 mod pipeline;
 mod project;
 mod rules;
@@ -132,6 +133,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = collections::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = skills::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
@@ -502,5 +506,42 @@ mod tests {
         assert_eq!(msg.collection, "notes");
         assert_eq!(msg.data_json, "{\"title\":\"hi\"}");
         assert_eq!(msg.created_by, None);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn skills_create_is_restricted_to_ship_authoring() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let args = serde_json::json!({ "id": "fixture-skill", "scope": "user" });
+
+        // A worker (no grants) can't author a skill — skills are capability
+        // groups, gated behind the ship-authoring grant.
+        let worker = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("worker-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec![],
+        };
+        let err = call("skills.create", &args, &CommandCtx { state: &harness.state, auth: &worker })
+            .await
+            .unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+
+        // A designer holding ship-authoring clears the gate and writes through.
+        let designer = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("designer-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec!["ship-authoring".to_string()],
+        };
+        let created =
+            call("skills.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
+                .await
+                .expect("ship-authoring grant clears the gate and the skill is created");
+        assert_eq!(created["id"], "fixture-skill");
+        assert_eq!(created["scope"], "user");
     }
 }

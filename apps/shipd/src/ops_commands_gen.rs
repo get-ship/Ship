@@ -358,6 +358,139 @@ impl ::ship_ops_rpc::CommandOpsService for OpsImpl {
             Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
         }
     }
+    async fn skills_create(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSkillsCreateRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::ScopedMutation> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        args.insert("scope".to_string(), ::serde_json::json!(req.scope));
+        args.insert("frontmatter_json".to_string(), ::serde_json::json!(req.frontmatter_json));
+        args.insert("body".to_string(), ::serde_json::json!(req.body));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("skills.create", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::ScopedMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode skills.create response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn skills_delete(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSkillsDeleteRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::ScopedMutation> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        args.insert("scope".to_string(), ::serde_json::json!(req.scope));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("skills.delete", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::ScopedMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode skills.delete response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn skills_rename(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSkillsRenameRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::ScopedMutation> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        args.insert("new_id".to_string(), ::serde_json::json!(req.new_id));
+        args.insert("scope".to_string(), ::serde_json::json!(req.scope));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("skills.rename", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::ScopedMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode skills.rename response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn skills_duplicate(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSkillsDuplicateRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::ScopedMutation> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        args.insert("new_id".to_string(), ::serde_json::json!(req.new_id));
+        args.insert("scope".to_string(), ::serde_json::json!(req.scope));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("skills.duplicate", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::ScopedMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode skills.duplicate response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn skills_write_frontmatter(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSkillsWriteFrontmatterRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::ScopedMutation> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        args.insert("frontmatter_json".to_string(), ::serde_json::json!(req.frontmatter_json));
+        args.insert("scope".to_string(), ::serde_json::json!(req.scope));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("skills.write_frontmatter", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::ScopedMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode skills.write_frontmatter response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn skills_write_body(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSkillsWriteBodyRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::ScopedMutation> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        args.insert("body".to_string(), ::serde_json::json!(req.body));
+        args.insert("scope".to_string(), ::serde_json::json!(req.scope));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("skills.write_body", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::ScopedMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode skills.write_body response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn skills_move_scope(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSkillsMoveScopeRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::ScopedMutation> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        args.insert("from".to_string(), ::serde_json::json!(req.from));
+        args.insert("to".to_string(), ::serde_json::json!(req.to));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("skills.move_scope", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::ScopedMutation>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode skills.move_scope response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
     async fn project_activate(
         &self,
         ctx: ::connectrpc::RequestContext,

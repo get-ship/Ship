@@ -87,6 +87,34 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.collections.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc SkillsCreate(SkillsCreateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsDelete(SkillsDeleteRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsRename(SkillsRenameRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsDuplicate(SkillsDuplicateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsWriteFrontmatter(SkillsWriteFrontmatterRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsWriteBody(SkillsWriteBodyRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsMoveScope(SkillsMoveScopeRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc ProjectActivate(ProjectActivateRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -289,6 +317,48 @@ message CollectionsUpdateItemRequest {
 message CollectionsDeleteItemRequest {
   string collection = 1;
   string id = 2;
+}
+
+message SkillsCreateRequest {
+  string id = 1;
+  string scope = 2;
+  string frontmatter_json = 3;
+  string body = 4;
+}
+
+message SkillsDeleteRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message SkillsRenameRequest {
+  string id = 1;
+  string new_id = 2;
+  string scope = 3;
+}
+
+message SkillsDuplicateRequest {
+  string id = 1;
+  string new_id = 2;
+  string scope = 3;
+}
+
+message SkillsWriteFrontmatterRequest {
+  string id = 1;
+  string frontmatter_json = 2;
+  string scope = 3;
+}
+
+message SkillsWriteBodyRequest {
+  string id = 1;
+  string body = 2;
+  string scope = 3;
+}
+
+message SkillsMoveScopeRequest {
+  string id = 1;
+  string from = 2;
+  string to = 3;
 }
 
 message ProjectActivateRequest {

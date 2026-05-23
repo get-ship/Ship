@@ -371,6 +371,101 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "Deletion",
         sensitive: false,
     },
+    // ── skills (authoring; restricted ship-authoring) ─────────────
+    // Skills are capability groups — authoring one defines agent capability, so
+    // the gate requires the ship-authoring grant. Scope-resolving → ScopedMutation.
+    // Open frontmatter rides as frontmatter_json. File-byte ops + KV vars deferred.
+    CommandDescriptor {
+        name: "skills.create",
+        description: "Create a new skill (optional initial frontmatter + body).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+            ArgDescriptor { name: "frontmatter_json", kind: "string?", required: false },
+            ArgDescriptor { name: "body", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.delete",
+        description: "Delete a skill (scope omitted walks project → user).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.rename",
+        description: "Rename a skill's id.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "new_id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.duplicate",
+        description: "Copy a skill to a new id.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "new_id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.write_frontmatter",
+        description: "Replace a skill's frontmatter (YAML/JSON object).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "frontmatter_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.write_body",
+        description: "Replace a skill's markdown body.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "body", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.move_scope",
+        description: "Move a skill between project and user scope.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "from", kind: "string", required: true },
+            ArgDescriptor { name: "to", kind: "string", required: true },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.activate",
