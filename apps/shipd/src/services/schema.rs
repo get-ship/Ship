@@ -466,6 +466,58 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "ScopedMutation",
         sensitive: false,
     },
+    CommandDescriptor {
+        name: "skills.write_file",
+        description: "Write a UTF-8 text file inside a skill dir.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "path", kind: "string", required: true },
+            ArgDescriptor { name: "content", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.delete_file",
+        description: "Delete a file inside a skill dir.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "path", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.set_var",
+        description: "Set a KV variable (value_json) on a skill.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "key", kind: "string", required: true },
+            ArgDescriptor { name: "value_json", kind: "string", required: true },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.delete_var",
+        description: "Delete a KV variable from a skill.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "key", kind: "string", required: true },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
     // ── agents (profile authoring; restricted ship-authoring) ─────
     // `agents.*` (plural) authors profiles — defines agent capability, gated by
     // the ship-authoring grant. Distinct from `agent.*` (singular) runtime

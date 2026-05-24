@@ -115,6 +115,22 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc SkillsWriteFile(SkillsWriteFileRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsDeleteFile(SkillsDeleteFileRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsSetVar(SkillsSetVarRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsDeleteVar(SkillsDeleteVarRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc AgentsCreate(AgentsCreateRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.agents.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -423,6 +439,30 @@ message SkillsMoveScopeRequest {
   string id = 1;
   string from = 2;
   string to = 3;
+}
+
+message SkillsWriteFileRequest {
+  string id = 1;
+  string path = 2;
+  string content = 3;
+  string scope = 4;
+}
+
+message SkillsDeleteFileRequest {
+  string id = 1;
+  string path = 2;
+  string scope = 3;
+}
+
+message SkillsSetVarRequest {
+  string id = 1;
+  string key = 2;
+  string value_json = 3;
+}
+
+message SkillsDeleteVarRequest {
+  string id = 1;
+  string key = 2;
 }
 
 message AgentsCreateRequest {

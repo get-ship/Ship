@@ -115,6 +115,43 @@ pub async fn try_dispatch(
             skills.move_scope(&id, from, to).map_err(map_err)?;
             Ok(Some(ok(&id, to)))
         }
+        "skills.write_file" => {
+            let id = req_str(args, "id")?;
+            let path = req_str(args, "path")?;
+            // Skill files are UTF-8 text (SKILL.md, assets, scripts). Binary
+            // assets aren't writable through this op.
+            let content = req_str(args, "content")?;
+            let scope = skills
+                .write_file(&id, parse_scope(args)?, &path, content.as_bytes())
+                .map_err(map_err)?;
+            Ok(Some(ok(&id, scope)))
+        }
+        "skills.delete_file" => {
+            let id = req_str(args, "id")?;
+            let path = req_str(args, "path")?;
+            let scope = skills.delete_file(&id, parse_scope(args)?, &path).map_err(map_err)?;
+            Ok(Some(ok(&id, scope)))
+        }
+        "skills.set_var" => {
+            let id = req_str(args, "id")?;
+            let key = req_str(args, "key")?;
+            let raw = req_str(args, "value_json")?;
+            let value: Value = serde_json::from_str(&raw)
+                .map_err(|e| CommandError::bad_args(format!("`value_json` is not valid JSON: {e}")))?;
+            // KV vars return () / bool, not a Scope — JsonResponse, not ScopedMutation.
+            skills
+                .set_var(&id, &key, value)
+                .map_err(|e| CommandError::service(e.to_string()))?;
+            Ok(Some(serde_json::json!({ "ok": true, "id": id, "key": key })))
+        }
+        "skills.delete_var" => {
+            let id = req_str(args, "id")?;
+            let key = req_str(args, "key")?;
+            let deleted = skills
+                .delete_var(&id, &key)
+                .map_err(|e| CommandError::service(e.to_string()))?;
+            Ok(Some(serde_json::json!({ "ok": true, "id": id, "key": key, "deleted": deleted })))
+        }
         _ => Ok(None),
     }
 }
