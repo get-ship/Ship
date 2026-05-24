@@ -14,7 +14,39 @@ use buffa::extension::codecs::{Bool, EnumI32, StringCodec};
 use buffa::extension::Extension;
 use buffa::ExtensionSet;
 use buffa_descriptor::generated::descriptor::FileDescriptorSet;
-use ship_ops::BlastRadius;
+
+/// Blast-radius class — the human-vs-agent line the gate enforces, carried as a
+/// proto method option. The canonical home is here (next to the FDS reader that
+/// produces it); shipd's gate re-exports it. `from_descriptor` fails closed to
+/// `C2Elevated` — a misdeclared op is gated to the human, never opened to agents.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub enum BlastRadius {
+    #[serde(rename = "C0_READ")]
+    C0Read,
+    #[serde(rename = "C1_WORKSPACE")]
+    C1Workspace,
+    #[serde(rename = "C2_ELEVATED")]
+    C2Elevated,
+}
+
+impl BlastRadius {
+    pub fn from_descriptor(s: &str) -> Self {
+        match s {
+            "C0_READ" => Self::C0Read,
+            "C1_WORKSPACE" => Self::C1Workspace,
+            "C2_ELEVATED" => Self::C2Elevated,
+            _ => Self::C2Elevated,
+        }
+    }
+
+    pub fn as_descriptor(self) -> &'static str {
+        match self {
+            Self::C0Read => "C0_READ",
+            Self::C1Workspace => "C1_WORKSPACE",
+            Self::C2Elevated => "C2_ELEVATED",
+        }
+    }
+}
 
 /// `policy.proto` declares these extensions on `google.protobuf.MethodOptions`.
 const EXTENDEE: &str = "google.protobuf.MethodOptions";

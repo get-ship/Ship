@@ -15,7 +15,6 @@ buffa = { version = "0.5", features = ["json"] }
 # Typed descriptor messages (FileDescriptorSet) for reading method-option
 # policy out of the embedded FILE_DESCRIPTOR_SET. Version tracks buffa's.
 buffa-descriptor = "0.5"
-ship-ops = { path = "../ship-ops" }
 # Generated code names ::serde:: and ::http_body:: paths directly.
 serde = { workspace = true }
 http-body = "1"

@@ -225,11 +225,11 @@ pub fn command_error_to_connect(e: crate::services::command::CommandError) -> Co
 // normal codegen). Keyed by the Connect wire-path body "<package>.<Svc>/<Method>".
 
 /// Policy for one op, extracted from its proto method options. `blast_radius` is
-/// the shared `ship_ops::BlastRadius` (one enum across the gate + this map).
+/// the shared `ship_ops_rpc::BlastRadius` (one enum across the gate + this map).
 #[derive(Debug, Clone)]
 pub struct OpPolicy {
     pub capability: String,
-    pub blast_radius: ship_ops::BlastRadius,
+    pub blast_radius: ship_ops_rpc::BlastRadius,
     pub sensitive: bool,
 }
 
@@ -274,7 +274,7 @@ mod tests {
         let p = policy_for("ship.ops.v1.OpsService/Meta")
             .expect("Meta policy must be present in the descriptor");
         assert_eq!(p.capability, "ship.meta.read");
-        assert_eq!(p.blast_radius, ship_ops::BlastRadius::C0Read);
+        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C0Read);
         assert!(!p.sensitive);
     }
 
@@ -284,7 +284,7 @@ mod tests {
         let p = policy_for("ship.ops.v1.ReadOpsService/AccountState")
             .expect("AccountState policy must be present");
         assert_eq!(p.capability, "ship.account.read");
-        assert_eq!(p.blast_radius, ship_ops::BlastRadius::C0Read);
+        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C0Read);
     }
 
     fn auth(kind: CallerKind, agent: Option<&str>) -> AuthContext {

@@ -29,6 +29,7 @@ pub mod ship {
 pub use ship::ops::v1::*;
 
 pub mod policy;
+pub use policy::BlastRadius;
 
 /// The compiled `FileDescriptorSet`, including the custom method options
 /// (`capability`, `blast_radius`, `op_sensitive`). The daemon gate reads policy

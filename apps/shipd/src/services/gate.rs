@@ -23,10 +23,10 @@ use crate::auth::AuthContext;
 use crate::auth::scopes::Scope;
 
 /// Blast-radius class of an op — the human-vs-agent line. The canonical
-/// definition lives in `ship-ops` (the op ABI vocabulary); re-exported so every
-/// existing `gate::BlastRadius` reference keeps working. `from_descriptor` fails
-/// closed to `C2Elevated` — a misdeclared op is gated to the human.
-pub use ship_ops::BlastRadius;
+/// definition lives in `ship-ops-rpc` (next to the FDS policy reader that
+/// produces it); re-exported so every `gate::BlastRadius` reference keeps
+/// working. `from_descriptor` fails closed to `C2Elevated`.
+pub use ship_ops_rpc::BlastRadius;
 
 /// A capability domain — a skill-group. `restricted` domains are
 /// capability-defining (they hand out capability) and are never default-granted;

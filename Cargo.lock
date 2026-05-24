@@ -4409,15 +4409,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-ops"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "ship-ops-rpc"
 version = "0.1.0"
 dependencies = [
@@ -4429,7 +4420,6 @@ dependencies = [
  "http-body",
  "protoc-bin-vendored",
  "serde",
- "ship-ops",
  "thiserror 2.0.18",
 ]
 
@@ -4606,7 +4596,6 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "ship-analytics",
- "ship-ops",
  "ship-ops-rpc",
  "ship-pipelines",
  "ship-platform",
