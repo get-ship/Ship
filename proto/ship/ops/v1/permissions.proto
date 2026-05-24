@@ -1,0 +1,90 @@
+// `permissions.*` as a hand-authored, per-domain proto-SSOT service — second
+// migrated domain (decision #89, following rules.proto as the worked exemplar).
+// Mounted ADDITIVELY beside the generated ReadOpsService/CommandOpsService, which
+// still serve permissions.* until the GUI flip (#72). Old descriptor tables and
+// dispatch stay untouched.
+//
+// Request messages take fresh names (CreatePermissionRequest, …) because the
+// generated commands.gen.proto/reads.gen.proto already declare
+// PermissionsCreateRequest et al. in this same package — two definitions would
+// collide. Return types are SHARED shapes from types.proto
+// (ScopedMutation / PermissionsIndexResponse / ToolPatternsResponse) and
+// JsonResponse from ops.proto, imported, not redeclared.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/ops.proto";
+import "ship/ops/v1/types.proto";
+
+message ListPermissionsRequest {}
+
+message GetPermissionRequest {
+  string id = 1;
+  // "project" | "user"; empty walks Project → User.
+  string scope = 2;
+}
+
+message GetToolPatternsRequest {}
+
+message CreatePermissionRequest {
+  string id = 1;
+  // JSON-serialized preset object.
+  string preset_json = 2;
+  string scope = 3;
+}
+
+message PutPermissionRequest {
+  string id = 1;
+  string preset_json = 2;
+  string scope = 3;
+}
+
+message PatchPermissionRequest {
+  string id = 1;
+  // JSON-serialized RFC-6902 patch array.
+  string patch_json = 2;
+  string scope = 3;
+}
+
+message DeletePermissionRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+// Permission-preset CRUD + autocomplete catalog.
+// Reads are C0 (edge-authenticated). Writes are C2_ELEVATED (operator-only):
+// these are the security policies that govern agents, so agents must never
+// mutate the policy that constrains them regardless of grants. The gate enforces
+// operator-only via services::command::call; this service only routes.
+service PermissionsService {
+  rpc List(ListPermissionsRequest) returns (PermissionsIndexResponse) {
+    option (ship.ops.v1.capability) = "ship.permissions.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Get(GetPermissionRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.permissions.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc ToolPatterns(GetToolPatternsRequest) returns (ToolPatternsResponse) {
+    option (ship.ops.v1.capability) = "ship.permissions.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Create(CreatePermissionRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.permissions.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc Put(PutPermissionRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.permissions.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc Patch(PatchPermissionRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.permissions.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc Delete(DeletePermissionRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.permissions.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+}

@@ -204,7 +204,9 @@ pub fn router(state: ApiState) -> axum::Router {
     // artifacts.* — typed-return migration (ArtifactRecord / Deletion), additive.
     let router = ship_ops_rpc::ArtifactsServiceExt::register(svc.clone(), router);
     // collections.* — data plane; reads opaque JSON, item writes typed. Additive.
-    let router = ship_ops_rpc::CollectionsServiceExt::register(svc, router);
+    let router = ship_ops_rpc::CollectionsServiceExt::register(svc.clone(), router);
+    // permissions.* — C2_ELEVATED writes (operator-only via the command gate). Additive.
+    let router = ship_ops_rpc::PermissionsServiceExt::register(svc, router);
     router.into_axum_router()
 }
 

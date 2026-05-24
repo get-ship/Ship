@@ -33,6 +33,7 @@ pub mod view_errors_rpc;
 pub mod rules_rpc;
 pub mod artifacts_rpc;
 pub mod collections_rpc;
+pub mod permissions_rpc;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;
