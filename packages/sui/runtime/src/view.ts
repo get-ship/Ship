@@ -10,11 +10,11 @@
 // scope and then walks SSR DOM using the sibling `bindings` manifest.
 // This factory is the contract glue between those two halves.
 
-import type { ShipSDK } from './ship'
+import type { ShipHost } from './ship'
 import type { RouteSignals } from './route'
 
 export interface ViewContext {
-  ship: ShipSDK
+  ship: ShipHost
   route: RouteSignals
   navigate: (path: string) => void
 }

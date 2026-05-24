@@ -13,7 +13,7 @@
 // flat-merges into the host scope.
 
 import type { Signal } from './signal'
-import type { ShipSDK } from './ship'
+import type { ShipHost } from './ship'
 import type { RouteSignals } from './route'
 
 // ---------------------------------------------------------------------------
@@ -92,7 +92,7 @@ export type MutableState<Scope> =
   } & {
     // The ambient view context the proxy also exposes, matching the runtime
     // (`baseScope` carries `ship` / `route` / `navigate`).
-    readonly ship: ShipSDK
+    readonly ship: ShipHost
     readonly route: RouteSignals
     readonly navigate: (path: string) => void
     // Explicit signal access for the escape-hatch cases the assignment style
@@ -114,7 +114,7 @@ export type MutableState<Scope> =
  * computation.
  */
 export type ViewScope<Scope = object> = Scope & {
-  ship: ShipSDK
+  ship: ShipHost
   route: RouteSignals
 }
 
@@ -279,7 +279,7 @@ export interface ScopedControllerDef<Ctx, SC extends Record<string, unknown>> {
  */
 export type ControllerDef<Scope = object> =
   | ControllerShape<Scope>
-  | ((ctx: { ship: ShipSDK }) => ControllerShape<Scope>)
+  | ((ctx: { ship: ShipHost }) => ControllerShape<Scope>)
 
 // `controller(def)` runtime helper lives in `controller-resolver.ts`.
 
@@ -309,7 +309,7 @@ export interface ControllerHook<
    * Hook-internal state. Static initial values; the runtime constructs
    * a `Signal<T>` per key.
    */
-  state?: S | ((scope: { ship: ShipSDK } & Scope) => S)
+  state?: S | ((scope: { ship: ShipHost } & Scope) => S)
   /** Pure memos over the merged hook scope (state + outer scope). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   derived?: Record<string, (scope: any) => unknown>

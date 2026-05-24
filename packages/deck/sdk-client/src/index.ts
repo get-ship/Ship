@@ -24,6 +24,17 @@ import {
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { makeSseSource } from './sse'
 
+// Bind the SUI runtime's host-agnostic `ShipHost` slot to the concrete
+// `ShipSDK` via declaration merging. The runtime types `ViewScope.ship` as
+// the empty `ShipHost`; this augmentation — owned by the SDK provider, not
+// the framework — makes `ship.<domain>.<op>()` fully typed in controllers
+// while the runtime stays free of any Ship concept. (When the SDK surface
+// moves to the generated connect client, this augmentation moves with it.)
+declare module '@ship/sui-runtime' {
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  interface ShipHost extends ShipSDK {}
+}
+
 export { makeSseSource, liveExpr } from './sse'
 export {
   displayName as accountDisplayName,

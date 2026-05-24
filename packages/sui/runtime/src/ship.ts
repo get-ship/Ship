@@ -84,6 +84,26 @@ export interface WorkspaceSummary {
   last_seen_at: string
 }
 
+/**
+ * The host SDK handle threaded into controller scope as `ship`. The SUI
+ * runtime treats it as an OPAQUE, app-augmented surface — it deliberately
+ * defines nothing here so the framework names no host concepts. The app
+ * (deck / shell) wires the real shape via declaration merging:
+ *
+ * ```ts
+ * declare module '@ship/sui-runtime' {
+ *   interface ShipHost extends ShipSDK {}
+ * }
+ * ```
+ *
+ * `ViewScope.ship` / `ResolverContext.ship` are typed as `ShipHost`, so
+ * authoring stays fully typed while the runtime stays host-agnostic. The
+ * concrete `ShipSDK` below is slated to move to `@ship/sdk-client` / the
+ * generated connect client — this empty seam is the foundation for that.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface ShipHost {}
+
 /** Live SDK handle exposed to controllers, hooks, and `<data>` sources. */
 export interface ShipSDK {
   account: {

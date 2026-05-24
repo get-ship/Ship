@@ -182,6 +182,7 @@ export type {
   ArtifactRecord,
   CollectionFieldRecord,
   CollectionSummary,
+  ShipHost,
   ShipSDK,
   SkillIndexEntry,
   WorkspaceSummary,

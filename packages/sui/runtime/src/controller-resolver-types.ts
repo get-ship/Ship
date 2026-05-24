@@ -3,7 +3,7 @@
 // `controller-resolver.ts` (which delegates to `resolveHook`) and
 // `controller-hook-resolver.ts` (which needs `ResolverContext`).
 
-import type { ShipSDK } from './ship'
+import type { ShipHost } from './ship'
 import type { RouteSignals } from './route'
 
 /**
@@ -13,7 +13,7 @@ import type { RouteSignals } from './route'
  * by the time setup runs.
  */
 export interface ResolverContext {
-  ship: ShipSDK
+  ship: ShipHost
   /**
    * Reactive URL proxy. Accepts `RouteSignals` (the new shape) or the
    * legacy `Record<string,string>` shape; the latter is retained as a
