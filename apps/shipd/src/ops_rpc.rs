@@ -202,7 +202,9 @@ pub fn router(state: ApiState) -> axum::Router {
     // until the GUI flip (#72) re-points clients and retires the old path.
     let router = ship_ops_rpc::RulesServiceExt::register(svc.clone(), router);
     // artifacts.* — typed-return migration (ArtifactRecord / Deletion), additive.
-    let router = ship_ops_rpc::ArtifactsServiceExt::register(svc, router);
+    let router = ship_ops_rpc::ArtifactsServiceExt::register(svc.clone(), router);
+    // collections.* — data plane; reads opaque JSON, item writes typed. Additive.
+    let router = ship_ops_rpc::CollectionsServiceExt::register(svc, router);
     router.into_axum_router()
 }
 
