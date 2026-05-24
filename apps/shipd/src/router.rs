@@ -158,6 +158,7 @@ pub fn build_router(
         .ship_public_route(Route::SuiSdkClientJs, deck::serve_sui_sdk_client)
         .ship_public_route(Route::SuiComponentsJs, deck::serve_sui_components)
         .ship_public_route(Route::SuiLucideIconsJson, deck::serve_sui_lucide_icons)
+        .ship_public_route(Route::SuiLiveReloadJs, deck::serve_sui_live_reload)
         .ship_public_route(Route::SuiComponentBundle_template(), deck::serve_sui_island)
         .ship_public_route(
             Route::SuiViewTemplate_template(),
@@ -193,9 +194,9 @@ pub fn build_router(
         // unfulfilled and every POST 500'd. It is registered in
         // `build_ship_routes` (the authenticated group) instead.
         .ship_public_route(Route::SuiSource_template(), views::sui_source::serve_sui_source)
-        // HMR routes (SuiHmr / SuiHmrClientJs / SuiDevHmr) are NOT wired
-        // here — they stay development-only and are merged into `root`
-        // inside the `daemon_mode == Development` block further below.
+        // The HMR route (SuiDevHmr) is NOT wired here — it stays
+        // development-only and is merged into `root` inside the
+        // `daemon_mode == Development` block further below.
         // Glob-param SUI fallbacks — the Route enum doesn't model `{*sub_path}`,
         // so these stay as direct `.route()` calls to preserve the donor
         // surface (view-host + payload sub-path + studio /sui/{name}/{*sub_path}).
@@ -312,11 +313,9 @@ pub fn build_router(
             Json(openapi::ApiDoc::openapi())
         }))
         .merge(authenticated_routes);
-    // HMR routes are development-only; not registered in production mode.
+    // The HMR firehose is development-only; not registered in production.
     if daemon_mode == deck::DaemonMode::Development {
         let hmr_routes: Router<()> = Router::new()
-            .ship_public_route(Route::SuiHmr, views::sui_hmr::serve_hmr)
-            .ship_public_route(Route::SuiHmrClientJs, views::sui_hmr::serve_hmr_client_js)
             .ship_public_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr);
         root = root.merge(hmr_routes);
     }

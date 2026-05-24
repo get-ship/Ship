@@ -11,9 +11,10 @@ pub mod render_helpers;
 
 pub use handlers::{
     serve_catalog_published, serve_catalog_workspace, serve_meta, serve_pack_asset,
-    serve_sui_components, serve_sui_dom, serve_sui_island, serve_sui_lucide_icons,
-    serve_sui_runtime, serve_sui_sdk_client, serve_sui_view_css, serve_sui_view_setup,
-    serve_sui_view_template, serve_view_host, serve_view_payload, serve_view_payload_subpath,
+    serve_sui_components, serve_sui_dom, serve_sui_island, serve_sui_live_reload,
+    serve_sui_lucide_icons, serve_sui_runtime, serve_sui_sdk_client, serve_sui_view_css,
+    serve_sui_view_setup, serve_sui_view_template, serve_view_host, serve_view_payload,
+    serve_view_payload_subpath,
 };
 
 // Re-export the contract types so `deck`'s facade (and shipd through it)
@@ -78,6 +79,7 @@ pub fn router() -> Router {
         .route("/_sui/sdk-client.js", get(serve_sui_sdk_client))
         .route("/_sui/components.js", get(serve_sui_components))
         .route("/_sui/lucide-icons.json", get(serve_sui_lucide_icons))
+        .route("/_sui/live-reload.js", get(serve_sui_live_reload))
         .route("/_sui/sui-components/{file}", get(serve_sui_island))
         .route("/api/sui/catalog/workspace", get(serve_catalog_workspace))
         .route("/api/sui/catalog/published", get(serve_catalog_published))

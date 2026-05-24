@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Daemon mode — rewritten by `inject_mode_meta` to reflect the running
+       daemon. The live-reload client self-gates on content="development". -->
+  <meta name="ship-mode" content="development" />
   <title>SUI View</title>
 
   <!-- Design tokens (always-on for SUI components). -->
@@ -135,6 +138,29 @@
           // property as the "attach complete" signal.
           const handle = await mount(target, payload, { ship, loader })
           window.__suiDispose = () => handle.dispose()
+
+          // Live-reload: in development the daemon's bundler rebuilds this
+          // view on save and emits an SSE event. The Deck live-reload client
+          // (self-gated on the ship-mode meta) re-fetches the payload and
+          // re-mounts in place via the handle — signal state is preserved.
+          try {
+            const { attachLiveReload } = await import('/_sui/live-reload.js')
+            const reloader = attachLiveReload({
+              viewName: viewPath.split('/')[0],
+              onViewChanged: async (e) => {
+                const fresh = await loader.fetchView(viewPath)
+                if (e && e.bytes != null && fresh && fresh.moduleUrl) {
+                  const sep = fresh.moduleUrl.includes('?') ? '&' : '?'
+                  fresh.moduleUrl = `${fresh.moduleUrl}${sep}v=${e.bytes}`
+                }
+                await handle.reload(fresh)
+              },
+            })
+            const prevDispose = window.__suiDispose
+            window.__suiDispose = () => { reloader.close(); prevDispose() }
+          } catch (err) {
+            console.warn('[live-reload] unavailable:', err && err.message ? err.message : err)
+          }
         }
       } catch (err) {
         target.innerHTML =

@@ -190,6 +190,10 @@ pub enum Route {
     /// @auth public
     SuiLucideIconsJson,
 
+    /// @route GET "/_sui/live-reload.js"
+    /// @auth public
+    SuiLiveReloadJs,
+
     /// @route GET "/_sui/sui-components/{file}"
     /// @auth public
     SuiComponentBundle { file: String },
@@ -221,14 +225,6 @@ pub enum Route {
     /// @route GET "/sui/{name}"
     /// @auth public
     SuiViewHostForName { name: String },
-
-    /// @route GET "/_sui/hmr"
-    /// @auth public
-    SuiHmr,
-
-    /// @route GET "/_sui/hmr-client.js"
-    /// @auth public
-    SuiHmrClientJs,
 
     /// @route GET "/_sui/dev/hmr"
     /// @auth public

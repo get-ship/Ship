@@ -1,23 +1,20 @@
-// Dev-only HMR glue between `@ship/sui-runtime/dev`'s subscribeHmr and
-// shell's mount lifecycle.
+// Shell HMR glue — delegates to the one Deck live-reload client served at
+// `/_sui/live-reload.js`. HMR is a Deck host concern, not a SUI-runtime one;
+// the shell and the third-party view host share this single client.
+//
+// The client self-gates on `<meta name="ship-mode" content="development">`
+// (shell's index.html ships the tag; shipd rewrites it per daemon mode), so
+// there's no separate dev check here. It subscribes to the bundler firehose
+// (`/_sui/dev/hmr`) and calls back on change.
 //
 // Bundler target shape (see packages/deck/bundler/index.ts):
 //   views/<name>/view      → one bundle per views/<name>/page.sui
 //   sui-components/<name>  → separate-bundle component
-//   sui-runtime, sui-dom, sui-components, ship-elements, …
+//   sui-runtime, sui-dom, sui-components, …
 //
-// Behavior:
-//   - views/<name>/view AND <name> === currentRoute.view
-//     → cache-bust import the rebuilt view.js, re-mount in place.
-//   - any other target (components, islands, runtime)
-//     → full page reload (custom-element re-registration without reload
-//       is out of scope for v1).
-//   - compile errors → log to console with file:line.
-//
-// No-op in production builds: Vite inlines `import.meta.env.DEV` to false,
-// the dead-code branch is dropped, and the EventSource is never opened.
-
-import { subscribeHmr } from '@ship/sui-runtime/dev'
+// On a change to the *current* view → cache-bust import the rebuilt
+// view.js and re-mount in place. Any other target → full reload (custom
+// elements can't be re-registered without one).
 
 interface MountModule {
   default: { setup: (...args: unknown[]) => unknown }
@@ -28,60 +25,64 @@ export interface HmrDeps {
   remount(module?: MountModule): Promise<void>
 }
 
-export function initHmr(deps: HmrDeps): { close(): void } | null {
-  if (!isDev()) return null
-  if (typeof window === 'undefined' || typeof EventSource === 'undefined') return null
-
-  const sub = subscribeHmr({
-    onChanged: async (event) => {
-      const target = event.target
-      if (target.startsWith('views/')) {
-        const segs = target.split('/')
-        const viewName = segs[1]
-        const current = deps.getCurrentView()
-        if (!viewName || current !== viewName) {
-          // A different view's bundle changed; nothing to do until the
-          // user navigates to it (next mount will fetch the new payload).
-          return
-        }
-        const url = `/_sui/${target}.js?v=${event.bytes}`
-        try {
-          const mod = (await import(/* @vite-ignore */ url)) as MountModule
-          await deps.remount(mod)
-          console.info(`[sui:hmr] re-mounted ${viewName}`)
-        } catch (err) {
-          console.error(`[sui:hmr] re-mount of ${viewName} failed; reloading`, err)
-          window.location.reload()
-        }
-        return
-      }
-      // Component / runtime / separate-bundle changed — full reload.
-      console.info(`[sui:hmr] ${target} changed; reload`)
-      window.location.reload()
-    },
-    onError: (err) => {
-      const loc = err.file ? ` (${err.file}${err.line ? `:${err.line}` : ''})` : ''
-      console.error(`[sui:hmr] compile error in ${err.target}${loc}:`, err.message)
-    },
-  })
-
-  const onUnload = () => sub.close()
-  window.addEventListener('beforeunload', onUnload)
-  return sub
+interface LiveReloadModule {
+  attachLiveReload(opts: {
+    viewName?: string
+    onViewChanged?: (e: { target: string; bytes?: number }) => void | Promise<void>
+    onOtherChanged?: (e: { target: string }) => void | Promise<void>
+    onError?: (e: { message: string; file?: string; line?: number; col?: number }) => void
+  }): { close(): void }
 }
 
-function isDev(): boolean {
-  // Vite's define-replace plugin rewrites the exact string
-  // `import.meta.env.DEV` to a literal `true` / `false`. Aliasing
-  // through a local (`const m = import.meta; m.env?.DEV`) defeats the
-  // string match, leaving `env` undefined at runtime — so the previous
-  // form silently never enabled HMR under Vite. Read the property
-  // directly. `(import.meta as Any).env.DEV` is rewritten by Vite
-  // because the literal `import.meta.env.DEV` substring is present in
-  // the cast expression's text. Cast because shell's tsconfig doesn't
-  // include `vite/client` types.
-  type V = ImportMeta & { env: { DEV: boolean } }
-  if ((import.meta as V).env.DEV === true) return true
-  const w = window as Window & { __SHIP_DAEMON_MODE?: string }
-  return w.__SHIP_DAEMON_MODE === 'development'
+export function initHmr(deps: HmrDeps): { close(): void } {
+  let inner: { close(): void } | null = null
+  let closed = false
+
+  void (async () => {
+    if (typeof window === 'undefined') return
+    // Runtime URL served by the daemon (Deck). Held in a variable so TS
+    // treats it as a dynamic specifier rather than resolving it at build.
+    const clientUrl = '/_sui/live-reload.js'
+    let mod: LiveReloadModule
+    try {
+      mod = (await import(/* @vite-ignore */ clientUrl)) as LiveReloadModule
+    } catch (err) {
+      console.warn('[hmr] live-reload client unavailable:', err)
+      return
+    }
+    if (closed) return
+    // No pinned viewName — the shell navigates, so filter per-change against
+    // the live current route inside onViewChanged.
+    inner = mod.attachLiveReload({
+      onViewChanged: async (e) => {
+        const changed = e.target.split('/')[1]
+        if (!changed || deps.getCurrentView() !== changed) return
+        const url = `/_sui/${e.target}.js?v=${e.bytes ?? Date.now()}`
+        try {
+          const m = (await import(/* @vite-ignore */ url)) as MountModule
+          await deps.remount(m)
+          console.info(`[hmr] re-mounted ${changed}`)
+        } catch (err) {
+          console.error(`[hmr] re-mount of ${changed} failed; reloading`, err)
+          window.location.reload()
+        }
+      },
+      onOtherChanged: (e) => {
+        console.info(`[hmr] ${e.target} changed; reload`)
+        window.location.reload()
+      },
+      onError: (err) => {
+        const loc = err.file ? ` (${err.file}${err.line ? `:${err.line}` : ''})` : ''
+        console.error(`[hmr] compile error${loc}:`, err.message)
+      },
+    })
+    window.addEventListener('beforeunload', () => inner?.close())
+  })()
+
+  return {
+    close() {
+      closed = true
+      inner?.close()
+    },
+  }
 }

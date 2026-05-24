@@ -93,6 +93,9 @@ pub fn serve_view_host(mode: DaemonMode, path: &str) -> DeckResponse {
             &render::escape_attr_value(view_name.as_deref().unwrap_or_default()),
         )
         .replace(SSR_PLACEHOLDER, &ssr_content);
+    // Reflect the daemon mode so the live-reload client self-gates: it only
+    // subscribes when content="development".
+    let body = crate::mode_html::inject_mode_meta(&body, mode);
     DeckResponse::html_view(body, mode)
 }
 

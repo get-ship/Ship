@@ -164,8 +164,10 @@ apps/docs/public/ship-*.js
 #   * `just bootstrap` / `just dev-build-all` (bun packages/deck/bundler/index.ts)
 #   * the in-daemon Bun worker (`~/.ship/runtime/bundler.ts`) in dev mode
 #   * `dispatch.sh`, which bootstraps fresh worktrees from the launching repo
-# `view-host.html` is hand-authored source and stays tracked.
+# `view-host.html` and `live-reload.js` are hand-authored source and stay
+# tracked — they're `include_str!`'d into the crate, not bundler output.
 crates/deck/deck-core/assets/*.js
+!crates/deck/deck-core/assets/live-reload.js
 crates/deck/deck-core/assets/lucide-icons.json
 crates/deck/deck-core/assets/sui-custom-elements.json
 

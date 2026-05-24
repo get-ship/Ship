@@ -34,6 +34,7 @@ const SUI_DOM_JS: &str = include_str!("../assets/sui-dom.js");
 const SUI_SDK_CLIENT_JS: &str = include_str!("../assets/sui-sdk-client.js");
 const SUI_COMPONENTS_JS: &str = include_str!("../assets/sui-components.js");
 const SUI_LUCIDE_ICONS_JSON: &str = include_str!("../assets/lucide-icons.json");
+const LIVE_RELOAD_JS: &str = include_str!("../assets/live-reload.js");
 
 // Public helper (used by view.rs). deck bakes NO app views — per-view bundles
 // live in the project's `.deck/views/<name>/view.js`; absent that, view.rs
@@ -68,6 +69,14 @@ pub fn serve_sui_components(mode: DaemonMode) -> DeckResponse {
 pub fn serve_sui_lucide_icons(mode: DaemonMode) -> DeckResponse {
     let json = read_asset("lucide-icons.json").unwrap_or_else(|| SUI_LUCIDE_ICONS_JSON.to_string());
     DeckResponse::json_asset(json, mode)
+}
+
+/// `GET /_sui/live-reload.js` — the one HMR client, shared by the view
+/// host and the shell. Served in every mode (it self-gates on the
+/// `ship-mode` meta tag); only subscribes when the daemon is in dev.
+pub fn serve_sui_live_reload(mode: DaemonMode) -> DeckResponse {
+    let js = read_asset("live-reload.js").unwrap_or_else(|| LIVE_RELOAD_JS.to_string());
+    DeckResponse::js_asset(js, mode)
 }
 
 pub fn serve_sui_island(mode: DaemonMode, file: &str) -> DeckResponse {

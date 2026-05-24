@@ -36,6 +36,10 @@ pub async fn serve_sui_lucide_icons(mode: Option<Extension<DaemonMode>>) -> Resp
     into_axum(deck_core::serve_sui_lucide_icons(mode_from_ext(mode)))
 }
 
+pub async fn serve_sui_live_reload(mode: Option<Extension<DaemonMode>>) -> Response {
+    into_axum(deck_core::serve_sui_live_reload(mode_from_ext(mode)))
+}
+
 pub async fn serve_sui_island(
     mode: Option<Extension<DaemonMode>>,
     Path(file): Path<String>,
