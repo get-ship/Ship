@@ -206,7 +206,9 @@ pub fn router(state: ApiState) -> axum::Router {
     // collections.* — data plane; reads opaque JSON, item writes typed. Additive.
     let router = ship_ops_rpc::CollectionsServiceExt::register(svc.clone(), router);
     // permissions.* — C2_ELEVATED writes (operator-only via the command gate). Additive.
-    let router = ship_ops_rpc::PermissionsServiceExt::register(svc, router);
+    let router = ship_ops_rpc::PermissionsServiceExt::register(svc.clone(), router);
+    // mcp.* — external MCP server config CRUD, additive.
+    let router = ship_ops_rpc::McpServiceExt::register(svc, router);
     router.into_axum_router()
 }
 
