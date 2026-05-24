@@ -26,6 +26,7 @@ ship-types = { path = "../../crates/core/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-analytics" }
 compiler = { path = "../../crates/core/compiler" }
 build-info = { path = "../../crates/core/build-info" }
+ship-ops = { path = "../../crates/core/ship-ops" }
 ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 connectrpc = { version = "0.4", features = ["axum", "client"] }
 # Descriptor decode for the op-policy gate (reads proto custom options).
