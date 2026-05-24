@@ -76,6 +76,11 @@ export type { EffectScope } from './effect-scope'
 
 export { shared, isShared, provide, useShared, pickShared } from './context'
 
+// Host→runtime context seam (active project / session). Host-provided,
+// like RouterPort/ShipHost — replaces the old window.__ship* globals.
+export { setHostContext, hostContext } from './host-context'
+export type { HostContext } from './host-context'
+
 export { ref, attachRef } from './ref'
 export type { Ref } from './ref'
 

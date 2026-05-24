@@ -51,7 +51,7 @@ import '@ship/pipelines/bundle'
 // need to register them a second time from the shell entry.
 import { route as createRoute, defineRoutes, setRouterPort } from '@ship/sui-runtime/route'
 import { STUDIO_ROUTE_PATTERNS } from './studio/routes.gen'
-import { chrome, notifyViewUnmount } from '@ship/sui-runtime'
+import { chrome, notifyViewUnmount, setHostContext } from '@ship/sui-runtime'
 import type { SuiLoader, ViewPayload } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
@@ -179,12 +179,6 @@ declare global {
      *  a corresponding `sui:scope:change` event fires on document so
      *  consumers can re-anchor without polling. */
     __suiCurrentScope?: Record<string, unknown> | null
-    /** Daemon operating mode, derived from `<meta name="ship-mode">` at
-     *  boot. `'Production'` when shipd serves prebuilt shell HTML in
-     *  production; `'Development'` everywhere else (Vite dev server,
-     *  un-rewritten static index). The status bar renders a DEV badge
-     *  whenever this is `'Development'`. */
-    __shipMode?: 'Production' | 'Development'
     /** Identifier for the currently-mounted view. Read by
      *  `@ship/sui-runtime/chrome`'s wrapper API to stamp per-view claims
      *  (breadcrumb, status keys, theme overrides, focus push). Set on
@@ -579,7 +573,6 @@ const shellBottom = document.getElementById('ship-shell-bottom') as HTMLElement 
 let daemonOnline = false
 
 const shipMode = readShipMode()
-window.__shipMode = shipMode
 if (shellBottom) {
   shellBottom.setAttribute('mode', shipMode.toLowerCase())
   const versionMeta = document.querySelector('meta[name="ship-version"]') as HTMLMetaElement | null
@@ -988,6 +981,10 @@ async function syncProject(): Promise<void> {
     const body = (await resp.json()) as { active?: { name?: string; label?: string } | null }
     const name = body.active?.label || body.active?.name || ''
     if (shellBottom) shellBottom.setAttribute('workspace', name)
+    // Provide the active project to the runtime via the HostContext seam so
+    // per-project runtime state (e.g. edit-mode keys) scopes correctly —
+    // replaces the dead window.__shipProjectId global. See host-context.ts.
+    if (body.active?.name) setHostContext({ projectId: body.active.name })
     // Project identity in the top bar is now owned by <sui-project-switcher>
     // (it fetches + renders the active project itself); nav-top no longer takes
     // a `project` breadcrumb prefix.

@@ -24,17 +24,12 @@
 // + the active view auto-update together.
 
 import { signal, type Signal } from './signal'
+import { hostContext } from './host-context'
 
 const SIGNALS = new Map<string, Signal<boolean>>()
 
-interface EditModeWindow extends Window {
-  __shipProjectId?: string
-  __shipSessionId?: string
-}
-
 function projectId(): string {
-  if (typeof window === 'undefined') return 'default'
-  return (window as EditModeWindow).__shipProjectId ?? 'default'
+  return hostContext().projectId ?? 'default'
 }
 
 // Session id matches the key view-mcp.ts uses so both lifecycle producers
@@ -45,8 +40,8 @@ const VIEW_MCP_SESSION_KEY = 'ship.chrome.view-mcp.session_id'
 
 function sessionId(): string {
   if (typeof window === 'undefined') return 'no-window'
-  const fromWindow = (window as EditModeWindow).__shipSessionId
-  if (fromWindow && fromWindow.length > 0) return fromWindow
+  const fromHost = hostContext().sessionId
+  if (fromHost && fromHost.length > 0) return fromHost
   try {
     const stored = sessionStorage.getItem(VIEW_MCP_SESSION_KEY)
     if (stored && stored.length > 0) return stored
