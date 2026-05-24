@@ -49,7 +49,7 @@ import '@ship/pipelines/bundle'
 // here only re-ran every `customElements.define()` as a no-op — the source of
 // ~90 "called twice" warnings. Custom elements upgrade lazily, so there's no
 // need to register them a second time from the shell entry.
-import { route as createRoute, defineRoutes } from '@ship/sui-runtime/route'
+import { route as createRoute, defineRoutes, setRouterPort } from '@ship/sui-runtime/route'
 import { chrome, notifyViewUnmount } from '@ship/sui-runtime'
 import type { SuiLoader, ViewPayload } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
@@ -123,10 +123,12 @@ defineRoutes([
 // history.pushState the shell triggers.
 const routeSignals = createRoute()
 
-// `navigate(path)` passed to controllers — fire a same-origin link click
-// equivalent via history.pushState + the existing internal-anchor flow.
-function navigate(path: string): void {
-  history.pushState({}, '', path)
+// The shell's router. `history.pushState` (or replace) + match + mount-or-
+// update. Registered as the runtime's `RouterPort` below, so a single
+// `navigate()` from any view bundle routes through here and actually mounts.
+function navigate(path: string, opts: { replace?: boolean } = {}): void {
+  if (opts.replace) history.replaceState({}, '', path)
+  else history.pushState({}, '', path)
   const next = readRouteFromUrl(location.pathname)
   if (!next) return
   if (currentRoute && currentRoute.view === next.view && SAME_SHELL_VIEWS.has(next.view)) {
@@ -137,6 +139,15 @@ function navigate(path: string): void {
   }
   void mountRoute(next)
 }
+
+// Make the shell the host router: the runtime's `navigate()` (called from
+// any view bundle) delegates here instead of the old signals-only path that
+// never mounted. Collapses the runtime/`window.ship.navigate`/`sui:navigate`
+// split into one entry point. See ADR `unified-deck-router`.
+setRouterPort({
+  navigate: (to, o) => navigate(to, o ?? {}),
+  back: () => history.back(),
+})
 
 // ── window.ship API ──────────────────────────────────────────────────
 

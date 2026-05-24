@@ -280,8 +280,8 @@ export type {
 // resolves to the actual symbols. Authors continue to use the subpath
 // import (`from '@ship/sui-runtime/route'`); the importmap routes it
 // here.
-export { defineRoutes, navigate, route } from './route'
-export type { RouteShape, RouteSignals } from './route'
+export { defineRoutes, navigate, route, setRouterPort } from './route'
+export type { RouteShape, RouteSignals, RouterPort } from './route'
 
 // Re-export the patch applicator for the same reason as the route
 // surface above: `@ship/sdk-client`'s SSE layer imports
