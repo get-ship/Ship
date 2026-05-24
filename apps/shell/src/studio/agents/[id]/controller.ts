@@ -1,6 +1,7 @@
-import { controller, derived, effect, live, signal, unwrap } from '@ship/sui-runtime'
+import { controller, derived, effect, live, navigate, signal, unwrap } from '@ship/sui-runtime'
 import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+import { studioRoutes } from '../../routes.gen'
 import { HUES, pickHue, pickInitials } from './hue'
 
 type Permissions = {
@@ -33,9 +34,6 @@ type AgentDetail = {
 type WireResp = { agent?: AgentDetail } | null | undefined
 type Banner = { ok: true; msg: string } | { ok: false; msg: string } | null
 
-// `navigate` is injected onto the proxy by the runtime mount context but
-// is not a template-declared scope key, so it isn't on `MutableState`.
-type Nav = { navigate: (path: string) => void }
 
 async function readActiveAgent(): Promise<string> {
   try {
@@ -201,16 +199,16 @@ export default controller({
     }
   },
   on: {
-    goWire: (s) => (s as unknown as Nav).navigate(`/studio/agents/${s.agentId}/wire`),
-    goSettings: (s) => (s as unknown as Nav).navigate(`/studio/agents/${s.agentId}/settings`),
+    goWire: (s) => navigate(studioRoutes.agentsIdWire({ id: s.agentId })),
+    goSettings: (s) => navigate(studioRoutes.agentsIdSettings({ id: s.agentId })),
     // Segmented tabs: the control swallows per-option clicks, so navigate off
     // its sui-change event instead. overview → detail root; else → sub-route.
     goTab: (s, value: string) => {
       const id = s.agentId
-      return (s as unknown as Nav).navigate(value === 'overview' ? `/studio/agents/${id}` : `/studio/agents/${id}/${value}`)
+      navigate(value === 'overview' ? studioRoutes.agentsId({ id }) : `/studio/agents/${id}/${value}`)
     },
-    goBack: (s) => (s as unknown as Nav).navigate('/studio/agents'),
-    goSkill: (s, id: string) => (s as unknown as Nav).navigate(`/studio/skills/${id}`),
+    goBack: () => navigate('/studio/agents'),
+    goSkill: (_s, id: string) => navigate(studioRoutes.skillsId({ id })),
 
     activate: async (s) => {
       if (s.activating) return

@@ -50,6 +50,7 @@ import '@ship/pipelines/bundle'
 // ~90 "called twice" warnings. Custom elements upgrade lazily, so there's no
 // need to register them a second time from the shell entry.
 import { route as createRoute, defineRoutes, setRouterPort } from '@ship/sui-runtime/route'
+import { STUDIO_ROUTE_PATTERNS } from './studio/routes.gen'
 import { chrome, notifyViewUnmount } from '@ship/sui-runtime'
 import type { SuiLoader, ViewPayload } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
@@ -102,20 +103,12 @@ const suiLoader: SuiLoader = {
 // `routeSignals` proxy never sees them. Registering here at the shell
 // layer means params get seeded against the SHAPES the shell knows.
 defineRoutes([
-  // Studio is a deck view (views/studio/). Its nested tool routes carry
-  // dynamic params the shell seeds for `route.params.id()` reads in the
-  // agents detail/settings/wire controllers.
-  { pattern: '/studio/agents/:id' },
-  { pattern: '/studio/agents/:id/settings' },
-  { pattern: '/studio/agents/:id/wire' },
-  { pattern: '/studio/themes/:id' },
-  { pattern: '/studio/components/:name' },
-  { pattern: '/studio/skills/:id' },
-  { pattern: '/studio/collections/:id' },
-  { pattern: '/studio/pipelines/focus/:name' },
-  { pattern: '/studio/pipelines/run/:slug' },
+  // Daemon-view dynamic params (no studio [param] dir backs these yet —
+  // a follow-up can codegen views/ too). Studio's nested tool routes are
+  // generated from the `[param]` dir tree (SSOT). See ADR unified-deck-router.
   { pattern: '/artifacts/:id' },
   { pattern: '/workspaces/:id' },
+  ...STUDIO_ROUTE_PATTERNS,
 ])
 
 // Shared route signal. Views that declare dynamic params read
