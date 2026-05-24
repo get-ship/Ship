@@ -22,10 +22,14 @@ import {
  * Wire a raw `ship.<domain>.<op>(...)` expression to a `LiveSource` over
  * the daemon's `/_sui/data` SSE channel.
  *
- * View-host-mounted views (`/sui/<name>`) have no `ship` SDK client in
- * ctx, so the compiler-emitted `<data live>` path sticks on `loading`.
- * Their controllers call this directly — the one sanctioned way to open
- * a live channel without `createClient`. Do not hand-roll `EventSource`.
+ * DEPRECATED — being removed. This is a stringly-typed escape hatch for
+ * reaching a daemon op that is absent from the hand-written `ship` client
+ * surface (e.g. `ship.pipelines.*`). It is NOT needed because views lack a
+ * client: both the shell and the deck view-host inject a real `ship` client
+ * at `mount(target, payload, { ship })` (see deck-core `view-host.html`).
+ * The correct fix is to add the op to the client (or the generated client
+ * that supersedes it), then call `ship.<domain>.<op>()`. Do not reach for
+ * this in new code, and never hand-roll `EventSource` instead.
  */
 export function liveExpr<T>(
   expr: string,

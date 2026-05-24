@@ -302,7 +302,7 @@ import { defineRoutes } from '@ship/sui-runtime/route'
 defineRoutes([{ pattern: '/<name>/:id' }])
 ```
 
-Worked exemplar: `views/ship-ui-studio/[name]/controller.ts:21-24`.
+Worked exemplar: `apps/shell/src/studio/components/[name]/controller.ts`.
 
 ---
 

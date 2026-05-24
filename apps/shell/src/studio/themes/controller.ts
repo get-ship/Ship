@@ -4,7 +4,6 @@
 // theme-picker uses. The design-system designer owns the theme *values*; this
 // view is the pick/preview UX.
 import { controller, signal, onCleanup } from '@ship/sui-runtime'
-import type { MutableState } from '@ship/sui-runtime'
 import {
   THEMES,
   readStoredTheme,
@@ -14,13 +13,10 @@ import type { Scope } from './page.sui'
 
 type FilterId = 'all' | 'light' | 'dark'
 
-// `on:` handlers receive the writable state proxy; annotate explicitly
-// since the OnSection union blocks contextual inference. `navigate` is
-// injected onto the proxy by the runtime and isn't a scope key.
-type S = MutableState<Scope>
+// `navigate` is injected onto the proxy by the runtime and isn't a scope key.
 type Nav = { navigate: (path: string) => void }
 
-export default controller<Scope>({
+export default controller<Scope>()({
   scope: () => {
     const active = signal<ThemeId>(readStoredTheme())
     const q = signal('')
@@ -73,16 +69,16 @@ export default controller<Scope>({
     // Clicking a theme opens its editor — it does NOT swap your live theme
     // (browsing shouldn't lose your active theme). Applying is an explicit
     // "Set active" action inside the editor.
-    open: (s: S, id: string) => {
+    open: (s, id: string) => {
       (s as unknown as Nav).navigate(`/studio/themes/${id}`)
     },
-    onSearchInput: (s: S, e: Event) => {
+    onSearchInput: (s, e: Event) => {
       s.q = (e.target as HTMLInputElement).value ?? ''
     },
-    clearSearch: (s: S) => {
+    clearSearch: (s) => {
       s.q = ''
     },
-    setFilter: (s: S, id: string) => {
+    setFilter: (s, id: string) => {
       s.filter = id as FilterId
     },
   },

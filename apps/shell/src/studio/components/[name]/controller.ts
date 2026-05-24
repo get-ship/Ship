@@ -1,6 +1,6 @@
 import { controller, signal, effect } from '@ship/sui-runtime'
 import { defineRoutes } from '@ship/sui-runtime/route'
-import type { MountSection, MutableState, ViewScope } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { loadCatalog, type CatalogEntry, type PropEntry } from '../catalog'
 import {
@@ -13,9 +13,6 @@ import { slotLabel } from './slot-compositions'
 import { buildSnippet } from './snippet'
 import { readSearchParams, writeSearchParams, highlightActiveCell } from './deep-link'
 
-// `on:`/`mount` handlers receive the writable state proxy; annotate
-// explicitly since the OnSection union blocks contextual inference.
-type S = MutableState<Scope>
 // Sibling `derived` keys — present on the resolved scope at runtime but
 // not on the compiler-emitted `Scope` interface.
 type WithEntry = ViewScope<Scope> & { entry: () => CatalogEntry | null }
@@ -74,7 +71,7 @@ function ensureIsland(tag: string): void {
   })
 }
 
-export default controller<Scope>({
+export default controller<Scope>()({
   scope: () => ({
     allCatalog: signal<CatalogEntry[]>([]),
     loading: signal(true),
@@ -139,18 +136,14 @@ export default controller<Scope>({
   },
 
   on: {
-    // `propValues` / `_dispose` emit as `unknown` (emitter gap), so they
-    // drop off `MutableState`; access through a narrowed view.
-    setProp: (state: S, propName: string, value: unknown) => {
-      const s = state as S & { propValues: Record<string, unknown> }
-      s.propValues = { ...s.propValues, [propName]: value }
+    setProp: (state, propName: string, value: unknown) => {
+      state.propValues = { ...state.propValues, [propName]: value }
     },
-    copyCode: (state: S, entry: CatalogEntry | null) => {
+    copyCode: (state, entry: CatalogEntry | null) => {
       if (!entry) return
-      const s = state as S & { propValues: Record<string, unknown> }
       const snippet = buildSnippet(
         entry.tag,
-        s.propValues,
+        state.propValues,
         entry.props ?? [],
         entry.examples?.[0]?.slots,
       )
@@ -160,9 +153,10 @@ export default controller<Scope>({
     },
   },
 
-  // mount may be async; the runtime awaits it. MountSection's return is
-  // sync-only, so cast the function to satisfy the section contract.
-  mount: (async (state: S & { propValues: Record<string, unknown>; _dispose: (() => void) | null }, el: HTMLElement) => {
+  // mount may be async; the runtime awaits it. Mount's return type is
+  // sync-only; cast through unknown to satisfy the inferred section contract.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mount: (async (state: any, el: HTMLElement) => {
     const all = await loadCatalog()
     state.allCatalog = all
 
@@ -288,9 +282,10 @@ export default controller<Scope>({
     highlightActiveCell(el, state.propValues)
 
     state._dispose = () => { stopEffect() }
-  }) as unknown as MountSection<Scope>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }) as unknown as any,
 
   unmount: (state) => {
-    (state as { _dispose?: (() => void) | null })._dispose?.()
+    state._dispose?.()
   },
 })

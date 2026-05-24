@@ -19,7 +19,7 @@ function dispatchBubble(host: HTMLElement, type: string, detail?: unknown): void
   }))
 }
 
-export default controller<Scope>({
+export default controller<Scope>()({
   scope: () => {
     const projectOpen = signal(false)
     const projects = signal<Project[]>([])
@@ -60,17 +60,22 @@ export default controller<Scope>({
     if (!host.hasAttribute('role')) host.setAttribute('role', 'navigation')
     if (!host.hasAttribute('aria-label')) host.setAttribute('aria-label', 'Primary navigation')
 
+    // Raw-signal access: mount passes the actual signals to
+    // setupProjectSwitcher (it calls .set()/()). `state.$signals` is the
+    // sanctioned accessor for the unproxied Signal objects.
+    const sig = state.$signals
+
     const switcher = setupProjectSwitcher({
       host,
-      open: state.projectOpen,
-      projects: state.projects,
-      activeProjectId: state.activeProjectId,
-      popoverEl: state.popoverEl,
-      badgeEl: state.projectBadgeEl,
+      open: sig.projectOpen,
+      projects: sig.projects,
+      activeProjectId: sig.activeProjectId,
+      popoverEl: sig.popoverEl,
+      badgeEl: sig.projectBadgeEl,
     })
     void switcher.loadProjects()
 
-    const closePopover = (): void => state.projectOpen.set(false)
+    const closePopover = (): void => sig.projectOpen.set(false)
     const onLauncherClick = (e: MouseEvent): void => {
       dispatchBubble(host, 'ship:launcher:open', { anchor: e.currentTarget })
       closePopover()
@@ -81,27 +86,27 @@ export default controller<Scope>({
     }
 
     const stopLauncherBind = effect(() => {
-      const btn = state.launcherBtnEl()
+      const btn = sig.launcherBtnEl()
       if (!btn) return
       btn.addEventListener('click', onLauncherClick)
       return () => btn.removeEventListener('click', onLauncherClick)
     })
     const stopCreateBind = effect(() => {
-      const btn = state.createBtnEl()
+      const btn = sig.createBtnEl()
       if (!btn) return
       btn.addEventListener('click', onCreateClick)
       return () => btn.removeEventListener('click', onCreateClick)
     })
 
     const recomputeActive = (): void => {
-      state.activeView.set(routeToViewName(location.pathname))
+      sig.activeView.set(routeToViewName(location.pathname))
     }
     const onNavigate = (): void => recomputeActive()
     document.addEventListener('sui:navigate', onNavigate)
     window.addEventListener('popstate', onNavigate)
 
     const stopActiveSync = effect(() => {
-      const name = state.activeView()
+      const name = sig.activeView()
       const items = host.querySelectorAll<HTMLElement>('sui-rail-item[data-view]')
       for (const item of items) {
         if (item.dataset.view === name) item.setAttribute('active', '')

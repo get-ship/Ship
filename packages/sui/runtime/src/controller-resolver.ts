@@ -21,8 +21,10 @@ import type {
   ControllerDef,
   ControllerHook,
   ControllerShape,
+  InferredControllerShape,
   MutableState,
   ReadonlyView,
+  ScopedControllerDef,
 } from './controller'
 import { resolveHook } from './controller-hook-resolver'
 import { pickShared, provide } from './context'
@@ -373,12 +375,33 @@ export interface ControllerExport<Scope = object> {
  * }))
  * ```
  */
-export function controller<Scope>(
-  def: ControllerDef<Scope>,
-): ControllerExport<Scope> {
-  return {
-    setup: (ctx) =>
-      resolveController(def as ControllerDef<object>, ctx),
-    __def: def,
-  }
+// CANONICAL form: `controller(def)` with no explicit type argument. Both
+// `Ctx` (from the `scope` factory's param annotation) and `SC` (from its
+// return) are inferred → precise, cast-free handler state over `Ctx & SC`,
+// single call, no currying. This overload is listed first and matches calls
+// with no type arguments; the explicit-`<Scope>` overloads below are the
+// deprecated legacy/curried bridges (an explicit single `<Scope>` can't bind
+// this overload's two inferred params, so resolution falls through to them).
+export function controller<Ctx, SC extends Record<string, unknown>>(
+  def: ScopedControllerDef<Ctx, SC>,
+): ControllerExport<Ctx & SC>
+// DEPRECATED bridge — legacy `controller<Scope>(def)`. Lossy types
+// (`Signal<unknown>` for deriveds → handler casts). Remove after migration.
+export function controller<Scope>(def: ControllerDef<Scope>): ControllerExport<Scope>
+// Curried form: `controller<Scope>()(def)`. `Scope` is template-declared only;
+// the controller's scope-factory return `SC` is inferred, giving precise,
+// cast-free handler-state types over `Scope & SC`. Currying is required —
+// TypeScript won't infer `SC` while `Scope` is supplied explicitly in one call.
+export function controller<Scope>(): <SC extends Record<string, unknown>>(
+  def: InferredControllerShape<Scope, SC>,
+) => ControllerExport<Scope>
+// Implementation signature: `any` so it's compatible with both overloads
+// above (the overloads are the real public contract).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function controller(def?: any): any {
+  const make = (d: unknown): ControllerExport<object> => ({
+    setup: (ctx) => resolveController(d as ControllerDef<object>, ctx),
+    __def: d as ControllerDef<object>,
+  })
+  return def === undefined ? (d: unknown) => make(d) : make(def)
 }

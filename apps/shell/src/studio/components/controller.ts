@@ -10,13 +10,9 @@
 // (sui-accordion-item ⊂ sui-accordion) are folded into the parent's part
 // count and hidden from the index — one cell per shippable component.
 import { controller, signal } from '@ship/sui-runtime'
-import type { MountSection, MutableState, ViewScope } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { loadCatalog, categoryRank, type CatalogEntry } from './catalog'
-
-// `on:`/`mount` handlers receive the writable state proxy; annotate
-// explicitly since the OnSection union blocks contextual inference.
-type S = MutableState<Scope>
 
 type Filter = 'all' | 'primitives' | 'charts' | 'pipelines'
 
@@ -41,7 +37,7 @@ interface IndexGroup {
   cells: IndexCell[]
 }
 
-export default controller<Scope>({
+export default controller<Scope>()({
   scope: () => ({
     sui: signal<CatalogEntry[]>([]),
     loading: signal(true),
@@ -127,21 +123,20 @@ export default controller<Scope>({
   },
 
   on: {
-    onSearchInput: (s: S, e: Event) => {
+    onSearchInput: (s, e: Event) => {
       s.filterText = (e.target as HTMLInputElement).value ?? ''
     },
-    clearSearch: (s: S) => {
+    clearSearch: (s) => {
       s.filterText = ''
     },
-    setFilter: (s: S, id: string) => {
+    setFilter: (s, id: string) => {
       s.filter = id as Filter
     },
   },
 
-  // mount may be async; the runtime awaits it. MountSection's return type
-  // is sync-only, so cast the function to satisfy the section contract.
-  mount: (async (state: S) => {
+  // mount may be async; the runtime awaits it (MountSection allows Promise<void>).
+  mount: async (state) => {
     state.sui = await loadCatalog()
     state.loading = false
-  }) as unknown as MountSection<Scope>,
+  },
 })

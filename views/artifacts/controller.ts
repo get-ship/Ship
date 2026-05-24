@@ -5,7 +5,7 @@ import { AGE_BUCKETS, bucketFor, decorate, previewKindFor, type ArtifactRow } fr
 interface ArtifactsListResponse { ok: boolean; data: ArtifactRow[]; count: number }
 type CollectionRow = { id: string; name?: string | null }
 
-export default controller<Scope>({
+export default controller<Scope>()({
   scope: (ctx) => {
     const { ship } = ctx
     // Shell-injected navigator. Runtime's stock `navigate` only does
@@ -211,7 +211,7 @@ export default controller<Scope>({
         s.uploadOpen = false
         s.uploadFiles = []
         s.uploadCollection = ''
-        await (s as any).refresh()
+        await s.refresh()
       } catch (e) {
         s.uploadError = (e as Error).message
       } finally {
@@ -241,7 +241,7 @@ export default controller<Scope>({
       if (!files || files.length === 0) return
       const first = files[0]
       if (!first) return
-      await (s as any).uploadDirect(first)
+      await s.uploadDirect(first)
     },
   },
 })

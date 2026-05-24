@@ -1,26 +1,9 @@
 import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import { route as routeFactory } from '@ship/sui-runtime/route'
-import type { LiveSignal, MutableState } from '@ship/sui-runtime'
+import type { LiveSignal } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
-// `on:` handlers receive the writable state proxy; annotate explicitly
-// since the OnSection union blocks contextual inference.
-type S = MutableState<Scope>
-// These scope entries emit as `unknown`/void-returning (emitter gap) so
-// they don't survive on `MutableState`. The runtime proxy exposes them;
-// narrow through `SExt` at the use site.
 type SchemaInput = { name: string; type: string; required?: boolean; values?: string[] }
-type SExt = S & {
-  rowDraft: Record<string, unknown>
-  editDraft: Record<string, unknown>
-  colDetail: LiveSignal<{ schema?: { fields?: SchemaField[] } }>
-  navigate: (path: string) => void
-  createItem: (a: { collection: string; data: Record<string, unknown> }) => Promise<unknown>
-  updateItem: (a: { collection: string; item_id: string; data: Record<string, unknown> }) => Promise<unknown>
-  deleteItem: (a: { collection: string; item_id: string }) => Promise<void>
-  updateSchema: (a: { id: string; fields: SchemaInput[] }) => Promise<unknown>
-  createCol: (a: { id: string; name?: string; fields?: Record<string, unknown> }) => Promise<unknown>
-}
 
 type SchemaField = {
   name: string
@@ -149,7 +132,7 @@ function shortDate(iso: string): string {
   return new Date(then).toISOString().slice(0, 10)
 }
 
-export default controller<Scope>({
+export default controller<Scope>()({
   scope: ({ ship }) => {
     const route = routeFactory()
     const activeId = derived(() => route.query.collection() || '')
@@ -259,58 +242,53 @@ export default controller<Scope>({
     }
   },
   on: {
-    setDraftField: (s: S, which: 'row' | 'edit', name: string, value: unknown) => {
-      const st = s as SExt
+    setDraftField: (s, which: 'row' | 'edit', name: string, value: unknown) => {
       const key: 'rowDraft' | 'editDraft' = which === 'row' ? 'rowDraft' : 'editDraft'
-      st[key] = { ...st[key], [name]: value }
+      s[key] = { ...s[key], [name]: value }
     },
-    openEditRow: (s: S, item: { id: string; data?: Record<string, unknown> }) => {
+    openEditRow: (s, item: { id: string; data?: Record<string, unknown> }) => {
       s.editId = item.id
-      ;(s as SExt).editDraft = { ...(item.data ?? {}) }
+      s.editDraft = { ...(item.data ?? {}) }
       s.drawerError = ''
       s.editOpen = true
     },
-    saveNewRow: async (s: S) => {
-      const st = s as SExt
-      const id = s.activeId as string
+    saveNewRow: async (s) => {
+      const id = s.activeId
       try {
-        await st.createItem({ collection: id, data: st.rowDraft })
+        await s.createItem({ collection: id, data: s.rowDraft })
       } catch (err) {
         s.drawerError = err instanceof Error ? err.message : 'Request failed'
         return
       }
       s.newRowOpen = false
-      st.rowDraft = {}
+      s.rowDraft = {}
       s.drawerError = ''
     },
-    saveEdit: async (s: S) => {
-      const st = s as SExt
-      const colId = s.activeId as string
-      const rowId = s.editId as string
+    saveEdit: async (s) => {
+      const colId = s.activeId
+      const rowId = s.editId
       try {
-        await st.updateItem({ collection: colId, item_id: rowId, data: st.editDraft })
+        await s.updateItem({ collection: colId, item_id: rowId, data: s.editDraft })
       } catch (err) {
         s.drawerError = err instanceof Error ? err.message : 'Request failed'
         return
       }
       s.editOpen = false
-      st.editDraft = {}
+      s.editDraft = {}
       s.drawerError = ''
     },
-    deleteRow: async (s: S) => {
-      const st = s as SExt
-      const colId = s.activeId as string
-      const rowId = s.editId as string
+    deleteRow: async (s) => {
+      const colId = s.activeId
+      const rowId = s.editId
       try {
-        await st.deleteItem({ collection: colId, item_id: rowId })
+        await s.deleteItem({ collection: colId, item_id: rowId })
       } catch { /* swallow — UI reflects via SSE refresh */ }
       s.editOpen = false
-      st.editDraft = {}
+      s.editDraft = {}
       s.drawerError = ''
     },
-    removeSchemaField: async (s: S, fieldName: string) => {
-      const st = s as SExt
-      const detail = unwrap(st.colDetail)
+    removeSchemaField: async (s, fieldName: string) => {
+      const detail = unwrap(s.colDetail as unknown as LiveSignal<{ schema?: { fields?: SchemaField[] } }>)
       const fields = detail?.schema?.fields ?? []
       const fs: SchemaInput[] = fields
         .filter(x => x.name !== fieldName)
@@ -320,34 +298,32 @@ export default controller<Scope>({
           ...(x.required === undefined ? {} : { required: x.required }),
           values: x.values ?? [],
         }))
-      const colId = s.activeId as string
+      const colId = s.activeId
       try {
-        await st.updateSchema({ id: colId, fields: fs })
+        await s.updateSchema({ id: colId, fields: fs })
       } catch { /* surface via existing error path on next render */ }
     },
-    cycleStatus: async (s: S, item: { id: string; data?: Record<string, unknown> }) => {
-      const st = s as SExt
-      const values = s.statusValues as string[]
+    cycleStatus: async (s, item: { id: string; data?: Record<string, unknown> }) => {
+      const values = s.statusValues
       if (!values || values.length === 0) return
       const current = (item.data?.['status'] as string | undefined) ?? ''
       const idx = values.indexOf(current)
       const next = values[(idx + 1) % values.length]
-      const colId = s.activeId as string
+      const colId = s.activeId
       try {
-        await st.updateItem({
+        await s.updateItem({
           collection: colId, item_id: item.id,
           data: { ...(item.data ?? {}), status: next },
         })
       } catch { /* SSE will reflect actual state on success/failure */ }
     },
-    createCollection: async (s: S) => {
-      const st = s as SExt
-      const id = (s.newColDraftId as string).trim()
+    createCollection: async (s) => {
+      const id = s.newColDraftId.trim()
       if (!id) { s.drawerError = 'Collection ID is required'; return }
       try {
-        await st.createCol({
+        await s.createCol({
           id,
-          name: (s.newColDraftName as string).trim() || id,
+          name: s.newColDraftName.trim() || id,
           fields: {},
         })
       } catch (err) {
@@ -358,14 +334,13 @@ export default controller<Scope>({
       s.newColDraftId = ''
       s.newColDraftName = ''
       s.drawerError = ''
-      st.navigate('/studio/collections?collection=' + id)
+      s.navigate('/studio/collections?collection=' + id)
     },
-    createFromExample: async (s: S, exampleId: string) => {
-      const st = s as SExt
+    createFromExample: async (s, exampleId: string) => {
       const ex = EXAMPLES.find(e => e.id === exampleId)
       if (!ex) return
       try {
-        await st.createCol({
+        await s.createCol({
           id: ex.id,
           name: ex.name,
           fields: ex.fields,
@@ -374,7 +349,7 @@ export default controller<Scope>({
         s.drawerError = err instanceof Error ? err.message : 'Request failed'
         return
       }
-      st.navigate('/studio/collections?collection=' + ex.id)
+      s.navigate('/studio/collections?collection=' + ex.id)
     },
   },
 })

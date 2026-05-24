@@ -1,5 +1,5 @@
 import { controller, signal, unwrap, live, derived } from '@ship/sui-runtime'
-import type { LiveSignal, MutableState } from '@ship/sui-runtime'
+import type { LiveSignal } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 // Reuse the agent-detail hue derivation so a card's tile and the detail
 // page it links to land on the same colour — one source of truth, no
@@ -22,16 +22,7 @@ interface EventsEnvelope { groups: Array<{ rows: EventRow[] }> }
 interface KindFilter { id: 'all' | 'project' | 'user'; label: string; count: number }
 interface AgentsList { items: AgentSummary[] }
 
-// `on:`/`mount` handlers receive the writable state proxy. TS can't
-// contextually infer it (OnSection is a union of two function shapes),
-// so annotate explicitly with `MutableState<Scope>` — widening it would
-// break assignability to the OnSection overload.
-type S = MutableState<Scope>
-// `navigate` is injected onto the proxy by the runtime mount context but
-// is not a template-declared scope key, so it isn't on `MutableState`.
-type Nav = { navigate: (path: string) => void }
-
-export default controller<Scope>({
+export default controller<Scope>()({
   scope: ({ ship }) => {
     const q = signal('')
     const kind = signal<KindFilter['id']>('all')
@@ -88,14 +79,12 @@ export default controller<Scope>({
     },
   },
   on: {
-    goCreate: (s: S) => (s as unknown as Nav).navigate('/studio/agents/create'),
-    onSearchInput: (s: S, e: Event) => {
+    goCreate: (s) => s.navigate('/studio/agents/create'),
+    onSearchInput: (s, e: Event) => {
       const target = e.target as HTMLInputElement
       s.q = target.value ?? ''
     },
-    clearSearch: (s: S) => { s.q = '' },
-    // `kind` emits as `unknown` (emitter gap), so it isn't a MutableState
-    // key — assign through a narrowed view.
-    resetFilters: (s: S) => { s.q = ''; (s as unknown as { kind: KindFilter['id'] }).kind = 'all' },
+    clearSearch: (s) => { s.q = '' },
+    resetFilters: (s) => { s.q = ''; s.kind = 'all' },
   },
 })

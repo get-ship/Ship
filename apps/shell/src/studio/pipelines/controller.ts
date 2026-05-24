@@ -1,11 +1,7 @@
 import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
-import type { LiveSignal, MutableState } from '@ship/sui-runtime'
+import type { LiveSignal } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
-
-// `on:` handlers receive the writable state proxy; annotate explicitly
-// since the OnSection union blocks contextual inference.
-type S = MutableState<Scope>
 
 type PipelineDef = {
   name: string; description?: string; step_count: number; total_runs: number;
@@ -35,7 +31,7 @@ const read = (summaries: unknown): SummariesCtx => {
   return v && Array.isArray(v.defs) ? { ...EMPTY, ...v } : EMPTY
 }
 
-export default controller<Scope>({
+export default controller<Scope>()({
   scope: ({ route }) => {
     const summaries = live(() => liveExpr<SummariesCtx>('ship.pipelines.summaries()'))
     const q = derived(() => String(route.query.q() ?? ''))
@@ -84,34 +80,31 @@ export default controller<Scope>({
     statsSubtitle: ({ summaries }) => read(summaries).stats_subtitle,
   },
   on: {
-    openDispatch: (s: S) => {
-      const ds = s as unknown as { dispatchPipeline: string; defs: PipelineDef[]; dispatchOpen: boolean }
-      if (!ds.dispatchPipeline && ds.defs.length > 0) ds.dispatchPipeline = ds.defs[0].name
-      ds.dispatchOpen = true
+    openDispatch: (s) => {
+      if (!s.dispatchPipeline && s.defs.length > 0) s.dispatchPipeline = s.defs[0].name
+      s.dispatchOpen = true
     },
-    closeDispatch: (s: S) => { (s as unknown as { dispatchOpen: boolean }).dispatchOpen = false },
-    dispatchRun: async (s: S) => {
-      const ds = s as unknown as { dispatchPipeline: string; dispatchSpec: string; dispatchProvider: string; dispatchHeadless: boolean; dispatchOpen: boolean }
-      const name = String(ds.dispatchPipeline)
+    closeDispatch: (s) => { s.dispatchOpen = false },
+    dispatchRun: async (s) => {
+      const name = String(s.dispatchPipeline)
       if (!name) return
       await fetch(`/api/v1/pipelines/${encodeURIComponent(name)}/dispatch`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spec: ds.dispatchSpec, provider: ds.dispatchProvider || null, headless: ds.dispatchHeadless }),
+        body: JSON.stringify({ spec: s.dispatchSpec, provider: s.dispatchProvider || null, headless: s.dispatchHeadless }),
       })
-      ds.dispatchOpen = false
+      s.dispatchOpen = false
     },
-    openNewPipe: (s: S) => { const ds = s as unknown as { newPipeOpen: boolean; newPipeName: string; newPipeError: string }; ds.newPipeOpen = true; ds.newPipeName = ''; ds.newPipeError = '' },
-    closeNewPipe: (s: S) => { (s as unknown as { newPipeOpen: boolean }).newPipeOpen = false },
-    createPipeline: async (s: S) => {
-      const ds = s as unknown as { workspaceId: string | null; newPipeName: string; newPipeError: string; newPipeCreating: boolean }
-      const ws = ds.workspaceId
+    openNewPipe: (s) => { s.newPipeOpen = true; s.newPipeName = ''; s.newPipeError = '' },
+    closeNewPipe: (s) => { s.newPipeOpen = false },
+    createPipeline: async (s) => {
+      const ws = s.workspaceId
       if (!ws) return
-      const name = String(ds.newPipeName).trim()
+      const name = String(s.newPipeName).trim()
       if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {
-        ds.newPipeError = 'Name must be lowercase kebab-case (a–z, 0–9, -).'; return
+        s.newPipeError = 'Name must be lowercase kebab-case (a–z, 0–9, -).'; return
       }
-      ds.newPipeCreating = true; ds.newPipeError = ''
+      s.newPipeCreating = true; s.newPipeError = ''
       const content = `{\n  "name": "${name}",\n  "description": "",\n  "steps": [\n    { "id": "one", "run": "echo hello" }\n  ]\n}\n`
       try {
         const resp = await fetch(
@@ -120,11 +113,11 @@ export default controller<Scope>({
         )
         if (resp.ok) { window.location.href = `/studio/pipelines/focus/${encodeURIComponent(name)}?edit=1`; return }
         const parsed = await resp.json().catch(() => ({}))
-        ds.newPipeError = (parsed as { data?: { error?: string } })?.data?.error ?? `HTTP ${resp.status}`
-      } catch (err) { ds.newPipeError = 'network: ' + ((err as Error)?.message ?? String(err)) }
-      finally { ds.newPipeCreating = false }
+        s.newPipeError = (parsed as { data?: { error?: string } })?.data?.error ?? `HTTP ${resp.status}`
+      } catch (err) { s.newPipeError = 'network: ' + ((err as Error)?.message ?? String(err)) }
+      finally { s.newPipeCreating = false }
     },
-    stopRun: async (_s: S, jobId: string) => {
+    stopRun: async (_s, jobId: string) => {
       await fetch('/api/v1/agent_sessions/end', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

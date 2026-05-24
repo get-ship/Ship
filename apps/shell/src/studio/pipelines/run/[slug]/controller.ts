@@ -1,11 +1,6 @@
 import { controller, derived, live } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
-import type { MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
-
-// `on:` handlers receive the writable state proxy; annotate explicitly
-// since the OnSection union blocks contextual inference.
-type S = MutableState<Scope>
 
 type StepRun = { id: string; state: string; step_type: string; agent?: string }
 type StepRunWithFlag = StepRun & { isLast: boolean }
@@ -27,7 +22,7 @@ const read = (envelope: unknown): RunCtx => {
   return { ...EMPTY, ...env.value }
 }
 
-export default controller<Scope>({
+export default controller<Scope>()({
   scope: ({ route }) => {
     // `route` is a RouteSignals object; `params.slug` is a Signal — read it via
     // `route.params.slug?.()` (matches every other studio dynamic-route view).
@@ -54,7 +49,7 @@ export default controller<Scope>({
     return { runCtx, run, observations, timeline, steps, errorFirstLine, errorMultiline }
   },
   on: {
-    stopRun: async (_s: S, jobId: string) => {
+    stopRun: async (_s, jobId: string) => {
       await fetch('/api/v1/agent_sessions/end', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

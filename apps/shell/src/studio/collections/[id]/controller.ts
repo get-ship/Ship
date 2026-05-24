@@ -9,15 +9,7 @@
 // uses.
 
 import { controller, signal, derived, live, unwrap, defineRoutes } from '@ship/sui-runtime'
-import type { MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
-
-// `on:` handlers receive the writable state proxy; annotate explicitly
-// since the OnSection union blocks contextual inference.
-type S = MutableState<Scope>
-// `rowDraft` emits as `unknown` (emitter gap) so it drops off
-// `MutableState`; narrow through `SExt` at the use site.
-type SExt = S & { rowDraft: Record<string, unknown> }
 
 defineRoutes([{ pattern: '/studio/collections/:id' }])
 
@@ -89,7 +81,7 @@ function buildCell(
   return { kind: 'text', value: String(raw) }
 }
 
-export default controller<Scope>({
+export default controller<Scope>()({
   scope: ({ ship, route }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = ship as any
@@ -163,19 +155,18 @@ export default controller<Scope>({
     }
   },
   on: {
-    setDraftField: (state: S, name: string, value: unknown) => {
-      const st = state as SExt
-      st.rowDraft = { ...st.rowDraft, [name]: value }
+    setDraftField: (state, name: string, value: unknown) => {
+      state.rowDraft = { ...state.rowDraft, [name]: value }
     },
-    cycleStatus: async (state: S, item: { id: string; data?: Record<string, unknown> }) => {
-      const detail = state.detailValue as CollectionDetail | null
-      const statusField = detail?.schema.fields?.find(f => f.name === 'status')
+    cycleStatus: async (state, item: { id: string; data?: Record<string, unknown> }) => {
+      const detail = state.detailValue
+      const statusField = detail?.schema.fields?.find((f: SchemaField) => f.name === 'status')
       const values = statusField?.values ?? []
       if (values.length === 0) return
       const current = (item.data?.['status'] as string | undefined) ?? ''
       const idx = values.indexOf(current)
       const next = values[(idx + 1) % values.length]
-      const id = state.collectionId as string
+      const id = state.collectionId
       await fetch(`/api/v1/collections/${id}/items/${encodeURIComponent(item.id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -183,30 +174,30 @@ export default controller<Scope>({
         body: JSON.stringify({ data: { ...(item.data ?? {}), status: next } }),
       }).catch(() => undefined)
     },
-    openNewRow: (state: S) => {
-      (state as SExt).rowDraft = {}
+    openNewRow: (state) => {
+      state.rowDraft = {}
       state.drawerError = ''
       state.newRowOpen = true
     },
-    closeNewRow: (state: S) => {
+    closeNewRow: (state) => {
       state.newRowOpen = false
       state.drawerError = ''
     },
-    saveNewRow: async (state: S) => {
-      const id = state.collectionId as string
+    saveNewRow: async (state) => {
+      const id = state.collectionId
       if (!id) { state.drawerError = 'No collection id'; return }
       const res = await fetch(`/api/v1/collections/${id}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ data: (state as SExt).rowDraft }),
+        body: JSON.stringify({ data: state.rowDraft }),
       })
       if (!res.ok) {
         state.drawerError = await res.text().catch(() => 'Request failed')
         return
       }
       state.newRowOpen = false
-      ;(state as SExt).rowDraft = {}
+      state.rowDraft = {}
       state.drawerError = ''
     },
   },

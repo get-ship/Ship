@@ -25,7 +25,7 @@ type HostEl = HTMLElement & {
   disconnect?: (() => void) | undefined
 }
 
-export default controller<Scope>({
+export default controller<Scope>()({
   // Component-level signals the template renders (overlay state). Stored
   // on the scope so the template re-renders when they change; the bridge
   // assigns them as the WS lifecycle transitions.
@@ -37,31 +37,32 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ds = state as any
-
-    const termRefSig = ds.termRef as Signal<TerminalEl | null>
-    const slugSig = ds.slug as Signal<string>
-    const autoConnectSig = ds.autoConnect as Signal<boolean>
+    // `state` is the writable proxy; ref-typed scope keys are Signals at
+    // runtime — cast to Scope to call them. Non-scope attrs (slug,
+    // autoConnect) are host attributes, read as Signals via the proxy.
+    const s = state as unknown as Scope & {
+      slug: Signal<string>
+      autoConnect: Signal<boolean>
+    }
 
     let attachment: AgentSessionAttachment | null = null
     const open = (): void => {
       attachment?.dispose()
       attachment = null
-      const term = termRefSig()
-      const slug = slugSig()
+      const term = s.termRef()
+      const slug = s.slug()
       if (!term || !slug) return
-      ds.disconnectReason = ''
+      state.disconnectReason = ''
       attachment = attachAgentSession(term, slug, {
         onOpen: () => {
-          ds.connected = true
+          state.connected = true
           host.dispatchEvent(new CustomEvent('sui-agent-attach-open', {
             bubbles: true, composed: true,
           }))
         },
         onDisconnect: (reason: string) => {
-          ds.connected = false
-          ds.disconnectReason = reason
+          state.connected = false
+          state.disconnectReason = reason
           host.dispatchEvent(new CustomEvent('sui-agent-attach-disconnect', {
             detail: { reason }, bubbles: true, composed: true,
           }))
@@ -75,7 +76,7 @@ export default controller<Scope>({
     hostEl.disconnect = () => {
       attachment?.dispose()
       attachment = null
-      ds.connected = false
+      state.connected = false
     }
 
     const disposers: Array<() => void> = []
@@ -84,16 +85,16 @@ export default controller<Scope>({
     // new actor to the same drawer instance) so the consumer doesn't
     // need to thrash mount cycles by toggling the element in/out.
     disposers.push(effect(() => {
-      const slug = slugSig()
-      const auto = autoConnectSig()
+      const slug = s.slug()
+      const auto = s.autoConnect()
       // Subscribe to the term ref so we re-run after bind:this resolves.
-      void termRefSig()
+      void s.termRef()
       if (auto && slug) {
         open()
       } else {
         attachment?.dispose()
         attachment = null
-        ds.connected = false
+        state.connected = false
       }
     }))
 
@@ -109,7 +110,7 @@ export default controller<Scope>({
     //     follow-up size change once flex sizing kicks in.
     let observer: ResizeObserver | null = null
     disposers.push(effect(() => {
-      const term = termRefSig()
+      const term = s.termRef()
       if (!term) return
       const refit = (): void => {
         try { term.fit?.() } catch { /* mid-teardown */ }

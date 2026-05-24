@@ -1,11 +1,11 @@
 import { controller, signal, derived, live, ref } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
-import type { MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
-// `on:` handlers receive the writable state proxy; annotate explicitly
-// since the OnSection union blocks contextual inference.
-type S = MutableState<Scope>
+// `controller(def)` infers the scope-factory types from the `scope` param +
+// return, so handler state is precisely typed — no `<Scope>`, no currying,
+// no `s as any`, no `type S` annotation.
 
 type StepDef = {
   id: string; run?: string; agent?: string; provider?: string; model?: string;
@@ -74,8 +74,8 @@ const decorateStep = (step: StepDef, i: number) => ({
   after_joined: step.after ? step.after.join(',') : undefined,
 })
 
-export default controller<Scope>({
-  scope: ({ route }) => {
+export default controller({
+  scope: ({ route }: ViewScope<Scope>) => {
     // `route` is a RouteSignals object; `params.name` is a Signal — read it via
     // `route.params.name?.()` (matches every other studio dynamic-route view).
     // Requires the `/studio/pipelines/focus/:name` pattern registered via
@@ -116,21 +116,19 @@ export default controller<Scope>({
     }
   },
   on: {
-    startEdit: (s: S) => { ensureEditorIsland(); const ds = s as any; ds.editMode = true; ds.editError = ''; ds.editIssueCount = 0 },
-    cancelEdit: (s: S) => {
-      const ds = s as any
-      ds.editMode = false; ds.editError = ''; ds.editIssueCount = 0
-      const ed = ds.editorRef as Ed | null
+    startEdit: (s) => { ensureEditorIsland(); s.editMode = true; s.editError = ''; s.editIssueCount = 0 },
+    cancelEdit: (s) => {
+      s.editMode = false; s.editError = ''; s.editIssueCount = 0
+      const ed = s.editorRef
       if (ed) { ed.value = ed.getAttribute('value') ?? ''; ed.setDiagnostics?.([]) }
     },
-    savePipeline: async (s: S) => {
-      const ds = s as any
-      const ed = ds.editorRef as Ed | null
+    savePipeline: async (s) => {
+      const ed = s.editorRef
       if (!ed) return
-      const ws = ds.workspaceId as string | null
-      const nm = ds.name as string
+      const ws = s.workspaceId
+      const nm = s.name
       if (!ws) return
-      ds.editSaving = true; ds.editError = ''; ds.editErrorLine = 0; ds.editErrorCol = 0; ds.editIssueCount = 0
+      s.editSaving = true; s.editError = ''; s.editErrorLine = 0; s.editErrorCol = 0; s.editIssueCount = 0
       ed.setDiagnostics?.([])
       try {
         const resp = await fetch(
@@ -143,17 +141,16 @@ export default controller<Scope>({
         const issues: any[] = Array.isArray(data.issues) ? data.issues : (data.parse ? [data.parse] : [])
         const primary = issues[0]
         if (primary) {
-          ds.editError = primary.message ?? 'validation error'
-          ds.editErrorLine = primary.line ?? 0; ds.editErrorCol = primary.column ?? 0
-          ds.editIssueCount = issues.length
+          s.editError = primary.message ?? 'validation error'
+          s.editErrorLine = primary.line ?? 0; s.editErrorCol = primary.column ?? 0
+          s.editIssueCount = issues.length
           ed.setDiagnostics?.(issues.map(i => ({ line: i.line ?? 1, column: i.column ?? 1, severity: i.kind === 'parse' ? 'error' : 'warning', message: i.message ?? 'validation error', source: i.path ?? i.kind })))
-        } else { ds.editError = data.error ?? `HTTP ${resp.status}` }
-      } catch (err: any) { ds.editError = 'network: ' + (err?.message ?? String(err)) }
-      finally { ds.editSaving = false }
+        } else { s.editError = data.error ?? `HTTP ${resp.status}` }
+      } catch (err: any) { s.editError = 'network: ' + (err?.message ?? String(err)) }
+      finally { s.editSaving = false }
     },
-    deletePipeline: async (s: S) => {
-      const ds = s as any
-      const ws = ds.workspaceId as string | null; const nm = ds.name as string
+    deletePipeline: async (s) => {
+      const ws = s.workspaceId; const nm = s.name
       if (!ws) return
       try {
         const resp = await fetch(
@@ -164,35 +161,35 @@ export default controller<Scope>({
         const body = await resp.json().catch(() => ({}))
         window.alert('Delete failed: ' + (body?.data ?? `HTTP ${resp.status}`))
       } catch (err: any) { window.alert('Delete failed: ' + (err?.message ?? String(err))) }
-      ds.deleteOpen = false
+      s.deleteOpen = false
     },
-    openDispatch: (s: S) => { (s as any).dispatchOpen = true },
-    closeDispatch: (s: S) => { (s as any).dispatchOpen = false },
-    dispatchRun: async (s: S) => {
-      const ds = s as any; const nm = ds.name as string
+    openDispatch: (s) => { s.dispatchOpen = true },
+    closeDispatch: (s) => { s.dispatchOpen = false },
+    dispatchRun: async (s) => {
+      const nm = s.name
       await fetch(`/api/v1/pipelines/${encodeURIComponent(nm)}/dispatch`, {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spec: ds.dispatchSpec, provider: ds.dispatchProvider || null, headless: ds.dispatchHeadless }),
+        body: JSON.stringify({ spec: s.dispatchSpec, provider: s.dispatchProvider || null, headless: s.dispatchHeadless }),
       })
-      ds.dispatchOpen = false
+      s.dispatchOpen = false
     },
-    openDelete: (s: S) => { (s as any).deleteOpen = true },
-    closeDelete: (s: S) => { (s as any).deleteOpen = false },
-    stopRun: async (_s: S, jobId: string) => {
+    openDelete: (s) => { s.deleteOpen = true },
+    closeDelete: (s) => { s.deleteOpen = false },
+    stopRun: async (_s, jobId: string) => {
       await fetch('/api/v1/agent_sessions/end', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: jobId }) })
     },
-    pulseRun: (_s: S, el: HTMLElement) => {
+    pulseRun: (_s, el: HTMLElement) => {
       el.classList.add('ship-heartbeat')
-      const existing = (el as any).__pulseTimer
+      const existing = (el as unknown as { __pulseTimer?: ReturnType<typeof setTimeout> }).__pulseTimer
       if (existing) clearTimeout(existing)
-      ;(el as any).__pulseTimer = setTimeout(() => el.classList.remove('ship-heartbeat'), 1500)
+      ;(el as unknown as { __pulseTimer?: ReturnType<typeof setTimeout> }).__pulseTimer = setTimeout(() => el.classList.remove('ship-heartbeat'), 1500)
     },
   },
   mount: (s) => {
-    if (/[?&]edit=1(&|$)/.test(window.location.search)) { ensureEditorIsland(); (s as any).editMode = true }
+    if (/[?&]edit=1(&|$)/.test(window.location.search)) { ensureEditorIsland(); s.editMode = true }
     const beforeUnload = (e: BeforeUnloadEvent) => {
-      if (!(s as any).editMode) return
-      const ed = (s as any).editorRef as Ed | null
+      if (!s.editMode) return
+      const ed = s.editorRef
       if (!ed) return
       if (ed.value !== (ed.getAttribute('value') ?? '')) { e.preventDefault(); e.returnValue = '' }
     }

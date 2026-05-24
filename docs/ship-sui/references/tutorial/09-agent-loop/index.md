@@ -32,8 +32,8 @@ diagnostics** baked in: an unknown event modifier, a missing prop
 declaration, a stale signal reference, and a render-subset escape
 (`.toFixed()` in the template). An agent would:
 
-1. **Diagnose** — `mcp__ship__sui_diagnostics({ file: "page.sui" })`
-   returns four errors, each with `line`, `col`, `severity`, `message`.
+1. **Diagnose** — `cargo run -p sui-lint --example check -- page.sui`
+   returns findings, each with `line`, `col`, `severity`, `message`.
 2. **Fix** — one round-trip per error category. The agent edits the
    file (here: the editor pane) and re-diagnoses.
 3. **Compile-check** — `mcp__ship__view_compile_check({ file })` runs

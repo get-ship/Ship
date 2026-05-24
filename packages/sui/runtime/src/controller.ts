@@ -26,8 +26,17 @@ import type { RouteSignals } from './route'
  * template's `<state>` directive contributes to scope. Read-only
  * derived/data identifiers and non-signal values fall through.
  */
+// A signal of any value type. `Signal<unknown>` does NOT match a concrete
+// signal: `Signal` is invariant in `T` (it both reads `(): T` and writes
+// `set(v: T)`), so `Signal<number> extends Signal<unknown>` is *false*.
+// Using it as the filter constraint silently collapsed `StateKeys` to
+// `never` — `MutableState` had no keys, and every handler cast `s as any`
+// to touch its own state. `Signal<any>` matches a signal of any value type.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySignal = Signal<any>
+
 export type StateKeys<Scope> = {
-  [K in keyof Scope]: Scope[K] extends Signal<unknown> ? K : never
+  [K in keyof Scope]: Scope[K] extends AnySignal ? K : never
 }[keyof Scope]
 
 /** The signal-typed value at scope key K, or never. */
@@ -68,9 +77,28 @@ export type ReadonlyState<Scope> = {
  * current value, write replaces it. The runtime translates the
  * assignment into a `signal.set()` call.
  */
-export type MutableState<Scope> = {
-  [K in StateKeys<Scope>]: SignalValueAt<Scope, K>
-}
+export type MutableState<Scope> =
+  // Writable state keys: read returns the unwrapped value, write forwards to
+  // `signal.set()`. (`state.count = state.count + 1` works.)
+  {
+    [K in StateKeys<Scope>]: SignalValueAt<Scope, K>
+  } & {
+    // Every non-state scope key is readable as-is — a `derived` stays a
+    // callable `ReadonlyView<T>` (read it by calling, `s.label()`), a
+    // `<data>` live-signal stays its live shape. The runtime proxy falls
+    // through to the base scope for these. Readonly: handlers mutate only
+    // state keys.
+    readonly [K in Exclude<keyof Scope, StateKeys<Scope>>]: Scope[K]
+  } & {
+    // The ambient view context the proxy also exposes, matching the runtime
+    // (`baseScope` carries `ship` / `route` / `navigate`).
+    readonly ship: ShipSDK
+    readonly route: RouteSignals
+    readonly navigate: (path: string) => void
+    // Explicit signal access for the escape-hatch cases the assignment style
+    // can't express (handing a `Signal<T>` to a callback, `.set(updater)`).
+    readonly $signals: { readonly [K in StateKeys<Scope>]: Scope[K] }
+  }
 
 /**
  * The shared view scope, as destructured by each controller section.
@@ -118,17 +146,19 @@ export type DerivedSection<Scope> = Record<
  */
 export type OnSection<Scope> = Record<
   string,
-  // `any[]` (not `unknown[]`) is deliberate. Handlers declare typed
-  // args; under contravariant param checks they aren't assignable to
-  // a `(...args: unknown[])` constraint, so we widen to `any` so
-  // authors can name argument types without an intermediate cast.
+  // Single form — `state` is `MutableState<Scope>`, which now exposes
+  // writable state keys, readonly derived/data/scope keys, and ambient
+  // `ship`/`route`/`navigate`. A previous two-member union (state-only OR
+  // full-scope) defeated contextual inference: `(s) =>` fell back to
+  // implicit `any`, so authors annotated `type S = MutableState<Scope>` and
+  // then cast. One signature infers cleanly.
+  //
+  // `any[]` (not `unknown[]`) for the trailing args is deliberate: handlers
+  // declare typed args, and under contravariant param checks those aren't
+  // assignable to a `(...args: unknown[])` constraint, so we widen to `any`
+  // so authors can name argument types without an intermediate cast.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  | ((state: MutableState<Scope>, ...args: any[]) => void | Promise<void>)
-  | ((
-      scope: ViewScope<Scope> & { state: MutableState<Scope> },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ...args: any[]
-    ) => void | Promise<void>)
+  (state: MutableState<Scope>, ...args: any[]) => void | Promise<void>
 >
 
 /**
@@ -167,13 +197,16 @@ export type UseSection<Scope> = Record<string, ControllerHook>
  * factory-returned arrow. The compiler emits both groups into the
  * per-file `Scope` interface in `<file>.sui.d.ts`.
  */
-export type MountSection<Scope> = (state: Scope, el: HTMLElement) => (() => void) | void
+export type MountSection<Scope> = (
+  state: MutableState<Scope>,
+  el: HTMLElement,
+) => (() => void) | void | Promise<void>
 
 /**
  * `unmount` lifecycle. Runs once on disconnect; tear down whatever
  * `mount` set up. Receives the same `Scope`-typed state view as `mount`.
  */
-export type UnmountSection<Scope> = (state: Scope) => void
+export type UnmountSection<Scope> = (state: MutableState<Scope>) => void
 
 // ---------------------------------------------------------------------------
 // The controller surface
@@ -223,6 +256,55 @@ export interface ControllerShape<Scope = object> {
 
   /** Runs once on disconnect; receives writable state. */
   unmount?: UnmountSection<Scope>
+}
+
+/**
+ * Inferred-scope controller shape — the cast-free form. `SC` is inferred
+ * from the `scope` factory's return, so the controller's own TypeScript is
+ * the source of truth for the types of `signal`/`derived`/`ref`/`live`
+ * entries (the compiler no longer guesses them as `Signal<unknown>`). The
+ * merged view scope is `Scope & SC`: template-declared (`<data>`/`<state>`/
+ * `<prop>`, from the compiler) intersected with controller-contributed.
+ *
+ * Reached via the curried `controller<Scope>()(def)` overload — currying is
+ * required because TypeScript cannot infer `SC` while `Scope` is supplied
+ * explicitly in the same call.
+ */
+export interface InferredControllerShape<Scope, SC extends Record<string, unknown>> {
+  scope?: (init: ViewScope<Scope>, host?: Element) => SC
+  derived?: Record<string, (scope: ViewScope<Scope & SC>) => unknown>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on?: Record<string, (state: MutableState<Scope & SC>, ...args: any[]) => void | Promise<void>>
+  use?: SectionInit<UseSection<Scope & SC>, ViewScope<Scope & SC>>
+  mount?: (state: MutableState<Scope & SC>, el: HTMLElement) => (() => void) | void | Promise<void>
+  unmount?: (state: MutableState<Scope & SC>) => void
+}
+
+/**
+ * The canonical controller shape — single call, precise, cast-free.
+ *
+ * Both type parameters are INFERRED from the `def` object, so authors
+ * write `controller({ scope: (ctx: ViewScope<Scope>) => ({…}) })` with no
+ * explicit type argument and no currying:
+ *   - `Ctx` is inferred from the `scope` factory's PARAMETER annotation
+ *     (the compiler-generated `ViewScope<Scope>` the author imports). This
+ *     sidesteps TypeScript's all-or-nothing type-argument rule — nothing is
+ *     supplied explicitly, so nothing forces a second call.
+ *   - `SC` is inferred from the `scope` factory's RETURN — the controller's
+ *     own TS is the source of truth for `signal`/`derived`/`ref`/`live`
+ *     types, so handler state over `Ctx & SC` is precise.
+ *
+ * `scope` is required (it's where `Ctx` is declared); a pure-lifecycle
+ * controller returns `({})`.
+ */
+export interface ScopedControllerDef<Ctx, SC extends Record<string, unknown>> {
+  scope: (init: Ctx, host?: Element) => SC
+  derived?: Record<string, (scope: Ctx & SC) => unknown>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on?: Record<string, (state: MutableState<Ctx & SC>, ...args: any[]) => void | Promise<void>>
+  use?: SectionInit<UseSection<Ctx & SC>, Ctx & SC>
+  mount?: (state: MutableState<Ctx & SC>, el: HTMLElement) => (() => void) | void | Promise<void>
+  unmount?: (state: MutableState<Ctx & SC>) => void
 }
 
 /**

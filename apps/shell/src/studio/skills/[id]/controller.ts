@@ -5,23 +5,7 @@
 // (ship.skills.detail); writes via the /api/v1/skills REST surface.
 import { controller, signal, derived, live, effect } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
-import type { MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
-
-// `on:` handlers receive the writable state proxy; annotate explicitly
-// since the OnSection union blocks contextual inference.
-type S = MutableState<Scope>
-// These scope entries emit as `unknown` (emitter gap) so they drop off
-// `MutableState`. The runtime proxy exposes them; narrow through `SExt`
-// at the use site (widening the param itself would break OnSection
-// assignability).
-type SExt = S & {
-  open: Record<string, boolean>
-  baseline: string
-  descBaseline: string
-  tagsBaseline: string[]
-  putFrontmatter: (p: { description?: string; tags?: string[] }) => Promise<Banner>
-}
 
 interface SkillDetail {
   id: string
@@ -46,7 +30,16 @@ const SOURCE_LABELS: Record<string, string> = {
 }
 const sourceLabel = (s: string): string => SOURCE_LABELS[s] ?? s
 
-export default controller<Scope>({
+// Parse the comma/whitespace tag input into a deduped, appended list.
+const appendTags = (input: string, current: string[]): string[] => {
+  const raw = input.trim().replace(/,+$/, '').trim()
+  if (!raw) return current
+  const next = [...current]
+  for (const p of raw.split(',').map((t) => t.trim()).filter(Boolean)) if (!next.includes(p)) next.push(p)
+  return next
+}
+
+export default controller<Scope>()({
   scope: ({ route }) => {
     const skillId = derived(() => route.params.id() ?? '')
     const skillRes = live(() =>
@@ -142,17 +135,16 @@ export default controller<Scope>({
   },
 
   on: {
-    toggleSection: (s: S, name: string, isOpen: boolean) => {
-      const st = s as SExt
-      st.open = { ...st.open, [name]: isOpen }
+    toggleSection: (s, name: string, isOpen: boolean) => {
+      s.open = { ...s.open, [name]: isOpen }
     },
-    onEditorInput: (s: S, e: Event) => {
+    onEditorInput: (s, e: Event) => {
       const d = (e as CustomEvent<{ value?: string }>).detail
       const v = d && typeof d.value === 'string' ? d.value : (e.target as HTMLElement & { value?: string }).value
       if (typeof v === 'string') s.draft = v
     },
-    save: async (s: S) => {
-      const id = s.skillId as string
+    save: async (s) => {
+      const id = s.skillId
       if (!id || s.saving) return
       s.saving = true; s.saveBanner = null
       try {
@@ -161,7 +153,7 @@ export default controller<Scope>({
           headers: { 'content-type': 'application/json' }, body: JSON.stringify({ body: s.draft }),
         })
         if (!resp.ok) { s.saveBanner = { ok: false, msg: (await resp.text().catch(() => '')) || `Save failed (${resp.status})` }; return }
-        (s as SExt).baseline = s.draft as string
+        s.baseline = s.draft
         s.saveBanner = { ok: true, msg: 'Saved.' }
       } catch (e) {
         s.saveBanner = { ok: false, msg: (e as Error).message ?? 'Save failed.' }
@@ -169,43 +161,41 @@ export default controller<Scope>({
         s.saving = false
       }
     },
-    onDescInput: (s: S, e: Event) => { s.descDraft = (e.target as HTMLTextAreaElement).value ?? '' },
-    resetDesc: (s: S) => { s.descDraft = (s as SExt).descBaseline; s.descBanner = null },
-    saveDesc: async (s: S) => {
+    onDescInput: (s, e: Event) => { s.descDraft = (e.target as HTMLTextAreaElement).value ?? '' },
+    resetDesc: (s) => { s.descDraft = s.descBaseline; s.descBanner = null },
+    saveDesc: async (s) => {
       if (s.descSaving || !s.descDirty) return
       s.descSaving = true; s.descBanner = null
-      const st = s as SExt
-      const r = await st.putFrontmatter({ description: s.descDraft as string, tags: st.tagsBaseline })
-      if (r && r.ok) { st.descBaseline = s.descDraft as string; s.descBanner = { ok: true, msg: 'Saved.' } }
+      const r = await s.putFrontmatter({ description: s.descDraft, tags: s.tagsBaseline })
+      if (r && r.ok) { s.descBaseline = s.descDraft; s.descBanner = { ok: true, msg: 'Saved.' } }
       else s.descBanner = r
       s.descSaving = false
     },
-    onTagsInput: (s: S, e: Event) => { s.tagsInput = (e.target as HTMLInputElement).value },
-    addTag: (s: S) => {
-      const raw = (s.tagsInput as string).trim().replace(/,+$/, '').trim()
-      if (!raw) return
-      const next = [...(s.tagsList as string[])]
-      for (const p of raw.split(',').map((t) => t.trim()).filter(Boolean)) if (!next.includes(p)) next.push(p)
-      s.tagsList = next; s.tagsInput = ''
+    onTagsInput: (s, e: Event) => { s.tagsInput = (e.target as HTMLInputElement).value },
+    addTag: (s) => {
+      const next = appendTags(s.tagsInput, s.tagsList)
+      if (next !== s.tagsList) { s.tagsList = next; s.tagsInput = '' }
     },
-    onTagsKeydown: (s: S, e: KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); (s as unknown as { addTag: () => void }).addTag?.() }
+    onTagsKeydown: (s, e: KeyboardEvent) => {
+      if (e.key !== 'Enter' && e.key !== ',') return
+      e.preventDefault()
+      const next = appendTags(s.tagsInput, s.tagsList)
+      if (next !== s.tagsList) { s.tagsList = next; s.tagsInput = '' }
     },
-    removeTag: (s: S, t: string) => { s.tagsList = (s.tagsList as string[]).filter((x) => x !== t) },
-    resetTags: (s: S) => { s.tagsList = [...(s as SExt).tagsBaseline]; s.tagsInput = ''; s.tagsBanner = null },
-    saveTags: async (s: S) => {
+    removeTag: (s, t: string) => { s.tagsList = s.tagsList.filter((x: string) => x !== t) },
+    resetTags: (s) => { s.tagsList = [...s.tagsBaseline]; s.tagsInput = ''; s.tagsBanner = null },
+    saveTags: async (s) => {
       if (s.tagsSaving || !s.tagsDirty) return
-      if ((s.tagsInput as string).trim()) {
-        const raw = (s.tagsInput as string).trim().replace(/,+$/, '').trim()
-        const next = [...(s.tagsList as string[])]
-        for (const p of raw.split(',').map((t) => t.trim()).filter(Boolean)) if (!next.includes(p)) next.push(p)
+      if (s.tagsInput.trim()) {
+        const raw = s.tagsInput.trim().replace(/,+$/, '').trim()
+        const next = [...s.tagsList]
+        for (const p of raw.split(',').map((t: string) => t.trim()).filter(Boolean)) if (!next.includes(p)) next.push(p)
         s.tagsList = next; s.tagsInput = ''
       }
       s.tagsSaving = true; s.tagsBanner = null
-      const next = s.tagsList as string[]
-      const st = s as SExt
-      const r = await st.putFrontmatter({ description: st.descBaseline, tags: next })
-      if (r && r.ok) { st.tagsBaseline = [...next]; s.tagsBanner = { ok: true, msg: 'Saved.' } }
+      const next = s.tagsList
+      const r = await s.putFrontmatter({ description: s.descBaseline, tags: next })
+      if (r && r.ok) { s.tagsBaseline = [...next]; s.tagsBanner = { ok: true, msg: 'Saved.' } }
       else s.tagsBanner = r
       s.tagsSaving = false
     },

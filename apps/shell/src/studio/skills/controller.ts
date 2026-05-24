@@ -5,12 +5,8 @@
 // re-subscribes as q/kind change) — /sui-hosted views have no SDK client in ctx.
 import { controller, signal, live } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
-import type { MutableState, ViewScope } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
-
-// `on:` handlers receive the writable state proxy; annotate explicitly
-// since the OnSection union blocks contextual inference.
-type S = MutableState<Scope>
 
 type KindFilter = 'all' | 'smart' | 'docs'
 
@@ -35,7 +31,7 @@ interface RailValue {
   kind_counts: Array<{ id: string; label: string; count: number; selected: boolean }>
 }
 
-export default controller<Scope>({
+export default controller<Scope>()({
   scope: () => {
     const q = signal('')
     const kind = signal<KindFilter>('all')
@@ -64,13 +60,13 @@ export default controller<Scope>({
   },
 
   on: {
-    onSearchInput: (s: S, e: Event) => {
+    onSearchInput: (s, e: Event) => {
       s.q = (e.target as HTMLInputElement).value ?? ''
     },
-    clearSearch: (s: S) => {
+    clearSearch: (s) => {
       s.q = ''
     },
-    setKind: (s: S, id: string) => {
+    setKind: (s, id: string) => {
       s.kind = id as KindFilter
     },
   },
