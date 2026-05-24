@@ -116,12 +116,24 @@
             // that rely solely on `<data live />` keep working.
             ship = undefined
           }
+          // Host loader: the SUI runtime is URL-scheme-agnostic, so the
+          // view-host supplies how to fetch payloads + load component island
+          // bundles. (Keeps `/_sui/...` at the host boundary, not in mount().)
+          const loader = {
+            fetchView: async (nameOrPath) => {
+              const path = nameOrPath.startsWith('/_sui/views/') ? nameOrPath : `/_sui/views/${nameOrPath}`
+              const r = await fetch(path, { credentials: 'same-origin' })
+              if (!r.ok) throw new Error(`fetch ${path} ${r.status}`)
+              return r.json()
+            },
+            loadComponent: (tag) => import(`/_sui/sui-components/${tag}.js`),
+          }
           // mount() morphs onto the SSR markup already inside #sui-root
           // (seeded by the daemon, including the __set_init__ island),
           // then returns a handle. Expose its disposer as
           // window.__suiDispose — hosts and e2e probes treat that
           // property as the "attach complete" signal.
-          const handle = await mount(target, payload, { ship })
+          const handle = await mount(target, payload, { ship, loader })
           window.__suiDispose = () => handle.dispose()
         }
       } catch (err) {

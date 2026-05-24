@@ -251,7 +251,7 @@ export { suiTonesSheet, suiBaseSheet, adoptSuiSheets } from './styles/index'
 // F1 mount unification — hosts call mount(target, payload, opts) to put
 // a view on screen. See .artifacts/design-f1-mount-unification.md.
 export { mount } from './mount'
-export type { ViewPayload, MountOptions, MountHandle } from './mount'
+export type { ViewPayload, MountOptions, MountHandle, SuiLoader } from './mount'
 
 // Chrome IPC — typed wrapper around the shell's event-driven chrome
 // surfaces (toasts, dock, command-bar, breadcrumb, status, theme,

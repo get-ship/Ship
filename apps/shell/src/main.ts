@@ -51,6 +51,7 @@ import '@ship/pipelines/bundle'
 // need to register them a second time from the shell entry.
 import { route as createRoute, defineRoutes } from '@ship/sui-runtime/route'
 import { chrome, notifyViewUnmount } from '@ship/sui-runtime'
+import type { SuiLoader, ViewPayload } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
 import { initProjectSwitch } from './project-switch'
@@ -65,6 +66,7 @@ interface MountFn {
     opts?: {
       cssScope?: 'adjacent' | 'document-head' | 'none'
       ship?: ShipSDK
+      loader?: SuiLoader
       module?: unknown
       route?: unknown
       navigate?: (path: string) => void
@@ -74,6 +76,22 @@ interface MountFn {
 
 // Single SDK client instance, shared across every mounted view.
 const shipClient: ShipSDK = createClient()
+
+// Host loader injected into every mount() — the `/_sui/` URL scheme lives
+// here at the app boundary, not inside the (host-agnostic) SUI runtime.
+const suiLoader: SuiLoader = {
+  async fetchView(nameOrPath: string): Promise<ViewPayload> {
+    const path = nameOrPath.startsWith('/_sui/views/') ? nameOrPath : `/_sui/views/${nameOrPath}`
+    const res = await fetch(path, { credentials: 'same-origin' })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(`[shell] fetch ${path} ${res.status}: ${body.slice(0, 200)}`)
+    }
+    return (await res.json()) as ViewPayload
+  },
+  loadComponent: (tag: string): Promise<void> =>
+    import(/* @vite-ignore */ `/_sui/sui-components/${tag}.js`).then(() => undefined),
+}
 
 // Pre-register dynamic-route patterns the shell knows about. Views in
 // `views/<name>/[id]/` use these to read `route.params.id()`. Views
@@ -366,6 +384,9 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
       // `ship` is undefined and the data lambda throws — visible
       // as views stuck on `Loading…` because the patch never lands.
       ship: shipClient,
+      // Host loader — the SUI runtime no longer knows the `/_sui/` URL scheme;
+      // this adapter supplies by-name payload fetch + component-island loading.
+      loader: suiLoader,
       // Shared `route` signal so views with `/x/:id`-style patterns
       // can read `route.params.id()`. Without this, mount.ts wires
       // `route: undefined` into setupCtx and dynamic-route controllers
