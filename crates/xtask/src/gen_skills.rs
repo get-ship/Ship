@@ -41,10 +41,22 @@ fn domain_of(name: &str) -> &str {
     name.split('.').next().unwrap_or(name)
 }
 
-/// Group reads + commands by domain.
+/// Operational/internal domains — kernel/mesh control mechanics that the
+/// operator/debug surface calls but agents must never invoke directly (the
+/// audience axis, #95). Excluded from the generated *agent* capability-skills;
+/// they remain real ABI on the operator surface.
+fn is_operational(domain: &str) -> bool {
+    matches!(domain, "actor" | "mesh" | "event")
+}
+
+/// Group reads + commands by domain, omitting operational/internal domains so
+/// the agent's man-pages never advertise kernel-control ops.
 fn collect() -> BTreeMap<String, (Vec<OpRow>, Vec<OpRow>)> {
     let mut by_domain: BTreeMap<String, (Vec<OpRow>, Vec<OpRow>)> = BTreeMap::new();
     for op in shipd::services::schema::OPS.iter() {
+        if is_operational(domain_of(op.name)) {
+            continue;
+        }
         by_domain
             .entry(domain_of(op.name).to_string())
             .or_default()
@@ -57,6 +69,9 @@ fn collect() -> BTreeMap<String, (Vec<OpRow>, Vec<OpRow>)> {
             });
     }
     for cmd in shipd::services::schema::COMMANDS {
+        if is_operational(domain_of(cmd.name)) {
+            continue;
+        }
         by_domain
             .entry(domain_of(cmd.name).to_string())
             .or_default()
