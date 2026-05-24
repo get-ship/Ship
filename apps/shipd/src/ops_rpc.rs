@@ -196,7 +196,11 @@ pub fn router(state: ApiState) -> axum::Router {
     // C0 reads, edge-authenticated like the other reads.
     let router = ship_ops_rpc::AnalyticsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::RuntimeServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::ViewErrorsServiceExt::register(svc, router);
+    let router = ship_ops_rpc::ViewErrorsServiceExt::register(svc.clone(), router);
+    // First MIGRATED domain (#89): rules.* served additively from the authored
+    // rules.proto. The generated ReadOps/CommandOps still serve rules.* too,
+    // until the GUI flip (#72) re-points clients and retires the old path.
+    let router = ship_ops_rpc::RulesServiceExt::register(svc, router);
     router.into_axum_router()
 }
 
