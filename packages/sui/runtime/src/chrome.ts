@@ -26,6 +26,8 @@
 //   the mounted route changes. Callers can override with `{ viewId }` on
 //   any state-bearing call.
 
+import { navigate as routeNavigate } from './route'
+
 /** Toast / status tone palette. Matches the values `<sui-toast>` paints
  *  (`info` · `success` · `warning` · `destructive`). `error` is accepted
  *  as an alias for `destructive` so callers can speak the more natural
@@ -146,12 +148,13 @@ export const chrome = {
     emit('sui:notify', detail)
   },
 
+  // Delegates to the unified router via the runtime `navigate()` → host
+  // `RouterPort`. (Previously this hand-pushed history + emitted a
+  // `sui:navigate` *trigger*; the host router now owns history + mounting
+  // and emits `sui:navigate` as the route-change *notification*.) See ADR
+  // `unified-deck-router`.
   navigate(path: string, opts?: NavigateOpts): void {
-    if (typeof history !== 'undefined') {
-      if (opts?.replace) history.replaceState({}, '', path)
-      else history.pushState({}, '', path)
-    }
-    emit('sui:navigate', { to: path, ...(opts?.replace ? { replace: true } : {}) })
+    routeNavigate(path, opts?.replace ? { replace: true } : {})
   },
 
   dock: {

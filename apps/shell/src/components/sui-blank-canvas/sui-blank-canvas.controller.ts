@@ -2,7 +2,7 @@
 // document-level event the corresponding hotkey would fire, so click +
 // key produce identical effects.
 
-import { controller } from '@ship/sui-runtime'
+import { controller, navigate } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-blank-canvas.sui'
 
@@ -19,7 +19,7 @@ export default controller({
     const hostEl = host as HTMLElement
     return {
       onPaletteHint: () => emit(hostEl, 'sui-open-command-palette'),
-      onStudioHint: () => emit(hostEl, 'sui:navigate', { to: '/studio' }),
+      onStudioHint: () => navigate('/studio'),
       onTerminalHint: () => emit(hostEl, 'sui-toggle-terminal'),
       onHelpHint: () => emit(hostEl, 'sui-open-help'),
     }

@@ -1,4 +1,4 @@
-import { controller, effect, signal, ref, bindNativeEvent, chrome } from '@ship/sui-runtime'
+import { controller, effect, signal, ref, bindNativeEvent, chrome, navigate } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-view-picker.sui'
 import {
@@ -83,12 +83,14 @@ export default controller({
       return partition({ views: views(), pins: pins(), filter: filter() })
     }
 
-    const navigate = (name: string): void => {
+    const goto = (name: string): void => {
       host.emit!('sui:view-picker:navigate', { name })
       const path = '/' + (name === 'dashboard' ? '' : name)
-      try { history.pushState({}, '', path) } catch { /* SSR-safe */ }
-      document.dispatchEvent(new CustomEvent('sui:navigate', { detail: { to: path } }))
-      ;(window as unknown as { ship?: { navigate?: (p: string) => void } }).ship?.navigate?.(path)
+      // One affordance: the unified router (history + match + mount + the
+      // route-change notification). Replaces the old pushState +
+      // sui:navigate + window.ship.navigate hand-roll. See ADR
+      // unified-deck-router.
+      navigate(path)
       scope.open.set(false)
     }
 
@@ -118,7 +120,7 @@ export default controller({
         projects: projects(), activeProjectId: activeProjectId(),
         dragOverName: dragState.overName, dragOverZone: dragState.overZone,
         draggingName: dragState.name,
-        onNavigate: navigate,
+        onNavigate: goto,
         onPickProject: (id) => { void onPickProject(id) },
         onTogglePin: (e, name) => { e.stopPropagation(); void togglePin(name) },
         onDragStart: drag.onDragStart, onDragOverRow: drag.onDragOverRow,
@@ -165,7 +167,7 @@ export default controller({
     if (iLink) bindNativeEvent(iLink, 'click', (e) => {
       e.preventDefault()
       host.emit!('sui:view-picker:install', { href: scope.installHref() })
-      navigate(scope.installHref().replace(/^\//, ''))
+      goto(scope.installHref().replace(/^\//, ''))
     })
 
     // ── open/close sync (host.open ↔ composed sui-popover) ──────
@@ -268,7 +270,7 @@ export default controller({
         if (!row) return
         e.preventDefault()
         if (row.kind === 'project') void onPickProject(row.id)
-        else navigate(row.name)
+        else goto(row.name)
       }
     }
     bindNativeEvent(document, 'keydown', onKey as EventListener)

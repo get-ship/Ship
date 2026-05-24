@@ -922,14 +922,13 @@ window.addEventListener('popstate', () => {
   void mountRoute(r)
 })
 
-// External navigation requests — components that need to navigate dispatch
-// `sui:navigate` with `{ to: path }` (window.ship.navigate, sui-launcher,
-// sui-command-bar palette items). They push history state themselves, but
-// without this listener nothing remounts the view, so picking a result in
-// the cmd-bar or the views picker updated the URL silently and the page
-// kept showing the old view. mountRoute's own dispatches use either no
-// detail or fire after currentRoute is updated, so the sameView guard
-// prevents a remount loop.
+// Legacy `sui:navigate {to}` trigger receiver. Navigation now flows through
+// the runtime `navigate()` → `RouterPort` (registered above), so first-party
+// callers no longer dispatch this as a trigger — `sui:navigate` is the
+// route-change *notification* the rails/nav-top/devtools subscribe to. This
+// listener stays as a compatibility shim for any external `{to}` dispatch;
+// the `sameRoute` guard makes the notification dispatches (no detail, or
+// fired after currentRoute updates) no-ops, so there is no remount loop.
 document.addEventListener('sui:navigate', (e: Event) => {
   const detail = (e as CustomEvent).detail as { to?: string } | undefined
   if (!detail?.to) return
