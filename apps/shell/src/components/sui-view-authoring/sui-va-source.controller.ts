@@ -1,4 +1,5 @@
 import { controller, signal, ref, effect } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-va-source.sui'
 
 interface CodeEditor extends HTMLElement {
@@ -8,13 +9,12 @@ interface CodeEditor extends HTMLElement {
 
 // window.__viewMcp is declared canonically in src/chrome/view-mcp.ts.
 
-export default controller<Scope>({
-  scope: (state) => {
+export default controller({
+  scope: (state: ViewScope<Scope>) => {
     const source = signal<string>('')
     const dirty = signal<boolean>(false)
     const saved = signal<boolean>(false)
     const editorEl = ref<CodeEditor>(null)
-    const s = state as unknown as { view: () => string }
 
     function onChange(e: Event): void {
       const ce = e as CustomEvent<{ value?: string }>
@@ -25,7 +25,7 @@ export default controller<Scope>({
     }
 
     async function onSave(): Promise<void> {
-      const name = s.view()
+      const name = state.view()
       if (!name) return
       const mcp = window.__viewMcp
       if (!mcp) return

@@ -1,4 +1,5 @@
 import { controller, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-setup.sui'
 
 const STORAGE_KEY = 'ship-setup-state'
@@ -45,7 +46,10 @@ function savePersisted(state: PersistedState): void {
 }
 
 function readEntry(s: Record<string, unknown>): PersistedState {
-  const sig = <T>(k: string): T => (s[k] as () => T)()
+  // `s` is the MutableState proxy: indexing a state key returns the UNWRAPPED
+  // value (the proxy already calls the signal). Read it directly — do NOT call
+  // it (the old `(s[k])()` invoked a number/string and crashed at runtime).
+  const sig = <T>(k: string): T => s[k] as T
   return {
     step: sig<number>('step'),
     identityName: sig<string>('identityName'),
@@ -102,8 +106,8 @@ function persistFromState(s: Record<string, unknown>, completed = false): void {
 // because the chrome scope proxy rejects extra property writes.
 let setupKeyCleanup: (() => void) | null = null
 
-export default controller<Scope>()({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const persisted = loadPersisted()
     return {
       step: signal<number>(persisted.completed ? 1 : (persisted.step ?? 1)),

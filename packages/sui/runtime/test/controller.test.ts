@@ -10,12 +10,14 @@ import { describe, expect, it } from 'vitest'
 import {
   controller,
   signal,
+  derived,
   type ControllerDef,
   type ControllerHook,
   type MutableState,
   type ReadonlyState,
   type Signal,
   type TemplateHook,
+  type ViewScope,
 } from '../src/index'
 
 /** Build a `ResolverContext`-shaped harness with template state seeded. */
@@ -59,7 +61,7 @@ describe('controller() helper', () => {
   it('setup() runs the resolver and returns bindings', () => {
     const ctx = withState({ count: 5 })
     const out = controller({
-      derived: { doubled: ({ count }) => (count as () => number)() * 2 },
+      scope: (init) => ({ doubled: derived(() => ((init as { count: () => number }).count()) * 2) }),
       on: { incr: (s) => { s.count++ } },
     })
     const bindings = out.setup(ctx)
@@ -82,13 +84,13 @@ describe('tier-2 — object form compiles for every section', () => {
     })
   })
 
-  it('derived + on', () => {
+  it('scope deriveds + on', () => {
     type Scope = { count: Signal<number> }
-    controller<Scope>({
-      derived: {
-        doubled: ({ count }) => count() * 2,
-        over9k:  ({ count }) => count() > 9000,
-      },
+    controller({
+      scope: (s: ViewScope<Scope>) => ({
+        doubled: derived(() => s.count() * 2),
+        over9k: derived(() => s.count() > 9000),
+      }),
       on: {
         set:  (s, n: number) => { s.count = n },
         zero: (s)            => { s.count = 0 },
@@ -96,16 +98,15 @@ describe('tier-2 — object form compiles for every section', () => {
     })
   })
 
-  it('per-section factory form pulls scope', () => {
+  it('scope factory pulls template scope', () => {
     type Scope = {
       query: Signal<string>
       agents: Signal<{ items: string[] }>
     }
-    controller<Scope>({
-      derived: {
-        filtered: ({ agents, query }) =>
-          agents().items.filter((n) => n.includes(query())),
-      },
+    controller({
+      scope: (s: ViewScope<Scope>) => ({
+        filtered: derived(() => s.agents().items.filter((n) => n.includes(s.query()))),
+      }),
       on: {
         setQuery: (s, q: string) => { s.query = q },
       },
@@ -188,15 +189,12 @@ describe('controller hooks — keep their state-bearing shape', () => {
 })
 
 describe('discipline — types enforce mutation rules', () => {
-  it('mutable state in handlers; readonly in derived', () => {
+  it('handlers get a mutable state proxy', () => {
     type Scope = { count: Signal<number> }
 
     const ok: ControllerDef<Scope> = {
       on: {
         incr: (s) => { s.count++ }, // writable
-      },
-      derived: {
-        doubled: ({ count }) => count() * 2, // read-only — must call as function
       },
     }
     void ok

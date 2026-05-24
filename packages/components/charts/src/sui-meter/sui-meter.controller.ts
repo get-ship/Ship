@@ -1,4 +1,5 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-meter.sui'
 import { parseJson, toneColor } from '../chart-util'
 
@@ -14,8 +15,8 @@ interface SegInput {
   label?: string
 }
 
-export default controller<Scope>({
-  scope: () => ({
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => ({
     bars: signal<Bar[]>([]),
   }),
 

@@ -1,5 +1,5 @@
 import { controller, derived } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-theme-toggle.sui'
 
 const STORAGE_KEY = 'ship-theme'
@@ -24,23 +24,20 @@ function applyTheme(theme: 'light' | 'dark'): void {
   document.documentElement.classList.toggle('dark', theme === 'dark')
 }
 
-export default controller<Scope>({
-  scope: (state, host) => {
-    const s = state as unknown as {
-      theme: Signal<Theme>
-    }
-    const isDark = derived<boolean>(() => s.theme() === 'dark')
+export default controller({
+  scope: ({ theme }: ViewScope<Scope>, host) => {
+    const isDark = derived<boolean>(() => theme() === 'dark')
 
     function toggle(): void {
-      const next: 'light' | 'dark' = s.theme() === 'dark' ? 'light' : 'dark'
-      s.theme.set(next)
+      const next: 'light' | 'dark' = theme() === 'dark' ? 'light' : 'dark'
+      theme.set(next)
       try {
         localStorage.setItem(STORAGE_KEY, next)
       } catch {
         /* quota / private mode */
       }
       applyTheme(next)
-      host.dispatchEvent(
+      host?.dispatchEvent(
         new CustomEvent('sui-theme-change', {
           detail: { theme: next },
           bubbles: true,
@@ -53,11 +50,8 @@ export default controller<Scope>({
   },
 
   mount(state) {
-    const scope = state as unknown as {
-      theme: Signal<Theme>
-    }
-    const resolved = resolveInitial(scope.theme())
-    if (resolved !== scope.theme()) scope.theme.set(resolved)
+    const resolved = resolveInitial(state.theme)
+    if (resolved !== state.theme) state.theme = resolved
     applyTheme(resolved)
   },
 })

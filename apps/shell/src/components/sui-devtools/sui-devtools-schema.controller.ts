@@ -1,4 +1,5 @@
 import { controller, signal, derived } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-schema.sui'
 import { isShellLocalView } from '../../chrome/shell-surfaces'
 
@@ -46,8 +47,8 @@ function collectRefs(src: string, ops: Map<string, OpDescriptor>): DisplayRef[] 
   return [...seen.values()].sort((a, b) => a.op.localeCompare(b.op))
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const refs = signal<DisplayRef[]>([])
     const errorMsg = signal<string | null>(null)
     const knownCount = derived(() => refs().filter(r => r.known).length)

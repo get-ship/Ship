@@ -2,8 +2,8 @@
 // in apps/shell, not views/): the shell renders it at `/`. Owns its dock; the
 // shell hides the status strip for it. Data comes over @ship/sdk-client live
 // sources (chrome has no `ctx.ship` the way daemon-served views do).
-import { controller, live, unwrapOr, chrome } from '@ship/sui-runtime'
-import type { LiveSignal } from '@ship/sui-runtime'
+import { controller, derived, live, unwrapOr, chrome } from '@ship/sui-runtime'
+import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
 import type { GitOverview } from '@ship/sdk-client'
 import type { Scope } from './sui-home.sui'
@@ -33,35 +33,42 @@ const EMPTY_DASH: DashState = { stats: { active: 0, history: 0 }, agents: [], re
 const EMPTY_GIT: GitOverview = { workspace_id: null, branch: '', head_short: '', clean: true, total_changed: 0, staged: [], modified: [], untracked: [], commits: [], branches: [], ahead: 0, behind: 0 }
 
 const initialOf = (a: DashAgent): string => (a.letter ?? (a.name ?? a.id).slice(0, 1) ?? '?').toString().toUpperCase()
-const readDash = ({ dash }: Scope): DashState => unwrapOr(dash as LiveSignal<DashState>, EMPTY_DASH)
-const readGit = ({ git }: Scope): GitOverview => unwrapOr(git as LiveSignal<GitOverview>, EMPTY_GIT)
 
-export default controller<Scope>({
-  scope: () => ({
-    dash: live(() => liveExpr<DashState>('ship.dashboard.state()')),
-    git: live(() => liveExpr<GitOverview>('ship.git.overview()')),
-    navigate: (path: string): void => chrome.navigate(path),
-    goNav: (event: Event, path: string): void => { event.preventDefault(); chrome.navigate(path) },
-  }),
-  derived: {
-    greeting: () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' },
-    heroLine: (s) => {
-      const d = readDash(s)
-      const running = d.stats.active > 0 ? `${d.stats.active} job${d.stats.active === 1 ? '' : 's'} running` : 'Nothing running'
-      return `${running} · ${d.agents.length} agent${d.agents.length === 1 ? '' : 's'} ready in this space.`
-    },
-    totalJobs: (s) => readDash(s).stats.active + readDash(s).stats.history,
-    agentCount: (s) => readDash(s).agents.length,
-    totalEvents: (s) => readDash(s).total_events,
-    collectionsCount: (s) => readDash(s).collections.length,
-    recentJobs: (s) => readDash(s).recent_runs,
-    recentEvents: (s) => readDash(s).events,
-    agentSlice: (s): AgentRow[] => readDash(s).agents.slice(0, 6).map((a) => ({ ...a, initials: initialOf(a) })),
-    apps: () => APPS,
-    isFirstRun: (s) => { const d = readDash(s); return d.stats.active + d.stats.history === 0 && d.agents.length === 0 && d.events.length === 0 && d.collections.length === 0 },
-    branchName: (s) => readGit(s).branch ?? '',
-    headShort: (s) => readGit(s).head_short ?? '',
-    isClean: (s) => readGit(s).clean,
-    changedSummary: (s) => `${readGit(s).total_changed} changed`,
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
+    const dash = live(() => liveExpr<DashState>('ship.dashboard.state()'))
+    const git = live(() => liveExpr<GitOverview>('ship.git.overview()'))
+    const navigate = (path: string): void => chrome.navigate(path)
+    const goNav = (event: Event, path: string): void => { event.preventDefault(); chrome.navigate(path) }
+
+    const d = (): DashState => unwrapOr(dash as LiveSignal<DashState>, EMPTY_DASH)
+    const g = (): GitOverview => unwrapOr(git as LiveSignal<GitOverview>, EMPTY_GIT)
+
+    const greeting = derived<string>(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' })
+    const heroLine = derived<string>(() => {
+      const dash_ = d()
+      const running = dash_.stats.active > 0 ? `${dash_.stats.active} job${dash_.stats.active === 1 ? '' : 's'} running` : 'Nothing running'
+      return `${running} · ${dash_.agents.length} agent${dash_.agents.length === 1 ? '' : 's'} ready in this space.`
+    })
+    const totalJobs = derived<number>(() => d().stats.active + d().stats.history)
+    const agentCount = derived<number>(() => d().agents.length)
+    const totalEvents = derived<number>(() => d().total_events)
+    const collectionsCount = derived<number>(() => d().collections.length)
+    const recentJobs = derived(() => d().recent_runs)
+    const recentEvents = derived(() => d().events)
+    const agentSlice = derived<AgentRow[]>(() => d().agents.slice(0, 6).map((a) => ({ ...a, initials: initialOf(a) })))
+    const apps = derived(() => APPS)
+    const isFirstRun = derived<boolean>(() => { const dash_ = d(); return dash_.stats.active + dash_.stats.history === 0 && dash_.agents.length === 0 && dash_.events.length === 0 && dash_.collections.length === 0 })
+    const branchName = derived<string>(() => g().branch ?? '')
+    const headShort = derived<string>(() => g().head_short ?? '')
+    const isClean = derived<boolean>(() => g().clean)
+    const changedSummary = derived<string>(() => `${g().total_changed} changed`)
+
+    return {
+      dash, git, navigate, goNav,
+      greeting, heroLine, totalJobs, agentCount, totalEvents, collectionsCount,
+      recentJobs, recentEvents, agentSlice, apps, isFirstRun,
+      branchName, headShort, isClean, changedSummary,
+    }
   },
 })

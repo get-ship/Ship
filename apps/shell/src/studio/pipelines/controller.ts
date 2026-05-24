@@ -1,6 +1,6 @@
 import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
-import type { LiveSignal } from '@ship/sui-runtime'
+import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type PipelineDef = {
@@ -31,8 +31,8 @@ const read = (summaries: unknown): SummariesCtx => {
   return v && Array.isArray(v.defs) ? { ...EMPTY, ...v } : EMPTY
 }
 
-export default controller<Scope>()({
-  scope: ({ route }) => {
+export default controller({
+  scope: ({ route }: ViewScope<Scope>) => {
     const summaries = live(() => liveExpr<SummariesCtx>('ship.pipelines.summaries()'))
     const q = derived(() => String(route.query.q() ?? ''))
     const agent = derived(() => String(route.query.agent() ?? ''))
@@ -48,15 +48,7 @@ export default controller<Scope>()({
     const newPipeName = signal('')
     const newPipeError = signal('')
     const newPipeCreating = signal(false)
-    return {
-      summaries,
-      q, agent, pipeline, status, tab,
-      dispatchOpen, dispatchSpec, dispatchPipeline, dispatchProvider, dispatchHeadless,
-      newPipeOpen, newPipeName, newPipeError, newPipeCreating,
-    }
-  },
-  derived: {
-    defs: ({ summaries }) => read(summaries).defs.map((d) => ({
+    const defs = derived(() => read(summaries).defs.map((d) => ({
       ...d,
       success_pct: Math.floor(d.success_rate * 100),
       // Map run tone → the sui-pipeline-card state taxonomy (ok/running/awaiting/err/none).
@@ -69,15 +61,22 @@ export default controller<Scope>()({
             : d.last_run_tone === 'warning'
               ? 'awaiting'
               : 'none',
-    })),
-    activeRuns: ({ summaries }) => read(summaries).active_runs.map((r) => ({
+    })))
+    const activeRuns = derived(() => read(summaries).active_runs.map((r) => ({
       ...r,
       state_attr: r.state.replace('-', ''),
       steps: r.steps?.map((step, i, arr) => ({ ...step, isLast: i === arr.length - 1 })),
-    })),
-    providers: ({ summaries }) => read(summaries).providers,
-    workspaceId: ({ summaries }) => read(summaries).workspace_id ?? null,
-    statsSubtitle: ({ summaries }) => read(summaries).stats_subtitle,
+    })))
+    const providers = derived(() => read(summaries).providers)
+    const workspaceId = derived(() => read(summaries).workspace_id ?? null)
+    const statsSubtitle = derived(() => read(summaries).stats_subtitle)
+    return {
+      summaries,
+      q, agent, pipeline, status, tab,
+      dispatchOpen, dispatchSpec, dispatchPipeline, dispatchProvider, dispatchHeadless,
+      newPipeOpen, newPipeName, newPipeError, newPipeCreating,
+      defs, activeRuns, providers, workspaceId, statsSubtitle,
+    }
   },
   on: {
     openDispatch: (s) => {

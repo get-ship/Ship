@@ -1,4 +1,5 @@
 import { controller, signal, derived, ref, live } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
 import { route as routeFactory } from '@ship/sui-runtime/route'
 import type { Scope } from './sui-canvas-app.sui'
@@ -76,8 +77,8 @@ function newCanvasId(): string {
   return c || `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-export default controller<Scope>()({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const agentsSummaries = live(() => liveExpr('ship.agents.summaries()'))
     const artifactsList = live(() => liveExpr('ship.artifacts.list()'))
     const route = routeFactory()

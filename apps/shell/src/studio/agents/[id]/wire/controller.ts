@@ -1,12 +1,13 @@
 import { controller, signal, derived, effect, live, unwrap } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 // `navigate` is injected onto the proxy by the runtime mount context but
 // is not a template-declared scope key, so it isn't on `MutableState`.
 type Nav = { navigate: (path: string) => void }
 
-export default controller<Scope>()({
-  scope: ({ route, ship }) => {
+export default controller({
+  scope: ({ route, ship }: ViewScope<Scope>) => {
     const agentId = derived(() => route.params.id() ?? '')
     const wireCtx = live(() => ship.agents.wire({ id: agentId() }))
     const wireData = derived(() => unwrap(wireCtx as any) ?? null)

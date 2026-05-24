@@ -1,24 +1,22 @@
 import { controller, signal, derived, effect, ref, shared } from '@ship/sui-runtime'
+import type { Signal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-command-bar.sui'
-import type { Signal } from '@ship/sui-runtime'
 import {
   type BarMode, type SessionSummary, type AgentSummary, type ThreadLine, type CreateSurface,
   type SlashCommand, type SearchHit,
   loadSlashCommands, cachedSlashCommands, slashCacheAge, SLASH_CACHE_TTL_MS,
   searchEntities,
   detectMode, navigateTo,
-  type CommandBarScope,
 } from './types'
 
-// Full scope shape for use in mount: casts — the exported shared contract.
-type BarState = CommandBarScope
-
-export default controller<Scope>({
-  scope: (init) => {
-    const initAny = init as unknown as BarState
+export default controller({
+  scope: (init: ViewScope<Scope>) => {
     // Wrap prop signals as shared so consumers can access them.
-    const open  = shared(initAny.open)
-    const mode  = shared(initAny.mode as Signal<BarMode>)
+    // init.open / init.mode are typed as `unknown` in the generated Scope
+    // union — the compiler can't see through shared() to emit precise types,
+    // so cast to Signal<T> here to hand them to shared().
+    const open  = shared(init.open as Signal<boolean>)
+    const mode  = shared(init.mode as Signal<BarMode>)
 
     const value          = shared(signal(''))
     const session        = shared(signal<SessionSummary | null>(null))
@@ -56,6 +54,17 @@ export default controller<Scope>({
 
     const dialogRef = ref<HTMLElement>(null)
 
+    const triggerLabel = derived<string>(() => {
+      const sess = session()
+      return sess ? `Ask ${sess.agent_id ?? 'Ship'} or jump to…` : 'Ask Ship or jump to…'
+    })
+    const dotBg = derived<string>(() => {
+      const sess = session()
+      if (sess?.status === 'thinking') return 'var(--warning,#d97706)'
+      if (sess) return 'var(--success,#16a34a)'
+      return 'var(--muted-foreground)'
+    })
+
     return {
       open, mode, value, session, agents, harnesses, allSessions, views,
       selectedIdx, sessionPickerOpen, spawnAgent, spawnHarness, spawning,
@@ -63,20 +72,8 @@ export default controller<Scope>({
       createShape, createSubmitting, createError, isChat, dialogRef,
       slashCommands, sendKey, searchHits, searching,
       daemonOnline, recentSends, historyIdx, sendError,
+      triggerLabel, dotBg,
     }
-  },
-
-  derived: {
-    triggerLabel: (s: any) => {
-      const sess = s.session()
-      return sess ? `Ask ${sess.agent_id ?? 'Ship'} or jump to…` : 'Ask Ship or jump to…'
-    },
-    dotBg: (s: any) => {
-      const sess = s.session()
-      if (sess?.status === 'thinking') return 'var(--warning,#d97706)'
-      if (sess) return 'var(--success,#16a34a)'
-      return 'var(--muted-foreground)'
-    },
   },
 
   on: {
@@ -84,27 +81,26 @@ export default controller<Scope>({
     openFind: (s: any) => { s.mode = 'find'; s.value = ''; s.selectedIdx = 0; s.open = true },
   },
 
-  mount: (state: any, host) => {
-    const st = state as unknown as BarState
-    const open  = st.open
-    const mode  = st.mode
-    const value = st.value
-    const session      = st.session
-    const agents       = st.agents
-    const harnesses    = st.harnesses
-    const allSessions  = st.allSessions
-    const views        = st.views
-    const selectedIdx  = st.selectedIdx
-    const spawnAgent   = st.spawnAgent
-    const spawnHarness = st.spawnHarness
-    const thread       = st.thread
-    const slashCommands    = st.slashCommands
-    const sendKey          = st.sendKey
-    const searchHits       = st.searchHits
-    const searching        = st.searching
-    const daemonOnline     = st.daemonOnline
+  mount: (state, host) => {
+    const open         = state.$signals.open
+    const mode         = state.$signals.mode
+    const value        = state.$signals.value
+    const session      = state.$signals.session
+    const agents       = state.$signals.agents
+    const harnesses    = state.$signals.harnesses
+    const allSessions  = state.$signals.allSessions
+    const views        = state.$signals.views
+    const selectedIdx  = state.$signals.selectedIdx
+    const spawnAgent   = state.$signals.spawnAgent
+    const spawnHarness = state.$signals.spawnHarness
+    const thread: Signal<ThreadLine[]>   = state.$signals.thread
+    const slashCommands: Signal<SlashCommand[]> = state.$signals.slashCommands
+    const sendKey          = state.$signals.sendKey
+    const searchHits       = state.$signals.searchHits
+    const searching        = state.$signals.searching
+    const daemonOnline     = state.$signals.daemonOnline
 
-    const dialogRef = st.dialogRef?.() as (HTMLElement & { show(): void; close(): void }) | null
+    const dialogRef = state.$signals.dialogRef?.() as (HTMLElement & { show(): void; close(): void }) | null
 
     let streamAbort: AbortController | null = null
     let lastSpaceAt = 0

@@ -1,6 +1,6 @@
 import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import { route as routeFactory } from '@ship/sui-runtime/route'
-import type { LiveSignal } from '@ship/sui-runtime'
+import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type SchemaInput = { name: string; type: string; required?: boolean; values?: string[] }
@@ -132,8 +132,8 @@ function shortDate(iso: string): string {
   return new Date(then).toISOString().slice(0, 10)
 }
 
-export default controller<Scope>()({
-  scope: ({ ship }) => {
+export default controller({
+  scope: ({ ship }: ViewScope<Scope>) => {
     const route = routeFactory()
     const activeId = derived(() => route.query.collection() || '')
     const collections = live(() => ship.collections.list())

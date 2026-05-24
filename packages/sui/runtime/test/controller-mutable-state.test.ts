@@ -1,7 +1,7 @@
 import { describe, expectTypeOf, it } from 'vitest'
 import { signal, derived } from '../src/signal'
 import { controller } from '../src/index'
-import type { MutableState, StateKeys, ReadonlyView } from '../src/controller'
+import type { MutableState, StateKeys, ReadonlyView, ViewScope } from '../src/controller'
 
 // Type-level spec for the handler-state arg (#114). The bug: `StateKeys`
 // filtered on `Scope[K] extends Signal<unknown>`, which is FALSE for every
@@ -30,18 +30,19 @@ describe('MutableState<Scope> (handler-state arg)', () => {
     expectTypeOf<MutableState<Scope>['label']>().toEqualTypeOf<ReadonlyView<string>>()
   })
 
-  it('curried form: handlers get PRECISE, cast-free types inferred from scope', () => {
-    // `controller<Tpl>()(def)` infers SC from the scope return — the
-    // controller's own TS is the source of truth (no `Signal<unknown>` from
-    // the compiler). No `type S = MutableState<Scope>`, no `s as any`, and
-    // values are precise (string / string|null), not `unknown`.
+  it('canonical form: handlers get PRECISE, cast-free types inferred from scope', () => {
+    // `controller({ scope: (ctx: ViewScope<Tpl>) => ({…}) })` infers both the
+    // template `Ctx` (from the scope param annotation) and `SC` (from the
+    // return) — the controller's own TS is the source of truth (no
+    // `Signal<unknown>` from the compiler). No `<Scope>` type arg, no currying,
+    // no `type S = MutableState<Scope>`, no `s as any`; values are precise.
     //
     // `derived()` returns `Derived<T> extends Signal<T>`, so it reads as its
     // unwrapped VALUE (the proxy unwraps state signals) — `s.label`, not
     // `s.label()`.
     interface Tpl { /* template-declared <data>/<state> only */ }
-    controller<Tpl>()({
-      scope: () => ({
+    controller({
+      scope: (_ctx: ViewScope<Tpl>) => ({
         count: signal(0),
         flag: signal(false),
         label: derived(() => 'hello'),

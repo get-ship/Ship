@@ -1,10 +1,11 @@
 import { controller, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type Nav = { navigate: (path: string) => void }
 
-export default controller<Scope>()({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const newColOpen = signal(false)
     const newColId = signal('')
     const newColName = signal('')

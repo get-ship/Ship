@@ -4,8 +4,8 @@
 // and bump `refreshNonce` so the live overview re-subscribes and the
 // daemon re-runs the signal resolver.
 
-import { controller, signal, live, unwrapOr, useFilteredList } from '@ship/sui-runtime'
-import type { LiveSource } from '@ship/sui-runtime'
+import { controller, signal, live, derived, unwrapOr, useFilteredList } from '@ship/sui-runtime'
+import type { LiveSource, ViewScope } from '@ship/sui-runtime'
 import type {
   GitBranch,
   GitCommit,
@@ -44,8 +44,8 @@ function errMessage(err: unknown): string {
   try { return JSON.stringify(err) } catch { return String(err) }
 }
 
-export default controller<Scope>({
-  scope: ({ ship }: { ship: ShipSDK }) => {
+export default controller({
+  scope: ({ ship }: ViewScope<Scope>) => {
     // Mutation closures captured here so `on:` handlers can fire daemon
     // ops through the typed SDK surface. The runtime strips raw object
     // refs from scope on serialization; only function values survive.
@@ -101,6 +101,63 @@ export default controller<Scope>({
       if (!sha) return NEVER
       return ship.git.diff({ commit: sha })
     })
+    const branch         = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).branch ?? '')
+    const headShort      = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).head_short ?? '')
+    const clean          = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).clean)
+    const totalChanged   = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).total_changed)
+    const ahead          = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).ahead)
+    const behind         = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).behind)
+    const staged         = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).staged)
+    const modified       = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).modified)
+    const untracked      = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).untracked)
+    const commits        = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).commits)
+    const branches       = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).branches)
+    const commitsCount   = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).commits.length)
+    const branchesCount  = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).branches.length)
+    const recentCommits  = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).commits.slice(0, 5))
+    const recentBranches = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).branches.slice(0, 6))
+    const stagedCount    = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).staged.length)
+    const unstagedCount  = derived(() => {
+      const o = unwrapOr(overview, EMPTY_OVERVIEW)
+      return o.modified.length + o.untracked.length
+    })
+    const canCommit      = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).staged.length > 0)
+    const fileGroups     = derived(() => {
+      const o = unwrapOr(overview, EMPTY_OVERVIEW)
+      return [
+        { key: 'staged' as const,    label: 'Staged',    glyph: 'S', tone: 'success', variant: 'soft',    items: o.staged    },
+        { key: 'modified' as const,  label: 'Modified',  glyph: '',  tone: 'warning', variant: 'soft',    items: o.modified  },
+        { key: 'untracked' as const, label: 'Untracked', glyph: '?', tone: 'muted',   variant: 'outline', items: o.untracked },
+      ].filter((g) => g.items.length > 0)
+    })
+    const activeBranch   = derived(() => {
+      const list = unwrapOr(overview, EMPTY_OVERVIEW).branches
+      const name = activeBranchName()
+      const picked = name ? list.find((b) => b.name === name) : undefined
+      return picked ?? list.find((b) => b.active) ?? list[0] ?? null
+    })
+    const diffFiles      = derived(() => {
+      const v = (diff as unknown as () => { kind: string; value?: GitDiff })()
+      if (v.kind !== 'ok' || !v.value) return []
+      const file = selectedFile()
+      const all = v.value.parsed?.files ?? []
+      return file ? all.filter((f) => f.path === file) : all
+    })
+    const diffReady      = derived(() =>
+      (diff as unknown as () => { kind: string })().kind === 'ok')
+    const diffIsWorking  = derived(() => {
+      const v = (diff as unknown as () => { kind: string; value?: GitDiff })()
+      return v.kind === 'ok' && !!v.value?.is_working
+    })
+    const overviewErrMsg = derived(() => {
+      const v = (overview as unknown as () => { kind: string; error?: { message?: string } })()
+      return v.kind === 'error' ? (v.error?.message ?? 'Unknown error') : ''
+    })
+    const isNoRepo       = derived(() => {
+      const v = (overview as unknown as () => { kind: string; error?: { message?: string } })()
+      const msg = v.kind === 'error' ? (v.error?.message ?? '') : ''
+      return /no.repo|repo unavailable|not a git/i.test(msg)
+    })
     return {
       tab, selectedCommit, selectedFile, diffMode, activeBranchName,
       refreshNonce, overview, diff,
@@ -110,67 +167,13 @@ export default controller<Scope>({
       branchDeleteOpen, branchDeleteTarget, branchDeleteForce, branchDeleteError,
       stagePaths, unstagePaths, commitNow, pushNow, pullNow, fetchNow,
       checkoutRef, createBranch, deleteBranch, initNow,
+      branch, headShort, clean, totalChanged, ahead, behind,
+      staged, modified, untracked, commits, branches,
+      commitsCount, branchesCount, recentCommits, recentBranches,
+      stagedCount, unstagedCount, canCommit, fileGroups,
+      activeBranch, diffFiles, diffReady, diffIsWorking,
+      overviewErrMsg, isNoRepo,
     }
-  },
-
-  derived: {
-    branch:         (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).branch ?? '',
-    headShort:      (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).head_short ?? '',
-    clean:          (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).clean,
-    totalChanged:   (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).total_changed,
-    ahead:          (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).ahead,
-    behind:         (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).behind,
-    staged:         (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).staged,
-    modified:       (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).modified,
-    untracked:      (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).untracked,
-    commits:        (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).commits,
-    branches:       (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).branches,
-    commitsCount:   (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).commits.length,
-    branchesCount:  (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).branches.length,
-    recentCommits:  (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).commits.slice(0, 5),
-    recentBranches: (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).branches.slice(0, 6),
-    stagedCount:    (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).staged.length,
-    unstagedCount:  (s) => {
-      const o = unwrapOr(s.overview, EMPTY_OVERVIEW)
-      return o.modified.length + o.untracked.length
-    },
-    canCommit:      (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).staged.length > 0,
-    fileGroups: (s) => {
-      const o = unwrapOr(s.overview, EMPTY_OVERVIEW)
-      return [
-        { key: 'staged' as const,    label: 'Staged',    glyph: 'S', tone: 'success', variant: 'soft',    items: o.staged    },
-        { key: 'modified' as const,  label: 'Modified',  glyph: '',  tone: 'warning', variant: 'soft',    items: o.modified  },
-        { key: 'untracked' as const, label: 'Untracked', glyph: '?', tone: 'muted',   variant: 'outline', items: o.untracked },
-      ].filter((g) => g.items.length > 0)
-    },
-    activeBranch:   (s) => {
-      const list = unwrapOr(s.overview, EMPTY_OVERVIEW).branches
-      const name = (s.activeBranchName as unknown as () => string)()
-      const picked = name ? list.find((b) => b.name === name) : undefined
-      return picked ?? list.find((b) => b.active) ?? list[0] ?? null
-    },
-    diffFiles: (s) => {
-      const v = (s.diff as unknown as () => { kind: string; value?: GitDiff })()
-      if (v.kind !== 'ok' || !v.value) return []
-      const file = (s.selectedFile as unknown as () => string)()
-      const all = v.value.parsed?.files ?? []
-      return file ? all.filter((f) => f.path === file) : all
-    },
-    diffReady: (s) =>
-      (s.diff as unknown as () => { kind: string })().kind === 'ok',
-    diffIsWorking: (s) => {
-      const v = (s.diff as unknown as () => { kind: string; value?: GitDiff })()
-      return v.kind === 'ok' && !!v.value?.is_working
-    },
-    overviewErrMsg: (s) => {
-      const v = (s.overview as unknown as () => { kind: string; error?: { message?: string } })()
-      return v.kind === 'error' ? (v.error?.message ?? 'Unknown error') : ''
-    },
-    isNoRepo: (s) => {
-      const v = (s.overview as unknown as () => { kind: string; error?: { message?: string } })()
-      const msg = v.kind === 'error' ? (v.error?.message ?? '') : ''
-      return /no.repo|repo unavailable|not a git/i.test(msg)
-    },
   },
 
   use: (s) => ({

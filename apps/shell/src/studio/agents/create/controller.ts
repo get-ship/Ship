@@ -1,4 +1,5 @@
 import { controller, signal, derived, live } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 // `navigate` is injected onto the proxy by the runtime mount context but
@@ -32,8 +33,8 @@ function isValidId(id: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)
 }
 
-export default controller<Scope>()({
-  scope: ({ ship }) => {
+export default controller({
+  scope: ({ ship }: ViewScope<Scope>) => {
     const createCtx = live(() => ship.agents.create_ctx())
     const step = signal(0)
     const template = signal('blank')

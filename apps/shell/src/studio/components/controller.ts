@@ -9,7 +9,7 @@
 // (charts/pipelines packages fold into their own group). Subcomponents
 // (sui-accordion-item ⊂ sui-accordion) are folded into the parent's part
 // count and hidden from the index — one cell per shippable component.
-import { controller, signal } from '@ship/sui-runtime'
+import { controller, signal, derived } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { loadCatalog, categoryRank, type CatalogEntry } from './catalog'
@@ -37,21 +37,19 @@ interface IndexGroup {
   cells: IndexCell[]
 }
 
-export default controller<Scope>()({
-  scope: () => ({
-    sui: signal<CatalogEntry[]>([]),
-    loading: signal(true),
-    filterText: signal(''),
-    filter: signal<Filter>('all'),
-  }),
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
+    const sui = signal<CatalogEntry[]>([])
+    const loading = signal(true)
+    const filterText = signal('')
+    const filter = signal<Filter>('all')
 
-  derived: {
     // Visible (non-subcomponent) entries, filtered by package + text, then
     // grouped into ordered category sections for the index.
-    groups: ({ filterText, sui, filter }) => {
+    const groups = derived(() => {
       const items = sui() as CatalogEntry[]
-      const text = (filterText() as string).toLowerCase().trim()
-      const f = filter() as Filter
+      const text = filterText().toLowerCase().trim()
+      const f = filter()
       const wantPkg = f === 'all' ? null : PKG_OF[f]
       const tags = items.map((i) => i.tag)
       const childCountOf = (tag: string) =>
@@ -97,14 +95,14 @@ export default controller<Scope>()({
           cells: list.sort((a, b) => a.tag.localeCompare(b.tag)),
         }))
         .sort((a, b) => categoryRank(a.label) - categoryRank(b.label))
-    },
-    totalCount: ({ sui }) => {
+    })
+    const totalCount = derived(() => {
       const items = sui() as CatalogEntry[]
       const tags = items.map((i) => i.tag)
       return items.filter((e) => !tags.some((t) => t !== e.tag && e.tag.startsWith(t + '-'))).length
-    },
+    })
     // Per-package counts for the filter-pill badges (top-level components only).
-    counts: ({ sui }) => {
+    const counts = derived(() => {
       const items = sui() as CatalogEntry[]
       const tags = items.map((i) => i.tag)
       const roots = items.filter((e) => !tags.some((t) => t !== e.tag && e.tag.startsWith(t + '-')))
@@ -115,11 +113,10 @@ export default controller<Scope>()({
         charts: by('@ship/charts'),
         pipelines: by('@ship/pipelines'),
       }
-    },
-    // `groups` is a sibling `derived` key — present on the resolved scope at
-    // runtime but not on the compiler-emitted `Scope`.
-    visibleCount: (scope: ViewScope<Scope>) =>
-      ((scope as unknown as { groups: () => IndexGroup[] }).groups()).reduce((n, g) => n + g.count, 0),
+    })
+    // `groups` is a closure-local derived — readable directly.
+    const visibleCount = derived(() => groups().reduce((n, g) => n + g.count, 0))
+    return { sui, loading, filterText, filter, groups, totalCount, counts, visibleCount }
   },
 
   on: {

@@ -1,36 +1,28 @@
 import { controller, derived, effect } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-git-diff-file.sui'
 
-export default controller<Scope>({
-  scope: (state) => {
-    const s = state as unknown as {
-      collapsed: Signal<boolean>
-    }
+export default controller({
+  scope: (ctx: ViewScope<Scope>) => {
     const chevIcon = derived<string>(() =>
-      s.collapsed() ? 'chevron-right' : 'chevron-down',
+      ctx.collapsed() ? 'chevron-right' : 'chevron-down',
     )
-    const expandedLabel = derived<string>(() => (s.collapsed() ? 'false' : 'true'))
+    const expandedLabel = derived<string>(() => (ctx.collapsed() ? 'false' : 'true'))
 
     function toggle(): void {
-      s.collapsed.set(!s.collapsed())
+      ctx.collapsed.set(!ctx.collapsed())
     }
 
     return { chevIcon, expandedLabel, toggle }
   },
 
   mount(state, host) {
-    const scope = state as unknown as {
-      path: Signal<string>
-      additions: Signal<number>
-      deletions: Signal<number>
-    }
     if (!host.hasAttribute('role')) host.setAttribute('role', 'group')
 
     const stopLabel = effect(() => {
-      const path = scope.path()
-      const a = scope.additions()
-      const d = scope.deletions()
+      const path = state.path
+      const a = state.additions
+      const d = state.deletions
       host.setAttribute('aria-label', `${path}: +${a} -${d}`)
     })
 

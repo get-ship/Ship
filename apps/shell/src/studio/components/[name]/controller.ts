@@ -1,4 +1,4 @@
-import { controller, signal, effect } from '@ship/sui-runtime'
+import { controller, signal, effect, derived } from '@ship/sui-runtime'
 import { defineRoutes } from '@ship/sui-runtime/route'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
@@ -13,10 +13,6 @@ import { slotLabel } from './slot-compositions'
 import { buildSnippet } from './snippet'
 import { readSearchParams, writeSearchParams, highlightActiveCell } from './deep-link'
 
-// Sibling `derived` keys — present on the resolved scope at runtime but
-// not on the compiler-emitted `Scope` interface.
-type WithEntry = ViewScope<Scope> & { entry: () => CatalogEntry | null }
-type WithAxes = ViewScope<Scope> & { matrixAxes: () => MatrixAxis[] }
 
 const BOOL_TYPES = new Set(['boolean', 'Boolean', 'bool'])
 const isBoolType = (t: string | undefined) => t !== undefined && BOOL_TYPES.has(t)
@@ -71,68 +67,69 @@ function ensureIsland(tag: string): void {
   })
 }
 
-export default controller<Scope>()({
-  scope: () => ({
-    allCatalog: signal<CatalogEntry[]>([]),
-    loading: signal(true),
-    propValues: signal<Record<string, unknown>>({}),
-    _dispose: signal<(() => void) | null>(null),
-    copyFeedback: signal(false),
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
+    const allCatalog = signal<CatalogEntry[]>([])
+    const loading = signal(true)
+    const propValues = signal<Record<string, unknown>>({})
+    const _dispose = signal<(() => void) | null>(null)
+    const copyFeedback = signal(false)
     // Authoritative subroute slug — seeded from `location.pathname` at
     // mount() rather than `route.params.name()`. The shell pre-registers
     // the dynamic pattern, so the view's own `defineRoutes` lands in a
     // different runtime instance and the shell's shared `route` proxy
     // never seeds `params.name`. Reading the pathname sidesteps that.
-    currentName: signal<string>(''),
-  }),
+    const currentName = signal<string>('')
 
-  derived: {
-    entry: ({ allCatalog, currentName }) => {
+    const entry = derived(() => {
       const name = currentName()
       if (!name) return null
-      return (allCatalog() as CatalogEntry[]).find(e => e.id === name) ?? null
-    },
-    hasProps: (scope: ViewScope<Scope>) => {
-      const e = (scope as WithEntry).entry()
+      return allCatalog().find(e => e.id === name) ?? null
+    })
+    const hasProps = derived(() => {
+      const e = entry()
       return e !== null && (e.props ?? []).length > 0
-    },
+    })
     // Knobs for the playground, classified into enum / bool / string.
-    knobs: (scope: ViewScope<Scope>) => {
-      const e = (scope as WithEntry).entry()
+    const knobs = derived(() => {
+      const e = entry()
       if (!e) return [] as Knob[]
       return (e.props ?? []).map(classifyKnob)
-    },
-    slotList: (scope: ViewScope<Scope>) => {
-      const e = (scope as WithEntry).entry()
+    })
+    const slotList = derived(() => {
+      const e = entry()
       return (e?.slots ?? []) as { name?: string; description?: string }[]
-    },
-    metaLabel: (scope: ViewScope<Scope>) => {
-      const e = (scope as WithEntry).entry()
+    })
+    const metaLabel = derived(() => {
+      const e = entry()
       if (!e) return ''
       const p = (e.props ?? []).length
       const s = (e.slots ?? []).length
       const parts: string[] = [`${p} prop${p === 1 ? '' : 's'}`]
       if (s > 0) parts.push(`${s} slot${s === 1 ? '' : 's'}`)
       return parts.join(' · ')
-    },
+    })
     // Live source snippet, recomputed as the knobs change.
-    snippet: (scope: ViewScope<Scope>) => {
-      const s = scope as WithEntry & { propValues: () => Record<string, unknown> }
-      const e = s.entry()
+    const snippet = derived(() => {
+      const e = entry()
       if (!e) return ''
-      return buildSnippet(e.tag, s.propValues(), e.props ?? [], e.examples?.[0]?.slots)
-    },
-    matrixAxes: (scope: ViewScope<Scope>) => {
-      const e = (scope as WithEntry).entry()
+      return buildSnippet(e.tag, propValues(), e.props ?? [], e.examples?.[0]?.slots)
+    })
+    const matrixAxes = derived(() => {
+      const e = entry()
       if (!e || e.kind !== 'sui') return [] as MatrixAxis[]
       return deriveAxes(e.props ?? [])
-    },
-    matrixCells: (scope: ViewScope<Scope>) => buildCells((scope as WithAxes).matrixAxes()),
-    matrixAxesLabel: (scope: ViewScope<Scope>) => {
-      const axes = (scope as WithAxes).matrixAxes()
+    })
+    const matrixCells = derived(() => buildCells(matrixAxes()))
+    const matrixAxesLabel = derived(() => {
+      const axes = matrixAxes()
       if (axes.length === 0) return ''
       return axes.map(a => a.name).join(' × ')
-    },
+    })
+    return {
+      allCatalog, loading, propValues, _dispose, copyFeedback, currentName,
+      entry, hasProps, knobs, slotList, metaLabel, snippet, matrixAxes, matrixCells, matrixAxesLabel,
+    }
   },
 
   on: {

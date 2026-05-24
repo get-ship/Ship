@@ -202,7 +202,6 @@ export type {
   ReadonlyView,
   MutableState,
   SectionInit,
-  DerivedSection,
   OnSection,
   UseSection,
   MountSection,

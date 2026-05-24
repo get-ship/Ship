@@ -2,7 +2,7 @@
 // shell renders it at /settings. Relocated from views/settings; the two <data>
 // sources are now controller-side live() over @ship/sdk-client.
 import { controller, signal, derived, live, unwrapOr } from '@ship/sui-runtime'
-import type { Signal, LiveSignal, AccountState } from '@ship/sui-runtime'
+import type { Signal, LiveSignal, AccountState, ViewScope } from '@ship/sui-runtime'
 import {
   liveExpr,
   accountDisplayName,
@@ -41,8 +41,8 @@ async function settingsUpdate(formData: FormData): Promise<{ key: string; value:
   return { key, value }
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     // Chrome has no ctx.ship — wire the live sources directly (was <data>).
     const settings = live(() => liveExpr('ship.settings.state()'))
     const account = live(() => liveExpr('ship.account.state()'))

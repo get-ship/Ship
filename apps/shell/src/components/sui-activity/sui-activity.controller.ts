@@ -2,6 +2,7 @@
 // (apps/shell): the shell renders it at /activity. Live `ship.mesh.snapshot()`
 // over @ship/sdk-client. (Relocated from views/activity; was the mesh draft.)
 import { controller, derived, live, signal, unwrap } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
 import type { Scope } from './sui-activity.sui'
 
@@ -21,8 +22,8 @@ type Actor = {
   last_event_at?: string | null
 }
 
-export default controller<Scope>()({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const snap = live(() => liveExpr<{ actors?: Actor[] }>('ship.mesh.snapshot()'))
     const actorsFormatted = derived(() => {
       const v = unwrap(snap)

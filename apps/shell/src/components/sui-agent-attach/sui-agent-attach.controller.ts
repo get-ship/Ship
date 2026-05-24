@@ -8,7 +8,7 @@
  */
 
 import { controller, effect, ref, signal } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { Signal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-agent-attach.sui'
 
 import { attachAgentSession, type AgentSessionAttachment } from './attach'
@@ -25,11 +25,11 @@ type HostEl = HTMLElement & {
   disconnect?: (() => void) | undefined
 }
 
-export default controller<Scope>()({
+export default controller({
   // Component-level signals the template renders (overlay state). Stored
   // on the scope so the template re-renders when they change; the bridge
   // assigns them as the WS lifecycle transitions.
-  scope: () => {
+  scope: (_ctx: ViewScope<Scope>) => {
     const connected = signal(false)
     const disconnectReason = signal('')
     const termRef = ref<TerminalEl>(null)

@@ -2,6 +2,7 @@
 // for. Glance-only; no internal state.
 
 import { controller } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-shell-bottom.sui'
 
 function emit(host: HTMLElement, type: string, detail?: unknown): void {
@@ -12,8 +13,8 @@ function emit(host: HTMLElement, type: string, detail?: unknown): void {
   }))
 }
 
-export default controller<Scope>({
-  scope: (_state, host) => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>, host?: Element) => {
     const hostEl = host as HTMLElement
     return {
       onDotClick: () => emit(hostEl, 'sui:dock:toggle'),

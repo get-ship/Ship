@@ -9,6 +9,7 @@
 // uses.
 
 import { controller, signal, derived, live, unwrap, defineRoutes } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 defineRoutes([{ pattern: '/studio/collections/:id' }])
@@ -81,8 +82,8 @@ function buildCell(
   return { kind: 'text', value: String(raw) }
 }
 
-export default controller<Scope>()({
-  scope: ({ ship, route }) => {
+export default controller({
+  scope: ({ ship, route }: ViewScope<Scope>) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = ship as any
     const collectionId = derived(() => route.params.id() ?? '')

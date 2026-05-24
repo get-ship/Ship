@@ -1,4 +1,5 @@
 import { controller, signal, derived, ref } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-component-picker.sui'
 import { SLOT_COMPOSITIONS } from '../picker-slot-compositions'
 
@@ -174,8 +175,8 @@ interface HostWithProps extends HTMLElement {
   open?: boolean
 }
 
-export default controller<Scope>({
-  scope: (state, host) => {
+export default controller({
+  scope: (state: ViewScope<Scope>, host?: Element) => {
     const entries = signal<PickerEntry[]>([])
     const filter = signal('')
     const queue = signal<string[]>([])
@@ -184,15 +185,10 @@ export default controller<Scope>({
      *  packs. Toggled by the chip above the search input. */
     const publishedOnly = signal<boolean>(false)
     const gridEl = ref<HTMLDivElement>(null)
-    const s = state as unknown as {
-      categoryFilter: () => string
-      selectMode: () => 'single' | 'multi'
-      mode: () => 'modal' | 'inline'
-    }
     const shown = derived(() => {
       const all = entries()
       const needle = filter().trim()
-      const cat = s.categoryFilter().trim().toLowerCase()
+      const cat = state.categoryFilter().trim().toLowerCase()
       const pubOnly = publishedOnly()
       return all.filter((e) => {
         if (pubOnly && e.private) return false
@@ -253,14 +249,14 @@ export default controller<Scope>({
     }
 
     function onTileClick(tag: string): void {
-      if (s.selectMode() === 'multi') {
+      if (state.selectMode() === 'multi') {
         const q = queue()
         if (q.includes(tag)) queue.set(q.filter((t) => t !== tag))
         else queue.set([...q, tag])
         return
       }
       emitPicked([tag])
-      if (s.mode() === 'modal') { h.open = false }
+      if (state.mode() === 'modal') { h.open = false }
     }
 
     function commit(): void {
@@ -268,7 +264,7 @@ export default controller<Scope>({
       if (tags.length === 0) return
       emitPicked([...tags])
       queue.set([])
-      if (s.mode() === 'modal') h.open = false
+      if (state.mode() === 'modal') h.open = false
     }
 
     function onDialogClose(): void { h.open = false }

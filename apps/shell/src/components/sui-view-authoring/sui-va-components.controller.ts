@@ -1,4 +1,5 @@
 import { controller, signal, effect, chrome } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-va-components.sui'
 
 // window.__viewMcp is declared canonically in src/chrome/view-mcp.ts; this
@@ -55,8 +56,8 @@ function highlightInMount(tag: string): void {
   }, 1400)
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const inView = signal<ComponentRef[]>([])
     const highlighted = signal<string>('')
 

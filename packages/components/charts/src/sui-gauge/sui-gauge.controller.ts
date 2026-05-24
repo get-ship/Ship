@@ -1,4 +1,5 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-gauge.sui'
 import { arcPath, toneColor } from '../chart-util'
 
@@ -7,8 +8,8 @@ const DEG = Math.PI / 180
 const START_ANGLE = 135 * DEG
 const END_ANGLE = 405 * DEG
 
-export default controller<Scope>({
-  scope: () => ({
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => ({
     trackD: signal(''),
     valueD: signal(''),
     arcColor: signal('var(--primary)'),

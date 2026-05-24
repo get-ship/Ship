@@ -1,6 +1,6 @@
 import { controller, signal, derived, ref } from '@ship/sui-runtime'
+import type { Signal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-annotation-layer.sui'
-import type { Signal } from '@ship/sui-runtime'
 import { type AnnotationEvent, buildAnnotationEvent } from './sui-annotation.internals'
 
 type Mode = 'off' | 'point' | 'region'
@@ -22,11 +22,11 @@ interface Drag {
 
 const DEFAULT_ENDPOINT = '/api/feedback'
 
-export default controller<Scope>({
-  scope: (props, host) => {
-    const viewIdProp = (props as { viewId: Signal<string> }).viewId
-    const endpointProp = (props as { endpoint: Signal<string> }).endpoint
-    const stagingProp = (props as { staging: Signal<boolean> }).staging
+export default controller({
+  scope: (props: ViewScope<Scope>, host?: Element) => {
+    const viewIdProp = props.viewId
+    const endpointProp = props.endpoint
+    const stagingProp = props.staging
 
     const staged = signal<AnnotationEvent[]>([])
     const pending = signal<Pending | null>(null)

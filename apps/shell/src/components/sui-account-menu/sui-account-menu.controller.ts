@@ -7,7 +7,7 @@ import {
   unwrapOr,
   chrome,
 } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { Signal, ViewScope } from '@ship/sui-runtime'
 import {
   accountDisplayName as deriveDisplayName,
   accountInitials as deriveInitials,
@@ -32,11 +32,11 @@ const EMPTY: AccountIdentity = {
   state_id: null,
 }
 
-export default controller<Scope>({
+export default controller({
   // `account` is auto-created from `<data name="account" source="ship.account.state()" live />`
   // in the template — see SUI hard rule #2 (subscriptions in <data>).
   // The controller derives identity + UI state from it.
-  scope: ({ account }) => {
+  scope: ({ account }: ViewScope<Scope>) => {
     const panelOpen = signal(false)
     const busy = signal(false)
     const errorMessage = signal('')

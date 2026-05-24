@@ -1,5 +1,5 @@
 import { controller, derived, effect, live, signal, unwrap } from '@ship/sui-runtime'
-import type { LiveSignal } from '@ship/sui-runtime'
+import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { HUES, pickHue, pickInitials } from './hue'
 
@@ -53,8 +53,8 @@ async function readActiveAgent(): Promise<string> {
   }
 }
 
-export default controller<Scope>()({
-  scope: ({ route, ship }) => {
+export default controller({
+  scope: ({ route, ship }: ViewScope<Scope>) => {
     const agentId = derived(() => route.params.id() ?? '')
     const wireCtx = live(() => ship.agents.wire({ id: agentId() }))
     // `wireCtx` emits as `unknown` (emitter gap); narrow to a LiveSignal.

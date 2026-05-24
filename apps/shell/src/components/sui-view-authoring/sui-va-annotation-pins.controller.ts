@@ -1,4 +1,5 @@
 import { controller, signal, chrome } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-va-annotation-pins.sui'
 
 interface Pin {
@@ -14,8 +15,8 @@ interface Pin {
 
 const AUTO_CLEAR_MS = 30_000
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const pins = signal<Pin[]>([])
     function onPinClick(pin: Pin): void {
       chrome.dock.show()

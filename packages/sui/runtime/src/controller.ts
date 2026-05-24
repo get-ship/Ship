@@ -126,16 +126,6 @@ export type ViewScope<Scope = object> = Scope & {
 export type SectionInit<V, Scope> = V | ((scope: Scope) => V)
 
 /**
- * `derived` section signature. Each key returns a value; the runtime
- * memoizes the result and tracks the function's reactive reads.
- * State here is read-only.
- */
-export type DerivedSection<Scope> = Record<
-  string,
-  (scope: ViewScope<Scope>) => unknown
->
-
-/**
  * `on` section signature. Each handler receives a writable state
  * mutator as its first argument and any handler-specific args after.
  *
@@ -236,9 +226,6 @@ export interface ControllerShape<Scope = object> {
    */
   scope?: (init: ViewScope<Scope>, host?: Element) => Record<string, unknown>
 
-  /** Pure memos. Each key is a function `(scope) => T`. */
-  derived?: DerivedSection<Scope>
-
   /**
    * Event handlers. The **only** section in a controller that can
    * mutate state.
@@ -256,28 +243,6 @@ export interface ControllerShape<Scope = object> {
 
   /** Runs once on disconnect; receives writable state. */
   unmount?: UnmountSection<Scope>
-}
-
-/**
- * Inferred-scope controller shape — the cast-free form. `SC` is inferred
- * from the `scope` factory's return, so the controller's own TypeScript is
- * the source of truth for the types of `signal`/`derived`/`ref`/`live`
- * entries (the compiler no longer guesses them as `Signal<unknown>`). The
- * merged view scope is `Scope & SC`: template-declared (`<data>`/`<state>`/
- * `<prop>`, from the compiler) intersected with controller-contributed.
- *
- * Reached via the curried `controller<Scope>()(def)` overload — currying is
- * required because TypeScript cannot infer `SC` while `Scope` is supplied
- * explicitly in the same call.
- */
-export interface InferredControllerShape<Scope, SC extends Record<string, unknown>> {
-  scope?: (init: ViewScope<Scope>, host?: Element) => SC
-  derived?: Record<string, (scope: ViewScope<Scope & SC>) => unknown>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  on?: Record<string, (state: MutableState<Scope & SC>, ...args: any[]) => void | Promise<void>>
-  use?: SectionInit<UseSection<Scope & SC>, ViewScope<Scope & SC>>
-  mount?: (state: MutableState<Scope & SC>, el: HTMLElement) => (() => void) | void | Promise<void>
-  unmount?: (state: MutableState<Scope & SC>) => void
 }
 
 /**
@@ -299,7 +264,6 @@ export interface InferredControllerShape<Scope, SC extends Record<string, unknow
  */
 export interface ScopedControllerDef<Ctx, SC extends Record<string, unknown>> {
   scope: (init: Ctx, host?: Element) => SC
-  derived?: Record<string, (scope: Ctx & SC) => unknown>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   on?: Record<string, (state: MutableState<Ctx & SC>, ...args: any[]) => void | Promise<void>>
   use?: SectionInit<UseSection<Ctx & SC>, Ctx & SC>

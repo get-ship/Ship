@@ -1,11 +1,12 @@
 import { controller, derived, useShared } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-command-chat.sui'
 import { type SessionSummary, type CommandBarScope, navigateTo } from './types'
 
 const RECENT_MAX = 20
 
-export default controller<Scope>({
-  scope: (_, host) => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>, host?: Element) => {
     const bar = useShared<CommandBarScope>(host!, 'sui-command-bar')
 
     const headerDotBg = derived(() => {

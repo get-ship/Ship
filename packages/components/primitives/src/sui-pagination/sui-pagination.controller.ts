@@ -1,8 +1,9 @@
 import { controller, signal, ref, effect } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-pagination.sui'
 
-export default controller<Scope>({
-  scope: () => ({
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => ({
     totalPages: signal(1),
     info: signal(''),
     prevBtn: ref<HTMLButtonElement>(null),
@@ -10,31 +11,29 @@ export default controller<Scope>({
   }),
 
   mount(state, host) {
-    const scope = state as unknown as Scope
-
     const stopEffect = effect(() => {
-      const p = scope.page()
-      const t = scope.total()
-      const pp = scope.perPage()
+      const p = state.page
+      const t = state.total
+      const pp = state.perPage
       const tp = t > 0 ? Math.ceil(t / pp) : 1
-      scope.totalPages.set(tp)
+      state.totalPages = tp
       if (t > 0) {
         const start = (p - 1) * pp + 1
         const end = Math.min(p * pp, t)
-        scope.info.set(`Page ${p} of ${tp} (${start}–${end} of ${t})`)
+        state.info = `Page ${p} of ${tp} (${start}–${end} of ${t})`
       } else {
-        scope.info.set(`Page ${p} of ${tp}`)
+        state.info = `Page ${p} of ${tp}`
       }
     })
 
-    const prevBtn = scope.prevBtn() as HTMLButtonElement | null
-    const nextBtn = scope.nextBtn() as HTMLButtonElement | null
+    const prevBtn = state.prevBtn as HTMLButtonElement | null
+    const nextBtn = state.nextBtn as HTMLButtonElement | null
 
     const onPrev = () => {
-      const p = scope.page()
+      const p = state.page
       if (p > 1) {
         const np = p - 1
-        scope.page.set(np)
+        state.page = np
         host.dispatchEvent(
           new CustomEvent('sui-page', {
             detail: { page: np },
@@ -46,11 +45,11 @@ export default controller<Scope>({
     }
 
     const onNext = () => {
-      const p = scope.page()
-      const tp = scope.totalPages()
+      const p = state.page
+      const tp = state.totalPages
       if (p < tp) {
         const np = p + 1
-        scope.page.set(np)
+        state.page = np
         host.dispatchEvent(
           new CustomEvent('sui-page', {
             detail: { page: np },

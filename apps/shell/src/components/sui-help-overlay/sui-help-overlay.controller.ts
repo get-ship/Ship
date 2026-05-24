@@ -1,4 +1,5 @@
 import { controller, effect, ref, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-help-overlay.sui'
 
 /** One shortcut line: the keys to press and what they do. `keys` is the
@@ -48,16 +49,15 @@ interface HelpScope {
   dialogEl: () => HTMLDialogElement | null
 }
 
-export default controller<Scope>({
-  scope: (_state, host) => {
+export default controller({
+  scope: (state: ViewScope<Scope>, host?: Element) => {
     const hostEl = host as HTMLElement
     const dialogEl = ref<HTMLDialogElement>(null)
     const groups = signal<ShortcutGroup[]>(GROUPS)
-    const s = _state as unknown as HelpScope
 
     const close = () => {
       hostEl.dispatchEvent(new CustomEvent('sui-help-close', { bubbles: true, composed: true }))
-      if (s.open()) s.open.set(false)
+      if (state.open()) state.open.set(false)
     }
 
     return { dialogEl, groups, onClose: () => close() }

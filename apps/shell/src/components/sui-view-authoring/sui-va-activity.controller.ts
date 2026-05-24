@@ -1,4 +1,5 @@
 import { controller, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-va-activity.sui'
 
 interface Entry {
@@ -20,8 +21,8 @@ function formatTs(ms: number): string {
   return `${hh}:${mm}:${ss}`
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const entries = signal<Entry[]>([])
     return { entries }
   },

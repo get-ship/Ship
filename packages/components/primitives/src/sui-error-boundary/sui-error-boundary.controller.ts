@@ -1,13 +1,13 @@
 import { controller, signal, attachBoundary, detachBoundary } from '@ship/sui-runtime'
-import type { BoundarySource } from '@ship/sui-runtime'
+import type { BoundarySource, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-error-boundary.sui'
 
 interface HostWithReset extends HTMLElement {
   reset?: () => void
 }
 
-export default controller<Scope>({
-  scope: (_baseScope: unknown, host?: Element) => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>, host?: Element) => {
     const caughtError = signal<Error | null>(null)
     const hasFallbackSlot = signal<boolean>(false)
     const reset = (): void => {
@@ -30,16 +30,16 @@ export default controller<Scope>({
       wrap.appendChild((tpl as HTMLTemplateElement).content.cloneNode(true))
       tpl.replaceWith(wrap)
     }
-    state.hasFallbackSlot.set(!!host.querySelector(':scope > [slot="fallback"]'))
+    state.hasFallbackSlot = !!host.querySelector(':scope > [slot="fallback"]')
 
     attachBoundary(host, {
       catch(err, source) {
         // Re-entrancy guard: once the fallback is rendered, a second
         // inner throw shouldn't overwrite the original error.
-        if (state.caughtError() !== null) return
+        if (state.caughtError !== null) return
         const error = err instanceof Error ? err : new Error(String(err))
         host.setAttribute('data-error-message', error.message)
-        state.caughtError.set(error)
+        state.caughtError = error
         host.dispatchEvent(
           new CustomEvent('sui-error-boundary:caught', {
             bubbles: true,

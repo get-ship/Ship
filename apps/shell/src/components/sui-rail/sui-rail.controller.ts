@@ -1,4 +1,5 @@
 import { controller, effect, ref, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 // Two-state rail: visible (icon-only, 48px) vs hidden (display:none).
 // The arrow toggle button was removed — the top-nav menu button is the
 // sole control surface, dispatching `sui:rail:toggle` which the shell
@@ -19,8 +20,8 @@ function dispatchBubble(host: HTMLElement, type: string, detail?: unknown): void
   }))
 }
 
-export default controller<Scope>()({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const projectOpen = signal(false)
     const projects = signal<Project[]>([])
     const activeProjectId = signal<string | null>(null)

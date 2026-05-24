@@ -1,5 +1,5 @@
 import { controller, signal, unwrap, live, derived } from '@ship/sui-runtime'
-import type { LiveSignal } from '@ship/sui-runtime'
+import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 // Reuse the agent-detail hue derivation so a card's tile and the detail
 // page it links to land on the same colour — one source of truth, no
@@ -22,8 +22,8 @@ interface EventsEnvelope { groups: Array<{ rows: EventRow[] }> }
 interface KindFilter { id: 'all' | 'project' | 'user'; label: string; count: number }
 interface AgentsList { items: AgentSummary[] }
 
-export default controller<Scope>()({
-  scope: ({ ship }) => {
+export default controller({
+  scope: ({ ship, agents }: ViewScope<Scope>) => {
     const q = signal('')
     const kind = signal<KindFilter['id']>('all')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,27 +47,22 @@ export default controller<Scope>()({
       }
       return map
     })
-    return { q, kind, agentEvents, agentStatus }
-  },
-  derived: {
-    items: ({ agents }) => (unwrap(agents as LiveSignal<AgentsList>)?.items ?? []) as AgentSummary[],
-    filteredItems: ({ agents, q, kind }) => {
+    const items = derived(() => (unwrap(agents as LiveSignal<AgentsList>)?.items ?? []) as AgentSummary[])
+    const filteredItems = derived(() => {
       const all = (unwrap(agents as LiveSignal<AgentsList>)?.items ?? []) as AgentSummary[]
-      // Derived scope-args arrive as signal getters, not unwrapped values.
-      // Call them before using; cast assertions don't unwrap at runtime.
-      const k = (typeof kind === 'function' ? kind() : kind) as KindFilter['id']
-      const term = (typeof q === 'function' ? q() : q) as string
+      const k = kind()
+      const term = q()
       // Attach the tile hue here: renderable expressions can't call a
       // helper with args, so the card reads `a.hue` as a plain field.
       return all
         .filter((a) => matchesKind(a, k) && matchesQuery(a, term ?? ''))
         .map((a) => ({ ...a, hue: pickHue(a.id) }))
-    },
-    activeId: ({ agents }) => {
+    })
+    const activeId = derived(() => {
       const all = (unwrap(agents as LiveSignal<AgentsList>)?.items ?? []) as AgentSummary[]
       return all.find((a) => a.active)?.id ?? ''
-    },
-    kindFilters: ({ agents }) => {
+    })
+    const kindFilters = derived(() => {
       const all = (unwrap(agents as LiveSignal<AgentsList>)?.items ?? []) as AgentSummary[]
       const project = all.filter((a) => a.source === 'PROJECT AGENTS').length
       const user = all.filter((a) => a.source === 'USER AGENTS').length
@@ -76,7 +71,8 @@ export default controller<Scope>()({
         { id: 'project', label: 'Project', count: project },
         { id: 'user', label: 'Library', count: user },
       ] satisfies KindFilter[]
-    },
+    })
+    return { q, kind, agentEvents, agentStatus, items, filteredItems, activeId, kindFilters }
   },
   on: {
     goCreate: (s) => s.navigate('/studio/agents/create'),

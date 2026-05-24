@@ -1,12 +1,13 @@
 import { controller, derived, live, signal, unwrap } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { AGE_BUCKETS, bucketFor, decorate, previewKindFor, type ArtifactRow } from './decorate'
 
 interface ArtifactsListResponse { ok: boolean; data: ArtifactRow[]; count: number }
 type CollectionRow = { id: string; name?: string | null }
 
-export default controller<Scope>()({
-  scope: (ctx) => {
+export default controller({
+  scope: (ctx: ViewScope<Scope>) => {
     const { ship } = ctx
     // Shell-injected navigator. Runtime's stock `navigate` only does
     // pushState; the shell's wrapper also triggers mountRoute.

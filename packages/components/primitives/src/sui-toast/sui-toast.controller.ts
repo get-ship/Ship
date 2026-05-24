@@ -1,12 +1,13 @@
 import { controller, effect, ref, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-toast.sui'
 
 type DismissReason = 'manual' | 'timeout' | 'programmatic'
 
 const TONES_WITH_AUTO_ICON = new Set(['info', 'success', 'warning', 'destructive', 'accent'])
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const hasSlottedIcon = signal(false)
     const visible = signal(true)
     const iconSlotEl = ref<HTMLSlotElement>(null)
@@ -17,8 +18,6 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
-    const scope = state as unknown as Scope
-
     let timer: ReturnType<typeof setTimeout> | null = null
     let remaining = 0
     let startedAt = 0
@@ -32,7 +31,7 @@ export default controller<Scope>({
 
     function scheduleDismiss() {
       clearTimer()
-      const dur = scope.duration()
+      const dur = state.duration
       if (dur > 0) {
         remaining = dur
         startedAt = Date.now()
@@ -67,8 +66,7 @@ export default controller<Scope>({
       // Flip `visible` to false; bindIf runs `out:fade` on the .toast
       // wrapper. The out-transition's duration (180ms — see template)
       // gates when we tear the host down.
-      const visSignal = scope.visible as unknown as ReturnType<typeof signal<boolean>>
-      visSignal.set(false)
+      state.visible = false
       await new Promise<void>((resolve) => setTimeout(resolve, 200))
       dismiss(reason)
     }
@@ -82,7 +80,7 @@ export default controller<Scope>({
     }
 
     const onResume = () => {
-      if (removed || scope.duration() <= 0) return
+      if (removed || state.duration <= 0) return
       if (remaining <= 0) return
       host.toggleAttribute('data-paused', false)
       startedAt = Date.now()
@@ -90,7 +88,7 @@ export default controller<Scope>({
     }
 
     const onKeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && scope.dismissible()) {
+      if (e.key === 'Escape' && state.dismissible) {
         e.stopPropagation()
         dismiss('manual')
       }
@@ -104,23 +102,21 @@ export default controller<Scope>({
 
     scheduleDismiss()
 
-    const hasSlottedIconSig = scope.hasSlottedIcon as unknown as ReturnType<typeof signal<boolean>>
-
     const slotIsFilled = (slot: HTMLSlotElement): boolean =>
       slot.assignedNodes({ flatten: true }).some((n) => {
         if (n.nodeType === Node.ELEMENT_NODE) return true
         return (n.textContent?.trim().length ?? 0) > 0
       })
 
-    const iconSlotEl = scope.iconSlotEl() as HTMLSlotElement | null
+    const iconSlotEl = state.iconSlotEl as HTMLSlotElement | null
     if (iconSlotEl) {
-      const onIconSlotChange = () => hasSlottedIconSig.set(slotIsFilled(iconSlotEl))
+      const onIconSlotChange = () => { state.hasSlottedIcon = slotIsFilled(iconSlotEl) }
       iconSlotEl.addEventListener('slotchange', onIconSlotChange)
-      hasSlottedIconSig.set(slotIsFilled(iconSlotEl))
+      state.hasSlottedIcon = slotIsFilled(iconSlotEl)
     }
 
-    const titleSlotEl = scope.titleSlotEl() as HTMLSlotElement | null
-    const actionsSlotEl = scope.actionsSlotEl() as HTMLSlotElement | null
+    const titleSlotEl = state.titleSlotEl as HTMLSlotElement | null
+    const actionsSlotEl = state.actionsSlotEl as HTMLSlotElement | null
 
     if (titleSlotEl) {
       const onTitleChange = () =>
@@ -137,14 +133,14 @@ export default controller<Scope>({
     }
 
     const stopIconAttrEffect = effect(() => {
-      const tone = scope.tone()
-      const slotted = scope.hasSlottedIcon()
+      const tone = state.tone
+      const slotted = state.hasSlottedIcon
       const hasAuto = TONES_WITH_AUTO_ICON.has(tone)
       host.toggleAttribute('data-no-icon', !hasAuto && !slotted)
     })
 
     const stopCloseEffect = effect(() => {
-      const btn = scope.closeBtn()
+      const btn = state.closeBtn
       if (!btn) return
       const onClick = () => dismiss('manual')
       btn.addEventListener('click', onClick)

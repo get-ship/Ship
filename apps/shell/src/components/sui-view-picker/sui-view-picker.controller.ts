@@ -1,4 +1,5 @@
 import { controller, effect, signal, ref, bindNativeEvent, chrome } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-view-picker.sui'
 import {
   type ApiView, type Project,
@@ -11,8 +12,8 @@ interface PopoverEl extends HTMLElement {
   show?: () => void; hide?: () => void; toggle?: () => void
 }
 
-export default controller<Scope>({
-  scope: () => ({
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => ({
     popoverEl: ref<PopoverEl>(),
     rootEl: ref<HTMLElement>(),
     projectNameEl: ref<HTMLElement>(),

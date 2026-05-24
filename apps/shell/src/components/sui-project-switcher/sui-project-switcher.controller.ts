@@ -1,5 +1,5 @@
 import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { Signal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-project-switcher.sui'
 
 interface Project {
@@ -26,8 +26,8 @@ function pickHue(id: string): string {
 
 type PopoverEl = HTMLElement & { showPopover?: () => void; hidePopover?: () => void }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const projects = signal<Project[]>([])
     const activeId = signal('')
     const menuOpen = signal(false)

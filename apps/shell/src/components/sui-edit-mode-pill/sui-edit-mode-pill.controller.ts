@@ -4,6 +4,7 @@
 // owns the in-memory queue + syncs back via the attr.
 
 import { controller, derived } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-edit-mode-pill.sui'
 
 interface QueueItem {
@@ -22,14 +23,13 @@ function emit(host: HTMLElement, type: string, detail?: unknown): void {
   }))
 }
 
-export default controller<Scope>({
-  scope: (state, host) => {
+export default controller({
+  scope: (state: ViewScope<Scope>, host?: Element) => {
     const hostEl = host as HTMLElement
-    const s = state as unknown as { queueJson: () => string; expanded: { (): boolean; set(v: boolean): void } }
 
     const queue = derived<QueueItem[]>(() => {
       try {
-        const raw = s.queueJson() || '[]'
+        const raw = state.queueJson() || '[]'
         const parsed = JSON.parse(raw) as QueueItem[]
         return Array.isArray(parsed) ? parsed : []
       } catch { return [] }
@@ -39,9 +39,9 @@ export default controller<Scope>({
       queue,
       onExit:            () => emit(hostEl, 'sui:edit-mode:exit'),
       onAnnotateToggle:  () => emit(hostEl, 'sui:annotation-mode:toggle'),
-      onSend:            () => { s.expanded.set(false); emit(hostEl, 'sui:annotations:send') },
-      onClearAll:        () => { s.expanded.set(false); emit(hostEl, 'sui:annotations:clear') },
-      onToggleExpand:    () => s.expanded.set(!s.expanded()),
+      onSend:            () => { state.expanded.set(false); emit(hostEl, 'sui:annotations:send') },
+      onClearAll:        () => { state.expanded.set(false); emit(hostEl, 'sui:annotations:clear') },
+      onToggleExpand:    () => state.expanded.set(!state.expanded()),
       onRemove:          (id: string) => emit(hostEl, 'sui:annotations:remove', { id }),
       onCommentInput:    (e: Event, id: string) => {
         const ta = e.target as HTMLTextAreaElement | null

@@ -1,4 +1,5 @@
 import { controller, signal, derived, live, chrome } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import { route as routeFactory } from '@ship/sui-runtime/route'
 import { liveExpr } from '@ship/sdk-client'
 import type { Scope } from './page.sui'
@@ -35,8 +36,8 @@ const read = (envelope: unknown): HistoryCtx => {
   return env?.kind === 'ok' && env.value ? env.value : EMPTY
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const route = routeFactory()
     const q = derived(() => String(route.query.q() ?? ''))
     const pipelineFilter = derived(() => String(route.query.pipeline() ?? ''))

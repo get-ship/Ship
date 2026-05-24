@@ -1,4 +1,5 @@
 import { controller, signal, derived, bindNativeEvent } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-table.sui'
 
 type Row = Record<string, unknown> & { id: string }
@@ -26,8 +27,8 @@ function installLightDomStyles(doc: Document) {
   doc.head.appendChild(style)
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const rows = signal<Row[]>([])
     const columns = signal<Column[]>([])
     const sortKey = signal<string | null>(null)
@@ -49,7 +50,7 @@ export default controller<Scope>({
   },
 
   on: {
-    sortBy(s: any, field: string) {
+    sortBy(s, field: string) {
       if (s.sortKey === field) {
         s.sortDir = s.sortDir === 'asc' ? 'desc' : 'asc'
       } else {
@@ -57,14 +58,14 @@ export default controller<Scope>({
         s.sortDir = 'asc'
       }
     },
-    toggleSelect(s: any, id: string) {
-      const cur = s.selected as string[]
+    toggleSelect(s, id: string) {
+      const cur = s.selected
       s.selected = cur.includes(id) ? cur.filter((x: string) => x !== id) : [...cur, id]
     },
-    selectAll(s: any) {
-      s.selected = (s.rows as Row[]).map((r) => r.id)
+    selectAll(s) {
+      s.selected = s.rows.map((r: Row) => r.id)
     },
-    clearSelection(s: any) {
+    clearSelection(s) {
       s.selected = []
     },
   },

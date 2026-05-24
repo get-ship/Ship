@@ -1,9 +1,10 @@
 import { controller, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-annotation-list.sui'
 import type { AnnotationEvent } from './sui-annotation.internals'
 
-export default controller<Scope>()({
-  scope: (_, host) => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>, host?: Element) => {
     const staged = signal<AnnotationEvent[]>([])
 
     const emitRemove = (id: string): void => {

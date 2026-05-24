@@ -7,6 +7,7 @@
 //  • Tokens are grouped by category (tabs), each row typed (color → swatch +
 //    picker, length/number/font → appropriate control), with an override dot.
 import { controller, signal, derived, effect, onCleanup } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import {
   THEMES,
   applyTheme,
@@ -34,8 +35,8 @@ interface Group {
   tokens: Row[]
 }
 
-export default controller<Scope>()({
-  scope: ({ route }) => {
+export default controller({
+  scope: ({ route }: ViewScope<Scope>) => {
     const themeId = derived<ThemeId>(() => {
       const id = route.params.id()
       return isValidTheme(id) ? id : readStoredTheme()

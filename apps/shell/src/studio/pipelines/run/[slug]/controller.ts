@@ -1,4 +1,5 @@
 import { controller, derived, live } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
 import type { Scope } from './page.sui'
 
@@ -22,8 +23,8 @@ const read = (envelope: unknown): RunCtx => {
   return { ...EMPTY, ...env.value }
 }
 
-export default controller<Scope>()({
-  scope: ({ route }) => {
+export default controller({
+  scope: ({ route }: ViewScope<Scope>) => {
     // `route` is a RouteSignals object; `params.slug` is a Signal — read it via
     // `route.params.slug?.()` (matches every other studio dynamic-route view).
     // Requires the `/studio/pipelines/run/:slug` pattern registered via

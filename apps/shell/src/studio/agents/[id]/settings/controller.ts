@@ -1,4 +1,5 @@
 import { controller, signal, derived, effect, live, unwrap } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 // `navigate` is injected onto the proxy by the runtime mount context but
@@ -7,8 +8,8 @@ type Nav = { navigate: (path: string) => void }
 type DraftKey = 'allowDraft' | 'askDraft' | 'denyDraft'
 type ArrKey = 'pAllow' | 'pAsk' | 'pDeny'
 
-export default controller<Scope>()({
-  scope: ({ ship, route }) => {
+export default controller({
+  scope: ({ ship, route }: ViewScope<Scope>) => {
     const agentId = derived(() => route.params.id() ?? '')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = ship as any

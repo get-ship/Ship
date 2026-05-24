@@ -12,6 +12,7 @@
 //      navigation announces the bar.
 
 import { controller, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-status-bar.sui'
 
 interface StatusValue {
@@ -36,8 +37,8 @@ function dispatch(host: HTMLElement, type: string, detail?: unknown): void {
   }))
 }
 
-export default controller<Scope>({
-  scope: (_state, host) => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>, host?: Element) => {
     const extensions = signal<ExtensionEntry[]>([])
     const hostEl = host as HTMLElement
 

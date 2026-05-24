@@ -12,6 +12,7 @@
 // "soon" placeholders (no href, no fabricated count).
 
 import { controller, signal, derived, effect } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-studio-rail.sui'
 
 interface RailEntry {
@@ -56,8 +57,8 @@ function isActive(path: string, href: string): true | null {
   return path === href || path.startsWith(href + '/') ? true : null
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const path = signal(typeof location !== 'undefined' ? location.pathname : '/studio')
     const agentCount = signal<string>('')
 
