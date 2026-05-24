@@ -195,7 +195,8 @@ pub fn router(state: ApiState) -> axum::Router {
     // Hand-authored proto-as-SSOT domains (impls in analytics_rpc / runtime_rpc).
     // C0 reads, edge-authenticated like the other reads.
     let router = ship_ops_rpc::AnalyticsServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::RuntimeServiceExt::register(svc, router);
+    let router = ship_ops_rpc::RuntimeServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::ViewErrorsServiceExt::register(svc, router);
     router.into_axum_router()
 }
 
