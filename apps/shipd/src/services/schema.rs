@@ -897,6 +897,15 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         sensitive: false,
     },
     CommandDescriptor {
+        name: "actor.kill_tree",
+        description: "Stop an actor and its descendants (operator/debug).",
+        args: &[ArgDescriptor { name: "actor_id", kind: "string", required: true }],
+        permission: "ship.actor.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
         name: "agent.grant",
         description: "Grant restricted capabilities to an agent (operator approval). \
                       Upgrades the agent's live sessions; the next gated call passes. \

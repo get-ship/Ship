@@ -359,61 +359,14 @@ pub async fn kill_tree_handler(
     if let Err(e) = enforce_mcp_identity(&auth, Some(&id)) {
         return e;
     }
-
-    // BFS over parent_actor_id. Cap depth to avoid pathological loops
-    // (parent cycles shouldn't happen but defense-in-depth).
-    let mut to_visit: Vec<String> = vec![id.clone()];
-    let mut targets: Vec<String> = Vec::new();
-    let mut depth = 0usize;
-    while !to_visit.is_empty() && depth < 32 {
-        let mut next: Vec<String> = Vec::new();
-        for actor_id in to_visit.drain(..) {
-            if targets.contains(&actor_id) {
-                continue;
-            }
-            targets.push(actor_id.clone());
-            // Find children: actors whose parent_actor_id == this id.
-            let children = list_actors(&ListActorsFilter::default())
-                .unwrap_or_default()
-                .into_iter()
-                .filter(|r| r.parent_actor_id.as_deref() == Some(&actor_id))
-                .map(|r| r.id)
-                .collect::<Vec<_>>();
-            next.extend(children);
-        }
-        to_visit = next;
-        depth += 1;
-    }
-
-    // Stop deepest first so children unwind before parents notice.
-    let mut stopped: Vec<String> = Vec::new();
-    for actor_id in targets.iter().rev() {
-        let mut hit = false;
-        if let Some(entry) = state.actor_sessions().get(actor_id) {
-            let _ = entry.stop();
-            state.actor_sessions().remove(actor_id);
-            hit = true;
-        }
-        if !hit {
-            // Fall through to the legacy session registry.
-            if crate::sessions::lifecycle::stop(state.pty_sessions(), actor_id) {
-                hit = true;
-            }
-        }
-        if hit {
-            stopped.push(actor_id.clone());
-        }
-    }
-
+    // Logic in services::actor_control (shared with the actor.kill_tree command,
+    // survives REST deletion). Thin transport.
+    let r = crate::services::actor_control::kill_actor_tree(&state, &id);
     (
         StatusCode::OK,
         Json(MeshResponse {
             ok: true,
-            data: json!({
-                "root": id,
-                "tree": targets,
-                "stopped": stopped,
-            }),
+            data: json!({ "root": id, "tree": r.tree, "stopped": r.stopped }),
         }),
     )
         .into_response()

@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use ship_substrate::events::CallerKind;
 
-use crate::services::actor_control::{deliver_actor_input, ActorInputError};
+use crate::services::actor_control::{deliver_actor_input, kill_actor_tree, ActorInputError};
 
 use super::{req_str, CommandCtx, CommandError};
 
@@ -40,6 +40,19 @@ pub async fn try_dispatch(
                     ActorInputError::Service(m) => CommandError::service(m),
                 })?;
             Ok(Some(serde_json::json!({ "ok": true })))
+        }
+        "actor.kill_tree" => {
+            let id = req_str(args, "actor_id")?;
+            if ctx.auth.caller_kind == CallerKind::Mcp
+                && let Some(bound) = ctx.auth.agent_id.as_deref()
+                && bound != id
+            {
+                return Err(CommandError::forbidden(format!(
+                    "caller '{bound}' may not kill actor '{id}'"
+                )));
+            }
+            let r = kill_actor_tree(ctx.state, &id);
+            Ok(Some(serde_json::json!({ "root": id, "tree": r.tree, "stopped": r.stopped })))
         }
         _ => Ok(None),
     }
