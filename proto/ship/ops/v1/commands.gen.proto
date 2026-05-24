@@ -199,6 +199,10 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.mesh.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc MeshStatus(MeshStatusRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.mesh.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc GitPush(GitPushRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.git.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -565,6 +569,11 @@ message MeshBroadcastRequest {
   string from = 1;
   string body_json = 2;
   string capability_filter = 3;
+}
+
+message MeshStatusRequest {
+  string agent_id = 1;
+  string status = 2;
 }
 
 message GitPushRequest {

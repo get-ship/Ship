@@ -78,6 +78,34 @@ pub async fn try_dispatch(
                 .map_err(|e| CommandError::service(e.to_string()))?;
             Ok(Some(serde_json::json!("broadcast")))
         }
+        "mesh.status" => {
+            let agent_id = req_str(args, "agent_id")?;
+            // An agent caller may only update its own status.
+            if let Some(caller) = ctx.auth.agent_id.as_deref() {
+                if caller != agent_id {
+                    return Err(CommandError::forbidden(format!(
+                        "agent_id '{agent_id}' does not match caller '{caller}'"
+                    )));
+                }
+            }
+            let status = req_str(args, "status")?;
+            let envelope = ship_substrate::events::EventEnvelope::new(
+                "mesh.status",
+                &agent_id,
+                &serde_json::json!({ "agent_id": agent_id, "status": status }),
+            )
+            .map(|e| e.with_actor_id(&agent_id))
+            .map_err(|e| CommandError::bad_args(e.to_string()))?;
+            let emit_ctx = ctx.auth.to_daemon_emit_context();
+            ctx.state
+                .kernel()
+                .lock()
+                .await
+                .emit(envelope, &emit_ctx)
+                .await
+                .map_err(|e| CommandError::service(e.to_string()))?;
+            Ok(Some(serde_json::json!("status updated")))
+        }
         _ => Ok(None),
     }
 }

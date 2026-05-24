@@ -740,6 +740,18 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "",
         sensitive: false,
     },
+    CommandDescriptor {
+        name: "mesh.status",
+        description: "Update the caller's own mesh liveness status (caller-as-self).",
+        args: &[
+            ArgDescriptor { name: "agent_id", kind: "string", required: true },
+            ArgDescriptor { name: "status", kind: "string", required: true },
+        ],
+        permission: "ship.mesh.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
     // ── git (caller's worktree) ───────────────────────────────────
     CommandDescriptor {
         name: "git.push",
