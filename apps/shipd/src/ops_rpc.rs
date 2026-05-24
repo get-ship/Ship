@@ -187,7 +187,10 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = OpsServiceExt::register(svc.clone(), connectrpc::Router::new());
     let router = ReadOpsServiceExt::register(svc.clone(), router);
     let router = CommandOpsServiceExt::register(svc.clone(), router);
-    let router = StreamServiceExt::register(svc, router);
+    let router = StreamServiceExt::register(svc.clone(), router);
+    // AnalyticsService — first hand-authored proto-as-SSOT domain (impl in
+    // analytics_rpc.rs). C0 reads, edge-authenticated like the other reads.
+    let router = ship_ops_rpc::AnalyticsServiceExt::register(svc, router);
     router.into_axum_router()
 }
 
