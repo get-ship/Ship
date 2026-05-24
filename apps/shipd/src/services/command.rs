@@ -108,12 +108,15 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
     // write surface — REST and Connect — reaches commands through here, so this
     // is the single enforcement point. Unknown names fall through ungated to the
     // dispatch chain, which returns `unknown_command`.
-    if let Some(desc) = crate::services::schema::COMMANDS.iter().find(|c| c.name == name) {
+    // Policy (blast radius) comes from proto — the single source (#67 a) — read
+    // from the compiled FileDescriptorSet via `op_policy`, not the hand-authored
+    // Rust table. The `reflected_policy_matches_declared_commands` conformance
+    // test guarantees this is identical to the old `COMMANDS` lookup.
+    if let Some(pol) = crate::services::op_policy::policy_for(name) {
         use crate::services::gate;
-        let blast = gate::BlastRadius::from_descriptor(desc.blast_radius);
         let domain = gate::classify(name);
         let caller = gate::caller_from_auth(ctx.auth);
-        if let gate::Decision::Deny(msg) = gate::decide(blast, &domain, &caller) {
+        if let gate::Decision::Deny(msg) = gate::decide(pol.blast, &domain, &caller) {
             return Err(CommandError::forbidden(msg));
         }
     }
