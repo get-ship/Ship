@@ -10,7 +10,7 @@
 //! hand-authored Rust table.
 
 use buffa::Message;
-use buffa::extension::codecs::{EnumI32, StringCodec};
+use buffa::extension::codecs::{Bool, EnumI32, StringCodec};
 use buffa::extension::Extension;
 use buffa::ExtensionSet;
 use buffa_descriptor::generated::descriptor::FileDescriptorSet;
@@ -20,16 +20,32 @@ use ship_ops::BlastRadius;
 const EXTENDEE: &str = "google.protobuf.MethodOptions";
 const CAPABILITY: Extension<StringCodec> = Extension::new(50001, EXTENDEE);
 const BLAST_RADIUS: Extension<EnumI32> = Extension::new(50002, EXTENDEE);
+const SENSITIVE: Extension<Bool> = Extension::new(50003, EXTENDEE);
 
-/// The gate-relevant policy declared on one rpc method.
+/// The gate-relevant policy declared on one rpc method. This is the single
+/// decode of the descriptor set — both the gate (keyed by op name) and the
+/// Connect-layer introspection map (keyed by wire-path) are built from it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MethodPolicy {
+    /// Proto package, e.g. `"ship.ops.v1"`.
+    pub package: String,
+    /// Proto service name, e.g. `"CommandOpsService"`.
+    pub service: String,
     /// Proto rpc name, e.g. `"SkillsCreate"` (PascalCase of the op name).
     pub method: String,
     /// Required capability, e.g. `"ship.skills.write"`. Empty if undeclared.
     pub capability: String,
     /// Blast-radius class driving the gate.
     pub blast: BlastRadius,
+    /// Content-exposure flag (redaction / log hygiene); orthogonal to blast.
+    pub sensitive: bool,
+}
+
+impl MethodPolicy {
+    /// The Connect wire-path body, `"<package>.<service>/<method>"`.
+    pub fn wire_path(&self) -> String {
+        format!("{}.{}/{}", self.package, self.service, self.method)
+    }
 }
 
 /// Map the proto `BlastRadius` enum number to the gate's class. Unspecified (0)
@@ -52,15 +68,25 @@ pub fn read_policies() -> Vec<MethodPolicy> {
         .expect("embedded FILE_DESCRIPTOR_SET decodes");
     let mut out = Vec::new();
     for file in &fds.file {
+        let package = file.package.clone().unwrap_or_default();
         for service in &file.service {
+            let Some(service_name) = service.name.clone() else { continue };
             for method in &service.method {
                 let Some(name) = method.name.clone() else { continue };
                 // MessageField derefs to the (default-if-absent) MethodOptions;
-                // an rpc with no custom options yields None for both reads.
+                // an rpc with no custom options yields None for each read.
                 let opts = &*method.options;
                 let capability = opts.extension(&CAPABILITY).unwrap_or_default();
                 let blast = blast_from_proto(opts.extension(&BLAST_RADIUS));
-                out.push(MethodPolicy { method: name, capability, blast });
+                let sensitive = opts.extension(&SENSITIVE).unwrap_or(false);
+                out.push(MethodPolicy {
+                    package: package.clone(),
+                    service: service_name.clone(),
+                    method: name,
+                    capability,
+                    blast,
+                    sensitive,
+                });
             }
         }
     }
