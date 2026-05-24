@@ -35,6 +35,9 @@ pub mod artifacts_rpc;
 pub mod collections_rpc;
 pub mod permissions_rpc;
 pub mod mcp_rpc;
+pub mod skills_rpc;
+pub mod pipelines_rpc;
+pub mod git_rpc;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;

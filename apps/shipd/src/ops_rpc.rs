@@ -208,7 +208,12 @@ pub fn router(state: ApiState) -> axum::Router {
     // permissions.* — C2_ELEVATED writes (operator-only via the command gate). Additive.
     let router = ship_ops_rpc::PermissionsServiceExt::register(svc.clone(), router);
     // mcp.* — external MCP server config CRUD, additive.
-    let router = ship_ops_rpc::McpServiceExt::register(svc, router);
+    let router = ship_ops_rpc::McpServiceExt::register(svc.clone(), router);
+    // skills.* (restricted ship-authoring writes), pipelines.* (runtime + config),
+    // git.* — all additive beside the generated ReadOps/CommandOps until #72.
+    let router = ship_ops_rpc::SkillsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::PipelinesServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::GitServiceExt::register(svc, router);
     router.into_axum_router()
 }
 

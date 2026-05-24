@@ -1,0 +1,182 @@
+// `skills.*` as a hand-authored per-domain proto-SSOT service (#89), mounted
+// ADDITIVELY beside the generated ReadOps/CommandOps (which keep serving skills.*
+// until the GUI flip, #72). Request messages take fresh names (CreateSkillRequest,
+// …) because the generated commands.gen.proto/reads.gen.proto already declare
+// SkillsCreateRequest et al. in this same package — two definitions would collide.
+// Return types reuse the shared shapes in types.proto (SkillsIndexResponse /
+// SkillFileResponse / ScopedMutation) and ops.proto (JsonResponse) — no
+// redeclarations. Authoring a skill defines agent capability, so writes are
+// RESTRICTED at the gate (services::command::call), the same one gate.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/ops.proto";
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/types.proto";
+
+// ── Read request messages ─────────────────────────────────────────────────
+
+message ListSkillsRequest {}
+
+message GetSkillFileRequest {
+  string id = 1;
+  string path = 2;
+}
+
+message SkillSummariesRequest {
+  string q = 1;
+  string kind = 2;
+  string tag = 3;
+}
+
+message GetSkillDetailRequest {
+  string id = 1;
+}
+
+// id + optional scope ("project" | "user"; empty walks Project → User).
+message GetSkillRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+// ── Write request messages ────────────────────────────────────────────────
+
+message CreateSkillRequest {
+  string id = 1;
+  string scope = 2;
+  string frontmatter_json = 3;
+  string body = 4;
+}
+
+message DeleteSkillRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message RenameSkillRequest {
+  string id = 1;
+  string new_id = 2;
+  string scope = 3;
+}
+
+message DuplicateSkillRequest {
+  string id = 1;
+  string new_id = 2;
+  string scope = 3;
+}
+
+message WriteSkillFrontmatterRequest {
+  string id = 1;
+  string frontmatter_json = 2;
+  string scope = 3;
+}
+
+message WriteSkillBodyRequest {
+  string id = 1;
+  string body = 2;
+  string scope = 3;
+}
+
+// Move a skill between scopes; `from` and `to` are scope strings.
+message MoveSkillScopeRequest {
+  string id = 1;
+  string from = 2;
+  string to = 3;
+}
+
+message WriteSkillFileRequest {
+  string id = 1;
+  string path = 2;
+  string content = 3;
+  string scope = 4;
+}
+
+message DeleteSkillFileRequest {
+  string id = 1;
+  string path = 2;
+  string scope = 3;
+}
+
+message SetSkillVarRequest {
+  string id = 1;
+  string key = 2;
+  string value_json = 3;
+}
+
+message DeleteSkillVarRequest {
+  string id = 1;
+  string key = 2;
+}
+
+// Skill authoring CRUD. Reads are C0 (edge-authenticated); writes are C1
+// workspace mutations gated through services::command::call — the ONE gate —
+// exactly as the generated CommandOpsService does. Authoring a skill defines
+// agent capability, which is why writes carry the same blast radius as
+// rules.write (user's own workspace risk, not ship-cloud risk).
+service SkillsService {
+  rpc List(ListSkillsRequest) returns (SkillsIndexResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc File(GetSkillFileRequest) returns (SkillFileResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Summaries(SkillSummariesRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Detail(GetSkillDetailRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Get(GetSkillRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Create(CreateSkillRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Delete(DeleteSkillRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Rename(RenameSkillRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Duplicate(DuplicateSkillRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc WriteFrontmatter(WriteSkillFrontmatterRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc WriteBody(WriteSkillBodyRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc MoveScope(MoveSkillScopeRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc WriteFile(WriteSkillFileRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc DeleteFile(DeleteSkillFileRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SetVar(SetSkillVarRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc DeleteVar(DeleteSkillVarRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+}
