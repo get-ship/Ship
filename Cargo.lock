@@ -4422,12 +4422,14 @@ name = "ship-ops-rpc"
 version = "0.1.0"
 dependencies = [
  "buffa",
+ "buffa-descriptor",
  "connectrpc",
  "connectrpc-build",
  "http",
  "http-body",
  "protoc-bin-vendored",
  "serde",
+ "ship-ops",
  "thiserror 2.0.18",
 ]
 

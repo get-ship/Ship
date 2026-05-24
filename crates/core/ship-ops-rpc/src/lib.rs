@@ -28,6 +28,8 @@ pub mod ship {
 
 pub use ship::ops::v1::*;
 
+pub mod policy;
+
 /// The compiled `FileDescriptorSet`, including the custom method options
 /// (`capability`, `blast_radius`, `op_sensitive`). The daemon gate reads policy
 /// from this at startup (buffa reflection) rather than from the generated Rust,

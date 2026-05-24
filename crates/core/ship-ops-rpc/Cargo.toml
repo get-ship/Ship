@@ -12,6 +12,10 @@ connectrpc = { version = "0.4", features = ["client", "axum"] }
 # Must match the version connectrpc 0.4.x pulls transitively (two-buffa-version
 # diagnostic otherwise — see ship-gateway-client).
 buffa = { version = "0.5", features = ["json"] }
+# Typed descriptor messages (FileDescriptorSet) for reading method-option
+# policy out of the embedded FILE_DESCRIPTOR_SET. Version tracks buffa's.
+buffa-descriptor = "0.5"
+ship-ops = { path = "../ship-ops" }
 # Generated code names ::serde:: and ::http_body:: paths directly.
 serde = { workspace = true }
 http-body = "1"
