@@ -14,10 +14,8 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::types::event_types;
 use ship_substrate::projections::actor::{
-    ListActorsFilter, actor_status, get_actor, list_actor_events, list_actors,
+    ListActorsFilter, get_actor, list_actor_events, list_actors,
 };
 use serde::Serialize;
 use serde::Deserialize;
@@ -433,22 +431,19 @@ pub async fn actor_input_handler(
     if let Err(e) = enforce_mcp_identity(&auth, Some(&id)) {
         return e;
     }
-    let text = req.text.trim().to_string();
-    if text.is_empty() {
-        return (
+    // Logic lives in services::actor_control (shared with the actor.input
+    // command, survives REST deletion). This handler is thin transport.
+    use crate::services::actor_control::{deliver_actor_input, ActorInputError};
+    match deliver_actor_input(&state, &auth, &id, &req.text).await {
+        Ok(()) => {
+            (StatusCode::ACCEPTED, Json(MeshResponse { ok: true, data: json!({}) })).into_response()
+        }
+        Err(ActorInputError::Empty) => (
             StatusCode::BAD_REQUEST,
             Json(MeshResponse { ok: false, data: json!("empty text") }),
         )
-            .into_response();
-    }
-
-    // Source of truth for "can I send to this": the kernel's mailbox
-    // map. If the actor isn't there RIGHT NOW, no message will reach
-    // it. The projection's status field can lag (events not yet
-    // applied, or stale rows from old runs); kernel state is now.
-    let on_mesh = state.kernel().lock().await.has_actor(&id);
-    if !on_mesh {
-        return (
+            .into_response(),
+        Err(ActorInputError::NotOnMesh) => (
             StatusCode::NOT_FOUND,
             Json(MeshResponse {
                 ok: false,
@@ -460,34 +455,13 @@ pub async fn actor_input_handler(
                 }),
             }),
         )
-            .into_response();
-    }
-    // Workspace_id only used for context tagging. Best-effort lookup.
-    let workspace_id = actor_status(&id).ok().flatten().and_then(|(_, w)| w);
-
-    let payload = json!({ "actor_id": id, "text": text });
-    let envelope = match EventEnvelope::new(event_types::STUDIO_CHAT_TURN, &id, &payload) {
-        Ok(e) => e
-            .with_context(workspace_id.as_deref(), Some(&id))
-            .with_target(&id),
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse { ok: false, data: json!(format!("envelope: {e}")) }),
-            )
-                .into_response();
-        }
-    };
-    let ctx = auth.to_daemon_emit_context();
-    if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
-        return (
+            .into_response(),
+        Err(ActorInputError::Service(m)) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse { ok: false, data: json!(format!("emit: {e}")) }),
+            Json(MeshResponse { ok: false, data: json!(m) }),
         )
-            .into_response();
+            .into_response(),
     }
-    (StatusCode::ACCEPTED, Json(MeshResponse { ok: true, data: json!({}) }))
-        .into_response()
 }
 
 #[cfg(test)]

@@ -247,6 +247,10 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.agents.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc ActorInput(ActorInputRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.actor.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc AgentGrant(AgentGrantRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.grant";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
@@ -631,6 +635,11 @@ message GitInitRequest {
 
 message AgentStopRequest {
   string slug = 1;
+}
+
+message ActorInputRequest {
+  string actor_id = 1;
+  string text = 2;
 }
 
 message AgentGrantRequest {

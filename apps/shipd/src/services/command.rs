@@ -16,6 +16,7 @@ use serde_json::Value;
 use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 
+mod actor;
 mod agent;
 mod agents;
 mod annotations;
@@ -160,6 +161,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = agent::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = actor::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = surfaces::try_dispatch(name, args, ctx).await? {

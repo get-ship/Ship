@@ -69,8 +69,11 @@ pub fn classify(name: &str) -> Domain {
         // restricted ship-authoring here is defense in depth on the grant axis.
         "permissions" => Domain { group: "ship-authoring", restricted: true },
         // default — ordinary workspace mutation
+        // `actor`/`event` are kernel control (operational/internal — operator/debug
+        // surface, not agent capability, #95). Behaviour-preserving C1 today;
+        // tightening the dangerous ones (kill_tree, event.emit) to C2 is deferred.
         "pipeline" | "pipelines" | "project" | "mesh" | "git" | "annotation" | "annotations"
-        | "feedback" | "rules" | "artifacts" | "collections" | "settings" => {
+        | "feedback" | "rules" | "artifacts" | "collections" | "settings" | "actor" | "event" => {
             Domain { group: "ship-workspace", restricted: false }
         }
         // unknown — fail closed

@@ -885,6 +885,18 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         sensitive: false,
     },
     CommandDescriptor {
+        name: "actor.input",
+        description: "Deliver a text turn to a live actor's mailbox (operator/debug).",
+        args: &[
+            ArgDescriptor { name: "actor_id", kind: "string", required: true },
+            ArgDescriptor { name: "text", kind: "string", required: true },
+        ],
+        permission: "ship.actor.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
         name: "agent.grant",
         description: "Grant restricted capabilities to an agent (operator approval). \
                       Upgrades the agent's live sessions; the next gated call passes. \
