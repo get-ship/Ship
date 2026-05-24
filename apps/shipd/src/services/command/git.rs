@@ -73,6 +73,43 @@ pub async fn try_dispatch(
                 .map_err(|e| CommandError::service(e.to_string()))?;
             Ok(Some(serde_json::json!({ "ok": true, "sha": res.sha, "branch": res.branch })))
         }
+        "git.checkout" => {
+            let resolved = git
+                .checkout(ship_platform::services::git::service::CheckoutArgs {
+                    workspace_id: opt_str(args, "workspace_id"),
+                    refname: req_str(args, "refname")?,
+                })
+                .map_err(|e| CommandError::service(e.to_string()))?;
+            Ok(Some(serde_json::json!({ "ok": true, "ref": resolved })))
+        }
+        "git.branch_create" => {
+            let checkout = args.get("checkout").and_then(|v| v.as_bool()).unwrap_or(false);
+            let branch = git
+                .branch_create(ship_platform::services::git::service::BranchCreateArgs {
+                    workspace_id: opt_str(args, "workspace_id"),
+                    name: req_str(args, "name")?,
+                    checkout,
+                })
+                .map_err(|e| CommandError::service(e.to_string()))?;
+            Ok(Some(serde_json::json!({ "ok": true, "branch": branch, "checked_out": checkout })))
+        }
+        "git.branch_delete" => {
+            let force = args.get("force").and_then(|v| v.as_bool()).unwrap_or(false);
+            let branch = git
+                .branch_delete(ship_platform::services::git::service::BranchDeleteArgs {
+                    workspace_id: opt_str(args, "workspace_id"),
+                    name: req_str(args, "name")?,
+                    force,
+                })
+                .map_err(|e| CommandError::service(e.to_string()))?;
+            Ok(Some(serde_json::json!({ "ok": true, "branch": branch })))
+        }
+        "git.init" => {
+            let ws = opt_str(args, "workspace_id");
+            git.init(ws.as_deref())
+                .map_err(|e| CommandError::service(e.to_string()))?;
+            Ok(Some(serde_json::json!({ "ok": true })))
+        }
         _ => Ok(None),
     }
 }

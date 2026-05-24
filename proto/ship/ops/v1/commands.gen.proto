@@ -199,6 +199,22 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.git.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc GitCheckout(GitCheckoutRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc GitBranchCreate(GitBranchCreateRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc GitBranchDelete(GitBranchDeleteRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc GitInit(GitInitRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc AgentStop(AgentStopRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -524,6 +540,27 @@ message GitCommitRequest {
   string workspace_id = 1;
   string message = 2;
   string author = 3;
+}
+
+message GitCheckoutRequest {
+  string workspace_id = 1;
+  string refname = 2;
+}
+
+message GitBranchCreateRequest {
+  string workspace_id = 1;
+  string name = 2;
+  optional bool checkout = 3;
+}
+
+message GitBranchDeleteRequest {
+  string workspace_id = 1;
+  string name = 2;
+  optional bool force = 3;
+}
+
+message GitInitRequest {
+  string workspace_id = 1;
 }
 
 message AgentStopRequest {

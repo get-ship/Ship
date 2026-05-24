@@ -742,6 +742,53 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "",
         sensitive: false,
     },
+    CommandDescriptor {
+        name: "git.checkout",
+        description: "Checkout a ref/branch in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "refname", kind: "string", required: true },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.branch_create",
+        description: "Create a branch in the caller's worktree (optionally checkout).",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "name", kind: "string", required: true },
+            ArgDescriptor { name: "checkout", kind: "bool?", required: false },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.branch_delete",
+        description: "Delete a branch in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "name", kind: "string", required: true },
+            ArgDescriptor { name: "force", kind: "bool?", required: false },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.init",
+        description: "Initialize a git repository in the caller's worktree.",
+        args: &[ArgDescriptor { name: "workspace_id", kind: "string?", required: false }],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
     // ── agent control ─────────────────────────────────────────────
     CommandDescriptor {
         name: "agent.stop",

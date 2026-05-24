@@ -854,6 +854,67 @@ impl ::ship_ops_rpc::CommandOpsService for OpsImpl {
             Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
         }
     }
+    async fn git_checkout(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedGitCheckoutRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("workspace_id".to_string(), ::serde_json::json!(req.workspace_id));
+        args.insert("refname".to_string(), ::serde_json::json!(req.refname));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("git.checkout", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse { json: value.to_string(), ..Default::default() })),
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn git_branch_create(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedGitBranchCreateRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("workspace_id".to_string(), ::serde_json::json!(req.workspace_id));
+        args.insert("name".to_string(), ::serde_json::json!(req.name));
+        if let Some(b) = req.checkout { args.insert("checkout".to_string(), ::serde_json::json!(b)); }
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("git.branch_create", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse { json: value.to_string(), ..Default::default() })),
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn git_branch_delete(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedGitBranchDeleteRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("workspace_id".to_string(), ::serde_json::json!(req.workspace_id));
+        args.insert("name".to_string(), ::serde_json::json!(req.name));
+        if let Some(b) = req.force { args.insert("force".to_string(), ::serde_json::json!(b)); }
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("git.branch_delete", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse { json: value.to_string(), ..Default::default() })),
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn git_init(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedGitInitRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("workspace_id".to_string(), ::serde_json::json!(req.workspace_id));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("git.init", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse { json: value.to_string(), ..Default::default() })),
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
     async fn agent_stop(
         &self,
         ctx: ::connectrpc::RequestContext,
