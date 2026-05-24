@@ -23,6 +23,12 @@ pub struct OpsImpl {
 }
 
 impl OpsImpl {
+    /// Borrow the runtime — for handlers implemented in sibling modules
+    /// (e.g. `analytics_rpc`, `runtime_rpc`) that need `ApiState`.
+    pub(crate) fn state(&self) -> &ApiState {
+        &self.state
+    }
+
     /// Run a registry op by name and wrap its JSON projection in `JsonResponse`
     /// — the migration shape for ported read ops (see ops.proto / the spec).
     fn dispatch_json(&self, op: &str) -> ServiceResult<JsonResponse> {
@@ -186,9 +192,10 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ReadOpsServiceExt::register(svc.clone(), router);
     let router = CommandOpsServiceExt::register(svc.clone(), router);
     let router = StreamServiceExt::register(svc.clone(), router);
-    // AnalyticsService — first hand-authored proto-as-SSOT domain (impl in
-    // analytics_rpc.rs). C0 reads, edge-authenticated like the other reads.
-    let router = ship_ops_rpc::AnalyticsServiceExt::register(svc, router);
+    // Hand-authored proto-as-SSOT domains (impls in analytics_rpc / runtime_rpc).
+    // C0 reads, edge-authenticated like the other reads.
+    let router = ship_ops_rpc::AnalyticsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::RuntimeServiceExt::register(svc, router);
     router.into_axum_router()
 }
 
