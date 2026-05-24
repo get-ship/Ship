@@ -371,6 +371,27 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "Deletion",
         sensitive: false,
     },
+    CommandDescriptor {
+        name: "collections.create_schema",
+        description: "Define a new collection (nested CollectionSchema as schema_json).",
+        args: &[ArgDescriptor { name: "schema_json", kind: "string", required: true }],
+        permission: "ship.collections.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "collections.update_schema",
+        description: "Replace a collection's schema (nested CollectionSchema as schema_json).",
+        args: &[
+            ArgDescriptor { name: "collection", kind: "string", required: true },
+            ArgDescriptor { name: "schema_json", kind: "string", required: true },
+        ],
+        permission: "ship.collections.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
     // ── skills (authoring; restricted ship-authoring) ─────────────
     // Skills are capability groups — authoring one defines agent capability, so
     // the gate requires the ship-authoring grant. Scope-resolving → ScopedMutation.

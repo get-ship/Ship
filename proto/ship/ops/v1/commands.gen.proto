@@ -87,6 +87,14 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.collections.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc CollectionsCreateSchema(CollectionsCreateSchemaRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc CollectionsUpdateSchema(CollectionsUpdateSchemaRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc SkillsCreate(SkillsCreateRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -397,6 +405,15 @@ message CollectionsUpdateItemRequest {
 message CollectionsDeleteItemRequest {
   string collection = 1;
   string id = 2;
+}
+
+message CollectionsCreateSchemaRequest {
+  string schema_json = 1;
+}
+
+message CollectionsUpdateSchemaRequest {
+  string collection = 1;
+  string schema_json = 2;
 }
 
 message SkillsCreateRequest {

@@ -358,6 +358,35 @@ impl ::ship_ops_rpc::CommandOpsService for OpsImpl {
             Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
         }
     }
+    async fn collections_create_schema(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedCollectionsCreateSchemaRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("schema_json".to_string(), ::serde_json::json!(req.schema_json));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("collections.create_schema", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse { json: value.to_string(), ..Default::default() })),
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
+    async fn collections_update_schema(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedCollectionsUpdateSchemaRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("collection".to_string(), ::serde_json::json!(req.collection));
+        args.insert("schema_json".to_string(), ::serde_json::json!(req.schema_json));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("collections.update_schema", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse { json: value.to_string(), ..Default::default() })),
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
     async fn skills_create(
         &self,
         ctx: ::connectrpc::RequestContext,
