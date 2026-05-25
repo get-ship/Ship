@@ -127,9 +127,9 @@ pub fn decide(blast: BlastRadius, domain: &Domain, caller: &Caller) -> Decision 
     match blast {
         BlastRadius::C2Elevated => Decision::Deny("op requires a human-operator credential"),
         BlastRadius::C0Read | BlastRadius::C1Workspace => {
-            if !domain.restricted {
-                Decision::Allow
-            } else if caller.restricted_grants.iter().any(|g| g == domain.group) {
+            // Default (non-restricted) domains are open to any in-scope agent;
+            // restricted domains need the matching grant. Both paths Allow.
+            if !domain.restricted || caller.restricted_grants.iter().any(|g| g == domain.group) {
                 Decision::Allow
             } else {
                 Decision::Deny("op requires a granted capability (restricted skill-group)")

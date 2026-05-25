@@ -29,3 +29,6 @@ protoc-bin-vendored = "3"
 [dev-dependencies]
 # Contract tests decode proto/fixtures/*.json into the generated types.
 serde_json = { workspace = true }
+
+[lints]
+workspace = true
