@@ -102,6 +102,38 @@ fn op_name(service: &str, method: &str) -> String {
     format!("{domain}.{}", snake(method))
 }
 
+/// PascalCase an op name (`rules.create` → `RulesCreate`) — mirrors the umbrella
+/// method namer, so a per-domain op can be checked for an umbrella twin.
+fn pascal(op: &str) -> String {
+    op.split(['.', '_'])
+        .map(|seg| {
+            let mut c = seg.chars();
+            c.next().map(|f| f.to_uppercase().chain(c).collect::<String>()).unwrap_or_default()
+        })
+        .collect()
+}
+
+/// Count ops exposed on BOTH the generated umbrella (ReadOps/CommandOps) AND a
+/// per-domain service — the transitional scaffold double-exposure. Reported (not
+/// gated on a magic number): it shrinks to 0 as the umbrella is retired (#78).
+/// Derived live from the descriptor, so it's never stale.
+fn scaffold_dup_count() -> usize {
+    use std::collections::BTreeSet;
+    let policies = ship_ops_rpc::policy::read_policies();
+    let umbrella: BTreeSet<String> = policies
+        .iter()
+        .filter(|p| matches!(p.service.as_str(), "ReadOpsService" | "CommandOpsService"))
+        .map(|p| p.method.clone())
+        .collect();
+    policies
+        .iter()
+        .filter(|p| !is_non_fixture_service(&p.service) && p.service != "OpsService")
+        .map(|p| op_name(&p.service, &p.method))
+        .filter(|op| umbrella.contains(&pascal(op)))
+        .collect::<BTreeSet<_>>()
+        .len()
+}
+
 pub fn run() -> Result<()> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let fixtures_dir = root.join("proto/fixtures");
@@ -162,5 +194,56 @@ pub fn run() -> Result<()> {
         by_service.len(),
         fixtures_dir.display()
     );
+    eprintln!(
+        "gen-fixtures: scaffold dup — {} ops still double-exposed on the generated \
+         umbrella + their per-domain service (retires to 0 with the umbrella, #78)",
+        scaffold_dup_count()
+    );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn theme_responses() -> serde_json::Map<String, Value> {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let theme: Value =
+            serde_json::from_slice(&std::fs::read(root.join("proto/fixtures/theme.json")).unwrap())
+                .unwrap();
+        theme.get("responses").and_then(Value::as_object).unwrap().clone()
+    }
+
+    /// THE CONTRACT-COMPLETENESS GATE (fixtures axis): every typed per-domain
+    /// proto method must have a decode-validator AND a corpus fixture. A newly
+    /// authored service method with a typed response but no fixture fails here —
+    /// the seam becomes a hard CI failure, not silent drift.
+    #[test]
+    fn every_typed_method_has_a_validator_and_fixture() {
+        let validators = type_validators();
+        let responses = theme_responses();
+        let mut gaps = Vec::new();
+        for p in ship_ops_rpc::policy::read_policies() {
+            if is_non_fixture_service(&p.service) {
+                continue;
+            }
+            if p.output_type.is_empty() || p.output_type == "JsonResponse" {
+                continue;
+            }
+            let op = op_name(&p.service, &p.method);
+            let Some(validate) = validators.get(p.output_type.as_str()) else {
+                gaps.push(format!("{op}: response `{}` has no validator", p.output_type));
+                continue;
+            };
+            match responses.get(&op) {
+                Some(v) => {
+                    if let Err(e) = validate(v) {
+                        gaps.push(format!("{op}: corpus does not match `{}`: {e}", p.output_type));
+                    }
+                }
+                None => gaps.push(format!("{op}: no corpus fixture in theme.json")),
+            }
+        }
+        assert!(gaps.is_empty(), "contract-completeness gaps (fixtures):\n  {}", gaps.join("\n  "));
+    }
 }
