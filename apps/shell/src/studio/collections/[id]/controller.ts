@@ -11,6 +11,7 @@
 import { controller, signal, derived, live, unwrap, defineRoutes } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+import { ops } from '../../../ops'
 
 defineRoutes([{ pattern: '/studio/collections/:id' }])
 
@@ -168,11 +169,10 @@ export default controller({
       const idx = values.indexOf(current)
       const next = values[(idx + 1) % values.length]
       const id = state.collectionId
-      await fetch(`/api/v1/collections/${id}/items/${encodeURIComponent(item.id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ data: { ...(item.data ?? {}), status: next } }),
+      await ops.collections.updateItem({
+        collection: id,
+        id: item.id,
+        dataJson: JSON.stringify({ ...(item.data ?? {}), status: next }),
       }).catch(() => undefined)
     },
     openNewRow: (state) => {
@@ -187,14 +187,14 @@ export default controller({
     saveNewRow: async (state) => {
       const id = state.collectionId
       if (!id) { state.drawerError = 'No collection id'; return }
-      const res = await fetch(`/api/v1/collections/${id}/items`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ data: state.rowDraft }),
-      })
-      if (!res.ok) {
-        state.drawerError = await res.text().catch(() => 'Request failed')
+      try {
+        await ops.collections.createItem({
+          collection: id,
+          dataJson: JSON.stringify(state.rowDraft),
+          id: '',
+        })
+      } catch (e) {
+        state.drawerError = (e as Error).message ?? 'Request failed'
         return
       }
       state.newRowOpen = false

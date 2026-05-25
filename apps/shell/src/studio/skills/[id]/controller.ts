@@ -6,6 +6,7 @@
 import { controller, signal, derived, live, effect } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
+import { ops } from '../../../ops'
 import type { Scope } from './page.sui'
 
 interface SkillDetail {
@@ -110,11 +111,7 @@ export default controller({
       if (tags.length) fm.tags = tags
       if ((s.authors ?? []).length) fm.authors = s.authors
       try {
-        const resp = await fetch(`/api/v1/skills/${encodeURIComponent(id)}/frontmatter`, {
-          method: 'PUT', credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' }, body: JSON.stringify(fm),
-        })
-        if (!resp.ok) return { ok: false, msg: (await resp.text().catch(() => '')) || `Save failed (${resp.status})` }
+        await ops.skills.writeFrontmatter({ id, frontmatterJson: JSON.stringify(fm), scope: '' })
         return { ok: true, msg: 'Saved.' }
       } catch (e) {
         return { ok: false, msg: (e as Error).message ?? 'Save failed.' }
@@ -149,11 +146,7 @@ export default controller({
       if (!id || s.saving) return
       s.saving = true; s.saveBanner = null
       try {
-        const resp = await fetch(`/api/v1/skills/${encodeURIComponent(id)}/body`, {
-          method: 'PUT', credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' }, body: JSON.stringify({ body: s.draft }),
-        })
-        if (!resp.ok) { s.saveBanner = { ok: false, msg: (await resp.text().catch(() => '')) || `Save failed (${resp.status})` }; return }
+        await ops.skills.writeBody({ id, body: s.draft, scope: '' })
         s.baseline = s.draft
         s.saveBanner = { ok: true, msg: 'Saved.' }
       } catch (e) {
