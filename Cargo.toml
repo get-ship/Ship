@@ -4,6 +4,7 @@ members = [
     "crates/core/cli-framework",
     "crates/core/compiler",
     "crates/core/mcp-framework",
+    "crates/core/ship-host",
     "crates/core/ship-substrate",
     "crates/core/ship-platform",
     "crates/core/ship-kernel",
