@@ -327,6 +327,21 @@ pub struct AuthSessionRevoked {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthSessionExpired {}
 
+/// Payload for `agent.grants.provisioned`. `entity_id` is the agent_id.
+/// The per-agent approved grant baseline the mint path reads. Latest write
+/// wins in the `provisioned_grants` projection.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentGrantsProvisioned {
+    /// The approved restricted-capability grants (e.g. `["ship-orchestration"]`).
+    pub grants: Vec<String>,
+    /// How the baseline was set: "install" (seeded from resolved skill grants)
+    /// or "operator" (explicit operator approval).
+    pub source: String,
+    /// Operator/user id that approved an "operator"-source write, if known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approved_by: Option<String>,
+}
+
 // -- Daemon owner ------------------------------------------------------------
 
 /// `entity_id` on the envelope is the user_id.

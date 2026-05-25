@@ -50,6 +50,7 @@ message ListProcsResponse {
 service RuntimeService {
   rpc ListProcs(ListProcsRequest) returns (ListProcsResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.read";
+    option (ship.ops.v1.description) = "List the daemon's tracked child processes (agents, executors).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
 }

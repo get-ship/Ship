@@ -9,6 +9,7 @@ mod gen_ops;
 mod gen_skills;
 mod gen_sdk;
 mod lint_layers;
+mod port_descriptions;
 
 use std::path::{Path, PathBuf};
 
@@ -396,6 +397,12 @@ fn main() {
         "gen-skills" => {
             if let Err(e) = gen_skills::run() {
                 eprintln!("gen-skills failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        "port-descriptions" => {
+            if let Err(e) = port_descriptions::run() {
+                eprintln!("port-descriptions failed: {e:#}");
                 std::process::exit(1);
             }
         }

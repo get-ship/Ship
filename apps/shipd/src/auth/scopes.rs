@@ -209,7 +209,7 @@ pub async fn session_register(
         other => other,
     };
     let scopes = scopes_for_role(effective_role);
-    let grants = ship_platform::auth::scopes::grants_for_role(effective_role);
+    let grants = ship_platform::auth::scopes::resolve_grants(&req.agent_id, effective_role);
     let token = match generate_session_token() {
         Ok(t) => t,
         Err(e) => {

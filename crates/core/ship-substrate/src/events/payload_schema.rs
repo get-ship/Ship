@@ -155,6 +155,8 @@ fn schema_for_event_type(
         "rule.updated" => Some(check::<RuleUpdated>),
         "rule.deleted" => Some(check::<RuleDeleted>),
         "permissions.updated" => Some(check::<PermissionsUpdated>),
+        // capability provisioning
+        "agent.grants.provisioned" => Some(check::<AgentGrantsProvisioned>),
         // session lifecycle additions (event-coverage/02)
         "session.status_changed" => Some(check::<SessionStatusChanged>),
         "session.turn_failed" => Some(check::<SessionTurnFailed>),

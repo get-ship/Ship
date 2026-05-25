@@ -28,4 +28,8 @@ extend google.protobuf.MethodOptions {
   BlastRadius blast_radius = 50002;
   // Content-exposure flag (redaction / log hygiene); orthogonal to blast radius.
   bool op_sensitive = 50003;
+  // One-line human description of the op — the SSOT for sdk-skill + `ship --help`
+  // doc text. Moves the last prose that lived in the Rust registry into proto,
+  // so the registry's descriptor tables lose their final reader.
+  string description = 50004;
 }

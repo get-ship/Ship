@@ -53,6 +53,7 @@ const EXTENDEE: &str = "google.protobuf.MethodOptions";
 const CAPABILITY: Extension<StringCodec> = Extension::new(50001, EXTENDEE);
 const BLAST_RADIUS: Extension<EnumI32> = Extension::new(50002, EXTENDEE);
 const SENSITIVE: Extension<Bool> = Extension::new(50003, EXTENDEE);
+const DESCRIPTION: Extension<StringCodec> = Extension::new(50004, EXTENDEE);
 
 /// The gate-relevant policy declared on one rpc method. This is the single
 /// decode of the descriptor set — both the gate (keyed by op name) and the
@@ -71,6 +72,79 @@ pub struct MethodPolicy {
     pub blast: BlastRadius,
     /// Content-exposure flag (redaction / log hygiene); orthogonal to blast.
     pub sensitive: bool,
+    /// Simple (package-stripped) request message type, e.g. `"CreateRuleRequest"`.
+    pub input_type: String,
+    /// Simple (package-stripped) response message type, e.g. `"ScopedMutation"`.
+    /// `"JsonResponse"` marks an op not yet on a typed proto shape — no fixture
+    /// to validate. The generators + the contract gate key off this.
+    pub output_type: String,
+    /// One-line human description (the `description` method option). The SSOT
+    /// for sdk-skill + help doc text; empty if the rpc declares none.
+    pub description: String,
+    /// Request fields, derived from the input message — the op's args. Lets
+    /// sdk-skill + help generation read arg shapes from proto, not the registry.
+    pub args: Vec<MethodArg>,
+    /// Response fields, derived from the output message — the return schema.
+    /// Empty for opaque returns (e.g. `JsonResponse`). Powers OpenAPI-level
+    /// reference docs (the response *shape*, not just its type name).
+    pub returns_fields: Vec<MethodArg>,
+}
+
+/// One request field, projected to the arg-kind vocabulary the generators use.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MethodArg {
+    pub name: String,
+    /// `"string" | "number" | "bool" | "map" | "<base>[]"` (repeated).
+    pub kind: String,
+}
+
+/// Strip a descriptor type ref (`.ship.ops.v1.ScopedMutation`) to its simple
+/// name (`ScopedMutation`).
+fn simple_type(t: &str) -> String {
+    t.rsplit('.').next().unwrap_or(t).to_string()
+}
+
+/// snake_case a PascalCase proto identifier: `WriteFrontmatter` → `write_frontmatter`.
+pub fn snake(s: &str) -> String {
+    let mut out = String::new();
+    for (i, ch) in s.char_indices() {
+        if ch.is_ascii_uppercase() {
+            if i != 0 {
+                out.push('_');
+            }
+            out.push(ch.to_ascii_lowercase());
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+/// The dotted op name for a proto (service, method) — the SINGLE derivation used
+/// by `ship ops call`, gen-skills, and gen-fixtures: the service carries the
+/// domain (`RulesService` → `rules`), the method the rest (`List` → `list`) ⇒
+/// `rules.list`. The service boundary removes pascal()'s `.`-vs-`_` ambiguity.
+pub fn op_name(service: &str, method: &str) -> String {
+    let svc = snake(service);
+    let domain = svc.strip_suffix("_service").unwrap_or(&svc);
+    format!("{domain}.{}", snake(method))
+}
+
+/// Project a proto field's (type, label) to the generators' arg-kind vocab.
+/// Field type numbers per `descriptor.proto`'s `FieldDescriptorProto.Type`;
+/// label 3 = repeated.
+fn field_kind(ty: Option<i32>, label: Option<i32>) -> String {
+    let base = match ty {
+        Some(8) => "bool",                       // BOOL
+        Some(9) | Some(12) | Some(14) => "string", // STRING | BYTES | ENUM
+        Some(10) | Some(11) => "map",            // GROUP | MESSAGE (nested object)
+        _ => "number",                            // all numeric scalar types
+    };
+    if label == Some(3) && base != "map" {
+        format!("{base}[]")
+    } else {
+        base.to_string()
+    }
 }
 
 impl MethodPolicy {
@@ -98,6 +172,28 @@ fn blast_from_proto(n: Option<i32>) -> BlastRadius {
 pub fn read_policies() -> Vec<MethodPolicy> {
     let fds = FileDescriptorSet::decode_from_slice(crate::FILE_DESCRIPTOR_SET)
         .expect("embedded FILE_DESCRIPTOR_SET decodes");
+    // Message (simple name) → its fields, projected to arg kinds. Lets a method
+    // resolve its request fields (= args) from the descriptor.
+    let mut messages: std::collections::HashMap<String, Vec<MethodArg>> =
+        std::collections::HashMap::new();
+    for file in &fds.file {
+        for msg in &file.message_type {
+            let Some(mname) = msg.name.clone() else { continue };
+            let args = msg
+                .field
+                .iter()
+                .filter_map(|f| {
+                    f.name
+                        .clone()
+                        .map(|name| MethodArg {
+                            name,
+                            kind: field_kind(f.r#type.map(|t| t as i32), f.label.map(|l| l as i32)),
+                        })
+                })
+                .collect();
+            messages.insert(mname, args);
+        }
+    }
     let mut out = Vec::new();
     for file in &fds.file {
         let package = file.package.clone().unwrap_or_default();
@@ -111,6 +207,11 @@ pub fn read_policies() -> Vec<MethodPolicy> {
                 let capability = opts.extension(&CAPABILITY).unwrap_or_default();
                 let blast = blast_from_proto(opts.extension(&BLAST_RADIUS));
                 let sensitive = opts.extension(&SENSITIVE).unwrap_or(false);
+                let input_type = simple_type(method.input_type.as_deref().unwrap_or_default());
+                let output_type = simple_type(method.output_type.as_deref().unwrap_or_default());
+                let description = opts.extension(&DESCRIPTION).unwrap_or_default();
+                let args = messages.get(&input_type).cloned().unwrap_or_default();
+                let returns_fields = messages.get(&output_type).cloned().unwrap_or_default();
                 out.push(MethodPolicy {
                     package: package.clone(),
                     service: service_name.clone(),
@@ -118,6 +219,11 @@ pub fn read_policies() -> Vec<MethodPolicy> {
                     capability,
                     blast,
                     sensitive,
+                    input_type,
+                    output_type,
+                    description,
+                    args,
+                    returns_fields,
                 });
             }
         }

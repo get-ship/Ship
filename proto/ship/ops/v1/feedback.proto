@@ -24,6 +24,7 @@ message PostFeedbackRequest {
 // client surface.
 service FeedbackService {
   rpc Post(PostFeedbackRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Post feedback (canvas/observation; rate-limited).";
     option (ship.ops.v1.capability) = "ship.feedback.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }

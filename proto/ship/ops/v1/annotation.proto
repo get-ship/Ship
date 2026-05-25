@@ -24,6 +24,7 @@ message PostAnnotationRequest {
 // the client surface.
 service AnnotationService {
   rpc Post(PostAnnotationRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Post an annotation (canvas/observation).";
     option (ship.ops.v1.capability) = "ship.annotations.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }

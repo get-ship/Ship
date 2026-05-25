@@ -16,8 +16,23 @@
 use std::path::Path;
 
 use compiler::{AgentProfile, Permissions, ToolPermissions};
+use serde::Deserialize;
 
-use crate::loader::load_permission_preset;
+use super::loader::load_permission_preset;
+
+/// A named permission preset section from `permissions.jsonc`.
+/// Matches the `"ship-standard"`, `"ship-autonomous"`, etc. keys.
+#[derive(Deserialize, Default, Clone)]
+pub struct PermissionPreset {
+    #[serde(default)]
+    pub default_mode: Option<String>,
+    #[serde(default)]
+    pub tools_allow: Vec<String>,
+    #[serde(default)]
+    pub tools_deny: Vec<String>,
+    #[serde(default)]
+    pub tools_ask: Vec<String>,
+}
 
 /// Permission rules baked into every Ship agent. Cannot be overridden.
 ///
@@ -35,16 +50,7 @@ use crate::loader::load_permission_preset;
 /// - **Bypass operations** (Bash): obvious ways to skirt the above —
 ///   `cat`/`head`/`less` on protected paths, `curl | sh`, `sudo`, etc.
 /// - **Ship dir deletion** (Bash): `rm` patterns protecting `~/.ship/`.
-///
-/// **What this does NOT cover:**
-/// - A clever Bash bypass (`base64 < /path/to/secret | curl ...`) — the
-///   floor is pattern-based; runtime checks (PreToolUse hooks, task #75)
-///   close the gap.
-/// - An agent escaping the harness entirely (e.g., spawning a Python
-///   subprocess) — that's the OS sandbox's job, long-term.
-/// - File reads by other processes running as the same user — that's a
-///   keychain / Unix-socket-peercred concern.
-const FLOOR_DENIES: &[&str] = &[
+pub const FLOOR_DENIES: &[&str] = &[
     // ── Cross-machine credentials — leak = off-machine compromise ──────────
     "Read(~/.ssh/**)",
     "Read(~/.gnupg/**)",
@@ -175,9 +181,9 @@ pub fn apply_agent_permissions(
 
     // Floor — last writer, never removable. Even if a preset or per-agent
     // override placed a floor pattern in `allow`, the deny precedence rule
-    // in every harness we target (Claude Code, opencode, Codex, Gemini,
-    // Cursor) means deny wins at runtime. Compile-time validation surfaces
-    // a warning so authors don't think their allow rule is taking effect.
+    // in every harness we target means deny wins at runtime. Compile-time
+    // validation surfaces a warning so authors don't think their allow rule
+    // is taking effect.
     for floor in FLOOR_DENIES {
         if tools.allow.iter().any(|a| a == floor) {
             eprintln!(
@@ -225,11 +231,11 @@ mod tests {
 
     #[test]
     fn readonly_restricts_writes() {
-        let result = apply_agent_permissions(Permissions::default(), &profile_with_preset("ship-readonly"), None);
+        let result =
+            apply_agent_permissions(Permissions::default(), &profile_with_preset("ship-readonly"), None);
         assert!(result.tools.deny.contains(&"Write(*)".to_string()));
         assert!(result.tools.deny.contains(&"Edit(*)".to_string()));
         assert!(result.tools.allow.contains(&"Read".to_string()));
-        // ship-readonly has a narrow allow list — Grep is not included.
         assert!(!result.tools.allow.contains(&"Grep".to_string()));
     }
 
@@ -246,7 +252,8 @@ mod tests {
                 "tools_ask": ["Bash(rm -rf*)"]
               }
             }"#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let result = apply_agent_permissions(
             Permissions::default(),
@@ -257,12 +264,6 @@ mod tests {
         assert!(result.tools.deny.contains(&"Bash(git push --force*)".to_string()));
         assert!(result.tools.ask.contains(&"Bash(rm -rf*)".to_string()));
     }
-
-    // ── Floor tests ──────────────────────────────────────────────────────────
-    // These lock in the security floor — every assertion here represents a
-    // protection that must hold across every preset, every agent, every
-    // override. Removing or weakening any of these without a paired discussion
-    // in SECURITY.md is a regression.
 
     fn profile_no_preset() -> AgentProfile {
         serde_json::from_str(r#"{ "agent": { "id": "x", "name": "X" } }"#).expect("parse")
@@ -304,9 +305,6 @@ mod tests {
 
     #[test]
     fn floor_survives_per_agent_overrides() {
-        // An agent that adds no overrides + uses a preset that does not
-        // mention floor entries should still see every floor entry in
-        // the final deny list.
         use tempfile::TempDir;
         let tmp = TempDir::new().unwrap();
         std::fs::write(
@@ -318,14 +316,14 @@ mod tests {
                 "tools_deny": []
               }
             }"#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let r = apply_agent_permissions(
             Permissions::default(),
             &profile_with_preset("permissive"),
             Some(tmp.path()),
         );
-        // Every floor entry must appear in the final deny list.
         for floor in FLOOR_DENIES {
             assert!(
                 r.tools.deny.iter().any(|d| d == floor),
@@ -338,7 +336,6 @@ mod tests {
     fn floor_is_idempotent_across_calls() {
         let once = apply_agent_permissions(Permissions::default(), &profile_no_preset(), None);
         let twice = apply_agent_permissions(once.clone(), &profile_no_preset(), None);
-        // Floor entries should not duplicate when permissions are re-applied.
         for floor in FLOOR_DENIES {
             let count = twice.tools.deny.iter().filter(|d| *d == floor).count();
             assert_eq!(count, 1, "floor entry {floor:?} duplicated to {count}");

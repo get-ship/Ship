@@ -98,7 +98,7 @@ All app binaries live under `apps/`:
 The Ship daemon — an Axum HTTP server that hosts the `ShipRuntime`. Responsibilities:
 
 - **ShipRuntime** — central manager owning the kernel, mesh registry, and lazily-initialized managers (`JobManager`, `MeshManager`, `SessionScanner`)
-- **Op surface** — one ConnectRPC service (`ship.ops.v1`) generated from the op registry: reads, commands (gated at the dispatch chokepoint), and server-streams (events, PTY bytes). The legacy REST + OpenAPI surface is being migrated onto it and then deleted.
+- **Op surface** — the L1 ABI: per-domain ConnectRPC services under `ship.ops.v1` (rules, git, agents, …), each **authored from proto** (the SSOT for op shape *and* policy), with reads, commands (gated at the dispatch chokepoint), and server-streams (events, PTY bytes). The same proto source generates the sdk-skills and contract fixtures. The legacy REST + OpenAPI surface is being migrated onto it and then deleted. See [The op surface](references/docs/op-surface.md).
 - **Pipeline orchestrator** — advances pipelines step-by-step as agent sessions complete
 - **Session registry** — scoped sessions; grants minted at dispatch, read by the gate
 - **PTY bridge** — terminal I/O over the Connect `SessionBytes` stream (and an SSE adapter during migration)

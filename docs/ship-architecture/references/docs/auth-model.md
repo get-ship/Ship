@@ -46,6 +46,19 @@ On every request the middleware:
    session registry, **not** from client-supplied `x-ship-*` headers. This is intentional
    defense against session-token-wielding agents impersonating other agents.
 
+## Host socket: a fourth, tokenless auth source
+
+The three token types above are the **TCP** path (browser, operator CLI, SDK). A
+dispatched **agent gets no token**. Instead the daemon binds `<daemon_dir>/ship.sock`
+and reads the caller's identity from the connection's **kernel peer credentials**
+(`SO_PEERCRED`), maps the PID to the agent's process container, and builds the
+*same* `AuthContext` the token branches build — so the gate below is unchanged.
+`auth_middleware` short-circuits when an `AuthContext` is already present, letting
+the peer-cred middleware (socket) and the token middleware (TCP) be two sources of
+one gate. Because a process can't forge its PID to the kernel, this is a per-agent
+credential the agent cannot mint or spoof. Full chain, per-OS matrix, and limits:
+[the agent access model](/reference/architecture/agent-access/).
+
 ## Capability gate
 
 Identity (above) answers *who is calling*; the **gate** answers *may they call this*.
@@ -82,7 +95,7 @@ GUI/2FA session) plus Tier-2+ isolation for untrusted work.
   capability"); the compiler issues **`grants:`** on capability-skills (never
   hand-authored). An unmet requirement is a compile error.
 - An agent's grants are **minted at dispatch** (today from its role via
-  `grants_for_role`; the [provisioning model](/reference/architecture/agent-access-and-skills-api/)
+  `grants_for_role`; the [provisioning model](/reference/architecture/op-surface/)
   refines this to per-agent operator-approved sets). The token is an opaque handle;
   grants are server-side state in the session registry.
 - **`agent.grant`** (C2, operator-only) is the human-in-the-loop approval: it adds
@@ -262,8 +275,12 @@ field in the request body. The **gate now blunts the escalation**: a session tok
 self-declared `contributor` can no longer reach credential/escalation ops.
 
 **Mitigation path**: the daemon stores an operator-approved grant set per agent (the
-[provisioning model](/reference/architecture/agent-access-and-skills-api/)) and mints
-from it, rather than trusting the request's role.
+[provisioning model](/reference/architecture/op-surface/)) and mints
+from it, rather than trusting the request's role. **On the host socket this is
+already resolved**: identity comes from kernel peer credentials, not a claimed
+role, and grants come from the per-agent provisioned baseline — see
+[the agent access model](/reference/architecture/agent-access/). The role-claim
+risk is confined to the external `apps/mcp` adapter on the token path.
 
 ## File layout
 

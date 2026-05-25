@@ -12,6 +12,7 @@ pub mod compile_state;
 pub mod pipeline_run;
 pub mod pipeline_run_transitions;
 pub mod projects;
+pub mod provisioned_grants;
 
 pub use agent_session::{
     AgentSession, AgentSessionProjection, AgentSessionStatus,
@@ -28,3 +29,6 @@ pub use pipeline_run::{
     load_pipeline_run_by_slug_at, load_pipeline_runs, project as project_pipeline_runs,
 };
 pub use projects::{ProjectRow, ProjectsProjection};
+pub use provisioned_grants::{
+    ProvisionedGrantsProjection, ProvisionedGrantsRow, provisioned_grants_for, provisioned_row,
+};

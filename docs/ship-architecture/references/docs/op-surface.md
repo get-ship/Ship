@@ -1,29 +1,41 @@
 ---
 group: Architecture
-title: Connect-All-In — One Op Registry, One Gate, Skills as Capability Clients
-description: Unify internal transport on ConnectRPC projected from one op registry; bring commands into the registry; classify ops by blast radius and gate the dangerous class; generate capability-skills from the registry. Multi-session tracking doc.
+order: 3
+title: The Op Surface — One Registry, One Gate, Skills as Capability Clients
+description: Ship's L1 ABI — every daemon op is a ConnectRPC method in a per-domain ship.ops.v1 service authored from proto (the SSOT for shape AND policy); one capability gate enforces blast-radius × caller × grant; sdk-skills and proto fixtures generate from the same source.
 audience: internal
-status: partially-implemented
+status: implemented
 ---
 
-# Connect-all-in
+# The op surface
 
-Status: **partially implemented** (the gate, grants, the Connect op surface +
-client + streams are on `main`; the deletions remain). Supersedes the earlier
-macaroon-centric draft (macaroons are out — see Rejected). The landed daemon
-auth model is documented in [Daemon authentication model](/reference/architecture/auth-model/);
-this page is the arc + what's left.
+Ship's L1 ABI. Every daemon operation — read or mutation — is a ConnectRPC method
+in a **per-domain `ship.ops.v1` service**, authored from proto (the single source
+for the op's shape *and* its policy), implemented once in the daemon, consumed by
+the CLI, the GUI, and agents as generated clients. One capability gate enforces
+**blast-radius × caller × grant** at the dispatch chokepoint. The same proto source
+generates the sdk-skills (the agent's API docs + client) and the contract fixtures.
+
+The landed daemon auth model is documented in
+[Daemon authentication model](/reference/architecture/auth-model/); this page is the
+op surface itself — how it's authored, gated, and projected — plus the last mile.
 
 <ship-alert tone="info">
-**Landed** (steps 1–4): one capability gate at the dispatch chokepoint
-(`services::gate` via `command::call`); blast-radius on the registry descriptors,
-fail-closed; grants minted at dispatch + `requires:`/`grants:` split; `agent.grant`
-operator approval; the ConnectRPC op surface (reads + commands generated from the
-registry), the `@ship/sdk` TS client, and Connect adapters for the event-bus + PTY
-streams.
-**Remaining**: the GUI flip to Connect (step 5), then the deletions this arc exists
-for — REST + OpenAPI, specta, and the full `Scope` enum — plus install-time grant
-provisioning + the on-disk-is-C0/C1 / C2-in-GUI posture.
+**Built (on main):** 24 authored per-domain `ship.ops.v1` services covering the full
+op surface (migrated off the legacy `schema::OPS`/`COMMANDS` Rust tables), each mounted
+additively beside the still-generated `ReadOpsService`/`CommandOpsService`. One
+capability gate (`services::gate::decide`, blast-radius read from the proto descriptor
+set, fail-closed); grants minted at dispatch with the `requires:`/`grants:` split and
+`agent.grant` operator approval; the `@ship/sdk` Connect-Web client + event-bus/PTY
+stream adapters; the **sdk-skill generator** (progressive-disclosure SKILL.md +
+per-op pages) and the **proto contract-fixture** pipeline (themed corpus → per-op
+fixtures, drift-checked).
+**The last mile (gated on the sui-framework branch):** migrate `view.*`/`create.*`
+(coupled to the studio rewrite); the **GUI flip** (#72) onto the per-domain clients;
+then the **deletions** this arc exists for — the generated umbrella services + the
+Rust descriptor tables + REST/OpenAPI/utoipa (#78), specta (#81), the `fixtures/data`
+POC, and the `Scope` enum. The surface is **additive** until then: old + new coexist,
+GUI still rides the old path. See `.artifacts/sui-framework-handoff.md`.
 </ship-alert>
 
 ## Goal
@@ -223,8 +235,29 @@ load-bearing security.
 2. ✅ **proto-from-registry** + conformance (Decision 2).
 3. ✅ **Connect op service, additive** + migrate CLI + scoped `--help` (Decision 1).
 4. ✅ **Generate capability-skills** from the registry (Decision 4).
-5. ⏳ **GUI streaming + fetches → Connect** — the only step that touches the SUI
-   surface; done on the UI branch atop `@ship/sdk/connect`. Unblocks the deletions.
+5. ✅ **proto-SSOT per-domain migration** — the op surface is now **24 hand-authored
+   `ship.ops.v1` services** (rules, artifacts, collections, permissions, mcp, skills,
+   pipelines, git, agents, agent, project, settings, annotation, feedback, sessions,
+   workspaces, account, chat, dashboard, events, specs + analytics/runtime/view_errors),
+   one rpc per op, policy as proto method options read by the gate. Authored, not
+   generated from the Rust tables; mounted additively beside the generated umbrella
+   until the flip. Recipe: author `<domain>.proto` (fresh request names — the generated
+   protos still hold `*Request` names in-package; reuse shared returns from `types.proto`,
+   `JsonResponse` from `ops.proto`); impl `<Domain>Service for OpsImpl` (C0 reads call the
+   platform service directly; writes route through `services::command::call`, the one
+   gate); register additively. Exemplars: `rules_rpc.rs`, `artifacts_rpc.rs` (typed
+   returns), `collections_rpc.rs` (opaque JSON).
+6. ✅ **sdk-skills** — progressive-disclosure generator (`xtask gen-skills`): a tiny
+   `SKILL.md` TOC + one `references/docs/<op>.mdoc` per op, doc-site-frontmatter ready,
+   at `skills/sdk/ship-<domain>/`. Operational domains (mesh/actor/event) excluded (#95).
+7. ✅ **proto contract fixtures** — `xtask gen-fixtures` validates a coherent themed
+   corpus (`proto/fixtures/theme.json`) against each proto type and emits per-service
+   fixtures (75 typed ops); cross-language contract tests + a CI drift guard. Serves
+   contract testing, fuzz seeds, and design handoffs from one source.
+8. ⏳ **The last mile — on `sui-framework`:** `view.*`/`create.*` migration (coupled to
+   the studio rewrite), the **GUI flip** (#72) off the umbrella onto the per-domain
+   clients, then the **deletions** below. Gated there because the flip + view/create are
+   the studio-controller contract that branch owns.
 
 ### Then the deletions (the payoff this arc exists for)
 

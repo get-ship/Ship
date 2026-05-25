@@ -145,8 +145,31 @@ impl ActorHandle {
 /// Side effects: kernel actor registered, child process started, kernel
 /// actor event emitted. On error: no child process is left running,
 /// error returned.
+/// Rewrite an agent profile's `bin`/`args` to spawn inside the agent's process
+/// container (`ship_host::containerize`). No-op for non-agent profiles and on
+/// hosts without a container backend. Stdio/env/cwd are untouched — only the
+/// program and its leading args change (Linux: a `systemd-run --scope` prefix).
+fn containerize_agent(profile: ActorProfile) -> ActorProfile {
+    let Some(agent_id) = profile.agent_id.clone() else {
+        return profile;
+    };
+    let (bin, args) = ship_host::host().containerize(&agent_id, &profile.bin, &profile.args);
+    if bin != profile.bin {
+        tracing::info!(agent_id = %agent_id, "supervisor: spawning agent into its process container");
+    }
+    ActorProfile { bin, args, ..profile }
+}
+
 pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
     let actor_id = profile.resolve_actor_id();
+
+    // Place agent processes in their own kernel process container so the daemon
+    // can identify them by peer credentials over the host socket (the inverse
+    // of `peer_identity::resolve`). Keyed on `agent_id`: any spawn that belongs
+    // to an agent gets containerized, regardless of ActorKind. Best-effort — on
+    // a host with no container backend `containerize` returns the command
+    // unchanged and the process resolves as the operator.
+    let profile = containerize_agent(profile);
 
     // Register with the kernel router so the actor appears on the
     // mesh (kernel.list_actors()) — the source-of-truth contract.

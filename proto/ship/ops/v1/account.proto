@@ -33,6 +33,7 @@ message LoginCompleteReq {
 // each impl enforces presence itself.
 service AccountService {
   rpc State(GetAccountStateReq) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Ship Cloud account snapshot — logged_out / pending / logged_in.";
     option (ship.ops.v1.capability) = "ship.account.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

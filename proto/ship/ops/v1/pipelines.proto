@@ -103,14 +103,17 @@ message DeletePipelineRequest {
 service PipelinesService {
   // ── reads (C0) ────────────────────────────────────────────────────────────
   rpc List(ListPipelinesRequest) returns (PipelinesIndexResponse) {
+    option (ship.ops.v1.description) = "List pipeline definitions across scopes.";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Get(GetPipelineRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Raw pipeline doc at the requested scope.";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Summaries(GetPipelinesSummariesRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Index-view shape: defs + active/history + pills + agents.";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -119,6 +122,7 @@ service PipelinesService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Focus(FocusPipelineRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Per-pipeline detail with active + other runs precomputed.";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -127,6 +131,7 @@ service PipelinesService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Run(RunPipelineRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Run detail with steps + timeline.";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -135,6 +140,7 @@ service PipelinesService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc History(ListPipelinesHistoryRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Paginated run history with pipeline filter options.";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -160,22 +166,27 @@ service PipelinesService {
   // ── runtime writes (C1, ship.runtime.write) ───────────────────────────────
   rpc UpdateStatus(UpdatePipelineStatusRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.write";
+    option (ship.ops.v1.description) = "Advance a pipeline run's lifecycle/gate state (the agent's own run).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc StepDone(StepDoneRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.write";
+    option (ship.ops.v1.description) = "Agent declares the current pipeline step complete.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   // ── config writes (C1, ship.pipelines.write) ─────────────────────────────
   rpc Put(PutPipelineRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Create or replace a pipeline definition (by name).";
     option (ship.ops.v1.capability) = "ship.pipelines.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Patch(PatchPipelineRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Apply RFC-6902 ops to a pipeline definition.";
     option (ship.ops.v1.capability) = "ship.pipelines.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Delete(DeletePipelineRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Delete a pipeline definition (scope omitted walks project → user).";
     option (ship.ops.v1.capability) = "ship.pipelines.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }

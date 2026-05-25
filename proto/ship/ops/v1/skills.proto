@@ -116,22 +116,27 @@ message DeleteSkillVarRequest {
 // rules.write (user's own workspace risk, not ship-cloud risk).
 service SkillsService {
   rpc List(ListSkillsRequest) returns (SkillsIndexResponse) {
+    option (ship.ops.v1.description) = "List all skills as minimal IndexEntry rows.";
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc File(GetSkillFileRequest) returns (SkillFileResponse) {
+    option (ship.ops.v1.description) = "HTML-escaped file content within a skill dir.";
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Summaries(SkillSummariesRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Rail shape: filtered + grouped + kind counts + tags.";
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Detail(GetSkillDetailRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Full view-shaped skill detail — authors, variables, files.";
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Get(GetSkillRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Raw skill detail at the requested scope.";
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -149,46 +154,57 @@ service SkillsService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Create(CreateSkillRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Create a new skill (optional initial frontmatter + body).";
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Delete(DeleteSkillRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Delete a skill (scope omitted walks project → user).";
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Rename(RenameSkillRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Rename a skill's id.";
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Duplicate(DuplicateSkillRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Copy a skill to a new id.";
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc WriteFrontmatter(WriteSkillFrontmatterRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Replace a skill's frontmatter (YAML/JSON object).";
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc WriteBody(WriteSkillBodyRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Replace a skill's markdown body.";
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc MoveScope(MoveSkillScopeRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Move a skill between project and user scope.";
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc WriteFile(WriteSkillFileRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Write a UTF-8 text file inside a skill dir.";
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc DeleteFile(DeleteSkillFileRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Delete a file inside a skill dir.";
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc SetVar(SetSkillVarRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Set a KV variable (value_json) on a skill.";
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc DeleteVar(DeleteSkillVarRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Delete a KV variable from a skill.";
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }

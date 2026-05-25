@@ -1,23 +1,21 @@
 //! MCP tool pre-approval for each harness.
 //!
-//! After compilation, `ship use` pre-approves the ship-mcp server tools in
-//! each harness's global or project-local settings so the user is not
-//! prompted on every session start.
+//! After compilation, pre-approves the ship-mcp server tools in each harness's
+//! global or project-local settings so the user is not prompted on every
+//! session start.
 
 use anyhow::{Context, Result};
-
-use super::output::ensure_parent;
+use compiler::ensure_parent;
 
 // ── Generic JSON helpers ─────────────────────────────────────────────────────
 
 /// Ensure a JSON pattern is in an array at the given JSON pointer path.
 /// Creates intermediate objects if needed. Returns Ok(false) if already present.
-pub(crate) fn ensure_json_array_entry(
+pub fn ensure_json_array_entry(
     settings: &mut serde_json::Value,
     pointer_parts: &[&str],
     pattern: &str,
 ) -> Result<bool> {
-    // Check if already present
     let pointer = format!("/{}", pointer_parts.join("/"));
     let already_present = settings
         .pointer(&pointer)
@@ -27,7 +25,6 @@ pub(crate) fn ensure_json_array_entry(
         return Ok(false);
     }
 
-    // Navigate/create path to the array
     let mut current = settings.as_object_mut().context("root must be object")?;
     for &part in &pointer_parts[..pointer_parts.len() - 1] {
         let entry = current.entry(part).or_insert(serde_json::json!({}));
@@ -63,7 +60,7 @@ fn update_json_settings(
 // ── Harness-specific allow-listing ──────────────────────────────────────────
 
 /// Claude: write `mcp__ship__*` to `~/.claude/settings.json` permissions.allow.
-pub(crate) fn ensure_ship_mcp_allowed_claude() -> Result<()> {
+pub fn ensure_ship_mcp_allowed_claude() -> Result<()> {
     let path = home::home_dir()
         .context("could not determine home directory")?
         .join(".claude")
@@ -73,12 +70,10 @@ pub(crate) fn ensure_ship_mcp_allowed_claude() -> Result<()> {
     })
 }
 
-
 /// Cursor: write `Mcp(ship:*)` to project `.cursor/cli.json` permissions.allow.
-pub(crate) fn ensure_ship_mcp_allowed_cursor(project_root: &std::path::Path) -> Result<()> {
+pub fn ensure_ship_mcp_allowed_cursor(project_root: &std::path::Path) -> Result<()> {
     let path = project_root.join(".cursor").join("cli.json");
     update_json_settings(&path, |s| {
-        // Ensure version field exists
         if s.get("version").is_none() {
             s["version"] = serde_json::json!(1);
         }

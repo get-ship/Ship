@@ -12,19 +12,32 @@ pub async fn try_dispatch(
     ctx: &CommandCtx<'_>,
 ) -> Result<Option<Value>, CommandError> {
     match name {
-        // Operator approval (C2 — the gate restricts this to the human operator):
-        // add restricted grants to every live session of `agent`, so the agent's
-        // next gated call passes without a re-mint. The dynamic half of the
-        // approval flow (.artifacts/capability-provisioning-and-approval.md); the
-        // install-time baseline read at mint is the follow-on.
+        // Operator approval (C2 — the gate restricts this to the human operator).
+        // Two effects: (1) add the grants to every live session of `agent` so its
+        // next gated call passes without a re-mint; (2) persist the approved
+        // baseline (`agent.grants.provisioned`, source="operator") so the approval
+        // survives re-dispatch — the mint path reads it via `resolve_grants`.
+        // See .artifacts/capability-provisioning-and-approval.md + #85.
         "agent.grant" => {
             let agent = req_str(args, "agent")?;
             let new_grants = str_array(args, "grants");
+            // Effective baseline starts from any existing provisioned record, so
+            // persisting never *narrows* an agent below what it already holds.
+            let mut baseline: std::collections::BTreeSet<String> =
+                ship_platform::projections::provisioned_grants_for(&agent)
+                    .ok()
+                    .flatten()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .collect();
             let mut upgraded = 0usize;
             {
                 let mut reg = ctx.state.session_registry().lock().await;
                 for session in reg.values_mut() {
                     if session.agent_id == agent {
+                        // A live session's grants are the agent's current effective
+                        // set (role- or provision-derived) — fold them in too.
+                        baseline.extend(session.grants.iter().cloned());
                         for g in &new_grants {
                             if !session.grants.contains(g) {
                                 session.grants.push(g.clone());
@@ -34,9 +47,19 @@ pub async fn try_dispatch(
                     }
                 }
             }
+            baseline.extend(new_grants.iter().cloned());
+            let provisioned: Vec<String> = baseline.into_iter().collect();
+            ship_platform::auth::scopes::provision_grants(
+                &agent,
+                &provisioned,
+                "operator",
+                ctx.auth.agent_id.as_deref(),
+            )
+            .map_err(|e| CommandError::service(format!("failed to persist grants: {e}")))?;
             Ok(Some(serde_json::json!({
                 "agent": agent,
                 "grants": new_grants,
+                "provisioned": provisioned,
                 "sessions_upgraded": upgraded,
             })))
         }

@@ -38,17 +38,21 @@ message ActivateProjectRequest {
 service ProjectService {
   rpc ListProjects(ProjectsListRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.description) = "List the registered projects (each a .ship/ directory).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc ActiveProject(ProjectsActiveRequest) returns (WorkspaceActiveResponse) {
     option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.description) = "The active project and its workspace state.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Add(AddProjectRequest) returns (ProjectRecord) {
+    option (ship.ops.v1.description) = "Register a directory as a project (ensures its .ship/ exists).";
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Activate(ActivateProjectRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Switch the daemon's active project.";
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
