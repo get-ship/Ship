@@ -1,6 +1,6 @@
 import { controller, derived, live } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import { ship } from '../../../../ops'
+import { ship, ops } from '../../../../ops'
 import type { LiveSource } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
@@ -52,11 +52,9 @@ export default controller({
   },
   on: {
     stopRun: async (_s, jobId: string) => {
-      await fetch('/api/v1/agent_sessions/end', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: jobId }),
-      })
+      // FLAG (API arc): EndTurn (turn-complete); old call sent job_id where
+      // end_job reads slug (likely no-op). True stop wants agent.Stop.
+      try { await ops.pipelines.endTurn({ slug: jobId }) } catch { /* best-effort */ }
     },
   },
 })
