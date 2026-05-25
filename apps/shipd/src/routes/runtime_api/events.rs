@@ -1,16 +1,14 @@
 //! Split off from runtime_api.rs (mr-04 follow-up).
 
 use axum::{
-    Json,
-    extract::{Query, State},
+    extract::State,
     http::StatusCode,
-    response::IntoResponse,
 };
 use axum::response::sse::{Event, KeepAlive, Sse};
 use ship_substrate::events::ActorConfig;
 use serde::Deserialize;
 
-use crate::routes::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::ApiState;
 
 #[derive(Deserialize)]
 pub struct EventsPollQuery {
@@ -22,30 +20,6 @@ pub struct EventsPollQuery {
     /// Optional event-namespace prefix filter ("job", "process", "supervisor").
     pub namespace: Option<String>,
     pub limit: Option<usize>,
-}
-
-/// GET /api/v1/runtime/events/poll
-///
-/// Polling fallback for `ship tail`. SSE replays only future events;
-/// poll allows the CLI to walk the log forward from a known cursor.
-/// Use `since_id` (ULID) for incremental polling. Limit defaults to 200.
-pub async fn poll_events(
-    State(state): State<ApiState>,
-    Query(params): Query<EventsPollQuery>,
-) -> impl IntoResponse {
-    match poll_events_core(
-        state.ship_dir(),
-        params.since_id.as_deref(),
-        params.slug.as_deref(),
-        params.namespace.as_deref(),
-        params.limit.unwrap_or(200),
-    ) {
-        Ok(data) => (StatusCode::OK, Json(MeshResponse { ok: true, data })),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse { ok: false, data: serde_json::json!(e) }),
-        ),
-    }
 }
 
 /// Cursor-walk poll core, shared by the REST handler and `EventsService.Poll`

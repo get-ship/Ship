@@ -94,14 +94,6 @@ impl TestDaemon {
         // directly at /api/v1/{projects,sessions,agents/active,events}.
         let runtime_routes = Router::new()
             .route(
-                "/sessions",
-                axum::routing::get(crate::routes::runtime_api::list_workspace_sessions),
-            )
-            .route(
-                "/agents/active",
-                axum::routing::get(crate::routes::runtime_api::list_agents),
-            )
-            .route(
                 "/events",
                 axum::routing::get(crate::routes::runtime_api::event_stream),
             )

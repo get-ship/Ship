@@ -369,14 +369,6 @@ pub enum Route {
 
     // ── Runtime listings ─────────────────────────────────────────────────
 
-    /// @route GET "/api/v1/sessions"
-    /// @auth scope ReadWorkspace
-    ListSessions,
-
-    /// @route GET "/api/v1/agents/active"
-    /// @auth scope ReadWorkspace
-    ListAgents,
-
     /// @route POST "/api/v1/agents/{slug}/stop"
     /// @auth scope ManageRuns
     StopAgent { slug: String },
@@ -424,10 +416,6 @@ pub enum Route {
     AttachAgentSession { slug: String },
 
     // ── Process projection / events polling / daemon status (slice 6) ────
-
-    /// @route GET "/api/v1/events/poll"
-    /// @auth scope ReadWorkspace
-    PollEvents,
 
     /// @route GET "/daemon/status"
     /// @auth scope ReadWorkspace

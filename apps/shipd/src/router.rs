@@ -404,8 +404,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Runtime
-        .ship_route(Route::ListSessions, runtime_api::list_workspace_sessions)
-        .ship_route(Route::ListAgents, runtime_api::list_agents)
         .ship_route(Route::StopAgent_template(), runtime_api::stop_agent)
         .ship_route(Route::SteerAgent_template(), runtime_api::steer_agent)
         .ship_route(Route::ListJobs, runtime_api::list_jobs)
@@ -421,7 +419,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             Route::AttachAgentSession_template(),
             crate::routes::agent_sessions_attach::attach_agent_session,
         )
-        .ship_route(Route::PollEvents, runtime_api::poll_events)
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
         // Views — list + source now served by DiscoveryService (Connect, #139).
         .ship_route(Route::ShipSchema, services::schema::serve_schema)
