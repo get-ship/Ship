@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-pub use crate::commands::{EventsCommands, HookCommands, McpCommands, WorkspaceCommands};
+pub use crate::commands::{EventsCommands, HookCommands, McpCommands, SuiCommands, WorkspaceCommands};
 
 const AFTER_HELP: &str = "\x1b[1mDaily Workflow:\x1b[0m
   ship init              Start here — scaffold .ship/
@@ -325,6 +325,12 @@ pub enum Commands {
         /// Filter to a single event namespace (e.g. "job", "process", "supervisor")
         #[arg(long)]
         namespace: Option<String>,
+    },
+
+    /// SUI `.sui` language intelligence — diagnostics, hover, dependencies
+    Sui {
+        #[command(subcommand)]
+        action: SuiCommands,
     },
 
     /// Manage the Ship daemon (shipd) background process

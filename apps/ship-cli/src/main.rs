@@ -24,6 +24,7 @@ mod install;
 mod procs;
 mod runtime_cmd;
 mod tail;
+mod sui;
 mod loader;
 mod logging;
 mod uninstall;
@@ -223,6 +224,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             }
             Commands::Hook { action } => dispatch_hook(action),
             Commands::Procs { slug, kind, limit, json } => procs::run(slug.as_deref(), kind.as_deref(), limit, json),
+            Commands::Sui { action } => sui::run(action),
             Commands::Tail { slug, namespace } => tail::run(&slug, namespace.as_deref()),
             Commands::Daemon { action } => {
                 use cli::DaemonCommands;

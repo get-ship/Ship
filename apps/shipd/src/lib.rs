@@ -55,6 +55,7 @@ pub mod view_rpc;
 pub mod create_rpc;
 pub mod discovery_rpc;
 pub mod registry_rpc;
+pub mod sui_rpc;
 pub mod live_read;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;

@@ -93,3 +93,25 @@ pub enum McpCommands {
     /// Remove an MCP server
     Remove { id: String },
 }
+
+/// `ship sui` — SUI `.sui` language intelligence (diagnostics, hover,
+/// dependencies) over `SuiService` (Connect). The daemon answers in-process
+/// via the sui_compiler facade.
+#[derive(Subcommand, Debug)]
+pub enum SuiCommands {
+    /// All diagnostics (parse + semantic + lint) for a `.sui` file
+    Diagnostics {
+        /// `.sui` file — absolute or workspace-relative
+        file: String,
+    },
+    /// Hover info for the symbol under a 0-based (line, col) cursor
+    Hover {
+        file: String,
+        line: u32,
+        col: u32,
+    },
+    /// Dependency surface: custom-element tags, handled events, controller path
+    Dependencies {
+        file: String,
+    },
+}
