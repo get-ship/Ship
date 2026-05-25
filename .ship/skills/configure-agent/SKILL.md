@@ -24,7 +24,7 @@ Over-restricting kills productivity — every approval interruption breaks flow.
 
 Every preset inherits these rules — they cannot be overridden by agents:
 
-- **Always allow:** `mcp__ship__*`, `Bash(ship *)`
+- **Always allow:** `Bash(ship *)` (the Connect op surface — `ship ops call`, `ship step-done`)
 - **Always deny:** `Bash(sqlite3 ~/.ship/*)`, `Bash(git push*)`, `Bash(*publish*)`, secrets files (`.env`, `credentials*`)
 - **Always ask:** `.ship/` writes
 

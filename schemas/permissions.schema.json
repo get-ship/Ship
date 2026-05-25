@@ -21,7 +21,7 @@
   "$defs": {
     "ToolPattern": {
       "type": "string",
-      "description": "A tool permission pattern. Syntax: bare tool name (Read, Write, Edit, Glob, Grep, Bash, WebFetch), parameterized tool with glob argument (Bash(git *), Bash(rm -rf *), Bash(npm *)), MCP tool (mcp__<server>__<tool>, e.g. mcp__ship__create_job), or wildcard (mcp__*__delete*, Bash(*))."
+      "description": "A tool permission pattern. Syntax: bare tool name (Read, Write, Edit, Glob, Grep, Bash, WebFetch), parameterized tool with glob argument (Bash(git *), Bash(rm -rf *), Bash(npm *)), MCP tool (mcp__<server>__<tool>, e.g. mcp__github__create_issue), or wildcard (mcp__*__delete*, Bash(*))."
     },
     "PermissionPreset": {
       "type": "object",
