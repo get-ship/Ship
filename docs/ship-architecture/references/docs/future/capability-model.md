@@ -1,101 +1,90 @@
 ---
 group: Architecture
-title: Capability Model — design + migration
-description: Per-domain capabilities as the single grant axis — derived from proto, no second curation, with the bounded migration from the coarse-group POC.
+title: Authority Model — service × blast-tier
+description: Agent authority as a per-service blast ceiling — the two axes that already exist (proto services × risk tier), no new taxonomy.
 audience: internal
 status: design
 ---
 
-# Capability model
+# Authority model: service × blast-tier
 
-The decided design for how a user grants a Ship agent authority, and the bounded
-migration from today's proof-of-concept (the two hardcoded coarse groups). Builds
-on [agent access](/reference/architecture/agent-access/) (the transport + gate)
-and the [auth model](/reference/architecture/auth-model/) (the grant plumbing).
+How a user grants a Ship agent authority. Supersedes the earlier
+"per-domain capability" sketch — **there is no capability taxonomy.** Authority
+is the two axes that already exist: the **service** an op belongs to (the proto
+contract grouping) × its **blast tier** (risk). Builds on
+[agent access](/reference/architecture/agent-access/) and the
+[auth model](/reference/architecture/auth-model/).
 
-## Decisions (settled in design)
+## The decision
 
-1. **A capability = an op domain.** `git`, `pipelines`, `rules` — the first
-   segment of an op name (`git.commit` → `git`). This is the **one curation that
-   already exists**: the app→crates→proto-service split. We do **not** curate a
-   second taxonomy on top of it — that's the thing that drifts.
-2. **The registry is derived from proto**, never hand-listed:
-   `ship_ops_rpc::policy::capabilities()` (already built). Capability ↔ sdk-skill
-   is 1:1 (`git` ↔ `ship-git`). A conformance test asserts every command's
-   capability is a registry entry (or an explicit operational exclusion), so the
-   gate axis, the capability list, and the sdk-skills cannot desync.
-3. **Capability is orthogonal to blast-radius.** Blast (C0/C1/C2) is an *internal
-   risk* calc (how dangerous), not a grantable thing. The gate multiplies them:
-   `blast (auto-safety) × capability (granted scope)`.
-4. **Skills only `require`; the user grants; the runtime manages.** A skill/app
-   `requires:` the capabilities it needs (by id). Granting is the user's act
-   (operator-approved); the runtime holds the grant (#85 provisioned baseline)
-   and the gate enforces it. **Skills do not `grant:`** — that field is the
-   misleading POC artifact and is removed.
-5. **sdk-skills are an implementation detail.** Users never add them. Granting a
-   capability attaches its sdk-skill (the `ship ops call` interface). `requires: [git]`
-   → the compiler pulls in `ship-git` by id.
-6. **Presets, not a second taxonomy.** The ~8 use-case bundles ("Developer" =
-   `{git, pipelines, runtime}`) are **named grant-sets** for the UI so a user
-   isn't ticking 25 boxes. They expand to capabilities at grant time and carry
-   **no authority of their own** — tunable freely, can't desync the gate. Built
-   when the UI needs them; deferred.
+- **No new taxonomy.** A second curated grouping of the op surface (use-case
+  "capabilities") would drift from the proto-service grouping. Rejected.
+- **Blast radius is the lever.** Per-op risk tier, declared in proto. The bug
+  that forced this: `dispatch` (spawns/controls agents) and `step_done` (a
+  progress note) are both `C1` today — nonsense. The tier must separate them.
+- **Four tiers** (today's three can't place `dispatch`: not "any agent", not
+  "human-only-forever" since a commander dispatches):
 
-## The gate (target)
+  | Tier | Who | Examples |
+  |---|---|---|
+  | **C0** read | anyone | list, get, status |
+  | **C1** workspace-write | any agent | step_done, log_progress, git write, edit files, collections |
+  | **C2** elevated | **granted** agents (commander) | dispatch / stop / steer, settings, mcp, authoring |
+  | **C3** critical | operator only (GUI/2FA) | account, permissions, billing, credential mint |
 
-`decide(blast, capability, caller)`, pure:
+- **Authority = a per-service blast ceiling.** Internally an agent holds
+  `{ default: C1, overrides: { runtime: C2 } }` — full control, the "service ×
+  tier" matrix. The gate: `op(service S, blast B) → allow if B ≤ ceiling(S)`
+  (operator clears all; **C3 is always operator/2FA**, never granted to an agent).
+- **Low user surface via presets + a default.** The user never fills 25 cells.
+  A global default (C1) + named presets set the map: `worker = {default: C1}`,
+  `commander = {default: C1, runtime: C2}`, `admin = {default: C2}`. Presets are
+  non-authoritative UI sugar over the ceiling map.
 
-```text
-operator                        -> Allow (full trust)
-C2 (elevated)                   -> Deny  (agents never; operator above)
-C0 (read)                       -> Allow (observation is non-harmful, #95)
-C1 (write), capability granted   -> Allow
-C1 (write), capability missing   -> Deny
-```
+This makes the dispatch case work with **zero per-domain list**: `step_done`
+(pipelines, C1) and `dispatch` (pipelines, **C2**) share a service but differ by
+tier — a worker with `ceiling=C1` does the first, not the second.
 
-The tightening vs the POC: today most domains are `ship-workspace`,
-**unrestricted — any agent writes them**. Target: an agent writes in domain `X`
-only if granted capability `X`. Reads stay open.
+The proto-derived capability registry (`ship_ops_rpc::policy::capabilities()`)
+**survives only as the sdk-skill index** (which skills exist), not as the grant
+axis.
 
-## The bounded migration (from the coarse-group POC)
+## Execution — one coupled migration
 
-One coordinated change — the grant *tokens* flip from coarse groups
-(`ship-orchestration`/`ship-authoring`) to domains, on the **same plumbing**
-(`provisioned_grants` store, `AgentGrantsProvisioned` event, `resolve_grants`,
-`AuthContext.grants`). No new system; a vocabulary swap + the gate de-hardcode.
+Re-tiering the gate is coupled (proto tiers ⇄ gate ⇄ baseline); commit only when
+consistent + green. Ordered:
 
-| # | File | Change |
-|---|------|--------|
-| 1 | `shipd/services/gate.rs` | replace `classify`→`Domain{group,restricted}` with `capability_of(name)` (= `domain_of`); `decide(blast, capability, caller)` does `cap ∈ caller.capabilities`; `Caller.restricted_grants` → `capabilities`. Conformance test: every command's capability ∈ registry (or operational). |
-| 2 | `shipd/services/command.rs` | call site: `capability_of(name)` + new `decide` signature. |
-| 3 | `compiler/resolve.rs` | `include_capability_skills`: `requires:[cap]` → include pool skill `ship-<cap>` by id; `requested_grants` = union of `requires`; `unmet` = requires with no `ship-<cap>` in pool. |
-| 4 | `compiler/types/skill.rs` | remove the `grants` field + `grants_from_skills`; rework `unmet_requirements`. ~6 construction sites. |
-| 5 | `ship-platform/auth/scopes.rs` | `grants_for_role` → the role-default resolution (below); `resolve_grants` unchanged (returns the baseline, now domains). |
-| 6 | callers of `resolve_grants` | `supervisor/platform.rs`, `shipd/auth/peer_socket.rs`, `shipd/auth/scopes.rs` — unchanged code, now carry domains. |
-| 7 | tests | gate, scopes, resolve tests flip from coarse-group literals to domain literals. |
+0. **Untangle the enum-name mismatch first.** The proto blast option reads
+   `BLAST_RADIUS_C0_SAFE` but Rust `BlastRadius::from_descriptor` matches
+   `"C0_READ"` — confirm how `read_policies` maps the enum (i32 vs name) so the
+   tier values are actually wired, *before* assigning tiers. (Likely a latent
+   bug or an i32 path that bypasses the string.)
+1. **`ship-ops-rpc` `BlastRadius`**: add `C3Critical`; derive `Ord`
+   (C0<C1<C2<C3); `from_descriptor`/`as_descriptor` for all four; keep
+   fail-closed to the **highest** tier.
+2. **`policy.proto`**: add the `C3` enum value.
+3. **Re-tier the ops** (the bug-fix, SSOT): `agent.*`/dispatch/stop/steer,
+   `settings.*`, `mcp.*`, authoring → **C2**; `account.*`, `permissions.*`,
+   billing/credential → **C3**; keep step_done/log/git-write/collections at C1.
+   A conformance test pins the dangerous ones (dispatch is never < C2).
+4. **`gate.rs`**: `Caller` holds a ceiling map (`default` + `overrides`); `decide`
+   = operator→allow, `C3`→operator-only, else `blast ≤ ceiling(service)`. Drop
+   `classify`'s coarse groups. Pure + TDD.
+5. **#85 baseline**: `provisioned_grants` stores the ceiling map (default + sparse
+   overrides), not a string list. `resolve_grants` returns it; `AuthContext`
+   carries it; `caller_from_auth` maps it.
+6. **Presets**: named ceiling maps (`worker`/`commander`/`admin`) — a tunable,
+   non-authoritative table the grant UI lists. Deferred until the UI needs it.
+7. **Tests**: gate/scopes/resolve flip to the ceiling model.
 
-Committed only when the whole set is consistent + green — flipping a subset
-leaves a broken window (baseline has domains, gate checks groups → all denied).
+Why not started piecemeal: re-tiering ops without the gate ceiling (steps 1–3
+alone) would **deny** commander dispatch (C2) until step 4 lands — a broken
+window. The set ships together.
 
-## Open decision — role defaults
+## Open ruling captured
 
-With per-domain capabilities, **what does an agent hold before any explicit
-grant?** Three options:
-
-- **(a) Operational baseline + explicit rest (recommended).** Every dispatched
-  agent intrinsically holds the *operational essentials of being an agent* — its
-  own session/pipeline lifecycle (`pipelines` step/log), `chat` (reply to the
-  user), workspace reads. Everything else (`git`, `settings`, authoring…) is
-  explicitly granted, seeded from the agent's skills' `requires:` at install
-  (operator-approved). Matches "user grants explicitly" while keeping a worker
-  able to function out of the box.
-- **(b) Zero default.** An agent holds nothing until granted. Purest, but a bare
-  worker can't even `step_done` until the operator grants `pipelines` — likely
-  too strict for the dispatch flow.
-- **(c) Keep role→capability defaults.** `grants_for_role` maps each role to a
-  domain set. Convenient, but re-introduces an editorial mapping (the thing we're
-  trying to avoid) and makes the role, not the user, the grantor.
-
-Recommendation: **(a)** — define a small `AGENT_BASELINE` capability set (derived,
-documented) as "what being an agent means," and treat all else as granted. This
-is the one ruling needed before executing the migration.
+Role default = **operational baseline** (ratified): default ceiling **C1**
+(workspace-write everywhere) for any dispatched agent; C2 elevation is explicit
+(preset or per-service override); C3 is never an agent's. A bare worker can
+`step_done`/`log_progress`/reply out of the box; dispatch and settings need the
+commander preset.
