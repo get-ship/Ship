@@ -1,6 +1,6 @@
 import { controller, signal, derived, live, ref } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import { ship } from '../../../../ops'
+import { ship, ops } from '../../../../ops'
 import type { LiveSource } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
@@ -131,36 +131,23 @@ export default controller({
       if (!ws) return
       s.editSaving = true; s.editError = ''; s.editErrorLine = 0; s.editErrorCol = 0; s.editIssueCount = 0
       ed.setDiagnostics?.([])
+      // PipelinesService.Put (Connect) → active project. Replaces the dead
+      // PUT /api/v1/workspaces/{ws}/pipelines/{name} route (no daemon handler).
+      // FLAG (API arc): pipelines.put validates the name only — structured doc
+      // diagnostics (inline editor line/col) aren't wired; the old issues-parse
+      // path was dead code (the route 404'd).
       try {
-        const resp = await fetch(
-          `/api/v1/workspaces/${encodeURIComponent(ws)}/pipelines/${encodeURIComponent(nm)}`,
-          { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: ed.value }) },
-        )
-        if (resp.ok) { window.location.reload(); return }
-        const body = await resp.json().catch(() => ({}))
-        const data = body?.data ?? {}
-        const issues: any[] = Array.isArray(data.issues) ? data.issues : (data.parse ? [data.parse] : [])
-        const primary = issues[0]
-        if (primary) {
-          s.editError = primary.message ?? 'validation error'
-          s.editErrorLine = primary.line ?? 0; s.editErrorCol = primary.column ?? 0
-          s.editIssueCount = issues.length
-          ed.setDiagnostics?.(issues.map(i => ({ line: i.line ?? 1, column: i.column ?? 1, severity: i.kind === 'parse' ? 'error' : 'warning', message: i.message ?? 'validation error', source: i.path ?? i.kind })))
-        } else { s.editError = data.error ?? `HTTP ${resp.status}` }
-      } catch (err: any) { s.editError = 'network: ' + (err?.message ?? String(err)) }
+        await ops.pipelines.put({ name: nm, docJson: ed.value, scope: 'project' })
+        window.location.reload()
+      } catch (err: any) { s.editError = (err?.message ?? String(err)) }
       finally { s.editSaving = false }
     },
     deletePipeline: async (s) => {
       const ws = s.workspaceId; const nm = s.name
       if (!ws) return
       try {
-        const resp = await fetch(
-          `/api/v1/workspaces/${encodeURIComponent(ws)}/pipelines/${encodeURIComponent(nm)}`,
-          { method: 'DELETE', credentials: 'include' },
-        )
-        if (resp.ok) { window.location.href = '/studio/pipelines'; return }
-        const body = await resp.json().catch(() => ({}))
-        window.alert('Delete failed: ' + (body?.data ?? `HTTP ${resp.status}`))
+        await ops.pipelines.delete({ name: nm, scope: 'project' })
+        window.location.href = '/studio/pipelines'; return
       } catch (err: any) { window.alert('Delete failed: ' + (err?.message ?? String(err))) }
       s.deleteOpen = false
     },
@@ -179,7 +166,9 @@ export default controller({
     openDelete: (s) => { s.deleteOpen = true },
     closeDelete: (s) => { s.deleteOpen = false },
     stopRun: async (_s, jobId: string) => {
-      await fetch('/api/v1/agent_sessions/end', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: jobId }) })
+      // FLAG (API arc): routes to EndTurn (turn-complete); old call sent job_id
+      // where end_job reads slug (likely no-op). A true stop wants agent.Stop.
+      try { await ops.pipelines.endTurn({ slug: jobId }) } catch { /* best-effort */ }
     },
     pulseRun: (_s, el: HTMLElement) => {
       el.classList.add('ship-heartbeat')
