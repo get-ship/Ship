@@ -8,7 +8,7 @@
 //! (list / file) decode onto the shared `types.proto` shapes. Writes (C1) route
 //! through `services::command::call`, the ONE gate, which enforces the grant.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::json;
 use ship_ops_rpc::{
     JsonResponse, ScopedMutation, SkillFileResponse, SkillsIndexResponse, SkillsService,
@@ -81,6 +81,34 @@ impl SkillsService for OpsImpl {
             crate::services::registry::call("skills.get", &args, self.state())
                 .map_err(|e| ConnectError::internal(format!("skills.get: {e}")))?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn list_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListSkillsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("skills.list", json!({})).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn summaries_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedSkillSummariesRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        let args = json!({ "q": request.q, "kind": request.kind, "tag": request.tag });
+        self.live_read("skills.summaries", args).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn detail_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetSkillDetailRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("skills.detail", json!({ "id": request.id })).await
     }
 
     async fn create(

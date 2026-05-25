@@ -61,6 +61,33 @@ impl CollectionsService for OpsImpl {
         self.collections_read("collections.items", json!({ "collection": request.collection }))
     }
 
+    #[allow(refining_impl_trait)]
+    async fn state_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetCollectionsStateRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("collections.state", json!({ "active": request.active })).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn detail_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetCollectionDetailRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("collections.detail", json!({ "id": request.id })).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn items_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetCollectionItemsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("collections.items", json!({ "collection": request.collection })).await
+    }
+
     async fn get_item(
         &self,
         _ctx: RequestContext,

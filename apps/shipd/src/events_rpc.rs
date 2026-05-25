@@ -4,10 +4,10 @@
 //! Events reads are C0 and return a typed `EventsListResponse`; they route
 //! through the sync read registry (`registry::call`) with no gate.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::json;
 
-use ship_ops_rpc::{EventsListResponse, EventsService};
+use ship_ops_rpc::{EventsListResponse, EventsService, JsonResponse};
 
 use crate::ops_rpc::OpsImpl;
 
@@ -43,6 +43,31 @@ impl EventsService for OpsImpl {
         let msg = serde_json::from_value::<EventsListResponse>(value)
             .map_err(|e| ConnectError::internal(format!("events.list decode: {e}")))?;
         Ok(Response::new(msg))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn list_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedEventsListReqView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        let mut args = serde_json::Map::new();
+        if request.limit != 0 {
+            args.insert("limit".to_string(), json!(request.limit));
+        }
+        if !request.event_type.is_empty() {
+            args.insert("event_type".to_string(), json!(request.event_type));
+        }
+        if !request.actor.is_empty() {
+            args.insert("actor".to_string(), json!(request.actor));
+        }
+        if !request.entity.is_empty() {
+            args.insert("entity".to_string(), json!(request.entity));
+        }
+        if !request.q.is_empty() {
+            args.insert("q".to_string(), json!(request.q));
+        }
+        self.live_read("events.list", serde_json::Value::Object(args)).await
     }
 }
 

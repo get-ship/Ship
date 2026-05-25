@@ -26,7 +26,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/workspaces.proto.
  */
 export const file_ship_ops_v1_workspaces: GenFile = /*@__PURE__*/
-  fileDesc("ChxzaGlwL29wcy92MS93b3Jrc3BhY2VzLnByb3RvEgtzaGlwLm9wcy52MSITChFMaXN0V29ya3NwYWNlc1JlcSIXChVHZXRBY3RpdmVXb3Jrc3BhY2VSZXEy5gEKEVdvcmtzcGFjZXNTZXJ2aWNlEl8KBExpc3QSHi5zaGlwLm9wcy52MS5MaXN0V29ya3NwYWNlc1JlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIcirUYFHNoaXAud29ya3NwYWNlcy5yZWFkkLUYARJwCgZBY3RpdmUSIi5zaGlwLm9wcy52MS5HZXRBY3RpdmVXb3Jrc3BhY2VSZXEaJC5zaGlwLm9wcy52MS5Xb3Jrc3BhY2VBY3RpdmVSZXNwb25zZSIcirUYFHNoaXAud29ya3NwYWNlcy5yZWFkkLUYAWIGcHJvdG8z", [file_ship_ops_v1_policy, file_ship_ops_v1_types, file_ship_ops_v1_ops]);
+  fileDesc("ChxzaGlwL29wcy92MS93b3Jrc3BhY2VzLnByb3RvEgtzaGlwLm9wcy52MSITChFMaXN0V29ya3NwYWNlc1JlcSIXChVHZXRBY3RpdmVXb3Jrc3BhY2VSZXEyugMKEVdvcmtzcGFjZXNTZXJ2aWNlEl8KBExpc3QSHi5zaGlwLm9wcy52MS5MaXN0V29ya3NwYWNlc1JlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIcirUYFHNoaXAud29ya3NwYWNlcy5yZWFkkLUYARJwCgZBY3RpdmUSIi5zaGlwLm9wcy52MS5HZXRBY3RpdmVXb3Jrc3BhY2VSZXEaJC5zaGlwLm9wcy52MS5Xb3Jrc3BhY2VBY3RpdmVSZXNwb25zZSIcirUYFHNoaXAud29ya3NwYWNlcy5yZWFkkLUYARJlCghMaXN0TGl2ZRIeLnNoaXAub3BzLnYxLkxpc3RXb3Jrc3BhY2VzUmVxGhkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhyKtRgUc2hpcC53b3Jrc3BhY2VzLnJlYWSQtRgBMAESawoKQWN0aXZlTGl2ZRIiLnNoaXAub3BzLnYxLkdldEFjdGl2ZVdvcmtzcGFjZVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIcirUYFHNoaXAud29ya3NwYWNlcy5yZWFkkLUYATABYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_types, file_ship_ops_v1_ops]);
 
 /**
  * @generated from message ship.ops.v1.ListWorkspacesReq
@@ -75,6 +75,22 @@ export const WorkspacesService: GenService<{
     methodKind: "unary";
     input: typeof GetActiveWorkspaceReqSchema;
     output: typeof WorkspaceActiveResponseSchema;
+  },
+  /**
+   * @generated from rpc ship.ops.v1.WorkspacesService.ListLive
+   */
+  listLive: {
+    methodKind: "server_streaming";
+    input: typeof ListWorkspacesReqSchema;
+    output: typeof JsonResponseSchema;
+  },
+  /**
+   * @generated from rpc ship.ops.v1.WorkspacesService.ActiveLive
+   */
+  activeLive: {
+    methodKind: "server_streaming";
+    input: typeof GetActiveWorkspaceReqSchema;
+    output: typeof JsonResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_ship_ops_v1_workspaces, 0);

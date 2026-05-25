@@ -91,6 +91,42 @@ impl AgentsService for OpsImpl {
         self.agents_read_json("agents.settings", args)
     }
 
+    #[allow(refining_impl_trait)]
+    async fn catalogs_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListAgentsCatalogsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.catalogs", json!({})).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn detail_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentDetailRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.detail", json!({ "id": request.id })).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn wire_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentWireRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.wire", json!({ "id": request.id })).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn settings_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentSettingsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.settings", json!({ "id": request.id })).await
+    }
+
     async fn templates(
         &self,
         _ctx: RequestContext,

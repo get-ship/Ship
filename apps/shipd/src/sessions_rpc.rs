@@ -4,9 +4,9 @@
 //! Single C0 read: routes through the sync read registry and decodes onto the
 //! typed `SessionsListResponse` from types.proto.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 
-use ship_ops_rpc::{SessionsListResponse, SessionsService};
+use ship_ops_rpc::{JsonResponse, SessionsListResponse, SessionsService};
 
 use crate::ops_rpc::OpsImpl;
 
@@ -26,6 +26,15 @@ impl SessionsService for OpsImpl {
         serde_json::from_value::<SessionsListResponse>(value)
             .map(Response::new)
             .map_err(|e| ConnectError::internal(format!("sessions.list decode: {e}")))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn list_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListSessionsReqView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("sessions.list", serde_json::json!({})).await
     }
 }
 

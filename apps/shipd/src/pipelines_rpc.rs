@@ -108,6 +108,18 @@ impl PipelinesService for OpsImpl {
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
 
+    #[allow(refining_impl_trait)]
+    async fn history_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedListPipelinesHistoryRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        let args = json!({
+            "limit": request.limit, "offset": request.offset, "pipeline": request.pipeline,
+        });
+        self.live_read("pipelines.history", args).await
+    }
+
     // ── runtime writes (C1, ship.runtime.write) ───────────────────────────────
 
     async fn update_status(

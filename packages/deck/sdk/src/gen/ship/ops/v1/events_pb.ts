@@ -13,13 +13,15 @@ import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2
 import { file_ship_ops_v1_policy } from "./policy_pb.js";
 import type { EventsListResponseSchema } from "./types_pb.js";
 import { file_ship_ops_v1_types } from "./types_pb.js";
+import type { JsonResponseSchema } from "./ops_pb.js";
+import { file_ship_ops_v1_ops } from "./ops_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file ship/ops/v1/events.proto.
  */
 export const file_ship_ops_v1_events: GenFile = /*@__PURE__*/
-  fileDesc("ChhzaGlwL29wcy92MS9ldmVudHMucHJvdG8SC3NoaXAub3BzLnYxIlwKDUV2ZW50c0xpc3RSZXESDQoFbGltaXQYASABKAMSEgoKZXZlbnRfdHlwZRgCIAEoCRINCgVhY3RvchgDIAEoCRIOCgZlbnRpdHkYBCABKAkSCQoBcRgFIAEoCTJuCg1FdmVudHNTZXJ2aWNlEl0KBExpc3QSGi5zaGlwLm9wcy52MS5FdmVudHNMaXN0UmVxGh8uc2hpcC5vcHMudjEuRXZlbnRzTGlzdFJlc3BvbnNlIhiKtRgQc2hpcC5ldmVudHMucmVhZJC1GAFiBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_types]);
+  fileDesc("ChhzaGlwL29wcy92MS9ldmVudHMucHJvdG8SC3NoaXAub3BzLnYxIlwKDUV2ZW50c0xpc3RSZXESDQoFbGltaXQYASABKAMSEgoKZXZlbnRfdHlwZRgCIAEoCRINCgVhY3RvchgDIAEoCRIOCgZlbnRpdHkYBCABKAkSCQoBcRgFIAEoCTLNAQoNRXZlbnRzU2VydmljZRJdCgRMaXN0Ehouc2hpcC5vcHMudjEuRXZlbnRzTGlzdFJlcRofLnNoaXAub3BzLnYxLkV2ZW50c0xpc3RSZXNwb25zZSIYirUYEHNoaXAuZXZlbnRzLnJlYWSQtRgBEl0KCExpc3RMaXZlEhouc2hpcC5vcHMudjEuRXZlbnRzTGlzdFJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAuZXZlbnRzLnJlYWSQtRgBMAFiBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_types, file_ship_ops_v1_ops]);
 
 /**
  * @generated from message ship.ops.v1.EventsListReq
@@ -71,6 +73,14 @@ export const EventsService: GenService<{
     methodKind: "unary";
     input: typeof EventsListReqSchema;
     output: typeof EventsListResponseSchema;
+  },
+  /**
+   * @generated from rpc ship.ops.v1.EventsService.ListLive
+   */
+  listLive: {
+    methodKind: "server_streaming";
+    input: typeof EventsListReqSchema;
+    output: typeof JsonResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_ship_ops_v1_events, 0);

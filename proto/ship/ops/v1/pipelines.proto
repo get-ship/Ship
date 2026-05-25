@@ -110,6 +110,10 @@ service PipelinesService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc HistoryLive(ListPipelinesHistoryRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   // ── runtime writes (C1, ship.runtime.write) ───────────────────────────────
   rpc UpdateStatus(UpdatePipelineStatusRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.write";

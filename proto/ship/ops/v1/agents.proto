@@ -129,6 +129,23 @@ service AgentsService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  // Live read variants (#138) — full value now + on every `config` event.
+  rpc CatalogsLive(ListAgentsCatalogsRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc DetailLive(GetAgentDetailRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc WireLive(GetAgentWireRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc SettingsLive(GetAgentSettingsRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc Templates(ListAgentTemplatesRequest) returns (AgentTemplatesResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;

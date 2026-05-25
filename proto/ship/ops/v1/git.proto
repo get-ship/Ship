@@ -126,6 +126,14 @@ service GitService {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc DiffLive(GitDiffReq) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc AnnotationsLive(GitAnnotationsReq) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc Push(GitPushReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.git.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
