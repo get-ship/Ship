@@ -22,17 +22,15 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
-use std::collections::BTreeMap;
 
 use crate::access::RuntimeAccess;
 use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
-use crate::auth::scopes::{can_delete_artifacts, can_read_artifacts, can_write_artifacts};
+use crate::auth::scopes::{can_read_artifacts, can_write_artifacts};
 use ship_platform::services::artifacts::service::{
-    ArtifactsService, Error as ArtifactsError, PatchArgs, StoreArgs,
+    ArtifactsService, Error as ArtifactsError, StoreArgs,
 };
-use ship_platform::artifacts::{ARTIFACTS_COLLECTION_ID, ArtifactScope};
-use ship_platform::collections::query::QueryRequest;
+use ship_platform::artifacts::ArtifactScope;
 
 /// Max upload: 50 MB.
 pub const MAX_UPLOAD_BYTES: usize = 50 * 1024 * 1024;
@@ -327,192 +325,6 @@ pub struct PatchBody {
     pub name: Option<String>,
     pub owner_actor: Option<String>,
     pub expires_at: Option<String>,
-}
-
-#[utoipa::path(
-    operation_id = "patchArtifact",
-    patch,
-    path = "/api/v1/artifacts/{id}",
-    params(("id" = String, Path, description = "Artifact id")),
-    request_body = PatchBody,
-    responses(
-        (status = 200, description = "Artifact metadata patched"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Artifact not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "artifacts"
-)]
-pub async fn patch_artifact(
-    State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
-    Path(id): Path<String>,
-    Json(body): Json<PatchBody>,
-) -> Response {
-    let record = match artifacts(&state).get_record(&id).await {
-        Ok(r) => r,
-        Err(e) => return map_err(e),
-    };
-    if !can_write_artifacts(&auth, &record.scope) {
-        return err(StatusCode::FORBIDDEN, "insufficient scope for artifact write");
-    }
-    let args = PatchArgs {
-        name: body.name,
-        owner_actor: body.owner_actor,
-        expires_at: body.expires_at,
-    };
-    match artifacts(&state).patch(&id, args).await {
-        Ok(rec) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": rec }))).into_response(),
-        Err(e) => map_err(e),
-    }
-}
-
-// ── DELETE /api/v1/artifacts/:id ─────────────────────────────────────────────────
-
-#[utoipa::path(
-    operation_id = "deleteArtifact",
-    delete,
-    path = "/api/v1/artifacts/{id}",
-    params(("id" = String, Path, description = "Artifact id")),
-    responses(
-        (status = 200, description = "Artifact soft-deleted"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Artifact not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "artifacts"
-)]
-pub async fn delete_artifact(
-    State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
-    Path(id): Path<String>,
-) -> Response {
-    let record = match artifacts(&state).get_record(&id).await {
-        Ok(r) => r,
-        Err(e) => return map_err(e),
-    };
-    if !can_delete_artifacts(&auth, &record.scope) {
-        return err(StatusCode::FORBIDDEN, "insufficient scope for artifact delete");
-    }
-    match artifacts(&state).delete(&id).await {
-        Ok(true) => (StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response(),
-        Ok(false) => err_owned(StatusCode::NOT_FOUND, format!("artifact '{id}' not found")),
-        Err(e) => map_err(e),
-    }
-}
-
-// ── POST /api/v1/artifacts/:id/promote ──────────────────────────────────────────
-
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "target_scope": "project",
-    "run_id": "01J3Z5ZQXAM3E4T7W",
-    "user_id": "me"
-}))]
-pub struct PromoteBody {
-    pub target_scope: String,
-    pub run_id: Option<String>,
-    pub user_id: Option<String>,
-}
-
-#[utoipa::path(
-    operation_id = "promoteArtifact",
-    post,
-    path = "/api/v1/artifacts/{id}/promote",
-    params(("id" = String, Path, description = "Artifact id")),
-    request_body = PromoteBody,
-    responses(
-        (status = 200, description = "Artifact promoted to target scope"),
-        (status = 400, description = "Invalid target scope", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Artifact not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "artifacts"
-)]
-pub async fn promote_artifact(
-    State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
-    Path(id): Path<String>,
-    Json(body): Json<PromoteBody>,
-) -> Response {
-    let project_slug = state.project_slug().unwrap_or_default();
-    let target = match parse_scope(&body.target_scope, body.run_id.as_deref(), body.user_id.as_deref(), &project_slug) {
-        Ok(s) => s,
-        Err(e) => return err_owned(StatusCode::BAD_REQUEST, e),
-    };
-    match artifacts(&state).promote(&id, target).await {
-        Ok(rec) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": rec }))).into_response(),
-        Err(e) => map_err(e),
-    }
-}
-
-// ── GET /api/v1/artifacts ────────────────────────────────────────────────────────
-
-#[derive(Deserialize, Default, utoipa::IntoParams)]
-pub struct ListQuery {
-    pub scope: Option<String>,
-    pub mime: Option<String>,
-    pub collection_id: Option<String>,
-    pub item_id: Option<String>,
-    pub content_hash: Option<String>,
-    pub owner_actor: Option<String>,
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
-    pub sort: Option<String>,
-}
-
-#[utoipa::path(
-    operation_id = "listArtifacts",
-    get,
-    path = "/api/v1/artifacts",
-    params(ListQuery),
-    responses(
-        (status = 200, description = "Filtered, paginated list of artifacts"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "artifacts"
-)]
-pub async fn list_artifacts(
-    State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
-    Query(q): Query<ListQuery>,
-) -> Response {
-    let scope_str = q.scope.as_deref().unwrap_or("project");
-    if !can_read_artifacts(&auth, scope_str) {
-        return err(StatusCode::FORBIDDEN, "insufficient scope for artifact list");
-    }
-    let mut filter: BTreeMap<String, serde_json::Value> = BTreeMap::new();
-    filter.insert("scope".into(), serde_json::Value::String(scope_str.to_string()));
-    if let Some(m) = q.mime { filter.insert("mime".into(), serde_json::Value::String(m)); }
-    if let Some(c) = q.collection_id { filter.insert("collection_id".into(), serde_json::Value::String(c)); }
-    if let Some(i) = q.item_id { filter.insert("item_id".into(), serde_json::Value::String(i)); }
-    if let Some(h) = q.content_hash { filter.insert("content_hash".into(), serde_json::Value::String(h)); }
-    if let Some(a) = q.owner_actor { filter.insert("owner_actor".into(), serde_json::Value::String(a)); }
-    let mut sort: BTreeMap<String, i8> = BTreeMap::new();
-    if let Some(s) = q.sort.as_deref() {
-        let (field, dir) = if let Some(rest) = s.strip_prefix('-') { (rest, -1i8) } else { (s, 1i8) };
-        if !field.is_empty() { sort.insert(field.to_string(), dir); }
-    }
-    let req = QueryRequest {
-        collection: ARTIFACTS_COLLECTION_ID.to_string(),
-        filter,
-        sort,
-        limit: q.limit.unwrap_or(50),
-        offset: q.offset.unwrap_or(0),
-    };
-    match artifacts(&state).list(req).await {
-        Ok(items) => {
-            let count = items.len();
-            (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": items, "count": count }))).into_response()
-        }
-        Err(e) => map_err(e),
-    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -532,16 +532,12 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
                     artifacts_api::MAX_UPLOAD_BYTES,
                 )),
         )
-        .ship_route(Route::ArtifactsList, artifacts_api::list_artifacts)
         .ship_route(Route::ArtifactDownload_template(), artifacts_api::download_artifact)
         .route(
             "/api/v1/artifacts/{id}",
             routing::head(artifacts_api::head_artifact),
         )
         .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
-        .ship_route(Route::ArtifactPatch_template(), artifacts_api::patch_artifact)
-        .ship_route(Route::ArtifactDelete_template(), artifacts_api::delete_artifact)
-        .ship_route(Route::ArtifactPromote_template(), artifacts_api::promote_artifact)
         // Command bar registry
         .ship_route(Route::ListCommands, commands_api::list_commands)
         // Unified search — cmdk find mode consumer.

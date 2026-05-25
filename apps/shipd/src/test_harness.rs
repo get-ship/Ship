@@ -120,13 +120,11 @@ impl TestDaemon {
         let artifacts_routes = Router::new()
             .route(
                 "/artifacts",
-                axum::routing::post(crate::routes::artifacts_api::upload_artifact)
-                    .get(crate::routes::artifacts_api::list_artifacts),
+                axum::routing::post(crate::routes::artifacts_api::upload_artifact),
             )
             .route(
                 "/artifacts/{id}",
-                axum::routing::get(crate::routes::artifacts_api::download_artifact)
-                    .delete(crate::routes::artifacts_api::delete_artifact),
+                axum::routing::get(crate::routes::artifacts_api::download_artifact),
             )
             .layer(axum::extract::DefaultBodyLimit::max(
                 crate::routes::artifacts_api::MAX_UPLOAD_BYTES,

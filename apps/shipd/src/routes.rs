@@ -625,10 +625,6 @@ pub enum Route {
     /// @auth handler
     ArtifactsUpload,
 
-    /// @route GET "/api/v1/artifacts"
-    /// @auth handler
-    ArtifactsList,
-
     /// @route GET "/api/v1/artifacts/{id}"
     /// @auth handler
     ArtifactDownload { id: String },
@@ -637,18 +633,6 @@ pub enum Route {
     /// @route GET "/api/v1/artifacts/{id}/metadata"
     /// @auth handler
     ArtifactMetadata { id: String },
-
-    /// @route PATCH "/api/v1/artifacts/{id}"
-    /// @auth handler
-    ArtifactPatch { id: String },
-
-    /// @route DELETE "/api/v1/artifacts/{id}"
-    /// @auth handler
-    ArtifactDelete { id: String },
-
-    /// @route POST "/api/v1/artifacts/{id}/promote"
-    /// @auth scope PromoteArtifact
-    ArtifactPromote { id: String },
 
     // ── Capabilities ─────────────────────────────────────────────────────
 
