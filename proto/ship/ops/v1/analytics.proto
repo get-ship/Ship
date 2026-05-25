@@ -90,18 +90,22 @@ message AnalyticsSessionTurnsResponse {
 service AnalyticsService {
   rpc ListSessions(AnalyticsListSessionsRequest) returns (AnalyticsSessionsResponse) {
     option (ship.ops.v1.capability) = "ship.analytics.read";
+    option (ship.ops.v1.description) = "List agent sessions with rollup metrics (tokens, cost, tool use).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc GetSession(AnalyticsGetSessionRequest) returns (AnalyticsSessionResponse) {
     option (ship.ops.v1.capability) = "ship.analytics.read";
+    option (ship.ops.v1.description) = "Analytics detail for one session.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc ToolUsage(AnalyticsToolUsageRequest) returns (AnalyticsToolUsageResponse) {
     option (ship.ops.v1.capability) = "ship.analytics.read";
+    option (ship.ops.v1.description) = "Tool-usage rollup across sessions.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc SessionTurns(AnalyticsSessionTurnsRequest) returns (AnalyticsSessionTurnsResponse) {
     option (ship.ops.v1.capability) = "ship.analytics.read";
+    option (ship.ops.v1.description) = "Per-turn cost/token/timing breakdown for a session.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
 }

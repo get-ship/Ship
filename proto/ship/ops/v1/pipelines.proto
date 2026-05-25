@@ -115,10 +115,12 @@ service PipelinesService {
   // ── runtime writes (C1, ship.runtime.write) ───────────────────────────────
   rpc UpdateStatus(UpdatePipelineStatusRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.write";
+    option (ship.ops.v1.description) = "Advance a pipeline run's lifecycle/gate state (the agent's own run).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc StepDone(StepDoneRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.write";
+    option (ship.ops.v1.description) = "Agent declares the current pipeline step complete.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   // ── config writes (C1, ship.pipelines.write) ─────────────────────────────

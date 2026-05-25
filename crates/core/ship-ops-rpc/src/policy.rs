@@ -81,12 +81,44 @@ pub struct MethodPolicy {
     /// One-line human description (the `description` method option). The SSOT
     /// for sdk-skill + help doc text; empty if the rpc declares none.
     pub description: String,
+    /// Request fields, derived from the input message — the op's args. Lets
+    /// sdk-skill + help generation read arg shapes from proto, not the registry.
+    pub args: Vec<MethodArg>,
+    /// Response fields, derived from the output message — the return schema.
+    /// Empty for opaque returns (e.g. `JsonResponse`). Powers OpenAPI-level
+    /// reference docs (the response *shape*, not just its type name).
+    pub returns_fields: Vec<MethodArg>,
+}
+
+/// One request field, projected to the arg-kind vocabulary the generators use.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MethodArg {
+    pub name: String,
+    /// `"string" | "number" | "bool" | "map" | "<base>[]"` (repeated).
+    pub kind: String,
 }
 
 /// Strip a descriptor type ref (`.ship.ops.v1.ScopedMutation`) to its simple
 /// name (`ScopedMutation`).
 fn simple_type(t: &str) -> String {
     t.rsplit('.').next().unwrap_or(t).to_string()
+}
+
+/// Project a proto field's (type, label) to the generators' arg-kind vocab.
+/// Field type numbers per `descriptor.proto`'s `FieldDescriptorProto.Type`;
+/// label 3 = repeated.
+fn field_kind(ty: Option<i32>, label: Option<i32>) -> String {
+    let base = match ty {
+        Some(8) => "bool",                       // BOOL
+        Some(9) | Some(12) | Some(14) => "string", // STRING | BYTES | ENUM
+        Some(10) | Some(11) => "map",            // GROUP | MESSAGE (nested object)
+        _ => "number",                            // all numeric scalar types
+    };
+    if label == Some(3) && base != "map" {
+        format!("{base}[]")
+    } else {
+        base.to_string()
+    }
 }
 
 impl MethodPolicy {
@@ -114,6 +146,28 @@ fn blast_from_proto(n: Option<i32>) -> BlastRadius {
 pub fn read_policies() -> Vec<MethodPolicy> {
     let fds = FileDescriptorSet::decode_from_slice(crate::FILE_DESCRIPTOR_SET)
         .expect("embedded FILE_DESCRIPTOR_SET decodes");
+    // Message (simple name) → its fields, projected to arg kinds. Lets a method
+    // resolve its request fields (= args) from the descriptor.
+    let mut messages: std::collections::HashMap<String, Vec<MethodArg>> =
+        std::collections::HashMap::new();
+    for file in &fds.file {
+        for msg in &file.message_type {
+            let Some(mname) = msg.name.clone() else { continue };
+            let args = msg
+                .field
+                .iter()
+                .filter_map(|f| {
+                    f.name
+                        .clone()
+                        .map(|name| MethodArg {
+                            name,
+                            kind: field_kind(f.r#type.map(|t| t as i32), f.label.map(|l| l as i32)),
+                        })
+                })
+                .collect();
+            messages.insert(mname, args);
+        }
+    }
     let mut out = Vec::new();
     for file in &fds.file {
         let package = file.package.clone().unwrap_or_default();
@@ -130,6 +184,8 @@ pub fn read_policies() -> Vec<MethodPolicy> {
                 let input_type = simple_type(method.input_type.as_deref().unwrap_or_default());
                 let output_type = simple_type(method.output_type.as_deref().unwrap_or_default());
                 let description = opts.extension(&DESCRIPTION).unwrap_or_default();
+                let args = messages.get(&input_type).cloned().unwrap_or_default();
+                let returns_fields = messages.get(&output_type).cloned().unwrap_or_default();
                 out.push(MethodPolicy {
                     package: package.clone(),
                     service: service_name.clone(),
@@ -140,6 +196,8 @@ pub fn read_policies() -> Vec<MethodPolicy> {
                     input_type,
                     output_type,
                     description,
+                    args,
+                    returns_fields,
                 });
             }
         }
