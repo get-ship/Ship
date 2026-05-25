@@ -15,9 +15,9 @@ use crate::{
     sessions, views,
 };
 use crate::routes::{
-    account_api, actor_api, actors_api, analytics_api, annotations_api,
+    account_api, actor_api, actors_api, annotations_api,
     artifacts_api, collection_api, commands_api, create_api, feedback_api, git_api,
-    hooks_api, human_webhook, logs_api, mcp_api, openapi,
+    hooks_api, human_webhook, logs_api, openapi,
     pipelines_api, projects_api, registry_api, rest_api, runtime_api,
     sdk_manifest, search_api, settings_api, skills_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
@@ -406,23 +406,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::MeshSnapshot, actors_api::mesh_snapshot_handler)
         .ship_route(Route::MeshEventsStream, actors_api::mesh_events_handler)
         .ship_route(Route::KillTree_template(), actors_api::kill_tree_handler)
-        // Analytics (read-only — AnalyticsProjection)
-        .ship_route(
-            Route::ListAnalyticsSessions,
-            analytics_api::list_sessions_handler,
-        )
-        .ship_route(
-            Route::GetAnalyticsSession_template(),
-            analytics_api::get_session_handler,
-        )
-        .ship_route(
-            Route::AnalyticsToolUsage,
-            analytics_api::tool_usage_handler,
-        )
-        .ship_route(
-            Route::AnalyticsSessionTurns_template(),
-            analytics_api::session_turns_handler,
-        )
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Runtime
@@ -522,13 +505,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::PipelineRunGet_template(), pipelines_api::get_run)
         .ship_route(Route::PipelineRunLogStream_template(), logs_api::stream_job_log)
         // RuleService — markdown rules.
-        // McpService — entries in mcp.jsonc as a collection surface.
-        .ship_route(Route::McpList, mcp_api::list)
-        .ship_route(Route::McpGet_template(), mcp_api::get)
-        .ship_route(Route::McpPut_template(), mcp_api::put)
-        .ship_route(Route::McpPatch_template(), mcp_api::patch)
-        .ship_route(Route::McpDelete_template(), mcp_api::delete)
-        .ship_route(Route::McpCreate, mcp_api::create)
         // PermissionService — preset entries + composed tool-patterns.
         // SkillService — service-shaped CRUD + file tree + vars. Replaces
         // the project-scoped skill endpoints that used to hang off

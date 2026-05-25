@@ -44,7 +44,6 @@ pub mod agent_sessions_attach;
 #[cfg(test)]
 mod agent_sessions_attach_tests;
 pub mod mcp_registry;
-pub mod analytics_api;
 pub mod annotations_api;
 pub mod artifacts_api;
 pub mod collection_api;
@@ -57,7 +56,6 @@ pub mod git_api;
 pub mod hooks_api;
 pub mod human_webhook;
 pub mod logs_api;
-pub mod mcp_api;
 pub mod openapi;
 pub mod pipelines_api;
 pub mod skills_api;
@@ -281,32 +279,6 @@ pub enum Route {
     /// @route GET "/api/v1/pipelines/runs/{slug}/log/stream"
     /// @auth scope ReadRuns
     PipelineRunLogStream { slug: String },
-
-    // ── McpService — entries in <scope>/mcp.jsonc ──
-
-    /// @route GET "/api/v1/mcp"
-    /// @auth scope ReadWorkspace
-    McpList,
-
-    /// @route GET "/api/v1/mcp/{id}"
-    /// @auth scope ReadWorkspace
-    McpGet { id: String },
-
-    /// @route PUT "/api/v1/mcp/{id}"
-    /// @auth scope WriteWorkspace
-    McpPut { id: String },
-
-    /// @route PATCH "/api/v1/mcp/{id}"
-    /// @auth scope WriteWorkspace
-    McpPatch { id: String },
-
-    /// @route DELETE "/api/v1/mcp/{id}"
-    /// @auth scope WriteWorkspace
-    McpDelete { id: String },
-
-    /// @route POST "/api/v1/mcp"
-    /// @auth scope CreateRuns
-    McpCreate,
 
     // ── SkillService — service-shaped CRUD + vars ──
 
@@ -758,24 +730,6 @@ pub enum Route {
     /// @route POST "/api/v1/actors/{actor_id}/kill-tree"
     /// @auth scope MeshSend
     KillTree { actor_id: String },
-
-    // ── Analytics (ship-analytics projection) ────────────────────────────
-
-    /// @route GET "/api/v1/analytics/sessions"
-    /// @auth scope ReadWorkspace
-    ListAnalyticsSessions,
-
-    /// @route GET "/api/v1/analytics/sessions/{session_key}"
-    /// @auth scope ReadWorkspace
-    GetAnalyticsSession { session_key: String },
-
-    /// @route GET "/api/v1/analytics/tool-usage"
-    /// @auth scope ReadWorkspace
-    AnalyticsToolUsage,
-
-    /// @route GET "/api/v1/analytics/sessions/{session_key}/turns"
-    /// @auth scope ReadWorkspace
-    AnalyticsSessionTurns { session_key: String },
 
     // ── Collections ──────────────────────────────────────────────────────
 
