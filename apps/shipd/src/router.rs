@@ -18,7 +18,7 @@ use crate::routes::{
     account_api, actor_api, actors_api, annotations_api,
     artifacts_api, collection_api, commands_api, create_api, feedback_api, git_api,
     hooks_api, human_webhook, logs_api, openapi,
-    pipelines_api, projects_api, registry_api, rest_api, runtime_api,
+    projects_api, registry_api, rest_api, runtime_api,
     sdk_manifest, search_api, settings_api, skills_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
@@ -494,15 +494,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // PipelineService — CRUD + run ops. Dispatch / cancel / log-stream
         // wrap the existing kernel-backed handlers so the write paths stay
         // single-sourced.
-        .ship_route(Route::PipelinesList, pipelines_api::list)
-        .ship_route(Route::PipelinesGet_template(), pipelines_api::get)
-        .ship_route(Route::PipelinesPut_template(), pipelines_api::put)
-        .ship_route(Route::PipelinesPatch_template(), pipelines_api::patch)
-        .ship_route(Route::PipelinesDelete_template(), pipelines_api::delete)
-        .ship_route(Route::PipelinesDispatch_template(), pipelines_api::dispatch)
-        .ship_route(Route::PipelineRunCancel_template(), pipelines_api::cancel_run)
-        .ship_route(Route::PipelineRunsList, pipelines_api::list_runs)
-        .ship_route(Route::PipelineRunGet_template(), pipelines_api::get_run)
         .ship_route(Route::PipelineRunLogStream_template(), logs_api::stream_job_log)
         // RuleService — markdown rules.
         // PermissionService — preset entries + composed tool-patterns.

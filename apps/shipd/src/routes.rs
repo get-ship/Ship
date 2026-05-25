@@ -57,7 +57,6 @@ pub mod hooks_api;
 pub mod human_webhook;
 pub mod logs_api;
 pub mod openapi;
-pub mod pipelines_api;
 pub mod skills_api;
 pub mod openapi_modifier;
 pub mod openapi_types;
@@ -236,45 +235,9 @@ pub enum Route {
 
     // ── PipelineService — service-shaped CRUD + run ops ──
 
-    /// @route GET "/api/v1/pipelines"
-    /// @auth scope ReadRuns
-    PipelinesList,
-
-    /// @route GET "/api/v1/pipelines/{name}"
-    /// @auth scope ReadRuns
-    PipelinesGet { name: String },
-
-    /// @route PUT "/api/v1/pipelines/{name}"
-    /// @auth scope WriteWorkspace
-    PipelinesPut { name: String },
-
-    /// @route PATCH "/api/v1/pipelines/{name}"
-    /// @auth scope WriteWorkspace
-    PipelinesPatch { name: String },
-
-    /// @route DELETE "/api/v1/pipelines/{name}"
-    /// @auth scope WriteWorkspace
-    PipelinesDelete { name: String },
-
-    /// @route POST "/api/v1/pipelines/{name}/dispatch"
-    /// @auth scope CreateRuns
-    PipelinesDispatch { name: String },
-
     /// @route POST "/api/v1/pipelines/run"
     /// @auth scope CreateRuns
     PipelinesRun,
-
-    /// @route POST "/api/v1/pipelines/runs/{slug}/cancel"
-    /// @auth scope ManageRuns
-    PipelineRunCancel { slug: String },
-
-    /// @route GET "/api/v1/pipelines/runs"
-    /// @auth scope ReadRuns
-    PipelineRunsList,
-
-    /// @route GET "/api/v1/pipelines/runs/{slug}"
-    /// @auth scope ReadRuns
-    PipelineRunGet { slug: String },
 
     /// @route GET "/api/v1/pipelines/runs/{slug}/log/stream"
     /// @auth scope ReadRuns
