@@ -19,7 +19,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/dashboard.proto.
  */
 export const file_ship_ops_v1_dashboard: GenFile = /*@__PURE__*/
-  fileDesc("ChtzaGlwL29wcy92MS9kYXNoYm9hcmQucHJvdG8SC3NoaXAub3BzLnYxIhMKEURhc2hib2FyZFN0YXRlUmVxMnMKEERhc2hib2FyZFNlcnZpY2USXwoFU3RhdGUSHi5zaGlwLm9wcy52MS5EYXNoYm9hcmRTdGF0ZVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIbirUYE3NoaXAuZGFzaGJvYXJkLnJlYWSQtRgBYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
+  fileDesc("ChtzaGlwL29wcy92MS9kYXNoYm9hcmQucHJvdG8SC3NoaXAub3BzLnYxIhMKEURhc2hib2FyZFN0YXRlUmVxMtoBChBEYXNoYm9hcmRTZXJ2aWNlEl8KBVN0YXRlEh4uc2hpcC5vcHMudjEuRGFzaGJvYXJkU3RhdGVSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiG4q1GBNzaGlwLmRhc2hib2FyZC5yZWFkkLUYARJlCglTdGF0ZUxpdmUSHi5zaGlwLm9wcy52MS5EYXNoYm9hcmRTdGF0ZVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIbirUYE3NoaXAuZGFzaGJvYXJkLnJlYWSQtRgBMAFiBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
 
 /**
  * @generated from message ship.ops.v1.DashboardStateReq
@@ -45,6 +45,16 @@ export const DashboardService: GenService<{
    */
   state: {
     methodKind: "unary";
+    input: typeof DashboardStateReqSchema;
+    output: typeof JsonResponseSchema;
+  },
+  /**
+   * Live variant (#138) — streams the value on every `config` event.
+   *
+   * @generated from rpc ship.ops.v1.DashboardService.StateLive
+   */
+  stateLive: {
+    methodKind: "server_streaming";
     input: typeof DashboardStateReqSchema;
     output: typeof JsonResponseSchema;
   },

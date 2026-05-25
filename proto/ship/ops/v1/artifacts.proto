@@ -12,6 +12,7 @@ package ship.ops.v1;
 
 import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/types.proto";
+import "ship/ops/v1/ops.proto";
 
 message ListArtifactsRequest {
   string scope = 1;
@@ -48,6 +49,10 @@ message DeleteArtifactRequest {
 // which also enforces the per-artifact scope ACL.
 service ArtifactsService {
   rpc List(ListArtifactsRequest) returns (ArtifactsListResponse) {
+    option (ship.ops.v1.capability) = "ship.artifacts.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc ListLive(ListArtifactsRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.artifacts.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

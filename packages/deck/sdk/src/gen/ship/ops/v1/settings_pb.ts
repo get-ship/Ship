@@ -26,7 +26,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/settings.proto.
  */
 export const file_ship_ops_v1_settings: GenFile = /*@__PURE__*/
-  fileDesc("ChpzaGlwL29wcy92MS9zZXR0aW5ncy5wcm90bxILc2hpcC5vcHMudjEiFAoSR2V0U2V0dGluZ3NSZXF1ZXN0IjQKEVNldFNldHRpbmdSZXF1ZXN0EgsKA2tleRgBIAEoCRISCgp2YWx1ZV9qc29uGAIgASgJMtEBCg9TZXR0aW5nc1NlcnZpY2USXwoFU3RhdGUSHy5zaGlwLm9wcy52MS5HZXRTZXR0aW5nc1JlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGoq1GBJzaGlwLnNldHRpbmdzLnJlYWSQtRgBEl0KA1NldBIeLnNoaXAub3BzLnYxLlNldFNldHRpbmdSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuU2V0dGluZ1ZhbHVlIhuKtRgTc2hpcC5zZXR0aW5ncy53cml0ZZC1GAJiBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_ops, file_ship_ops_v1_types]);
+  fileDesc("ChpzaGlwL29wcy92MS9zZXR0aW5ncy5wcm90bxILc2hpcC5vcHMudjEiFAoSR2V0U2V0dGluZ3NSZXF1ZXN0IjQKEVNldFNldHRpbmdSZXF1ZXN0EgsKA2tleRgBIAEoCRISCgp2YWx1ZV9qc29uGAIgASgJMrgCCg9TZXR0aW5nc1NlcnZpY2USXwoFU3RhdGUSHy5zaGlwLm9wcy52MS5HZXRTZXR0aW5nc1JlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGoq1GBJzaGlwLnNldHRpbmdzLnJlYWSQtRgBEmUKCVN0YXRlTGl2ZRIfLnNoaXAub3BzLnYxLkdldFNldHRpbmdzUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIairUYEnNoaXAuc2V0dGluZ3MucmVhZJC1GAEwARJdCgNTZXQSHi5zaGlwLm9wcy52MS5TZXRTZXR0aW5nUmVxdWVzdBoZLnNoaXAub3BzLnYxLlNldHRpbmdWYWx1ZSIbirUYE3NoaXAuc2V0dGluZ3Mud3JpdGWQtRgCYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_ops, file_ship_ops_v1_types]);
 
 /**
  * @generated from message ship.ops.v1.GetSettingsRequest
@@ -77,6 +77,14 @@ export const SettingsService: GenService<{
    */
   state: {
     methodKind: "unary";
+    input: typeof GetSettingsRequestSchema;
+    output: typeof JsonResponseSchema;
+  },
+  /**
+   * @generated from rpc ship.ops.v1.SettingsService.StateLive
+   */
+  stateLive: {
+    methodKind: "server_streaming";
     input: typeof GetSettingsRequestSchema;
     output: typeof JsonResponseSchema;
   },

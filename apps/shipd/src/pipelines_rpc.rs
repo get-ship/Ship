@@ -8,7 +8,7 @@
 //! C0 reads + C1 writes). All writes route through `services::command::call`
 //! (the one gate). Reads call the sync read registry directly.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::json;
 
 use ship_ops_rpc::{
@@ -57,6 +57,15 @@ impl PipelinesService for OpsImpl {
             crate::services::registry::call("pipelines.summaries", &serde_json::Value::Null, self.state())
                 .map_err(|e| ConnectError::internal(format!("pipelines.summaries: {e}")))?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn summaries_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedGetPipelinesSummariesRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("pipelines.summaries", serde_json::json!({})).await
     }
 
     async fn focus(

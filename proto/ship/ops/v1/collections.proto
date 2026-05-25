@@ -65,6 +65,10 @@ service CollectionsService {
     option (ship.ops.v1.capability) = "ship.collections.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc ListLive(ListCollectionsRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc Detail(GetCollectionDetailRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.collections.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;

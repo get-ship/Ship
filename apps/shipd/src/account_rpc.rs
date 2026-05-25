@@ -4,8 +4,8 @@
 //! Single C0 read: `account.state` returns opaque JSON because AccountState
 //! embeds provider-specific fields that vary by harness.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
-use serde_json::Value;
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
+use serde_json::{json, Value};
 
 use ship_ops_rpc::{AccountService, JsonResponse};
 
@@ -22,6 +22,15 @@ impl AccountService for OpsImpl {
             crate::services::registry::call("account.state", &Value::Null, self.state())
                 .map_err(|e| ConnectError::internal(format!("account.state: {e}")))?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn state_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedGetAccountStateReqView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("account.state", json!({})).await
     }
 }
 

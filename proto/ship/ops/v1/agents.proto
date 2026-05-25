@@ -105,6 +105,10 @@ service AgentsService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc SummariesLive(ListAgentsSummariesRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc Detail(GetAgentDetailRequest) returns (AgentDetail) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
@@ -138,6 +142,10 @@ service AgentsService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc CreateCtx(GetAgentCreateCtxRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc CreateCtxLive(GetAgentCreateCtxRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

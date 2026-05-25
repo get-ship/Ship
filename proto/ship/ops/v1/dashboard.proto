@@ -18,4 +18,9 @@ service DashboardService {
     option (ship.ops.v1.capability) = "ship.dashboard.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  // Live variant (#138) — streams the value on every `config` event.
+  rpc StateLive(DashboardStateReq) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.dashboard.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
 }

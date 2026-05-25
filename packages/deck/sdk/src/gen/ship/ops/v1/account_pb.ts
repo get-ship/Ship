@@ -22,7 +22,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/account.proto.
  */
 export const file_ship_ops_v1_account: GenFile = /*@__PURE__*/
-  fileDesc("ChlzaGlwL29wcy92MS9hY2NvdW50LnByb3RvEgtzaGlwLm9wcy52MSIUChJHZXRBY2NvdW50U3RhdGVSZXEycAoOQWNjb3VudFNlcnZpY2USXgoFU3RhdGUSHy5zaGlwLm9wcy52MS5HZXRBY2NvdW50U3RhdGVSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGYq1GBFzaGlwLmFjY291bnQucmVhZJC1GAFiBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
+  fileDesc("ChlzaGlwL29wcy92MS9hY2NvdW50LnByb3RvEgtzaGlwLm9wcy52MSIUChJHZXRBY2NvdW50U3RhdGVSZXEy1gEKDkFjY291bnRTZXJ2aWNlEl4KBVN0YXRlEh8uc2hpcC5vcHMudjEuR2V0QWNjb3VudFN0YXRlUmVxGhkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhmKtRgRc2hpcC5hY2NvdW50LnJlYWSQtRgBEmQKCVN0YXRlTGl2ZRIfLnNoaXAub3BzLnYxLkdldEFjY291bnRTdGF0ZVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIZirUYEXNoaXAuYWNjb3VudC5yZWFkkLUYATABYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
 
 /**
  * @generated from message ship.ops.v1.GetAccountStateReq
@@ -48,6 +48,14 @@ export const AccountService: GenService<{
    */
   state: {
     methodKind: "unary";
+    input: typeof GetAccountStateReqSchema;
+    output: typeof JsonResponseSchema;
+  },
+  /**
+   * @generated from rpc ship.ops.v1.AccountService.StateLive
+   */
+  stateLive: {
+    methodKind: "server_streaming";
     input: typeof GetAccountStateReqSchema;
     output: typeof JsonResponseSchema;
   },

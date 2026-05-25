@@ -4,7 +4,7 @@
 //! Dashboard is an aggregate (*Ctx) — the registry returns an open blob, so
 //! the return stays `JsonResponse`. C0 read, no gate.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 
 use ship_ops_rpc::{DashboardService, JsonResponse};
 
@@ -24,6 +24,15 @@ impl DashboardService for OpsImpl {
         )
         .map_err(|e| ConnectError::internal(format!("dashboard.state: {e}")))?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn state_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedDashboardStateReqView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("dashboard.state", serde_json::json!({})).await
     }
 }
 

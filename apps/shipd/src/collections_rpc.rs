@@ -8,7 +8,7 @@
 //! (the ONE gate); item writes decode the typed `CollectionItem` / `Deletion`,
 //! schema writes stay `JsonResponse`.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 
@@ -34,6 +34,15 @@ impl CollectionsService for OpsImpl {
         _request: ship_ops_rpc::OwnedListCollectionsRequestView,
     ) -> ServiceResult<JsonResponse> {
         self.collections_read("collections.list", Value::Null)
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn list_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListCollectionsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("collections.list", json!({})).await
     }
 
     async fn detail(

@@ -6,7 +6,7 @@
 //! the typed proto shape or wrap as `JsonResponse`. Writes (C1) route through
 //! `services::command::call` (the ONE gate) and decode onto `ScopedMutation`.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
@@ -36,6 +36,15 @@ impl AgentsService for OpsImpl {
         _request: ship_ops_rpc::OwnedListAgentsSummariesRequestView,
     ) -> ServiceResult<AgentsSummariesResponse> {
         self.agents_typed_read::<AgentsSummariesResponse>("agents.summaries", Value::Null)
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn summaries_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListAgentsSummariesRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.summaries", json!({})).await
     }
 
     async fn detail(
@@ -112,6 +121,15 @@ impl AgentsService for OpsImpl {
         _request: ship_ops_rpc::OwnedGetAgentCreateCtxRequestView,
     ) -> ServiceResult<JsonResponse> {
         self.agents_read_json("agents.create_ctx", Value::Null)
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn create_ctx_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedGetAgentCreateCtxRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.create_ctx", json!({})).await
     }
 
     async fn create(
