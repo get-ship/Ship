@@ -558,8 +558,6 @@ pub async fn run_network(
 }
 
 #[cfg(test)]
-#[path = "routes/collection_tests.rs"]
-mod collection_tests;
 #[cfg(test)]
 #[path = "routes/artifacts_api_tests.rs"]
 mod artifacts_api_tests;

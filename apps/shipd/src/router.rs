@@ -16,7 +16,7 @@ use crate::{
 };
 use crate::routes::{
     account_api, actor_api, actors_api, annotations_api,
-    artifacts_api, collection_api, commands_api, create_api, feedback_api, git_api,
+    artifacts_api, commands_api, create_api, feedback_api, git_api,
     hooks_api, human_webhook, logs_api, openapi,
     projects_api, registry_api, rest_api, runtime_api,
     sdk_manifest, search_api, settings_api, skills_api, themes_api,
@@ -560,20 +560,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ArtifactPatch_template(), artifacts_api::patch_artifact)
         .ship_route(Route::ArtifactDelete_template(), artifacts_api::delete_artifact)
         .ship_route(Route::ArtifactPromote_template(), artifacts_api::promote_artifact)
-        // Collections
-        // Collections — GET + POST on /api/v1/collections merged on one route.
-        .route(
-            "/api/v1/collections",
-            axum::routing::get(collection_api::list_collections)
-                .post(collection_api::create_collection),
-        )
-        .ship_route(Route::GetCollectionSchema_template(), collection_api::get_schema)
-        .ship_route(Route::UpdateCollectionSchema_template(), collection_api::update_schema)
-        .ship_route(Route::CreateCollectionItem_template(), collection_api::create_item)
-        .ship_route(Route::GetCollectionItem_template(), collection_api::get_item)
-        .ship_route(Route::UpdateCollectionItem_template(), collection_api::update_item)
-        .ship_route(Route::DeleteCollectionItem_template(), collection_api::delete_item)
-        .ship_route(Route::QueryCollection_template(), collection_api::query_items)
         // Command bar registry
         .ship_route(Route::ListCommands, commands_api::list_commands)
         // Unified search — cmdk find mode consumer.

@@ -133,31 +133,6 @@ impl TestDaemon {
             ))
             .with_state(api_state.clone());
 
-        let collection_routes = Router::new()
-            .route(
-                "/collections",
-                axum::routing::get(crate::routes::collection_api::list_collections)
-                    .post(crate::routes::collection_api::create_collection),
-            )
-            .route(
-                "/collections/{collection}/schema",
-                axum::routing::get(crate::routes::collection_api::get_schema),
-            )
-            .route(
-                "/collections/{collection}/items",
-                axum::routing::post(crate::routes::collection_api::create_item),
-            )
-            .route(
-                "/collections/{collection}/items/{item_id}",
-                axum::routing::get(crate::routes::collection_api::get_item)
-                    .put(crate::routes::collection_api::update_item)
-                    .delete(crate::routes::collection_api::delete_item),
-            )
-            .route(
-                "/collections/{collection}/query",
-                axum::routing::post(crate::routes::collection_api::query_items),
-            )
-            .with_state(api_state.clone());
 
         let search_routes = Router::new()
             .route(
@@ -174,7 +149,6 @@ impl TestDaemon {
         let router = Router::new()
             .nest("/api/v1", api_routes)
             .nest("/api/v1", capabilities_routes)
-            .nest("/api/v1", collection_routes)
             .nest("/api/v1", artifacts_routes)
             .nest("/api/v1", runtime_routes)
             .nest("/api/v1", search_routes)

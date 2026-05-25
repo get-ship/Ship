@@ -46,7 +46,6 @@ mod agent_sessions_attach_tests;
 pub mod mcp_registry;
 pub mod annotations_api;
 pub mod artifacts_api;
-pub mod collection_api;
 pub mod commands_api;
 pub mod create_api;
 #[cfg(test)]
@@ -681,40 +680,6 @@ pub enum Route {
     /// @route POST "/api/v1/actors/{actor_id}/kill-tree"
     /// @auth scope MeshSend
     KillTree { actor_id: String },
-
-    // ── Collections ──────────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/collections"
-    /// @auth scope ReadWorkspace
-    ListCollections,
-
-    /// @route GET "/api/v1/collections/{collection}/schema"
-    /// @auth scope ReadWorkspace
-    GetCollectionSchema { collection: String },
-
-    /// @route PUT "/api/v1/collections/{collection}/schema"
-    /// @auth scope WriteWorkspace
-    UpdateCollectionSchema { collection: String },
-
-    /// @route POST "/api/v1/collections/{collection}/items"
-    /// @auth scope WriteWorkspace
-    CreateCollectionItem { collection: String },
-
-    /// @route GET "/api/v1/collections/{collection}/items/{item_id}"
-    /// @auth scope ReadWorkspace
-    GetCollectionItem { collection: String, item_id: String },
-
-    /// @route PUT "/api/v1/collections/{collection}/items/{item_id}"
-    /// @auth scope WriteWorkspace
-    UpdateCollectionItem { collection: String, item_id: String },
-
-    /// @route DELETE "/api/v1/collections/{collection}/items/{item_id}"
-    /// @auth scope WriteWorkspace
-    DeleteCollectionItem { collection: String, item_id: String },
-
-    /// @route POST "/api/v1/collections/{collection}/query"
-    /// @auth scope ReadWorkspace
-    QueryCollection { collection: String },
 
     // ── Artifacts ────────────────────────────────────────────────────────
     // The list/upload/download/metadata/patch/delete handlers compute the
