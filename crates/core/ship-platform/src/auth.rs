@@ -7,6 +7,7 @@
 //! over `/api/auth/*` stays in `apps/shipd/src/auth/`.
 
 pub mod attest;
+pub mod grant_diff;
 pub mod pairing;
 pub mod scopes;
 pub mod session;
