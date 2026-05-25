@@ -120,6 +120,20 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         if let gate::Decision::Deny(msg) = gate::decide(pol.blast, &domain, &caller) {
             return Err(CommandError::forbidden(msg));
         }
+        // Security observability for #86 (daemon token grants Full). The on-disk
+        // daemon token is operator-class today, so the operator path clears C2
+        // (credential mint, billing, acting as another actor). Record every such
+        // clearance: this is the audit trail of what an on-disk credential can
+        // reach, and makes the eventual "C2 needs the GUI/2FA elevated session"
+        // flip observable before it lands. Non-breaking — log only.
+        if caller.is_operator && matches!(pol.blast, gate::BlastRadius::C2Elevated) {
+            tracing::warn!(
+                target: "ship::security::audit",
+                op = %name,
+                agent_id = ?ctx.auth.agent_id,
+                "C2 op cleared by operator credential (on-disk token is operator-class; #86)"
+            );
+        }
     }
     if let Some(value) = pipeline::try_dispatch(name, args, ctx).await? {
         return Ok(value);

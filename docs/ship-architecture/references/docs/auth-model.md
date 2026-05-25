@@ -256,31 +256,58 @@ non-expired sessions and purges expired ones. Dev-mode sessions are never persis
 Audit log rows (pair confirm, pair revoke) are written to the `auth.audit` namespace in
 `kv_state`, keyed by `{unix_timestamp}-{token_prefix}` so they sort chronologically.
 
-## Known limitations (unresolved)
+## Security posture ledger
 
-### Daemon token grants Full (on-disk = should be C0/C1 only)
-`~/.ship/machine/daemon/token` is mode 0o600 but readable by any process running as the
-same user, and today it grants `Scope::Full`. The intended posture is **nothing on disk
-is ever C2**: the daemon token should bootstrap C0/C1 only, and the elevated (C2)
-credential should live in the GUI/2FA session, never on disk — so a compromised agent
-that reads the token gets the user's own-workspace risk (acceptable) but cannot escalate.
+The canonical list of auth/credential loose ends — what's closed, what's open, the
+severity, and the path. Kept here as the single source of truth so the open items
+survive a context switch into runtime/backend work.
 
-**Mitigation path**: downgrade the daemon token from `Scope::Full` to C0/C1; mint C2 in
-the GUI/2FA elevated session. (Tracked.)
+### Credential storage (inventory)
 
-### MCP session role claim
-`POST /api/session/register` (used by the external `apps/mcp` adapter) trusts the `role`
-field in the request body. The **gate now blunts the escalation**: a session token is
-`CallerKind::Mcp`, so it is denied every C2 op regardless of the role it claimed — a
-self-declared `contributor` can no longer reach credential/escalation ops.
+All machine-local secrets are `0o600` and never sync across machines. Storage
+*hygiene* is not the loose end — *authority* (below) is.
 
-**Mitigation path**: the daemon stores an operator-approved grant set per agent (the
-[provisioning model](/reference/architecture/op-surface/)) and mints
-from it, rather than trusting the request's role. **On the host socket this is
-already resolved**: identity comes from kernel peer credentials, not a claimed
-role, and grants come from the per-agent provisioned baseline — see
-[the agent access model](/reference/architecture/agent-access/). The role-claim
-risk is confined to the external `apps/mcp` adapter on the token path.
+| Secret | Location | Notes |
+|--------|----------|-------|
+| Daemon token | `~/.ship/machine/daemon/token` | 64-hex; grants `Full` today (see #86) |
+| Account token / MCP bearer | `~/.ship/machine/credentials.jsonc` | Ship Cloud token + optional `ship mcp serve` bearer |
+| Account key | `account/store.rs` (`0o600`) | gateway-issued; revoked on logout |
+| Session tokens | in-memory `SessionRegistry` + `platform.db` (paired only) | 30-day TTL; dev sessions never persist |
+
+### Closed
+
+- **Per-agent identity is unspoofable on the host socket** — kernel peer
+  credentials, not a claimed role. See [agent access](/reference/architecture/agent-access/).
+- **An agent cannot self-escalate its Ship capabilities.** The gate reads grants
+  from the operator-approved, **event-sourced** `provisioned_grants` baseline
+  (#85), not from the agent's skill files. Editing a skill's `requires:` changes
+  what's *requested* at next compile; it never changes the *baseline*, which only
+  `provision_grants` (C2, operator) writes. Tamper-evident by the log.
+- **MCP role-claim escalation is blunted.** A session token is `CallerKind::Mcp`,
+  denied every C2 op regardless of claimed role; on the socket, role isn't claimed
+  at all. Residual risk is confined to the external `apps/mcp` adapter's token path.
+
+### Open
+
+| # | Item | Sev | State / path |
+|---|------|-----|--------------|
+| **#86** | **Daemon token grants `Full`/C2** | **High** | The on-disk token is `Cli + Full` → `is_operator` → clears *every* class incl. C2 (credential mint, billing, acting as another actor). Intended: **nothing on disk is ever C2** — the token bootstraps C0/C1; C2 needs the GUI/2FA elevated session. **Blocked on a product decision** (below). |
+| — | C2-from-CLI is unaudited | Med | C2 ops invoked via the daemon token emit no security-audit event. Cheap, non-breaking first step toward #86: instrument every C2-cleared-by-operator decision. |
+| — | Harness-level tool permissions are agent-editable on disk | Med | The Ship capability gate is tamper-resistant (above), but the *compiled harness* permission files (e.g. `.claude` settings) can be edited by the agent with no detection. The gate is the real boundary; harness perms are defense-in-depth only. Ties to disk-as-projection hardening + file provenance (#84/#92). |
+| — | Live cross-process socket smoke not run | Low | The socket chain is unit + in-process-e2e verified; a real daemon-restart + dispatched-agent smoke (resolve → `Agent(id)` → scoped grants over `ship.sock`) is pending — needs restarting the running daemon. |
+| — | macOS `peer_cred` unverified on hardware | Low | `LOCAL_PEERPID` + `getpeereid` arm written against libc; not compile-checked on a Mac. |
+| — | macOS/Windows container backends | Med | Pending; those hosts are operator-only over the socket (macOS) or TCP+token (Windows). Runtime/backend phase. |
+
+### #86 — the decision it needs
+
+Hard-denying C2 to the daemon token breaks operator flows that legitimately run
+from the CLI today — `agent.grant` (the human approval point), `ship login`
+(account), `permissions.*`. So #86 isn't a flip; it needs a ruling on **which C2
+ops must remain CLI-reachable vs move to GUI/2FA-only**, then: split the gate's
+single `is_operator` into `operator` (C0/C1, the daemon token) × `elevated` (C2,
+the GUI/2FA session); C2 checks `elevated`. The non-breaking first step (audit
+instrumentation, above) can land independently and makes the eventual flip
+observable.
 
 ## File layout
 
