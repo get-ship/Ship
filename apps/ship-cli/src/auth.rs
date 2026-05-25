@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::mpsc;
@@ -350,10 +350,27 @@ pub fn run_logout() -> Result<()> {
     Ok(())
 }
 
+/// Fetch account state over the Connect `AccountService` (the typed op surface
+/// that replaces `GET /api/v1/account/state`). Mirrors the `ship meta` pattern.
+fn fetch_account_state(port: u16, token: &str) -> Result<serde_json::Value> {
+    use connectrpc::client::{ClientConfig, HttpClient};
+    use ship_ops_rpc::{AccountServiceClient, GetAccountStateReq};
+    let uri: http::Uri =
+        format!("http://127.0.0.1:{port}").parse().context("building daemon URI")?;
+    let config =
+        ClientConfig::new(uri).default_header("authorization", format!("Bearer {token}"));
+    let client = AccountServiceClient::new(HttpClient::plaintext(), config);
+    let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
+    let resp = rt
+        .block_on(client.state(GetAccountStateReq::default()))
+        .map_err(|e| anyhow::anyhow!("account.state call failed: {e}"))?;
+    serde_json::from_str(&resp.view().json).context("parsing account.state json")
+}
+
 /// `ship whoami` — query the daemon for current account state.
 pub fn run_whoami() -> Result<()> {
     match daemon_connect() {
-        Ok((port, daemon_token)) => match daemon_get_json(port, &daemon_token, "/api/v1/account/state") {
+        Ok((port, daemon_token)) => match fetch_account_state(port, &daemon_token) {
             Ok(state) => print_account_state(&state),
             Err(_) => {
                 // Daemon unreachable — show local identity at least.
