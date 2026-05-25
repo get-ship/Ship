@@ -183,14 +183,9 @@ export type {
   BindWhileErrorOptions,
 } from './while'
 
-export type {
-  ArtifactRecord,
-  CollectionFieldRecord,
-  CollectionSummary,
-  ShipHost,
-  ShipSDK,
-  SkillIndexEntry,
-} from './ship'
+// The framework exports only the host seam. The concrete `ShipSDK` + its
+// data types live in `@ship/sdk-client` — the runtime names no host shape.
+export type { ShipHost } from './ship'
 
 export { component, prop } from './component'
 export type { PropDef, ComponentDef, ComponentSetupContext } from './component'

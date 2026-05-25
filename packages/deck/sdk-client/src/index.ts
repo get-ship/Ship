@@ -14,13 +14,12 @@
 
 import {
   type AgentsSummariesResponse,
-  type ArtifactRecord,
   type GitDiff,
   type GitDiffArgs,
   type GitOverview,
   type LiveSource,
-  type ShipSDK,
 } from '@ship/sui-runtime'
+import type { ArtifactRecord, ShipSDK } from './ship-sdk'
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { makeSseSource } from './sse'
 import { liveStream } from './live-stream'
@@ -51,21 +50,26 @@ export {
   type AccountStatus,
 } from './account'
 
+// Generated daemon data types (still sourced from the framework's generated.ts
+// for now — relocating the gen output out of the framework is the next step).
 export type {
   AgentSummary,
   AgentsSummariesResponse,
-  ArtifactRecord,
   BranchSummary as GitBranch,
-  CollectionFieldRecord,
-  CollectionSummary,
   CommitSummary as GitCommit,
   GitDiff,
   GitDiffArgs,
   GitOverview,
-  ShipSDK,
-  SkillIndexEntry,
   StatusFile as GitFileEntry,
 } from '@ship/sui-runtime'
+// The Ship SDK surface + its hand-authored data types — owned here, not the framework.
+export type {
+  ArtifactRecord,
+  CollectionFieldRecord,
+  CollectionSummary,
+  ShipSDK,
+  SkillIndexEntry,
+} from './ship-sdk'
 
 /** Options accepted by `createClient`. */
 export interface CreateClientOpts {
@@ -300,12 +304,6 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
           args,
         ),
       end: (args) => json<void>('DELETE', `/api/v1/sessions/${encodeURIComponent(args.id)}`),
-    },
-    workspaces: {
-      list:    () => sse('workspaces', 'list'),
-      active:  () => sse('workspaces', 'active'),
-      activate: (args) =>
-        okJson<{ ok: true; active: string }>(connect.project.activate({ id: args.id })),
     },
     artifacts: {
       list: (args) => sse('artifacts', 'list', args),
