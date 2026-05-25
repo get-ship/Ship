@@ -676,7 +676,7 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     PollEvents,
 
-    /// @route GET "/api/v1/daemon/status"
+    /// @route GET "/daemon/status"
     /// @auth scope ReadWorkspace
     DaemonStatus,
 

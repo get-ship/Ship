@@ -104,7 +104,7 @@ fn daemon_info() -> Option<(u16, String)> {
 fn post_to_daemon(endpoint: &str, body: &serde_json::Value) -> Result<serde_json::Value> {
     let (port, token) = daemon_info()
         .ok_or_else(|| anyhow!("daemon not running (no port/token file)"))?;
-    let url = format!("http://127.0.0.1:{port}/api/v1/hooks/{endpoint}");
+    let url = format!("http://127.0.0.1:{port}/hooks/{endpoint}");
     let client = crate::http::daemon_client();
     let resp = client
         .post(&url)

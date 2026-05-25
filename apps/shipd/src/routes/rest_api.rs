@@ -380,7 +380,7 @@ pub struct CheckoutHookReq {
 #[utoipa::path(
     operation_id = "hooksCheckout",
     post,
-    path = "/api/v1/hooks/checkout",
+    path = "/hooks/checkout",
     request_body = CheckoutHookReq,
     responses(
         (status = 200, description = "Workspace reconciled for the checked-out branch", body = MeshResponse),

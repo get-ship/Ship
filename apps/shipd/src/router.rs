@@ -285,7 +285,11 @@ pub fn build_router(
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
         .merge(api_ship_routes)
-        .nest("/api/v1", hook_routes)
+        // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
+        // consumed by generated git-hook shell scripts that POST via curl and
+        // can't speak Connect, so it's a permanent ingress holdout. Kept out of
+        // `/api/v1` so that namespace can shrink to just the auth-bootstrap.
+        .merge(hook_routes)
         .nest("/api", webhook_routes)
         // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
         // auth_middleware below so the gate sees AuthContext. See ops_rpc.

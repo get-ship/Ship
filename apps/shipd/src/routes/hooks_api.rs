@@ -133,11 +133,11 @@ fn resolve_session(event: &ShipHookEvent, auth: &AuthContext) -> Option<String> 
     event.session_id.clone().or_else(|| auth.session_id.clone())
 }
 
-/// POST /api/v1/hooks/session-start
+/// POST /hooks/session-start
 #[utoipa::path(
     operation_id = "hookSessionStart",
     post,
-    path = "/api/v1/hooks/session-start",
+    path = "/hooks/session-start",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
@@ -199,11 +199,11 @@ pub async fn hook_session_start(
     (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
-/// POST /api/v1/hooks/before-tool
+/// POST /hooks/before-tool
 #[utoipa::path(
     operation_id = "hookBeforeTool",
     post,
-    path = "/api/v1/hooks/before-tool",
+    path = "/hooks/before-tool",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook allow or block decision", body = HookResponse),
@@ -295,11 +295,11 @@ fn broadcast_tool_use(
     let _ = session.0.event_tx.send(ev);
 }
 
-/// POST /api/v1/hooks/after-tool
+/// POST /hooks/after-tool
 #[utoipa::path(
     operation_id = "hookAfterTool",
     post,
-    path = "/api/v1/hooks/after-tool",
+    path = "/hooks/after-tool",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
@@ -360,11 +360,11 @@ pub async fn hook_after_tool(
     (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
-/// POST /api/v1/hooks/session-end
+/// POST /hooks/session-end
 #[utoipa::path(
     operation_id = "hookSessionEnd",
     post,
-    path = "/api/v1/hooks/session-end",
+    path = "/hooks/session-end",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
@@ -420,7 +420,7 @@ pub async fn hook_session_end(
     (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
-/// POST /api/v1/hooks/permission-denied
+/// POST /hooks/permission-denied
 ///
 /// Emitted by `ship hook before-tool` when its fail-closed integrity
 /// gate (cli-framework::hooks::tool_gate) denies a call before the
@@ -431,7 +431,7 @@ pub async fn hook_session_end(
 #[utoipa::path(
     operation_id = "hookPermissionDenied",
     post,
-    path = "/api/v1/hooks/permission-denied",
+    path = "/hooks/permission-denied",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
