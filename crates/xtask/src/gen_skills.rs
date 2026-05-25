@@ -27,7 +27,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
-use ship_ops_rpc::policy::MethodArg;
+use ship_ops_rpc::policy::{op_name, snake, MethodArg};
 
 /// Output root, relative to the repo: the `sdk` subdir of the skills tree.
 /// Separate from the hand-authored `docs/` doc-site source (which it must not
@@ -104,29 +104,6 @@ fn example_json(args: &[MethodArg]) -> String {
         .map(|a| format!("\"{}\": {}", a.name, placeholder(&a.kind)))
         .collect();
     format!("{{ {} }}", fields.join(", "))
-}
-
-/// snake_case a PascalCase proto identifier: `WriteFrontmatter` → `write_frontmatter`.
-fn snake(s: &str) -> String {
-    let mut out = String::new();
-    for (i, ch) in s.char_indices() {
-        if ch.is_ascii_uppercase() {
-            if i != 0 {
-                out.push('_');
-            }
-            out.push(ch.to_ascii_lowercase());
-        } else {
-            out.push(ch);
-        }
-    }
-    out
-}
-
-/// `RulesService` + `List` → `rules.list` (the dotted op name).
-fn op_name(service: &str, method: &str) -> String {
-    let svc = snake(service);
-    let domain = svc.strip_suffix("_service").unwrap_or(&svc);
-    format!("{domain}.{}", snake(method))
 }
 
 /// The generated umbrella + streaming services — not agent-facing capability

@@ -68,21 +68,7 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
     .collect()
 }
 
-/// snake_case a PascalCase proto identifier: `WriteFrontmatter` → `write_frontmatter`.
-fn snake(s: &str) -> String {
-    let mut out = String::new();
-    for (i, ch) in s.char_indices() {
-        if ch.is_ascii_uppercase() {
-            if i != 0 {
-                out.push('_');
-            }
-            out.push(ch.to_ascii_lowercase());
-        } else {
-            out.push(ch);
-        }
-    }
-    out
-}
+use ship_ops_rpc::policy::{op_name, snake};
 
 /// The generated umbrella + streaming services — NOT per-domain fixture targets.
 /// `ReadOpsService`/`CommandOpsService` are the bulk-port scaffold (every op is
@@ -90,16 +76,6 @@ fn snake(s: &str) -> String {
 /// is server-streaming (no unary response fixture).
 fn is_non_fixture_service(service: &str) -> bool {
     matches!(service, "ReadOpsService" | "CommandOpsService" | "StreamService")
-}
-
-/// Reconstruct the dotted op name from a proto (service, method): the service
-/// carries the domain (`RulesService` → `rules`), the method the rest
-/// (`Create` → `create`) ⇒ `rules.create`. Clean inverse — the service boundary
-/// removes the `.`-vs-`_` ambiguity that pascal() alone has.
-fn op_name(service: &str, method: &str) -> String {
-    let svc = snake(service);
-    let domain = svc.strip_suffix("_service").unwrap_or(&svc);
-    format!("{domain}.{}", snake(method))
 }
 
 /// PascalCase an op name (`rules.create` → `RulesCreate`) — mirrors the umbrella

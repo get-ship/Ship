@@ -11,18 +11,21 @@
 use anyhow::{Context, Result};
 use serde_json::Value;
 
-/// PascalCase a dotted/underscored op name → the generated Connect method
-/// (`pipeline.update_status` → `PipelineUpdateStatus`). Mirrors `xtask::pascal`.
-fn pascal(op: &str) -> String {
-    op.split(['.', '_'])
-        .map(|seg| {
-            let mut c = seg.chars();
-            match c.next() {
-                Some(f) => f.to_uppercase().chain(c).collect::<String>(),
-                None => String::new(),
-            }
+/// Resolve a dotted op name → its proto `(service, method)` via the embedded
+/// FileDescriptorSet — the SSOT, the SAME source gen-skills documents. Routes to
+/// the per-domain service (`RulesService/Create`), not the retiring generated
+/// umbrella; so every documented op (incl. proto-only ones like `analytics.*`
+/// the Rust registry never carried) is callable. Streaming + umbrella excluded.
+fn resolve(name: &str) -> Option<(String, String)> {
+    ship_ops_rpc::policy::read_policies()
+        .into_iter()
+        .find(|p| {
+            !matches!(
+                p.service.as_str(),
+                "ReadOpsService" | "CommandOpsService" | "StreamService"
+            ) && ship_ops_rpc::policy::op_name(&p.service, &p.method) == name
         })
-        .collect()
+        .map(|p| (p.service, p.method))
 }
 
 /// Fetch the op catalog (reads + commands) from the daemon.
@@ -67,19 +70,13 @@ pub fn list() -> Result<()> {
 /// `ship ops call <name> [--json '{…}']` — generic Connect invoke.
 pub fn call(name: &str, json_args: Option<String>) -> Result<()> {
     let (port, token) = crate::daemon::ensure_daemon()?;
-    let (ops, cmds) = catalog(port, &token)?;
-    let service = if ops.iter().any(|o| o["name"].as_str() == Some(name)) {
-        "ReadOpsService"
-    } else if cmds.iter().any(|c| c["name"].as_str() == Some(name)) {
-        "CommandOpsService"
-    } else {
-        anyhow::bail!("unknown op `{name}` — run `ship ops list`");
-    };
+    let (service, method) =
+        resolve(name).with_context(|| format!("unknown op `{name}` — run `ship ops list`"))?;
     let body: Value = match json_args {
         Some(s) => serde_json::from_str(&s).context("parsing --json args")?,
         None => serde_json::json!({}),
     };
-    let url = format!("http://127.0.0.1:{port}/ship.ops.v1.{service}/{}", pascal(name));
+    let url = format!("http://127.0.0.1:{port}/ship.ops.v1.{service}/{method}");
     let resp = reqwest::blocking::Client::new()
         .post(&url)
         .bearer_auth(token)

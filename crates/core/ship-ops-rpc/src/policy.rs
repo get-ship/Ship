@@ -104,6 +104,32 @@ fn simple_type(t: &str) -> String {
     t.rsplit('.').next().unwrap_or(t).to_string()
 }
 
+/// snake_case a PascalCase proto identifier: `WriteFrontmatter` → `write_frontmatter`.
+pub fn snake(s: &str) -> String {
+    let mut out = String::new();
+    for (i, ch) in s.char_indices() {
+        if ch.is_ascii_uppercase() {
+            if i != 0 {
+                out.push('_');
+            }
+            out.push(ch.to_ascii_lowercase());
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+/// The dotted op name for a proto (service, method) — the SINGLE derivation used
+/// by `ship ops call`, gen-skills, and gen-fixtures: the service carries the
+/// domain (`RulesService` → `rules`), the method the rest (`List` → `list`) ⇒
+/// `rules.list`. The service boundary removes pascal()'s `.`-vs-`_` ambiguity.
+pub fn op_name(service: &str, method: &str) -> String {
+    let svc = snake(service);
+    let domain = svc.strip_suffix("_service").unwrap_or(&svc);
+    format!("{domain}.{}", snake(method))
+}
+
 /// Project a proto field's (type, label) to the generators' arg-kind vocab.
 /// Field type numbers per `descriptor.proto`'s `FieldDescriptorProto.Type`;
 /// label 3 = repeated.
