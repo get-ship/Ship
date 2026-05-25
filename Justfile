@@ -71,9 +71,18 @@ shell-dev:
 gen-routes:
     @node scripts/gen-routes.mjs
 
+# Build the standalone SUI component packs (primitives/charts/pipelines/
+# ui-components) → each package's `dist/`, served by the daemon at
+# `/_sui/packs/<id>/`. These are gitignored build outputs that the deck
+# bundler does NOT produce, so without this they go stale (and a stale pack
+# that inlines its own @ship/sui-runtime causes split-brain signals → blank
+# shell). Part of dev-build-all so the JS build is actually complete.
+build-packs: _sui-compiler-lib
+    @bun run --filter './packages/components/*' build
+
 # Runs `packages/deck/bundler/index.ts --all` against the installed bun toolchain.
 [group('daily')]
-dev-build-all: _sui-compiler-lib gen-routes
+dev-build-all: _sui-compiler-lib gen-routes build-packs
     @bun packages/deck/bundler/index.ts --all
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
