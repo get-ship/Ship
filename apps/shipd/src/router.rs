@@ -19,7 +19,7 @@ use crate::routes::{
     artifacts_api, commands_api, create_api, feedback_api, git_api,
     hooks_api, human_webhook, logs_api, openapi,
     projects_api, registry_api, rest_api, runtime_api,
-    sdk_manifest, search_api, settings_api, skills_api, themes_api,
+    sdk_manifest, search_api, settings_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
 };
@@ -385,7 +385,6 @@ async fn build_header_middleware(
 /// - `/api/v1/projects/{id}/session-files/{*path}` — glob param, specific to
 ///   project_api's recursive file handler. Kept alongside the enum variant
 ///   that exposes the non-glob listing endpoint.
-/// - `/api/v1/skills/{id}/files/{*path}` — same reason (SkillService sub-file route).
 fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     Router::new()
@@ -500,19 +499,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // SkillService — service-shaped CRUD + file tree + vars. Replaces
         // the project-scoped skill endpoints that used to hang off
         // /api/v1/projects/{id}/skills/*.
-        .ship_route(Route::SkillsList, skills_api::list)
-        .ship_route(Route::SkillsGet_template(), skills_api::get)
-        .ship_route(Route::SkillsCreate, skills_api::create)
-        .ship_route(Route::SkillsDelete_template(), skills_api::delete)
-        .ship_route(Route::SkillsPutFrontmatter_template(), skills_api::put_frontmatter)
-        .ship_route(Route::SkillsPutBody_template(), skills_api::put_body)
-        .ship_route(Route::SkillsRename_template(), skills_api::rename)
-        .ship_route(Route::SkillsDuplicate_template(), skills_api::duplicate)
-        .ship_route(Route::SkillsMove_template(), skills_api::move_scope)
-        .ship_route(Route::SkillsGetVars_template(), skills_api::get_vars)
-        .ship_route(Route::SkillsPutVar_template(), skills_api::put_var)
-        .ship_route(Route::SkillsDeleteVar_template(), skills_api::delete_var)
-        .ship_route(Route::SkillsInvoke_template(), skills_api::invoke)
         .ship_route(Route::ChatSend, services::chat::send_message)
         // Specs REST
         // Events / projections
@@ -581,13 +567,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             axum::routing::get(project_api::read_session_file)
                 .put(project_api::write_session_file)
                 .delete(project_api::delete_session_file),
-        )
-        // SkillService files subresource — glob param keeps this flat (the
-        // codegen Route enum doesn't model `{*path}`).
-        .route(
-            "/api/v1/skills/{id}/files/{*path}",
-            axum::routing::put(skills_api::put_file)
-                .delete(skills_api::delete_file),
         )
         .with_state(st)
 }

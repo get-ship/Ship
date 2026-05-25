@@ -56,7 +56,6 @@ pub mod hooks_api;
 pub mod human_webhook;
 pub mod logs_api;
 pub mod openapi;
-pub mod skills_api;
 pub mod openapi_modifier;
 pub mod openapi_types;
 pub mod projects_api;
@@ -242,59 +241,7 @@ pub enum Route {
     /// @auth scope ReadRuns
     PipelineRunLogStream { slug: String },
 
-    // ── SkillService — service-shaped CRUD + vars ──
-
-    /// @route GET "/api/v1/skills"
-    /// @auth scope ReadWorkspace
-    SkillsList,
-
-    /// @route GET "/api/v1/skills/{id}"
-    /// @auth scope ReadWorkspace
-    SkillsGet { id: String },
-
-    /// @route POST "/api/v1/skills"
-    /// @auth scope CreateRuns
-    SkillsCreate,
-
-    /// @route DELETE "/api/v1/skills/{id}"
-    /// @auth scope WriteWorkspace
-    SkillsDelete { id: String },
-
-    /// @route PUT "/api/v1/skills/{id}/frontmatter"
-    /// @auth scope WriteWorkspace
-    SkillsPutFrontmatter { id: String },
-
-    /// @route PUT "/api/v1/skills/{id}/body"
-    /// @auth scope WriteWorkspace
-    SkillsPutBody { id: String },
-
-    /// @route POST "/api/v1/skills/{id}/rename"
-    /// @auth scope WriteWorkspace
-    SkillsRename { id: String },
-
-    /// @route POST "/api/v1/skills/{id}/duplicate"
-    /// @auth scope CreateRuns
-    SkillsDuplicate { id: String },
-
-    /// @route POST "/api/v1/skills/{id}/move"
-    /// @auth scope WriteWorkspace
-    SkillsMove { id: String },
-
-    /// @route GET "/api/v1/skills/{id}/vars"
-    /// @auth scope ReadWorkspace
-    SkillsGetVars { id: String },
-
-    /// @route PUT "/api/v1/skills/{id}/vars/{key}"
-    /// @auth scope WriteWorkspace
-    SkillsPutVar { id: String, key: String },
-
-    /// @route DELETE "/api/v1/skills/{id}/vars/{key}"
-    /// @auth scope WriteWorkspace
-    SkillsDeleteVar { id: String, key: String },
-
-    /// @route POST "/api/v1/skills/{id}/invoke"
-    /// @auth scope ManageRuns
-    SkillsInvoke { id: String },
+    // ── Chat (command-bar send) ──────────────────────────────────────────
 
     /// @route POST "/api/v1/chat/send"
     /// @auth scope ManageRuns
