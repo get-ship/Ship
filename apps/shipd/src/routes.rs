@@ -77,7 +77,6 @@ mod search_api_tests;
 #[cfg(test)]
 mod scope_enforcement_tests;
 pub mod settings_api;
-pub mod specs_api;
 pub mod themes_api;
 pub mod view_edit_mode_api;
 pub mod view_edit_tool_api;
@@ -673,32 +672,6 @@ pub enum Route {
     /// @route GET "/daemon/status"
     /// @auth scope ReadWorkspace
     DaemonStatus,
-
-    // ── Specs ────────────────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/specs"
-    /// @auth scope ReadRuns
-    ListSpecs,
-
-    /// @route POST "/api/v1/specs"
-    /// @auth scope CreateRuns
-    CreateSpec,
-
-    /// @route GET "/api/v1/specs/{id}"
-    /// @auth scope ReadRuns
-    GetSpec { id: String },
-
-    /// @route PUT "/api/v1/specs/{id}"
-    /// @auth scope WriteWorkspace
-    UpdateSpec { id: String },
-
-    /// @route DELETE "/api/v1/specs/{id}"
-    /// @auth scope WriteWorkspace
-    DeleteSpec { id: String },
-
-    /// @route POST "/api/v1/specs/{id}/launch"
-    /// @auth scope CreateRuns
-    LaunchSpec { id: String },
 
     // ── Events / projections ─────────────────────────────────────────────
 

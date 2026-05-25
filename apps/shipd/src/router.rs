@@ -19,7 +19,7 @@ use crate::routes::{
     artifacts_api, collection_api, commands_api, create_api, feedback_api, git_api,
     hooks_api, human_webhook, logs_api, mcp_api, openapi, permissions_api,
     pipelines_api, projects_api, registry_api, rest_api, rules_api, runtime_api,
-    sdk_manifest, search_api, settings_api, skills_api, specs_api, themes_api,
+    sdk_manifest, search_api, settings_api, skills_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
 };
@@ -569,12 +569,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::SkillsInvoke_template(), skills_api::invoke)
         .ship_route(Route::ChatSend, services::chat::send_message)
         // Specs REST
-        .ship_route(Route::ListSpecs, specs_api::list_specs)
-        .ship_route(Route::CreateSpec, specs_api::create_spec)
-        .ship_route(Route::GetSpec_template(), specs_api::get_spec)
-        .ship_route(Route::UpdateSpec_template(), specs_api::update_spec)
-        .ship_route(Route::DeleteSpec_template(), specs_api::delete_spec)
-        .ship_route(Route::LaunchSpec_template(), specs_api::launch_spec)
         // Events / projections
         .ship_route(Route::EventStream, runtime_api::event_stream)
         .ship_route(Route::RebuildProjections, runtime_api::rebuild_projections)
