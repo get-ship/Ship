@@ -27,6 +27,59 @@ pub trait HostOs: Send + Sync {
     fn process_container(&self, pid: u32) -> Option<String>;
 }
 
+/// Kernel-verified credentials of the process on the other end of a connected
+/// stream socket — read from the OS via peer credentials, never trusted from
+/// the wire. This is the unspoofable anchor for per-agent identity: the daemon
+/// reads it off the accepted connection and feeds the `pid` to the resolver.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PeerCred {
+    pub pid: u32,
+    pub uid: u32,
+    pub gid: u32,
+}
+
+/// Read the peer credentials off a connected unix-socket fd.
+///
+/// - **Linux:** `SO_PEERCRED` → full `pid`/`uid`/`gid`.
+/// - **macOS:** pending (`LOCAL_PEERPID` + `getpeereid`) — returns `None` so
+///   callers fail closed until the backend lands on real hardware.
+///
+/// Windows named-pipe peer identity (`GetNamedPipeClientProcessId`) is a
+/// separate path — a pipe handle, not a unix fd — so it isn't this function.
+#[cfg(unix)]
+pub fn peer_cred(fd: std::os::unix::io::RawFd) -> Option<PeerCred> {
+    #[cfg(target_os = "linux")]
+    {
+        let mut cred = libc::ucred { pid: 0, uid: 0, gid: 0 };
+        let mut len = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
+        // SAFETY: getsockopt writes the kernel's view of the peer into `cred`;
+        // `len` is the buffer size in/out. `fd` must be a connected socket —
+        // the caller's responsibility (it just accepted it).
+        let rc = unsafe {
+            libc::getsockopt(
+                fd,
+                libc::SOL_SOCKET,
+                libc::SO_PEERCRED,
+                std::ptr::addr_of_mut!(cred) as *mut libc::c_void,
+                &mut len,
+            )
+        };
+        if rc == 0 && cred.pid > 0 {
+            return Some(PeerCred {
+                pid: cred.pid as u32,
+                uid: cred.uid,
+                gid: cred.gid,
+            });
+        }
+        None
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = fd;
+        None
+    }
+}
+
 /// The host adapter for the current platform.
 pub fn host() -> &'static dyn HostOs {
     #[cfg(target_os = "linux")]
@@ -115,5 +168,14 @@ mod tests {
         // Smoke: our own PID is in *some* cgroup on any Linux test host.
         let c = host().process_container(std::process::id());
         assert!(c.is_some_and(|p| p.starts_with('/')), "self cgroup path should resolve");
+    }
+
+    #[test]
+    fn peer_cred_of_socketpair_reports_self() {
+        // Both ends of an in-process pair are us → the kernel reports our PID.
+        use std::os::unix::io::AsRawFd;
+        let (a, _b) = std::os::unix::net::UnixStream::pair().unwrap();
+        let cred = peer_cred(a.as_raw_fd()).expect("peer cred on a connected pair");
+        assert_eq!(cred.pid, std::process::id(), "peer of an in-process pair is self");
     }
 }

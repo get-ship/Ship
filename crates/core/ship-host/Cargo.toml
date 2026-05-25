@@ -9,3 +9,6 @@ description = "Ship's host-OS adapter layer (L0). Ship is its own runtime — ag
 workspace = true
 
 [dependencies]
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
