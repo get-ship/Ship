@@ -55,6 +55,16 @@ pub struct ResolvedConfig {
     pub codex: crate::compile::CodexSettings,
     pub opencode: crate::compile::OpenCodeSettings,
     pub cursor: crate::compile::CursorSettings,
+    /// The capability grants the resolved skill set REQUESTS (the union of the
+    /// auto-included capability-skills' `grants:`). A **request, not authority** —
+    /// the daemon mints only the operator-approved subset; this is what an
+    /// install/escalation approval is asked to confer. See
+    /// `.artifacts/grant-resolution-arc-plan.md`.
+    pub requested_grants: Vec<String>,
+    /// Capabilities the resolved skills `require:` that no skill in the pool
+    /// grants — an unsatisfiable request. Non-empty is a compile error the
+    /// caller enforces (the compiler stays pure/infallible).
+    pub unmet_capability_requirements: Vec<String>,
     /// Absolute path to the ship home (e.g. `/home/alice/.ship`). Injected
     /// by callers (CLI/daemon) that resolve via `ship_substrate::ShipHome`. The
     /// compiler is WASM-safe and does not read environment variables —
@@ -340,6 +350,13 @@ pub fn resolve(
     if let Some(f) = feature {
         apply_workspace_skill_filter(&mut resolved_skills, f);
     }
+    // Auto-include capability-skills from the pool that satisfy `requires:`.
+    // A `requires:` is a capability REQUEST; including the granting skill makes
+    // the request resolvable. Conferring the grant is the operator's job — the
+    // daemon mints only the approved subset of `requested_grants`.
+    include_capability_skills(&mut resolved_skills, skills);
+    let requested_grants = crate::types::skill::grants_from_skills(&resolved_skills);
+    let unmet_capability_requirements = crate::types::skill::unmet_requirements(&resolved_skills);
 
     // ── Rules ─────────────────────────────────────────────────────────────────
     let mut resolved_rules = rules.to_vec();
@@ -371,8 +388,38 @@ pub fn resolve(
         codex: crate::compile::CodexSettings::default(),
         opencode: crate::compile::OpenCodeSettings::default(),
         cursor: crate::compile::CursorSettings::default(),
+        requested_grants,
+        unmet_capability_requirements,
         ship_home_dir: None,
         scoped_launch: false,
+    }
+}
+
+/// Auto-include capability-skills from `pool` that satisfy the resolved skills'
+/// `requires:`. For each required capability not already granted by an included
+/// skill, pull in a pool skill whose `grants:` covers it (capability-skills live
+/// in the full pool even when not in the agent's own skill list). Capability-skills
+/// confer grants, they don't `require:` — so a single pass over the request set
+/// reaches fixpoint. A `requires:` with no granting skill anywhere stays unmet
+/// (surfaced via `unmet_requirements`), never silently dropped.
+fn include_capability_skills(resolved: &mut Vec<Skill>, pool: &[Skill]) {
+    use std::collections::BTreeSet;
+    let mut included: BTreeSet<String> = resolved.iter().map(|s| s.id.clone()).collect();
+    let mut granted: BTreeSet<String> =
+        resolved.iter().flat_map(|s| s.grants.iter().cloned()).collect();
+    let required: BTreeSet<String> =
+        resolved.iter().flat_map(|s| s.requires.iter().cloned()).collect();
+    for cap in required.difference(&granted.clone()) {
+        if let Some(skill) = pool
+            .iter()
+            .find(|s| !included.contains(&s.id) && s.grants.iter().any(|g| g == cap))
+        {
+            included.insert(skill.id.clone());
+            for g in &skill.grants {
+                granted.insert(g.clone());
+            }
+            resolved.push(skill.clone());
+        }
     }
 }
 
@@ -487,6 +534,94 @@ mod tests {
         let config = ProjectConfig::default();
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, None);
         assert_eq!(resolved.harnesses, vec!["claude"]);
+    }
+
+    #[test]
+    fn requires_auto_includes_capability_skill_and_reports_requested() {
+        // The agent declares only a workflow skill; that skill `requires:` a
+        // capability granted by a capability-skill in the pool (not in the
+        // agent's own list). Resolution auto-includes it and reports the request.
+        let config = ProjectConfig {
+            agents: vec![AgentConfig {
+                id: "lead".to_string(),
+                name: "Lead".to_string(),
+                skills: vec!["workflow".to_string()],
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let workflow = Skill {
+            requires: vec!["ship-orchestration".to_string()],
+            ..make_skill("workflow")
+        };
+        let cap = Skill {
+            grants: vec!["ship-orchestration".to_string()],
+            ..make_skill("ship-orchestration")
+        };
+        let skills = vec![workflow, cap];
+        let r = resolve(
+            &config,
+            &skills,
+            &[],
+            &Permissions::default(),
+            &[],
+            None,
+            Some("lead"),
+        );
+        assert!(
+            r.skills.iter().any(|s| s.id == "ship-orchestration"),
+            "capability-skill must be auto-included to satisfy requires:"
+        );
+        assert_eq!(r.requested_grants, vec!["ship-orchestration".to_string()]);
+        assert!(r.unmet_capability_requirements.is_empty());
+    }
+
+    #[test]
+    fn unsatisfiable_requires_is_reported_unmet() {
+        // No capability-skill grants what the workflow requires → unmet (a
+        // compile error the caller enforces), and nothing is requested.
+        let config = ProjectConfig {
+            agents: vec![AgentConfig {
+                id: "lead".to_string(),
+                name: "Lead".to_string(),
+                skills: vec!["workflow".to_string()],
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let workflow = Skill {
+            requires: vec!["ship-orchestration".to_string()],
+            ..make_skill("workflow")
+        };
+        let r = resolve(
+            &config,
+            &[workflow],
+            &[],
+            &Permissions::default(),
+            &[],
+            None,
+            Some("lead"),
+        );
+        assert_eq!(
+            r.unmet_capability_requirements,
+            vec!["ship-orchestration".to_string()]
+        );
+        assert!(r.requested_grants.is_empty());
+    }
+
+    #[test]
+    fn no_requires_means_no_requested_grants() {
+        let r = resolve(
+            &ProjectConfig::default(),
+            &[make_skill("plain")],
+            &[],
+            &Permissions::default(),
+            &[],
+            None,
+            None,
+        );
+        assert!(r.requested_grants.is_empty());
+        assert!(r.unmet_capability_requirements.is_empty());
     }
 
     #[test]
