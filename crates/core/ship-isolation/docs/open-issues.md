@@ -428,6 +428,41 @@ Chunk F.
   clobber. Same as today's multi-agent-in-host problem amplified.
   Per-sandbox overlay-fs is the eventual fix; defer until signal.
 
+## Arc hand-offs — reconcile at the connect-followups / sui-framework merge
+
+The isolation op-surface arc landed Phases 1–3 additively on this branch
+(proto `IsolationService`, the scoped-token spawn seam, `ship ops`
+honoring `SHIP_DAEMON_URL`/`SHIP_TOKEN`). Four items are deliberately
+**not** done here because they belong at the integration point — doing
+them on this branch would conflict or be premature:
+
+- **Delete the old isolation surface (Phase 4).** The `isolation_status`
+  MCP tool + `/api/v1/isolation/*` REST reads stay until the GUI flip
+  (#72) / MCP cull, exactly like every other per-domain proto service
+  ("additive beside the old path until the flip"). Deleting now opens a
+  regression window: the agent's `ship ops call isolation.*` skill isn't
+  generated on this branch (gen-skills reads the proto descriptor only on
+  connect-followups), and the GUI wizard still consumes the REST reads.
+- **`ship ops` catalog routing to authored per-domain services.** On this
+  branch `ops_cmd` resolves the catalog from the legacy `schema::OPS`
+  table and only routes to ReadOps/CommandOps — so `isolation.*` (and
+  `analytics.*`) are served by the daemon but not yet callable via the CLI
+  catalog. The descriptor-driven catalog (`op_name`/`read_policies`) is
+  connect-followups' work; isolation slots in automatically once it lands.
+- **auth-model doc, two-leg identity.** The host-socket / peer-cred
+  section lives on connect-followups' `auth-model.md` (this branch has the
+  pre-host-socket copy). The peer-cred-host-only vs scoped-token-Tier-2+
+  clarification belongs there, not in a stale duplicate. Captured in
+  `runtime-architecture.md` §9 in the meantime.
+- **Recommender Tier-1 weighting.** Per-agent systemd-cgroup scopes (which
+  give Tier-1 real resource teeth) are on connect-followups, not here;
+  re-weighting Tier-1 as cap-backed is premature until that lands.
+
+Live verification still owed (hardware/full-stack, same class as the
+other deferred live cells): a `ship ops call isolation.status` round-trip
+from inside a sandbox — needs `ship` baked into the agent-runner image and
+a live daemon.
+
 ## Future bigger questions (don't think about now)
 
 - **Cloud (Tier 4) as a product surface.** Architecture preserves

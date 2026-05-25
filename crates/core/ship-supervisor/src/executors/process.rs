@@ -223,7 +223,7 @@ async fn prepare_docker_sandbox(
     use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
 
     let settings = ship_platform::isolation::strategies_settings()
-        .map_err(|e| ship_substrate::isolation::IsolatorError::Other(e))?;
+        .map_err(ship_substrate::isolation::IsolatorError::Other)?;
     let cfg = DockerConfig {
         engine_bin: settings.docker.engine_bin.clone(),
         image: settings.docker.image.clone(),
@@ -418,7 +418,10 @@ async fn prepare_wsl_sandbox(
 /// actor via `SHIP_TOKEN` (never the root daemon token). Returns the token
 /// so the exit monitor can drop it from the registry. Best-effort: logs +
 /// returns None if no registry is installed or the mint fails.
-async fn mint_scoped_token(ctx: &SessionContext, launch: &mut LaunchCommand) -> Option<String> {
+pub(crate) async fn mint_scoped_token(
+    ctx: &SessionContext,
+    launch: &mut LaunchCommand,
+) -> Option<String> {
     match ship_platform::auth::scopes::session_registry() {
         Some(registry) => {
             match ship_platform::auth::scopes::mint_session(

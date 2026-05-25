@@ -195,6 +195,8 @@ pub fn router(state: ApiState) -> axum::Router {
     // Hand-authored proto-as-SSOT domains (impls in analytics_rpc / runtime_rpc).
     // C0 reads, edge-authenticated like the other reads.
     let router = ship_ops_rpc::AnalyticsServiceExt::register(svc.clone(), router);
+    // isolation.* — capability probe + recommender reads (impl in isolation_rpc).
+    let router = ship_ops_rpc::IsolationServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::RuntimeServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::ViewErrorsServiceExt::register(svc.clone(), router);
     // First MIGRATED domain (#89): rules.* served additively from the authored

@@ -127,22 +127,13 @@ pub struct HarnessNativeSettings {
     pub flag_overrides: std::collections::HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct SrtSettings {
     /// Override path to `bun` (`which bun` is the default).
     pub bun_bin: Option<String>,
     /// Override path to the srt entry point in the global bun install.
     pub srt_entry: Option<String>,
-}
-
-impl Default for SrtSettings {
-    fn default() -> Self {
-        Self {
-            bun_bin: None,
-            srt_entry: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -191,7 +182,7 @@ impl Default for WslSettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct FirecrackerSettings {
     /// Path to the `firecracker` binary. Empty = auto-resolve (next to the
@@ -204,17 +195,6 @@ pub struct FirecrackerSettings {
     pub rootfs: String,
     /// Resource caps (mem/cpu) for the microVM. Reuses the docker shape.
     pub resources: DockerResources,
-}
-
-impl Default for FirecrackerSettings {
-    fn default() -> Self {
-        Self {
-            bin: String::new(),
-            kernel: String::new(),
-            rootfs: String::new(),
-            resources: DockerResources::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

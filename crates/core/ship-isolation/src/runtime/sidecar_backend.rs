@@ -69,9 +69,11 @@ impl SidecarChildBackend {
 
 impl ChildBackend for SidecarChildBackend {
     fn write_input(&self, bytes: &[u8]) -> Result<()> {
-        let mut req = ProcessWriteInputRequest::default();
-        req.id = self.process_id.clone();
-        req.data = bytes.to_vec();
+        let req = ProcessWriteInputRequest {
+            id: self.process_id.clone(),
+            data: bytes.to_vec(),
+            ..Default::default()
+        };
         let client = self.client.clone();
         self.block_on(async move {
             client
@@ -87,8 +89,7 @@ impl ChildBackend for SidecarChildBackend {
         // ChildHandle::stop callers that want hard-kill should use a
         // future force-kill API; today's PtyChildBackend stop also
         // sends a kill, so symmetry holds.
-        let mut req = ProcessStopRequest::default();
-        req.id = self.process_id.clone();
+        let req = ProcessStopRequest { id: self.process_id.clone(), ..Default::default() };
         let client = self.client.clone();
         self.block_on(async move {
             client
@@ -106,8 +107,7 @@ impl ChildBackend for SidecarChildBackend {
     }
 
     fn try_exit(&self) -> Option<i32> {
-        let mut req = ProcessGetRequest::default();
-        req.id = self.process_id.clone();
+        let req = ProcessGetRequest { id: self.process_id.clone(), ..Default::default() };
         let client = self.client.clone();
         let result = self.block_on(async move {
             client
@@ -127,12 +127,12 @@ impl ChildBackend for SidecarChildBackend {
     }
 
     fn resize(&self, cols: u16, rows: u16) -> Result<()> {
-        let mut size = PtySize::default();
-        size.cols = cols as u32;
-        size.rows = rows as u32;
-        let mut req = ProcessResizeTerminalRequest::default();
-        req.id = self.process_id.clone();
-        req.size = ::buffa::MessageField::some(size);
+        let size = PtySize { cols: cols as u32, rows: rows as u32, ..Default::default() };
+        let req = ProcessResizeTerminalRequest {
+            id: self.process_id.clone(),
+            size: ::buffa::MessageField::some(size),
+            ..Default::default()
+        };
         let client = self.client.clone();
         self.block_on(async move {
             client
@@ -144,8 +144,7 @@ impl ChildBackend for SidecarChildBackend {
     }
 
     fn is_alive(&self) -> bool {
-        let mut req = ProcessGetRequest::default();
-        req.id = self.process_id.clone();
+        let req = ProcessGetRequest { id: self.process_id.clone(), ..Default::default() };
         let client = self.client.clone();
         let result = self.block_on(async move {
             client
@@ -170,8 +169,7 @@ pub async fn force_kill(
     client: &ProcessesClient<SharedHttp2Connection>,
     process_id: &str,
 ) -> Result<()> {
-    let mut req = ProcessKillRequest::default();
-    req.id = process_id.to_string();
+    let req = ProcessKillRequest { id: process_id.to_string(), ..Default::default() };
     client
         .kill(req)
         .await

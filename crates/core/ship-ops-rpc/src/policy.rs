@@ -153,6 +153,25 @@ mod tests {
     }
 
     #[test]
+    fn isolation_reads_are_c0_isolation_read() {
+        // The isolation read surface (status/recommendations/preview/verify)
+        // migrated off the MCP tool + REST onto IsolationService. Pin the gate
+        // contract: pure C0 reads under `ship.isolation.read`.
+        let iso: Vec<_> = read_policies()
+            .into_iter()
+            .filter(|p| p.service == "IsolationService")
+            .collect();
+        for m in ["Status", "Recommendations", "Preview", "Verify"] {
+            let p = iso
+                .iter()
+                .find(|p| p.method == m)
+                .unwrap_or_else(|| panic!("IsolationService.{m} not in descriptor"));
+            assert_eq!(p.capability, "ship.isolation.read", "{m} capability");
+            assert_eq!(p.blast, BlastRadius::C0Read, "{m} must be C0");
+        }
+    }
+
+    #[test]
     fn every_method_carries_a_capability() {
         // No rpc may ship without a declared capability — that would be an
         // ungated surface. (Reads + commands both carry one.)

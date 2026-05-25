@@ -28,6 +28,7 @@ pub mod routes;
 pub mod router;
 pub mod ops_rpc;
 pub mod analytics_rpc;
+pub mod isolation_rpc;
 pub mod runtime_rpc;
 pub mod view_errors_rpc;
 pub mod rules_rpc;

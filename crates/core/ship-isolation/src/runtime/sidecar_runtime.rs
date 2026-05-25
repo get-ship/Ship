@@ -161,19 +161,22 @@ impl ActorRuntime for SidecarActorRuntime {
         let procs = Arc::new(procs);
 
         // Build the Create request from the profile.
-        let mut req = ProcessCreateRequest::default();
-        req.bin = profile.bin.clone();
-        req.args = profile.args.clone();
-        req.env.extend(profile.env.iter().map(|(k, v)| (k.clone(), v.clone())));
-        req.cwd = profile.work_dir.to_string_lossy().into_owned();
-        req.pty = matches!(profile.transport, TransportKind::Pty);
-        if req.pty {
-            let mut size = PtySize::default();
-            size.cols = 120;
-            size.rows = 24;
-            req.pty_size = ::buffa::MessageField::some(size);
-        }
-        req.id_hint = actor_id.clone();
+        let pty = matches!(profile.transport, TransportKind::Pty);
+        let pty_size = if pty {
+            ::buffa::MessageField::some(PtySize { cols: 120, rows: 24, ..Default::default() })
+        } else {
+            ::buffa::MessageField::default()
+        };
+        let req = ProcessCreateRequest {
+            bin: profile.bin.clone(),
+            args: profile.args.clone(),
+            env: profile.env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+            cwd: profile.work_dir.to_string_lossy().into_owned(),
+            pty,
+            pty_size,
+            id_hint: actor_id.clone(),
+            ..Default::default()
+        };
 
         let info = procs
             .create(req)
@@ -199,8 +202,8 @@ impl ActorRuntime for SidecarActorRuntime {
         // proto already has it; consumer just isn't built here yet
         // because most production paths use PTY).
         if matches!(profile.transport, TransportKind::Pty) {
-            let mut attach_req = ProcessAttachPtyRequest::default();
-            attach_req.id = process_id.clone();
+            let attach_req =
+                ProcessAttachPtyRequest { id: process_id.clone(), ..Default::default() };
             let attach_tx = output_tx.clone();
             let procs_for_attach = procs.clone();
             tokio::spawn(async move {

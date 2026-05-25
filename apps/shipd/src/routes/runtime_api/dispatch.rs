@@ -549,7 +549,6 @@ fn load_and_validate_session_file(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::Scope;
     use std::sync::Arc;
     use tempfile::TempDir;
 

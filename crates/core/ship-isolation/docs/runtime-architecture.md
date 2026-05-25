@@ -193,30 +193,24 @@ What the runtime does NOT contain:
   POST directly to the runtime's local hook endpoint. No CLI
   install in the pod's image.
 
-## 7. MCP routing
+## 7. Agent → daemon: the op surface
 
-Two paths. No relays.
+**Ship's own surface (skills, not MCP).** A dispatched agent reaches
+Ship through one verb — `ship ops call <op>` — taught by generated
+capability-skills. The CLI resolves its transport from the env the spawn
+path injected (§9): `SHIP_DAEMON_URL` (the host daemon, rewritten
+sandbox-reachable) + the scoped `SHIP_TOKEN`. No relays. The in-daemon
+MCP tool server is being culled in favor of skills + `ship ops`; the op
+surface (`/ship.ops.v1.*`, incl. `isolation.*`) is its replacement.
 
-**Ship's MCP (HTTP-first):**
-
-- Daemon hosts `/api/v1/mcp/*` (new endpoint, replaces the
-  `ship mcp serve` indirection for HTTP-capable harnesses).
-- Harness's compiled config points there.
-- Auth: bearer token (scoped — see §9).
-- For HTTP-incapable harnesses, the stdio shim binary
-  (`ship mcp serve` today, repackaged) ships in the agent-runner
-  image as a fallback. It's a daemon client — its own HTTP outbound
-  to `/api/v1/mcp/*`.
-
-**User-configured MCP servers:**
+**User-configured MCP servers (external, unchanged):**
 
 - Listed in the agent profile (`mcp_servers: Vec<McpServerConfig>`).
-- Run as children of the in-sandbox runtime.
-- Image-baked or `npx`/`uvx`-installed at pod start.
-- Harness connects via stdio (local pipes inside the pod) —
-  never crosses the boundary.
-- Pod-shared by default for collaborating actors; per-actor opt-in
-  for privacy boundaries.
+- Run as children of the in-sandbox runtime; image-baked or
+  `npx`/`uvx`-installed at pod start.
+- Harness connects via stdio (local pipes inside the pod) — never
+  crosses the boundary. Pod-shared by default; per-actor opt-in for
+  privacy.
 
 ## 8. Filesystem
 
@@ -266,6 +260,22 @@ projects, multiple pods) is a scoped-token model:
 Token leaks are bounded to one pod, not the whole daemon. This is
 the actual security primitive — without it, BYOC and multi-tenant
 have no story.
+
+**Two identity legs, split by where the kernel boundary falls:**
+
+- **Host (Tier 0/1):** a local agent shares the daemon's kernel, so
+  the daemon reads its identity from the connection's peer credentials
+  (`SO_PEERCRED`) over the host unix socket — tokenless. (Host-socket
+  work; canonical write-up in the auth-model doc.)
+- **Isolated (Tier 2+):** a container/microVM agent's PID is not
+  resolvable in the daemon's namespace and there is no shared socket, so
+  peer-cred *cannot* apply. The supervisor mints a scoped session token
+  (role `worker` — never the daemon/Full token), injects it as
+  `SHIP_TOKEN` plus the reachable origin as `SHIP_DAEMON_URL`, and drops
+  it from the registry on actor exit (immediate revocation).
+  `ship ops` dials that origin with that token. This is the
+  load-bearing isolated-agent identity — peer-cred is host-only by
+  physics, not by preference.
 
 ## 10. Capability matrix + recommender
 
