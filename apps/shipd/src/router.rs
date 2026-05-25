@@ -526,10 +526,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListProjectAgents_template(), project_api::list_agents)
         // GitService — canonical `/api/v1/git/*` surface. Consolidates the
         // old workspace- and project-scoped git endpoints into one.
-        .ship_route(Route::GitStatus, git_api::status_handler)
-        .ship_route(Route::GitDiff, git_api::diff_handler)
-        .ship_route(Route::GitLog, git_api::log_handler)
-        .ship_route(Route::GitBranches, git_api::branches_handler)
         .ship_route(Route::GitStage, git_api::stage_handler)
         .ship_route(Route::GitUnstage, git_api::unstage_handler)
         .ship_route(Route::GitCommit, git_api::commit_handler)

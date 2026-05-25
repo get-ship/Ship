@@ -548,22 +548,6 @@ pub enum Route {
 
     // ── GitService — canonical `/api/git/*` surface ──────────────────────
 
-    /// @route GET "/api/v1/git/status"
-    /// @auth scope ReadWorkspace
-    GitStatus,
-
-    /// @route GET "/api/v1/git/diff"
-    /// @auth scope ReadWorkspace
-    GitDiff,
-
-    /// @route GET "/api/v1/git/log"
-    /// @auth scope ReadWorkspace
-    GitLog,
-
-    /// @route GET "/api/v1/git/branches"
-    /// @auth scope ReadWorkspace
-    GitBranches,
-
     /// @route POST "/api/v1/git/stage"
     /// @auth scope WriteWorkspace
     GitStage,
