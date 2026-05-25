@@ -1122,6 +1122,7 @@ dependencies = [
  "sui-compiler",
  "sui-signals",
  "tempfile",
+ "tokio",
  "tracing",
 ]
 
