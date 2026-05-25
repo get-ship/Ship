@@ -18,7 +18,7 @@ use crate::routes::{
     account_api, actor_api, actors_api, annotations_api,
     artifacts_api, commands_api, create_api, feedback_api, git_api,
     hooks_api, human_webhook, logs_api, openapi,
-    projects_api, registry_api, rest_api, runtime_api,
+    registry_api, rest_api, runtime_api,
     sdk_manifest, search_api, settings_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
@@ -447,11 +447,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
         .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
         .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses)
-        .ship_route(Route::ListProjects, projects_api::list_projects)
-        .ship_route(Route::AddProject, projects_api::add_project)
-        .ship_route(Route::SwitchProject, projects_api::switch_project)
-        .ship_route(Route::ActivateProject_template(), projects_api::activate_project)
-        .ship_route(Route::GetActiveProject, projects_api::get_active_project)
         .ship_route(Route::ListSessionsAcrossProjects, runtime_api::list_sessions_across_projects)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)

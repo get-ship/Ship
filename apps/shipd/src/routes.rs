@@ -58,7 +58,6 @@ pub mod logs_api;
 pub mod openapi;
 pub mod openapi_modifier;
 pub mod openapi_types;
-pub mod projects_api;
 pub mod registry_api;
 pub mod rest_api;
 pub mod runtime_api;
@@ -320,26 +319,6 @@ pub enum Route {
     /// @route GET "/api/v1/harnesses/installed"
     /// @auth scope ReadWorkspace
     InstalledProviders,
-
-    /// @route GET "/api/v1/projects"
-    /// @auth scope ReadWorkspace
-    ListProjects,
-
-    /// @route POST "/api/v1/projects"
-    /// @auth scope WriteWorkspace
-    AddProject,
-
-    /// @route POST "/api/v1/projects/switch"
-    /// @auth scope WriteWorkspace
-    SwitchProject,
-
-    /// @route POST "/api/v1/projects/{id}/activate"
-    /// @auth scope WriteWorkspace
-    ActivateProject { id: String },
-
-    /// @route GET "/api/v1/projects/active"
-    /// @auth scope ReadWorkspace
-    GetActiveProject,
 
     /// @route GET "/api/v1/sessions/active-across-projects"
     /// @auth scope ReadWorkspace
