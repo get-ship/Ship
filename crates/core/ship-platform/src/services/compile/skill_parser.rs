@@ -36,6 +36,38 @@ pub fn embedded_capability_skills() -> Vec<Skill> {
         .collect()
 }
 
+/// The non-`SKILL.md` files inside an embedded sdk-skill directory, as
+/// `(path-relative-to-skill-dir, content)` — e.g.
+/// `("references/docs/git.create.mdoc", "...")`. Empty for ids that aren't
+/// embedded sdk-skills. The compiler writes `SKILL.md` itself (it's templated);
+/// these are the static pages its TOC links to, delivered beside it so the
+/// links resolve.
+pub fn embedded_skill_reference_files(id: &str) -> Vec<(String, String)> {
+    let Some(dir) = SDK_SKILLS.get_dir(id) else {
+        return Vec::new();
+    };
+    let mut files = Vec::new();
+    collect_embedded_files(dir, &mut files);
+    let prefix = format!("{id}/");
+    files
+        .into_iter()
+        .filter_map(|f| {
+            let rel = f.path().to_string_lossy().strip_prefix(&prefix)?.to_string();
+            if rel == "SKILL.md" {
+                return None;
+            }
+            Some((rel, f.contents_utf8()?.to_string()))
+        })
+        .collect()
+}
+
+fn collect_embedded_files<'a>(dir: &'a Dir<'a>, out: &mut Vec<&'a include_dir::File<'a>>) {
+    out.extend(dir.files());
+    for sub in dir.dirs() {
+        collect_embedded_files(sub, out);
+    }
+}
+
 /// The compile-time skill **pool**: a project's on-disk skills plus the embedded
 /// SDK capability-skills (a project id wins on conflict, so a project can shadow
 /// a generated skill). Distinct from [`load_skills`], which is disk-only and
@@ -296,6 +328,22 @@ mod sdk_skill_tests {
             "capability-skill teaches the ops CLI"
         );
         assert_eq!(git.source, SkillSource::Builtin);
+    }
+
+    #[test]
+    fn embedded_skill_reference_pages_are_available() {
+        let refs = embedded_skill_reference_files("ship-git");
+        assert!(!refs.is_empty(), "ship-git ships per-op reference pages");
+        assert!(
+            refs.iter().all(|(p, _)| p != "SKILL.md"),
+            "SKILL.md is delivered by the compiler, not as a reference file"
+        );
+        assert!(
+            refs.iter().any(|(p, _)| p.starts_with("references/docs/") && p.ends_with(".mdoc")),
+            "reference pages live under references/docs/*.mdoc"
+        );
+        // Unknown ids (authored skills) have no embedded references.
+        assert!(embedded_skill_reference_files("not-an-sdk-skill").is_empty());
     }
 
     #[test]
