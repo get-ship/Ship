@@ -125,7 +125,12 @@ pub fn decide(blast: BlastRadius, domain: &Domain, caller: &Caller) -> Decision 
         return Decision::Allow;
     }
     match blast {
-        BlastRadius::C2Elevated => Decision::Deny("op requires a human-operator credential"),
+        // C2/C3 stay operator-only here; the per-service-ceiling rewrite (which
+        // makes C2 grantable to commander agents and keeps C3 operator-only) is
+        // the coupled migration. Adding C3 is behavior-preserving until then.
+        BlastRadius::C2Elevated | BlastRadius::C3Critical => {
+            Decision::Deny("op requires a human-operator credential")
+        }
         BlastRadius::C0Read | BlastRadius::C1Workspace => {
             // Default (non-restricted) domains are open to any in-scope agent;
             // restricted domains need the matching grant. Both paths Allow.
@@ -150,9 +155,14 @@ mod tests {
     }
 
     #[test]
-    fn unknown_blast_string_fails_closed_to_c2() {
-        assert_eq!(BlastRadius::from_descriptor("nonsense"), BlastRadius::C2Elevated);
+    fn unknown_blast_string_fails_closed_to_most_restrictive() {
+        // Fail closed to the highest tier — a misdeclared op is operator-only.
+        assert_eq!(BlastRadius::from_descriptor("nonsense"), BlastRadius::C3Critical);
         assert_eq!(BlastRadius::from_descriptor("C1_WORKSPACE"), BlastRadius::C1Workspace);
+        assert_eq!(BlastRadius::from_descriptor("C0_SAFE"), BlastRadius::C0Read);
+        // Ordering: the gate's `blast <= ceiling` relies on this.
+        assert!(BlastRadius::C0Read < BlastRadius::C1Workspace);
+        assert!(BlastRadius::C2Elevated < BlastRadius::C3Critical);
     }
 
     #[test]

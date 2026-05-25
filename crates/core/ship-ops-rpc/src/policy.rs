@@ -15,35 +15,44 @@ use buffa::extension::Extension;
 use buffa::ExtensionSet;
 use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 
-/// Blast-radius class — the human-vs-agent line the gate enforces, carried as a
-/// proto method option. The canonical home is here (next to the FDS reader that
-/// produces it); shipd's gate re-exports it. `from_descriptor` fails closed to
-/// `C2Elevated` — a misdeclared op is gated to the human, never opened to agents.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+/// Blast-radius class — the risk gradient the gate enforces against an agent's
+/// ceiling, carried as a proto method option. The canonical home is here (next
+/// to the FDS reader that produces it); shipd's gate re-exports it.
+///
+/// Four tiers, ordered C0 < C1 < C2 < C3 (derive `Ord`): **C0** read (anyone),
+/// **C1** workspace-write (any agent), **C2** elevated (granted agents —
+/// dispatch/settings/authoring), **C3** critical (operator/2FA only —
+/// account/permissions/credentials). `from_descriptor`/unknown fails closed to
+/// `C3Critical` — the most restrictive tier — so a misdeclared op is operator-only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
 pub enum BlastRadius {
-    #[serde(rename = "C0_READ")]
+    #[serde(rename = "C0_SAFE")]
     C0Read,
     #[serde(rename = "C1_WORKSPACE")]
     C1Workspace,
     #[serde(rename = "C2_ELEVATED")]
     C2Elevated,
+    #[serde(rename = "C3_CRITICAL")]
+    C3Critical,
 }
 
 impl BlastRadius {
     pub fn from_descriptor(s: &str) -> Self {
         match s {
-            "C0_READ" => Self::C0Read,
+            "C0_SAFE" | "C0_READ" => Self::C0Read,
             "C1_WORKSPACE" => Self::C1Workspace,
             "C2_ELEVATED" => Self::C2Elevated,
-            _ => Self::C2Elevated,
+            "C3_CRITICAL" => Self::C3Critical,
+            _ => Self::C3Critical,
         }
     }
 
     pub fn as_descriptor(self) -> &'static str {
         match self {
-            Self::C0Read => "C0_READ",
+            Self::C0Read => "C0_SAFE",
             Self::C1Workspace => "C1_WORKSPACE",
             Self::C2Elevated => "C2_ELEVATED",
+            Self::C3Critical => "C3_CRITICAL",
         }
     }
 }
@@ -209,14 +218,17 @@ impl MethodPolicy {
     }
 }
 
-/// Map the proto `BlastRadius` enum number to the gate's class. Unspecified (0)
-/// or unknown → `C2Elevated` (**fail closed**: a misdeclared op is gated to the
-/// human). Reconciles the proto name (`C0_SAFE`) with the gate's `C0Read`.
+/// Map the proto `BlastRadius` enum number to the gate's tier. Unspecified (0)
+/// or unknown → `C3Critical` (**fail closed** to the most restrictive tier: a
+/// misdeclared op is operator-only). Reconciles the proto name (`C0_SAFE`) with
+/// the gate's `C0Read`.
 fn blast_from_proto(n: Option<i32>) -> BlastRadius {
     match n {
         Some(1) => BlastRadius::C0Read,      // BLAST_RADIUS_C0_SAFE
         Some(2) => BlastRadius::C1Workspace, // BLAST_RADIUS_C1_WORKSPACE
-        _ => BlastRadius::C2Elevated,        // C2_ELEVATED, UNSPECIFIED, unknown
+        Some(3) => BlastRadius::C2Elevated,  // BLAST_RADIUS_C2_ELEVATED
+        Some(4) => BlastRadius::C3Critical,  // BLAST_RADIUS_C3_CRITICAL
+        _ => BlastRadius::C3Critical,        // UNSPECIFIED, unknown — fail closed
     }
 }
 
