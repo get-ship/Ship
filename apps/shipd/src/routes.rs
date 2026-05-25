@@ -57,9 +57,6 @@ pub mod feedback_api;
 pub mod git_api;
 pub mod hooks_api;
 pub mod human_webhook;
-pub mod isolation_api;
-#[cfg(test)]
-mod isolation_api_tests;
 pub mod sandbox_api;
 #[cfg(test)]
 mod sandbox_api_tests;
@@ -999,31 +996,8 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     Capabilities,
 
-    // ── Isolation (agent sandbox) ────────────────────────────────────────
-
-    /// @route GET "/api/v1/isolation/status"
-    /// @auth scope ReadWorkspace
-    IsolationStatus,
-
-    /// @route POST "/api/v1/isolation/rescan"
-    /// @auth scope WriteWorkspace
-    IsolationRescan,
-
-    /// @route GET "/api/v1/isolation/recommendations"
-    /// @auth scope ReadWorkspace
-    IsolationRecommendations,
-
-    /// @route POST "/api/v1/isolation/preview"
-    /// @auth scope ReadWorkspace
-    IsolationPreview,
-
-    /// @route POST "/api/v1/isolation/verify"
-    /// @auth scope WriteWorkspace
-    IsolationVerify,
-
-    /// @route POST "/api/v1/isolation/init"
-    /// @auth scope WriteWorkspace
-    IsolationInit,
+    // Isolation reads moved to the proto IsolationService (ship.ops.v1);
+    // the REST routes were removed to avoid a parallel path.
 
     /// @route GET "/api/v1/sandboxes"
     /// @auth scope ReadWorkspace

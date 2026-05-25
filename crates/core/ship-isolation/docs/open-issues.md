@@ -430,19 +430,21 @@ Chunk F.
 
 ## Arc hand-offs — reconcile at the connect-followups / sui-framework merge
 
-The isolation op-surface arc landed Phases 1–3 additively on this branch
-(proto `IsolationService`, the scoped-token spawn seam, `ship ops`
-honoring `SHIP_DAEMON_URL`/`SHIP_TOKEN`). Four items are deliberately
-**not** done here because they belong at the integration point — doing
-them on this branch would conflict or be premature:
+The isolation op-surface arc landed Phases 1–3 on this branch (proto
+`IsolationService`, the scoped-token spawn seam, `ship ops` honoring
+`SHIP_DAEMON_URL`/`SHIP_TOKEN`) and removed the duplicate REST + MCP
+surfaces to keep one path. Three items remain, deferred to the
+integration point because doing them here would conflict or be premature:
 
-- **Delete the old isolation surface (Phase 4).** The `isolation_status`
-  MCP tool + `/api/v1/isolation/*` REST reads stay until the GUI flip
-  (#72) / MCP cull, exactly like every other per-domain proto service
-  ("additive beside the old path until the flip"). Deleting now opens a
-  regression window: the agent's `ship ops call isolation.*` skill isn't
-  generated on this branch (gen-skills reads the proto descriptor only on
-  connect-followups), and the GUI wizard still consumes the REST reads.
+- **The temporary gap from deleting the old surface.** The
+  `isolation_status` + `list_agents` MCP tools and the
+  `/api/v1/isolation/*` REST reads were deleted (no parallel paths). Until
+  the connect cutover, two consumers have no path: the GUI isolation
+  wizard (repoints to `IsolationService` at the GUI flip #72) and the
+  agent's `ship ops call isolation.*` skill (gen-skills reads the proto
+  descriptor only on connect-followups). `isolation.init` (a C1 write) has
+  no proto op yet — its gated-op migration lands at the cutover; the
+  `ship isolation` operator CLI still runs init in-process meanwhile.
 - **`ship ops` catalog routing to authored per-domain services.** On this
   branch `ops_cmd` resolves the catalog from the legacy `schema::OPS`
   table and only routes to ReadOps/CommandOps — so `isolation.*` (and

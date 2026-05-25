@@ -1,10 +1,13 @@
-//! `ship isolation …` — daemon-mediated by default, falls back to
-//! in-process when shipd isn't running.
+//! `ship isolation …` — operator CLI for the capability probe, recommender,
+//! and isolation-settings init.
 //!
-//! Tries shipd's `/api/v1/isolation/*` first so the CLI sees the same
-//! cached capability snapshot the UI does. If the daemon isn't up the
-//! same operations run in-process (they share `daemon_settings` so the
-//! outcome is identical).
+//! Runs the reads in-process via `ship_platform::isolation` /
+//! `isolation_ops` (they share `daemon_settings`, so the outcome matches the
+//! daemon's). The isolation reads are no longer mirrored as REST routes — the
+//! daemon serves them on the proto IsolationService (`ship ops call
+//! isolation.*`), so the CLI uses the logic layer directly rather than a
+//! parallel REST path. `ship isolation sandboxes` still calls the daemon
+//! (`/api/v1/sandboxes`) since live sandbox state only exists there.
 
 use anyhow::Result;
 use ship_isolation::capabilities::{Capabilities, HostOs};
@@ -38,7 +41,7 @@ fn render_sandboxes(as_json: bool) -> Result<()> {
              start it with: ship daemon start"
         );
     };
-    let payload = call_daemon(port, &token, "/api/v1/sandboxes", false, None)?;
+    let payload = call_daemon(port, &token, "/api/v1/sandboxes")?;
     if as_json {
         println!("{}", serde_json::to_string_pretty(&payload)?);
         return Ok(());
@@ -77,19 +80,7 @@ fn print_sandboxes_human(payload: &serde_json::Value) {
 // ── status / rescan ──────────────────────────────────────────────────────────
 
 fn render_status(rescan: bool, as_json: bool) -> Result<()> {
-    // Daemon path: GET /api/v1/isolation/status or POST /rescan return
-    // the same shape, so we use whichever matches the verb.
-    let payload = if let Some((port, token)) = crate::daemon::daemon_info_if_healthy() {
-        let path = if rescan { "/api/v1/isolation/rescan" } else { "/api/v1/isolation/status" };
-        if let Ok(v) = call_daemon(port, &token, path, rescan, None) {
-            v
-        } else {
-            in_process_status(rescan)?
-        }
-    } else {
-        in_process_status(rescan)?
-    };
-
+    let payload = in_process_status(rescan)?;
     if as_json {
         println!("{}", serde_json::to_string_pretty(&payload)?);
         return Ok(());
@@ -117,14 +108,7 @@ fn in_process_status(rescan: bool) -> Result<serde_json::Value> {
 // ── verify / recommendations / preview / init ────────────────────────────────
 
 fn render_verify(as_json: bool) -> Result<()> {
-    let v = if let Some((port, token)) = crate::daemon::daemon_info_if_healthy() {
-        match call_daemon(port, &token, "/api/v1/isolation/verify", true, None) {
-            Ok(v) => v,
-            Err(_) => serde_json::to_value(&isolation_ops::verify_decision())?,
-        }
-    } else {
-        serde_json::to_value(&isolation_ops::verify_decision())?
-    };
+    let v = serde_json::to_value(&isolation_ops::verify_decision())?;
     if as_json {
         println!("{}", serde_json::to_string_pretty(&v)?);
         return Ok(());
@@ -134,14 +118,7 @@ fn render_verify(as_json: bool) -> Result<()> {
 }
 
 fn render_recommendations(as_json: bool) -> Result<()> {
-    let v = if let Some((port, token)) = crate::daemon::daemon_info_if_healthy() {
-        match call_daemon(port, &token, "/api/v1/isolation/recommendations", false, None) {
-            Ok(v) => v,
-            Err(_) => serde_json::to_value(&isolation_ops::recommendations()?)?,
-        }
-    } else {
-        serde_json::to_value(&isolation_ops::recommendations()?)?
-    };
+    let v = serde_json::to_value(&isolation_ops::recommendations()?)?;
     if as_json {
         println!("{}", serde_json::to_string_pretty(&v)?);
         return Ok(());
@@ -150,20 +127,8 @@ fn render_recommendations(as_json: bool) -> Result<()> {
     Ok(())
 }
 
-fn render_preview(tier: Option<&str>, strategy: Option<&str>, as_json: bool) -> Result<()> {
-    let body = serde_json::json!({ "tier": tier, "strategy": strategy });
-    let v = if let Some((port, token)) = crate::daemon::daemon_info_if_healthy() {
-        match call_daemon(port, &token, "/api/v1/isolation/preview", true, Some(&body)) {
-            Ok(v) => v,
-            Err(_) => preview_in_process(tier, strategy)?,
-        }
-    } else {
-        preview_in_process(tier, strategy)?
-    };
-    if as_json {
-        println!("{}", serde_json::to_string_pretty(&v)?);
-        return Ok(());
-    }
+fn render_preview(tier: Option<&str>, strategy: Option<&str>, _as_json: bool) -> Result<()> {
+    let v = preview_in_process(tier, strategy)?;
     println!("{}", serde_json::to_string_pretty(&v)?);
     Ok(())
 }
@@ -184,19 +149,7 @@ fn render_init(
     enforce: bool,
     as_json: bool,
 ) -> Result<()> {
-    let body = serde_json::json!({
-        "tier": tier,
-        "strategy": strategy,
-        "enforce": enforce,
-    });
-    let v = if let Some((port, token)) = crate::daemon::daemon_info_if_healthy() {
-        match call_daemon(port, &token, "/api/v1/isolation/init", true, Some(&body)) {
-            Ok(v) => v,
-            Err(_) => init_in_process(tier, strategy, enforce)?,
-        }
-    } else {
-        init_in_process(tier, strategy, enforce)?
-    };
+    let v = init_in_process(tier, strategy, enforce)?;
     if as_json {
         println!("{}", serde_json::to_string_pretty(&v)?);
         return Ok(());
@@ -221,25 +174,10 @@ fn init_in_process(
 
 // ── daemon HTTP client ───────────────────────────────────────────────────────
 
-fn call_daemon(
-    port: u16,
-    token: &str,
-    path: &str,
-    post: bool,
-    body: Option<&serde_json::Value>,
-) -> Result<serde_json::Value> {
+fn call_daemon(port: u16, token: &str, path: &str) -> Result<serde_json::Value> {
     let url = format!("http://127.0.0.1:{port}{path}");
-    let client = crate::http::daemon_client();
-    let request = if post {
-        let mut req = client.post(&url);
-        if let Some(b) = body {
-            req = req.json(b);
-        }
-        req
-    } else {
-        client.get(&url)
-    };
-    let resp = request
+    let resp = crate::http::daemon_client()
+        .get(&url)
         .header("Authorization", format!("Bearer {token}"))
         .timeout(std::time::Duration::from_secs(5))
         .send()?;

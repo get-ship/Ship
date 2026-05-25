@@ -17,7 +17,7 @@ use crate::{
 use crate::routes::{
     account_api, actor_api, actors_api, agents_api, analytics_api, annotations_api,
     artifacts_api, collection_api, commands_api, create_api, feedback_api, git_api,
-    hooks_api, human_webhook, isolation_api, logs_api, mcp_api, openapi, permissions_api,
+    hooks_api, human_webhook, logs_api, mcp_api, openapi, permissions_api,
     pipelines_api, projects_api, registry_api, rest_api, rules_api, runtime_api,
     sandbox_api, sdk_manifest, search_api, settings_api, skills_api, specs_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
@@ -449,17 +449,10 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         )
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
-        // Isolation — agent sandbox capability probe + recommender +
-        // wizard endpoints (recommendations / preview / verify / init)
-        .ship_route(Route::IsolationStatus, isolation_api::isolation_status)
-        .ship_route(Route::IsolationRescan, isolation_api::isolation_rescan)
-        .ship_route(
-            Route::IsolationRecommendations,
-            isolation_api::isolation_recommendations,
-        )
-        .ship_route(Route::IsolationPreview, isolation_api::isolation_preview)
-        .ship_route(Route::IsolationVerify, isolation_api::isolation_verify)
-        .ship_route(Route::IsolationInit, isolation_api::isolation_init)
+        // Isolation reads are served by the proto IsolationService
+        // (ship.ops.v1) — the one op-surface path. The former
+        // /api/v1/isolation/* REST routes were removed to avoid a parallel
+        // path; init's gated-op migration lands at the connect cutover.
         .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
         .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
         // Runtime
