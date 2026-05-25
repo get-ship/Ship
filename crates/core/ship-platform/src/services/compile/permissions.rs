@@ -157,7 +157,8 @@ pub fn apply_agent_permissions(
                     "Read".into(),
                     "Glob".into(),
                     "LS".into(),
-                    "mcp__ship__*".into(),
+                    // Ship ops reach the daemon via `ship ops call` / `ship *`
+                    // over the host socket — no MCP tool surface.
                     "Bash(ship *)".into(),
                 ],
                 deny: vec!["Write(*)".into(), "Edit(*)".into(), "Bash(rm*)".into()],

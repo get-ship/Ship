@@ -58,11 +58,6 @@ pub enum WorkspaceCommands {
 
 #[derive(Subcommand, Debug)]
 pub enum McpCommands {
-    /// Run the Ship MCP server over stdio (a thin local shim over the same
-    /// surface the daemon hosts at `$DAEMON/mcp`). The standalone `--http`
-    /// listener was retired — the daemon is the one HTTP transport.
-    Serve {},
-
     /// Register an MCP server (HTTP/SSE transport)
     Add {
         /// Stable server ID

@@ -29,7 +29,6 @@ mod job;
 mod logging;
 mod uninstall;
 mod mcp;
-mod mcp_serve;
 mod paths;
 mod profile;
 mod publish;
@@ -443,7 +442,6 @@ fn dispatch_workspace(action: WorkspaceCommands) -> Result<()> {
 
 fn dispatch_mcp(action: McpCommands) -> Result<()> {
     match action {
-        McpCommands::Serve {} => mcp_serve::run(),
         McpCommands::List => mcp::list(),
         McpCommands::Add { id, name, url, .. } => {
             let url =

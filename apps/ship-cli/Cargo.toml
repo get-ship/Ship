@@ -15,7 +15,6 @@ path = "src/main.rs"
 [dependencies]
 build-info = { path = "../../crates/core/build-info" }
 clap = { workspace = true }
-mcp = { path = "../mcp" }
 shipd = { path = "../shipd" }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
 cli-framework = { path = "../../crates/core/cli-framework" }
@@ -50,7 +49,7 @@ ratatui = "0.29"
 crossterm = "0.28"
 
 [features]
-unstable = ["mcp/unstable", "ship-platform/unstable", "shipd/unstable"]
+unstable = ["ship-platform/unstable", "shipd/unstable"]
 
 # ── cargo-deb (Linux .deb) ────────────────────────────────────────────────────
 # Invoked by CI on tag push: `cargo deb -p ship-cli --no-build`.

@@ -296,12 +296,6 @@ pub fn build_router(
         .merge(crate::ops_rpc::router(rt.clone()))
         .layer(axum::Extension(feedback_guard))
         .layer(axum::Extension(account_service))
-        // Project the authed caller's identity + scopes into the shared
-        // `McpAuth` carrier so the in-daemon MCP gate (in the `mcp` crate,
-        // which can't see shipd's `AuthContext`) can read it from the
-        // request `Parts` rmcp forwards into the tool context. Inner to
-        // `auth_middleware` below, so `AuthContext` is already present.
-        .layer(axum::middleware::from_fn(inject_mcp_auth))
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with
         // auth) so requests must carry a valid bearer before short-circuit.
@@ -339,27 +333,6 @@ pub fn build_router(
         ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
-}
-
-/// Project the request's `AuthContext` (shipd-internal) into the shared
-/// `ship_platform::auth::scopes::McpAuth` carrier and insert it into request
-/// extensions. The in-daemon-mounted MCP server (the `mcp` crate) reads this
-/// from the HTTP `Parts` rmcp forwards into the tool context to gate tools by
-/// the connection's token scopes. No-op when there's no `AuthContext` (the
-/// stdio shim path carries none and falls back to a trusted-local default).
-async fn inject_mcp_auth(
-    mut req: axum::extract::Request,
-    next: axum::middleware::Next,
-) -> axum::response::Response {
-    if let Some(auth) = req.extensions().get::<auth::AuthContext>().cloned() {
-        req.extensions_mut()
-            .insert(ship_platform::auth::scopes::McpAuth {
-                agent_id: auth.agent_id.unwrap_or_default(),
-                scopes: auth.scopes,
-                workspace_id: auth.workspace_id,
-            });
-    }
-    next.run(req).await
 }
 
 /// Stamp `X-Shipd-Build` on every response so clients can detect daemon
