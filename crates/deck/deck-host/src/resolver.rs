@@ -261,7 +261,7 @@ mod tests {
             )
             .unwrap();
 
-            let r = resolve(root, "widget", None).expect("on-disk widget resolves");
+            let r = resolve(root, None, "widget", None).expect("on-disk widget resolves");
             assert!(r.source.contains("name=\"x\""));
             assert!(r.source_path.is_some());
             assert!(r.params.is_empty());
@@ -279,7 +279,7 @@ mod tests {
             )
             .unwrap();
 
-            let r = resolve(root, "things", Some("42")).expect("param dir resolves");
+            let r = resolve(root, None, "things", Some("42")).expect("param dir resolves");
             assert_eq!(r.params.get("id").map(String::as_str), Some("42"));
         });
     }
@@ -287,7 +287,7 @@ mod tests {
     #[test]
     fn missing_view_returns_diagnostic() {
         with_tempdir(|root| {
-            let err = resolve(root, "ghost", None).unwrap_err();
+            let err = resolve(root, None, "ghost", None).unwrap_err();
             assert!(err.message.contains("ghost"));
             assert!(err.message.contains(".ship/views"));
         });
@@ -308,7 +308,7 @@ mod tests {
             let path = view_dir.join("index.sui");
             fs::write(&path, r#"<p>first</p>"#).unwrap();
 
-            let r = resolve(root, "cachey", None).unwrap();
+            let r = resolve(root, None, "cachey", None).unwrap();
             let first = render_resolved(&r, "cachey").unwrap();
 
             let second = render_resolved(&r, "cachey").unwrap();
@@ -316,7 +316,7 @@ mod tests {
 
             fs::write(&path, r#"<p>second</p>"#).unwrap();
             bump_mtime(&path, 5);
-            let r2 = resolve(root, "cachey", None).unwrap();
+            let r2 = resolve(root, None, "cachey", None).unwrap();
             let third = render_resolved(&r2, "cachey").unwrap();
             assert_ne!(third.html, first.html);
         });
@@ -333,7 +333,7 @@ mod tests {
             )
             .unwrap();
 
-            let r = resolve(root, "widget", None).expect("on-disk widget resolves");
+            let r = resolve(root, None, "widget", None).expect("on-disk widget resolves");
             assert!(r.source.contains("name=\"x\""));
             assert!(r.source_path.is_some());
             assert!(r.params.is_empty());
