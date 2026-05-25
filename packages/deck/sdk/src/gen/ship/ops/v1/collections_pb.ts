@@ -23,7 +23,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/collections.proto.
  */
 export const file_ship_ops_v1_collections: GenFile = /*@__PURE__*/
-  fileDesc("Ch1zaGlwL29wcy92MS9jb2xsZWN0aW9ucy5wcm90bxILc2hpcC5vcHMudjEiLAoaR2V0Q29sbGVjdGlvbnNTdGF0ZVJlcXVlc3QSDgoGYWN0aXZlGAEgASgJIhgKFkxpc3RDb2xsZWN0aW9uc1JlcXVlc3QiKAoaR2V0Q29sbGVjdGlvbkRldGFpbFJlcXVlc3QSCgoCaWQYASABKAkiLwoZR2V0Q29sbGVjdGlvbkl0ZW1zUmVxdWVzdBISCgpjb2xsZWN0aW9uGAEgASgJIlAKG0NyZWF0ZUNvbGxlY3Rpb25JdGVtUmVxdWVzdBISCgpjb2xsZWN0aW9uGAEgASgJEhEKCWRhdGFfanNvbhgCIAEoCRIKCgJpZBgDIAEoCSJQChtVcGRhdGVDb2xsZWN0aW9uSXRlbVJlcXVlc3QSEgoKY29sbGVjdGlvbhgBIAEoCRIKCgJpZBgCIAEoCRIRCglkYXRhX2pzb24YAyABKAkiPQobRGVsZXRlQ29sbGVjdGlvbkl0ZW1SZXF1ZXN0EhIKCmNvbGxlY3Rpb24YASABKAkSCgoCaWQYAiABKAkiNAodQ3JlYXRlQ29sbGVjdGlvblNjaGVtYVJlcXVlc3QSEwoLc2NoZW1hX2pzb24YASABKAkiSAodVXBkYXRlQ29sbGVjdGlvblNjaGVtYVJlcXVlc3QSEgoKY29sbGVjdGlvbhgBIAEoCRITCgtzY2hlbWFfanNvbhgCIAEoCTKGCAoSQ29sbGVjdGlvbnNTZXJ2aWNlEmoKBVN0YXRlEicuc2hpcC5vcHMudjEuR2V0Q29sbGVjdGlvbnNTdGF0ZVJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiHYq1GBVzaGlwLmNvbGxlY3Rpb25zLnJlYWSQtRgBEmUKBExpc3QSIy5zaGlwLm9wcy52MS5MaXN0Q29sbGVjdGlvbnNSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIh2KtRgVc2hpcC5jb2xsZWN0aW9ucy5yZWFkkLUYARJrCgZEZXRhaWwSJy5zaGlwLm9wcy52MS5HZXRDb2xsZWN0aW9uRGV0YWlsUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIdirUYFXNoaXAuY29sbGVjdGlvbnMucmVhZJC1GAESaQoFSXRlbXMSJi5zaGlwLm9wcy52MS5HZXRDb2xsZWN0aW9uSXRlbXNSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIh2KtRgVc2hpcC5jb2xsZWN0aW9ucy5yZWFkkLUYARJzCgpDcmVhdGVJdGVtEiguc2hpcC5vcHMudjEuQ3JlYXRlQ29sbGVjdGlvbkl0ZW1SZXF1ZXN0Ghsuc2hpcC5vcHMudjEuQ29sbGVjdGlvbkl0ZW0iHoq1GBZzaGlwLmNvbGxlY3Rpb25zLndyaXRlkLUYAhJzCgpVcGRhdGVJdGVtEiguc2hpcC5vcHMudjEuVXBkYXRlQ29sbGVjdGlvbkl0ZW1SZXF1ZXN0Ghsuc2hpcC5vcHMudjEuQ29sbGVjdGlvbkl0ZW0iHoq1GBZzaGlwLmNvbGxlY3Rpb25zLndyaXRlkLUYAhJtCgpEZWxldGVJdGVtEiguc2hpcC5vcHMudjEuRGVsZXRlQ29sbGVjdGlvbkl0ZW1SZXF1ZXN0GhUuc2hpcC5vcHMudjEuRGVsZXRpb24iHoq1GBZzaGlwLmNvbGxlY3Rpb25zLndyaXRlkLUYAhJ1CgxDcmVhdGVTY2hlbWESKi5zaGlwLm9wcy52MS5DcmVhdGVDb2xsZWN0aW9uU2NoZW1hUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIeirUYFnNoaXAuY29sbGVjdGlvbnMud3JpdGWQtRgCEnUKDFVwZGF0ZVNjaGVtYRIqLnNoaXAub3BzLnYxLlVwZGF0ZUNvbGxlY3Rpb25TY2hlbWFSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIh6KtRgWc2hpcC5jb2xsZWN0aW9ucy53cml0ZZC1GAJiBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_types, file_ship_ops_v1_ops]);
+  fileDesc("Ch1zaGlwL29wcy92MS9jb2xsZWN0aW9ucy5wcm90bxILc2hpcC5vcHMudjEiLAoaR2V0Q29sbGVjdGlvbnNTdGF0ZVJlcXVlc3QSDgoGYWN0aXZlGAEgASgJIhgKFkxpc3RDb2xsZWN0aW9uc1JlcXVlc3QiKAoaR2V0Q29sbGVjdGlvbkRldGFpbFJlcXVlc3QSCgoCaWQYASABKAkiLwoZR2V0Q29sbGVjdGlvbkl0ZW1zUmVxdWVzdBISCgpjb2xsZWN0aW9uGAEgASgJIjYKFEdldENvbGxlY3Rpb25JdGVtUmVxEhIKCmNvbGxlY3Rpb24YASABKAkSCgoCaWQYAiABKAkiUAobQ3JlYXRlQ29sbGVjdGlvbkl0ZW1SZXF1ZXN0EhIKCmNvbGxlY3Rpb24YASABKAkSEQoJZGF0YV9qc29uGAIgASgJEgoKAmlkGAMgASgJIlAKG1VwZGF0ZUNvbGxlY3Rpb25JdGVtUmVxdWVzdBISCgpjb2xsZWN0aW9uGAEgASgJEgoKAmlkGAIgASgJEhEKCWRhdGFfanNvbhgDIAEoCSI9ChtEZWxldGVDb2xsZWN0aW9uSXRlbVJlcXVlc3QSEgoKY29sbGVjdGlvbhgBIAEoCRIKCgJpZBgCIAEoCSI0Ch1DcmVhdGVDb2xsZWN0aW9uU2NoZW1hUmVxdWVzdBITCgtzY2hlbWFfanNvbhgBIAEoCSJICh1VcGRhdGVDb2xsZWN0aW9uU2NoZW1hUmVxdWVzdBISCgpjb2xsZWN0aW9uGAEgASgJEhMKC3NjaGVtYV9qc29uGAIgASgJMu4IChJDb2xsZWN0aW9uc1NlcnZpY2USagoFU3RhdGUSJy5zaGlwLm9wcy52MS5HZXRDb2xsZWN0aW9uc1N0YXRlUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIdirUYFXNoaXAuY29sbGVjdGlvbnMucmVhZJC1GAESZQoETGlzdBIjLnNoaXAub3BzLnYxLkxpc3RDb2xsZWN0aW9uc1JlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiHYq1GBVzaGlwLmNvbGxlY3Rpb25zLnJlYWSQtRgBEmsKBkRldGFpbBInLnNoaXAub3BzLnYxLkdldENvbGxlY3Rpb25EZXRhaWxSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIh2KtRgVc2hpcC5jb2xsZWN0aW9ucy5yZWFkkLUYARJpCgVJdGVtcxImLnNoaXAub3BzLnYxLkdldENvbGxlY3Rpb25JdGVtc1JlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiHYq1GBVzaGlwLmNvbGxlY3Rpb25zLnJlYWSQtRgBEmYKB0dldEl0ZW0SIS5zaGlwLm9wcy52MS5HZXRDb2xsZWN0aW9uSXRlbVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIdirUYFXNoaXAuY29sbGVjdGlvbnMucmVhZJC1GAEScwoKQ3JlYXRlSXRlbRIoLnNoaXAub3BzLnYxLkNyZWF0ZUNvbGxlY3Rpb25JdGVtUmVxdWVzdBobLnNoaXAub3BzLnYxLkNvbGxlY3Rpb25JdGVtIh6KtRgWc2hpcC5jb2xsZWN0aW9ucy53cml0ZZC1GAIScwoKVXBkYXRlSXRlbRIoLnNoaXAub3BzLnYxLlVwZGF0ZUNvbGxlY3Rpb25JdGVtUmVxdWVzdBobLnNoaXAub3BzLnYxLkNvbGxlY3Rpb25JdGVtIh6KtRgWc2hpcC5jb2xsZWN0aW9ucy53cml0ZZC1GAISbQoKRGVsZXRlSXRlbRIoLnNoaXAub3BzLnYxLkRlbGV0ZUNvbGxlY3Rpb25JdGVtUmVxdWVzdBoVLnNoaXAub3BzLnYxLkRlbGV0aW9uIh6KtRgWc2hpcC5jb2xsZWN0aW9ucy53cml0ZZC1GAISdQoMQ3JlYXRlU2NoZW1hEiouc2hpcC5vcHMudjEuQ3JlYXRlQ29sbGVjdGlvblNjaGVtYVJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiHoq1GBZzaGlwLmNvbGxlY3Rpb25zLndyaXRlkLUYAhJ1CgxVcGRhdGVTY2hlbWESKi5zaGlwLm9wcy52MS5VcGRhdGVDb2xsZWN0aW9uU2NoZW1hUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIeirUYFnNoaXAuY29sbGVjdGlvbnMud3JpdGWQtRgCYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_types, file_ship_ops_v1_ops]);
 
 /**
  * @generated from message ship.ops.v1.GetCollectionsStateRequest
@@ -90,6 +90,31 @@ export const GetCollectionItemsRequestSchema: GenMessage<GetCollectionItemsReque
   messageDesc(file_ship_ops_v1_collections, 3);
 
 /**
+ * Single-item read (was the GET `…/items/{id}` REST handler). Fresh name to
+ * avoid colliding with the plural GetCollectionItemsRequest.
+ *
+ * @generated from message ship.ops.v1.GetCollectionItemReq
+ */
+export type GetCollectionItemReq = Message<"ship.ops.v1.GetCollectionItemReq"> & {
+  /**
+   * @generated from field: string collection = 1;
+   */
+  collection: string;
+
+  /**
+   * @generated from field: string id = 2;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.GetCollectionItemReq.
+ * Use `create(GetCollectionItemReqSchema)` to create a new message.
+ */
+export const GetCollectionItemReqSchema: GenMessage<GetCollectionItemReq> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_collections, 4);
+
+/**
  * @generated from message ship.ops.v1.CreateCollectionItemRequest
  */
 export type CreateCollectionItemRequest = Message<"ship.ops.v1.CreateCollectionItemRequest"> & {
@@ -114,7 +139,7 @@ export type CreateCollectionItemRequest = Message<"ship.ops.v1.CreateCollectionI
  * Use `create(CreateCollectionItemRequestSchema)` to create a new message.
  */
 export const CreateCollectionItemRequestSchema: GenMessage<CreateCollectionItemRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_collections, 4);
+  messageDesc(file_ship_ops_v1_collections, 5);
 
 /**
  * @generated from message ship.ops.v1.UpdateCollectionItemRequest
@@ -141,7 +166,7 @@ export type UpdateCollectionItemRequest = Message<"ship.ops.v1.UpdateCollectionI
  * Use `create(UpdateCollectionItemRequestSchema)` to create a new message.
  */
 export const UpdateCollectionItemRequestSchema: GenMessage<UpdateCollectionItemRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_collections, 5);
+  messageDesc(file_ship_ops_v1_collections, 6);
 
 /**
  * @generated from message ship.ops.v1.DeleteCollectionItemRequest
@@ -163,7 +188,7 @@ export type DeleteCollectionItemRequest = Message<"ship.ops.v1.DeleteCollectionI
  * Use `create(DeleteCollectionItemRequestSchema)` to create a new message.
  */
 export const DeleteCollectionItemRequestSchema: GenMessage<DeleteCollectionItemRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_collections, 6);
+  messageDesc(file_ship_ops_v1_collections, 7);
 
 /**
  * @generated from message ship.ops.v1.CreateCollectionSchemaRequest
@@ -180,7 +205,7 @@ export type CreateCollectionSchemaRequest = Message<"ship.ops.v1.CreateCollectio
  * Use `create(CreateCollectionSchemaRequestSchema)` to create a new message.
  */
 export const CreateCollectionSchemaRequestSchema: GenMessage<CreateCollectionSchemaRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_collections, 7);
+  messageDesc(file_ship_ops_v1_collections, 8);
 
 /**
  * @generated from message ship.ops.v1.UpdateCollectionSchemaRequest
@@ -202,7 +227,7 @@ export type UpdateCollectionSchemaRequest = Message<"ship.ops.v1.UpdateCollectio
  * Use `create(UpdateCollectionSchemaRequestSchema)` to create a new message.
  */
 export const UpdateCollectionSchemaRequestSchema: GenMessage<UpdateCollectionSchemaRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_collections, 8);
+  messageDesc(file_ship_ops_v1_collections, 9);
 
 /**
  * Collection schemas + items (the data plane). Reads are C0; writes are C1
@@ -241,6 +266,14 @@ export const CollectionsService: GenService<{
   items: {
     methodKind: "unary";
     input: typeof GetCollectionItemsRequestSchema;
+    output: typeof JsonResponseSchema;
+  },
+  /**
+   * @generated from rpc ship.ops.v1.CollectionsService.GetItem
+   */
+  getItem: {
+    methodKind: "unary";
+    input: typeof GetCollectionItemReqSchema;
     output: typeof JsonResponseSchema;
   },
   /**

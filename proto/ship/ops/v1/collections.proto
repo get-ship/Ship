@@ -25,6 +25,13 @@ message GetCollectionItemsRequest {
   string collection = 1;
 }
 
+// Single-item read (was the GET `…/items/{id}` REST handler). Fresh name to
+// avoid colliding with the plural GetCollectionItemsRequest.
+message GetCollectionItemReq {
+  string collection = 1;
+  string id = 2;
+}
+
 message CreateCollectionItemRequest {
   string collection = 1;
   string data_json = 2;
@@ -63,6 +70,10 @@ service CollectionsService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Items(GetCollectionItemsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc GetItem(GetCollectionItemReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.collections.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
