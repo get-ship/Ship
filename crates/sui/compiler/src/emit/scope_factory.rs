@@ -49,6 +49,9 @@ pub fn extract(controller: &ParsedController) -> Vec<(String, String)> {
     let Some(obj_span) = locate_return_object(bytes, body_span) else {
         return Vec::new();
     };
+    // Types declared in the controller .ts (`interface Pin`, `type Foo`) can't
+    // resolve in the generated .sui.d.ts — see `downgrade_unresolvable`.
+    let locals = local_type_names(&controller.source);
     let mut out: Vec<(String, String)> = Vec::new();
     walk_entries(bytes, obj_span, |name, value_start, value_end| {
         let ty = if is_shorthand(bytes, name, value_start, value_end) {
@@ -57,9 +60,77 @@ pub fn extract(controller: &ParsedController) -> Vec<(String, String)> {
         } else {
             infer_ts_type(bytes, value_start, value_end)
         };
-        out.push((name.to_string(), ty));
+        out.push((name.to_string(), downgrade_unresolvable(&ty, &locals)));
     });
     out
+}
+
+/// Names declared locally in the controller source (`interface X`, `type X`,
+/// `enum X`, `class X`). These are visible to the controller's own type
+/// inference but NOT to the generated `.sui.d.ts`.
+fn local_type_names(source: &str) -> std::collections::HashSet<String> {
+    let mut set = std::collections::HashSet::new();
+    for kw in ["interface ", "type ", "enum ", "class "] {
+        let mut from = 0usize;
+        while let Some(rel) = source[from..].find(kw) {
+            let after = from + rel + kw.len();
+            let name: String = source[after..]
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !name.is_empty() {
+                set.insert(name);
+            }
+            from = after;
+        }
+    }
+    set
+}
+
+/// Downgrade a scope-factory field type whose generic references a
+/// controller-local type (e.g. `Signal<Pin[]>` where `Pin` is an `interface`
+/// in the controller) to `unknown`.
+///
+/// Why: the generated `.sui.d.ts` only imports the signal wrappers, so a
+/// dangling `Pin` degrades to `any` — and `any & <SC-inferred>` absorbs to
+/// `any`, muddying the controller's `MutableState`. `Signal<unknown>` instead
+/// resolves, and `unknown & Signal<Pin[]>` collapses to the precise `SC` type
+/// the controller's scope factory already carries. Precision lives in `SC`
+/// inference; the `.d.ts` stays self-contained. DOM/lib globals
+/// (`HTMLButtonElement`, `Record`, …) resolve fine and keep their generic.
+fn downgrade_unresolvable(ty: &str, locals: &std::collections::HashSet<String>) -> String {
+    let references_local = locals.iter().any(|n| word_appears(ty, n));
+    if !references_local {
+        return ty.to_string();
+    }
+    if ty.starts_with("Signal<LiveState<") {
+        "Signal<LiveState<unknown>>".to_string()
+    } else if ty.starts_with("LiveSignal<") {
+        "LiveSignal<unknown>".to_string()
+    } else if ty.starts_with("Signal<") {
+        "Signal<unknown>".to_string()
+    } else {
+        "unknown".to_string()
+    }
+}
+
+/// `word` occurs in `ty` bounded by non-identifier chars (so `Pin` matches in
+/// `Signal<Pin[]>` but not inside `Pinned`).
+fn word_appears(ty: &str, word: &str) -> bool {
+    let mut from = 0;
+    while let Some(rel) = ty[from..].find(word) {
+        let start = from + rel;
+        let end = start + word.len();
+        let before_ok = start == 0
+            || !ty.as_bytes()[start - 1].is_ascii_alphanumeric() && ty.as_bytes()[start - 1] != b'_';
+        let after_ok = end >= ty.len()
+            || !ty.as_bytes()[end].is_ascii_alphanumeric() && ty.as_bytes()[end] != b'_';
+        if before_ok && after_ok {
+            return true;
+        }
+        from = start + 1;
+    }
+    false
 }
 
 /// Find the byte span of the object literal returned by the factory.
@@ -885,6 +956,27 @@ mod tests {
         );
         let v = extract(&c);
         assert_eq!(names_types(&v), vec![("agents", "LiveSignal<AgentList>")]);
+    }
+
+    #[test]
+    fn controller_local_type_downgrades_to_unknown() {
+        // `Pin` is declared in the controller, so the generated .sui.d.ts
+        // can't resolve it — emit Signal<unknown> (the controller's SC
+        // inference carries the precise Signal<Pin[]>). DOM/lib globals and
+        // un-declared (imported) names are left untouched.
+        let c = ctrl(
+            "interface Pin { id: string }\n\
+             export default controller({\n  \
+             scope: () => ({\n    \
+               pins: signal<Pin[]>([]),\n    \
+               btn: ref<HTMLButtonElement>(null),\n  \
+             }),\n});",
+        );
+        let v = extract(&c);
+        assert_eq!(
+            names_types(&v),
+            vec![("pins", "Signal<unknown>"), ("btn", "Signal<HTMLButtonElement | null>")],
+        );
     }
 
     #[test]
