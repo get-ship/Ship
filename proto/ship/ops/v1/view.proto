@@ -1,0 +1,81 @@
+// `view.*` view-authoring writes as a hand-authored per-domain proto-SSOT
+// service (#89), mounted ADDITIVELY beside the generated CommandOpsService
+// (which keeps serving `view.*` until the GUI flip, #72). Old path UNCHANGED.
+//
+// These are the agent view-authoring protocol: session fragment edits
+// (patch/append/signal), edit-mode grant/revoke, and the authoring-tool
+// dispatch. All are identity-bound, ship-authoring-restricted writes — each
+// routes through the ONE gate (services::command::call), which enforces the
+// `ship.views.write` capability + the per-session edit-mode grant.
+//
+// Request messages take FRESH names (ViewPatchReq, …) to avoid colliding with
+// the ViewPatchSessionRequest et al. that the generated commands.gen.proto
+// still declares in this same ship.ops.v1 package. Returns mirror the
+// generated path exactly (opaque JsonResponse) so the GUI flip is a transport
+// swap, not a shape change.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/ops.proto";
+
+message ViewPatchReq {
+  string id = 1;
+  string selector = 2;
+  string html = 3;
+}
+
+message ViewAppendReq {
+  string id = 1;
+  string selector = 2;
+  string html = 3;
+}
+
+message ViewSignalReq {
+  string id = 1;
+  string name = 2;
+  string value_json = 3;
+}
+
+// Shared by EnterEditMode + ExitEditMode (same args; the rpc decides grant).
+message ViewEditModeReq {
+  string view = 1;
+  string session_id = 2;
+}
+
+message ViewToolReq {
+  string view = 1;
+  string session_id = 2;
+  string op = 3;
+  string args_json = 4;
+}
+
+// View-authoring writes for an agent's own SUI session. Every rpc is a C1
+// workspace write gated on `ship.views.write`.
+service ViewService {
+  rpc PatchSession(ViewPatchReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AppendSession(ViewAppendReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SignalSession(ViewSignalReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc EnterEditMode(ViewEditModeReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc ExitEditMode(ViewEditModeReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Tool(ViewToolReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+}
