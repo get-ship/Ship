@@ -49,7 +49,7 @@ pub async fn serve_view_source(
         .ok_or(StatusCode::NOT_FOUND)
 }
 
-fn try_resolve_sui_view(path: &str) -> Option<ViewSourceResponse> {
+pub fn try_resolve_sui_view(path: &str) -> Option<ViewSourceResponse> {
     let (name, sub) = match path.split_once('/') {
         Some((n, rest)) => (n, Some(rest)),
         None => (path, None),

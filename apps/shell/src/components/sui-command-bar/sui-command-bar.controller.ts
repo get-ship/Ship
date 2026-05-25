@@ -311,11 +311,10 @@ export default controller({
 
     async function loadViews(): Promise<void> {
       try {
-        const resp = await fetch('/api/v1/views', { credentials: 'same-origin' })
-        if (!resp.ok) return
-        const body = await resp.json() as { data?: { views?: Array<{ name: string }> }; views?: Array<{ name: string }> }
-        const list = body.data?.views ?? body.views ?? []
-        views.set(list.map((v) => v.name).sort())
+        const body = JSON.parse((await ops.discovery.list({})).json) as {
+          views?: Array<{ name: string }>
+        }
+        views.set((body.views ?? []).map((v) => v.name).sort())
       } catch { /* empty */ }
     }
 

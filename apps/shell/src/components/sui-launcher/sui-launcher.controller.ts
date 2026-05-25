@@ -25,10 +25,8 @@ async function savePins(pins: string[]): Promise<void> {
 
 async function fetchViews(): Promise<ApiView[]> {
   try {
-    const resp = await fetch('/api/v1/views', { credentials: 'same-origin' })
-    if (!resp.ok) return []
-    const body = (await resp.json()) as { data?: { views?: ApiView[] } }
-    return body.data?.views ?? []
+    const body = JSON.parse((await ops.discovery.list({})).json) as { views?: ApiView[] }
+    return body.views ?? []
   } catch { return [] }
 }
 

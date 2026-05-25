@@ -1,5 +1,6 @@
 import { chrome, controller, derived, signal } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
+import { ops } from '../../ops'
 import type { Scope } from './sui-nav-top.sui'
 
 interface ApiView {
@@ -30,11 +31,9 @@ function humanize(id: string): string {
 
 async function fetchViewLabels(): Promise<Map<string, string>> {
   try {
-    const resp = await fetch('/api/v1/views', { credentials: 'same-origin' })
-    if (!resp.ok) return new Map()
-    const body = (await resp.json()) as { data?: { views?: ApiView[] } }
+    const body = JSON.parse((await ops.discovery.list({})).json) as { views?: ApiView[] }
     const map = new Map<string, string>()
-    for (const v of body.data?.views ?? []) {
+    for (const v of body.views ?? []) {
       if (v.rail?.label) map.set(v.name, v.rail.label)
     }
     return map

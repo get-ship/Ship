@@ -59,6 +59,7 @@ fn main() {
         .arg("ship/ops/v1/specs.proto")
         .arg("ship/ops/v1/view.proto")
         .arg("ship/ops/v1/create.proto")
+        .arg("ship/ops/v1/discovery.proto")
         .status()
         .expect("failed to spawn protoc");
     assert!(status.success(), "protoc descriptor compile failed");
@@ -100,6 +101,7 @@ fn main() {
             "ship/ops/v1/specs.proto",
             "ship/ops/v1/view.proto",
             "ship/ops/v1/create.proto",
+            "ship/ops/v1/discovery.proto",
         ])
         .compile()
         .expect("connectrpc-build codegen failed");

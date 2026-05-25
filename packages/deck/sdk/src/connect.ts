@@ -29,6 +29,7 @@ import { ChatService } from "./gen/ship/ops/v1/chat_pb.js";
 import { CollectionsService } from "./gen/ship/ops/v1/collections_pb.js";
 import { CreateService } from "./gen/ship/ops/v1/create_pb.js";
 import { DashboardService } from "./gen/ship/ops/v1/dashboard_pb.js";
+import { DiscoveryService } from "./gen/ship/ops/v1/discovery_pb.js";
 import { EventsService } from "./gen/ship/ops/v1/events_pb.js";
 import { FeedbackService } from "./gen/ship/ops/v1/feedback_pb.js";
 import { GitService } from "./gen/ship/ops/v1/git_pb.js";
@@ -76,6 +77,7 @@ export interface ShipConnectClient {
   collections: Client<typeof CollectionsService>;
   create: Client<typeof CreateService>;
   dashboard: Client<typeof DashboardService>;
+  discovery: Client<typeof DiscoveryService>;
   events: Client<typeof EventsService>;
   feedback: Client<typeof FeedbackService>;
   git: Client<typeof GitService>;
@@ -127,6 +129,7 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
     collections: createClient(CollectionsService, transport),
     create: createClient(CreateService, transport),
     dashboard: createClient(DashboardService, transport),
+    discovery: createClient(DiscoveryService, transport),
     events: createClient(EventsService, transport),
     feedback: createClient(FeedbackService, transport),
     git: createClient(GitService, transport),
@@ -161,6 +164,7 @@ export {
   CollectionsService,
   CreateService,
   DashboardService,
+  DiscoveryService,
   EventsService,
   FeedbackService,
   GitService,
