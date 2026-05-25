@@ -10,13 +10,7 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-#[derive(Clone, Serialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "id": "claude",
-    "available": true,
-    "binary": "/usr/local/bin/claude",
-    "version": "1.0.12"
-}))]
+#[derive(Clone, Serialize)]
 pub struct ProviderStatus {
     pub id: String,
     pub available: bool,
@@ -66,17 +60,6 @@ fn cached_harnesses() -> Vec<ProviderStatus> {
 // ─── Handlers ───────────────────────────────────────────────────────────────
 
 
-#[utoipa::path(
-    operation_id = "listProviders",
-    get,
-    path = "/api/v1/harnesses",
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
-    ),
-    tag = "settings"
-)]
 pub async fn list_harnesses(
     State(_state): State<ApiState>,
 ) -> impl IntoResponse {

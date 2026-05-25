@@ -12,17 +12,6 @@ use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 /// GET /api/v1/runtime/agents
-#[utoipa::path(
-    operation_id = "listAgents",
-    get,
-    path = "/api/v1/agents",
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn list_agents(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -81,7 +70,7 @@ pub async fn list_agents(
 
 // ---- Agent control ----
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct SteerAgentRequest {
     pub message: String,
 }
@@ -89,18 +78,6 @@ pub struct SteerAgentRequest {
 /// POST /api/v1/runtime/agents/{slug}/stop — stop a running agent by slug.
 ///
 /// Uses the process registry and executor to terminate the agent process.
-#[utoipa::path(
-    operation_id = "stopAgent",
-    post,
-    path = "/api/v1/agents/{slug}/stop",
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 404, description = "agent not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn stop_agent(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -142,20 +119,6 @@ pub async fn stop_agent(
 }
 
 /// POST /api/v1/runtime/agents/{slug}/steer — inject a message into a running agent.
-#[utoipa::path(
-    operation_id = "steerAgent",
-    post,
-    path = "/api/v1/agents/{slug}/steer",
-    request_body = SteerAgentRequest,
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 404, description = "agent not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn steer_agent(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,

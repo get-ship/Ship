@@ -35,26 +35,6 @@ pub type SharedKernelRef = Arc<Mutex<KernelRouter>>;
 ///
 /// Rate limiting is per-trigger as configured at hook definition time;
 /// exceeding the limit yields `429`.
-#[utoipa::path(
-    operation_id = "handleWebhook",
-    post,
-    path = "/api/hooks/webhook/{path}",
-    params(
-        ("path" = String, Path, description = "Trigger path as declared under .ship/triggers/. Matches the `*path` glob from the router."),
-    ),
-    request_body(
-        content_type = "application/octet-stream",
-        description = "Raw request body forwarded to the trigger's handler. Content-type is opaque to the daemon.",
-    ),
-    responses(
-        (status = 200, description = "Trigger accepted the request", body = crate::routes::openapi_types::WebhookAck),
-        (status = 401, description = "Missing or invalid x-ship-webhook-secret header", body = crate::wire::ErrorResponse),
-        (status = 404, description = "No trigger registered for this path", body = crate::wire::ErrorResponse),
-        (status = 429, description = "Trigger rate limit exceeded", body = crate::wire::ErrorResponse),
-    ),
-    security(),
-    tag = "hooks"
-)]
 pub async fn handle_webhook(
     Path(path_suffix): Path<String>,
     Extension(source): Extension<SharedWebhookSource>,

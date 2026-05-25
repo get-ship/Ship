@@ -24,7 +24,7 @@ use super::dispatch::dispatch_one;
 
 /// Wire shape for `POST /api/v1/pipelines/run`. `pipeline` names a file
 /// under `.ship/pipelines/<name>.jsonc`.
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PipelineRunRequest {
     /// Pipeline name (file in `.ship/pipelines/<name>.jsonc`).
@@ -66,13 +66,6 @@ pub struct PipelineRunRequest {
 }
 
 /// POST /api/v1/pipelines/run
-#[utoipa::path(
-    post,
-    path = "/api/v1/pipelines/run",
-    request_body = PipelineRunRequest,
-    responses((status = 200, body = MeshResponse)),
-    tag = "runtime"
-)]
 pub async fn run_pipeline(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

@@ -15,7 +15,7 @@ use super::super::lifecycle;
 use super::super::types::{SessionKind, SessionMeta};
 use super::{err, work_dir_for};
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct SpawnBody {
     pub workspace_id: String,
     /// `"agent" | "shell"`. Pipelines register internally.
@@ -26,13 +26,13 @@ pub struct SpawnBody {
     pub harness: Option<String>,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct SpawnResponse {
     pub session_id: String,
     pub attached: bool,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct SessionListResponse {
     pub sessions: Vec<SessionMetaWire>,
 }
@@ -40,7 +40,7 @@ pub struct SessionListResponse {
 /// Wire-format session meta. Mirrors `SessionMeta` but the internal
 /// type lives in `types::private` and we want to keep that module
 /// from leaking schemas via utoipa.
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct SessionMetaWire {
     pub id: String,
     pub kind: String,
@@ -84,7 +84,7 @@ impl From<SessionMeta> for SessionMetaWire {
 
 /// Harness detection: which of the known harnesses have their CLI
 /// binaries on PATH. Powers the command-bar's spawn card.
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct InstalledProvidersResponse {
     pub harnesses: Vec<String>,
 }
@@ -119,15 +119,6 @@ fn binary_exists(bin: &str) -> bool {
     })
 }
 
-#[utoipa::path(
-    operation_id = "installedProviders",
-    get,
-    path = "/api/v1/harnesses/installed",
-    responses(
-        (status = 200, description = "Harnesses detected on PATH", body = InstalledProvidersResponse),
-    ),
-    tag = "sessions"
-)]
 pub async fn installed_harnesses(
     Extension(_auth): Extension<AuthContext>,
 ) -> axum::response::Response {
@@ -143,18 +134,6 @@ pub async fn installed_harnesses(
         .into_response()
 }
 
-#[utoipa::path(
-    operation_id = "spawnSession",
-    post,
-    path = "/api/v1/sessions/spawn",
-    request_body = SpawnBody,
-    responses(
-        (status = 200, description = "Session spawned or attached", body = SpawnResponse),
-        (status = 400, description = "Validation error"),
-        (status = 500, description = "Spawn failure"),
-    ),
-    tag = "sessions"
-)]
 pub async fn spawn_session(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -261,15 +240,6 @@ pub async fn spawn_session(
 /// (`runtime_api::list_workspace_sessions` on `/api/v1/sessions`) and
 /// auth-token sessions (`auth::api::list_auth_sessions` on
 /// `/api/v1/auth/sessions`).
-#[utoipa::path(
-    operation_id = "listPtySessions",
-    get,
-    path = "/api/v1/pty-sessions",
-    responses(
-        (status = 200, description = "All known PTY sessions", body = SessionListResponse),
-    ),
-    tag = "sessions"
-)]
 pub async fn list_pty_sessions(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -293,17 +263,6 @@ pub async fn list_pty_sessions(
     (StatusCode::OK, Json(SessionListResponse { sessions })).into_response()
 }
 
-#[utoipa::path(
-    operation_id = "getSession",
-    get,
-    path = "/api/v1/sessions/{id}",
-    params(("id" = String, Path, description = "Session id")),
-    responses(
-        (status = 200, description = "Session snapshot", body = SessionMetaWire),
-        (status = 404, description = "Not found"),
-    ),
-    tag = "sessions"
-)]
 pub async fn get_session(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -322,17 +281,6 @@ pub async fn get_session(
     }
 }
 
-#[utoipa::path(
-    operation_id = "stopSession",
-    delete,
-    path = "/api/v1/sessions/{id}",
-    params(("id" = String, Path, description = "Session id")),
-    responses(
-        (status = 204, description = "Stopped"),
-        (status = 404, description = "Not found"),
-    ),
-    tag = "sessions"
-)]
 pub async fn stop_session(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -347,24 +295,12 @@ pub async fn stop_session(
     }
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct ResizeBody {
     pub cols: u16,
     pub rows: u16,
 }
 
-#[utoipa::path(
-    operation_id = "sessionResize",
-    post,
-    path = "/api/v1/sessions/{id}/resize",
-    params(("id" = String, Path, description = "Session id")),
-    request_body = ResizeBody,
-    responses(
-        (status = 204, description = "PTY resized"),
-        (status = 404, description = "Not found"),
-    ),
-    tag = "sessions"
-)]
 pub async fn session_resize(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,

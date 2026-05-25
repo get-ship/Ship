@@ -33,20 +33,6 @@ const MAX_PTY_CONNECTIONS: usize = 5;
 /// WebSocketUpgrade is extracted manually after validation so tests can reach
 /// the 404/429 paths without a live HTTP connection (which axum requires for
 /// upgrade state — without it the extractor returns 426 before the handler runs).
-#[utoipa::path(
-    operation_id = "projectPty",
-    get,
-    path = "/api/v1/projects/{id}/pty",
-    params(("id" = String, Path, description = "Project id")),
-    responses(
-        (status = 101, description = "WebSocket upgrade; bidirectional PTY stream"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Project not found", body = crate::wire::ErrorResponse),
-        (status = 429, description = "Max PTY connections reached", body = crate::wire::ErrorResponse),
-    ),
-    tag = "project"
-)]
 pub async fn workspace_pty(
     Path(workspace_id): Path<String>,
     State(state): State<ApiState>,

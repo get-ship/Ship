@@ -20,8 +20,7 @@ use crate::auth::AuthContext;
 use crate::auth::scopes::{SessionRegistry};
 
 /// Response body for `POST /api/v1/runtime/session`.
-#[derive(serde::Serialize, utoipa::ToSchema)]
-#[schema(example = json!({ "ok": true, "expires_in": 3600 }))]
+#[derive(serde::Serialize)]
 pub struct SessionIssueResponse {
     pub ok: bool,
     pub expires_in: u64,
@@ -31,17 +30,6 @@ pub struct SessionIssueResponse {
 /// hold a daemon-token credential (the auth middleware enforces this).
 /// Issues a browser-session cookie scoped to `/api/v1/runtime` and
 /// returns `{ok, expires_in}`.
-#[utoipa::path(
-    operation_id = "issueSessionHandler",
-    post,
-    path = "/api/v1/session",
-    responses(
-        (status = 200, description = "Browser session cookie issued", body = SessionIssueResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Session issuance requires Full scope"),
-    ),
-    tag = "auth"
-)]
 pub async fn issue_session_handler(
     registry: SessionRegistry,
     _auth: AuthContext,

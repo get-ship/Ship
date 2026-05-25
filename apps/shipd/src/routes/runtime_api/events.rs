@@ -12,7 +12,7 @@ use serde::Deserialize;
 
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
-#[derive(Deserialize, utoipa::IntoParams)]
+#[derive(Deserialize)]
 pub struct EventsPollQuery {
     /// ULID cursor — return events with id > since_id, ordered ASC.
     pub since_id: Option<String>,
@@ -29,18 +29,6 @@ pub struct EventsPollQuery {
 /// Polling fallback for `ship tail`. SSE replays only future events;
 /// poll allows the CLI to walk the log forward from a known cursor.
 /// Use `since_id` (ULID) for incremental polling. Limit defaults to 200.
-#[utoipa::path(
-    operation_id = "pollEvents",
-    get,
-    path = "/api/v1/events/poll",
-    params(EventsPollQuery),
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn poll_events(
     State(state): State<ApiState>,
     Query(params): Query<EventsPollQuery>,
@@ -110,17 +98,6 @@ pub fn poll_events_core(
 // banned by check-module-dag).
 
 /// GET /api/v1/runtime/events — SSE stream of all kernel events.
-#[utoipa::path(
-    operation_id = "eventStream",
-    get,
-    path = "/api/v1/events",
-    responses(
-        (status = 200, description = "SSE stream of kernel events"),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn event_stream(
     State(state): State<ApiState>,
 ) -> Result<Sse<impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>>>, (StatusCode, String)> {

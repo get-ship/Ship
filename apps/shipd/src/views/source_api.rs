@@ -5,7 +5,7 @@
 
 use serde::Serialize;
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ViewSourceResponse {
     /// Dotted view name derived from the filesystem path.

@@ -32,15 +32,6 @@ use crate::wire::MeshResponse;
 /// - Lint: flag template calls that don't match a known op
 /// - MCP server: auto-register ops as tools
 /// - Third-party view authors: editor autocomplete via `/api/v1/ship/schema`
-#[utoipa::path(
-    operation_id = "serveShipSchema",
-    get,
-    path = "/api/v1/ship/schema",
-    responses(
-        (status = 200, description = "ship.* op catalog (names, args, returns, permissions)"),
-    ),
-    tag = "framework"
-)]
 pub async fn serve_schema() -> Json<MeshResponse> {
     Json(MeshResponse { ok: true, data: schema_catalog() })
 }

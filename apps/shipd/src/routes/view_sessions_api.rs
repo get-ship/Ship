@@ -27,33 +27,20 @@ use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use crate::views::session::SessionError;
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "template": "chat",
-    "title": "Planner chat",
-    "initial_context": { "topic": "ship" }
-}))]
+#[derive(Deserialize)]
 pub struct OpenReq {
     pub template: String,
     pub title: Option<String>,
     pub initial_context: Option<Value>,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "selector": "#status",
-    "html": "<span class=\"ok\">running</span>"
-}))]
+#[derive(Deserialize)]
 pub struct PatchReq {
     pub selector: String,
     pub html: String,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "name": "approve",
-    "value": { "by": "me", "at": "2026-04-22T10:15:00Z" }
-}))]
+#[derive(Deserialize)]
 pub struct SignalReq {
     pub name: String,
     pub value: Value,
@@ -98,20 +85,6 @@ fn ok_json(body: Value) -> Response {
 
 // ───────────────────────── Handlers ─────────────────────────
 
-#[utoipa::path(
-    operation_id = "openSession",
-    post,
-    path = "/api/v1/view-sessions",
-    request_body = OpenReq,
-    responses(
-        (status = 200, description = "View session created"),
-        (status = 401, description = "Unauthenticated / missing agent id", body = crate::wire::ErrorResponse),
-        (status = 400, description = "Unknown template", body = crate::wire::ErrorResponse),
-        (status = 409, description = "Agent quota exceeded", body = crate::wire::ErrorResponse),
-        (status = 429, description = "Rate limited", body = crate::wire::ErrorResponse),
-    ),
-    tag = "views"
-)]
 pub async fn open_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -141,20 +114,6 @@ pub async fn open_session(
     }
 }
 
-#[utoipa::path(
-    operation_id = "patchSession",
-    post,
-    path = "/api/v1/view-sessions/{id}/patch",
-    params(("id" = String, Path, description = "View session id")),
-    request_body = PatchReq,
-    responses(
-        (status = 200, description = "Patch applied"),
-        (status = 401, description = "Unauthenticated / missing agent id", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Not session owner", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Session not found", body = crate::wire::ErrorResponse),
-    ),
-    tag = "views"
-)]
 pub async fn patch_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -168,20 +127,6 @@ pub async fn patch_session(
     }
 }
 
-#[utoipa::path(
-    operation_id = "appendSession",
-    post,
-    path = "/api/v1/view-sessions/{id}/append",
-    params(("id" = String, Path, description = "View session id")),
-    request_body = PatchReq,
-    responses(
-        (status = 200, description = "Fragment appended"),
-        (status = 401, description = "Unauthenticated / missing agent id", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Not session owner", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Session not found", body = crate::wire::ErrorResponse),
-    ),
-    tag = "views"
-)]
 pub async fn append_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -195,20 +140,6 @@ pub async fn append_session(
     }
 }
 
-#[utoipa::path(
-    operation_id = "signalSession",
-    post,
-    path = "/api/v1/view-sessions/{id}/signal",
-    params(("id" = String, Path, description = "View session id")),
-    request_body = SignalReq,
-    responses(
-        (status = 200, description = "Signal delivered"),
-        (status = 401, description = "Unauthenticated / missing agent id", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Not session owner", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Session not found", body = crate::wire::ErrorResponse),
-    ),
-    tag = "views"
-)]
 pub async fn signal_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -222,19 +153,6 @@ pub async fn signal_session(
     }
 }
 
-#[utoipa::path(
-    operation_id = "closeSession",
-    delete,
-    path = "/api/v1/view-sessions/{id}",
-    params(("id" = String, Path, description = "View session id")),
-    responses(
-        (status = 200, description = "Session closed"),
-        (status = 401, description = "Unauthenticated / missing agent id", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Not session owner", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Session not found", body = crate::wire::ErrorResponse),
-    ),
-    tag = "views"
-)]
 pub async fn close_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -247,18 +165,6 @@ pub async fn close_session(
     }
 }
 
-#[utoipa::path(
-    operation_id = "subscribeSession",
-    get,
-    path = "/api/v1/view-sessions/{id}",
-    params(("id" = String, Path, description = "View session id")),
-    responses(
-        (status = 200, description = "SSE stream of session patches", content_type = "text/event-stream"),
-        (status = 401, description = "Unauthenticated / missing agent id", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Session not found", body = crate::wire::ErrorResponse),
-    ),
-    tag = "views"
-)]
 pub async fn subscribe_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

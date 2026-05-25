@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::routes::rest_api::ApiState;
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct CreateRequest {
     /// Kebab-case feature id. Becomes the directory or file name.
     pub name: String,
@@ -35,13 +35,13 @@ pub struct CreateRequest {
     pub shape: String,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct CreateResponse {
     pub ok: bool,
     pub data: CreateData,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct CreateData {
     /// Route where the new feature can be opened. `None` when the
     /// surface doesn't have a browsable route.
@@ -85,20 +85,6 @@ fn title_case(name: &str) -> String {
         .join(" ")
 }
 
-#[utoipa::path(
-    operation_id = "createSurface",
-    post,
-    path = "/api/v1/create/{surface}",
-    params(("surface" = String, Path, description = "view|skill|agent|pipeline|trigger|theme")),
-    request_body = CreateRequest,
-    responses(
-        (status = 200, description = "Scaffold written", body = CreateResponse),
-        (status = 400, description = "Invalid name or shape"),
-        (status = 409, description = "Target already exists"),
-        (status = 501, description = "Surface scaffolding not yet implemented"),
-    ),
-    tag = "framework"
-)]
 pub async fn create_surface(
     State(state): State<ApiState>,
     Path(surface): Path<String>,

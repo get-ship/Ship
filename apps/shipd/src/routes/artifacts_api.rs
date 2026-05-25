@@ -74,7 +74,7 @@ fn parse_scope(scope_str: &str, run_id: Option<&str>, user_id: Option<&str>, pro
 
 // ── POST /api/v1/artifacts ───────────────────────────────────────────────────────
 
-#[derive(Deserialize, Default, utoipa::IntoParams)]
+#[derive(Deserialize, Default)]
 pub struct UploadQuery {
     /// Artifact scope: `run`, `project`, or `user`.
     pub scope: Option<String>,
@@ -84,21 +84,6 @@ pub struct UploadQuery {
     pub user_id: Option<String>,
 }
 
-#[utoipa::path(
-    operation_id = "uploadArtifact",
-    post,
-    path = "/api/v1/artifacts",
-    params(UploadQuery),
-    request_body(content_type = "multipart/form-data", description = "File upload with optional collection_id, item_id, expires_at fields"),
-    responses(
-        (status = 201, description = "Artifact uploaded"),
-        (status = 400, description = "Invalid scope or multipart payload", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "artifacts"
-)]
 pub async fn upload_artifact(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -198,20 +183,6 @@ pub async fn upload_artifact(
 
 // ── GET /api/v1/artifacts/:id ────────────────────────────────────────────────────
 
-#[utoipa::path(
-    operation_id = "downloadArtifact",
-    get,
-    path = "/api/v1/artifacts/{id}",
-    params(("id" = String, Path, description = "Artifact id")),
-    responses(
-        (status = 200, description = "Artifact bytes stream", content_type = "application/octet-stream"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Artifact not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "artifacts"
-)]
 pub async fn download_artifact(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -244,20 +215,6 @@ pub async fn download_artifact(
 
 // ── HEAD /api/v1/artifacts/:id ───────────────────────────────────────────────────
 
-#[utoipa::path(
-    operation_id = "headArtifact",
-    head,
-    path = "/api/v1/artifacts/{id}",
-    params(("id" = String, Path, description = "Artifact id")),
-    responses(
-        (status = 200, description = "Metadata-only response; body empty, headers carry size/mime/scope/hash"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Artifact not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "artifacts"
-)]
 pub async fn head_artifact(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -283,20 +240,6 @@ pub async fn head_artifact(
 
 // ── GET /api/v1/artifacts/:id/metadata ──────────────────────────────────────────
 
-#[utoipa::path(
-    operation_id = "artifactMetadata",
-    get,
-    path = "/api/v1/artifacts/{id}/metadata",
-    params(("id" = String, Path, description = "Artifact id")),
-    responses(
-        (status = 200, description = "Artifact metadata as JSON"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Artifact not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "artifacts"
-)]
 pub async fn artifact_metadata(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -315,12 +258,7 @@ pub async fn artifact_metadata(
 
 // ── PATCH /api/v1/artifacts/:id ──────────────────────────────────────────────────
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "name": "README.md",
-    "owner_actor": "agent-writer",
-    "expires_at": "2026-05-22T00:00:00Z"
-}))]
+#[derive(Deserialize)]
 pub struct PatchBody {
     pub name: Option<String>,
     pub owner_actor: Option<String>,

@@ -4,13 +4,11 @@
 //! import. See `scripts/lint/check-module-dag.sh` for the constraint.
 
 use serde::Serialize;
-use utoipa::ToSchema;
 
 /// Envelope returned by every handler under `/api/v1/*` that isn't a
 /// raw bytes / SSE / stream response. `ok` flags success; `data` is
 /// either the payload or a structured error description.
-#[derive(Debug, Serialize, ToSchema)]
-#[schema(example = json!({ "ok": true, "data": { "registered": "agent-writer" } }))]
+#[derive(Debug, Serialize)]
 pub struct MeshResponse {
     /// `true` on success; `false` when the handler returned a structured error.
     pub ok: bool,
@@ -19,18 +17,12 @@ pub struct MeshResponse {
     /// this envelope is reused across dozens of handlers that return
     /// heterogeneous bodies (lists, single records, ack strings, error
     /// details, etc.).
-    #[schema(value_type = Object, nullable = true)]
     pub data: serde_json::Value,
 }
 
 /// Structured error body. Returned with non-2xx HTTP statuses; OpenAPI
 /// annotations on routes reference this for the schema.
-#[derive(Debug, Serialize, ToSchema)]
-#[schema(example = json!({
-    "error": "not_found",
-    "message": "spec not found: introductions",
-    "details": null
-}))]
+#[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     /// Machine-readable error code. Examples: `not_found`, `unauthorized`,
     /// `bad_request`, `conflict`, `rate_limited`, `internal_error`.

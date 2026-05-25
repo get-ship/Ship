@@ -140,12 +140,7 @@ pub fn require_scope(
 
 // ── Session register endpoint ──────────────────────────────────────────────
 
-#[derive(serde::Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "agent_id": "agent-writer",
-    "role": "worker",
-    "workspace_id": "default"
-}))]
+#[derive(serde::Deserialize)]
 pub struct SessionRegisterRequest {
     pub agent_id: String,
     #[serde(default)]
@@ -154,11 +149,7 @@ pub struct SessionRegisterRequest {
     pub workspace_id: Option<String>,
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "session_token": "ses_01J3Z5ZQXAM3E4T7W",
-    "scopes": ["read_workspace", "read_runs", "emit_events"]
-}))]
+#[derive(serde::Serialize)]
 pub struct SessionRegisterResponse {
     pub session_token: String,
     pub scopes: Vec<Scope>,
@@ -169,18 +160,6 @@ pub struct SessionRegisterResponse {
 /// Requires daemon token authentication. Role escalation to "contributor"
 /// (which grants `Scope::Full`) is blocked; offending requests are
 /// downgraded to "worker".
-#[utoipa::path(
-    operation_id = "sessionRegister",
-    post,
-    path = "/api/session/register",
-    request_body = SessionRegisterRequest,
-    responses(
-        (status = 200, description = "Session token minted for the agent role", body = SessionRegisterResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Requires daemon token"),
-    ),
-    tag = "auth"
-)]
 pub async fn session_register(
     registry: SessionRegistry,
     axum::Extension(auth): axum::Extension<crate::auth::AuthContext>,

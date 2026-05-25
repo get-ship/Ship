@@ -158,14 +158,7 @@ pub(crate) fn safe_resolve(
 
 // ---- Event emit endpoint ----
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "event_type": "deployment.completed",
-    "entity_id": "write-readme",
-    "workspace_id": "default",
-    "actor_id": "agent-writer",
-    "payload": { "slug": "write-readme", "status": "ok" }
-}))]
+#[derive(Deserialize)]
 pub struct EmitEventReq {
     pub event_type: String,
     pub entity_id: String,
@@ -191,19 +184,6 @@ pub struct EmitEventReq {
 }
 
 /// POST /api/v1/events/emit
-#[utoipa::path(
-    operation_id = "emitEvent",
-    post,
-    path = "/api/v1/events/emit",
-    request_body = EmitEventReq,
-    responses(
-        (status = 200, description = "Event persisted and routed", body = MeshResponse),
-        (status = 400, description = "Invalid envelope", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn emit_event(
     State(state): State<ApiState>,
     auth: Option<axum::Extension<crate::auth::AuthContext>>,

@@ -375,11 +375,6 @@ pub enum Commands {
     /// Show help — same as --help
     Help,
 
-    /// Export the daemon's OpenAPI spec to stdout (no daemon required)
-    Openapi {
-        #[command(subcommand)]
-        action: OpenapiCommands,
-    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -396,15 +391,6 @@ pub enum OpsCommands {
     },
 }
 
-#[derive(Subcommand, Debug)]
-pub enum OpenapiCommands {
-    /// Print the daemon's OpenAPI spec as JSON
-    Export {
-        /// Pretty-print the JSON output
-        #[arg(long)]
-        pretty: bool,
-    },
-}
 
 
 #[derive(Subcommand, Debug)]

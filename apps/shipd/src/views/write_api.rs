@@ -27,7 +27,7 @@ use crate::ship_runtime::ApiState;
 const MANIFEST_SCHEMA: &str =
     include_str!("../../../../schemas/view-manifest.schema.json");
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WriteTemplateRequest {
     /// Path relative to the view directory. Defaults to `index.html.j2`.
@@ -38,7 +38,7 @@ pub struct WriteTemplateRequest {
     pub content: String,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WriteManifestRequest {
     /// Manifest body (text).
@@ -47,21 +47,21 @@ pub struct WriteManifestRequest {
     pub format: String,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WriteResponse {
     pub ok: bool,
     pub path: String,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WriteDiagnostics {
     pub ok: bool,
     pub findings: Vec<LintFinding>,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct LintFinding {
     pub file: String,
@@ -112,20 +112,6 @@ fn resolve_view(state: &ApiState, name: &str) -> Option<(PathBuf, &'static str)>
     super::resolve::resolve_view_dir(name, Some(state.ship_dir()))
 }
 
-#[utoipa::path(
-    operation_id = "writeViewTemplate",
-    put,
-    path = "/api/v1/views/{name}/template",
-    params(("name" = String, Path, description = "View name")),
-    request_body = WriteTemplateRequest,
-    responses(
-        (status = 200, description = "Template written", body = WriteResponse),
-        (status = 400, description = "Validation error"),
-        (status = 404, description = "View not found"),
-        (status = 422, description = "Lint errors", body = WriteDiagnostics),
-    ),
-    tag = "framework"
-)]
 pub async fn write_view_template(
     State(state): State<ApiState>,
     Path(name): Path<String>,
@@ -170,19 +156,6 @@ pub async fn write_view_template(
         .into_response()
 }
 
-#[utoipa::path(
-    operation_id = "writeViewManifest",
-    put,
-    path = "/api/v1/views/{name}/manifest",
-    params(("name" = String, Path, description = "View name")),
-    request_body = WriteManifestRequest,
-    responses(
-        (status = 200, description = "Manifest written", body = WriteResponse),
-        (status = 400, description = "Validation error or schema failure"),
-        (status = 404, description = "View not found"),
-    ),
-    tag = "framework"
-)]
 pub async fn write_view_manifest(
     State(state): State<ApiState>,
     Path(name): Path<String>,
@@ -254,18 +227,6 @@ fn validate_manifest(value: &serde_json::Value) -> Result<(), String> {
     }
 }
 
-#[utoipa::path(
-    operation_id = "forkView",
-    post,
-    path = "/api/v1/views/{name}/fork",
-    params(("name" = String, Path, description = "View name")),
-    responses(
-        (status = 200, description = "View forked to user scope", body = WriteResponse),
-        (status = 404, description = "View not found"),
-        (status = 409, description = "View already user-scoped"),
-    ),
-    tag = "framework"
-)]
 pub async fn fork_view(
     State(state): State<ApiState>,
     Path(name): Path<String>,

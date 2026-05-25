@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 /// Whether the command is handled inside the bar (mode flip, close) or
 /// dispatches to a built-in handler (navigate, lint, end). Distinguishes the
 /// frontend's behavior — the daemon doesn't run handlers itself.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CommandHandlerKind {
     /// Flips the bar into a different mode (e.g. `/new` → create).
@@ -28,7 +28,7 @@ pub enum CommandHandlerKind {
     Local,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CommandEntry {
     /// Slash key without the leading `/` (e.g. `"new"`).
     pub key: String,

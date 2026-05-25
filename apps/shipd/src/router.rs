@@ -8,7 +8,6 @@ use axum::{
 };
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
-use utoipa::OpenApi;
 
 use crate::{
     auth, project_api, services, ship_runtime,
@@ -17,7 +16,7 @@ use crate::{
 use crate::routes::{
     account_api, actor_api, actors_api, annotations_api,
     artifacts_api, commands_api, create_api, feedback_api, git_api,
-    hooks_api, human_webhook, logs_api, openapi,
+    hooks_api, human_webhook, logs_api,
     registry_api, rest_api, runtime_api,
     sdk_manifest, search_api, settings_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
@@ -307,9 +306,6 @@ pub fn build_router(
         .merge(public_routes)
         .merge(mcp_registry_routes)
         .merge(webhook_source_route)
-        .route("/api/openapi.json", axum::routing::get(|| async {
-            Json(openapi::ApiDoc::openapi())
-        }))
         .merge(authenticated_routes);
     // The HMR firehose is development-only; not registered in production.
     if daemon_mode == deck::DaemonMode::Development {
@@ -585,17 +581,6 @@ pub(crate) fn handle_panic(info: Box<dyn std::any::Any + Send + 'static>) -> Res
 ///
 /// Returns daemon uptime, PID, and status of all supervised background tasks.
 /// Any dead task sets the top-level `healthy` flag to false.
-#[utoipa::path(
-    operation_id = "healthCheck",
-    get,
-    path = "/api/health",
-    responses(
-        (status = 200, description = "Daemon health snapshot with supervised task status"),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    security(),
-    tag = "health"
-)]
 pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<serde_json::Value> {
     let tasks = rt.health_registry().snapshot();
     let all_healthy = tasks.iter().all(|t| t.alive);

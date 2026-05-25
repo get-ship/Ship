@@ -23,7 +23,7 @@ use crate::wire::MeshResponse;
 
 // ---- Query params ----
 
-#[derive(Deserialize, utoipa::IntoParams)]
+#[derive(Deserialize)]
 pub struct SessionsQuery {
     pub workspace_id: Option<String>,
 }
@@ -48,18 +48,6 @@ pub(super) fn resolve_project_head_sha() -> Option<String> {
 /// (`sessions::api::list_pty_sessions` on `/api/v1/pty-sessions`) and
 /// the auth-session token registry (`auth::api::list_auth_sessions` on
 /// `/api/v1/auth/sessions`).
-#[utoipa::path(
-    operation_id = "listWorkspaceSessions",
-    get,
-    path = "/api/v1/sessions",
-    params(SessionsQuery),
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn list_workspace_sessions(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -114,17 +102,6 @@ pub async fn list_workspace_sessions(
 /// daemon knows about, each row labeled with `project_id` + project
 /// `name`. Chrome consumes this to surface "N agents running in other
 /// projects" without forcing it to fan-out per-project queries.
-#[utoipa::path(
-    operation_id = "listSessionsAcrossProjects",
-    get,
-    path = "/api/v1/sessions/active-across-projects",
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn list_sessions_across_projects(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,

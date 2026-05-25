@@ -11,11 +11,7 @@ use serde_json::json;
 use crate::project_api::{err_response, ok_response};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "status": "dispatched",
-    "worktree": "/tmp/ws-write-readme"
-}))]
+#[derive(Deserialize)]
 pub struct RunStatusReq {
     /// One of: dispatched, gate_requested, gate_passed, gate_failed, blocked,
     /// completed, merged, failed.
@@ -27,21 +23,6 @@ pub struct RunStatusReq {
     pub error: Option<String>,
 }
 
-#[utoipa::path(
-    operation_id = "updateJobStatus",
-    post,
-    path = "/api/v1/agent_sessions/{pipeline_run_id}/status",
-    request_body = RunStatusReq,
-    params(("pipeline_run_id" = String, Path, description = "Job ULID")),
-    responses(
-        (status = 200, description = "Job status event emitted", body = MeshResponse),
-        (status = 400, description = "Invalid status or missing field", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn update_job_status(
     State(state): State<ApiState>,
     _auth: Option<axum::Extension<crate::auth::AuthContext>>,
@@ -181,11 +162,7 @@ fn resolve_slug(ship_dir: &std::path::Path, pipeline_run_id: &str) -> String {
 
 // ---- Step-done declaration ----
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "summary": "Compiled and tests pass.",
-    "outputs": { "artifact": "build.tar.gz" }
-}))]
+#[derive(Deserialize)]
 pub struct StepDoneReq {
     pub summary: Option<String>,
     /// Map of `produces.name → artifact_id` for step outputs.
@@ -196,21 +173,6 @@ pub struct StepDoneReq {
 /// POST /api/v1/agent_sessions/{slug}/step-done — agent declares the current pipeline step
 /// complete. Daemon resolves the active step from the projection, builds a
 /// `step.done_declared` envelope, and routes it through the kernel.
-#[utoipa::path(
-    operation_id = "jobStepDone",
-    post,
-    path = "/api/v1/agent_sessions/{slug}/step-done",
-    request_body = StepDoneReq,
-    params(("slug" = String, Path, description = "Job slug")),
-    responses(
-        (status = 200, description = "Step-done event emitted", body = MeshResponse),
-        (status = 400, description = "Invalid request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Job or active step not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn step_done(
     State(state): State<ApiState>,
     _auth: Option<axum::Extension<crate::auth::AuthContext>>,

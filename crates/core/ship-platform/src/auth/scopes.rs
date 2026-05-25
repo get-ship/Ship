@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 /// Coarse-grained capability scopes for daemon session access control.
 /// Each handler declares which scope it requires; the auth layer checks
 /// the session's granted scopes before the handler runs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Scope {
     ReadWorkspace,

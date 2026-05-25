@@ -27,30 +27,17 @@ use ship_platform::account::AccountService;
 
 
 
-#[derive(serde::Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({ "redirect_uri": "http://127.0.0.1:54321/callback" }))]
+#[derive(serde::Deserialize)]
 pub struct StartLoginRequest {
     pub redirect_uri: String,
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
+#[derive(serde::Serialize)]
 pub struct StartLoginResponse {
     pub state_id: String,
     pub browser_url: String,
 }
 
-#[utoipa::path(
-    operation_id = "startAccountLogin",
-    post,
-    path = "/api/v1/account/login",
-    request_body = StartLoginRequest,
-    responses(
-        (status = 200, description = "Login flow started", body = StartLoginResponse),
-        (status = 400, description = "Invalid redirect_uri"),
-        (status = 403, description = "Account ops require user presence"),
-    ),
-    tag = "account"
-)]
 pub async fn start_login(
     Extension(svc): Extension<Arc<AccountService>>,
     Json(req): Json<StartLoginRequest>,
@@ -83,30 +70,17 @@ pub async fn start_login(
     }
 }
 
-#[derive(serde::Deserialize, utoipa::ToSchema)]
+#[derive(serde::Deserialize)]
 pub struct CompleteLoginRequest {
     pub state_id: String,
     pub code: String,
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
+#[derive(serde::Serialize)]
 pub struct CompleteLoginResponse {
     pub user_id: String,
 }
 
-#[utoipa::path(
-    operation_id = "completeAccountLogin",
-    post,
-    path = "/api/v1/account/login/complete",
-    request_body = CompleteLoginRequest,
-    responses(
-        (status = 200, description = "Login complete; token stored", body = CompleteLoginResponse),
-        (status = 401, description = "Invalid or expired state, or PKCE failed at gateway"),
-        (status = 403, description = "Account ops require user presence"),
-        (status = 502, description = "Gateway unreachable or rejected exchange"),
-    ),
-    tag = "account"
-)]
 pub async fn complete_login(
     Extension(svc): Extension<Arc<AccountService>>,
     Json(req): Json<CompleteLoginRequest>,
@@ -131,16 +105,6 @@ pub async fn complete_login(
     }
 }
 
-#[utoipa::path(
-    operation_id = "getAccountState",
-    get,
-    path = "/api/v1/account/state",
-    responses(
-        (status = 200, description = "Account state snapshot"),
-        (status = 403, description = "Account ops require user presence"),
-    ),
-    tag = "account"
-)]
 pub async fn get_state(
     Extension(svc): Extension<Arc<AccountService>>,
 ) -> Response {
@@ -154,16 +118,6 @@ pub async fn get_state(
     }
 }
 
-#[utoipa::path(
-    operation_id = "logoutAccount",
-    post,
-    path = "/api/v1/account/logout",
-    responses(
-        (status = 204, description = "Token cleared (idempotent)"),
-        (status = 403, description = "Account ops require user presence"),
-    ),
-    tag = "account"
-)]
 pub async fn logout(
     Extension(svc): Extension<Arc<AccountService>>,
 ) -> Response {

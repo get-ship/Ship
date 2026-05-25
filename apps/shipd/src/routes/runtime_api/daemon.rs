@@ -67,18 +67,6 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
 }
 
 /// POST /api/v1/runtime/rebuild-projections — rebuild all projections from events.
-#[utoipa::path(
-    operation_id = "rebuildProjections",
-    post,
-    path = "/api/v1/rebuild-projections",
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 409, description = "rebuild already running", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn rebuild_projections(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
