@@ -51,38 +51,47 @@ message UpdateCollectionSchemaRequest {
 // workspace mutations gated through the one gate (services::command::call).
 service CollectionsService {
   rpc State(GetCollectionsStateRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Collections list + active schema + items (tier-3 app data).";
     option (ship.ops.v1.capability) = "ship.collections.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc List(ListCollectionsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Collection summaries with field records (id, name, fields[name,type,required]).";
     option (ship.ops.v1.capability) = "ship.collections.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Detail(GetCollectionDetailRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Single collection: schema + items + total count.";
     option (ship.ops.v1.capability) = "ship.collections.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Items(GetCollectionItemsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Rows for a single collection.";
     option (ship.ops.v1.capability) = "ship.collections.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc CreateItem(CreateCollectionItemRequest) returns (CollectionItem) {
+    option (ship.ops.v1.description) = "Create an item in a collection (id auto-generated if omitted).";
     option (ship.ops.v1.capability) = "ship.collections.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc UpdateItem(UpdateCollectionItemRequest) returns (CollectionItem) {
+    option (ship.ops.v1.description) = "Replace a collection item's data by id.";
     option (ship.ops.v1.capability) = "ship.collections.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc DeleteItem(DeleteCollectionItemRequest) returns (Deletion) {
+    option (ship.ops.v1.description) = "Delete a collection item by id.";
     option (ship.ops.v1.capability) = "ship.collections.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc CreateSchema(CreateCollectionSchemaRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Define a new collection (nested CollectionSchema as schema_json).";
     option (ship.ops.v1.capability) = "ship.collections.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc UpdateSchema(UpdateCollectionSchemaRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Replace a collection's schema (nested CollectionSchema as schema_json).";
     option (ship.ops.v1.capability) = "ship.collections.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }

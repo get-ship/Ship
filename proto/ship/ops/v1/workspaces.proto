@@ -23,10 +23,12 @@ message GetActiveWorkspaceReq {}
 // Project workspace index + active-workspace pointer. C0 reads only.
 service WorkspacesService {
   rpc List(ListWorkspacesReq) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Known project workspaces with active flag per row.";
     option (ship.ops.v1.capability) = "ship.workspaces.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Active(GetActiveWorkspaceReq) returns (WorkspaceActiveResponse) {
+    option (ship.ops.v1.description) = "Currently-active workspace id (null if none).";
     option (ship.ops.v1.capability) = "ship.workspaces.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

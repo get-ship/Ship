@@ -17,6 +17,7 @@ message ListSessionsReq {}
 // PTY/agent session index. Single C0 read — no writes in this domain.
 service SessionsService {
   rpc List(ListSessionsReq) returns (SessionsListResponse) {
+    option (ship.ops.v1.description) = "All live PTY sessions (agent chats, pipeline runs, shells) — Mission Control data.";
     option (ship.ops.v1.capability) = "ship.sessions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

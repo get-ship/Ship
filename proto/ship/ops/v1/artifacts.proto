@@ -48,18 +48,22 @@ message DeleteArtifactRequest {
 // which also enforces the per-artifact scope ACL.
 service ArtifactsService {
   rpc List(ListArtifactsRequest) returns (ArtifactsListResponse) {
+    option (ship.ops.v1.description) = "Artifact metadata records, filterable by scope/mime/collection/item/owner.";
     option (ship.ops.v1.capability) = "ship.artifacts.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Patch(PatchArtifactRequest) returns (ArtifactRecord) {
+    option (ship.ops.v1.description) = "Patch an artifact's metadata (name / owner / expiry).";
     option (ship.ops.v1.capability) = "ship.artifacts.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Promote(PromoteArtifactRequest) returns (ArtifactRecord) {
+    option (ship.ops.v1.description) = "Promote an artifact to a target scope (run → project → user).";
     option (ship.ops.v1.capability) = "ship.artifacts.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Delete(DeleteArtifactRequest) returns (Deletion) {
+    option (ship.ops.v1.description) = "Soft-delete an artifact by id.";
     option (ship.ops.v1.capability) = "ship.artifacts.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }

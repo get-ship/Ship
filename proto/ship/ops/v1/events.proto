@@ -21,6 +21,7 @@ message EventsListReq {
 // Events read surface. Reads are C0 (edge-authenticated).
 service EventsService {
   rpc List(EventsListReq) returns (EventsListResponse) {
+    option (ship.ops.v1.description) = "Kernel events with filters, grouped by entity.";
     option (ship.ops.v1.capability) = "ship.events.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

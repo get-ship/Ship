@@ -17,6 +17,7 @@ message ChatStateReq {
 // Chat read surface. Reads are C0 (edge-authenticated).
 service ChatService {
   rpc State(ChatStateReq) returns (ChatStateResponse) {
+    option (ship.ops.v1.description) = "Recent messages for the chat drawer, scoped by workspace.";
     option (ship.ops.v1.capability) = "ship.chat.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

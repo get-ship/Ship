@@ -53,6 +53,7 @@ const EXTENDEE: &str = "google.protobuf.MethodOptions";
 const CAPABILITY: Extension<StringCodec> = Extension::new(50001, EXTENDEE);
 const BLAST_RADIUS: Extension<EnumI32> = Extension::new(50002, EXTENDEE);
 const SENSITIVE: Extension<Bool> = Extension::new(50003, EXTENDEE);
+const DESCRIPTION: Extension<StringCodec> = Extension::new(50004, EXTENDEE);
 
 /// The gate-relevant policy declared on one rpc method. This is the single
 /// decode of the descriptor set — both the gate (keyed by op name) and the
@@ -77,6 +78,9 @@ pub struct MethodPolicy {
     /// `"JsonResponse"` marks an op not yet on a typed proto shape — no fixture
     /// to validate. The generators + the contract gate key off this.
     pub output_type: String,
+    /// One-line human description (the `description` method option). The SSOT
+    /// for sdk-skill + help doc text; empty if the rpc declares none.
+    pub description: String,
 }
 
 /// Strip a descriptor type ref (`.ship.ops.v1.ScopedMutation`) to its simple
@@ -125,6 +129,7 @@ pub fn read_policies() -> Vec<MethodPolicy> {
                 let sensitive = opts.extension(&SENSITIVE).unwrap_or(false);
                 let input_type = simple_type(method.input_type.as_deref().unwrap_or_default());
                 let output_type = simple_type(method.output_type.as_deref().unwrap_or_default());
+                let description = opts.extension(&DESCRIPTION).unwrap_or_default();
                 out.push(MethodPolicy {
                     package: package.clone(),
                     service: service_name.clone(),
@@ -134,6 +139,7 @@ pub fn read_policies() -> Vec<MethodPolicy> {
                     sensitive,
                     input_type,
                     output_type,
+                    description,
                 });
             }
         }

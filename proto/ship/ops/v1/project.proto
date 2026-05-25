@@ -45,10 +45,12 @@ service ProjectService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Add(AddProjectRequest) returns (ProjectRecord) {
+    option (ship.ops.v1.description) = "Register a directory as a project (ensures its .ship/ exists).";
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Activate(ActivateProjectRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Switch the daemon's active project.";
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }

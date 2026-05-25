@@ -51,18 +51,22 @@ message GrantAgentRequest {
 // routes, never reimplements gating.
 service AgentService {
   rpc Dispatch(DispatchAgentRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Dispatch a single agent session (the canonical agent command).";
     option (ship.ops.v1.capability) = "ship.runtime.dispatch";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Stop(StopAgentRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Stop a running agent by slug.";
     option (ship.ops.v1.capability) = "ship.agents.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Steer(SteerAgentRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Inject a message into a running agent.";
     option (ship.ops.v1.capability) = "ship.agents.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Grant(GrantAgentRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Grant restricted capabilities to an agent (operator approval). Upgrades the agent's live sessions; the next gated call passes. C2 — operator-only, the human-in-the-loop approval point.";
     option (ship.ops.v1.capability) = "ship.agents.grant";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }

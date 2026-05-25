@@ -28,10 +28,12 @@ message SetSettingRequest {
 // is C1 and routes through the one gate (services::command::call).
 service SettingsService {
   rpc State(GetSettingsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Harnesses, defaults, terminal, about — everything the settings view renders.";
     option (ship.ops.v1.capability) = "ship.settings.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Set(SetSettingRequest) returns (SettingValue) {
+    option (ship.ops.v1.description) = "Set a runtime setting (value is arbitrary JSON).";
     option (ship.ops.v1.capability) = "ship.settings.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }

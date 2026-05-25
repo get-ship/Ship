@@ -15,6 +15,7 @@ message DashboardStateReq {}
 // Dashboard read surface. Reads are C0 (edge-authenticated).
 service DashboardService {
   rpc State(DashboardStateReq) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Aggregate stats + recent runs + events + agents + collections.";
     option (ship.ops.v1.capability) = "ship.dashboard.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
