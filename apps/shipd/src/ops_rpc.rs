@@ -2,7 +2,7 @@
 //! (`ship-ops-rpc`), mounted additively beside the REST/SSE routes. Proto owns
 //! op shapes + policy; this owns the handlers and (later) gate enforcement. The
 //! first op, `Meta` (C0), proves the proto → trait → mount pipeline end to end.
-//! See docs/ship-architecture/references/docs/future/agent-access-and-skills-api.md.
+//! See docs/ship-architecture/references/docs/op-surface.md.
 
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};

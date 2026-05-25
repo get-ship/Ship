@@ -82,7 +82,7 @@ GUI/2FA session) plus Tier-2+ isolation for untrusted work.
   capability"); the compiler issues **`grants:`** on capability-skills (never
   hand-authored). An unmet requirement is a compile error.
 - An agent's grants are **minted at dispatch** (today from its role via
-  `grants_for_role`; the [provisioning model](/reference/architecture/agent-access-and-skills-api/)
+  `grants_for_role`; the [provisioning model](/reference/architecture/op-surface/)
   refines this to per-agent operator-approved sets). The token is an opaque handle;
   grants are server-side state in the session registry.
 - **`agent.grant`** (C2, operator-only) is the human-in-the-loop approval: it adds
@@ -262,7 +262,7 @@ field in the request body. The **gate now blunts the escalation**: a session tok
 self-declared `contributor` can no longer reach credential/escalation ops.
 
 **Mitigation path**: the daemon stores an operator-approved grant set per agent (the
-[provisioning model](/reference/architecture/agent-access-and-skills-api/)) and mints
+[provisioning model](/reference/architecture/op-surface/)) and mints
 from it, rather than trusting the request's role.
 
 ## File layout
