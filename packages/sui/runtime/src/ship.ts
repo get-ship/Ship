@@ -73,17 +73,6 @@ export interface CollectionSummary {
   builtin: boolean
 }
 
-/** Project registry record returned by `ship.workspaces.list()`. Mirrors
- *  the daemon's `routes::projects_api::Project` shape. */
-export interface WorkspaceSummary {
-  id: string
-  name: string
-  path: string
-  label?: string
-  created_at: string
-  last_seen_at: string
-}
-
 /**
  * The host SDK handle threaded into controller scope as `ship`. The SUI
  * runtime treats it as an OPAQUE, app-augmented surface — it deliberately
@@ -301,19 +290,6 @@ export interface ShipSDK {
     }): Promise<{ session_id: string; attached: boolean }>
     /** Gracefully stop a live session. Resolves once the daemon acks. */
     end(args: { id: string }): Promise<void>
-  }
-  workspaces: {
-    /** Known projects + active flag per row. Live SSE — patches re-emit
-     *  whenever the project registry or `shell.project.active` changes. */
-    list(): LiveSource<{
-      items: (WorkspaceSummary & { active: boolean })[]
-      active: string | null
-    }>
-    /** Currently-active workspace id (or null). Live SSE — patches on
-     *  `config.changed` for `shell.project.active`. */
-    active(): LiveSource<{ id: string | null }>
-    /** Switch the active project — daemon emits `config.changed`. */
-    activate(args: { id: string }): Promise<{ ok: true; active: string }>
   }
   artifacts: {
     /** Artifact metadata records, filterable by scope/mime/collection/etc. */

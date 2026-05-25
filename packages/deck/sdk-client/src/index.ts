@@ -65,7 +65,6 @@ export type {
   ShipSDK,
   SkillIndexEntry,
   StatusFile as GitFileEntry,
-  WorkspaceSummary,
 } from '@ship/sui-runtime'
 
 /** Options accepted by `createClient`. */

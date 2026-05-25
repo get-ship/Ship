@@ -190,7 +190,6 @@ export type {
   ShipHost,
   ShipSDK,
   SkillIndexEntry,
-  WorkspaceSummary,
 } from './ship'
 
 export { component, prop } from './component'
