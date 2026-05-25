@@ -15,10 +15,10 @@ use crate::{
     sessions, views,
 };
 use crate::routes::{
-    account_api, actor_api, actors_api, agents_api, analytics_api, annotations_api,
+    account_api, actor_api, actors_api, analytics_api, annotations_api,
     artifacts_api, collection_api, commands_api, create_api, feedback_api, git_api,
-    hooks_api, human_webhook, logs_api, mcp_api, openapi, permissions_api,
-    pipelines_api, projects_api, registry_api, rest_api, rules_api, runtime_api,
+    hooks_api, human_webhook, logs_api, mcp_api, openapi,
+    pipelines_api, projects_api, registry_api, rest_api, runtime_api,
     sdk_manifest, search_api, settings_api, skills_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
@@ -508,15 +508,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::Publish, registry_api::publish)
         // AgentService — generic CRUD + lifecycle. First-party and
         // third-party views use this surface equally.
-        .ship_route(Route::AgentsList, agents_api::list)
-        .ship_route(Route::AgentsGet_template(), agents_api::get)
-        .ship_route(Route::AgentsPut_template(), agents_api::put)
-        .ship_route(Route::AgentsPatch_template(), agents_api::patch)
-        .ship_route(Route::AgentsDelete_template(), agents_api::delete)
-        .ship_route(Route::AgentsCreate, agents_api::create)
-        .ship_route(Route::AgentsRename_template(), agents_api::rename)
-        .ship_route(Route::AgentsDuplicate_template(), agents_api::duplicate)
-        .ship_route(Route::AgentsMove_template(), agents_api::move_scope)
         // PipelineService — CRUD + run ops. Dispatch / cancel / log-stream
         // wrap the existing kernel-backed handlers so the write paths stay
         // single-sourced.
@@ -531,11 +522,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::PipelineRunGet_template(), pipelines_api::get_run)
         .ship_route(Route::PipelineRunLogStream_template(), logs_api::stream_job_log)
         // RuleService — markdown rules.
-        .ship_route(Route::RulesList, rules_api::list)
-        .ship_route(Route::RulesGet_template(), rules_api::get)
-        .ship_route(Route::RulesPut_template(), rules_api::put)
-        .ship_route(Route::RulesDelete_template(), rules_api::delete)
-        .ship_route(Route::RulesCreate, rules_api::create)
         // McpService — entries in mcp.jsonc as a collection surface.
         .ship_route(Route::McpList, mcp_api::list)
         .ship_route(Route::McpGet_template(), mcp_api::get)
@@ -544,13 +530,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::McpDelete_template(), mcp_api::delete)
         .ship_route(Route::McpCreate, mcp_api::create)
         // PermissionService — preset entries + composed tool-patterns.
-        .ship_route(Route::PermissionsList, permissions_api::list)
-        .ship_route(Route::PermissionsToolPatterns, permissions_api::tool_patterns)
-        .ship_route(Route::PermissionsGet_template(), permissions_api::get)
-        .ship_route(Route::PermissionsPut_template(), permissions_api::put)
-        .ship_route(Route::PermissionsPatch_template(), permissions_api::patch)
-        .ship_route(Route::PermissionsDelete_template(), permissions_api::delete)
-        .ship_route(Route::PermissionsCreate, permissions_api::create)
         // SkillService — service-shaped CRUD + file tree + vars. Replaces
         // the project-scoped skill endpoints that used to hang off
         // /api/v1/projects/{id}/skills/*.

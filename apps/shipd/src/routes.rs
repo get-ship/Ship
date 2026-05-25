@@ -44,7 +44,6 @@ pub mod agent_sessions_attach;
 #[cfg(test)]
 mod agent_sessions_attach_tests;
 pub mod mcp_registry;
-pub mod agents_api;
 pub mod analytics_api;
 pub mod annotations_api;
 pub mod artifacts_api;
@@ -60,9 +59,7 @@ pub mod human_webhook;
 pub mod logs_api;
 pub mod mcp_api;
 pub mod openapi;
-pub mod permissions_api;
 pub mod pipelines_api;
-pub mod rules_api;
 pub mod skills_api;
 pub mod openapi_modifier;
 pub mod openapi_types;
@@ -239,44 +236,6 @@ pub enum Route {
     /// @auth public
     SuiSource { tag: String },
 
-    // ── AgentService — service-shaped CRUD + lifecycle ──
-
-    /// @route GET "/api/v1/agents"
-    /// @auth scope ReadWorkspace
-    AgentsList,
-
-    /// @route GET "/api/v1/agents/{id}"
-    /// @auth scope ReadWorkspace
-    AgentsGet { id: String },
-
-    /// @route PUT "/api/v1/agents/{id}"
-    /// @auth scope WriteWorkspace
-    AgentsPut { id: String },
-
-    /// @route PATCH "/api/v1/agents/{id}"
-    /// @auth scope WriteWorkspace
-    AgentsPatch { id: String },
-
-    /// @route DELETE "/api/v1/agents/{id}"
-    /// @auth scope WriteWorkspace
-    AgentsDelete { id: String },
-
-    /// @route POST "/api/v1/agents"
-    /// @auth scope CreateRuns
-    AgentsCreate,
-
-    /// @route POST "/api/v1/agents/{id}/rename"
-    /// @auth scope WriteWorkspace
-    AgentsRename { id: String },
-
-    /// @route POST "/api/v1/agents/{id}/duplicate"
-    /// @auth scope CreateRuns
-    AgentsDuplicate { id: String },
-
-    /// @route POST "/api/v1/agents/{id}/move"
-    /// @auth scope WriteWorkspace
-    AgentsMove { id: String },
-
     // ── PipelineService — service-shaped CRUD + run ops ──
 
     /// @route GET "/api/v1/pipelines"
@@ -323,28 +282,6 @@ pub enum Route {
     /// @auth scope ReadRuns
     PipelineRunLogStream { slug: String },
 
-    // ── RuleService — markdown rules at <scope>/rules/<id>.md ──
-
-    /// @route GET "/api/v1/rules"
-    /// @auth scope ReadWorkspace
-    RulesList,
-
-    /// @route GET "/api/v1/rules/{id}"
-    /// @auth scope ReadWorkspace
-    RulesGet { id: String },
-
-    /// @route PUT "/api/v1/rules/{id}"
-    /// @auth scope WriteWorkspace
-    RulesPut { id: String },
-
-    /// @route DELETE "/api/v1/rules/{id}"
-    /// @auth scope WriteWorkspace
-    RulesDelete { id: String },
-
-    /// @route POST "/api/v1/rules"
-    /// @auth scope CreateRuns
-    RulesCreate,
-
     // ── McpService — entries in <scope>/mcp.jsonc ──
 
     /// @route GET "/api/v1/mcp"
@@ -370,36 +307,6 @@ pub enum Route {
     /// @route POST "/api/v1/mcp"
     /// @auth scope CreateRuns
     McpCreate,
-
-    // ── PermissionService — preset entries in <scope>/permissions.jsonc ──
-
-    /// @route GET "/api/v1/permissions"
-    /// @auth scope ReadWorkspace
-    PermissionsList,
-
-    /// @route GET "/api/v1/permissions/tool-patterns"
-    /// @auth scope ReadWorkspace
-    PermissionsToolPatterns,
-
-    /// @route GET "/api/v1/permissions/{id}"
-    /// @auth scope ReadWorkspace
-    PermissionsGet { id: String },
-
-    /// @route PUT "/api/v1/permissions/{id}"
-    /// @auth scope WriteWorkspace
-    PermissionsPut { id: String },
-
-    /// @route PATCH "/api/v1/permissions/{id}"
-    /// @auth scope WriteWorkspace
-    PermissionsPatch { id: String },
-
-    /// @route DELETE "/api/v1/permissions/{id}"
-    /// @auth scope WriteWorkspace
-    PermissionsDelete { id: String },
-
-    /// @route POST "/api/v1/permissions"
-    /// @auth scope CreateRuns
-    PermissionsCreate,
 
     // ── SkillService — service-shaped CRUD + vars ──
 
