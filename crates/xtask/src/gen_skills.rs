@@ -27,7 +27,9 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
-use ship_ops_rpc::policy::{op_name, snake, MethodArg};
+use ship_ops_rpc::policy::{
+    MethodArg, domain_of, is_non_domain_service, is_operational, op_name, snake,
+};
 
 /// Output root, relative to the repo: the `sdk` subdir of the skills tree.
 /// Separate from the hand-authored `docs/` doc-site source (which it must not
@@ -60,25 +62,6 @@ impl OpRow {
     }
 }
 
-fn domain_of(name: &str) -> &str {
-    name.split('.').next().unwrap_or(name)
-}
-
-/// Audience axis (#95): which ops appear in the generated *agent* sdk-skills.
-///
-/// **Reads are always agent-facing** — observation is non-harmful for an
-/// assistant acting within the user's workspace, so every read op is surfaced
-/// (this includes `mesh.snapshot`, `actors.list`, `events.list`).
-///
-/// **Operational WRITES are excluded**: kernel/actor control (`actor.*`) and
-/// mesh coordination (`mesh.*`). Actor control is operator/debug; mesh
-/// coordination is reserved for the higher-level primitive that will wrap it
-/// (agents hold no surfaced interface to raw mesh). These stay real ABI on the
-/// operator surface — they're just not part of the agent capability set.
-fn is_operational_command(name: &str) -> bool {
-    matches!(domain_of(name), "actor" | "mesh")
-}
-
 /// A JSON placeholder value for an arg kind — seeds the `ship ops call` example.
 fn placeholder(kind: &str) -> &'static str {
     if kind.ends_with("[]") {
@@ -106,12 +89,6 @@ fn example_json(args: &[MethodArg]) -> String {
     format!("{{ {} }}", fields.join(", "))
 }
 
-/// The generated umbrella + streaming services — not agent-facing capability
-/// domains. `ReadOps`/`CommandOps` are the retiring bulk-port scaffold (every op
-/// is also on its per-domain service); `StreamService` is server-streaming.
-fn is_non_domain_service(service: &str) -> bool {
-    matches!(service, "ReadOpsService" | "CommandOpsService" | "StreamService")
-}
 
 /// Enumerate the agent-facing op surface FROM THE PROTO DESCRIPTOR (the SSOT) —
 /// no Rust registry read. Operational ops (#95) and the umbrella scaffold are
@@ -123,7 +100,7 @@ fn collect() -> BTreeMap<String, Vec<OpRow>> {
             continue;
         }
         let name = op_name(&p.service, &p.method);
-        if is_operational_command(&name) {
+        if is_operational(&name) {
             continue;
         }
         by_domain.entry(domain_of(&name).to_string()).or_default().push(OpRow {

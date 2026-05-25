@@ -130,6 +130,61 @@ pub fn op_name(service: &str, method: &str) -> String {
     format!("{domain}.{}", snake(method))
 }
 
+/// The op-domain an op name belongs to — its first dotted segment
+/// (`git.create` → `git`). The domain is the unit of **capability**: one per
+/// per-domain proto service, 1:1 with an sdk-skill (`ship-<domain>`).
+pub fn domain_of(op_name: &str) -> &str {
+    op_name.split('.').next().unwrap_or(op_name)
+}
+
+/// The generated umbrella + streaming services are not capability domains:
+/// `ReadOps`/`CommandOps` are the retiring bulk-port scaffold (every op is also
+/// on its per-domain service); `StreamService` is server-streaming.
+pub fn is_non_domain_service(service: &str) -> bool {
+    matches!(service, "ReadOpsService" | "CommandOpsService" | "StreamService")
+}
+
+/// Operational domains (#95) are not part of the agent capability set: kernel/
+/// actor control (`actor.*`) and raw mesh coordination (`mesh.*`) are
+/// operator-surface ABI, not capabilities a user grants an agent.
+pub fn is_operational(op_name: &str) -> bool {
+    matches!(domain_of(op_name), "actor" | "mesh")
+}
+
+/// A grantable Ship capability: one op domain (e.g. `git`), 1:1 with its
+/// sdk-skill (`ship-git`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Capability {
+    /// Domain id, e.g. `git` — what a user grants and what `requires:` names.
+    pub id: String,
+    /// The sdk-skill that teaches this capability's ops, e.g. `ship-git`.
+    pub sdk_skill: String,
+}
+
+/// The agent-facing capability registry: every grantable domain, **derived from
+/// the proto descriptor** — the single source the sdk-skills are generated from,
+/// so the capability list, the sdk-skill set, and the gate's grant axis cannot
+/// drift. Excludes the umbrella scaffold and operational domains. Sorted/deduped;
+/// 1:1 with the generated sdk-skills. Capability is orthogonal to blast-radius
+/// (the internal C0/C1/C2 risk calc).
+pub fn capabilities() -> Vec<Capability> {
+    let mut domains: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for p in read_policies() {
+        if is_non_domain_service(&p.service) {
+            continue;
+        }
+        let name = op_name(&p.service, &p.method);
+        if is_operational(&name) {
+            continue;
+        }
+        domains.insert(domain_of(&name).to_string());
+    }
+    domains
+        .into_iter()
+        .map(|id| Capability { sdk_skill: format!("ship-{id}"), id })
+        .collect()
+}
+
 /// Project a proto field's (type, label) to the generators' arg-kind vocab.
 /// Field type numbers per `descriptor.proto`'s `FieldDescriptorProto.Type`;
 /// label 3 = repeated.
@@ -265,5 +320,29 @@ mod tests {
         for p in read_policies() {
             assert!(!p.capability.is_empty(), "rpc `{}` has no capability option", p.method);
         }
+    }
+}
+
+#[cfg(test)]
+mod capability_tests {
+    use super::*;
+
+    #[test]
+    fn capabilities_are_per_domain_and_map_1to1_to_sdk_skills() {
+        let caps = capabilities();
+        assert!(!caps.is_empty(), "capability registry must derive domains from proto");
+        // Known domains present; sdk-skill id is exactly ship-<id>.
+        let git = caps.iter().find(|c| c.id == "git").expect("git capability");
+        assert_eq!(git.sdk_skill, "ship-git");
+        assert!(caps.iter().any(|c| c.id == "pipelines"));
+        // Operational domains (#95) and the umbrella scaffold are NOT capabilities.
+        assert!(!caps.iter().any(|c| c.id == "actor"));
+        assert!(!caps.iter().any(|c| c.id == "mesh"));
+        // No duplicates.
+        let mut ids: Vec<&str> = caps.iter().map(|c| c.id.as_str()).collect();
+        let n = ids.len();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), n, "capability ids are unique");
     }
 }
