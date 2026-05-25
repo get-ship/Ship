@@ -7,6 +7,7 @@ import {
   CREATE_SURFACES, SEARCH_KIND_LABELS,
   detectMode, isKebab, navigateTo,
 } from './types'
+import { ops } from '../../ops'
 
 export default controller({
   scope: (_ctx: ViewScope<Scope>, host?: Element) => {
@@ -251,26 +252,17 @@ export default controller({
       s.bar.createError.set(null)
       try {
         const surface = s.bar.createSurface() as string
-        const resp = await fetch(`/api/v1/create/${encodeURIComponent(surface)}`, {
-          method: 'POST', credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: s.bar.createName(),
-            shape: s.bar.createShape(),
-            purpose: s.bar.createPurpose() || undefined,
-          }),
-        })
-        if (!resp.ok) {
-          const err = await resp.json().catch(() => ({})) as { error?: string }
-          s.bar.createError.set(err.error ?? `HTTP ${resp.status}`)
-        } else {
-          const body = await resp.json().catch(() => ({})) as { data?: { route?: string | null; path?: string } }
-          s.bar.createName.set('')
-          s.bar.createPurpose.set('')
-          s.bar.open.set(false)
-          const route = body.data?.route
-          if (route) void navigateTo(route)
-        }
+        const body = JSON.parse((await ops.create.surface({
+          surface,
+          name: s.bar.createName(),
+          shape: s.bar.createShape(),
+          purpose: s.bar.createPurpose() || '',
+        })).json) as { data?: { route?: string | null; path?: string } }
+        s.bar.createName.set('')
+        s.bar.createPurpose.set('')
+        s.bar.open.set(false)
+        const route = body.data?.route
+        if (route) void navigateTo(route)
       } catch (err) {
         s.bar.createError.set(err instanceof Error ? err.message : 'Unknown error')
       } finally {
