@@ -514,6 +514,12 @@ pub async fn run_network(
     // subsequent starts; suppressible via `SHIP_NO_BROWSER=1`.
     daemon::first_run::maybe_open_setup(&global_dir, port);
 
+    // Host unix socket — the per-agent surface. Same app + gate as TCP, but
+    // auth comes from the connection's kernel peer credentials (no token).
+    // Best-effort and additive: TCP stays the primary surface regardless.
+    #[cfg(unix)]
+    let _host_socket = auth::peer_socket::spawn_host_socket(&daemon_dir, app.clone(), ct.clone());
+
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
