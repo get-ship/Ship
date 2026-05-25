@@ -64,7 +64,6 @@ impl Modify for SecurityAndServer {
         // Framework surface added in the ship-set-architecture arc.
         crate::services::schema::serve_schema,
         crate::services::chat::send::send_message,
-        crate::views::source_api::serve_view_source,
         crate::views::files_api::list_view_files,
         crate::routes::create_api::create_surface,
         crate::views::write_api::write_view_template,

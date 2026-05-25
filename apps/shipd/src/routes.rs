@@ -468,17 +468,9 @@ pub enum Route {
 
     // ── Generic view serving ─────────────────────────────────────────────
 
-    /// @route GET "/api/v1/views"
-    /// @auth scope ReadWorkspace
-    ListViews,
-
     /// @route GET "/api/v1/ship/schema"
     /// @auth scope ReadWorkspace
     ShipSchema,
-
-    /// @route GET "/api/v1/view-source/{*path}"
-    /// @auth scope ReadWorkspace
-    ServeViewSource { path: String },
 
     /// @route GET "/api/v1/views/{name}/files"
     /// @auth scope ReadWorkspace

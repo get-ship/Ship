@@ -18,23 +18,9 @@ const HIDDEN_FROM_PICKERS: &[&str] = &[
     "specs",
 ];
 
-/// GET /api/v1/views
-#[utoipa::path(
-    operation_id = "listViews",
-    get,
-    path = "/api/v1/views",
-    responses(
-        (status = 200, description = "Catalog of available views"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-    ),
-    tag = "views"
-)]
-pub async fn list_views() -> impl IntoResponse {
-    mesh_ok(list_views_catalog())
-}
-
-/// Value-returning core for the view catalog (`{ views: [...] }`). Shared by
-/// the REST handler above and the `DiscoveryService.List` Connect op (#139).
+/// Value-returning core for the view catalog (`{ views: [...] }`). Backs the
+/// `DiscoveryService.List` Connect op (#139); the REST `GET /api/v1/views`
+/// handler it replaced is gone.
 pub fn list_views_catalog() -> serde_json::Value {
     let mut views: HashMap<String, ViewListEntry> = HashMap::new();
     for d in super::discovery::view_search_dirs() {
