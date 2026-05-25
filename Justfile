@@ -316,8 +316,8 @@ build: _sui-compiler-lib
     echo "[7/9] sui-catalog walk (→ .deck/catalogs/{workspace,published}.json)"
     bun run --filter @ship/sui-catalog build
     bun packages/deck/catalog/src/cli.ts
-    echo "[8/9] cargo build --release (ship-cli + shipd + mcp)"
-    cargo build --release -p ship-cli -p shipd -p mcp
+    echo "[8/9] cargo build --release (ship-cli + shipd)"
+    cargo build --release -p ship-cli -p shipd
     echo "[9/9] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
@@ -340,16 +340,16 @@ build: _sui-compiler-lib
     [ "$missing" = "0" ] || { echo "build: outputs incomplete" >&2; exit 1; }
     echo "build complete — release binaries at $target_dir/release/"
 
-# Build CLI + MCP + shipd (unstable dev build).
+# Build CLI + shipd (unstable dev build).
 [group('occasional')]
 build-dev:
-    cargo build --features unstable -p ship-cli -p mcp -p shipd -p sui-lsp
+    cargo build --features unstable -p ship-cli -p shipd -p sui-lsp
 
 # Cargo-only release build (no front-end). Use `just build` for the full
 # production artifact set; this recipe is the cargo subset.
 [group('occasional')]
 build-release:
-    cargo build --release -p ship-cli -p mcp -p shipd
+    cargo build --release -p ship-cli -p shipd
 
 # Install dev binaries to ~/.local/bin (ship + shipd).
 [group('occasional')]
@@ -432,8 +432,8 @@ logs:
 # Verify both stable and unstable compile (CI gate).
 [group('occasional')]
 check-gates:
-    cargo build -p ship-cli -p mcp
-    cargo build --features unstable -p ship-cli -p mcp
+    cargo build -p ship-cli -p shipd
+    cargo build --features unstable -p ship-cli -p shipd
     just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
 
