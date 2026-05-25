@@ -303,9 +303,16 @@ Two paths out of transport: HTTP to the daemon, or a direct compile call. The da
 
 **Transport forwards, daemon decides.** One hop: transport → compiler, or transport → daemon.
 
+**One op surface is the ABI.** Every daemon operation is a ConnectRPC method in a
+per-domain `ship.ops.v1` service, authored from proto (the SSOT for shape *and*
+policy). CLI, GUI, and agents are generated clients; one capability gate enforces
+blast-radius × caller × grant. See [The op surface](/architecture/op-surface/).
+
 ## Deeper reading
 
 - [The Ship Stack](/ship-stack/) — product-layer view.
+- [The op surface](/architecture/op-surface/) — the L1 op ABI: proto-authored
+  `ship.ops.v1` services, the capability gate, sdk-skills, contract fixtures.
 - [Runtime internals](/runtime/) — shipd, services, persistence.
 - [Kernel](/architecture/kernel/) — routing contract, limitations, future work.
 - [Harness Outputs](/compiler/harnesses/) — what the compiler writes per harness.

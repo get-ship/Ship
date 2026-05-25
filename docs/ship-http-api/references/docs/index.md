@@ -6,7 +6,13 @@ description: Shipd's local REST API — base URL, authentication, and error hand
 audience: internal
 ---
 
-`shipd` serves a local REST API on `http://127.0.0.1:9315` by default. Every request is authenticated with the bearer token in `~/.ship/machine/daemon/token`; responses follow the OpenAPI contract committed to `apps/docs/openapi.json`.
+> **Legacy surface.** The canonical daemon ABI is now the
+> [ConnectRPC op surface](/architecture/op-surface/) (per-domain `ship.ops.v1`
+> services, proto-authored). This REST API still serves the GUI and is documented
+> here, but it is retiring once the GUI flip lands (#78). New clients use `@ship/sdk`
+> / `ship ops call`.
+
+`shipd` serves this local REST API on `http://127.0.0.1:9315` by default. Every request is authenticated with the bearer token in `~/.ship/machine/daemon/token`; responses follow the OpenAPI contract committed to `apps/docs/openapi.json`.
 
 - Per-operation pages (request/response schemas, examples, code samples) are generated from the OpenAPI spec and live under [`/api-reference/operations/`](/api-reference/operations/).
 - Non-2xx responses all share a single envelope — see [Error Codes](/http-api/errors/) for the canonical list and client-side handling guidance.
