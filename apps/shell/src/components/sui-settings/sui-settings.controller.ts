@@ -13,6 +13,7 @@ import {
   openAccountBilling,
   readAccountIdentity,
 } from '@ship/sdk-client'
+import { ops } from '../../ops'
 import type { Scope } from './sui-settings.sui'
 
 function flashSaved(sig: Signal<boolean>, ms = 1600): void {
@@ -28,16 +29,7 @@ async function settingsUpdate(formData: FormData): Promise<{ key: string; value:
   const key = String(formData.get('key') ?? '')
   const value = String(formData.get('value') ?? '')
   if (!key) throw new Error('settings.update: missing "key" field')
-  const res = await fetch('/api/v1/settings', {
-    method: 'PUT',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key, value }),
-  })
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText)
-    throw new Error(`settings.update failed (${res.status}): ${text}`)
-  }
+  await ops.settings.set({ key, valueJson: JSON.stringify(value) })
   return { key, value }
 }
 

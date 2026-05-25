@@ -8,30 +8,18 @@ const DEFAULT_PINS = ['dashboard', 'pipelines', 'agents', 'skills', 'git']
 
 async function fetchPins(): Promise<string[]> {
   try {
-    const resp = await fetch('/api/v1/settings', { credentials: 'same-origin' })
-    if (!resp.ok) return DEFAULT_PINS
-    const body = (await resp.json()) as { data?: Record<string, unknown> }
-    const raw = body.data?.[SETTING_KEY]
-    if (typeof raw === 'string') {
-      try {
-        const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed) && parsed.every((v) => typeof v === 'string'))
-          return parsed as string[]
-      } catch { /* fall through */ }
-    } else if (Array.isArray(raw) && raw.every((v) => typeof v === 'string')) {
-      return raw as string[]
+    const body = JSON.parse((await ops.settings.state({})).json) as {
+      data?: Record<string, unknown>
     }
+    const raw = body.data?.[SETTING_KEY]
+    if (Array.isArray(raw) && raw.every((v) => typeof v === 'string')) return raw as string[]
     return DEFAULT_PINS
   } catch { return DEFAULT_PINS }
 }
 
 async function savePins(pins: string[]): Promise<void> {
   try {
-    await fetch('/api/v1/settings', {
-      method: 'PUT', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: SETTING_KEY, value: JSON.stringify(pins) }),
-    })
+    await ops.settings.set({ key: SETTING_KEY, valueJson: JSON.stringify(pins) })
   } catch { /* best-effort */ }
 }
 

@@ -3,6 +3,7 @@ import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { studioRoutes } from '../../routes.gen'
 import { HUES, pickHue, pickInitials } from './hue'
+import { ops } from '../../../ops'
 
 type Permissions = {
   preset?: string
@@ -37,14 +38,11 @@ type Banner = { ok: true; msg: string } | { ok: false; msg: string } | null
 
 async function readActiveAgent(): Promise<string> {
   try {
-    const resp = await fetch('/api/v1/settings/shell.agent.active', { credentials: 'same-origin' })
-    if (!resp.ok) return ''
-    const body = (await resp.json()) as { data?: unknown }
-    const value = body.data
-    if (typeof value === 'string') return value
-    if (value && typeof value === 'object' && 'value' in value && typeof (value as { value?: unknown }).value === 'string') {
-      return (value as { value: string }).value
+    const body = JSON.parse((await ops.settings.state({})).json) as {
+      data?: Record<string, unknown>
     }
+    const value = body.data?.['shell.agent.active']
+    if (typeof value === 'string') return value
     return ''
   } catch {
     return ''
@@ -215,17 +213,10 @@ export default controller({
       s.activating = true
       s.banner = null
       try {
-        const resp = await fetch('/api/v1/settings', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ key: 'shell.agent.active', value: s.agentId }),
+        await ops.settings.set({
+          key: 'shell.agent.active',
+          valueJson: JSON.stringify(s.agentId),
         })
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => '')
-          s.banner = { ok: false, msg: text || `Activate failed (${resp.status})` }
-          return
-        }
         s.activeAgentId = s.agentId
         s.banner = { ok: true, msg: 'Agent activated.' }
       } catch (err) {
@@ -239,17 +230,7 @@ export default controller({
       s.activating = true
       s.banner = null
       try {
-        const resp = await fetch('/api/v1/settings', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ key: 'shell.agent.active', value: '' }),
-        })
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => '')
-          s.banner = { ok: false, msg: text || `Deactivate failed (${resp.status})` }
-          return
-        }
+        await ops.settings.set({ key: 'shell.agent.active', valueJson: JSON.stringify('') })
         s.activeAgentId = ''
         s.banner = { ok: true, msg: 'Agent cleared.' }
       } catch (err) {

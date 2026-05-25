@@ -8,6 +8,7 @@ import {
   searchEntities,
   detectMode, navigateTo,
 } from './types'
+import { ops } from '../../ops'
 
 export default controller({
   scope: (init: ViewScope<Scope>) => {
@@ -112,10 +113,10 @@ export default controller({
     }
     async function refreshSendKey(): Promise<void> {
       try {
-        const resp = await fetch('/api/v1/settings/cmdk.send_key', { credentials: 'same-origin' })
-        if (!resp.ok) return
-        const body = await resp.json() as { value?: unknown }
-        const v = typeof body.value === 'string' ? body.value : (body as { ok?: boolean; data?: { value?: string } }).data?.value
+        const body = JSON.parse((await ops.settings.state({})).json) as {
+          data?: Record<string, unknown>
+        }
+        const v = body.data?.['cmdk.send_key']
         if (v === 'enter' || v === 'cmd+enter') sendKey.set(v)
       } catch { /* leave default */ }
     }
