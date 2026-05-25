@@ -1,0 +1,32 @@
+{
+  "Post": {
+    "response_ok": {
+      "id": 1,
+      "accepted": true
+    }
+  },
+  "List": {
+    "response_ok": {
+      "errors": [
+        {
+          "id": 1,
+          "view": "specs-detail",
+          "url": "/views/specs/checkout-flow",
+          "kind": "js-error",
+          "message": "Cannot read properties of undefined (reading 'acceptance')",
+          "stack": "TypeError: Cannot read properties of undefined\n    at SpecDetail.render (spec-detail.js:42)",
+          "filename": "spec-detail.js",
+          "line": 42,
+          "column": 18,
+          "timestamp_server_ms": 1748822400000
+        }
+      ],
+      "total": 1
+    }
+  },
+  "Clear": {
+    "response_ok": {
+      "cleared": 1
+    }
+  }
+}

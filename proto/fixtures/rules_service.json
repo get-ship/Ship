@@ -23,5 +23,23 @@
       "scope": "project",
       "body": "# No placeholders\n\nNo TODOs, no fake data. If it's not finished, remove it. The next agent treats your scaffold as architecture.\n"
     }
+  },
+  "Create": {
+    "response_ok": {
+      "id": "no-placeholders",
+      "scope": "project"
+    }
+  },
+  "Put": {
+    "response_ok": {
+      "id": "test-first",
+      "scope": "project"
+    }
+  },
+  "Delete": {
+    "response_ok": {
+      "id": "commit-style",
+      "scope": "user"
+    }
   }
 }

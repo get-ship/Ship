@@ -1,0 +1,26 @@
+{
+  "State": {
+    "response_ok": {
+      "workspace_id": "harbor",
+      "messages": [
+        {
+          "id": "msg-001",
+          "sender": "user",
+          "content": "Scaffold the checkout service",
+          "timestamp": "2026-05-24T18:00:00Z",
+          "event_type": "chat.message",
+          "workspace_id": "harbor"
+        },
+        {
+          "id": "msg-002",
+          "sender": "rust-lane",
+          "content": "Done — checkout.rs added, router updated, contract test written.",
+          "timestamp": "2026-05-24T18:30:00Z",
+          "event_type": "chat.message",
+          "workspace_id": "harbor"
+        }
+      ],
+      "total": 2
+    }
+  }
+}

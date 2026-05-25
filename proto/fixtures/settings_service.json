@@ -1,0 +1,8 @@
+{
+  "Set": {
+    "response_ok": {
+      "key": "theme",
+      "value_json": "\"dark\""
+    }
+  }
+}

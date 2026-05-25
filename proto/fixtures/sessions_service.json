@@ -1,0 +1,22 @@
+{
+  "List": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "sess-rust-lane-1",
+          "kind": "agent",
+          "workspace_id": "harbor",
+          "agent_id": "rust-lane",
+          "harness": "claude",
+          "pid": 12345,
+          "status": "exited",
+          "log_path": ".ship/logs/sess-rust-lane-1.log",
+          "spawned_at": "2026-05-24T18:00:00Z",
+          "last_activity": "2026-05-24T18:30:00Z",
+          "exit_code": 0,
+          "harness_session_id": "sess-rust-lane-1"
+        }
+      ]
+    }
+  }
+}
