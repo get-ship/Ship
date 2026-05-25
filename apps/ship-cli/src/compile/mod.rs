@@ -1,40 +1,20 @@
-//! `ship compile` — load the project library, resolve, compile, write.
+//! `ship compile` — thin CLI wrapper around ship-platform's compile service.
+//! Terminal presentation only: dry-run print, --with UX, ✓ line, session gitignore.
 
-mod agent;
-mod mcp_allowlist;
 pub(crate) mod output;
-pub(crate) mod permissions;
 
-#[cfg(test)]
-mod tests;
-#[cfg(test)]
-mod tests_agent;
-#[cfg(test)]
-mod tests_extra_skills;
 #[cfg(test)]
 mod tests_worktree;
 
-use anyhow::{Context, Result};
-use compiler::{compile, resolve_library};
+use anyhow::Result;
 use std::path::Path;
-
-use ship_platform::registry::dep_skills::resolve_dep_skills;
-use crate::loader::load_library;
-
-use agent::{apply_agent_to_library, collect_all_skill_refs};
-use mcp_allowlist::{ensure_ship_mcp_allowed_claude, ensure_ship_mcp_allowed_cursor};
-use output::{ensure_session_gitignored, print_dry_run};
-
-// Re-export the public API so `use crate::compile::{CompileOptions, run_compile}` works.
-pub use output::write_output;
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 pub struct CompileOptions<'a> {
     /// Source root — where .ship/ lives (may be the main repo for worktrees).
     pub project_root: &'a Path,
-    /// Output root — where compiled files (CLAUDE.md, .claude/, .mcp.json) go.
-    /// Defaults to project_root. Set to cwd for worktree compilation.
+    /// Output root — where compiled files go. Defaults to project_root.
     pub output_root: Option<&'a Path>,
     /// Optionally restrict to a single harness.
     pub harness: Option<&'a str>,
@@ -46,179 +26,49 @@ pub struct CompileOptions<'a> {
     /// the agent's declared skill refs. Each ID must exist in the loaded library.
     pub extra_skills: Vec<String>,
     /// Plugin IDs the active agent declared and that this compile installed.
-    /// Recorded on the emitted `compile.completed` event so the
-    /// `project_compile_state` projection knows which plugins are live.
     pub plugins_installed: Vec<String>,
-    /// Compile for a daemon-spawned scoped launch (dispatch/command-bar/
-    /// sandbox): emit the daemon-hosted authed-HTTP `ship` MCP entry instead
-    /// of the trusted-local stdio shim. Set by `ship use --scoped` (the
-    /// dispatcher); a manual `ship use` leaves it false.
+    /// Compile for a daemon-spawned scoped launch.
     pub scoped_launch: bool,
 }
 
 pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(opts.project_root);
-    let output_root = opts.output_root.unwrap_or(opts.project_root);
+    use ship_platform::services::compile as svc;
 
-    // 1. Load raw library from .ship/ (flat layout)
-    let mut library = load_library(&ship_dir).context("failed to load .ship/")?;
+    let extra_skills = opts.extra_skills.clone();
 
-    // 2. Apply mode overrides (permissions, inline rules, harness list)
-    if let Some(mode_id) = opts.active_agent {
-        apply_agent_to_library(&mut library, mode_id, opts.project_root)?;
-    }
-    library.active_agent = opts.active_agent.map(str::to_string);
+    let summary = svc::compile_project(&svc::CompileOptions {
+        project_root: opts.project_root.to_path_buf(),
+        output_root: opts.output_root.map(|p| p.to_path_buf()),
+        harness: opts.harness.map(str::to_string),
+        active_agent: opts.active_agent.map(str::to_string),
+        extra_skills: opts.extra_skills,
+        plugins_installed: opts.plugins_installed,
+        scoped_launch: opts.scoped_launch,
+        dry_run: opts.dry_run,
+    })?;
 
-    // 2b. Resolve dep skill refs from cached packages.
-    //     Collect all skill refs declared across agent profiles and mode configs,
-    //     resolve any github.com/ refs from ship.lock + cache, and merge into
-    //     library.skills before passing to the compiler. Local refs are skipped.
-    {
-        let all_skill_refs = collect_all_skill_refs(&library);
-        if !all_skill_refs.is_empty() {
-            let lock_path = ship_substrate::ShipHome::project_ship_dir(opts.project_root).join("ship.lock");
-            let dep_skills = resolve_dep_skills(
-                &all_skill_refs,
-                &library.skills,
-                &lock_path,
-                None, // use default ~/.ship/cache/
-            )
-            .context("resolving dep skills from cache")?;
-            library.skills.extend(dep_skills);
-        }
-    }
-
-    // 2c. Inject --with extra skills into the active mode's skill filter.
-    //     Each extra ID must exist in the loaded library (validates at inject time).
-    //     If the active mode has a non-empty skill filter, append the extra IDs so
-    //     they pass resolve's retain filter. If the filter is empty (include-all),
-    //     the skills are already present — no mode mutation needed.
-    if !opts.extra_skills.is_empty() {
-        for skill_id in &opts.extra_skills {
-            anyhow::ensure!(
-                library.skills.iter().any(|s| &s.id == skill_id),
-                "skill not found: {} — check skill_paths in ship.jsonc",
-                skill_id
-            );
-        }
-        // Find the active agent (if any) and extend its skill filter.
-        if let Some(agent_id) = opts.active_agent
-            && let Some(agent) = library.agents.iter_mut().find(|a| a.id == agent_id)
-            && !agent.skills.is_empty()
-        {
-            // If agent.skills is empty, all skills are included — nothing to extend.
-            for skill_id in &opts.extra_skills {
-                if !agent.skills.contains(skill_id) {
-                    agent.skills.push(skill_id.clone());
-                }
-            }
-        }
-    }
-
-    // 3. Resolve (mode filtering, harness selection)
-    let mut resolved = resolve_library(&library, None, opts.active_agent);
-    // Inject the resolved ship home so the compiler can emit MCP entries
-    // with `SHIP_HOME` without reading env directly (it is WASM-safe).
-    let ship_home: ship_substrate::ShipHome = ship_substrate::ShipHome::from_env();
-    resolved.ship_home_dir = Some(ship_home.root().to_string_lossy().into_owned());
-    // Daemon-spawned scoped launch → emit the authed-HTTP `ship` MCP entry.
-    resolved.scoped_launch = opts.scoped_launch;
-
-    // 4. Determine harnesses to compile for
-    let harnesses: Vec<String> = match opts.harness {
-        Some(p) => vec![p.to_string()],
-        None => resolved.harnesses.clone(),
-    };
-
-    if harnesses.is_empty() {
+    if summary.harnesses.is_empty() {
         println!("No harnesses configured. Add harnesses to .ship/ship.jsonc or agent profile.");
         return Ok(());
     }
 
-    // 5. Compile + write (output goes to output_root, not project_root)
-    for harness_id in &harnesses {
-        let Some(output) = compile(&resolved, harness_id) else {
-            eprintln!("warning: unknown harness '{}', skipping", harness_id);
-            continue;
-        };
-        if opts.dry_run {
-            print_dry_run(harness_id, &output);
-        } else {
-            write_output(output_root, harness_id, &output)
-                .with_context(|| format!("failed to write {} output", harness_id))?;
+    if opts.dry_run {
+        for (harness_id, output) in &summary.outputs {
+            output::print_dry_run(harness_id, output);
         }
-    }
-
-    // 6. Pre-approve ship MCP tools globally for each harness.
-    if !opts.dry_run {
-        for harness in &harnesses {
-            let result = match harness.as_str() {
-                "claude" => ensure_ship_mcp_allowed_claude(),
-                "cursor" => ensure_ship_mcp_allowed_cursor(output_root),
-                _ => Ok(()),
-            };
-            if let Err(e) = result {
-                eprintln!("warning: could not update {harness} MCP permissions: {e}");
-            }
-        }
-    }
-
-    if !opts.dry_run {
-        ensure_session_gitignored(output_root)?;
-        emit_compile_completed(&ship_dir, opts.active_agent, &harnesses, &opts.plugins_installed);
-        if opts.extra_skills.is_empty() {
-            println!("✓ compiled for: {}", harnesses.join(", "));
+    } else {
+        output::ensure_session_gitignored(opts.output_root.unwrap_or(opts.project_root))?;
+        if extra_skills.is_empty() {
+            println!("✓ compiled for: {}", summary.harnesses.join(", "));
         } else {
-            let injected: Vec<String> = opts.extra_skills.iter().map(|s| format!("+{}", s)).collect();
-            println!("✓ compiled for: {} ({})", harnesses.join(", "), injected.join(", "));
+            let injected: Vec<String> =
+                extra_skills.iter().map(|s| format!("+{}", s)).collect();
+            println!(
+                "✓ compiled for: {} ({})",
+                summary.harnesses.join(", "),
+                injected.join(", ")
+            );
         }
     }
     Ok(())
-}
-
-/// Emit a `compile.completed` event recording what this compile produced.
-/// The latest event for each project_id materializes into the
-/// `project_compile_state` projection. Best-effort — any failure is logged
-/// but doesn't fail the compile (the user has working output regardless).
-fn emit_compile_completed(
-    ship_dir: &Path,
-    active_agent: Option<&str>,
-    harnesses: &[String],
-    plugins_installed: &[String],
-) {
-    use ship_substrate::events::EventEnvelope;
-    use ship_substrate::events::types::{CompileCompleted, event_types::COMPILE_COMPLETED};
-    use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
-
-    let project_id = match ship_substrate::project::ensure_project_id(ship_dir) {
-        Ok(id) => id,
-        Err(e) => {
-            tracing::warn!("compile: cannot resolve project id: {e}");
-            return;
-        }
-    };
-    let payload = CompileCompleted {
-        active_agent: active_agent.map(str::to_string),
-        compiled_at: chrono::Utc::now().to_rfc3339(),
-        ship_version: env!("CARGO_PKG_VERSION").to_string(),
-        harness: harnesses.first().cloned(),
-        plugins_installed: plugins_installed.to_vec(),
-    };
-    let envelope = match EventEnvelope::new(COMPILE_COMPLETED, &project_id, &payload) {
-        Ok(e) => e,
-        Err(e) => {
-            tracing::warn!("compile: cannot build envelope: {e}");
-            return;
-        }
-    };
-    let store = match SqliteEventStore::new() {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("compile: cannot open event store: {e}");
-            return;
-        }
-    };
-    if let Err(e) = store.append(&envelope) {
-        tracing::warn!("compile: cannot append compile.completed: {e}");
-    }
 }

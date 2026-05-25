@@ -23,6 +23,7 @@ pub mod sync;
 // mcp, skills, agents, ...) consume. FilesService is the foundational
 // path-scoped JSONC read/write helper; the rest follow as their HTTP
 // shims stay in shipd (apps/shipd/src/services/<domain>/mod.rs).
+pub mod compile;
 pub mod data;
 pub mod files;
 pub mod git;
