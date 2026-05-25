@@ -37,6 +37,7 @@ declare module '@ship/sui-runtime' {
 }
 
 export { makeSseSource, liveExpr } from './sse'
+export { liveStream } from './live-stream'
 export {
   displayName as accountDisplayName,
   initials as accountInitials,
