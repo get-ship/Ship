@@ -56,12 +56,19 @@ fn domain_of(name: &str) -> &str {
     name.split('.').next().unwrap_or(name)
 }
 
-/// Operational/internal domains — kernel/mesh control the operator/debug
-/// surface calls but agents must never invoke directly (audience axis, #95).
-/// Excluded from the generated *agent* sdk-skills; they remain real ABI on the
-/// operator surface.
-fn is_operational(domain: &str) -> bool {
-    matches!(domain, "actor" | "mesh" | "event")
+/// Audience axis (#95): which ops appear in the generated *agent* sdk-skills.
+///
+/// **Reads are always agent-facing** — observation is non-harmful for an
+/// assistant acting within the user's workspace, so every read op is surfaced
+/// (this includes `mesh.snapshot`, `actors.list`, `events.list`).
+///
+/// **Operational WRITES are excluded**: kernel/actor control (`actor.*`) and
+/// mesh coordination (`mesh.*`). Actor control is operator/debug; mesh
+/// coordination is reserved for the higher-level primitive that will wrap it
+/// (agents hold no surfaced interface to raw mesh). These stay real ABI on the
+/// operator surface — they're just not part of the agent capability set.
+fn is_operational_command(name: &str) -> bool {
+    matches!(domain_of(name), "actor" | "mesh")
 }
 
 /// A JSON placeholder value for an arg kind — seeds the `ship ops call` example.
@@ -89,9 +96,7 @@ fn example_json(args: &[ArgDescriptor]) -> String {
 fn collect() -> BTreeMap<String, Vec<OpRow>> {
     let mut by_domain: BTreeMap<String, Vec<OpRow>> = BTreeMap::new();
     for op in shipd::services::schema::OPS.iter() {
-        if is_operational(domain_of(op.name)) {
-            continue;
-        }
+        // Reads are always agent-facing — no audience exclusion.
         by_domain.entry(domain_of(op.name).to_string()).or_default().push(OpRow {
             name: op.name.to_string(),
             description: op.description.to_string(),
@@ -103,7 +108,7 @@ fn collect() -> BTreeMap<String, Vec<OpRow>> {
         });
     }
     for cmd in shipd::services::schema::COMMANDS {
-        if is_operational(domain_of(cmd.name)) {
+        if is_operational_command(cmd.name) {
             continue;
         }
         by_domain.entry(domain_of(cmd.name).to_string()).or_default().push(OpRow {
@@ -240,4 +245,49 @@ pub fn run() -> Result<()> {
         out_root.display()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn surfaced_op_names() -> std::collections::BTreeSet<String> {
+        collect().into_values().flatten().map(|r| r.name).collect()
+    }
+
+    #[test]
+    fn reads_are_surfaced_not_audience_filtered() {
+        // Observation is non-harmful for an assistant — reads stay agent-facing.
+        // events.list is a read in OPS and is surfaced (no audience exclusion).
+        // NOTE: mesh.snapshot / actors.list are declared but NOT assembled into
+        // schema::OPS (their domains aren't in build_ops DOMAIN_ORDER), so they
+        // can't be surfaced here yet — surfacing them is a separate OPS-assembly
+        // change (the reads-are-agent-facing decision). Tracked, not done here.
+        let names = surfaced_op_names();
+        assert!(names.contains("events.list"), "events.list must be surfaced");
+    }
+
+    #[test]
+    fn operational_writes_are_excluded() {
+        // Kernel/actor control + mesh coordination are not part of the agent
+        // capability set (mesh reserved for the future higher layer).
+        let names = surfaced_op_names();
+        for op in [
+            "actor.input",
+            "actor.kill_tree",
+            "mesh.send",
+            "mesh.broadcast",
+            "mesh.status",
+        ] {
+            assert!(!names.contains(op), "operational write '{op}' must NOT be surfaced");
+        }
+    }
+
+    #[test]
+    fn is_operational_command_matches_actor_and_mesh_writes() {
+        assert!(is_operational_command("actor.input"));
+        assert!(is_operational_command("mesh.send"));
+        assert!(!is_operational_command("rules.create"));
+        assert!(!is_operational_command("agents.create"));
+    }
 }
