@@ -12,13 +12,13 @@
 // Keeping `index.ts` to the surface declaration only respects the 300-
 // line file cap and makes the SDK surface readable at a glance.
 
-import {
-  type AgentsSummariesResponse,
-  type GitDiff,
-  type GitDiffArgs,
-  type GitOverview,
-  type LiveSource,
-} from '@ship/sui-runtime'
+import type { LiveSource } from '@ship/sui-runtime'
+import type {
+  AgentsSummariesResponse,
+  GitDiff,
+  GitDiffArgs,
+  GitOverview,
+} from './generated'
 import type { ArtifactRecord, ShipSDK } from './ship-sdk'
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { makeSseSource } from './sse'
@@ -50,8 +50,8 @@ export {
   type AccountStatus,
 } from './account'
 
-// Generated daemon data types (still sourced from the framework's generated.ts
-// for now — relocating the gen output out of the framework is the next step).
+// Generated daemon data types — sourced from the SDK layer's own generated.ts
+// (gen-types output), NOT the framework. @ship/sui-runtime names no Ship type.
 export type {
   AgentSummary,
   AgentsSummariesResponse,
@@ -61,7 +61,7 @@ export type {
   GitDiffArgs,
   GitOverview,
   StatusFile as GitFileEntry,
-} from '@ship/sui-runtime'
+} from './generated'
 // The Ship SDK surface + its hand-authored data types — owned here, not the framework.
 export type {
   ArtifactRecord,

@@ -2,7 +2,8 @@
 // shell renders it at /settings. Relocated from views/settings; the two <data>
 // sources are now controller-side live() over @ship/sdk-client.
 import { controller, signal, derived, live, unwrapOr } from '@ship/sui-runtime'
-import type { Signal, LiveSignal, AccountState, ViewScope } from '@ship/sui-runtime'
+import type { Signal, LiveSignal, ViewScope } from '@ship/sui-runtime'
+import type { AccountState } from '@ship/sdk-client'
 import {
   accountDisplayName,
   accountInitials,

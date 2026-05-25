@@ -2,7 +2,7 @@
 // and the Account card in views/settings. Keeps the daemon REST calls + the
 // browser-flow choreography in one place so the two surfaces don't drift.
 
-import type { AccountState, MeView } from '@ship/sui-runtime'
+import type { AccountState, MeView } from './generated'
 
 export type AccountStatus = AccountState['state'] // 'logged_out' | 'pending' | 'logged_in'
 

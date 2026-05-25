@@ -291,28 +291,14 @@ export type { Patch, PatchOp, PathToken } from './patch'
 
 // Generated daemon ↔ runtime data contract. Authored by `cargo xtask
 // gen-types` from Rust source; do not edit `generated.ts` by hand.
+// View-system contract types only — Ship daemon-domain data (git/agents/
+// account) lives in @ship/sdk-client, never the framework.
 export type {
-  AccountState,
-  AgentSummary,
-  AgentsSummariesResponse,
-  BranchSummary,
-  CommitSummary,
-  DiffFileView,
-  DiffHunk,
-  DiffLine,
-  GitDiff,
-  GitDiffArgs,
-  GitOverview,
   LintFinding,
-  LintViewRequest,
   ManifestRail,
-  MeView,
-  ParsedDiff,
   RailMeta,
   ResolveError,
   ResolvedView,
-  StatusBuckets,
-  StatusFile,
   ViewListEntry,
   ViewManifest,
   ViewSourceResponse,

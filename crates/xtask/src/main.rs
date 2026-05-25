@@ -181,27 +181,6 @@ fn collect_framework_types() -> TypeCollection {
     c.register::<shipd::views::write_api::LintFinding>();
     c.register::<shipd::views::resolve::ManifestRail>();
 
-    // shipd::services::git — overview, diff, status buckets.
-    c.register::<ship_platform::services::git::state::CommitSummary>();
-    c.register::<ship_platform::services::git::state::StatusFile>();
-    c.register::<ship_platform::services::git::state::StatusBuckets>();
-    c.register::<ship_platform::services::git::state::BranchSummary>();
-    c.register::<ship_platform::services::git::state::GitOverview>();
-    c.register::<ship_platform::services::git::state::GitDiff>();
-    c.register::<ship_platform::services::git::state::GitDiffArgs>();
-    c.register::<ship_platform::services::git::diff::DiffLine>();
-    c.register::<ship_platform::services::git::diff::DiffHunk>();
-    c.register::<ship_platform::services::git::diff::DiffFileView>();
-    c.register::<ship_platform::services::git::diff::ParsedDiff>();
-
-    // shipd::services::agents — summary list payload.
-    c.register::<ship_platform::services::agents::view_state::AgentSummary>();
-    c.register::<ship_platform::services::agents::view_state::AgentsSummariesResponse>();
-
-    // ship-platform::account — Ship Cloud account state for the chrome chip.
-    c.register::<ship_platform::account::types::AccountState>();
-    c.register::<ship_platform::account::types::MeView>();
-
     // view-authoring — contract types shared with the chrome edit-mode UI.
     c.register::<ship_platform::view_authoring::CompileError>();
     c.register::<ship_platform::view_authoring::SnapshotMeta>();
@@ -229,6 +208,36 @@ fn collect_framework_types() -> TypeCollection {
     c.register::<ship_platform::view_authoring::ViewEditModeEnterRequest>();
     c.register::<ship_platform::view_authoring::ViewEditModeExitRequest>();
     c.register::<ship_platform::view_authoring::ViewEditModeAck>();
+
+    c
+}
+
+/// Ship daemon-domain data types (git / agents / account). These belong to the
+/// SDK layer, NOT the framework — `@ship/sui-runtime` names no host concept.
+/// Output: `packages/deck/sdk-client/src/generated.ts`.
+fn collect_ship_data_types() -> TypeCollection {
+    let mut c = TypeCollection::default();
+
+    // git — overview, diff, status buckets.
+    c.register::<ship_platform::services::git::state::CommitSummary>();
+    c.register::<ship_platform::services::git::state::StatusFile>();
+    c.register::<ship_platform::services::git::state::StatusBuckets>();
+    c.register::<ship_platform::services::git::state::BranchSummary>();
+    c.register::<ship_platform::services::git::state::GitOverview>();
+    c.register::<ship_platform::services::git::state::GitDiff>();
+    c.register::<ship_platform::services::git::state::GitDiffArgs>();
+    c.register::<ship_platform::services::git::diff::DiffLine>();
+    c.register::<ship_platform::services::git::diff::DiffHunk>();
+    c.register::<ship_platform::services::git::diff::DiffFileView>();
+    c.register::<ship_platform::services::git::diff::ParsedDiff>();
+
+    // agents — summary list payload.
+    c.register::<ship_platform::services::agents::view_state::AgentSummary>();
+    c.register::<ship_platform::services::agents::view_state::AgentsSummariesResponse>();
+
+    // account — Ship Cloud account state for the chrome chip.
+    c.register::<ship_platform::account::types::AccountState>();
+    c.register::<ship_platform::account::types::MeView>();
 
     c
 }
@@ -315,12 +324,20 @@ fn gen_types(check: bool) {
         .export(&collect_framework_types())
         .expect("specta-typescript export failed (framework)");
 
+    // Ship daemon-domain data types (git/agents/account) live in the SDK
+    // layer, NOT the framework — @ship/sui-runtime names zero host concepts.
+    let ship_data_out = repo_root().join("packages/deck/sdk-client/src/generated.ts");
+    let ship_data_content = ts
+        .export(&collect_ship_data_types())
+        .expect("specta-typescript export failed (ship-data)");
+
     if check {
         let mut stale = false;
         for (path, expected) in [
             (&ui_out, &ui_content),
             (&cloud_out, &cloud_content),
             (&framework_out, &framework_content),
+            (&ship_data_out, &ship_data_content),
         ] {
             let existing = std::fs::read_to_string(path).unwrap_or_default();
             if existing != *expected {
@@ -343,6 +360,9 @@ fn gen_types(check: bool) {
     std::fs::write(&framework_out, &framework_content)
         .expect("failed to write framework generated.ts");
     eprintln!("Wrote {}", framework_out.display());
+    std::fs::write(&ship_data_out, &ship_data_content)
+        .expect("failed to write ship-data generated.ts");
+    eprintln!("Wrote {}", ship_data_out.display());
 }
 
 

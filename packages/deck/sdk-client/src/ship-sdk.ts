@@ -24,7 +24,7 @@ import type {
   GitDiff,
   GitDiffArgs,
   GitOverview,
-} from '@ship/sui-runtime'
+} from './generated'
 import type { LiveSource } from '@ship/sui-runtime'
 
 /** Artifact metadata record — mirrors the daemon's `ArtifactRecord`. */
