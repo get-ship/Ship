@@ -1,0 +1,23 @@
+// `chat.*` as a hand-authored per-domain proto-SSOT service (#89), mounted
+// ADDITIVELY beside the generated ReadOps (which keeps serving until #72).
+// Request message uses `*Req` suffix to avoid collision with the generated
+// ChatStateRequest in this same ship.ops.v1 package. Return type reuses
+// ChatStateResponse from types.proto.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/types.proto";
+
+message ChatStateReq {
+  string workspace_id = 1;
+}
+
+// Chat read surface. Reads are C0 (edge-authenticated).
+service ChatService {
+  rpc State(ChatStateReq) returns (ChatStateResponse) {
+    option (ship.ops.v1.capability) = "ship.chat.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+}

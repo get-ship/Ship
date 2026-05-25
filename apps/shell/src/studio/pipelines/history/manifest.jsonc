@@ -1,0 +1,9 @@
+// Route metadata for views/pipelines/history/. See
+// docs/ship-adrs/references/docs/view-directory-convention.md.
+{
+  "name": "pipelines-history",
+  "path": "/studio/pipelines/history",
+  "title": "Pipelines history",
+  "layout": "default",
+  "auth": "user"
+}

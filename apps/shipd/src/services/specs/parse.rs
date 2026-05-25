@@ -11,6 +11,7 @@ use serde::Serialize;
 
 /// One acceptance checklist item from the `## Acceptance` section.
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct AcceptanceItem {
     pub text: String,
     pub done: bool,
@@ -153,7 +154,7 @@ pub fn glue_other_sections(
 pub fn pipeline_step_count(name: &str) -> (usize, Option<String>) {
     use ship_platform::services::orchestrator::pipeline_loader;
     let payload = ship_substrate::events::pipeline::PipelineRunStartedPayload {
-        job_id: String::new(),
+        pipeline_run_id: String::new(),
         slug: String::new(),
         agent: String::new(),
         branch: String::new(),

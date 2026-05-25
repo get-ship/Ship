@@ -366,7 +366,7 @@ pub async fn launch_spec(
 ) -> impl IntoResponse {
     let kernel = state.kernel().clone();
     match launch_collection_item(collections(&state), &kernel, SPECS_ID, &id).await {
-        Ok(job_id) => ok(serde_json::json!({ "job_id": job_id, "spec_id": id })),
+        Ok(pipeline_run_id) => ok(serde_json::json!({ "pipeline_run_id": pipeline_run_id, "spec_id": id })),
         Err(e) => map_launch_err(e),
     }
 }

@@ -16,7 +16,7 @@
   .wrap { display: flex; flex-direction: column; padding: 6px 0; }
   details {
     border-bottom: 1px solid color-mix(in oklab, var(--border) 40%, transparent);
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
   summary {
     list-style: none;
@@ -25,7 +25,7 @@
     display: grid;
     grid-template-columns: 20px 1fr auto;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     color: var(--foreground);
   }
   summary::-webkit-details-marker { display: none; }
@@ -34,18 +34,18 @@
     background: var(--muted-foreground);
     justify-self: center;
   }
-  .dot[data-kind="annotation"] { background: var(--accent, #f97316); }
-  .dot[data-kind="compiled"]   { background: var(--success, #22c55e); }
-  .dot[data-kind="errored"]    { background: var(--destructive, #ef4444); }
+  .dot[data-kind="annotation"] { background: var(--accent); }
+  .dot[data-kind="compiled"]   { background: var(--success); }
+  .dot[data-kind="errored"]    { background: var(--destructive); }
   .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ts {
     color: var(--muted-foreground);
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: var(--text-xs);
     font-variant-numeric: tabular-nums;
   }
   .detail {
-    padding: 4px 16px 10px 42px;
+    padding: var(--space-1) var(--space-4) 10px 42px;
     font-size: 11px;
     color: var(--muted-foreground);
     font-family: var(--font-mono);

@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::fanout_cancel::cancel_job_fanout_lanes;
@@ -38,8 +38,8 @@ struct RecordingExecutor {
     stop_calls: Arc<AtomicUsize>,
 }
 #[async_trait]
-impl JobExecutor for RecordingExecutor {
-    async fn spawn(&self, _: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for RecordingExecutor {
+    async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Err(anyhow::anyhow!("unused"))
     }
     async fn is_alive(&self, _: &ExecutorHandle) -> bool { false }
@@ -66,13 +66,13 @@ impl ProcessRegistryPort for SeededRegistry {
 struct NoopIsolation;
 #[async_trait]
 impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, _: &JobContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
-    async fn cleanup(&self, _: &JobContext) -> anyhow::Result<()> { Ok(()) }
+    async fn prepare(&self, _: &SessionContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
+    async fn cleanup(&self, _: &SessionContext) -> anyhow::Result<()> { Ok(()) }
 }
 
 fn dispatch_actor_config() -> ActorConfig {
     ActorConfig {
-        namespace: "service.job-dispatch".into(),
+        namespace: "service.orchestrator".into(),
         write_namespaces: vec!["job.".into(), "step.".into(), "process.".into()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["pipeline.".into()],
@@ -95,7 +95,7 @@ fn make_octx(
         activity_txs: Arc::new(Mutex::new(HashMap::<
             String, tokio::sync::mpsc::UnboundedSender<StepActivity>,
         >::new())),
-        job_locks: Arc::new(Mutex::new(HashMap::new())),
+        run_locks: Arc::new(Mutex::new(HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
@@ -104,7 +104,7 @@ fn make_octx(
 
 async fn seed_lanes(
     octx: &OrchestratorContext,
-    job_id: &str,
+    pipeline_run_id: &str,
     parent_slug: &str,
     lanes: &[&str],
 ) -> Vec<tokio::sync::oneshot::Receiver<LaneOutcome>> {
@@ -118,7 +118,7 @@ async fn seed_lanes(
         refs.insert(
             lane_slug.clone(),
             FanoutLaneRef {
-                job_id: job_id.into(),
+                pipeline_run_id: pipeline_run_id.into(),
                 parent_slug: parent_slug.into(),
                 fanout_step_id: "draft".into(),
                 fanout_step_index: 0,
@@ -136,7 +136,7 @@ async fn seed_lanes(
 async fn cancel_walks_every_lane_and_wakes_the_aggregator() {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base).unwrap();
-    router.spawn_actor("service.job-dispatch", dispatch_actor_config()).unwrap();
+    router.spawn_actor("service.orchestrator", dispatch_actor_config()).unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
     let cleanup_slugs = Arc::new(Mutex::new(Vec::new()));
@@ -197,7 +197,7 @@ async fn cancel_walks_every_lane_and_wakes_the_aggregator() {
 async fn cancel_is_idempotent_when_no_lanes_are_registered() {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base).unwrap();
-    router.spawn_actor("service.job-dispatch", dispatch_actor_config()).unwrap();
+    router.spawn_actor("service.orchestrator", dispatch_actor_config()).unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
     let cleanup_slugs = Arc::new(Mutex::new(Vec::new()));

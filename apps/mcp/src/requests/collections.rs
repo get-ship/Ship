@@ -1,40 +1,23 @@
 use rmcp::schemars::{self, JsonSchema};
 use serde::Deserialize;
 
+/// One generalized collection-mutation request. Replaces the per-verb
+/// create/update/delete request types — one effectful primitive, not CRUD.
 #[derive(Deserialize, JsonSchema)]
-pub struct CreateDocRequest {
+pub struct CollectionRequest {
+    /// Operation: "create", "update", or "delete".
+    pub op: String,
     /// Collection ID (e.g. "adr", "task"). Must match a schema in .ship/collections/.
     pub collection: String,
-    /// Item data as a JSON object. Fields are validated against the collection schema.
-    pub data: serde_json::Value,
-    /// Optional item ID. Auto-generated if omitted.
-    pub id: Option<String>,
-}
-
-#[derive(Deserialize, JsonSchema)]
-pub struct UpdateDocRequest {
-    /// Collection ID.
-    pub collection: String,
-    /// Item ID to update.
-    pub item_id: String,
-    /// Fields to update (partial merge — unspecified fields are preserved).
-    pub data: serde_json::Value,
-}
-
-#[derive(Deserialize, JsonSchema)]
-pub struct GetDocRequest {
-    /// Collection ID.
-    pub collection: String,
-    /// Item ID to retrieve.
-    pub item_id: String,
-}
-
-#[derive(Deserialize, JsonSchema)]
-pub struct DeleteDocRequest {
-    /// Collection ID.
-    pub collection: String,
-    /// Item ID to delete.
-    pub item_id: String,
+    /// Item ID. Required for "update"/"delete"; optional for "create"
+    /// (auto-generated when omitted).
+    #[serde(default)]
+    pub item_id: Option<String>,
+    /// Item data (JSON object). Required for "create"/"update"; ignored for
+    /// "delete". On update this is a partial merge — unspecified fields are
+    /// preserved. Validated against the collection schema.
+    #[serde(default)]
+    pub data: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize, JsonSchema)]

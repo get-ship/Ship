@@ -33,7 +33,7 @@
   .hint,
   .error {
     font-family: var(--font-body);
-    font-size: 11px;
+    font-size: var(--text-xs);
     line-height: 1.4;
   }
   .hint { color: var(--muted-foreground); }

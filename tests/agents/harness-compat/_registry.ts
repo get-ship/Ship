@@ -29,11 +29,14 @@ export const HARNESSES: HarnessSpec[] = [
   { id: "codex", binary: "codex", tier: "T1", emitsSessionStarted: true },
   { id: "opencode", binary: "opencode", tier: "T1", emitsSessionStarted: false },
 
-  // ── T2: should pass, T2-FLAKY warning if not ────────────────────────────
-  { id: "gemini", binary: "gemini", tier: "T2", emitsSessionStarted: false },
-
   // ── T3: evaluate-as-we-go; human owns drop decisions ────────────────────
-  { id: "cursor", binary: "agent", tier: "T3", emitsSessionStarted: false },
+  // `binary` mirrors the Rust adapter's binary() — CursorAdapter returns
+  // "cursor-agent" (the `agent` alias symlinks to it). Keep in sync with
+  // crates/core/ship-platform/src/services/harnesses/cursor.rs.
+  { id: "cursor", binary: "cursor-agent", tier: "T3", emitsSessionStarted: false },
+  // Pi (pi.dev): JSON event stream emits a session header → SessionStarted.
+  // binary mirrors the Rust adapter (PiAdapter.binary() defaults to id).
+  { id: "pi", binary: "pi", tier: "T3", emitsSessionStarted: true },
 ];
 
 /** Harnesses skipped via SKIP_HARNESSES env (comma-separated ids). */

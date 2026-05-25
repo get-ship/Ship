@@ -5,21 +5,18 @@
 //
 //   live = pid_alive(pid) OR (pid.is_none() AND last_event_at within 90s)
 //
-// For dispatched harnesses today, `pid` is never recorded post-spawn
-// (Task #14 — wire pid + lifecycle). So `live` falls through to the
-// activity_live branch, which keys on `last_event_at`. That field is
-// set ONCE on INSERT (apply_created) and never updated.
+// For a ProcessExecutor-backed session (keepalive — see dispatch
+// below), `pid` IS recorded post-spawn: process.spawned carries the
+// real child pid and ActorProjection upserts it (projections/actor.rs
+// ::apply_process_spawned). So `live = pid_alive(pid)` holds while the
+// child runs. (Tmux-detached and print sessions don't record a pid;
+// the keepalive ProcessExecutor path is the one with an honest pid.)
 //
 // Heartbeat path today (apps/shipd/src/routes/hooks_api.rs):
 //   POST /api/v1/hooks/* → session_drain::update_heartbeat(session_id)
 //   which writes to the workspace_session table — NOT the actor
-//   projection. So even a busy harness firing hooks every second
-//   doesn't keep the actor.live true past 90s.
-//
-// This slice DOCUMENTS the gap: posts heartbeats, polls actor.live,
-// expects it to stay true. Today it goes false quickly because pid=0
-// and last_event_at doesn't advance. The test INFO-logs the gap with
-// a pointer to .artifacts/agents-arc/discussions/heartbeat-doesnt-touch-actor-projection.md.
+//   projection. So last_event_at advancing is a bonus, not the gate;
+//   the live=true assertion rides on the real pid being alive.
 
 import { describe, test, expect } from "bun:test";
 import {
@@ -28,6 +25,7 @@ import {
   cancelSession,
   dispatch,
   getActorRow,
+  waitForActorGone,
   waitForActorRow,
 } from "../_helpers";
 import {
@@ -56,10 +54,15 @@ for (const h of HARNESSES) {
           return;
         }
 
+        // keepalive forces ProcessExecutor (routing.rs), which captures
+        // the real child pid post-spawn and stays alive. A bare PTY
+        // session routes to TmuxWindow (tmux-detached, pid=None) and a
+        // print session exits — neither satisfies the live+pid asserts.
         const dispatched = await dispatch({
           agent: COMPAT_AGENT,
           harness: h.id,
-          auto: true,
+          invocation: "pty",
+          keepalive: true,
           workspace: COMPAT_WORKSPACE,
         });
 
@@ -127,6 +130,10 @@ for (const h of HARNESSES) {
           );
         } finally {
           await cancelSession(dispatched.slug);
+          // Confirm the keepalive harness child actually exits before
+          // yielding — its teardown load otherwise bleeds into later
+          // test files and starves their dispatches.
+          await waitForActorGone(dispatched.slug);
         }
       },
       30_000,

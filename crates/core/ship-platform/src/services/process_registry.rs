@@ -12,13 +12,26 @@ use futures_util::future::join_all;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
-use crate::services::dispatch_ports::{ExecutorHandle, JobExecutor, ProcessRegistryPort};
+/// How long a cancellation tombstone lives before it's pruned. A cancel that
+/// lands before its dispatch spawns is resolved within milliseconds in
+/// practice; this is a generous upper bound so a tombstone for a session that
+/// never dispatches can't accumulate.
+const CANCEL_TOMBSTONE_TTL: Duration = Duration::from_secs(120);
+
+use crate::services::dispatch_ports::{ExecutorHandle, SessionExecutor, ProcessRegistryPort};
 
 /// Tracks spawned agent processes by slug → handle mapping.
 pub struct ProcessRegistry {
     handles: HashMap<String, ExecutorHandle>,
+    /// Cancellation tombstones: slug → when it was cancelled. Set when a
+    /// cancel finds no registered handle (the spawn may be in flight). A
+    /// dispatch consults this before spawning and right after registering, so
+    /// a cancel that races the spawn tears the child down instead of leaking
+    /// it. See `mark_cancelled` / `take_if_cancelled`.
+    cancelled: HashMap<String, Instant>,
 }
 
 impl Default for ProcessRegistry {
@@ -31,6 +44,26 @@ impl ProcessRegistry {
     pub fn new() -> Self {
         Self {
             handles: HashMap::new(),
+            cancelled: HashMap::new(),
+        }
+    }
+
+    /// Record a cancellation that arrived with no handle to stop — the
+    /// spawn for `slug` may still be in flight. Prunes expired tombstones
+    /// so the map can't grow unbounded.
+    pub fn mark_cancelled(&mut self, slug: &str) {
+        let now = Instant::now();
+        self.cancelled
+            .retain(|_, &mut at| now.duration_since(at) < CANCEL_TOMBSTONE_TTL);
+        self.cancelled.insert(slug.to_string(), now);
+    }
+
+    /// Consume the tombstone for `slug`, returning true if a non-expired one
+    /// was present. Used by dispatch to detect a cancel that raced the spawn.
+    pub fn take_if_cancelled(&mut self, slug: &str) -> bool {
+        match self.cancelled.remove(slug) {
+            Some(at) => Instant::now().duration_since(at) < CANCEL_TOMBSTONE_TTL,
+            None => false,
         }
     }
 
@@ -79,7 +112,7 @@ impl ProcessRegistry {
 
     /// Check every registered handle via `executor.is_alive()`; remove
     /// and return slugs whose handles are no longer alive.
-    pub async fn drain_dead(&mut self, executor: &dyn JobExecutor) -> Vec<String> {
+    pub async fn drain_dead(&mut self, executor: &dyn SessionExecutor) -> Vec<String> {
         let mut dead = Vec::new();
         for (slug, handle) in &self.handles {
             if !executor.is_alive(handle).await {
@@ -97,7 +130,7 @@ impl ProcessRegistry {
     /// before force-kill — the per-handle deadline lives in the executor
     /// impl, not here, so shutdown stays bounded even under unresponsive
     /// agents.
-    pub async fn shutdown_all(&mut self, executor: Arc<dyn JobExecutor>) -> Vec<String> {
+    pub async fn shutdown_all(&mut self, executor: Arc<dyn SessionExecutor>) -> Vec<String> {
         let handles: Vec<(String, ExecutorHandle)> = self.handles.drain().collect();
         let slugs: Vec<String> = handles.iter().map(|(s, _)| s.clone()).collect();
 
@@ -145,8 +178,16 @@ impl ProcessRegistryPort for SharedRegistry {
         self.0.lock().await.get_pid(slug)
     }
 
-    async fn drain_dead(&self, executor: &dyn JobExecutor) -> Vec<String> {
+    async fn drain_dead(&self, executor: &dyn SessionExecutor) -> Vec<String> {
         self.0.lock().await.drain_dead(executor).await
+    }
+
+    async fn mark_cancelled(&self, slug: &str) {
+        self.0.lock().await.mark_cancelled(slug);
+    }
+
+    async fn take_if_cancelled(&self, slug: &str) -> bool {
+        self.0.lock().await.take_if_cancelled(slug)
     }
 }
 
@@ -159,7 +200,7 @@ impl ProcessRegistryPort for SharedRegistry {
 pub async fn graceful_shutdown(
     kernel: &Arc<Mutex<KernelRouter>>,
     registry: &mut ProcessRegistry,
-    executor: Arc<dyn JobExecutor>,
+    executor: Arc<dyn SessionExecutor>,
 ) {
     let envelope = match EventEnvelope::new(
         ship_substrate::events::types::event_types::SUPERVISOR_SHUTTING_DOWN,
@@ -191,4 +232,31 @@ pub async fn graceful_shutdown(
         count = stopped.len(),
         "graceful_shutdown: stopped all managed agents"
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tombstone_marks_then_consumes_exactly_once() {
+        let mut reg = ProcessRegistry::new();
+        // No tombstone yet.
+        assert!(!reg.take_if_cancelled("s1"));
+        // A cancel that found no handle marks the slug.
+        reg.mark_cancelled("s1");
+        // The racing dispatch consumes it once...
+        assert!(reg.take_if_cancelled("s1"));
+        // ...and a second check is false (so a later, legitimate dispatch of
+        // the same slug isn't spuriously torn down).
+        assert!(!reg.take_if_cancelled("s1"));
+    }
+
+    #[test]
+    fn tombstone_is_keyed_per_slug() {
+        let mut reg = ProcessRegistry::new();
+        reg.mark_cancelled("cancelled");
+        assert!(!reg.take_if_cancelled("other"), "unrelated slug unaffected");
+        assert!(reg.take_if_cancelled("cancelled"));
+    }
 }

@@ -124,7 +124,7 @@
     user-select: none;
   }
   .opt.hl {
-    background: color-mix(in oklch, var(--tone-ring) 14%, transparent);
+    background: color-mix(in oklch, var(--tone-ring) var(--selected-strength), transparent);
   }
 </style>
 

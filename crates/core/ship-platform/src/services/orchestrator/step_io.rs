@@ -47,7 +47,7 @@ pub struct ResolvedInput {
 pub fn resolve_consumes(
     step: &PipelineStep,
     pipeline: &ship_substrate::events::pipeline::Pipeline,
-    job_id: &str,
+    pipeline_run_id: &str,
     worktree_path: &Path,
 ) -> Result<Vec<ResolvedInput>, String> {
     if step.consumes.is_empty() {
@@ -87,7 +87,7 @@ pub fn resolve_consumes(
 
         // Look up the artifact_id from the producer's step.done_declared event.
         let artifact_id =
-            find_artifact_id_in_events(job_id, &producer_step_id, &output_key).ok_or_else(|| {
+            find_artifact_id_in_events(pipeline_run_id, &producer_step_id, &output_key).ok_or_else(|| {
                 format!(
                     "artifact '{consumed_name}' not found in step '{producer_step_id}' outputs — \
                      the step may not have uploaded it or omitted it from step_done.outputs",
@@ -157,7 +157,7 @@ pub fn check_required_outputs(
 /// promote entry is attempted. The pipeline advances regardless.
 pub async fn run_step_promotes(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     step: &PipelineStep,
 ) {
     if step.promotes.is_empty() {
@@ -167,14 +167,14 @@ pub async fn run_step_promotes(
     let ship_dir = match ship_substrate::project::get_global_dir() {
         Ok(d) => d,
         Err(e) => {
-            tracing::warn!(job_id, step_id = step.id, "promotes: cannot get ship dir: {e}");
+            tracing::warn!(pipeline_run_id, step_id = step.id, "promotes: cannot get ship dir: {e}");
             return;
         }
     };
     let mut svc = match ship_substrate::data::DataService::open(&ship_dir) {
         Ok(s) => s,
         Err(e) => {
-            tracing::warn!(job_id, step_id = step.id, "promotes: cannot open data service: {e}");
+            tracing::warn!(pipeline_run_id, step_id = step.id, "promotes: cannot open data service: {e}");
             return;
         }
     };
@@ -182,10 +182,10 @@ pub async fn run_step_promotes(
     let project_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
 
     // This step's own outputs (for promotes of self-produced artifacts).
-    let own_outputs = get_step_outputs_from_events(job_id, &step.id);
+    let own_outputs = get_step_outputs_from_events(pipeline_run_id, &step.id);
 
     // Load pipeline to resolve consumed artifacts from upstream steps.
-    let pipeline = load_pipeline_for_job(job_id);
+    let pipeline = load_pipeline_for_job(pipeline_run_id);
 
     for promote in &step.promotes {
         // Find the artifact ID: check own outputs first, then look up the
@@ -193,12 +193,12 @@ pub async fn run_step_promotes(
         let artifact_id = if let Some(id) = own_outputs.get(&promote.name) {
             id.clone()
         } else if let Some(id) =
-            find_artifact_for_promote(&promote.name, job_id, step, pipeline.as_ref())
+            find_artifact_for_promote(&promote.name, pipeline_run_id, step, pipeline.as_ref())
         {
             id
         } else {
             tracing::warn!(
-                job_id, step_id = step.id, name = promote.name,
+                pipeline_run_id, step_id = step.id, name = promote.name,
                 "promotes: artifact not found in step outputs or upstream, skipping"
             );
             continue;
@@ -208,7 +208,7 @@ pub async fn run_step_promotes(
             Ok(s) => s,
             Err(e) => {
                 tracing::warn!(
-                    job_id, step_id = step.id, name = promote.name,
+                    pipeline_run_id, step_id = step.id, name = promote.name,
                     "promotes: invalid target scope: {e}"
                 );
                 continue;
@@ -217,11 +217,11 @@ pub async fn run_step_promotes(
 
         match art_svc.promote(&mut svc, kernel, &artifact_id, target).await {
             Ok(r) => tracing::info!(
-                job_id, step_id = step.id, name = promote.name,
+                pipeline_run_id, step_id = step.id, name = promote.name,
                 new_id = r.id, "promotes: artifact promoted"
             ),
             Err(e) => tracing::warn!(
-                job_id, step_id = step.id, name = promote.name,
+                pipeline_run_id, step_id = step.id, name = promote.name,
                 "promotes: promotion failed (non-fatal): {e}"
             ),
         }
@@ -233,14 +233,14 @@ pub async fn run_step_promotes(
 /// Scan the event store for a `step.done_declared` event from the given step
 /// and return the artifact_id mapped to `output_name` in its `outputs` field.
 pub fn find_artifact_id_in_events(
-    job_id: &str,
+    pipeline_run_id: &str,
     step_id: &str,
     output_name: &str,
 ) -> Option<String> {
     let store = SqliteEventStore::new().ok()?;
     let envelopes = store
         .query(&EventFilter {
-            entity_id: Some(job_id.to_string()),
+            entity_id: Some(pipeline_run_id.to_string()),
             event_type: Some("pipeline.step.done_declared".to_string()),
             ..Default::default()
         })
@@ -277,12 +277,12 @@ pub fn find_fanout_step_for_lane<'a>(
 }
 
 /// Retrieve the full `outputs` map from a step's `step.done_declared` event.
-pub fn get_step_outputs_from_events(job_id: &str, step_id: &str) -> BTreeMap<String, String> {
+pub fn get_step_outputs_from_events(pipeline_run_id: &str, step_id: &str) -> BTreeMap<String, String> {
     let Ok(store) = SqliteEventStore::new() else {
         return BTreeMap::new();
     };
     let Ok(envelopes) = store.query(&EventFilter {
-        entity_id: Some(job_id.to_string()),
+        entity_id: Some(pipeline_run_id.to_string()),
         event_type: Some("pipeline.step.done_declared".to_string()),
         ..Default::default()
     }) else {
@@ -376,8 +376,8 @@ pub(crate) fn ensure_within(base: &Path, candidate: &Path) -> std::io::Result<()
 }
 
 /// Load the pipeline for a job from the projection (for promote resolution).
-fn load_pipeline_for_job(job_id: &str) -> Option<ship_substrate::events::pipeline::Pipeline> {
-    crate::projections::job::load_job_by_id(job_id)
+fn load_pipeline_for_job(pipeline_run_id: &str) -> Option<ship_substrate::events::pipeline::Pipeline> {
+    crate::projections::pipeline_run::load_pipeline_run_by_id(pipeline_run_id)
         .ok()
         .flatten()
         .and_then(|j| j.steps)
@@ -387,7 +387,7 @@ fn load_pipeline_for_job(job_id: &str) -> Option<ship_substrate::events::pipelin
 /// the promoting step. Finds the upstream producer step and reads its outputs map.
 fn find_artifact_for_promote(
     name: &str,
-    job_id: &str,
+    pipeline_run_id: &str,
     step: &PipelineStep,
     pipeline: Option<&ship_substrate::events::pipeline::Pipeline>,
 ) -> Option<String> {
@@ -397,7 +397,7 @@ fn find_artifact_for_promote(
     }
     let pipeline = pipeline?;
     let producer = pipeline.steps.iter().find(|s| s.produces.iter().any(|o| o.name == name))?;
-    find_artifact_id_in_events(job_id, &producer.id, name)
+    find_artifact_id_in_events(pipeline_run_id, &producer.id, name)
 }
 
 /// Convert a pipeline `OutputScope` to an `ArtifactScope` for service calls.

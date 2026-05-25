@@ -19,6 +19,10 @@ afterEach(() => {
 })
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
+// The toggle now delegates to <sui-button> inside its shadow root, which
+// owns its own shadow tree. ARIA + click both live on the outer
+// <sui-button>; tests target it as the affordance.
+const btnHost = (el: HTMLElement) => shadow(el).querySelector('sui-button')! as HTMLElement
 
 describe('<sui-theme-toggle>', () => {
   it('registers the custom element', () => {
@@ -28,7 +32,7 @@ describe('<sui-theme-toggle>', () => {
   it('renders a button with aria-label and aria-pressed', async () => {
     const { el } = mount(reg, 'sui-theme-toggle')
     await flush()
-    const btn = shadow(el).querySelector('button')!
+    const btn = btnHost(el)
     expect(btn.getAttribute('aria-label')).toBe('Toggle theme')
     expect(btn.getAttribute('aria-pressed')).toMatch(/^(true|false)$/)
   })
@@ -66,7 +70,7 @@ describe('<sui-theme-toggle>', () => {
     const { el } = mount(reg, 'sui-theme-toggle', { theme: 'light' })
     await flush()
     expect(el.getAttribute('theme')).toBe('light')
-    shadow(el).querySelector('button')!.click()
+    btnHost(el).click()
     await flush()
     expect(el.getAttribute('theme')).toBe('dark')
     expect(localStorage.getItem('ship-theme')).toBe('dark')
@@ -78,7 +82,7 @@ describe('<sui-theme-toggle>', () => {
     await flush()
     const handler = vi.fn()
     el.addEventListener('sui-theme-change', handler)
-    shadow(el).querySelector('button')!.click()
+    btnHost(el).click()
     expect(handler).toHaveBeenCalledTimes(1)
     const detail = (handler.mock.calls[0][0] as CustomEvent).detail
     expect(detail).toEqual({ theme: 'dark' })
@@ -87,10 +91,9 @@ describe('<sui-theme-toggle>', () => {
   it('flips aria-pressed when the theme changes', async () => {
     const { el } = mount(reg, 'sui-theme-toggle', { theme: 'light' })
     await flush()
-    const btn = () => shadow(el).querySelector('button')!
-    expect(btn().getAttribute('aria-pressed')).toBe('false')
-    btn().click()
+    expect(btnHost(el).getAttribute('aria-pressed')).toBe('false')
+    btnHost(el).click()
     await flush()
-    expect(btn().getAttribute('aria-pressed')).toBe('true')
+    expect(btnHost(el).getAttribute('aria-pressed')).toBe('true')
   })
 })

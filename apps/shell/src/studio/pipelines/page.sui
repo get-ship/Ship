@@ -1,0 +1,146 @@
+<data name="summaries" source="ship.pipelines.summaries()" live />
+
+<div class="studio-view" data-test="studio-view">
+  <sui-studio-rail></sui-studio-rail>
+  <main class="studio-content" data-test="studio-content">
+{#if defs() !== undefined}
+<div class="ship-view ship-view-pipelines">
+  <div class="ship-pipelines-wrap">
+    <header class="ship-pipelines-head">
+      <div>
+        <h1 class="ship-pipelines-title">Pipelines</h1>
+        <p class="ship-pipelines-sub">{statsSubtitle()}</p>
+      </div>
+      <sui-cluster gap="2">
+        <sui-button variant="outline" size="sm" on:click={() => navigate('/studio/pipelines/history')}>
+          <sui-icon slot="leading" name="list" size="sm"></sui-icon>History
+        </sui-button>
+        {#if workspaceId()}
+        <sui-button variant="outline" size="sm" on:click={openNewPipe}>
+          <sui-icon slot="leading" name="plus" size="sm"></sui-icon>New pipeline
+        </sui-button>
+        {/if}
+        <sui-button tone="primary" variant="solid" size="sm" on:click={openDispatch}>
+          <sui-icon slot="leading" name="play" size="sm"></sui-icon>Dispatch
+        </sui-button>
+      </sui-cluster>
+    </header>
+
+    {#if activeRuns().length > 0}
+    <div class="ship-pipelines-section">
+      <div class="ship-pipelines-section-head">
+        <h2 class="ship-pipelines-section-title">
+          <sui-icon name="play" size="sm" tone="info"></sui-icon>Active runs
+        </h2>
+        <sui-badge tone="info">{activeRuns().length}</sui-badge>
+      </div>
+      <sui-stack gap="3">
+        {#for run of activeRuns() key={run.slug}}
+          <sui-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
+            <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
+            <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/studio/pipelines/run/' + run.slug)}>
+              <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
+            </sui-button>
+            <sui-button slot="actions" variant="outline" size="sm" tone="destructive" on:click={() => stopRun(run.job_id)}>
+              <sui-icon slot="leading" name="stop"></sui-icon>Stop
+            </sui-button>
+            <div class="ship-run-detail">
+              {#if run.agent}<sui-avatar size="sm" shape="round" attr:identity-hue={run.agent} attr:name={run.agent}></sui-avatar>{/if}
+              {#if run.branch}<code>{run.branch}</code>{/if}
+              {#if run.provider}<sui-provider-blob attr:provider={run.provider} size="sm" variant="glyph"></sui-provider-blob>{/if}
+              {#if run.model}<sui-chip size="sm">{run.model}</sui-chip>{/if}
+            </div>
+            {#if run.blocker}<sui-alert tone="warning" compact>Blocked: {run.blocker}</sui-alert>{/if}
+            {#if run.steps && run.steps.length > 0}
+            <sui-pipeline-dag>
+              {#for step of run.steps key={step.id}}
+                <sui-pipeline-step attr:name={step.id} attr:state={step.state} attr:step-type={step.step_type} attr:agent={step.agent}></sui-pipeline-step>
+                {#if !step.isLast}<span class="arrow" aria-hidden="true">→</span>{/if}
+              {/for}
+            </sui-pipeline-dag>
+            {/if}
+            <sui-log-stream slot="footer" attr:id={'logs-' + run.slug} attr:url={'/api/v1/pipelines/runs/' + run.slug + '/log/stream'} autoscroll></sui-log-stream>
+          </sui-pipeline-run>
+        {/for}
+      </sui-stack>
+    </div>
+    {/if}
+
+    <div class="ship-pipelines-section">
+      <div class="ship-pipelines-section-head">
+        <h2 class="ship-pipelines-section-title">
+          <sui-icon name="git-merge" size="sm"></sui-icon>Pipelines
+        </h2>
+        <sui-badge tone="muted">{defs().length}</sui-badge>
+      </div>
+      {#if defs().length > 0}
+      <div class="ship-pipelines-def-list">
+        {#for def of defs() key={def.name}}
+          <sui-pipeline-card interactive attr:state={def.card_state} on:click={() => navigate('/studio/pipelines/focus/' + def.name)}>
+            {def.name}
+            {#if def.description}<span slot="desc">{def.description}</span>{/if}
+            <span slot="steps">
+              <sui-chip size="sm" tone="muted">{def.step_count} step{def.step_count !== 1 ? 's' : ''}</sui-chip>
+              {#if def.total_runs > 0}<sui-chip size="sm" tone="muted">{def.total_runs} run{def.total_runs !== 1 ? 's' : ''} · {def.success_pct}%</sui-chip>{/if}
+              {#if def.last_run_at}<sui-timestamp attr:value={def.last_run_at} relative></sui-timestamp>{/if}
+            </span>
+          </sui-pipeline-card>
+        {/for}
+      </div>
+      {:else}
+      <sui-empty-state icon="git-merge" heading="No pipelines" description="Define a pipeline in .ship/pipelines/ to see it here."></sui-empty-state>
+      {/if}
+    </div>
+  </div>
+
+  <div class="ship-mobile-gate">
+    <sui-icon name="monitor" size="xl" tone="muted"></sui-icon>
+    <span>Best experienced on desktop</span>
+  </div>
+
+  <sui-dialog prop:open={dispatchOpen()} size="lg" on:sui-close={closeDispatch}>
+    <span slot="header">Dispatch pipeline run</span>
+    <sui-field label="Pipeline">
+      <sui-select bind:value={dispatchPipeline}>
+        {#for def of defs() key={def.name}}
+          <option attr:value={def.name}>{def.name}{def.description ? ' — ' + def.description : ''}</option>
+        {/for}
+      </sui-select>
+    </sui-field>
+    <sui-field label="Spec" hint="Plain text or markdown — what the run should do.">
+      <sui-textarea bind:value={dispatchSpec} rows="10" placeholder="Describe the work in one or two paragraphs..."></sui-textarea>
+    </sui-field>
+    <sui-field label="Provider override" hint="Optional — leave blank to use the pipeline's declared providers.">
+      <sui-select bind:value={dispatchProvider}>
+        <option value="">(from pipeline)</option>
+        {#for p of providers() key={p}}<option attr:value={p}>{p}</option>{/for}
+      </sui-select>
+    </sui-field>
+    <sui-field><sui-checkbox bind:checked={dispatchHeadless}>Headless (run without tmux)</sui-checkbox></sui-field>
+    <sui-toolbar slot="footer">
+      <sui-button variant="outline" on:click={closeDispatch}>Cancel</sui-button>
+      <sui-button tone="primary" variant="solid" on:click={dispatchRun}>
+        <sui-icon slot="leading" name="play" size="sm"></sui-icon>Dispatch
+      </sui-button>
+    </sui-toolbar>
+  </sui-dialog>
+
+  {#if workspaceId()}
+  <sui-dialog prop:open={newPipeOpen()} size="sm" on:sui-close={closeNewPipe}>
+    <span slot="header">New pipeline</span>
+    <sui-field label="Name" hint="Lowercase, kebab-case. Becomes the filename.">
+      <sui-input bind:value={newPipeName} placeholder="my-pipeline" autofocus></sui-input>
+    </sui-field>
+    {#if newPipeError()}<sui-alert tone="destructive" compact>{newPipeError()}</sui-alert>{/if}
+    <sui-toolbar slot="footer">
+      <sui-button variant="outline" on:click={closeNewPipe}>Cancel</sui-button>
+      <sui-button tone="primary" variant="solid" attr:loading={newPipeCreating()} attr:disabled={newPipeCreating()} on:click={createPipeline}>
+        <sui-icon slot="leading" name="plus" size="sm"></sui-icon>Create
+      </sui-button>
+    </sui-toolbar>
+  </sui-dialog>
+  {/if}
+</div>
+{/if}
+  </main>
+</div>

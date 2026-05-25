@@ -1,0 +1,124 @@
+{
+  "collections": [
+    {
+      "id": "notes",
+      "name": "Notes",
+      "field_count": 4,
+      "fields": [
+        [
+          "title",
+          {
+            "field_type": "string",
+            "required": true,
+            "values": null,
+            "default": null
+          }
+        ],
+        [
+          "content",
+          {
+            "field_type": "markdown",
+            "required": false,
+            "values": null,
+            "default": null
+          }
+        ],
+        [
+          "tags",
+          {
+            "field_type": "array",
+            "required": false,
+            "values": null,
+            "default": null
+          }
+        ],
+        [
+          "category",
+          {
+            "field_type": "string",
+            "required": false,
+            "values": null,
+            "default": null
+          }
+        ]
+      ]
+    }
+  ],
+  "active_collection": "notes",
+  "schema": {
+    "id": "notes",
+    "name": "Notes",
+    "fields": [
+      [
+        "title",
+        {
+          "field_type": "string",
+          "required": true,
+          "values": null,
+          "default": null
+        }
+      ],
+      [
+        "content",
+        {
+          "field_type": "markdown",
+          "required": false,
+          "values": null,
+          "default": null
+        }
+      ],
+      [
+        "tags",
+        {
+          "field_type": "array",
+          "required": false,
+          "values": null,
+          "default": null
+        }
+      ],
+      [
+        "category",
+        {
+          "field_type": "string",
+          "required": false,
+          "values": null,
+          "default": null
+        }
+      ]
+    ]
+  },
+  "items": [
+    {
+      "id": "note_01",
+      "collection": "notes",
+      "data": {
+        "title": "Design system audit",
+        "content": "Fixed `--border-strong` (was invalid color-mix) and flattened the light surface ladder.",
+        "tags": [
+          "design",
+          "tokens"
+        ],
+        "category": "design"
+      },
+      "created_by": null,
+      "created_at": "2026-01-01T09:00:00Z",
+      "updated_at": "2026-01-01T09:30:00Z"
+    },
+    {
+      "id": "note_02",
+      "collection": "notes",
+      "data": {
+        "title": "Sidecar isolation spike",
+        "content": "Daemon stays the hub; sidecar relays over remoc. Mobile via cloud relay.",
+        "tags": [
+          "infra"
+        ],
+        "category": "engineering"
+      },
+      "created_by": null,
+      "created_at": "2026-01-02T14:00:00Z",
+      "updated_at": "2026-01-02T14:10:00Z"
+    }
+  ],
+  "total_items": 2
+}

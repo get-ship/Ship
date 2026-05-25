@@ -48,7 +48,7 @@ function navigateDoc(to: string): void {
 }
 
 export default controller<Scope>({
-  scope: (state, host) => {
+  scope: (state, _host) => {
     const path = (state as { path: () => string }).path
     const projectProp = (state as { project: () => string }).project
     const viewProp = (state as { view: () => string }).view
@@ -66,7 +66,7 @@ export default controller<Scope>({
       const segs = view
         ? [view]
         : path().split('/').filter(Boolean)
-      if (segs.length === 0) segs.push('dashboard')
+      // Home (`/`) shows no view crumb — the brand logo is the home button.
 
       const out: Crumb[] = []
       if (project) {
@@ -83,7 +83,6 @@ export default controller<Scope>({
       return out
     })
 
-    const hostEl = host as HTMLElement | null
 
     function onCrumbClick(e: MouseEvent, href: string): void {
       e.preventDefault()
@@ -93,14 +92,6 @@ export default controller<Scope>({
       e.preventDefault()
       navigateDoc('/')
     }
-    function onRailToggle(): void {
-      hostEl?.dispatchEvent(
-        new CustomEvent('sui:rail:toggle', { bubbles: true, composed: true }),
-      )
-    }
-    function onDockToggle(): void {
-      chrome.dock.toggle()
-    }
     function onFullscreen(): void {
       if (document.fullscreenElement) void document.exitFullscreen()
       else void document.documentElement.requestFullscreen()
@@ -108,8 +99,7 @@ export default controller<Scope>({
 
     return {
       labels, dockOpen, crumbs,
-      onCrumbClick, onBrand, onRailToggle,
-      onDockToggle, onFullscreen,
+      onCrumbClick, onBrand, onFullscreen,
     }
   },
 

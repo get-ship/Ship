@@ -11,11 +11,11 @@ use async_trait::async_trait;
 use axum::{Router, routing::get};
 use futures_util::{SinkExt, StreamExt};
 use ship_platform::services::dispatch_ports::{
-    ExecutorHandle, JobContext, JobExecutor,
+    ExecutorHandle, SessionContext, SessionExecutor,
 };
 use ship_platform::services::process_registry::ProcessRegistry;
 use ship_substrate::supervisor::{ActorKind, ActorProfile, TransportKind, spawn_actor};
-use ship_supervisor::{job_dispatch::DispatchHandle, pty_executor_handle_for_test};
+use ship_supervisor::{run_dispatch::DispatchHandle, pty_executor_handle_for_test};
 use tempfile::TempDir;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
@@ -30,8 +30,8 @@ use crate::ship_runtime::ShipRuntime;
 struct NoopExecutor;
 
 #[async_trait]
-impl JobExecutor for NoopExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for NoopExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Ok(ExecutorHandle { pid: None, inner: Box::new(()) })
     }
     async fn is_alive(&self, _h: &ExecutorHandle) -> bool { true }
@@ -55,7 +55,7 @@ async fn spawn_server() -> (TempDir, std::net::SocketAddr, Arc<Mutex<ProcessRegi
     let rt = Arc::new(ShipRuntime::new_test(ship_dir, kernel));
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
-    let executor: Arc<dyn JobExecutor> = Arc::new(NoopExecutor);
+    let executor: Arc<dyn SessionExecutor> = Arc::new(NoopExecutor);
     let dh = DispatchHandle {
         registry: registry.clone(),
         executor,
@@ -69,6 +69,7 @@ async fn spawn_server() -> (TempDir, std::net::SocketAddr, Arc<Mutex<ProcessRegi
         workspace_id: None,
         session_id: None,
         scopes: vec![Scope::Full],
+        grants: vec![],
     };
 
     let app = Router::new()

@@ -106,7 +106,7 @@ test.describe('view-authoring frontend', () => {
 
   test('edit-mode is per-view: turning on for /agents does not turn on for /skills', async ({ page }) => {
     await enterEditMode(page)
-    await page.evaluate(() => history.pushState({}, '', '/skills'))
+    await page.evaluate(() => history.pushState({}, '', '/studio/skills'))
     await page.evaluate(() => window.dispatchEvent(new PopStateEvent('popstate')))
     await waitForChrome(page)
     // Different view → edit-mode-on bit clears.

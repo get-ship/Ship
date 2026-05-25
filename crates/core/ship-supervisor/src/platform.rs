@@ -5,7 +5,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::KernelRouter;
-use ship_platform::services::dispatch_ports::{AgentPlatform, JobExecutor};
+use ship_platform::services::dispatch_ports::{AgentPlatform, SessionExecutor};
 use ship_platform::services::orchestrator::emit::emit_executor_session_destroyed;
 use ship_platform::services::process_registry::ProcessRegistry;
 use std::path::{Path, PathBuf};
@@ -20,8 +20,14 @@ use super::helpers;
 /// behind the trait boundary so the runtime orchestrator can call back.
 pub struct ShipdPlatform {
     pub registry: Arc<Mutex<ProcessRegistry>>,
-    pub executor: Arc<dyn JobExecutor>,
+    pub executor: Arc<dyn SessionExecutor>,
     pub kernel: Arc<Mutex<KernelRouter>>,
+    /// Daemon session-token registry — mint_session_token inserts a scoped
+    /// token here so the agent's daemon-hosted MCP calls authenticate.
+    pub session_registry: ship_platform::auth::scopes::SessionRegistry,
+    /// Daemon base URL (e.g. `http://127.0.0.1:8080`) injected as
+    /// `$SHIP_DAEMON_URL`. Empty string when the daemon URL is unknown.
+    pub daemon_base_url: String,
 }
 
 #[async_trait]
@@ -82,6 +88,42 @@ impl AgentPlatform for ShipdPlatform {
 
     async fn cleanup_orphaned_worktrees(&self) {
         super::orphan_cleanup::cleanup_orphaned_worktrees(&self.kernel).await;
+    }
+
+    async fn mint_session_token(&self, agent_id: &str, role: Option<&str>) -> Option<String> {
+        use ship_platform::auth::scopes::{DaemonSession, generate_session_token, scopes_for_role};
+        let token = match generate_session_token() {
+            Ok(t) => t,
+            Err(e) => {
+                tracing::warn!(agent_id, "mint_session_token: token gen failed: {e}");
+                return None;
+            }
+        };
+        let session = DaemonSession {
+            token: token.clone(),
+            agent_id: agent_id.to_string(),
+            scopes: scopes_for_role(role),
+            grants: ship_platform::auth::scopes::grants_for_role(role),
+            workspace_id: None,
+            created_at: std::time::Instant::now(),
+            // Ephemeral, in-memory: lives for the daemon's run. A daemon restart
+            // re-spawns the agent (which re-mints), so no persistence needed.
+            expires_at_unix: None,
+            ephemeral: true,
+        };
+        self.session_registry
+            .lock()
+            .await
+            .insert(token.clone(), session);
+        Some(token)
+    }
+
+    fn daemon_url(&self) -> Option<String> {
+        if self.daemon_base_url.is_empty() {
+            None
+        } else {
+            Some(self.daemon_base_url.clone())
+        }
     }
 }
 

@@ -86,11 +86,11 @@ export default controller<Scope>({
 
 ## Worked examples
 
-- `packages/ui-components/src/sui-input/sui-input.sui` — single value, basic case.
-- `packages/ui-components/src/sui-textarea/sui-textarea.sui` — same shape.
-- `packages/ui-components/src/sui-checkbox/sui-checkbox.sui` — `form-value` on `checked` (bool); submits `'true'` / `'false'`. Hosts wanting HTML-checkbox semantics (value present only when checked) call `internals.setFormValue` themselves.
-- `packages/ui-components/src/sui-switch/sui-switch.sui` — same pattern as checkbox.
-- `packages/ui-components/src/sui-select/sui-select.sui` — `form-value` on `value` plus light-DOM `<option>` sync.
+- `packages/components/ui-components/src/sui-input/sui-input.sui` — single value, basic case.
+- `packages/components/ui-components/src/sui-textarea/sui-textarea.sui` — same shape.
+- `packages/components/ui-components/src/sui-checkbox/sui-checkbox.sui` — `form-value` on `checked` (bool); submits `'true'` / `'false'`. Hosts wanting HTML-checkbox semantics (value present only when checked) call `internals.setFormValue` themselves.
+- `packages/components/ui-components/src/sui-switch/sui-switch.sui` — same pattern as checkbox.
+- `packages/components/ui-components/src/sui-select/sui-select.sui` — `form-value` on `value` plus light-DOM `<option>` sync.
 
 ## Implementation reference
 
@@ -100,6 +100,6 @@ Internals on the framework side:
 - `crates/sui-compiler/src/lower/directives.rs` — lowering + validation rules.
 - `crates/sui-compiler/src/emit/js.rs` — emits `formAssociated: true` + `formValue` / `formDisabled` keys.
 - `crates/sui-compiler/src/emit/schema.rs` / `emit/dts.rs` / `emit/cem.rs` — parallel emitters mirror the contract.
-- `packages/sui-runtime/src/component-factory.ts` — reads the keys.
-- `packages/sui-runtime/src/component-form.ts` — installs the lifecycle hooks.
-- `packages/sui-runtime/src/component.ts` — `defineComponent` sets the static flag on the generated class.
+- `packages/sui/runtime/src/component-factory.ts` — reads the keys.
+- `packages/sui/runtime/src/component-form.ts` — installs the lifecycle hooks.
+- `packages/sui/runtime/src/component.ts` — `defineComponent` sets the static flag on the generated class.

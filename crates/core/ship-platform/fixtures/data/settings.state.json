@@ -1,0 +1,50 @@
+{
+  "harnesses": [
+    {
+      "id": "claude",
+      "label": "Anthropic Claude",
+      "glyph": "✦",
+      "binary": "claude",
+      "version": "1.0.0",
+      "available": true,
+      "is_default": true
+    }
+  ],
+  "default_harness": "claude",
+  "default_model": "opus",
+  "terminal": {
+    "program": "xterm-256color",
+    "worktree_base": "~/dev/ship-worktrees",
+    "options": [
+      {
+        "value": "xterm-256color",
+        "label": "xterm-256color"
+      }
+    ]
+  },
+  "advanced": [
+    {
+      "key": "agent_session_auto_resume",
+      "label": "Auto-resume agent sessions",
+      "description": "Continue the last conversation on the next message.",
+      "enabled": true
+    }
+  ],
+  "advanced_registry": "https://registry.ship.dev",
+  "daemon_endpoint": "http://127.0.0.1:4000",
+  "about": {
+    "ship_version": "0.2.0",
+    "daemon_version": "0.2.0",
+    "cli_version": "0.2.0",
+    "license": "MIT",
+    "homepage": "https://ship.dev",
+    "docs": "https://ship.dev/docs",
+    "source": "https://github.com/ship/ship"
+  },
+  "harness_default": "claude",
+  "harness_default_model": "opus",
+  "agent_session_auto_resume": true,
+  "watcher_debounce_ms": "250",
+  "git_log_limit": "50",
+  "hooks_max_depth": "8"
+}

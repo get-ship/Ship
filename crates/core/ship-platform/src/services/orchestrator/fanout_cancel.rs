@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use ship_substrate::events::KernelRouter;
 use crate::services::orchestrator::OrchestratorContext;
 
-/// Tear down every registered fanout lane under `job_id`: call
+/// Tear down every registered fanout lane under `pipeline_run_id`: call
 /// `cleanup_job` on the lane's worktree/tmux session, drop the
 /// oneshot sender so the aggregator stops blocking, and clear the
 /// per-lane registry entries.
@@ -22,7 +22,7 @@ use crate::services::orchestrator::OrchestratorContext;
 /// lane that will never report.
 pub async fn cancel_job_fanout_lanes(
     kernel: &Arc<Mutex<KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     octx: &OrchestratorContext,
 ) {
     // Snapshot the lane refs for this job under a short lock, then release
@@ -30,7 +30,7 @@ pub async fn cancel_job_fanout_lanes(
     let lane_slugs: Vec<(String, String)> = {
         let refs = octx.fanout_lane_refs.lock().await;
         refs.iter()
-            .filter(|(_, r)| r.job_id == job_id)
+            .filter(|(_, r)| r.pipeline_run_id == pipeline_run_id)
             .map(|(slug, r)| {
                 // Lane branch mirrors the naming in `dispatch_fanout_step`:
                 // `{job.branch}-{step.id}-{lane.id}`. The job's branch is
@@ -49,7 +49,7 @@ pub async fn cancel_job_fanout_lanes(
     }
 
     tracing::info!(
-        job_id, lane_count = lane_slugs.len(),
+        pipeline_run_id, lane_count = lane_slugs.len(),
         "job-dispatch: cancelling fanout lanes"
     );
 

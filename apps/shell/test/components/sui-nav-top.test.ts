@@ -195,7 +195,7 @@ describe('<sui-nav-top>', () => {
     await flush()
     const crumbs = shadow(el).querySelector('.crumbs')!
     // transition: directive registers `data-sui-transition` on the node.
-    // See packages/sui-runtime/src/transition.ts MARK constant.
+    // See packages/sui/runtime/src/transition.ts MARK constant.
     expect(crumbs.querySelector('a[data-sui-transition]')).not.toBeNull()
     expect(crumbs.querySelector('.current[data-sui-transition]')).not.toBeNull()
   })

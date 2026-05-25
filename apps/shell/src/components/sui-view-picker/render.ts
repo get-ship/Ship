@@ -6,7 +6,7 @@ import { type ApiView, type Project, humanize, ZONE_PINNED_END, ZONE_ALL } from 
 const KNOWN_APP_NAMES = new Set([
   'dashboard', 'pipelines', 'agents', 'skills', 'git', 'collections',
   'canvas', 'settings', 'chat', 'events', 'specs', 'theme',
-  'theme-studio', 'setup', 'overview', 'mesh', 'ship-ui-studio',
+  'theme-studio', 'setup', 'overview', 'mesh',
   'artifacts', 'workspaces',
 ])
 

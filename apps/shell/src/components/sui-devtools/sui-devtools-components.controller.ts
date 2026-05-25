@@ -69,7 +69,7 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
-    const s = state as Record<string, unknown>
+    const s = state as unknown as Record<string, unknown>
     let loaded = false
 
     async function load(): Promise<void> {

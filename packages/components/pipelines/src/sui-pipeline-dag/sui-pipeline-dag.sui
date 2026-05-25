@@ -1,0 +1,29 @@
+<!--
+  <sui-pipeline-dag> — the graph form. Auto-lays-out a step DAG (dependency
+  columns) and renders type-coloured nodes + state fills + an animated active
+  edge as SVG. Layout + SVG live in the controller (bindHtml).
+
+  Props:  steps — JSON array of { id, type, state?, after?: string[] }
+  Parts:  dag
+-->
+<prop name="steps" type="string" default="[]" reflect />
+
+<style>
+  /* Locked pack taxonomy — step-type hues (shared across @ship/pipelines). */
+  :host {
+    display: block;
+    --type-agent: oklch(0.6 0.18 35);
+    --type-gate:  oklch(0.6 0.16 260);
+    --type-merge: oklch(0.55 0.13 145);
+    --type-human: oklch(0.6 0.18 305);
+  }
+  :host([hidden]) { display: none; }
+  .dag { width: 100%; }
+  .dag svg { width: 100%; height: auto; display: block; }
+  .dag-empty {
+    padding: 16px; font-family: var(--font-mono); font-size: 11px;
+    color: var(--muted-foreground); text-align: center;
+  }
+</style>
+
+<div class="dag" part="dag" bind:this={contentEl}></div>

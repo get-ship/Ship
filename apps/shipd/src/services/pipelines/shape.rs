@@ -5,13 +5,14 @@
 //! These types are serialized straight into the registry op payloads
 //! that `.ship/views/pipelines/*` templates consume.
 
-use ship_platform::projections::job::{PipelineRun, JobStatus};
+use ship_platform::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use serde::Serialize;
 use std::path::PathBuf;
 
 use super::view_state::{BranchStats, branch_stats};
 
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct Stats {
     pub definitions: usize,
     pub active: usize,
@@ -21,6 +22,7 @@ pub struct Stats {
 }
 
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct StatusPill {
     pub label: &'static str,
     pub tone: &'static str,
@@ -28,6 +30,7 @@ pub struct StatusPill {
 }
 
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct StepView {
     pub id: String,
     pub step_type: String,
@@ -36,8 +39,10 @@ pub struct StepView {
 }
 
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct RunView {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     pub agent: String,
     pub branch: String,
@@ -56,42 +61,42 @@ pub struct RunView {
     pub depends_on: Vec<String>,
 }
 
-pub fn run_state_token(s: &JobStatus) -> &'static str {
+pub fn run_state_token(s: &PipelineRunStatus) -> &'static str {
     match s {
-        JobStatus::Pending => "pending",
-        JobStatus::Dispatched => "dispatched",
-        JobStatus::GatePending => "gate-pending",
-        JobStatus::Completed => "completed",
-        JobStatus::Failed => "failed",
-        JobStatus::Merged => "merged",
-        JobStatus::Blocked => "blocked",
-        JobStatus::Cancelled => "cancelled",
+        PipelineRunStatus::Pending => "pending",
+        PipelineRunStatus::Dispatched => "dispatched",
+        PipelineRunStatus::GatePending => "gate-pending",
+        PipelineRunStatus::Completed => "completed",
+        PipelineRunStatus::Failed => "failed",
+        PipelineRunStatus::Merged => "merged",
+        PipelineRunStatus::Blocked => "blocked",
+        PipelineRunStatus::Cancelled => "cancelled",
     }
 }
 
-pub fn tone_for(s: &JobStatus) -> &'static str {
+pub fn tone_for(s: &PipelineRunStatus) -> &'static str {
     match s {
-        JobStatus::Dispatched => "info",
-        JobStatus::GatePending => "warning",
-        JobStatus::Completed => "success",
-        JobStatus::Failed => "destructive",
-        JobStatus::Merged => "accent",
-        JobStatus::Blocked => "warning",
-        JobStatus::Pending => "muted",
-        JobStatus::Cancelled => "muted",
+        PipelineRunStatus::Dispatched => "info",
+        PipelineRunStatus::GatePending => "warning",
+        PipelineRunStatus::Completed => "success",
+        PipelineRunStatus::Failed => "destructive",
+        PipelineRunStatus::Merged => "accent",
+        PipelineRunStatus::Blocked => "warning",
+        PipelineRunStatus::Pending => "muted",
+        PipelineRunStatus::Cancelled => "muted",
     }
 }
 
-pub fn status_text_label(s: &JobStatus) -> &'static str {
+pub fn status_text_label(s: &PipelineRunStatus) -> &'static str {
     match s {
-        JobStatus::Pending => "pending",
-        JobStatus::Dispatched => "running",
-        JobStatus::GatePending => "gate",
-        JobStatus::Completed => "completed",
-        JobStatus::Failed => "failed",
-        JobStatus::Merged => "merged",
-        JobStatus::Blocked => "blocked",
-        JobStatus::Cancelled => "cancelled",
+        PipelineRunStatus::Pending => "pending",
+        PipelineRunStatus::Dispatched => "running",
+        PipelineRunStatus::GatePending => "gate",
+        PipelineRunStatus::Completed => "completed",
+        PipelineRunStatus::Failed => "failed",
+        PipelineRunStatus::Merged => "merged",
+        PipelineRunStatus::Blocked => "blocked",
+        PipelineRunStatus::Cancelled => "cancelled",
     }
 }
 
@@ -129,22 +134,22 @@ pub fn derive_segments(job: &PipelineRun) -> Vec<&'static str> {
     let remaining = total - completed;
     let mut out: Vec<&'static str> = (0..completed).map(|_| "done").collect();
     match job.status {
-        JobStatus::Completed | JobStatus::Merged => {
+        PipelineRunStatus::Completed | PipelineRunStatus::Merged => {
             out.resize(out.len() + remaining, "done");
         }
-        JobStatus::Failed | JobStatus::Cancelled => {
+        PipelineRunStatus::Failed | PipelineRunStatus::Cancelled => {
             if remaining > 0 {
                 out.push("failed");
                 out.resize(out.len() + remaining - 1, "pending");
             }
         }
-        JobStatus::Dispatched | JobStatus::GatePending => {
+        PipelineRunStatus::Dispatched | PipelineRunStatus::GatePending => {
             if remaining > 0 {
                 out.push("running");
                 out.resize(out.len() + remaining - 1, "pending");
             }
         }
-        JobStatus::Pending | JobStatus::Blocked => {
+        PipelineRunStatus::Pending | PipelineRunStatus::Blocked => {
             out.resize(out.len() + remaining, "pending");
         }
     }
@@ -154,7 +159,7 @@ pub fn derive_segments(job: &PipelineRun) -> Vec<&'static str> {
 /// Build a `RunView` for a single job record. When `include_stats`,
 /// shells out for per-worktree `BranchStats`; otherwise zero-defaults.
 pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
-    let job_failed = matches!(job.status, JobStatus::Failed);
+    let run_failed = matches!(job.status, PipelineRunStatus::Failed);
     let steps = job
         .steps
         .as_ref()
@@ -165,7 +170,7 @@ pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
                     let state = if job.completed_steps.contains(&step.id) {
                         "completed"
                     } else if job.current_step.as_deref() == Some(step.id.as_str()) {
-                        if job_failed { "failed" } else { "running" }
+                        if run_failed { "failed" } else { "running" }
                     } else {
                         "pending"
                     };
@@ -191,7 +196,7 @@ pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
     };
 
     RunView {
-        job_id: job.job_id.clone(),
+        pipeline_run_id: job.pipeline_run_id.clone(),
         slug: job.slug.clone(),
         agent: job.agent.clone(),
         branch: job.branch.clone(),

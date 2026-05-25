@@ -26,7 +26,7 @@ For HTML-blob cases (markdown rendering, third-party SVG generators, icon-pack s
 ## File layout
 
 ```
-packages/ui-components/src/<tag>/
+packages/components/ui-components/src/<tag>/
   <tag>.sui                  # template + <prop> + <style>     (required)
   <tag>.controller.ts        # paired controller               (optional, auto-detected)
   <tag>.css                  # extracted styles                (optional)
@@ -39,7 +39,7 @@ Convention is the contract: directory IS the component, filename stem IS the tag
 File IS the component — no `<component>` wrapper. Top-level `<prop>` directives declare the API; the rest is the body.
 
 ```html
-<!-- packages/ui-components/src/sui-button/sui-button.sui -->
+<!-- packages/components/ui-components/src/sui-button/sui-button.sui -->
 <prop name="tone" values="default|primary|destructive" default="default" reflect />
 <prop name="disabled" type="bool" default="false" reflect />
 <prop name="size" values="sm|md|lg" default="md" reflect />
@@ -104,9 +104,9 @@ from the `.sui` template alone. The LSP rule `controller.empty` flags
 `controller({})`-shape files (and `export default null`) as a warning;
 delete them rather than satisfy the convention with ceremony.
 
-Working exemplars: `packages/ui-components/src/sui-error-boundary/`,
-`packages/ui-components/src/sui-portal/`,
-`packages/ui-components/src/sui-toast-container/`.
+Working exemplars: `packages/components/ui-components/src/sui-error-boundary/`,
+`packages/components/ui-components/src/sui-portal/`,
+`packages/components/ui-components/src/sui-toast-container/`.
 
 ## Form-aware components
 
@@ -126,7 +126,7 @@ The compiler emits `static formAssociated = true` on the generated host class; t
 
 Drop any hand-rolled `ElementInternals` plumbing — the runtime owns it. The setup ctx surfaces `internals?: ElementInternals` if a controller needs `setValidity()` / `checkValidity()` for custom validation.
 
-Worked examples: `packages/ui-components/src/sui-input/sui-input.sui`, `packages/ui-components/src/sui-select/sui-select.sui`, `packages/ui-components/src/sui-checkbox/sui-checkbox.sui`.
+Worked examples: `packages/components/ui-components/src/sui-input/sui-input.sui`, `packages/components/ui-components/src/sui-select/sui-select.sui`, `packages/components/ui-components/src/sui-checkbox/sui-checkbox.sui`.
 
 Constraints (compiler-enforced):
 
@@ -170,16 +170,35 @@ Authors don't call `component()` directly — the compiler emits it.
 9. **`on:<event>` event names must match the platform whitelist:** DOM events, `sui-*` / `ship-*` custom-event families, `tag:event`-prefixed cross-component events. `sui-event-name` lint warns on typos with Levenshtein suggestions.
 10. **Form-aware components use `form-value` / `form-disabled` on `<prop>`** — never hand-roll `attachInternals()` / `setFormValue` / `formResetCallback`. See "Form-aware components" above.
 
-## Agent surfaces (MCP)
+## Verify before "done"
+
+**The gate is the compiler, and it is always available.** Run
+`sui-compiler build <tag.sui | component-dir>` after every edit — it ships on
+PATH (`~/.cargo/bin/sui-compiler`, `just install-dev`), needs no MCP and no
+daemon, and runs grammar + semantic checks **and the full lint pass** (the
+oxc-based controller lint in `crates/sui/lint`, e.g. `sui-controller-purity`,
+`sui-css-content-text`). A printed `Error:` is a hard fail. Never substitute
+`tsc` — Ship does not bundle TypeScript; the compiler's lint is the source of truth.
+
+```sh
+sui-compiler build packages/components/ui-components/src/sui-X/sui-X.sui
+```
+
+## Agent surfaces (MCP — transitional, being retired)
+
+> The `mcp__ship__*` tools below are being **removed** in favour of generated
+> skills + CLI. They wrap the **same** analyser as `sui-compiler build`, so they
+> add nothing the gate above doesn't already cover — use them for structured
+> output only if present, and **do not build new reliance on them**.
 
 The view-authoring tools all apply to components since components
-are just `<sui-*>` views with shadow DOM. Full catalog +
-groupings: `docs/ship-sui/references/docs/agent-surfaces.md`.
+are just `<sui-*>` views with shadow DOM. Full catalog:
+`docs/ship-sui/references/docs/agent-surfaces.md`.
 The component-specific essentials:
 
 | Tool | When |
 |---|---|
-| `mcp__ship__sui_diagnostics({ file })` | First thing after editing. Catches parse errors, missing `<prop>` / `<state>` attrs, unbound identifiers, invalid template expressions. |
+| `mcp__ship__sui_diagnostics({ file })` | Structured parse + analyse. Catches parse errors, missing `<prop>` / `<state>` attrs, unbound identifiers, invalid template expressions. |
 | `mcp__ship__sui_hover({ file, line, col })` | Declaration source + setup return type at a cursor. |
 | `mcp__ship__sui_dependencies({ file })` | What sibling `<sui-*>` tags + signals this component reaches into. |
 | `mcp__ship__view_compile_check({ file })` | Full lowering pipeline. Use after `sui_diagnostics` is clean to catch lowering-only issues. |
@@ -196,7 +215,7 @@ The component-specific essentials:
 ```ts
 // Pseudocode of the verify loop:
 // 1. write template + (optional) controller
-// 2. mcp__ship__sui_diagnostics({ file: "packages/ui-components/src/sui-X/sui-X.sui" })
+// 2. mcp__ship__sui_diagnostics({ file: "packages/components/ui-components/src/sui-X/sui-X.sui" })
 //    → fix until []
 // 3. mcp__ship__view_compile_check({ file: "…/sui-X.sui" })
 //    → fix lowering-only issues
@@ -212,20 +231,19 @@ standalone language server.
 | Surface | How |
 |---|---|
 | **MCP** (agents) | `mcp__ship__sui_diagnostics` / `_hover` / `_dependencies`. See above. |
-| **VS Code** | `apps/vscode/` extension auto-launches the server on `.sui` open. |
-| **Other editors over stdio** | `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build first: `bun run --filter @ship/sui-lsp build`). Map `sui` language ID to that command for `*.sui`. |
-| **LSP CLI** (any shell) | `bun packages/sui-lsp/src/cli.ts diagnostics|hover|dependencies <file>` — JSON to stdout. |
-| **Browser** | Not yet — the LSP is Node-only. Tracking: a thin browser port so the shell + docs playground get hover and scope-aware completion without shelling out. |
+| **VS Code** | `apps/vscode/` auto-launches the `sui-lsp` binary on `.sui` open. |
+| **Any editor / Claude Code / opencode** | Point the LSP client at the `sui-lsp` binary (`crates/sui/lsp/`, on PATH via `just install-dev`) over stdio. Claude Code uses the repo `.lsp.json`. |
+| **Browser** | `@ship/sui-lsp-browser` runs the WASM `analyze` (same Rust grammar) for diagnostics in the docs playground; hover/completion are static-dictionary for now. |
 
 ## What's available in a view
 
 Components fall into three buckets:
 
 - **Primitives** — generic `<sui-*>` in **`@ship/primitives`** (`packages/components/primitives/src/`). Charts in **`@ship/charts`** (`packages/components/charts/src/`). Both are decomposed workspace packs with their own bundle + `custom-elements.json`. Always registered, available in any view.
-- **Chrome + domain** — the rest (sui-code-editor, sui-terminal, sui-markdown-editor, picker, nav, devtools, view-authoring) stays in the `@ship/ui-components` umbrella at `packages/ui-components/src/`. Ships as the daemon's `sui-components.js` aggregate.
-- **Islands** — heavy components that lazy-load their engine only when mounted (terminal, code-editor, markdown-editor). The umbrella bundle code-splits these; lazy chunks live under `crates/sui/ship-sui-server/assets/sui-components/<tag>.js`.
+- **Chrome + domain** — the rest (sui-code-editor, sui-terminal, sui-markdown-editor, picker, nav, devtools, view-authoring) stays in the `@ship/ui-components` umbrella at `packages/components/ui-components/src/`. Ships as the daemon's `sui-components.js` aggregate.
+- **Islands** — heavy components that lazy-load their engine only when mounted (terminal, code-editor, markdown-editor). The umbrella bundle code-splits these; lazy chunks live under `.deck/sui-components/<tag>.js` (deck's build output).
 
-The `@ship/sui-catalog` walker emits two projections under `.ship/sui-out/catalogs/`:
+The `@ship/sui-catalog` walker emits two projections under `.deck/catalogs/`:
 - `workspace.json` — every pack, public + private. Use for authoring.
 - `published.json` — `!private` packs only. Use when generating consumer-facing docs or npm publish flows.
 

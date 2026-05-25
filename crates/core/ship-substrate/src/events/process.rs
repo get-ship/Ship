@@ -17,7 +17,8 @@ pub mod event_types {
 pub struct ProcessSpawnedPayload {
     /// Slug of the job that owns this process.
     pub slug: String,
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     /// PID of the spawned process. None for tmux-detached processes.
     pub pid: Option<u32>,
     /// Binary name (e.g. "claude").

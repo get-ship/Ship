@@ -28,21 +28,6 @@ fn claude_context_content_contains_only_rules_not_skills() {
 }
 
 #[test]
-fn gemini_context_content_contains_only_rules() {
-    let r = ResolvedConfig {
-        rules: vec![make_rule("rule.md", "Gemini rule content.")],
-        skills: vec![make_skill("my-skill")],
-        ..resolved(vec![])
-    };
-    let out = compile(&r, "gemini").unwrap();
-    let content = out
-        .context_content
-        .expect("gemini must have context_content");
-    assert!(content.contains("Gemini rule content."));
-    assert!(!content.contains("Do the thing."));
-}
-
-#[test]
 fn codex_context_content_contains_only_rules() {
     let r = ResolvedConfig {
         rules: vec![make_rule("rule.md", "Codex rule content.")],
@@ -67,7 +52,6 @@ fn context_file_is_none_when_all_rule_content_empty() {
         ..resolved(vec![])
     };
     assert!(compile(&r, "claude").unwrap().context_content.is_none());
-    assert!(compile(&r, "gemini").unwrap().context_content.is_none());
     assert!(compile(&r, "codex").unwrap().context_content.is_none());
 }
 
@@ -76,15 +60,6 @@ fn context_file_is_none_when_all_rule_content_empty() {
 #[test]
 fn claude_feature_flags() {
     let flags = get_harness("claude").unwrap().feature_flags();
-    assert!(flags.supports_mcp);
-    assert!(flags.supports_hooks);
-    assert!(flags.supports_tool_permissions);
-    assert!(flags.supports_memory);
-}
-
-#[test]
-fn gemini_feature_flags() {
-    let flags = get_harness("gemini").unwrap().feature_flags();
     assert!(flags.supports_mcp);
     assert!(flags.supports_hooks);
     assert!(flags.supports_tool_permissions);
@@ -186,8 +161,8 @@ fn plugins_manifest_empty_harness_defaults_to_compile_target() {
         },
         ..resolved(vec![])
     };
-    let out = compile(&r, "gemini").unwrap();
-    assert_eq!(out.plugins_manifest.install[0].harness, "gemini");
+    let out = compile(&r, "codex").unwrap();
+    assert_eq!(out.plugins_manifest.install[0].harness, "codex");
     assert_eq!(out.plugins_manifest.scope, "user");
 }
 
@@ -220,7 +195,7 @@ fn plugins_manifest_is_same_across_harnesses() {
         plugins: manifest.clone(),
         ..resolved(vec![])
     };
-    for harness in &["claude", "gemini", "codex", "cursor"] {
+    for harness in &["claude", "codex", "cursor"] {
         let out = compile(&r, harness).unwrap();
         assert_eq!(
             out.plugins_manifest.install.len(),

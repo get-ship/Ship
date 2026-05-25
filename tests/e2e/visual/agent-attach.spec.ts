@@ -17,7 +17,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { getDaemonUrl } from './helpers/daemon'
 import { injectStability } from './helpers/render'
 
-/// Every theme registered in packages/ui-components/src/tokens/themes.css.
+/// Every theme registered in packages/components/ui-components/src/tokens/themes.css.
 /// Captured so the user can eyeball legibility per theme — most are light,
 /// ship-dark + console are dark, halo + glass are tinted.
 const THEMES = [
@@ -59,7 +59,7 @@ const ART_DIR = path.resolve(__dirname, '..', '..', '..', '.artifacts', 'web-qa'
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..')
 const ATTACH_BUNDLE = path.join(
   REPO_ROOT,
-  'crates/sui/ship-sui-server/assets/sui-components/sui-agent-attach.js',
+  '.deck/sui-components/sui-agent-attach.js',
 )
 // <sui-agent-attach> calls host.fit() on the inner <sui-terminal>, which
 // only exists on the freshly-built bundle. Serve that from disk too so a
@@ -67,7 +67,7 @@ const ATTACH_BUNDLE = path.join(
 // stale copy.
 const TERMINAL_BUNDLE = path.join(
   REPO_ROOT,
-  'crates/sui/ship-sui-server/assets/sui-components/sui-terminal.js',
+  '.deck/sui-components/sui-terminal.js',
 )
 
 /// Synthesized harness that loads the sui-terminal + sui-agent-attach

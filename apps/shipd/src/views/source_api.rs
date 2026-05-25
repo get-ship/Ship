@@ -54,7 +54,7 @@ fn try_resolve_sui_view(path: &str) -> Option<ViewSourceResponse> {
         Some((n, rest)) => (n, Some(rest)),
         None => (path, None),
     };
-    let resolved = ship_sui::resolver::resolve(name, sub).ok()?;
+    let resolved = deck::resolver::resolve(name, sub).ok()?;
     // Bake-list views return source_path = None because the source is
     // `include_str!`'d at compile time. Synthesize the canonical on-disk
     // path so devtools can show + edit.

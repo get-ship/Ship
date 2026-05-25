@@ -230,6 +230,8 @@ fn parse_dep_skill(dep_ref: &str, raw: &str) -> Skill {
         source: SkillSource::Community,
         vars: Default::default(),
         artifacts: vec![],
+        grants: vec![],
+        requires: vec![],
     }
 }
 

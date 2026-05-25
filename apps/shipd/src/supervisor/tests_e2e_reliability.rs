@@ -6,42 +6,42 @@
 
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::job::{project, JobStatus};
+use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
-    let job_id = payload["job_id"].as_str().unwrap_or("test");
-    EventEnvelope::new(event_type, job_id, &payload).unwrap()
+    let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or("test");
+    EventEnvelope::new(event_type, pipeline_run_id, &payload).unwrap()
 }
 
-fn created(job_id: &str, slug: &str) -> EventEnvelope {
+fn created(pipeline_run_id: &str, slug: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-        "job_id": job_id, "slug": slug,
+        "pipeline_run_id": pipeline_run_id, "slug": slug,
         "agent": "rust-runtime", "branch": format!("job/{slug}"),
         "spec_path": "spec.md", "plan_id": null,
     }))
 }
 
-fn dispatched(job_id: &str) -> EventEnvelope {
+fn dispatched(pipeline_run_id: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
-        "job_id": job_id, "worktree": format!("/tmp/wt/{job_id}"), "pid": 1234
+        "pipeline_run_id": pipeline_run_id, "worktree": format!("/tmp/wt/{pipeline_run_id}"), "pid": 1234
     }))
 }
 
-fn completed(job_id: &str, slug: &str) -> EventEnvelope {
+fn completed(pipeline_run_id: &str, slug: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
-        "job_id": job_id, "slug": slug
+        "pipeline_run_id": pipeline_run_id, "slug": slug
     }))
 }
 
-fn merged(job_id: &str, slug: &str) -> EventEnvelope {
+fn merged(pipeline_run_id: &str, slug: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_MERGED, serde_json::json!({
-        "job_id": job_id, "slug": slug
+        "pipeline_run_id": pipeline_run_id, "slug": slug
     }))
 }
 
-fn failed(job_id: &str, error: &str) -> EventEnvelope {
+fn failed(pipeline_run_id: &str, error: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_FAILED, serde_json::json!({
-        "job_id": job_id, "error": error
+        "pipeline_run_id": pipeline_run_id, "error": error
     }))
 }
 
@@ -113,13 +113,13 @@ fn orphan_worktrees_detectable_from_projection() {
     let map = project(&events);
 
     let orphans: Vec<_> = map.values()
-        .filter(|j| matches!(j.status, JobStatus::Merged | JobStatus::Failed))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Merged | PipelineRunStatus::Failed))
         .filter(|j| j.worktree.is_some())
         .map(|j| j.slug.as_str())
         .collect();
 
     let active: Vec<_> = map.values()
-        .filter(|j| j.status == JobStatus::Dispatched)
+        .filter(|j| j.status == PipelineRunStatus::Dispatched)
         .filter(|j| j.worktree.is_some())
         .map(|j| j.slug.as_str())
         .collect();
@@ -224,15 +224,15 @@ fn all_non_terminal_states_recoverable() {
         created("j-blocked", "blocked"),
         dispatched("j-blocked"),
         ev(event_types::PIPELINE_RUN_BLOCKED, serde_json::json!({
-            "job_id": "j-blocked", "blocker": "needs key", "needs_human": true
+            "pipeline_run_id": "j-blocked", "blocker": "needs key", "needs_human": true
         })),
     ];
     let map = project(&events);
 
-    assert_eq!(map.get("j-pending").unwrap().status, JobStatus::Pending);
-    assert_eq!(map.get("j-dispatched").unwrap().status, JobStatus::Dispatched);
-    assert_eq!(map.get("j-completed").unwrap().status, JobStatus::Completed);
-    assert_eq!(map.get("j-blocked").unwrap().status, JobStatus::Blocked);
+    assert_eq!(map.get("j-pending").unwrap().status, PipelineRunStatus::Pending);
+    assert_eq!(map.get("j-dispatched").unwrap().status, PipelineRunStatus::Dispatched);
+    assert_eq!(map.get("j-completed").unwrap().status, PipelineRunStatus::Completed);
+    assert_eq!(map.get("j-blocked").unwrap().status, PipelineRunStatus::Blocked);
 
     // All have enough data for the reconciliation loop to act on
     assert!(map.get("j-dispatched").unwrap().worktree.is_some());
@@ -270,7 +270,7 @@ fn job_full_lifecycle_all_events_present() {
     let map = project(&events);
     let rec = map.get("j1").unwrap();
 
-    assert_eq!(rec.status, JobStatus::Merged);
+    assert_eq!(rec.status, PipelineRunStatus::Merged);
     assert_eq!(rec.slug, "auth-fix");
     assert!(rec.worktree.is_some(), "worktree must be tracked through lifecycle");
     assert!(rec.error.is_none(), "successful job must have no error");
@@ -281,7 +281,7 @@ fn job_full_lifecycle_all_events_present() {
 fn pipeline_full_lifecycle_all_steps_tracked() {
     let events = vec![
         ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-            "job_id": "j1", "slug": "pipe",
+            "pipeline_run_id": "j1", "slug": "pipe",
             "agent": "test-writer", "branch": "job/pipe",
             "spec_path": "spec.md", "plan_id": null,
             "steps": {
@@ -301,7 +301,7 @@ fn pipeline_full_lifecycle_all_steps_tracked() {
     let map = project(&events);
     let rec = map.get("j1").unwrap();
 
-    assert_eq!(rec.status, JobStatus::Merged);
+    assert_eq!(rec.status, PipelineRunStatus::Merged);
     assert!(rec.completed_steps.contains(&"test".to_string()));
     assert!(rec.completed_steps.contains(&"impl".to_string()));
     assert!(rec.completed_steps.contains(&"gate".to_string()));
@@ -312,7 +312,7 @@ fn pipeline_full_lifecycle_all_steps_tracked() {
 fn pipeline_failure_preserves_completed_steps() {
     let events = vec![
         ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-            "job_id": "j1", "slug": "pipe",
+            "pipeline_run_id": "j1", "slug": "pipe",
             "agent": "test-writer", "branch": "job/pipe",
             "spec_path": "spec.md", "plan_id": null,
             "steps": { "steps": [
@@ -327,7 +327,7 @@ fn pipeline_failure_preserves_completed_steps() {
     let map = project(&events);
     let rec = map.get("j1").unwrap();
 
-    assert_eq!(rec.status, JobStatus::Failed);
+    assert_eq!(rec.status, PipelineRunStatus::Failed);
     assert!(
         rec.completed_steps.contains(&"test".to_string()),
         "completed steps must survive failure — needed for retry"

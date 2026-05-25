@@ -3,7 +3,7 @@
   <sui-command-chat> — chat panel for the unified ai mode.
   Always rendered when bar.mode = 'ai'. Body branches:
     daemonOffline → "Daemon unreachable" empty state
-    no agents     → "Set an active agent in /agents"
+    no agents     → "Set an active agent in /studio/agents"
     no session    → inline spawn picker (agent + harness + Start)
     session       → message thread
   Composer is always present so prefill text from `ship:bar:open`
@@ -27,14 +27,14 @@
     border-radius: 999px;
     flex-shrink: 0;
   }
-  .cb-chat-header .title { font-size: 13px; font-weight: 600; }
+  .cb-chat-header .title { font-size: var(--text-base); font-weight: 600; }
   .cb-chat-header .sub { font-size: 11px; color: var(--muted-foreground); }
   .cb-chip-wrap { position: relative; flex-shrink: 0; }
   .cb-session-chip {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 2px 8px;
+    padding: 2px var(--space-2);
     border: 1px solid var(--border);
     border-radius: 999px;
     font-size: 11px;
@@ -63,30 +63,30 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 6px);
     box-shadow: var(--shadow-lg);
-    z-index: 10;
-    padding: 4px 0;
+    z-index: var(--z-dropdown);
+    padding: var(--space-1) 0;
   }
   .cb-session-row {
     display: grid;
     grid-template-columns: 14px 1fr auto;
     align-items: center;
-    gap: 8px;
-    padding: 7px 12px;
+    gap: var(--space-2);
+    padding: 7px var(--space-3);
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
   .cb-session-row:hover { background: var(--muted); }
   .cb-session-row.current { background: color-mix(in oklch, var(--primary) 8%, transparent); }
   .cb-session-row .meta { color: var(--muted-foreground); font-size: 11px; }
   .cb-session-end {
     background: transparent; border: none; cursor: pointer;
-    color: var(--muted-foreground); font-size: 14px; padding: 0 2px;
+    color: var(--muted-foreground); font-size: var(--text-md); padding: 0 2px;
   }
-  .cb-session-end:hover { color: var(--destructive, red); }
-  .cb-session-sep { height: 1px; background: var(--border); margin: 4px 0; }
+  .cb-session-end:hover { color: var(--destructive); }
+  .cb-session-sep { height: 1px; background: var(--border); margin: var(--space-1) 0; }
   .cb-session-action {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 12px; cursor: pointer; font-size: 12px;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: 7px var(--space-3); cursor: pointer; font-size: var(--text-sm);
     color: var(--muted-foreground);
   }
   .cb-session-action:hover { background: var(--muted); color: var(--foreground); }
@@ -98,19 +98,19 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
-    padding: 12px 14px;
+    padding: var(--space-3) 14px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   /* ── Messages ─────────────────────────────────────────────────── */
   .cb-chat-empty {
     color: var(--muted-foreground);
-    font-size: 13px;
+    font-size: var(--text-base);
     text-align: center;
-    margin-top: 24px;
-    padding: 0 16px;
+    margin-top: var(--space-6);
+    padding: 0 var(--space-4);
     line-height: 1.5;
   }
   .cb-chat-empty .title { color: var(--foreground); font-weight: 600; margin-bottom: 6px; }
@@ -131,14 +131,14 @@
     max-width: 80%;
     padding: 7px 10px;
     border-radius: var(--radius-md, 6px);
-    font-size: 13px;
+    font-size: var(--text-base);
     line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-word;
   }
   .cb-chat-turn[data-sender='user'] .cb-chat-bubble {
     background: var(--primary);
-    color: var(--primary-foreground, #fff);
+    color: var(--primary-foreground);
   }
   .cb-chat-turn[data-sender='agent'] .cb-chat-bubble {
     background: var(--muted);
@@ -153,21 +153,21 @@
 
   /* ── Inline spawn picker ──────────────────────────────────────── */
   .cb-spawn-card {
-    margin: 8px 0;
+    margin: var(--space-2) 0;
     padding: 14px;
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 6px);
     background: var(--muted);
   }
-  .cb-spawn-title { font-weight: 600; font-size: 13px; margin-bottom: 12px; }
+  .cb-spawn-title { font-weight: 600; font-size: var(--text-base); margin-bottom: var(--space-3); }
   .cb-spawn-row {
     display: grid;
     grid-template-columns: 72px 1fr;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
   }
-  .cb-spawn-row label { font-size: 12px; color: var(--muted-foreground); }
+  .cb-spawn-row label { font-size: var(--text-sm); color: var(--muted-foreground); }
   .cb-spawn-row select {
     height: 30px;
     border: 1px solid var(--border);
@@ -175,20 +175,20 @@
     background: var(--background);
     color: var(--foreground);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--text-base);
     padding: 0 6px;
   }
-  .cb-spawn-error { font-size: 12px; color: var(--destructive, red); margin-bottom: 8px; }
+  .cb-spawn-error { font-size: var(--text-sm); color: var(--destructive); margin-bottom: var(--space-2); }
   .cb-spawn-start {
-    margin-top: 4px;
+    margin-top: var(--space-1);
     height: 32px;
     width: 100%;
     border: none;
     border-radius: var(--radius-sm, 4px);
     background: var(--primary);
-    color: var(--primary-foreground, #fff);
+    color: var(--primary-foreground);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--text-base);
     cursor: pointer;
   }
   .cb-spawn-start:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -197,19 +197,19 @@
   .cb-banner {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     padding: 6px 14px;
-    font-size: 12px;
+    font-size: var(--text-sm);
     border-bottom: 1px solid var(--border);
     flex: 0 0 auto;
   }
   .cb-banner.warn {
-    background: color-mix(in oklch, var(--warning,#d97706) 12%, var(--background));
-    color: var(--warning,#d97706);
+    background: color-mix(in oklch, var(--warning) 12%, var(--background));
+    color: var(--warning);
   }
   .cb-banner.error {
-    background: color-mix(in oklch, var(--destructive,#dc2626) 12%, var(--background));
-    color: var(--destructive,#dc2626);
+    background: color-mix(in oklch, var(--destructive) 12%, var(--background));
+    color: var(--destructive);
   }
   .cb-banner button.dismiss {
     background: transparent;
@@ -217,14 +217,14 @@
     cursor: pointer;
     color: inherit;
     font: inherit;
-    padding: 0 4px;
+    padding: 0 var(--space-1);
     margin-left: auto;
   }
 
   /* ── Composer ─────────────────────────────────────────────────── */
   .cb-chat-composer {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     align-items: flex-end;
     padding: 10px 14px;
     border-top: 1px solid var(--border);
@@ -237,8 +237,8 @@
     background: var(--background);
     color: var(--foreground);
     font: inherit;
-    font-size: 13px;
-    padding: 6px 8px;
+    font-size: var(--text-base);
+    padding: 6px var(--space-2);
     resize: none;
     line-height: 1.4;
     min-height: 56px;
@@ -251,9 +251,9 @@
     border: none;
     border-radius: var(--radius-sm, 4px);
     background: var(--primary);
-    color: var(--primary-foreground, #fff);
+    color: var(--primary-foreground);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--text-base);
     cursor: pointer;
     flex-shrink: 0;
     align-self: flex-end;
@@ -280,7 +280,7 @@
             role="option"
             on:click={() => selectSession(s.id)}
           >
-            <span class="cb-dot" style:background={s.status === 'thinking' ? 'var(--warning,#d97706)' : 'var(--success,#16a34a)'}></span>
+            <span class="cb-dot" style:background={s.status === 'thinking' ? 'var(--warning)' : 'var(--success)'}></span>
             <span><strong>{s.agent_id ?? ''}</strong><span class="meta"> · {s.harness ?? ''} · {s.workspace_id}</span></span>
             <button class="cb-session-end" type="button" aria-label="End session" on:click={(e) => { e.stopPropagation(); endSession(s.id) }}>×</button>
           </div>
@@ -336,7 +336,7 @@
   {:else if !hasAgents()}
     <div class="cb-chat-empty">
       <div class="title">No agents configured</div>
-      <div>Open <button class="link" type="button" on:click={goToAgents}>/agents</button> to add one, then start a session.</div>
+      <div>Open <button class="link" type="button" on:click={goToAgents}>/studio/agents</button> to add one, then start a session.</div>
     </div>
   {:else}
     <div class="cb-spawn-card">

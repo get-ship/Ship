@@ -61,10 +61,10 @@ describe('<sui-view-picker>', () => {
     expect(input.getAttribute('aria-label')).toBe('Filter views')
   })
 
-  it('install-href prop defaults to /ship-ui-studio', () => {
+  it('install-href prop defaults to /studio/components', () => {
     const { el } = mount(reg, 'sui-view-picker')
     const a = shadow(el).querySelector<HTMLAnchorElement>('[part~="install-link"]')!
-    expect(a.getAttribute('href')).toBe('/ship-ui-studio')
+    expect(a.getAttribute('href')).toBe('/studio/components')
   })
 
   it('install-href prop overrides default', async () => {

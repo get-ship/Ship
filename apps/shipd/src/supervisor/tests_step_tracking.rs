@@ -5,20 +5,20 @@
 
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::event_types;
-use ship_platform::projections::job::{JobStatus, project};
+use ship_platform::projections::pipeline_run::{PipelineRunStatus, project};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     EventEnvelope::new(event_type, "test-entity", &payload).unwrap()
 }
 
-fn created_with_steps(job_id: &str, steps: serde_json::Value) -> EventEnvelope {
+fn created_with_steps(pipeline_run_id: &str, steps: serde_json::Value) -> EventEnvelope {
     ev(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": job_id,
-            "slug": job_id,
+            "pipeline_run_id": pipeline_run_id,
+            "slug": pipeline_run_id,
             "agent": "rust-runtime",
-            "branch": format!("job/{job_id}"),
+            "branch": format!("job/{pipeline_run_id}"),
             "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "steps": steps,
@@ -26,24 +26,24 @@ fn created_with_steps(job_id: &str, steps: serde_json::Value) -> EventEnvelope {
     )
 }
 
-fn dispatched(job_id: &str) -> EventEnvelope {
+fn dispatched(pipeline_run_id: &str) -> EventEnvelope {
     ev(
         event_types::PIPELINE_RUN_DISPATCHED,
-        serde_json::json!({"job_id": job_id, "worktree": "/tmp/wt", "pid": null}),
+        serde_json::json!({"pipeline_run_id": pipeline_run_id, "worktree": "/tmp/wt", "pid": null}),
     )
 }
 
-fn completed(job_id: &str) -> EventEnvelope {
+fn completed(pipeline_run_id: &str) -> EventEnvelope {
     ev(
         event_types::PIPELINE_RUN_COMPLETED,
-        serde_json::json!({"job_id": job_id, "slug": job_id}),
+        serde_json::json!({"pipeline_run_id": pipeline_run_id, "slug": pipeline_run_id}),
     )
 }
 
-fn merged(job_id: &str) -> EventEnvelope {
+fn merged(pipeline_run_id: &str) -> EventEnvelope {
     ev(
         event_types::PIPELINE_RUN_MERGED,
-        serde_json::json!({"job_id": job_id}),
+        serde_json::json!({"pipeline_run_id": pipeline_run_id}),
     )
 }
 
@@ -132,7 +132,7 @@ fn no_pipeline_job_no_step_tracking() {
         ev(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": "j-nopipe",
+                "pipeline_run_id": "j-nopipe",
                 "slug": "no-pipe",
                 "agent": "rust-runtime",
                 "branch": "job/no-pipe",
@@ -211,7 +211,7 @@ fn completion_without_subsequent_dispatch_still_trackable() {
     ];
     let map = project(&events);
     let rec = map.get("j-no-redispatch").unwrap();
-    assert_eq!(rec.status, JobStatus::Merged);
+    assert_eq!(rec.status, PipelineRunStatus::Merged);
     assert!(
         rec.completed_steps.contains(&"final-step".to_string()),
         "final-step must be in completed_steps even when PIPELINE_RUN_MERGED fires without a second PIPELINE_RUN_DISPATCHED"
@@ -247,7 +247,7 @@ fn three_steps_completed_before_merge() {
     ];
     let map = project(&events);
     let rec = map.get("j-3steps").unwrap();
-    assert_eq!(rec.status, JobStatus::Merged);
+    assert_eq!(rec.status, PipelineRunStatus::Merged);
     assert!(
         rec.completed_steps.contains(&"spec".to_string()),
         "step 'spec' must be in completed_steps"

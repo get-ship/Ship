@@ -124,8 +124,8 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--success, #22c55e);
-    box-shadow: 0 0 0 2px color-mix(in oklab, var(--success, #22c55e) 25%, transparent);
+    background: var(--success);
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--success) 25%, transparent);
   }
   .count {
     font-family: var(--mono-font, var(--font-mono));
@@ -161,12 +161,12 @@
     color: var(--muted-foreground);
     border-radius: var(--radius-full, 999px);
     font: inherit;
-    font-size: 10.5px;
+    font-size: var(--text-xs);
     padding: 1px 9px 1px 7px;
     margin-right: 6px;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     cursor: pointer;
     transition: background var(--duration-fast) var(--ease-out),
       color var(--duration-fast) var(--ease-out),
@@ -191,7 +191,7 @@
     margin-left: auto;
     display: flex;
     align-items: center;
-    padding-right: 4px;
+    padding-right: var(--space-1);
   }
   .tool {
     appearance: none;

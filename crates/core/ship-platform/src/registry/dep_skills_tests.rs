@@ -347,6 +347,8 @@ fn resolve_dep_skills_deduplicates_against_local() {
         source: SkillSource::Custom,
         vars: Default::default(),
         artifacts: vec![],
+        grants: vec![],
+        requires: vec![],
     };
 
     let refs = vec!["github.com/owner/pkg/skills/my-skill".to_string()];

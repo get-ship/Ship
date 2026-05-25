@@ -13,9 +13,9 @@ use tokio::sync::Mutex;
 
 use ship_substrate::events::pipeline::{event_types, PipelineRunStartedPayload, PipelineStepSpawnFailedPayload};
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
-use crate::projections::job::{load_jobs, JobStatus};
+use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::dispatch::dispatch_job_internal;
@@ -27,10 +27,10 @@ struct FailingIsolation;
 
 #[async_trait]
 impl IsolationStrategy for FailingIsolation {
-    async fn prepare(&self, _job: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
         Err(anyhow::anyhow!("isolation boom: worktree conflict"))
     }
-    async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> {
+    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -39,11 +39,11 @@ struct OkIsolation(PathBuf);
 
 #[async_trait]
 impl IsolationStrategy for OkIsolation {
-    async fn prepare(&self, _job: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
         std::fs::create_dir_all(&self.0).ok();
         Ok(self.0.clone())
     }
-    async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> {
+    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -51,8 +51,8 @@ impl IsolationStrategy for OkIsolation {
 struct FailingExecutor;
 
 #[async_trait]
-impl JobExecutor for FailingExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for FailingExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Err(anyhow::anyhow!("spawn boom: tmux missing"))
     }
     async fn is_alive(&self, _h: &ExecutorHandle) -> bool {
@@ -94,9 +94,9 @@ impl ProcessRegistryPort for NoopRegistry {
 
 // ── Harness ────────────────────────────────────────────────────────────────
 
-fn job_payload(job_id: &str, slug: &str) -> PipelineRunStartedPayload {
+fn run_payload(pipeline_run_id: &str, slug: &str) -> PipelineRunStartedPayload {
     PipelineRunStartedPayload {
-        job_id: job_id.into(),
+        pipeline_run_id: pipeline_run_id.into(),
         slug: slug.into(),
         agent: "rust-runtime".into(),
         branch: format!("job/{slug}"),
@@ -123,7 +123,7 @@ fn job_payload(job_id: &str, slug: &str) -> PipelineRunStartedPayload {
 
 fn dispatch_config() -> ActorConfig {
     ActorConfig {
-        namespace: "service.job-dispatch".to_string(),
+        namespace: "service.orchestrator".to_string(),
         write_namespaces: vec!["job.".to_string(), "step.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["pipeline.".to_string()],
@@ -133,7 +133,7 @@ fn dispatch_config() -> ActorConfig {
 
 fn octx(
     isolation: Arc<dyn IsolationStrategy>,
-    executor: Arc<dyn JobExecutor>,
+    executor: Arc<dyn SessionExecutor>,
     worktrees: PathBuf,
 ) -> OrchestratorContext {
     OrchestratorContext {
@@ -144,17 +144,17 @@ fn octx(
         probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     }
 }
 
-fn find_spawn_failed(job_id: &str) -> Option<PipelineStepSpawnFailedPayload> {
+fn find_spawn_failed(pipeline_run_id: &str) -> Option<PipelineStepSpawnFailedPayload> {
     let events = ship_substrate::db::events::list_all_events().ok()?;
     events.into_iter().find_map(|e| {
-        if e.entity_id == job_id && e.event_type == event_types::PIPELINE_STEP_SPAWN_FAILED {
+        if e.entity_id == pipeline_run_id && e.event_type == event_types::PIPELINE_STEP_SPAWN_FAILED {
             serde_json::from_str(&e.payload_json).ok()
         } else {
             None
@@ -170,7 +170,7 @@ async fn isolation_prepare_failure_emits_spawn_failed() {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base.clone()).unwrap();
     router
-        .spawn_actor("service.job-dispatch", dispatch_config())
+        .spawn_actor("service.orchestrator", dispatch_config())
         .unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
@@ -180,11 +180,11 @@ async fn isolation_prepare_failure_emits_spawn_failed() {
         tmp.path().join("worktrees"),
     );
 
-    let payload = job_payload("j-spawn-iso", "spawn-iso");
+    let payload = run_payload("j-spawn-iso", "spawn-iso");
     // Seed job.created so the projection reaches Pending first.
     let created = ship_substrate::events::EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED,
-        &payload.job_id,
+        &payload.pipeline_run_id,
         &payload,
     )
     .unwrap();
@@ -198,7 +198,7 @@ async fn isolation_prepare_failure_emits_spawn_failed() {
 
     dispatch_job_internal(&kernel, &payload, &ctx).await;
 
-    let emitted = find_spawn_failed(&payload.job_id).expect("job.spawn_failed emitted");
+    let emitted = find_spawn_failed(&payload.pipeline_run_id).expect("job.spawn_failed emitted");
     assert_eq!(emitted.stage, "isolation_prepare");
     assert_eq!(emitted.slug, payload.slug);
     assert!(
@@ -207,10 +207,10 @@ async fn isolation_prepare_failure_emits_spawn_failed() {
         emitted.error
     );
 
-    let jobs = load_jobs().unwrap();
+    let jobs = load_pipeline_runs().unwrap();
     assert_eq!(
-        jobs.get(&payload.job_id).unwrap().status,
-        JobStatus::Failed,
+        jobs.get(&payload.pipeline_run_id).unwrap().status,
+        PipelineRunStatus::Failed,
         "projection must transition to Failed after spawn_failed"
     );
 }
@@ -221,7 +221,7 @@ async fn executor_spawn_failure_emits_spawn_failed() {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base.clone()).unwrap();
     router
-        .spawn_actor("service.job-dispatch", dispatch_config())
+        .spawn_actor("service.orchestrator", dispatch_config())
         .unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
@@ -232,10 +232,10 @@ async fn executor_spawn_failure_emits_spawn_failed() {
         tmp.path().join("worktrees"),
     );
 
-    let payload = job_payload("j-spawn-exec", "spawn-exec");
+    let payload = run_payload("j-spawn-exec", "spawn-exec");
     let created = ship_substrate::events::EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED,
-        &payload.job_id,
+        &payload.pipeline_run_id,
         &payload,
     )
     .unwrap();
@@ -249,7 +249,7 @@ async fn executor_spawn_failure_emits_spawn_failed() {
 
     dispatch_job_internal(&kernel, &payload, &ctx).await;
 
-    let emitted = find_spawn_failed(&payload.job_id).expect("job.spawn_failed emitted");
+    let emitted = find_spawn_failed(&payload.pipeline_run_id).expect("job.spawn_failed emitted");
     assert_eq!(emitted.stage, "executor_spawn");
     assert!(
         emitted.error.contains("spawn boom"),
@@ -257,9 +257,9 @@ async fn executor_spawn_failure_emits_spawn_failed() {
         emitted.error
     );
 
-    let jobs = load_jobs().unwrap();
+    let jobs = load_pipeline_runs().unwrap();
     assert_eq!(
-        jobs.get(&payload.job_id).unwrap().status,
-        JobStatus::Failed
+        jobs.get(&payload.pipeline_run_id).unwrap().status,
+        PipelineRunStatus::Failed
     );
 }

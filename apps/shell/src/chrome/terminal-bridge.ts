@@ -17,7 +17,6 @@ interface TerminalEl extends HTMLElement {
   write?: (data: string | Uint8Array) => void
   writeln?: (data: string) => void
   clear?: () => void
-  focus?: () => void
   terminal?: { cols: number; rows: number } | null
 }
 
@@ -216,11 +215,17 @@ export async function bridgeDockTerminal(): Promise<void> {
     // spawn round-trip was in flight.
     for (const d of pendingInput) void sendInput(outcome.id, d)
     pendingInput = []
-    if (pendingResize) {
-      void sendResize(outcome.id, pendingResize.cols, pendingResize.rows)
+    // Explicit annotations: pendingResize/boundEl are reassigned only inside
+    // listener closures, which TS's CFA can't order before this IIFE — so it
+    // narrows the captured `let`s to their last in-scope value (null) and the
+    // truthy checks below collapse to `never`. Annotating restores the real type.
+    const queuedResize = pendingResize as { cols: number; rows: number } | null
+    const termDims = boundEl?.terminal as { cols: number; rows: number } | null | undefined
+    if (queuedResize) {
+      void sendResize(outcome.id, queuedResize.cols, queuedResize.rows)
       pendingResize = null
-    } else if (boundEl?.terminal) {
-      void sendResize(outcome.id, boundEl.terminal.cols, boundEl.terminal.rows)
+    } else if (termDims) {
+      void sendResize(outcome.id, termDims.cols, termDims.rows)
     }
     bridging = null
   })()

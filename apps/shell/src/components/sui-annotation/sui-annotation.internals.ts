@@ -19,11 +19,11 @@ export interface AnnotationEvent {
 }
 
 export interface BuildAnnotationInput {
-  viewId?: string
+  viewId?: string | undefined
   kind: AnnotationKind
-  selector?: string
-  rect?: [number, number, number, number]
-  note?: string
+  selector?: string | undefined
+  rect?: [number, number, number, number] | undefined
+  note?: string | undefined
 }
 
 // ─── ULID ──────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ export function buildAnnotationEvent(input: BuildAnnotationInput): AnnotationEve
     id: newUlid(),
     kind: input.kind,
     target,
-    note: input.note,
+    ...(input.note !== undefined ? { note: input.note } : {}),
     created_at: new Date().toISOString(),
     author_kind: 'human',
   }

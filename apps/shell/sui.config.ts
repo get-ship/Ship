@@ -8,10 +8,14 @@ import type { SuiBuildConfig } from '@ship/sui-build'
 // The `sui-chrome` aggregate registers every non-separate chrome tag
 // (view-picker, theme-picker, status-bar, brand-mark, view-chrome,
 // edit-overlay, edit-mode-pill, annotation-*); it lands under
-// `assets/sui-components/sui-chrome.js` so the daemon's existing
+// `.deck/sui-components/sui-chrome.js` so the daemon's existing
 // `serve_sui_island` handler serves it at
 // `/_sui/sui-components/sui-chrome.js` — no new route needed. The
 // `index.html` IIFE loads it eagerly alongside the umbrella aggregate.
+//
+// Chrome is the shell *app*'s content, so it builds to the project's `.deck/`
+// (deck's build output) — never into deck's own crate. deck-server reads it
+// from the host-supplied `.deck` root.
 //
 // Heavy chrome (terminal, code-editor, markdown-editor, command-bar,
 // launcher, nav-top, panel-dock, rail, devtools, component-picker,
@@ -38,7 +42,7 @@ const config: SuiBuildConfig = {
     'sui-view-authoring':   'src/components/sui-view-authoring/index.ts',
     'sui-account-menu':     'src/components/sui-account-menu/index.ts',
   },
-  outdir: '../../crates/sui/ship-sui-server/assets',
+  outdir: '../../.deck',
   lazyOutSubdir: 'sui-components',
 }
 

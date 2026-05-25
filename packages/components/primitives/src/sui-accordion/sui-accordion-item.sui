@@ -44,7 +44,7 @@
     background: transparent;
     border: 0;
     border-bottom: 1px solid var(--border);
-    text-align: left;
+    text-align: start;
     font: inherit;
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);

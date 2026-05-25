@@ -76,7 +76,7 @@ Skipping any step ships stale bytes. The `include_str!` call sites are `apps/shi
 Don't commit. Don't be surprised by:
 
 - `views/<name>/dist/page.compiled.js` — view emit. The paired controller is `views/<name>/controller.ts`; legacy directories still use `view.sui` / `view.controller.ts` and emit `view.compiled.js`. Vitest resolves `.ts` first via `packages/ui-dom/vitest.config.ts::resolve.extensions`.
-- `packages/ui-components/src/<tag>/dist/<tag>.compiled.js` — component emit; `packages/ui-components/src/index.ts` side-effect-imports each one to register the custom element.
+- `packages/components/ui-components/src/<tag>/dist/<tag>.compiled.js` — component emit; `packages/components/ui-components/src/index.ts` side-effect-imports each one to register the custom element.
 - `**/dist/*.sui.d.ts` — type declarations the compiler emits alongside the JS module.
 
 ## Adding a runtime export to `@ship/ui-runtime`
@@ -89,7 +89,7 @@ Each public symbol gets its own file in `packages/ui-runtime/src/<name>.ts` (mir
 
 - **Lower / IR** (`crates/sui-compiler/src/ir/directive.rs`, `lower/directives.rs`): `form_value: bool` / `form_disabled: bool` on the prop IR. Lower validates: only one `form-value` per component, `form-value` rejected on `object` / `array`, `form-disabled` only on `bool`.
 - **Emit** (`crates/sui-compiler/src/emit/js.rs`): when any prop carries either flag, the generated `component({...})` call gains `formAssociated: true` plus `formValue: '<prop>'` / `formDisabled: '<prop>'` keys declaring which prop drives each lifecycle.
-- **Runtime** (`packages/sui-runtime/src/component-factory.ts`, `component-form.ts`, `component.ts`): `defineComponent` reads those keys, sets `static formAssociated = true` on the generated class, calls `host.attachInternals()` on connect, installs the four platform callbacks (`formResetCallback`, `formStateRestoreCallback`, `formDisabledCallback`, and the per-change `setFormValue` effect), and exposes `internals?: ElementInternals` in setup ctx for callers who need `setValidity()` / `checkValidity()`.
+- **Runtime** (`packages/sui/runtime/src/component-factory.ts`, `component-form.ts`, `component.ts`): `defineComponent` reads those keys, sets `static formAssociated = true` on the generated class, calls `host.attachInternals()` on connect, installs the four platform callbacks (`formResetCallback`, `formStateRestoreCallback`, `formDisabledCallback`, and the per-change `setFormValue` effect), and exposes `internals?: ElementInternals` in setup ctx for callers who need `setValidity()` / `checkValidity()`.
 - **Parallel emitters**: schema.json, custom-elements.json, and .sui.d.ts all mirror the form-value / form-disabled markers so docs, agents, and TypeScript consumers see the form-association contract.
 
 When adding new form lifecycle hooks (custom validity, willValidate-aware behavior), extend `component-form.ts` — not the controller. The controller's job stays "react to the prop change"; the runtime owns the platform contract.

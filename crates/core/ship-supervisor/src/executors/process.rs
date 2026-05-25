@@ -29,7 +29,7 @@ use async_trait::async_trait;
 use ship_substrate::events::process::{event_types as proc_events, ProcessKilledPayload};
 use ship_substrate::events::{EventEnvelope, KernelRouter};
 use ship_platform::services::dispatch_ports::{
-    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor, LaunchCommand, LaunchProfile,
+    ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor, LaunchCommand, LaunchProfile,
 };
 use ship_platform::services::orchestrator::emit::persist_and_route;
 use ship_platform::services::harness_adapter::{adapter_for_or_default, HarnessAdapter};
@@ -217,7 +217,7 @@ fn resolve_sidecar_bin() -> std::path::PathBuf {
 /// `ghcr.io/ship/agent-runner:latest`). Power users override via
 /// `daemon_settings :: isolation.strategies = {...}`.
 async fn prepare_docker_sandbox(
-    ctx: &JobContext,
+    ctx: &SessionContext,
 ) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
     use ship_isolation::backends::{Docker, DockerConfig};
     use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
@@ -289,7 +289,7 @@ async fn prepare_docker_sandbox(
 /// — the host dials the firecracker vsock uds (see `SidecarActorRuntime`).
 #[cfg(target_os = "linux")]
 async fn prepare_firecracker_sandbox(
-    ctx: &JobContext,
+    ctx: &SessionContext,
 ) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
     use ship_isolation::backends::{Firecracker, FirecrackerConfig};
     use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
@@ -356,7 +356,7 @@ async fn prepare_firecracker_sandbox(
 /// caps are not yet applied by the Lima Isolator (the instance mounts the
 /// host home; per-run caps are a follow-up).
 async fn prepare_lima_sandbox(
-    ctx: &JobContext,
+    ctx: &SessionContext,
 ) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
     use ship_isolation::backends::{Lima, LimaConfig};
     use ship_substrate::isolation::SandboxPolicy;
@@ -388,7 +388,7 @@ async fn prepare_lima_sandbox(
 /// Endpoint is plaintext http over WSL2's shared loopback. Workspace +
 /// resource caps are not yet applied (follow-up).
 async fn prepare_wsl_sandbox(
-    ctx: &JobContext,
+    ctx: &SessionContext,
 ) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
     use ship_isolation::backends::{Wsl, WslConfig};
     use ship_substrate::isolation::SandboxPolicy;
@@ -418,7 +418,7 @@ async fn prepare_wsl_sandbox(
 /// actor via `SHIP_TOKEN` (never the root daemon token). Returns the token
 /// so the exit monitor can drop it from the registry. Best-effort: logs +
 /// returns None if no registry is installed or the mint fails.
-async fn mint_scoped_token(ctx: &JobContext, launch: &mut LaunchCommand) -> Option<String> {
+async fn mint_scoped_token(ctx: &SessionContext, launch: &mut LaunchCommand) -> Option<String> {
     match ship_platform::auth::scopes::session_registry() {
         Some(registry) => {
             match ship_platform::auth::scopes::mint_session(
@@ -465,7 +465,7 @@ async fn mint_scoped_token(ctx: &JobContext, launch: &mut LaunchCommand) -> Opti
 /// unwrapped, preserving the historical container behavior. A prepare
 /// failure is a hard `Err` (refuse).
 async fn wire_sidecar_sandbox<F, Fut>(
-    ctx: &JobContext,
+    ctx: &SessionContext,
     tier: ship_isolation::tier::IsolationTier,
     strategy: ship_isolation::IsolationStrategy,
     launch: &mut LaunchCommand,
@@ -553,8 +553,8 @@ where
 }
 
 #[async_trait]
-impl JobExecutor for ProcessExecutor {
-    async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
+impl SessionExecutor for ProcessExecutor {
+    async fn spawn(&self, ctx: &SessionContext) -> Result<ExecutorHandle> {
         // Non-interactive launch. Dispatch to the harness adapter so each
         // harness owns its own flags and prompt shape — Claude consumes the
         // autostart prompt via `-p`, Codex via `codex exec "<prompt>"`, etc.
@@ -572,7 +572,7 @@ impl JobExecutor for ProcessExecutor {
         let mut launch = if ctx.keepalive {
             adapter.build_interactive(&ctx.slug, &ctx.launch)
         } else {
-            build_headless_with_default_prompt(adapter.as_ref(), &ctx.slug, &ctx.launch)?
+            build_headless_with_default_prompt(adapter, &ctx.slug, &ctx.launch)?
         };
 
         // Per-step log under .artifacts/. The supervisor primitive owns
@@ -964,7 +964,7 @@ impl JobExecutor for ProcessExecutor {
         // and detect exit when the stream closes.
         let mut rx = handle.subscribe_output();
         let slug = ctx.slug.clone();
-        let job_id = ctx.job_id.clone();
+        let pipeline_run_id = ctx.pipeline_run_id.clone();
         let exit_tx = ctx.exit_tx.clone();
         let handle_for_exit = handle.clone();
         let work_dir_for_session = ctx.work_dir.clone();
@@ -1137,7 +1137,7 @@ impl JobExecutor for ProcessExecutor {
             if let Some(tx) = exit_tx {
                 let _ = tx.send(ExitSignal {
                     slug,
-                    job_id,
+                    pipeline_run_id,
                     exit_code,
                     cause: ExitCause::AgentExited,
                 });
@@ -1262,7 +1262,7 @@ mod tests {
             ..Default::default()
         };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile).unwrap();
+        let cmd = build_headless_with_default_prompt(adapter, "my-slug", &profile).unwrap();
         assert_eq!(cmd.bin, "codex");
         assert_eq!(cmd.args[0], "exec");
         assert_eq!(cmd.args.last().unwrap(), DEFAULT_AUTOSTART_PROMPT);
@@ -1272,7 +1272,7 @@ mod tests {
     fn dispatch_defaults_to_claude_when_harness_is_none() {
         let profile = LaunchProfile { persist_session: true, ..Default::default() };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile).unwrap();
+        let cmd = build_headless_with_default_prompt(adapter, "my-slug", &profile).unwrap();
         assert_eq!(cmd.bin, "claude");
         // Default prompt is injected as the `-p` value (instead of the
         // adapter's own "go" fallback) so the Claude flow gets the same
@@ -1290,7 +1290,7 @@ mod tests {
             ..Default::default()
         };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "s", &profile).unwrap();
+        let cmd = build_headless_with_default_prompt(adapter, "s", &profile).unwrap();
         assert_eq!(cmd.args.last().unwrap(), "custom");
     }
 
@@ -1307,25 +1307,25 @@ mod tests {
             ..Default::default()
         };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "slug-x", &profile).unwrap();
+        let cmd = build_headless_with_default_prompt(adapter, "slug-x", &profile).unwrap();
         let idx = cmd.args.iter().position(|a| a == "--resume").expect("--resume flag");
         assert_eq!(cmd.args[idx + 1], "sess-resume-1");
     }
 
     #[test]
     fn dispatch_surfaces_resume_unsupported_error() {
-        // Gemini has no resume — the adapter returns Err and the executor
+        // Cursor has no resume — the adapter returns Err and the executor
         // bubbles that up rather than silently falling back to a fresh
         // launch.
         let profile = LaunchProfile {
-            harness: Some("gemini".to_string()),
+            harness: Some("cursor".to_string()),
             resume_session: Some("anything".to_string()),
             persist_session: true,
             ..Default::default()
         };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let err = build_headless_with_default_prompt(adapter.as_ref(), "s", &profile)
-            .expect_err("gemini resume must fail");
+        let err = build_headless_with_default_prompt(adapter, "s", &profile)
+            .expect_err("cursor resume must fail");
         let msg = err.to_string();
         assert!(msg.contains("does not support session resume"), "got: {msg}");
     }
@@ -1338,7 +1338,7 @@ mod tests {
     // ── emission tests ─────────────────────────────────────────────────────
     //
     // These tests drive `stop()` end-to-end by constructing a real PTY child
-    // + ProcessState and invoking the JobExecutor trait. They assert the
+    // + ProcessState and invoking the SessionExecutor trait. They assert the
     // event store actually contains a `process.killed` envelope afterward,
     // not just that the call site fires — matches the spec's acceptance
     // criterion for event-store reads.
@@ -1397,6 +1397,19 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[cfg_attr(not(unix), ignore)]
     async fn process_executor_emits_process_killed_on_sigterm_path() {
+        // Real-PTY integration test: forks an actual child under a PTY and
+        // SIGTERMs it. The PTY/fork races sibling spawns suite-wide, so it's
+        // flaky in the default parallel run. Opt in with SHIP_TMUX_TESTS=1
+        // (the real-spawn integration switch).
+        if ship_substrate::env::read_raw(ship_substrate::env::Var::TmuxTests)
+            .ok()
+            .as_deref()
+            != Some("1")
+        {
+            eprintln!("skipping: set SHIP_TMUX_TESTS=1 to run real-PTY integration test");
+            return;
+        }
+        let _spawn_guard = crate::executors::real_spawn_guard();
         let (_dir, kernel, db) = setup_kernel();
         let (_tmp, state) = spawn_sleep_state("proc-sigterm");
 

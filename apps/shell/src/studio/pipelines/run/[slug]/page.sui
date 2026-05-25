@@ -1,0 +1,127 @@
+<style>
+.ship-view-run-detail { color: var(--foreground); background: var(--background); }
+.ship-run-detail-wrap { width: 100%; max-width: 96rem; margin: 0 auto; padding: var(--space-6) var(--space-8); display: flex; flex-direction: column; gap: var(--space-5); }
+.ship-run-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.ship-run-detail-title-row { display: flex; align-items: center; gap: var(--space-3); }
+.ship-run-detail-slug { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: var(--font-weight-semibold); }
+.ship-run-detail-meta { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; font-size: var(--text-xs); color: var(--muted-foreground); margin-top: var(--space-1); }
+.ship-run-detail-meta code { font-family: var(--font-mono); background: color-mix(in oklch, var(--muted) 50%, transparent); padding: 1px 6px; border-radius: var(--radius-sm); }
+.ship-run-detail-section-title { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); color: var(--foreground); margin: 0 0 var(--space-2); letter-spacing: -0.01em; }
+.ship-obs-row { display: grid; grid-template-columns: auto 1fr auto auto; gap: var(--space-3); align-items: center; padding: var(--space-2) var(--space-3); border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent); font-size: var(--text-xs); }
+.ship-obs-row:first-child { border-top: none; }
+.ship-obs-name { font-family: var(--font-mono); font-weight: var(--font-weight-medium); }
+.ship-obs-meta { font-size: var(--text-xs); color: var(--muted-foreground); display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.ship-timeline-scroll { max-height: 28rem; overflow-y: auto; }
+</style>
+
+{#async ctx}
+  {:loading}
+  <sui-spinner size="md" centered></sui-spinner>
+
+  {:error err}
+  <sui-alert tone="destructive">Failed to load run: {err.message}</sui-alert>
+
+  {:ok}
+{#if run().slug}
+<div class="ship-view ship-view-run-detail">
+  <div class="ship-run-detail-wrap">
+    <div class="ship-run-detail-head">
+      <div>
+        <div class="ship-run-detail-title-row">
+          <sui-button size="sm" variant="ghost" on:click={() => navigate('/studio/pipelines')}>
+            <sui-icon slot="leading" name="chevron-left"></sui-icon>All runs
+          </sui-button>
+          <span class="ship-run-detail-slug">{run().slug}</span>
+          <sui-badge attr:tone={run().tone}>{run().status_text}</sui-badge>
+        </div>
+        <div class="ship-run-detail-meta">
+          <code>{run().agent}</code>
+          {#if run().branch}<span>{run().branch}</span>{/if}
+          {#if run().provider}<span>{run().provider}</span>{/if}
+          {#if run().model}<span>{run().model}</span>{/if}
+          <sui-timestamp attr:value={run().updated_at} relative></sui-timestamp>
+        </div>
+      </div>
+      {#if run().state === 'dispatched' || run().state === 'pending'}
+      <div style="display: flex; gap: var(--space-2);">
+        <sui-button variant="outline" size="sm" tone="destructive" on:click={() => stopRun(run().job_id)}>
+          <sui-icon slot="leading" name="stop"></sui-icon>Stop
+        </sui-button>
+      </div>
+      {/if}
+    </div>
+
+    {#if run().error}
+      {#if errorMultiline()}
+      <sui-collapsible>
+        <sui-alert slot="trigger" tone="destructive" compact>Error: {errorFirstLine()}</sui-alert>
+        <sui-code language="text">{run().error}</sui-code>
+      </sui-collapsible>
+      {:else}
+      <sui-alert tone="destructive" compact>Error: {run().error}</sui-alert>
+      {/if}
+    {/if}
+
+    {#if steps().length > 0}
+    <sui-card>
+      <h3 slot="header" class="ship-run-detail-section-title">Pipeline</h3>
+      <ship-pipeline-dag>
+        {#for step of steps() key={step.id}}
+          <ship-pipeline-step attr:name={step.id} attr:state={step.state} attr:step-type={step.step_type} attr:agent={step.agent}></ship-pipeline-step>
+          {#if !step.isLast}<span class="arrow" aria-hidden="true">→</span>{/if}
+        {/for}
+      </ship-pipeline-dag>
+    </sui-card>
+    {/if}
+
+    {#if observations().length > 0}
+    <sui-card>
+      <h3 slot="header" class="ship-run-detail-section-title">Step observations</h3>
+      {#for obs of observations() key={obs.step_name}}
+      <div class="ship-obs-row">
+        <span class="ship-obs-name">{obs.step_name}</span>
+        <div class="ship-obs-meta">
+          <span>{obs.trigger}</span>
+          <span>{obs.duration_secs}s</span>
+          {#if obs.exit_code !== undefined && obs.exit_code !== null}<span>exit {obs.exit_code}</span>{/if}
+          {#if obs.commits > 0}<span>{obs.commits} commit{obs.commits !== 1 ? 's' : ''}</span>{/if}
+          {#if obs.done_declared}<sui-badge size="sm" tone="success">step_done</sui-badge>{/if}
+        </div>
+        <sui-badge attr:tone={obs.succeeded ? 'success' : obs.verdict === 'Block' ? 'destructive' : 'muted'}>{obs.verdict}</sui-badge>
+        <span></span>
+      </div>
+      {#if obs.log_tail}
+      <sui-collapsible>
+        <span slot="trigger" class="ship-obs-meta" style="padding: 0 var(--space-3);">log tail</span>
+        <sui-code language="text">{obs.log_tail}</sui-code>
+      </sui-collapsible>
+      {/if}
+      {/for}
+    </sui-card>
+    {/if}
+
+    <sui-card>
+      <h3 slot="header" class="ship-run-detail-section-title">Live log</h3>
+      <ship-log-stream attr:url={'/api/v1/pipelines/runs/' + run().slug + '/log/stream'} autoscroll active></ship-log-stream>
+    </sui-card>
+
+    {#if timeline().length > 0}
+    <sui-card>
+      <h3 slot="header" class="ship-run-detail-section-title">Event timeline</h3>
+      <div class="ship-timeline-scroll">
+        <sui-timeline>
+          {#for ev of timeline() key={ev.at + ev.event_type}}
+          <sui-timeline-item>
+            <span slot="timestamp"><sui-timestamp attr:value={ev.at} relative></sui-timestamp></span>
+            <span slot="title">{ev.event_type}</span>
+            <span>{ev.summary}</span>
+          </sui-timeline-item>
+          {/for}
+        </sui-timeline>
+      </div>
+    </sui-card>
+    {/if}
+  </div>
+</div>
+{/if}
+{/async}

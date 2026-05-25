@@ -1,7 +1,7 @@
 //! RoutingExecutor — per-job selection between Server, TmuxWindow, and
 //! Process executors.
 //!
-//! The orchestrator receives a single `Arc<dyn JobExecutor>`, but we
+//! The orchestrator receives a single `Arc<dyn SessionExecutor>`, but we
 //! want the routing decision (server-mode session vs. interactive tmux
 //! vs. headless child process) made **per job** based on (a) the
 //! harness's declared capabilities and (b) the `headless` flag that
@@ -28,10 +28,8 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::KernelRouter;
-use ship_platform::services::dispatch_ports::{ExecutorHandle, InvocationMode, JobContext, JobExecutor};
+use ship_platform::services::dispatch_ports::{ExecutorHandle, InvocationMode, SessionContext, SessionExecutor};
 use ship_platform::services::harness_adapter::adapter_for_or_default;
-use ship_platform::services::harnesses::codex_session::CodexSession;
-use ship_platform::services::harnesses::opencode_session::OpenCodeSession;
 use ship_platform::services::server_session::ServerSession;
 use tokio::sync::Mutex;
 
@@ -112,7 +110,7 @@ impl RoutingExecutor {
     /// Returns a `ServerExecutor` if the harness has `server_mode` AND
     /// a session is bound. Otherwise `None` — caller falls through to
     /// the existing Process/TmuxWindow selection.
-    fn try_server_executor(&self, ctx: &JobContext) -> Option<ServerExecutor> {
+    fn try_server_executor(&self, ctx: &SessionContext) -> Option<ServerExecutor> {
         let adapter = adapter_for_or_default(ctx.launch.harness.as_deref()).ok()?;
         if !adapter.caps().server_mode {
             return None;
@@ -121,67 +119,31 @@ impl RoutingExecutor {
         Some(ServerExecutor::new(self.kernel.clone(), session))
     }
 
-    /// Lazy-spawn a `CodexSession` on first codex dispatch, caching the
-    /// binding in the session registry. On spawn failure (binary missing,
-    /// handshake stalls, etc.) we log a warning and leave the registry
-    /// untouched — the caller then falls through to Process/TmuxWindow,
-    /// preserving the one-shot `codex exec` path as graceful degradation.
-    async fn ensure_codex_session(&self, ctx: &JobContext) {
+    /// Lazy-spawn a server-mode session on first dispatch for any harness
+    /// that declares one, caching the binding in the session registry. The
+    /// adapter owns *how* to spawn (`spawn_server_session`); routing stays
+    /// generic over the registry instead of branching per harness id. On
+    /// missing binary or spawn failure we leave the registry untouched, so
+    /// the caller falls through to Process/TmuxWindow — preserving the
+    /// one-shot path as graceful degradation.
+    async fn ensure_server_session(&self, ctx: &SessionContext) {
         let Some(harness) = ctx.launch.harness.as_deref() else {
             return;
         };
-        if harness != "codex" {
-            return;
-        }
-        if self.sessions.get("codex").is_some() {
-            return;
-        }
-        if !binary_on_path("codex") {
-            tracing::debug!(
-                "routing: codex binary not on PATH; skipping CodexSession lazy-spawn"
-            );
-            return;
-        }
-        match CodexSession::spawn().await {
-            Ok(session) => {
-                tracing::info!("routing: lazy-spawned CodexSession for harness=codex");
-                self.sessions.bind("codex", Arc::new(session));
-            }
-            Err(err) => {
-                tracing::warn!(%err,
-                    "routing: CodexSession lazy-spawn failed; falling back to ProcessExecutor");
-            }
-        }
-    }
-
-    /// Lazy-spawn an `OpenCodeSession` on first opencode dispatch, caching
-    /// the binding in the session registry. Mirrors `ensure_codex_session`:
-    /// binary-absence + spawn-failure both degrade cleanly to Process.
-    async fn ensure_opencode_session(&self, ctx: &JobContext) {
-        let Some(harness) = ctx.launch.harness.as_deref() else {
+        let Ok(adapter) = adapter_for_or_default(Some(harness)) else {
             return;
         };
-        if harness != "opencode" {
+        if !adapter.caps().server_mode || self.sessions.get(adapter.id()).is_some() {
             return;
         }
-        if self.sessions.get("opencode").is_some() {
+        if !binary_on_path(adapter.binary()) {
+            tracing::debug!(harness = adapter.id(), binary = adapter.binary(),
+                "routing: binary not on PATH; skipping server-session lazy-spawn");
             return;
         }
-        if !binary_on_path("opencode") {
-            tracing::debug!(
-                "routing: opencode binary not on PATH; skipping OpenCodeSession lazy-spawn"
-            );
-            return;
-        }
-        match OpenCodeSession::spawn().await {
-            Ok(session) => {
-                tracing::info!("routing: lazy-spawned OpenCodeSession for harness=opencode");
-                self.sessions.bind("opencode", Arc::new(session));
-            }
-            Err(err) => {
-                tracing::warn!(%err,
-                    "routing: OpenCodeSession lazy-spawn failed; falling back to ProcessExecutor");
-            }
+        if let Some(session) = adapter.spawn_server_session().await {
+            tracing::info!(harness = adapter.id(), "routing: lazy-spawned server session");
+            self.sessions.bind(adapter.id(), session);
         }
     }
 
@@ -189,7 +151,7 @@ impl RoutingExecutor {
     /// given this context? Avoids actually spawning a harness process
     /// in routing tests.
     #[cfg(test)]
-    pub(crate) fn route_kind(&self, ctx: &JobContext) -> RouteKind {
+    pub(crate) fn route_kind(&self, ctx: &SessionContext) -> RouteKind {
         if self.try_server_executor(ctx).is_some() {
             return RouteKind::Server;
         }
@@ -209,14 +171,19 @@ pub(crate) enum RouteKind {
 }
 
 #[async_trait]
-impl JobExecutor for RoutingExecutor {
-    async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
+impl SessionExecutor for RoutingExecutor {
+    async fn spawn(&self, ctx: &SessionContext) -> Result<ExecutorHandle> {
         // Register the pipeline step as an actor so it surfaces in the
         // unified dashboard alongside chat agents and shell sessions.
-        // Fire-and-forget on a std::thread to avoid the kernel-route
-        // block_on path deadlocking the tokio runtime.
+        //
+        // The persist runs on a bare std::thread (no ambient runtime — so the
+        // durable write's block_on and the deliver's blocking_lock are both
+        // safe), and we AWAIT it via a oneshot before spawning the child. The
+        // old code detached the thread and discarded its result, so an
+        // ultra-short Print session could spawn → run → exit before the row
+        // committed (dropping it entirely), and a swallowed error left no
+        // trace — the root of the transport-canary flake. Errors are logged.
         let actor_id = ctx.slug.clone();
-        let kind = "pipeline-step";
         let workspace_id = ctx.branch.clone();
         let agent_id = ctx.agent.clone();
         let harness = ctx.launch.harness.clone();
@@ -224,25 +191,33 @@ impl JobExecutor for RoutingExecutor {
             InvocationMode::Print => "headless",
             InvocationMode::Pty => "pty",
             InvocationMode::Stream => "stream",
-        };
-        let transport = transport.to_string();
+        }
+        .to_string();
+        let (tx, rx) = tokio::sync::oneshot::channel();
         std::thread::spawn(move || {
-            let _ = ship_substrate::db::actor_events::emit_actor_created_simple(
+            let res = ship_substrate::db::actor_events::persist_actor_created_simple(
                 &actor_id,
-                kind,
+                "pipeline-step",
                 Some(&workspace_id),
                 Some(&agent_id),
                 harness.as_deref(),
                 Some(&transport),
                 None,
             );
+            let _ = tx.send(res);
         });
+        match rx.await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => tracing::warn!(slug = ctx.slug, %e,
+                "routing: actor.created persist failed (dashboard row will be missing)"),
+            Err(_) => tracing::warn!(slug = ctx.slug,
+                "routing: actor.created persist thread panicked before reporting"),
+        }
 
         // Server-mode harnesses route to a persistent session when the
         // registry has a binding. The first dispatch per harness lazy-
         // spawns the child; subsequent dispatches reuse the cached Arc.
-        self.ensure_codex_session(ctx).await;
-        self.ensure_opencode_session(ctx).await;
+        self.ensure_server_session(ctx).await;
 
         // Server-mode dispatch reuses an already-bound session — its
         // binary was checked at session-spawn time (ensure_*_session
@@ -259,12 +234,13 @@ impl JobExecutor for RoutingExecutor {
         // ProcessExecutor). Pre-flight the binary so the user gets a
         // clear "install it first" message instead of an opaque
         // exit-127 / "No such file" from a few layers down.
-        // Harness id doubles as binary name today for all 5 known
-        // adapters; revisit if that stops being true.
+        // The executable name comes from the adapter (`binary()`), not the
+        // harness id — they diverge for cursor (id "cursor", bin
+        // "cursor-agent").
         if let Some(harness) = ctx.launch.harness.as_deref()
             && let Ok(adapter) = adapter_for_or_default(Some(harness))
         {
-            let bin = adapter.id();
+            let bin = adapter.binary();
             if !binary_on_path(bin) {
                 anyhow::bail!(
                     "dispatch: {bin} binary not on PATH. \

@@ -50,21 +50,21 @@
     align-items: center;
     gap: 6px;
     height: 28px;
-    padding: 0 4px 0 10px;
+    padding: 0 var(--space-1) 0 10px;
     border-radius: 999px;
-    background: color-mix(in oklch, var(--warning, #d97706) 14%, var(--card, #fff));
-    color: var(--warning, #d97706);
-    border: 1px solid color-mix(in oklch, var(--warning, #d97706) 36%, transparent);
+    background: color-mix(in oklch, var(--warning) 14%, var(--card));
+    color: var(--warning);
+    border: 1px solid color-mix(in oklch, var(--warning) 36%, transparent);
     font-family: var(--font-body, system-ui);
     font-size: 11px;
     line-height: 1;
-    box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.18));
+    box-shadow: var(--shadow-md);
   }
 
   .dot {
     width: 7px; height: 7px;
     border-radius: 999px;
-    background: var(--warning, #d97706);
+    background: var(--warning);
     flex-shrink: 0;
     animation: edit-pulse 1.6s var(--ease-in-out, ease-in-out) infinite;
   }
@@ -77,18 +77,18 @@
   .label { font-weight: 500; letter-spacing: 0.01em; }
   .label .view {
     font-family: var(--font-mono, ui-monospace, monospace);
-    font-size: 10.5px;
+    font-size: var(--text-xs);
     padding: 1px 5px;
-    margin-left: 4px;
-    background: color-mix(in oklch, var(--warning, #d97706) 22%, transparent);
+    margin-left: var(--space-1);
+    background: color-mix(in oklch, var(--warning) 22%, transparent);
     border-radius: var(--radius-sm, 4px);
   }
 
   .sep {
     width: 1px;
     align-self: stretch;
-    background: color-mix(in oklch, var(--warning, #d97706) 28%, transparent);
-    margin: 4px 2px;
+    background: color-mix(in oklch, var(--warning) 28%, transparent);
+    margin: var(--space-1) 2px;
   }
 
   .btn {
@@ -105,19 +105,19 @@
     opacity: 0.85;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
   }
   .btn:hover { opacity: 1; background: color-mix(in oklch, var(--foreground) 10%, transparent); }
-  .btn:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in oklch, var(--warning, #d97706) 50%, transparent); }
+  .btn:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in oklch, var(--warning) 50%, transparent); }
   .btn[aria-pressed="true"] {
-    background: var(--warning, #d97706);
-    color: var(--warning-foreground, var(--card, #fff));
+    background: var(--warning);
+    color: var(--warning-foreground, var(--card));
     opacity: 1;
   }
 
   .send {
-    background: var(--primary, #3b82f6);
-    color: var(--primary-foreground, #fff);
+    background: var(--primary);
+    color: var(--primary-foreground);
     opacity: 1;
     padding: 0 10px;
     height: 22px;
@@ -129,14 +129,14 @@
     background: color-mix(in oklch, var(--primary) 22%, transparent);
     color: var(--primary);
     font-family: var(--font-mono);
-    font-size: 10.5px;
-    padding: 1px 8px;
+    font-size: var(--text-xs);
+    padding: 1px var(--space-2);
     font-weight: 500;
   }
   .qcount-btn:hover { background: color-mix(in oklch, var(--primary) 32%, transparent); }
-  .qcount-btn[aria-expanded="true"] { background: var(--primary); color: var(--primary-foreground, #fff); }
+  .qcount-btn[aria-expanded="true"] { background: var(--primary); color: var(--primary-foreground); }
 
-  .close-btn { padding: 0 8px; font-size: 14px; line-height: 1; }
+  .close-btn { padding: 0 var(--space-2); font-size: var(--text-md); line-height: 1; }
 
   /* ── Expanded queue panel ───────────────────────────────────────── */
   .queue {
@@ -145,17 +145,17 @@
     width: 380px;
     max-height: min(440px, calc(100vh - 100px));
     overflow: auto;
-    background: var(--card, #fff);
-    color: var(--foreground, #111);
+    background: var(--card);
+    color: var(--foreground);
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 8px);
-    box-shadow: var(--shadow-lg, 0 12px 32px rgba(0,0,0,0.22));
+    box-shadow: var(--shadow-lg);
   }
   .q-head {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 12px;
+    padding: var(--space-2) var(--space-3);
     border-bottom: 1px solid var(--border);
     font-size: var(--text-xs);
     color: var(--muted-foreground);
@@ -165,17 +165,17 @@
   .q-head .clear-all {
     margin-left: auto;
     background: transparent; border: 0; color: var(--muted-foreground);
-    font: inherit; font-size: 10.5px; cursor: pointer;
+    font: inherit; font-size: var(--text-xs); cursor: pointer;
     text-transform: none; letter-spacing: 0;
   }
   .q-head .clear-all:hover { color: var(--destructive); }
-  .q-empty { padding: 12px; text-align: center; color: var(--muted-foreground); font-size: 11px; }
+  .q-empty { padding: var(--space-3); text-align: center; color: var(--muted-foreground); font-size: 11px; }
   .q-list { list-style: none; margin: 0; padding: 0; }
   .q-row {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 4px 6px;
-    padding: 8px 10px 10px;
+    gap: var(--space-1) 6px;
+    padding: var(--space-2) 10px 10px;
     border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   }
   .q-row .selector {
@@ -186,13 +186,13 @@
   }
   .q-row .remove {
     background: transparent; border: 0; color: var(--muted-foreground);
-    cursor: pointer; font-size: 14px; line-height: 1; padding: 0 6px;
+    cursor: pointer; font-size: var(--text-md); line-height: 1; padding: 0 6px;
     border-radius: var(--radius-sm); align-self: start;
   }
   .q-row .remove:hover { color: var(--destructive); background: color-mix(in oklch, var(--destructive) 12%, transparent); }
   .q-row .preview {
     grid-column: 1 / -1;
-    font-size: 10.5px;
+    font-size: var(--text-xs);
     color: var(--muted-foreground);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
@@ -200,19 +200,19 @@
     grid-column: 1 / -1;
     font: inherit;
     font-size: 11px;
-    padding: 4px 6px;
+    padding: var(--space-1) 6px;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--background);
     color: var(--foreground);
     resize: vertical;
     min-height: 28px;
-    margin-top: 4px;
+    margin-top: var(--space-1);
   }
   .q-row .comment:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 22%, transparent); }
   .q-foot {
     display: flex; justify-content: flex-end; gap: 6px;
-    padding: 8px 10px;
+    padding: var(--space-2) 10px;
     border-top: 1px solid var(--border);
     background: color-mix(in oklch, var(--muted) 40%, transparent);
   }
@@ -220,9 +220,9 @@
     appearance: none;
     border: 1px solid var(--primary);
     background: var(--primary);
-    color: var(--primary-foreground, #fff);
+    color: var(--primary-foreground);
     border-radius: var(--radius-sm);
-    padding: 4px 12px;
+    padding: var(--space-1) var(--space-3);
     font: inherit;
     font-weight: 500;
     cursor: pointer;

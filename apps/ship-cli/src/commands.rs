@@ -118,15 +118,10 @@ pub enum IsolationCommands {
 
 #[derive(Subcommand, Debug)]
 pub enum McpCommands {
-    /// Run the Ship MCP server (stdio by default; --http for HTTP daemon)
-    Serve {
-        /// Serve over HTTP instead of stdio
-        #[arg(long)]
-        http: bool,
-        /// HTTP port (requires --http, default: 3000)
-        #[arg(long, default_value = "3000")]
-        port: u16,
-    },
+    /// Run the Ship MCP server over stdio (a thin local shim over the same
+    /// surface the daemon hosts at `$DAEMON/mcp`). The standalone `--http`
+    /// listener was retired — the daemon is the one HTTP transport.
+    Serve {},
 
     /// Register an MCP server (HTTP/SSE transport)
     Add {

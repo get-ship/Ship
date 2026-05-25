@@ -26,6 +26,31 @@ pub mod managers;
 pub mod project_api;
 pub mod routes;
 pub mod router;
+pub mod ops_rpc;
+pub mod analytics_rpc;
+pub mod runtime_rpc;
+pub mod view_errors_rpc;
+pub mod rules_rpc;
+pub mod artifacts_rpc;
+pub mod collections_rpc;
+pub mod permissions_rpc;
+pub mod mcp_rpc;
+pub mod skills_rpc;
+pub mod pipelines_rpc;
+pub mod git_rpc;
+pub mod agents_rpc;
+pub mod agent_rpc;
+pub mod project_rpc;
+pub mod settings_rpc;
+pub mod annotation_rpc;
+pub mod feedback_rpc;
+pub mod sessions_rpc;
+pub mod workspaces_rpc;
+pub mod account_rpc;
+pub mod chat_rpc;
+pub mod dashboard_rpc;
+pub mod events_rpc;
+pub mod specs_rpc;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;
@@ -48,8 +73,7 @@ mod integration_tests;
 mod ship_runtime_tests;
 
 pub use daemon::{network_status, network_stop};
-pub use transport::NetworkServer;
-pub use ship_sui::DaemonMode;
+pub use deck::DaemonMode;
 
 /// Test-only: build a minimal router with the CORS middleware for testing.
 #[cfg(test)]
@@ -87,7 +111,7 @@ pub async fn run_network(
     port: Option<u16>,
     dev: bool,
     workspace_dir: Option<std::path::PathBuf>,
-    daemon_mode: ship_sui::DaemonMode,
+    daemon_mode: deck::DaemonMode,
 ) -> Result<()> {
     if dev {
         tracing::warn!(
@@ -131,6 +155,22 @@ pub async fn run_network(
         None => home.daemon_dir(),
     };
 
+    // The ship host configures deck's first-party view root — deck itself knows
+    // no app layout (see .artifacts/asset-architecture.md). Gate on the shell
+    // source actually being present (a dev worktree of this repo), NOT on the
+    // `--dev` flag, which dev launchers pass inconsistently. In a user's project
+    // / prod install there is no `apps/shell/src`, so the env stays unset and
+    // the shell bundle owns first-party views.
+    if let Some(root) = worktree_root.as_ref() {
+        let fp_root = root.join("apps").join("shell").join("src");
+        if fp_root.is_dir() {
+            // SAFETY: set once at startup, before any request thread reads it.
+            unsafe {
+                std::env::set_var("SHIP_FIRST_PARTY_VIEWS", &fp_root);
+            }
+        }
+    }
+
     // One-time hint for the worktree footgun: if `ProjectRoot::discover`
     // redirects to a different (main) checkout and there's a live daemon
     // sitting at the OLD (main-root) hash, surface it so the operator can
@@ -160,7 +200,7 @@ pub async fn run_network(
     if let Some(ref w) = workspace_dir {
         tracing::info!(workspace = %w.display(), daemon_dir = %daemon_dir.display(), "shipd: project-scoped mode");
         // Make `--workspace` authoritative for the SUI resolver chain
-        // (ship-sui-server's resolver consults `SHIP_DEV_PROJECT_DIR`
+        // (deck-server's resolver consults `SHIP_DEV_PROJECT_DIR`
         // first; without this it falls back to CWD + worktree-aware
         // resolution, which redirects into the parent checkout's
         // `views/` when the workspace lives inside a git worktree).
@@ -206,8 +246,15 @@ pub async fn run_network(
     runtime.set_mesh_registry(mesh_registry);
     let rt = Arc::new(runtime);
 
-    let job_mgr = managers::JobManager::init(rt.kernel().clone(), global_dir.clone(), rt.health_registry()).await;
-    if let Some(dh) = job_mgr.dispatch_handle {
+    let run_mgr = managers::RunManager::init(
+        rt.kernel().clone(),
+        global_dir.clone(),
+        rt.health_registry(),
+        rt.session_registry().clone(),
+        rt.daemon_origin(),
+    )
+    .await;
+    if let Some(dh) = run_mgr.dispatch_handle {
         rt.set_dispatch_handle(dh);
     }
     // Start the abandoned session scanner.
@@ -258,7 +305,7 @@ pub async fn run_network(
                                 .await;
                             });
                         }
-                        if mode == ship_sui::DaemonMode::Development {
+                        if mode == deck::DaemonMode::Development {
                             views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
                                 kind: views::sui_hmr::BundleModuleEventKind::ModuleChanged,
                                 target,
@@ -292,7 +339,7 @@ pub async fn run_network(
                                 .await;
                             });
                         }
-                        if mode == ship_sui::DaemonMode::Development {
+                        if mode == deck::DaemonMode::Development {
                             views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
                                 kind: views::sui_hmr::BundleModuleEventKind::CompileError,
                                 target,

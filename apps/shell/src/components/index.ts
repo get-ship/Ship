@@ -22,6 +22,19 @@ import './sui-annotation/sui-annotation-marker.compiled.js'
 import './sui-annotation/sui-annotation-list.compiled.js'
 import './sui-view-chrome/sui-view-chrome.compiled.js'
 import './sui-brand-mark/sui-brand-mark.compiled.js'
+import './sui-shell-bottom/sui-shell-bottom.compiled.js'
+import './sui-blank-canvas/sui-blank-canvas.compiled.js'
+import './sui-home/sui-home.compiled.js'
+import './sui-activity/sui-activity.compiled.js'
+import './sui-account/sui-account.compiled.js'
+import './sui-library/sui-library.compiled.js'
+import './sui-setup/sui-setup.compiled.js'
+import './sui-settings/sui-settings.compiled.js'
+import './sui-canvas-app/sui-canvas-app.compiled.js'
+import './sui-help-overlay/sui-help-overlay.compiled.js'
+// Studio rail — reused by every studio deck route (views/studio/**). Eager
+// so on-demand-compiled nested leaves can drop the tag without importing it.
+import './sui-studio-rail/sui-studio-rail.compiled.js'
 
 // Single source of truth for slot compositions used by the component
 // picker. Exported so future shell-internal pickers (cmd-bar insert,

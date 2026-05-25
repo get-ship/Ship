@@ -1,9 +1,12 @@
 //! Dev-time task runner.
 //!
 //! Usage:
-//!   cargo xtask gen-types          # regenerate packages/sdk/src/generated.ts
+//!   cargo xtask gen-types          # regenerate packages/deck/sdk/src/generated.ts
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
 
+mod gen_fixtures;
+mod gen_ops;
+mod gen_skills;
 mod gen_sdk;
 mod lint_layers;
 
@@ -20,7 +23,7 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-/// Types whose canonical home is `packages/sdk/src/generated.ts`:
+/// Types whose canonical home is `packages/deck/sdk/src/generated.ts`:
 /// project config, permissions, skills, agent profiles, runtime workspace +
 /// job/event projections. Consumers (sdk/types.ts) import from this file
 /// directly; do not move members out of this set without updating consumers.
@@ -93,8 +96,8 @@ fn collect_types() -> TypeCollection {
     // ── Daemon / runtime types ─────────────────────────────────────────────
 
     // projections/job.rs
-    c.register::<ship_platform::projections::job::PipelineRun>();
-    c.register::<ship_platform::projections::job::JobStatus>();
+    c.register::<ship_platform::projections::pipeline_run::PipelineRun>();
+    c.register::<ship_platform::projections::pipeline_run::PipelineRunStatus>();
 
     // events/job.rs (job event payloads)
     c.register::<ship_substrate::events::pipeline::PipelineRunStartedPayload>();
@@ -147,11 +150,140 @@ fn collect_types() -> TypeCollection {
     c.register::<ship_platform::sessions::ProviderMatrix>();
     c.register::<ship_platform::sessions::ProviderMatrixRepairReport>();
 
+    // ── Typed-op return types (ship.<domain>.<op> data surface) ─────────────
+    // These back `DataHandle<T>` in `generated/data.ts` — every name here must
+    // also appear in `gen_sdk::data_ts::MIGRATED_RETURN_TYPES`. Migrated domain
+    // by domain; see `schema::OPS` assembly.
+
+    // agents.* — single-source via `registry::agents::AGENTS_OPS`.
+    c.register::<ship_platform::services::agents::state::IndexEntry>();
+    c.register::<ship_platform::services::agents::state::ScopeTag>();
+    c.register::<ship_platform::services::agents::view_state::AgentDetail>();
+    c.register::<ship_platform::services::agents::view_state::Permissions>();
+    c.register::<ship_platform::services::agents::view_state::CatalogEntry>();
+    c.register::<ship_platform::services::agents::view_state::ToolPatternEntry>();
+    c.register::<ship_platform::services::agents::view_state::AgentCatalogs>();
+    c.register::<ship_platform::services::agents::view_state::AgentSummary>();
+    c.register::<ship_platform::services::agents::view_state::AgentsSummariesResponse>();
+    c.register::<ship_platform::services::agents::wire::WireNode>();
+    c.register::<ship_platform::services::agents::wire::WireEdge>();
+    c.register::<ship_platform::services::agents::wire::AgentWireCtx>();
+    c.register::<ship_platform::services::agents::settings_view::TierRow>();
+    c.register::<ship_platform::services::agents::settings_view::AgentSettingsCtx>();
+    c.register::<ship_platform::services::agents::create::AgentTemplate>();
+    c.register::<ship_platform::services::agents::create::PermissionPreset>();
+    c.register::<ship_platform::services::agents::create::AgentsCreateCtx>();
+    c.register::<ship_platform::services::agents::wire_types::AgentIndexResponse>();
+    c.register::<ship_platform::services::agents::wire_types::AgentGetResponse>();
+    c.register::<ship_platform::services::agents::wire_types::AgentTemplatesResponse>();
+    c.register::<ship_platform::services::agents::wire_types::PermissionPresetsResponse>();
+    c.register::<ship_platform::services::agents::wire_types::HarnessesResponse>();
+
+    // rules.* / mcp.* / permissions.* — file-backed index/get trio.
+    c.register::<ship_platform::services::rules::state::IndexEntry>();
+    c.register::<ship_platform::services::rules::state::ScopeTag>();
+    c.register::<ship_platform::services::rules::wire_types::RulesIndexResponse>();
+    c.register::<ship_platform::services::rules::wire_types::RuleGetResponse>();
+    c.register::<ship_platform::services::mcp::state::IndexEntry>();
+    c.register::<ship_platform::services::mcp::state::ScopeTag>();
+    c.register::<ship_platform::services::mcp::wire_types::McpIndexResponse>();
+    c.register::<ship_platform::services::mcp::wire_types::McpGetResponse>();
+    c.register::<ship_platform::services::permissions::state::IndexEntry>();
+    c.register::<ship_platform::services::permissions::state::ScopeTag>();
+    c.register::<ship_platform::services::permissions::wire_types::PermissionsIndexResponse>();
+    c.register::<ship_platform::services::permissions::wire_types::PermissionGetResponse>();
+    c.register::<ship_platform::services::permissions::wire_types::ToolPattern>();
+    c.register::<ship_platform::services::permissions::wire_types::ToolPatternsResponse>();
+
+    // account.* — Ship Cloud account snapshot (also exported in the framework
+    // collection for the chrome chip; registered here for the data.ts surface).
+    c.register::<ship_platform::account::types::AccountState>();
+    c.register::<ship_platform::account::types::MeView>();
+
+    // chat.* / sessions.* / events.* / artifacts.* — daemon-assembled shapes.
+    c.register::<shipd::views::chat_state::Sender>();
+    c.register::<shipd::views::chat_state::ChatMessage>();
+    c.register::<shipd::services::registry::wire::ChatStateResponse>();
+    c.register::<ship_platform::services::sessions::types::SessionKind>();
+    c.register::<ship_platform::services::sessions::types::SessionStatus>();
+    c.register::<ship_platform::services::sessions::types::SessionMeta>();
+    c.register::<shipd::services::registry::wire::SessionsListResponse>();
+    c.register::<shipd::views::events_state::EventRow>();
+    c.register::<shipd::views::events_state::EntityGroup>();
+    c.register::<shipd::services::registry::wire::EventsListResponse>();
+    c.register::<ship_platform::artifacts::ArtifactRecord>();
+    c.register::<shipd::services::registry::wire::ArtifactsListResponse>();
+
+    // skills.* (list / detail / file / get — summaries stays dynamic/unknown).
+    c.register::<ship_platform::services::skills::state::ScopeTag>();
+    c.register::<ship_platform::services::skills::state::IndexEntry>();
+    c.register::<ship_platform::services::skills::state::SkillDetail>();
+    c.register::<ship_platform::services::skills::view_state::SkillKind>();
+    c.register::<ship_platform::services::skills::view_state::SkillDetail>();
+    c.register::<shipd::services::registry::wire::SkillsIndexResponse>();
+    c.register::<shipd::services::registry::wire::SkillFileResponse>();
+
+    // pipelines.* (list / get + summaries / focus / run / history ctx).
+    c.register::<ship_platform::services::pipelines::state::ScopeTag>();
+    c.register::<ship_platform::services::pipelines::state::IndexEntry>();
+    c.register::<shipd::services::registry::wire::PipelinesIndexResponse>();
+    c.register::<shipd::services::registry::wire::PipelineGetResponse>();
+    c.register::<shipd::services::pipelines::shape::Stats>();
+    c.register::<shipd::services::pipelines::shape::StatusPill>();
+    c.register::<shipd::services::pipelines::shape::StepView>();
+    c.register::<shipd::services::pipelines::shape::RunView>();
+    c.register::<shipd::services::pipelines::view_state::BranchStats>();
+    c.register::<shipd::views::state::PipelineDef>();
+    c.register::<shipd::views::state::Filter>();
+    c.register::<shipd::services::pipelines::summaries::SummariesCtx>();
+    c.register::<shipd::services::pipelines::focus::FocusCtx>();
+    c.register::<shipd::services::pipelines::run_detail::RunDetailCtx>();
+    c.register::<shipd::services::pipelines::run_detail::StepObservationRow>();
+    c.register::<shipd::services::pipelines::run_detail::TimelineRow>();
+    c.register::<shipd::services::pipelines::history::HistoryCtx>();
+    c.register::<shipd::services::pipelines::history::HistoryRow>();
+
+    // specs.* (list / get / summaries / detail).
+    c.register::<shipd::services::specs::shape::Spec>();
+    c.register::<shipd::services::specs::view_state::SpecSummary>();
+    c.register::<shipd::services::specs::view_state::Counts>();
+    c.register::<shipd::services::specs::view_state::RailGroup>();
+    c.register::<shipd::services::specs::view_state::SummariesCtx>();
+    c.register::<shipd::services::specs::view_state::SpecDetail>();
+    c.register::<shipd::services::specs::parse::AcceptanceItem>();
+    c.register::<shipd::services::registry::wire::SpecsListResponse>();
+    c.register::<shipd::services::registry::wire::SpecGetResponse>();
+
+    // git.* (status / log / branches / overview / diff — annotations is a
+    // bare line→annotations map, left as unknown).
+    c.register::<ship_platform::services::git::state::StatusBuckets>();
+    c.register::<ship_platform::services::git::state::StatusFile>();
+    c.register::<ship_platform::services::git::state::CommitSummary>();
+    c.register::<ship_platform::services::git::state::BranchSummary>();
+    c.register::<ship_platform::services::git::diff::ParsedDiff>();
+    c.register::<shipd::services::registry::wire::GitLogResponse>();
+    c.register::<shipd::services::registry::wire::GitBranchesResponse>();
+    c.register::<shipd::services::registry::wire::GitOverviewResponse>();
+    c.register::<shipd::services::registry::wire::GitDiffResponse>();
+
+    // settings.*
+    c.register::<shipd::services::settings::view_state::ProviderRow>();
+    c.register::<shipd::services::settings::view_state::TerminalConfig>();
+    c.register::<shipd::services::settings::view_state::SelectOption>();
+    c.register::<shipd::services::settings::view_state::FeatureFlag>();
+    c.register::<shipd::services::settings::view_state::AboutInfo>();
+    c.register::<shipd::services::settings::view_state::SettingsCtx>();
+
+    // workspaces.*
+    c.register::<shipd::services::registry::wire::WorkspaceRow>();
+    c.register::<shipd::services::registry::wire::WorkspacesListResponse>();
+    c.register::<shipd::services::registry::wire::WorkspaceActiveResponse>();
+
     c
 }
 
 /// Framework data types that cross the daemon ↔ ui-runtime boundary.
-/// Output lands at `packages/sui-runtime/src/generated.ts` and is
+/// Output lands at `packages/sui/runtime/src/generated.ts` and is
 /// re-exported from `@ship/sui-runtime`. Add new entries here whenever a
 /// daemon HTTP/SSE response or a runtime payload struct gains a
 /// `#[derive(Type)]`. Drift between Rust and these registrations is
@@ -159,10 +291,10 @@ fn collect_types() -> TypeCollection {
 fn collect_framework_types() -> TypeCollection {
     let mut c = TypeCollection::default();
 
-    // ship-sui — view payload + resolver.
-    c.register::<ship_sui::view_payload::ViewPayload>();
-    c.register::<ship_sui::resolver::ResolvedView>();
-    c.register::<ship_sui::resolver::ResolveError>();
+    // deck — view payload + resolver.
+    c.register::<deck::view_payload::ViewPayload>();
+    c.register::<deck::resolver::ResolvedView>();
+    c.register::<deck::resolver::ResolveError>();
 
     // shipd::views — view list / manifest / source / write APIs.
     c.register::<shipd::views::ViewManifest>();
@@ -249,14 +381,34 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        "gen-fixtures" => {
+            if let Err(e) = gen_fixtures::run() {
+                eprintln!("gen-fixtures failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        "gen-ops" => {
+            if let Err(e) = gen_ops::run() {
+                eprintln!("gen-ops failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        "gen-skills" => {
+            if let Err(e) = gen_skills::run() {
+                eprintln!("gen-skills failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "help" | "--help" | "-h" => {
             eprintln!("Usage: cargo xtask <command>");
             eprintln!();
             eprintln!("Commands:");
-            eprintln!("  gen-types          Regenerate packages/sdk/src/generated.ts");
+            eprintln!("  gen-types          Regenerate packages/deck/sdk/src/generated.ts");
             eprintln!("  gen-types --check  Verify generated file is up-to-date (CI)");
-            eprintln!("  gen-sdk            Emit packages/sdk/src/generated/sdk-*.json + TS bindings");
+            eprintln!("  gen-sdk            Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
+            eprintln!("  gen-fixtures       Emit proto contract fixtures from proto/fixtures/theme.json");
             eprintln!("  lint-layers        Verify substrate/platform/application boundaries");
+            eprintln!("  gen-ops            Generate the read-op Connect surface from schema::OPS");
         }
         other => {
             eprintln!("Unknown command: {other}");
@@ -271,7 +423,7 @@ fn gen_types(check: bool) {
         .header("// This file is auto-generated by `cargo xtask gen-types`. Do not edit.")
         .framework_header("");
 
-    let ui_out = repo_root().join("packages/sdk/src/generated.ts");
+    let ui_out = repo_root().join("packages/deck/sdk/src/generated.ts");
     let ui_content = ts
         .export(&collect_types())
         .expect("specta-typescript export failed (ui)");
@@ -279,7 +431,7 @@ fn gen_types(check: bool) {
     let cloud_out = repo_root().join("packages/cloud-types/src/generated.ts");
     let cloud_content = build_cloud_types(&ts);
 
-    let framework_out = repo_root().join("packages/sui-runtime/src/generated.ts");
+    let framework_out = repo_root().join("packages/sui/runtime/src/generated.ts");
     let framework_content = ts
         .export(&collect_framework_types())
         .expect("specta-typescript export failed (framework)");
@@ -313,6 +465,7 @@ fn gen_types(check: bool) {
         .expect("failed to write framework generated.ts");
     eprintln!("Wrote {}", framework_out.display());
 }
+
 
 /// Build the cloud-side generated.ts: EventEnvelope struct + all event-type
 /// string constants read from `ship-types/src/event_types.rs`. Cloud's TS

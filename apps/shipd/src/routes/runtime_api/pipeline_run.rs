@@ -78,7 +78,7 @@ pub async fn run_pipeline(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<PipelineRunRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
+    if let Err(e) = require_scope(&auth, Scope::CreateRuns) {
         return e;
     }
 
@@ -148,27 +148,29 @@ pub async fn run_pipeline(
         }
     };
 
+    // Run-level default agent = the first step's agent. A pure-shell
+    // (run) first step has none; leave it empty rather than falling back
+    // to a bogus "default" profile — worktree prep skips agent
+    // compilation for empty agents (a real agent step always names one).
     let first_agent = steps
         .first()
         .and_then(|s| s.get("agent"))
         .and_then(|a| a.as_str())
-        .unwrap_or("default")
+        .unwrap_or("")
         .to_string();
 
     let pipeline_name = meta.name.clone().unwrap_or_else(|| req.pipeline.clone());
     let workspace_label = req.workspace.unwrap_or_else(|| pipeline_name.clone());
     let slug = req.slug.unwrap_or_else(|| {
-        format!(
-            "{}-{}",
-            workspace_label,
-            &ship_substrate::gen_ulid()[..8].to_lowercase()
-        )
+        // Random-tail suffix; a ULID prefix is pure timestamp and
+        // collides for rapid same-workspace dispatches (gen_slug_suffix).
+        format!("{}-{}", workspace_label, ship_substrate::gen_slug_suffix())
     });
     let branch = format!("job/{slug}");
-    let job_id = ship_substrate::gen_ulid();
+    let pipeline_run_id = ship_substrate::gen_ulid();
 
     let payload = PipelineRunStartedPayload {
-        job_id: job_id.clone(),
+        pipeline_run_id: pipeline_run_id.clone(),
         slug,
         agent: first_agent,
         branch,
@@ -192,7 +194,7 @@ pub async fn run_pipeline(
         baseline_sha: super::resolve_project_head_sha(),
     };
 
-    dispatch_one(&state, payload, &job_id).await
+    dispatch_one(&state, payload, &pipeline_run_id).await
 }
 
 #[cfg(test)]
@@ -227,6 +229,7 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: vec![Scope::Full],
+            grants: vec![],
         })
     }
 

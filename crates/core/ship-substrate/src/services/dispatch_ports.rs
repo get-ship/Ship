@@ -26,7 +26,7 @@ pub enum ExitCause {
 
 /// Signal sent from an executor monitor when an agent's run ends.
 ///
-/// Executors send this on `JobContext::exit_tx` so the dispatch handler can
+/// Executors send this on `SessionContext::exit_tx` so the dispatch handler can
 /// emit `job.completed` or `job.failed` without waiting for the SessionEnd hook.
 ///
 /// `cause` is exhaustive — every executor must declare whether it observed
@@ -36,15 +36,15 @@ pub enum ExitCause {
 #[derive(Debug)]
 pub struct ExitSignal {
     pub slug: String,
-    pub job_id: String,
+    pub pipeline_run_id: String,
     pub exit_code: Option<i32>,
     pub cause: ExitCause,
 }
 
 /// Context for a job being dispatched. Carries everything an executor needs.
 #[derive(Clone, Debug)]
-pub struct JobContext {
-    pub job_id: String,
+pub struct SessionContext {
+    pub pipeline_run_id: String,
     pub slug: String,
     pub agent: String,
     pub branch: String,
@@ -101,7 +101,7 @@ pub struct StepInfo {
 
 /// Everything about *how* to run the harness process.
 ///
-/// Separated from JobContext so launch configuration is composable —
+/// Separated from SessionContext so launch configuration is composable —
 /// harness defaults + pipeline step overrides + user preferences.
 #[derive(Clone, Debug, Default)]
 pub struct LaunchProfile {
@@ -136,7 +136,7 @@ pub struct LaunchProfile {
     pub append_system_prompt: Option<String>,
 }
 
-/// Handle returned by a `JobExecutor` after spawning an agent.
+/// Handle returned by a `SessionExecutor` after spawning an agent.
 pub struct ExecutorHandle {
     pub pid: Option<u32>,
     /// Opaque adapter-specific state.
@@ -267,16 +267,16 @@ mod shell_quote_tests {
 #[async_trait]
 pub trait IsolationStrategy: Send + Sync {
     /// Prepare an isolated working directory. Returns the path.
-    async fn prepare(&self, job: &JobContext) -> Result<PathBuf>;
+    async fn prepare(&self, job: &SessionContext) -> Result<PathBuf>;
     /// Clean up after job completion or failure.
-    async fn cleanup(&self, job: &JobContext) -> Result<()>;
+    async fn cleanup(&self, job: &SessionContext) -> Result<()>;
 }
 
 /// Port: spawns and manages the agent process lifecycle.
 #[async_trait]
-pub trait JobExecutor: Send + Sync {
+pub trait SessionExecutor: Send + Sync {
     /// Spawn the agent process in the prepared work directory.
-    async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle>;
+    async fn spawn(&self, ctx: &SessionContext) -> Result<ExecutorHandle>;
     /// Check if the agent process is still running.
     async fn is_alive(&self, handle: &ExecutorHandle) -> bool;
     /// Terminate the agent process.
@@ -330,6 +330,23 @@ pub trait AgentPlatform: Send + Sync {
 
     /// Clean up orphaned worktrees from previous daemon runs.
     async fn cleanup_orphaned_worktrees(&self);
+
+    /// Mint a scoped session token for a daemon-spawned agent (`agent_id`,
+    /// optional `role`), to inject as `$SHIP_TOKEN` so the agent authenticates
+    /// to the daemon-hosted MCP server with role-appropriate scopes.
+    ///
+    /// Default `None` — hosts that don't issue tokens (tests, mocks) need no
+    /// impl, and a `None` token simply means the agent's compiled config falls
+    /// back to the stdio shim. Only the real daemon platform mints.
+    async fn mint_session_token(&self, _agent_id: &str, _role: Option<&str>) -> Option<String> {
+        None
+    }
+
+    /// The daemon's own base URL (e.g. `http://127.0.0.1:8080`), to inject as
+    /// `$SHIP_DAEMON_URL`. Default `None` (no daemon-hosted endpoint to point at).
+    fn daemon_url(&self) -> Option<String> {
+        None
+    }
 }
 
 /// Port: process handle registry for tracking spawned agents.
@@ -358,7 +375,17 @@ pub trait ProcessRegistryPort: Send + Sync {
     /// return the slugs whose handles are no longer alive. Used by the
     /// coherence sweep to evict dead handles before the drift checks run.
     /// Default `vec![]` for registries that don't track handles.
-    async fn drain_dead(&self, _executor: &dyn JobExecutor) -> Vec<String> { vec![] }
+    async fn drain_dead(&self, _executor: &dyn SessionExecutor) -> Vec<String> { vec![] }
+    /// Record that `slug` was cancelled while no handle was registered — i.e.
+    /// a cancel that may have landed mid-spawn. A dispatch that's currently
+    /// spawning consults [`take_if_cancelled`] after it registers (and before
+    /// it spawns) so it can tear down the just-spawned child instead of
+    /// leaking it. Tombstones are TTL-bounded. Default: no-op (test doubles
+    /// don't need the window-closing logic).
+    async fn mark_cancelled(&self, _slug: &str) {}
+    /// Consume the cancellation tombstone for `slug`, returning true if one
+    /// was set. Default: false.
+    async fn take_if_cancelled(&self, _slug: &str) -> bool { false }
 }
 
 /// Sample of the liveness state of a dispatched process tree.

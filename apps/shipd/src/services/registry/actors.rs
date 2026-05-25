@@ -1,21 +1,21 @@
-//! Registry dispatcher for `actors.*` ops. Split off from
-//! services/registry.rs (mr-04 follow-up).
+//! Single-source `actors.*` ops — descriptors + dispatch via `ship_ops!`.
+//!
+//! `actors.list` is dispatchable but intentionally absent from `schema::OPS`
+//! (not advertised in the public catalog); `ACTORS_OPS` is therefore not folded
+//! into `OPS`. The declaration still single-sources its descriptor + dispatch.
 
-use serde_json::{Value, json};
-
+use super::wire::ActorsListResponse;
 use super::RegistryError;
-use crate::ship_runtime::ApiState;
-use ship_platform::services::files::FilesService;
 
-
-pub(super) fn try_dispatch(
-    name: &str,
-    args: &Value,
-    _state: &ApiState,
-    _files: &FilesService,
-) -> Result<Option<Value>, RegistryError> {
-    let value: Result<Value, RegistryError> = match name {
-        "actors.list" => {
+ship_ops! {
+    ACTORS_OPS;
+    {
+        name: "actors.list",
+        desc: "Live actors from the projection, filterable by workspace/kind/status.",
+        perm: "ship.actors.read",
+        args: &[],
+        ret: ActorsListResponse,
+        run: |args, _state, _files| {
             let filter = ship_substrate::projections::actor::ListActorsFilter {
                 workspace_id: args.get("workspace_id").and_then(|v| v.as_str())
                     .filter(|s| !s.is_empty()).map(String::from),
@@ -27,10 +27,7 @@ pub(super) fn try_dispatch(
             };
             let actors = ship_substrate::projections::actor::list_actors(&filter)
                 .map_err(|e| RegistryError::service(format!("actors.list: {e}")))?;
-            Ok(json!({ "items": actors }))
-        }
-
-        _ => return Ok(None),
-    };
-    Ok(Some(value?))
+            Ok(ActorsListResponse { items: actors })
+        },
+    },
 }

@@ -266,11 +266,11 @@ export default controller<Scope>({
 
     // Expose imperative API on the host element.
     const el = host as HTMLElement & {
-      write?: (s: string | Uint8Array) => void
-      writeln?: (s: string) => void
-      clear?: () => void
+      write?: ((s: string | Uint8Array) => void) | undefined
+      writeln?: ((s: string) => void) | undefined
+      clear?: (() => void) | undefined
       focus?: () => void
-      fit?: () => void
+      fit?: (() => void) | undefined
       terminal?: Terminal | null
     }
     // PTY transports deliver bytes; accept Uint8Array so the bridge can
@@ -330,7 +330,8 @@ export default controller<Scope>({
       el.write = undefined
       el.writeln = undefined
       el.clear = undefined
-      el.focus = undefined
+      // Leave el.focus alone — it shadows the native HTMLElement.focus and
+      // nulling it would break focus() if the element outlives teardown.
       el.fit = undefined
       el.terminal = null
       try { term.dispose() } catch { /* teardown race */ }

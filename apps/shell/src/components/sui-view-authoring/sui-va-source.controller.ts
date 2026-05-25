@@ -6,16 +6,7 @@ interface CodeEditor extends HTMLElement {
   setDiagnostics?: (diags: Array<{ line: number; severity: 'error' | 'warning'; message: string }>) => void
 }
 
-interface ViewMcp {
-  readSource(name: string): Promise<{ source: string }>
-  writeSource(name: string, source: string): Promise<{ ok: true }>
-}
-
-declare global {
-  interface Window {
-    __viewMcp?: ViewMcp
-  }
-}
+// window.__viewMcp is declared canonically in src/chrome/view-mcp.ts.
 
 export default controller<Scope>({
   scope: (state) => {

@@ -202,7 +202,9 @@ pub async fn dispatch_agent_session(
 ) -> impl IntoResponse {
     // Per-project enforcement teeth: an MCP session bound to project A
     // cannot dispatch work into project B. Trusted (CLI/SDK) callers and
-    // unbound sessions pass through. See auth::identity.
+    // unbound sessions pass through. See auth::identity. This guard lives in
+    // the REST handler because it needs the request's AuthContext; the
+    // transport-neutral core below is shared with the ConnectRPC path.
     if let Some(message) =
         crate::auth::identity::mcp_workspace_violation(&auth, req.workspace.as_deref())
     {
@@ -215,6 +217,16 @@ pub async fn dispatch_agent_session(
         );
     }
 
+    dispatch_agent_session_core(&state, req).await
+}
+
+/// Transport-neutral core of single-agent dispatch — shared by the REST
+/// handler above and the ConnectRPC `CommandOpsService`. Behavior is verbatim;
+/// only the entry shape differs (owned extractors vs a typed request).
+pub(crate) async fn dispatch_agent_session_core(
+    state: &ApiState,
+    req: DispatchRequest,
+) -> (StatusCode, Json<MeshResponse>) {
     // Validate the (open_tab × invocation × keepalive) matrix.
     if let Err(message) = validate_axes(&req) {
         return (
@@ -261,11 +273,10 @@ pub async fn dispatch_agent_session(
         .clone()
         .or_else(|| resume_outcome.as_ref().map(|s| s.slug.clone()))
         .unwrap_or_else(|| {
-            format!(
-                "{}-{}",
-                workspace_label,
-                &ship_substrate::gen_ulid()[..8].to_lowercase()
-            )
+            // Collision-free suffix from the ULID's random tail — a
+            // `[..8]` prefix is pure timestamp and collides for rapid
+            // same-workspace dispatches. See gen_slug_suffix.
+            format!("{}-{}", workspace_label, ship_substrate::gen_slug_suffix())
         });
     let branch = req
         .branch
@@ -367,7 +378,7 @@ pub async fn dispatch_agent_session(
 pub(crate) async fn dispatch_one(
     state: &ApiState,
     payload: PipelineRunStartedPayload,
-    job_id: &str,
+    pipeline_run_id: &str,
 ) -> (StatusCode, Json<MeshResponse>) {
     let payload =
         match ship_platform::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
@@ -380,7 +391,7 @@ pub(crate) async fn dispatch_one(
             }
         };
 
-    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &payload)
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, pipeline_run_id, &payload)
         .map(|e| e.with_actor_id("studio"))
     {
         Ok(e) => e,
@@ -401,7 +412,7 @@ pub(crate) async fn dispatch_one(
             Json(MeshResponse {
                 ok: true,
                 data: serde_json::json!({
-                    "job_id": job_id,
+                    "pipeline_run_id": pipeline_run_id,
                     "slug": payload.slug,
                     "branch": payload.branch,
                     "resume": payload.resume,
@@ -557,6 +568,7 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
+            grants: vec![],
         })
     }
 
@@ -593,6 +605,7 @@ mod tests {
             workspace_id: Some(workspace.into()),
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
+            grants: vec![],
         })
     }
 
@@ -811,12 +824,12 @@ mod tests {
 
     #[test]
     fn load_session_file_unsupported_harness_returns_400() {
-        // Gemini/cursor: session.json on disk but adapter refuses resume.
+        // Cursor: session.json on disk but adapter refuses resume.
         // Dispatch must surface a 400 — never silently fresh-launch.
         let tmp = TempDir::new().unwrap();
-        write_session_file(tmp.path(), "gemini", "anything", "rust-lane").unwrap();
+        write_session_file(tmp.path(), "cursor", "anything", "rust-lane").unwrap();
         let err = load_and_validate_session_file(tmp.path(), "slug-x", None)
-            .expect_err("gemini resume must 400");
+            .expect_err("cursor resume must 400");
         match err {
             ResumeResolveError::Status { status, message } => {
                 assert_eq!(status, StatusCode::BAD_REQUEST);

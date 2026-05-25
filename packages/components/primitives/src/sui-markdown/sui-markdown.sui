@@ -64,7 +64,7 @@
     border-left: 3px solid var(--border);
     color: var(--muted-foreground);
   }
-  ul, ol { margin: 0.4em 0; padding-left: 22px; }
+  ul, ol { margin: 0.4em 0; padding-inline-start: 22px; }
   li { margin: 2px 0; }
   strong { font-weight: var(--font-weight-semibold); }
 </style>

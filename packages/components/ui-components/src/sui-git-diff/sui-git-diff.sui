@@ -1,0 +1,101 @@
+<!--
+  <sui-git-diff> — SUI port of <ship-git-diff>.
+
+  Container for a unified-diff tree. Renders a toolbar (file count + add/
+  remove totals + "expand all / collapse all" toggle) and slots the
+  <sui-git-diff-file> children below. The daemon parses the diff and
+  emits the tree as light DOM; this primitive supplies the chrome.
+
+  Prop / event / slot parity vs <ship-git-diff>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  files (number, 0)            files (number, 0,        ✓ reflects
+                                  reflect)
+  additions (number, 0)        additions (number, 0,    ✓
+                                  reflect)
+  deletions (number, 0)        deletions (number, 0,    ✓
+                                  reflect)
+  empty (bool, false)          empty (bool, false,      ✓ replaces the
+                                  reflect)                 toolbar+body with
+                                                           an empty-state row
+  allCollapsed (state)         allCollapsed (signal,    ✓ controller-local
+                                  controller)              UI state
+  ─────────────────────────────────────────────────────────────────────────────
+  role=region + aria-label     controller mount + eff   ✓
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="files" type="number" default="0" reflect />
+<prop name="additions" type="number" default="0" reflect />
+<prop name="deletions" type="number" default="0" reflect />
+<prop name="empty" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    font-family: var(--font-body);
+    background: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  :host([hidden]) { display: none; }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 6px var(--space-4);
+    border-bottom: 1px solid var(--border-subtle);
+    background: color-mix(in oklch, var(--card) 50%, transparent);
+    flex-shrink: 0;
+  }
+  .count { font-size: var(--text-sm); color: var(--muted-foreground); }
+  .adds { font-size: 11px; color: var(--success); }
+  .dels { font-size: 11px; color: var(--destructive); }
+  .spacer { flex: 1; }
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-md);
+    background: transparent;
+    border: 0;
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: background var(--duration-fast) ease, color var(--duration-fast) ease;
+  }
+  .toggle:hover { background: var(--muted); color: var(--foreground); }
+  .body { flex: 1; overflow: auto; }
+  :host([empty]) .toolbar { display: none; }
+  .empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px var(--space-4);
+    color: var(--muted-foreground);
+    font-size: var(--text-base);
+  }
+</style>
+
+{#if showEmpty()}
+  <div class="empty">No changes to display</div>
+{:else}
+  <div class="toolbar">
+    <span class="count">{filesLabel()}</span>
+    {#if additions() > 0}<span class="adds">+{additions()}</span>{/if}
+    {#if deletions() > 0}<span class="dels">-{deletions()}</span>{/if}
+    <span class="spacer"></span>
+    <button class="toggle" type="button" on:click={toggleAll} title={toggleTitle()}>
+      <sui-icon size="sm" name={toggleIcon()}></sui-icon>
+      {toggleLabel()}
+    </button>
+  </div>
+  <div class="body"><slot></slot></div>
+{/if}

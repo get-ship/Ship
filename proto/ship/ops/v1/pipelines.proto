@@ -1,0 +1,131 @@
+// `pipeline.*` + `pipelines.*` as a hand-authored per-domain proto-SSOT service
+// (#89), mounted ADDITIVELY beside the generated ReadOps/CommandOps (which keep
+// serving these ops until the GUI flip, #72). ONE service covers both prefixes:
+// pipeline.update_status / pipeline.step_done (runtime writes, ship.runtime.write)
+// and pipelines.put / pipelines.patch / pipelines.delete / pipelines.list / etc.
+// (config CRUD, ship.pipelines.read / ship.pipelines.write).
+//
+// Fresh request-message names avoid colliding with PipelineUpdateStatusRequest,
+// PipelinesListRequest, etc. already declared by the generated protos in this
+// same package. Return types reuse shared shapes from types.proto / ops.proto.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/ops.proto";
+import "ship/ops/v1/types.proto";
+
+// ── runtime writes (pipeline.*) ──────────────────────────────────────────────
+
+message UpdatePipelineStatusRequest {
+  string pipeline_run_id = 1;
+  string status = 2;
+  string worktree = 3;
+  int64 pid = 4;
+  string gate_agent = 5;
+  string blocker = 6;
+  string error = 7;
+}
+
+message StepDoneRequest {
+  string slug = 1;
+  string summary = 2;
+  map<string, string> outputs = 3;
+}
+
+// ── config CRUD (pipelines.*) ─────────────────────────────────────────────────
+
+message ListPipelinesRequest {}
+
+message GetPipelineRequest {
+  string name = 1;
+  string scope = 2;
+}
+
+message GetPipelinesSummariesRequest {}
+
+message FocusPipelineRequest {
+  string name = 1;
+}
+
+message RunPipelineRequest {
+  string slug = 1;
+}
+
+message ListPipelinesHistoryRequest {
+  int64 limit = 1;
+  int64 offset = 2;
+  string pipeline = 3;
+}
+
+message PutPipelineRequest {
+  string name = 1;
+  string doc_json = 2;
+  string scope = 3;
+}
+
+message PatchPipelineRequest {
+  string name = 1;
+  string patch_json = 2;
+  string scope = 3;
+}
+
+message DeletePipelineRequest {
+  string name = 1;
+  string scope = 2;
+}
+
+// Pipeline config CRUD + runtime ops. Reads are C0; config writes and runtime
+// writes are C1, each gated through services::command::call (the one gate).
+// Two capabilities: ship.runtime.write for pipeline.* ops, ship.pipelines.write
+// for pipelines.* ops — mirrors commands.gen.proto exactly.
+service PipelinesService {
+  // ── reads (C0) ────────────────────────────────────────────────────────────
+  rpc List(ListPipelinesRequest) returns (PipelinesIndexResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Get(GetPipelineRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Summaries(GetPipelinesSummariesRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Focus(FocusPipelineRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Run(RunPipelineRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc History(ListPipelinesHistoryRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  // ── runtime writes (C1, ship.runtime.write) ───────────────────────────────
+  rpc UpdateStatus(UpdatePipelineStatusRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.runtime.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc StepDone(StepDoneRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.runtime.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  // ── config writes (C1, ship.pipelines.write) ─────────────────────────────
+  rpc Put(PutPipelineRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.pipelines.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Patch(PatchPipelineRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.pipelines.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Delete(DeletePipelineRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.pipelines.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+}

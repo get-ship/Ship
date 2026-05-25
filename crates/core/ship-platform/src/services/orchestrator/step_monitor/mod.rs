@@ -17,7 +17,7 @@ mod evidence;
 use ship_substrate::events::pipeline::{StepTrigger, StepType};
 use ship_substrate::events::KernelRouter;
 use crate::services::dispatch_ports::{
-    ExitSignal, JobExecutor, ProcessRegistryPort, ProcessTreeProbe, TreeSample,
+    ExitSignal, SessionExecutor, ProcessRegistryPort, ProcessTreeProbe, TreeSample,
 };
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -52,7 +52,7 @@ pub(crate) const DEFAULT_SETTLE_DURATION: Duration = Duration::from_secs(15);
 
 /// Per-step execution monitor.
 pub struct StepMonitor {
-    pub job_id: String,
+    pub pipeline_run_id: String,
     pub step_index: usize,
     pub slug: String,
     pub step_name: String,
@@ -72,7 +72,7 @@ pub struct StepMonitor {
 
 impl StepMonitor {
     pub fn new(
-        job_id: String,
+        pipeline_run_id: String,
         step_index: usize,
         slug: String,
         step_name: String,
@@ -81,7 +81,7 @@ impl StepMonitor {
     ) -> Self {
         let start_sha = resolve_head_sha(&work_dir);
         Self {
-            job_id,
+            pipeline_run_id,
             step_index,
             slug,
             step_name,
@@ -112,7 +112,7 @@ pub fn start_step_monitor(
     monitor: StepMonitor,
     kernel: Arc<Mutex<KernelRouter>>,
     registry: Arc<dyn ProcessRegistryPort>,
-    executor: Arc<dyn JobExecutor>,
+    executor: Arc<dyn SessionExecutor>,
     probe: Arc<dyn ProcessTreeProbe>,
     mut exit_rx: UnboundedReceiver<ExitSignal>,
     mut activity_rx: UnboundedReceiver<StepActivity>,

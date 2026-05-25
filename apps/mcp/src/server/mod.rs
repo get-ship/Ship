@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use crate::requests::*;
 use crate::tools::{
     artifacts as artifact_tools, dispatch as dispatch_tools, event, job as job_tools, project,
-    session, session_files, skills, stability, sui_lsp as sui_lsp_tools,
+    session, skills, stability, sui_lsp as sui_lsp_tools,
 };
 use skills::set_skill_var_tool;
 
@@ -52,6 +52,13 @@ pub struct ShipServer {
     last_activity: std::sync::Arc<AtomicU64>,
     /// Tool call counter for heartbeat cadence (emit every N calls).
     heartbeat_counter: std::sync::Arc<AtomicU64>,
+    /// Daemon runtime handles — `Some` only when mounted in-daemon (the
+    /// router factory injects them via `with_runtime`). When present,
+    /// effectful tools call platform services in-process instead of looping
+    /// back to the daemon's own REST API over HTTP. The stdio path leaves
+    /// these `None` and falls back to `network_client`.
+    pub runtime_kernel: Option<ship_substrate::access::SharedKernel>,
+    pub runtime_data: Option<ship_platform::services::collections::service::SharedData>,
 }
 
 impl std::fmt::Debug for ShipServer {
@@ -101,7 +108,24 @@ impl ShipServer {
             session_id: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
             last_activity: std::sync::Arc::new(AtomicU64::new(0)),
             heartbeat_counter: std::sync::Arc::new(AtomicU64::new(0)),
+            runtime_kernel: None,
+            runtime_data: None,
         }
+    }
+
+    /// Construct a server bound to the daemon's runtime handles. Used by the
+    /// daemon's `/mcp` mount so effectful tools call platform services
+    /// in-process (no loopback HTTP, no auth-to-self). The handles are the
+    /// daemon's *shared* instances (`rt.kernel()`, `rt.data_service_arc()`),
+    /// so writes hit the same kernel + `DataService` the REST handlers use.
+    pub fn with_runtime(
+        kernel: ship_substrate::access::SharedKernel,
+        data: ship_platform::services::collections::service::SharedData,
+    ) -> Self {
+        let mut server = Self::new();
+        server.runtime_kernel = Some(kernel);
+        server.runtime_data = Some(data);
+        server
     }
 
     async fn get_effective_project_dir(&self) -> Result<PathBuf, String> {
@@ -493,87 +517,7 @@ impl ShipServer {
         result
     }
 
-    // ---- Session Files ----
-
-    #[tool(
-        description = "Write a file to .artifacts/. Fires a resource update notification \
-        so subscribed clients react immediately. \
-        Path is relative to .artifacts/ (e.g. 'canvas.html', 'vitest/report.html')."
-    )]
-    async fn write_session_file(
-        &self,
-        Parameters(req): Parameters<WriteSessionFileRequest>,
-    ) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        let path = req.path.clone();
-        let result = session_files::write_session_file(&project_dir, req);
-        if !result.starts_with("Error") {
-            let uri = format!("ship://session/{}", path);
-            self.notify_resource_updated(&uri).await;
-            self.notify_resources_changed().await;
-        }
-        result
-    }
-
-    // ---- Mesh ----
-
-    #[tool(description = "Send a directed message to another agent on the mesh.")]
-    async fn send_mesh_message(&self, Parameters(req): Parameters<MeshSendRequest>) -> String {
-        let actor_id = self.resolve_actor_id().await;
-        match crate::network_client::mesh_send(&actor_id, &req.to, req.body).await {
-            Ok(result) => result,
-            Err(e) => format!("Error: {e}"),
-        }
-    }
-
-    #[tool(
-        description = "Broadcast a message to all agents on the mesh, optionally filtered by capability."
-    )]
-    async fn broadcast_mesh_message(
-        &self,
-        Parameters(req): Parameters<MeshBroadcastRequest>,
-    ) -> String {
-        let actor_id = self.resolve_actor_id().await;
-        match crate::network_client::mesh_broadcast(&actor_id, req.body, req.capability_filter).await {
-            Ok(result) => result,
-            Err(e) => format!("Error: {e}"),
-        }
-    }
-
-    #[tool(
-        description = "Discover agents on the mesh. Optionally filter by capability or status."
-    )]
-    async fn discover_mesh_agents(
-        &self,
-        Parameters(_req): Parameters<MeshDiscoverRequest>,
-    ) -> String {
-        match crate::network_client::mesh_discover().await {
-            Ok(result) => result,
-            Err(e) => format!("Error: {e}"),
-        }
-    }
-
-    #[tool(description = "Update this agent's status on the mesh (active, busy, idle).")]
-    async fn update_mesh_status(&self, Parameters(req): Parameters<MeshStatusRequest>) -> String {
-        let actor_id = self.resolve_actor_id().await;
-        match crate::network_client::mesh_status(&actor_id, &req.status).await {
-            Ok(result) => result,
-            Err(e) => format!("Error: {e}"),
-        }
-    }
-
     // ---- Jobs ----
-
-    #[tool(
-        description = "Create a new job. Emits job.created and returns {job_id}. \
-        Jobs are event-sourced — state is derived from the event log, not stored directly."
-    )]
-    async fn create_job(&self, Parameters(req): Parameters<CreateJobRequest>) -> String {
-        job_tools::create_job(req).await
-    }
 
     #[tool(
         description = "Advance a job to the next status by emitting the appropriate event. \
@@ -597,54 +541,106 @@ impl ShipServer {
     // ---- Collections ----
 
     #[tool(
-        description = "Create a new item in a collection. The collection must have a schema \
-        defined in .ship/collections/. Data is validated against the schema before writing."
+        description = "Mutate a collection item (event-sourced). \
+        op: 'create' | 'update' | 'delete'. \
+        create requires collection + data (item_id optional, auto-generated when omitted); \
+        update requires collection + item_id + data (partial merge — unspecified fields preserved); \
+        delete requires collection + item_id. \
+        Data is validated against the collection's schema in .ship/collections/. \
+        Reads are MCP resources (ship://collections/...), not this tool."
     )]
-    async fn create_doc(
+    async fn collection(
         &self,
-        Parameters(req): Parameters<crate::requests::collections::CreateDocRequest>,
+        Parameters(req): Parameters<crate::requests::collections::CollectionRequest>,
     ) -> String {
-        match crate::network_client::create_doc(&req.collection, &req.data, req.id.as_deref()).await {
-            Ok(r) => r,
-            Err(e) => format!("Error: {e}"),
+        // In-process path (daemon-mounted): call the collection service
+        // directly against the daemon's shared kernel + DataService — no
+        // loopback HTTP, no auth-to-self.
+        if let (Some(kernel), Some(data)) =
+            (self.runtime_kernel.clone(), self.runtime_data.clone())
+        {
+            use ship_platform::services::collections::service::{
+                CollectionsService, CollectionsServiceImpl, CreateItemArgs, UpdateItemArgs,
+            };
+            let project_dir = match self.get_effective_project_dir().await {
+                Ok(d) => d,
+                Err(e) => return e,
+            };
+            let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
+            let svc = CollectionsServiceImpl::new(ship_dir, kernel, data);
+            let actor = self.resolve_actor_id().await;
+            let created_by = (!actor.is_empty()).then_some(actor);
+            let result = match req.op.as_str() {
+                "create" => {
+                    let Some(data) = req.data else {
+                        return "Error: 'create' requires data".to_string();
+                    };
+                    let id = req.item_id.unwrap_or_else(ship_substrate::gen_ulid);
+                    svc.create_item(CreateItemArgs {
+                        collection: req.collection,
+                        id,
+                        data,
+                        created_by,
+                    })
+                    .await
+                    .map(|i| serde_json::to_string(&i).unwrap_or_default())
+                }
+                "update" => {
+                    let (Some(id), Some(data)) = (req.item_id, req.data) else {
+                        return "Error: 'update' requires item_id and data".to_string();
+                    };
+                    svc.update_item(UpdateItemArgs {
+                        collection: req.collection,
+                        id,
+                        data,
+                    })
+                    .await
+                    .map(|i| serde_json::to_string(&i).unwrap_or_default())
+                }
+                "delete" => {
+                    let Some(id) = req.item_id else {
+                        return "Error: 'delete' requires item_id".to_string();
+                    };
+                    svc.delete_item(&req.collection, &id)
+                        .await
+                        .map(|deleted| format!("{{\"deleted\":{deleted}}}"))
+                }
+                other => {
+                    return format!("Error: unknown op '{other}' — use create|update|delete");
+                }
+            };
+            return match result {
+                Ok(r) => r,
+                Err(e) => format!("Error: {e}"),
+            };
         }
-    }
-
-    #[tool(
-        description = "Update fields on an existing collection item. Only specified fields \
-        are changed — unspecified fields are preserved. Validates the merged result."
-    )]
-    async fn update_doc(
-        &self,
-        Parameters(req): Parameters<crate::requests::collections::UpdateDocRequest>,
-    ) -> String {
-        match crate::network_client::update_doc(&req.collection, &req.item_id, &req.data).await {
-            Ok(r) => r,
-            Err(e) => format!("Error: {e}"),
-        }
-    }
-
-    #[tool(
-        description = "Get a single item from a collection by ID."
-    )]
-    async fn get_doc(
-        &self,
-        Parameters(req): Parameters<crate::requests::collections::GetDocRequest>,
-    ) -> String {
-        match crate::network_client::get_doc(&req.collection, &req.item_id).await {
-            Ok(r) => r,
-            Err(e) => format!("Error: {e}"),
-        }
-    }
-
-    #[tool(
-        description = "Delete an item from a collection by ID."
-    )]
-    async fn delete_doc(
-        &self,
-        Parameters(req): Parameters<crate::requests::collections::DeleteDocRequest>,
-    ) -> String {
-        match crate::network_client::delete_doc(&req.collection, &req.item_id).await {
+        // Fallback (stdio path): loop back to the daemon's REST API.
+        use crate::network_client;
+        let result = match req.op.as_str() {
+            "create" => {
+                let Some(data) = req.data else {
+                    return "Error: 'create' requires data".to_string();
+                };
+                network_client::create_doc(&req.collection, &data, req.item_id.as_deref()).await
+            }
+            "update" => {
+                let (Some(item_id), Some(data)) = (req.item_id.as_deref(), req.data.as_ref())
+                else {
+                    return "Error: 'update' requires item_id and data".to_string();
+                };
+                network_client::update_doc(&req.collection, item_id, data).await
+            }
+            "delete" => {
+                let Some(item_id) = req.item_id.as_deref() else {
+                    return "Error: 'delete' requires item_id".to_string();
+                };
+                network_client::delete_doc(&req.collection, item_id).await
+            }
+            other => {
+                return format!("Error: unknown op '{other}' — use create|update|delete");
+            }
+        };
+        match result {
             Ok(r) => r,
             Err(e) => format!("Error: {e}"),
         }
@@ -721,63 +717,34 @@ impl ShipServer {
         crate::tools::sdk_query::sdk_query(req).await
     }
 
-    #[tool(
-        description = "Generate a starter Ship view template for a given shape. Returns Jinja source \
-        + manifest JSON — the caller writes them. Prefer this over authoring a view from scratch; \
-        idioms stay consistent. \
-        Args: name (required), collection (required for list/form/detail shapes), \
-        shape ('blank'|'list'|'list-edit-delete'|'form'|'detail'|'tabs', default 'blank')."
-    )]
-    async fn scaffold_view(
-        &self,
-        Parameters(req): Parameters<crate::requests::ViewScaffoldRequest>,
-    ) -> String {
-        crate::tools::view_scaffold::view_scaffold(req)
-    }
 
     // ---- Sui LSP ----
 
     #[tool(
-        description = "Run sui-lsp diagnostics on a `.sui` file and return the same \
-        findings the VS Code extension surfaces. Call BEFORE declaring a `.sui` edit done. \
-        Catches parse errors, missing directive attributes, assignments inside template \
-        expressions, arrow functions outside `on:` handlers, unbound identifiers, and \
-        missing setup keys — feedback the agent would otherwise only see at build time. \
-        Args: file (absolute path or workspace-relative)."
+        description = "Analyze a `.sui` file with sui-lsp. op: \
+        'diagnostics' — parse errors, missing directive attributes, assignments inside \
+        template expressions, arrow functions outside `on:` handlers, unbound identifiers, \
+        missing setup keys (call BEFORE declaring a `.sui` edit done); \
+        'dependencies' — custom-element tags, `on:*`/`bind:*` targets, setup-backed vs \
+        unknown identifiers, `use:*` aliases, resolved paired-controller path (blast radius); \
+        'hover' — declaration source / setup-return type / directive contract at (line, col). \
+        Args: op, file (path); line + col (0-based) required for 'hover'."
     )]
-    async fn sui_diagnostics(
+    async fn sui(
         &self,
-        Parameters(req): Parameters<crate::requests::SuiDiagnosticsRequest>,
+        Parameters(req): Parameters<crate::requests::SuiRequest>,
     ) -> String {
-        sui_lsp_tools::sui_diagnostics(&req.file).await
-    }
-
-    #[tool(
-        description = "Return hover info for an identifier or directive at a (line, col) \
-        position in a `.sui` file — declaration source, setup-return type, namespace \
-        contributions, or the directive contract reminder. \
-        Args: file (path), line (0-based), col (0-based)."
-    )]
-    async fn sui_hover(
-        &self,
-        Parameters(req): Parameters<crate::requests::SuiHoverRequest>,
-    ) -> String {
-        sui_lsp_tools::sui_hover(&req.file, req.line, req.col).await
-    }
-
-    #[tool(
-        description = "Report the surface a `.sui` view depends on: custom-element tags \
-        (sui-*, ship-*, third-party), `on:*` event names, `bind:*` targets, identifier \
-        references partitioned into setup-backed signals vs unknown-scope, namespace \
-        aliases (`use:*`), and the resolved paired-controller path. Use before editing \
-        a view to map blast radius — which tags to register, which signals to preserve. \
-        Args: file (absolute path or workspace-relative)."
-    )]
-    async fn sui_dependencies(
-        &self,
-        Parameters(req): Parameters<crate::requests::SuiDependenciesRequest>,
-    ) -> String {
-        sui_lsp_tools::sui_dependencies(&req.file).await
+        match req.op.as_str() {
+            "diagnostics" => sui_lsp_tools::sui_diagnostics(&req.file).await,
+            "dependencies" => sui_lsp_tools::sui_dependencies(&req.file).await,
+            "hover" => {
+                let (Some(line), Some(col)) = (req.line, req.col) else {
+                    return "Error: 'hover' requires line and col".to_string();
+                };
+                sui_lsp_tools::sui_hover(&req.file, line, col).await
+            }
+            other => format!("Error: unknown op '{other}' — use diagnostics|hover|dependencies"),
+        }
     }
 
     // ---- Artifacts ----
@@ -801,18 +768,6 @@ impl ShipServer {
             req.expires_at.as_deref(),
         )
         .await
-    }
-
-    #[tool(
-        description = "Get artifact metadata (JSON record: id, name, mime, size, \
-        scope, content_hash, path, created_at). Returns the metadata record only, \
-        not the binary payload — read the file at `path` to retrieve bytes."
-    )]
-    async fn get_artifact(
-        &self,
-        Parameters(req): Parameters<crate::requests::artifacts::ArtifactIdRequest>,
-    ) -> String {
-        artifact_tools::artifact_get(&req.id).await
     }
 
     #[tool(
@@ -861,7 +816,7 @@ impl ShipServer {
     #[tool(
         description = "Spawn an agent: creates a git worktree, compiles harness config via \
         `ship use`, launches the agent process, and registers it on the mesh. \
-        Returns the job_id for use with steer_agent, list_agents, stop_agent."
+        Returns the pipeline_run_id for use with steer_agent, list_agents, stop_agent."
     )]
     async fn dispatch_agent(
         &self,
@@ -991,19 +946,8 @@ impl ShipServer {
     //
     // Each tool dispatches to the daemon, which enforces the per-session
     // edit-mode capability set up by chrome's `enter`/`exit` calls.
-
-    #[tool(
-        description = "Read the on-disk `.sui` source of a view. Requires the calling \
-        session to be in view-edit mode for the requested view. Returns the source \
-        and its sha256 content hash."
-    )]
-    async fn view_read_source(
-        &self,
-        Parameters(req): Parameters<crate::requests::view_authoring::ViewName>,
-    ) -> String {
-        let session_id = self.session_id.lock().await.clone();
-        crate::tools::view_authoring::view_read_source(session_id.as_deref(), req).await
-    }
+    // Reading `.sui` source is native `Read` now — the agent edits files
+    // directly following the ship-views / ship-sui skill conventions.
 
     #[tool(
         description = "Atomically write new `.sui` source for a view. Snapshots the new \

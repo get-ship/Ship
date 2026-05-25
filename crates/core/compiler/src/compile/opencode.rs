@@ -210,7 +210,8 @@ fn build_opencode_mcp(resolved: &ResolvedConfig) -> Json {
 pub(super) fn build_opencode_config_patch(resolved: &ResolvedConfig) -> Option<Json> {
     let model = resolved.model.as_deref();
     let _has_extra = resolved
-        .opencode_settings_extra
+        .opencode
+        .settings_extra
         .as_ref()
         .is_some_and(|v| !v.is_null());
 
@@ -240,7 +241,7 @@ pub(super) fn build_opencode_config_patch(resolved: &ResolvedConfig) -> Option<J
     // through the MCP server entry above instead.
 
     // settings_extra — merged verbatim last (harness_settings.opencode passthrough).
-    if let Some(extra) = &resolved.opencode_settings_extra
+    if let Some(extra) = &resolved.opencode.settings_extra
         && let Some(obj) = extra.as_object()
     {
         for (k, v) in obj {
@@ -249,4 +250,21 @@ pub(super) fn build_opencode_config_patch(resolved: &ResolvedConfig) -> Option<J
     }
 
     Some(root)
+}
+
+/// Populate OpenCode-native outputs (config patch).
+pub(super) fn build_settings(
+    _desc: &super::harness::HarnessDescriptor,
+    resolved: &crate::resolve::ResolvedConfig,
+    out: &mut super::CompileOutput,
+) {
+    out.opencode_config_patch = build_opencode_config_patch(resolved);
+}
+
+/// OpenCode's typed settings delta from the Ship agent. Owned here so all
+/// OpenCode knowledge lives in this module; `ResolvedConfig` holds one of these.
+#[derive(Debug, Clone, Default)]
+pub struct OpenCodeSettings {
+    /// Pass-through extra merged into opencode.json.
+    pub settings_extra: Option<serde_json::Value>,
 }

@@ -1,24 +1,17 @@
 use rmcp::schemars::{self, JsonSchema};
 use serde::Deserialize;
 
+/// One generalized sui-lsp analysis request over the file-based LSP ops.
 #[derive(Deserialize, JsonSchema)]
-pub struct SuiDiagnosticsRequest {
+pub struct SuiRequest {
+    /// Analysis to run: "diagnostics" | "hover" | "dependencies".
+    pub op: String,
     /// Absolute path or workspace-relative path to a `.sui` file.
     pub file: String,
-}
-
-#[derive(Deserialize, JsonSchema)]
-pub struct SuiHoverRequest {
-    /// Absolute path or workspace-relative path to a `.sui` file.
-    pub file: String,
-    /// 0-based line offset.
-    pub line: u32,
-    /// 0-based column offset.
-    pub col: u32,
-}
-
-#[derive(Deserialize, JsonSchema)]
-pub struct SuiDependenciesRequest {
-    /// Absolute path or workspace-relative path to a `.sui` file.
-    pub file: String,
+    /// For "hover" only: 0-based line offset.
+    #[serde(default)]
+    pub line: Option<u32>,
+    /// For "hover" only: 0-based column offset.
+    #[serde(default)]
+    pub col: Option<u32>,
 }

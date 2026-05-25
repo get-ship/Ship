@@ -1,5 +1,6 @@
 import { controller, signal, derived } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-schema.sui'
+import { isShellLocalView } from '../../chrome/shell-surfaces'
 
 interface ArgDescriptor { name: string; kind: string; required?: boolean }
 interface OpDescriptor { name: string; description: string; args: ArgDescriptor[]; returns: string; permission: string; sensitive?: boolean }
@@ -54,7 +55,7 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
-    const s = state as Record<string, unknown>
+    const s = state as unknown as Record<string, unknown>
     let ops = new Map<string, OpDescriptor>()
     let lastPath: string | null = null
 
@@ -86,6 +87,9 @@ export default controller<Scope>({
       if (stripped === lastPath) return
       lastPath = stripped
       s['errorMsg'] = null
+      // Shell-local surfaces (studio) carry no daemon view-source; skip the
+      // fetch that would otherwise 404 on every visit.
+      if (isShellLocalView(stripped)) { s['refs'] = []; return }
       await loadOps()
       try {
         const resp = await fetch(`/api/v1/view-source/${encodeURI(stripped)}`, { credentials: 'same-origin' })

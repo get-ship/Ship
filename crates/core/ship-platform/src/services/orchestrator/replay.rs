@@ -5,7 +5,7 @@
 //! 2. Reconciles jobs stuck in `Dispatched` state after a daemon restart
 
 use ship_substrate::events::EventEnvelope;
-use crate::projections::job::{load_jobs, PipelineRun, JobStatus};
+use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRun, PipelineRunStatus};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -49,7 +49,7 @@ pub(super) fn needs_replay(job: &PipelineRun) -> bool {
 pub(super) fn select_replay_targets(jobs: &HashMap<String, PipelineRun>) -> Vec<PipelineRun> {
     let mut stale: Vec<PipelineRun> = jobs
         .values()
-        .filter(|j| j.status == JobStatus::Completed)
+        .filter(|j| j.status == PipelineRunStatus::Completed)
         .filter(|j| needs_replay(j))
         .cloned()
         .collect();
@@ -74,7 +74,7 @@ pub async fn replay_unprocessed_completions(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     octx: &OrchestratorContext,
 ) {
-    let jobs = match load_jobs() {
+    let jobs = match load_pipeline_runs() {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("job-dispatch: replay failed to load jobs: {e}");
@@ -93,12 +93,12 @@ pub async fn replay_unprocessed_completions(
 
     for job in &stale {
         let payload = serde_json::json!({
-            "job_id": job.job_id,
+            "pipeline_run_id": job.pipeline_run_id,
             "slug": job.slug,
         });
         let envelope = match EventEnvelope::new(
             ship_substrate::events::pipeline::event_types::PIPELINE_RUN_COMPLETED,
-            &job.job_id,
+            &job.pipeline_run_id,
             &payload,
         ) {
             Ok(e) => e,
@@ -108,7 +108,7 @@ pub async fn replay_unprocessed_completions(
             }
         };
 
-        tracing::info!(slug = job.slug, job_id = job.job_id, "job-dispatch: replaying job.completed");
+        tracing::info!(slug = job.slug, pipeline_run_id = job.pipeline_run_id, "job-dispatch: replaying job.completed");
 
         if !advance_pipeline(kernel, &envelope, octx).await {
             tracing::info!(slug = job.slug, "job-dispatch: replay — no pipeline to advance, awaiting gate/merge");
@@ -123,7 +123,7 @@ pub async fn reconcile_dispatched_jobs(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     octx: &OrchestratorContext,
 ) {
-    let jobs = match load_jobs() {
+    let jobs = match load_pipeline_runs() {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("job-dispatch: reconcile failed to load jobs: {e}");
@@ -140,7 +140,7 @@ pub async fn reconcile_dispatched_jobs_at(
     octx: &OrchestratorContext,
     ship_dir: &std::path::Path,
 ) {
-    let jobs = match crate::projections::job::load_jobs_at(ship_dir) {
+    let jobs = match crate::projections::pipeline_run::load_pipeline_runs_at(ship_dir) {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("job-dispatch: reconcile failed to load jobs: {e}");
@@ -154,12 +154,12 @@ pub async fn reconcile_dispatched_jobs_at(
 async fn reconcile_dispatched_inner(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     octx: &OrchestratorContext,
-    jobs: std::collections::HashMap<String, crate::projections::job::PipelineRun>,
+    jobs: std::collections::HashMap<String, crate::projections::pipeline_run::PipelineRun>,
     _store_dir: Option<&std::path::Path>,
 ) {
     let stale: Vec<_> = jobs
         .values()
-        .filter(|j| j.status == JobStatus::Dispatched)
+        .filter(|j| j.status == PipelineRunStatus::Dispatched)
         .collect();
 
     if stale.is_empty() {
@@ -196,7 +196,7 @@ async fn reconcile_dispatched_inner(
             }
             None => {
                 tracing::info!(
-                    slug = job.slug, job_id = job.job_id,
+                    slug = job.slug, pipeline_run_id = job.pipeline_run_id,
                     "job-dispatch: reconcile — no live process, deferring to liveness sweep"
                 );
                 crate::services::orchestrator::emit::emit_executor_session_destroyed(

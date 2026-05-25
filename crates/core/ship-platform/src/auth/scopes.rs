@@ -17,15 +17,21 @@ use tokio::sync::Mutex;
 pub enum Scope {
     ReadWorkspace,
     WriteWorkspace,
-    ReadJobs,
-    CreateJobs,
-    ManageJobs,
+    ReadRuns,
+    CreateRuns,
+    ManageRuns,
     EmitEvents,
     MeshSend,
     MeshBroadcast,
     LogProgress,
     StepDone,
     AdminDaemon,
+    /// SUI / view authoring tool-group — the structured compiler/LSP, live
+    /// canvas, and snapshot tools. Granted to design agents (the `designer`
+    /// role); invisible to every other agent. This is the one gated MCP
+    /// tool-group; the daemon binds it at session-register time. Not a
+    /// self-declared role at call time — a capability the daemon mints.
+    SuiAuthoring,
     /// Fine-grained artifact grants — granted in addition to workspace grants.
     ReadArtifactsRun,
     WriteArtifactsRun,
@@ -46,6 +52,29 @@ impl Scope {
     /// Returns true if `granted` contains this scope or `Full`.
     pub fn is_granted_by(self, granted: &[Scope]) -> bool {
         granted.contains(&Scope::Full) || granted.contains(&self)
+    }
+}
+
+/// Per-connection MCP identity, threaded from the daemon's `AuthContext` into
+/// the in-daemon-mounted MCP server's tool gate.
+///
+/// `apps/mcp` cannot depend on `apps/shipd` (that would cycle: shipd → mcp →
+/// shipd), so the gate can't read shipd's `AuthContext` directly. Instead shipd
+/// projects the gate's needs into this `ship-platform` type, inserts it as a
+/// request extension before the `/mcp` nest-service, and the MCP gate reads it
+/// from `Extension<http::request::Parts>`. The token is the source of truth —
+/// scopes are daemon-minted at session-register, never self-declared.
+#[derive(Debug, Clone)]
+pub struct McpAuth {
+    pub agent_id: String,
+    pub scopes: Vec<Scope>,
+    pub workspace_id: Option<String>,
+}
+
+impl McpAuth {
+    /// True when the connection's token grants `scope` (or `Full`).
+    pub fn allows(&self, scope: Scope) -> bool {
+        scope.is_granted_by(&self.scopes)
     }
 }
 
@@ -94,9 +123,9 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
             let mut s = vec![
                 Scope::ReadWorkspace,
                 Scope::WriteWorkspace,
-                Scope::ReadJobs,
-                Scope::CreateJobs,
-                Scope::ManageJobs,
+                Scope::ReadRuns,
+                Scope::CreateRuns,
+                Scope::ManageRuns,
                 Scope::EmitEvents,
                 Scope::MeshSend,
                 Scope::MeshBroadcast,
@@ -109,12 +138,28 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
             let mut s = vec![
                 Scope::ReadWorkspace,
                 Scope::WriteWorkspace,
-                Scope::ReadJobs,
-                Scope::CreateJobs,
+                Scope::ReadRuns,
+                Scope::CreateRuns,
                 Scope::LogProgress,
                 Scope::StepDone,
                 Scope::MeshSend,
                 Scope::EmitEvents,
+            ];
+            s.extend(pipeline_agent_artifact_scopes());
+            s
+        }
+        Some("designer") => {
+            // Design agents (shipwright, ship-designer) author Ship's own
+            // views. They get the workspace read/write surface plus the
+            // gated SuiAuthoring tool-group. Not orchestrators — no
+            // CreateRuns/ManageRuns.
+            let mut s = vec![
+                Scope::ReadWorkspace,
+                Scope::WriteWorkspace,
+                Scope::ReadRuns,
+                Scope::EmitEvents,
+                Scope::LogProgress,
+                Scope::SuiAuthoring,
             ];
             s.extend(pipeline_agent_artifact_scopes());
             s
@@ -123,7 +168,7 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
         Some("worker") | None => {
             let mut s = vec![
                 Scope::ReadWorkspace,
-                Scope::ReadJobs,
+                Scope::ReadRuns,
                 Scope::LogProgress,
                 Scope::StepDone,
                 Scope::MeshSend,
@@ -132,8 +177,30 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
             s.extend(pipeline_agent_artifact_scopes());
             s
         }
-        _ => vec![Scope::ReadWorkspace, Scope::ReadJobs, Scope::LogProgress],
+        _ => vec![Scope::ReadWorkspace, Scope::ReadRuns, Scope::LogProgress],
     }
+}
+
+/// Restricted capability grants for a role — the gate's grant axis (distinct
+/// from `scopes`, which still drives REST route-auth + artifact perms until
+/// those die with the REST surface). Restricted domains are capability-defining
+/// (`ship-orchestration` = dispatch/control agents; `ship-authoring` = write
+/// skills/agents/views) and are never default — only these roles confer them.
+/// Default (C0/C1 non-restricted) domains need no grant.
+///
+/// This is the role-derived provisioning source today; the install/approval
+/// flow (`.artifacts/capability-provisioning-and-approval.md`) refines it into
+/// per-agent operator-approved grant sets.
+pub fn grants_for_role(role: Option<&str>) -> Vec<String> {
+    let g: &[&str] = match role {
+        Some("commander") | Some("lead") => &["ship-orchestration"],
+        Some("designer") => &["ship-authoring"],
+        // contributor = the operator's own profile: every restricted domain.
+        Some("contributor") => &["ship-orchestration", "ship-authoring"],
+        // worker / unknown: no restricted grants (default C0/C1 only).
+        _ => &[],
+    };
+    g.iter().map(|s| s.to_string()).collect()
 }
 
 // ── Session registry ────────────────────────────────────────────────────────
@@ -144,6 +211,10 @@ pub struct DaemonSession {
     pub token: String,
     pub agent_id: String,
     pub scopes: Vec<Scope>,
+    /// Restricted capability grants (the gate's grant axis) — minted from the
+    /// agent's provisioned set at register. Distinct from `scopes` (REST
+    /// route-auth + artifacts). See `.artifacts/capability-provisioning-and-approval.md`.
+    pub grants: Vec<String>,
     pub workspace_id: Option<String>,
     pub created_at: std::time::Instant,
     /// Unix seconds when this session expires. None = never expires (in-memory only).
@@ -262,6 +333,9 @@ pub async fn hydrate_sessions(registry: &SessionRegistry) {
             token: row.token.clone(),
             agent_id: row.agent_id,
             scopes,
+            // Persisted sessions are operator/paired (is_operator clears grants);
+            // restricted grants aren't persisted — re-minted on register.
+            grants: vec![],
             workspace_id: row.project_id,
             created_at: std::time::Instant::now(),
             expires_at_unix: Some(row.expires_at_unix),
@@ -338,11 +412,13 @@ pub async fn mint_session(
     ttl_secs: Option<i64>,
 ) -> Result<(String, Vec<Scope>), getrandom::Error> {
     let scopes = scopes_for_role(role);
+    let grants = grants_for_role(role);
     let token = generate_session_token()?;
     let session = DaemonSession {
         token: token.clone(),
         agent_id,
         scopes: scopes.clone(),
+        grants,
         workspace_id,
         created_at: std::time::Instant::now(),
         expires_at_unix: ttl_secs.map(|s| now_unix() + s),
@@ -377,7 +453,7 @@ mod tests {
     #[test]
     fn scope_full_grants_everything() {
         let granted = vec![Scope::Full];
-        assert!(Scope::CreateJobs.is_granted_by(&granted));
+        assert!(Scope::CreateRuns.is_granted_by(&granted));
         assert!(Scope::AdminDaemon.is_granted_by(&granted));
         assert!(Scope::MeshBroadcast.is_granted_by(&granted));
     }
@@ -387,7 +463,7 @@ mod tests {
         let granted = vec![Scope::ReadWorkspace, Scope::LogProgress];
         assert!(Scope::ReadWorkspace.is_granted_by(&granted));
         assert!(Scope::LogProgress.is_granted_by(&granted));
-        assert!(!Scope::CreateJobs.is_granted_by(&granted));
+        assert!(!Scope::CreateRuns.is_granted_by(&granted));
     }
 
     #[test]
@@ -395,15 +471,15 @@ mod tests {
         let scopes = scopes_for_role(Some("worker"));
         assert!(Scope::ReadWorkspace.is_granted_by(&scopes));
         assert!(Scope::LogProgress.is_granted_by(&scopes));
-        assert!(!Scope::CreateJobs.is_granted_by(&scopes));
-        assert!(!Scope::ManageJobs.is_granted_by(&scopes));
+        assert!(!Scope::CreateRuns.is_granted_by(&scopes));
+        assert!(!Scope::ManageRuns.is_granted_by(&scopes));
     }
 
     #[test]
     fn scopes_for_commander_role() {
         let scopes = scopes_for_role(Some("commander"));
-        assert!(Scope::CreateJobs.is_granted_by(&scopes));
-        assert!(Scope::ManageJobs.is_granted_by(&scopes));
+        assert!(Scope::CreateRuns.is_granted_by(&scopes));
+        assert!(Scope::ManageRuns.is_granted_by(&scopes));
         assert!(Scope::MeshBroadcast.is_granted_by(&scopes));
     }
 
@@ -412,6 +488,24 @@ mod tests {
         let scopes = scopes_for_role(Some("contributor"));
         assert!(Scope::Full.is_granted_by(&scopes));
         assert!(Scope::AdminDaemon.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn designer_role_grants_sui_authoring_but_not_orchestration() {
+        let scopes = scopes_for_role(Some("designer"));
+        assert!(Scope::SuiAuthoring.is_granted_by(&scopes));
+        assert!(Scope::WriteWorkspace.is_granted_by(&scopes));
+        // Designers are not orchestrators.
+        assert!(!Scope::CreateRuns.is_granted_by(&scopes));
+        assert!(!Scope::ManageRuns.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn non_designer_roles_lack_sui_authoring() {
+        assert!(!Scope::SuiAuthoring.is_granted_by(&scopes_for_role(Some("worker"))));
+        assert!(!Scope::SuiAuthoring.is_granted_by(&scopes_for_role(Some("commander"))));
+        // Full bypasses, so contributor implicitly has it.
+        assert!(Scope::SuiAuthoring.is_granted_by(&scopes_for_role(Some("contributor"))));
     }
 
     #[test]

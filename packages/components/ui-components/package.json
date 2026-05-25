@@ -1,0 +1,30 @@
+{
+  "name": "@ship/ui-components",
+  "version": "0.1.0",
+  "description": "Ship domain `<sui-*>` components — git-diff, pipeline-*, log-stream, harness-blob, auth-dialog, graph-canvas. Chrome moved to apps/shell/src/components/; generic primitives live in @ship/primitives.",
+  "type": "module",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens/themes": "./src/tokens/themes.ts",
+    "./tokens/themes.css": "./src/tokens/themes.css",
+    "./tokens/tokens.css": "./src/tokens/tokens.css"
+  },
+  "scripts": {
+    "build": "sui-build",
+    "pretest": "sui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/primitives": "workspace:*",
+    "@ship/sui-build": "workspace:*",
+    "@ship/sui-dom": "workspace:*",
+    "@ship/sui-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.5"
+  }
+}

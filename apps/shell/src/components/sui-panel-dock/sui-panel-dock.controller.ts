@@ -95,13 +95,13 @@ export default controller<Scope>({
       const tab = s.activeTab()
       const url = ({
         terminal: '/sui/terminal',
-        source: '/ship-ui-studio',
+        source: '/studio/components',
         signals: '/sui/signals',
         schema: '/sui/schema',
-        'va-source': '/ship-ui-studio',
-        'va-components': '/ship-ui-studio',
+        'va-source': '/studio/components',
+        'va-components': '/studio/components',
         'va-activity': '/events',
-        'va-compile': '/ship-ui-studio',
+        'va-compile': '/studio/components',
       } as Record<string, string>)[tab] ?? `/sui/${tab}`
       window.open(url, '_blank', 'noopener')
       hostEl?.dispatchEvent(

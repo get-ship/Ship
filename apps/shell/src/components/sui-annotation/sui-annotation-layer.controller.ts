@@ -25,7 +25,6 @@ const DEFAULT_ENDPOINT = '/api/feedback'
 export default controller<Scope>({
   scope: (props, host) => {
     const viewIdProp = (props as { viewId: Signal<string> }).viewId
-    const modeProp = (props as { mode: Signal<Mode> }).mode
     const endpointProp = (props as { endpoint: Signal<string> }).endpoint
     const stagingProp = (props as { staging: Signal<boolean> }).staging
 

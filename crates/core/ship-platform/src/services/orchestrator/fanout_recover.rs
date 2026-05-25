@@ -26,7 +26,7 @@ use tokio::sync::Mutex;
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::KernelRouter;
-use crate::projections::job::{PipelineRun, JobStatus};
+use crate::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use crate::services::orchestrator::OrchestratorContext;
 use crate::services::orchestrator::emit::persist_and_route;
 use crate::services::orchestrator::fanout_aggregate::emit_failed_marker;
@@ -38,7 +38,7 @@ use crate::services::orchestrator::fanout_aggregate::emit_failed_marker;
 /// `fanout_parent_step`, `lane_id`, `lane_slug`, and `step_type: "fanout_lane"`.
 pub async fn emit_fanout_lane_dispatched(
     kernel: &Arc<Mutex<KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     parent_slug: &str,
     fanout_step_id: &str,
     lane_id: &str,
@@ -46,7 +46,7 @@ pub async fn emit_fanout_lane_dispatched(
     lane_step_id: &str,
 ) {
     let payload = serde_json::json!({
-        "job_id": job_id,
+        "pipeline_run_id": pipeline_run_id,
         "slug": parent_slug,
         "step_id": lane_step_id,
         "step_type": "fanout_lane",
@@ -54,8 +54,8 @@ pub async fn emit_fanout_lane_dispatched(
         "lane_id": lane_id,
         "lane_slug": lane_slug,
     });
-    let envelope = match EventEnvelope::new(event_types::PIPELINE_STEP_STARTED, job_id, &payload) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_STEP_STARTED, pipeline_run_id, &payload) {
+        Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(e) => {
             tracing::warn!(parent_slug, lane_id, "fanout: failed to build lane step_dispatched: {e}");
             return;
@@ -68,7 +68,7 @@ pub async fn emit_fanout_lane_dispatched(
 /// payload we care about for recovery.
 #[derive(Debug, Clone)]
 pub(crate) struct LaneDispatchRecord {
-    pub job_id: String,
+    pub pipeline_run_id: String,
     pub parent_slug: String,
     pub fanout_step_id: String,
     pub lane_id: String,
@@ -92,19 +92,19 @@ pub(crate) fn find_orphan_lanes(events: &[EventEnvelope]) -> Vec<LaneDispatchRec
                 if p.get("step_type").and_then(|v| v.as_str()) != Some("fanout_lane") {
                     continue;
                 }
-                let job_id = p.get("job_id").and_then(|v| v.as_str()).unwrap_or_default();
+                let pipeline_run_id = p.get("pipeline_run_id").and_then(|v| v.as_str()).unwrap_or_default();
                 let parent_slug = p.get("slug").and_then(|v| v.as_str()).unwrap_or_default();
                 let fanout_step_id = p.get("fanout_parent_step").and_then(|v| v.as_str()).unwrap_or_default();
                 let lane_id = p.get("lane_id").and_then(|v| v.as_str()).unwrap_or_default();
                 let lane_slug = p.get("lane_slug").and_then(|v| v.as_str()).unwrap_or_default();
                 let lane_step_id = p.get("step_id").and_then(|v| v.as_str()).unwrap_or_default();
-                if job_id.is_empty() || lane_slug.is_empty() || lane_step_id.is_empty() {
+                if pipeline_run_id.is_empty() || lane_slug.is_empty() || lane_step_id.is_empty() {
                     continue;
                 }
                 dispatched.insert(
                     lane_step_id.to_string(),
                     LaneDispatchRecord {
-                        job_id: job_id.to_string(),
+                        pipeline_run_id: pipeline_run_id.to_string(),
                         parent_slug: parent_slug.to_string(),
                         fanout_step_id: fanout_step_id.to_string(),
                         lane_id: lane_id.to_string(),
@@ -154,7 +154,7 @@ pub async fn reconcile_fanout_lanes(
         return;
     }
 
-    let jobs = match crate::projections::job::load_jobs() {
+    let jobs = match crate::projections::pipeline_run::load_pipeline_runs() {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("fanout-recover: failed to load jobs projection: {e}");
@@ -168,15 +168,15 @@ pub async fn reconcile_fanout_lanes(
     );
 
     for lane in &orphans {
-        let parent = jobs.values().find(|j| j.job_id == lane.job_id);
+        let parent = jobs.values().find(|j| j.pipeline_run_id == lane.pipeline_run_id);
         let terminal = matches!(
             parent.map(|j| &j.status),
-            Some(JobStatus::Cancelled) | Some(JobStatus::Failed) | Some(JobStatus::Merged)
+            Some(PipelineRunStatus::Cancelled) | Some(PipelineRunStatus::Failed) | Some(PipelineRunStatus::Merged)
         );
         if terminal {
             let branch = lane_branch(parent, &lane.parent_slug, &lane.fanout_step_id, &lane.lane_id);
             tracing::info!(
-                job_id = lane.job_id, lane_slug = lane.lane_slug,
+                pipeline_run_id = lane.pipeline_run_id, lane_slug = lane.lane_slug,
                 "fanout-recover: parent terminal — cleaning lane worktree"
             );
             octx.platform.cleanup_job(&lane.lane_slug, &branch).await;
@@ -190,11 +190,11 @@ pub async fn reconcile_fanout_lanes(
         // `consumes: [<lane_id>.failed]` resolves identically.
         let reason = "daemon restart: lane orphaned";
         tracing::info!(
-            job_id = lane.job_id, lane_slug = lane.lane_slug,
+            pipeline_run_id = lane.pipeline_run_id, lane_slug = lane.lane_slug,
             "fanout-recover: parent live — emitting synthetic failed marker"
         );
         let _ = emit_failed_marker(
-            kernel, &lane.job_id, &lane.parent_slug,
+            kernel, &lane.pipeline_run_id, &lane.parent_slug,
             &lane.lane_step_id, &lane.lane_id, reason,
         ).await;
     }
@@ -226,19 +226,19 @@ mod tests {
     fn orphan_detection_matches_dispatched_minus_completed() {
         let events = vec![
             ev(event_types::PIPELINE_STEP_STARTED, "j1", serde_json::json!({
-                "job_id": "j1", "slug": "parent",
+                "pipeline_run_id": "j1", "slug": "parent",
                 "step_id": "draft.lane-a", "step_type": "fanout_lane",
                 "fanout_parent_step": "draft", "lane_id": "lane-a",
                 "lane_slug": "parent-draft-lane-a",
             })),
             ev(event_types::PIPELINE_STEP_STARTED, "j1", serde_json::json!({
-                "job_id": "j1", "slug": "parent",
+                "pipeline_run_id": "j1", "slug": "parent",
                 "step_id": "draft.lane-b", "step_type": "fanout_lane",
                 "fanout_parent_step": "draft", "lane_id": "lane-b",
                 "lane_slug": "parent-draft-lane-b",
             })),
             ev(event_types::PIPELINE_STEP_DONE_DECLARED, "j1", serde_json::json!({
-                "job_id": "j1", "slug": "parent",
+                "pipeline_run_id": "j1", "slug": "parent",
                 "step_id": "draft.lane-a",
                 "outputs": {}, "summary": "ok",
             })),
@@ -252,7 +252,7 @@ mod tests {
     #[test]
     fn non_fanout_step_dispatched_events_are_ignored() {
         let events = vec![ev(event_types::PIPELINE_STEP_STARTED, "j1", serde_json::json!({
-            "job_id": "j1", "slug": "parent",
+            "pipeline_run_id": "j1", "slug": "parent",
             "step_id": "build", "step_type": "agent",
         }))];
         assert!(find_orphan_lanes(&events).is_empty());
@@ -262,13 +262,13 @@ mod tests {
     fn completed_lanes_are_not_orphans() {
         let events = vec![
             ev(event_types::PIPELINE_STEP_STARTED, "j1", serde_json::json!({
-                "job_id": "j1", "slug": "parent",
+                "pipeline_run_id": "j1", "slug": "parent",
                 "step_id": "draft.l", "step_type": "fanout_lane",
                 "fanout_parent_step": "draft", "lane_id": "l",
                 "lane_slug": "parent-draft-l",
             })),
             ev(event_types::PIPELINE_STEP_DONE_DECLARED, "j1", serde_json::json!({
-                "job_id": "j1", "slug": "parent",
+                "pipeline_run_id": "j1", "slug": "parent",
                 "step_id": "draft.l", "outputs": {}, "summary": "",
             })),
         ];
@@ -279,7 +279,7 @@ mod tests {
     fn malformed_payloads_are_skipped_silently() {
         let events = vec![ev(event_types::PIPELINE_STEP_STARTED, "j1", serde_json::json!({
             "step_type": "fanout_lane",
-            // missing job_id, lane_slug, step_id
+            // missing pipeline_run_id, lane_slug, step_id
         }))];
         assert!(find_orphan_lanes(&events).is_empty());
     }

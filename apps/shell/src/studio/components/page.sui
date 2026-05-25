@@ -1,0 +1,81 @@
+<div class="studio-view" data-test="studio-view">
+  <sui-studio-rail></sui-studio-rail>
+  <main class="studio-content" data-test="studio-content">
+    <div class="ship-view components-view">
+      <div class="components-wrap">
+
+        <header class="components-head">
+          <div class="components-head-titles">
+            <h1 class="components-title">Components</h1>
+            <p class="components-sub">
+              <strong>{filteredCount()}</strong> {mode() === 'dev' ? 'of ' + totalCount() + ' elements' : 'published packs'}
+              <span class="components-sub-sep" aria-hidden="true"></span>
+              {mode() === 'dev' ? 'all components + subcomponents' : 'what ships to users'}
+            </p>
+            <div class="components-rule" aria-hidden="true"></div>
+          </div>
+        </header>
+
+        <div class="components-filters">
+          <div class="components-search">
+            <sui-icon name="search" size="sm" tone="muted"></sui-icon>
+            <input type="text" placeholder="Search components…" aria-label="Search components"
+              spellcheck="false" data-test="search" value={filterText()} on:input={onSearchInput} />
+            {#if filterText()}
+              <button type="button" class="components-search-clear" aria-label="Clear search" on:click={clearSearch}>
+                <sui-icon name="x" size="xs"></sui-icon>
+              </button>
+            {/if}
+          </div>
+          <sui-segmented value={mode()} size="sm" aria-label="Catalog mode"
+            on:sui-change={(e) => setMode(e.detail.value)} data-test="mode">
+            <sui-segmented-option value="user">User</sui-segmented-option>
+            <sui-segmented-option value="dev">Dev</sui-segmented-option>
+          </sui-segmented>
+        </div>
+
+        {#if loading()}
+          <div class="components-loading"><sui-spinner size="md" centered></sui-spinner></div>
+        {:else}
+          {#if filteredCount() === 0}
+            <sui-empty-state icon="search-x" variant="default" size="sm" data-test="empty">
+              <span slot="title">No matching components</span>
+              Nothing matches your search.
+              <sui-button slot="action" variant="outline" size="sm" on:click={clearSearch}>Clear search</sui-button>
+            </sui-empty-state>
+          {:else}
+            <div class="components-grid" data-test="components-grid">
+              {#for item of filtered() key={item.id}}
+                <a class="component-card" data-test="component-card"
+                  attr:data-id={item.id} attr:href={'/studio/components/' + item.id}>
+                  <div class="component-card-head">
+                    <code class="component-card-tag">{item.tag}</code>
+                    <sui-badge tone="primary" variant="soft" size="sm">component</sui-badge>
+                  </div>
+                  {#if item.description}
+                    <p class="component-card-desc">{item.description}</p>
+                  {/if}
+                  <div class="component-card-meta">
+                    {#if item.props && item.props.length > 0}
+                      <span class="component-card-meta-item">
+                        <sui-icon name="sliders-horizontal" size="xs" tone="muted"></sui-icon>
+                        {item.props.length} prop{item.props.length === 1 ? '' : 's'}
+                      </span>
+                    {/if}
+                    {#if item.parts > 0}
+                      <span class="component-card-meta-item">
+                        <sui-icon name="layers" size="xs" tone="muted"></sui-icon>
+                        {item.parts} subcomponent{item.parts === 1 ? '' : 's'}
+                      </span>
+                    {/if}
+                  </div>
+                </a>
+              {/for}
+            </div>
+          {/if}
+        {/if}
+
+      </div>
+    </div>
+  </main>
+</div>

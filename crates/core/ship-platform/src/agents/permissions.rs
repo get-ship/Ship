@@ -320,11 +320,8 @@ fn canonical_tool_ids() -> Vec<String> {
     ids.into_iter().collect()
 }
 
-pub fn permission_tool_ids_for_harness(harness_id: &str) -> Vec<String> {
-    let mut ids: BTreeSet<String> = canonical_tool_ids().into_iter().collect();
-    if harness_id == "gemini" {
-        ids.insert("run_shell_command".to_string());
-    }
+pub fn permission_tool_ids_for_harness(_harness_id: &str) -> Vec<String> {
+    let ids: BTreeSet<String> = canonical_tool_ids().into_iter().collect();
     ids.into_iter().collect()
 }
 
@@ -338,12 +335,6 @@ mod tests {
         let ids = permission_tool_ids_for_harness("claude");
         assert!(!ids.iter().any(|id| id == "*"));
         assert!(!ids.iter().any(|id| id.starts_with("mcp__")));
-    }
-
-    #[test]
-    fn gemini_vocab_includes_shell_tool_id() {
-        let ids = permission_tool_ids_for_harness("gemini");
-        assert!(ids.iter().any(|id| id == "run_shell_command"));
     }
 
     #[test]

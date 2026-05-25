@@ -145,7 +145,7 @@ fn trims_whitespace() {
 
 #[test]
 fn core_tools_are_recognized() {
-    let core_tools = ["set_skill_var", "chat_reply", "view_lint"];
+    let core_tools = ["set_skill_var", "chat_reply", "sdk_query"];
     for tool in core_tools {
         assert!(
             ShipServer::is_core_tool(tool),
@@ -216,15 +216,8 @@ fn registers_canonical_verb_first_tool_names() {
     let expected: &[&str] = &[
         "log_progress",
         "set_skill_var",
-        "write_session_file",
-        "create_job",
         "update_job",
-        "send_mesh_message",
-        "broadcast_mesh_message",
-        "discover_mesh_agents",
-        "update_mesh_status",
         "upload_artifact",
-        "get_artifact",
         "list_artifacts",
         "delete_artifact",
         "promote_artifact",
@@ -235,10 +228,8 @@ fn registers_canonical_verb_first_tool_names() {
         "close_view",
         "emit_event",
         "dispatch_agent",
-        "list_agents",
         "stop_agent",
         "steer_agent",
-        "scaffold_view",
         "query_sdk",
         "get_view_errors",
     ];

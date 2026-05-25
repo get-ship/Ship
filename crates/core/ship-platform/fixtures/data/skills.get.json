@@ -1,0 +1,12 @@
+{
+  "id": "code-review",
+  "scope": "project",
+  "frontmatter": {
+    "name": "Code Review",
+    "kind": "smart"
+  },
+  "body": "# Code Review\n\nReview a unified diff for correctness.",
+  "files": [
+    "SKILL.md"
+  ]
+}

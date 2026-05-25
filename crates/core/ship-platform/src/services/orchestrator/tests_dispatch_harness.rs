@@ -16,7 +16,7 @@ use ship_substrate::events::pipeline::{
 };
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::dispatch::dispatch_job_internal;
@@ -26,11 +26,11 @@ struct OkIsolation(PathBuf);
 
 #[async_trait]
 impl IsolationStrategy for OkIsolation {
-    async fn prepare(&self, _: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, _: &SessionContext) -> anyhow::Result<PathBuf> {
         std::fs::create_dir_all(&self.0).ok();
         Ok(self.0.clone())
     }
-    async fn cleanup(&self, _: &JobContext) -> anyhow::Result<()> {
+    async fn cleanup(&self, _: &SessionContext) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -44,8 +44,8 @@ struct RecordingExecutor {
 }
 
 #[async_trait]
-impl JobExecutor for RecordingExecutor {
-    async fn spawn(&self, ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for RecordingExecutor {
+    async fn spawn(&self, ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         *self.captured.lock().unwrap() =
             Some((ctx.launch.harness.clone(), ctx.launch.model.clone()));
         Err(anyhow::anyhow!("recording executor: refusing to spawn"))
@@ -77,7 +77,7 @@ impl ProcessRegistryPort for NoopRegistry {
 
 fn dispatch_config() -> ActorConfig {
     ActorConfig {
-        namespace: "service.job-dispatch".to_string(),
+        namespace: "service.orchestrator".to_string(),
         write_namespaces: vec!["job.".to_string(), "step.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["pipeline.".to_string()],
@@ -87,7 +87,7 @@ fn dispatch_config() -> ActorConfig {
 
 fn octx_with(
     isolation: Arc<dyn IsolationStrategy>,
-    executor: Arc<dyn JobExecutor>,
+    executor: Arc<dyn SessionExecutor>,
     worktrees: PathBuf,
 ) -> OrchestratorContext {
     OrchestratorContext {
@@ -98,7 +98,7 @@ fn octx_with(
         probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -106,7 +106,7 @@ fn octx_with(
 }
 
 fn payload_with_first_step(
-    job_id: &str,
+    pipeline_run_id: &str,
     slug: &str,
     step_harness: Option<&str>,
     step_model: Option<&str>,
@@ -131,7 +131,7 @@ fn payload_with_first_step(
             invocation: None,
     };
     PipelineRunStartedPayload {
-        job_id: job_id.into(),
+        pipeline_run_id: pipeline_run_id.into(),
         slug: slug.into(),
         agent: "rust-lane".into(),
         branch: format!("job/{slug}"),
@@ -162,7 +162,7 @@ async fn run_dispatch(
 ) -> Option<(Option<String>, Option<String>)> {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base).unwrap();
-    router.spawn_actor("service.job-dispatch", dispatch_config()).unwrap();
+    router.spawn_actor("service.orchestrator", dispatch_config()).unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
     let worktree = tmp.path().join(format!("worktrees/{}", payload.slug));
@@ -174,7 +174,7 @@ async fn run_dispatch(
     );
 
     let created = ship_substrate::events::EventEnvelope::new(
-        event_types::PIPELINE_RUN_STARTED, &payload.job_id, payload,
+        event_types::PIPELINE_RUN_STARTED, &payload.pipeline_run_id, payload,
     ).unwrap();
     crate::services::orchestrator::emit::persist_and_route(
         &kernel, created, &payload.slug, None,

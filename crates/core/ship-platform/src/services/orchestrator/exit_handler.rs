@@ -57,12 +57,12 @@ pub fn start(
                     match signal.exit_code {
                         Some(0) => {
                             let payload = serde_json::json!({
-                                "job_id": signal.job_id, "slug": signal.slug,
+                                "pipeline_run_id": signal.pipeline_run_id, "slug": signal.slug,
                             });
                             emit_job_event(
                                 &kernel,
                                 event_types::PIPELINE_RUN_COMPLETED,
-                                &signal.job_id,
+                                &signal.pipeline_run_id,
                                 &signal.slug,
                                 payload,
                             )
@@ -70,13 +70,13 @@ pub fn start(
                         }
                         Some(code) => {
                             let payload = serde_json::json!({
-                                "job_id": signal.job_id,
+                                "pipeline_run_id": signal.pipeline_run_id,
                                 "error": format!("process exited with code {code}"),
                             });
                             emit_job_event(
                                 &kernel,
                                 event_types::PIPELINE_RUN_FAILED,
-                                &signal.job_id,
+                                &signal.pipeline_run_id,
                                 &signal.slug,
                                 payload,
                             )
@@ -87,13 +87,13 @@ pub fn start(
                             // failure. Pre-slice this path silently emitted
                             // job.completed; that was the bug.
                             let payload = serde_json::json!({
-                                "job_id": signal.job_id,
+                                "pipeline_run_id": signal.pipeline_run_id,
                                 "error": "agent process exited with no captured exit code",
                             });
                             emit_job_event(
                                 &kernel,
                                 event_types::PIPELINE_RUN_FAILED,
-                                &signal.job_id,
+                                &signal.pipeline_run_id,
                                 &signal.slug,
                                 payload,
                             )
@@ -111,13 +111,13 @@ pub fn start(
                     )
                     .await;
                     let payload = serde_json::json!({
-                        "job_id": signal.job_id,
+                        "pipeline_run_id": signal.pipeline_run_id,
                         "error": "executor session destroyed externally (operator kill or substrate failure)",
                     });
                     emit_job_event(
                         &kernel,
                         event_types::PIPELINE_RUN_FAILED,
-                        &signal.job_id,
+                        &signal.pipeline_run_id,
                         &signal.slug,
                         payload,
                     )
@@ -131,11 +131,11 @@ pub fn start(
 async fn emit_job_event(
     kernel: &Arc<Mutex<KernelRouter>>,
     event_type: &str,
-    job_id: &str,
+    pipeline_run_id: &str,
     slug: &str,
     payload: serde_json::Value,
 ) {
-    let envelope = match EventEnvelope::new(event_type, job_id, &payload) {
+    let envelope = match EventEnvelope::new(event_type, pipeline_run_id, &payload) {
         Ok(e) => e.with_actor_id("service.exit-handler"),
         Err(e) => {
             tracing::warn!(slug, event_type, "exit_handler: failed to build envelope: {e}");

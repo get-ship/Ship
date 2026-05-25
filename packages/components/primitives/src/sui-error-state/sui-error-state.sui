@@ -84,7 +84,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: flex-start;
-    text-align: left;
+    text-align: start;
     background: color-mix(in oklch, var(--destructive) 4%, var(--card));
     border: 1px solid color-mix(in oklch, var(--destructive) 24%, var(--border));
     border-radius: var(--radius-md);
@@ -161,7 +161,7 @@
     white-space: pre-wrap;
     word-break: break-word;
     max-width: 60ch;
-    text-align: left;
+    text-align: start;
   }
   :host([data-has-details][data-details-open]) .details { display: block; }
 
@@ -174,7 +174,7 @@
   }
   :host([variant='inline']) .actions {
     margin-top: 0;
-    margin-left: auto;
+    margin-inline-start: auto;
     justify-content: flex-end;
   }
 

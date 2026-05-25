@@ -13,8 +13,8 @@
   :host { display: flex; flex-direction: column; height: 100%; min-height: 0; }
   :host([hidden]) { display: none; }
   .header {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 12px;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: 6px var(--space-3);
     border-bottom: 1px solid var(--border-subtle, var(--border));
     background: var(--sidebar, var(--card));
     font-size: 11px;
@@ -24,18 +24,18 @@
   .header .state {
     margin-left: auto;
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: var(--text-xs);
     padding: 1px 6px;
     border-radius: var(--radius-sm);
     background: var(--muted);
     color: var(--muted-foreground);
   }
   .header .state[data-dirty="true"] {
-    background: color-mix(in oklab, var(--warning, #ca8a04) 24%, var(--muted));
+    background: color-mix(in oklab, var(--warning) 24%, var(--muted));
     color: var(--foreground);
   }
   .header .state[data-saved="true"] {
-    background: color-mix(in oklab, var(--success, #16a34a) 22%, var(--muted));
+    background: color-mix(in oklab, var(--success) 22%, var(--muted));
     color: var(--foreground);
   }
   .editor-host { flex: 1; min-height: 0; display: flex; }

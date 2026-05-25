@@ -92,6 +92,7 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: vec![Scope::Full],
+            grants: vec![],
         }
     }
 
@@ -102,6 +103,7 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: vec![Scope::Full],
+            grants: vec![],
         }
     }
 
@@ -112,6 +114,7 @@ mod tests {
             workspace_id: workspace.map(str::to_string),
             session_id: None,
             scopes: vec![Scope::Full],
+            grants: vec![],
         }
     }
 

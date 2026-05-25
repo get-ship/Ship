@@ -70,7 +70,7 @@
   .panel::backdrop { background: transparent; }
 
   ::slotted(button), ::slotted([role='menuitem']) {
-    text-align: left;
+    text-align: start;
     background: transparent; border: 0;
     padding: 6px 10px;
     border-radius: var(--radius-sm, 4px);

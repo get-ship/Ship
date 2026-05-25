@@ -125,6 +125,7 @@ pub async fn server_attest(
         token: session_token.clone(),
         agent_id: format!("user:{}", claims.sub),
         scopes: crate::auth::pairing::paired_session_scopes(),
+        grants: vec![],
         workspace_id: None,
         created_at: std::time::Instant::now(),
         expires_at_unix: Some(claims.exp),

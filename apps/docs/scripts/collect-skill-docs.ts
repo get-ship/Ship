@@ -50,7 +50,7 @@ const PUBLIC_DIR = join(SCRIPT_DIR, "../public")
 // SUI bundles served as static assets. Mirror the names the daemon uses
 // under `/api/assets/` so the importmap in astro.config.mjs resolves the
 // same way against either the docs site or the daemon.
-const SUI_ASSETS_DIR = join(REPO_ROOT, "crates/sui/ship-sui-server/assets")
+const SUI_ASSETS_DIR = join(REPO_ROOT, "crates/deck/deck-server/assets")
 const SUI_BUNDLES = [
   "sui-runtime.js",
   "sui-dom.js",
@@ -63,9 +63,9 @@ const SUI_BUNDLES = [
 // resolves against the same canonical tokens the daemon serves at
 // runtime. The concat order must match apps/shipd/src/views/assets.rs.
 const VIEW_TOKENS_SOURCES = [
-  join(REPO_ROOT, "packages/ui-components/src/tokens/tokens.css"),
+  join(REPO_ROOT, "packages/components/ui-components/src/tokens/tokens.css"),
   join(REPO_ROOT, "apps/shipd/assets/view-tokens.css"),
-  join(REPO_ROOT, "packages/ui-components/src/tokens/themes.css"),
+  join(REPO_ROOT, "packages/components/ui-components/src/tokens/themes.css"),
 ] as const
 // `agent-only` files never ship to any site. `internal` files are hidden from
 // the public (user) build but rendered in internal mode so contributors can
@@ -306,7 +306,7 @@ function run(): void {
   for (const name of SUI_BUNDLES) {
     const src = join(SUI_ASSETS_DIR, name)
     if (!existsSync(src)) {
-      console.log(`[collect-docs] ${name} not found at ${src}. Run 'cd packages/ui-components && bun run build' first.`)
+      console.log(`[collect-docs] ${name} not found at ${src}. Run 'cd packages/components/ui-components && bun run build' first.`)
       continue
     }
     copyFileSync(src, join(PUBLIC_DIR, name))
@@ -346,7 +346,7 @@ function run(): void {
   }
 
   // Lazy `<sui-*>` chunks live next to the umbrella bundle under
-  // crates/sui/ship-sui-server/assets/sui-components/. The tutorial
+  // crates/deck/deck-server/assets/sui-components/. The tutorial
   // playground side-loads sui-code-editor.js from there; copy the
   // whole dir so any other chunk a future step needs is reachable.
   const chunkSrcDir = join(SUI_ASSETS_DIR, "sui-components")

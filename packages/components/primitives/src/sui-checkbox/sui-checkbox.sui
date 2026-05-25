@@ -206,16 +206,13 @@
   }
 
   :host(:not([disabled])) label:has(input:focus-visible) .box {
-    box-shadow:
-      0 0 0 var(--ring-offset, 2px) var(--background),
-      0 0 0 calc(var(--ring-offset, 2px) + var(--ring-width, 2px))
-        color-mix(in oklch, var(--tone) var(--ring-opacity, 50%), transparent);
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
   :host([invalid]:not([disabled])) label:has(input:focus-visible) .box {
-    box-shadow:
-      0 0 0 var(--ring-offset, 2px) var(--background),
-      0 0 0 calc(var(--ring-offset, 2px) + var(--ring-width, 2px))
-        color-mix(in oklch, var(--destructive) var(--ring-opacity, 50%), transparent);
+    --ring-color: var(--destructive);
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
 
   @media (forced-colors: active) {

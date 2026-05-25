@@ -1,7 +1,7 @@
 //! `pipelines.history(limit?, offset?, q?, pipeline?)` — paginated
 //! history rows for the dedicated history view.
 
-use ship_platform::projections::job::PipelineRun;
+use ship_platform::projections::pipeline_run::PipelineRun;
 use serde::Serialize;
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -13,6 +13,7 @@ use crate::views::state::{
 use super::shape::{format_duration_between, run_state_token};
 
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct HistoryRow {
     pub slug: String,
     pub pipeline: String,
@@ -25,6 +26,7 @@ pub struct HistoryRow {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct HistoryCtx {
     pub q: String,
     pub pipeline_filter: String,

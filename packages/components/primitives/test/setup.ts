@@ -13,7 +13,7 @@ import { setIconRegistry } from '../src/sui-icon/registry'
 // the same map at startup so resolution is sync.
 const ICON_REGISTRY_PATH = resolve(
   process.cwd(),
-  '../../../crates/sui/ship-sui-server/assets/lucide-icons.json',
+  '../../../crates/deck/deck-server/assets/lucide-icons.json',
 )
 setIconRegistry(JSON.parse(readFileSync(ICON_REGISTRY_PATH, 'utf8')))
 
@@ -58,6 +58,24 @@ if (typeof ToggleEvent === 'undefined') {
       super(type, init)
       this.newState = init.newState ?? ''
       this.oldState = init.oldState ?? ''
+    }
+  }
+}
+
+if (typeof PointerEvent === 'undefined') {
+  // JSDOM 25 ships MouseEvent but not PointerEvent. Anchor-position
+  // primitives (sui-hover-card, sui-tooltip) dispatch synthetic
+  // pointerenter/leave in tests; subclass MouseEvent so the same
+  // event shape (button, clientX, …) is available without a real
+  // pointer device emulation.
+  // @ts-expect-error — JSDOM stub
+  globalThis.PointerEvent = class PointerEvent extends MouseEvent {
+    pointerId: number
+    pointerType: string
+    constructor(type: string, init: PointerEventInit = {}) {
+      super(type, init)
+      this.pointerId = init.pointerId ?? 0
+      this.pointerType = init.pointerType ?? 'mouse'
     }
   }
 }

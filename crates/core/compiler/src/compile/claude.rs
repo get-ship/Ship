@@ -255,3 +255,45 @@ pub(super) fn has_permission_overrides(p: &Permissions) -> bool {
         || p.default_mode.is_some()
         || !p.additional_directories.is_empty()
 }
+
+/// Populate Claude-native outputs (settings patch + lifecycle hooks, LSP
+/// config, legacy team agents). Invoked via the descriptor's build_settings
+/// fn pointer — no harness-id branch in the compile flow.
+pub(super) fn build_settings(
+    desc: &super::harness::HarnessDescriptor,
+    resolved: &crate::resolve::ResolvedConfig,
+    out: &mut super::CompileOutput,
+) {
+    out.claude_settings_patch = build_claude_settings_patch(
+        &resolved.permissions,
+        &resolved.hooks,
+        resolved.model.as_deref(),
+        resolved.claude.settings_extra.as_ref(),
+        &resolved.env,
+        &resolved.available_models,
+        resolved.claude.theme.as_deref(),
+        resolved.claude.auto_updates,
+        resolved.claude.include_co_authored_by,
+    );
+    if let Some(ref mut patch) = out.claude_settings_patch {
+        inject_ship_lifecycle_hooks(patch);
+    }
+    out.claude_lsp_config = Some(build_claude_lsp_config());
+    if let Some(base) = desc.agents_dir.base_path() {
+        for (filename, content) in &resolved.claude.team_agents {
+            out.agent_files
+                .insert(format!("{base}/{filename}"), content.clone());
+        }
+    }
+}
+
+/// Claude's typed settings delta from the Ship agent.
+#[derive(Debug, Clone, Default)]
+pub struct ClaudeSettings {
+    pub settings_extra: Option<serde_json::Value>,
+    /// Legacy team-agent passthrough: `.ship/agents/teams/claude/<n>.md`.
+    pub team_agents: Vec<(String, String)>,
+    pub theme: Option<String>,
+    pub auto_updates: Option<bool>,
+    pub include_co_authored_by: Option<bool>,
+}

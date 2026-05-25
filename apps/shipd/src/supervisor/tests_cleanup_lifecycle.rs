@@ -9,11 +9,11 @@
 
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::job::{project, JobStatus};
+use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
-    let job_id = payload["job_id"].as_str().unwrap_or("test");
-    EventEnvelope::new(event_type, job_id, &payload).unwrap()
+    let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or("test");
+    EventEnvelope::new(event_type, pipeline_run_id, &payload).unwrap()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -28,14 +28,14 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 fn cleanup_handler_exists_for_merged_events() {
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/handlers.rs");
     assert!(
-        source.contains("job_cleanup") || source.contains("handle_job_cleanup"),
+        source.contains("job_cleanup") || source.contains("handle_cleanup"),
         "a cleanup handler must exist for merged job events"
     );
 }
 
 /// The orchestrator event router must route job.merged to cleanup.
 #[test]
-fn job_merged_routes_to_cleanup() {
+fn run_merged_routes_to_cleanup() {
     // Orchestration logic moved to ship_platform::services::orchestrator::router
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
     assert!(
@@ -43,14 +43,14 @@ fn job_merged_routes_to_cleanup() {
         "orchestrator router must handle pipeline.run.merged events"
     );
     assert!(
-        source.contains("cleanup") || source.contains("handle_job_cleanup"),
+        source.contains("cleanup") || source.contains("handle_cleanup"),
         "job.merged handler must trigger cleanup"
     );
 }
 
 /// Cleanup must remove the process registry entry.
 #[test]
-fn job_merged_unregisters_from_process_registry() {
+fn run_merged_unregisters_from_process_registry() {
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
     assert!(
         source.contains("unregister"),
@@ -73,7 +73,7 @@ fn cleanup_delegates_to_platform() {
 /// Failed jobs must NOT trigger automatic cleanup — worktrees are kept
 /// for post-mortem investigation.
 #[test]
-fn job_failed_does_not_trigger_cleanup() {
+fn run_failed_does_not_trigger_cleanup() {
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
     // Find the job.failed handler and verify it doesn't call cleanup
     let lines: Vec<&str> = source.lines().collect();
@@ -84,7 +84,7 @@ fn job_failed_does_not_trigger_cleanup() {
         let handler_block: String = lines[idx..std::cmp::min(idx + 10, lines.len())]
             .join("\n");
         assert!(
-            !handler_block.contains("handle_job_cleanup"),
+            !handler_block.contains("handle_cleanup"),
             "job.failed must not trigger cleanup — keep resources for investigation"
         );
     }
@@ -135,23 +135,23 @@ fn cleanup_tolerates_missing_branch() {
 fn terminal_jobs_with_worktrees_are_orphan_candidates() {
     let events = vec![
         ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-            "job_id": "j1", "slug": "done",
+            "pipeline_run_id": "j1", "slug": "done",
             "agent": "r", "branch": "job/done",
             "spec_path": "s.md", "plan_id": null,
         })),
         ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
-            "job_id": "j1", "worktree": "/tmp/wt/done", "pid": null,
+            "pipeline_run_id": "j1", "worktree": "/tmp/wt/done", "pid": null,
         })),
         ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
-            "job_id": "j1", "slug": "done",
+            "pipeline_run_id": "j1", "slug": "done",
         })),
         ev(event_types::PIPELINE_RUN_MERGED, serde_json::json!({
-            "job_id": "j1", "slug": "done",
+            "pipeline_run_id": "j1", "slug": "done",
         })),
     ];
     let map = project(&events);
     let orphan_candidates: Vec<_> = map.values()
-        .filter(|j| matches!(j.status, JobStatus::Merged | JobStatus::Failed))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Merged | PipelineRunStatus::Failed))
         .filter(|j| j.worktree.is_some())
         .collect();
     assert_eq!(orphan_candidates.len(), 1);

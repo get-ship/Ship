@@ -1,6 +1,8 @@
 mod add;
 mod audit;
 mod auth;
+mod meta_cmd;
+mod ops_cmd;
 mod build;
 mod cli;
 mod commands;
@@ -100,6 +102,11 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             Commands::Login => auth::run_login(),
             Commands::Logout => auth::run_logout(),
             Commands::Whoami => auth::run_whoami(),
+            Commands::Meta => meta_cmd::run(),
+            Commands::Ops { action } => match action {
+                cli::OpsCommands::List => ops_cmd::list(),
+                cli::OpsCommands::Call { name, json } => ops_cmd::call(&name, json),
+            },
             Commands::Auth { action } => {
                 use cli::AuthCommands;
                 match action {
@@ -112,6 +119,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 agent_id,
                 path,
                 compile: _,
+                scoped,
                 with_skills,
                 launch,
                 resume,
@@ -138,7 +146,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     keepalive,
                     no_keepalive,
                 };
-                run_use(Some(&agent_id), path, with_skills)?;
+                run_use(Some(&agent_id), path, with_skills, scoped)?;
                 if use_command::should_launch(&opts) {
                     use_command::run_launch(opts)?;
                 }
@@ -331,7 +339,7 @@ fn dispatch_config(action: ConfigCommands) -> Result<()> {
 // ── Use ───────────────────────────────────────────────────────────────────────
 
 /// Activate an agent: load, compile, install plugins, write workspace state.
-fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<String>) -> Result<()> {
+fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<String>, scoped: bool) -> Result<()> {
     try_init_kernel_router();
     let ship_dir = match path {
         Some(ref p) => {
@@ -357,7 +365,7 @@ fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<Stri
         None
     };
 
-    profile::activate_agent(agent_id, &project_root, output_root.as_deref(), extra_skills)
+    profile::activate_agent(agent_id, &project_root, output_root.as_deref(), extra_skills, scoped)
 }
 
 // ── Status ────────────────────────────────────────────────────────────────────
@@ -411,6 +419,7 @@ fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) 
         active_agent: state.active_agent.as_deref(),
         extra_skills: vec![],
         plugins_installed: state.plugins_installed.clone(),
+            scoped_launch: false,
     })
 }
 
@@ -435,7 +444,7 @@ fn dispatch_workspace(action: WorkspaceCommands) -> Result<()> {
 
 fn dispatch_mcp(action: McpCommands) -> Result<()> {
     match action {
-        McpCommands::Serve { http, port } => mcp_serve::run(http, port),
+        McpCommands::Serve {} => mcp_serve::run(),
         McpCommands::List => mcp::list(),
         McpCommands::Add { id, name, url, .. } => {
             let url =

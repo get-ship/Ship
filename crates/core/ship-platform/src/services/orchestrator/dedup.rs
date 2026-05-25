@@ -1,7 +1,7 @@
 //! Event-id deduplication for the job orchestrator router.
 //!
 //! Prevents a single event from advancing the pipeline twice when the
-//! same `EventEnvelope` reaches `handle_job_event` more than once (mailbox
+//! same `EventEnvelope` reaches `handle_orchestrator_event` more than once (mailbox
 //! redelivery, startup replay racing with live delivery, test harness
 //! replays).
 //!

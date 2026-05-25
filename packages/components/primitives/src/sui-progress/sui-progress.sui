@@ -37,7 +37,7 @@
 
 <prop name="value" type="number" default="0" />
 <prop name="max" type="number" default="100" />
-<prop name="tone" values="default|primary|info|success|warning|destructive|accent" default="primary" reflect />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
 <prop name="size" values="sm|md|lg" default="md" reflect />
 <prop name="indeterminate" type="bool" default="false" reflect />
 <prop name="label" type="string" default="" />

@@ -1,0 +1,17 @@
+{
+  "id": "ship-standard",
+  "scope": "project",
+  "entry": {
+    "description": "Human confirms risky actions before they run.",
+    "tools": {
+      "allow": [
+        "Read",
+        "Edit"
+      ],
+      "ask": [
+        "Bash(rm -rf *)"
+      ],
+      "deny": []
+    }
+  }
+}

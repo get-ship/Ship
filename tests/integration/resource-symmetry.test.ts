@@ -315,8 +315,8 @@ const VIEW_FIXTURES: ViewFixture[] = [
     ship: noopShip,
   },
   {
-    name: 'ship-ui-studio',
-    controller: () => import('../../views/ship-ui-studio/controller'),
+    name: 'studio-components',
+    controller: () => import('../../views/studio/components/controller'),
     scope: {},
     ship: noopShip,
   },

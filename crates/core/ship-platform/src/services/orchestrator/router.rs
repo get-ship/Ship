@@ -10,11 +10,11 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::dispatch::handle_job_created;
+use super::dispatch::handle_pipeline_run_started;
 use super::emit::emit_step_failed;
 use super::review_retry::{emit_job_failed_for_review, try_review_retry};
 use super::handlers::{
-    finalize_pipeline_if_done, handle_job_cancelled, handle_job_cleanup, handle_job_update,
+    finalize_pipeline_if_done, handle_cancelled, handle_cleanup, handle_pipeline_run_updated,
 };
 use super::pipeline::advance_pipeline;
 use super::step_io::{check_required_outputs, run_step_promotes};
@@ -28,7 +28,7 @@ pub async fn start_orchestrator(
     kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
     octx: Arc<OrchestratorContext>,
 ) {
-    let actor_id = "service.job-dispatch".to_string();
+    let actor_id = "service.orchestrator".to_string();
     // Subscribes to two namespaces:
     //   - `pipeline.*` for composition lifecycle (multi-step pipeline runs)
     //   - `agent.session.*` for the dispatch primitive (single-agent
@@ -74,15 +74,38 @@ pub async fn start_orchestrator(
     let kr = kernel.clone();
     let mut mb = mailbox;
     while let Some(envelope) = mb.recv().await {
-        handle_job_event(&kr, &envelope, &octx).await;
+        // `agent.session.started` does slow per-session prep (git worktree
+        // add + harness spawn). Run it OFF the mailbox so one slow dispatch
+        // doesn't stall every other event (pre-fix, a burst of dispatches
+        // serialized and a single dispatch could take tens of seconds to
+        // spawn). DISPATCH_GATE bounds concurrency so we don't spawn a
+        // thundering herd of harness processes; the worktree-add step is
+        // separately serialized (GitWorktreeIsolation::WORKTREE_LOCK).
+        // Other event types stay inline — they're fast and order-sensitive
+        // (advancement, cancel, completion).
+        if envelope.event_type == "agent.session.started" {
+            let kr2 = kr.clone();
+            let octx2 = octx.clone();
+            tokio::spawn(async move {
+                let _permit = DISPATCH_GATE.acquire().await;
+                handle_orchestrator_event(&kr2, &envelope, &octx2).await;
+            });
+        } else {
+            handle_orchestrator_event(&kr, &envelope, &octx).await;
+        }
     }
     tracing::info!("job-dispatch: mailbox closed");
 }
 
+/// Bounds concurrent agent-session dispatch preps so a burst doesn't spawn
+/// a thundering herd of harness processes at once. 8 is a starting point —
+/// instrument dispatch latency under load and tune if needed.
+static DISPATCH_GATE: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(8);
+
 /// Handle a single job/step event.
 ///
 /// Called from the mailbox receive loop for each `job.*` or `step.*` event.
-pub async fn handle_job_event(
+pub async fn handle_orchestrator_event(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     envelope: &EventEnvelope,
     octx: &OrchestratorContext,
@@ -109,9 +132,9 @@ pub async fn handle_job_event(
         && let Some(record) = load_pipeline_run(&envelope.entity_id)
         && matches!(
             record.status,
-            crate::projections::job::JobStatus::Failed
-                | crate::projections::job::JobStatus::Merged
-                | crate::projections::job::JobStatus::Cancelled
+            crate::projections::pipeline_run::PipelineRunStatus::Failed
+                | crate::projections::pipeline_run::PipelineRunStatus::Merged
+                | crate::projections::pipeline_run::PipelineRunStatus::Cancelled
         )
     {
         tracing::warn!(
@@ -130,9 +153,14 @@ pub async fn handle_job_event(
         "agent.session.started" => super::dispatch::handle_agent_session_started(
             kernel, envelope, octx,
         ).await,
-        "pipeline.run.started" => handle_job_created(kernel, envelope, octx).await,
-        "pipeline.run.updated" => handle_job_update(kernel, envelope).await,
-        et::PIPELINE_RUN_CANCELLED => handle_job_cancelled(kernel, envelope, octx).await,
+        "pipeline.run.started" => handle_pipeline_run_started(kernel, envelope, octx).await,
+        "pipeline.run.updated" => handle_pipeline_run_updated(kernel, envelope).await,
+        et::PIPELINE_RUN_CANCELLED => handle_cancelled(kernel, envelope, octx).await,
+        // Bare agent-session cancel. handle_cancelled is slug-keyed
+        // and harness-agnostic — it kills via the registry handle and
+        // emits process.killed, identical to a pipeline-run cancel. The
+        // payload carries `slug`, so the same handler drives both.
+        "agent.session.cancelled" => handle_cancelled(kernel, envelope, octx).await,
         "pipeline.run.completed" => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.completed");
             let slug = extract_slug(envelope);
@@ -146,7 +174,7 @@ pub async fn handle_job_event(
                 if maybe_auto_merge(kernel, envelope, octx).await {
                     // Merge dispatched — lock stays held until job.merged arrives.
                 } else {
-                    octx.job_locks.lock().await.remove(&envelope.entity_id);
+                    octx.run_locks.lock().await.remove(&envelope.entity_id);
                     super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
                 }
             }
@@ -171,8 +199,8 @@ pub async fn handle_job_event(
             if let Some(slug) = &slug {
                 octx.registry.unregister(slug).await;
             }
-            octx.job_locks.lock().await.remove(&envelope.entity_id);
-            handle_job_cleanup(envelope, &*octx.platform).await;
+            octx.run_locks.lock().await.remove(&envelope.entity_id);
+            handle_cleanup(envelope, &*octx.platform).await;
             super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
         }
         "pipeline.run.failed" => {
@@ -182,7 +210,7 @@ pub async fn handle_job_event(
                 octx.done_flags.lock().await.remove(slug.as_str());
                 octx.activity_txs.lock().await.remove(slug.as_str());
             }
-            octx.job_locks.lock().await.remove(&envelope.entity_id);
+            octx.run_locks.lock().await.remove(&envelope.entity_id);
         }
         "pipeline.step.done_declared" => {
             let slug = extract_slug(envelope);
@@ -241,7 +269,7 @@ pub async fn handle_job_event(
                 if let Some(slug) = &slug {
                     octx.registry.unregister(slug).await;
                 }
-                octx.job_locks.lock().await.remove(&payload.job_id);
+                octx.run_locks.lock().await.remove(&payload.pipeline_run_id);
                 return;
             }
 
@@ -310,8 +338,8 @@ async fn maybe_auto_merge(
     octx: &OrchestratorContext,
 ) -> bool {
     let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
-    let job_id = payload["job_id"].as_str().unwrap_or(envelope.entity_id.as_str()).to_string();
-    let Some(job) = crate::projections::job::load_job_by_id(&job_id)
+    let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or(envelope.entity_id.as_str()).to_string();
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&pipeline_run_id)
         .ok()
         .flatten()
     else {
@@ -324,13 +352,13 @@ async fn maybe_auto_merge(
         return false;
     }
     tracing::info!(
-        job_id = %job.job_id, slug = %job.slug, branch = %job.branch,
+        pipeline_run_id = %job.pipeline_run_id, slug = %job.slug, branch = %job.branch,
         "job-dispatch: auto_merge — running merge after final step"
     );
     octx.platform.graceful_agent_exit(&job.slug, None).await;
     super::handlers::execute_merge_step(
         kernel,
-        &job.job_id,
+        &job.pipeline_run_id,
         &job.slug,
         &job.branch,
         &*octx.platform,
@@ -352,8 +380,8 @@ fn is_operator_event(event_type: &str) -> bool {
 /// Used by the terminal-state guard. Returns `None` if the projection
 /// can't be loaded or the job doesn't exist — callers treat that as
 /// "not terminal, proceed" so startup races don't drop events.
-fn load_pipeline_run(entity_id: &str) -> Option<crate::projections::job::PipelineRun> {
-    crate::projections::job::load_job_by_id(entity_id).ok().flatten()
+fn load_pipeline_run(entity_id: &str) -> Option<crate::projections::pipeline_run::PipelineRun> {
+    crate::projections::pipeline_run::load_pipeline_run_by_id(entity_id).ok().flatten()
 }
 
 /// Extract the slug from an event envelope payload.
@@ -368,7 +396,7 @@ async fn check_and_fail_missing_outputs(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     declared: &PipelineStepDoneDeclaredPayload,
 ) {
-    let Some(job) = crate::projections::job::load_job_by_id(&declared.job_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&declared.pipeline_run_id)
         .ok()
         .flatten()
     else {
@@ -380,11 +408,11 @@ async fn check_and_fail_missing_outputs(
     };
     if let Some(reason) = check_required_outputs(&step.produces, &declared.outputs) {
         tracing::warn!(
-            job_id = declared.job_id, step_id = declared.step_id,
+            pipeline_run_id = declared.pipeline_run_id, step_id = declared.step_id,
             "job-dispatch: required output missing: {reason}"
         );
         emit_step_failed(
-            kernel, &declared.job_id, &declared.slug, &declared.step_id, &reason,
+            kernel, &declared.pipeline_run_id, &declared.slug, &declared.step_id, &reason,
         ).await;
     }
 }
@@ -395,7 +423,7 @@ async fn run_promotes_for_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &PipelineStepObservedPayload,
 ) {
-    let Some(job) = crate::projections::job::load_job_by_id(&payload.job_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.pipeline_run_id)
         .ok()
         .flatten()
     else {
@@ -406,7 +434,7 @@ async fn run_promotes_for_step(
         return;
     };
     if !step.promotes.is_empty() {
-        run_step_promotes(kernel, &payload.job_id, step).await;
+        run_step_promotes(kernel, &payload.pipeline_run_id, step).await;
     }
 }
 
@@ -418,7 +446,7 @@ async fn evaluate_step_gate(
 ) -> Option<String> {
     use super::gate_rules::{diff_paths, evaluate, GateOutcome};
 
-    let job = crate::projections::job::load_job_by_id(&payload.job_id)
+    let job = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.pipeline_run_id)
         .ok()
         .flatten()?;
     let pipeline = job.steps.as_ref()?;
@@ -462,13 +490,13 @@ async fn emit_step_gate_failure(
     use ship_substrate::events::pipeline::{event_types, PipelineRunFailedPayload, PipelineStepFailedPayload};
 
     let step_fail = PipelineStepFailedPayload {
-        job_id: payload.job_id.clone(),
+        pipeline_run_id: payload.pipeline_run_id.clone(),
         slug: payload.slug.clone(),
         step_id: payload.step_name.clone(),
         error: reason.to_string(),
     };
-    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, &payload.job_id, &step_fail) {
-        let env = env.with_actor_id("service.job-dispatch");
+    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, &payload.pipeline_run_id, &step_fail) {
+        let env = env.with_actor_id("service.orchestrator");
         super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
     }
 
@@ -477,12 +505,12 @@ async fn emit_step_gate_failure(
         Some(tail) => format!("{base_error}\n\nagent log tail:\n{tail}"),
         None => base_error,
     };
-    let job_fail = PipelineRunFailedPayload {
-        job_id: payload.job_id.clone(),
+    let run_fail = PipelineRunFailedPayload {
+        pipeline_run_id: payload.pipeline_run_id.clone(),
         error,
     };
-    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, &payload.job_id, &job_fail) {
-        let env = env.with_actor_id("service.job-dispatch");
+    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, &payload.pipeline_run_id, &run_fail) {
+        let env = env.with_actor_id("service.orchestrator");
         super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
     }
 }

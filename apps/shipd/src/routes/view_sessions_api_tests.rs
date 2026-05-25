@@ -55,6 +55,7 @@ fn mcp_auth(agent: &str) -> AuthContext {
         workspace_id: None,
         session_id: None,
         scopes: vec![crate::auth::Scope::Full],
+        grants: vec![],
     }
 }
 
@@ -173,6 +174,7 @@ async fn open_without_agent_is_unauthenticated() {
         workspace_id: None,
         session_id: None,
         scopes: vec![crate::auth::Scope::Full],
+        grants: vec![],
     };
     let router = router_for(state, anon);
     let (status, body) = send_json(

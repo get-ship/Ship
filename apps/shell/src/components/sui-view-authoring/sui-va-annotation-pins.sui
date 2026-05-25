@@ -23,8 +23,8 @@
   .pin {
     position: absolute;
     transform: translate(-50%, -100%);
-    background: var(--accent, #f97316);
-    color: #fff;
+    background: var(--accent);
+    color: var(--accent-foreground);
     font: 600 11px/1 var(--font-body, system-ui);
     border-radius: 999px;
     min-width: 18px;
@@ -33,7 +33,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px hsl(0 0% 0% / 0.25);
+    box-shadow: var(--shadow-sm);
     cursor: pointer;
     pointer-events: auto;
     animation: pin-in 320ms var(--ease-out, ease-out) both;

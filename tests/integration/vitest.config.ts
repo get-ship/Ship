@@ -18,21 +18,21 @@ export default defineConfig({
     alias: {
       '@ship/sui-runtime/template-hooks': resolve(
         repoRoot,
-        'packages/sui-runtime/src/template-hooks/index.ts',
+        'packages/sui/runtime/src/template-hooks/index.ts',
       ),
       '@ship/sui-runtime/dev': resolve(
         repoRoot,
-        'packages/sui-runtime/src/dev.ts',
+        'packages/sui/runtime/src/dev.ts',
       ),
-      '@ship/sui-runtime': resolve(repoRoot, 'packages/sui-runtime/src/index.ts'),
-      '@ship/sui-dom/legacy': resolve(
+      '@ship/sui-runtime': resolve(repoRoot, 'packages/sui/runtime/src/index.ts'),
+      '@ship/sui-dom/test-utils': resolve(
         repoRoot,
-        'packages/sui-dom/src/legacy/index.ts',
+        'packages/sui/dom/src/test-utils/compile-sui.ts',
       ),
-      '@ship/sui-dom': resolve(repoRoot, 'packages/sui-dom/src/index.ts'),
+      '@ship/sui-dom': resolve(repoRoot, 'packages/sui/dom/src/index.ts'),
       '@ship/sdk-client': resolve(
         repoRoot,
-        'packages/ship-sdk-client/src/index.ts',
+        'packages/deck/sdk-client/src/index.ts',
       ),
     },
   },

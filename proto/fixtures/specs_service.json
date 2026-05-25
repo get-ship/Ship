@@ -1,0 +1,90 @@
+{
+  "List": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "checkout-flow",
+          "title": "Checkout service end-to-end",
+          "body_path": ".ship/specs/checkout-flow.md",
+          "status": "launched",
+          "pipeline": "ship-feature",
+          "agent": "rust-lane",
+          "vars": {
+            "area": "platform"
+          },
+          "criteria": [
+            "Service scaffolded",
+            "Happy-path contract test passes"
+          ],
+          "scope": [
+            "crates/core/ship-platform"
+          ],
+          "priority": 1,
+          "created_at": "2026-05-24T12:00:00Z",
+          "updated_at": "2026-05-24T18:00:00Z"
+        }
+      ]
+    }
+  },
+  "Get": {
+    "response_ok": {
+      "spec": {
+        "id": "checkout-flow",
+        "title": "Checkout service end-to-end",
+        "body_path": ".ship/specs/checkout-flow.md",
+        "status": "launched",
+        "pipeline": "ship-feature",
+        "agent": "rust-lane",
+        "vars": {
+          "area": "platform"
+        },
+        "criteria": [
+          "Service scaffolded",
+          "Happy-path contract test passes"
+        ],
+        "scope": [
+          "crates/core/ship-platform"
+        ],
+        "priority": 1,
+        "created_at": "2026-05-24T12:00:00Z",
+        "updated_at": "2026-05-24T18:00:00Z"
+      },
+      "body": "# Checkout service end-to-end\n\nScaffold the checkout service with a happy-path contract test.\n"
+    }
+  },
+  "Detail": {
+    "response_ok": {
+      "id": "checkout-flow",
+      "title": "Checkout service end-to-end",
+      "body": "# Checkout service end-to-end\n\nScaffold the checkout service with a happy-path contract test.\n",
+      "status": "launched",
+      "status_label": "Launched",
+      "pipeline": "ship-feature",
+      "pipeline_label": "ship-feature",
+      "agent": "Rust Lane",
+      "agent_id": "rust-lane",
+      "vars_display": "area=platform",
+      "branch": "feat/checkout-flow",
+      "tone": "active",
+      "goal_md": "Scaffold the checkout service so it passes the happy-path contract test.",
+      "scope_md": "crates/core/ship-platform",
+      "linked_md": "",
+      "acceptance": [
+        {
+          "text": "Service scaffolded",
+          "done": true
+        },
+        {
+          "text": "Happy-path contract test passes",
+          "done": false
+        }
+      ],
+      "other_md": "",
+      "launch_label": "Re-run",
+      "launch_hint": "Dispatch ship-feature for this spec",
+      "title_js": "Checkout service end-to-end",
+      "body_js": "# Checkout service end-to-end",
+      "pipeline_js": "ship-feature"
+    }
+  }
+}

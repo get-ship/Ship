@@ -3,31 +3,10 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 
 #[derive(Deserialize, JsonSchema)]
-pub struct CreateJobRequest {
-    /// Short identifier for the job (e.g. "auth-tests"). Must be unique and slug-safe.
-    pub slug: String,
-    /// Agent profile ID assigned to this job (e.g. "rust-runtime").
-    pub agent: String,
-    /// Git branch name for the job worktree (e.g. "job/auth-tests").
-    pub branch: String,
-    /// Relative path to the job spec file (e.g. ".artifacts/job-spec.md").
-    pub spec_path: String,
-    /// Optional reference to a plan that originated this job.
-    pub plan_id: Option<String>,
-    /// Model override for the spawned agent (e.g. "sonnet", "opus").
-    pub model: Option<String>,
-    /// Harness override (e.g. "anthropic", "openai").
-    pub harness: Option<String>,
-    /// Job slugs that must complete before this job is dispatched.
-    pub depends_on: Option<Vec<String>>,
-    /// Pipeline name from .ship/pipelines/ (e.g. "tdd"). Overrides spec frontmatter.
-    pub pipeline: Option<String>,
-}
-
-#[derive(Deserialize, JsonSchema)]
 pub struct UpdateJobRequest {
-    /// Job ID returned by create_job.
-    pub job_id: String,
+    /// Pipeline-run id this status update targets.
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     /// Target status: dispatched | gate_requested | gate_passed | gate_failed | blocked | completed | merged | failed
     pub status: String,
     /// Worktree path — required when status is "dispatched".
@@ -51,7 +30,8 @@ pub struct ListJobsRequest {
 #[derive(Deserialize, JsonSchema)]
 pub struct GetJobRequest {
     /// Job ID to retrieve.
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
 }
 
 #[derive(Deserialize, JsonSchema)]

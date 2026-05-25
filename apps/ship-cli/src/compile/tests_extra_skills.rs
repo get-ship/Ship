@@ -44,6 +44,7 @@ fn extra_skill_included_in_output() {
         active_agent: Some("rust-lane"),
         extra_skills: vec!["compiler-docs".to_string()],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let injected =
@@ -84,6 +85,7 @@ harnesses = ["claude"]
         active_agent: Some("rust-lane"),
         extra_skills: vec!["nonexistent".to_string()],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap_err();
     assert!(
@@ -115,6 +117,7 @@ fn multiple_extra_skills_all_included() {
         active_agent: Some("rust-lane"),
         extra_skills: vec!["auth-feature".to_string(), "tdd".to_string()],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let auth =
@@ -149,6 +152,7 @@ fn no_extra_skills_behaviour_unchanged() {
         active_agent: Some("rust-lane"),
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let base =

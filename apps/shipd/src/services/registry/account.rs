@@ -1,38 +1,26 @@
-//! Registry dispatcher for `account.*` ops. Surfaces the gateway-bound
-//! `AccountService` through the `_sui/data` SSE plane so the Shell chrome
-//! can render a "signed in as X" chip without standing up its own REST
-//! poller against `/api/v1/account/state`.
+//! Single-source `account.*` ops — descriptors + dispatch via `ship_ops!`.
 //!
-//! `AccountService::state()` is async (reads the token store under a
-//! tokio Mutex), but the registry contract is sync. We bridge with the
-//! same `block_in_place` + `Handle::current().block_on` pattern used by
-//! `mesh.snapshot` — both run inside axum's multi-thread runtime so the
-//! shim is safe.
-
-use serde_json::Value;
+//! `AccountService::state()` is async (token store under a tokio Mutex) but the
+//! registry contract is sync; we bridge with `block_in_place` + `block_on`,
+//! safe inside axum's multi-thread runtime (same shim as `mesh.snapshot`).
 
 use super::RegistryError;
-use crate::ship_runtime::ApiState;
-use ship_platform::services::files::FilesService;
+use ship_platform::account::types::AccountState;
 
-pub(super) fn try_dispatch(
-    name: &str,
-    _args: &Value,
-    state: &ApiState,
-    _files: &FilesService,
-) -> Result<Option<Value>, RegistryError> {
-    let value: Result<Value, RegistryError> = match name {
-        "account.state" => {
+ship_ops! {
+    ACCOUNT_OPS;
+    {
+        name: "account.state",
+        desc: "Ship Cloud account snapshot — logged_out / pending / logged_in.",
+        perm: "ship.account.read",
+        args: &[],
+        ret: AccountState,
+        run: |_args, state, _files| {
             let svc = state.account().clone();
-            let snapshot = tokio::task::block_in_place(|| {
+            tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current().block_on(async move { svc.state().await })
             })
-            .map_err(|e| RegistryError::service(format!("account.state: {e}")))?;
-            serde_json::to_value(snapshot)
-                .map_err(|e| RegistryError::service(format!("account.state serialize: {e}")))
-        }
-
-        _ => return Ok(None),
-    };
-    Ok(Some(value?))
+            .map_err(|e| RegistryError::service(format!("account.state: {e}")))
+        },
+    },
 }

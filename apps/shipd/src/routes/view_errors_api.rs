@@ -42,6 +42,78 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+/// An incoming error report, transport-agnostic (REST `PostErrorReq` and the
+/// Connect `PostViewErrorRequest` both map onto this). The store assigns `id`
+/// and `timestamp_server_ms`.
+pub(crate) struct ErrorReport {
+    pub view: Option<String>,
+    pub url: Option<String>,
+    pub kind: Option<String>,
+    pub message: String,
+    pub stack: Option<String>,
+    pub filename: Option<String>,
+    pub line: Option<u32>,
+    pub column: Option<u32>,
+    pub detail: Option<serde_json::Value>,
+    pub user_agent: Option<String>,
+    pub timestamp_client: Option<String>,
+}
+
+/// Append a report to the ring, evicting the oldest past `RING_CAP`. Returns the
+/// assigned id. The single store-write path (REST + Connect both call it).
+pub(crate) fn record(r: ErrorReport) -> u64 {
+    let id = next_id();
+    let stored = StoredError {
+        id,
+        view: r.view,
+        url: r.url,
+        kind: r.kind.unwrap_or_else(|| "unknown".to_string()),
+        message: r.message,
+        stack: r.stack,
+        filename: r.filename,
+        line: r.line,
+        column: r.column,
+        detail: r.detail,
+        user_agent: r.user_agent,
+        timestamp_client: r.timestamp_client,
+        timestamp_server_ms: now_ms(),
+    };
+    let mut buf = buffer().lock().expect("view-errors buffer poisoned");
+    if buf.len() >= RING_CAP {
+        buf.pop_front();
+    }
+    buf.push_back(stored);
+    id
+}
+
+/// Newest-first query with `since` (id >) + `view` filters, capped at `limit`.
+/// Returns `(matched, total_in_buffer)`.
+pub(crate) fn query(since: Option<u64>, view: Option<&str>, limit: usize) -> (Vec<StoredError>, usize) {
+    let buf = buffer().lock().expect("view-errors buffer poisoned");
+    let total = buf.len();
+    let matched = buf
+        .iter()
+        .filter(|e| since.map(|s| e.id > s).unwrap_or(true))
+        .filter(|e| match (view, &e.view) {
+            (Some(want), Some(have)) => want == have,
+            (Some(_), None) => false,
+            (None, _) => true,
+        })
+        .rev()
+        .take(limit)
+        .cloned()
+        .collect();
+    (matched, total)
+}
+
+/// Drain the ring; returns how many were cleared.
+pub(crate) fn clear() -> usize {
+    let mut buf = buffer().lock().expect("view-errors buffer poisoned");
+    let n = buf.len();
+    buf.clear();
+    n
+}
+
 #[derive(Debug, Deserialize)]
 pub struct PostErrorReq {
     pub view: Option<String>,
@@ -91,12 +163,10 @@ pub async fn post_error(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<PostErrorReq>,
 ) -> axum::response::Response {
-    let id = next_id();
-    let stored = StoredError {
-        id,
+    let id = record(ErrorReport {
         view: req.view,
         url: req.url,
-        kind: req.kind.unwrap_or_else(|| "unknown".to_string()),
+        kind: req.kind,
         message: req.message,
         stack: req.stack,
         filename: req.filename,
@@ -105,15 +175,7 @@ pub async fn post_error(
         detail: req.detail,
         user_agent: req.user_agent,
         timestamp_client: req.timestamp_client,
-        timestamp_server_ms: now_ms(),
-    };
-    {
-        let mut buf = buffer().lock().expect("view-errors buffer poisoned");
-        if buf.len() >= RING_CAP {
-            buf.pop_front();
-        }
-        buf.push_back(stored);
-    }
+    });
     (
         StatusCode::OK,
         Json(serde_json::json!({ "id": id, "accepted": true })),
@@ -127,20 +189,7 @@ pub async fn list_errors(
     Query(q): Query<ListQuery>,
 ) -> axum::response::Response {
     let limit = q.limit.unwrap_or(50).min(RING_CAP);
-    let buf = buffer().lock().expect("view-errors buffer poisoned");
-    let total = buf.len();
-    let filtered: Vec<StoredError> = buf
-        .iter()
-        .filter(|e| q.since.map(|s| e.id > s).unwrap_or(true))
-        .filter(|e| match (&q.view, &e.view) {
-            (Some(want), Some(have)) => want == have,
-            (Some(_), None) => false,
-            (None, _) => true,
-        })
-        .rev()
-        .take(limit)
-        .cloned()
-        .collect();
+    let (filtered, total) = query(q.since, q.view.as_deref(), limit);
     (
         StatusCode::OK,
         Json(serde_json::json!({ "errors": filtered, "total": total })),
@@ -152,12 +201,7 @@ pub async fn list_errors(
 pub async fn clear_errors(
     Extension(_auth): Extension<AuthContext>,
 ) -> axum::response::Response {
-    let cleared = {
-        let mut buf = buffer().lock().expect("view-errors buffer poisoned");
-        let n = buf.len();
-        buf.clear();
-        n
-    };
+    let cleared = clear();
     (
         StatusCode::OK,
         Json(serde_json::json!({ "cleared": cleared })),

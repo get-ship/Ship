@@ -204,8 +204,8 @@ pub use daemon::{daemon_status, rebuild_projections};
 pub use dispatch::{DispatchRequest, dispatch_agent_session};
 pub use events::{EventsPollQuery, event_stream, poll_events};
 pub use jobs::{
-    CancelJobRequest, CreateJobRequest, EventSummary, JobDetailResponse, JobEndRequest,
-    cancel_job, create_job, end_job, get_job_detail, list_jobs,
+    CancelJobRequest, EventSummary, PipelineRunDetailResponse, TurnEndRequest,
+    cancel_job, end_job, get_job_detail, list_jobs,
 };
 pub use pipeline_run::{PipelineRunRequest, run_pipeline};
 pub use procs::{ProcsQuery, list_procs};
@@ -242,6 +242,7 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
+            grants: vec![],
         })
     }
 
@@ -324,6 +325,7 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
+            grants: vec![],
         }
     }
 
@@ -354,10 +356,10 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
 
-        // Emit a job.created event so load_jobs() finds it.
-        let job_id = ship_substrate::gen_ulid();
+        // Emit a job.created event so load_pipeline_runs() finds it.
+        let pipeline_run_id = ship_substrate::gen_ulid();
         let payload = ship_substrate::events::pipeline::PipelineRunStartedPayload {
-            job_id: job_id.clone(),
+            pipeline_run_id: pipeline_run_id.clone(),
             slug: "test-detail".into(),
             agent: "agent-1".into(),
             branch: "feature/detail".into(),
@@ -382,20 +384,20 @@ mod tests {
         };
         let envelope = ship_substrate::events::EventEnvelope::new(
             ship_substrate::events::pipeline::event_types::PIPELINE_RUN_STARTED,
-            &job_id,
+            &pipeline_run_id,
             &payload,
         )
         .unwrap()
         .with_actor_id("test");
         state.persist_and_route(&envelope).await.unwrap();
 
-        let response = get_job_detail(State(state), test_auth(), Path(job_id.clone()))
+        let response = get_job_detail(State(state), test_auth(), Path(pipeline_run_id.clone()))
             .await
             .into_response();
         assert_eq!(response.status(), StatusCode::OK);
         let val = collect_body(response).await;
         assert_eq!(val["ok"], serde_json::json!(true));
-        assert_eq!(val["data"]["job"]["job_id"], job_id);
+        assert_eq!(val["data"]["job"]["pipeline_run_id"], pipeline_run_id);
         assert_eq!(val["data"]["job"]["slug"], "test-detail");
         assert!(val["data"]["step_observations"].is_array());
         assert!(val["data"]["recent_events"].is_array());
@@ -404,9 +406,9 @@ mod tests {
     }
 
     async fn emit_job_created(state: &ApiState, slug: &str) -> String {
-        let job_id = ship_substrate::gen_ulid();
+        let pipeline_run_id = ship_substrate::gen_ulid();
         let payload = ship_substrate::events::pipeline::PipelineRunStartedPayload {
-            job_id: job_id.clone(),
+            pipeline_run_id: pipeline_run_id.clone(),
             slug: slug.into(),
             agent: "a".into(),
             branch: format!("job/{slug}"),
@@ -421,18 +423,18 @@ mod tests {
             baseline_sha: None,
             keepalive: false,
         };
-        let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
+        let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &pipeline_run_id, &payload)
             .unwrap()
             .with_actor_id("test");
         state.persist_and_route(&env).await.unwrap();
-        job_id
+        pipeline_run_id
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn cancel_job_emits_job_cancelled_for_pending_job() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let job_id = emit_job_created(&state, "cancel-ok").await;
+        let pipeline_run_id = emit_job_created(&state, "cancel-ok").await;
 
         let req = CancelJobRequest { reason: "smoke".into() };
         let response = cancel_job(
@@ -445,14 +447,14 @@ mod tests {
         .into_response();
         assert_eq!(response.status(), StatusCode::OK);
 
-        let jobs = ship_platform::projections::job::load_jobs_at(state.ship_dir()).unwrap();
-        let job = jobs.get(&job_id).unwrap();
-        assert_eq!(job.status, ship_platform::projections::job::JobStatus::Cancelled);
+        let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir()).unwrap();
+        let job = jobs.get(&pipeline_run_id).unwrap();
+        assert_eq!(job.status, ship_platform::projections::pipeline_run::PipelineRunStatus::Cancelled);
 
         // Confirm the cancelled event actually landed.
         let events = ship_substrate::db::events::query_recent_events_for_entity_at(
             &ship_substrate::db::platform_db_path(state.ship_dir()),
-            &job_id, 20,
+            &pipeline_run_id, 20,
         )
         .unwrap();
         assert!(
@@ -465,14 +467,14 @@ mod tests {
     async fn cancel_job_returns_409_for_already_terminal_job() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let job_id = emit_job_created(&state, "cancel-term").await;
+        let pipeline_run_id = emit_job_created(&state, "cancel-term").await;
 
         // Seed a terminal state first.
         let fail_payload = ship_substrate::events::pipeline::PipelineRunFailedPayload {
-            job_id: job_id.clone(),
+            pipeline_run_id: pipeline_run_id.clone(),
             error: "boom".into(),
         };
-        let env = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, &job_id, &fail_payload)
+        let env = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, &pipeline_run_id, &fail_payload)
             .unwrap()
             .with_actor_id("test");
         state.persist_and_route(&env).await.unwrap();
@@ -491,7 +493,7 @@ mod tests {
         // Make sure no job.cancelled was emitted (idempotent no-op).
         let events = ship_substrate::db::events::query_recent_events_for_entity_at(
             &ship_substrate::db::platform_db_path(state.ship_dir()),
-            &job_id, 20,
+            &pipeline_run_id, 20,
         )
         .unwrap();
         assert!(
@@ -532,7 +534,7 @@ mod tests {
     async fn emit_process_spawned(state: &ApiState, slug: &str, pid: u32) {
         let payload = ship_substrate::events::process::ProcessSpawnedPayload {
             slug: slug.to_string(),
-            job_id: format!("job-{slug}"),
+            pipeline_run_id: format!("job-{slug}"),
             pid: Some(pid),
             cmd: "claude".to_string(),
             argv: vec![],
@@ -554,7 +556,7 @@ mod tests {
     async fn emit_drift_detected(state: &ApiState, slug: &str) {
         let payload = ship_substrate::events::supervisor::DriftDetectedPayload {
             slug: slug.into(),
-            job_id: format!("job-{slug}"),
+            pipeline_run_id: format!("job-{slug}"),
             expected_status: "Dispatched".into(),
             actual_state: "no_process".into(),
             detail: "test".into(),
@@ -589,14 +591,14 @@ mod tests {
     async fn list_jobs_annotates_terminal_jobs_as_terminal() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let job_id = emit_job_created(&state, "term-anno").await;
+        let pipeline_run_id = emit_job_created(&state, "term-anno").await;
 
         // Drive into Failed.
         let env = EventEnvelope::new(
             event_types::PIPELINE_RUN_FAILED,
-            &job_id,
+            &pipeline_run_id,
             &ship_substrate::events::pipeline::PipelineRunFailedPayload {
-                job_id: job_id.clone(),
+                pipeline_run_id: pipeline_run_id.clone(),
                 error: "boom".into(),
             },
         )
@@ -678,7 +680,7 @@ mod tests {
     ) {
         let payload = ship_substrate::events::process::ProcessSpawnedPayload {
             slug: slug.to_string(),
-            job_id: format!("job-{slug}"),
+            pipeline_run_id: format!("job-{slug}"),
             pid: Some(pid),
             cmd: "claude".to_string(),
             argv: vec![],

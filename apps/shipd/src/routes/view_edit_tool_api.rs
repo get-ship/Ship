@@ -88,6 +88,12 @@ pub async fn dispatch_tool(
     Extension(_auth): Extension<AuthContext>,
     Json(body): Json<ToolBody>,
 ) -> Response {
+    dispatch_tool_core(&state, name, body).await
+}
+
+/// Shared core for the REST handler and the Connect command (#78 will give it a
+/// typed result + move it into a service).
+pub(crate) async fn dispatch_tool_core(state: &ApiState, name: String, body: ToolBody) -> Response {
     if !is_valid_view_name(&name) {
         return err(StatusCode::BAD_REQUEST, "invalid_view_name", "invalid view name");
     }
@@ -109,15 +115,15 @@ pub async fn dispatch_tool(
     let agent_id = session_id.to_string();
     match body.op.as_str() {
         "read_source" => op_read_source(&name).await,
-        "write_source" => op_write_source(&state, &name, &agent_id, body.args).await,
-        "compile_check" => op_compile_check(&state, &name).await,
-        "collections_schema" => op_collections_schema(&state, body.args).await,
+        "write_source" => op_write_source(state, &name, &agent_id, body.args).await,
+        "compile_check" => op_compile_check(state, &name).await,
+        "collections_schema" => op_collections_schema(state, body.args).await,
         "list_siblings" => op_list_siblings(&name).await,
         "theme_tokens" => op_theme_tokens().await,
         "preview_snapshot" => op_preview_snapshot(&name).await,
         "annotate" => op_annotate(&name, &agent_id, body.args).await,
-        "list_snapshots" => op_list_snapshots(&state, &name, body.args).await,
-        "restore_snapshot" => op_restore_snapshot(&state, &name, &agent_id, body.args).await,
+        "list_snapshots" => op_list_snapshots(state, &name, body.args).await,
+        "restore_snapshot" => op_restore_snapshot(state, &name, &agent_id, body.args).await,
         other => err(
             StatusCode::BAD_REQUEST,
             "unknown_op",
@@ -342,11 +348,11 @@ async fn op_theme_tokens() -> Response {
 }
 
 async fn op_preview_snapshot(name: &str) -> Response {
-    let resolved = match ship_sui::resolver::resolve(name, None) {
+    let resolved = match deck::resolver::resolve(name, None) {
         Ok(r) => r,
         Err(e) => return err(StatusCode::NOT_FOUND, "view_not_found", &e.message),
     };
-    match ship_sui::resolver::render_resolved(&resolved, name) {
+    match deck::resolver::render_resolved(&resolved, name) {
         Ok(rendered) => ok(&ViewPreviewSnapshotResponse {
             html: rendered.html,
             computed_styles: None,
@@ -504,7 +510,7 @@ fn project_root() -> Option<std::path::PathBuf> {
     reason = "axum::Response is the canonical error vehicle for handler helpers"
 )]
 fn resolve_view(name: &str) -> Result<(String, std::path::PathBuf), Response> {
-    let resolved = ship_sui::resolver::resolve(name, None)
+    let resolved = deck::resolver::resolve(name, None)
         .map_err(|e| err(StatusCode::NOT_FOUND, "view_not_found", &e.message))?;
     let path = resolved
         .source_path

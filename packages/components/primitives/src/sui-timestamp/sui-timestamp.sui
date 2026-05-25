@@ -28,7 +28,7 @@
     font-size: inherit;
     color: inherit;
   }
-  .abs { color: var(--muted-foreground); margin-left: 4px; }
+  .abs { color: var(--muted-foreground); margin-inline-start: 4px; }
 </style>
 
 {#if value()}

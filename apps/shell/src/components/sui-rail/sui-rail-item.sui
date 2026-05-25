@@ -79,7 +79,7 @@
   }
   .item:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
   }
 
   .icon-wrap {
@@ -106,10 +106,10 @@
     justify-content: center;
     min-width: 16px;
     height: 16px;
-    padding: 0 4px;
+    padding: 0 var(--space-1);
     border-radius: 999px;
     background: var(--primary);
-    color: var(--primary-foreground, white);
+    color: var(--primary-foreground);
     font-size: 10px;
     font-weight: 600;
     line-height: 1;

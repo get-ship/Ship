@@ -7,7 +7,7 @@
 use async_trait::async_trait;
 use ship_substrate::events::kernel_router::KernelRouter;
 use ship_platform::services::dispatch_ports::{
-    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
+    ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -23,8 +23,8 @@ use ship_platform::services::process_registry::{ProcessRegistry, SharedRegistry}
 struct DeadExecutor;
 
 #[async_trait]
-impl JobExecutor for DeadExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for DeadExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Ok(ExecutorHandle { pid: None, inner: Box::new(()) })
     }
     async fn is_alive(&self, _handle: &ExecutorHandle) -> bool {
@@ -41,8 +41,8 @@ impl JobExecutor for DeadExecutor {
 struct AliveExecutor;
 
 #[async_trait]
-impl JobExecutor for AliveExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for AliveExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Ok(ExecutorHandle { pid: None, inner: Box::new(()) })
     }
     async fn is_alive(&self, _handle: &ExecutorHandle) -> bool {
@@ -147,7 +147,7 @@ async fn exit_handler_emits_job_completed_for_clean_exit() {
     exit_tx
         .send(ExitSignal {
             slug: "test-job".to_string(),
-            job_id: "j-clean-1".to_string(),
+            pipeline_run_id: "j-clean-1".to_string(),
             exit_code: Some(0),
             cause: ExitCause::AgentExited,
         })
@@ -177,7 +177,7 @@ async fn exit_handler_does_not_panic_for_failed_exit() {
     exit_tx
         .send(ExitSignal {
             slug: "failing-job".to_string(),
-            job_id: "j-fail-1".to_string(),
+            pipeline_run_id: "j-fail-1".to_string(),
             exit_code: Some(1),
             cause: ExitCause::AgentExited,
         })

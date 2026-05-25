@@ -12,7 +12,7 @@ use ship_substrate::events::pipeline::{
 
 fn base_payload(agent: &str) -> PipelineRunStartedPayload {
     PipelineRunStartedPayload {
-        job_id: "j-1".into(),
+        pipeline_run_id: "j-1".into(),
         slug: "slug-1".into(),
         agent: agent.into(),
         branch: "job/slug-1".into(),

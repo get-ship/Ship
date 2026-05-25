@@ -12,9 +12,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::auth::SessionRegistry;
-use crate::managers::{JobManager, MeshManager, SessionScanner};
+use crate::managers::{RunManager, MeshManager, SessionScanner};
 use ship_substrate::task_health::HealthRegistry;
-use crate::supervisor::job_dispatch::DispatchHandle;
+use crate::supervisor::run_dispatch::DispatchHandle;
 
 // ---- Config types ----
 
@@ -81,7 +81,7 @@ pub struct ShipRuntime {
     /// `<root>/machine/daemons/<hash>/` per devx-04.
     daemon_dir: PathBuf,
     mesh: tokio::sync::OnceCell<MeshManager>,
-    jobs: tokio::sync::OnceCell<JobManager>,
+    jobs: tokio::sync::OnceCell<RunManager>,
     dispatch_handle: std::sync::OnceLock<DispatchHandle>,
     session_scanner: tokio::sync::OnceCell<SessionScanner>,
     /// Scoped session registry — maps session tokens to DaemonSession.
@@ -632,9 +632,9 @@ impl ShipRuntime {
     /// that's where `packages/` and `views/` live.
     ///
     /// Dev-mode override: if the workspace contains a checked-in
-    /// `runtime/bundler.ts`, point the worker at *that* copy instead of
+    /// `packages/deck/bundler/index.ts`, point the worker at *that* copy instead of
     /// the one stashed under `~/.ship/runtime/`. Without this, contributors
-    /// editing `runtime/bundler.ts` in the repo see no effect until
+    /// editing `packages/deck/bundler/index.ts` in the repo see no effect until
     /// they re-run `ship runtime install` — a footgun that has bitten more
     /// than one debugging session.
     pub fn bundler(&self) -> &ship_platform::bundler::Bundler {
@@ -652,11 +652,21 @@ impl ShipRuntime {
                 .clone()
                 .or_else(|| std::env::current_dir().ok())
                 .unwrap_or_else(|| self.ship_dir.clone());
-            let bundler_override = repo_root.join("runtime").join("bundler.ts");
+            // Prefer the canonical in-repo bundler source over the deployed
+            // copy at `~/.ship/runtime/bundler.ts`. The deployed copy drifts
+            // (only refreshed by `ship runtime install`), so a dev daemon
+            // running against the repo must use the live source — otherwise a
+            // stale worker emits to old asset paths. `packages/deck/bundler/
+            // index.ts` IS the worker script (same stdin/stdout protocol).
+            let bundler_override = repo_root
+                .join("packages")
+                .join("deck")
+                .join("bundler")
+                .join("index.ts");
             if bundler_override.is_file() {
                 tracing::info!(
                     path = %bundler_override.display(),
-                    "bundler: using in-repo bundler.ts (dev override)"
+                    "bundler: using in-repo bundler source (dev override)"
                 );
                 ship_platform::bundler::Bundler::start_with_script(
                     &home,
@@ -692,11 +702,20 @@ impl ShipRuntime {
     ///
     /// On first call, subscribes to job events and reconciles orphaned
     /// dispatched jobs from previous daemon runs.
-    pub async fn jobs(&self) -> &JobManager {
+    pub async fn jobs(&self) -> &RunManager {
         let hr = self.health_registry.clone();
+        let registry = self.session_registry.clone();
+        let daemon_url = self.daemon_origin();
         self.jobs
             .get_or_init(|| async {
-                JobManager::init(self.kernel.clone(), self.ship_dir.clone(), &hr).await
+                RunManager::init(
+                    self.kernel.clone(),
+                    self.ship_dir.clone(),
+                    &hr,
+                    registry,
+                    daemon_url,
+                )
+                .await
             })
             .await
     }

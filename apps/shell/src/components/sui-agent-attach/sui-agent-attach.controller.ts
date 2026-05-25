@@ -21,8 +21,8 @@ interface TerminalEl extends HTMLElement {
 }
 
 type HostEl = HTMLElement & {
-  connect?: () => void
-  disconnect?: () => void
+  connect?: (() => void) | undefined
+  disconnect?: (() => void) | undefined
 }
 
 export default controller<Scope>({

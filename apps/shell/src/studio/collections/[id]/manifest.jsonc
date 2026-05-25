@@ -1,0 +1,8 @@
+{
+  "name": "collections-detail",
+  "path": "/studio/collections/[id]",
+  "title": "Collection",
+  "layout": "default",
+  "auth": "user",
+  "events": ["collection.item_created", "collection.item_updated", "collection.item_deleted"]
+}

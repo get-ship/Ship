@@ -1,7 +1,7 @@
 // Lucide icon registry helpers for `<sui-icon>`.
 //
 // The lucide table is emitted as a JSON asset
-// (`crates/sui/ship-sui-server/assets/lucide-icons.json`) served at
+// (`crates/deck/deck-server/assets/lucide-icons.json`) served at
 // `/_sui/lucide-icons.json`. R4 of the components-bundle audit moved
 // the SVG paths out of `sui-components.js` to drop ~13 KB raw / ~2 KB
 // gz off the every-page bundle.
@@ -25,45 +25,63 @@ const ALIASES: Record<string, string> = {
 
 const ICON_REGISTRY_URL = '/_sui/lucide-icons.json'
 
-let registry: Record<string, string> | null = null
-let pending: Promise<Record<string, string>> | null = null
+// Pin state to globalThis so the singleton survives vitest's per-file
+// module transforms: the controller is loaded via the mirror-tree
+// `.compiled.js` (which transforms it through one path), while the
+// test setup primes the registry via a direct relative import — under
+// jsdom these can end up as separate module instances unless we stash
+// state on a shared global. Production browsers see a single module
+// regardless; this is purely a test-safety belt.
+type RegistryState = {
+  map: Record<string, string> | null
+  pending: Promise<Record<string, string>> | null
+}
+const GLOBAL_KEY = '__shipIconRegistry__'
+const g = globalThis as unknown as { [GLOBAL_KEY]?: RegistryState }
+function state(): RegistryState {
+  if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = { map: null, pending: null }
+  return g[GLOBAL_KEY]
+}
 
 export function setIconRegistry(map: Record<string, string>): void {
-  registry = map
-  pending = null
+  const s = state()
+  s.map = map
+  s.pending = null
 }
 
 export function getIconRegistry(): Record<string, string> | null {
-  return registry
+  return state().map
 }
 
 export function loadIconRegistry(): Promise<Record<string, string>> {
-  if (registry) return Promise.resolve(registry)
-  if (pending) return pending
-  pending = fetch(ICON_REGISTRY_URL)
+  const s = state()
+  if (s.map) return Promise.resolve(s.map)
+  if (s.pending) return s.pending
+  s.pending = fetch(ICON_REGISTRY_URL)
     .then((r) => {
       if (!r.ok) throw new Error(`lucide registry fetch ${r.status}`)
       return r.json() as Promise<Record<string, string>>
     })
     .then((map) => {
-      registry = map
+      s.map = map
       return map
     })
     .catch((err) => {
-      pending = null
+      s.pending = null
       throw err
     })
-  return pending
+  return s.pending
 }
 
 export function resolveIconName(name: string): string | undefined {
-  if (!name || !registry) return undefined
-  if (registry[name]) return name
+  const map = state().map
+  if (!name || !map) return undefined
+  if (map[name]) return name
   const aliased = ALIASES[name]
-  if (aliased && registry[aliased]) return aliased
+  if (aliased && map[aliased]) return aliased
   return undefined
 }
 
 export function getIconSvg(resolved: string): string | undefined {
-  return registry ? registry[resolved] : undefined
+  return state().map?.[resolved]
 }

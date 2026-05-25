@@ -9,8 +9,8 @@
 pub mod agent_session;
 pub mod auth;
 pub mod compile_state;
-pub mod job;
-pub mod job_transitions;
+pub mod pipeline_run;
+pub mod pipeline_run_transitions;
 pub mod projects;
 
 pub use agent_session::{
@@ -23,8 +23,8 @@ pub use auth::{
     AuthSessionRow, AuthSessionsProjection, DaemonOwnerProjection, DaemonOwnerRow,
 };
 pub use compile_state::{CompileStateProjection, ProjectCompileState};
-pub use job::{
-    JobProjection, PipelineRun, JobStatus, load_job_by_id, load_job_by_id_at, load_job_by_slug,
-    load_job_by_slug_at, load_jobs, project as project_jobs,
+pub use pipeline_run::{
+    PipelineRunProjection, PipelineRun, PipelineRunStatus, load_pipeline_run_by_id, load_pipeline_run_by_id_at, load_pipeline_run_by_slug,
+    load_pipeline_run_by_slug_at, load_pipeline_runs, project as project_pipeline_runs,
 };
 pub use projects::{ProjectRow, ProjectsProjection};

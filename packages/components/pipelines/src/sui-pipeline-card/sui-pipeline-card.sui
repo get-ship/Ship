@@ -1,0 +1,63 @@
+<!--
+  <sui-pipeline-card> — card form for pipeline lists. Identity + last-run state
+  (left rail + chip) + step-type summary + recent-runs sparkline.
+
+  Props:  state (ok|running|awaiting|err|none) · interactive
+  Slots:  default = name · desc · steps (type-chip summary) · recent (sparkline)
+  Parts:  card · chip
+-->
+<prop name="state" values="ok|running|awaiting|err|none" default="none" reflect />
+<prop name="interactive" type="bool" default="false" reflect />
+
+<style>
+  :host { display: block; --state: var(--border); }
+  :host([hidden]) { display: none; }
+  :host([state='ok'])       { --state: var(--success); }
+  :host([state='running'])  { --state: var(--info); }
+  :host([state='awaiting']) { --state: var(--warning); }
+  :host([state='err'])      { --state: var(--destructive); }
+
+  .card {
+    background: var(--background); border: 1px solid var(--border);
+    border-left: 3px solid var(--state);
+    border-radius: var(--radius-md); padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  :host([interactive]) .card { cursor: pointer; transition: border-color 120ms var(--ease-out, ease); }
+  :host([interactive]) .card:hover { border-color: color-mix(in oklch, var(--state) 50%, var(--border)); }
+
+  .h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .name { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--foreground); }
+
+  .chip {
+    display: none; align-items: center; gap: 5px;
+    font-family: var(--font-mono); font-size: 10px; padding: 1px 7px;
+    border-radius: var(--radius-full); border: 1px solid;
+    text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+    color: var(--state); border-color: color-mix(in oklch, var(--state) 35%, transparent);
+  }
+  :host(:not([state='none'])) .chip { display: inline-flex; }
+  .chip .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  :host([state='running']) .chip .dot,
+  :host([state='awaiting']) .chip .dot { animation: pl-pulse 1.6s ease-in-out infinite; }
+  @keyframes pl-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .desc { margin: 0; font-size: 11.5px; color: var(--muted-foreground); line-height: 1.4; }
+  .desc:not(:has(::slotted(*))) { display: none; }
+
+  .steps { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .steps:not(:has(::slotted(*))) { display: none; }
+
+  .recent { display: flex; gap: 3px; }
+  .recent:not(:has(::slotted(*))) { display: none; }
+</style>
+
+<article class="card" part="card">
+  <div class="h">
+    <span class="name"><slot></slot></span>
+    <span class="chip" part="chip"><span class="dot"></span>{stateLabel()}</span>
+  </div>
+  <p class="desc"><slot name="desc"></slot></p>
+  <div class="steps"><slot name="steps"></slot></div>
+  <div class="recent"><slot name="recent"></slot></div>
+</article>

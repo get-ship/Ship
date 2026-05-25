@@ -24,7 +24,7 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use ship_substrate::events::KernelRouter;
 use ship_platform::services::dispatch_ports::{
-    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
+    ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
 use ship_platform::services::server_session::{ServerSession, SessionEvent};
 use tokio::sync::Mutex as TokioMutex;
@@ -70,8 +70,8 @@ impl ServerState {
 }
 
 #[async_trait]
-impl JobExecutor for ServerExecutor {
-    async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
+impl SessionExecutor for ServerExecutor {
+    async fn spawn(&self, ctx: &SessionContext) -> Result<ExecutorHandle> {
         let prompt = build_prompt(ctx);
         let turn_id = self
             .session
@@ -86,11 +86,11 @@ impl JobExecutor for ServerExecutor {
 
         let exit_tx = ctx.exit_tx.clone();
         let slug = ctx.slug.clone();
-        let job_id = ctx.job_id.clone();
+        let pipeline_run_id = ctx.pipeline_run_id.clone();
         let harness = self.session.harness().to_string();
         let turn_id_mon = turn_id.clone();
         tokio::spawn(async move {
-            translate_events(events, exit_tx, slug, job_id, harness, turn_id_mon).await;
+            translate_events(events, exit_tx, slug, pipeline_run_id, harness, turn_id_mon).await;
         });
 
         tracing::info!(
@@ -141,7 +141,7 @@ impl JobExecutor for ServerExecutor {
 /// Read `.artifacts/job-spec.md` from the work dir; fall back to a
 /// generic instruction if absent. Mirrors `ProcessExecutor`'s default
 /// autostart prompt so the two paths submit the same work.
-fn build_prompt(ctx: &JobContext) -> String {
+fn build_prompt(ctx: &SessionContext) -> String {
     let spec = ctx.work_dir.join(&ctx.spec_path);
     std::fs::read_to_string(&spec).unwrap_or_else(|_| FALLBACK_PROMPT.to_string())
 }
@@ -155,7 +155,7 @@ async fn translate_events(
     mut events: tokio::sync::mpsc::UnboundedReceiver<SessionEvent>,
     exit_tx: Option<tokio::sync::mpsc::UnboundedSender<ExitSignal>>,
     slug: String,
-    job_id: String,
+    pipeline_run_id: String,
     harness: String,
     turn_id: String,
 ) {
@@ -167,7 +167,7 @@ async fn translate_events(
                 if let Some(tx) = &exit_tx {
                     let _ = tx.send(ExitSignal {
                         slug: slug.clone(),
-                        job_id: job_id.clone(),
+                        pipeline_run_id: pipeline_run_id.clone(),
                         exit_code: Some(0),
                         cause: ExitCause::AgentExited,
                     });
@@ -180,7 +180,7 @@ async fn translate_events(
                 if let Some(tx) = &exit_tx {
                     let _ = tx.send(ExitSignal {
                         slug: slug.clone(),
-                        job_id: job_id.clone(),
+                        pipeline_run_id: pipeline_run_id.clone(),
                         exit_code: Some(1),
                         cause: ExitCause::AgentExited,
                     });
@@ -215,7 +215,7 @@ async fn translate_events(
     if let Some(tx) = &exit_tx {
         let _ = tx.send(ExitSignal {
             slug,
-            job_id,
+            pipeline_run_id,
             exit_code: None,
             cause: ExitCause::SessionDestroyed,
         });

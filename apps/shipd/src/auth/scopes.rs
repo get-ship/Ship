@@ -10,8 +10,9 @@ use serde_json::json;
 // Re-export the platform's policy primitives so existing
 // `crate::auth::scopes::Scope` import paths continue to resolve.
 pub use ship_platform::auth::scopes::{
-    DaemonSession, RequiredAuth, Scope, SessionRegistry, drop_session, generate_session_token,
-    hydrate_sessions, is_session_token, mint_session, persist_session, remove_persisted_session,
+    DaemonSession, McpAuth, RequiredAuth, Scope, SessionRegistry, drop_session,
+    generate_session_token, hydrate_sessions, is_session_token, mint_session, persist_session,
+    remove_persisted_session,
     scopes_for_role,
 };
 pub use ship_platform::auth::sweeper::spawn_session_sweeper;
@@ -157,7 +158,7 @@ pub struct SessionRegisterRequest {
 #[derive(serde::Serialize, utoipa::ToSchema)]
 #[schema(example = json!({
     "session_token": "ses_01J3Z5ZQXAM3E4T7W",
-    "scopes": ["read_workspace", "read_jobs", "emit_events"]
+    "scopes": ["read_workspace", "read_runs", "emit_events"]
 }))]
 pub struct SessionRegisterResponse {
     pub session_token: String,
@@ -208,6 +209,9 @@ pub async fn session_register(
         }
         other => other,
     };
+    // `mint_session` builds the scopes + grants axes, inserts the session into
+    // the registry, and returns the token — the manual construction main used
+    // is folded into it (it now sets `grants` via `grants_for_role`).
     let (token, scopes) = match mint_session(
         &registry,
         req.agent_id,

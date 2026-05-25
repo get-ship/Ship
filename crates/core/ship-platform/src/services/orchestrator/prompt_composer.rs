@@ -11,7 +11,7 @@ use ship_substrate::events::{EventFilter, EventStore, SqliteEventStore};
 
 /// Fields read from the `job.created` event that the dispatch path needs.
 /// Missing fields become empty / None so callers don't have to branch.
-pub struct JobContextFromEvents {
+pub struct SessionContextFromEvents {
     pub user_spec_body: String,
     pub pipeline_name: Option<String>,
 }
@@ -19,8 +19,8 @@ pub struct JobContextFromEvents {
 /// Load (`user_spec_body`, `pipeline_name`) from the `job.created` event for
 /// this job. Returns defaults if the event isn't found — step dispatch never
 /// blocks on event-log lookups.
-pub fn load_job_context(job_id: &str) -> JobContextFromEvents {
-    let mut out = JobContextFromEvents {
+pub fn load_job_context(pipeline_run_id: &str) -> SessionContextFromEvents {
+    let mut out = SessionContextFromEvents {
         user_spec_body: String::new(),
         pipeline_name: None,
     };
@@ -29,7 +29,7 @@ pub fn load_job_context(job_id: &str) -> JobContextFromEvents {
     };
     let envelopes = store
         .query(&EventFilter {
-            entity_id: Some(job_id.to_string()),
+            entity_id: Some(pipeline_run_id.to_string()),
             event_type: Some("pipeline.run.started".to_string()),
             ..Default::default()
         })

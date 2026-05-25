@@ -12,27 +12,27 @@
   :host { display: block; height: 100%; overflow: auto; }
   :host([hidden]) { display: none; }
   .empty {
-    padding: 24px;
+    padding: var(--space-6);
     text-align: center;
     color: var(--muted-foreground);
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
   .empty .ok {
-    color: var(--success, #16a34a);
+    color: var(--success);
     font-weight: var(--font-weight-medium, 500);
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-1);
   }
   .list { display: flex; flex-direction: column; }
   .row {
     display: grid;
     grid-template-columns: 56px 1fr;
-    gap: 8px;
+    gap: var(--space-2);
     align-items: baseline;
-    padding: 8px 12px;
+    padding: var(--space-2) var(--space-3);
     border-bottom: 1px solid color-mix(in oklab, var(--border) 40%, transparent);
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
   .row:hover { background: var(--hover-bg, var(--sidebar-accent)); }
   .row .loc {
@@ -46,8 +46,8 @@
     font-family: var(--font-mono);
     white-space: pre-wrap;
   }
-  .row[data-severity="warning"] .loc { color: var(--warning, #ca8a04); }
-  .row[data-severity="error"]   .loc { color: var(--destructive, #ef4444); }
+  .row[data-severity="warning"] .loc { color: var(--warning); }
+  .row[data-severity="error"]   .loc { color: var(--destructive); }
 </style>
 
 {#if errors().length === 0}

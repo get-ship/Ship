@@ -74,7 +74,7 @@ mod tests_fanout_cancel;
 mod tests_fanout_recover;
 
 use crate::services::dispatch_ports::{
-    AgentPlatform, IsolationStrategy, JobExecutor, ProcessRegistryPort, ProcessTreeProbe,
+    AgentPlatform, IsolationStrategy, SessionExecutor, ProcessRegistryPort, ProcessTreeProbe,
 };
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
@@ -96,7 +96,7 @@ pub use ship_pipelines::fanout::LaneOutcome;
 /// Reference that links a lane slug back to its parent fanout step.
 #[derive(Debug, Clone)]
 pub struct FanoutLaneRef {
-    pub job_id: String,
+    pub pipeline_run_id: String,
     pub parent_slug: String,
     pub fanout_step_id: String,
     pub fanout_step_index: usize,
@@ -111,7 +111,7 @@ pub struct FanoutLaneRef {
 #[derive(Clone)]
 pub struct OrchestratorContext {
     pub isolation: Arc<dyn IsolationStrategy>,
-    pub executor: Arc<dyn JobExecutor>,
+    pub executor: Arc<dyn SessionExecutor>,
     pub platform: Arc<dyn AgentPlatform>,
     pub registry: Arc<dyn ProcessRegistryPort>,
     /// Subprocess-tree heartbeat probe used by `StepMonitor` to distinguish
@@ -124,7 +124,7 @@ pub struct OrchestratorContext {
     pub activity_txs: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<StepActivity>>>>,
     /// Per-job advancement lock. Prevents two concurrent events from
     /// double-dispatching the same next step.
-    pub job_locks: Arc<Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
+    pub run_locks: Arc<Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
     /// Event-id dedup at the router entry point. Prevents a replayed
     /// envelope (mailbox redelivery, startup replay race, test replay)
     /// from advancing the pipeline twice.

@@ -44,12 +44,6 @@ fn opencode_patch_only_for_opencode_harness() {
             .is_none()
     );
     assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .opencode_config_patch
-            .is_none()
-    );
-    assert!(
         compile(&r, "cursor")
             .unwrap()
             .opencode_config_patch
@@ -146,10 +140,6 @@ fn opencode_mcp_remote_format() {
         timeout_secs: None,
         codex_enabled_tools: vec![],
         codex_disabled_tools: vec![],
-        gemini_trust: None,
-        gemini_include_tools: vec![],
-        gemini_exclude_tools: vec![],
-        gemini_timeout_ms: None,
         cursor_env_file: None,
     };
     let r = resolved(vec![s]);
@@ -284,10 +274,13 @@ fn opencode_permissions_omitted_when_default() {
 #[test]
 fn opencode_settings_extra_merged() {
     let r = ResolvedConfig {
-        opencode_settings_extra: Some(serde_json::json!({
-            "theme": "dark",
-            "autoupdate": false
-        })),
+        opencode: crate::compile::OpenCodeSettings {
+            settings_extra: Some(serde_json::json!({
+                "theme": "dark",
+                "autoupdate": false
+            })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let patch = opencode_patch(&r);
@@ -300,7 +293,10 @@ fn opencode_settings_extra_merged_last() {
     // settings_extra should overwrite Ship-managed keys (escape hatch)
     let r = ResolvedConfig {
         model: Some("anthropic/claude-sonnet-4-5".to_string()),
-        opencode_settings_extra: Some(serde_json::json!({ "model": "openai/o3" })),
+        opencode: crate::compile::OpenCodeSettings {
+            settings_extra: Some(serde_json::json!({ "model": "openai/o3" })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let patch = opencode_patch(&r);

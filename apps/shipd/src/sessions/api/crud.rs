@@ -93,7 +93,6 @@ const KNOWN_HARNESSES: &[(&str, &str)] = &[
     ("claude", "claude"),
     ("codex", "codex"),
     ("cursor", "cursor-agent"),
-    ("gemini", "gemini"),
     ("opencode", "opencode"),
 ];
 

@@ -1,0 +1,9 @@
+{
+  "name": "collections",
+  "path": "/studio/collections",
+  "title": "Collections",
+  "layout": "default",
+  "auth": "user",
+  "rail": { "label": "Collections", "icon": "database" },
+  "events": ["collection.item_created", "collection.item_updated", "collection.item_deleted"]
+}

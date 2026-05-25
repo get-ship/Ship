@@ -15,12 +15,12 @@ use serde_json::Value;
 
 // ── Embedded manifest ───────────────────────────────────────────────────────
 
-const SDK_URLS: &str = include_str!("../../../../packages/sdk/src/generated/sdk-urls.json");
+const SDK_URLS: &str = include_str!("../../../../packages/deck/sdk/src/generated/sdk-urls.json");
 const SDK_VIEW_CONTEXTS: &str =
-    include_str!("../../../../packages/sdk/src/generated/sdk-view-contexts.json");
-const SDK_VIEWS: &str = include_str!("../../../../packages/sdk/src/generated/sdk-views.json");
-const SDK_COLLECTIONS: &str = include_str!("../../../../packages/sdk/src/generated/sdk-collections.json");
-const SDK_TRIGGERS: &str = include_str!("../../../../packages/sdk/src/generated/sdk-triggers.json");
+    include_str!("../../../../packages/deck/sdk/src/generated/sdk-view-contexts.json");
+const SDK_VIEWS: &str = include_str!("../../../../packages/deck/sdk/src/generated/sdk-views.json");
+const SDK_COLLECTIONS: &str = include_str!("../../../../packages/deck/sdk/src/generated/sdk-collections.json");
+const SDK_TRIGGERS: &str = include_str!("../../../../packages/deck/sdk/src/generated/sdk-triggers.json");
 
 /// Parsed cache. Parse-on-first-access, reused for the life of the process.
 struct Parsed {

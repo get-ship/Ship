@@ -46,7 +46,7 @@ pub enum Commands {
         /// Configure ~/.ship/ identity and defaults instead of current project
         #[arg(long)]
         global: bool,
-        /// Default harness target (claude, gemini, codex, cursor)
+        /// Default harness target (claude, codex, cursor, opencode)
         #[arg(long)]
         harness: Option<String>,
         /// Overwrite existing .ship/ configuration
@@ -62,6 +62,15 @@ pub enum Commands {
 
     /// Show current identity
     Whoami,
+
+    /// Daemon build/version, via the ConnectRPC op surface (ship.ops.v1)
+    Meta,
+
+    /// List or invoke the daemon op surface over ConnectRPC (the agent interface)
+    Ops {
+        #[command(subcommand)]
+        action: OpsCommands,
+    },
 
     /// Pair a browser session (Studio) with the local daemon
     Auth {
@@ -91,6 +100,12 @@ pub enum Commands {
         /// Compile immediately after activating
         #[arg(long, default_value_t = true)]
         compile: bool,
+        /// Compile for a daemon-spawned scoped launch (dispatch / command-bar /
+        /// sandbox): emit the daemon-hosted authed-HTTP `ship` MCP entry
+        /// (scope-enforced) instead of the trusted-local stdio shim. The
+        /// dispatcher sets this; a manual `ship use` omits it.
+        #[arg(long)]
+        scoped: bool,
         /// Extra skill IDs to inject at compile time (repeatable)
         #[arg(long = "with", value_name = "SKILL_ID")]
         with_skills: Vec<String>,
@@ -108,7 +123,7 @@ pub enum Commands {
         /// Path to a job spec markdown; copied to .artifacts/job-spec.md. Implies --launch.
         #[arg(long, conflicts_with = "prompt")]
         spec: Option<PathBuf>,
-        /// Per-launch harness override (claude, codex, gemini, cursor).
+        /// Per-launch harness override (claude, codex, cursor, opencode).
         #[arg(long)]
         harness: Option<String>,
         /// Per-launch model override (e.g. sonnet, opus).
@@ -149,7 +164,7 @@ pub enum Commands {
 
     /// Compile the active agent to harness-native config files
     Compile {
-        /// Compile for a specific harness only (claude, gemini, codex, cursor)
+        /// Compile for a specific harness only (claude, codex, cursor, opencode)
         #[arg(long)]
         harness: Option<String>,
         /// Preview output without writing any files
@@ -363,6 +378,20 @@ pub enum Commands {
 }
 
 #[derive(Subcommand, Debug)]
+pub enum OpsCommands {
+    /// List the available ops (reads + commands) from the registry
+    List,
+    /// Invoke an op by name over ConnectRPC
+    Call {
+        /// Op name, e.g. `git.status` or `pipeline.update_status`
+        name: String,
+        /// JSON args object, e.g. `{"workspace_id":"x"}`
+        #[arg(long)]
+        json: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
 pub enum OpenapiCommands {
     /// Print the daemon's OpenAPI spec as JSON
     Export {
@@ -502,7 +531,7 @@ pub enum ConfigCommands {
 #[derive(Subcommand, Debug)]
 pub enum RuntimeCommands {
     /// Install or repair ~/.ship/runtime/ from local sources (Bun on PATH +
-    /// in-repo target/release/sui-compiler + runtime/bundler.ts by
+    /// in-repo target/release/sui-compiler + packages/deck/bundler/index.ts by
     /// default; override with --bun / --sui-compiler).
     Install {
         /// Path to the Bun binary to copy in. Defaults to `which bun`.

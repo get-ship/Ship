@@ -1,0 +1,105 @@
+{
+  "name": "ship-feature",
+  "def": {
+    "name": "ship-feature",
+    "description": "Spec → implement → gate → merge.",
+    "step_count": 4,
+    "active_runs": 0,
+    "total_runs": 12,
+    "success_runs": 10,
+    "failed_runs": 2,
+    "success_rate": 0.8299999833106995,
+    "last_run_at": "2026-01-01T09:04:12Z",
+    "last_run_status": "merged",
+    "last_run_tone": "success",
+    "last_run_slug": "typed-ops-a1b2c3d",
+    "recent_outcomes": [
+      "merged",
+      "merged",
+      "failed"
+    ]
+  },
+  "doc": {
+    "steps": [
+      {
+        "id": "build",
+        "type": "agent",
+        "agent": "rust-lane"
+      }
+    ]
+  },
+  "raw": "steps:\n  - id: build\n    type: agent\n    agent: rust-lane\n",
+  "format": "yaml",
+  "workspace_id": null,
+  "runs": [
+    {
+      "job_id": "job-typed-ops",
+      "slug": "typed-ops-a1b2c3d",
+      "agent": "rust-lane",
+      "branch": "job/typed-ops",
+      "state": "completed",
+      "tone": "success",
+      "status_text": "merged",
+      "duration": "4m 12s",
+      "updated_at": "2026-01-01T09:04:12Z",
+      "steps": [
+        {
+          "id": "build",
+          "step_type": "agent",
+          "state": "completed",
+          "agent": "rust-lane"
+        }
+      ],
+      "branch_stats": {
+        "commits_ahead": 3,
+        "dirty_files": 0
+      },
+      "segments": [
+        "success"
+      ],
+      "harness": "claude",
+      "model": "opus",
+      "blocker": "",
+      "error": "",
+      "depends_on": []
+    }
+  ],
+  "active_for_pipeline": [],
+  "other_for_pipeline": [
+    {
+      "job_id": "job-typed-ops",
+      "slug": "typed-ops-a1b2c3d",
+      "agent": "rust-lane",
+      "branch": "job/typed-ops",
+      "state": "completed",
+      "tone": "success",
+      "status_text": "merged",
+      "duration": "4m 12s",
+      "updated_at": "2026-01-01T09:04:12Z",
+      "steps": [
+        {
+          "id": "build",
+          "step_type": "agent",
+          "state": "completed",
+          "agent": "rust-lane"
+        }
+      ],
+      "branch_stats": {
+        "commits_ahead": 3,
+        "dirty_files": 0
+      },
+      "segments": [
+        "success"
+      ],
+      "harness": "claude",
+      "model": "opus",
+      "blocker": "",
+      "error": "",
+      "depends_on": []
+    }
+  ],
+  "ops_mode": false,
+  "harnesses": [
+    "claude"
+  ]
+}

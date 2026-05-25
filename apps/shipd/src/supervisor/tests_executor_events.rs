@@ -94,7 +94,7 @@ async fn session_destroyed_emits_job_failed_not_completed() {
         Arc::clone(&kernel),
         ExitSignal {
             slug: "op-killed".to_string(),
-            job_id: "j-op-1".to_string(),
+            pipeline_run_id: "j-op-1".to_string(),
             exit_code: None,
             cause: ExitCause::SessionDestroyed,
         },
@@ -141,7 +141,7 @@ async fn agent_exited_clean_still_emits_job_completed() {
         Arc::clone(&kernel),
         ExitSignal {
             slug: "ok-job".to_string(),
-            job_id: "j-ok-1".to_string(),
+            pipeline_run_id: "j-ok-1".to_string(),
             exit_code: Some(0),
             cause: ExitCause::AgentExited,
         },
@@ -176,7 +176,7 @@ async fn agent_exited_nonzero_emits_job_failed() {
         Arc::clone(&kernel),
         ExitSignal {
             slug: "err-job".to_string(),
-            job_id: "j-err-1".to_string(),
+            pipeline_run_id: "j-err-1".to_string(),
             exit_code: Some(1),
             cause: ExitCause::AgentExited,
         },
@@ -208,7 +208,7 @@ async fn agent_exited_unknown_code_emits_job_failed() {
         Arc::clone(&kernel),
         ExitSignal {
             slug: "unknown-job".to_string(),
-            job_id: "j-unk-1".to_string(),
+            pipeline_run_id: "j-unk-1".to_string(),
             exit_code: None,
             cause: ExitCause::AgentExited,
         },
@@ -243,7 +243,7 @@ async fn agent_exited_unknown_code_emits_job_failed() {
 use async_trait::async_trait;
 use ship_substrate::events::executor::EXECUTOR_SESSION_DESTROYED;
 use ship_platform::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, SessionContext, SessionExecutor,
 };
 
 /// Stub executor so ShipdPlatform can be constructed in tests without
@@ -251,8 +251,8 @@ use ship_platform::services::dispatch_ports::{
 struct NoopJobExecutor;
 
 #[async_trait]
-impl JobExecutor for NoopJobExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for NoopJobExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Ok(ExecutorHandle { pid: None, inner: Box::new(()) })
     }
     async fn is_alive(&self, _handle: &ExecutorHandle) -> bool { false }
@@ -265,6 +265,8 @@ fn build_platform(kernel: Arc<Mutex<KernelRouter>>) -> ship_supervisor::platform
         registry: Arc::new(Mutex::new(ProcessRegistry::new())),
         executor: Arc::new(NoopJobExecutor),
         kernel,
+        session_registry: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
+        daemon_base_url: String::new(),
     }
 }
 

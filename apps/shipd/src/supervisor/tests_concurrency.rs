@@ -6,39 +6,39 @@
 
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::job::{project, JobStatus};
+use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
-    let job_id = payload["job_id"].as_str().unwrap_or("test");
-    EventEnvelope::new(event_type, job_id, &payload).unwrap()
+    let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or("test");
+    EventEnvelope::new(event_type, pipeline_run_id, &payload).unwrap()
 }
 
-fn created(job_id: &str, slug: &str) -> EventEnvelope {
+fn created(pipeline_run_id: &str, slug: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-        "job_id": job_id, "slug": slug,
+        "pipeline_run_id": pipeline_run_id, "slug": slug,
         "agent": "rust-runtime", "branch": format!("job/{slug}"),
         "spec_path": "spec.md", "plan_id": null,
     }))
 }
 
-fn created_with_deps(job_id: &str, slug: &str, deps: Vec<&str>) -> EventEnvelope {
+fn created_with_deps(pipeline_run_id: &str, slug: &str, deps: Vec<&str>) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-        "job_id": job_id, "slug": slug,
+        "pipeline_run_id": pipeline_run_id, "slug": slug,
         "agent": "rust-runtime", "branch": format!("job/{slug}"),
         "spec_path": "spec.md", "plan_id": null,
         "depends_on": deps,
     }))
 }
 
-fn dispatched(job_id: &str) -> EventEnvelope {
+fn dispatched(pipeline_run_id: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
-        "job_id": job_id, "worktree": format!("/tmp/wt/{job_id}"), "pid": null,
+        "pipeline_run_id": pipeline_run_id, "worktree": format!("/tmp/wt/{pipeline_run_id}"), "pid": null,
     }))
 }
 
-fn completed(job_id: &str) -> EventEnvelope {
+fn completed(pipeline_run_id: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
-        "job_id": job_id, "slug": "s",
+        "pipeline_run_id": pipeline_run_id, "slug": "s",
     }))
 }
 
@@ -80,10 +80,10 @@ fn three_dispatched_blocks_new_dispatch() {
     ];
     let map = project(&events);
     let dispatched_count = map.values()
-        .filter(|j| j.status == JobStatus::Dispatched)
+        .filter(|j| j.status == PipelineRunStatus::Dispatched)
         .count();
     let pending_count = map.values()
-        .filter(|j| j.status == JobStatus::Pending)
+        .filter(|j| j.status == PipelineRunStatus::Pending)
         .count();
     assert_eq!(dispatched_count, 3);
     assert_eq!(pending_count, 1, "j4 must stay pending when 3 slots are full");
@@ -101,10 +101,10 @@ fn completed_job_frees_slot_for_pending() {
     ];
     let map = project(&events);
     let completed_count = map.values()
-        .filter(|j| j.status == JobStatus::Completed)
+        .filter(|j| j.status == PipelineRunStatus::Completed)
         .count();
     let pending_count = map.values()
-        .filter(|j| j.status == JobStatus::Pending)
+        .filter(|j| j.status == PipelineRunStatus::Pending)
         .count();
     assert_eq!(completed_count, 1, "j1 completed");
     assert_eq!(pending_count, 1, "j4 still pending in projection — dispatch_ready_pending_jobs acts on this");
@@ -119,18 +119,18 @@ fn completed_job_frees_slot_for_pending() {
 
 /// A job depending on a pending job must stay pending.
 #[test]
-fn job_with_unresolved_dep_stays_pending() {
+fn run_with_unresolved_dep_stays_pending() {
     let events = vec![
         created("j1", "upstream"),
         created_with_deps("j2", "downstream", vec!["upstream"]),
     ];
     let map = project(&events);
-    assert_eq!(map.get("j2").unwrap().status, JobStatus::Pending);
+    assert_eq!(map.get("j2").unwrap().status, PipelineRunStatus::Pending);
 }
 
 /// A job depending on a completed job is dispatchable.
 #[test]
-fn job_with_resolved_dep_is_dispatchable() {
+fn run_with_resolved_dep_is_dispatchable() {
     let events = vec![
         created("j1", "upstream"),
         dispatched("j1"),
@@ -139,11 +139,11 @@ fn job_with_resolved_dep_is_dispatchable() {
     ];
     let map = project(&events);
     let j2 = map.get("j2").unwrap();
-    assert_eq!(j2.status, JobStatus::Pending);
+    assert_eq!(j2.status, PipelineRunStatus::Pending);
 
     // Check deps are resolved
     let done_slugs: std::collections::HashSet<&str> = map.values()
-        .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Completed | PipelineRunStatus::Merged))
         .map(|j| j.slug.as_str())
         .collect();
     let deps_resolved = j2.depends_on.as_ref()
@@ -153,7 +153,7 @@ fn job_with_resolved_dep_is_dispatchable() {
 
 /// A job with multiple dependencies waits for ALL of them.
 #[test]
-fn job_with_multiple_deps_waits_for_all() {
+fn run_with_multiple_deps_waits_for_all() {
     let events = vec![
         created("j1", "dep-a"),
         created("j2", "dep-b"),
@@ -163,7 +163,7 @@ fn job_with_multiple_deps_waits_for_all() {
     ];
     let map = project(&events);
     let done_slugs: std::collections::HashSet<&str> = map.values()
-        .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Completed | PipelineRunStatus::Merged))
         .map(|j| j.slug.as_str())
         .collect();
     let j3 = map.get("j3").unwrap();
@@ -174,11 +174,11 @@ fn job_with_multiple_deps_waits_for_all() {
 
 /// A job with no dependencies is immediately dispatchable.
 #[test]
-fn job_without_deps_is_immediately_dispatchable() {
+fn run_without_deps_is_immediately_dispatchable() {
     let events = vec![created("j1", "no-deps")];
     let map = project(&events);
     let j1 = map.get("j1").unwrap();
-    assert_eq!(j1.status, JobStatus::Pending);
+    assert_eq!(j1.status, PipelineRunStatus::Pending);
     assert!(j1.depends_on.is_none() || j1.depends_on.as_ref().unwrap().is_empty());
 }
 

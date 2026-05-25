@@ -25,7 +25,6 @@ describe("kernel / directed events visible to SSE", () => {
       const dispatched = await dispatch({
         agent: "shipwright",
         harness: "claude",
-        auto: true,
         workspace: "directed-evt",
       });
 

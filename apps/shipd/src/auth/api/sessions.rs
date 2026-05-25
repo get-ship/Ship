@@ -15,7 +15,7 @@ use crate::auth::scopes::{Scope, SessionRegistry, remove_persisted_session};
     "token_prefix": "ses_01J3Z5ZQ",
     "agent_id": "agent-writer",
     "workspace_id": "default",
-    "scopes": ["read_workspace", "manage_jobs"],
+    "scopes": ["read_workspace", "manage_runs"],
     "expires_at_unix": 1_777_000_000,
     "ephemeral": false
 }))]

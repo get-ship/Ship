@@ -1,7 +1,7 @@
 //! Periodic coherence sweep — detects and resolves drift between job
 //! projections and live processes every 30 seconds.
 
-use ship_substrate::events::pipeline::{event_types as job_events, PipelineRunFailedPayload, StepType};
+use ship_substrate::events::pipeline::{event_types as run_events, PipelineRunFailedPayload, StepType};
 use ship_substrate::events::process::{event_types as proc_events, ProcessKilledPayload};
 use ship_substrate::events::supervisor::{
     event_types as sup_events, CoherenceRestoredPayload, DriftDetectedPayload,
@@ -9,7 +9,7 @@ use ship_substrate::events::supervisor::{
 };
 use ship_substrate::events::EventEnvelope;
 use crate::projections::agent_session::{load_sessions, AgentSession};
-use crate::projections::job::{load_jobs, PipelineRun, JobStatus};
+use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRun, PipelineRunStatus};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -59,7 +59,7 @@ pub async fn run_sweep(
 ) -> anyhow::Result<()> {
     let start = std::time::Instant::now();
 
-    let jobs = load_jobs()?;
+    let jobs = load_pipeline_runs()?;
     // The agent_sessions projection is the dispatch-primitive read
     // model. Sweep needs to consult it to avoid false-positive
     // stray-process kills for bare ship use / dispatch flows. See
@@ -76,11 +76,11 @@ pub async fn run_sweep(
     for slug in &dead_drained {
         if let Some(job) = jobs.values().find(|j| &j.slug == slug) {
             let fail_payload = PipelineRunFailedPayload {
-                job_id: job.job_id.clone(),
+                pipeline_run_id: job.pipeline_run_id.clone(),
                 error: "coherence sweep: process died without completing".to_string(),
             };
             if let Ok(env) =
-                EventEnvelope::new(job_events::PIPELINE_RUN_FAILED, &job.job_id, &fail_payload)
+                EventEnvelope::new(run_events::PIPELINE_RUN_FAILED, &job.pipeline_run_id, &fail_payload)
             {
                 let env = env.with_actor_id("service.coherence-sweep");
                 persist_and_route(kernel, env, &job.slug, None).await;
@@ -98,7 +98,7 @@ pub async fn run_sweep(
     // Emit sweep_started
     let in_scope: Vec<_> = jobs
         .values()
-        .filter(|j| matches!(j.status, JobStatus::Dispatched | JobStatus::GatePending))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Dispatched | PipelineRunStatus::GatePending))
         .collect();
 
     emit_event(
@@ -157,7 +157,7 @@ pub async fn run_sweep(
             &job.slug,
             &DriftDetectedPayload {
                 slug: job.slug.clone(),
-                job_id: job.job_id.clone(),
+                pipeline_run_id: job.pipeline_run_id.clone(),
                 expected_status: status_str,
                 actual_state: "no_process".to_string(),
                 detail: "process missing for dispatched job".to_string(),
@@ -167,10 +167,10 @@ pub async fn run_sweep(
 
         // Emit job.failed
         let fail_payload = PipelineRunFailedPayload {
-            job_id: job.job_id.clone(),
+            pipeline_run_id: job.pipeline_run_id.clone(),
             error: "coherence sweep: process missing for dispatched job".to_string(),
         };
-        if let Ok(env) = EventEnvelope::new(job_events::PIPELINE_RUN_FAILED, &job.job_id, &fail_payload) {
+        if let Ok(env) = EventEnvelope::new(run_events::PIPELINE_RUN_FAILED, &job.pipeline_run_id, &fail_payload) {
             let env = env.with_actor_id("service.coherence-sweep");
             persist_and_route(kernel, env, &job.slug, None).await;
         }
@@ -211,12 +211,12 @@ pub async fn run_sweep(
 
         drift_count += 1;
 
-        // Best-effort job_id for the drift payload; empty when no
+        // Best-effort pipeline_run_id for the drift payload; empty when no
         // record (true orphan).
-        let job_id = jobs
+        let pipeline_run_id = jobs
             .values()
             .find(|j| j.slug == *slug)
-            .map(|j| j.job_id.clone())
+            .map(|j| j.pipeline_run_id.clone())
             .unwrap_or_default();
 
         emit_event(
@@ -225,7 +225,7 @@ pub async fn run_sweep(
             slug,
             &DriftDetectedPayload {
                 slug: slug.clone(),
-                job_id: job_id.clone(),
+                pipeline_run_id: pipeline_run_id.clone(),
                 expected_status: "none_or_terminal".to_string(),
                 actual_state: "stray_process".to_string(),
                 detail: "process registered but no dispatch record \

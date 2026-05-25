@@ -11,14 +11,14 @@
   .cb-input-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     padding: 10px 14px;
     border-bottom: 1px solid var(--border);
     flex: 0 0 auto;
   }
   .cb-mode-glyph {
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: var(--text-base);
     font-weight: 600;
     color: var(--muted-foreground);
     flex-shrink: 0;
@@ -27,7 +27,7 @@
   }
   .cb-mode-glyph.ai {
     font-size: 10px;
-    padding: 1px 4px;
+    padding: 1px var(--space-1);
     border: 1px solid var(--border);
     border-radius: 3px;
     background: var(--muted);
@@ -38,7 +38,7 @@
     outline: none;
     background: transparent;
     font: inherit;
-    font-size: 14px;
+    font-size: var(--text-md);
     color: var(--foreground);
     caret-color: var(--foreground);
   }
@@ -60,7 +60,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 2px 8px;
+    padding: 2px var(--space-2);
     border: 1px solid var(--border);
     border-radius: 999px;
     font-size: 11px;
@@ -90,31 +90,31 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 6px);
     box-shadow: var(--shadow-lg);
-    z-index: 10;
-    padding: 4px 0;
+    z-index: var(--z-dropdown);
+    padding: var(--space-1) 0;
     overflow: hidden;
   }
   .cb-session-row {
     display: grid;
     grid-template-columns: 14px 1fr auto;
     align-items: center;
-    gap: 8px;
-    padding: 7px 12px;
+    gap: var(--space-2);
+    padding: 7px var(--space-3);
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
   .cb-session-row:hover { background: var(--muted); }
   .cb-session-row.current { background: color-mix(in oklch, var(--primary) 8%, transparent); }
   .cb-session-row .meta { color: var(--muted-foreground); font-size: 11px; }
   .cb-session-end {
     background: transparent; border: none; cursor: pointer;
-    color: var(--muted-foreground); font-size: 14px; padding: 0 2px;
+    color: var(--muted-foreground); font-size: var(--text-md); padding: 0 2px;
   }
-  .cb-session-end:hover { color: var(--destructive, red); }
-  .cb-session-sep { height: 1px; background: var(--border); margin: 4px 0; }
+  .cb-session-end:hover { color: var(--destructive); }
+  .cb-session-sep { height: 1px; background: var(--border); margin: var(--space-1) 0; }
   .cb-session-action {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 12px; cursor: pointer; font-size: 12px;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: 7px var(--space-3); cursor: pointer; font-size: var(--text-sm);
     color: var(--muted-foreground);
   }
   .cb-session-action:hover { background: var(--muted); color: var(--foreground); }
@@ -129,7 +129,7 @@
     padding: 6px 0;
   }
   .cb-mode-hint {
-    padding: 4px 14px 2px;
+    padding: var(--space-1) 14px 2px;
     font-size: 11px;
     font-weight: 600;
     color: var(--muted-foreground);
@@ -141,11 +141,11 @@
     display: grid;
     grid-template-columns: 16px 1fr auto;
     align-items: center;
-    gap: 8px;
-    padding: 7px 8px;
+    gap: var(--space-2);
+    padding: 7px var(--space-2);
     border-radius: var(--radius-sm, 4px);
     cursor: pointer;
-    font-size: 13px;
+    font-size: var(--text-base);
   }
   .cb-item:hover,
   .cb-item[aria-selected='true'] { background: var(--muted); }
@@ -158,10 +158,10 @@
     white-space: nowrap;
   }
   .cb-empty {
-    padding: 24px 16px;
+    padding: var(--space-6) var(--space-4);
     text-align: center;
     color: var(--muted-foreground);
-    font-size: 13px;
+    font-size: var(--text-base);
   }
 
   /* ── Create form ──────────────────────────────────────────────── */
@@ -169,24 +169,24 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    padding: 8px 14px;
+    padding: var(--space-2) 14px;
   }
   .cb-surface-btn {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 4px 10px;
+    padding: var(--space-1) 10px;
     border: 1px solid var(--border);
     border-radius: 999px;
     background: transparent;
     font: inherit;
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--muted-foreground);
     cursor: pointer;
   }
   .cb-surface-btn[aria-pressed='true'] {
     background: var(--primary);
-    color: var(--primary-foreground, #fff);
+    color: var(--primary-foreground);
     border-color: var(--primary);
   }
   .cb-surface-btn:hover:not([aria-pressed='true']):not([disabled]) { background: var(--muted); }
@@ -198,7 +198,7 @@
     font-size: 10px;
     font-family: var(--font-mono);
     color: var(--muted-foreground);
-    padding-left: 4px;
+    padding-left: var(--space-1);
     border-left: 1px solid var(--border);
     margin-left: 2px;
   }
@@ -208,7 +208,7 @@
     gap: 10px;
     padding: 0 14px 10px;
   }
-  .cb-create-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted-foreground); }
+  .cb-create-grid label { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); color: var(--muted-foreground); }
   .cb-create-grid input,
   .cb-create-grid select {
     height: 30px;
@@ -217,21 +217,21 @@
     background: var(--background);
     color: var(--foreground);
     font: inherit;
-    font-size: 13px;
-    padding: 0 8px;
+    font-size: var(--text-base);
+    padding: 0 var(--space-2);
   }
   .span-2 { grid-column: span 2; }
-  .cb-create-error { padding: 0 14px 6px; font-size: 12px; color: var(--destructive, red); }
+  .cb-create-error { padding: 0 14px 6px; font-size: var(--text-sm); color: var(--destructive); }
   .cb-create-actions { padding: 0 14px 14px; display: flex; justify-content: flex-end; }
   .cb-create-submit {
     height: 32px;
-    padding: 0 16px;
+    padding: 0 var(--space-4);
     border: none;
     border-radius: var(--radius-sm, 4px);
     background: var(--primary);
-    color: var(--primary-foreground, #fff);
+    color: var(--primary-foreground);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--text-base);
     cursor: pointer;
   }
   .cb-create-submit:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -268,7 +268,7 @@
             role="option"
             on:click={() => selectSession(s.id)}
           >
-            <span class="cb-dot" style:background={s.status === 'thinking' ? 'var(--warning,#d97706)' : 'var(--success,#16a34a)'}></span>
+            <span class="cb-dot" style:background={s.status === 'thinking' ? 'var(--warning)' : 'var(--success)'}></span>
             <span><strong>{s.agent_id ?? ''}</strong><span class="meta"> · {s.harness ?? ''} · {s.workspace_id}</span></span>
             <button class="cb-session-end" type="button" aria-label="End session" on:click={(e) => { e.stopPropagation(); endSession(s.id) }}>×</button>
           </div>

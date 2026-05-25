@@ -38,7 +38,7 @@ pub struct SignalEntry {
 pub struct ProcessRecord {
     pub pid: Option<u32>,
     pub slug: String,
-    pub job_id: Option<String>,
+    pub pipeline_run_id: Option<String>,
     pub step_id: Option<String>,
     pub cmd: String,
     pub executor_kind: String,
@@ -124,7 +124,7 @@ pub fn project(events: &[EventEnvelope]) -> Vec<ProcessRecord> {
                 let record = ProcessRecord {
                     pid,
                     slug,
-                    job_id: p["job_id"].as_str().map(str::to_string),
+                    pipeline_run_id: p["pipeline_run_id"].as_str().map(str::to_string),
                     step_id: p["step_id"].as_str().map(str::to_string),
                     cmd: p["cmd"].as_str().unwrap_or("").to_string(),
                     executor_kind: p["executor_kind"].as_str().unwrap_or("").to_string(),

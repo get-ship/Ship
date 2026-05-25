@@ -1,0 +1,19 @@
+<!--
+  <sui-account> — owner-level identity + subscription. First-party CHROME
+  (apps/shell); shell renders it at /account. Placeholder until the
+  getship.dev account API exists (account.state is `logged_out` only —
+  no invented identity/plan/billing fields). Composes sui-* primitives.
+-->
+<style>
+  :host { display: grid; place-items: center; height: 100%; padding: var(--space-6); box-sizing: border-box; }
+</style>
+
+<sui-empty-state icon="user" variant="default" size="lg" data-test="account-view">
+  <span slot="title">Account</span>
+  Owner-level identity, plan, and billing live here — reachable from any space.
+  Not connected yet; sign-in lands once the account service is wired.
+  <sui-button slot="action" tone="primary" variant="solid" disabled>
+    <sui-icon slot="leading" name="log-in"></sui-icon>
+    Connect account
+  </sui-button>
+</sui-empty-state>

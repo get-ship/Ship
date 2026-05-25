@@ -1097,6 +1097,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "deck"
+version = "0.1.0"
+dependencies = [
+ "deck-host",
+ "deck-server",
+ "specta",
+]
+
+[[package]]
+name = "deck-host"
+version = "0.1.0"
+dependencies = [
+ "filetime",
+ "serde",
+ "serde_json",
+ "specta",
+ "sui-compiler",
+ "sui-signals",
+ "tempfile",
+]
+
+[[package]]
+name = "deck-server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "datastar",
+ "deck-host",
+ "filetime",
+ "futures-util",
+ "notify",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "specta",
+ "sui-compiler",
+ "sui-signals",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+]
+
+[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2359,6 +2405,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
+name = "lsp-server"
+version = "0.7.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d6ada348dbc2703cbe7637b2dda05cff84d3da2819c24abcb305dd613e0ba2e"
+dependencies = [
+ "crossbeam-channel",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+]
+
+[[package]]
+name = "lsp-types"
+version = "0.95.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e34d33a8e9b006cd3fc4fe69a921affa097bae4bb65f76271f4644f9a334365"
+dependencies = [
+ "bitflags 1.3.2",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "url",
+]
+
+[[package]]
 name = "mac"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2427,6 +2499,7 @@ dependencies = [
  "serde_json",
  "ship-platform",
  "ship-substrate",
+ "sui-compiler",
  "tempfile",
  "tokio",
  "tokio-util",
@@ -4178,6 +4251,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_repr"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "serde_spanned"
 version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4297,9 +4381,11 @@ dependencies = [
  "clap",
  "cli-framework",
  "compiler",
+ "connectrpc",
  "crossterm",
  "getrandom 0.2.17",
  "home",
+ "http",
  "libc",
  "mcp",
  "mockito",
@@ -4314,6 +4400,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "ship-isolation",
+ "ship-ops-rpc",
  "ship-pipelines",
  "ship-platform",
  "ship-substrate",
@@ -4377,6 +4464,22 @@ dependencies = [
  "ship-types",
  "thiserror 2.0.18",
  "tokio",
+]
+
+[[package]]
+name = "ship-ops-rpc"
+version = "0.1.0"
+dependencies = [
+ "buffa",
+ "buffa-descriptor",
+ "connectrpc",
+ "connectrpc-build",
+ "http",
+ "http-body",
+ "protoc-bin-vendored",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -4513,52 +4616,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-sui"
-version = "0.1.0"
-dependencies = [
- "ship-sui-host",
- "ship-sui-server",
- "specta",
-]
-
-[[package]]
-name = "ship-sui-host"
-version = "0.1.0"
-dependencies = [
- "filetime",
- "serde",
- "serde_json",
- "specta",
- "sui-compiler",
- "sui-signals",
- "tempfile",
-]
-
-[[package]]
-name = "ship-sui-server"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "datastar",
- "filetime",
- "futures-util",
- "notify",
- "serde",
- "serde_json",
- "ship-substrate",
- "ship-sui-host",
- "specta",
- "sui-compiler",
- "sui-signals",
- "tempfile",
- "tokio",
- "tokio-stream",
- "tracing",
-]
-
-[[package]]
 name = "ship-supervisor"
 version = "0.1.0"
 dependencies = [
@@ -4601,22 +4658,28 @@ dependencies = [
  "async-trait",
  "axum",
  "base64",
+ "buffa",
+ "buffa-descriptor",
  "build-info",
  "chrono",
  "compiler",
+ "connectrpc",
  "ctor",
  "datastar",
+ "deck",
  "form_urlencoded",
  "futures",
  "futures-util",
  "getrandom 0.2.17",
  "git2",
+ "http",
  "http-body-util",
  "include_dir",
  "json-patch",
  "jsonschema",
  "jsonwebtoken",
  "libc",
+ "mcp",
  "minijinja",
  "notify",
  "portable-pty",
@@ -4628,10 +4691,10 @@ dependencies = [
  "serde_yaml",
  "ship-analytics",
  "ship-isolation",
+ "ship-ops-rpc",
  "ship-pipelines",
  "ship-platform",
  "ship-substrate",
- "ship-sui",
  "ship-supervisor",
  "ship-types",
  "specta",
@@ -5142,6 +5205,18 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "sui-lsp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "lsp-server",
+ "lsp-types",
+ "serde",
+ "serde_json",
+ "sui-compiler",
 ]
 
 [[package]]
@@ -5878,6 +5953,7 @@ dependencies = [
  "idna",
  "percent-encoding",
  "serde",
+ "serde_derive",
 ]
 
 [[package]]
@@ -6728,12 +6804,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "compiler",
+ "deck",
  "regex",
  "serde",
  "serde_json",
+ "ship-ops-rpc",
  "ship-platform",
  "ship-substrate",
- "ship-sui",
  "ship-types",
  "shipd",
  "specta",

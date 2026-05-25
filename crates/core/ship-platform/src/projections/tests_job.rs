@@ -1,4 +1,4 @@
-use super::{JobStatus, project};
+use super::{PipelineRunStatus, project};
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::event_types;
 
@@ -6,11 +6,11 @@ fn make_event(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     EventEnvelope::new(event_type, "test-entity", &payload).unwrap()
 }
 
-fn created_event(job_id: &str) -> EventEnvelope {
+fn created_event(pipeline_run_id: &str) -> EventEnvelope {
     make_event(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": job_id,
+            "pipeline_run_id": pipeline_run_id,
             "slug": "auth-tests",
             "agent": "rust-runtime",
             "branch": "job/auth-tests",
@@ -25,7 +25,7 @@ fn project_creates_pending_record() {
     let events = vec![created_event("j1")];
     let map = project(&events);
     let rec = map.get("j1").unwrap();
-    assert_eq!(rec.status, JobStatus::Pending);
+    assert_eq!(rec.status, PipelineRunStatus::Pending);
     assert_eq!(rec.slug, "auth-tests");
     assert_eq!(rec.agent, "rust-runtime");
     // Legacy `created_event` does not set source_spec_path — projection must
@@ -40,7 +40,7 @@ fn project_carries_source_spec_path_from_created_event() {
     let events = vec![make_event(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": "j-src",
+            "pipeline_run_id": "j-src",
             "slug": "with-source",
             "agent": "rust-runtime",
             "branch": "job/with-source",
@@ -65,7 +65,7 @@ fn project_carries_baseline_sha_from_created_event() {
     let events = vec![make_event(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": "j-base",
+            "pipeline_run_id": "j-base",
             "slug": "with-baseline",
             "agent": "rust-runtime",
             "branch": "job/with-baseline",
@@ -97,12 +97,12 @@ fn project_dispatched_sets_worktree() {
         created_event("j2"),
         make_event(
             event_types::PIPELINE_RUN_DISPATCHED,
-            serde_json::json!({"job_id": "j2", "worktree": "/tmp/wt", "pid": 1234}),
+            serde_json::json!({"pipeline_run_id": "j2", "worktree": "/tmp/wt", "pid": 1234}),
         ),
     ];
     let map = project(&events);
     let rec = map.get("j2").unwrap();
-    assert_eq!(rec.status, JobStatus::Dispatched);
+    assert_eq!(rec.status, PipelineRunStatus::Dispatched);
     assert_eq!(rec.worktree.as_deref(), Some("/tmp/wt"));
 }
 
@@ -112,15 +112,15 @@ fn project_gate_requested_then_passed() {
         created_event("j3"),
         make_event(
             event_types::PIPELINE_GATE_REQUESTED,
-            serde_json::json!({"job_id": "j3", "gate_agent": "gatekeeper"}),
+            serde_json::json!({"pipeline_run_id": "j3", "gate_agent": "gatekeeper"}),
         ),
         make_event(
             event_types::PIPELINE_GATE_PASSED,
-            serde_json::json!({"job_id": "j3"}),
+            serde_json::json!({"pipeline_run_id": "j3"}),
         ),
     ];
     let map = project(&events);
-    assert_eq!(map.get("j3").unwrap().status, JobStatus::Pending);
+    assert_eq!(map.get("j3").unwrap().status, PipelineRunStatus::Pending);
 }
 
 #[test]
@@ -129,12 +129,12 @@ fn project_gate_failed_stores_reason() {
         created_event("j4"),
         make_event(
             event_types::PIPELINE_GATE_FAILED,
-            serde_json::json!({"job_id": "j4", "reason": "tests failed"}),
+            serde_json::json!({"pipeline_run_id": "j4", "reason": "tests failed"}),
         ),
     ];
     let map = project(&events);
     let rec = map.get("j4").unwrap();
-    assert_eq!(rec.status, JobStatus::Failed);
+    assert_eq!(rec.status, PipelineRunStatus::Failed);
     assert_eq!(rec.error.as_deref(), Some("tests failed"));
 }
 
@@ -144,12 +144,12 @@ fn project_blocked_stores_blocker() {
         created_event("j5"),
         make_event(
             event_types::PIPELINE_RUN_BLOCKED,
-            serde_json::json!({"job_id": "j5", "blocker": "waiting for infra", "needs_human": true}),
+            serde_json::json!({"pipeline_run_id": "j5", "blocker": "waiting for infra", "needs_human": true}),
         ),
     ];
     let map = project(&events);
     let rec = map.get("j5").unwrap();
-    assert_eq!(rec.status, JobStatus::Blocked);
+    assert_eq!(rec.status, PipelineRunStatus::Blocked);
     assert_eq!(rec.blocker.as_deref(), Some("waiting for infra"));
 }
 
@@ -159,11 +159,11 @@ fn project_merged() {
         created_event("j6"),
         make_event(
             event_types::PIPELINE_RUN_MERGED,
-            serde_json::json!({"job_id": "j6"}),
+            serde_json::json!({"pipeline_run_id": "j6"}),
         ),
     ];
     let map = project(&events);
-    assert_eq!(map.get("j6").unwrap().status, JobStatus::Merged);
+    assert_eq!(map.get("j6").unwrap().status, PipelineRunStatus::Merged);
 }
 
 #[test]
@@ -172,12 +172,12 @@ fn project_failed_stores_error() {
         created_event("j7"),
         make_event(
             event_types::PIPELINE_RUN_FAILED,
-            serde_json::json!({"job_id": "j7", "error": "panic in build"}),
+            serde_json::json!({"pipeline_run_id": "j7", "error": "panic in build"}),
         ),
     ];
     let map = project(&events);
     let rec = map.get("j7").unwrap();
-    assert_eq!(rec.status, JobStatus::Failed);
+    assert_eq!(rec.status, PipelineRunStatus::Failed);
     assert_eq!(rec.error.as_deref(), Some("panic in build"));
 }
 
@@ -187,11 +187,11 @@ fn project_completed_status() {
         created_event("j-comp"),
         make_event(
             event_types::PIPELINE_RUN_COMPLETED,
-            serde_json::json!({"job_id": "j-comp", "slug": "auth-tests"}),
+            serde_json::json!({"pipeline_run_id": "j-comp", "slug": "auth-tests"}),
         ),
     ];
     let map = project(&events);
-    assert_eq!(map.get("j-comp").unwrap().status, JobStatus::Completed);
+    assert_eq!(map.get("j-comp").unwrap().status, PipelineRunStatus::Completed);
 }
 
 #[test]
@@ -199,7 +199,7 @@ fn project_depends_on_stored() {
     let events = vec![make_event(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": "j-dep",
+            "pipeline_run_id": "j-dep",
             "slug": "gated-job",
             "agent": "rust-runtime",
             "branch": "job/gated-job",
@@ -236,10 +236,10 @@ fn project_skips_non_job_events() {
 
 #[test]
 fn project_ignores_event_for_unknown_job() {
-    // A dispatched event for a job_id we never saw created — should not panic.
+    // A dispatched event for a pipeline_run_id we never saw created — should not panic.
     let events = vec![make_event(
         event_types::PIPELINE_RUN_DISPATCHED,
-        serde_json::json!({"job_id": "unknown", "worktree": "/x", "pid": null}),
+        serde_json::json!({"pipeline_run_id": "unknown", "worktree": "/x", "pid": null}),
     )];
     let map = project(&events);
     assert!(map.is_empty());
@@ -252,7 +252,7 @@ fn project_pipeline_phase_tracking() {
         make_event(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": "j-pipe",
+                "pipeline_run_id": "j-pipe",
                 "slug": "pipe-test",
                 "agent": "test-writer",
                 "branch": "job/pipe-test",
@@ -267,22 +267,22 @@ fn project_pipeline_phase_tracking() {
         // Phase 0 dispatched
         make_event(
             event_types::PIPELINE_RUN_DISPATCHED,
-            serde_json::json!({"job_id": "j-pipe", "worktree": "/tmp/wt", "pid": null}),
+            serde_json::json!({"pipeline_run_id": "j-pipe", "worktree": "/tmp/wt", "pid": null}),
         ),
         // Phase 0 completed
         make_event(
             event_types::PIPELINE_RUN_COMPLETED,
-            serde_json::json!({"job_id": "j-pipe", "slug": "pipe-test"}),
+            serde_json::json!({"pipeline_run_id": "j-pipe", "slug": "pipe-test"}),
         ),
         // Phase 1 dispatched (pipeline advance)
         make_event(
             event_types::PIPELINE_RUN_DISPATCHED,
-            serde_json::json!({"job_id": "j-pipe", "worktree": "/tmp/wt", "pid": null}),
+            serde_json::json!({"pipeline_run_id": "j-pipe", "worktree": "/tmp/wt", "pid": null}),
         ),
     ];
     let map = project(&events);
     let rec = map.get("j-pipe").unwrap();
-    assert_eq!(rec.status, JobStatus::Dispatched);
+    assert_eq!(rec.status, PipelineRunStatus::Dispatched);
     assert_eq!(rec.current_phase, Some(1), "current_phase must be 1 after pipeline advance");
     assert!(rec.pipeline.is_some());
     assert_eq!(rec.pipeline.as_ref().unwrap().len(), 2);
@@ -295,7 +295,7 @@ fn project_pipeline_full_lifecycle() {
         make_event(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": "j-3p",
+                "pipeline_run_id": "j-3p",
                 "slug": "three-phase",
                 "agent": "spec",
                 "branch": "job/three-phase",
@@ -309,20 +309,20 @@ fn project_pipeline_full_lifecycle() {
             }),
         ),
         // Phase 0 dispatched + completed
-        make_event(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({"job_id": "j-3p", "worktree": "/w", "pid": null})),
-        make_event(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({"job_id": "j-3p"})),
+        make_event(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({"pipeline_run_id": "j-3p", "worktree": "/w", "pid": null})),
+        make_event(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({"pipeline_run_id": "j-3p"})),
         // Phase 1 dispatched + completed
-        make_event(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({"job_id": "j-3p", "worktree": "/w", "pid": null})),
-        make_event(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({"job_id": "j-3p"})),
+        make_event(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({"pipeline_run_id": "j-3p", "worktree": "/w", "pid": null})),
+        make_event(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({"pipeline_run_id": "j-3p"})),
         // Phase 2 dispatched + completed
-        make_event(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({"job_id": "j-3p", "worktree": "/w", "pid": null})),
-        make_event(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({"job_id": "j-3p"})),
+        make_event(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({"pipeline_run_id": "j-3p", "worktree": "/w", "pid": null})),
+        make_event(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({"pipeline_run_id": "j-3p"})),
         // Merged after all phases
-        make_event(event_types::PIPELINE_RUN_MERGED, serde_json::json!({"job_id": "j-3p"})),
+        make_event(event_types::PIPELINE_RUN_MERGED, serde_json::json!({"pipeline_run_id": "j-3p"})),
     ];
     let map = project(&events);
     let rec = map.get("j-3p").unwrap();
-    assert_eq!(rec.status, JobStatus::Merged);
+    assert_eq!(rec.status, PipelineRunStatus::Merged);
     assert_eq!(rec.current_phase, Some(2), "current_phase must be 2 after 3 pipeline advances");
 }
 
@@ -332,7 +332,7 @@ fn project_step_retry_tracks_attempt() {
         make_event(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": "j-retry",
+                "pipeline_run_id": "j-retry",
                 "slug": "retry-test",
                 "agent": "rust-lane",
                 "branch": "job/retry-test",
@@ -347,17 +347,17 @@ fn project_step_retry_tracks_attempt() {
         ),
         make_event(
             event_types::PIPELINE_STEP_STARTED,
-            serde_json::json!({"job_id": "j-retry", "slug": "retry-test", "step_id": "implement", "step_type": "agent"}),
+            serde_json::json!({"pipeline_run_id": "j-retry", "slug": "retry-test", "step_id": "implement", "step_type": "agent"}),
         ),
         make_event(
             event_types::PIPELINE_STEP_COMPLETED,
-            serde_json::json!({"job_id": "j-retry", "slug": "retry-test", "step_id": "implement"}),
+            serde_json::json!({"pipeline_run_id": "j-retry", "slug": "retry-test", "step_id": "implement"}),
         ),
         // Gate fails — step.retry emitted for the gated step
         make_event(
             event_types::PIPELINE_STEP_RETRY,
             serde_json::json!({
-                "job_id": "j-retry",
+                "pipeline_run_id": "j-retry",
                 "slug": "retry-test",
                 "step_id": "implement",
                 "step_name": "implement",
@@ -371,7 +371,7 @@ fn project_step_retry_tracks_attempt() {
     assert_eq!(rec.step_retries.get("implement"), Some(&1));
     assert!(!rec.completed_steps.contains(&"implement".to_string()),
         "step must be removed from completed on retry");
-    assert_eq!(rec.status, JobStatus::Dispatched);
+    assert_eq!(rec.status, PipelineRunStatus::Dispatched);
     assert!(rec.error.is_none(), "error must be cleared on retry");
 }
 
@@ -381,7 +381,7 @@ fn project_step_retry_increments_on_second_retry() {
         make_event(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": "j-retry2",
+                "pipeline_run_id": "j-retry2",
                 "slug": "retry-test-2",
                 "agent": "rust-lane",
                 "branch": "job/retry-test-2",
@@ -391,7 +391,7 @@ fn project_step_retry_increments_on_second_retry() {
         make_event(
             event_types::PIPELINE_STEP_RETRY,
             serde_json::json!({
-                "job_id": "j-retry2",
+                "pipeline_run_id": "j-retry2",
                 "slug": "retry-test-2",
                 "step_id": "implement",
                 "step_name": "implement",
@@ -402,7 +402,7 @@ fn project_step_retry_increments_on_second_retry() {
         make_event(
             event_types::PIPELINE_STEP_RETRY,
             serde_json::json!({
-                "job_id": "j-retry2",
+                "pipeline_run_id": "j-retry2",
                 "slug": "retry-test-2",
                 "step_id": "implement",
                 "step_name": "implement",
@@ -421,8 +421,8 @@ fn project_non_pipeline_job_has_no_phase() {
     // A normal job (no pipeline) should have current_phase = None
     let events = vec![
         created_event("j-nopipe"),
-        make_event(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({"job_id": "j-nopipe", "worktree": "/w", "pid": null})),
-        make_event(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({"job_id": "j-nopipe"})),
+        make_event(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({"pipeline_run_id": "j-nopipe", "worktree": "/w", "pid": null})),
+        make_event(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({"pipeline_run_id": "j-nopipe"})),
     ];
     let map = project(&events);
     let rec = map.get("j-nopipe").unwrap();
@@ -438,36 +438,36 @@ fn project_non_pipeline_job_has_no_phase() {
 
 mod idempotent {
     use super::*;
-    use crate::projections::job::apply;
+    use crate::projections::pipeline_run::apply;
 
-    fn pipeline_events(job_id: &str) -> Vec<EventEnvelope> {
+    fn pipeline_events(pipeline_run_id: &str) -> Vec<EventEnvelope> {
         vec![
-            created_event(job_id),
+            created_event(pipeline_run_id),
             make_event(
                 event_types::PIPELINE_RUN_DISPATCHED,
-                serde_json::json!({"job_id": job_id, "worktree": "/tmp/w", "pid": 1}),
+                serde_json::json!({"pipeline_run_id": pipeline_run_id, "worktree": "/tmp/w", "pid": 1}),
             ),
             make_event(
                 event_types::PIPELINE_STEP_COMPLETED,
-                serde_json::json!({"job_id": job_id, "step_id": "step-1"}),
+                serde_json::json!({"pipeline_run_id": pipeline_run_id, "step_id": "step-1"}),
             ),
             make_event(
                 event_types::PIPELINE_STEP_STARTED,
-                serde_json::json!({"job_id": job_id, "step_id": "step-2", "step_type": "agent"}),
+                serde_json::json!({"pipeline_run_id": pipeline_run_id, "step_id": "step-2", "step_type": "agent"}),
             ),
             make_event(
                 event_types::PIPELINE_STEP_COMPLETED,
-                serde_json::json!({"job_id": job_id, "step_id": "step-2"}),
+                serde_json::json!({"pipeline_run_id": pipeline_run_id, "step_id": "step-2"}),
             ),
             make_event(
                 event_types::PIPELINE_RUN_COMPLETED,
-                serde_json::json!({"job_id": job_id, "slug": "auth-tests"}),
+                serde_json::json!({"pipeline_run_id": pipeline_run_id, "slug": "auth-tests"}),
             ),
         ]
     }
 
-    fn project_and_get(events: &[EventEnvelope], job_id: &str) -> super::super::PipelineRun {
-        super::project(events).get(job_id).cloned().unwrap()
+    fn project_and_get(events: &[EventEnvelope], pipeline_run_id: &str) -> super::super::PipelineRun {
+        super::project(events).get(pipeline_run_id).cloned().unwrap()
     }
 
     #[test]
@@ -496,11 +496,11 @@ mod idempotent {
             created_event("j-sc"),
             make_event(
                 event_types::PIPELINE_STEP_COMPLETED,
-                serde_json::json!({"job_id": "j-sc", "step_id": "step-1"}),
+                serde_json::json!({"pipeline_run_id": "j-sc", "step_id": "step-1"}),
             ),
             make_event(
                 event_types::PIPELINE_STEP_COMPLETED,
-                serde_json::json!({"job_id": "j-sc", "step_id": "step-1"}),
+                serde_json::json!({"pipeline_run_id": "j-sc", "step_id": "step-1"}),
             ),
         ];
         let rec = project_and_get(&events, "j-sc");
@@ -512,7 +512,7 @@ mod idempotent {
     }
 
     #[test]
-    fn job_dispatched_replay_does_not_corrupt_completed_steps() {
+    fn run_dispatched_replay_does_not_corrupt_completed_steps() {
         // The old `.take()` pattern would destructively read current_step on
         // the first pass, then silently skip the "move to completed" block
         // on replay, producing a different final state. This test guards the
@@ -521,15 +521,15 @@ mod idempotent {
             created_event("j-dis"),
             make_event(
                 event_types::PIPELINE_STEP_COMPLETED,
-                serde_json::json!({"job_id": "j-dis", "step_id": "step-1"}),
+                serde_json::json!({"pipeline_run_id": "j-dis", "step_id": "step-1"}),
             ),
             make_event(
                 event_types::PIPELINE_RUN_COMPLETED,
-                serde_json::json!({"job_id": "j-dis", "slug": "auth-tests"}),
+                serde_json::json!({"pipeline_run_id": "j-dis", "slug": "auth-tests"}),
             ),
             make_event(
                 event_types::PIPELINE_RUN_DISPATCHED,
-                serde_json::json!({"job_id": "j-dis", "worktree": "/w", "pid": 1}),
+                serde_json::json!({"pipeline_run_id": "j-dis", "worktree": "/w", "pid": 1}),
             ),
         ];
 
@@ -559,7 +559,7 @@ mod idempotent {
             make_event(
                 event_types::PIPELINE_STEP_SPAWN_FAILED,
                 serde_json::json!({
-                    "job_id": "js1",
+                    "pipeline_run_id": "js1",
                     "slug": "auth-tests",
                     "stage": "executor_spawn",
                     "error": "tmux: command not found",
@@ -568,7 +568,7 @@ mod idempotent {
         ];
         let map = project(&events);
         let rec = map.get("js1").unwrap();
-        assert_eq!(rec.status, JobStatus::Failed);
+        assert_eq!(rec.status, PipelineRunStatus::Failed);
         assert_eq!(rec.error.as_deref(), Some("tmux: command not found"));
     }
 
@@ -579,7 +579,7 @@ mod idempotent {
             make_event(
                 event_types::PIPELINE_RUN_CANCELLED,
                 serde_json::json!({
-                    "job_id": "jc1",
+                    "pipeline_run_id": "jc1",
                     "slug": "auth-tests",
                     "reason": "superseded by rerun",
                     "requested_by": "operator",
@@ -588,7 +588,7 @@ mod idempotent {
         ];
         let map = project(&events);
         let rec = map.get("jc1").unwrap();
-        assert_eq!(rec.status, JobStatus::Cancelled);
+        assert_eq!(rec.status, PipelineRunStatus::Cancelled);
         assert_eq!(rec.error.as_deref(), Some("superseded by rerun"));
     }
 }

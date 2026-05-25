@@ -10,7 +10,7 @@ fn make_event(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 fn spawned_payload(slug: &str, pid: Option<u32>, kind: &str) -> serde_json::Value {
     serde_json::json!({
         "slug": slug,
-        "job_id": "job-1",
+        "pipeline_run_id": "job-1",
         "pid": pid,
         "cmd": "claude",
         "argv": ["--print", "-p", "do stuff"],
@@ -139,7 +139,7 @@ fn orphaned_status() {
 fn non_process_events_are_ignored() {
     let events = vec![
         make_event("process.spawned", spawned_payload("s1", Some(1), "process")),
-        EventEnvelope::new("pipeline.run.started", "j1", &serde_json::json!({"job_id": "j1"})).unwrap(),
+        EventEnvelope::new("pipeline.run.started", "j1", &serde_json::json!({"pipeline_run_id": "j1"})).unwrap(),
     ];
     let records = project(&events);
     assert_eq!(records.len(), 1);

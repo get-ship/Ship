@@ -14,8 +14,11 @@ compiler = { path = "../core/compiler", features = ["specta"] }
 ship-substrate = { path = "../core/ship-substrate" }
 ship-platform = { path = "../core/ship-platform", features = ["specta"] }
 ship-types = { path = "../core/ship-types", features = ["specta"] }
-ship-sui = { path = "../sui/ship-sui", features = ["specta"] }
+deck = { path = "../deck/deck", features = ["specta"] }
 shipd = { path = "../../apps/shipd", features = ["specta"] }
+# Proto response types — gen-fixtures decodes the themed corpus into these to
+# validate fixtures against the wire SSOT.
+ship-ops-rpc = { path = "../core/ship-ops-rpc" }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 specta-typescript = "0.0.9"
 serde = { workspace = true }
@@ -23,6 +26,11 @@ serde_json = { workspace = true }
 regex = { workspace = true }
 anyhow = { workspace = true }
 utoipa = { version = "5", features = ["axum_extras"] }
+
+[features]
+# Compile the `example()` fixture constructors into ship-platform so
+# `cargo xtask gen-fixtures` can serialize them to committed JSON.
+fixtures = ["ship-platform/fixtures", "shipd/fixtures"]
 
 [lints]
 workspace = true

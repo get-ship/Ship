@@ -11,7 +11,7 @@ const RECONNECT_MAX_MS = 15_000
 interface KernelEvent {
   event_type: string
   entity: string
-  actor?: string
+  actor?: string | undefined
   timestamp: string
   payload: unknown
   [k: string]: unknown

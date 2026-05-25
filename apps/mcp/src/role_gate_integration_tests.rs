@@ -50,8 +50,6 @@ fn worker_role_allows_worker_tools() {
         .expect("log_progress allowed for worker");
     ShipServer::enforce_mode_tool_gate(&project_dir, "update_job")
         .expect("update_job allowed for worker");
-    ShipServer::enforce_mode_tool_gate(&project_dir, "write_session_file")
-        .expect("write_session_file allowed for worker");
     // step_done is the pipeline completion signal — every dispatched
     // worker agent needs it, or pipelines stall at activity-timeout.
     ShipServer::enforce_mode_tool_gate(&project_dir, "step_done")
@@ -74,8 +72,8 @@ fn worker_role_blocks_lead_tools() {
         },
     );
 
-    let err = ShipServer::enforce_mode_tool_gate(&project_dir, "create_job")
-        .expect_err("create_job should be blocked for worker");
+    let err = ShipServer::enforce_mode_tool_gate(&project_dir, "discover_mesh_agents")
+        .expect_err("discover_mesh_agents should be blocked for worker");
     assert!(
         err.contains("blocked"),
         "expected 'blocked' in error: {err}"
@@ -83,7 +81,7 @@ fn worker_role_blocks_lead_tools() {
 }
 
 #[test]
-fn lead_role_allows_create_job() {
+fn lead_role_inherits_worker_tools() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path()).expect("init project");
 
@@ -98,34 +96,12 @@ fn lead_role_allows_create_job() {
         },
     );
 
-    ShipServer::enforce_mode_tool_gate(&project_dir, "create_job")
-        .expect("create_job allowed for lead");
+    // Mesh observe/status tools left MCP for the CLI; the orchestrator
+    // preset adds nothing over worker, but still inherits the worker set.
     ShipServer::enforce_mode_tool_gate(&project_dir, "log_progress")
         .expect("log_progress allowed for lead (inherited)");
-}
-
-#[test]
-fn commander_role_allows_mesh_discovery() {
-    let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path()).expect("init project");
-
-    install_active_agent(
-        &project_dir,
-        AgentProfile {
-            id: "cmdr-gate".to_string(),
-            name: "Commander Gate".to_string(),
-            role: Some("commander".to_string()),
-            active_tools: vec![],
-            ..Default::default()
-        },
-    );
-
-    ShipServer::enforce_mode_tool_gate(&project_dir, "discover_mesh_agents")
-        .expect("discover_mesh_agents allowed for commander");
-    ShipServer::enforce_mode_tool_gate(&project_dir, "update_mesh_status")
-        .expect("update_mesh_status allowed for commander");
-    ShipServer::enforce_mode_tool_gate(&project_dir, "create_job")
-        .expect("create_job allowed for commander (inherited)");
+    ShipServer::enforce_mode_tool_gate(&project_dir, "step_done")
+        .expect("step_done allowed for lead (inherited)");
 }
 
 #[test]
@@ -145,8 +121,8 @@ fn no_role_defaults_to_worker() {
 
     ShipServer::enforce_mode_tool_gate(&project_dir, "log_progress")
         .expect("log_progress allowed (defaults to worker)");
-    let err = ShipServer::enforce_mode_tool_gate(&project_dir, "create_job")
-        .expect_err("create_job blocked (defaults to worker)");
+    let err = ShipServer::enforce_mode_tool_gate(&project_dir, "discover_mesh_agents")
+        .expect_err("discover_mesh_agents blocked (defaults to worker)");
     assert!(err.contains("blocked"), "expected 'blocked' in error: {err}");
 }
 
@@ -163,13 +139,13 @@ fn explicit_active_tools_overrides_role_defaults() {
             id: "override-test".to_string(),
             name: "Override".to_string(),
             role: Some("commander".to_string()),
-            active_tools: vec!["create_job".to_string()],
+            active_tools: vec!["discover_mesh_agents".to_string()],
             ..Default::default()
         },
     );
 
-    ShipServer::enforce_mode_tool_gate(&project_dir, "create_job")
-        .expect("create_job in explicit active_tools");
+    ShipServer::enforce_mode_tool_gate(&project_dir, "discover_mesh_agents")
+        .expect("discover_mesh_agents in explicit active_tools");
 
     let err = ShipServer::enforce_mode_tool_gate(&project_dir, "mesh_discover")
         .expect_err("mesh_discover not in explicit active_tools");

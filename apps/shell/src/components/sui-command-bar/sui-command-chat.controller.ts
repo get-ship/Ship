@@ -1,13 +1,12 @@
 import { controller, derived, useShared } from '@ship/sui-runtime'
 import type { Scope } from './sui-command-chat.sui'
-import type { Scope as BarScope } from './sui-command-bar.sui'
-import { type SessionSummary, navigateTo } from './types'
+import { type SessionSummary, type CommandBarScope, navigateTo } from './types'
 
 const RECENT_MAX = 20
 
 export default controller<Scope>({
   scope: (_, host) => {
-    const bar = useShared<BarScope>(host!, 'sui-command-bar')
+    const bar = useShared<CommandBarScope>(host!, 'sui-command-bar')
 
     const headerDotBg = derived(() => {
       const s = bar!.session()
@@ -50,7 +49,7 @@ export default controller<Scope>({
     }
 
     function goToAgents(): void {
-      void navigateTo('/agents')
+      void navigateTo('/studio/agents')
       bar!.open.set(false)
     }
 

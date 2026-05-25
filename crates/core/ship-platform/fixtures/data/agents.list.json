@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "id": "code-reviewer",
+      "scope": "project"
+    },
+    {
+      "id": "shipwright",
+      "scope": "user"
+    }
+  ]
+}

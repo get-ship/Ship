@@ -9,7 +9,7 @@ audience: agent-only
 
 # Ship SUI
 
-SUI is the template format every Ship view and built-in component is authored in. A `.sui` file is a declarative template; an optional sibling `controller.ts` owns reactive state, lifecycle, and async I/O. The compiler in `crates/sui/sui-compiler/` turns the pair into an ESM module that imports from `@ship/sui-runtime` (`packages/sui-runtime/`) — there is no parser at runtime. The daemon view-host in `crates/sui/ship-sui-server/` resolves a route, serves the compiled module, attaches a static SSR snapshot, and hydrates client-side via `attach()`.
+SUI is the template format every Ship view and built-in component is authored in. A `.sui` file is a declarative template; an optional sibling `controller.ts` owns reactive state, lifecycle, and async I/O. The compiler in `crates/sui/compiler/` turns the pair into an ESM module that imports from `@ship/sui-runtime` (`packages/sui/runtime/`) — there is no parser at runtime. The daemon view-host in `crates/deck/deck-server/` resolves a route, serves the compiled module, attaches a static SSR snapshot, and hydrates client-side via `attach()`.
 
 > The body below is the on-ramp — enough to author a first component / view in 30 minutes. For deep dives see `references/`.
 
@@ -17,10 +17,10 @@ SUI is the template format every Ship view and built-in component is authored in
 
 | Layer | Owns | Entry |
 |---|---|---|
-| Compiler | Parse → check → lower → emit (`.js`, `.css`, `.sui.d.ts`, `.sui.meta.json`, `.ssr.html`) | `crates/sui/sui-compiler/src/lib.rs:165` (`compile(src, opts) -> CompileOutput`) |
-| Runtime | Reactive primitives, DOM bindings, control flow, transitions, error-boundary, portal, morph, `mount()` / `attach()` | `packages/sui-runtime/src/index.ts` |
-| Daemon view-host | Route → manifest → compiled JS + SSR HTML → CSS + assets → live data SSE | `crates/sui/ship-sui-server/src/{view,view_host,resolver,assets}.rs` + `apps/shipd/src/views/sui_*.rs` |
-| Authoring | `.sui` + optional `.controller.ts` + `style.css` + `manifest.jsonc` (views only) | `views/<name>/`, `packages/ui-components/src/<tag>/`, `.ship/views/<name>/` (project-local) |
+| Compiler | Parse → check → lower → emit (`.js`, `.css`, `.sui.d.ts`, `.sui.meta.json`, `.ssr.html`) | `crates/sui/compiler/src/lib.rs:165` (`compile(src, opts) -> CompileOutput`) |
+| Runtime | Reactive primitives, DOM bindings, control flow, transitions, error-boundary, portal, morph, `mount()` / `attach()` | `packages/sui/runtime/src/index.ts` |
+| Daemon view-host | Route → manifest → compiled JS + SSR HTML → CSS + assets → live data SSE | `crates/deck/deck-server/src/{view,view_host,resolver,assets}.rs` + `apps/shipd/src/views/sui_*.rs` |
+| Authoring | `.sui` + optional `.controller.ts` + `style.css` + `manifest.jsonc` (views only) | `views/<name>/`, `packages/components/ui-components/src/<tag>/`, `.ship/views/<name>/` (project-local) |
 
 Detail: `references/4-layer-overview.md`.
 
@@ -38,7 +38,7 @@ views/<name>/
   _components/<tag>/  # view-private widgets; tag MUST prefix with view name
 ```
 
-Components live under `packages/ui-components/src/<tag>/` (first-party) or are private to a view under `_components/`. Same shape: `<tag>.sui` + optional `<tag>.controller.ts` + optional `<tag>.css`. No `manifest.jsonc` for components.
+Components live under `packages/components/ui-components/src/<tag>/` (first-party) or are private to a view under `_components/`. Same shape: `<tag>.sui` + optional `<tag>.controller.ts` + optional `<tag>.css`. No `manifest.jsonc` for components.
 
 **Templates declare. Controllers do.** A controller that emits markup is a bug — the `sui-controller-purity` lint rejects `el.innerHTML`, `outerHTML`, and `insertAdjacentHTML` in `*.controller.ts`. Use `bindHtml(el, () => string)` for HTML-blob cases (markdown, third-party SVG).
 
@@ -141,15 +141,15 @@ The file IS the view / component — no `<component>` wrapper, no `<script>` blo
 
 ## Live data — `<data live>`
 
-`<data name="x" source="ship.<domain>.<op>(args)" live />` opens an SSE channel at `/_sui/data?expr=…` against the daemon (`apps/shipd/src/views/sui_data.rs`). The signal flips `loading → ok → ok` as patches arrive; `bindWhileLoading` / `bindWhileError` / `{#if x().kind === 'ok'}` cover the three states. The SDK in `packages/ship-sdk-client/src/index.ts` is the only place that constructs SSE — never hand-roll `EventSource` in a controller.
+`<data name="x" source="ship.<domain>.<op>(args)" live />` opens an SSE channel at `/_sui/data?expr=…` against the daemon (`apps/shipd/src/views/sui_data.rs`). The signal flips `loading → ok → ok` as patches arrive; `bindWhileLoading` / `bindWhileError` / `{#if x().kind === 'ok'}` cover the three states. The SDK in `packages/deck/sdk-client/src/index.ts` is the only place that constructs SSE — never hand-roll `EventSource` in a controller.
 
 Worked end-to-end loop (wire path, registry, signal-backed sources, local verification): `references/runtime-primitives.md` § Live SSE data.
 
 ## SDK access — typed by codegen
 
-`ship.<domain>.<op>(args)` calls go through `@ship/sdk-client` (`packages/ship-sdk-client/src/index.ts`). The response types in `packages/sui-runtime/src/generated.ts` are emitted by `cargo xtask gen-types` from Rust source — do not edit by hand. Available domains today: `agents`, `canvas`, `chat`, `collections`, `dashboard`, `events`, `git`, `mesh`, `settings`, `sessions`, `workspaces`, `skills`.
+`ship.<domain>.<op>(args)` calls go through `@ship/sdk-client` (`packages/deck/sdk-client/src/index.ts`). The response types in `packages/sui/runtime/src/generated.ts` are emitted by `cargo xtask gen-types` from Rust source — do not edit by hand. Available domains today: `agents`, `canvas`, `chat`, `collections`, `dashboard`, `events`, `git`, `mesh`, `settings`, `sessions`, `workspaces`, `skills`.
 
-**Known gap:** `ship.skills.invoke()` is wired in the SDK (`packages/ship-sdk-client/src/index.ts`, the `skills.invoke` op) but the daemon route may reject with `{ code: 'not_implemented', op: 'skills.invoke' }`. Callers must handle the `not_implemented` code as a first-class state.
+**Known gap:** `ship.skills.invoke()` is wired in the SDK (`packages/deck/sdk-client/src/index.ts`, the `skills.invoke` op) but the daemon route may reject with `{ code: 'not_implemented', op: 'skills.invoke' }`. Callers must handle the `not_implemented` code as a first-class state.
 
 Mutations are HTTP POST/DELETE through the same client (e.g. `ship.sessions.start({...})`, `ship.workspaces.activate({...})`); use `<form mutation="…">` for the declarative path.
 
@@ -157,14 +157,14 @@ Mutations are HTTP POST/DELETE through the same client (e.g. `ship.sessions.star
 
 | Tool | What it does | Entry |
 |---|---|---|
-| `sui-compiler` (bin) | One-shot compile of a `.sui` file. Used by `sui-build` and editor extensions. | `crates/sui/sui-compiler/src/bin/sui-compiler.rs` (`cargo run -p sui-compiler -- build <file>`) |
-| `@ship/sui-build` | Project bundler — discovers `.sui` sources, calls the compiler, runs Bun/esbuild adapter, optional `--watch`. | `packages/sui-build/bin/sui-build.mjs` |
-| `@ship/sui-lsp` | LSP server — diagnostics + hover for `.sui`. Used by `apps/vscode/`. Stdio: `node packages/sui-lsp/bin/sui-lsp.js --stdio`. | `packages/sui-lsp/src/` |
+| `sui-compiler` (bin) | One-shot compile of a `.sui` file. Used by `sui-build` and editor extensions. | `crates/sui/compiler/src/bin/sui-compiler.rs` (`cargo run -p sui-compiler -- build <file>`) |
+| `@ship/sui-build` | Project bundler — discovers `.sui` sources, calls the compiler, runs Bun/esbuild adapter, optional `--watch`. | `packages/deck/build/bin/sui-build.mjs` |
+| `sui-lsp` | Native Rust LSP — diagnostics + hover + completion for `.sui`. Used by `apps/vscode/` + Claude Code (`.lsp.json`). Stdio: `sui-lsp`. | `crates/sui/lsp/` |
 | UI Studio | Browse and exercise every registered component with prop knobs, slot compositions, deep links. | `views/ship-ui-studio/` (mounted at `/ship-ui-studio`) |
-| Devtools panes | In-page panels: template source, components tree, signals, lint, schema. | `packages/ui-components/src/sui-devtools/` |
+| Devtools panes | In-page panels: template source, components tree, signals, lint, schema. | `packages/components/ui-components/src/sui-devtools/` |
 | `dispatch.sh` | Worktree + job-spec + agent compile + terminal-open script. | `.ship/skills/spawn-agent/scripts/dispatch.sh` |
 | MCP shims | `mcp__ship__sui_diagnostics`, `mcp__ship__sui_hover`, `mcp__ship__sui_dependencies` — surface LSP findings + per-view signal/tag/event graph for agents that don't speak LSP. | `apps/mcp/src/` |
-| Drift detection | `GET /api/_meta` returns `{compilerVersion, daemonVersion, builtAt, git, dirty}`. Every compiled artifact carries a `_compilerVersion` marker (leading `/*! */` comment in JS, sidecar field in CEM/schema/meta). Shell compares its loaded bundle against the daemon to surface stale-bundle drift. | `crates/sui/ship-sui-server/src/meta.rs` |
+| Drift detection | `GET /api/_meta` returns `{compilerVersion, daemonVersion, builtAt, git, dirty}`. Every compiled artifact carries a `_compilerVersion` marker (leading `/*! */` comment in JS, sidecar field in CEM/schema/meta). Shell compares its loaded bundle against the daemon to surface stale-bundle drift. | `crates/deck/deck-server/src/meta.rs` |
 
 Detail: `references/tooling.md`.
 

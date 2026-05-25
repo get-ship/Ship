@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "id": "no-placeholders",
+      "scope": "project"
+    },
+    {
+      "id": "commit-style",
+      "scope": "user"
+    }
+  ]
+}

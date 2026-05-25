@@ -26,7 +26,7 @@
 -->
 
 <prop name="keys" type="string" default="" />
-<prop name="size" values="sm|md" default="md" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
 
 <style>
   :host {
@@ -43,7 +43,7 @@
     padding: 2px 5px;
     font-family: var(--font-mono);
     font-weight: var(--font-weight-medium, 500);
-    font-size: 11px;
+    font-size: var(--text-xs);
     line-height: 1.2;
     color: var(--foreground);
     background: var(--muted);
@@ -54,8 +54,9 @@
     white-space: nowrap;
   }
 
-  :host([size='sm']) kbd { font-size: 10px; padding: 1px 4px; min-width: 16px; }
-  :host([size='md']) kbd { font-size: 11px; padding: 2px 5px; min-width: 18px; }
+  :host([size='sm']) kbd { font-size: var(--text-xs); padding: 1px 4px; min-width: 16px; }
+  :host([size='md']) kbd { font-size: var(--text-xs); padding: 2px 5px; min-width: 18px; }
+  :host([size='lg']) kbd { font-size: var(--text-sm); padding: 3px 7px; min-width: 22px; }
 </style>
 
 <kbd part="kbd"><slot></slot></kbd>

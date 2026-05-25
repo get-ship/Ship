@@ -8,4 +8,7 @@ pub mod service;
 pub mod settings_view;
 pub mod state;
 pub mod view_state;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
 pub mod wire;
+pub mod wire_types;

@@ -1,10 +1,10 @@
 //! Step executor — trait and executor-selection contract for pipeline steps.
 //!
 //! This module is the runtime-level statement of how a pipeline step is run.
-//! It intentionally **reuses** the existing `JobExecutor` trait rather than
+//! It intentionally **reuses** the existing `SessionExecutor` trait rather than
 //! introducing a parallel `StepExecutor` trait, because the orchestrator
 //! already dispatches everything (single-step jobs and pipeline steps alike)
-//! through `JobExecutor` — a second trait would be a parallel system with no
+//! through `SessionExecutor` — a second trait would be a parallel system with no
 //! added power (see `CLAUDE.md`: "One way to do things.").
 //!
 //! The two concrete implementations live in `apps/shipd/src/supervisor/
@@ -21,7 +21,7 @@
 //!                            Windows.
 //!
 //! The shipd-side `RoutingExecutor` selects between them per-job based on
-//! `JobContext::headless`.
+//! `SessionContext::headless`.
 //!
 //! # Log path convention
 //!
@@ -30,7 +30,7 @@
 //! spec bodies — see `pipeline_specs.rs`). `tee -a` means retry runs
 //! append instead of truncating.
 
-pub use crate::services::dispatch_ports::{JobContext, JobExecutor, StepInfo};
+pub use crate::services::dispatch_ports::{SessionContext, SessionExecutor, StepInfo};
 
 /// Relative log path for a given step in the pipeline log convention.
 ///

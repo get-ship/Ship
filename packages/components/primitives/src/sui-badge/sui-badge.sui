@@ -71,7 +71,7 @@
     font-size: var(--bdg-fs);
     font-weight: var(--font-weight-semibold);
     line-height: 1;
-    letter-spacing: 0.04em;
+    letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
     border-radius: var(--bdg-radius);
     /* soft is the default — base .badge renders as soft */
@@ -93,7 +93,6 @@
     background: var(--tone);
     border-color: color-mix(in oklch, var(--tone) 100%, var(--foreground) 6%);
     color: var(--tone-contrast);
-    box-shadow: inset 0 1px 0 0 color-mix(in oklch, var(--background) 18%, transparent);
   }
   :host([variant='outline']) .badge {
     background: transparent;

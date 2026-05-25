@@ -30,28 +30,16 @@
 <style>
   :host { display: inline-flex; }
   :host([hidden]) { display: none; }
-  button {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 4px 8px;
-    font: inherit;
-    font-size: 12px;
-    color: var(--foreground);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-  button:hover { background: var(--muted); }
 </style>
 
-<button
-  type="button"
+<sui-button
+  variant="default"
+  size="sm"
   aria-label="Toggle theme"
-  aria-pressed={isDark() ? 'true' : 'false'}
+  attr:aria-pressed={isDark() ? 'true' : 'false'}
   title="Toggle theme"
   on:click={toggle}
 >
-  {isDark() ? '🌙' : '☀'} <slot>{isDark() ? 'Dark' : 'Light'}</slot>
-</button>
+  <sui-icon slot="leading" name={isDark() ? 'moon' : 'sun'} size="sm"></sui-icon>
+  <slot>{isDark() ? 'Dark' : 'Light'}</slot>
+</sui-button>

@@ -84,14 +84,14 @@ fn init_with_harness_sets_harness_in_toml() {
     let tmp = TempDir::new().unwrap();
 
     ship()
-        .args(["init", "--harness", "gemini"])
+        .args(["init", "--harness", "cursor"])
         .current_dir(tmp.path())
         .assert()
         .success();
 
     let content = fs::read_to_string(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc")).unwrap();
     assert!(
-        content.contains("gemini"),
+        content.contains("cursor"),
         "harness should appear in ship.jsonc"
     );
 }
@@ -245,25 +245,6 @@ fn compile_fails_without_ship_dir() {
 }
 
 // ── ship compile --harness ───────────────────────────────────────────────────
-
-#[test]
-fn compile_harness_gemini_writes_gemini_md() {
-    let tmp = TempDir::new().unwrap();
-    write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
-
-    ship()
-        .args(["compile", "--harness", "gemini"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    assert!(
-        tmp.path().join("GEMINI.md").exists(),
-        "GEMINI.md must be written for gemini compile"
-    );
-    let content = fs::read_to_string(tmp.path().join("GEMINI.md")).unwrap();
-    assert!(content.contains("Use explicit types."));
-}
 
 #[test]
 fn compile_harness_codex_writes_agents_md() {
@@ -621,7 +602,7 @@ fn e2e_cross_harness_same_config() {
     "id": "cross",
     "name": "Cross Harness",
     "version": "0.1.0",
-    "harnesses": ["claude", "cursor", "gemini", "codex"]
+    "harnesses": ["claude", "cursor", "codex"]
   },
   "skills": { "refs": [] },
   "mcp": { "servers": [] },
@@ -701,26 +682,6 @@ fn e2e_cross_harness_same_config() {
             .unwrap()
             .contains(rule_text),
         "cursor rule file must contain rule content"
-    );
-
-    // Compile for gemini
-    ship()
-        .args(["compile", "--harness", "gemini", "--path", p])
-        .assert()
-        .success();
-    assert!(
-        tmp.path().join("GEMINI.md").exists(),
-        "GEMINI.md must be written"
-    );
-    assert!(
-        fs::read_to_string(tmp.path().join("GEMINI.md"))
-            .unwrap()
-            .contains(rule_text),
-        "GEMINI.md must contain rule content"
-    );
-    assert!(
-        tmp.path().join(".gemini/settings.json").exists(),
-        ".gemini/settings.json must be written"
     );
 
     // Compile for codex

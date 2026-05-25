@@ -41,11 +41,11 @@ pub async fn complete_fanout_lane(
 ) {
     let lane_step_id = format!("{}.{}", lane_ref.fanout_step_id, lane_ref.lane_id);
     let success = matches!(payload.verdict, StepVerdict::Advance | StepVerdict::Inconclusive);
-    let mut outputs = get_step_outputs_from_events(&lane_ref.job_id, &lane_step_id);
+    let mut outputs = get_step_outputs_from_events(&lane_ref.pipeline_run_id, &lane_step_id);
 
     if !success {
         tracing::warn!(
-            job_id = lane_ref.job_id, lane_id = lane_ref.lane_id,
+            pipeline_run_id = lane_ref.pipeline_run_id, lane_id = lane_ref.lane_id,
             step = lane_ref.fanout_step_id, reason = ?payload.reason,
             "fanout: lane failed"
         );
@@ -54,14 +54,14 @@ pub async fn complete_fanout_lane(
         // used for successful outputs. No special-casing required downstream.
         let reason = payload.reason.clone().unwrap_or_else(|| "lane failed".to_string());
         if let Some(marker_id) = emit_failed_marker(
-            kernel, &lane_ref.job_id, &lane_ref.parent_slug,
+            kernel, &lane_ref.pipeline_run_id, &lane_ref.parent_slug,
             &lane_step_id, &lane_ref.lane_id, &reason,
         ).await {
             outputs.insert(FAILED_MARKER_NAME.to_string(), marker_id);
         }
     } else {
         tracing::info!(
-            job_id = lane_ref.job_id, lane_id = lane_ref.lane_id,
+            pipeline_run_id = lane_ref.pipeline_run_id, lane_id = lane_ref.lane_id,
             step = lane_ref.fanout_step_id, outputs_count = outputs.len(),
             "fanout: lane succeeded"
         );
@@ -94,7 +94,7 @@ pub async fn complete_fanout_lane(
 /// any failure — a failed lane should never block aggregator progress.
 pub(crate) async fn emit_failed_marker(
     kernel: &Arc<Mutex<KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     slug: &str,
     lane_step_id: &str,
     lane_id: &str,
@@ -103,14 +103,14 @@ pub(crate) async fn emit_failed_marker(
     let ship_dir = match ship_substrate::project::get_global_dir() {
         Ok(d) => d,
         Err(e) => {
-            tracing::warn!(job_id, lane_id, "fanout: failed marker — cannot get ship dir: {e}");
+            tracing::warn!(pipeline_run_id, lane_id, "fanout: failed marker — cannot get ship dir: {e}");
             return None;
         }
     };
     let mut data = match ship_substrate::data::DataService::open(&ship_dir) {
         Ok(d) => d,
         Err(e) => {
-            tracing::warn!(job_id, lane_id, "fanout: failed marker — cannot open data service: {e}");
+            tracing::warn!(pipeline_run_id, lane_id, "fanout: failed marker — cannot open data service: {e}");
             return None;
         }
     };
@@ -118,7 +118,7 @@ pub(crate) async fn emit_failed_marker(
     let art_svc = ArtifactService::new(&ship_dir);
     let scope = ArtifactScope::Run {
         project_id,
-        run_id: job_id.to_string(),
+        run_id: pipeline_run_id.to_string(),
     };
     let body = format!(
         "# Lane `{lane_id}` failed\n\nreason: {reason}\nstep_id: {lane_step_id}\n"
@@ -136,7 +136,7 @@ pub(crate) async fn emit_failed_marker(
     {
         Ok(r) => r,
         Err(e) => {
-            tracing::warn!(job_id, lane_id, "fanout: failed marker — artifact store failed: {e}");
+            tracing::warn!(pipeline_run_id, lane_id, "fanout: failed marker — artifact store failed: {e}");
             return None;
         }
     };
@@ -144,19 +144,19 @@ pub(crate) async fn emit_failed_marker(
     // Synthetic step.done_declared so resolve_consumes finds the marker the
     // same way it finds any other lane output.
     let payload = PipelineStepDoneDeclaredPayload {
-        job_id: job_id.to_string(),
+        pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
         step_id: lane_step_id.to_string(),
         summary: Some(format!("lane failed: {reason}")),
         outputs: [(FAILED_MARKER_NAME.to_string(), rec.id.clone())].into(),
     };
-    match EventEnvelope::new(event_types::PIPELINE_STEP_DONE_DECLARED, job_id, &payload) {
+    match EventEnvelope::new(event_types::PIPELINE_STEP_DONE_DECLARED, pipeline_run_id, &payload) {
         Ok(env) => {
             let env = env.with_actor_id("service.fanout");
             persist_and_route(kernel, env, slug, None).await;
         }
         Err(e) => {
-            tracing::warn!(job_id, lane_id, "fanout: failed marker — envelope build failed: {e}");
+            tracing::warn!(pipeline_run_id, lane_id, "fanout: failed marker — envelope build failed: {e}");
         }
     }
     Some(rec.id)

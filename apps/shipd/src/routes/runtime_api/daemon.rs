@@ -11,21 +11,21 @@ use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
-    use ship_platform::projections::job::JobStatus;
+    use ship_platform::projections::pipeline_run::PipelineRunStatus;
 
     let ship_dir = state.ship_dir();
-    let jobs = ship_platform::projections::job::load_jobs_at(ship_dir).unwrap_or_default();
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(ship_dir).unwrap_or_default();
     let mut counts: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
     for j in jobs.values() {
         let key = match j.status {
-            JobStatus::Pending => "pending",
-            JobStatus::Dispatched => "dispatched",
-            JobStatus::Completed => "completed",
-            JobStatus::GatePending => "gate_pending",
-            JobStatus::Blocked => "blocked",
-            JobStatus::Merged => "merged",
-            JobStatus::Failed => "failed",
-            JobStatus::Cancelled => "cancelled",
+            PipelineRunStatus::Pending => "pending",
+            PipelineRunStatus::Dispatched => "dispatched",
+            PipelineRunStatus::Completed => "completed",
+            PipelineRunStatus::GatePending => "gate_pending",
+            PipelineRunStatus::Blocked => "blocked",
+            PipelineRunStatus::Merged => "merged",
+            PipelineRunStatus::Failed => "failed",
+            PipelineRunStatus::Cancelled => "cancelled",
         };
         *counts.entry(key).or_insert(0) += 1;
     }

@@ -1,0 +1,24 @@
+// `account.*` as a hand-authored per-domain proto-SSOT service (#89),
+// mounted ADDITIVELY beside the generated ReadOpsService which keeps serving
+// account.* until the GUI flip (#72). Old path UNCHANGED.
+//
+// Request message uses a fresh name (GetAccountStateReq) to avoid collision
+// with AccountStateRequest declared in reads.gen.proto in this same package.
+// Return type is opaque JsonResponse — AccountState embeds provider-specific
+// fields that vary by harness and are not stable enough to type in proto.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/ops.proto";
+
+message GetAccountStateReq {}
+
+// Ship Cloud account state. Single C0 read — no writes in this domain.
+service AccountService {
+  rpc State(GetAccountStateReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.account.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+}

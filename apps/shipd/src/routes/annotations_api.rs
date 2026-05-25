@@ -41,7 +41,18 @@ const SELECTION_TEXT_MAX_BYTES: usize = 20 * 1024;
 pub async fn post_annotation(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-    Json(mut ev): Json<AnnotationEvent>,
+    Json(ev): Json<AnnotationEvent>,
+) -> Response {
+    post_annotation_core(&state, &auth, ev).await
+}
+
+/// Shared core for the REST handler above and the ConnectRPC command. Returns
+/// an axum `Response` today; the #78 service-lift will move this into a
+/// platform service with a typed result and drop the transport coupling.
+pub(crate) async fn post_annotation_core(
+    state: &ApiState,
+    auth: &AuthContext,
+    mut ev: AnnotationEvent,
 ) -> Response {
     if Ulid::from_string(&ev.id).is_err() {
         ev.id = Ulid::new().to_string();

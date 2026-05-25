@@ -9,9 +9,11 @@ use super::fixtures::*;
 #[test]
 fn ship_server_args_include_serve_subcommand() {
     // Regression: ship use was generating args: ["mcp"] — missing "serve".
-    // The correct command is `ship mcp serve`.
+    // The correct command is `ship mcp serve`. Only stdio-fallback harnesses
+    // emit a command — claude now compiles to a daemon-hosted authed-HTTP
+    // entry (covered in compile::mcp tests), so it's excluded here.
     let r = resolved(vec![]);
-    for harness_id in &["claude", "gemini", "codex", "cursor"] {
+    for harness_id in &["codex", "cursor"] {
         let out = compile(&r, harness_id).unwrap();
         let ship = &out.mcp_servers["ship"];
         assert_eq!(
@@ -73,7 +75,7 @@ fn codex_uses_mcp_servers_key() {
 #[test]
 fn no_harness_emits_type_field_for_stdio() {
     let r = resolved(vec![make_server("github")]);
-    for harness_id in &["claude", "gemini", "codex", "cursor"] {
+    for harness_id in &["claude", "codex", "cursor"] {
         let out = compile(&r, harness_id).unwrap();
         assert!(
             out.mcp_servers["github"].get("type").is_none(),
@@ -98,32 +100,6 @@ fn http_server_url_field_per_harness() {
         "Claude uses 'url'"
     );
     assert!(claude_out.mcp_servers["remote"].get("httpUrl").is_none());
-
-    let gemini_out = compile(&r, "gemini").unwrap();
-    assert!(
-        gemini_out.mcp_servers["remote"].get("httpUrl").is_some(),
-        "Gemini uses 'httpUrl'"
-    );
-    assert!(gemini_out.mcp_servers["remote"].get("url").is_none());
-}
-
-/// Source: https://geminicli.com/docs/tools/mcp-server
-/// Gemini SSE uses "url" field (not "httpUrl" — that's only for streamable HTTP).
-#[test]
-fn gemini_sse_uses_url_field_not_httpurl() {
-    let mut s = make_server("sse-server");
-    s.server_type = McpServerType::Sse;
-    s.url = Some("https://sse.example.com/mcp".to_string());
-    s.command = String::new();
-    s.args = vec![];
-
-    let r = resolved(vec![s]);
-    let out = compile(&r, "gemini").unwrap();
-    assert!(
-        out.mcp_servers["sse-server"].get("url").is_some(),
-        "Gemini SSE must use 'url' field"
-    );
-    assert!(out.mcp_servers["sse-server"].get("httpUrl").is_none());
 }
 
 #[test]
@@ -146,10 +122,8 @@ fn claude_mcp_config_path_in_output() {
 #[test]
 fn harness_context_file_names() {
     let desc_claude = get_harness("claude").unwrap();
-    let desc_gemini = get_harness("gemini").unwrap();
     let desc_codex = get_harness("codex").unwrap();
     assert_eq!(desc_claude.context_file.file_name(), Some("CLAUDE.md"));
-    assert_eq!(desc_gemini.context_file.file_name(), Some("GEMINI.md"));
     assert_eq!(desc_codex.context_file.file_name(), Some("AGENTS.md"));
 }
 
@@ -251,12 +225,6 @@ fn skill_files_harness_directories() {
             .unwrap()
             .skill_files
             .contains_key(".claude/skills/rust-expert/SKILL.md")
-    );
-    assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .skill_files
-            .contains_key(".agents/skills/rust-expert/SKILL.md")
     );
     assert!(
         compile(&r, "codex")

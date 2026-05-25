@@ -1,0 +1,15 @@
+{
+  "workspace_id": "ws-default",
+  "messages": [
+    {
+      "id": "evt-1",
+      "sender": "agent",
+      "content": "Migration complete.",
+      "detail": null,
+      "timestamp": "09:04",
+      "event_type": "studio.chat_turn",
+      "workspace_id": "ws-default"
+    }
+  ],
+  "total": 1
+}

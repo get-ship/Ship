@@ -14,10 +14,6 @@ pub const CLAUDE_SCHEMA_URL: &str = "https://www.schemastore.org/claude-code-set
 pub const CODEX_SCHEMA_URL: &str =
     "https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/config.schema.json";
 
-/// Gemini CLI settings JSON Schema (GitHub).
-pub const GEMINI_SCHEMA_URL: &str =
-    "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/schemas/settings.schema.json";
-
 /// OpenCode config JSON Schema (official site).
 pub const OPENCODE_SCHEMA_URL: &str = "https://opencode.ai/config.json";
 
@@ -30,9 +26,11 @@ pub const CURSOR_SCHEMA_URL: Option<&str> = None;
 pub const HARNESS_SCHEMAS: &[(&str, Option<&str>)] = &[
     ("claude", Some(CLAUDE_SCHEMA_URL)),
     ("codex", Some(CODEX_SCHEMA_URL)),
-    ("gemini", Some(GEMINI_SCHEMA_URL)),
     ("cursor", None),
     ("opencode", Some(OPENCODE_SCHEMA_URL)),
+    // Pi has no settings-file schema (model/tools are CLI/env; config is
+    // user-authored TS extensions). Source: pi.dev/docs.
+    ("pi", None),
 ];
 
 /// Look up the upstream schema URL for a harness.
@@ -65,7 +63,6 @@ pub const HARNESS_MANAGED_KEYS: &[(&str, &[&str])] = &[
         ],
     ),
     ("codex", &["mcp_servers"]),
-    ("gemini", &["hooks", "mcpServers"]),
     ("cursor", &[]),
     ("opencode", &["mcp", "permission"]),
 ];
@@ -87,7 +84,6 @@ mod tests {
     fn schema_url_returns_known_harnesses() {
         assert!(schema_url("claude").is_some());
         assert!(schema_url("codex").is_some());
-        assert!(schema_url("gemini").is_some());
         assert!(schema_url("opencode").is_some());
         assert!(schema_url("cursor").is_none());
     }

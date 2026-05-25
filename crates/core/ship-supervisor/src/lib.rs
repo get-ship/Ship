@@ -6,7 +6,7 @@
 //!
 //! The orchestrator in `ship_platform::services::orchestrator` makes all
 //! dispatch / advancement decisions through a small set of injected
-//! traits — `JobExecutor`, `IsolationStrategy`, `AgentPlatform`,
+//! traits — `SessionExecutor`, `IsolationStrategy`, `AgentPlatform`,
 //! `ProcessRegistryPort`. This crate provides the concrete
 //! implementations the daemon uses to fulfill those traits.
 //!
@@ -18,7 +18,7 @@ pub mod adapters;
 pub mod agent_lifecycle;
 pub mod executors;
 pub mod helpers;
-pub mod job_dispatch;
+pub mod run_dispatch;
 pub mod orphan_cleanup;
 pub mod platform;
 pub mod process_events;

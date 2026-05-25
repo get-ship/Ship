@@ -72,6 +72,10 @@ pub struct AuthContext {
     pub session_id: Option<String>,
     /// Granted scopes for this request. Daemon token gets `[Full]`.
     pub scopes: Vec<Scope>,
+    /// Restricted capability grants (the gate's grant axis), minted from the
+    /// session's provisioned set. Empty for the operator (cleared by is_operator)
+    /// and for agents with no restricted domains. Distinct from `scopes`.
+    pub grants: Vec<String>,
 }
 
 impl AuthContext {
@@ -173,6 +177,7 @@ pub async fn auth_middleware(
                             workspace_id: session.workspace_id.clone(),
                             session_id: None,
                             scopes: session.scopes.clone(),
+                            grants: session.grants.clone(),
                         };
                         req.extensions_mut().insert(auth);
                         return next.run(req).await;
@@ -246,6 +251,8 @@ pub async fn auth_middleware(
                     workspace_id: session.workspace_id.clone(),
                     session_id,
                     scopes: session.scopes.clone(),
+                    // The minted restricted grants — the gate's grant axis.
+                    grants: session.grants.clone(),
                 };
                 drop(registry);
                 req.extensions_mut().insert(auth);
@@ -263,11 +270,17 @@ pub async fn auth_middleware(
     }
 
     let (caller_kind, scopes) = if is_daemon_token(token) {
+        // The daemon token is the operator's human-bootstrap credential.
         (CallerKind::Cli, vec![Scope::Full])
     } else if token.starts_with("ship_") {
         (CallerKind::Sdk, vec![Scope::Full])
     } else {
-        (CallerKind::Cli, vec![Scope::Full])
+        // The token equals `expected_token` but matches neither the daemon-token
+        // format (64-char hex) nor an SDK prefix — an anomalous/misconfigured
+        // credential. Fail closed rather than granting Cli + Full. A correct
+        // daemon token always takes the first branch, so this never fires in
+        // normal operation.
+        return (StatusCode::UNAUTHORIZED, "unrecognized credential format").into_response();
     };
 
     let agent_id = header_string(&req, "x-ship-agent-id");
@@ -280,6 +293,9 @@ pub async fn auth_middleware(
         workspace_id,
         session_id,
         scopes,
+        // Daemon/SDK tokens are operator-class (is_operator clears the gate);
+        // no restricted grants needed on this path.
+        grants: vec![],
     };
 
     req.extensions_mut().insert(auth);

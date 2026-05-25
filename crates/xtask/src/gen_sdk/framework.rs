@@ -1,8 +1,8 @@
 //! Emit the framework manifest as both JSON and TypeScript.
 //!
-//! - `packages/sdk/src/generated/sdk-framework.json` — tooling/agent-prompt
+//! - `packages/deck/sdk/src/generated/sdk-framework.json` — tooling/agent-prompt
 //!   consumption. Sits alongside the other generated SDK artefacts.
-//! - `packages/sdk/src/generated/framework.ts` — typed
+//! - `packages/deck/sdk/src/generated/framework.ts` — typed
 //!   `FrameworkManifest` interface + `FRAMEWORK` const for IDE-side
 //!   consumers.
 //!
@@ -11,7 +11,7 @@
 //! across the framework's lifetime and are authored by hand here. The
 //! per-component prop catalog (`components` field) is populated by a
 //! separate pass from `@custom-elements-manifest/analyzer` against
-//! `packages/ui-components/`; that pipeline is not driven from this file.
+//! `packages/components/ui-components/`; that pipeline is not driven from this file.
 
 use std::path::Path;
 

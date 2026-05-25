@@ -1,5 +1,6 @@
 import { chrome, controller, signal, derived, effect, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-source.sui'
+import { isShellLocalView } from '../../chrome/shell-surfaces'
 
 interface ViewFile {
   path: string
@@ -166,7 +167,7 @@ export default controller<Scope>({
         // daemon creates a snapshot on every successful save, so users
         // expect to see it appear without closing + reopening the panel.
         if (snapshotsOpen()) {
-          const mcp = (window as unknown as { __viewMcp?: typeof import('../../../../apps/shell/src/chrome/view-mcp').viewMcp }).__viewMcp
+          const mcp = (window as unknown as { __viewMcp?: typeof import('../../chrome/view-mcp').viewMcp }).__viewMcp
           if (mcp) {
             mcp.listSnapshots(name, 50).then((r) => {
               snapshots.set(r.snapshots ?? [])
@@ -187,7 +188,7 @@ export default controller<Scope>({
       if (!snapshotsOpen()) return
       snapshotsLoading.set(true)
       snapshotsError.set(null)
-      const mcp = (window as unknown as { __viewMcp?: typeof import('../../../../apps/shell/src/chrome/view-mcp').viewMcp }).__viewMcp
+      const mcp = (window as unknown as { __viewMcp?: typeof import('../../chrome/view-mcp').viewMcp }).__viewMcp
       if (!mcp) {
         snapshotsError.set('MCP not available — enter edit mode first.')
         snapshotsLoading.set(false)
@@ -205,7 +206,7 @@ export default controller<Scope>({
 
     async function onRestoreSnapshot(snapshot_id: string): Promise<void> {
       const name = viewName()
-      const mcp = (window as unknown as { __viewMcp?: typeof import('../../../../apps/shell/src/chrome/view-mcp').viewMcp }).__viewMcp
+      const mcp = (window as unknown as { __viewMcp?: typeof import('../../chrome/view-mcp').viewMcp }).__viewMcp
       if (!name || !mcp) return
       try {
         await mcp.restoreSnapshot(name, snapshot_id)
@@ -265,6 +266,14 @@ export default controller<Scope>({
     async function loadFiles(name: string): Promise<void> {
       if (!name || lastLoadedView === name) return
       lastLoadedView = name
+      // Shell-local surfaces (e.g. studio) have no daemon source — their
+      // files are bundled into the shell. Skip the fetch so it doesn't 404.
+      if (isShellLocalView(name)) {
+        s.files = []
+        s.selectedPath = ''
+        s.loadError = 'shell-local surface — source is bundled into the shell'
+        return
+      }
       s.loading = true
       s.loadError = null
       s.files = []
@@ -395,7 +404,7 @@ export default controller<Scope>({
       compileErrorSig.set(`${d?.file ?? 'view'}${loc} — ${d?.message ?? 'compile failed'}`)
       pushDiagnosticsToEditor([{
         line: d?.line ?? 1,
-        col: d?.col,
+        ...(d?.col !== undefined ? { col: d.col } : {}),
         severity: d?.severity ?? 'error',
         message: d?.message ?? 'compile failed',
         source: 'sui-compiler',

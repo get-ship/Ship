@@ -6,7 +6,7 @@
 //!
 //! 1. `$OUT_DIR/routes_generated.rs` — Rust URL builders and the
 //!    `ShipRouterExt::ship_route` trait extension.
-//! 2. `packages/sdk/src/generated/routes.ts` — TypeScript route catalog.
+//! 2. `packages/deck/sdk/src/generated/routes.ts` — TypeScript route catalog.
 //!
 //! Any structural violation (mismatched path params, unsupported type in
 //! `@returns` / `@body`, missing `@route`) is a compile-time panic that
@@ -54,11 +54,12 @@ fn main() {
         .expect("CARGO_MANIFEST_DIR")
         .into();
 
-    // SDK TypeScript catalog. apps/shipd → ../../packages/sdk/src/generated/routes.ts
+    // SDK TypeScript catalog. apps/shipd → ../../packages/deck/sdk/src/generated/routes.ts
     let sdk_dir = manifest_dir
         .join("..")
         .join("..")
         .join("packages")
+        .join("deck")
         .join("sdk")
         .join("src")
         .join("generated");

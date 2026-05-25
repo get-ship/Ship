@@ -46,6 +46,7 @@ pub struct AgentsSummariesResponse {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct AgentDetail {
     pub id: String,
     pub name: String,
@@ -77,6 +78,9 @@ pub struct AgentDetail {
 }
 
 #[derive(Clone, Debug, Default, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+// TS name disambiguated from `compiler::Permissions` (wire/serde unchanged).
+#[cfg_attr(feature = "specta", specta(rename = "AgentPermissions"))]
 pub struct Permissions {
     pub preset: String,
     pub tools_allow: Vec<String>,
@@ -315,6 +319,9 @@ pub(crate) fn load_agent_with_scopes(
 //   - rules: scan .ship/rules/*.md
 
 #[derive(Serialize, Debug)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+// TS name disambiguated from `compiler::CatalogEntry` (wire/serde unchanged).
+#[cfg_attr(feature = "specta", specta(rename = "AgentCatalogEntry"))]
 pub struct CatalogEntry {
     pub id: String,
     pub name: String,
@@ -323,6 +330,7 @@ pub struct CatalogEntry {
 }
 
 #[derive(Serialize, Debug)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct AgentCatalogs {
     pub skills: Vec<CatalogEntry>,
     pub mcp: Vec<CatalogEntry>,
@@ -339,6 +347,7 @@ pub struct AgentCatalogs {
 }
 
 #[derive(Serialize, Debug)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ToolPatternEntry {
     pub pattern: String,
     /// Short label shown in the autocomplete dropdown.

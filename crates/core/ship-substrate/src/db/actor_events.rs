@@ -91,6 +91,64 @@ pub fn emit_actor_created_simple(
     )
 }
 
+/// Persist `actor.created` (event row + projection) and deliver the live
+/// mailbox notification, all synchronously and without building a throwaway
+/// async runtime.
+///
+/// MUST be called from a thread with no ambient Tokio runtime (a bare
+/// `std::thread`), not inline on an async worker:
+///   - the durable append's `block_on` would hit `block_in_place`, which
+///     panics on a current-thread runtime (the default for `#[tokio::test]`);
+///   - the live deliver uses the router's `blocking_lock`, which panics if a
+///     runtime is active on the calling thread.
+///
+/// Callers dispatching from async (e.g. `RoutingExecutor::spawn`) offload this
+/// to a `std::thread` and await its completion, so the dashboard row is
+/// guaranteed before a short-lived child can exit. Using `blocking_lock`
+/// instead of `block_on_anyhow` for the deliver avoids spinning a fresh
+/// multi-thread runtime per call — that path exhausted the thread table under
+/// parallel dispatch and broke unrelated process/PTY spawns.
+pub fn persist_actor_created_simple(
+    actor_id: &str,
+    kind: &str,
+    project_id: Option<&str>,
+    agent_id: Option<&str>,
+    harness: Option<&str>,
+    transport: Option<&str>,
+    parent_actor_id: Option<&str>,
+) -> Result<()> {
+    let payload = ActorCreated {
+        kind: kind.to_string(),
+        environment_type: "local".to_string(),
+        workspace_id: project_id.map(str::to_string),
+        parent_actor_id: parent_actor_id.map(str::to_string),
+        restart_count: 0,
+        agent_id: agent_id.map(str::to_string),
+        harness: harness.map(str::to_string),
+        transport: transport.map(str::to_string),
+        persistence: Some("one-shot".to_string()),
+        ..Default::default()
+    };
+    let mut envelope = EventEnvelope::new(event_types::ACTOR_CREATED, actor_id, &payload)?
+        .with_context(project_id, None)
+        .with_actor_id(actor_id)
+        .elevate();
+    if let Some(parent) = parent_actor_id {
+        envelope = envelope.with_parent_actor_id(parent);
+    }
+
+    // Durable write — the part that must not be raced by a short-lived child.
+    SqliteEventStore::new()?.append(&envelope)?;
+
+    // Best-effort live notification. `blocking_lock` (no runtime) keeps this
+    // cheap; a missed push just means subscribers see the row on next read.
+    if let Some(kr) = crate::events::kernel_router() {
+        kr.blocking_lock().deliver(&envelope);
+    }
+
+    Ok(())
+}
+
 pub fn emit_actor_woke(
     id: &str,
     project_id: Option<&str>,

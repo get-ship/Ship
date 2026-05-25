@@ -28,16 +28,7 @@ pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Re
 
     // MCP config file
     if let Some(ref mcp_path) = output.mcp_config_path {
-        if harness_id == "gemini" {
-            // Gemini: mcp_servers + hooks merged into settings.json
-            let path = root.join(mcp_path);
-            ensure_parent(&path)?;
-            let mut patch = serde_json::json!({ desc.mcp_key.as_str(): &output.mcp_servers });
-            if let Some(hooks) = &output.gemini_settings_patch {
-                merge_json(&mut patch, hooks);
-            }
-            merge_json_file(&path, &patch)?;
-        } else if harness_id == "codex" {
+        if harness_id == "codex" {
             // Codex: TOML patch written separately — skip JSON write here
         } else {
             // All other harnesses (Claude, Cursor): merge preserving user entries
@@ -99,13 +90,6 @@ pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Re
         None => {
             let _ = std::fs::remove_file(&rules_path);
         }
-    }
-
-    // Gemini policy → .gemini/policies/ship.toml
-    if let Some(policy) = &output.gemini_policy_patch {
-        let path = root.join(".gemini/policies/ship.toml");
-        ensure_parent(&path)?;
-        std::fs::write(&path, policy)?;
     }
 
     // Cursor hooks → .cursor/hooks.json

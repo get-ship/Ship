@@ -9,7 +9,7 @@
 //! R0a ships only what the pipelines pilot (R0b) will consume. That is:
 //!
 //! - Pipeline definitions from `.ship/pipelines/*.jsonc`
-//! - Pipeline runs (via `ship_platform::projections::job::load_jobs`)
+//! - Pipeline runs (via `ship_platform::projections::pipeline_run::load_pipeline_runs`)
 //! - A shared [`Filter`] struct for query-string-driven view filters
 //!
 //! Helpers for specs, git, and settings are intentionally absent. They
@@ -28,7 +28,7 @@ pub use ship_platform::services::skills::view_state::{
     load_skill_file,
 };
 
-use ship_platform::projections::job::{PipelineRun, JobStatus};
+use ship_platform::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::ErrorKind;
@@ -37,6 +37,7 @@ use std::path::Path;
 /// Definition of a pipeline parsed from a `.ship/pipelines/*.jsonc` file,
 /// plus usage stats aggregated from PipelineRuns referencing it.
 #[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct PipelineDef {
     pub name: String,
     pub description: String,
@@ -84,16 +85,16 @@ pub enum RunCategory {
 }
 
 impl RunCategory {
-    pub fn of(status: &JobStatus) -> Self {
+    pub fn of(status: &PipelineRunStatus) -> Self {
         match status {
-            JobStatus::Dispatched | JobStatus::GatePending | JobStatus::Pending => {
+            PipelineRunStatus::Dispatched | PipelineRunStatus::GatePending | PipelineRunStatus::Pending => {
                 RunCategory::Active
             }
-            JobStatus::Completed
-            | JobStatus::Failed
-            | JobStatus::Merged
-            | JobStatus::Blocked
-            | JobStatus::Cancelled => RunCategory::History,
+            PipelineRunStatus::Completed
+            | PipelineRunStatus::Failed
+            | PipelineRunStatus::Merged
+            | PipelineRunStatus::Blocked
+            | PipelineRunStatus::Cancelled => RunCategory::History,
         }
     }
 }
@@ -102,6 +103,7 @@ impl RunCategory {
 /// optional so callers can pass an empty [`Filter::default`] for unfiltered
 /// results.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct Filter {
     /// Case-insensitive substring match applied to slug, agent, and
     /// pipeline name where relevant.
@@ -152,18 +154,18 @@ impl Filter {
     }
 }
 
-/// Normalized kebab-case token for `JobStatus`. Stable for query strings
+/// Normalized kebab-case token for `PipelineRunStatus`. Stable for query strings
 /// and template comparisons.
-pub fn status_token(s: &JobStatus) -> &'static str {
+pub fn status_token(s: &PipelineRunStatus) -> &'static str {
     match s {
-        JobStatus::Pending => "pending",
-        JobStatus::Dispatched => "dispatched",
-        JobStatus::GatePending => "gate-pending",
-        JobStatus::Completed => "completed",
-        JobStatus::Failed => "failed",
-        JobStatus::Merged => "merged",
-        JobStatus::Blocked => "blocked",
-        JobStatus::Cancelled => "cancelled",
+        PipelineRunStatus::Pending => "pending",
+        PipelineRunStatus::Dispatched => "dispatched",
+        PipelineRunStatus::GatePending => "gate-pending",
+        PipelineRunStatus::Completed => "completed",
+        PipelineRunStatus::Failed => "failed",
+        PipelineRunStatus::Merged => "merged",
+        PipelineRunStatus::Blocked => "blocked",
+        PipelineRunStatus::Cancelled => "cancelled",
     }
 }
 
@@ -252,7 +254,7 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
 /// rate, and last-run fields get populated in place.
 pub fn aggregate_pipeline_stats<'a>(
     defs: &mut [PipelineDef],
-    jobs: impl IntoIterator<Item = &'a ship_platform::projections::job::PipelineRun>,
+    jobs: impl IntoIterator<Item = &'a ship_platform::projections::pipeline_run::PipelineRun>,
 ) {
     let mut by_name: std::collections::HashMap<String, Vec<&PipelineRun>> =
         std::collections::HashMap::new();
@@ -269,15 +271,15 @@ pub fn aggregate_pipeline_stats<'a>(
         def.total_runs = runs.len();
         def.active_runs = runs
             .iter()
-            .filter(|j| matches!(j.status, JobStatus::Dispatched | JobStatus::GatePending | JobStatus::Pending))
+            .filter(|j| matches!(j.status, PipelineRunStatus::Dispatched | PipelineRunStatus::GatePending | PipelineRunStatus::Pending))
             .count();
         def.success_runs = runs
             .iter()
-            .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
+            .filter(|j| matches!(j.status, PipelineRunStatus::Completed | PipelineRunStatus::Merged))
             .count();
         def.failed_runs = runs
             .iter()
-            .filter(|j| matches!(j.status, JobStatus::Failed))
+            .filter(|j| matches!(j.status, PipelineRunStatus::Failed))
             .count();
         def.success_rate = if def.total_runs == 0 {
             0.0
@@ -322,16 +324,16 @@ fn pipeline_name_for_job(job: &PipelineRun) -> Option<String> {
 }
 
 /// Short tone token for ship-badge / ship-status-dot tone attributes.
-pub fn status_tone(s: &JobStatus) -> &'static str {
+pub fn status_tone(s: &PipelineRunStatus) -> &'static str {
     match s {
-        JobStatus::Dispatched => "info",
-        JobStatus::GatePending => "warning",
-        JobStatus::Completed => "success",
-        JobStatus::Failed => "destructive",
-        JobStatus::Merged => "accent",
-        JobStatus::Blocked => "warning",
-        JobStatus::Cancelled => "muted",
-        JobStatus::Pending => "muted",
+        PipelineRunStatus::Dispatched => "info",
+        PipelineRunStatus::GatePending => "warning",
+        PipelineRunStatus::Completed => "success",
+        PipelineRunStatus::Failed => "destructive",
+        PipelineRunStatus::Merged => "accent",
+        PipelineRunStatus::Blocked => "warning",
+        PipelineRunStatus::Cancelled => "muted",
+        PipelineRunStatus::Pending => "muted",
     }
 }
 
@@ -373,10 +375,10 @@ fn parse_pipeline_meta(content: &str) -> (String, usize) {
 
 /// All known job records, filtered, sorted by `updated_at` descending.
 pub fn list_pipeline_runs(ship_dir: &Path, filter: &Filter) -> Vec<PipelineRun> {
-    let jobs = match ship_platform::projections::job::load_jobs_at(ship_dir) {
+    let jobs = match ship_platform::projections::pipeline_run::load_pipeline_runs_at(ship_dir) {
         Ok(j) => j,
         Err(e) => {
-            tracing::error!(error = %e, "load_jobs_at failed");
+            tracing::error!(error = %e, "load_pipeline_runs_at failed");
             HashMap::new()
         }
     };

@@ -1,0 +1,76 @@
+// `mcp.*` as a hand-authored, per-domain proto-SSOT service (decision #89).
+// Mounted ADDITIVELY beside the generated ReadOpsService/CommandOpsService,
+// which keep serving mcp.* until the GUI flip (#72). Old path UNCHANGED.
+//
+// Request messages take fresh names (CreateMcpRequest, …) to avoid collision
+// with McpCreateRequest et al. declared in commands.gen.proto in this same
+// package. Return types are shared shapes from types.proto (McpIndexResponse,
+// ScopedMutation) and ops.proto (JsonResponse) — imported, not redeclared.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/types.proto";
+import "ship/ops/v1/ops.proto";
+
+message ListMcpRequest {}
+
+message GetMcpRequest {
+  string id = 1;
+  // "project" | "user"; empty walks Project → User.
+  string scope = 2;
+}
+
+message CreateMcpRequest {
+  string id = 1;
+  string server_json = 2;
+  string scope = 3;
+}
+
+message PutMcpRequest {
+  string id = 1;
+  string server_json = 2;
+  string scope = 3;
+}
+
+message PatchMcpRequest {
+  string id = 1;
+  string patch_json = 2;
+  string scope = 3;
+}
+
+message DeleteMcpRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+// External MCP server config CRUD. Reads are C0 (edge-authenticated); writes
+// are C1 workspace mutations, gated through the one gate
+// (services::command::call) on dispatch.
+service McpService {
+  rpc List(ListMcpRequest) returns (McpIndexResponse) {
+    option (ship.ops.v1.capability) = "ship.mcp.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Get(GetMcpRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.mcp.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Create(CreateMcpRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.mcp.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Put(PutMcpRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.mcp.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Patch(PatchMcpRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.mcp.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Delete(DeleteMcpRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.mcp.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+}

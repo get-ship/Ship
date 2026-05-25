@@ -30,7 +30,7 @@
 
 <prop name="orientation" values="horizontal|vertical" default="horizontal" reflect />
 <prop name="variant" values="solid|dashed" default="solid" reflect />
-<prop name="tone" values="default|muted|primary|destructive" default="default" reflect />
+<prop name="tone" values="default|muted|primary|info|success|warning|destructive|accent" default="default" reflect />
 
 <style>
   :host {

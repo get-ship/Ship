@@ -223,10 +223,10 @@ pub async fn list_runs(
     Extension(_auth): Extension<AuthContext>,
     Query(q): Query<RunsQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let jobs = ship_platform::projections::job::load_jobs_at(state.ship_dir())
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir())
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "io", e.to_string()))?;
     let limit = q.limit.unwrap_or(100).clamp(1, 500);
-    let mut items: Vec<&ship_platform::projections::job::PipelineRun> = jobs
+    let mut items: Vec<&ship_platform::projections::pipeline_run::PipelineRun> = jobs
         .values()
         .filter(|j| match q.name.as_deref() {
             Some(n) if !n.is_empty() => {
@@ -255,7 +255,7 @@ pub async fn get_run(
     Extension(_auth): Extension<AuthContext>,
     Path(slug): Path<String>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let jobs = ship_platform::projections::job::load_jobs_at(state.ship_dir())
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir())
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "io", e.to_string()))?;
     let job = jobs
         .values()

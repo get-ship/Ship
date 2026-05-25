@@ -14,10 +14,8 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::types::event_types;
 use ship_substrate::projections::actor::{
-    ListActorsFilter, actor_status, get_actor, list_actor_events, list_actors,
+    ListActorsFilter, get_actor, list_actor_events, list_actors,
 };
 use serde::Serialize;
 use serde::Deserialize;
@@ -361,61 +359,14 @@ pub async fn kill_tree_handler(
     if let Err(e) = enforce_mcp_identity(&auth, Some(&id)) {
         return e;
     }
-
-    // BFS over parent_actor_id. Cap depth to avoid pathological loops
-    // (parent cycles shouldn't happen but defense-in-depth).
-    let mut to_visit: Vec<String> = vec![id.clone()];
-    let mut targets: Vec<String> = Vec::new();
-    let mut depth = 0usize;
-    while !to_visit.is_empty() && depth < 32 {
-        let mut next: Vec<String> = Vec::new();
-        for actor_id in to_visit.drain(..) {
-            if targets.contains(&actor_id) {
-                continue;
-            }
-            targets.push(actor_id.clone());
-            // Find children: actors whose parent_actor_id == this id.
-            let children = list_actors(&ListActorsFilter::default())
-                .unwrap_or_default()
-                .into_iter()
-                .filter(|r| r.parent_actor_id.as_deref() == Some(&actor_id))
-                .map(|r| r.id)
-                .collect::<Vec<_>>();
-            next.extend(children);
-        }
-        to_visit = next;
-        depth += 1;
-    }
-
-    // Stop deepest first so children unwind before parents notice.
-    let mut stopped: Vec<String> = Vec::new();
-    for actor_id in targets.iter().rev() {
-        let mut hit = false;
-        if let Some(entry) = state.actor_sessions().get(actor_id) {
-            let _ = entry.stop();
-            state.actor_sessions().remove(actor_id);
-            hit = true;
-        }
-        if !hit {
-            // Fall through to the legacy session registry.
-            if crate::sessions::lifecycle::stop(state.pty_sessions(), actor_id) {
-                hit = true;
-            }
-        }
-        if hit {
-            stopped.push(actor_id.clone());
-        }
-    }
-
+    // Logic in services::actor_control (shared with the actor.kill_tree command,
+    // survives REST deletion). Thin transport.
+    let r = crate::services::actor_control::kill_actor_tree(&state, &id);
     (
         StatusCode::OK,
         Json(MeshResponse {
             ok: true,
-            data: json!({
-                "root": id,
-                "tree": targets,
-                "stopped": stopped,
-            }),
+            data: json!({ "root": id, "tree": r.tree, "stopped": r.stopped }),
         }),
     )
         .into_response()
@@ -433,22 +384,19 @@ pub async fn actor_input_handler(
     if let Err(e) = enforce_mcp_identity(&auth, Some(&id)) {
         return e;
     }
-    let text = req.text.trim().to_string();
-    if text.is_empty() {
-        return (
+    // Logic lives in services::actor_control (shared with the actor.input
+    // command, survives REST deletion). This handler is thin transport.
+    use crate::services::actor_control::{deliver_actor_input, ActorInputError};
+    match deliver_actor_input(&state, &auth, &id, &req.text).await {
+        Ok(()) => {
+            (StatusCode::ACCEPTED, Json(MeshResponse { ok: true, data: json!({}) })).into_response()
+        }
+        Err(ActorInputError::Empty) => (
             StatusCode::BAD_REQUEST,
             Json(MeshResponse { ok: false, data: json!("empty text") }),
         )
-            .into_response();
-    }
-
-    // Source of truth for "can I send to this": the kernel's mailbox
-    // map. If the actor isn't there RIGHT NOW, no message will reach
-    // it. The projection's status field can lag (events not yet
-    // applied, or stale rows from old runs); kernel state is now.
-    let on_mesh = state.kernel().lock().await.has_actor(&id);
-    if !on_mesh {
-        return (
+            .into_response(),
+        Err(ActorInputError::NotOnMesh) => (
             StatusCode::NOT_FOUND,
             Json(MeshResponse {
                 ok: false,
@@ -460,34 +408,13 @@ pub async fn actor_input_handler(
                 }),
             }),
         )
-            .into_response();
-    }
-    // Workspace_id only used for context tagging. Best-effort lookup.
-    let workspace_id = actor_status(&id).ok().flatten().and_then(|(_, w)| w);
-
-    let payload = json!({ "actor_id": id, "text": text });
-    let envelope = match EventEnvelope::new(event_types::STUDIO_CHAT_TURN, &id, &payload) {
-        Ok(e) => e
-            .with_context(workspace_id.as_deref(), Some(&id))
-            .with_target(&id),
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse { ok: false, data: json!(format!("envelope: {e}")) }),
-            )
-                .into_response();
-        }
-    };
-    let ctx = auth.to_daemon_emit_context();
-    if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
-        return (
+            .into_response(),
+        Err(ActorInputError::Service(m)) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse { ok: false, data: json!(format!("emit: {e}")) }),
+            Json(MeshResponse { ok: false, data: json!(m) }),
         )
-            .into_response();
+            .into_response(),
     }
-    (StatusCode::ACCEPTED, Json(MeshResponse { ok: true, data: json!({}) }))
-        .into_response()
 }
 
 #[cfg(test)]

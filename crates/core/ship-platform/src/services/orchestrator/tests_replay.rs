@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::replay::reconcile_dispatched_jobs;
@@ -24,8 +24,8 @@ use crate::services::orchestrator::OrchestratorContext;
 struct NoopIsolation;
 #[async_trait]
 impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, _: &JobContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
-    async fn cleanup(&self, _: &JobContext) -> anyhow::Result<()> { Ok(()) }
+    async fn prepare(&self, _: &SessionContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
+    async fn cleanup(&self, _: &SessionContext) -> anyhow::Result<()> { Ok(()) }
 }
 
 struct NoopPlatform;
@@ -42,8 +42,8 @@ impl AgentPlatform for NoopPlatform {
 /// `resume_handle` always returns `None` — simulates a missing process.
 struct MissingExecutor;
 #[async_trait]
-impl JobExecutor for MissingExecutor {
-    async fn spawn(&self, _: &JobContext) -> anyhow::Result<ExecutorHandle> { Err(anyhow::anyhow!("unused")) }
+impl SessionExecutor for MissingExecutor {
+    async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> { Err(anyhow::anyhow!("unused")) }
     async fn is_alive(&self, _: &ExecutorHandle) -> bool { false }
     async fn stop(&self, _: &ExecutorHandle) -> anyhow::Result<()> { Ok(()) }
     async fn send(&self, _: &ExecutorHandle, _: &str) -> anyhow::Result<()> { Ok(()) }
@@ -66,7 +66,7 @@ fn make_octx() -> Arc<OrchestratorContext> {
         probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -78,9 +78,9 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
     let mut router = KernelRouter::new(base).unwrap();
     router
         .spawn_actor(
-            "service.job-dispatch",
+            "service.orchestrator",
             ActorConfig {
-                namespace: "service.job-dispatch".to_string(),
+                namespace: "service.orchestrator".to_string(),
                 write_namespaces: vec![
                     "job.".to_string(),
                     "step.".to_string(),
@@ -97,12 +97,12 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
     Arc::new(Mutex::new(router))
 }
 
-async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, job_id: &str, slug: &str) {
+async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, pipeline_run_id: &str, slug: &str) {
     use ship_substrate::events::pipeline::{event_types, PipelineRunStartedPayload, PipelineRunDispatchedPayload};
     use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
     let ctx = EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, project_id: None, session_id: None };
     let created = PipelineRunStartedPayload {
-        job_id: job_id.to_string(),
+        pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
         agent: "test-agent".to_string(),
         branch: format!("job/{slug}"),
@@ -117,16 +117,16 @@ async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, job_id: &str, sl
         baseline_sha: None,
         keepalive: false,
     };
-    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created).unwrap().with_actor_id("test");
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, pipeline_run_id, &created).unwrap().with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
     let dispatched = PipelineRunDispatchedPayload {
-        job_id: job_id.to_string(),
+        pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
         worktree: format!("/tmp/test-worktrees-replay/{slug}"),
         pid: None,
         harness_meta: None,
     };
-    let env = EventEnvelope::new(event_types::PIPELINE_RUN_DISPATCHED, job_id, &dispatched).unwrap().with_actor_id("test");
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_DISPATCHED, pipeline_run_id, &dispatched).unwrap().with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
 }
 
@@ -159,11 +159,11 @@ async fn reconcile_dispatched_emits_session_destroyed_not_step_failed() {
         .any(|e| e.event_type == "pipeline.step.failed" || e.event_type == "pipeline.run.failed");
     assert!(!terminal, "reconcile must not emit any terminal job event");
 
-    let jobs = crate::projections::job::load_jobs().unwrap();
+    let jobs = crate::projections::pipeline_run::load_pipeline_runs().unwrap();
     let job = jobs.get("j-replay-1").expect("seeded job present");
     assert_eq!(
         job.status,
-        crate::projections::job::JobStatus::Dispatched,
+        crate::projections::pipeline_run::PipelineRunStatus::Dispatched,
         "orphaned job stays Dispatched; liveness sweep owns the terminal call"
     );
     assert!(job.error.is_none());
@@ -184,7 +184,7 @@ mod replay_filter {
     use chrono::{Duration, Utc};
 
     use ship_substrate::events::pipeline::{Pipeline, PipelineStep, StepType};
-    use crate::projections::job::{PipelineRun, JobStatus};
+    use crate::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
     use crate::services::orchestrator::replay::{
         MAX_REPLAYS_PER_STARTUP, needs_replay, select_replay_targets,
     };
@@ -218,14 +218,14 @@ mod replay_filter {
     ) -> PipelineRun {
         let now = Utc::now();
         PipelineRun {
-            job_id: id.to_string(),
+            pipeline_run_id: id.to_string(),
             slug: id.to_string(),
             agent: "test-agent".to_string(),
             branch: format!("job/{id}"),
             spec_path: String::new(),
             source_spec_path: None,
             depends_on: None,
-            status: JobStatus::Completed,
+            status: PipelineRunStatus::Completed,
             worktree,
             blocker: None,
             error: None,
@@ -303,13 +303,13 @@ mod replay_filter {
             );
             // Higher i → more recent. Oldest five must be dropped.
             job.updated_at = base + Duration::seconds(i64::from(i));
-            jobs.insert(job.job_id.clone(), job);
+            jobs.insert(job.pipeline_run_id.clone(), job);
         }
 
         let selected = select_replay_targets(&jobs);
 
         assert_eq!(selected.len(), MAX_REPLAYS_PER_STARTUP);
-        let ids: Vec<_> = selected.iter().map(|j| j.job_id.clone()).collect();
+        let ids: Vec<_> = selected.iter().map(|j| j.pipeline_run_id.clone()).collect();
         for i in 5..15 {
             assert!(ids.contains(&format!("j{i:02}")), "expected recent j{i:02} in replay set");
         }
@@ -326,7 +326,7 @@ mod replay_filter {
         // Fully-advanced no-merge job is filtered out — select returns empty.
         let mut jobs = HashMap::new();
         let terminal = make_job("j", &["a", "b"], &["a", "b"], false, None);
-        jobs.insert(terminal.job_id.clone(), terminal);
+        jobs.insert(terminal.pipeline_run_id.clone(), terminal);
         assert!(select_replay_targets(&jobs).is_empty());
     }
 }

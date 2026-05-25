@@ -27,7 +27,7 @@ fn named_variant_substitutes_params() {
     assert_eq!(url, "/api/v1/specs/spec-42");
 
     let url = Route::GetJob {
-        job_id: "job-xyz".to_string(),
+        pipeline_run_id: "job-xyz".to_string(),
     }
     .full_path();
     assert_eq!(url, "/api/v1/agent_sessions/job-xyz");
@@ -104,6 +104,7 @@ async fn ship_route_registers_handler_end_to_end() {
             workspace_id: None,
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
+            grants: vec![],
         }));
     let req = Request::builder()
         .method("GET")

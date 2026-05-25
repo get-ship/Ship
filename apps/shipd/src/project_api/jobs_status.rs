@@ -1,4 +1,4 @@
-//! POST /api/v1/agent_sessions/{job_id}/status — agent-driven lifecycle updates.
+//! POST /api/v1/agent_sessions/{pipeline_run_id}/status — agent-driven lifecycle updates.
 //!
 //! MCP's `update_job` tool POSTs here instead of writing to the event store
 //! directly. The daemon builds the appropriate `job.*` envelope, persists it
@@ -16,7 +16,7 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
     "status": "dispatched",
     "worktree": "/tmp/ws-write-readme"
 }))]
-pub struct JobStatusReq {
+pub struct RunStatusReq {
     /// One of: dispatched, gate_requested, gate_passed, gate_failed, blocked,
     /// completed, merged, failed.
     pub status: String,
@@ -30,9 +30,9 @@ pub struct JobStatusReq {
 #[utoipa::path(
     operation_id = "updateJobStatus",
     post,
-    path = "/api/v1/agent_sessions/{job_id}/status",
-    request_body = JobStatusReq,
-    params(("job_id" = String, Path, description = "Job ULID")),
+    path = "/api/v1/agent_sessions/{pipeline_run_id}/status",
+    request_body = RunStatusReq,
+    params(("pipeline_run_id" = String, Path, description = "Job ULID")),
     responses(
         (status = 200, description = "Job status event emitted", body = MeshResponse),
         (status = 400, description = "Invalid status or missing field", body = crate::wire::ErrorResponse),
@@ -45,10 +45,24 @@ pub struct JobStatusReq {
 pub async fn update_job_status(
     State(state): State<ApiState>,
     _auth: Option<axum::Extension<crate::auth::AuthContext>>,
-    Path(job_id): Path<String>,
-    Json(body): Json<JobStatusReq>,
+    Path(pipeline_run_id): Path<String>,
+    Json(body): Json<RunStatusReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    match update_job_status_core(&state, &pipeline_run_id, body).await {
+        Ok(value) => Ok(ok_response(value)),
+        Err((code, msg)) => Err(err_response(code, &msg)),
+    }
+}
 
+/// Core of the job-status command, shared by the REST handler above and the
+/// ConnectRPC `CommandOpsService`. Builds the matching `pipeline.*`/`gate.*`
+/// envelope from `body.status` and persists it. Errors are transport-neutral
+/// `(StatusCode, String)` so each surface maps them to its own wire shape.
+pub(crate) async fn update_job_status_core(
+    state: &ApiState,
+    pipeline_run_id: &str,
+    body: RunStatusReq,
+) -> Result<serde_json::Value, (StatusCode, String)> {
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::events::pipeline::{
         PipelineRunBlockedPayload, PipelineRunCompletedPayload, PipelineRunDispatchedPayload, PipelineRunFailedPayload,
@@ -56,20 +70,21 @@ pub async fn update_job_status(
         event_types,
     };
 
+    let require = |field: Option<String>, what: &str| {
+        field.ok_or_else(|| (StatusCode::BAD_REQUEST, format!("{what} is required for status '{}'", body.status)))
+    };
+
     let envelope_result = match body.status.as_str() {
         "dispatched" => {
-            let worktree = body.worktree.ok_or_else(|| {
-                err_response(StatusCode::BAD_REQUEST, "worktree is required for status 'dispatched'")
-            })?;
+            let worktree = require(body.worktree.clone(), "worktree")?;
             EventEnvelope::new(
                 event_types::PIPELINE_RUN_DISPATCHED,
-                &job_id,
+                pipeline_run_id,
                 &PipelineRunDispatchedPayload {
-                    job_id: job_id.clone(),
-                    // External status-update endpoint only has job_id;
-                    // slug is unknown here. Consumers that need filtering
-                    // by slug should subscribe via the dispatch path or
-                    // resolve slug from the pipeline_run record.
+                    pipeline_run_id: pipeline_run_id.to_string(),
+                    // External status-update endpoint only has pipeline_run_id;
+                    // slug is unknown here. Consumers that need filtering by slug
+                    // resolve it from the pipeline_run record or the dispatch path.
                     slug: String::new(),
                     worktree,
                     pid: body.pid,
@@ -78,77 +93,69 @@ pub async fn update_job_status(
             )
         }
         "gate_requested" => {
-            let gate_agent = body.gate_agent.ok_or_else(|| {
-                err_response(StatusCode::BAD_REQUEST, "gate_agent is required for status 'gate_requested'")
-            })?;
+            let gate_agent = require(body.gate_agent.clone(), "gate_agent")?;
             EventEnvelope::new(
                 event_types::PIPELINE_GATE_REQUESTED,
-                &job_id,
+                pipeline_run_id,
                 &PipelineGateRequestedPayload {
-                    job_id: job_id.clone(),
+                    pipeline_run_id: pipeline_run_id.to_string(),
                     gate_agent,
                 },
             )
         }
         "gate_passed" => EventEnvelope::new(
             event_types::PIPELINE_GATE_PASSED,
-            &job_id,
-            &PipelineGatePassedPayload { job_id: job_id.clone() },
+            pipeline_run_id,
+            &PipelineGatePassedPayload { pipeline_run_id: pipeline_run_id.to_string() },
         ),
         "gate_failed" => {
-            let reason = body.error.ok_or_else(|| {
-                err_response(StatusCode::BAD_REQUEST, "error is required for status 'gate_failed'")
-            })?;
+            let reason = require(body.error.clone(), "error")?;
             EventEnvelope::new(
                 event_types::PIPELINE_GATE_FAILED,
-                &job_id,
-                &PipelineGateFailedPayload { job_id: job_id.clone(), reason },
+                pipeline_run_id,
+                &PipelineGateFailedPayload { pipeline_run_id: pipeline_run_id.to_string(), reason },
             )
         }
         "blocked" => {
-            let blocker = body.blocker.ok_or_else(|| {
-                err_response(StatusCode::BAD_REQUEST, "blocker is required for status 'blocked'")
-            })?;
+            let blocker = require(body.blocker.clone(), "blocker")?;
             EventEnvelope::new(
                 event_types::PIPELINE_RUN_BLOCKED,
-                &job_id,
+                pipeline_run_id,
                 &PipelineRunBlockedPayload {
-                    job_id: job_id.clone(),
+                    pipeline_run_id: pipeline_run_id.to_string(),
                     blocker,
                     needs_human: true,
                 },
             )
         }
         "completed" => {
-            let slug = resolve_slug(state.ship_dir(), &job_id);
+            let slug = resolve_slug(state.ship_dir(), pipeline_run_id);
             EventEnvelope::new(
                 event_types::PIPELINE_RUN_COMPLETED,
-                &job_id,
-                &PipelineRunCompletedPayload { job_id: job_id.clone(), slug },
+                pipeline_run_id,
+                &PipelineRunCompletedPayload { pipeline_run_id: pipeline_run_id.to_string(), slug },
             )
         }
         "merged" => {
-            let slug = resolve_slug(state.ship_dir(), &job_id);
+            let slug = resolve_slug(state.ship_dir(), pipeline_run_id);
             EventEnvelope::new(
                 event_types::PIPELINE_RUN_MERGED,
-                &job_id,
-                &PipelineRunMergedPayload { job_id: job_id.clone(), slug },
+                pipeline_run_id,
+                &PipelineRunMergedPayload { pipeline_run_id: pipeline_run_id.to_string(), slug },
             )
         }
         "failed" => {
-            let error = body.error.ok_or_else(|| {
-                err_response(StatusCode::BAD_REQUEST, "error is required for status 'failed'")
-            })?;
+            let error = require(body.error.clone(), "error")?;
             EventEnvelope::new(
                 event_types::PIPELINE_RUN_FAILED,
-                &job_id,
-                &PipelineRunFailedPayload { job_id: job_id.clone(), error },
+                pipeline_run_id,
+                &PipelineRunFailedPayload { pipeline_run_id: pipeline_run_id.to_string(), error },
             )
         }
         other => {
-            return Err(err_response(
+            return Err((
                 StatusCode::BAD_REQUEST,
-                &format!(
+                format!(
                     "unknown status '{other}'. Valid: dispatched, gate_requested, gate_passed, \
                     gate_failed, blocked, completed, merged, failed"
                 ),
@@ -156,21 +163,19 @@ pub async fn update_job_status(
         }
     };
 
-    let envelope = envelope_result
-        .map_err(|e| err_response(StatusCode::BAD_REQUEST, &e.to_string()))?;
-
+    let envelope = envelope_result.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     state
         .persist_and_route(&envelope)
         .await
-        .map_err(|e| err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    Ok(ok_response(json!({ "job_id": job_id, "status": body.status })))
+    Ok(json!({ "pipeline_run_id": pipeline_run_id, "status": body.status }))
 }
 
-fn resolve_slug(ship_dir: &std::path::Path, job_id: &str) -> String {
-    ship_platform::projections::job::load_jobs_at(ship_dir)
+fn resolve_slug(ship_dir: &std::path::Path, pipeline_run_id: &str) -> String {
+    ship_platform::projections::pipeline_run::load_pipeline_runs_at(ship_dir)
         .ok()
-        .and_then(|jobs| jobs.get(job_id).map(|r| r.slug.clone()))
+        .and_then(|jobs| jobs.get(pipeline_run_id).map(|r| r.slug.clone()))
         .unwrap_or_default()
 }
 
@@ -206,44 +211,57 @@ pub struct StepDoneReq {
     ),
     tag = "runtime"
 )]
-pub async fn job_step_done(
+pub async fn step_done(
     State(state): State<ApiState>,
     _auth: Option<axum::Extension<crate::auth::AuthContext>>,
     Path(slug): Path<String>,
     Json(body): Json<StepDoneReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    match step_done_core(&state, &slug, body).await {
+        Ok(value) => Ok(ok_response(value)),
+        Err((code, msg)) => Err(err_response(code, &msg)),
+    }
+}
 
-    let jobs = ship_platform::projections::job::load_jobs_at(state.ship_dir())
-        .map_err(|e| err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+/// Core of the step-done command, shared by the REST handler and the ConnectRPC
+/// `CommandOpsService`. Resolves the active step from the projection and emits
+/// `step.done_declared`. Transport-neutral errors.
+pub(crate) async fn step_done_core(
+    state: &ApiState,
+    slug: &str,
+    body: StepDoneReq,
+) -> Result<serde_json::Value, (StatusCode, String)> {
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     let job = jobs
         .values()
         .find(|j| j.slug == slug)
         .cloned()
-        .ok_or_else(|| {
-            err_response(StatusCode::NOT_FOUND, &format!("no job with slug '{slug}'"))
-        })?;
-    let step_id = job.current_step.clone().ok_or_else(|| {
-        err_response(StatusCode::BAD_REQUEST, &format!("no active step for job '{slug}'"))
-    })?;
+        .ok_or_else(|| (StatusCode::NOT_FOUND, format!("no job with slug '{slug}'")))?;
+    let step_id = job
+        .current_step
+        .clone()
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, format!("no active step for job '{slug}'")))?;
 
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::events::pipeline::{PipelineStepDoneDeclaredPayload, event_types};
 
     let payload = PipelineStepDoneDeclaredPayload {
-        job_id: job.job_id.clone(),
-        slug: slug.clone(),
+        pipeline_run_id: job.pipeline_run_id.clone(),
+        slug: slug.to_string(),
         step_id: step_id.clone(),
         summary: body.summary,
         outputs: body.outputs,
     };
-    let envelope = EventEnvelope::new(event_types::PIPELINE_STEP_DONE_DECLARED, &job.job_id, &payload)
-        .map_err(|e| err_response(StatusCode::BAD_REQUEST, &e.to_string()))?;
+    let envelope =
+        EventEnvelope::new(event_types::PIPELINE_STEP_DONE_DECLARED, &job.pipeline_run_id, &payload)
+            .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     state
         .persist_and_route(&envelope)
         .await
-        .map_err(|e| err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    Ok(ok_response(json!({ "slug": slug, "step_id": step_id })))
+    Ok(json!({ "slug": slug, "step_id": step_id }))
 }
 
 #[cfg(test)]

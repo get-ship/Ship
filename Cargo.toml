@@ -13,16 +13,18 @@ members = [
     "crates/core/ship-pipelines",
     "crates/core/ship-types",
     "crates/core/ship-gateway-client",
+    "crates/core/ship-ops-rpc",
     "crates/core/ship-analytics",
     "crates/core/ship-supervisor",
-    "crates/sui/sui-compiler",
-    "crates/sui/ship-sui-host",
-    "crates/sui/sui-lint",
-    "crates/sui/ship-sui-server",
-    "crates/sui/sui-signals",
-    "crates/sui/ship-sui",
+    "crates/sui/compiler",
+    "crates/sui/lint",
+    "crates/sui/lsp",
+    "crates/sui/signals",
+    "crates/deck/deck-host",
+    "crates/deck/deck-server",
+    "crates/deck/deck",
     "crates/xtask",
-    "packages/sui-grammar",
+    "packages/sui/grammar",
     "apps/mcp",
     "apps/shipd",
     "apps/ship-cli",
@@ -117,6 +119,9 @@ todo = "warn"
 collapsible_if = "allow"
 collapsible_match = "allow"
 doc_overindented_list_items = "allow"
+# Same doc-formatting class as the overindent lint above — clippy 1.93 flags
+# continuation lines in doc lists; we don't enforce doc-prose layout.
+doc_lazy_continuation = "allow"
 empty_line_after_doc_comments = "allow"
 needless_borrow = "allow"
 needless_borrows_for_generic_args = "allow"
@@ -124,6 +129,14 @@ new_without_default = "allow"
 needless_pass_by_ref_mut = "allow"
 needless_range_loop = "allow"
 too_many_arguments = "allow"
+# Pure formatting opinion (write! + "\n" vs writeln!) — codegen files build
+# strings line-by-line; not a correctness signal.
+write_with_newline = "allow"
+# Same "complexity we don't enforce" class as too_many_arguments — clippy 1.93
+# flags query/projection signatures and large error enums; not worth churning
+# type aliases / boxing across the workspace for the gate.
+type_complexity = "allow"
+result_large_err = "allow"
 search_is_some = "allow"
 
 # Cargo profile defaults.

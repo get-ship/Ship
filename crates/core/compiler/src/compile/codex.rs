@@ -45,7 +45,7 @@ fn translate_approval_policy(val: &str) -> &str {
 pub(super) fn build_codex_config_patch(resolved: &ResolvedConfig) -> Option<String> {
     let servers = &resolved.mcp_servers;
     let model = resolved.model.as_deref();
-    let sandbox = resolved.codex_sandbox.as_deref();
+    let sandbox = resolved.codex.sandbox.as_deref();
 
     let mut mcp = toml::Table::new();
 
@@ -139,7 +139,7 @@ pub(super) fn build_codex_config_patch(resolved: &ResolvedConfig) -> Option<Stri
     }
 
     // Approval policy.
-    if let Some(p) = resolved.codex_approval_policy.as_deref() {
+    if let Some(p) = resolved.codex.approval_policy.as_deref() {
         root.insert(
             "approval_policy".into(),
             toml::Value::String(translate_approval_policy(p).to_string()),
@@ -147,7 +147,7 @@ pub(super) fn build_codex_config_patch(resolved: &ResolvedConfig) -> Option<Stri
     }
 
     // Reasoning effort.
-    if let Some(e) = resolved.codex_reasoning_effort.as_deref() {
+    if let Some(e) = resolved.codex.reasoning_effort.as_deref() {
         root.insert(
             "model_reasoning_effort".into(),
             toml::Value::String(e.to_string()),
@@ -155,7 +155,7 @@ pub(super) fn build_codex_config_patch(resolved: &ResolvedConfig) -> Option<Stri
     }
 
     // Shell environment policy.
-    if let Some(p) = resolved.codex_shell_env_policy.as_deref() {
+    if let Some(p) = resolved.codex.shell_env_policy.as_deref() {
         root.insert(
             "shell_environment_policy".into(),
             toml::Value::String(p.to_string()),
@@ -163,27 +163,27 @@ pub(super) fn build_codex_config_patch(resolved: &ResolvedConfig) -> Option<Stri
     }
 
     // Notify (JSON value → TOML).
-    if let Some(notify) = &resolved.codex_notify
+    if let Some(notify) = &resolved.codex.notify
         && let Some(toml_val) = json_to_toml(notify)
     {
         root.insert("notify".into(), toml_val);
     }
 
     // [agents] table.
-    let has_agents = resolved.codex_max_threads.is_some()
-        || resolved.codex_max_depth.is_some()
-        || resolved.codex_job_max_runtime_seconds.is_some();
+    let has_agents = resolved.codex.max_threads.is_some()
+        || resolved.codex.max_depth.is_some()
+        || resolved.codex.job_max_runtime_seconds.is_some();
     if has_agents {
         let mut agents = toml::Table::new();
-        if let Some(v) = resolved.codex_max_threads {
+        if let Some(v) = resolved.codex.max_threads {
             agents.insert("max_threads".into(), toml::Value::Integer(v as i64));
         }
-        if let Some(v) = resolved.codex_max_depth {
+        if let Some(v) = resolved.codex.max_depth {
             agents.insert("max_depth".into(), toml::Value::Integer(v as i64));
         }
-        if let Some(v) = resolved.codex_job_max_runtime_seconds {
+        if let Some(v) = resolved.codex.job_max_runtime_seconds {
             agents.insert(
-                "job_max_runtime_seconds".into(),
+                "run_max_runtime_seconds".into(),
                 toml::Value::Integer(v as i64),
             );
         }
@@ -194,7 +194,7 @@ pub(super) fn build_codex_config_patch(resolved: &ResolvedConfig) -> Option<Stri
     root.insert("mcp_servers".into(), toml::Value::Table(mcp));
 
     // settings_extra: merge verbatim after typed fields.
-    if let Some(extra) = &resolved.codex_settings_extra
+    if let Some(extra) = &resolved.codex.settings_extra
         && let Some(obj) = extra.as_object()
     {
         for (k, v) in obj {
@@ -322,4 +322,29 @@ fn json_to_toml(v: &serde_json::Value) -> Option<toml::Value> {
             Some(toml::Value::Table(table))
         }
     }
+}
+
+/// Populate Codex-native outputs (config patch, hooks json, exec policy).
+pub(super) fn build_settings(
+    _desc: &super::harness::HarnessDescriptor,
+    resolved: &crate::resolve::ResolvedConfig,
+    out: &mut super::CompileOutput,
+) {
+    out.codex_config_patch = build_codex_config_patch(resolved);
+    out.codex_hooks_json = Some(build_codex_hooks_json());
+    out.codex_policy_content = build_codex_execpolicy(&resolved.permissions);
+}
+
+/// Codex's typed settings delta from the Ship agent.
+#[derive(Debug, Clone, Default)]
+pub struct CodexSettings {
+    pub sandbox: Option<String>,
+    pub approval_policy: Option<String>,
+    pub reasoning_effort: Option<String>,
+    pub max_threads: Option<u32>,
+    pub max_depth: Option<u32>,
+    pub job_max_runtime_seconds: Option<u64>,
+    pub shell_env_policy: Option<String>,
+    pub notify: Option<serde_json::Value>,
+    pub settings_extra: Option<serde_json::Value>,
 }

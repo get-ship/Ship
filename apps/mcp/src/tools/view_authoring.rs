@@ -29,10 +29,6 @@ async fn dispatch(view: &str, session_id: Option<&str>, op: &str, args: serde_js
     }
 }
 
-pub async fn view_read_source(session_id: Option<&str>, req: ViewName) -> String {
-    dispatch(&req.view, session_id, "read_source", serde_json::json!({})).await
-}
-
 pub async fn view_write_source(session_id: Option<&str>, req: ViewWriteSource) -> String {
     let args = serde_json::json!({
         "source": req.source,

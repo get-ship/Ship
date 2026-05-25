@@ -110,6 +110,7 @@ fn mcp_no_scope() -> AuthContext {
         workspace_id: None,
         session_id: None,
         scopes: vec![],
+        grants: vec![],
     }
 }
 
@@ -120,6 +121,7 @@ fn mcp_with_full() -> AuthContext {
         workspace_id: None,
         session_id: None,
         scopes: vec![Scope::Full],
+        grants: vec![],
     }
 }
 
@@ -130,6 +132,7 @@ fn cli_with_full() -> AuthContext {
         workspace_id: None,
         session_id: None,
         scopes: vec![Scope::Full],
+        grants: vec![],
     }
 }
 

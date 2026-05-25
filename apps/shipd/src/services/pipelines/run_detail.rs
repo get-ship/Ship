@@ -10,6 +10,7 @@ use std::path::Path;
 use super::shape::{RunView, to_run_view};
 
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct RunDetailCtx {
     pub slug: String,
     pub run: RunView,
@@ -18,6 +19,7 @@ pub struct RunDetailCtx {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct StepObservationRow {
     pub step_name: String,
     pub step_index: usize,
@@ -33,6 +35,7 @@ pub struct StepObservationRow {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct TimelineRow {
     pub event_type: String,
     pub at: String,
@@ -86,12 +89,12 @@ fn event_summary(env: &ship_substrate::events::EventEnvelope) -> String {
 }
 
 pub fn build(slug: &str, ship_dir: &Path) -> Option<RunDetailCtx> {
-    let jobs = ship_platform::projections::job::load_jobs_at(ship_dir).ok()?;
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(ship_dir).ok()?;
     let job = jobs.values().find(|j| j.slug == slug)?;
     let run = to_run_view(job, true);
     let events = ship_substrate::db::events::query_recent_events_for_entity_at(
         &ship_substrate::db::platform_db_path(ship_dir),
-        &job.job_id,
+        &job.pipeline_run_id,
         500,
     )
     .unwrap_or_default();

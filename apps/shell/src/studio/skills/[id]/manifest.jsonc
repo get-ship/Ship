@@ -1,0 +1,8 @@
+// Route metadata for views/studio/skills/[id]/ — the skill detail.
+{
+  "name": "skills-detail",
+  "path": "/studio/skills/[id]",
+  "title": "Skill",
+  "layout": "default",
+  "auth": "user"
+}

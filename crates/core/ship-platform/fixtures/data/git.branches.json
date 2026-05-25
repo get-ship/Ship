@@ -1,0 +1,13 @@
+{
+  "branches": [
+    {
+      "name": "main",
+      "active": true,
+      "upstream": "origin/main",
+      "ahead": 1,
+      "behind": 0
+    }
+  ],
+  "ahead": 1,
+  "behind": 0
+}

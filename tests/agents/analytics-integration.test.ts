@@ -68,7 +68,6 @@ describe("analytics integration / actor.created fallback", () => {
       const dispatched = await dispatch({
         agent: COMPAT_AGENT,
         harness: "claude",
-        auto: true,
         workspace: COMPAT_WORKSPACE,
       });
 
@@ -105,7 +104,9 @@ describe("analytics integration / actor.created fallback", () => {
       const dispatched = await dispatch({
         agent: COMPAT_AGENT,
         harness: "opencode",
-        auto: true,
+        // print: tokens flow from the `opencode run --format json`
+        // exec stream, which only runs in one-shot/headless invocation.
+        invocation: "print",
         workspace: COMPAT_WORKSPACE,
         prompt: "say hi",
       });
@@ -148,7 +149,6 @@ describe("analytics integration / actor.created fallback", () => {
       const dispatched = await dispatch({
         agent: COMPAT_AGENT,
         harness: "claude",
-        auto: true,
         workspace: COMPAT_WORKSPACE,
       });
 

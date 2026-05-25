@@ -27,9 +27,19 @@ ship-types = { path = "../../crates/core/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-analytics" }
 compiler = { path = "../../crates/core/compiler" }
 build-info = { path = "../../crates/core/build-info" }
-ship-sui = { path = "../../crates/sui/ship-sui" }
-sui-compiler = { path = "../../crates/sui/sui-compiler" }
-sui-signals = { path = "../../crates/sui/sui-signals" }
+ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
+connectrpc = { version = "0.4", features = ["axum", "client"] }
+# Descriptor decode for the op-policy gate (reads proto custom options).
+buffa = "0.5"
+buffa-descriptor = "0.5"
+http = "1"
+deck = { path = "../../crates/deck/deck" }
+sui-compiler = { path = "../../crates/sui/compiler" }
+sui-signals = { path = "../../crates/sui/signals" }
+# The MCP server surface. shipd mounts ShipServer at /mcp (the single
+# daemon-hosted MCP transport). Acyclic: mcp reaches shipd only over HTTP,
+# never as a crate dep.
+mcp = { path = "../mcp" }
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }
@@ -88,7 +98,12 @@ specta = { workspace = true, features = ["chrono", "serde_json"], optional = tru
 
 [features]
 unstable = ["ship-platform/unstable"]
-specta = ["dep:specta", "ship-sui/specta"]
+specta = ["dep:specta", "deck/specta"]
+# Compile the `example()` fixture constructors for the daemon-side wire
+# shapes so `cargo xtask gen-fixtures` can serialize them to committed JSON.
+# Forwards to ship-platform/fixtures so shared builders (e.g.
+# `AgentSummary::example()`) are available to the daemon-side fixtures.
+fixtures = ["ship-platform/fixtures"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

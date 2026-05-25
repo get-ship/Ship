@@ -182,13 +182,17 @@ fn normalize_single_step(
                 let id = format!("run-{counter}");
                 step.insert("id".to_string(), json!(id));
                 step.insert("type".to_string(), json!("run"));
-                step.insert("command".to_string(), json!(cmd));
+                // Emit the canonical `run` wire key — PipelineStep's
+                // deserializer reads `run` and rejects the legacy
+                // `command` key, so writing `command` here silently
+                // dropped the shell command for id-less run steps.
+                step.insert("run".to_string(), json!(cmd));
             } else if let Some(agent) = obj.get("agent").and_then(|v| v.as_str()) {
                 let id = format!("step-{counter}");
                 step.insert("id".to_string(), json!(id));
                 step.insert("type".to_string(), json!(step_type));
                 step.insert("agent".to_string(), json!(agent));
-                for key in ["model", "harness", "max_retries", "goal", "command"] {
+                for key in ["model", "harness", "max_retries", "goal"] {
                     if let Some(v) = obj.get(key) {
                         step.insert(key.to_string(), v.clone());
                     }

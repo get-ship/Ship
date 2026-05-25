@@ -1,6 +1,6 @@
 //! SUI component catalog exposed as `ship://components` MCP resources.
 //!
-//! Reads `.ship/sui-out/catalogs/workspace.json` (emitted by
+//! Reads `.deck/catalogs/workspace.json` (emitted by
 //! `@ship/sui-catalog`) at runtime. Replaces the build-time
 //! `include_str!("…/sui-custom-elements.json")` cut-over that pinned the
 //! MCP server to a stale aggregate baked at the last `cargo build`.
@@ -14,11 +14,11 @@
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
-const CATALOG_REL: &str = ".ship/sui-out/catalogs/workspace.json";
+const CATALOG_REL: &str = ".deck/catalogs/workspace.json";
 
 fn repo_root() -> PathBuf {
     // apps/mcp lives at apps/mcp. Repo root is two parents up from
-    // CARGO_MANIFEST_DIR. Distinct from ship-sui-server's three-level
+    // CARGO_MANIFEST_DIR. Distinct from deck-server's three-level
     // walk-up (it's nested under crates/sui/).
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

@@ -3,8 +3,8 @@ use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::validator::{CallerKind, EmitContext};
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::job::{project, JobStatus};
-use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
+use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
+use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -20,9 +20,9 @@ fn runtime_ctx() -> EmitContext {
     }
 }
 
-fn job_dispatch_config() -> ActorConfig {
+fn orchestrator_actor_config() -> ActorConfig {
     ActorConfig {
-        namespace: "service.job-dispatch".to_string(),
+        namespace: "service.orchestrator".to_string(),
         write_namespaces: vec!["job.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["job.".to_string()],
@@ -45,10 +45,10 @@ struct NoopIsolation;
 
 #[async_trait]
 impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, job: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, job: &SessionContext) -> anyhow::Result<PathBuf> {
         Ok(job.work_dir.clone())
     }
-    async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> {
+    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -57,8 +57,8 @@ impl IsolationStrategy for NoopIsolation {
 struct NoopExecutor;
 
 #[async_trait]
-impl JobExecutor for NoopExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for NoopExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Ok(ExecutorHandle { pid: None, inner: Box::new(()) })
     }
     async fn is_alive(&self, _handle: &ExecutorHandle) -> bool { false }
@@ -79,16 +79,16 @@ fn noop_dctx() -> DispatchContext {
 
 /// Kernel routing delivers `job.created` to an actor subscribed to `job.`.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_created_delivered_to_subscriber() {
+async fn run_created_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
 
     let event = ev(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": "j-created-1",
+            "pipeline_run_id": "j-created-1",
             "slug": "auth-tests",
             "agent": "rust-runtime",
             "branch": "job/auth-tests",
@@ -110,16 +110,16 @@ async fn job_created_delivered_to_subscriber() {
 
 /// Kernel routing delivers `job.update` with correct payload to subscriber.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_update_delivered_to_subscriber() {
+async fn run_update_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
 
     let event = ev(
         event_types::PIPELINE_RUN_UPDATED,
         serde_json::json!({
-            "job_id": "j-update-1",
+            "pipeline_run_id": "j-update-1",
             "message": "please fix the lint errors",
             "sender": "human",
             "slug": "auth-tests",
@@ -143,15 +143,15 @@ async fn job_update_delivered_to_subscriber() {
 
 /// `job.completed` is delivered to job-dispatch subscriber.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_completed_delivered_to_subscriber() {
+async fn run_completed_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
 
     let event = ev(
         event_types::PIPELINE_RUN_COMPLETED,
-        serde_json::json!({"job_id": "j-comp-1", "slug": "auth-tests"}),
+        serde_json::json!({"pipeline_run_id": "j-comp-1", "slug": "auth-tests"}),
     );
 
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
@@ -164,15 +164,15 @@ async fn job_completed_delivered_to_subscriber() {
 
 /// `job.merged` is delivered to job-dispatch subscriber.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_merged_delivered_to_subscriber() {
+async fn run_merged_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
 
     let event = ev(
         event_types::PIPELINE_RUN_MERGED,
-        serde_json::json!({"job_id": "j-merged-1", "slug": "auth-tests"}),
+        serde_json::json!({"pipeline_run_id": "j-merged-1", "slug": "auth-tests"}),
     );
 
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
@@ -188,7 +188,7 @@ async fn job_merged_delivered_to_subscriber() {
 async fn non_job_events_not_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
 
     let event = ev(
@@ -217,7 +217,7 @@ async fn pipeline_advances_to_next_phase() {
 
     let dir = TempDir::new().unwrap();
     let slug = "pipeline-adv-test";
-    let job_id = "j-pipeline-adv";
+    let pipeline_run_id = "j-pipeline-adv";
 
     // Isolated worktree and global dir inside temp
     let worktree_root = dir.path().join("worktrees");
@@ -239,7 +239,7 @@ async fn pipeline_advances_to_next_phase() {
     let created = ev(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": job_id,
+            "pipeline_run_id": pipeline_run_id,
             "slug": slug,
             "agent": "test-writer",
             "branch": "job/pipeline-adv-test",
@@ -258,7 +258,7 @@ async fn pipeline_advances_to_next_phase() {
     let dispatched = ev(
         event_types::PIPELINE_RUN_DISPATCHED,
         serde_json::json!({
-            "job_id": job_id,
+            "pipeline_run_id": pipeline_run_id,
             "worktree": worktree_path.to_string_lossy(),
             "pid": null,
         }),
@@ -268,14 +268,14 @@ async fn pipeline_advances_to_next_phase() {
     // Set up kernel with a subscriber to capture routed events
     let mut router = KernelRouter::new(ship_substrate::ShipHome::project_ship_dir(dir.path())).unwrap();
     let (_actor_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
     let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
     // Simulate phase 0 completion
     let completed = ev(
         event_types::PIPELINE_RUN_COMPLETED,
-        serde_json::json!({ "job_id": job_id, "slug": slug }),
+        serde_json::json!({ "pipeline_run_id": pipeline_run_id, "slug": slug }),
     );
 
     let dctx = noop_dctx();
@@ -293,7 +293,7 @@ async fn pipeline_advances_to_next_phase() {
 
     let payload: serde_json::Value =
         serde_json::from_str(&phase1_event.payload_json).unwrap();
-    assert_eq!(payload["job_id"].as_str(), Some(job_id));
+    assert_eq!(payload["pipeline_run_id"].as_str(), Some(pipeline_run_id));
 }
 
 // ── Ports + Adapters: mock executor tests ────────────────────────────────────
@@ -321,11 +321,11 @@ mod ports {
 
     #[async_trait]
     impl IsolationStrategy for RecordingIsolation {
-        async fn prepare(&self, _job: &JobContext) -> anyhow::Result<PathBuf> {
+        async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
             self.prepare_count.fetch_add(1, Ordering::SeqCst);
             Ok(self.work_dir.clone())
         }
-        async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> {
+        async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> {
             self.cleanup_count.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }
@@ -346,8 +346,8 @@ mod ports {
     }
 
     #[async_trait]
-    impl JobExecutor for RecordingExecutor {
-        async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+    impl SessionExecutor for RecordingExecutor {
+        async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
             self.spawn_count.fetch_add(1, Ordering::SeqCst);
             Ok(ExecutorHandle { pid: Some(99999), inner: Box::new(()) })
         }
@@ -363,9 +363,9 @@ mod ports {
         }
     }
 
-    fn test_ctx(slug: &str, work_dir: PathBuf) -> JobContext {
-        JobContext {
-            job_id: format!("j-{slug}"),
+    fn test_ctx(slug: &str, work_dir: PathBuf) -> SessionContext {
+        SessionContext {
+            pipeline_run_id: format!("j-{slug}"),
             slug: slug.to_string(),
             agent: "rust-runtime".to_string(),
             branch: format!("job/{slug}"),
@@ -426,7 +426,7 @@ mod ports {
         let event = super::ev(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": "j-iso-dispatch",
+                "pipeline_run_id": "j-iso-dispatch",
                 "slug": "iso-dispatch",
                 "agent": "rust-runtime",
                 "branch": "job/iso-dispatch",
@@ -435,7 +435,7 @@ mod ports {
             }),
         );
 
-        super::super::handle_job_created(&kernel, &event, &dctx).await;
+        super::super::handle_pipeline_run_started(&kernel, &event, &dctx).await;
 
         assert!(
             isolation.prepare_count.load(Ordering::SeqCst) > 0,
@@ -443,7 +443,7 @@ mod ports {
         );
     }
 
-    /// Dispatch delegates to JobExecutor::spawn during job creation.
+    /// Dispatch delegates to SessionExecutor::spawn during job creation.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn dispatch_delegates_to_executor() {
         let dir = TempDir::new().unwrap();
@@ -465,7 +465,7 @@ mod ports {
         let event = super::ev(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": "j-exec-dispatch",
+                "pipeline_run_id": "j-exec-dispatch",
                 "slug": "exec-dispatch",
                 "agent": "rust-runtime",
                 "branch": "job/exec-dispatch",
@@ -474,22 +474,22 @@ mod ports {
             }),
         );
 
-        super::super::handle_job_created(&kernel, &event, &dctx).await;
+        super::super::handle_pipeline_run_started(&kernel, &event, &dctx).await;
 
         assert!(
             executor.spawn_count.load(Ordering::SeqCst) > 0,
-            "JobExecutor::spawn must be called during dispatch"
+            "SessionExecutor::spawn must be called during dispatch"
         );
     }
 
-    /// Pipeline advancement uses JobExecutor::spawn for the next phase.
+    /// Pipeline advancement uses SessionExecutor::spawn for the next phase.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pipeline_advance_uses_executor() {
         use ship_substrate::events::store::{EventStore, SqliteEventStore};
 
         let dir = TempDir::new().unwrap();
         let slug = "pipe-exec-test";
-        let job_id = "j-pipe-exec";
+        let pipeline_run_id = "j-pipe-exec";
         let isolation = Arc::new(RecordingIsolation::new(dir.path().join("worktree")));
         let executor = Arc::new(RecordingExecutor::new());
 
@@ -517,7 +517,7 @@ mod ports {
         store.append(&super::ev(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": job_id, "slug": slug,
+                "pipeline_run_id": pipeline_run_id, "slug": slug,
                 "agent": "test-writer", "branch": "job/pipe-exec-test",
                 "spec_path": ".artifacts/job-spec.md", "plan_id": null,
                 "steps": {
@@ -531,7 +531,7 @@ mod ports {
         store.append(&super::ev(
             event_types::PIPELINE_RUN_DISPATCHED,
             serde_json::json!({
-                "job_id": job_id,
+                "pipeline_run_id": pipeline_run_id,
                 "worktree": worktree_path.to_string_lossy(),
                 "pid": null,
             }),
@@ -539,19 +539,19 @@ mod ports {
 
         let mut router = KernelRouter::new(ship_substrate::ShipHome::project_ship_dir(dir.path())).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
+            .spawn_actor("service.orchestrator", ship_supervisor::orchestrator_actor_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
         let completed = super::ev(
             event_types::PIPELINE_RUN_COMPLETED,
-            serde_json::json!({ "job_id": job_id, "slug": slug }),
+            serde_json::json!({ "pipeline_run_id": pipeline_run_id, "slug": slug }),
         );
         super::super::advance_pipeline_at(&kernel, &completed, &dctx, &global_dir).await;
 
         assert!(
             executor.spawn_count.load(Ordering::SeqCst) > 0,
-            "JobExecutor::spawn must be called during pipeline advancement"
+            "SessionExecutor::spawn must be called during pipeline advancement"
         );
     }
 }
@@ -563,7 +563,7 @@ fn job_projection_handles_model_and_harness_payload() {
     let events = vec![ev(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": "j-model-1",
+            "pipeline_run_id": "j-model-1",
             "slug": "typed-api",
             "agent": "rust-runtime",
             "branch": "job/typed-api",
@@ -576,7 +576,7 @@ fn job_projection_handles_model_and_harness_payload() {
 
     let map = project(&events);
     let rec = map.get("j-model-1").expect("job record must be created");
-    assert_eq!(rec.status, JobStatus::Pending);
+    assert_eq!(rec.status, PipelineRunStatus::Pending);
     assert_eq!(rec.slug, "typed-api");
     assert_eq!(rec.agent, "rust-runtime");
     assert_eq!(rec.branch, "job/typed-api");
@@ -613,7 +613,7 @@ fn ship_mesh_id_env_overrides_derived_actor_id() {
 
 /// Jobs with depends_on are deferred (not dispatched immediately).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_with_depends_on_is_deferred() {
+async fn run_with_depends_on_is_deferred() {
     let (_dir, router) = setup();
     let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -621,7 +621,7 @@ async fn job_with_depends_on_is_deferred() {
     let event = ev(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": "j-deferred",
+            "pipeline_run_id": "j-deferred",
             "slug": "downstream",
             "agent": "rust-runtime",
             "branch": "job/downstream",
@@ -631,15 +631,15 @@ async fn job_with_depends_on_is_deferred() {
         }),
     );
 
-    // handle_job_created should return without dispatching (no spawn call)
-    super::handle_job_created(&kernel, &event, &dctx).await;
+    // handle_pipeline_run_started should return without dispatching (no spawn call)
+    super::handle_pipeline_run_started(&kernel, &event, &dctx).await;
     // The job stays as Pending in the projection — dispatch_ready_pending_jobs
     // will pick it up when deps resolve. No assertion on in-memory state needed.
 }
 
 /// Jobs without depends_on are dispatched immediately.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_without_depends_on_not_deferred() {
+async fn run_without_depends_on_not_deferred() {
     let (_dir, router) = setup();
     let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -647,7 +647,7 @@ async fn job_without_depends_on_not_deferred() {
     let event = ev(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": "j-immediate",
+            "pipeline_run_id": "j-immediate",
             "slug": "no-deps",
             "agent": "rust-runtime",
             "branch": "job/no-deps",
@@ -656,7 +656,7 @@ async fn job_without_depends_on_not_deferred() {
         }),
     );
 
-    super::handle_job_created(&kernel, &event, &dctx).await;
+    super::handle_pipeline_run_started(&kernel, &event, &dctx).await;
     // With NoopExecutor + NoopIsolation, dispatch proceeds without error.
     // The handle is registered in the registry.
     assert_eq!(dctx.registry.lock().await.len(), 1);
@@ -676,7 +676,7 @@ fn projection_resolves_pending_deps() {
     store.append(&ev(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": "j-up",
+            "pipeline_run_id": "j-up",
             "slug": "upstream",
             "agent": "rust-runtime",
             "branch": "job/upstream",
@@ -689,7 +689,7 @@ fn projection_resolves_pending_deps() {
     store.append(&ev(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": "j-down",
+            "pipeline_run_id": "j-down",
             "slug": "downstream",
             "agent": "rust-runtime",
             "branch": "job/downstream",
@@ -700,9 +700,9 @@ fn projection_resolves_pending_deps() {
     )).unwrap();
 
     // Before upstream completes: downstream is Pending with unresolved deps
-    let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
     let done: std::collections::HashSet<&str> = jobs.values()
-        .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Completed | PipelineRunStatus::Merged))
         .map(|j| j.slug.as_str())
         .collect();
     let downstream = jobs.get("j-down").unwrap();
@@ -713,17 +713,17 @@ fn projection_resolves_pending_deps() {
     // Complete upstream
     store.append(&ev(
         event_types::PIPELINE_RUN_DISPATCHED,
-        serde_json::json!({"job_id": "j-up", "worktree": "/tmp/wt/upstream", "pid": null}),
+        serde_json::json!({"pipeline_run_id": "j-up", "worktree": "/tmp/wt/upstream", "pid": null}),
     )).unwrap();
     store.append(&ev(
         event_types::PIPELINE_RUN_COMPLETED,
-        serde_json::json!({"job_id": "j-up", "slug": "upstream"}),
+        serde_json::json!({"pipeline_run_id": "j-up", "slug": "upstream"}),
     )).unwrap();
 
     // After upstream completes: downstream deps are resolved
-    let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
     let done: std::collections::HashSet<&str> = jobs.values()
-        .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Completed | PipelineRunStatus::Merged))
         .map(|j| j.slug.as_str())
         .collect();
     let downstream = jobs.get("j-down").unwrap();
@@ -750,7 +750,7 @@ fn pending_jobs_recoverable_from_event_store() {
             .append(&ev(
                 event_types::PIPELINE_RUN_STARTED,
                 serde_json::json!({
-                    "job_id": format!("j-persist-{i}"),
+                    "pipeline_run_id": format!("j-persist-{i}"),
                     "slug": format!("persist-job-{i}"),
                     "agent": "rust-runtime",
                     "branch": format!("job/persist-job-{i}"),
@@ -763,11 +763,11 @@ fn pending_jobs_recoverable_from_event_store() {
     }
 
     // Simulate restart: load projection from the same DB path
-    let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
 
     let pending_count = jobs
         .values()
-        .filter(|j| j.status == JobStatus::Pending)
+        .filter(|j| j.status == PipelineRunStatus::Pending)
         .count();
     assert_eq!(pending_count, 3, "all 3 pending jobs must survive restart");
 
@@ -800,7 +800,7 @@ fn projection_detects_stale_dispatched_jobs() {
         .append(&ev(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": "j-pending",
+                "pipeline_run_id": "j-pending",
                 "slug": "pending-slug",
                 "agent": "rust-runtime",
                 "branch": "job/pending-slug",
@@ -815,7 +815,7 @@ fn projection_detects_stale_dispatched_jobs() {
         .append(&ev(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": "j-dispatched",
+                "pipeline_run_id": "j-dispatched",
                 "slug": "dispatched-slug",
                 "agent": "rust-runtime",
                 "branch": "job/dispatched-slug",
@@ -828,7 +828,7 @@ fn projection_detects_stale_dispatched_jobs() {
         .append(&ev(
             event_types::PIPELINE_RUN_DISPATCHED,
             serde_json::json!({
-                "job_id": "j-dispatched",
+                "pipeline_run_id": "j-dispatched",
                 "worktree": "/tmp/wt/dispatched-slug",
                 "pid": 12345,
             }),
@@ -840,7 +840,7 @@ fn projection_detects_stale_dispatched_jobs() {
         .append(&ev(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": "j-completed",
+                "pipeline_run_id": "j-completed",
                 "slug": "completed-slug",
                 "agent": "rust-runtime",
                 "branch": "job/completed-slug",
@@ -853,7 +853,7 @@ fn projection_detects_stale_dispatched_jobs() {
         .append(&ev(
             event_types::PIPELINE_RUN_DISPATCHED,
             serde_json::json!({
-                "job_id": "j-completed",
+                "pipeline_run_id": "j-completed",
                 "worktree": "/tmp/wt/completed-slug",
                 "pid": 12346,
             }),
@@ -862,26 +862,26 @@ fn projection_detects_stale_dispatched_jobs() {
     store
         .append(&ev(
             event_types::PIPELINE_RUN_COMPLETED,
-            serde_json::json!({"job_id": "j-completed", "slug": "completed-slug"}),
+            serde_json::json!({"pipeline_run_id": "j-completed", "slug": "completed-slug"}),
         ))
         .unwrap();
 
-    let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
 
-    assert_eq!(jobs.get("j-pending").unwrap().status, JobStatus::Pending);
+    assert_eq!(jobs.get("j-pending").unwrap().status, PipelineRunStatus::Pending);
     assert_eq!(
         jobs.get("j-dispatched").unwrap().status,
-        JobStatus::Dispatched
+        PipelineRunStatus::Dispatched
     );
     assert_eq!(
         jobs.get("j-completed").unwrap().status,
-        JobStatus::Completed
+        PipelineRunStatus::Completed
     );
 
     // Key query for reconciliation: find only stale Dispatched jobs
     let stale_dispatched: Vec<_> = jobs
         .values()
-        .filter(|j| j.status == JobStatus::Dispatched)
+        .filter(|j| j.status == PipelineRunStatus::Dispatched)
         .collect();
     assert_eq!(stale_dispatched.len(), 1);
     assert_eq!(stale_dispatched[0].slug, "dispatched-slug");
@@ -895,7 +895,7 @@ fn failed_event_transitions_dispatched_to_failed() {
         ev(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": "j-fail-test",
+                "pipeline_run_id": "j-fail-test",
                 "slug": "fail-test",
                 "agent": "rust-runtime",
                 "branch": "job/fail-test",
@@ -906,7 +906,7 @@ fn failed_event_transitions_dispatched_to_failed() {
         ev(
             event_types::PIPELINE_RUN_DISPATCHED,
             serde_json::json!({
-                "job_id": "j-fail-test",
+                "pipeline_run_id": "j-fail-test",
                 "worktree": "/tmp/wt/fail-test",
                 "pid": 99999,
             }),
@@ -914,7 +914,7 @@ fn failed_event_transitions_dispatched_to_failed() {
         ev(
             event_types::PIPELINE_RUN_FAILED,
             serde_json::json!({
-                "job_id": "j-fail-test",
+                "pipeline_run_id": "j-fail-test",
                 "error": "daemon restart, process not found",
             }),
         ),
@@ -922,7 +922,7 @@ fn failed_event_transitions_dispatched_to_failed() {
 
     let map = project(&events);
     let job = map.get("j-fail-test").unwrap();
-    assert_eq!(job.status, JobStatus::Failed);
+    assert_eq!(job.status, PipelineRunStatus::Failed);
     assert_eq!(
         job.error.as_deref(),
         Some("daemon restart, process not found"),
@@ -944,7 +944,7 @@ fn dispatched_event_preserves_pid_in_payload() {
     let dispatched = ev(
         event_types::PIPELINE_RUN_DISPATCHED,
         serde_json::json!({
-            "job_id": "j-pid-test",
+            "pipeline_run_id": "j-pid-test",
             "worktree": "/tmp/wt/pid-test",
             "pid": 42000,
         }),
@@ -969,13 +969,13 @@ async fn single_dispatch_path_one_subscriber() {
 
     // Spawn the canonical job-dispatch actor
     let (_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
 
     let event = ev(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": "j-single-path",
+            "pipeline_run_id": "j-single-path",
             "slug": "single-path",
             "agent": "rust-runtime",
             "branch": "job/single-path",
@@ -1006,7 +1006,7 @@ fn projection_completed_status() {
         ev(
             event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
-                "job_id": "j-proj-comp",
+                "pipeline_run_id": "j-proj-comp",
                 "slug": "test-slug",
                 "agent": "rust-runtime",
                 "branch": "job/test-slug",
@@ -1016,11 +1016,11 @@ fn projection_completed_status() {
         ),
         ev(
             event_types::PIPELINE_RUN_COMPLETED,
-            serde_json::json!({"job_id": "j-proj-comp", "slug": "test-slug"}),
+            serde_json::json!({"pipeline_run_id": "j-proj-comp", "slug": "test-slug"}),
         ),
     ];
     let map = project(&events);
-    assert_eq!(map.get("j-proj-comp").unwrap().status, JobStatus::Completed);
+    assert_eq!(map.get("j-proj-comp").unwrap().status, PipelineRunStatus::Completed);
 }
 
 // ── Supervisor Reliability: Startup Reconciliation & Graceful Shutdown ──────
@@ -1033,23 +1033,23 @@ fn projection_completed_status() {
 // New API required — the implementation agent must create:
 //
 //   1. `reconcile_dispatched_jobs_at(kernel, dctx, ship_dir)` in dispatch_replay.rs
-//      Re-export in job_dispatch.rs with:
+//      Re-export in run_dispatch.rs with:
 //        #[cfg(test)]
 //        pub(crate) use super::dispatch_replay::reconcile_dispatched_jobs_at;
 //
 //   2. `ProcessRegistry` struct in supervisor (new file or mod.rs)
 //      - `new() -> Self`
 //      - `register(slug: &str, handle: ExecutorHandle)`
-//      - `shutdown_all(executor: &dyn JobExecutor) -> Vec<String>` (async)
+//      - `shutdown_all(executor: &dyn SessionExecutor) -> Vec<String>` (async)
 //      - `len() -> usize`
 //      - `is_empty() -> bool`
-//      Re-export in job_dispatch.rs with:
+//      Re-export in run_dispatch.rs with:
 //        #[cfg(test)]
 //        pub(crate) use super::ProcessRegistry;
 //
 //   3. `graceful_shutdown(kernel, registry, executor)` in supervisor
 //      Emits `supervisor.shutting_down` event, then drains the registry.
-//      Re-export in job_dispatch.rs with:
+//      Re-export in run_dispatch.rs with:
 //        #[cfg(test)]
 //        pub(crate) use super::graceful_shutdown;
 //
@@ -1075,8 +1075,8 @@ mod reliability {
     }
 
     #[async_trait]
-    impl JobExecutor for ShutdownTrackingExecutor {
-        async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+    impl SessionExecutor for ShutdownTrackingExecutor {
+        async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
             Ok(ExecutorHandle { pid: Some(11111), inner: Box::new(()) })
         }
         async fn is_alive(&self, _handle: &ExecutorHandle) -> bool {
@@ -1091,9 +1091,9 @@ mod reliability {
         }
     }
 
-    fn test_job_ctx(slug: &str) -> JobContext {
-        JobContext {
-            job_id: format!("j-{slug}"),
+    fn test_job_ctx(slug: &str) -> SessionContext {
+        SessionContext {
+            pipeline_run_id: format!("j-{slug}"),
             slug: slug.to_string(),
             agent: "rust-runtime".to_string(),
             branch: format!("job/{slug}"),
@@ -1110,7 +1110,7 @@ mod reliability {
     /// Helper: seed event store with a dispatched job.
     fn seed_dispatched_job(
         store: &ship_substrate::events::store::SqliteEventStore,
-        job_id: &str,
+        pipeline_run_id: &str,
         slug: &str,
     ) {
         use ship_substrate::events::store::EventStore;
@@ -1118,7 +1118,7 @@ mod reliability {
             .append(&ev(
                 event_types::PIPELINE_RUN_STARTED,
                 serde_json::json!({
-                    "job_id": job_id,
+                    "pipeline_run_id": pipeline_run_id,
                     "slug": slug,
                     "agent": "rust-runtime",
                     "branch": format!("job/{slug}"),
@@ -1131,7 +1131,7 @@ mod reliability {
             .append(&ev(
                 event_types::PIPELINE_RUN_DISPATCHED,
                 serde_json::json!({
-                    "job_id": job_id,
+                    "pipeline_run_id": pipeline_run_id,
                     "worktree": format!("/tmp/wt/{slug}"),
                     "pid": 99999,
                 }),
@@ -1158,16 +1158,16 @@ mod reliability {
 
         seed_dispatched_job(&store, "j-stale", "stale-running");
 
-        let jobs_before = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let jobs_before = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
         assert_eq!(
             jobs_before.get("j-stale").unwrap().status,
-            JobStatus::Dispatched
+            PipelineRunStatus::Dispatched
         );
 
         let mut router =
             ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
+            .spawn_actor("service.orchestrator", ship_supervisor::orchestrator_actor_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -1183,11 +1183,11 @@ mod reliability {
 
         super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
 
-        let jobs_after = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let jobs_after = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
         let job = jobs_after.get("j-stale").unwrap();
         assert_eq!(
             job.status,
-            JobStatus::Failed,
+            PipelineRunStatus::Failed,
             "orphaned dispatched job must be Failed after step_failed"
         );
         assert!(
@@ -1213,7 +1213,7 @@ mod reliability {
         let mut router =
             ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
+            .spawn_actor("service.orchestrator", ship_supervisor::orchestrator_actor_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -1243,8 +1243,8 @@ mod reliability {
         struct AliveProcessExecutor;
 
         #[async_trait]
-        impl JobExecutor for AliveProcessExecutor {
-            async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+        impl SessionExecutor for AliveProcessExecutor {
+            async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
                 Ok(ExecutorHandle { pid: Some(1), inner: Box::new(()) })
             }
             async fn is_alive(&self, _handle: &ExecutorHandle) -> bool {
@@ -1268,7 +1268,7 @@ mod reliability {
         let mut router =
             ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
+            .spawn_actor("service.orchestrator", ship_supervisor::orchestrator_actor_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -1283,10 +1283,10 @@ mod reliability {
 
         super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
 
-        let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
         assert_eq!(
             jobs.get("j-alive").unwrap().status,
-            JobStatus::Dispatched,
+            PipelineRunStatus::Dispatched,
             "dispatched job with live process must stay Dispatched"
         );
     }
@@ -1302,8 +1302,8 @@ mod reliability {
         struct AliveProcessExecutor;
 
         #[async_trait]
-        impl JobExecutor for AliveProcessExecutor {
-            async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+        impl SessionExecutor for AliveProcessExecutor {
+            async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
                 Ok(ExecutorHandle { pid: Some(1), inner: Box::new(()) })
             }
             async fn is_alive(&self, _handle: &ExecutorHandle) -> bool {
@@ -1327,7 +1327,7 @@ mod reliability {
         let mut router =
             ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
+            .spawn_actor("service.orchestrator", ship_supervisor::orchestrator_actor_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -1368,7 +1368,7 @@ mod reliability {
 
         assert_eq!(registry.len(), 3);
 
-        let stopped = registry.shutdown_all(Arc::clone(&executor) as Arc<dyn ship_platform::services::dispatch_ports::JobExecutor>).await;
+        let stopped = registry.shutdown_all(Arc::clone(&executor) as Arc<dyn ship_platform::services::dispatch_ports::SessionExecutor>).await;
 
         assert_eq!(stopped.len(), 3, "shutdown must stop all 3 agents");
         assert_eq!(
@@ -1402,7 +1402,7 @@ mod reliability {
         let handle = executor.spawn(&test_job_ctx("evt-test")).await.unwrap();
         registry.register("evt-test", handle);
 
-        super::super::graceful_shutdown(&kernel, &mut registry, Arc::clone(&executor) as Arc<dyn ship_platform::services::dispatch_ports::JobExecutor>).await;
+        super::super::graceful_shutdown(&kernel, &mut registry, Arc::clone(&executor) as Arc<dyn ship_platform::services::dispatch_ports::SessionExecutor>).await;
 
         let event = mb
             .try_recv()
@@ -1422,7 +1422,7 @@ mod reliability {
             ev(
                 event_types::PIPELINE_RUN_STARTED,
                 serde_json::json!({
-                    "job_id": "j-redispatch",
+                    "pipeline_run_id": "j-redispatch",
                     "slug": "redispatch",
                     "agent": "rust-runtime",
                     "branch": "job/redispatch",
@@ -1433,7 +1433,7 @@ mod reliability {
             ev(
                 event_types::PIPELINE_RUN_DISPATCHED,
                 serde_json::json!({
-                    "job_id": "j-redispatch",
+                    "pipeline_run_id": "j-redispatch",
                     "worktree": "/tmp/wt/redispatch",
                     "pid": 1000,
                 }),
@@ -1441,14 +1441,14 @@ mod reliability {
             ev(
                 event_types::PIPELINE_RUN_FAILED,
                 serde_json::json!({
-                    "job_id": "j-redispatch",
+                    "pipeline_run_id": "j-redispatch",
                     "error": "agent crashed",
                 }),
             ),
             ev(
                 event_types::PIPELINE_RUN_DISPATCHED,
                 serde_json::json!({
-                    "job_id": "j-redispatch",
+                    "pipeline_run_id": "j-redispatch",
                     "worktree": "/tmp/wt/redispatch",
                     "pid": 1001,
                 }),
@@ -1459,7 +1459,7 @@ mod reliability {
         let job = map.get("j-redispatch").unwrap();
         assert_eq!(
             job.status,
-            JobStatus::Dispatched,
+            PipelineRunStatus::Dispatched,
             "failed job must be re-dispatchable"
         );
     }

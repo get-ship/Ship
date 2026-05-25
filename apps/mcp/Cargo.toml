@@ -21,6 +21,7 @@ serde_json = { workspace = true }
 mcp-framework = { path = "../../crates/core/mcp-framework" }
 async-trait = { workspace = true }
 compiler = { path = "../../crates/core/compiler" }
+sui-compiler = { path = "../../crates/sui/compiler" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
 anyhow = { workspace = true }

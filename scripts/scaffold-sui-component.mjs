@@ -9,8 +9,8 @@
  *   `--controller` also writes a paired `<tag>.controller.ts` with controller(def).
  *
  * Creates:
- *   - packages/ui-components/src/<tag>/<tag>.sui
- *   - packages/ui-components/src/<tag>/<tag>.controller.ts (only with --controller)
+ *   - packages/components/ui-components/src/<tag>/<tag>.sui
+ *   - packages/components/ui-components/src/<tag>/<tag>.controller.ts (only with --controller)
  *
  * Convention is the contract: directory IS the component, file extension
  * `.sui` is the contract, paired `.ts` is auto-detected by the compiler.
@@ -18,10 +18,10 @@
  *
  * After scaffolding:
  *   1. Edit <tag>.sui — replace the placeholder prop list, styles, body
- *   2. Add to packages/ui-components/src/index.ts:
+ *   2. Add to packages/components/ui-components/src/index.ts:
  *        import './<tag>/dist/<tag>.compiled.js'
  *   3. Add to scripts/build-bundles.mjs componentSources:
- *        { htmlSet: 'packages/ui-components/src/<tag>/<tag>.sui' }
+ *        { htmlSet: 'packages/components/ui-components/src/<tag>/<tag>.sui' }
  *   4. node scripts/build-bundles.mjs --force
  */
 
@@ -96,12 +96,12 @@ export default controller<Scope>({
   writeFileSync(join(baseDir, `${tag}.controller.ts`), ts)
 }
 
-console.log(`[scaffold] created packages/ui-components/src/${tag}/`)
+console.log(`[scaffold] created packages/components/ui-components/src/${tag}/`)
 console.log(`[scaffold] next steps:`)
 console.log(`  1. Edit ${tag}.sui — props, styles, template body, parity comment`)
-console.log(`  2. Add to packages/ui-components/src/index.ts:`)
+console.log(`  2. Add to packages/components/ui-components/src/index.ts:`)
 console.log(`       import './${tag}/dist/${tag}.compiled.js'`)
 console.log(`  3. Add to scripts/build-bundles.mjs componentSources:`)
-console.log(`       { htmlSet: 'packages/ui-components/src/${tag}/${tag}.sui' }`)
+console.log(`       { htmlSet: 'packages/components/ui-components/src/${tag}/${tag}.sui' }`)
 console.log(`  4. node scripts/build-bundles.mjs --force`)
 console.log(`  5. cargo build -p shipd && bash scripts/dev/restart.sh`)

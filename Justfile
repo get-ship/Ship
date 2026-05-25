@@ -15,24 +15,40 @@ default:
 
 # ── Daily ────────────────────────────────────────────────────────────────────
 
-# One-shot fresh-clone setup. Order matters: gen-types feeds the workspace,
-# pack builds populate the asset trees that shipd's include_str! consumes,
-# sui-catalog walks the resulting CEMs into workspace+published catalogs,
-# and dev-runtime-install copies bun + sui-compiler + bundler.ts into
-# ~/.ship/runtime/.
+# One-shot fresh-clone setup. Order matters and is dependency-driven: the
+# gitignored generated assets (lucide registry, sdk-*.json, the FFI cdylib,
+# the wasm pkg) must exist before the cargo + bun builds that consume them,
+# or a cold clone fails at compile/bundle time. On dispatched worktrees these
+# are copied from the launch repo by dispatch.sh; this recipe generates them.
 [group('daily')]
 bootstrap:
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun  >/dev/null || { echo "bun not on PATH — install via 'curl -fsSL https://bun.sh/install | bash'" >&2; exit 1; }
-    cargo run -p xtask --quiet -- gen-types
-    cargo build -p ship-cli
     bun install
+    cargo run -p xtask --quiet -- gen-types
+    # lucide-icons.json — deck-server's build.rs panics without it, so it must
+    # land before any cargo build that compiles deck-server (incl. gen-sdk).
+    bun scripts/codegen/generate-lucide-registry.mjs
+    # sdk-*.json bootstrap cycle: shipd include_str!s these, and gen-sdk runs
+    # *through* shipd (via xtask). Seed empty placeholders so shipd compiles,
+    # then gen-sdk overwrites them with real content.
+    mkdir -p packages/deck/sdk/src/generated
+    for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
+        [ -s "packages/deck/sdk/src/generated/$f.json" ] || echo '{}' > "packages/deck/sdk/src/generated/$f.json"
+    done
+    cargo run -p xtask --quiet -- gen-sdk
+    # sui-compiler cdylib — the .so the bun asset builds load over FFI.
+    cargo build -p sui-compiler
+    # sui-compiler-wasm pkg — the in-browser compiler the sui-code-editor
+    # component bundles against.
+    bun run wasm
+    cargo build -p ship-cli
     bun run --filter @ship/primitives build
     bun run --filter @ship/charts build
     bun run --filter @ship/ui-components build
     bun run --filter @ship/sui-catalog build
-    bun packages/sui-catalog/src/cli.ts
+    bun packages/deck/catalog/src/cli.ts
     just dev-runtime-install
     echo "bootstrap complete — 'just dev' to start the daemon"
 
@@ -50,10 +66,10 @@ shell-dev:
 
 # Force a one-shot rebuild of every asset bundle served by the daemon
 # (sui-runtime, sui-dom, sui-components, islands, ship-elements, views/*).
-# Runs `runtime/bundler.ts --all` against the installed bun toolchain.
+# Runs `packages/deck/bundler/index.ts --all` against the installed bun toolchain.
 [group('daily')]
-dev-build-all:
-    @bun runtime/bundler.ts --all
+dev-build-all: _sui-compiler-lib
+    @bun packages/deck/bundler/index.ts --all
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
@@ -82,6 +98,9 @@ doctor:
 dev-runtime-install:
     #!/usr/bin/env bash
     set -euo pipefail
+    # Activate the tracked git hooks (.artifacts boundary guard). Local config,
+    # so a fresh clone needs this once — hence here.
+    git config core.hooksPath .githooks
     cargo build -p sui-compiler --release
     cargo build -p ship-cli
     BUN_BIN="${BUN_PATH:-$(command -v bun || true)}"
@@ -213,8 +232,8 @@ lint-views:
     cargo run --features unstable -p ship-cli --quiet -- lint views --format json
 
 # Regenerate the aggregated SUI Custom Elements Manifest from per-component
-# CEMs under packages/ui-components/src/. Writes
-# crates/ship-sui/assets/sui-custom-elements.json which apps/shipd embeds.
+# CEMs under packages/components/ui-components/src/. Writes
+# crates/deck/deck-server/assets/sui-custom-elements.json which apps/shipd embeds.
 [group('occasional')]
 cem:
     bun run --filter @ship/ui-components build
@@ -249,30 +268,43 @@ docs-regen:
 docs-check-drift:
     cd apps/docs && bun run docs:check-drift
 
+# The sui-compiler cdylib that sui-build/the bundler dlopen for FFI compilation.
+# A real build-graph dependency, not a remembered step — so a compiler/lint
+# source change always reaches every consumer (build, dev-build-all). cargo
+# no-ops in ~2s when fresh, so it's effectively free.
+_sui-compiler-lib:
+    cargo build -p sui-compiler
+
 # One-shot production build: gen-types, every pack + ui-components rebuild,
 # catalog regeneration, cargo --release, then verify outputs. Equivalent to
 # `ship build`.
 [group('daily')]
-build:
+build: _sui-compiler-lib
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun >/dev/null || { echo "build: bun not on PATH" >&2; exit 1; }
-    echo "[1/8] gen-types"
+    echo "[1/9] gen-types"
     cargo run -p xtask --quiet -- gen-types
-    echo "[2/8] primitives build (@ship/primitives → packages/components/primitives/dist/)"
+    echo "[2/9] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bun builds load)"
+    # Steps 3-6 drive the SUI compiler over Bun FFI against this .so. Nothing
+    # in cargo's graph forces it to rebuild (the JS bundler consumes it
+    # out-of-band), so without this step it silently goes stale and bundles
+    # compile against an old token registry / lint set. Cheap no-op when fresh.
+    cargo build -p sui-compiler
+    echo "[3/9] primitives build (@ship/primitives → packages/components/primitives/dist/)"
     bun run --filter @ship/primitives build
-    echo "[3/8] charts build (@ship/charts → packages/components/charts/dist/)"
+    echo "[4/9] charts build (@ship/charts → packages/components/charts/dist/)"
     bun run --filter @ship/charts build
-    echo "[4/8] ui-components build (sui-build → crates/sui/ship-sui-server/assets/)"
+    echo "[5/9] ui-components build (sui-build → crates/deck/deck-server/assets/)"
     bun run --filter @ship/ui-components build
-    echo "[5/8] view bundles + sui-* bundles (runtime/bundler.ts --all)"
-    bun runtime/bundler.ts --all
-    echo "[6/8] sui-catalog walk (→ .ship/sui-out/catalogs/{workspace,published}.json)"
+    echo "[6/9] view bundles + sui-* bundles (packages/deck/bundler/index.ts --all)"
+    bun packages/deck/bundler/index.ts --all
+    echo "[7/9] sui-catalog walk (→ .deck/catalogs/{workspace,published}.json)"
     bun run --filter @ship/sui-catalog build
-    bun packages/sui-catalog/src/cli.ts
-    echo "[7/8] cargo build --release (ship-cli + shipd + mcp)"
+    bun packages/deck/catalog/src/cli.ts
+    echo "[8/9] cargo build --release (ship-cli + shipd + mcp)"
     cargo build --release -p ship-cli -p shipd -p mcp
-    echo "[8/8] verify outputs"
+    echo "[9/9] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
     for bin in ship shipd; do
@@ -283,7 +315,7 @@ build:
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in crates/sui/ship-sui-server/assets/sui-runtime.js crates/sui/ship-sui-server/assets/sui-components.js packages/components/primitives/dist/sui-primitives.js packages/components/charts/dist/sui-charts.js .ship/sui-out/catalogs/workspace.json .ship/sui-out/catalogs/published.json; do
+    for asset in crates/deck/deck-server/assets/sui-runtime.js crates/deck/deck-server/assets/sui-components.js packages/components/primitives/dist/sui-primitives.js packages/components/charts/dist/sui-charts.js .deck/catalogs/workspace.json .deck/catalogs/published.json; do
         if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1
@@ -297,7 +329,7 @@ build:
 # Build CLI + MCP + shipd (unstable dev build).
 [group('occasional')]
 build-dev:
-    cargo build --features unstable -p ship-cli -p mcp -p shipd
+    cargo build --features unstable -p ship-cli -p mcp -p shipd -p sui-lsp
 
 # Cargo-only release build (no front-end). Use `just build` for the full
 # production artifact set; this recipe is the cargo subset.
@@ -313,7 +345,8 @@ install-dev: build-dev
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     cp -f "$target/debug/ship" ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
     cp -f "$target/debug/shipd" ~/.local/bin/shipd
-    echo "Installed: ship + shipd → ~/.local/bin"
+    cp -f "$target/debug/sui-lsp" ~/.local/bin/sui-lsp
+    echo "Installed: ship + shipd + sui-lsp → ~/.local/bin"
 
 # Install stable binary to ~/.cargo/bin.
 [group('occasional')]
@@ -330,7 +363,7 @@ wasm:
     wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm
 
 # Rebuild the in-browser SUI template compiler. wasm-pack writes into
-# `packages/sui-compiler-wasm/pkg/` (gitignored) so the package's own
+# `packages/sui/compiler-wasm/pkg/` (gitignored) so the package's own
 # package.json + .gitignore stay intact; the workspace re-exports the
 # generated entry via `main` / `exports`. Required before
 # `bun run --filter @ship/docs build` — the docs playground imports
@@ -338,7 +371,7 @@ wasm:
 # edits without a server round-trip. ~640KB wasm + ~9KB JS shim.
 [group('occasional')]
 sui-wasm:
-    wasm-pack build crates/sui/sui-compiler --target web --out-dir ../../../packages/sui-compiler-wasm/pkg --out-name sui_compiler -- --features wasm
+    wasm-pack build crates/sui/compiler --target web --out-dir ../../../packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm
 
 # Regenerate Specta types (Rust → generated TS bindings).
 [group('occasional')]

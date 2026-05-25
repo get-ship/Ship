@@ -1,0 +1,9 @@
+{
+  "items": [
+    {
+      "name": "ship-feature",
+      "scope": "project",
+      "format": "yaml"
+    }
+  ]
+}

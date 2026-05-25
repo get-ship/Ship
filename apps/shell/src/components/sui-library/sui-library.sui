@@ -1,0 +1,19 @@
+<!--
+  <sui-library> — explore what you have: installed packs, marketplace, authored
+  components. First-party CHROME (apps/shell); shell renders it at /library.
+  Placeholder until a pack registry exists (no installed/marketplace data yet —
+  no invented fields). Composes sui-* primitives.
+-->
+<style>
+  :host { display: grid; place-items: center; height: 100%; padding: var(--space-6); box-sizing: border-box; }
+</style>
+
+<sui-empty-state icon="package" variant="default" size="lg" data-test="library-view">
+  <span slot="title">Library</span>
+  Installed packs, the marketplace, and your authored components live here —
+  what you have, across every space. Lands once the pack registry is wired.
+  <sui-button slot="action" variant="outline" disabled>
+    <sui-icon slot="leading" name="store"></sui-icon>
+    Browse marketplace
+  </sui-button>
+</sui-empty-state>

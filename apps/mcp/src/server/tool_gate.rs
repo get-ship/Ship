@@ -1,11 +1,109 @@
 use anyhow::Result;
+use ship_platform::auth::scopes::{McpAuth, Scope};
 use ship_platform::config::get_active_agent;
 use std::path::Path;
 use std::process::Command as ProcessCommand;
 
 use super::ShipServer;
 
+/// Outcome of [`ShipServer::classify_gate`].
+#[derive(Debug, PartialEq, Eq)]
+pub enum GateOutcome {
+    /// Tool call permitted.
+    Allow,
+    /// Tool call refused, with a caller-facing reason.
+    Deny(String),
+    /// No injected identity on a local (stdio) connection — defer to the
+    /// active-agent CWD gate. Never produced for an HTTP connection.
+    TrustedLocalFallback,
+}
+
 impl ShipServer {
+    /// Tools gated to the `SuiAuthoring` capability — the one designer
+    /// tool-group. Keyed on canonical (post-normalize) names. Every other
+    /// tool is in the default surface, visible to all agents. This list is
+    /// the single source of truth for the token-scope gate on the
+    /// daemon-hosted path.
+    pub const SUI_AUTHORING_TOOLS: &[&str] = &[
+        "view_compile_check",
+        "sui",
+        "get_view_errors",
+        "open_view",
+        "patch_view",
+        "append_view",
+        "signal_view",
+        "close_view",
+        "view_annotate",
+        "view_write_source",
+        "view_restore_snapshot",
+        "view_collections_schema",
+        "view_list_siblings",
+        "view_theme_tokens",
+        "view_preview_snapshot",
+        "view_list_snapshots",
+    ];
+
+    /// The capability scope a tool requires, or `None` for the default
+    /// surface (no scope needed — every authenticated agent may call it).
+    pub fn tool_required_scope(tool_name: &str) -> Option<Scope> {
+        let normalized = Self::normalize_mode_tool_id(tool_name);
+        let canonical = crate::tools::stability::canonical_name(&normalized);
+        if Self::SUI_AUTHORING_TOOLS.contains(&canonical) {
+            Some(Scope::SuiAuthoring)
+        } else {
+            None
+        }
+    }
+
+    /// Token-scope gate (daemon-hosted path). Authoritative when the
+    /// connection carries `McpAuth`: a tool is allowed iff its required
+    /// scope is granted by the session token. Default-surface tools (no
+    /// required scope) are always allowed.
+    pub fn enforce_scope_gate(auth: &McpAuth, tool_name: &str) -> Result<(), String> {
+        match Self::tool_required_scope(tool_name) {
+            Some(scope) if !auth.allows(scope) => Err(format!(
+                "Tool '{tool_name}' requires the {scope:?} capability, which this \
+                 session's token does not grant."
+            )),
+            _ => Ok(()),
+        }
+    }
+
+    /// Resolve how a tool call should be gated, given the connection's
+    /// transport and any injected identity.
+    ///
+    /// `over_http` is true on the daemon-hosted `/mcp` mount (rmcp injects
+    /// the HTTP request `Parts` into the tool context). The stdio shim runs
+    /// with no request parts → `false`.
+    ///
+    /// Security invariant: **the trusted-local fallback is local-only.** Over
+    /// HTTP, an injected `McpAuth` (token scopes) is mandatory — a missing one
+    /// fails closed (`Deny`), never falling through to the CWD active-agent
+    /// gate. That CWD gate trusts the local filesystem's active-agent state,
+    /// which is meaningless (and bypassable) for a network caller. Only a
+    /// non-HTTP (stdio, same machine) connection may use it.
+    pub fn classify_gate(
+        over_http: bool,
+        auth: Option<&McpAuth>,
+        tool_name: &str,
+    ) -> GateOutcome {
+        match (over_http, auth) {
+            // Authenticated (either transport): token scopes are authoritative.
+            (_, Some(a)) => match Self::enforce_scope_gate(a, tool_name) {
+                Ok(()) => GateOutcome::Allow,
+                Err(e) => GateOutcome::Deny(e),
+            },
+            // HTTP without injected identity → fail closed. auth_middleware +
+            // `inject_mcp_auth` should always populate it; if they didn't, deny
+            // rather than trust local state over the network.
+            (true, None) => GateOutcome::Deny(format!(
+                "Tool '{tool_name}' denied: the daemon-hosted MCP path requires an \
+                 authenticated session token; no scopes were presented."
+            )),
+            // Local stdio shim: defer to the active-agent (CWD) gate.
+            (false, None) => GateOutcome::TrustedLocalFallback,
+        }
+    }
     pub fn normalize_mode_tool_id(raw: &str) -> String {
         let mut normalized = raw.trim().to_ascii_lowercase().replace('-', "_");
         if let Some(stripped) = normalized.strip_prefix("ship_") {
@@ -27,16 +125,11 @@ impl ShipServer {
         // the UI bubble and falls through to stdout (which the parser
         // catches but loses structure).
         "chat_reply",
-        // View editing surface — Shipwright (and any iteration agent)
-        // reads + writes views inline; gating these behind a preset
-        // breaks the in-UI editing loop on cold sessions where the
-        // active-agent resolver hasn't populated yet. Names are
-        // post-`normalize_mode_tool_id` (the `ship_` prefix is stripped
-        // before lookup, so list the suffixes here).
-        "view_lint",
-        "view_scaffold",
+        // `query_sdk` is a harmless read-only SDK search every agent may use;
+        // keep it ungated. (View-authoring tools moved to the SuiAuthoring
+        // capability group; `view_lint`/`view_scaffold` were retired —
+        // scaffolding is a skill now, linting is `sui`.)
         "sdk_query",
-        "view_errors",
     ];
 
     /// Experimental tools that are always callable but advertised as
@@ -56,7 +149,6 @@ impl ShipServer {
     pub const PLATFORM_TOOLS: &[&str] = &[
         "log_progress",
         "update_job",
-        "write_session_file",
         // Pipeline step-completion signal. Without step_done, pipelines
         // fall back to process-exit / activity-timeout signals.
         "step_done",
@@ -68,10 +160,11 @@ impl ShipServer {
         "close_view",
     ];
 
-    /// Orchestration tools — spawn child jobs, observe the mesh.
-    /// Only agents with an orchestrator preset get these.
-    pub const ORCHESTRATION_TOOLS: &[&str] =
-        &["create_job", "discover_mesh_agents", "update_mesh_status"];
+    /// Orchestration tools — historically the mesh observe/status tools.
+    /// Those are no longer agent MCP tools (mesh probing moved to the CLI),
+    /// so the orchestrator preset currently adds nothing over the worker set.
+    /// Kept as the extension point for future orchestration-only tools.
+    pub const ORCHESTRATION_TOOLS: &[&str] = &[];
 
     /// Resolve a preset name to its tool set. Unknown presets fall back
     /// to "worker" (platform tools only — the safe default).

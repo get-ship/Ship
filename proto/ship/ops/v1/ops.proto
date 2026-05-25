@@ -1,0 +1,40 @@
+// The Ship operation surface as ConnectRPC. Projected per decisions #1/#67:
+// proto owns shapes + policy; the daemon implements the generated service
+// traits (compile-time 1-1 conformance); CLI/GUI are generated clients. Mounts
+// additively beside the existing axum REST/SSE — nothing else moves.
+//
+// This file is hand-authored and minimal: the base OpsService (Meta) + the
+// shared JsonResponse. The op surface is GENERATED from the registries:
+//   - reads    → ReadOpsService    (reads.gen.proto    from schema::OPS)
+//   - commands → CommandOpsService (commands.gen.proto from schema::COMMANDS)
+// Don't hand-add ops here — add a descriptor + a dispatch entry and re-run
+// `cargo xtask gen-ops`.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+
+service OpsService {
+  // Daemon build/version metadata. C0: safe for any caller.
+  rpc Meta(MetaRequest) returns (MetaResponse) {
+    option (ship.ops.v1.capability) = "ship.meta.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+}
+
+message MetaRequest {}
+
+message MetaResponse {
+  // Daemon semantic version.
+  string version = 1;
+  // Build identifier (git sha / build-info string).
+  string build = 2;
+}
+
+// Shared response shape for generated read + command ops: the op's result
+// serialized as JSON. Typed messages replace this per-op where a stable
+// contract earns it.
+message JsonResponse {
+  string json = 1;
+}

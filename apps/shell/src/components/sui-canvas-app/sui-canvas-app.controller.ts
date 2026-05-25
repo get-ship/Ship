@@ -1,0 +1,309 @@
+import { controller, signal, derived, ref, live } from '@ship/sui-runtime'
+import type { MutableState } from '@ship/sui-runtime'
+import { liveExpr } from '@ship/sdk-client'
+import { route as routeFactory } from '@ship/sui-runtime/route'
+import type { Scope } from './sui-canvas-app.sui'
+
+// Writable state proxy seen by `on:` handlers — annotated because TS can't
+// contextually infer it through OnSection's function union.
+type S = MutableState<Scope>
+
+const SUI_CANVAS_BUNDLE = '/_sui/sui-components/sui-canvas.js'
+// The shell SPA preloads the chrome aggregate; the SUI view-host
+// does not. Load it on demand from the canvas controller so
+// <sui-annotation-layer>, <sui-icon>, etc. upgrade in either host.
+const SUI_CHROME_BUNDLE = '/_sui/sui-components/sui-chrome.js'
+const PAIR_KEY_PREFIX = 'ship.canvas.pair.'
+
+type AnnMode = 'off' | 'point' | 'region'
+
+interface AnnotationRow {
+  id: string
+  kind: string
+  note: string
+}
+
+interface AgentSummary { id: string; name?: string; description?: string }
+
+interface CanvasHostEl extends HTMLElement {
+  setContent(sui: string): void
+  applyMorph(target: string, patch: Record<string, unknown>): void
+  clear(): void
+  getContentHtml(): string
+}
+
+interface AnnotationLayerHost extends HTMLElement {
+  send: () => Promise<void>
+  clear: () => void
+  staged: ReadonlyArray<{
+    id: string
+    kind: 'point' | 'region'
+    note?: string
+    target?: { view_id?: string; selector?: string; rect?: [number, number, number, number] }
+  }>
+}
+
+function ensureSuiCanvasLoaded(): void {
+  if (typeof window === 'undefined') return
+  if (customElements.get('sui-canvas')) return
+  if (document.querySelector('script[data-sui-canvas-island]')) return
+  const s = document.createElement('script')
+  s.type = 'module'
+  s.src = SUI_CANVAS_BUNDLE
+  s.dataset['suiCanvasIsland'] = '1'
+  document.head.appendChild(s)
+}
+
+function ensureChromeLoaded(): void {
+  if (typeof window === 'undefined') return
+  if (customElements.get('sui-annotation-layer')) return
+  if (document.querySelector('script[data-sui-chrome-island]')) return
+  const s = document.createElement('script')
+  s.type = 'module'
+  s.src = SUI_CHROME_BUNDLE
+  s.dataset['suiChromeIsland'] = '1'
+  document.head.appendChild(s)
+}
+
+function readPair(canvasId: string): string {
+  try { return localStorage.getItem(PAIR_KEY_PREFIX + canvasId) ?? '' } catch { return '' }
+}
+
+function writePair(canvasId: string, agentId: string): void {
+  try {
+    if (agentId) localStorage.setItem(PAIR_KEY_PREFIX + canvasId, agentId)
+    else localStorage.removeItem(PAIR_KEY_PREFIX + canvasId)
+  } catch { /* private mode */ }
+}
+
+function newCanvasId(): string {
+  const c = (typeof crypto !== 'undefined' && crypto?.randomUUID) ? crypto.randomUUID() : ''
+  return c || `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+export default controller<Scope>({
+  scope: () => {
+    const agentsSummaries = live(() => liveExpr('ship.agents.summaries()'))
+    const artifactsList = live(() => liveExpr('ship.artifacts.list()'))
+    const route = routeFactory()
+    const initialId = route.query.canvas() || newCanvasId()
+    const canvasId = signal(initialId)
+    const pairedAgentId = signal(readPair(initialId))
+    const recentOpen = signal(false)
+    const annMode = signal<AnnMode>('off')
+    const annThread = signal<AnnotationRow[]>([])
+    const statusText = signal('ready')
+    const canvasEl = ref<CanvasHostEl>(null)
+    const annLayerEl = ref<AnnotationLayerHost>(null)
+
+    const shortId = derived(() => canvasId().slice(0, 8))
+    const annCount = derived(() => annThread().length)
+
+    // <data live> only supports zero-arg calls — pull the full artifacts
+    // list via the SSE channel, then filter to collection_id === 'canvas'
+    // client-side. The view-host environment (/sui/canvas) doesn't inject
+    // a `ship` object into the controller scope, so an in-controller
+    // live(ship.artifacts.list(...)) would throw. The <data> directive is
+    // the host-portable path.
+    const recentItems = derived(() => {
+      const v = artifactsList() as {
+        kind?: string
+        value?: { items?: Array<{ id: string; name?: string; created_at?: string; collection_id?: string | null }> }
+      }
+      if (v?.kind !== 'ok') return []
+      return (v.value?.items ?? []).filter((a) => a.collection_id === 'canvas')
+    })
+
+    const pairedAgentLabel = derived(() => {
+      const id = pairedAgentId()
+      if (!id) return ''
+      const list = agentsSummaries() as { kind?: string; value?: { items?: AgentSummary[] } }
+      if (list?.kind !== 'ok') return id
+      const a = list.value?.items?.find((x) => x.id === id)
+      return a?.name || id
+    })
+
+    return {
+      canvasId, pairedAgentId, recentOpen, annMode, annThread, statusText,
+      canvasEl, annLayerEl, shortId, annCount, pairedAgentLabel,
+      recentItems, agentsSummaries, artifactsList,
+    }
+  },
+
+  on: {
+    pair: (s: S, agentId: string) => {
+      const cid = s.canvasId as string
+      ;(s as unknown as { navigate: (path: string) => void }).navigate(
+        '/canvas?canvas=' + encodeURIComponent(cid),
+      )
+      s.pairedAgentId = agentId as never
+      writePair(cid, agentId)
+    },
+    unpair: (s: S) => {
+      writePair(s.canvasId as string, '')
+      s.pairedAgentId = '' as never
+    },
+    toggleRecent: (s: S) => { s.recentOpen = !(s.recentOpen as boolean) as never },
+    newCanvas: (s: S) => {
+      const id = newCanvasId()
+      const nav = (s as unknown as { navigate: (path: string) => void }).navigate
+      s.canvasId = id as never
+      s.pairedAgentId = '' as never
+      s.annThread = [] as never
+      s.statusText = 'new canvas' as never
+      nav('/canvas?canvas=' + encodeURIComponent(id))
+    },
+    setAnnMode: (s: S, mode: AnnMode) => { s.annMode = mode as never },
+    clearAnnotations: (s: S) => {
+      const layer = (s as unknown as { annLayerEl: AnnotationLayerHost | null }).annLayerEl
+      if (layer) layer.clear()
+      s.annThread = [] as never
+    },
+    sendAnnotations: async (s: S) => {
+      const cid = s.canvasId as string
+      const agentId = s.pairedAgentId as string
+      const layer = (s as unknown as { annLayerEl: AnnotationLayerHost | null }).annLayerEl
+      const staged = layer ? Array.from(layer.staged) : []
+      if (staged.length === 0) { s.statusText = 'no annotations to send' as never; return }
+      const resp = await fetch('/api/v1/events/emit', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: 'canvas.annotation',
+          entity_id: cid,
+          actor_id: 'studio',
+          payload: { canvas_id: cid, agent_id: agentId, annotations: staged },
+        }),
+      })
+      if (!resp.ok) { s.statusText = ('send failed: ' + resp.status) as never; return }
+      if (layer) layer.clear()
+      s.annThread = [] as never
+      s.statusText = (`sent ${staged.length} annotation${staged.length === 1 ? '' : 's'}`) as never
+    },
+    saveCanvas: async (s: S) => {
+      const cid = s.canvasId as string
+      const el = (s as unknown as { canvasEl: CanvasHostEl | null }).canvasEl
+      if (!el) { s.statusText = 'canvas not ready' as never; return }
+      const html = el.getContentHtml()
+      if (!html || html.trim().length === 0) {
+        s.statusText = 'nothing to save (empty canvas)' as never
+        return
+      }
+      const fd = new FormData()
+      const blob = new Blob([html], { type: 'text/html' })
+      fd.append('file', blob, `${cid}.html`)
+      fd.append('collection_id', 'canvas')
+      fd.append('item_id', cid)
+      const resp = await fetch('/api/v1/artifacts', {
+        method: 'POST', credentials: 'same-origin', body: fd,
+      })
+      if (!resp.ok) {
+        const t = await resp.text().catch(() => '')
+        s.statusText = (`save failed: ${resp.status} ${t.slice(0, 80)}`) as never
+        return
+      }
+      const body = await resp.json().catch(() => ({})) as { data?: { id?: string } }
+      s.statusText = (`saved · artifact ${(body.data?.id || '').slice(0, 8)}`) as never
+    },
+    loadArtifact: async (s: S, artifactId: string) => {
+      const resp = await fetch(`/api/v1/artifacts/${encodeURIComponent(artifactId)}`, {
+        credentials: 'same-origin',
+      })
+      if (!resp.ok) { s.statusText = (`load failed: ${resp.status}`) as never; return }
+      const html = await resp.text()
+      const el = (s as unknown as { canvasEl: CanvasHostEl | null }).canvasEl
+      if (!el) { s.statusText = 'canvas not mounted' as never; return }
+      el.setContent(html)
+      s.recentOpen = false as never
+      s.statusText = (`loaded · artifact ${artifactId.slice(0, 8)}`) as never
+    },
+  },
+
+  mount: (state, host) => {
+    ensureSuiCanvasLoaded()
+    ensureChromeLoaded()
+
+    // Subscribe to staged annotations on the annotation layer so the
+    // side rail thread renders live counts + notes as the user pins.
+    const s = state as unknown as {
+      annLayerEl: AnnotationLayerHost | null
+      annThread: AnnotationRow[]
+      pairedAgentId: string
+      canvasId: string
+      annMode: AnnMode
+      statusText: string
+    }
+
+    function refreshThread(): void {
+      const layer = s.annLayerEl
+      const staged = layer && Array.isArray(layer.staged) ? layer.staged : []
+      state.annThread = staged.map((a) => ({
+        id: a.id,
+        kind: a.kind,
+        note: (a as unknown as { note?: string }).note ?? '',
+      }))
+    }
+
+    const onStaged = (e: Event): void => {
+      const d = (e as CustomEvent<{
+        id?: string; kind?: string; note?: string
+      }>).detail
+      if (!d?.id) return
+      state.annThread = [
+        ...s.annThread,
+        { id: d.id, kind: d.kind ?? 'point', note: d.note ?? '' },
+      ]
+    }
+    host.addEventListener('sui-annotation-staged', onStaged)
+
+    // When the agent emits content the canvas dispatches sui-canvas-content;
+    // surface it in the status footer as confirmation.
+    const onContent = (e: Event): void => {
+      const d = (e as CustomEvent<{ length?: number }>).detail
+      state.statusText = `content updated (${d?.length ?? 0} bytes)`
+    }
+    const onMorph = (e: Event): void => {
+      const d = (e as CustomEvent<{ target?: string; miss?: boolean }>).detail
+      state.statusText = d?.miss
+        ? `morph miss: ${d.target}`
+        : `morph applied: ${d?.target}`
+    }
+    host.addEventListener('sui-canvas-content', onContent)
+    host.addEventListener('sui-canvas-morph', onMorph)
+
+    // Test hook — programmatic probe from web-qa uses these to drive
+    // setContent / applyMorph without spinning up an agent. Lives at
+    // window.__shipCanvas so the QA probe can call into the surface.
+    interface ShipCanvasGlobals {
+      setContent(sui: string): void
+      applyMorph(target: string, patch: Record<string, unknown>): void
+      clear(): void
+      getContentHtml(): string
+      canvasId(): string
+      pairedAgentId(): string
+    }
+    const sCanvas = s as unknown as { canvasEl: CanvasHostEl | null }
+    ;(window as unknown as { __shipCanvas?: ShipCanvasGlobals }).__shipCanvas = {
+      setContent: (sui) => sCanvas.canvasEl?.setContent(sui),
+      applyMorph: (target, patch) => sCanvas.canvasEl?.applyMorph(target, patch),
+      clear: () => sCanvas.canvasEl?.clear(),
+      getContentHtml: () => sCanvas.canvasEl?.getContentHtml() ?? '',
+      canvasId: () => s.canvasId,
+      pairedAgentId: () => s.pairedAgentId,
+    }
+
+    // Refresh thread once on mount so a route-back finds existing pins
+    // (the annotation layer rebuilds its own state from its endpoint;
+    // staged: [] by default, so this is currently a no-op but documents
+    // intent).
+    refreshThread()
+
+    return () => {
+      host.removeEventListener('sui-annotation-staged', onStaged)
+      host.removeEventListener('sui-canvas-content', onContent)
+      host.removeEventListener('sui-canvas-morph', onMorph)
+      try { delete (window as unknown as { __shipCanvas?: unknown }).__shipCanvas } catch { /* noop */ }
+    }
+  },
+})

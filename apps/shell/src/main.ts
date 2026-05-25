@@ -1,17 +1,22 @@
-// Shell 2.0 — SUI-native shell.
+// Shell — SUI-native three-zone chrome.
 //
-// One Vite app per peer with apps/shell, but everything below the top
-// bar is a SUI view mounted via the runtime's mount() function. The
-// shell's job:
+// Layout: 36px <sui-shell-top> · canvas · 28px <sui-shell-bottom>. The
+// canvas hosts either the active view's content (mounted into
+// #ship-content) or a default <sui-blank-canvas> when no route is open.
+// Primary nav lives in the ⌘K command palette — there is no rail in the
+// shell mount (the <sui-rail> primitive is still registered for code
+// paths that mount one internally, e.g. Studio).
+//
+// Per-request flow:
 //
 //   1. Read location.pathname → derive the current view name + sub.
 //   2. Fetch /_sui/views/<name>[/<sub>] → ViewPayload.
 //   3. mount(content, payload) → MountHandle.
 //   4. On internal anchor clicks → history.pushState + re-mount.
 //   5. On popstate → re-mount.
-//   6. Theme: <sui-theme-picker> owns it (mounted in the top bar).
-//   7. Rail: <sui-rail> along the left edge; persists collapsed state.
-//   8. Status bar: <sui-status-bar> along the bottom; polls workspaces.
+//   6. Esc returns to the blank canvas; ⌘K opens the palette;
+//      ⌘. navigates to /studio; ⌃` toggles the terminal panel;
+//      ⌘? opens help.
 
 import { createClient, type ShipSDK } from '@ship/sdk-client'
 import { shipFetch, gitStatus } from '@ship/sdk'
@@ -32,12 +37,18 @@ import { shipFetch, gitStatus } from '@ship/sdk'
 // Vite can ship as-is. Requires `bun run --filter @ship/charts build`
 // to have produced `dist/sui-charts.js`.
 import '@ship/charts/bundle'
+// Pipelines pack — sui-pipeline-* primitives (card/dag/step/run/history/
+// trigger/output/definition). Same prebuilt-bundle path as charts; requires
+// `bun run --filter @ship/pipelines build` to have produced dist/sui-pipelines.js.
+import '@ship/pipelines/bundle'
 // Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
-// popover, tooltip, tabs, etc.). Same shape as charts: pre-built bundle
-// served by the daemon; one workspace import registers every primitive
-// before the first view mounts. Requires `bun run --filter @ship/primitives
-// build` to have produced `dist/sui-primitives.js`.
-import '@ship/primitives/bundle'
+// popover, tooltip, tabs, etc.) — is registered by the eager
+// `/_sui/components.js` umbrella loaded in index.html (its `@ship/ui-components`
+// entry side-effect-imports `@ship/primitives`). That bundle loads in <head>
+// before this module mounts, so a second `import '@ship/primitives/bundle'`
+// here only re-ran every `customElements.define()` as a no-op — the source of
+// ~90 "called twice" warnings. Custom elements upgrade lazily, so there's no
+// need to register them a second time from the shell entry.
 import { route as createRoute, defineRoutes } from '@ship/sui-runtime/route'
 import { chrome, notifyViewUnmount } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
@@ -73,12 +84,20 @@ const shipClient: ShipSDK = createClient()
 // `routeSignals` proxy never sees them. Registering here at the shell
 // layer means params get seeded against the SHAPES the shell knows.
 defineRoutes([
-  { pattern: '/agents/:id' },
-  { pattern: '/skills/:id' },
-  { pattern: '/collections/:id' },
+  // Studio is a deck view (views/studio/). Its nested tool routes carry
+  // dynamic params the shell seeds for `route.params.id()` reads in the
+  // agents detail/settings/wire controllers.
+  { pattern: '/studio/agents/:id' },
+  { pattern: '/studio/agents/:id/settings' },
+  { pattern: '/studio/agents/:id/wire' },
+  { pattern: '/studio/themes/:id' },
+  { pattern: '/studio/components/:name' },
+  { pattern: '/studio/skills/:id' },
+  { pattern: '/studio/collections/:id' },
+  { pattern: '/studio/pipelines/focus/:name' },
+  { pattern: '/studio/pipelines/run/:slug' },
   { pattern: '/artifacts/:id' },
   { pattern: '/workspaces/:id' },
-  { pattern: '/ship-ui-studio/:component' },
 ])
 
 // Shared route signal. Views that declare dynamic params read
@@ -217,7 +236,14 @@ function routeToPath(r: Route): string {
 // the URL changes, routeSignals fire, the controller reacts in place.
 // Without this, every sibling click re-fetches the payload + rebuilds
 // the entire DOM, which the user perceives as a "page reload" flash.
-const SAME_SHELL_VIEWS = new Set(['skills'])
+// `studio` is intentionally NOT in this set: it's a deck view whose tool
+// routes (/studio/agents, /studio/agents/:id, …) are distinct daemon
+// payloads resolved from `views/studio/**`, so each nav is a normal
+// mountRoute — the shared rail (<sui-studio-rail>) re-renders against the
+// fresh URL. Same-shell would suppress that fetch and pin the first leaf.
+// Empty since skills moved to deck-routed /studio/skills (list + [id] detail);
+// no view now needs the same-shell no-remount hack.
+const SAME_SHELL_VIEWS = new Set<string>([])
 
 function payloadUrl(r: Route): string {
   if (SAME_SHELL_VIEWS.has(r.view)) return `/_sui/views/${r.view}`
@@ -268,11 +294,48 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
     return showLanding(slot)
   }
 
+  // First-party CHROME surfaces (apps/shell/src/components/*) — rendered
+  // directly as registered custom elements, NOT daemon-served views. They
+  // self-mount via customElements + the SUI runtime. Map of route → tag.
+  // Each first-party chrome surface declares a chrome `layout`. The shell
+  // applies it via body[data-layout], which layout.css honors — e.g. "desktop"
+  // hides the status strip (home owns its own dock). This is the first-party
+  // layout contract (GAP-5): only these declare a layout; daemon/3rd-party
+  // views are always "default" and get no chrome privilege.
+  const chromeSurface = !r.sub
+    ? ({
+        home:     { tag: 'sui-home',        layout: 'desktop' },
+        activity: { tag: 'sui-activity' },
+        account:  { tag: 'sui-account' },
+        library:  { tag: 'sui-library' },
+        setup:    { tag: 'sui-setup' },
+        settings: { tag: 'sui-settings' },
+        canvas:   { tag: 'sui-canvas-app' },
+      } as Record<string, { tag: string; layout?: string }>)[r.view]
+    : undefined
+  if (chromeSurface) {
+    disposeCurrentMount()
+    publishScope(null)
+    slot.innerHTML = `<${chromeSurface.tag}></${chromeSurface.tag}>`
+    document.body.dataset.view = r.view
+    document.body.dataset.layout = chromeSurface.layout ?? 'default'
+    currentRoute = r
+    currentViewId = null
+    return
+  }
+
   const w = window as WindowWithSui
   const runtime = await (w.__suiRuntimeReady ?? Promise.resolve(w.__suiRuntime))
   if (!runtime?.mount) throw new Error('shell: SUI runtime did not load')
 
+  // Reserve the viewId before the try so the catch can release it on a failed
+  // mount — declaring it inside try left `nextViewId` out of scope in catch,
+  // turning any mount failure into a ReferenceError instead of the error UI.
+  const nextViewId = nextId()
+  window.__suiCurrentViewId = nextViewId
+
   try {
+    const moduleOverride: unknown = opts.module
     const res = await fetch(payloadUrl(r), { credentials: 'same-origin' })
     if (!res.ok) {
       disposeCurrentMount()
@@ -284,7 +347,7 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
 </div>`
       return
     }
-    const payload = await res.json()
+    const payload: unknown = await res.json()
 
     // Mount the next view BEFORE disposing the previous. mount() writes
     // `target.innerHTML = payload.html` and inserts the new <style> as
@@ -296,8 +359,6 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
     // CSS-loss flicker on every navigation, especially under load.)
     const previous = currentHandle
     const previousViewId = currentViewId
-    const nextViewId = nextId()
-    window.__suiCurrentViewId = nextViewId
     const handle = await runtime.mount(slot, payload, {
       cssScope: 'adjacent',
       // SUI views call `ship.<domain>.<op>()` inside `<data live>`
@@ -311,10 +372,10 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
       // crash with `route is not a function`.
       route: routeSignals,
       navigate,
-      // HMR path passes a cache-busted, freshly-imported view module.
-      // Without this, dynamic-import returns the cached old module and
-      // the rebuilt .sui never takes effect until a hard reload.
-      ...(opts.module !== undefined ? { module: opts.module } : {}),
+      // HMR path passes a cache-busted, freshly-imported view module so
+      // dynamic-import doesn't return the cached old module and leave the
+      // rebuilt .sui stale until a hard reload.
+      ...(moduleOverride !== undefined ? { module: moduleOverride } : {}),
     })
 
     // Race guard for rapid navigation: if a later mountRoute already
@@ -332,6 +393,13 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
     currentHandle = handle
     currentRoute = r
     currentViewId = nextViewId
+    // Tag the body with the active view; daemon-served views get the "default"
+    // chrome layout (no privilege). First-party chrome surfaces declare their
+    // own layout above. (When the daemon surfaces manifest `layout` in the
+    // payload, read it here to extend the contract to first-party daemon views
+    // — PLATFORM-GAPS GAP-5 part b.)
+    document.body.dataset.view = r.view
+    document.body.dataset.layout = 'default'
     publishScope(handle.scope as unknown as Record<string, unknown>)
     // View-authoring chrome subscribes per (project, view). Pass the
     // view name; the chrome reads the persisted edit-mode signal and
@@ -359,12 +427,10 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
 }
 
 function showLanding(slot: HTMLElement): void {
-  slot.innerHTML = `
-    <div class="shell-empty">
-      <h2>Ship</h2>
-      <p>Open a view: <a href="/agents">/agents</a> · <a href="/skills">/skills</a> · <a href="/collections">/collections</a> · <a href="/artifacts">/artifacts</a></p>
-    </div>
-  `
+  // <sui-blank-canvas> paints the dotted-grid empty state with the brand
+  // mark, "Blank canvas" wordmark, sub-copy, and four hint pills. Its
+  // hints dispatch the same events the global hotkeys do.
+  slot.innerHTML = '<sui-blank-canvas></sui-blank-canvas>'
   currentRoute = null
   updateNav(null)
 }
@@ -449,57 +515,6 @@ function readRouteFromUrl(pathname: string): Route | null {
   return { view: segs[0]!, ...(segs.length > 1 ? { sub: segs.slice(1).join('/') } : {}) }
 }
 
-// ── Rail visibility persistence ──────────────────────────────────────
-//
-// Two states only: visible (icon-only, 48px wide) or hidden (display:none).
-// The arrow toggle on the rail was removed — the top-nav menu button
-// dispatches `sui:rail:toggle` on document; this listener flips the
-// `[collapsed]` attribute on the rail. Persisted under `ship-rail-open`:
-// presence of the key means "visible". Default is visible on first load
-// so users see the nav before being asked to discover the menu button.
-
-const RAIL_OPEN_KEY = 'ship-rail-open'
-
-function initRail(): void {
-  const rail = document.getElementById('ship-rail')
-  if (!rail) return
-
-  // Default to visible. Users who explicitly hide the rail get an
-  // explicit `0` written (we don't rely on key-absence-as-default since
-  // that fights the "default visible" intent).
-  let open = true
-  try {
-    const v = localStorage.getItem(RAIL_OPEN_KEY)
-    if (v === '0') open = false
-  } catch { /* best-effort */ }
-  applyRail(rail, open)
-
-  // sui:rail:toggle — fired by sui-nav-top's menu button (toggle request)
-  document.addEventListener('sui:rail:toggle', () => {
-    const nextOpen = rail.hasAttribute('collapsed') // currently hidden → show it
-    applyRail(rail, nextOpen)
-    persistRailOpen(nextOpen)
-  })
-}
-
-function applyRail(rail: HTMLElement, open: boolean): void {
-  if (open) {
-    rail.removeAttribute('collapsed')
-    document.body.classList.add('rail-open')
-    document.body.classList.remove('rail-hidden')
-  } else {
-    rail.setAttribute('collapsed', '')
-    document.body.classList.remove('rail-open')
-    document.body.classList.add('rail-hidden')
-  }
-}
-
-function persistRailOpen(open: boolean): void {
-  try {
-    localStorage.setItem(RAIL_OPEN_KEY, open ? '1' : '0')
-  } catch { /* best-effort */ }
-}
-
 // ── Favicon theme swap ───────────────────────────────────────────────
 //
 // The in-app brand mark (<sui-brand-mark> in the top bar) is token-
@@ -526,39 +541,38 @@ function initFavicon(): void {
   })
 }
 
-// ── Status bar ───────────────────────────────────────────────────────
+// ── Bottom strip ─────────────────────────────────────────────────────
 //
-// Polls /api/v1/workspaces every 15s and updates <sui-status-bar> props.
-// Reflects the current theme on every tick (set by sui-theme-picker via
-// applyTheme which writes data-theme on <html>).
+// <sui-shell-bottom> is glance-only: connection · branch · workspace ·
+// tools · theme · version · mode. Branch updates every 15s from the
+// daemon's /api/v1/git/status endpoint. Theme attribute reflects the
+// current data-theme on <html> so theme switches re-paint the label
+// without a poll. Version comes from <meta name="ship-version"> when
+// shipd serves the HTML; static dev defaults to the empty string.
 
-const statusBar = document.getElementById('ship-status-bar') as HTMLElement | null
+const shellBottom = document.getElementById('ship-shell-bottom') as HTMLElement | null
 let daemonOnline = false
 
 const shipMode = readShipMode()
 window.__shipMode = shipMode
-if (statusBar) {
-  // Lowercase mode value so status-bar can compare with `attr === 'development'`.
-  statusBar.setAttribute('mode', shipMode.toLowerCase())
+if (shellBottom) {
+  shellBottom.setAttribute('mode', shipMode.toLowerCase())
+  const versionMeta = document.querySelector('meta[name="ship-version"]') as HTMLMetaElement | null
+  if (versionMeta?.content) shellBottom.setAttribute('version', versionMeta.content)
 }
 document.dispatchEvent(new CustomEvent('ship:mode', { detail: { mode: shipMode } }))
 
 async function updateStatus(): Promise<void> {
-  if (!statusBar) return
-  statusBar.setAttribute('theme', document.documentElement.dataset.theme ?? 'ship-light')
+  if (!shellBottom) return
+  shellBottom.setAttribute('theme', document.documentElement.dataset.theme ?? 'ship-light')
 
   // Fetch the active project's actual git branch via /api/v1/git/status.
-  // The previous implementation pulled `workspaces[0].name` which returned
-  // the FIRST registered workspace globally — not necessarily the
-  // worktree the daemon is serving — so the status bar mis-labeled the
-  // branch on linked worktrees.
   try {
     const envelope = await shipFetch<{ data?: { branch?: string }; branch?: string }>(gitStatus())
     const branch = envelope?.data?.branch ?? envelope?.branch ?? 'unknown'
-    statusBar.setAttribute('branch', branch)
-    statusBar.setAttribute('agents', '')
+    shellBottom.setAttribute('branch', branch)
     if (!daemonOnline) {
-      statusBar.setAttribute('online', '')
+      shellBottom.setAttribute('online', '')
       daemonOnline = true
     }
   } catch {
@@ -567,10 +581,9 @@ async function updateStatus(): Promise<void> {
 }
 
 function markOffline(): void {
-  if (daemonOnline && statusBar) {
-    statusBar.removeAttribute('online')
-    statusBar.setAttribute('branch', 'offline')
-    statusBar.setAttribute('agents', '')
+  if (daemonOnline && shellBottom) {
+    shellBottom.removeAttribute('online')
+    shellBottom.setAttribute('branch', 'offline')
     daemonOnline = false
   }
 }
@@ -676,13 +689,39 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 
   if (mod && key === 'k') {
     e.preventDefault()
-    getCommandBar()?.toggle('find')
+    // ⌘K is the command palette — the shell's primary action surface. It
+    // and the blank-canvas hint emit the bare `sui-open-command-palette`
+    // intent, which the shell routes to the one `<sui-command-bar>` (see
+    // its listener near init). ⌘P opens the same bar in `find` mode.
+    document.dispatchEvent(new CustomEvent('sui-open-command-palette', { bubbles: true }))
     return
   }
 
   if (mod && key === 'p') {
     e.preventDefault()
     getCommandBar()?.show('find')
+    return
+  }
+
+  // ⌘. / Ctrl+. — open Studio (the views/studio deck view).
+  if (mod && e.key === '.') {
+    e.preventDefault()
+    navigate('/studio')
+    return
+  }
+
+  // ⌘? / Ctrl+? — open help (stub event; help surface is a future job).
+  if (mod && (e.key === '?' || (e.shiftKey && key === '/'))) {
+    e.preventDefault()
+    document.dispatchEvent(new CustomEvent('sui-open-help', { bubbles: true }))
+    return
+  }
+
+  // ⌃` — toggle terminal panel. Uses ctrlKey explicitly (not Meta) per
+  // the spec: ⌃ is the macOS Control key, not Command.
+  if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key === '`') {
+    e.preventDefault()
+    document.dispatchEvent(new CustomEvent('sui-toggle-terminal', { bubbles: true }))
     return
   }
 
@@ -721,12 +760,37 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
   if (e.key === 'Escape') {
     // Native <dialog> handles Esc already. Backstop: close any open
     // sui-dialog or sui-drawer that may not be using the native dialog element.
+    let closedAny = false
     for (const el of document.querySelectorAll<HTMLElement & { close(): void }>(
       'sui-dialog[open], sui-drawer[open]',
     )) {
-      try { el.close() } catch { /* ignore — native handles it */ }
+      try { el.close(); closedAny = true } catch { /* ignore — native handles it */ }
+    }
+    // If nothing dismissable was open and a view is currently mounted,
+    // return to the blank canvas. The spec calls for Esc to clear the
+    // active view's content from the canvas slot when no other modal
+    // surface is consuming the key.
+    if (!closedAny && currentRoute) {
+      e.preventDefault()
+      history.pushState({}, '', '/')
+      const slot = document.getElementById('ship-content')
+      if (slot) {
+        disposeCurrentMount()
+        publishScope(null)
+        showLanding(slot)
+      }
     }
   }
+})
+
+// Bridge `sui-toggle-terminal` → panel-dock toggle. The terminal lives
+// inside the dock; the canonical "terminal" UX is the dock with its
+// terminal tab activated. activate() is idempotent.
+document.addEventListener('sui-toggle-terminal', () => {
+  const dock = getDock()
+  if (!dock) return
+  dock.activate('terminal')
+  dock.toggle()
 })
 
 // Wire close event from dock.
@@ -798,7 +862,11 @@ document.addEventListener('ship:create:open', () => {
 })
 
 initProjectSwitch(kernelBridge, {
-  statusBar,
+  // Cross-project chip mount-point was the legacy <sui-status-bar>'s
+  // `end` slot. <sui-shell-bottom> doesn't expose a slot — wiring the
+  // chip into the new bottom strip is a separate follow-up; for now
+  // the kernel subscription still drives remount + refresh.
+  statusBar: null,
   remount: () => { if (currentRoute) void mountRoute(currentRoute) },
   refreshStatus: () => updateStatus(),
 })
@@ -849,13 +917,28 @@ document.addEventListener('sui:navigate', (e: Event) => {
 })
 
 initChromeRegistry()
+// Command palette — there is ONE command surface: the `<sui-command-bar>`
+// slotted into `<sui-nav-top>` (id `ship-command-bar`). It owns its own
+// dialog, hosts `<sui-command-palette>`/`<sui-command-chat>` via shared
+// scope, loads its own SDK data, and self-navigates through `sui:navigate`.
+// ⌘K and the blank-canvas hint emit `sui-open-command-palette`; route that
+// intent to the bar's `command` mode rather than mounting a second, parent-
+// less palette on <body> (which threw because its `useShared` lookup found
+// no `sui-command-bar` ancestor).
+document.addEventListener('sui-open-command-palette', () => {
+  getCommandBar()?.show('command')
+})
+// Help overlay — mount the `<sui-help-overlay>` chrome element once on
+// body and toggle it from the `sui-open-help` intent the ⌘? binding (and
+// the shell-top help affordance) emit. The element owns Esc / backdrop
+// dismissal; we only flip its reflected `open` attribute open.
+initHelpOverlay()
 // View-authoring chrome — installs the real __viewMcp + edit-mode
 // signal wiring. The prior initViewMocks() + mocks/ dir was deleted
 // when the backend (view_edit_tool_api) shipped — its leftover
 // setInterval was firing a fake annotation every 5s.
 initEditModeChrome()
 initShipApi()
-initRail()
 initFavicon()
 initHmr({
   getCurrentView: () => currentRoute?.view ?? null,
@@ -871,53 +954,64 @@ initHmr({
 setInterval(() => void updateStatus(), 15000)
 void updateStatus()
 
-// Wire active project name into nav-top so the breadcrumb shows
-// `project / view` per top-nav intent. Refreshes on `project.switched`
-// chrome events so the breadcrumb updates without reload.
-async function syncNavTopProject(): Promise<void> {
+// Wire active project name into the bottom strip's workspace label. The
+// nav-top and old status-bar are gone from the shell mount; the new
+// shell-bottom carries the workspace name as a prop.
+async function syncProject(): Promise<void> {
   try {
     const resp = await fetch('/api/v1/projects/active', { credentials: 'same-origin' })
     if (!resp.ok) return
     const body = (await resp.json()) as { active?: { name?: string; label?: string } | null }
     const name = body.active?.label || body.active?.name || ''
-    const navTop = document.getElementById('ship-nav-top')
-    if (navTop) navTop.setAttribute('project', name)
-    // Status bar mirrors the project label per status-bar intent (left-side
-    // glance slot, clickable for switcher).
-    if (statusBar) statusBar.setAttribute('project', name)
-  } catch { /* breadcrumb stays without project prefix; no-op */ }
+    if (shellBottom) shellBottom.setAttribute('workspace', name)
+    // Project identity in the top bar is now owned by <sui-project-switcher>
+    // (it fetches + renders the active project itself); nav-top no longer takes
+    // a `project` breadcrumb prefix.
+  } catch { /* leave workspace blank when the API is unreachable */ }
 }
-void syncNavTopProject()
-document.addEventListener('project.switched', () => void syncNavTopProject())
+void syncProject()
+document.addEventListener('project.switched', () => void syncProject())
 
-// Status-bar click bridges (dot/theme/project) — per status-bar intent
-// the bar is glance-only but each slot opens its corresponding surface.
-// The rail's <sui-view-picker> holds the project switcher; the nav-top's
-// <sui-theme-picker> holds the theme panel. Each exposes a `toggle()`
-// host API via host.expose() in its controller, so the status-bar's
-// click events bridge into those imperative handles rather than
-// synthesising clicks into shadow DOM (which the popover trigger doesn't
-// proxy through slot composition).
+// Click bridges from the new chrome — same event names the legacy status-
+// bar dispatched, but the project switcher / theme picker hosts now live
+// elsewhere. Project switcher routes through the command bar; theme
+// picker has no current host in the shell mount and so falls back to a
+// document-level handler that the next theme-picker job can replace.
 interface OpenableHost extends HTMLElement {
   toggle?: () => void
   open?: () => void
 }
 document.addEventListener('sui:project-switcher:open', () => {
-  const rail = document.getElementById('ship-rail') as HTMLElement | null
-  const picker = rail?.shadowRoot?.querySelector<OpenableHost>('sui-view-picker')
-  picker?.toggle?.() ?? picker?.open?.()
+  // The rail used to host the project switcher; without a rail, route
+  // the request through the command bar where the user can pick a
+  // project by name.
+  getCommandBar()?.show('find')
 })
 document.addEventListener('sui:theme-picker:open', () => {
-  const navTop = document.getElementById('ship-nav-top')
-  const picker = navTop?.shadowRoot?.querySelector<OpenableHost>('sui-theme-picker')
+  // The shell no longer mounts a sui-theme-picker host. Look for one
+  // mounted by a view (e.g. settings) and toggle it; otherwise no-op.
+  const picker = document.querySelector<OpenableHost>('sui-theme-picker')
   if (picker?.toggle) { picker.toggle(); return }
-  // sui-theme-picker doesn't expose an imperative API yet — fall back to
-  // clicking its internal `.trigger` button. The trigger is anchored
-  // inside the picker's shadow root so a direct `.click()` reaches the
-  // native popover toggle wiring.
   const trigger = picker?.shadowRoot?.querySelector<HTMLButtonElement>('.trigger')
   trigger?.click()
 })
+
+// Help overlay wiring — mount `<sui-help-overlay>` once on body, then
+// open it on the `sui-open-help` intent. The element reflects its own
+// `open` state and dismisses itself on Esc / backdrop click, so the
+// shell only has to flip it open. Idempotent for HMR: the element is
+// reused if already present.
+function initHelpOverlay(): void {
+  const HELP_ID = 'ship-help-overlay'
+  let el = document.getElementById(HELP_ID)
+  if (!el) {
+    el = document.createElement('sui-help-overlay')
+    el.id = HELP_ID
+    document.body.appendChild(el)
+  }
+  const host = el
+  document.addEventListener('sui-open-help', () => host.setAttribute('open', ''))
+}
 
 const initial = readRoute()
 if (initial) {

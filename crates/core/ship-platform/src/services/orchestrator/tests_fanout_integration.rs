@@ -34,10 +34,10 @@ use crate::services::orchestrator::LaneOutcome;
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn fanout_all_lanes_succeed_judge_sees_every_lane_output() {
     let ship_dir = fresh_ship_dir();
-    let job_id = "job-fanout-all-ok";
+    let pipeline_run_id = "job-fanout-all-ok";
     let run_scope = ArtifactScope::Run {
         project_id: "test-proj".into(),
-        run_id: job_id.into(),
+        run_id: pipeline_run_id.into(),
     };
 
     let kernel = Arc::new(Mutex::new(
@@ -45,11 +45,11 @@ async fn fanout_all_lanes_succeed_judge_sees_every_lane_output() {
     ));
 
     let pipeline = mk_pipeline_with_three_lanes();
-    seed_job_created(&ship_dir, job_id, &pipeline);
+    seed_job_created(&ship_dir, pipeline_run_id, &pipeline);
 
-    let a_id = seed_lane_success(&ship_dir, &kernel, job_id, &run_scope, "lane-a", b"A").await;
-    let b_id = seed_lane_success(&ship_dir, &kernel, job_id, &run_scope, "lane-b", b"BB").await;
-    let c_id = seed_lane_success(&ship_dir, &kernel, job_id, &run_scope, "lane-c", b"CCC").await;
+    let a_id = seed_lane_success(&ship_dir, &kernel, pipeline_run_id, &run_scope, "lane-a", b"A").await;
+    let b_id = seed_lane_success(&ship_dir, &kernel, pipeline_run_id, &run_scope, "lane-b", b"BB").await;
+    let c_id = seed_lane_success(&ship_dir, &kernel, pipeline_run_id, &run_scope, "lane-c", b"CCC").await;
 
     // Drive lane completion exactly the way the router does.
     let octx = make_octx();
@@ -61,8 +61,8 @@ async fn fanout_all_lanes_succeed_judge_sees_every_lane_output() {
 
         let mut payload =
             mk_observed(&lane_slug, &format!("draft.{lane_id}"), StepVerdict::Advance, None);
-        payload.job_id = job_id.into();
-        let lane_ref = mk_lane_ref(job_id, "test-slug", lane_id);
+        payload.pipeline_run_id = pipeline_run_id.into();
+        let lane_ref = mk_lane_ref(pipeline_run_id, "test-slug", lane_id);
 
         complete_fanout_lane(&kernel, &payload, &lane_ref, &octx).await;
         outcomes.push(rx.await.expect("lane outcome"));
@@ -77,7 +77,7 @@ async fn fanout_all_lanes_succeed_judge_sees_every_lane_output() {
     // Judge resolves its three lane-scoped consumes.
     let wt = tempfile::tempdir().unwrap();
     let judge = pipeline.steps.iter().find(|s| s.id == "choose").unwrap();
-    let resolved = resolve_consumes(judge, &pipeline, job_id, wt.path())
+    let resolved = resolve_consumes(judge, &pipeline, pipeline_run_id, wt.path())
         .expect("judge must resolve all three lane outputs");
 
     assert_eq!(resolved.len(), 3, "judge sees three inputs");
@@ -102,10 +102,10 @@ async fn fanout_all_lanes_succeed_judge_sees_every_lane_output() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn fanout_one_lane_fails_judge_sees_survivors_plus_failed_marker() {
     let ship_dir = fresh_ship_dir();
-    let job_id = "job-fanout-one-fails";
+    let pipeline_run_id = "job-fanout-one-fails";
     let run_scope = ArtifactScope::Run {
         project_id: "test-proj".into(),
-        run_id: job_id.into(),
+        run_id: pipeline_run_id.into(),
     };
 
     let kernel = Arc::new(Mutex::new(
@@ -135,10 +135,10 @@ async fn fanout_one_lane_fails_judge_sees_survivors_plus_failed_marker() {
         steps: vec![fanout_step, judge],
         auto_merge: false,
     };
-    seed_job_created(&ship_dir, job_id, &pipeline);
+    seed_job_created(&ship_dir, pipeline_run_id, &pipeline);
 
-    let _a_id = seed_lane_success(&ship_dir, &kernel, job_id, &run_scope, "lane-a", b"A").await;
-    let _b_id = seed_lane_success(&ship_dir, &kernel, job_id, &run_scope, "lane-b", b"BB").await;
+    let _a_id = seed_lane_success(&ship_dir, &kernel, pipeline_run_id, &run_scope, "lane-a", b"A").await;
+    let _b_id = seed_lane_success(&ship_dir, &kernel, pipeline_run_id, &run_scope, "lane-b", b"BB").await;
 
     // Drive lane completions: a+b succeed, c fails — the failure path writes
     // the `lane-c.failed` marker artifact + its synthetic step.done_declared.
@@ -151,8 +151,8 @@ async fn fanout_one_lane_fails_judge_sees_survivors_plus_failed_marker() {
         octx.fanout_lane_txs.lock().await.insert(lane_slug.clone(), tx);
         let mut payload =
             mk_observed(&lane_slug, &format!("draft.{lane_id}"), StepVerdict::Advance, None);
-        payload.job_id = job_id.into();
-        let lane_ref = mk_lane_ref(job_id, "test-slug", lane_id);
+        payload.pipeline_run_id = pipeline_run_id.into();
+        let lane_ref = mk_lane_ref(pipeline_run_id, "test-slug", lane_id);
         complete_fanout_lane(&kernel, &payload, &lane_ref, &octx).await;
         outcomes.push(rx.await.expect("lane outcome"));
     }
@@ -164,8 +164,8 @@ async fn fanout_one_lane_fails_judge_sees_survivors_plus_failed_marker() {
         octx.fanout_lane_txs.lock().await.insert(lane_slug.clone(), tx);
         let mut payload =
             mk_observed(&lane_slug, "draft.lane-c", StepVerdict::Failed, Some(failed_reason));
-        payload.job_id = job_id.into();
-        let lane_ref = mk_lane_ref(job_id, "test-slug", "lane-c");
+        payload.pipeline_run_id = pipeline_run_id.into();
+        let lane_ref = mk_lane_ref(pipeline_run_id, "test-slug", "lane-c");
         complete_fanout_lane(&kernel, &payload, &lane_ref, &octx).await;
         let outcome = rx.await.expect("lane outcome");
         assert!(!outcome.success, "lane-c outcome must be marked failed");
@@ -186,7 +186,7 @@ async fn fanout_one_lane_fails_judge_sees_survivors_plus_failed_marker() {
     // The failure path slots into the same resolve_consumes mechanism.
     let wt = tempfile::tempdir().unwrap();
     let judge = pipeline.steps.iter().find(|s| s.id == "choose").unwrap();
-    let resolved = resolve_consumes(judge, &pipeline, job_id, wt.path())
+    let resolved = resolve_consumes(judge, &pipeline, pipeline_run_id, wt.path())
         .expect("judge must resolve survivors + failed marker");
 
     assert_eq!(resolved.len(), 3);
@@ -215,14 +215,14 @@ async fn fanout_one_lane_fails_judge_sees_survivors_plus_failed_marker() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn fanout_all_lanes_fail_aggregator_fails_fanout_judge_skipped() {
     let ship_dir = fresh_ship_dir();
-    let job_id = "job-fanout-all-fail";
+    let pipeline_run_id = "job-fanout-all-fail";
 
     let kernel = Arc::new(Mutex::new(
         ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).expect("kernel"),
     ));
 
     let pipeline = mk_pipeline_with_three_lanes();
-    seed_job_created(&ship_dir, job_id, &pipeline);
+    seed_job_created(&ship_dir, pipeline_run_id, &pipeline);
 
     // Drive all three lanes through the failure path.
     let octx = make_octx();
@@ -233,8 +233,8 @@ async fn fanout_all_lanes_fail_aggregator_fails_fanout_judge_skipped() {
         octx.fanout_lane_txs.lock().await.insert(lane_slug.clone(), tx);
         let mut payload =
             mk_observed(&lane_slug, &format!("draft.{lane_id}"), StepVerdict::Failed, Some("boom"));
-        payload.job_id = job_id.into();
-        let lane_ref = mk_lane_ref(job_id, "test-slug", lane_id);
+        payload.pipeline_run_id = pipeline_run_id.into();
+        let lane_ref = mk_lane_ref(pipeline_run_id, "test-slug", lane_id);
         complete_fanout_lane(&kernel, &payload, &lane_ref, &octx).await;
         let outcome = rx.await.expect("lane outcome");
         assert!(!outcome.success);
@@ -259,7 +259,7 @@ async fn fanout_all_lanes_fail_aggregator_fails_fanout_judge_skipped() {
     // never dispatch in production when the aggregator emits step_failed.
     let wt = tempfile::tempdir().unwrap();
     let judge = pipeline.steps.iter().find(|s| s.id == "choose").unwrap();
-    let err = match resolve_consumes(judge, &pipeline, job_id, wt.path()) {
+    let err = match resolve_consumes(judge, &pipeline, pipeline_run_id, wt.path()) {
         Err(e) => e,
         Ok(_) => panic!("judge must not resolve when all lanes failed and it consumes .draft"),
     };

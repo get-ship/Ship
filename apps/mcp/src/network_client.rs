@@ -96,38 +96,12 @@ async fn get(path: &str) -> Result<String> {
     request(reqwest::Method::GET, path, None, None).await
 }
 
-pub async fn mesh_register(agent_id: &str, capabilities: Vec<String>) -> Result<String> {
-    post("/mesh/register", serde_json::json!({
-        "agent_id": agent_id,
-        "capabilities": capabilities,
-    })).await
-}
-
-pub async fn mesh_send(from: &str, to: &str, body: Value) -> Result<String> {
-    post("/mesh/send", serde_json::json!({
-        "from": from,
-        "to": to,
-        "body": body,
-    })).await
-}
-
-pub async fn mesh_broadcast(from: &str, body: Value, capability_filter: Option<String>) -> Result<String> {
-    post("/mesh/broadcast", serde_json::json!({
-        "from": from,
-        "body": body,
-        "capability_filter": capability_filter,
-    })).await
-}
-
+// Mesh discovery backs the read-only `ship://mesh` resource. The mesh
+// *write* paths (send/broadcast/status/register) are no longer agent MCP
+// tools — production mesh is implicit (directed delivery + the registry are
+// platform-internal), and dev probing lives on the `ship` CLI.
 pub async fn mesh_discover() -> Result<String> {
     get("/mesh/discover").await
-}
-
-pub async fn mesh_status(agent_id: &str, status: &str) -> Result<String> {
-    post("/mesh/status", serde_json::json!({
-        "agent_id": agent_id,
-        "status": status,
-    })).await
 }
 
 /// Spawn an actor in the daemon's KernelRouter with the given config.
@@ -170,14 +144,6 @@ pub async fn actor_spawn(
 /// Used by the `dispatch_agent` tool (single-agent dispatch).
 pub async fn dispatch_agent_session_via_daemon(body: serde_json::Value) -> Result<String> {
     post("/agent_sessions/dispatch", body).await
-}
-
-/// Create a multi-step / DAG job via the daemon (`POST /runtime/jobs`).
-/// Used by the `create_job` tool, which carries `depends_on` and is the
-/// pipeline-composition surface — distinct from single-agent dispatch.
-/// This legitimately stays on the pipeline-run primitive.
-pub async fn create_job_via_daemon(body: serde_json::Value) -> Result<String> {
-    post("/runtime/jobs", body).await
 }
 
 /// List running agents via the daemon's REST API.
@@ -280,14 +246,14 @@ pub async fn emit_event_via_daemon(body: Value) -> Result<String> {
 /// Update a job's status through the daemon. The daemon builds the
 /// appropriate `job.*` envelope server-side, persists it, and routes via
 /// the kernel so projections (jobs table, pipeline state, dispatch) advance.
-pub async fn update_job_status_via_daemon(job_id: &str, body: Value) -> Result<String> {
-    post(&format!("/jobs/{job_id}/status"), body).await
+pub async fn update_job_status_via_daemon(pipeline_run_id: &str, body: Value) -> Result<String> {
+    post(&format!("/jobs/{pipeline_run_id}/status"), body).await
 }
 
 /// Declare a job's current pipeline step complete via the daemon. The
 /// daemon resolves the active step from its projection and emits the
 /// `step.done_declared` event through the kernel.
-pub async fn job_step_done_via_daemon(slug: &str, body: Value) -> Result<String> {
+pub async fn step_done_via_daemon(slug: &str, body: Value) -> Result<String> {
     post(&format!("/jobs/{slug}/step-done"), body).await
 }
 

@@ -56,7 +56,7 @@
 
   .tile {
     width: 100%;
-    text-align: left;
+    text-align: start;
     background: transparent;
     border: 1px solid transparent;
     border-radius: var(--radius-md);
@@ -143,8 +143,12 @@
     .tile:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
   }
 
+  /* Selected: brand-coloured tint + primary border. The prior rule
+   * used --muted bg + --primary border (two signals, two colors);
+   * a single primary-tinted background composes with the border so
+   * the affordance reads as one cue. */
   :host([selected]) .tile {
-    background: var(--muted);
+    background: color-mix(in oklch, var(--primary) 10%, var(--muted));
     border-color: var(--primary);
   }
 
@@ -156,9 +160,12 @@
 
   :host([interactive]) .tile { cursor: pointer; }
 
+  /* Tone-rail: only drawn when a non-default tone is set. With no tone
+   * --tone-fg resolves to --foreground and the rail would be a 3-px
+   * body-coloured stripe — meaningless decoration with emphasis weight. */
   :host([tone]:not([tone='default'])) .tile {
     border-left: 3px solid var(--tone-fg);
-    padding-left: calc(var(--pad-x) - 2px);
+    padding-inline-start: calc(var(--pad-x) - 2px);
   }
 
   /* tone-fg mapping */
@@ -182,7 +189,7 @@
     display: flex;
     gap: 6px;
     align-items: center;
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: var(--muted-foreground);
   }
   .secondary:empty { display: none; }

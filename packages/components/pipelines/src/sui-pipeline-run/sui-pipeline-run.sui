@@ -1,0 +1,50 @@
+<!--
+  <sui-pipeline-run> — one run, live. Header (name + state + meta) over a
+  horizontal rail of per-step cells. Rail cells are slotted (use
+  <sui-pipeline-run-cell> or any node); each carries its own state via the
+  `cell-state` attribute the cell styling reads.
+
+  Props:  state (ok|running|awaiting|err|none)
+  Slots:  default = name · meta = right-aligned meta · rail = the step rail
+  Parts:  run · header · chip · rail
+-->
+<prop name="state" values="ok|running|awaiting|err|none" default="none" reflect />
+
+<style>
+  :host { display: block; --state: var(--muted-foreground); }
+  :host([hidden]) { display: none; }
+  :host([state='ok'])       { --state: var(--success); }
+  :host([state='running'])  { --state: var(--info); }
+  :host([state='awaiting']) { --state: var(--warning); }
+  :host([state='err'])      { --state: var(--destructive); }
+
+  .header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .name { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--foreground); }
+
+  .chip {
+    display: none; align-items: center; gap: 5px;
+    font-family: var(--font-mono); font-size: 10px; padding: 1px 7px;
+    border-radius: var(--radius-full); border: 1px solid;
+    text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+    color: var(--state); border-color: color-mix(in oklch, var(--state) 35%, transparent);
+  }
+  :host(:not([state='none'])) .chip { display: inline-flex; }
+  .chip .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  :host([state='running']) .chip .dot,
+  :host([state='awaiting']) .chip .dot { animation: pl-pulse 1.6s ease-in-out infinite; }
+  @keyframes pl-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .meta { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); }
+  .meta:not(:has(::slotted(*))) { display: none; }
+
+  .rail { display: flex; gap: 4px; }
+</style>
+
+<div class="run" part="run">
+  <div class="header" part="header">
+    <span class="name"><slot></slot></span>
+    <span class="chip" part="chip"><span class="dot"></span>{stateLabel()}</span>
+    <span class="meta"><slot name="meta"></slot></span>
+  </div>
+  <div class="rail" part="rail"><slot name="rail"></slot></div>
+</div>

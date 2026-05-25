@@ -271,10 +271,10 @@ mod tests {
 
     // ── HMR route availability per daemon mode ────────────────────────────
 
-    fn build_hmr_router(mode: ship_sui::DaemonMode) -> axum::Router {
+    fn build_hmr_router(mode: deck::DaemonMode) -> axum::Router {
         use axum::routing;
         let mut r = axum::Router::new();
-        if mode == ship_sui::DaemonMode::Development {
+        if mode == deck::DaemonMode::Development {
             r = r
                 .route("/_sui/hmr", routing::get(serve_hmr))
                 .route("/_sui/hmr-client.js", routing::get(serve_hmr_client_js))
@@ -286,7 +286,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn hmr_routes_available_in_dev() {
         use tower::ServiceExt;
-        let app = build_hmr_router(ship_sui::DaemonMode::Development);
+        let app = build_hmr_router(deck::DaemonMode::Development);
         let req = axum::http::Request::get("/_sui/hmr")
             .body(axum::body::Body::empty())
             .unwrap();
@@ -297,7 +297,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn hmr_routes_absent_in_production() {
         use tower::ServiceExt;
-        let app = build_hmr_router(ship_sui::DaemonMode::Production);
+        let app = build_hmr_router(deck::DaemonMode::Production);
         let req = axum::http::Request::get("/_sui/hmr")
             .body(axum::body::Body::empty())
             .unwrap();
@@ -308,7 +308,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn bundle_hmr_route_absent_in_production() {
         use tower::ServiceExt;
-        let app = build_hmr_router(ship_sui::DaemonMode::Production);
+        let app = build_hmr_router(deck::DaemonMode::Production);
         let req = axum::http::Request::get("/_sui/dev/hmr")
             .body(axum::body::Body::empty())
             .unwrap();

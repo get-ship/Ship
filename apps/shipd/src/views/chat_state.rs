@@ -13,6 +13,7 @@ pub const DEFAULT_LIMIT: usize = 200;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub enum Sender {
     User,
     Agent,
@@ -20,6 +21,7 @@ pub enum Sender {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ChatMessage {
     pub id: String,
     pub sender: Sender,
@@ -75,8 +77,8 @@ fn to_message(env: &EventEnvelope) -> Option<ChatMessage> {
         }
         kind if kind.starts_with("pipeline.") => {
             let slug = payload_str(env, "slug").unwrap_or_else(|| env.entity_id.clone());
-            let action = kind.trim_start_matches("job.");
-            Some(base(Sender::System, format!("Job {slug}: {action}"), None))
+            let action = kind.trim_start_matches("pipeline.");
+            Some(base(Sender::System, format!("Run {slug}: {action}"), None))
         }
         _ => None,
     }
@@ -158,7 +160,7 @@ mod tests {
     }
 
     #[test]
-    fn job_events_become_system_messages() {
+    fn run_events_become_system_messages() {
         let m = to_message(&env(
             "pipeline.run.completed",
             serde_json::json!({ "slug": "my-job" }),

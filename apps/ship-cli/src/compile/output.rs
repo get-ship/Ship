@@ -42,9 +42,6 @@ pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Re
         println!("  {} .codex/hooks.json", harness_id);
     }
     if output.codex_policy_content.is_some() { println!("  {} .codex/rules/ship.rules", harness_id) }
-    if output.gemini_policy_patch.is_some() {
-        println!("  {} .gemini/policies/ship.toml", harness_id);
-    }
     if output.cursor_hooks_patch.is_some() {
         println!("  {} .cursor/hooks.json", harness_id);
     }
@@ -93,9 +90,6 @@ pub(crate) fn print_dry_run(harness_id: &str, output: &CompileOutput) {
     match &output.codex_policy_content {
         Some(_) => println!("  would write .codex/rules/ship.rules"),
         None => println!("  would remove .codex/rules/ship.rules (no rules)"),
-    }
-    if output.gemini_policy_patch.is_some() {
-        println!("  would write .gemini/policies/ship.toml");
     }
     if output.cursor_hooks_patch.is_some() {
         println!("  would write .cursor/hooks.json");

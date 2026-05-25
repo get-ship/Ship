@@ -6,7 +6,7 @@
  * icon — 1947 entries, ~300KB JSON. No allowlist drift, no missing-icon
  * blank buttons.
  *
- * Output: crates/sui/ship-sui-server/assets/lucide-icons.json
+ * Output: crates/deck/deck-server/assets/lucide-icons.json
  * Run via: `bun scripts/codegen/generate-lucide-registry.mjs`.
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -14,14 +14,15 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const repoRoot = dirname(here)
+// here = scripts/codegen → repo root is two levels up.
+const repoRoot = dirname(dirname(here))
 const lucideDir = join(
   repoRoot,
   'node_modules/.bun/lucide-static@1.14.0/node_modules/lucide-static/icons',
 )
 const outFile = join(
   repoRoot,
-  'crates/sui/ship-sui-server/assets/lucide-icons.json',
+  'crates/deck/deck-server/assets/lucide-icons.json',
 )
 
 function extractInner(svg) {

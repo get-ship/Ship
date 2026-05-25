@@ -1,0 +1,56 @@
+{
+  "slug": "typed-ops-a1b2c3d",
+  "run": {
+    "job_id": "job-typed-ops",
+    "slug": "typed-ops-a1b2c3d",
+    "agent": "rust-lane",
+    "branch": "job/typed-ops",
+    "state": "completed",
+    "tone": "success",
+    "status_text": "merged",
+    "duration": "4m 12s",
+    "updated_at": "2026-01-01T09:04:12Z",
+    "steps": [
+      {
+        "id": "build",
+        "step_type": "agent",
+        "state": "completed",
+        "agent": "rust-lane"
+      }
+    ],
+    "branch_stats": {
+      "commits_ahead": 3,
+      "dirty_files": 0
+    },
+    "segments": [
+      "success"
+    ],
+    "harness": "claude",
+    "model": "opus",
+    "blocker": "",
+    "error": "",
+    "depends_on": []
+  },
+  "observations": [
+    {
+      "step_name": "build",
+      "step_index": 0,
+      "trigger": "auto",
+      "verdict": "pass",
+      "succeeded": true,
+      "done_declared": true,
+      "exit_code": 0,
+      "duration_secs": 252,
+      "commits": 3,
+      "reason": null,
+      "log_tail": "Finished `dev` profile"
+    }
+  ],
+  "timeline": [
+    {
+      "event_type": "pipeline.run.merged",
+      "at": "2026-01-01T09:04:12Z",
+      "summary": "job merged"
+    }
+  ]
+}

@@ -2,10 +2,11 @@
   "$schema": "../../schemas/agent.schema.json",
   "agent": {
     "id": "ship-designer",
+    "role": "designer",
     "name": "Ship Designer",
     "icon": "palette",
     "version": "0.2.0",
-    "description": "UI specialist for SUI views and components — `.sui` templates with optional paired `.controller.ts`. Owns `views/<name>/` and `packages/ui-components/src/<tag>/`.",
+    "description": "UI specialist for SUI views and components — `.sui` templates with optional paired `.controller.ts`. Owns `views/<name>/` and `packages/components/ui-components/src/<tag>/`.",
     "tags": ["ui", "sui", "views", "components", "design"]
   },
   "skills": {
@@ -18,6 +19,6 @@
     "preset": "ship-standard"
   },
   "rules": {
-    "inline": "UI specialist for SUI framework views + components. Default scope: `views/<name>/` (`.sui` + `.controller.ts` + `.css`) and `packages/ui-components/src/<tag>/` (`.sui` + optional `.controller.ts`). Templates declare; controllers do — state lives in controller `scope:` block, not in templates. Forbidden in `*.controller.ts`: `<el>.innerHTML/.outerHTML/.insertAdjacentHTML` (use bindHtml for HTML/SVG-blob cases). Hand off Rust/runtime work to rust-lane, orchestration to commander, new-primitive tests to test-writer."
+    "inline": "UI specialist for SUI framework views + components. Default scope: `views/<name>/` (`.sui` + `.controller.ts` + `.css`) and `packages/components/ui-components/src/<tag>/` (`.sui` + optional `.controller.ts`). Templates declare; controllers do — state lives in controller `scope:` block, not in templates. Forbidden in `*.controller.ts`: `<el>.innerHTML/.outerHTML/.insertAdjacentHTML` (use bindHtml for HTML/SVG-blob cases). Hand off Rust/runtime work to rust-lane, orchestration to commander, new-primitive tests to test-writer."
   }
 }

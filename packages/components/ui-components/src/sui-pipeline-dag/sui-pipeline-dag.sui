@@ -1,0 +1,38 @@
+<!--
+  <sui-pipeline-dag> — SUI port of <ship-pipeline-dag>.
+  Horizontal step-flow container. Slot accepts <sui-pipeline-step>
+  children and plain `.arrow` separators (emitted by the caller).
+
+  Prop / event parity vs <ship-pipeline-dag>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  (no props)                   (no props)               ✓
+  role=list +                  same — set declaratively ✓
+    aria-label='pipeline steps'  via attributes on host
+  ::slotted(.arrow) styling    same selectors           ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  slot: default                slot: default            ✓
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<style>
+  :host {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    padding: var(--space-1) 0 2px;
+  }
+  :host([hidden]) { display: none; }
+  ::slotted(.arrow) {
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    color: var(--border);
+    font-size: var(--text-md);
+    flex-shrink: 0;
+  }
+</style>
+
+<slot></slot>

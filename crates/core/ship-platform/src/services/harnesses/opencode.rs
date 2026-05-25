@@ -10,8 +10,25 @@ use crate::services::harness_adapter::{
 
 pub struct OpenCodeAdapter;
 
+#[async_trait::async_trait]
 impl HarnessAdapter for OpenCodeAdapter {
     fn id(&self) -> &str { "opencode" }
+
+    /// OpenCode runs a server (`opencode serve`) we hold as a persistent
+    /// session. Spawn it; on failure return None so routing falls back to the
+    /// one-shot path. (Caps currently gate this off until the session client
+    /// is rewritten for the new prompt API — see `caps`.)
+    async fn spawn_server_session(
+        &self,
+    ) -> Option<std::sync::Arc<dyn ship_substrate::services::server_session::ServerSession>> {
+        match super::opencode_session::OpenCodeSession::spawn().await {
+            Ok(session) => Some(std::sync::Arc::new(session)),
+            Err(err) => {
+                tracing::warn!(%err, "opencode: server-session spawn failed; falling back to one-shot");
+                None
+            }
+        }
+    }
 
     fn caps(&self) -> HarnessCapabilities {
         HarnessCapabilities {

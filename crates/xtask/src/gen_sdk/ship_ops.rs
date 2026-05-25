@@ -7,7 +7,7 @@ use serde_json::{json, Map, Value};
 
 pub fn extract() -> Result<Value> {
     let mut entries = Map::new();
-    for op in shipd::services::schema::OPS {
+    for op in shipd::services::schema::OPS.iter() {
         let args: Vec<Value> = op
             .args
             .iter()

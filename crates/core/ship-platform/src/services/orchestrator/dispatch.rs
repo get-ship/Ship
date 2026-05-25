@@ -3,7 +3,7 @@
 //! Also handles pipelines whose first step is `run:` (skips agent spawning).
 //!
 //! Two entry points:
-//!   - `handle_job_created` → pipeline composition (multi-step pipelines).
+//!   - `handle_pipeline_run_started` → pipeline composition (multi-step pipelines).
 //!     Dispatches the first step; subsequent steps run via advance_pipeline.
 //!   - `handle_agent_session_started` → the dispatch PRIMITIVE. Owns the
 //!     spawn / register / exit-handler-attach atom for bare single-agent
@@ -16,9 +16,52 @@ use ship_substrate::events::agent_session::{
 };
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::{PipelineRunStartedPayload, StepType};
-use crate::services::dispatch_ports::{ExitCause, ExitSignal, JobContext, LaunchProfile};
+use crate::services::dispatch_ports::{AgentPlatform, ExitCause, ExitSignal, SessionContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+/// Build the spawn env for a daemon-spawned agent: `SHIP_ACTOR_ID` plus, when
+/// the platform issues them, a scoped `SHIP_TOKEN` + `SHIP_DAEMON_URL` so the
+/// agent authenticates to the daemon-hosted MCP server with role scopes.
+///
+/// The compiler emits the authed-HTTP `ship` entry only for scoped launches,
+/// so these env vars resolve exactly where they're needed; on a non-token
+/// platform (tests) the agent simply has no scoped token. Dispatched workers
+/// mint with the default (worker) role.
+pub(super) async fn build_spawn_env(
+    slug: &str,
+    agent: &str,
+    platform: &dyn AgentPlatform,
+) -> std::collections::HashMap<String, String> {
+    let mut env = std::collections::HashMap::new();
+    env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
+    // Mint the scoped token with the AGENT'S DECLARED ROLE so its capabilities
+    // match what it is — designer → SuiAuthoring, contributor → Full, etc. This
+    // was role-blind (`None`) before, which handed every daemon-spawned agent
+    // the read-only default and silently denied e.g. a designer's view tools.
+    // A missing/unknown role resolves to `None` → `scopes_for_role`'s read-only
+    // default: fail closed, never silently elevated.
+    let role = crate::config::get_config(None)
+        .ok()
+        .and_then(|cfg| agent_role(&cfg, agent));
+    if let Some(token) = platform.mint_session_token(slug, role.as_deref()).await {
+        env.insert("SHIP_TOKEN".to_string(), token);
+    }
+    if let Some(url) = platform.daemon_url() {
+        env.insert("SHIP_DAEMON_URL".to_string(), url);
+    }
+    env
+}
+
+/// The declared role of `agent` in the project config, if any. Drives the
+/// scoped token's capabilities at spawn. Pure (takes the loaded config) so the
+/// mapping is unit-testable without touching the process-global cwd.
+fn agent_role(cfg: &crate::config::ProjectConfig, agent: &str) -> Option<String> {
+    cfg.agents
+        .iter()
+        .find(|a| a.id == agent)
+        .and_then(|a| a.role.clone())
+}
 
 use super::emit::{
     emit_job_dispatched, emit_job_dispatched_with_meta, emit_job_failed, emit_process_spawned,
@@ -47,7 +90,7 @@ pub(crate) fn resolve_step_invocation(
     }
 }
 
-pub async fn handle_job_created(
+pub async fn handle_pipeline_run_started(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     envelope: &ship_substrate::events::EventEnvelope,
     octx: &OrchestratorContext,
@@ -98,7 +141,7 @@ pub async fn dispatch_job_internal(
             Some(c) => c.clone(),
             None => {
                 tracing::error!(slug, step_id = first.id, "job-dispatch: run step missing command");
-                emit_job_failed(kernel, &payload.job_id, slug, "run step missing command").await;
+                emit_job_failed(kernel, &payload.pipeline_run_id, slug, "run step missing command").await;
                 return;
             }
         };
@@ -135,15 +178,15 @@ pub async fn dispatch_job_internal(
         .and_then(|s| s.model.clone())
         .or_else(|| payload.model.clone());
 
-    let job_ctx = JobContext {
-        job_id: payload.job_id.clone(),
+    let session_ctx = SessionContext {
+        pipeline_run_id: payload.pipeline_run_id.clone(),
         slug: slug.clone(),
         agent: agent.to_string(),
         branch: branch.clone(),
         spec_path: payload.spec_path.clone(),
         spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: [("SHIP_ACTOR_ID".to_string(), slug.to_string())].into(),
+        env: build_spawn_env(slug, agent, octx.platform.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: launch_harness.clone(),
@@ -165,11 +208,11 @@ pub async fn dispatch_job_internal(
         keepalive: payload.keepalive,
     };
 
-    let worktree_path = match octx.isolation.prepare(&job_ctx).await {
+    let worktree_path = match octx.isolation.prepare(&session_ctx).await {
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
-            emit_spawn_failed(kernel, &payload.job_id, slug, "isolation_prepare", &e).await;
+            emit_spawn_failed(kernel, &payload.pipeline_run_id, slug, "isolation_prepare", &e).await;
             return;
         }
     };
@@ -208,17 +251,24 @@ pub async fn dispatch_job_internal(
         }
     }
 
+    // A cancel processed before this dispatch ran tombstoned the slug — bail
+    // before spawning. The projection has already marked the run cancelled.
+    if octx.registry.take_if_cancelled(slug).await {
+        tracing::info!(slug, "job-dispatch: run already cancelled — skipping spawn");
+        return;
+    }
+
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-    let job_ctx_with_dir = JobContext {
+    let session_ctx_with_dir = SessionContext {
         work_dir: worktree_path.clone(),
         exit_tx: Some(exit_tx),
-        ..job_ctx
+        ..session_ctx
     };
-    let handle = match octx.executor.spawn(&job_ctx_with_dir).await {
+    let handle = match octx.executor.spawn(&session_ctx_with_dir).await {
         Ok(h) => h,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: executor spawn failed: {e}");
-            emit_spawn_failed(kernel, &payload.job_id, slug, "executor_spawn", &e).await;
+            emit_spawn_failed(kernel, &payload.pipeline_run_id, slug, "executor_spawn", &e).await;
             return;
         }
     };
@@ -226,13 +276,26 @@ pub async fn dispatch_job_internal(
     let executor_kind = if payload.headless { "process" } else { "pty" };
     let cmd_label = launch_harness.as_deref().unwrap_or("claude");
     emit_process_spawned(
-        kernel, slug, &payload.job_id, handle.pid,
+        kernel, slug, &payload.pipeline_run_id, handle.pid,
         cmd_label, &[], &[], &worktree_path.to_string_lossy(),
-        executor_kind, job_ctx_with_dir.step.as_ref().map(|s| s.id.as_str()),
+        executor_kind, session_ctx_with_dir.step.as_ref().map(|s| s.id.as_str()),
     ).await;
 
     let pid = handle.pid;
     octx.registry.register(slug, handle).await;
+
+    // Close the cancel-during-spawn window (see handle_cancelled): a cancel
+    // that raced this spawn tombstoned the slug rather than leaking the child.
+    // register-then-check is race-free via the registry mutex.
+    if octx.registry.take_if_cancelled(slug).await {
+        if let Some(h) = octx.registry.take(slug).await {
+            tracing::info!(slug, "job-dispatch: cancel raced the spawn — stopping just-spawned child");
+            if let Err(e) = octx.executor.stop(&h).await {
+                tracing::warn!(slug, "job-dispatch: post-spawn cancel stop failed: {e}");
+            }
+        }
+        return;
+    }
 
     // First step of a pipeline run also surfaces as an agent_session row
     // (consistency with advance_pipeline_inner, which emits for steps
@@ -242,8 +305,8 @@ pub async fn dispatch_job_internal(
         emit_composed_step_session(
             kernel,
             &ComposedRunCtx {
-                job_id: &payload.job_id,
-                job_slug: &payload.slug,
+                pipeline_run_id: &payload.pipeline_run_id,
+                run_slug: &payload.slug,
                 branch: &payload.branch,
                 source_spec_path: payload.source_spec_path.as_deref(),
                 vars: payload.vars.as_ref(),
@@ -265,7 +328,7 @@ pub async fn dispatch_job_internal(
             .map(|r| (r.id, r.step_type))
             .unwrap_or_else(|| (String::new(), ship_substrate::events::pipeline::StepType::Agent));
         let monitor = StepMonitor::new(
-            payload.job_id.clone(),
+            payload.pipeline_run_id.clone(),
             0,
             slug.clone(),
             step_name,
@@ -288,7 +351,7 @@ pub async fn dispatch_job_internal(
         super::exit_handler::start(kernel.clone(), octx.registry.clone(), exit_rx);
     }
 
-    emit_job_dispatched(kernel, &payload.job_id, &worktree_path, slug).await;
+    emit_job_dispatched(kernel, &payload.pipeline_run_id, &worktree_path, slug).await;
 }
 
 // ── Agent-session primitive ─────────────────────────────────────────
@@ -395,6 +458,14 @@ async fn dispatch_agent_session_internal(
         "agent-session-dispatch: dispatching"
     );
 
+    // A cancel processed before this dispatch ran leaves a tombstone (the
+    // cancel found no handle to stop). Bail before spawning anything — the
+    // projection has already marked the session cancelled.
+    if octx.registry.take_if_cancelled(slug).await {
+        tracing::info!(slug, "agent-session-dispatch: session already cancelled — skipping spawn");
+        return;
+    }
+
     // The agent-session payload carries invocation directly — it's the
     // source of truth for how the executor launches the harness.
     // RoutingExecutor routes Pty → TmuxWindow/Process, Print → Process,
@@ -402,15 +473,15 @@ async fn dispatch_agent_session_internal(
     // build_interactive).
     let invocation = payload.invocation;
 
-    let job_ctx = JobContext {
-        job_id: payload.session_id.clone(), // routes use session_id as the job_id-shape ulid
+    let session_ctx = SessionContext {
+        pipeline_run_id: payload.session_id.clone(), // routes use session_id as the pipeline_run_id-shape ulid
         slug: slug.clone(),
         agent: payload.agent.clone(),
         branch: branch.clone(),
         spec_path: ".artifacts/job-spec.md".to_string(),
         spec_content: payload.spec.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: [("SHIP_ACTOR_ID".to_string(), slug.to_string())].into(),
+        env: build_spawn_env(slug, &payload.agent, octx.platform.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: payload.harness.clone(),
@@ -424,7 +495,7 @@ async fn dispatch_agent_session_internal(
         keepalive: payload.keepalive,
     };
 
-    let worktree_path = match octx.isolation.prepare(&job_ctx).await {
+    let worktree_path = match octx.isolation.prepare(&session_ctx).await {
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "agent-session-dispatch: isolation prepare failed: {e}");
@@ -442,13 +513,13 @@ async fn dispatch_agent_session_internal(
     };
 
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-    let job_ctx_with_dir = JobContext {
+    let session_ctx_with_dir = SessionContext {
         work_dir: worktree_path.clone(),
         exit_tx: Some(exit_tx),
-        ..job_ctx
+        ..session_ctx
     };
 
-    let handle = match octx.executor.spawn(&job_ctx_with_dir).await {
+    let handle = match octx.executor.spawn(&session_ctx_with_dir).await {
         Ok(h) => h,
         Err(e) => {
             tracing::error!(slug, "agent-session-dispatch: executor spawn failed: {e}");
@@ -491,9 +562,24 @@ async fn dispatch_agent_session_internal(
 
     octx.registry.register(slug, handle).await;
 
+    // Close the cancel-during-spawn window: if a cancel landed while we were
+    // spawning (it found no handle and tombstoned the slug), tear the child
+    // down now instead of leaving it orphaned. register-then-check is
+    // race-free because the registry mutex serializes our register() against
+    // the cancel's take().
+    if octx.registry.take_if_cancelled(slug).await {
+        if let Some(h) = octx.registry.take(slug).await {
+            tracing::info!(slug, "agent-session-dispatch: cancel raced the spawn — stopping just-spawned child");
+            if let Err(e) = octx.executor.stop(&h).await {
+                tracing::warn!(slug, "agent-session-dispatch: post-spawn cancel stop failed: {e}");
+            }
+        }
+        return;
+    }
+
     // Start the agent-session exit handler. Distinct from the
     // pipeline exit_handler — emits agent.session.{completed,failed}
-    // tied to session_id, not pipeline.run.* tied to job_id. The
+    // tied to session_id, not pipeline.run.* tied to pipeline_run_id. The
     // pipeline composer (phase 5) will sit on top of these events to
     // advance multi-step pipelines.
     start_agent_session_exit_handler(
@@ -591,7 +677,7 @@ fn start_agent_session_exit_handler(
 /// read model with bare dispatches; `parent_pipeline_run_id` ties the
 /// session to its pipeline run, and the composer (not this handler)
 /// owns the spawn — `handle_agent_session_started` skips events with
-/// that field set. The session slug is `<job_slug>::<step_id>` so it
+/// that field set. The session slug is `<run_slug>::<step_id>` so it
 /// stays unique under the agent_sessions.slug constraint (the job slug
 /// is reused across all steps).
 /// Run-level context shared by every composed step of a pipeline.
@@ -600,8 +686,8 @@ fn start_agent_session_exit_handler(
 /// expose the same fields, so the emit helper takes this rather than
 /// either concrete type.
 pub(crate) struct ComposedRunCtx<'a> {
-    pub job_id: &'a str,
-    pub job_slug: &'a str,
+    pub pipeline_run_id: &'a str,
+    pub run_slug: &'a str,
     pub branch: &'a str,
     pub source_spec_path: Option<&'a str>,
     pub vars: Option<&'a std::collections::HashMap<String, String>>,
@@ -618,7 +704,7 @@ pub(crate) async fn emit_composed_step_session(
     pid: Option<u32>,
 ) {
     let step_session_id = ship_substrate::gen_ulid();
-    let session_slug = format!("{}::{}", run.job_slug, step.id);
+    let session_slug = format!("{}::{}", run.run_slug, step.id);
     let invocation = resolve_step_invocation(step.invocation.as_deref(), run.run_headless);
     let started = AgentSessionStartedPayload {
         session_id: step_session_id.clone(),
@@ -639,7 +725,7 @@ pub(crate) async fn emit_composed_step_session(
         depends_on: None,
         vars: run.vars.cloned(),
         baseline_sha: run.baseline_sha.map(str::to_string),
-        parent_pipeline_run_id: Some(run.job_id.to_string()),
+        parent_pipeline_run_id: Some(run.pipeline_run_id.to_string()),
     };
     emit_agent_session_started_for_pipeline_step(kernel, &started).await;
     emit_agent_session_dispatched(
@@ -659,18 +745,18 @@ pub(crate) async fn emit_composed_step_session(
 /// read model rather than sitting at Dispatched forever. Called by
 /// the StepMonitor when it emits `pipeline.step.observed`.
 ///
-/// The composed session slug is `<job_slug>::<step_name>` (set by
+/// The composed session slug is `<run_slug>::<step_name>` (set by
 /// emit_composed_step_session). Look it up to recover the session_id;
 /// best-effort — if the row isn't found (e.g. a step whose started
 /// event didn't land), we simply skip rather than fail the step.
 pub(crate) async fn emit_composed_session_terminal(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    job_slug: &str,
+    run_slug: &str,
     step_name: &str,
     is_failure: bool,
     exit_code: Option<i32>,
 ) {
-    let session_slug = format!("{job_slug}::{step_name}");
+    let session_slug = format!("{run_slug}::{step_name}");
     let session = match crate::projections::agent_session::load_session_by_slug(&session_slug) {
         Ok(Some(s)) => s,
         _ => return,
@@ -812,15 +898,15 @@ async fn dispatch_first_run_step_inner(
 
     tracing::info!(slug, branch, step_id, %command, "job-dispatch: first step is run — executing directly");
 
-    let job_ctx = JobContext {
-        job_id: payload.job_id.clone(),
+    let session_ctx = SessionContext {
+        pipeline_run_id: payload.pipeline_run_id.clone(),
         slug: slug.clone(),
         agent: payload.agent.to_string(),
         branch: branch.clone(),
         spec_path: payload.spec_path.clone(),
         spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: [("SHIP_ACTOR_ID".to_string(), slug.to_string())].into(),
+        env: build_spawn_env(slug, &payload.agent, octx.platform.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: payload.harness.clone(),
@@ -839,19 +925,65 @@ async fn dispatch_first_run_step_inner(
         keepalive: payload.keepalive,
     };
 
-    let worktree_path = match octx.isolation.prepare(&job_ctx).await {
+    let worktree_path = match octx.isolation.prepare(&session_ctx).await {
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
-            emit_spawn_failed(kernel, &payload.job_id, slug, "isolation_prepare", &e).await;
+            emit_spawn_failed(kernel, &payload.pipeline_run_id, slug, "isolation_prepare", &e).await;
             return;
         }
     };
 
-    emit_job_dispatched_with_meta(kernel, &payload.job_id, &worktree_path, slug, None, ship_dir).await;
+    emit_job_dispatched_with_meta(kernel, &payload.pipeline_run_id, &worktree_path, slug, None, ship_dir).await;
 
     super::run_step::execute_run_step(
-        &payload.job_id, slug, step_id, command,
+        &payload.pipeline_run_id, slug, step_id, command,
         &worktree_path, kernel, ship_dir,
     ).await;
+}
+
+#[cfg(test)]
+mod role_tests {
+    use super::agent_role;
+    use crate::auth::scopes::{scopes_for_role, Scope};
+    use crate::config::{AgentProfile, ProjectConfig};
+
+    fn cfg_with(id: &str, role: Option<&str>) -> ProjectConfig {
+        ProjectConfig {
+            agents: vec![AgentProfile {
+                id: id.to_string(),
+                role: role.map(str::to_string),
+                ..Default::default()
+            }],
+            ..Default::default()
+        }
+    }
+
+    /// The whole point of the fix: a designer agent's declared role resolves
+    /// and mints SuiAuthoring — the scope the role-blind `None` silently denied.
+    #[test]
+    fn designer_role_resolves_and_grants_sui_authoring() {
+        let cfg = cfg_with("dz", Some("designer"));
+        let role = agent_role(&cfg, "dz");
+        assert_eq!(role.as_deref(), Some("designer"));
+        assert!(Scope::SuiAuthoring.is_granted_by(&scopes_for_role(role.as_deref())));
+    }
+
+    /// Unknown agent → no role → read-only default, never SuiAuthoring.
+    #[test]
+    fn unknown_agent_fails_closed() {
+        let cfg = cfg_with("dz", Some("designer"));
+        let role = agent_role(&cfg, "missing");
+        assert_eq!(role, None);
+        assert!(!Scope::SuiAuthoring.is_granted_by(&scopes_for_role(role.as_deref())));
+    }
+
+    /// An agent with no declared role fails closed too — not silently elevated.
+    #[test]
+    fn roleless_agent_fails_closed() {
+        let cfg = cfg_with("plain", None);
+        let role = agent_role(&cfg, "plain");
+        assert_eq!(role, None);
+        assert!(!Scope::SuiAuthoring.is_granted_by(&scopes_for_role(role.as_deref())));
+    }
 }

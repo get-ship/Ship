@@ -8,7 +8,7 @@ description: The four-layer token system that makes Ship themes coherent — sur
 
 # Tokens
 
-Every Ship token is a CSS custom property on `:root`, loaded from `packages/ui-components/src/tokens/tokens.css`. Themes override the same properties under `:root[data-theme='id']`. Components read `var(--foo)` with no fallback — the tokens are guaranteed present.
+Every Ship token is a CSS custom property on `:root`, loaded from `packages/components/ui-components/src/tokens/tokens.css`. Themes override the same properties under `:root[data-theme='id']`. Components read `var(--foo)` with no fallback — the tokens are guaranteed present.
 
 
 The token API is layered. A component or integrator reads the **highest layer that captures intent**; a theme overrides the **highest layer it needs to**.

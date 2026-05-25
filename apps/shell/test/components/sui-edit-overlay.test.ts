@@ -34,20 +34,25 @@ describe('<sui-edit-overlay>', () => {
     expect(el.classList.contains('active')).toBe(false)
   })
 
-  it('adds .active class when body gains edit-mode', async () => {
+  it('adds .active class when body gains annotation-mode', async () => {
+    // sui-edit-overlay reacts to body.annotation-mode (the sub-toggle
+    // inside edit mode). The earlier coupling to body.edit-mode predated
+    // the annotation/edit split — the overlay only paints when the user
+    // is actively annotating.
     const { el } = mount(reg, 'sui-edit-overlay')
     await flush()
-    document.body.classList.add('edit-mode')
+    document.body.classList.add('annotation-mode')
     await flush()
     expect(el.classList.contains('active')).toBe(true)
+    document.body.classList.remove('annotation-mode')
   })
 
-  it('removes .active class when body loses edit-mode', async () => {
-    document.body.classList.add('edit-mode')
+  it('removes .active class when body loses annotation-mode', async () => {
+    document.body.classList.add('annotation-mode')
     const { el } = mount(reg, 'sui-edit-overlay')
     await flush()
     expect(el.classList.contains('active')).toBe(true)
-    document.body.classList.remove('edit-mode')
+    document.body.classList.remove('annotation-mode')
     await flush()
     expect(el.classList.contains('active')).toBe(false)
   })
