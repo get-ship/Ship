@@ -22,12 +22,21 @@ message DiscoverySourceReq {
   string path = 1;
 }
 
+message DiscoverySchemaReq {}
+
 service DiscoveryService {
   rpc List(DiscoveryListReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Source(DiscoverySourceReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  // The `ship.*` op catalog — every op's name/args/returns/permission, the
+  // SSOT for view-template lint, `window.ship.*` codegen, MCP tool binding,
+  // and editor autocomplete. Replaces GET /api/v1/ship/schema. C0 read.
+  rpc Schema(DiscoverySchemaReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

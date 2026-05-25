@@ -34,4 +34,13 @@ impl DiscoveryService for OpsImpl {
             .map_err(|e| ConnectError::internal(format!("encode view source: {e}")))?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
+
+    async fn schema(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedDiscoverySchemaReqView,
+    ) -> ServiceResult<JsonResponse> {
+        let value = crate::services::schema::schema_catalog();
+        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
 }

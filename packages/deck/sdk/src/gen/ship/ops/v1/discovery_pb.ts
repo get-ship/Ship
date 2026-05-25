@@ -24,7 +24,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/discovery.proto.
  */
 export const file_ship_ops_v1_discovery: GenFile = /*@__PURE__*/
-  fileDesc("ChtzaGlwL29wcy92MS9kaXNjb3ZlcnkucHJvdG8SC3NoaXAub3BzLnYxIhIKEERpc2NvdmVyeUxpc3RSZXEiIgoSRGlzY292ZXJ5U291cmNlUmVxEgwKBHBhdGgYASABKAkyzAEKEERpc2NvdmVyeVNlcnZpY2USWQoETGlzdBIdLnNoaXAub3BzLnYxLkRpc2NvdmVyeUxpc3RSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiF4q1GA9zaGlwLnZpZXdzLnJlYWSQtRgBEl0KBlNvdXJjZRIfLnNoaXAub3BzLnYxLkRpc2NvdmVyeVNvdXJjZVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIXirUYD3NoaXAudmlld3MucmVhZJC1GAFiBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
+  fileDesc("ChtzaGlwL29wcy92MS9kaXNjb3ZlcnkucHJvdG8SC3NoaXAub3BzLnYxIhIKEERpc2NvdmVyeUxpc3RSZXEiIgoSRGlzY292ZXJ5U291cmNlUmVxEgwKBHBhdGgYASABKAkiFAoSRGlzY292ZXJ5U2NoZW1hUmVxMqsCChBEaXNjb3ZlcnlTZXJ2aWNlElkKBExpc3QSHS5zaGlwLm9wcy52MS5EaXNjb3ZlcnlMaXN0UmVxGhkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIheKtRgPc2hpcC52aWV3cy5yZWFkkLUYARJdCgZTb3VyY2USHy5zaGlwLm9wcy52MS5EaXNjb3ZlcnlTb3VyY2VSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiF4q1GA9zaGlwLnZpZXdzLnJlYWSQtRgBEl0KBlNjaGVtYRIfLnNoaXAub3BzLnYxLkRpc2NvdmVyeVNjaGVtYVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIXirUYD3NoaXAudmlld3MucmVhZJC1GAFiBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
 
 /**
  * @generated from message ship.ops.v1.DiscoveryListReq
@@ -59,6 +59,19 @@ export const DiscoverySourceReqSchema: GenMessage<DiscoverySourceReq> = /*@__PUR
   messageDesc(file_ship_ops_v1_discovery, 1);
 
 /**
+ * @generated from message ship.ops.v1.DiscoverySchemaReq
+ */
+export type DiscoverySchemaReq = Message<"ship.ops.v1.DiscoverySchemaReq"> & {
+};
+
+/**
+ * Describes the message ship.ops.v1.DiscoverySchemaReq.
+ * Use `create(DiscoverySchemaReqSchema)` to create a new message.
+ */
+export const DiscoverySchemaReqSchema: GenMessage<DiscoverySchemaReq> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_discovery, 2);
+
+/**
  * @generated from service ship.ops.v1.DiscoveryService
  */
 export const DiscoveryService: GenService<{
@@ -76,6 +89,18 @@ export const DiscoveryService: GenService<{
   source: {
     methodKind: "unary";
     input: typeof DiscoverySourceReqSchema;
+    output: typeof JsonResponseSchema;
+  },
+  /**
+   * The `ship.*` op catalog — every op's name/args/returns/permission, the
+   * SSOT for view-template lint, `window.ship.*` codegen, MCP tool binding,
+   * and editor autocomplete. Replaces GET /api/v1/ship/schema. C0 read.
+   *
+   * @generated from rpc ship.ops.v1.DiscoveryService.Schema
+   */
+  schema: {
+    methodKind: "unary";
+    input: typeof DiscoverySchemaReqSchema;
     output: typeof JsonResponseSchema;
   },
 }> = /*@__PURE__*/

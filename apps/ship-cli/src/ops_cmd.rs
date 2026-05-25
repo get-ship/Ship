@@ -25,18 +25,24 @@ fn pascal(op: &str) -> String {
         .collect()
 }
 
-/// Fetch the op catalog (reads + commands) from the daemon.
+/// Fetch the op catalog (reads + commands) via `DiscoveryService.Schema`
+/// (Connect) — replaces GET /api/v1/ship/schema.
 fn catalog(port: u16, token: &str) -> Result<(Vec<Value>, Vec<Value>)> {
-    let url = format!("http://127.0.0.1:{port}/api/v1/ship/schema");
-    let resp: Value = reqwest::blocking::Client::new()
-        .get(&url)
-        .bearer_auth(token)
-        .send()
-        .context("fetching op schema")?
-        .json()
-        .context("parsing op schema")?;
-    let ops = resp["data"]["ops"].as_array().cloned().unwrap_or_default();
-    let cmds = resp["data"]["commands"].as_array().cloned().unwrap_or_default();
+    use connectrpc::client::{ClientConfig, HttpClient};
+    use ship_ops_rpc::{DiscoverySchemaReq, DiscoveryServiceClient};
+    let uri: http::Uri =
+        format!("http://127.0.0.1:{port}").parse().context("building daemon URI")?;
+    let config =
+        ClientConfig::new(uri).default_header("authorization", format!("Bearer {token}"));
+    let client = DiscoveryServiceClient::new(HttpClient::plaintext(), config);
+    let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
+    let resp = rt
+        .block_on(client.schema(DiscoverySchemaReq::default()))
+        .map_err(|e| anyhow::anyhow!("fetching op schema: {e}"))?;
+    let value: Value =
+        serde_json::from_str(&resp.view().json).context("parsing op schema")?;
+    let ops = value["ops"].as_array().cloned().unwrap_or_default();
+    let cmds = value["commands"].as_array().cloned().unwrap_or_default();
     Ok((ops, cmds))
 }
 

@@ -42,10 +42,13 @@ use crate::wire::MeshResponse;
     tag = "framework"
 )]
 pub async fn serve_schema() -> Json<MeshResponse> {
-    Json(MeshResponse {
-        ok: true,
-        data: serde_json::json!({ "ops": &*OPS, "commands": COMMANDS }),
-    })
+    Json(MeshResponse { ok: true, data: schema_catalog() })
+}
+
+/// The `{ ops, commands }` op-catalog value, shared by the REST handler
+/// (until #137) and `DiscoveryService.Schema` (#141).
+pub fn schema_catalog() -> serde_json::Value {
+    serde_json::json!({ "ops": &*OPS, "commands": COMMANDS })
 }
 
 #[derive(Serialize, Clone, Copy)]

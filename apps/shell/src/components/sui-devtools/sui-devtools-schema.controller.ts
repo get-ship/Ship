@@ -64,10 +64,9 @@ export default controller({
     async function loadOps(): Promise<void> {
       if (ops.size > 0) return
       try {
-        const resp = await fetch('/api/v1/ship/schema', { credentials: 'same-origin' })
-        if (!resp.ok) return
-        const body = await resp.json() as { ok: boolean; data: { ops: OpDescriptor[] } }
-        ops = new Map(body.data.ops.map(op => [op.name, op]))
+        // DiscoveryService.Schema (Connect) replaces GET /api/v1/ship/schema.
+        const body = JSON.parse((await opsClient.discovery.schema({})).json) as { ops: OpDescriptor[] }
+        ops = new Map(body.ops.map(op => [op.name, op]))
       } catch { /* best-effort */ }
     }
 
