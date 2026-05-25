@@ -103,6 +103,12 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
   const connect = createShipConnectClient({ baseUrl })
   const okJson = async <T>(p: Promise<{ json: string }>): Promise<T> =>
     JSON.parse((await p).json) as T
+  // Typed mutations (ScopedMutation / CollectionItem) carry the id directly;
+  // adapt to the ShipSDK `{ ok, id }` envelope the REST path returned.
+  const okId = async (p: Promise<{ id: string }>): Promise<{ ok: true; id: string }> => ({
+    ok: true,
+    id: (await p).id,
+  })
 
   // Build the `/_sui/data?expr=...` SSE URL for a single op call. The
   // daemon parses the expr as `ship.<domain>.<op>(<json>?)`. Args are
@@ -136,16 +142,9 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       settings:  (args) => sse('agents', 'settings', args),
       catalogs:    () => sse('agents', 'catalogs'),
       create:    (args) =>
-        json<{ ok: true; id: string }>('POST', '/api/v1/agents', {
-          id: args.id,
-          doc: args.doc,
-        }),
+        okId(connect.agents.create({ id: args.id, docJson: JSON.stringify(args.doc), scope: '' })),
       update:    (args) =>
-        json<{ ok: true; id: string }>(
-          'PUT',
-          `/api/v1/agents/${encodeURIComponent(args.id)}`,
-          args.doc,
-        ),
+        okId(connect.agents.put({ id: args.id, docJson: JSON.stringify(args.doc), scope: '' })),
     },
     canvas: {
       doc:  (args) => sse('canvas', 'doc', args),
@@ -160,42 +159,42 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       items:  (args) => sse('collections', 'items', args),
       list:      () => sse('collections', 'list'),
       create: (args) =>
-        json<{ ok: true; id: string }>('POST', '/api/v1/collections', {
-          id: args.id,
-          name: args.name ?? args.id,
-          fields: args.fields ?? {},
-        }),
+        okJson<{ ok: true; id: string }>(
+          connect.collections.createSchema({
+            schemaJson: JSON.stringify({
+              id: args.id,
+              name: args.name ?? args.id,
+              fields: args.fields ?? {},
+            }),
+          }),
+        ),
       update_schema: (args) =>
-        json<{ ok: true; id: string }>(
-          'PUT',
-          `/api/v1/collections/${encodeURIComponent(args.id)}/schema`,
-          { id: args.id, fields: args.fields },
+        okJson<{ ok: true; id: string }>(
+          connect.collections.updateSchema({
+            collection: args.id,
+            schemaJson: JSON.stringify({ id: args.id, fields: args.fields }),
+          }),
         ),
       get_item: (args) =>
-        body<{ ok: true; data: { id: string; data: Record<string, unknown> } }>(
-          `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`,
-          'json',
+        okJson<{ ok: true; data: { id: string; data: Record<string, unknown> } }>(
+          connect.collections.getItem({ collection: args.collection, id: args.item_id }),
         ),
-      create_item: (args) => {
-        const b: Record<string, unknown> = { data: args.data }
-        if (args.id !== undefined) b.id = args.id
-        return json<{ ok: true; id: string }>(
-          'POST',
-          `/api/v1/collections/${encodeURIComponent(args.collection)}/items`,
-          b,
-        )
-      },
+      create_item: (args) =>
+        okId(connect.collections.createItem({
+          collection: args.collection,
+          dataJson: JSON.stringify(args.data),
+          id: args.id ?? '',
+        })),
       update_item: (args) =>
-        json<{ ok: true; id: string }>(
-          'PUT',
-          `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`,
-          { data: args.data },
-        ),
+        okId(connect.collections.updateItem({
+          collection: args.collection,
+          id: args.item_id,
+          dataJson: JSON.stringify(args.data),
+        })),
       delete_item: (args) =>
-        json<void>(
-          'DELETE',
-          `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`,
-        ),
+        connect.collections
+          .deleteItem({ collection: args.collection, id: args.item_id })
+          .then(() => {}),
     },
     dashboard: {
       state: () => sse('dashboard', 'state'),
@@ -284,11 +283,7 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       list:    () => sse('workspaces', 'list'),
       active:  () => sse('workspaces', 'active'),
       activate: (args) =>
-        json<{ ok: true; active: string }>(
-          'POST',
-          '/api/v1/projects/switch',
-          { id: args.id },
-        ),
+        okJson<{ ok: true; active: string }>(connect.project.activate({ id: args.id })),
     },
     artifacts: {
       list: (args) => sse('artifacts', 'list', args),
