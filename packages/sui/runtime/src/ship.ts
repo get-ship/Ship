@@ -381,4 +381,26 @@ export interface ShipSDK {
       reused_session: boolean
     }>
   }
+  pipelines: {
+    /** Pipeline summaries for the studio list. Live SSE. */
+    summaries(): LiveSource<unknown>
+    /** Single run detail by slug. Live SSE. */
+    run(args: { slug: string }): LiveSource<unknown>
+    /** Focused pipeline (definition + runs) by name. Live SSE. */
+    focus(args: { name: string }): LiveSource<unknown>
+    /** Run history, filterable. Live SSE. */
+    history(args?: {
+      q?: string
+      pipeline?: string
+      offset?: number
+      limit?: number
+    }): LiveSource<unknown>
+    /** Kick off a pipeline run (spawns jobs). */
+    dispatch(args: {
+      pipeline: string
+      spec?: string
+      harness?: string
+      auto?: boolean
+    }): Promise<unknown>
+  }
 }

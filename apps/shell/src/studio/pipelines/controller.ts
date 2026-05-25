@@ -1,7 +1,6 @@
 import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
-import { liveStream } from '@ship/sdk-client'
-import { ops } from '../../ops'
-import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
+import { ship } from '../../ops'
+import type { LiveSignal, LiveSource, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type PipelineDef = {
@@ -34,7 +33,7 @@ const read = (summaries: unknown): SummariesCtx => {
 
 export default controller({
   scope: ({ route }: ViewScope<Scope>) => {
-    const summaries = live(() => liveStream<SummariesCtx>((s) => ops.pipelines.summariesLive({}, { signal: s })))
+    const summaries = live(() => ship.pipelines.summaries() as LiveSource<SummariesCtx>)
     const q = derived(() => String(route.query.q() ?? ''))
     const agent = derived(() => String(route.query.agent() ?? ''))
     const pipeline = derived(() => String(route.query.pipeline() ?? ''))
@@ -88,7 +87,7 @@ export default controller({
     dispatchRun: async (s) => {
       const name = String(s.dispatchPipeline)
       if (!name) return
-      await ops.pipelines.dispatch({
+      await ship.pipelines.dispatch({
         pipeline: name,
         spec: String(s.dispatchSpec),
         harness: String(s.dispatchProvider || ''),

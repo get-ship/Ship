@@ -346,5 +346,18 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
           },
         ),
     },
+    pipelines: {
+      summaries: () => sse('pipelines', 'summaries'),
+      run:    (args) => sse('pipelines', 'run', args),
+      focus:  (args) => sse('pipelines', 'focus', args),
+      history: (args) => sse('pipelines', 'history', args ?? {}),
+      dispatch: (args) =>
+        okJson(connect.pipelines.dispatch({
+          pipeline: args.pipeline,
+          spec: args.spec ?? '',
+          harness: args.harness ?? '',
+          auto: args.auto ?? false,
+        })),
+    },
   }
 }

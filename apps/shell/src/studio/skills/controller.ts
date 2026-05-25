@@ -4,9 +4,8 @@
 // Data: ship.skills.summaries({q,kind,tag}) via liveExpr (server-side filtered,
 // re-subscribes as q/kind change) — /sui-hosted views have no SDK client in ctx.
 import { controller, signal, live, derived } from '@ship/sui-runtime'
-import { liveStream } from '@ship/sdk-client'
-import { ops } from '../../ops'
-import type { ViewScope } from '@ship/sui-runtime'
+import { ship } from '../../ops'
+import type { LiveSource, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type KindFilter = 'all' | 'smart' | 'docs'
@@ -37,9 +36,7 @@ export default controller({
     const q = signal('')
     const kind = signal<KindFilter>('all')
     const rail = live(() =>
-      liveStream<RailValue>((s) =>
-        ops.skills.summariesLive({ q: q(), kind: kind(), tag: '' }, { signal: s }),
-      ),
+      ship.skills.summaries({ q: q(), kind: kind(), tag: '' }) as LiveSource<RailValue>,
     )
     // `rail` is a `LiveSignal<unknown>` — call it directly and narrow the
     // `ok` envelope's `value` (unknown to the type system) to the payload.

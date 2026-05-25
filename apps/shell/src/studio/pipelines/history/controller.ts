@@ -1,8 +1,8 @@
 import { controller, signal, derived, live, chrome } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import { route as routeFactory } from '@ship/sui-runtime/route'
-import { liveStream } from '@ship/sdk-client'
-import { ops } from '../../../ops'
+import { ship } from '../../../ops'
+import type { LiveSource } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type HistoryRow = {
@@ -34,9 +34,9 @@ export default controller({
     const pipelineFilter = derived(() => String(route.query.pipeline() ?? ''))
     const offset = derived(() => parseInt(String(route.query.offset() ?? '0'), 10))
     const limit = derived(() => parseInt(String(route.query.limit() ?? '50'), 10))
-    const historyData = live(() => liveStream<HistoryCtx>((s) => ops.pipelines.historyLive({
-      q: q(), pipeline: pipelineFilter(), offset: BigInt(offset()), limit: BigInt(limit()),
-    }, { signal: s })))
+    const historyData = live(() => ship.pipelines.history({
+      q: q(), pipeline: pipelineFilter(), offset: offset(), limit: limit(),
+    }) as LiveSource<HistoryCtx>)
     const rows = derived(() => read(historyData()).rows)
     const total = derived(() => read(historyData()).total)
     const hasPrev = derived(() => read(historyData()).has_prev)

@@ -4,7 +4,6 @@
 import { controller, signal, derived, live, unwrapOr } from '@ship/sui-runtime'
 import type { Signal, LiveSignal, AccountState, ViewScope } from '@ship/sui-runtime'
 import {
-  liveStream,
   accountDisplayName,
   accountInitials,
   accountPlanLabel,
@@ -13,7 +12,7 @@ import {
   openAccountBilling,
   readAccountIdentity,
 } from '@ship/sdk-client'
-import { ops } from '../../ops'
+import { ops, ship } from '../../ops'
 import type { Scope } from './sui-settings.sui'
 
 function flashSaved(sig: Signal<boolean>, ms = 1600): void {
@@ -36,8 +35,8 @@ async function settingsUpdate(formData: FormData): Promise<{ key: string; value:
 export default controller({
   scope: (_ctx: ViewScope<Scope>) => {
     // Chrome has no ctx.ship — wire the live sources directly (was <data>).
-    const settings = live(() => liveStream((s) => ops.settings.stateLive({}, { signal: s })))
-    const account = live(() => liveStream((s) => ops.account.stateLive({}, { signal: s })))
+    const settings = live(() => ship.settings.state())
+    const account = live(() => ship.account.state())
 
     const accountBusy = signal(false)
     const accountError = signal('')

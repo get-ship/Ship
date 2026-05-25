@@ -1,7 +1,6 @@
 import { controller, signal, derived, ref, live } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import { liveStream } from '@ship/sdk-client'
-import { ops } from '../../ops'
+import { ship } from '../../ops'
 import { route as routeFactory } from '@ship/sui-runtime/route'
 import type { Scope } from './sui-canvas-app.sui'
 
@@ -80,8 +79,8 @@ function newCanvasId(): string {
 
 export default controller({
   scope: (_ctx: ViewScope<Scope>) => {
-    const agentsSummaries = live(() => liveStream((s) => ops.agents.summariesLive({}, { signal: s })))
-    const artifactsList = live(() => liveStream((s) => ops.artifacts.listLive({}, { signal: s })))
+    const agentsSummaries = live(() => ship.agents.summaries())
+    const artifactsList = live(() => ship.artifacts.list())
     const route = routeFactory()
     const initialId = route.query.canvas() || newCanvasId()
     const canvasId = signal(initialId)

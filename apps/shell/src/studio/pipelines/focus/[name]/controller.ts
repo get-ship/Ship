@@ -1,7 +1,7 @@
 import { controller, signal, derived, live, ref } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import { liveStream } from '@ship/sdk-client'
-import { ops } from '../../../../ops'
+import { ship } from '../../../../ops'
+import type { LiveSource } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 // `controller(def)` infers the scope-factory types from the `scope` param +
@@ -85,7 +85,7 @@ export default controller({
     // Subscribe to the focus op by name via `liveExpr` — the shell SDK object
     // exposes no `pipelines` surface, so the call form would throw. Re-subscribes
     // when `name()` changes. `liveExpr` wraps the SSE channel as a LiveSource.
-    const focusCtx = live(() => liveStream<FocusCtx>((s) => ops.pipelines.focusLive({ name: name() }, { signal: s })))
+    const focusCtx = live(() => ship.pipelines.focus({ name: name() }) as LiveSource<FocusCtx>)
     const def = derived(() => decorateDef(read(focusCtx()).def))
     const doc = derived(() => {
       const d = read(focusCtx()).doc
@@ -168,7 +168,7 @@ export default controller({
     closeDispatch: (s) => { s.dispatchOpen = false },
     dispatchRun: async (s) => {
       const nm = String(s.name)
-      await ops.pipelines.dispatch({
+      await ship.pipelines.dispatch({
         pipeline: nm,
         spec: String(s.dispatchSpec),
         harness: String(s.dispatchProvider || ''),

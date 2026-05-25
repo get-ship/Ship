@@ -4,9 +4,8 @@
 // editable description, editable tags, variables, files. Data via liveExpr
 // (ship.skills.detail); writes via the /api/v1/skills REST surface.
 import { controller, signal, derived, live, effect } from '@ship/sui-runtime'
-import type { ViewScope } from '@ship/sui-runtime'
-import { liveStream } from '@ship/sdk-client'
-import { ops } from '../../../ops'
+import type { LiveSource, ViewScope } from '@ship/sui-runtime'
+import { ops, ship } from '../../../ops'
 import type { Scope } from './page.sui'
 
 interface SkillDetail {
@@ -45,9 +44,7 @@ export default controller({
   scope: ({ route }: ViewScope<Scope>) => {
     const skillId = derived(() => route.params.id() ?? '')
     const skillRes = live(() =>
-      liveStream<SkillDetail>((s) =>
-        ops.skills.detailLive({ id: skillId() || '__none__' }, { signal: s }),
-      ),
+      ship.skills.detail({ id: skillId() || '__none__' }) as LiveSource<SkillDetail>,
     )
     const sk = derived<SkillDetail | null>(() => {
       const r = skillRes() as LiveResult

@@ -1,7 +1,7 @@
 import { controller, derived, live } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import { liveStream } from '@ship/sdk-client'
-import { ops } from '../../../../ops'
+import { ship } from '../../../../ops'
+import type { LiveSource } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type StepRun = { id: string; state: string; step_type: string; agent?: string }
@@ -33,7 +33,7 @@ export default controller({
     // The shell SDK object exposes no `pipelines` surface, so subscribe to the
     // run op by name via `liveExpr` (the views/events pattern).
     const slug = derived(() => String(route.params.slug?.() ?? ''))
-    const runCtx = live(() => liveStream<RunCtx>((sig) => ops.pipelines.runLive({ slug: slug() }, { signal: sig })))
+    const runCtx = live(() => ship.pipelines.run({ slug: slug() }) as LiveSource<RunCtx>)
     const run = derived(() => read(runCtx()).run)
     const observations = derived(() => read(runCtx()).observations)
     const timeline = derived(() => read(runCtx()).timeline)
