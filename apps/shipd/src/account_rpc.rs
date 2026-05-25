@@ -32,6 +32,22 @@ impl AccountService for OpsImpl {
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
         self.live_read("account.state", json!({})).await
     }
+
+    async fn logout(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedLogoutReqView,
+    ) -> ServiceResult<JsonResponse> {
+        self.state()
+            .account()
+            .logout()
+            .await
+            .map_err(|e| ConnectError::internal(format!("account.logout: {e}")))?;
+        Ok(Response::new(JsonResponse {
+            json: json!({ "ok": true }).to_string(),
+            ..Default::default()
+        }))
+    }
 }
 
 #[cfg(test)]

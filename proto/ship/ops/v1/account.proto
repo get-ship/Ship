@@ -14,8 +14,11 @@ import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/ops.proto";
 
 message GetAccountStateReq {}
+message LogoutReq {}
 
-// Ship Cloud account state. Single C0 read — no writes in this domain.
+// Ship Cloud account state + the logout write. (login/complete/key remain a
+// pre-credential REST bootstrap — they're how you obtain the bearer a Connect
+// call requires, so they can't speak authenticated Connect. See #141.)
 service AccountService {
   rpc State(GetAccountStateReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.account.read";
@@ -24,5 +27,11 @@ service AccountService {
   rpc StateLive(GetAccountStateReq) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.account.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  // Clear the daemon's stored gateway token (idempotent). C2 — account
+  // mutation requiring user presence.
+  rpc Logout(LogoutReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.account.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
 }

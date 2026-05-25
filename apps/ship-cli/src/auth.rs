@@ -323,15 +323,16 @@ pub fn run_logout() -> Result<()> {
     // to nuke the local mirror so the user isn't stuck in a half-state.
     let mut daemon_cleared = false;
     if let Ok((port, daemon_token)) = daemon_connect() {
-        let url = format!("http://127.0.0.1:{port}/api/v1/account/logout");
-        if let Ok(resp) = crate::http::daemon_client()
-            .post(&url)
-            .bearer_auth(&daemon_token)
-            .timeout(std::time::Duration::from_secs(5))
-            .send()
-        {
-            crate::http::check_skew(resp.headers());
-            daemon_cleared = resp.status().is_success();
+        use connectrpc::client::{ClientConfig, HttpClient};
+        use ship_ops_rpc::{AccountServiceClient, LogoutReq};
+        // AccountService.Logout (Connect) replaces POST /api/v1/account/logout.
+        if let Ok(uri) = format!("http://127.0.0.1:{port}").parse::<http::Uri>() {
+            let config = ClientConfig::new(uri)
+                .default_header("authorization", format!("Bearer {daemon_token}"));
+            let client = AccountServiceClient::new(HttpClient::plaintext(), config);
+            if let Ok(rt) = tokio::runtime::Runtime::new() {
+                daemon_cleared = rt.block_on(client.logout(LogoutReq::default())).is_ok();
+            }
         }
     }
 
