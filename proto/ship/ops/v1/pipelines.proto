@@ -57,6 +57,7 @@ message ListPipelinesHistoryRequest {
   int64 limit = 1;
   int64 offset = 2;
   string pipeline = 3;
+  string q = 4;
 }
 
 message PutPipelineRequest {
@@ -102,7 +103,15 @@ service PipelinesService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc FocusLive(FocusPipelineRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc Run(RunPipelineRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc RunLive(RunPipelineRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

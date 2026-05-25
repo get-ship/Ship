@@ -5,7 +5,7 @@
 // (ship.skills.detail); writes via the /api/v1/skills REST surface.
 import { controller, signal, derived, live, effect } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import { liveExpr } from '@ship/sdk-client'
+import { liveStream } from '@ship/sdk-client'
 import { ops } from '../../../ops'
 import type { Scope } from './page.sui'
 
@@ -45,8 +45,8 @@ export default controller({
   scope: ({ route }: ViewScope<Scope>) => {
     const skillId = derived(() => route.params.id() ?? '')
     const skillRes = live(() =>
-      liveExpr<SkillDetail>(
-        `ship.skills.detail(${JSON.stringify({ id: skillId() || '__none__' })})`,
+      liveStream<SkillDetail>((s) =>
+        ops.skills.detailLive({ id: skillId() || '__none__' }, { signal: s }),
       ),
     )
     const sk = derived<SkillDetail | null>(() => {

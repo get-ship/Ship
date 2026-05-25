@@ -37,7 +37,7 @@ declare module '@ship/sui-runtime' {
   interface ShipHost extends ShipSDK {}
 }
 
-export { makeSseSource, liveExpr } from './sse'
+export { makeSseSource } from './sse'
 export { liveStream } from './live-stream'
 export {
   displayName as accountDisplayName,

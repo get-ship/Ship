@@ -3,7 +3,8 @@
 // over @ship/sdk-client. (Relocated from views/activity; was the mesh draft.)
 import { controller, derived, live, signal, unwrap } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import { liveExpr } from '@ship/sdk-client'
+import { ship } from '../../ops'
+import type { LiveSource } from '@ship/sui-runtime'
 import type { Scope } from './sui-activity.sui'
 
 function formatTs(raw: string | null | undefined): string {
@@ -24,7 +25,7 @@ type Actor = {
 
 export default controller({
   scope: (_ctx: ViewScope<Scope>) => {
-    const snap = live(() => liveExpr<{ actors?: Actor[] }>('ship.mesh.snapshot()'))
+    const snap = live(() => ship.mesh.snapshot() as LiveSource<{ actors?: Actor[] }>)
     const actorsFormatted = derived(() => {
       const v = unwrap(snap)
       const list = v?.actors ?? []

@@ -4,8 +4,9 @@
 // sources (chrome has no `ctx.ship` the way daemon-served views do).
 import { controller, derived, live, unwrapOr, chrome } from '@ship/sui-runtime'
 import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
-import { liveExpr } from '@ship/sdk-client'
+import { liveStream } from '@ship/sdk-client'
 import type { GitOverview } from '@ship/sdk-client'
+import { ops } from '../../ops'
 import type { Scope } from './sui-home.sui'
 
 interface DashStats { active: number; history: number }
@@ -36,8 +37,8 @@ const initialOf = (a: DashAgent): string => (a.letter ?? (a.name ?? a.id).slice(
 
 export default controller({
   scope: (_ctx: ViewScope<Scope>) => {
-    const dash = live(() => liveExpr<DashState>('ship.dashboard.state()'))
-    const git = live(() => liveExpr<GitOverview>('ship.git.overview()'))
+    const dash = live(() => liveStream<DashState>((s) => ops.dashboard.stateLive({}, { signal: s })))
+    const git = live(() => liveStream<GitOverview>((s) => ops.git.overviewLive({}, { signal: s })))
     const navigate = (path: string): void => chrome.navigate(path)
     const goNav = (event: Event, path: string): void => { event.preventDefault(); chrome.navigate(path) }
 

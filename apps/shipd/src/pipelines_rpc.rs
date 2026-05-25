@@ -68,6 +68,24 @@ impl PipelinesService for OpsImpl {
         self.live_read("pipelines.summaries", serde_json::json!({})).await
     }
 
+    #[allow(refining_impl_trait)]
+    async fn focus_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedFocusPipelineRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("pipelines.focus", json!({ "name": request.name })).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn run_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedRunPipelineRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("pipelines.run", json!({ "slug": request.slug })).await
+    }
+
     async fn focus(
         &self,
         _ctx: RequestContext,
@@ -101,6 +119,7 @@ impl PipelinesService for OpsImpl {
             "limit": request.limit,
             "offset": request.offset,
             "pipeline": request.pipeline,
+            "q": request.q,
         });
         let value =
             crate::services::registry::call("pipelines.history", &args, self.state())
@@ -115,7 +134,8 @@ impl PipelinesService for OpsImpl {
         request: ship_ops_rpc::OwnedListPipelinesHistoryRequestView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
         let args = json!({
-            "limit": request.limit, "offset": request.offset, "pipeline": request.pipeline,
+            "limit": request.limit, "offset": request.offset,
+            "pipeline": request.pipeline, "q": request.q,
         });
         self.live_read("pipelines.history", args).await
     }

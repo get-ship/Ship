@@ -1,5 +1,6 @@
 import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
-import { liveExpr } from '@ship/sdk-client'
+import { liveStream } from '@ship/sdk-client'
+import { ops } from '../../ops'
 import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
@@ -33,7 +34,7 @@ const read = (summaries: unknown): SummariesCtx => {
 
 export default controller({
   scope: ({ route }: ViewScope<Scope>) => {
-    const summaries = live(() => liveExpr<SummariesCtx>('ship.pipelines.summaries()'))
+    const summaries = live(() => liveStream<SummariesCtx>((s) => ops.pipelines.summariesLive({}, { signal: s })))
     const q = derived(() => String(route.query.q() ?? ''))
     const agent = derived(() => String(route.query.agent() ?? ''))
     const pipeline = derived(() => String(route.query.pipeline() ?? ''))

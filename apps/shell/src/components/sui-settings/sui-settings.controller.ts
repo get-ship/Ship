@@ -4,7 +4,7 @@
 import { controller, signal, derived, live, unwrapOr } from '@ship/sui-runtime'
 import type { Signal, LiveSignal, AccountState, ViewScope } from '@ship/sui-runtime'
 import {
-  liveExpr,
+  liveStream,
   accountDisplayName,
   accountInitials,
   accountPlanLabel,
@@ -36,8 +36,8 @@ async function settingsUpdate(formData: FormData): Promise<{ key: string; value:
 export default controller({
   scope: (_ctx: ViewScope<Scope>) => {
     // Chrome has no ctx.ship — wire the live sources directly (was <data>).
-    const settings = live(() => liveExpr('ship.settings.state()'))
-    const account = live(() => liveExpr('ship.account.state()'))
+    const settings = live(() => liveStream((s) => ops.settings.stateLive({}, { signal: s })))
+    const account = live(() => liveStream((s) => ops.account.stateLive({}, { signal: s })))
 
     const accountBusy = signal(false)
     const accountError = signal('')
