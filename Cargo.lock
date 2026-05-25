@@ -4420,6 +4420,7 @@ dependencies = [
  "http-body",
  "protoc-bin-vendored",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
 ]
 
@@ -6690,6 +6691,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "ship-ops-rpc",
  "ship-platform",
  "ship-substrate",
  "ship-types",

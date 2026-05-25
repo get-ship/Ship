@@ -1,0 +1,69 @@
+{
+  "_theme": "A single coherent demo Ship workspace — the 'harbor' project mid-feature on branch feat/checkout-flow, worked by agents rust-lane and code-reviewer. Every op fixture below draws from this ONE world so cross-references line up (the git author is an agent that exists; the staged file is the rule-governed checkout service). SSOT for example VALUES; the proto messages are SSOT for SHAPE — gen-fixtures decodes each value into its connectrpc type to validate, then emits proto/fixtures/<service>.json. Realistic enough for design handoffs, valid enough for contract tests, seed corpus for fuzzing.",
+  "_authoring": "Add an entry under responses keyed by the dotted op name. Run `cargo run -p xtask -- gen-fixtures`. If the value drifts from the proto message, gen-fixtures fails with the field that broke.",
+  "responses": {
+    "rules.list": {
+      "items": [
+        { "id": "no-placeholders", "scope": "project" },
+        { "id": "test-first", "scope": "project" },
+        { "id": "commit-style", "scope": "user" }
+      ]
+    },
+    "rules.get": {
+      "id": "no-placeholders",
+      "scope": "project",
+      "body": "# No placeholders\n\nNo TODOs, no fake data. If it's not finished, remove it. The next agent treats your scaffold as architecture.\n"
+    },
+    "git.status": {
+      "clean": false,
+      "total": 3,
+      "staged": [
+        { "path": "crates/core/ship-platform/src/services/checkout.rs", "basename": "checkout.rs", "status": "A", "tone": "added", "label": "new file" }
+      ],
+      "modified": [
+        { "path": "apps/shipd/src/router.rs", "basename": "router.rs", "status": "M", "tone": "modified", "label": "modified" }
+      ],
+      "untracked": [
+        { "path": ".artifacts/checkout-notes.md", "basename": "checkout-notes.md", "status": "?", "tone": "untracked", "label": "untracked" }
+      ]
+    },
+    "git.log": {
+      "commits": [
+        { "sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678", "short_sha": "a1b2c3d", "author": "rust-lane", "date": "2026-05-24T18:30:00Z", "subject": "feat(checkout): scaffold the checkout service", "additions": 142, "deletions": 8 },
+        { "sha": "f4e5d6c7b8a90123456789abcdef0123456789ab", "short_sha": "f4e5d6c", "author": "code-reviewer", "date": "2026-05-24T16:05:00Z", "subject": "test(checkout): lock the happy-path contract", "additions": 67, "deletions": 0 }
+      ]
+    },
+    "git.branches": {
+      "branches": [
+        { "name": "feat/checkout-flow", "active": true, "upstream": "origin/feat/checkout-flow", "ahead": 2, "behind": 0 },
+        { "name": "main", "active": false, "upstream": "origin/main", "ahead": 0, "behind": 2 }
+      ],
+      "ahead": 2,
+      "behind": 0
+    },
+    "git.overview": {
+      "workspace_id": "harbor",
+      "branch": "feat/checkout-flow",
+      "head_short": "a1b2c3d",
+      "clean": false,
+      "total_changed": 3,
+      "staged": [
+        { "path": "crates/core/ship-platform/src/services/checkout.rs", "basename": "checkout.rs", "status": "A", "tone": "added", "label": "new file" }
+      ],
+      "modified": [
+        { "path": "apps/shipd/src/router.rs", "basename": "router.rs", "status": "M", "tone": "modified", "label": "modified" }
+      ],
+      "untracked": [
+        { "path": ".artifacts/checkout-notes.md", "basename": "checkout-notes.md", "status": "?", "tone": "untracked", "label": "untracked" }
+      ],
+      "commits": [
+        { "sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678", "short_sha": "a1b2c3d", "author": "rust-lane", "date": "2026-05-24T18:30:00Z", "subject": "feat(checkout): scaffold the checkout service", "additions": 142, "deletions": 8 }
+      ],
+      "branches": [
+        { "name": "feat/checkout-flow", "active": true, "upstream": "origin/feat/checkout-flow", "ahead": 2, "behind": 0 }
+      ],
+      "ahead": 2,
+      "behind": 0
+    }
+  }
+}
