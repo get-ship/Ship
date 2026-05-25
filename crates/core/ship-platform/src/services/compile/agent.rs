@@ -1,6 +1,6 @@
 //! Agent profile application — merging an active agent's overrides into the
 //! project library. The library has already been populated with every
-//! `.ship/agents/*.jsonc` by [`crate::loader::load_library`]; this step
+//! `.ship/agents/*.jsonc` by [`super::loader::load_library`]; this step
 //! pulls the active one out and merges its permissions / hooks / plugins /
 //! harness settings, then injects a flat `AgentConfig` so `resolve()` can
 //! filter harnesses and MCP/skill refs against it.
@@ -13,7 +13,7 @@ use super::permissions::apply_agent_permissions;
 
 // ── Agent → library ──────────────────────────────────────────────────────────
 
-pub(crate) fn apply_agent_to_library(
+pub fn apply_agent_to_library(
     library: &mut ProjectLibrary,
     agent_id: &str,
     project_root: &Path,
@@ -32,7 +32,6 @@ pub(crate) fn apply_agent_to_library(
     library.permissions =
         apply_agent_permissions(library.permissions.clone(), &profile, Some(&ship_dir));
 
-    // Inline rules → append as a synthetic rule file.
     if let Some(inline) = &profile.rules.inline {
         let trimmed = inline.trim();
         if !trimmed.is_empty() {
@@ -47,14 +46,11 @@ pub(crate) fn apply_agent_to_library(
     }
 
     // Inject a flat AgentConfig so resolve() can apply MCP / skill / rule
-    // filtering from the active profile. Harness selection is no longer
-    // per-agent (target_agents stays empty); the project's harness list
-    // governs which harnesses get emitted.
+    // filtering from the active profile.
     let mut cfg = profile.to_config();
     cfg.id = agent_id.to_string();
     library.agents.push(cfg);
 
-    // Plugins — convert install list into PluginsManifest.
     if !profile.plugins.install.is_empty() {
         library.plugins = PluginsManifest {
             install: profile
@@ -143,8 +139,8 @@ fn load_team_agents(project_root: &Path, harness_id: &str) -> Vec<(String, Strin
 /// Collect all skill refs declared in agent profiles and mode configs within
 /// `library`. Only dep refs (those starting with `github.com/`) will be resolved
 /// by the caller; local refs are included in the list but filtered in
-/// [`resolve_dep_skills`](ship_platform::registry::dep_skills::resolve_dep_skills).
-pub(crate) fn collect_all_skill_refs(library: &ProjectLibrary) -> Vec<String> {
+/// [`resolve_dep_skills`](crate::registry::dep_skills::resolve_dep_skills).
+pub fn collect_all_skill_refs(library: &ProjectLibrary) -> Vec<String> {
     let mut refs: Vec<String> = Vec::new();
 
     for profile in &library.agent_profiles {
@@ -165,4 +161,3 @@ pub(crate) fn collect_all_skill_refs(library: &ProjectLibrary) -> Vec<String> {
 
     refs
 }
-

@@ -1,4 +1,4 @@
-//! Load a [`ProjectLibrary`] from the `.ship/agents/` directory tree.
+//! Load a [`ProjectLibrary`] from the `.ship/` directory tree.
 //! No compilation or resolution occurs here — pure filesystem loading.
 
 use anyhow::Result;
@@ -6,15 +6,118 @@ use compiler::{
     AgentProfile, HookConfig, HookTrigger, McpServerConfig, McpServerType, Permissions,
     ProjectLibrary, Rule,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
+
+use super::permissions::PermissionPreset;
+use super::skill_parser::load_skills;
+
+// ── MCP file types ────────────────────────────────────────────────────────────
+
+/// A single MCP server entry from `mcp.jsonc`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpEntry {
+    pub id: String,
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub args: Vec<String>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub env: HashMap<String, String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(default = "default_scope")]
+    pub scope: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server_type: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub disabled: bool,
+}
+
+fn default_scope() -> String {
+    "project".to_string()
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+struct RawMcpFile {
+    #[serde(default)]
+    mcp: RawMcpSection,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+struct RawMcpSection {
+    #[serde(default)]
+    servers: HashMap<String, McpEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+struct LegacyMcpFile {
+    #[serde(default)]
+    servers: Vec<McpEntry>,
+}
+
+/// The `.ship/mcp.jsonc` file. Supports both the canonical keyed format
+/// (`{ "mcp": { "servers": { "<id>": {...} } } }`) and the legacy flat array
+/// format (`{ "servers": [...] }`).
+#[derive(Debug, Clone, Default)]
+pub struct McpFile {
+    pub servers: Vec<McpEntry>,
+}
+
+impl McpFile {
+    pub fn load(path: &Path) -> Result<Self> {
+        if !path.exists() {
+            return Ok(Self::default());
+        }
+        let text = std::fs::read_to_string(path)?;
+
+        if let Ok(raw) = compiler::jsonc::from_jsonc_str::<RawMcpFile>(&text)
+            && !raw.mcp.servers.is_empty()
+        {
+            let servers = raw
+                .mcp
+                .servers
+                .into_iter()
+                .map(|(key, mut entry)| {
+                    if entry.id.is_empty() {
+                        entry.id = key;
+                    }
+                    entry
+                })
+                .collect();
+            return Ok(Self { servers });
+        }
+        if let Ok(legacy) = compiler::jsonc::from_jsonc_str::<LegacyMcpFile>(&text) {
+            return Ok(Self {
+                servers: legacy.servers,
+            });
+        }
+        Ok(Self::default())
+    }
+
+    pub fn save(&self, path: &Path) -> Result<()> {
+        if let Some(p) = path.parent() {
+            std::fs::create_dir_all(p)?;
+        }
+        let mut servers_map = serde_json::Map::new();
+        for s in &self.servers {
+            let val = serde_json::to_value(s)?;
+            servers_map.insert(s.id.clone(), val);
+        }
+        let root = serde_json::json!({ "mcp": { "servers": servers_map } });
+        std::fs::write(path, serde_json::to_string_pretty(&root)?)?;
+        Ok(())
+    }
+}
 
 // ── Top-level entry point ─────────────────────────────────────────────────────
 
 /// Load a [`ProjectLibrary`] from a `.ship/` directory (flat layout).
 ///
 /// Looks for mcp, permissions, hooks, rules, skills at the `.ship/` root,
-/// and agent profiles under `.ship/agents/profiles/`.
+/// and agent profiles under `.ship/agents/`.
 /// Missing files and dirs are silently skipped — an empty library is valid.
 pub fn load_library(ship_dir: &Path) -> Result<ProjectLibrary> {
     Ok(ProjectLibrary {
@@ -30,10 +133,9 @@ pub fn load_library(ship_dir: &Path) -> Result<ProjectLibrary> {
 
 // ── MCP servers ───────────────────────────────────────────────────────────────
 
-fn load_mcp_servers(agents_dir: &Path) -> Result<Vec<McpServerConfig>> {
-    let path = agents_dir.join("mcp.jsonc");
-    let file = crate::mcp::McpFile::load(&path)?;
-    // Warn if the MCP file exists but produced no servers (likely a parse error)
+fn load_mcp_servers(ship_dir: &Path) -> Result<Vec<McpServerConfig>> {
+    let path = ship_dir.join("mcp.jsonc");
+    let file = McpFile::load(&path)?;
     if path.exists() && file.servers.is_empty() {
         eprintln!(
             "warning: {} exists but no MCP servers were loaded. Check JSONC syntax.",
@@ -76,29 +178,12 @@ fn load_mcp_servers(agents_dir: &Path) -> Result<Vec<McpServerConfig>> {
 
 // ── Permissions ───────────────────────────────────────────────────────────────
 
-/// A named permission preset section from `agents/permissions.jsonc`.
-/// Matches the `"ship-standard"`, `"ship-autonomous"`, etc. keys.
-#[derive(Deserialize, Default, Clone)]
-pub struct PermissionPreset {
-    #[serde(default)]
-    pub default_mode: Option<String>,
-    #[serde(default)]
-    pub tools_allow: Vec<String>,
-    #[serde(default)]
-    pub tools_deny: Vec<String>,
-    #[serde(default)]
-    pub tools_ask: Vec<String>,
-}
-
-fn load_permissions(agents_dir: &Path) -> Result<Permissions> {
-    let path = agents_dir.join("permissions.jsonc");
+fn load_permissions(ship_dir: &Path) -> Result<Permissions> {
+    let path = ship_dir.join("permissions.jsonc");
     if !path.exists() {
         return Ok(Permissions::default());
     }
     let s = std::fs::read_to_string(&path)?;
-    // Try flat Permissions first, fall back to default on parse error.
-    // The named-preset sections are ignored here —
-    // they are resolved via load_permission_preset() when a profile activates.
     Ok(compiler::jsonc::from_jsonc_str::<Permissions>(&s).unwrap_or_default())
 }
 
@@ -156,8 +241,8 @@ struct HookEntry {
     matcher: Option<String>,
 }
 
-fn load_hooks(agents_dir: &Path) -> Result<Vec<HookConfig>> {
-    let path = agents_dir.join("hooks.jsonc");
+fn load_hooks(ship_dir: &Path) -> Result<Vec<HookConfig>> {
+    let path = ship_dir.join("hooks.jsonc");
     if !path.exists() {
         return Ok(vec![]);
     }
@@ -189,8 +274,8 @@ fn load_hooks(agents_dir: &Path) -> Result<Vec<HookConfig>> {
 
 // ── Rules ─────────────────────────────────────────────────────────────────────
 
-fn load_rules(agents_dir: &Path) -> Result<Vec<Rule>> {
-    let rules_dir = agents_dir.join("rules");
+fn load_rules(ship_dir: &Path) -> Result<Vec<Rule>> {
+    let rules_dir = ship_dir.join("rules");
     if !rules_dir.exists() {
         return Ok(vec![]);
     }
@@ -210,7 +295,7 @@ fn load_rules(agents_dir: &Path) -> Result<Vec<Rule>> {
 
 /// Parse a rule `.md` file, stripping YAML frontmatter if present.
 /// Frontmatter fields: `description`, `globs` (list), `alwaysApply` (bool).
-fn parse_rule(file_name: &str, raw: &str) -> Rule {
+pub fn parse_rule(file_name: &str, raw: &str) -> Rule {
     if let Some(rest) = raw.strip_prefix("---\n")
         && let Some(end) = rest.find("\n---\n")
     {
@@ -245,16 +330,9 @@ fn parse_rule(file_name: &str, raw: &str) -> Rule {
     }
 }
 
-// ── Skills ────────────────────────────────────────────────────────────────────
-
-use crate::skill::loader::load_skills;
-
 // ── Agent profiles ────────────────────────────────────────────────────────────
 
 fn load_agent_profiles(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
-    // Canonical layout: each agent is a single JSONC file at
-    // `.ship/agents/<id>.jsonc`. The legacy `agents/profiles/` subdir is no
-    // longer read. TOML is no longer accepted.
     let agents_dir = ship_dir.join("agents");
     if !agents_dir.exists() {
         return Ok(vec![]);
@@ -283,9 +361,3 @@ fn load_agent_profiles(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
     profiles.sort_by(|a, b| a.agent.id.cmp(&b.agent.id));
     Ok(profiles)
 }
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
-#[cfg(test)]
-#[path = "loader_tests.rs"]
-mod tests;

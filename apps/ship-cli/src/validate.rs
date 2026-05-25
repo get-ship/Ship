@@ -5,10 +5,8 @@ use serde::Serialize;
 use std::path::Path;
 
 use crate::profile::load_agent_profile;
-use crate::loader::load_permission_preset;
-use crate::mcp::{McpEntry, McpFile};
+use ship_platform::services::compile::{load_permission_preset, load_skills, McpEntry, McpFile};
 use crate::profile::find_agent_file;
-use crate::skill::loader::load_skills;
 
 #[cfg(test)]
 #[path = "validate_tests.rs"]
