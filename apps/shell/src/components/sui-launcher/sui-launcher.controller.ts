@@ -1,6 +1,7 @@
 import { chrome, controller, effect, signal, bindNativeEvent } from '@ship/sui-runtime'
 import type { Scope } from './sui-launcher.sui'
 import { type ApiView, type Project, humanize, renderHead, renderFoot, renderBody } from './render'
+import { ops } from '../../ops'
 
 const SETTING_KEY = 'shell.rail.pinned'
 const DEFAULT_PINS = ['dashboard', 'pipelines', 'agents', 'skills', 'git']
@@ -45,9 +46,10 @@ async function fetchViews(): Promise<ApiView[]> {
 
 async function fetchProject(): Promise<Project | null> {
   try {
-    const resp = await fetch('/api/v1/projects', { credentials: 'same-origin' })
-    if (!resp.ok) return null
-    const body = (await resp.json()) as { projects: Project[]; active?: string }
+    const body = JSON.parse((await ops.project.listProjects({})).json) as {
+      projects: Project[]
+      active?: string
+    }
     return body.projects.find((p) => p.id === body.active) ?? body.projects[0] ?? null
   } catch { return null }
 }

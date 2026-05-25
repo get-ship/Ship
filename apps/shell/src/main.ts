@@ -20,6 +20,7 @@
 
 import { createClient, type ShipSDK } from '@ship/sdk-client'
 import { shipFetch, gitStatus } from '@ship/sdk'
+import { ops } from './ops'
 // Charts pack — single workspace import registers every <sui-*-chart>,
 // <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
 // before the first view mounts. Charts moved out of @ship/ui-components
@@ -976,15 +977,17 @@ void updateStatus()
 // shell-bottom carries the workspace name as a prop.
 async function syncProject(): Promise<void> {
   try {
-    const resp = await fetch('/api/v1/projects/active', { credentials: 'same-origin' })
-    if (!resp.ok) return
-    const body = (await resp.json()) as { active?: { name?: string; label?: string } | null }
-    const name = body.active?.label || body.active?.name || ''
+    const body = JSON.parse((await ops.project.listProjects({})).json) as {
+      projects?: Array<{ id: string; name?: string; label?: string }>
+      active?: string
+    }
+    const proj = body.projects?.find((p) => p.id === body.active) ?? null
+    const name = proj?.label || proj?.name || ''
     if (shellBottom) shellBottom.setAttribute('workspace', name)
     // Provide the active project to the runtime via the HostContext seam so
     // per-project runtime state (e.g. edit-mode keys) scopes correctly —
     // replaces the dead window.__shipProjectId global. See host-context.ts.
-    if (body.active?.name) setHostContext({ projectId: body.active.name })
+    if (proj?.name) setHostContext({ projectId: proj.name })
     // Project identity in the top bar is now owned by <sui-project-switcher>
     // (it fetches + renders the active project itself); nav-top no longer takes
     // a `project` breadcrumb prefix.

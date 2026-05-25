@@ -2,6 +2,7 @@ import { controller, derived, useShared } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-command-chat.sui'
 import { type SessionSummary, type CommandBarScope, navigateTo } from './types'
+import { ops } from '../../ops'
 
 const RECENT_MAX = 20
 
@@ -78,9 +79,10 @@ export default controller({
       s.bar.spawning.set(true)
       s.bar.spawnError.set(null)
       try {
-        const projResp = await fetch('/api/v1/projects/active', { credentials: 'same-origin' })
-        const projBody = projResp.ok ? await projResp.json() as { active?: { id?: string } | null } : null
-        const workspace_id = projBody?.active?.id
+        const workspace_id = await ops.project
+          .activeProject({})
+          .then((r) => r.id)
+          .catch(() => undefined)
         if (!workspace_id) {
           s.bar.spawnError.set('No active project — cannot spawn session.')
           return

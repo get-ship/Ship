@@ -2,6 +2,8 @@
 // drag-pin/unpin state machine. Split from render.ts so each module
 // stays under the 300-line engineering cap.
 
+import { ops } from '../../ops'
+
 export interface ApiView {
   name: string
   type: string
@@ -120,11 +122,8 @@ export async function fetchProjects(url: string): Promise<{ projects: Project[];
  *  project. Returns true on success so the caller can refresh state. */
 export async function switchProject(id: string): Promise<boolean> {
   try {
-    const resp = await fetch(
-      `/api/v1/projects/${encodeURIComponent(id)}/activate`,
-      { method: 'POST', credentials: 'same-origin' },
-    )
-    return resp.ok
+    await ops.project.activate({ id })
+    return true
   } catch { return false }
 }
 

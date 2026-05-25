@@ -1,6 +1,7 @@
 import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
 import type { Signal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-project-switcher.sui'
+import { ops } from '../../ops'
 
 interface Project {
   id: string
@@ -52,9 +53,7 @@ export default controller({
 
     async function loadProjects(): Promise<void> {
       try {
-        const resp = await fetch('/api/v1/projects', { credentials: 'same-origin' })
-        if (!resp.ok) return
-        const body = (await resp.json()) as ProjectsResponse
+        const body = JSON.parse((await ops.project.listProjects({})).json) as ProjectsResponse
         projects.set(body.projects ?? [])
         if (body.active) activeId.set(body.active)
       } catch {
@@ -66,13 +65,10 @@ export default controller({
       internals.menu?.hidePopover?.()
       if (id === activeId()) return
       try {
-        const resp = await fetch(`/api/v1/projects/${encodeURIComponent(id)}/activate`, {
-          method: 'POST',
-          credentials: 'same-origin',
-        })
+        await ops.project.activate({ id })
         // Switching projects swaps the whole workspace; reload into the root so
         // every view re-resolves against the newly-active project.
-        if (resp.ok) location.assign('/')
+        location.assign('/')
       } catch {
         // ignore — daemon unreachable
       }

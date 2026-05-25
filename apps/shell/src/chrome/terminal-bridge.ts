@@ -20,6 +20,8 @@ interface TerminalEl extends HTMLElement {
   terminal?: { cols: number; rows: number } | null
 }
 
+import { ops } from '../ops'
+
 let bridging: Promise<void> | null = null
 let sessionId: string | null = null
 let sse: EventSource | null = null
@@ -44,11 +46,8 @@ async function getActiveWorkspaceId(): Promise<string> {
   // shell still spawns in a sensible place. Pre-fix, a missing active
   // project caused the whole spawn to short-circuit silently.
   try {
-    const r = await fetch('/api/v1/projects/active', { credentials: 'same-origin' })
-    if (r.ok) {
-      const b = await r.json() as { active?: { id?: string } | null }
-      if (b.active?.id) return b.active.id
-    }
+    const id = (await ops.project.activeProject({})).id
+    if (id) return id
   } catch { /* network error → fall through */ }
   return 'default'
 }

@@ -1,6 +1,7 @@
 import { controller, signal } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-setup.sui'
+import { ops } from '../../ops'
 
 const STORAGE_KEY = 'ship-setup-state'
 const TOTAL_STEPS = 6
@@ -76,23 +77,14 @@ async function fetchInstalledProviders(): Promise<string[]> {
 
 async function postProject(name: string, path: string): Promise<{ ok: boolean; error?: string; warning?: string }> {
   try {
-    const res = await fetch('/api/v1/projects', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path, label: name }),
-    })
-    const body = await res.json().catch(() => ({}))
-    if (res.ok) {
-      return { ok: true }
-    }
-    const msg = body?.error?.message ?? body?.message ?? `HTTP ${res.status}`
+    await ops.project.add({ path, name })
+    return { ok: true }
+  } catch (e) {
+    const msg = (e as Error).message ?? 'add failed'
     if (/not a directory|exists/i.test(msg)) {
       return { ok: false, warning: msg }
     }
     return { ok: false, error: msg }
-  } catch (e) {
-    return { ok: false, error: (e as Error).message }
   }
 }
 
