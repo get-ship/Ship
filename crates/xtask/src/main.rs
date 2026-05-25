@@ -239,6 +239,13 @@ fn collect_ship_data_types() -> TypeCollection {
     c.register::<ship_platform::account::types::AccountState>();
     c.register::<ship_platform::account::types::MeView>();
 
+    // artifacts — metadata record (was hand-written in ship-sdk.ts).
+    c.register::<ship_platform::artifacts::ArtifactRecord>();
+
+    // skills — index row. `#[specta(rename = "SkillIndexEntry")]` on the Rust
+    // struct disambiguates it from the other domains' IndexEntry.
+    c.register::<ship_platform::services::skills::state::IndexEntry>();
+
     c
 }
 

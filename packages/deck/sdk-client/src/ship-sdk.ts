@@ -21,38 +21,15 @@
 import type {
   AccountState,
   AgentsSummariesResponse,
+  ArtifactRecord,
   GitDiff,
   GitDiffArgs,
   GitOverview,
+  SkillIndexEntry,
 } from './generated'
 import type { LiveSource } from '@ship/sui-runtime'
 
-/** Artifact metadata record — mirrors the daemon's `ArtifactRecord`. */
-export interface ArtifactRecord {
-  id: string
-  name: string
-  mime: string
-  size: number
-  path: string
-  scope: string
-  project_id?: string | null
-  run_id?: string | null
-  user_id?: string | null
-  content_hash?: string | null
-  expires_at?: string | null
-  owner_actor?: string | null
-  collection_id?: string | null
-  item_id?: string | null
-  created_at: string
-}
-
-/** Minimal skill index row — mirrors the daemon's `IndexEntry`. */
-export interface SkillIndexEntry {
-  id: string
-  scope: 'project' | 'user'
-  name: string
-  description: string
-}
+export type { ArtifactRecord, SkillIndexEntry }
 
 /** Collection field record for view controllers (id+attrs). */
 export interface CollectionFieldRecord {
