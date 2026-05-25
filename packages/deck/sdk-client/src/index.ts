@@ -23,6 +23,7 @@ import {
 } from '@ship/sui-runtime'
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { makeSseSource } from './sse'
+import { liveStream } from './live-stream'
 import { createShipConnectClient } from '@ship/sdk/connect'
 
 // Bind the SUI runtime's host-agnostic `ShipHost` slot to the concrete
@@ -111,16 +112,37 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     id: (await p).id,
   })
 
-  // Build the `/_sui/data?expr=...` SSE URL for a single op call. The
-  // daemon parses the expr as `ship.<domain>.<op>(<json>?)`. Args are
-  // emitted as a JSON object literal when present.
+  // Live reads stream over the per-domain Connect `<Op>Live` rpcs (#138):
+  // `ship.<domain>.<op>()` opens `ops.<domain>.<op>Live` and flips the signal on
+  // each full-value frame — real typed RPC on the wire, no expr string, no SSE
+  // eval. The (domain, op) → client-method lookup is the one internal bridge;
+  // the `ShipSDK` interface keeps every caller fully typed. Snake_case args are
+  // camelCased to match the generated message fields.
+  type LiveMethod = (req: unknown, opts: { signal: AbortSignal }) => AsyncIterable<{ json: string }>
+  const camelKeys = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(camelKeys)
+    if (v && typeof v === 'object') {
+      return Object.fromEntries(
+        Object.entries(v as Record<string, unknown>).map(([k, val]) => [
+          k.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()),
+          camelKeys(val),
+        ]),
+      )
+    }
+    return v
+  }
   const sse = <T>(domain: string, op: string, args?: unknown): LiveSource<T> => {
-    const argsLit = args === undefined ? '' : JSON.stringify(args)
-    const expr = `ship.${domain}.${op}(${argsLit})`
-    return makeSseSource<T>(
-      `${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`,
-      ESCtor,
-    )
+    const method = op.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()) + 'Live'
+    const svc = (connect as unknown as Record<string, Record<string, LiveMethod>>)[domain]
+    const fn = svc?.[method]
+    // mesh + canvas have no per-domain Connect service yet (operational / canvas
+    // #99 in-flux) — those alone fall back to the legacy expr-SSE channel.
+    if (typeof fn !== 'function') {
+      const argsLit = args === undefined ? '' : JSON.stringify(args)
+      const expr = `ship.${domain}.${op}(${argsLit})`
+      return makeSseSource<T>(`${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`, ESCtor)
+    }
+    return liveStream<T>((signal) => fn(camelKeys(args ?? {}), { signal }))
   }
 
   // Curried HTTP helpers — bind baseUrl once so the per-op factories
