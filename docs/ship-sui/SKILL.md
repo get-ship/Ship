@@ -9,7 +9,9 @@ audience: agent-only
 
 # Ship SUI
 
-SUI is the template format every Ship view and built-in component is authored in. A `.sui` file is a declarative template; an optional sibling `controller.ts` owns reactive state, lifecycle, and async I/O. The compiler in `crates/sui/compiler/` turns the pair into an ESM module that imports from `@ship/sui-runtime` (`packages/sui/runtime/`) — there is no parser at runtime. The view-host — `crates/deck/deck-core/` (transport-agnostic core), bound to HTTP by `crates/deck/deck-axum/` — resolves a route, serves the compiled module, attaches a static SSR snapshot, and hydrates client-side via `attach()`.
+SUI is the template format every Ship view and built-in component is authored in. A `.sui` file is a declarative template; an optional sibling `controller.ts` owns reactive state, lifecycle, and async I/O. The compiler in `crates/sui/compiler/` turns the pair into an ESM module that imports from `@ship/sui-runtime` (`packages/sui/runtime/`) — there is no parser at runtime. The view-host — `crates/deck/deck-core/` (transport-agnostic core), bound to HTTP by `crates/deck/deck-axum/` — resolves a route, serves the compiled module + a static SSR snapshot, and hydrates client-side by calling `mount(target, payload, { ship })`. That `mount` call injects a real `ship` SDK client into controller ctx (`crates/deck/deck-core/assets/view-host.html`), so daemon-served views get the same client the shell provides.
+
+**The boundary (read this).** SUI : Deck : Ship is analogous to React : Next : your app. **SUI** (`crates/sui/*`, `packages/sui/*`) is the framework — compiler + runtime + reactivity — and must know nothing about Ship's daemon or its URLs. **Deck** (`crates/deck/*`, `packages/deck/*`) is the host/meta-framework that mounts SUI views, does SSR/routing, serves assets, and supplies the data-source client. **Ship** (`apps/shipd`, `crates/core`) is the app: the daemon, the domains, the data. Dependencies point one way only: deck → sui, ship → deck; the compiler depends on nothing downstream.
 
 > The body below is the on-ramp — enough to author a first component / view in 30 minutes. For deep dives see `references/`.
 
@@ -17,9 +19,9 @@ SUI is the template format every Ship view and built-in component is authored in
 
 | Layer | Owns | Entry |
 |---|---|---|
-| Compiler | Parse → check → lower → emit (`.js`, `.css`, `.sui.d.ts`, `.sui.meta.json`, `.ssr.html`) | `crates/sui/compiler/src/lib.rs:185` (`compile(src, opts) -> CompileOutput`) |
-| Runtime | Reactive primitives, DOM bindings, control flow, transitions, error-boundary, portal, morph, `mount()` / `attach()` | `packages/sui/runtime/src/index.ts` |
-| Daemon view-host | Route → manifest → compiled JS + SSR HTML → CSS + assets → live data SSE | `crates/deck/deck-core/src/{view,view_host,resolver}.rs` (core) + `crates/deck/deck-axum/src/handlers.rs` (HTTP adapter) + `apps/shipd/src/views/sui_*.rs` |
+| Compiler (SUI) | Parse → check → lower → emit (`.js`, `.css`, `.sui.d.ts`, `.sui.meta.json`, `.ssr.html`). Pure transform — no Ship/deck knowledge. | `crates/sui/compiler/src/lib.rs:185` (`compile(src, opts) -> CompileOutput`) |
+| Runtime (SUI) | Reactive primitives, DOM bindings, control flow, transitions, error-boundary, portal, morph, `mount()` / `attach()` | `packages/sui/runtime/src/index.ts` |
+| View-host (Deck) | Route → manifest → compiled JS + SSR HTML → CSS + assets → live data SSE; injects the `ship` client at mount | `crates/deck/deck-core/src/{view,view_host,resolver}.rs` (core) + `crates/deck/deck-axum/src/handlers.rs` (HTTP adapter) + `apps/shipd/src/views/sui_*.rs` (Ship wiring) |
 | Authoring | `.sui` + optional `.controller.ts` + `style.css` + `manifest.jsonc` (views only) | `views/<name>/`, `packages/components/ui-components/src/<tag>/`, `.ship/views/<name>/` (project-local) |
 
 Detail: `references/4-layer-overview.md`.
@@ -141,7 +143,7 @@ The file IS the view / component — no `<component>` wrapper, no `<script>` blo
 
 ## Live data — `<data live>`
 
-`<data name="x" source="ship.<domain>.<op>(args)" live />` opens an SSE channel at `/_sui/data?expr=…` against the daemon (`apps/shipd/src/views/sui_data.rs`). The signal flips `loading → ok → ok` as patches arrive; `bindWhileLoading` / `bindWhileError` / `{#if x().kind === 'ok'}` cover the three states. The SDK in `packages/deck/sdk-client/src/index.ts` is the only place that constructs SSE — never hand-roll `EventSource` in a controller.
+`<data name="x" source="ship.<domain>.<op>(args)" live />` opens an SSE channel at `/_sui/data?expr=…` against the daemon (`apps/shipd/src/views/sui_data.rs`). The signal flips `loading → ok → ok` as patches arrive; `bindWhileLoading` / `bindWhileError` / `{#if x().kind === 'ok'}` cover the three states. The SDK in `packages/deck/sdk-client/src/index.ts` is the only sanctioned place that constructs SSE — never hand-roll `EventSource` in a controller, and never reach the wire by raw expression string (the `liveExpr` escape hatch is being removed; use the typed `ship.<domain>.<op>()` client).
 
 Worked end-to-end loop (wire path, registry, signal-backed sources, local verification): `references/runtime-primitives.md` § Live SSE data.
 
@@ -152,9 +154,9 @@ Worked end-to-end loop (wire path, registry, signal-backed sources, local verifi
 - **Response types** live in `packages/sui/runtime/src/generated.ts`, emitted by `cargo xtask gen-types` from Rust source — do not edit by hand.
 - **The client method surface** (the `ship.<domain>.<op>` object) is a **hand-maintained object literal** in `packages/deck/sdk-client/src/index.ts`. It is NOT generated. Domains present today: `account`, `agents`, `artifacts`, `canvas`, `chat`, `collections`, `dashboard`, `events`, `git`, `settings`, `sessions`, `skills`, `workspaces`.
 
-**Known gap (the source of `liveExpr`):** because the client surface is hand-written, daemon ops can exist on the wire while being absent from the client — `ship.pipelines.*` is served by the daemon but is not in the client, so the call form throws. The fix in flight is a generated client; until it lands, a missing surface is a real gap, not an invitation to hand-roll SSE.
+**Known gap (the source of `liveExpr`):** because the client surface is hand-written, daemon ops can exist on the wire while being absent from the client — `ship.pipelines.*` is served by the daemon but is **not** in the client, so the call form throws. The fix in flight is a generated client; until it lands, a missing surface is a real gap, not an invitation to hand-roll SSE.
 
-**Known gap:** `ship.skills.invoke()` is wired in the SDK (`packages/deck/sdk-client/src/index.ts`, the `skills.invoke` op) but the daemon route may reject with `{ code: 'not_implemented', op: 'skills.invoke' }`. Callers must handle the `not_implemented` code as a first-class state.
+**Known gap:** `ship.skills.invoke()` is wired in the SDK but the daemon route may reject with `{ code: 'not_implemented', op: 'skills.invoke' }`. Callers must handle the `not_implemented` code as a first-class state.
 
 Mutations are HTTP POST/DELETE through the same client (e.g. `ship.sessions.start({...})`, `ship.workspaces.activate({...})`); use `<form mutation="…">` for the declarative path.
 
