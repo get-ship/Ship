@@ -57,9 +57,6 @@ impl Modify for SecurityAndServer {
         crate::project_api::emit_event,
         crate::project_api::jobs_status::update_job_status,
         crate::project_api::jobs_status::step_done,
-        crate::routes::settings_api::list_settings,
-        crate::routes::settings_api::update_setting,
-        crate::routes::settings_api::get_setting,
         crate::routes::settings_api::list_harnesses,
         // Framework surface added in the ship-set-architecture arc.
         crate::services::schema::serve_schema,
@@ -109,7 +106,6 @@ impl Modify for SecurityAndServer {
         crate::project_api::EmitEventReq,
         crate::project_api::RunStatusReq,
         crate::project_api::StepDoneReq,
-        crate::routes::settings_api::SettingsUpdateReq,
         crate::routes::settings_api::ProviderStatus,
         crate::services::chat::send::ChatSendRequest,
         crate::views::source_api::ViewSourceResponse,

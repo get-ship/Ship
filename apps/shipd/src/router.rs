@@ -520,9 +520,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::RebuildProjections, runtime_api::rebuild_projections)
         .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
         // Settings
-        .ship_route(Route::ListSettings, settings_api::list_settings)
-        .ship_route(Route::UpdateSetting, settings_api::update_setting)
-        .ship_route(Route::GetSetting_template(), settings_api::get_setting)
         .ship_route(Route::ListProviders, settings_api::list_harnesses)
         // Project
         .ship_route(Route::ListSessionFiles_template(), project_api::list_session_files)

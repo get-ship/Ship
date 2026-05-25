@@ -531,18 +531,6 @@ pub enum Route {
 
     // ── Settings / harnesses ─────────────────────────────────────────────
 
-    /// @route GET "/api/v1/settings"
-    /// @auth scope ReadWorkspace
-    ListSettings,
-
-    /// @route PUT "/api/v1/settings"
-    /// @auth scope AdminDaemon
-    UpdateSetting,
-
-    /// @route GET "/api/v1/settings/{key}"
-    /// @auth scope ReadWorkspace
-    GetSetting { key: String },
-
     /// @route GET "/api/v1/harnesses"
     /// @auth scope ReadWorkspace
     ListProviders,
