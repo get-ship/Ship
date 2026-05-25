@@ -317,6 +317,8 @@ blast-radius × caller × grant. See [The op surface](/architecture/op-surface/)
 - [Kernel](/architecture/kernel/) — routing contract, limitations, future work.
 - [Harness Outputs](/compiler/harnesses/) — what the compiler writes per harness.
 - [Daemon authentication model](/architecture/auth-model/) — tokens and session scopes.
+- [Agent access model](/architecture/agent-access/) — skills, capabilities, and the
+  unspoofable host socket (peer-cred identity + per-OS compat matrix).
 
 {% internal %}
 ## Services inside the daemon
