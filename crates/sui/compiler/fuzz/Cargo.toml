@@ -39,3 +39,6 @@ path = "fuzz_targets/bindings_build.rs"
 test = false
 doc = false
 bench = false
+
+[lints]
+workspace = true

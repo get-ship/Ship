@@ -1,0 +1,89 @@
+// `collections.*` data-plane ops as a hand-authored per-domain proto-SSOT
+// service (#89), mounted ADDITIVELY beside the generated ReadOps/CommandOps
+// until the GUI flip (#72). Distinct request-message names avoid colliding with
+// the generated CollectionsCreateItemRequest et al. in this same ship.ops.v1
+// package; return types reuse the shared shapes in types.proto (CollectionItem,
+// Deletion). Schema writes + all reads carry an opaque JSON payload, so they
+// stay JsonResponse — the same open-payload line as the generated surface.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/types.proto";
+// JsonResponse lives in ops.proto (the base service file), not types.proto.
+import "ship/ops/v1/ops.proto";
+
+message GetCollectionsStateRequest {
+  string active = 1;
+}
+message ListCollectionsRequest {}
+message GetCollectionDetailRequest {
+  string id = 1;
+}
+message GetCollectionItemsRequest {
+  string collection = 1;
+}
+
+message CreateCollectionItemRequest {
+  string collection = 1;
+  string data_json = 2;
+  string id = 3;
+}
+message UpdateCollectionItemRequest {
+  string collection = 1;
+  string id = 2;
+  string data_json = 3;
+}
+message DeleteCollectionItemRequest {
+  string collection = 1;
+  string id = 2;
+}
+message CreateCollectionSchemaRequest {
+  string schema_json = 1;
+}
+message UpdateCollectionSchemaRequest {
+  string collection = 1;
+  string schema_json = 2;
+}
+
+// Collection schemas + items (the data plane). Reads are C0; writes are C1
+// workspace mutations gated through the one gate (services::command::call).
+service CollectionsService {
+  rpc State(GetCollectionsStateRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc List(ListCollectionsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Detail(GetCollectionDetailRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Items(GetCollectionItemsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc CreateItem(CreateCollectionItemRequest) returns (CollectionItem) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc UpdateItem(UpdateCollectionItemRequest) returns (CollectionItem) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc DeleteItem(DeleteCollectionItemRequest) returns (Deletion) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc CreateSchema(CreateCollectionSchemaRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc UpdateSchema(UpdateCollectionSchemaRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+}

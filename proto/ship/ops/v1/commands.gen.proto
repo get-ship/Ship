@@ -8,6 +8,7 @@ package ship.ops.v1;
 
 import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/ops.proto";
+import "ship/ops/v1/types.proto";
 
 service CommandOpsService {
   rpc PipelineUpdateStatus(PipelineUpdateStatusRequest) returns (JsonResponse) {
@@ -16,6 +17,174 @@ service CommandOpsService {
   }
   rpc PipelineStepDone(PipelineStepDoneRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc RulesCreate(RulesCreateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.rules.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc RulesPut(RulesPutRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.rules.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc RulesDelete(RulesDeleteRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.rules.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc McpCreate(McpCreateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.mcp.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc McpPut(McpPutRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.mcp.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc McpPatch(McpPatchRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.mcp.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc McpDelete(McpDeleteRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.mcp.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc PermissionsCreate(PermissionsCreateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.permissions.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc PermissionsPut(PermissionsPutRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.permissions.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc PermissionsPatch(PermissionsPatchRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.permissions.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc PermissionsDelete(PermissionsDeleteRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.permissions.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc ArtifactsPatch(ArtifactsPatchRequest) returns (ArtifactRecord) {
+    option (ship.ops.v1.capability) = "ship.artifacts.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc ArtifactsPromote(ArtifactsPromoteRequest) returns (ArtifactRecord) {
+    option (ship.ops.v1.capability) = "ship.artifacts.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc ArtifactsDelete(ArtifactsDeleteRequest) returns (Deletion) {
+    option (ship.ops.v1.capability) = "ship.artifacts.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc CollectionsCreateItem(CollectionsCreateItemRequest) returns (CollectionItem) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc CollectionsUpdateItem(CollectionsUpdateItemRequest) returns (CollectionItem) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc CollectionsDeleteItem(CollectionsDeleteItemRequest) returns (Deletion) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc CollectionsCreateSchema(CollectionsCreateSchemaRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc CollectionsUpdateSchema(CollectionsUpdateSchemaRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsCreate(SkillsCreateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsDelete(SkillsDeleteRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsRename(SkillsRenameRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsDuplicate(SkillsDuplicateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsWriteFrontmatter(SkillsWriteFrontmatterRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsWriteBody(SkillsWriteBodyRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsMoveScope(SkillsMoveScopeRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsWriteFile(SkillsWriteFileRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsDeleteFile(SkillsDeleteFileRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsSetVar(SkillsSetVarRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SkillsDeleteVar(SkillsDeleteVarRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsCreate(AgentsCreateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsPut(AgentsPutRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsPatch(AgentsPatchRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsDelete(AgentsDeleteRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsRename(AgentsRenameRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsDuplicate(AgentsDuplicateRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AgentsMoveScope(AgentsMoveScopeRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc PipelinesPut(PipelinesPutRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.pipelines.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc PipelinesPatch(PipelinesPatchRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.pipelines.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc PipelinesDelete(PipelinesDeleteRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.pipelines.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SettingsSet(SettingsSetRequest) returns (SettingValue) {
+    option (ship.ops.v1.capability) = "ship.settings.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc ProjectAdd(ProjectAddRequest) returns (ProjectRecord) {
+    option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc ProjectActivate(ProjectActivateRequest) returns (JsonResponse) {
@@ -27,6 +196,10 @@ service CommandOpsService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc MeshBroadcast(MeshBroadcastRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.mesh.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc MeshStatus(MeshStatusRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.mesh.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
@@ -54,8 +227,32 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.git.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc GitCheckout(GitCheckoutRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc GitBranchCreate(GitBranchCreateRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc GitBranchDelete(GitBranchDeleteRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc GitInit(GitInitRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc AgentStop(AgentStopRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc ActorInput(ActorInputRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.actor.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc ActorKillTree(ActorKillTreeRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.actor.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc AgentGrant(AgentGrantRequest) returns (JsonResponse) {
@@ -124,6 +321,248 @@ message PipelineStepDoneRequest {
   map<string, string> outputs = 3;
 }
 
+message RulesCreateRequest {
+  string id = 1;
+  string content = 2;
+  string scope = 3;
+}
+
+message RulesPutRequest {
+  string id = 1;
+  string content = 2;
+  string scope = 3;
+}
+
+message RulesDeleteRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message McpCreateRequest {
+  string id = 1;
+  string server_json = 2;
+  string scope = 3;
+}
+
+message McpPutRequest {
+  string id = 1;
+  string server_json = 2;
+  string scope = 3;
+}
+
+message McpPatchRequest {
+  string id = 1;
+  string patch_json = 2;
+  string scope = 3;
+}
+
+message McpDeleteRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message PermissionsCreateRequest {
+  string id = 1;
+  string preset_json = 2;
+  string scope = 3;
+}
+
+message PermissionsPutRequest {
+  string id = 1;
+  string preset_json = 2;
+  string scope = 3;
+}
+
+message PermissionsPatchRequest {
+  string id = 1;
+  string patch_json = 2;
+  string scope = 3;
+}
+
+message PermissionsDeleteRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message ArtifactsPatchRequest {
+  string id = 1;
+  string name = 2;
+  string owner_actor = 3;
+  string expires_at = 4;
+}
+
+message ArtifactsPromoteRequest {
+  string id = 1;
+  string target_scope = 2;
+  string run_id = 3;
+  string user_id = 4;
+}
+
+message ArtifactsDeleteRequest {
+  string id = 1;
+}
+
+message CollectionsCreateItemRequest {
+  string collection = 1;
+  string data_json = 2;
+  string id = 3;
+}
+
+message CollectionsUpdateItemRequest {
+  string collection = 1;
+  string id = 2;
+  string data_json = 3;
+}
+
+message CollectionsDeleteItemRequest {
+  string collection = 1;
+  string id = 2;
+}
+
+message CollectionsCreateSchemaRequest {
+  string schema_json = 1;
+}
+
+message CollectionsUpdateSchemaRequest {
+  string collection = 1;
+  string schema_json = 2;
+}
+
+message SkillsCreateRequest {
+  string id = 1;
+  string scope = 2;
+  string frontmatter_json = 3;
+  string body = 4;
+}
+
+message SkillsDeleteRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message SkillsRenameRequest {
+  string id = 1;
+  string new_id = 2;
+  string scope = 3;
+}
+
+message SkillsDuplicateRequest {
+  string id = 1;
+  string new_id = 2;
+  string scope = 3;
+}
+
+message SkillsWriteFrontmatterRequest {
+  string id = 1;
+  string frontmatter_json = 2;
+  string scope = 3;
+}
+
+message SkillsWriteBodyRequest {
+  string id = 1;
+  string body = 2;
+  string scope = 3;
+}
+
+message SkillsMoveScopeRequest {
+  string id = 1;
+  string from = 2;
+  string to = 3;
+}
+
+message SkillsWriteFileRequest {
+  string id = 1;
+  string path = 2;
+  string content = 3;
+  string scope = 4;
+}
+
+message SkillsDeleteFileRequest {
+  string id = 1;
+  string path = 2;
+  string scope = 3;
+}
+
+message SkillsSetVarRequest {
+  string id = 1;
+  string key = 2;
+  string value_json = 3;
+}
+
+message SkillsDeleteVarRequest {
+  string id = 1;
+  string key = 2;
+}
+
+message AgentsCreateRequest {
+  string id = 1;
+  string doc_json = 2;
+  string scope = 3;
+}
+
+message AgentsPutRequest {
+  string id = 1;
+  string doc_json = 2;
+  string scope = 3;
+}
+
+message AgentsPatchRequest {
+  string id = 1;
+  string patch_json = 2;
+  string scope = 3;
+}
+
+message AgentsDeleteRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message AgentsRenameRequest {
+  string id = 1;
+  string new_id = 2;
+  string scope = 3;
+}
+
+message AgentsDuplicateRequest {
+  string id = 1;
+  string new_id = 2;
+  string scope = 3;
+  string to = 4;
+}
+
+message AgentsMoveScopeRequest {
+  string id = 1;
+  string from = 2;
+  string to = 3;
+}
+
+message PipelinesPutRequest {
+  string name = 1;
+  string doc_json = 2;
+  string scope = 3;
+}
+
+message PipelinesPatchRequest {
+  string name = 1;
+  string patch_json = 2;
+  string scope = 3;
+}
+
+message PipelinesDeleteRequest {
+  string name = 1;
+  string scope = 2;
+}
+
+message SettingsSetRequest {
+  string key = 1;
+  string value_json = 2;
+}
+
+message ProjectAddRequest {
+  string path = 1;
+  string name = 2;
+}
+
 message ProjectActivateRequest {
   string id = 1;
 }
@@ -138,6 +577,11 @@ message MeshBroadcastRequest {
   string from = 1;
   string body_json = 2;
   string capability_filter = 3;
+}
+
+message MeshStatusRequest {
+  string agent_id = 1;
+  string status = 2;
 }
 
 message GitPushRequest {
@@ -172,8 +616,38 @@ message GitCommitRequest {
   string author = 3;
 }
 
+message GitCheckoutRequest {
+  string workspace_id = 1;
+  string refname = 2;
+}
+
+message GitBranchCreateRequest {
+  string workspace_id = 1;
+  string name = 2;
+  optional bool checkout = 3;
+}
+
+message GitBranchDeleteRequest {
+  string workspace_id = 1;
+  string name = 2;
+  optional bool force = 3;
+}
+
+message GitInitRequest {
+  string workspace_id = 1;
+}
+
 message AgentStopRequest {
   string slug = 1;
+}
+
+message ActorInputRequest {
+  string actor_id = 1;
+  string text = 2;
+}
+
+message ActorKillTreeRequest {
+  string actor_id = 1;
 }
 
 message AgentGrantRequest {

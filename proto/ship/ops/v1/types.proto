@@ -1,0 +1,459 @@
+// Hand-authored typed response messages for the command surface.
+//
+// The proto-canonical contract: commands that have settled on a stable return
+// shape name a message here via `CommandDescriptor.response_type`, and
+// `cargo xtask gen-ops` emits `returns (<Message>)` for that rpc instead of the
+// legacy `JsonResponse` blob. The impl maps the command's `serde_json::Value`
+// onto the message with `serde_json::from_value` — buffa messages derive serde
+// (camelCase rename + snake_case alias) and ignore unknown fields, so the
+// command's existing JSON return decodes without hand-mapping.
+//
+// Add a message here, set the descriptor's `response_type`, re-run gen-ops.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+// Result of a scope-resolving config mutation (rules / mcp / permissions /
+// collections CRUD): the entity's id and the scope it resolved to
+// ("Project" | "User"). One shared shape — these commands all answer the same
+// question ("which id, which scope?"), so they share one typed return.
+message ScopedMutation {
+  string id = 1;
+  string scope = 2;
+}
+
+// Result of a delete-by-id command. `deleted` is false when the id resolved to
+// nothing (idempotent delete). Shared by any command whose service returns a
+// bool deletion result (artifacts, collection items, …).
+message Deletion {
+  string id = 1;
+  bool deleted = 2;
+}
+
+// An artifact's metadata record — the typed return of artifacts.patch /
+// .promote (the byte-moving store/get stay on serving routes). Mirrors
+// `ship_platform::artifacts::ArtifactRecord`; snake-case JSON decodes via the
+// generated field aliases.
+message ArtifactRecord {
+  string id = 1;
+  string name = 2;
+  string mime = 3;
+  uint64 size = 4;
+  string path = 5;
+  string scope = 6;
+  optional string project_id = 7;
+  optional string run_id = 8;
+  optional string user_id = 9;
+  optional string content_hash = 10;
+  optional string expires_at = 11;
+  optional string owner_actor = 12;
+  optional string collection_id = 13;
+  optional string item_id = 14;
+  string created_at = 15;
+}
+
+// ── Read return types (mirror the platform wire structs) ──────────────
+
+// One entry in a scope-resolving index (the `*.list` reads). Shared shape —
+// every service's `IndexEntry` is {id, scope}, like ScopedMutation.
+message IndexEntry {
+  string id = 1;
+  string scope = 2;
+}
+
+// Wire shape of rules.list.
+message RulesIndexResponse {
+  repeated IndexEntry items = 1;
+}
+
+// Wire shape of rules.get — raw rule body at the resolved scope.
+message RuleGetResponse {
+  string id = 1;
+  string scope = 2;
+  string body = 3;
+}
+
+// Wire shape of mcp.list / permissions.list (both → IndexEntry items). The
+// matching *.get reads return an embedded opaque config Value (entry), so they
+// stay JsonResponse — same open-payload line as the command surface.
+message McpIndexResponse {
+  repeated IndexEntry items = 1;
+}
+message PermissionsIndexResponse {
+  repeated IndexEntry items = 1;
+}
+
+// One autocomplete entry from permissions.tool_patterns.
+message ToolPattern {
+  string pattern = 1;
+  string label = 2;
+  string source = 3;
+}
+message ToolPatternsResponse {
+  repeated ToolPattern patterns = 1;
+}
+
+// skills.list / pipelines.list — IndexEntry items (like rules/mcp).
+message SkillsIndexResponse {
+  repeated IndexEntry items = 1;
+}
+message PipelinesIndexResponse {
+  repeated IndexEntry items = 1;
+}
+
+// skills.file — HTML-escaped file content (all scalar).
+message SkillFileResponse {
+  string path = 1;
+  string name = 2;
+  string ext = 3;
+  string content = 4;
+}
+
+// workspaces.active — the active project id (None when unset).
+message WorkspaceActiveResponse {
+  optional string id = 1;
+}
+
+// artifacts.list — a page of artifact records (reuses ArtifactRecord).
+message ArtifactsListResponse {
+  repeated ArtifactRecord items = 1;
+  uint64 count = 2;
+  string scope = 3;
+}
+
+// ── git reads (all fully structured — no embedded Value) ──────────────
+
+message CommitSummary {
+  string sha = 1;
+  string short_sha = 2;
+  string author = 3;
+  string date = 4;
+  string subject = 5;
+  uint64 additions = 6;
+  uint64 deletions = 7;
+}
+message StatusFile {
+  string path = 1;
+  string basename = 2;
+  string status = 3;
+  string tone = 4;
+  string label = 5;
+}
+message BranchSummary {
+  string name = 1;
+  bool active = 2;
+  optional string upstream = 3;
+  uint64 ahead = 4;
+  uint64 behind = 5;
+}
+message DiffLine {
+  string kind = 1;
+  string content = 2;
+  optional uint32 old_num = 3;
+  optional uint32 new_num = 4;
+}
+message DiffHunk {
+  string header = 1;
+  repeated DiffLine lines = 2;
+}
+message DiffFileView {
+  string path = 1;
+  uint32 additions = 2;
+  uint32 deletions = 3;
+  repeated DiffHunk hunks = 4;
+}
+message ParsedDiff {
+  repeated DiffFileView files = 1;
+  uint32 total_additions = 2;
+  uint32 total_deletions = 3;
+}
+// git.status — working tree bucketed.
+message StatusBuckets {
+  bool clean = 1;
+  uint64 total = 2;
+  repeated StatusFile staged = 3;
+  repeated StatusFile modified = 4;
+  repeated StatusFile untracked = 5;
+}
+// git.log
+message GitLogResponse {
+  repeated CommitSummary commits = 1;
+}
+// git.branches
+message GitBranchesResponse {
+  repeated BranchSummary branches = 1;
+  uint64 ahead = 2;
+  uint64 behind = 3;
+}
+// git.overview — one-call default route payload.
+message GitOverviewResponse {
+  optional string workspace_id = 1;
+  optional string branch = 2;
+  optional string head_short = 3;
+  bool clean = 4;
+  uint64 total_changed = 5;
+  repeated StatusFile staged = 6;
+  repeated StatusFile modified = 7;
+  repeated StatusFile untracked = 8;
+  repeated CommitSummary commits = 9;
+  repeated BranchSummary branches = 10;
+  uint64 ahead = 11;
+  uint64 behind = 12;
+}
+// git.diff
+message GitDiffResponse {
+  string sha = 1;
+  string short_sha = 2;
+  bool is_working = 3;
+  string diff_text = 4;
+  ParsedDiff parsed = 5;
+}
+
+// ── sessions / chat / events / specs / actors / agents index ─────────
+
+// sessions.list — PTY/agent session metadata (enums + timestamps as strings).
+message SessionMeta {
+  string id = 1;
+  string kind = 2;
+  string workspace_id = 3;
+  optional string agent_id = 4;
+  optional string harness = 5;
+  optional uint32 pid = 6;
+  string status = 7;
+  string log_path = 8;
+  string spawned_at = 9;
+  string last_activity = 10;
+  optional int32 exit_code = 11;
+  optional string harness_session_id = 12;
+}
+message SessionsListResponse {
+  repeated SessionMeta items = 1;
+}
+
+// chat.state
+message ChatMessage {
+  string id = 1;
+  string sender = 2;
+  string content = 3;
+  optional string detail = 4;
+  string timestamp = 5;
+  string event_type = 6;
+  string workspace_id = 7;
+}
+message ChatStateResponse {
+  string workspace_id = 1;
+  repeated ChatMessage messages = 2;
+  uint64 total = 3;
+}
+
+// events.list
+message EventRow {
+  string id = 1;
+  string event_type = 2;
+  string entity_id = 3;
+  string actor = 4;
+  string workspace_id = 5;
+  string session_id = 6;
+  string timestamp = 7;
+  string payload_pretty = 8;
+}
+message EntityGroup {
+  string entity_id = 1;
+  uint64 count = 2;
+  bool collapsed = 3;
+  repeated EventRow rows = 4;
+}
+message EventsListResponse {
+  repeated EntityGroup groups = 1;
+  repeated string types = 2;
+  repeated string actors = 3;
+}
+
+// specs.list / specs.get
+message Spec {
+  string id = 1;
+  string title = 2;
+  string body_path = 3;
+  string status = 4;
+  optional string pipeline = 5;
+  optional string agent = 6;
+  map<string, string> vars = 7;
+  repeated string criteria = 8;
+  repeated string scope = 9;
+  optional uint32 priority = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+message SpecsListResponse {
+  repeated Spec items = 1;
+}
+message SpecGetResponse {
+  Spec spec = 1;
+  string body = 2;
+}
+
+// actors.list — kernel actor projection rows.
+message ActorRow {
+  string id = 1;
+  string kind = 2;
+  string status = 3;
+  optional string workspace_id = 4;
+  optional string project_id = 5;
+  optional string cwd = 6;
+  optional string agent_id = 7;
+  optional string harness = 8;
+  optional string model = 9;
+  optional string transport = 10;
+  optional string persistence = 11;
+  optional string harness_session_id = 12;
+  optional string system_prompt_hash = 13;
+  optional int64 pid = 14;
+  repeated string capabilities = 15;
+  optional string parent_actor_id = 16;
+  int64 restart_count = 17;
+  optional int64 exit_code = 18;
+  optional string exit_reason = 19;
+  optional int64 duration_ms = 20;
+  string created_at = 21;
+  string updated_at = 22;
+  optional string last_event_at = 23;
+  bool live = 24;
+}
+message ActorsListResponse {
+  repeated ActorRow items = 1;
+}
+
+// agents.list — IndexEntry items (like skills/rules).
+message AgentIndexResponse {
+  repeated IndexEntry items = 1;
+}
+
+// ── agent catalogs + summaries (create-wizard + rail) ────────────────
+
+message AgentTemplate {
+  string id = 1;
+  string label = 2;
+  string description = 3;
+  string letter = 4;
+  string hue = 5;
+  repeated string skill_ids = 6;
+  string permission_preset = 7;
+}
+message AgentTemplatesResponse {
+  repeated AgentTemplate items = 1;
+}
+message PermissionPreset {
+  string id = 1;
+  string label = 2;
+  string description = 3;
+}
+message PermissionPresetsResponse {
+  repeated PermissionPreset items = 1;
+}
+// agents.harnesses — known harness ids.
+message HarnessesResponse {
+  repeated string items = 1;
+}
+message AgentSummary {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  uint64 skills_count = 4;
+  uint64 mcp_count = 5;
+  uint64 rules_count = 6;
+  string letter = 7;
+  string source = 8;
+  repeated string tags = 9;
+  bool active = 10;
+}
+message AgentsSummariesResponse {
+  repeated AgentSummary items = 1;
+}
+
+// ── detail-view reads (agents.detail / specs.detail) ─────────────────
+
+message AgentPermissions {
+  string preset = 1;
+  repeated string tools_allow = 2;
+  repeated string tools_ask = 3;
+  repeated string tools_deny = 4;
+}
+message AgentDetail {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string letter = 4;
+  optional string icon = 5;
+  optional string version = 6;
+  repeated string tags = 7;
+  repeated string skills = 8;
+  repeated string mcp_servers = 9;
+  repeated string rules = 10;
+  string inline_rules = 11;
+  string permissions_tier = 12;
+  AgentPermissions permissions = 13;
+  string source = 14;
+}
+message AcceptanceItem {
+  string text = 1;
+  bool done = 2;
+}
+message SpecDetail {
+  string id = 1;
+  string title = 2;
+  string body = 3;
+  string status = 4;
+  string status_label = 5;
+  optional string pipeline = 6;
+  string pipeline_label = 7;
+  string agent = 8;
+  string agent_id = 9;
+  string vars_display = 10;
+  string branch = 11;
+  string tone = 12;
+  string goal_md = 13;
+  string scope_md = 14;
+  string linked_md = 15;
+  repeated AcceptanceItem acceptance = 16;
+  string other_md = 17;
+  string launch_label = 18;
+  string launch_hint = 19;
+  string title_js = 20;
+  string body_js = 21;
+  string pipeline_js = 22;
+}
+
+// A registered project — the typed return of project.add. Mirrors
+// `ship_platform::projects::ProjectRecord`.
+message ProjectRecord {
+  string id = 1;
+  string path = 2;
+  string name = 3;
+  string created_at = 4;
+  string last_seen_at = 5;
+}
+
+// The typed return of settings.set: the key and its new value (serialized
+// JSON, since a setting value is arbitrary). Mirrors the route's echo.
+message SettingValue {
+  string key = 1;
+  string value_json = 2;
+}
+
+// A collection item — the typed return of collections.create_item /
+// .update_item. The envelope (id/collection/timestamps) is typed; `data_json`
+// carries the user's schema-defined payload as serialized JSON. Proto Struct
+// would model `data` as a native object, but it pulls the `buffa-types` crate
+// (a fragile version match against connectrpc's transitive buffa — see
+// ship-ops-rpc/Cargo.toml), so we use the JSON-string convention already in use
+// for open payloads (server_json / patch_json / value_json). The consumer
+// parses one field against its own runtime schema — which it must do anyway,
+// since collection data is schema-dynamic. Mirrors `…::collections::store::Item`.
+message CollectionItem {
+  string id = 1;
+  string collection = 2;
+  string data_json = 3;
+  optional string created_by = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}

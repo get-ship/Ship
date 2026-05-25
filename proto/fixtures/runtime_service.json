@@ -1,0 +1,21 @@
+{
+  "ListProcs": {
+    "response_ok": {
+      "processes": [
+        {
+          "pid": 12345,
+          "slug": "checkout-flow-a1b2c3d",
+          "pipeline_run_id": "job-checkout-flow-a1b2c3d",
+          "step_id": "implement",
+          "cmd": "claude-code --agent rust-lane",
+          "executor_kind": "agent",
+          "spawned_at": "2026-05-24T18:00:00Z",
+          "exited_at": "2026-05-24T18:30:00Z",
+          "exit_code": 0,
+          "signals_sent": [],
+          "status": "exited"
+        }
+      ]
+    }
+  }
+}

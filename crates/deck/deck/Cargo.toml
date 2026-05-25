@@ -17,3 +17,6 @@ specta = ["dep:specta", "deck-server/specta"]
 deck-host = { path = "../deck-host" }
 deck-server = { path = "../deck-server" }
 specta = { workspace = true, features = ["serde_json"], optional = true }
+
+[lints]
+workspace = true

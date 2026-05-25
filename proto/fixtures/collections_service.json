@@ -1,0 +1,28 @@
+{
+  "CreateItem": {
+    "response_ok": {
+      "id": "note-checkout-notes",
+      "collection": "notes",
+      "data_json": "{\"title\":\"Checkout service notes\",\"content\":\"Auth via JWT; idempotency key on POST /checkout.\",\"tags\":[\"engineering\"],\"category\":\"engineering\"}",
+      "created_by": "rust-lane",
+      "created_at": "2026-05-24T18:35:00Z",
+      "updated_at": "2026-05-24T18:35:00Z"
+    }
+  },
+  "UpdateItem": {
+    "response_ok": {
+      "id": "note-checkout-notes",
+      "collection": "notes",
+      "data_json": "{\"title\":\"Checkout service notes\",\"content\":\"Auth via JWT; idempotency key on POST /checkout. Also: rate-limit at gateway.\",\"tags\":[\"engineering\"],\"category\":\"engineering\"}",
+      "created_by": "rust-lane",
+      "created_at": "2026-05-24T18:35:00Z",
+      "updated_at": "2026-05-24T19:00:00Z"
+    }
+  },
+  "DeleteItem": {
+    "response_ok": {
+      "id": "note-checkout-notes",
+      "deleted": true
+    }
+  }
+}

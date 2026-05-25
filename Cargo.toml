@@ -116,6 +116,9 @@ todo = "warn"
 collapsible_if = "allow"
 collapsible_match = "allow"
 doc_overindented_list_items = "allow"
+# Same doc-formatting class as the overindent lint above — clippy 1.93 flags
+# continuation lines in doc lists; we don't enforce doc-prose layout.
+doc_lazy_continuation = "allow"
 empty_line_after_doc_comments = "allow"
 needless_borrow = "allow"
 needless_borrows_for_generic_args = "allow"
@@ -123,6 +126,14 @@ new_without_default = "allow"
 needless_pass_by_ref_mut = "allow"
 needless_range_loop = "allow"
 too_many_arguments = "allow"
+# Pure formatting opinion (write! + "\n" vs writeln!) — codegen files build
+# strings line-by-line; not a correctness signal.
+write_with_newline = "allow"
+# Same "complexity we don't enforce" class as too_many_arguments — clippy 1.93
+# flags query/projection signatures and large error enums; not worth churning
+# type aliases / boxing across the workspace for the gate.
+type_complexity = "allow"
+result_large_err = "allow"
 search_is_some = "allow"
 
 # Cargo profile defaults.

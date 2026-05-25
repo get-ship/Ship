@@ -8,17 +8,18 @@ package ship.ops.v1;
 
 import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/ops.proto";
+import "ship/ops/v1/types.proto";
 
 service ReadOpsService {
-  rpc AgentsList(AgentsListRequest) returns (JsonResponse) {
+  rpc AgentsList(AgentsListRequest) returns (AgentIndexResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc AgentsSummaries(AgentsSummariesRequest) returns (JsonResponse) {
+  rpc AgentsSummaries(AgentsSummariesRequest) returns (AgentsSummariesResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc AgentsDetail(AgentsDetailRequest) returns (JsonResponse) {
+  rpc AgentsDetail(AgentsDetailRequest) returns (AgentDetail) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -38,15 +39,15 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc AgentsTemplates(AgentsTemplatesRequest) returns (JsonResponse) {
+  rpc AgentsTemplates(AgentsTemplatesRequest) returns (AgentTemplatesResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc AgentsPermissionPresets(AgentsPermissionPresetsRequest) returns (JsonResponse) {
+  rpc AgentsPermissionPresets(AgentsPermissionPresetsRequest) returns (PermissionPresetsResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc AgentsHarnesses(AgentsHarnessesRequest) returns (JsonResponse) {
+  rpc AgentsHarnesses(AgentsHarnessesRequest) returns (HarnessesResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -54,7 +55,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SkillsList(SkillsListRequest) returns (JsonResponse) {
+  rpc SkillsList(SkillsListRequest) returns (SkillsIndexResponse) {
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -66,7 +67,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SkillsFile(SkillsFileRequest) returns (JsonResponse) {
+  rpc SkillsFile(SkillsFileRequest) returns (SkillFileResponse) {
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -74,15 +75,15 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc RulesList(RulesListRequest) returns (JsonResponse) {
+  rpc RulesList(RulesListRequest) returns (RulesIndexResponse) {
     option (ship.ops.v1.capability) = "ship.rules.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc RulesGet(RulesGetRequest) returns (JsonResponse) {
+  rpc RulesGet(RulesGetRequest) returns (RuleGetResponse) {
     option (ship.ops.v1.capability) = "ship.rules.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc McpList(McpListRequest) returns (JsonResponse) {
+  rpc McpList(McpListRequest) returns (McpIndexResponse) {
     option (ship.ops.v1.capability) = "ship.mcp.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -90,7 +91,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.mcp.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc PermissionsList(PermissionsListRequest) returns (JsonResponse) {
+  rpc PermissionsList(PermissionsListRequest) returns (PermissionsIndexResponse) {
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -98,11 +99,11 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc PermissionsToolPatterns(PermissionsToolPatternsRequest) returns (JsonResponse) {
+  rpc PermissionsToolPatterns(PermissionsToolPatternsRequest) returns (ToolPatternsResponse) {
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc PipelinesList(PipelinesListRequest) returns (JsonResponse) {
+  rpc PipelinesList(PipelinesListRequest) returns (PipelinesIndexResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -126,15 +127,15 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc EventsList(EventsListRequest) returns (JsonResponse) {
+  rpc EventsList(EventsListRequest) returns (EventsListResponse) {
     option (ship.ops.v1.capability) = "ship.events.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SpecsList(SpecsListRequest) returns (JsonResponse) {
+  rpc SpecsList(SpecsListRequest) returns (SpecsListResponse) {
     option (ship.ops.v1.capability) = "ship.specs.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SpecsGet(SpecsGetRequest) returns (JsonResponse) {
+  rpc SpecsGet(SpecsGetRequest) returns (SpecGetResponse) {
     option (ship.ops.v1.capability) = "ship.specs.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -142,27 +143,27 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.specs.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SpecsDetail(SpecsDetailRequest) returns (JsonResponse) {
+  rpc SpecsDetail(SpecsDetailRequest) returns (SpecDetail) {
     option (ship.ops.v1.capability) = "ship.specs.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc GitStatus(GitStatusRequest) returns (JsonResponse) {
+  rpc GitStatus(GitStatusRequest) returns (StatusBuckets) {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc GitLog(GitLogRequest) returns (JsonResponse) {
+  rpc GitLog(GitLogRequest) returns (GitLogResponse) {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc GitBranches(GitBranchesRequest) returns (JsonResponse) {
+  rpc GitBranches(GitBranchesRequest) returns (GitBranchesResponse) {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc GitOverview(GitOverviewRequest) returns (JsonResponse) {
+  rpc GitOverview(GitOverviewRequest) returns (GitOverviewResponse) {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc GitDiff(GitDiffRequest) returns (JsonResponse) {
+  rpc GitDiff(GitDiffRequest) returns (GitDiffResponse) {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -194,15 +195,15 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.collections.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc ArtifactsList(ArtifactsListRequest) returns (JsonResponse) {
+  rpc ArtifactsList(ArtifactsListRequest) returns (ArtifactsListResponse) {
     option (ship.ops.v1.capability) = "ship.artifacts.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc ChatState(ChatStateRequest) returns (JsonResponse) {
+  rpc ChatState(ChatStateRequest) returns (ChatStateResponse) {
     option (ship.ops.v1.capability) = "ship.chat.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SessionsList(SessionsListRequest) returns (JsonResponse) {
+  rpc SessionsList(SessionsListRequest) returns (SessionsListResponse) {
     option (ship.ops.v1.capability) = "ship.sessions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -210,7 +211,7 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.workspaces.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc WorkspacesActive(WorkspacesActiveRequest) returns (JsonResponse) {
+  rpc WorkspacesActive(WorkspacesActiveRequest) returns (WorkspaceActiveResponse) {
     option (ship.ops.v1.capability) = "ship.workspaces.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

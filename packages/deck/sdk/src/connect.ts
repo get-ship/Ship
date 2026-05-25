@@ -14,6 +14,10 @@ import { OpsService } from "./gen/ship/ops/v1/ops_pb.js";
 import { ReadOpsService } from "./gen/ship/ops/v1/reads.gen_pb.js";
 import { CommandOpsService } from "./gen/ship/ops/v1/commands.gen_pb.js";
 import { StreamService } from "./gen/ship/ops/v1/stream_pb.js";
+// Hand-authored proto-as-SSOT domains (their own services, not on ReadOps).
+import { AnalyticsService } from "./gen/ship/ops/v1/analytics_pb.js";
+import { RuntimeService } from "./gen/ship/ops/v1/runtime_pb.js";
+import { ViewErrorsService } from "./gen/ship/ops/v1/view_errors_pb.js";
 
 export interface ShipConnectOptions {
   /** Daemon base URL, e.g. `http://127.0.0.1:9315`. */
@@ -30,6 +34,9 @@ export interface ShipConnectClient {
   reads: Client<typeof ReadOpsService>;
   commands: Client<typeof CommandOpsService>;
   stream: Client<typeof StreamService>;
+  analytics: Client<typeof AnalyticsService>;
+  runtime: Client<typeof RuntimeService>;
+  viewErrors: Client<typeof ViewErrorsService>;
 }
 
 /** Attach `Authorization: Bearer <token>` to every request. */
@@ -55,7 +62,18 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
     reads: createClient(ReadOpsService, transport),
     commands: createClient(CommandOpsService, transport),
     stream: createClient(StreamService, transport),
+    analytics: createClient(AnalyticsService, transport),
+    runtime: createClient(RuntimeService, transport),
+    viewErrors: createClient(ViewErrorsService, transport),
   };
 }
 
-export { OpsService, ReadOpsService, CommandOpsService, StreamService };
+export {
+  OpsService,
+  ReadOpsService,
+  CommandOpsService,
+  StreamService,
+  AnalyticsService,
+  RuntimeService,
+  ViewErrorsService,
+};

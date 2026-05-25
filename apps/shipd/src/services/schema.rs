@@ -99,6 +99,14 @@ pub struct CommandDescriptor {
     pub blast_radius: &'static str,
     #[serde(skip_serializing_if = "is_false")]
     pub sensitive: bool,
+    /// Typed proto response message (hand-authored in `proto/ship/ops/v1/types.proto`).
+    /// Empty = `JsonResponse` (the legacy blob, for not-yet-typed ops). When set,
+    /// `gen-ops` emits `returns ({response_type})` and the impl maps the
+    /// command's `Value` → the typed message via `serde_json::from_value`
+    /// (buffa messages derive serde + ignore unknown fields). This is the
+    /// proto-canonical typed contract — see `runtime-op-surface-declaration.md`.
+    #[serde(skip_serializing_if = "str::is_empty")]
+    pub response_type: &'static str,
 }
 
 /// The mutation catalog. Order mirrors `services::command::call`'s dispatch.
@@ -119,6 +127,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.runtime.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -131,15 +140,577 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.runtime.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    // ── rules (markdown behavior config; reads are rules.list/get) ──
+    CommandDescriptor {
+        name: "rules.create",
+        description: "Create a new markdown rule (errors if the id is taken).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "content", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.rules.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "rules.put",
+        description: "Replace a rule's body (use rules.create for net-new).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "content", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.rules.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "rules.delete",
+        description: "Trash a rule (scope omitted walks project → user).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.rules.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    // ── mcp (external MCP-server config; reads are mcp.list/get) ───
+    // Restricted (ship-authoring): registering a server adds tools agents can
+    // call. JSON-valued args travel as JSON-string args (server_json/patch_json).
+    CommandDescriptor {
+        name: "mcp.create",
+        description: "Register a new external MCP server (errors if the id is taken).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "server_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.mcp.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "mcp.put",
+        description: "Replace an MCP server's config (use mcp.create for net-new).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "server_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.mcp.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "mcp.patch",
+        description: "Apply RFC-6902 ops to an MCP server's config body.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "patch_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.mcp.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "mcp.delete",
+        description: "Remove an MCP server entry (scope omitted walks project → user).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.mcp.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    // ── permissions (preset config; reads are permissions.list/get) ─
+    // C2 (operator-only): a preset IS the security policy governing agents, so
+    // agents never edit it. JSON args travel as JSON-string (preset_json/patch_json).
+    CommandDescriptor {
+        name: "permissions.create",
+        description: "Create a new permission preset (errors if the id is taken).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "preset_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.permissions.write",
+        blast_radius: "C2_ELEVATED",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "permissions.put",
+        description: "Replace a permission preset's body (use permissions.create for net-new).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "preset_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.permissions.write",
+        blast_radius: "C2_ELEVATED",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "permissions.patch",
+        description: "Apply RFC-6902 ops to a permission preset's body.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "patch_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.permissions.write",
+        blast_radius: "C2_ELEVATED",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "permissions.delete",
+        description: "Remove a permission preset (scope omitted walks project → user).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.permissions.write",
+        blast_radius: "C2_ELEVATED",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    // ── artifacts (metadata mutations; bytes move on serving routes) ─
+    // Default C1, but each op honors the per-artifact scope ACL. Reads are
+    // artifacts.list/get_record; store/get (blobs) stay serving routes.
+    CommandDescriptor {
+        name: "artifacts.patch",
+        description: "Patch an artifact's metadata (name / owner / expiry).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "name", kind: "string?", required: false },
+            ArgDescriptor { name: "owner_actor", kind: "string?", required: false },
+            ArgDescriptor { name: "expires_at", kind: "string?", required: false },
+        ],
+        permission: "ship.artifacts.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ArtifactRecord",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "artifacts.promote",
+        description: "Promote an artifact to a target scope (run → project → user).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "target_scope", kind: "string", required: true },
+            ArgDescriptor { name: "run_id", kind: "string?", required: false },
+            ArgDescriptor { name: "user_id", kind: "string?", required: false },
+        ],
+        permission: "ship.artifacts.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ArtifactRecord",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "artifacts.delete",
+        description: "Soft-delete an artifact by id.",
+        args: &[ArgDescriptor { name: "id", kind: "string", required: true }],
+        permission: "ship.artifacts.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "Deletion",
+        sensitive: false,
+    },
+    // ── collections (item CRUD; reads are get_item/query_items) ────
+    // Default C1 — collection items are the user's own data. Open `data` payload
+    // travels as data_json; schema CRUD is a separate (nested-schema) piece.
+    CommandDescriptor {
+        name: "collections.create_item",
+        description: "Create an item in a collection (id auto-generated if omitted).",
+        args: &[
+            ArgDescriptor { name: "collection", kind: "string", required: true },
+            ArgDescriptor { name: "data_json", kind: "string", required: true },
+            ArgDescriptor { name: "id", kind: "string?", required: false },
+        ],
+        permission: "ship.collections.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "CollectionItem",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "collections.update_item",
+        description: "Replace a collection item's data by id.",
+        args: &[
+            ArgDescriptor { name: "collection", kind: "string", required: true },
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "data_json", kind: "string", required: true },
+        ],
+        permission: "ship.collections.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "CollectionItem",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "collections.delete_item",
+        description: "Delete a collection item by id.",
+        args: &[
+            ArgDescriptor { name: "collection", kind: "string", required: true },
+            ArgDescriptor { name: "id", kind: "string", required: true },
+        ],
+        permission: "ship.collections.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "Deletion",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "collections.create_schema",
+        description: "Define a new collection (nested CollectionSchema as schema_json).",
+        args: &[ArgDescriptor { name: "schema_json", kind: "string", required: true }],
+        permission: "ship.collections.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "collections.update_schema",
+        description: "Replace a collection's schema (nested CollectionSchema as schema_json).",
+        args: &[
+            ArgDescriptor { name: "collection", kind: "string", required: true },
+            ArgDescriptor { name: "schema_json", kind: "string", required: true },
+        ],
+        permission: "ship.collections.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    // ── skills (authoring; restricted ship-authoring) ─────────────
+    // Skills are capability groups — authoring one defines agent capability, so
+    // the gate requires the ship-authoring grant. Scope-resolving → ScopedMutation.
+    // Open frontmatter rides as frontmatter_json. File-byte ops + KV vars deferred.
+    CommandDescriptor {
+        name: "skills.create",
+        description: "Create a new skill (optional initial frontmatter + body).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+            ArgDescriptor { name: "frontmatter_json", kind: "string?", required: false },
+            ArgDescriptor { name: "body", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.delete",
+        description: "Delete a skill (scope omitted walks project → user).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.rename",
+        description: "Rename a skill's id.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "new_id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.duplicate",
+        description: "Copy a skill to a new id.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "new_id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.write_frontmatter",
+        description: "Replace a skill's frontmatter (YAML/JSON object).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "frontmatter_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.write_body",
+        description: "Replace a skill's markdown body.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "body", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.move_scope",
+        description: "Move a skill between project and user scope.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "from", kind: "string", required: true },
+            ArgDescriptor { name: "to", kind: "string", required: true },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.write_file",
+        description: "Write a UTF-8 text file inside a skill dir.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "path", kind: "string", required: true },
+            ArgDescriptor { name: "content", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.delete_file",
+        description: "Delete a file inside a skill dir.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "path", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.set_var",
+        description: "Set a KV variable (value_json) on a skill.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "key", kind: "string", required: true },
+            ArgDescriptor { name: "value_json", kind: "string", required: true },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "skills.delete_var",
+        description: "Delete a KV variable from a skill.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "key", kind: "string", required: true },
+        ],
+        permission: "ship.skills.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    // ── agents (profile authoring; restricted ship-authoring) ─────
+    // `agents.*` (plural) authors profiles — defines agent capability, gated by
+    // the ship-authoring grant. Distinct from `agent.*` (singular) runtime
+    // control. Scope-resolving → ScopedMutation; doc/patch ride as JSON strings.
+    CommandDescriptor {
+        name: "agents.create",
+        description: "Create a new agent profile from a doc.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "doc_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agents.put",
+        description: "Replace an agent profile's doc (use agents.create for net-new).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "doc_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agents.patch",
+        description: "Apply RFC-6902 ops to an agent profile's doc.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "patch_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agents.delete",
+        description: "Delete an agent profile (scope omitted walks project → user).",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agents.rename",
+        description: "Rename an agent profile's id.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "new_id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agents.duplicate",
+        description: "Copy an agent profile to a new id.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "new_id", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+            ArgDescriptor { name: "to", kind: "string?", required: false },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "agents.move_scope",
+        description: "Move an agent profile between project and user scope.",
+        args: &[
+            ArgDescriptor { name: "id", kind: "string", required: true },
+            ArgDescriptor { name: "from", kind: "string", required: true },
+            ArgDescriptor { name: "to", kind: "string", required: true },
+        ],
+        permission: "ship.agents.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    // ── pipelines (definition CRUD; reads are pipelines.list/get) ──
+    // Default C1: a pipeline is a workflow composition over existing
+    // agents/skills. `pipelines.*` (plural) edits definitions; `pipeline.*`
+    // (singular) is runtime lifecycle. Scope-resolving → ScopedMutation (id = name).
+    CommandDescriptor {
+        name: "pipelines.put",
+        description: "Create or replace a pipeline definition (by name).",
+        args: &[
+            ArgDescriptor { name: "name", kind: "string", required: true },
+            ArgDescriptor { name: "doc_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.pipelines.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "pipelines.patch",
+        description: "Apply RFC-6902 ops to a pipeline definition.",
+        args: &[
+            ArgDescriptor { name: "name", kind: "string", required: true },
+            ArgDescriptor { name: "patch_json", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.pipelines.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "pipelines.delete",
+        description: "Delete a pipeline definition (scope omitted walks project → user).",
+        args: &[
+            ArgDescriptor { name: "name", kind: "string", required: true },
+            ArgDescriptor { name: "scope", kind: "string?", required: false },
+        ],
+        permission: "ship.pipelines.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ScopedMutation",
+        sensitive: false,
+    },
+    // ── settings (runtime config; reads are settings.list/get) ────
+    // Default C1 — workspace/user prefs. NOTE(#82): security-relevant keys
+    // (ask-policy, dispatch defaults) must move to per-key C2 when that lands.
+    CommandDescriptor {
+        name: "settings.set",
+        description: "Set a runtime setting (value is arbitrary JSON).",
+        args: &[
+            ArgDescriptor { name: "key", kind: "string", required: true },
+            ArgDescriptor { name: "value_json", kind: "string", required: true },
+        ],
+        permission: "ship.settings.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "SettingValue",
         sensitive: false,
     },
     // ── project ───────────────────────────────────────────────────
+    CommandDescriptor {
+        name: "project.add",
+        description: "Register a directory as a project (ensures its .ship/ exists).",
+        args: &[
+            ArgDescriptor { name: "path", kind: "string", required: true },
+            ArgDescriptor { name: "name", kind: "string?", required: false },
+        ],
+        permission: "ship.projects.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "ProjectRecord",
+        sensitive: false,
+    },
     CommandDescriptor {
         name: "project.activate",
         description: "Switch the daemon's active project.",
         args: &[ArgDescriptor { name: "id", kind: "string", required: true }],
         permission: "ship.projects.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── mesh ──────────────────────────────────────────────────────
@@ -153,6 +724,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.mesh.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -165,6 +737,19 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.mesh.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "mesh.status",
+        description: "Update the caller's own mesh liveness status (caller-as-self).",
+        args: &[
+            ArgDescriptor { name: "agent_id", kind: "string", required: true },
+            ArgDescriptor { name: "status", kind: "string", required: true },
+        ],
+        permission: "ship.mesh.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── git (caller's worktree) ───────────────────────────────────
@@ -178,6 +763,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.git.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -189,6 +775,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.git.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -200,6 +787,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.git.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -211,6 +799,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.git.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -222,6 +811,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.git.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -234,6 +824,54 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.git.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.checkout",
+        description: "Checkout a ref/branch in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "refname", kind: "string", required: true },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.branch_create",
+        description: "Create a branch in the caller's worktree (optionally checkout).",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "name", kind: "string", required: true },
+            ArgDescriptor { name: "checkout", kind: "bool?", required: false },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.branch_delete",
+        description: "Delete a branch in the caller's worktree.",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "name", kind: "string", required: true },
+            ArgDescriptor { name: "force", kind: "bool?", required: false },
+        ],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "git.init",
+        description: "Initialize a git repository in the caller's worktree.",
+        args: &[ArgDescriptor { name: "workspace_id", kind: "string?", required: false }],
+        permission: "ship.git.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── agent control ─────────────────────────────────────────────
@@ -243,6 +881,28 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         args: &[ArgDescriptor { name: "slug", kind: "string", required: true }],
         permission: "ship.agents.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "actor.input",
+        description: "Deliver a text turn to a live actor's mailbox (operator/debug).",
+        args: &[
+            ArgDescriptor { name: "actor_id", kind: "string", required: true },
+            ArgDescriptor { name: "text", kind: "string", required: true },
+        ],
+        permission: "ship.actor.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "actor.kill_tree",
+        description: "Stop an actor and its descendants (operator/debug).",
+        args: &[ArgDescriptor { name: "actor_id", kind: "string", required: true }],
+        permission: "ship.actor.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -256,6 +916,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.agents.grant",
         blast_radius: "C2_ELEVATED",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -267,6 +928,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.agents.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -291,6 +953,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.runtime.dispatch",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── surfaces (authoring) ──────────────────────────────────────
@@ -305,6 +968,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.surfaces.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── view authoring ────────────────────────────────────────────
@@ -318,6 +982,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.views.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -330,6 +995,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.views.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -342,6 +1008,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.views.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -353,6 +1020,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.views.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -364,6 +1032,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.views.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -377,6 +1046,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         ],
         permission: "ship.views.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     // ── canvas / observation ──────────────────────────────────────
@@ -386,6 +1056,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         args: &[ArgDescriptor { name: "event_json", kind: "string", required: true }],
         permission: "ship.annotations.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
     CommandDescriptor {
@@ -394,6 +1065,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         args: &[ArgDescriptor { name: "event_json", kind: "string", required: true }],
         permission: "ship.feedback.write",
         blast_radius: "C1_WORKSPACE",
+        response_type: "",
         sensitive: false,
     },
 ];

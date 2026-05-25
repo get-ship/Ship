@@ -1,0 +1,70 @@
+{
+  "List": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "allow-bash-read",
+          "scope": "project"
+        },
+        {
+          "id": "allow-read",
+          "scope": "project"
+        },
+        {
+          "id": "deny-rm-rf",
+          "scope": "project"
+        }
+      ]
+    }
+  },
+  "ToolPatterns": {
+    "response_ok": {
+      "patterns": [
+        {
+          "pattern": "Bash(cargo *)",
+          "label": "cargo commands",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Bash(just *)",
+          "label": "just commands",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Read",
+          "label": "file reads",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Edit",
+          "label": "file edits",
+          "source": "builtin"
+        }
+      ]
+    }
+  },
+  "Create": {
+    "response_ok": {
+      "id": "allow-bash-read",
+      "scope": "project"
+    }
+  },
+  "Put": {
+    "response_ok": {
+      "id": "allow-bash-read",
+      "scope": "project"
+    }
+  },
+  "Patch": {
+    "response_ok": {
+      "id": "allow-bash-read",
+      "scope": "project"
+    }
+  },
+  "Delete": {
+    "response_ok": {
+      "id": "deny-rm-rf",
+      "scope": "project"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "List": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "ship-feature",
+          "scope": "project"
+        }
+      ]
+    }
+  },
+  "Put": {
+    "response_ok": {
+      "id": "ship-feature",
+      "scope": "project"
+    }
+  },
+  "Patch": {
+    "response_ok": {
+      "id": "ship-feature",
+      "scope": "project"
+    }
+  },
+  "Delete": {
+    "response_ok": {
+      "id": "ship-feature",
+      "scope": "project"
+    }
+  }
+}
