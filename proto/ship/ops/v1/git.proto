@@ -112,6 +112,12 @@ service GitService {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  // Live variant (#138): streams the full overview value now + again on every
+  // `config` kernel event. Replaces `<data live source="ship.git.overview()">`.
+  rpc OverviewLive(GitOverviewReq) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc Diff(GitDiffReq) returns (GitDiffResponse) {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
