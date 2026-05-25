@@ -58,6 +58,13 @@ message DispatchPipelineReq {
   string spec = 2;
   string harness = 3;
   bool auto = 4;
+  // Widened (#141) so one op serves both the studio dispatch (subset:
+  // pipeline/spec/harness/auto) and `ship run` (full PipelineRunRequest).
+  map<string, string> vars = 5;
+  string model = 6;
+  string workspace = 7;
+  string slug = 8;
+  string source_spec_path = 9;
 }
 
 message ListPipelinesHistoryRequest {

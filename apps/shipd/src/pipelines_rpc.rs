@@ -98,16 +98,21 @@ impl PipelinesService for OpsImpl {
             .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?
             .clone();
         let opt = |s: &str| if s.is_empty() { None } else { Some(s.to_string()) };
+        let vars: std::collections::HashMap<String, String> = request
+            .vars
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
         let req = crate::routes::runtime_api::PipelineRunRequest {
             pipeline: request.pipeline.to_string(),
             spec: opt(request.spec),
-            vars: None,
+            vars: if vars.is_empty() { None } else { Some(vars) },
             harness: opt(request.harness),
-            model: None,
-            workspace: None,
-            slug: None,
+            model: opt(request.model),
+            workspace: opt(request.workspace),
+            slug: opt(request.slug),
             auto: request.auto,
-            source_spec_path: None,
+            source_spec_path: opt(request.source_spec_path),
         };
         // run_pipeline self-gates on the CreateRuns scope; bridge its axum
         // Response back to a value, as the route-core ops do.
