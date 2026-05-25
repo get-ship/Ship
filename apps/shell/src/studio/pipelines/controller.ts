@@ -1,5 +1,5 @@
 import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
-import { ship } from '../../ops'
+import { ship, ops } from '../../ops'
 import type { LiveSignal, LiveSource, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
@@ -106,23 +106,23 @@ export default controller({
       }
       s.newPipeCreating = true; s.newPipeError = ''
       const content = `{\n  "name": "${name}",\n  "description": "",\n  "steps": [\n    { "id": "one", "run": "echo hello" }\n  ]\n}\n`
+      // PipelinesService.Put (Connect) → writes to the active project. Replaces
+      // the PUT /api/v1/workspaces/{ws}/pipelines/{name} route (no daemon
+      // handler — the old fetch 404'd; this fixes it).
       try {
-        const resp = await fetch(
-          `/api/v1/workspaces/${encodeURIComponent(ws)}/pipelines/${encodeURIComponent(name)}`,
-          { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) },
-        )
-        if (resp.ok) { window.location.href = `/studio/pipelines/focus/${encodeURIComponent(name)}?edit=1`; return }
-        const parsed = await resp.json().catch(() => ({}))
-        s.newPipeError = (parsed as { data?: { error?: string } })?.data?.error ?? `HTTP ${resp.status}`
-      } catch (err) { s.newPipeError = 'network: ' + ((err as Error)?.message ?? String(err)) }
+        await ops.pipelines.put({ name, docJson: content, scope: 'project' })
+        window.location.href = `/studio/pipelines/focus/${encodeURIComponent(name)}?edit=1`
+      } catch (err) { s.newPipeError = (err as Error)?.message ?? String(err) }
       finally { s.newPipeCreating = false }
     },
     stopRun: async (_s, jobId: string) => {
-      await fetch('/api/v1/agent_sessions/end', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: jobId }),
-      })
+      // FLAG (API arc, not transport): this routes to PipelinesService.EndTurn
+      // (turn-complete / step-advance), the Connect form of the old
+      // POST /agent_sessions/end. The old fetch sent `job_id` where the handler
+      // reads `slug` — likely a silent no-op. A true "stop" probably wants
+      // agent.Stop(slug), not end_job. Preserving best-effort transport here;
+      // the stop-vs-complete semantics are for the API-surface arc.
+      try { await ops.pipelines.endTurn({ slug: jobId }) } catch { /* best-effort */ }
     },
   },
 })
