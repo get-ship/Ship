@@ -168,20 +168,34 @@ Everything OS-specific lives behind `ship_host::HostOs` — one adapter per
 platform. Two primitives matter here: reading a connection's peer identity, and
 placing a spawn in a per-agent container.
 
-| Platform | Peer identity | Process container | Per-agent auth |
-|----------|---------------|-------------------|----------------|
-| **Linux + systemd** | `SO_PEERCRED` ✅ | systemd transient user scope (`ship-agent-<id>.scope`) ✅ | **working** |
-| **WSL2 + systemd** | `SO_PEERCRED` ✅ | systemd transient scope ✅ | **working** (this dev host) |
-| **WSL2, no systemd** | `SO_PEERCRED` ✅ | none (no delegation) ⚠️ | degrades to operator |
-| **Linux, no systemd** | `SO_PEERCRED` ✅ | raw cgroupfs (needs delegation) — *not built* ⚠️ | degrades to operator |
-| **macOS** | `LOCAL_PEERPID` — *pending* | process-group (`setpgid`) — *pending* | pending → operator |
-| **Windows** | named pipe `GetNamedPipeClientProcessId` — *pending* | job object — *pending* | pending → operator |
+| Platform | Transport | Peer identity | Named container | Per-agent auth |
+|----------|-----------|---------------|-----------------|----------------|
+| **Linux + systemd** | `ship.sock` | `SO_PEERCRED` ✅ | systemd transient user scope (`ship-agent-<id>.scope`) ✅ | **working** |
+| **WSL2 + systemd** | `ship.sock` | `SO_PEERCRED` ✅ | systemd transient scope ✅ | **working** (this dev host) |
+| **WSL2 / Linux, no systemd** | `ship.sock` | `SO_PEERCRED` ✅ | none (no delegation; raw cgroupfs *not built*) ⚠️ | operator only |
+| **macOS** | `ship.sock` | `LOCAL_PEERPID` + `getpeereid` ✅ *(written, unverified on hw)* | process-group (`setpgid`) — *pending* | operator only |
+| **Windows** | **TCP + token** | n/a (AF_UNIX has no peer-cred) | job object — *pending* | token path |
 
-"Degrades to operator" means: the socket still authenticates the connection, but
-without a container the process inherits the operator's cgroup, so `resolve`
-returns `Operator` rather than `Agent(id)`. **Safe by default** — it never
-mis-attributes one agent as another, and never silently grants C2 — but on those
-hosts per-agent differentiation is not yet in force.
+How a platform without a **named** container resolves identity — `peer_identity::decide`:
+
+- An **agent** is named by its container (`ship-agent-<id>`) → `Agent(id)`.
+- A **container that isn't an agent's**, or **no container on a platform that has
+  no backend** (macOS today): a peer running as **our own uid is the operator**.
+  The `0600` socket already restricts callers to our uid; the uid check is
+  defense in depth. A foreign uid never resolves.
+- **No container where a backend *does* exist** (Linux): **fail closed**
+  (`Unresolved` → 401). An unreadable cgroup could be a transient `/proc` race on
+  a real agent — we never promote that to operator.
+
+So "operator only" means: the socket authenticates and the **operator** works
+fully, but agents resolve as the operator too (no per-agent differentiation)
+until that platform's container backend lands. Safe by default — it never
+mis-attributes one agent as another, and never silently grants C2.
+
+**Windows** is wholesale on the token path today: `ship.sock` is `cfg(unix)`, so
+the daemon never binds it and `ship ops` never finds it → TCP + operator token.
+Per-agent identity there needs a **named pipe** (`GetNamedPipeClientProcessId`) +
+job-object container — a separate transport, not `ship.sock`.
 
 Detection is cheap and cached: the Linux backend uses systemd only when the user
 manager is live (the `$XDG_RUNTIME_DIR/systemd/private` socket exists) and
@@ -190,10 +204,13 @@ fallback.
 
 ## 6. Known limitations
 
-- **macOS / Windows backends are pending.** On those hosts agents authenticate
-  over the socket but resolve as the operator until `LOCAL_PEERPID` /
-  named-pipe + `setpgid` / job-object adapters land. Windows AF_UNIX lacks
-  peer-cred entirely, so its transport is a named pipe, not `ship.sock`.
+- **macOS container backend is pending; its peer-cred is written but unverified.**
+  `peer_cred` has a macOS arm (`LOCAL_PEERPID` + `getpeereid`) authored against
+  the documented libc API but **not compile-verified on macOS hardware** (this
+  dev host is Linux) — validate on a Mac. With it, the operator works over the
+  socket; agents resolve as operator until the process-group container backend
+  (`setpgid`) lands. **Windows** has no AF_UNIX peer-cred, so it stays on the
+  TCP+token path until a named-pipe transport exists.
 - **`systemd-run` is not portable and is not bundled.** It's a thin D-Bus client
   to PID 1 — useless without a running systemd, and Linux-only. It is *one Linux
   backend strategy*, detected at runtime, never the universal mechanism. The

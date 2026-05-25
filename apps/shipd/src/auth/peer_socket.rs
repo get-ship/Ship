@@ -29,19 +29,22 @@ use tokio_util::sync::CancellationToken;
 use crate::auth::identity::auth_context_from_peer;
 
 /// Connect-info captured at accept time for a unix-socket connection: the
-/// kernel-reported peer PID. `None` if the OS couldn't report it (the resolver
-/// then fails closed). Inserted as `ConnectInfo<PeerCredInfo>` by
+/// kernel-reported peer PID and UID. `None` if the OS couldn't report them (the
+/// resolver then fails closed). Inserted as `ConnectInfo<PeerCredInfo>` by
 /// `into_make_service_with_connect_info`.
 #[derive(Clone, Debug)]
 pub struct PeerCredInfo {
     pub pid: Option<u32>,
+    pub uid: Option<u32>,
 }
 
 impl Connected<IncomingStream<'_, UnixListener>> for PeerCredInfo {
     fn connect_info(stream: IncomingStream<'_, UnixListener>) -> Self {
         use std::os::unix::io::AsRawFd;
-        let pid = ship_host::peer_cred(stream.io().as_raw_fd()).map(|c| c.pid);
-        PeerCredInfo { pid }
+        match ship_host::peer_cred(stream.io().as_raw_fd()) {
+            Some(c) => PeerCredInfo { pid: Some(c.pid), uid: Some(c.uid) },
+            None => PeerCredInfo { pid: None, uid: None },
+        }
     }
 }
 
@@ -53,9 +56,10 @@ pub async fn peer_cred_auth_middleware(
     mut req: axum::extract::Request<Body>,
     next: Next,
 ) -> Response {
-    let identity = match info.pid {
-        Some(pid) => peer_identity::resolve(pid),
-        None => PeerIdentity::Unresolved,
+    let identity = match (info.pid, info.uid) {
+        (Some(pid), Some(uid)) => peer_identity::resolve(pid, uid),
+        // No peer credentials → can't attribute the caller at all. Fail closed.
+        _ => PeerIdentity::Unresolved,
     };
     // An agent's authority is its provisioned grant baseline (#85). Role refinement
     // (looking up the agent's declared role for the fallback path) is a follow-up;
