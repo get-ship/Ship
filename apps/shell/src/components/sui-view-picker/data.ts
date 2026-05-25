@@ -87,13 +87,10 @@ const HIDDEN_VIEWS = new Set([
   'pipelines-board',
 ])
 
-export async function fetchViews(url: string): Promise<ApiView[]> {
+export async function fetchViews(_url?: string): Promise<ApiView[]> {
   try {
-    const resp = await fetch(url, { credentials: 'same-origin' })
-    if (!resp.ok) return []
-    const body = (await resp.json()) as { data?: { views?: ApiView[] }; views?: ApiView[] }
-    const inferred = body.data?.views ?? body.views ?? []
-    return (inferred ?? []).filter((v) => !HIDDEN_VIEWS.has(v.name))
+    const body = JSON.parse((await ops.discovery.list({})).json) as { views?: ApiView[] }
+    return (body.views ?? []).filter((v) => !HIDDEN_VIEWS.has(v.name))
   } catch { return [] }
 }
 
