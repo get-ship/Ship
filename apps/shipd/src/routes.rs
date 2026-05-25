@@ -428,10 +428,6 @@ pub enum Route {
 
     // ── Process projection / events polling / daemon status (slice 6) ────
 
-    /// @route GET "/api/v1/procs"
-    /// @auth scope ReadWorkspace
-    ListProcs,
-
     /// @route GET "/api/v1/events/poll"
     /// @auth scope ReadWorkspace
     PollEvents,

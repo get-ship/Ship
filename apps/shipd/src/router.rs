@@ -425,7 +425,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             Route::AttachAgentSession_template(),
             crate::routes::agent_sessions_attach::attach_agent_session,
         )
-        .ship_route(Route::ListProcs, runtime_api::list_procs)
         .ship_route(Route::PollEvents, runtime_api::poll_events)
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
         // Views — list + source now served by DiscoveryService (Connect, #139).
