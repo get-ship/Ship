@@ -19,7 +19,6 @@
 //      ⌘? opens help.
 
 import { createClient, type ShipSDK } from '@ship/sdk-client'
-import { shipFetch, gitStatus } from '@ship/sdk'
 import { ops } from './ops'
 // Charts pack — single workspace import registers every <sui-*-chart>,
 // <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
@@ -585,10 +584,11 @@ async function updateStatus(): Promise<void> {
   if (!shellBottom) return
   shellBottom.setAttribute('theme', document.documentElement.dataset.theme ?? 'ship-light')
 
-  // Fetch the active project's actual git branch via /api/v1/git/status.
+  // Fetch the active project's actual git branch via GitService.Overview
+  // (Connect). Branch lives on the overview, not the status buckets.
   try {
-    const envelope = await shipFetch<{ data?: { branch?: string }; branch?: string }>(gitStatus())
-    const branch = envelope?.data?.branch ?? envelope?.branch ?? 'unknown'
+    const overview = await ops.git.overview({})
+    const branch = overview.branch ?? 'unknown'
     shellBottom.setAttribute('branch', branch)
     if (!daemonOnline) {
       shellBottom.setAttribute('online', '')
