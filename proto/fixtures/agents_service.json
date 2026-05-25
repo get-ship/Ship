@@ -1,0 +1,193 @@
+{
+  "List": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "rust-lane",
+          "scope": "project"
+        },
+        {
+          "id": "code-reviewer",
+          "scope": "project"
+        }
+      ]
+    }
+  },
+  "Summaries": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "rust-lane",
+          "name": "Rust Lane",
+          "description": "Full Rust implementation lane — compiler, runtime, MCP server.",
+          "skills_count": 2,
+          "mcp_count": 1,
+          "rules_count": 4,
+          "letter": "R",
+          "source": "project",
+          "tags": [
+            "implementation"
+          ],
+          "active": true
+        },
+        {
+          "id": "code-reviewer",
+          "name": "Code Reviewer",
+          "description": "Reviews diffs for security, correctness, and architecture drift.",
+          "skills_count": 3,
+          "mcp_count": 1,
+          "rules_count": 2,
+          "letter": "C",
+          "source": "project",
+          "tags": [
+            "review",
+            "workflow"
+          ],
+          "active": false
+        }
+      ]
+    }
+  },
+  "Detail": {
+    "response_ok": {
+      "id": "rust-lane",
+      "name": "Rust Lane",
+      "description": "Full Rust implementation lane — compiler, runtime, MCP server.",
+      "letter": "R",
+      "icon": "hammer",
+      "version": "1.0.0",
+      "tags": [
+        "implementation"
+      ],
+      "skills": [
+        "run",
+        "verify"
+      ],
+      "mcp_servers": [
+        "ship"
+      ],
+      "rules": [
+        "no-placeholders",
+        "test-first",
+        "commit-style"
+      ],
+      "inline_rules": "Prefer minimal diffs. Test first.",
+      "permissions_tier": "standard",
+      "permissions": {
+        "preset": "standard",
+        "tools_allow": [
+          "Bash(cargo *)",
+          "Bash(just *)"
+        ],
+        "tools_ask": [
+          "Bash(git push*)"
+        ],
+        "tools_deny": [
+          "Bash(rm -rf *)"
+        ]
+      },
+      "source": "project"
+    }
+  },
+  "Templates": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "implementer",
+          "label": "Implementer",
+          "description": "Full implementation lane for a feature or fix.",
+          "letter": "I",
+          "hue": "blue",
+          "skill_ids": [
+            "run",
+            "verify"
+          ],
+          "permission_preset": "standard"
+        },
+        {
+          "id": "reviewer",
+          "label": "Reviewer",
+          "description": "Reviews diffs and surfaces correctness issues.",
+          "letter": "R",
+          "hue": "green",
+          "skill_ids": [
+            "code-review"
+          ],
+          "permission_preset": "readonly"
+        }
+      ]
+    }
+  },
+  "PermissionPresets": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "standard",
+          "label": "Standard",
+          "description": "Read + write within the workspace."
+        },
+        {
+          "id": "readonly",
+          "label": "Read-only",
+          "description": "Read access only — no writes."
+        },
+        {
+          "id": "elevated",
+          "label": "Elevated",
+          "description": "Includes network and system calls."
+        }
+      ]
+    }
+  },
+  "Harnesses": {
+    "response_ok": {
+      "items": [
+        "claude",
+        "claude-code",
+        "shell"
+      ]
+    }
+  },
+  "Create": {
+    "response_ok": {
+      "id": "rust-lane",
+      "scope": "project"
+    }
+  },
+  "Put": {
+    "response_ok": {
+      "id": "rust-lane",
+      "scope": "project"
+    }
+  },
+  "Patch": {
+    "response_ok": {
+      "id": "rust-lane",
+      "scope": "project"
+    }
+  },
+  "Delete": {
+    "response_ok": {
+      "id": "code-reviewer",
+      "scope": "project"
+    }
+  },
+  "Rename": {
+    "response_ok": {
+      "id": "rust-lane-v2",
+      "scope": "project"
+    }
+  },
+  "Duplicate": {
+    "response_ok": {
+      "id": "rust-lane-copy",
+      "scope": "project"
+    }
+  },
+  "MoveScope": {
+    "response_ok": {
+      "id": "rust-lane",
+      "scope": "user"
+    }
+  }
+}

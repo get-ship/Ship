@@ -22,30 +22,11 @@ use ship_substrate::events::CallerKind;
 use crate::auth::AuthContext;
 use crate::auth::scopes::Scope;
 
-/// Blast-radius class of an op — the human-vs-agent line.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BlastRadius {
-    /// Read / own-scope. Harmless to Ship.
-    C0Read,
-    /// Mutates the caller's own workspace — the user's own risk.
-    C1Workspace,
-    /// Ship/cloud-dangerous (credential mint, billing). Human-operator only.
-    C2Elevated,
-}
-
-impl BlastRadius {
-    /// Parse the registry descriptor's string form. An unrecognized value is
-    /// treated as `C2Elevated` — **fail closed**: a misdeclared op is gated to
-    /// the human, never silently opened to agents.
-    pub fn from_descriptor(s: &str) -> Self {
-        match s {
-            "C0_READ" => Self::C0Read,
-            "C1_WORKSPACE" => Self::C1Workspace,
-            "C2_ELEVATED" => Self::C2Elevated,
-            _ => Self::C2Elevated,
-        }
-    }
-}
+/// Blast-radius class of an op — the human-vs-agent line. The canonical
+/// definition lives in `ship-ops-rpc` (next to the FDS policy reader that
+/// produces it); re-exported so every `gate::BlastRadius` reference keeps
+/// working. `from_descriptor` fails closed to `C2Elevated`.
+pub use ship_ops_rpc::BlastRadius;
 
 /// A capability domain — a skill-group. `restricted` domains are
 /// capability-defining (they hand out capability) and are never default-granted;
@@ -72,11 +53,27 @@ pub struct Domain {
 /// so the fail-closed path is a tripwire, not a silent denial in production.
 pub fn classify(name: &str) -> Domain {
     match name.split('.').next().unwrap_or(name) {
-        // restricted — capability-defining
+        // restricted — capability-defining. Note the singular/plural split:
+        // `agent.*` is runtime control (dispatch/stop/steer → orchestration);
+        // `agents.*` authors profiles (defines capability → ship-authoring).
         "agent" => Domain { group: "ship-orchestration", restricted: true },
-        "create" | "view" => Domain { group: "ship-authoring", restricted: true },
+        "agents" => Domain { group: "ship-authoring", restricted: true },
+        // `mcp` registers external MCP servers → new tools agents can call, so
+        // configuring it is authoring agent capability, not ordinary workspace
+        // mutation. Gated behind the ship-authoring grant.
+        // `skills` are themselves capability groups — authoring one defines what
+        // agents can do. Restricted ship-authoring, like create/view/mcp.
+        "create" | "view" | "mcp" | "skills" => Domain { group: "ship-authoring", restricted: true },
+        // `permissions` edits the security policy that governs agents. It is
+        // C2 (operator-only) at the blast axis, so agents are denied regardless;
+        // restricted ship-authoring here is defense in depth on the grant axis.
+        "permissions" => Domain { group: "ship-authoring", restricted: true },
         // default — ordinary workspace mutation
-        "pipeline" | "project" | "mesh" | "git" | "annotation" | "annotations" | "feedback" => {
+        // `actor`/`event` are kernel control (operational/internal — operator/debug
+        // surface, not agent capability, #95). Behaviour-preserving C1 today;
+        // tightening the dangerous ones (kill_tree, event.emit) to C2 is deferred.
+        "pipeline" | "pipelines" | "project" | "mesh" | "git" | "annotation" | "annotations"
+        | "feedback" | "rules" | "artifacts" | "collections" | "settings" | "actor" | "event" => {
             Domain { group: "ship-workspace", restricted: false }
         }
         // unknown — fail closed
@@ -130,9 +127,9 @@ pub fn decide(blast: BlastRadius, domain: &Domain, caller: &Caller) -> Decision 
     match blast {
         BlastRadius::C2Elevated => Decision::Deny("op requires a human-operator credential"),
         BlastRadius::C0Read | BlastRadius::C1Workspace => {
-            if !domain.restricted {
-                Decision::Allow
-            } else if caller.restricted_grants.iter().any(|g| g == domain.group) {
+            // Default (non-restricted) domains are open to any in-scope agent;
+            // restricted domains need the matching grant. Both paths Allow.
+            if !domain.restricted || caller.restricted_grants.iter().any(|g| g == domain.group) {
                 Decision::Allow
             } else {
                 Decision::Deny("op requires a granted capability (restricted skill-group)")

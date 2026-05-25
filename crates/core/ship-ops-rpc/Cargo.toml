@@ -12,6 +12,9 @@ connectrpc = { version = "0.4", features = ["client", "axum"] }
 # Must match the version connectrpc 0.4.x pulls transitively (two-buffa-version
 # diagnostic otherwise — see ship-gateway-client).
 buffa = { version = "0.5", features = ["json"] }
+# Typed descriptor messages (FileDescriptorSet) for reading method-option
+# policy out of the embedded FILE_DESCRIPTOR_SET. Version tracks buffa's.
+buffa-descriptor = "0.5"
 # Generated code names ::serde:: and ::http_body:: paths directly.
 serde = { workspace = true }
 http-body = "1"
@@ -22,3 +25,10 @@ thiserror = { workspace = true }
 connectrpc-build = "0.4"
 # Bundles protoc so fresh clones need no system-wide install.
 protoc-bin-vendored = "3"
+
+[dev-dependencies]
+# Contract tests decode proto/fixtures/*.json into the generated types.
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

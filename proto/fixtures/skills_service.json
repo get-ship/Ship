@@ -1,0 +1,82 @@
+{
+  "List": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "code-review",
+          "scope": "project"
+        },
+        {
+          "id": "run",
+          "scope": "project"
+        },
+        {
+          "id": "verify",
+          "scope": "user"
+        }
+      ]
+    }
+  },
+  "File": {
+    "response_ok": {
+      "path": "SKILL.md",
+      "name": "SKILL.md",
+      "ext": "md",
+      "content": "# Code Review\n\nReview a unified diff for correctness, security, and architecture drift."
+    }
+  },
+  "Create": {
+    "response_ok": {
+      "id": "code-review",
+      "scope": "project"
+    }
+  },
+  "Delete": {
+    "response_ok": {
+      "id": "verify",
+      "scope": "user"
+    }
+  },
+  "Rename": {
+    "response_ok": {
+      "id": "diff-review",
+      "scope": "project"
+    }
+  },
+  "Duplicate": {
+    "response_ok": {
+      "id": "code-review-copy",
+      "scope": "project"
+    }
+  },
+  "WriteFrontmatter": {
+    "response_ok": {
+      "id": "code-review",
+      "scope": "project"
+    }
+  },
+  "WriteBody": {
+    "response_ok": {
+      "id": "code-review",
+      "scope": "project"
+    }
+  },
+  "MoveScope": {
+    "response_ok": {
+      "id": "code-review",
+      "scope": "user"
+    }
+  },
+  "WriteFile": {
+    "response_ok": {
+      "id": "code-review",
+      "scope": "project"
+    }
+  },
+  "DeleteFile": {
+    "response_ok": {
+      "id": "code-review",
+      "scope": "project"
+    }
+  }
+}

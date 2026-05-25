@@ -1,0 +1,66 @@
+// `artifacts.*` metadata ops as a hand-authored per-domain proto-SSOT service
+// (#89), mounted ADDITIVELY beside the generated ReadOps/CommandOps (which keep
+// serving artifacts.* until the GUI flip, #72). The byte-moving store/get stay
+// on serving routes — blobs don't ride a JSON op — so only the metadata reads +
+// mutations live here. Distinct request-message names (ListArtifactsRequest, …)
+// avoid colliding with the generated ArtifactsListRequest et al. in this same
+// ship.ops.v1 package; return types reuse the shared shapes in types.proto
+// (ArtifactsListResponse / ArtifactRecord / Deletion).
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/types.proto";
+
+message ListArtifactsRequest {
+  string scope = 1;
+  string mime = 2;
+  string collection_id = 3;
+  string item_id = 4;
+  string owner_actor = 5;
+  string content_hash = 6;
+  string sort = 7;
+  uint64 limit = 8;
+  uint64 offset = 9;
+}
+
+message PatchArtifactRequest {
+  string id = 1;
+  string name = 2;
+  string owner_actor = 3;
+  string expires_at = 4;
+}
+
+message PromoteArtifactRequest {
+  string id = 1;
+  string target_scope = 2;
+  string run_id = 3;
+  string user_id = 4;
+}
+
+message DeleteArtifactRequest {
+  string id = 1;
+}
+
+// Artifact metadata records + lifecycle. Reads are C0; metadata mutations are
+// C1 workspace writes, gated through the one gate (services::command::call),
+// which also enforces the per-artifact scope ACL.
+service ArtifactsService {
+  rpc List(ListArtifactsRequest) returns (ArtifactsListResponse) {
+    option (ship.ops.v1.capability) = "ship.artifacts.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Patch(PatchArtifactRequest) returns (ArtifactRecord) {
+    option (ship.ops.v1.capability) = "ship.artifacts.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Promote(PromoteArtifactRequest) returns (ArtifactRecord) {
+    option (ship.ops.v1.capability) = "ship.artifacts.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Delete(DeleteArtifactRequest) returns (Deletion) {
+    option (ship.ops.v1.capability) = "ship.artifacts.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+}

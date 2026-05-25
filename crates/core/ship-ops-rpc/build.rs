@@ -29,9 +29,34 @@ fn main() {
         .arg("-I.")
         .arg("ship/ops/v1/policy.proto")
         .arg("ship/ops/v1/ops.proto")
+        .arg("ship/ops/v1/types.proto")
         .arg("ship/ops/v1/reads.gen.proto")
         .arg("ship/ops/v1/commands.gen.proto")
         .arg("ship/ops/v1/stream.proto")
+        .arg("ship/ops/v1/analytics.proto")
+        .arg("ship/ops/v1/runtime.proto")
+        .arg("ship/ops/v1/view_errors.proto")
+        .arg("ship/ops/v1/rules.proto")
+        .arg("ship/ops/v1/artifacts.proto")
+        .arg("ship/ops/v1/collections.proto")
+        .arg("ship/ops/v1/permissions.proto")
+        .arg("ship/ops/v1/mcp.proto")
+        .arg("ship/ops/v1/skills.proto")
+        .arg("ship/ops/v1/pipelines.proto")
+        .arg("ship/ops/v1/git.proto")
+        .arg("ship/ops/v1/agents.proto")
+        .arg("ship/ops/v1/agent.proto")
+        .arg("ship/ops/v1/project.proto")
+        .arg("ship/ops/v1/settings.proto")
+        .arg("ship/ops/v1/annotation.proto")
+        .arg("ship/ops/v1/feedback.proto")
+        .arg("ship/ops/v1/sessions.proto")
+        .arg("ship/ops/v1/workspaces.proto")
+        .arg("ship/ops/v1/account.proto")
+        .arg("ship/ops/v1/chat.proto")
+        .arg("ship/ops/v1/dashboard.proto")
+        .arg("ship/ops/v1/events.proto")
+        .arg("ship/ops/v1/specs.proto")
         .status()
         .expect("failed to spawn protoc");
     assert!(status.success(), "protoc descriptor compile failed");
@@ -43,9 +68,34 @@ fn main() {
         .descriptor_set(&descriptor)
         .files(&[
             "ship/ops/v1/ops.proto",
+            "ship/ops/v1/types.proto",
             "ship/ops/v1/reads.gen.proto",
             "ship/ops/v1/commands.gen.proto",
             "ship/ops/v1/stream.proto",
+            "ship/ops/v1/analytics.proto",
+            "ship/ops/v1/runtime.proto",
+            "ship/ops/v1/view_errors.proto",
+            "ship/ops/v1/rules.proto",
+            "ship/ops/v1/artifacts.proto",
+            "ship/ops/v1/collections.proto",
+            "ship/ops/v1/permissions.proto",
+            "ship/ops/v1/mcp.proto",
+            "ship/ops/v1/skills.proto",
+            "ship/ops/v1/pipelines.proto",
+            "ship/ops/v1/git.proto",
+            "ship/ops/v1/agents.proto",
+            "ship/ops/v1/agent.proto",
+            "ship/ops/v1/project.proto",
+            "ship/ops/v1/settings.proto",
+            "ship/ops/v1/annotation.proto",
+            "ship/ops/v1/feedback.proto",
+            "ship/ops/v1/sessions.proto",
+            "ship/ops/v1/workspaces.proto",
+            "ship/ops/v1/account.proto",
+            "ship/ops/v1/chat.proto",
+            "ship/ops/v1/dashboard.proto",
+            "ship/ops/v1/events.proto",
+            "ship/ops/v1/specs.proto",
         ])
         .compile()
         .expect("connectrpc-build codegen failed");

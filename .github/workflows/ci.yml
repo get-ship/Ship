@@ -47,6 +47,23 @@ jobs:
         run: cargo build -p ship-cli -p mcp -p shipd
       - name: Build (unstable)
         run: cargo build --features unstable -p ship-cli -p mcp -p shipd
+      # sdk-skills are generated from the op registry (schema::OPS/COMMANDS) and
+      # tracked, like reads.gen.proto. Regenerate and assert no diff so an op
+      # change can't land without its skill + API-doc page being refreshed.
+      - name: Check sdk-skills drift
+        run: |
+          cargo run -p xtask --quiet -- gen-skills
+          git diff --exit-code skills/sdk/ \
+            || { echo "skills/sdk is stale — run 'cargo run -p xtask -- gen-skills' and commit"; exit 1; }
+      # Proto contract fixtures are generated from proto/fixtures/theme.json and
+      # validated against the ship.ops.v1 proto types. Regenerate + assert no
+      # diff so a proto shape change can't outrun its fixture (which the Rust +
+      # TS contract tests both read).
+      - name: Check proto fixtures drift
+        run: |
+          cargo run -p xtask --quiet -- gen-fixtures
+          git diff --exit-code proto/fixtures/ \
+            || { echo "proto/fixtures is stale — run 'cargo run -p xtask -- gen-fixtures' and commit"; exit 1; }
       # Shape-conformance integration test runs as part of
       # `cargo test --workspace` (it's a normal integration test under
       # `crates/sui/compiler/tests/shape_conformance.rs`). The tsc gate

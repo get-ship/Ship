@@ -1,0 +1,172 @@
+// `agents.*` as a hand-authored, per-domain proto-SSOT service (#89).
+// Mounted ADDITIVELY beside the generated ReadOpsService/CommandOpsService
+// (which keep serving agents.* until the GUI flip, #72). Request messages
+// take fresh names (ListAgentsRequest, …) because the generated
+// reads.gen.proto/commands.gen.proto already declare AgentsListRequest et al.
+// in this same package — two definitions would collide. Return types reuse
+// the shared shapes in types.proto and JsonResponse from ops.proto.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/ops.proto";
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/types.proto";
+
+// ── Read request messages ─────────────────────────────────────────────────
+
+message ListAgentsRequest {}
+
+message ListAgentsSummariesRequest {}
+
+message GetAgentDetailRequest {
+  string id = 1;
+}
+
+message ListAgentsCatalogsRequest {}
+
+message GetAgentRequest {
+  string id = 1;
+  // "project" | "user"; empty walks Project → User.
+  string scope = 2;
+}
+
+message GetAgentWireRequest {
+  string id = 1;
+}
+
+message GetAgentSettingsRequest {
+  string id = 1;
+}
+
+message ListAgentTemplatesRequest {}
+
+message ListAgentPermissionPresetsRequest {}
+
+message ListAgentHarnessesRequest {}
+
+message GetAgentCreateCtxRequest {}
+
+// ── Write request messages ────────────────────────────────────────────────
+
+message CreateAgentRequest {
+  string id = 1;
+  string doc_json = 2;
+  string scope = 3;
+}
+
+message PutAgentRequest {
+  string id = 1;
+  string doc_json = 2;
+  string scope = 3;
+}
+
+message PatchAgentRequest {
+  string id = 1;
+  string patch_json = 2;
+  string scope = 3;
+}
+
+message DeleteAgentRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message RenameAgentRequest {
+  string id = 1;
+  string new_id = 2;
+  string scope = 3;
+}
+
+message DuplicateAgentRequest {
+  string id = 1;
+  string new_id = 2;
+  string scope = 3;
+  string to = 4;
+}
+
+message MoveAgentScopeRequest {
+  string id = 1;
+  string from = 2;
+  string to = 3;
+}
+
+// Agent profile CRUD and read-context surface. Reads are C0 (edge-
+// authenticated); writes are C1 workspace mutations gated through
+// services::command::call — the ONE gate — exactly as the generated
+// CommandOpsService does. Authoring agent profiles is restricted ship-
+// authoring (same blast radius as skills/rules).
+service AgentsService {
+  rpc List(ListAgentsRequest) returns (AgentIndexResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Summaries(ListAgentsSummariesRequest) returns (AgentsSummariesResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Detail(GetAgentDetailRequest) returns (AgentDetail) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Catalogs(ListAgentsCatalogsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Get(GetAgentRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Wire(GetAgentWireRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Settings(GetAgentSettingsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Templates(ListAgentTemplatesRequest) returns (AgentTemplatesResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc PermissionPresets(ListAgentPermissionPresetsRequest) returns (PermissionPresetsResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Harnesses(ListAgentHarnessesRequest) returns (HarnessesResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc CreateCtx(GetAgentCreateCtxRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Create(CreateAgentRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Put(PutAgentRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Patch(PatchAgentRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Delete(DeleteAgentRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Rename(RenameAgentRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Duplicate(DuplicateAgentRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc MoveScope(MoveAgentScopeRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+}

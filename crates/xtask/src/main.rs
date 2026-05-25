@@ -4,6 +4,7 @@
 //!   cargo xtask gen-types          # regenerate packages/deck/sdk/src/generated.ts
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
 
+mod gen_fixtures;
 mod gen_ops;
 mod gen_skills;
 mod gen_sdk;
@@ -381,17 +382,8 @@ fn main() {
             }
         }
         "gen-fixtures" => {
-            #[cfg(feature = "fixtures")]
-            {
-                if let Err(e) = gen_fixtures(&repo_root()) {
-                    eprintln!("gen-fixtures failed: {e:#}");
-                    std::process::exit(1);
-                }
-            }
-            #[cfg(not(feature = "fixtures"))]
-            {
-                eprintln!("gen-fixtures requires the `fixtures` feature:");
-                eprintln!("  cargo run -p xtask --features fixtures -- gen-fixtures");
+            if let Err(e) = gen_fixtures::run() {
+                eprintln!("gen-fixtures failed: {e:#}");
                 std::process::exit(1);
             }
         }
@@ -414,7 +406,7 @@ fn main() {
             eprintln!("  gen-types          Regenerate packages/deck/sdk/src/generated.ts");
             eprintln!("  gen-types --check  Verify generated file is up-to-date (CI)");
             eprintln!("  gen-sdk            Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
-            eprintln!("  gen-fixtures       Emit committed JSON per data op (needs --features fixtures)");
+            eprintln!("  gen-fixtures       Emit proto contract fixtures from proto/fixtures/theme.json");
             eprintln!("  lint-layers        Verify substrate/platform/application boundaries");
             eprintln!("  gen-ops            Generate the read-op Connect surface from schema::OPS");
         }
@@ -474,28 +466,6 @@ fn gen_types(check: bool) {
     eprintln!("Wrote {}", framework_out.display());
 }
 
-/// Emit one committed JSON fixture per `ship.<domain>.<op>` data op, generated
-/// from the Rust `example()` constructors (the type is the schema). Consumed by
-/// the sandboxed view designer and asserted by `cargo test -p ship-platform`.
-#[cfg(feature = "fixtures")]
-fn gen_fixtures(repo_root: &Path) -> anyhow::Result<()> {
-    use anyhow::Context;
-    let out_dir = repo_root.join("crates/core/ship-platform/fixtures/data");
-    std::fs::create_dir_all(&out_dir)
-        .with_context(|| format!("create {}", out_dir.display()))?;
-    let mut count = 0usize;
-    let mut all = ship_platform::services::data_op_examples();
-    all.extend(shipd::services::registry::fixtures::examples());
-    for (op, value) in all {
-        let json = serde_json::to_string_pretty(&value)?;
-        let path = out_dir.join(format!("{op}.json"));
-        std::fs::write(&path, format!("{json}\n"))
-            .with_context(|| format!("write {}", path.display()))?;
-        count += 1;
-    }
-    eprintln!("gen-fixtures: wrote {count} fixtures to {}", out_dir.display());
-    Ok(())
-}
 
 /// Build the cloud-side generated.ts: EventEnvelope struct + all event-type
 /// string constants read from `ship-types/src/event_types.rs`. Cloud's TS

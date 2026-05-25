@@ -7,8 +7,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
-use buffa::{Message, UnknownFieldData};
-use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use ship_ops_rpc::{
     BytesChunk, CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
@@ -25,6 +23,12 @@ pub struct OpsImpl {
 }
 
 impl OpsImpl {
+    /// Borrow the runtime — for handlers implemented in sibling modules
+    /// (e.g. `analytics_rpc`, `runtime_rpc`) that need `ApiState`.
+    pub(crate) fn state(&self) -> &ApiState {
+        &self.state
+    }
+
     /// Run a registry op by name and wrap its JSON projection in `JsonResponse`
     /// — the migration shape for ported read ops (see ops.proto / the spec).
     fn dispatch_json(&self, op: &str) -> ServiceResult<JsonResponse> {
@@ -40,6 +44,22 @@ impl OpsImpl {
             json: value.to_string(),
             ..Default::default()
         }))
+    }
+
+    /// Typed read dispatch: run the registry op and decode its JSON projection
+    /// onto the proto message `T` (buffa messages derive serde with snake-case
+    /// aliases + ignore unknown fields, so the wire struct's JSON decodes with
+    /// no hand-mapping). The typed analog of `dispatch_json` — the generated
+    /// read methods whose return type has a proto message call this.
+    fn dispatch_typed<T>(&self, op: &str, args: serde_json::Value) -> ServiceResult<T>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let value = crate::services::registry::call(op, &args, &self.state)
+            .map_err(|e| ConnectError::internal(format!("{op}: {e}")))?;
+        let msg = serde_json::from_value::<T>(value)
+            .map_err(|e| ConnectError::internal(format!("{op} decode: {e}")))?;
+        Ok(Response::new(msg))
     }
 }
 
@@ -171,7 +191,46 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = OpsServiceExt::register(svc.clone(), connectrpc::Router::new());
     let router = ReadOpsServiceExt::register(svc.clone(), router);
     let router = CommandOpsServiceExt::register(svc.clone(), router);
-    let router = StreamServiceExt::register(svc, router);
+    let router = StreamServiceExt::register(svc.clone(), router);
+    // Hand-authored proto-as-SSOT domains (impls in analytics_rpc / runtime_rpc).
+    // C0 reads, edge-authenticated like the other reads.
+    let router = ship_ops_rpc::AnalyticsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::RuntimeServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::ViewErrorsServiceExt::register(svc.clone(), router);
+    // First MIGRATED domain (#89): rules.* served additively from the authored
+    // rules.proto. The generated ReadOps/CommandOps still serve rules.* too,
+    // until the GUI flip (#72) re-points clients and retires the old path.
+    let router = ship_ops_rpc::RulesServiceExt::register(svc.clone(), router);
+    // artifacts.* — typed-return migration (ArtifactRecord / Deletion), additive.
+    let router = ship_ops_rpc::ArtifactsServiceExt::register(svc.clone(), router);
+    // collections.* — data plane; reads opaque JSON, item writes typed. Additive.
+    let router = ship_ops_rpc::CollectionsServiceExt::register(svc.clone(), router);
+    // permissions.* — C2_ELEVATED writes (operator-only via the command gate). Additive.
+    let router = ship_ops_rpc::PermissionsServiceExt::register(svc.clone(), router);
+    // mcp.* — external MCP server config CRUD, additive.
+    let router = ship_ops_rpc::McpServiceExt::register(svc.clone(), router);
+    // skills.* (restricted ship-authoring writes), pipelines.* (runtime + config),
+    // git.* — all additive beside the generated ReadOps/CommandOps until #72.
+    let router = ship_ops_rpc::SkillsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::PipelinesServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::GitServiceExt::register(svc.clone(), router);
+    // Wave 2 (#89) — agents/agent (profiles + orchestration), config writes
+    // (project/settings/annotation/feedback), and read aggregates
+    // (sessions/workspaces/account/chat/dashboard/events/specs). All additive
+    // beside the generated ReadOps/CommandOps until the GUI flip (#72).
+    let router = ship_ops_rpc::AgentsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::AgentServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::ProjectServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::SettingsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::AnnotationServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::FeedbackServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::SessionsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::WorkspacesServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::AccountServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::ChatServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::DashboardServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::EventsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::SpecsServiceExt::register(svc, router);
     router.into_axum_router()
 }
 
@@ -199,88 +258,32 @@ pub fn command_error_to_connect(e: crate::services::command::CommandError) -> Co
 // use rather than from generated Rust (the runtime drops custom options in
 // normal codegen). Keyed by the Connect wire-path body "<package>.<Svc>/<Method>".
 
-// Custom option field numbers — must match proto/ship/ops/v1/policy.proto.
-const FIELD_CAPABILITY: u32 = 50001;
-const FIELD_BLAST_RADIUS: u32 = 50002;
-const FIELD_SENSITIVE: u32 = 50003;
-
-/// Blast-radius class (mirrors `ship.ops.v1.BlastRadius`). Drives the gate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BlastRadius {
-    Unspecified,
-    /// Read / own-scope; harmless to Ship.
-    C0Safe,
-    /// Mutates the caller's own space — the user's own risk.
-    C1Workspace,
-    /// Ship/cloud-dangerous; auth gate (off the agent surface).
-    C2Elevated,
-}
-
-impl BlastRadius {
-    fn from_proto(v: u64) -> Self {
-        match v {
-            1 => Self::C0Safe,
-            2 => Self::C1Workspace,
-            3 => Self::C2Elevated,
-            _ => Self::Unspecified,
-        }
-    }
-}
-
-/// Policy for one op, extracted from its proto method options.
+/// Policy for one op, extracted from its proto method options. `blast_radius` is
+/// the shared `ship_ops_rpc::BlastRadius` (one enum across the gate + this map).
 #[derive(Debug, Clone)]
 pub struct OpPolicy {
     pub capability: String,
-    pub blast_radius: BlastRadius,
+    pub blast_radius: ship_ops_rpc::BlastRadius,
     pub sensitive: bool,
 }
 
-/// Decode the descriptor set into a `wire-path → policy` map. Called once.
+/// Build the `wire-path → policy` map. Delegates to the single crate-level
+/// descriptor reader (`ship_ops_rpc::policy::read_policies`) — one decode of the
+/// FileDescriptorSet, shared with the gate's op-name-keyed lookup. Called once.
 fn build_policy_map() -> HashMap<String, OpPolicy> {
-    let mut map = HashMap::new();
-    let set = match FileDescriptorSet::decode_from_slice(ship_ops_rpc::FILE_DESCRIPTOR_SET) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::error!("ops gate: failed to decode descriptor set: {e}");
-            return map;
-        }
-    };
-    for file in &set.file {
-        let package = file.package.as_deref().unwrap_or("");
-        for svc in &file.service {
-            let Some(svc_name) = svc.name.as_deref() else {
-                continue;
-            };
-            for m in &svc.method {
-                let Some(method) = m.name.as_deref() else {
-                    continue;
-                };
-                let (mut capability, mut blast, mut sensitive) =
-                    (String::new(), BlastRadius::Unspecified, false);
-                if let Some(opts) = m.options.as_option() {
-                    for uf in opts.__buffa_unknown_fields.iter() {
-                        match (uf.number, &uf.data) {
-                            (FIELD_CAPABILITY, UnknownFieldData::LengthDelimited(b)) => {
-                                capability = String::from_utf8_lossy(b).into_owned();
-                            }
-                            (FIELD_BLAST_RADIUS, UnknownFieldData::Varint(v)) => {
-                                blast = BlastRadius::from_proto(*v);
-                            }
-                            (FIELD_SENSITIVE, UnknownFieldData::Varint(v)) => {
-                                sensitive = *v != 0;
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                map.insert(
-                    format!("{package}.{svc_name}/{method}"),
-                    OpPolicy { capability, blast_radius: blast, sensitive },
-                );
-            }
-        }
-    }
-    map
+    ship_ops_rpc::policy::read_policies()
+        .into_iter()
+        .map(|p| {
+            (
+                p.wire_path(),
+                OpPolicy {
+                    capability: p.capability,
+                    blast_radius: p.blast,
+                    sensitive: p.sensitive,
+                },
+            )
+        })
+        .collect()
 }
 
 /// The op-policy map, built once from the descriptor at first lookup.
@@ -305,7 +308,7 @@ mod tests {
         let p = policy_for("ship.ops.v1.OpsService/Meta")
             .expect("Meta policy must be present in the descriptor");
         assert_eq!(p.capability, "ship.meta.read");
-        assert_eq!(p.blast_radius, BlastRadius::C0Safe);
+        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C0Read);
         assert!(!p.sensitive);
     }
 
@@ -315,7 +318,7 @@ mod tests {
         let p = policy_for("ship.ops.v1.ReadOpsService/AccountState")
             .expect("AccountState policy must be present");
         assert_eq!(p.capability, "ship.account.read");
-        assert_eq!(p.blast_radius, BlastRadius::C0Safe);
+        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C0Read);
     }
 
     fn auth(kind: CallerKind, agent: Option<&str>) -> AuthContext {

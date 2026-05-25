@@ -1,0 +1,40 @@
+{
+  "List": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "ship",
+          "scope": "project"
+        },
+        {
+          "id": "filesystem",
+          "scope": "user"
+        }
+      ]
+    }
+  },
+  "Create": {
+    "response_ok": {
+      "id": "ship",
+      "scope": "project"
+    }
+  },
+  "Put": {
+    "response_ok": {
+      "id": "ship",
+      "scope": "project"
+    }
+  },
+  "Patch": {
+    "response_ok": {
+      "id": "ship",
+      "scope": "project"
+    }
+  },
+  "Delete": {
+    "response_ok": {
+      "id": "filesystem",
+      "scope": "user"
+    }
+  }
+}

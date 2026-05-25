@@ -15,6 +15,51 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
+/// Read return-types that have a hand-authored proto message (named identically
+/// to the Rust wire struct) in `proto/ship/ops/v1/types.proto`. A read whose
+/// `OpDescriptor.returns` is listed here gets a typed Connect return
+/// (`returns (<Type>)` + a `from_value` decode); every other read stays on the
+/// `JsonResponse` blob. Grows as wire structs are mirrored into proto, one
+/// service at a time — the read half of the typed contract.
+const TYPED_READS: &[&str] = &[
+    // rules
+    "RulesIndexResponse",
+    "RuleGetResponse",
+    // mcp / permissions — list + tool_patterns (the *.get reads carry an
+    // embedded opaque config Value, so they stay JsonResponse).
+    "McpIndexResponse",
+    "PermissionsIndexResponse",
+    "ToolPatternsResponse",
+    // list/index + scalar reads reusing already-typed leaves
+    "SkillsIndexResponse",
+    "PipelinesIndexResponse",
+    "SkillFileResponse",
+    "WorkspaceActiveResponse",
+    "ArtifactsListResponse",
+    // git — all fully structured
+    "GitLogResponse",
+    "GitBranchesResponse",
+    "GitOverviewResponse",
+    "GitDiffResponse",
+    "StatusBuckets",
+    // sessions / chat / events / specs / actors / agents index
+    "SessionsListResponse",
+    "ChatStateResponse",
+    "EventsListResponse",
+    "SpecsListResponse",
+    "SpecGetResponse",
+    "ActorsListResponse",
+    "AgentIndexResponse",
+    // agent catalogs + summaries
+    "AgentTemplatesResponse",
+    "PermissionPresetsResponse",
+    "HarnessesResponse",
+    "AgentsSummariesResponse",
+    // detail-view reads (one nested leaf each — Permissions / AcceptanceItem)
+    "AgentDetail",
+    "SpecDetail",
+];
+
 struct ReadOp {
     /// Registry op name, e.g. `account.state`.
     op: String,
@@ -26,6 +71,9 @@ struct ReadOp {
     capability: String,
     /// Request parameters (empty for no-arg reads).
     args: Vec<Arg>,
+    /// Proto response message name when typed (in `TYPED_READS`); else empty
+    /// (the read returns `JsonResponse`).
+    response_type: String,
 }
 
 struct Arg {
@@ -70,12 +118,18 @@ fn collect() -> Vec<ReadOp> {
                 }
             })
             .collect();
+        let response_type = if TYPED_READS.contains(&op.returns) {
+            op.returns.to_string()
+        } else {
+            String::new()
+        };
         out.push(ReadOp {
             op: op.name.to_string(),
             method: pascal(op.name),
             snake: op.name.replace('.', "_"),
             capability: op.permission.to_string(),
             args,
+            response_type,
         });
     }
     out
@@ -91,16 +145,19 @@ fn render_proto(ops: &[ReadOp]) -> String {
          syntax = \"proto3\";\n\n\
          package ship.ops.v1;\n\n\
          import \"ship/ops/v1/policy.proto\";\n\
-         import \"ship/ops/v1/ops.proto\";\n\n\
+         import \"ship/ops/v1/ops.proto\";\n\
+         import \"ship/ops/v1/types.proto\";\n\n\
          service ReadOpsService {\n",
     );
     for o in ops {
+        let ret = if o.response_type.is_empty() { "JsonResponse" } else { &o.response_type };
         let _ = write!(
             s,
-            "  rpc {m}({m}Request) returns (JsonResponse) {{\n    \
+            "  rpc {m}({m}Request) returns ({ret}) {{\n    \
              option (ship.ops.v1.capability) = \"{cap}\";\n    \
              option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;\n  }}\n",
             m = o.method,
+            ret = ret,
             cap = o.capability,
         );
     }
@@ -132,18 +189,34 @@ fn render_rust(ops: &[ReadOp]) -> String {
     );
     for o in ops {
         let req_binding = if o.args.is_empty() { "_req" } else { "req" };
+        let ret_ty = if o.response_type.is_empty() {
+            "::ship_ops_rpc::JsonResponse".to_string()
+        } else {
+            format!("::ship_ops_rpc::{}", o.response_type)
+        };
         let _ = write!(
             s,
             "    async fn {snake}(\n        &self,\n        \
              _ctx: ::connectrpc::RequestContext,\n        \
              {req}: ::ship_ops_rpc::Owned{m}RequestView,\n    ) -> \
-             ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {{\n",
+             ::connectrpc::ServiceResult<{ret_ty}> {{\n",
             snake = o.snake,
             m = o.method,
             req = req_binding,
+            ret_ty = ret_ty,
         );
+        // No-arg reads pass Null; typed reads decode onto their proto message.
         if o.args.is_empty() {
-            let _ = write!(s, "        self.dispatch_json(\"{op}\")\n    }}\n", op = o.op);
+            let call = if o.response_type.is_empty() {
+                format!("        self.dispatch_json(\"{op}\")\n    }}\n", op = o.op)
+            } else {
+                format!(
+                    "        self.dispatch_typed::<{ret_ty}>(\"{op}\", ::serde_json::Value::Null)\n    }}\n",
+                    ret_ty = ret_ty,
+                    op = o.op,
+                )
+            };
+            s.push_str(&call);
             continue;
         }
         s.push_str("        let mut args = ::serde_json::Map::new();\n");
@@ -160,11 +233,19 @@ fn render_rust(ops: &[ReadOp]) -> String {
                 let _ = write!(s, "        if req.{n} != 0 {{ {insert} }}\n", n = arg.name);
             }
         }
-        let _ = write!(
-            s,
-            "        self.dispatch_json_args(\"{op}\", ::serde_json::Value::Object(args))\n    }}\n",
-            op = o.op,
-        );
+        let call = if o.response_type.is_empty() {
+            format!(
+                "        self.dispatch_json_args(\"{op}\", ::serde_json::Value::Object(args))\n    }}\n",
+                op = o.op,
+            )
+        } else {
+            format!(
+                "        self.dispatch_typed::<{ret_ty}>(\"{op}\", ::serde_json::Value::Object(args))\n    }}\n",
+                ret_ty = ret_ty,
+                op = o.op,
+            )
+        };
+        s.push_str(&call);
     }
     s.push_str("}\n");
     s
@@ -195,6 +276,9 @@ struct CommandOp {
     capability: String,
     blast: String,
     args: Vec<CmdArg>,
+    /// Typed proto response message (from `CommandDescriptor.response_type`).
+    /// Empty = the legacy `JsonResponse` blob.
+    response_type: String,
 }
 
 fn cmd_arg_kind(kind: &str) -> CmdArgKind {
@@ -225,6 +309,7 @@ fn collect_commands() -> Vec<CommandOp> {
                 .iter()
                 .map(|a| CmdArg { name: a.name.to_string(), kind: cmd_arg_kind(a.kind) })
                 .collect(),
+            response_type: c.response_type.to_string(),
         })
         .collect()
 }
@@ -250,16 +335,19 @@ fn render_commands_proto(ops: &[CommandOp]) -> String {
          syntax = \"proto3\";\n\n\
          package ship.ops.v1;\n\n\
          import \"ship/ops/v1/policy.proto\";\n\
-         import \"ship/ops/v1/ops.proto\";\n\n\
+         import \"ship/ops/v1/ops.proto\";\n\
+         import \"ship/ops/v1/types.proto\";\n\n\
          service CommandOpsService {\n",
     );
     for o in ops {
+        let ret = if o.response_type.is_empty() { "JsonResponse" } else { &o.response_type };
         let _ = write!(
             s,
-            "  rpc {m}({m}Request) returns (JsonResponse) {{\n    \
+            "  rpc {m}({m}Request) returns ({ret}) {{\n    \
              option (ship.ops.v1.capability) = \"{cap}\";\n    \
              option (ship.ops.v1.blast_radius) = BLAST_RADIUS_{blast};\n  }}\n",
             m = o.method,
+            ret = ret,
             cap = o.capability,
             blast = o.blast,
         );
@@ -303,14 +391,20 @@ fn render_commands_rust(ops: &[CommandOp]) -> String {
          impl ::ship_ops_rpc::CommandOpsService for OpsImpl {\n",
     );
     for o in ops {
+        let ret = if o.response_type.is_empty() {
+            "::ship_ops_rpc::JsonResponse".to_string()
+        } else {
+            format!("::ship_ops_rpc::{}", o.response_type)
+        };
         let _ = write!(
             s,
             "    async fn {snake}(\n        &self,\n        \
              ctx: ::connectrpc::RequestContext,\n        \
              req: ::ship_ops_rpc::Owned{m}RequestView,\n    ) -> \
-             ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {{\n",
+             ::connectrpc::ServiceResult<{ret}> {{\n",
             snake = o.snake,
             m = o.method,
+            ret = ret,
         );
         s.push_str(
             "        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated(\"auth context required\"))?;\n",
@@ -319,13 +413,26 @@ fn render_commands_rust(ops: &[CommandOp]) -> String {
         for arg in &o.args {
             s.push_str(&cmd_build_arg(arg));
         }
+        // The Ok arm: typed ops decode the command's JSON value onto their proto
+        // message (buffa serde, snake-alias + unknown-field tolerant); untyped
+        // ops carry the raw JSON in a `JsonResponse` blob.
+        let ok_arm = if o.response_type.is_empty() {
+            "Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse { json: value.to_string(), ..Default::default() })),".to_string()
+        } else {
+            format!(
+                "Ok(value) => {{\n                let msg = ::serde_json::from_value::<{ret}>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!(\"decode {op} response: {{e}}\")))?;\n                Ok(::connectrpc::Response::new(msg))\n            }}",
+                ret = ret,
+                op = o.op,
+            )
+        };
         let _ = write!(
             s,
             "        let cmd_ctx = crate::services::command::CommandCtx {{ state: &self.state, auth }};\n        \
              match crate::services::command::call(\"{op}\", &::serde_json::Value::Object(args), &cmd_ctx).await {{\n            \
-             Ok(value) => Ok(::connectrpc::Response::new(::ship_ops_rpc::JsonResponse {{ json: value.to_string(), ..Default::default() }})),\n            \
+             {ok_arm}\n            \
              Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),\n        }}\n    }}\n",
             op = o.op,
+            ok_arm = ok_arm,
         );
     }
     s.push_str("}\n");

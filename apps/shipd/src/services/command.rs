@@ -16,12 +16,22 @@ use serde_json::Value;
 use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 
+mod actor;
 mod agent;
+mod agents;
 mod annotations;
+mod artifacts;
+mod collections;
 mod git;
+mod mcp;
 mod mesh;
+mod permissions;
+mod pipelines;
+mod settings;
+mod skills;
 mod pipeline;
 mod project;
+mod rules;
 mod surfaces;
 mod views;
 
@@ -99,19 +109,49 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
     // write surface — REST and Connect — reaches commands through here, so this
     // is the single enforcement point. Unknown names fall through ungated to the
     // dispatch chain, which returns `unknown_command`.
-    if let Some(desc) = crate::services::schema::COMMANDS.iter().find(|c| c.name == name) {
+    // Policy (blast radius) comes from proto — the single source (#67 a) — read
+    // from the compiled FileDescriptorSet via `op_policy`, not the hand-authored
+    // Rust table. The `reflected_policy_matches_declared_commands` conformance
+    // test guarantees this is identical to the old `COMMANDS` lookup.
+    if let Some(pol) = crate::services::op_policy::policy_for(name) {
         use crate::services::gate;
-        let blast = gate::BlastRadius::from_descriptor(desc.blast_radius);
         let domain = gate::classify(name);
         let caller = gate::caller_from_auth(ctx.auth);
-        if let gate::Decision::Deny(msg) = gate::decide(blast, &domain, &caller) {
+        if let gate::Decision::Deny(msg) = gate::decide(pol.blast, &domain, &caller) {
             return Err(CommandError::forbidden(msg));
         }
     }
     if let Some(value) = pipeline::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
+    if let Some(value) = pipelines::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = settings::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
     if let Some(value) = project::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = rules::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = mcp::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = permissions::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = artifacts::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = collections::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = skills::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = agents::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
@@ -121,6 +161,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = agent::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = actor::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = surfaces::try_dispatch(name, args, ctx).await? {
@@ -320,5 +363,270 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn rules_create_is_default_c1_and_writes_through_the_service() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        // A worker agent (no grants): rules is a default workspace domain, so
+        // the gate allows it — and it actually creates via RulesService.
+        let auth = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("worker-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec![],
+        };
+        let ctx = CommandCtx { state: &harness.state, auth: &auth };
+        // user scope writes to the test's TempDir user root (isolated); project
+        // scope would resolve to the cwd repo, so it's deliberately user here.
+        let args = serde_json::json!({
+            "id": "test-fixture-rule", "content": "# Fixture\nBody.", "scope": "user"
+        });
+        let created = call("rules.create", &args, &ctx).await.expect("worker may create a rule");
+        assert_eq!(created["ok"], true);
+        // The read side sees it (read at user scope, same TempDir root).
+        let got = crate::services::registry::call(
+            "rules.get",
+            &serde_json::json!({ "id": "test-fixture-rule", "scope": "user" }),
+            &harness.state,
+        )
+        .expect("rule readable after create");
+        assert!(got["body"].as_str().unwrap_or("").contains("Fixture"));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn mcp_create_is_restricted_and_writes_through_for_authoring() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let args = serde_json::json!({
+            "id": "fixture-server",
+            "server_json": "{\"command\":\"ship\",\"args\":[\"mcp\",\"serve\"]}",
+            "scope": "user"
+        });
+
+        // A worker (no grants): mcp is restricted (ship-authoring), so the gate
+        // denies it before any write — registering a server expands agent tools.
+        let worker = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("worker-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec![],
+        };
+        let err = call("mcp.create", &args, &CommandCtx { state: &harness.state, auth: &worker })
+            .await
+            .unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+
+        // The operator clears the gate and the write lands (user scope = the
+        // test's isolated TempDir root), echoing the typed {id, scope} shape.
+        let op = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec![],
+        };
+        let created = call("mcp.create", &args, &CommandCtx { state: &harness.state, auth: &op })
+            .await
+            .expect("operator may register an mcp server");
+        assert_eq!(created["id"], "fixture-server");
+        assert_eq!(created["scope"], "user");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn permissions_create_is_c2_operator_only() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let args = serde_json::json!({
+            "id": "fixture-preset",
+            "preset_json": "{\"allow\":[\"Read(*)\"]}",
+            "scope": "user"
+        });
+
+        // Even a designer holding the ship-authoring grant is denied: editing the
+        // security policy is C2, which no grant clears — only the operator.
+        let designer = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("designer-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec!["ship-authoring".to_string()],
+        };
+        let err =
+            call("permissions.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
+                .await
+                .unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+
+        // The operator clears C2 and the write lands.
+        let op = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec![],
+        };
+        let created =
+            call("permissions.create", &args, &CommandCtx { state: &harness.state, auth: &op })
+                .await
+                .expect("operator may write a permission preset");
+        assert_eq!(created["id"], "fixture-preset");
+        assert_eq!(created["scope"], "user");
+    }
+
+    #[test]
+    fn artifact_record_value_decodes_into_the_typed_proto_message() {
+        // The typed contract's load-bearing step: the generated Connect handler
+        // maps the command's serde_json::Value onto the proto message via
+        // from_value. ArtifactRecord exercises the risky shapes — a `uint64`
+        // (size) as a JSON number, snake_case keys, and absent optionals — so
+        // assert the round-trip the handler relies on actually holds.
+        let value = serde_json::json!({
+            "id": "art-1",
+            "name": "out.log",
+            "mime": "text/plain",
+            "size": 4096,
+            "path": "runs/r1/out.log",
+            "scope": "run",
+            "project_id": "proj",
+            "run_id": "r1",
+            "created_at": "2026-05-23T00:00:00Z"
+            // content_hash / expires_at / owner_actor / collection_id / item_id
+            // deliberately absent — proto3 optionals, must default to None.
+        });
+        let msg: ship_ops_rpc::ArtifactRecord =
+            serde_json::from_value(value).expect("artifact value decodes into the proto message");
+        assert_eq!(msg.id, "art-1");
+        assert_eq!(msg.size, 4096);
+        assert_eq!(msg.run_id.as_deref(), Some("r1"));
+        assert_eq!(msg.content_hash, None);
+    }
+
+    #[test]
+    fn collection_item_value_decodes_into_the_typed_proto_message() {
+        // The open `data` payload rides as a `data_json` string; the envelope is
+        // typed. Assert the handler's from_value round-trip holds, including an
+        // absent optional (created_by).
+        let value = serde_json::json!({
+            "id": "item-1",
+            "collection": "notes",
+            "data_json": "{\"title\":\"hi\"}",
+            "created_at": "2026-05-23T00:00:00Z",
+            "updated_at": "2026-05-23T00:00:00Z"
+        });
+        let msg: ship_ops_rpc::CollectionItem =
+            serde_json::from_value(value).expect("collection item value decodes");
+        assert_eq!(msg.id, "item-1");
+        assert_eq!(msg.collection, "notes");
+        assert_eq!(msg.data_json, "{\"title\":\"hi\"}");
+        assert_eq!(msg.created_by, None);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn skills_create_is_restricted_to_ship_authoring() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let args = serde_json::json!({ "id": "fixture-skill", "scope": "user" });
+
+        // A worker (no grants) can't author a skill — skills are capability
+        // groups, gated behind the ship-authoring grant.
+        let worker = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("worker-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec![],
+        };
+        let err = call("skills.create", &args, &CommandCtx { state: &harness.state, auth: &worker })
+            .await
+            .unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+
+        // A designer holding ship-authoring clears the gate and writes through.
+        let designer = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("designer-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec!["ship-authoring".to_string()],
+        };
+        let created =
+            call("skills.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
+                .await
+                .expect("ship-authoring grant clears the gate and the skill is created");
+        assert_eq!(created["id"], "fixture-skill");
+        assert_eq!(created["scope"], "user");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn agents_create_needs_authoring_not_orchestration_grant() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let args = serde_json::json!({
+            "id": "fixture-agent",
+            "doc_json": "{\"role\":\"worker\"}",
+            "scope": "user"
+        });
+
+        // A commander holds ship-orchestration (dispatch/steer) — but authoring a
+        // profile is ship-authoring. The singular/plural prefix split means the
+        // orchestration grant does NOT clear agents.create.
+        let commander = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("commander-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec!["ship-orchestration".to_string()],
+        };
+        let err =
+            call("agents.create", &args, &CommandCtx { state: &harness.state, auth: &commander })
+                .await
+                .unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+
+        // A designer holds ship-authoring → cleared, writes through.
+        let designer = AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("designer-1".to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+            grants: vec!["ship-authoring".to_string()],
+        };
+        let created =
+            call("agents.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
+                .await
+                .expect("ship-authoring grant clears agents.create");
+        assert_eq!(created["id"], "fixture-agent");
+        assert_eq!(created["scope"], "user");
+    }
+
+    #[test]
+    fn typed_read_values_decode_into_their_proto_messages() {
+        // The read half of the typed contract: dispatch_typed decodes the
+        // registry's JSON projection onto the proto message. Exercise the new
+        // shapes — a nested repeated message (RulesIndexResponse → IndexEntry)
+        // and a flat record (RuleGetResponse) — the way the generated read
+        // handler does.
+        let index = serde_json::json!({
+            "items": [ { "id": "no-slop", "scope": "user" }, { "id": "style", "scope": "project" } ]
+        });
+        let msg: ship_ops_rpc::RulesIndexResponse =
+            serde_json::from_value(index).expect("rules.list value decodes");
+        assert_eq!(msg.items.len(), 2);
+        assert_eq!(msg.items[0].id, "no-slop");
+        assert_eq!(msg.items[1].scope, "project");
+
+        let detail = serde_json::json!({ "id": "no-slop", "scope": "user", "body": "# No slop" });
+        let got: ship_ops_rpc::RuleGetResponse =
+            serde_json::from_value(detail).expect("rules.get value decodes");
+        assert_eq!(got.id, "no-slop");
+        assert_eq!(got.body, "# No slop");
     }
 }
