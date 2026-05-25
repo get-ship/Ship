@@ -25,6 +25,19 @@ pub trait HostOs: Send + Sync {
     /// `None` when the OS can't report it — a dead process, or a platform whose
     /// backend isn't built yet (callers must fail closed, never assume trust).
     fn process_container(&self, pid: u32) -> Option<String>;
+
+    /// Transform a child spawn so the process lands in agent `id`'s **process
+    /// container** — the inverse of [`process_container`]: this *creates* what
+    /// that later reads back. Returns the `(program, args)` to actually spawn;
+    /// the caller keeps ownership of stdio/env/cwd and spawns normally.
+    ///
+    /// Linux wraps the command in a **systemd transient user scope**
+    /// (`ship-agent-<id>.scope`) — the cgroup the resolver maps to the agent.
+    /// Returns the input **unchanged** when no backend is available (the child
+    /// still runs; it simply resolves as the operator), so a missing or disabled
+    /// systemd never blocks an agent from starting. Identity, not isolation:
+    /// resource limits on the scope are a later concern.
+    fn containerize(&self, id: &str, program: &str, args: &[String]) -> (String, Vec<String>);
 }
 
 /// Kernel-verified credentials of the process on the other end of a connected
@@ -103,6 +116,74 @@ impl HostOs for Linux {
         let content = std::fs::read_to_string(format!("/proc/{pid}/cgroup")).ok()?;
         parse_cgroup_path(&content)
     }
+
+    fn containerize(&self, id: &str, program: &str, args: &[String]) -> (String, Vec<String>) {
+        if is_safe_unit_id(id) && systemd_user_available() {
+            systemd_scope_argv(id, program, args)
+        } else {
+            (program.to_string(), args.to_vec())
+        }
+    }
+}
+
+/// systemd-run argv that runs `program args` in a transient user scope named
+/// `ship-agent-<id>.scope` — the cgroup [`Linux::process_container`] reads back.
+/// `--scope` runs synchronously in the foreground, **inheriting our stdio/tty**
+/// (so a PTY-attached harness still sees a tty); `--collect` frees the unit on
+/// exit; `--quiet` drops the "Running as unit" banner. Pure — the unit-tested
+/// core of the backend.
+#[cfg(target_os = "linux")]
+fn systemd_scope_argv(id: &str, program: &str, args: &[String]) -> (String, Vec<String>) {
+    let mut out = vec![
+        "--user".to_string(),
+        "--scope".to_string(),
+        format!("--unit=ship-agent-{id}"),
+        "--quiet".to_string(),
+        "--collect".to_string(),
+        "--".to_string(),
+        program.to_string(),
+    ];
+    out.extend(args.iter().cloned());
+    ("systemd-run".to_string(), out)
+}
+
+/// A systemd unit name accepts `[A-Za-z0-9:_.-]`. Reject anything else so an
+/// unusual agent id can't produce a malformed `--unit` (which would fail the
+/// spawn); such ids fall back to a bare, uncontainerized spawn.
+#[cfg(target_os = "linux")]
+fn is_safe_unit_id(id: &str) -> bool {
+    !id.is_empty()
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, ':' | '_' | '.' | '-'))
+}
+
+/// Is a systemd **user** manager live and `systemd-run` on PATH? Cached once.
+/// `SHIP_NO_CONTAINERIZE=1` is an escape hatch (forces the bare-spawn fallback).
+/// The private socket under `$XDG_RUNTIME_DIR/systemd/` is the cheap liveness
+/// signal — no subprocess, no D-Bus round-trip.
+#[cfg(target_os = "linux")]
+fn systemd_user_available() -> bool {
+    use std::sync::OnceLock;
+    static AVAIL: OnceLock<bool> = OnceLock::new();
+    *AVAIL.get_or_init(|| {
+        if std::env::var_os("SHIP_NO_CONTAINERIZE").is_some() {
+            return false;
+        }
+        let Some(xdg) = std::env::var_os("XDG_RUNTIME_DIR") else {
+            return false;
+        };
+        let live = std::path::Path::new(&xdg).join("systemd/private").exists();
+        live && systemd_run_on_path()
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn systemd_run_on_path() -> bool {
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
+    std::env::split_paths(&path).any(|dir| dir.join("systemd-run").is_file())
 }
 
 /// Parse `/proc/<pid>/cgroup` to the process's cgroup path. cgroup v2 is the
@@ -132,6 +213,13 @@ struct Unsupported;
 impl HostOs for Unsupported {
     fn process_container(&self, _pid: u32) -> Option<String> {
         None
+    }
+
+    fn containerize(&self, _id: &str, program: &str, args: &[String]) -> (String, Vec<String>) {
+        // No container backend yet (macOS process-group / Windows job object):
+        // run the command as-is. The agent resolves as the operator until the
+        // platform backend lands.
+        (program.to_string(), args.to_vec())
     }
 }
 
@@ -168,6 +256,49 @@ mod tests {
         // Smoke: our own PID is in *some* cgroup on any Linux test host.
         let c = host().process_container(std::process::id());
         assert!(c.is_some_and(|p| p.starts_with('/')), "self cgroup path should resolve");
+    }
+
+    #[test]
+    fn systemd_scope_argv_wraps_program_and_names_the_unit() {
+        let (prog, args) =
+            systemd_scope_argv("rust-lane-01", "claude", &["--print".to_string(), "hi".to_string()]);
+        assert_eq!(prog, "systemd-run");
+        assert!(args.contains(&"--unit=ship-agent-rust-lane-01".to_string()));
+        assert!(args.contains(&"--scope".to_string()));
+        // Everything after `--` is the original command, in order.
+        let dd = args.iter().position(|a| a == "--").unwrap();
+        assert_eq!(&args[dd + 1..], &["claude", "--print", "hi"]);
+    }
+
+    #[test]
+    fn unit_id_safety() {
+        assert!(is_safe_unit_id("rust-lane-01"));
+        assert!(is_safe_unit_id("commander_2.x"));
+        assert!(!is_safe_unit_id(""));
+        assert!(!is_safe_unit_id("bad id")); // space
+        assert!(!is_safe_unit_id("../escape")); // slash
+    }
+
+    #[test]
+    fn containerize_places_child_in_agent_scope_or_noops() {
+        // Real e2e where a systemd user manager is live (this WSL+systemd host):
+        // the wrapped `cat` runs inside `ship-agent-<id>.scope`, so its own
+        // cgroup names the agent. Degrades to a bare spawn elsewhere.
+        let (prog, args) =
+            host().containerize("probe-itest", "cat", &["/proc/self/cgroup".to_string()]);
+        let out = std::process::Command::new(&prog)
+            .args(&args)
+            .output()
+            .expect("spawn containerized probe");
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        if prog == "systemd-run" {
+            assert!(
+                stdout.contains("ship-agent-probe-itest"),
+                "child should be in its agent scope, got cgroup: {stdout}"
+            );
+        } else {
+            assert_eq!(prog, "cat", "no backend → command runs unchanged");
+        }
     }
 
     #[test]
