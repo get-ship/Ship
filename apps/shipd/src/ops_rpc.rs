@@ -213,7 +213,24 @@ pub fn router(state: ApiState) -> axum::Router {
     // git.* — all additive beside the generated ReadOps/CommandOps until #72.
     let router = ship_ops_rpc::SkillsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::PipelinesServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::GitServiceExt::register(svc, router);
+    let router = ship_ops_rpc::GitServiceExt::register(svc.clone(), router);
+    // Wave 2 (#89) — agents/agent (profiles + orchestration), config writes
+    // (project/settings/annotation/feedback), and read aggregates
+    // (sessions/workspaces/account/chat/dashboard/events/specs). All additive
+    // beside the generated ReadOps/CommandOps until the GUI flip (#72).
+    let router = ship_ops_rpc::AgentsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::AgentServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::ProjectServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::SettingsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::AnnotationServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::FeedbackServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::SessionsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::WorkspacesServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::AccountServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::ChatServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::DashboardServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::EventsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::SpecsServiceExt::register(svc, router);
     router.into_axum_router()
 }
 

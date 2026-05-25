@@ -1,0 +1,55 @@
+// `project.*` and `workspaces.*` as a hand-authored, per-domain proto-SSOT
+// service — migrated domain under decision #89. Mounted ADDITIVELY beside the
+// generated ReadOpsService/CommandOpsService (which still serve these ops until
+// the GUI flip, #72). Old descriptor tables + dispatch stay untouched.
+//
+// Request messages take fresh names (AddProjectRequest, ActivateProjectRequest,
+// ProjectsListRequest, ProjectsActiveRequest) because the generated
+// commands.gen.proto/reads.gen.proto already declare ProjectAddRequest,
+// ProjectActivateRequest, WorkspacesListRequest, WorkspacesActiveRequest in this
+// same package — two definitions would collide. Return types are SHARED shapes
+// from types.proto (ProjectRecord / WorkspaceActiveResponse) and JsonResponse
+// from ops.proto, imported, not redeclared.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/ops.proto";
+import "ship/ops/v1/types.proto";
+
+message ProjectsListRequest {}
+
+message ProjectsActiveRequest {}
+
+message AddProjectRequest {
+  string path = 1;
+  string name = 2;
+}
+
+message ActivateProjectRequest {
+  string id = 1;
+}
+
+// Project registry reads (C0) + writes (C1). Reads surface the workspace
+// list and active-workspace projection. Writes register a new project path
+// or switch the active workspace; both route through the one gate
+// (services::command::call).
+service ProjectService {
+  rpc ListProjects(ProjectsListRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc ActiveProject(ProjectsActiveRequest) returns (WorkspaceActiveResponse) {
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Add(AddProjectRequest) returns (ProjectRecord) {
+    option (ship.ops.v1.capability) = "ship.projects.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Activate(ActivateProjectRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.projects.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+}

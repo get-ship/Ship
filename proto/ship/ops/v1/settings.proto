@@ -1,0 +1,38 @@
+// `settings.*` as a hand-authored, per-domain proto-SSOT service — migrated
+// domain under decision #89. Mounted ADDITIVELY beside the generated
+// ReadOpsService/CommandOpsService (which still serve settings.* until the
+// GUI flip, #72). Old descriptor tables + dispatch stay untouched.
+//
+// Request messages take fresh names (GetSettingsRequest, SetSettingRequest)
+// because the generated reads.gen.proto/commands.gen.proto already declare
+// SettingsStateRequest and SettingsSetRequest in this same package — two
+// definitions would collide. Return types are SHARED shapes from types.proto
+// (SettingValue) and JsonResponse from ops.proto, imported, not redeclared.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/ops.proto";
+import "ship/ops/v1/types.proto";
+
+message GetSettingsRequest {}
+
+message SetSettingRequest {
+  string key = 1;
+  // JSON-serialized value (arbitrary — a setting value can be any JSON type).
+  string value_json = 2;
+}
+
+// Daemon settings read + write. The read is C0 (edge-authenticated); the write
+// is C1 and routes through the one gate (services::command::call).
+service SettingsService {
+  rpc State(GetSettingsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.settings.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Set(SetSettingRequest) returns (SettingValue) {
+    option (ship.ops.v1.capability) = "ship.settings.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+}

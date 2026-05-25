@@ -1,0 +1,27 @@
+// `events.*` as a hand-authored per-domain proto-SSOT service (#89), mounted
+// ADDITIVELY beside the generated ReadOps (which keeps serving until #72).
+// Request uses `*Req` suffix to avoid collision with the generated
+// EventsListRequest in this same ship.ops.v1 package. Return type reuses
+// EventsListResponse from types.proto.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/types.proto";
+
+message EventsListReq {
+  int64 limit = 1;
+  string event_type = 2;
+  string actor = 3;
+  string entity = 4;
+  string q = 5;
+}
+
+// Events read surface. Reads are C0 (edge-authenticated).
+service EventsService {
+  rpc List(EventsListReq) returns (EventsListResponse) {
+    option (ship.ops.v1.capability) = "ship.events.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+}
