@@ -1,7 +1,7 @@
 //! Claude data-dir mining — read transcripts from `~/.claude/projects/`.
 //!
 //! Format (subject to drift):
-//! ```
+//! ```text
 //! ~/.claude/projects/
 //!   <url_encoded_cwd>/                     (one dir per project root)
 //!     <session_uuid>.jsonl                 (one file per session)
