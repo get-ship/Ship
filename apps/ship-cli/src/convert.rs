@@ -5,25 +5,22 @@ use std::path::Path;
 
 use crate::profile;
 
-pub(crate) mod github;
 mod mcp;
 
 /// Run the convert command for the given source string.
 pub fn run_convert(source: &str) -> Result<()> {
     if is_getship_url(source) {
         convert_from_url(source)
-    } else if github::is_github_url(source) {
-        github::convert_from_github(source)
     } else if Path::new(source).exists() {
         convert_from_path(source)
     } else if source.starts_with("http://") || source.starts_with("https://") {
         anyhow::bail!(
-            "Unsupported URL: {}\nOnly getship.dev or github.com URLs are supported.",
+            "Unsupported URL: {}\nOnly getship.dev URLs are supported.",
             source
         )
     } else {
         anyhow::bail!(
-            "Source not found: {}\nProvide a getship.dev URL, a github.com URL, or a local file/directory path.",
+            "Source not found: {}\nProvide a getship.dev URL or a local file/directory path.",
             source
         )
     }
