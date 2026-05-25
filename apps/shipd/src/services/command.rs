@@ -349,6 +349,13 @@ mod tests {
             let reg = harness.state.session_registry().lock().await;
             assert!(reg.get(token).unwrap().grants.iter().any(|g| g == "ship-orchestration"));
         }
+        // #85: the approval also persists a provisioned baseline, so a future
+        // re-dispatch (re-mint) reads it instead of falling back to the role.
+        assert_eq!(
+            ship_platform::projections::provisioned_grants_for("worker-x").unwrap(),
+            Some(vec!["ship-orchestration".to_string()]),
+            "operator approval must persist the provisioned baseline"
+        );
 
         // A non-operator agent calling agent.grant is denied (C2 gate).
         let agent = AuthContext {
