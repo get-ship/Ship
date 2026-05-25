@@ -4,59 +4,6 @@ use anyhow::Result;
 use compiler::{CompileOutput, get_harness};
 use std::path::Path;
 
-// ── File writer (re-exported from compiler for callers that need it) ──────────
-
-pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Result<()> {
-    use anyhow::anyhow;
-    let desc =
-        get_harness(harness_id).ok_or_else(|| anyhow!("unknown harness: {}", harness_id))?;
-    compiler::write_output(root, harness_id, output)?;
-    if let Some(file_name) = desc.context_file.file_name()
-        && output.context_content.is_some()
-    {
-        println!("  {} {}", harness_id, file_name);
-    }
-    if let Some(ref mcp_path) = output.mcp_config_path
-        && harness_id != "codex"
-    {
-        println!("  {} {}", harness_id, mcp_path);
-    }
-    for path in output.skill_files.keys() {
-        println!("  {} {}", harness_id, path);
-    }
-    for path in output.rule_files.keys() {
-        println!("  {} {}", harness_id, path);
-    }
-    if output.claude_settings_patch.is_some() {
-        println!("  {} .claude/settings.json", harness_id);
-    }
-    for path in output.agent_files.keys() {
-        println!("  {} {}", harness_id, path);
-    }
-    if output.codex_config_patch.is_some() {
-        println!("  {} .codex/config.toml", harness_id);
-    }
-    if output.codex_hooks_json.is_some() {
-        println!("  {} .codex/hooks.json", harness_id);
-    }
-    if output.codex_policy_content.is_some() {
-        println!("  {} .codex/rules/ship.rules", harness_id);
-    }
-    if output.cursor_hooks_patch.is_some() {
-        println!("  {} .cursor/hooks.json", harness_id);
-    }
-    if output.cursor_cli_permissions.is_some() {
-        println!("  {} .cursor/cli.json", harness_id);
-    }
-    if output.cursor_environment_json.is_some() {
-        println!("  {} .cursor/environment.json", harness_id);
-    }
-    if output.opencode_config_patch.is_some() {
-        println!("  {} opencode.json", harness_id);
-    }
-    Ok(())
-}
-
 // ── Dry-run printing ─────────────────────────────────────────────────────────
 
 pub(crate) fn print_dry_run(harness_id: &str, output: &CompileOutput) {
@@ -104,11 +51,6 @@ pub(crate) fn print_dry_run(harness_id: &str, output: &CompileOutput) {
         println!("  would write opencode.json");
     }
 }
-
-// ── JSON merge helpers (re-exported from compiler for local use) ─────────────
-
-#[allow(unused_imports)]
-pub(crate) use compiler::{ensure_parent, merge_json, merge_json_file};
 
 // ── Session scratch space ────────────────────────────────────────────────────
 
