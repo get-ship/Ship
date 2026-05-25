@@ -23,6 +23,7 @@ import {
 } from '@ship/sui-runtime'
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { makeSseSource } from './sse'
+import { createShipConnectClient } from '@ship/sdk/connect'
 
 // Bind the SUI runtime's host-agnostic `ShipHost` slot to the concrete
 // `ShipSDK` via declaration merging. The runtime types `ViewScope.ship` as
@@ -94,6 +95,14 @@ export interface CreateClientOpts {
 export function createClient(opts?: CreateClientOpts): ShipSDK {
   const baseUrl = (opts?.baseUrl ?? '').replace(/\/$/, '')
   const ESCtor = opts?.EventSource ?? globalThis.EventSource
+
+  // Per-domain Connect clients (#72). Mutations route here; the daemon's
+  // auth middleware reads the session cookie (same-origin transport), so no
+  // token plumbing. Opaque `JsonResponse` ops decode back to the existing
+  // ShipSDK shape via `okJson` — a pure transport swap, callers unchanged.
+  const connect = createShipConnectClient({ baseUrl })
+  const okJson = async <T>(p: Promise<{ json: string }>): Promise<T> =>
+    JSON.parse((await p).json) as T
 
   // Build the `/_sui/data?expr=...` SSE URL for a single op call. The
   // daemon parses the expr as `ship.<domain>.<op>(<json>?)`. Args are
@@ -201,31 +210,59 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       annotations: (args: { file: string; workspace_id?: string }) =>
         sse('git', 'annotations', args),
       stage:       (args) =>
-        json<{ ok: true; staged: number }>('POST', '/api/v1/git/stage', args),
+        okJson<{ ok: true; staged: number }>(
+          connect.git.stage({ workspaceId: args.workspace_id ?? '', paths: args.paths }),
+        ),
       unstage:     (args) =>
-        json<{ ok: true; unstaged: number }>('POST', '/api/v1/git/unstage', args),
+        okJson<{ ok: true; unstaged: number }>(
+          connect.git.unstage({ workspaceId: args.workspace_id ?? '', paths: args.paths }),
+        ),
       commit:      (args) =>
-        json<{ ok: true; sha: string; branch: string | null }>(
-          'POST', '/api/v1/git/commit', args,
+        okJson<{ ok: true; sha: string; branch: string | null }>(
+          connect.git.commit({
+            workspaceId: args.workspace_id ?? '',
+            message: args.message,
+            author: args.author ?? '',
+          }),
         ),
       push:        (args) =>
-        json<{ ok: true; remote: string; force: boolean }>(
-          'POST', '/api/v1/git/push', args ?? {},
+        okJson<{ ok: true; remote: string; force: boolean }>(
+          connect.git.push({
+            workspaceId: args?.workspace_id ?? '',
+            remote: args?.remote ?? '',
+            force: args?.force ?? false,
+          }),
         ),
       fetch:       (args) =>
-        json<{ ok: true; remote: string }>('POST', '/api/v1/git/fetch', args ?? {}),
+        okJson<{ ok: true; remote: string }>(
+          connect.git.fetch({ workspaceId: args?.workspace_id ?? '', remote: args?.remote ?? '' }),
+        ),
       pull:        (args) =>
-        json<{ ok: true; head: string }>('POST', '/api/v1/git/pull', args ?? {}),
+        okJson<{ ok: true; head: string }>(
+          connect.git.pull({ workspaceId: args?.workspace_id ?? '', remote: args?.remote ?? '' }),
+        ),
       checkout:    (args) =>
-        json<{ ok: true; ref: string; resolved: string }>(
-          'POST', '/api/v1/git/checkout', { ref: args.ref, workspace_id: args.workspace_id },
+        okJson<{ ok: true; ref: string; resolved: string }>(
+          connect.git.checkout({ workspaceId: args.workspace_id ?? '', refname: args.ref }),
         ),
       branch_create: (args) =>
-        json<{ ok: true; name: string }>('POST', '/api/v1/git/branch', args),
+        okJson<{ ok: true; name: string }>(
+          connect.git.branchCreate({
+            workspaceId: args.workspace_id ?? '',
+            name: args.name,
+            checkout: args.checkout ?? false,
+          }),
+        ),
       branch_delete: (args) =>
-        json<{ ok: true; name: string }>('DELETE', '/api/v1/git/branch', args),
+        okJson<{ ok: true; name: string }>(
+          connect.git.branchDelete({
+            workspaceId: args.workspace_id ?? '',
+            name: args.name,
+            force: args.force ?? false,
+          }),
+        ),
       init:        (args) =>
-        json<{ ok: true }>('POST', '/api/v1/git/init', args ?? {}),
+        okJson<{ ok: true }>(connect.git.init({ workspaceId: args?.workspace_id ?? '' })),
     },
     mesh: {
       snapshot: () => sse('mesh', 'snapshot'),
