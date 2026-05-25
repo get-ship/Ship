@@ -246,6 +246,10 @@ fn collect_ship_data_types() -> TypeCollection {
     // struct disambiguates it from the other domains' IndexEntry.
     c.register::<ship_platform::services::skills::state::IndexEntry>();
 
+    // collections — list row + field record (was hand-written in ship-sdk.ts);
+    // pulls in CollectionFieldRecord as a nested type.
+    c.register::<shipd::services::registry::wire::CollectionSummary>();
+
     c
 }
 

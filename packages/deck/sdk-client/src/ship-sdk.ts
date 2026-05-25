@@ -22,6 +22,8 @@ import type {
   AccountState,
   AgentsSummariesResponse,
   ArtifactRecord,
+  CollectionFieldRecord,
+  CollectionSummary,
   GitDiff,
   GitDiffArgs,
   GitOverview,
@@ -29,26 +31,7 @@ import type {
 } from './generated'
 import type { LiveSource } from '@ship/sui-runtime'
 
-export type { ArtifactRecord, SkillIndexEntry }
-
-/** Collection field record for view controllers (id+attrs). */
-export interface CollectionFieldRecord {
-  name: string
-  type: string
-  field_type: string
-  required: boolean
-  values: string[]
-  default: unknown
-}
-
-/** Collection summary row exposed by `ship.collections.list()`. */
-export interface CollectionSummary {
-  id: string
-  name: string
-  field_count: number
-  fields: CollectionFieldRecord[]
-  builtin: boolean
-}
+export type { ArtifactRecord, CollectionFieldRecord, CollectionSummary, SkillIndexEntry }
 
 /** Live SDK handle exposed to controllers, hooks, and `<data>` sources. */
 export interface ShipSDK {
