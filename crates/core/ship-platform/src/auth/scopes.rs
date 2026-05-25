@@ -203,6 +203,80 @@ pub fn grants_for_role(role: Option<&str>) -> Vec<String> {
     g.iter().map(|s| s.to_string()).collect()
 }
 
+/// The grants the mint path stamps onto a new session for `agent_id`.
+///
+/// The per-agent **provisioned baseline** (operator-approved, seeded at install
+/// from the agent's resolved skill grants) is the source of truth. When no
+/// baseline has been recorded yet, fall back to the role-derived grants — this
+/// keeps un-provisioned agents (and dev-mode pairs) working exactly as before.
+/// The provisioned record, once present, fully replaces the role default.
+pub fn resolve_grants(agent_id: &str, role: Option<&str>) -> Vec<String> {
+    resolve_from(crate::projections::provisioned_grants_for(agent_id), agent_id, role)
+}
+
+/// Test/`_at` variant of [`resolve_grants`] against a specific home dir.
+pub fn resolve_grants_at(
+    home: &std::path::Path,
+    agent_id: &str,
+    role: Option<&str>,
+) -> Vec<String> {
+    resolve_from(
+        crate::projections::provisioned_grants::provisioned_grants_for_at(home, agent_id),
+        agent_id,
+        role,
+    )
+}
+
+/// Write an agent's provisioned grant baseline via an `agent.grants.provisioned`
+/// event. `source` is "install" (seeded from resolved skill grants) or
+/// "operator" (explicit approval); `approved_by` carries the operator id for
+/// the latter. Append is transactional-with-projection, so a subsequent
+/// [`resolve_grants`] for the same agent observes this write immediately.
+///
+/// This is **operator/daemon authority** — the agent never calls it. An agent
+/// controls its skill files but not its provisioned baseline.
+pub fn provision_grants(
+    agent_id: &str,
+    grants: &[String],
+    source: &str,
+    approved_by: Option<&str>,
+) -> anyhow::Result<()> {
+    let payload = ship_substrate::events::types::AgentGrantsProvisioned {
+        grants: grants.to_vec(),
+        source: source.to_string(),
+        approved_by: approved_by.map(|s| s.to_string()),
+    };
+    let envelope = ship_substrate::events::EventEnvelope::new(
+        ship_substrate::events::types::event_types::AGENT_GRANTS_PROVISIONED,
+        agent_id,
+        &payload,
+    )?;
+    let store = ship_substrate::persistence::event_store::SqliteEventStore::new()?;
+    ship_substrate::persistence::event_store::EventStore::append(&store, &envelope)?;
+    Ok(())
+}
+
+/// Compose a provisioned-lookup result with the role fallback.
+fn resolve_from(
+    lookup: anyhow::Result<Option<Vec<String>>>,
+    agent_id: &str,
+    role: Option<&str>,
+) -> Vec<String> {
+    match lookup {
+        Ok(Some(grants)) => grants,
+        Ok(None) => grants_for_role(role),
+        Err(e) => {
+            // Fail closed-ish: a projection read error must not silently grant
+            // the role baseline's restricted domains. Log and deny extras.
+            tracing::warn!(
+                agent_id,
+                "resolve_grants: provisioned read failed ({e}); denying restricted grants"
+            );
+            Vec::new()
+        }
+    }
+}
+
 // ── Session registry ────────────────────────────────────────────────────────
 
 /// A daemon-scoped session — maps a session token to an agent's granted scopes.
@@ -420,6 +494,42 @@ mod tests {
         let scopes = scopes_for_role(Some("contributor"));
         assert!(Scope::Full.is_granted_by(&scopes));
         assert!(Scope::AdminDaemon.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn resolve_grants_falls_back_to_role_when_unprovisioned() {
+        let tmp = tempfile::tempdir().unwrap();
+        // No provisioned record → role baseline applies (migration-safe).
+        let grants = resolve_grants_at(tmp.path(), "fresh-agent", Some("commander"));
+        assert_eq!(grants, vec!["ship-orchestration".to_string()]);
+        // A worker with no record gets no restricted grants.
+        assert!(resolve_grants_at(tmp.path(), "w", Some("worker")).is_empty());
+    }
+
+    #[test]
+    fn resolve_grants_provisioned_record_overrides_role() {
+        use ship_substrate::events::EventEnvelope;
+        use crate::projections::provisioned_grants::ProvisionedGrantsProjection;
+        use ship_substrate::projections::registry::Projection;
+
+        let tmp = tempfile::tempdir().unwrap();
+        ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
+        let mut conn = ship_substrate::db::open_db_at(
+            &ship_substrate::db::platform_db_path(tmp.path()),
+        )
+        .unwrap();
+        // Operator provisions a *narrower* set than the commander role default.
+        let ev = EventEnvelope::new(
+            ship_types::event_types::AGENT_GRANTS_PROVISIONED,
+            "pinned",
+            &serde_json::json!({ "grants": ["ship-authoring"], "source": "operator" }),
+        )
+        .unwrap();
+        ProvisionedGrantsProjection.apply(&ev, &mut conn).unwrap();
+
+        // Role says commander (→ orchestration), but the provisioned set wins.
+        let grants = resolve_grants_at(tmp.path(), "pinned", Some("commander"));
+        assert_eq!(grants, vec!["ship-authoring".to_string()]);
     }
 
     #[test]

@@ -41,6 +41,8 @@ pub fn install_defaults() {
             Box::new(projections::ProjectsProjection),
             Box::new(projections::AuthSessionsProjection),
             Box::new(projections::DaemonOwnerProjection),
+            // Per-agent approved grant baseline the mint path reads.
+            Box::new(projections::ProvisionedGrantsProjection),
             Box::new(projections::PipelineRunProjection),
             // Agent-session primitive — sibling of jobs. Tracks
             // single-agent dispatches (bare ship use, MCP dispatch,
