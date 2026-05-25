@@ -190,26 +190,24 @@ fn publish_via_daemon(payload: &serde_json::Value) -> Result<()> {
         .trim()
         .to_string();
 
-    let url = format!("http://127.0.0.1:{port}/api/v1/registry/publish");
-    let resp = crate::http::daemon_client()
-        .post(&url)
-        .bearer_auth(&token)
-        .json(payload)
-        .timeout(std::time::Duration::from_secs(60))
-        .send()
-        .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
-    crate::http::check_skew(resp.headers());
-
-    let status = resp.status();
-    let body_text = resp.text().unwrap_or_default();
-
-    if !status.is_success() {
-        let detail = serde_json::from_str::<serde_json::Value>(&body_text)
-            .ok()
-            .and_then(|v| v.get("error").and_then(|e| e.as_str()).map(String::from))
-            .unwrap_or(body_text);
-        anyhow::bail!("Publish failed ({}): {}", status, detail);
-    }
+    // RegistryService.Publish (Connect) replaces POST /api/v1/registry/publish.
+    // The daemon attaches the API key + forwards; a failed gateway response
+    // surfaces as a ConnectError, which we bubble up as the publish error.
+    use connectrpc::client::{ClientConfig, HttpClient};
+    use ship_ops_rpc::{PublishReq, RegistryServiceClient};
+    let uri: http::Uri = format!("http://127.0.0.1:{port}")
+        .parse()
+        .map_err(|e| anyhow::anyhow!("building daemon URI: {e}"))?;
+    let config =
+        ClientConfig::new(uri).default_header("authorization", format!("Bearer {token}"));
+    let client = RegistryServiceClient::new(HttpClient::plaintext(), config);
+    let rt = tokio::runtime::Runtime::new()
+        .map_err(|e| anyhow::anyhow!("starting tokio runtime: {e}"))?;
+    rt.block_on(client.publish(PublishReq {
+        payload_json: payload.to_string(),
+        ..Default::default()
+    }))
+        .map_err(|e| anyhow::anyhow!("Publish failed: {e}"))?;
     Ok(())
 }
 

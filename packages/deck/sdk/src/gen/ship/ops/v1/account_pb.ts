@@ -22,7 +22,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/account.proto.
  */
 export const file_ship_ops_v1_account: GenFile = /*@__PURE__*/
-  fileDesc("ChlzaGlwL29wcy92MS9hY2NvdW50LnByb3RvEgtzaGlwLm9wcy52MSIUChJHZXRBY2NvdW50U3RhdGVSZXEy1gEKDkFjY291bnRTZXJ2aWNlEl4KBVN0YXRlEh8uc2hpcC5vcHMudjEuR2V0QWNjb3VudFN0YXRlUmVxGhkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhmKtRgRc2hpcC5hY2NvdW50LnJlYWSQtRgBEmQKCVN0YXRlTGl2ZRIfLnNoaXAub3BzLnYxLkdldEFjY291bnRTdGF0ZVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIZirUYEXNoaXAuYWNjb3VudC5yZWFkkLUYATABYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
+  fileDesc("ChlzaGlwL29wcy92MS9hY2NvdW50LnByb3RvEgtzaGlwLm9wcy52MSIUChJHZXRBY2NvdW50U3RhdGVSZXEiCwoJTG9nb3V0UmVxMq8CCg5BY2NvdW50U2VydmljZRJeCgVTdGF0ZRIfLnNoaXAub3BzLnYxLkdldEFjY291bnRTdGF0ZVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIZirUYEXNoaXAuYWNjb3VudC5yZWFkkLUYARJkCglTdGF0ZUxpdmUSHy5zaGlwLm9wcy52MS5HZXRBY2NvdW50U3RhdGVSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGYq1GBFzaGlwLmFjY291bnQucmVhZJC1GAEwARJXCgZMb2dvdXQSFi5zaGlwLm9wcy52MS5Mb2dvdXRSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGoq1GBJzaGlwLmFjY291bnQud3JpdGWQtRgDYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
 
 /**
  * @generated from message ship.ops.v1.GetAccountStateReq
@@ -38,7 +38,22 @@ export const GetAccountStateReqSchema: GenMessage<GetAccountStateReq> = /*@__PUR
   messageDesc(file_ship_ops_v1_account, 0);
 
 /**
- * Ship Cloud account state. Single C0 read — no writes in this domain.
+ * @generated from message ship.ops.v1.LogoutReq
+ */
+export type LogoutReq = Message<"ship.ops.v1.LogoutReq"> & {
+};
+
+/**
+ * Describes the message ship.ops.v1.LogoutReq.
+ * Use `create(LogoutReqSchema)` to create a new message.
+ */
+export const LogoutReqSchema: GenMessage<LogoutReq> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_account, 1);
+
+/**
+ * Ship Cloud account state + the logout write. (login/complete/key remain a
+ * pre-credential REST bootstrap — they're how you obtain the bearer a Connect
+ * call requires, so they can't speak authenticated Connect. See #141.)
  *
  * @generated from service ship.ops.v1.AccountService
  */
@@ -57,6 +72,17 @@ export const AccountService: GenService<{
   stateLive: {
     methodKind: "server_streaming";
     input: typeof GetAccountStateReqSchema;
+    output: typeof JsonResponseSchema;
+  },
+  /**
+   * Clear the daemon's stored gateway token (idempotent). C2 — account
+   * mutation requiring user presence.
+   *
+   * @generated from rpc ship.ops.v1.AccountService.Logout
+   */
+  logout: {
+    methodKind: "unary";
+    input: typeof LogoutReqSchema;
     output: typeof JsonResponseSchema;
   },
 }> = /*@__PURE__*/

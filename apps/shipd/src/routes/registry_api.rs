@@ -45,14 +45,24 @@ pub async fn publish(
     if let Err(e) = require_scope(&auth, Scope::Full) {
         return e.into_response();
     }
+    match publish_to_gateway(payload).await {
+        Ok((status, body)) => (status, Json(body)).into_response(),
+        Err((status, msg)) => err(status, msg),
+    }
+}
 
+/// Attach the stored API key and forward a publish payload to the gateway,
+/// shared by the REST handler (until #137) and `RegistryService.Publish`.
+/// Returns the gateway's `(status, body)` on success; `(status, message)` for
+/// missing credentials or transport failures.
+pub async fn publish_to_gateway(
+    payload: serde_json::Value,
+) -> Result<(StatusCode, serde_json::Value), (StatusCode, String)> {
     let creds = Credentials::load();
-    let Some(token) = creds.account_token().map(str::to_string) else {
-        return err(
-            StatusCode::UNAUTHORIZED,
-            "Not authenticated. Run `ship login` on this machine first.",
-        );
-    };
+    let token = creds.account_token().map(str::to_string).ok_or((
+        StatusCode::UNAUTHORIZED,
+        "Not authenticated. Run `ship login` on this machine first.".to_string(),
+    ))?;
 
     let url = format!("{}/api/v1/registry/publish", resolve_gateway());
     let client = reqwest::Client::builder()
@@ -60,40 +70,26 @@ pub async fn publish(
         .build()
         .unwrap_or_else(|_| reqwest::Client::new());
 
-    let resp = match client
+    let resp = client
         .post(&url)
         .bearer_auth(&token)
         .json(&payload)
         .send()
         .await
-    {
-        Ok(r) => r,
-        Err(e) => {
-            return err(
-                StatusCode::BAD_GATEWAY,
-                format!("Gateway request failed: {e}"),
-            );
-        }
-    };
+        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("Gateway request failed: {e}")))?;
 
-    let status = StatusCode::from_u16(resp.status().as_u16())
-        .unwrap_or(StatusCode::BAD_GATEWAY);
-    let body_bytes = match resp.bytes().await {
-        Ok(b) => b,
-        Err(e) => {
-            return err(
-                StatusCode::BAD_GATEWAY,
-                format!("Reading gateway response failed: {e}"),
-            );
-        }
-    };
+    let status =
+        StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+    let body_bytes = resp.bytes().await.map_err(|e| {
+        (StatusCode::BAD_GATEWAY, format!("Reading gateway response failed: {e}"))
+    })?;
 
-    let body_value: serde_json::Value = serde_json::from_slice(&body_bytes)
-        .unwrap_or_else(|_| {
+    let body_value: serde_json::Value =
+        serde_json::from_slice(&body_bytes).unwrap_or_else(|_| {
             serde_json::Value::String(String::from_utf8_lossy(&body_bytes).into_owned())
         });
 
-    (status, Json(body_value)).into_response()
+    Ok((status, body_value))
 }
 
 #[cfg(test)]

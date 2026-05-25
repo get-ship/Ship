@@ -21,7 +21,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/events.proto.
  */
 export const file_ship_ops_v1_events: GenFile = /*@__PURE__*/
-  fileDesc("ChhzaGlwL29wcy92MS9ldmVudHMucHJvdG8SC3NoaXAub3BzLnYxIlwKDUV2ZW50c0xpc3RSZXESDQoFbGltaXQYASABKAMSEgoKZXZlbnRfdHlwZRgCIAEoCRINCgVhY3RvchgDIAEoCRIOCgZlbnRpdHkYBCABKAkSCQoBcRgFIAEoCTLNAQoNRXZlbnRzU2VydmljZRJdCgRMaXN0Ehouc2hpcC5vcHMudjEuRXZlbnRzTGlzdFJlcRofLnNoaXAub3BzLnYxLkV2ZW50c0xpc3RSZXNwb25zZSIYirUYEHNoaXAuZXZlbnRzLnJlYWSQtRgBEl0KCExpc3RMaXZlEhouc2hpcC5vcHMudjEuRXZlbnRzTGlzdFJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAuZXZlbnRzLnJlYWSQtRgBMAFiBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_types, file_ship_ops_v1_ops]);
+  fileDesc("ChhzaGlwL29wcy92MS9ldmVudHMucHJvdG8SC3NoaXAub3BzLnYxIlwKDUV2ZW50c0xpc3RSZXESDQoFbGltaXQYASABKAMSEgoKZXZlbnRfdHlwZRgCIAEoCRINCgVhY3RvchgDIAEoCRIOCgZlbnRpdHkYBCABKAkSCQoBcRgFIAEoCSJRCg1FdmVudHNQb2xsUmVxEhAKCHNpbmNlX2lkGAEgASgJEgwKBHNsdWcYAiABKAkSEQoJbmFtZXNwYWNlGAMgASgJEg0KBWxpbWl0GAQgASgDMqYCCg1FdmVudHNTZXJ2aWNlEl0KBExpc3QSGi5zaGlwLm9wcy52MS5FdmVudHNMaXN0UmVxGh8uc2hpcC5vcHMudjEuRXZlbnRzTGlzdFJlc3BvbnNlIhiKtRgQc2hpcC5ldmVudHMucmVhZJC1GAESXQoITGlzdExpdmUSGi5zaGlwLm9wcy52MS5FdmVudHNMaXN0UmVxGhkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhiKtRgQc2hpcC5ldmVudHMucmVhZJC1GAEwARJXCgRQb2xsEhouc2hpcC5vcHMudjEuRXZlbnRzUG9sbFJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAuZXZlbnRzLnJlYWSQtRgBYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_types, file_ship_ops_v1_ops]);
 
 /**
  * @generated from message ship.ops.v1.EventsListReq
@@ -61,6 +61,42 @@ export const EventsListReqSchema: GenMessage<EventsListReq> = /*@__PURE__*/
   messageDesc(file_ship_ops_v1_events, 0);
 
 /**
+ * Cursor-walk poll for `ship tail` (#141): replays the event log forward
+ * from a ULID cursor. Distinct from List (a filtered query) — Poll is
+ * incremental resume-from-cursor with slug/namespace filters.
+ *
+ * @generated from message ship.ops.v1.EventsPollReq
+ */
+export type EventsPollReq = Message<"ship.ops.v1.EventsPollReq"> & {
+  /**
+   * @generated from field: string since_id = 1;
+   */
+  sinceId: string;
+
+  /**
+   * @generated from field: string slug = 2;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: string namespace = 3;
+   */
+  namespace: string;
+
+  /**
+   * @generated from field: int64 limit = 4;
+   */
+  limit: bigint;
+};
+
+/**
+ * Describes the message ship.ops.v1.EventsPollReq.
+ * Use `create(EventsPollReqSchema)` to create a new message.
+ */
+export const EventsPollReqSchema: GenMessage<EventsPollReq> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_events, 1);
+
+/**
  * Events read surface. Reads are C0 (edge-authenticated).
  *
  * @generated from service ship.ops.v1.EventsService
@@ -80,6 +116,14 @@ export const EventsService: GenService<{
   listLive: {
     methodKind: "server_streaming";
     input: typeof EventsListReqSchema;
+    output: typeof JsonResponseSchema;
+  },
+  /**
+   * @generated from rpc ship.ops.v1.EventsService.Poll
+   */
+  poll: {
+    methodKind: "unary";
+    input: typeof EventsPollReqSchema;
     output: typeof JsonResponseSchema;
   },
 }> = /*@__PURE__*/
