@@ -135,12 +135,6 @@ pub enum Route {
     /// @auth cli
     LogoutAccount,
 
-    /// Transitional bridge — returns the stored API key for legacy
-    /// CLI call sites (publish, convert) that still hit the gateway
-    /// directly. Remove once those route through the daemon.
-    /// @route GET "/api/v1/account/key"
-    /// @auth cli
-    GetAccountKey,
 
     // ── Shared assets (unauthenticated) ──────────────────────────────────
 

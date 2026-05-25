@@ -16,9 +16,21 @@ import "ship/ops/v1/ops.proto";
 message GetAccountStateReq {}
 message LogoutReq {}
 
-// Ship Cloud account state + the logout write. (login/complete/key remain a
-// pre-credential REST bootstrap — they're how you obtain the bearer a Connect
-// call requires, so they can't speak authenticated Connect. See #141.)
+// PKCE login start: CLI passes its local-callback redirect_uri; daemon returns
+// the browser URL + a state_id.
+message LoginReq {
+  string redirect_uri = 1;
+}
+// PKCE login finish: CLI passes the state_id + the code from its callback.
+message LoginCompleteReq {
+  string state_id = 1;
+  string code = 2;
+}
+
+// Ship Cloud account ops. ALL ops require user presence (CallerKind::Cli or
+// browser cookie) — MCP session tokens are categorically denied (SECURITY.md).
+// The Connect transport doesn't run the per-route `@auth cli` middleware, so
+// each impl enforces presence itself.
 service AccountService {
   rpc State(GetAccountStateReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.account.read";
@@ -31,6 +43,17 @@ service AccountService {
   // Clear the daemon's stored gateway token (idempotent). C2 — account
   // mutation requiring user presence.
   rpc Logout(LogoutReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.account.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  // Daemon-mediated PKCE login (replaces POST /api/v1/account/login{,/complete}).
+  // The daemon owns PKCE state + the gateway exchange; the CLI calls these with
+  // its daemon bearer, so they speak authenticated Connect.
+  rpc Login(LoginReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.account.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc LoginComplete(LoginCompleteReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.account.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }

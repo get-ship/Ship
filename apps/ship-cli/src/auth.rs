@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::mpsc;
 
-use crate::config::{Credentials, CredentialsAccount, DiskBackedConfig, ShipConfig};
+use crate::config::{Credentials, DiskBackedConfig, ShipConfig};
 
 // PKCE state (verifier + challenge generation) moved to the daemon's
 // AccountService in `crates/core/ship-platform/src/account/service.rs`.
@@ -38,21 +38,32 @@ fn parse_code_from_request(request: &str) -> Option<String> {
     None
 }
 
-/// `ship login` — PKCE S256 OAuth flow, daemon-mediated.
+/// `ship login` — PKCE S256 OAuth flow, daemon-mediated over Connect.
 ///
 /// Flow:
 ///   1. CLI binds an ephemeral callback port on 127.0.0.1
-///   2. CLI POSTs the redirect_uri to daemon `/api/v1/account/login`;
-///      daemon generates PKCE state, returns the browser URL
+///   2. CLI calls `AccountService.Login` (daemon bearer); daemon generates
+///      PKCE state, returns the browser URL
 ///   3. CLI opens browser
 ///   4. Browser → gateway OAuth → redirects to CLI's callback server with `code`
-///   5. CLI POSTs `{state_id, code}` to daemon `/api/v1/account/login/complete`;
-///      daemon does PKCE exchange + stores API key + binds daemon owner
-///   6. CLI fetches the key via `/api/v1/account/key` and dual-writes to
-///      legacy credentials.jsonc so publish/convert continue to work
-///      (transitional bridge; remove when task #79 lands)
+///   5. CLI calls `AccountService.LoginComplete{state_id, code}`; daemon does
+///      the PKCE exchange, stores the API key, binds the daemon owner. The
+///      daemon owns the token — publish/convert read it from the daemon, so
+///      there's no legacy credentials.jsonc mirror (#79 retired).
 pub fn run_login() -> Result<()> {
+    use connectrpc::client::{ClientConfig, HttpClient};
+    use ship_ops_rpc::{AccountServiceClient, LoginCompleteReq, LoginReq};
     let (daemon_port, daemon_token) = daemon_connect()?;
+
+    // AccountService.Login{,Complete} (Connect) replace POST /api/v1/account/login
+    // {,/complete}. Called with the daemon bearer — user-presence enforced
+    // server-side (CallerKind::Cli).
+    let uri: http::Uri =
+        format!("http://127.0.0.1:{daemon_port}").parse().context("building daemon URI")?;
+    let config =
+        ClientConfig::new(uri).default_header("authorization", format!("Bearer {daemon_token}"));
+    let account = AccountServiceClient::new(HttpClient::plaintext(), config);
+    let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
 
     // Bind callback first so we know the redirect_uri to send the daemon.
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -62,12 +73,12 @@ pub fn run_login() -> Result<()> {
 
     // 1. Start the login via daemon — daemon generates PKCE + returns
     //    the browser URL pointing at the gateway with our redirect_uri.
-    let start: serde_json::Value = daemon_post_json(
-        daemon_port,
-        &daemon_token,
-        "/api/v1/account/login",
-        serde_json::json!({ "redirect_uri": redirect_uri }),
-    )?;
+    let start: serde_json::Value = {
+        let resp = rt
+            .block_on(account.login(LoginReq { redirect_uri, ..Default::default() }))
+            .map_err(|e| anyhow::anyhow!("account login failed: {e}"))?;
+        serde_json::from_str(&resp.view().json).context("parsing login response")?
+    };
     let state_id = start.get("state_id").and_then(|v| v.as_str())
         .ok_or_else(|| anyhow::anyhow!("daemon /account/login: missing state_id"))?
         .to_string();
@@ -107,83 +118,24 @@ pub fn run_login() -> Result<()> {
     };
 
     // 3. Daemon exchanges the code, stores the API key, binds the daemon
-    //    owner. Single round-trip; no Credentials write yet.
-    let complete: serde_json::Value = daemon_post_json(
-        daemon_port,
-        &daemon_token,
-        "/api/v1/account/login/complete",
-        serde_json::json!({ "state_id": state_id, "code": code }),
-    )?;
+    //    owner. The daemon holds the token — publish/convert read it from the
+    //    daemon now, so there's no Credentials mirror (the #79 bridge is gone).
+    let complete: serde_json::Value = {
+        let resp = rt
+            .block_on(account.login_complete(LoginCompleteReq {
+                state_id,
+                code,
+                ..Default::default()
+            }))
+            .map_err(|e| anyhow::anyhow!("account login complete failed: {e}"))?;
+        serde_json::from_str(&resp.view().json).context("parsing login-complete response")?
+    };
     let user_id = complete.get("user_id").and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow::anyhow!("daemon /account/login/complete: missing user_id"))?
+        .ok_or_else(|| anyhow::anyhow!("daemon account.login_complete: missing user_id"))?
         .to_string();
-
-    // 4. Transitional bridge — fetch the API key back from the daemon
-    //    and write it into legacy credentials.jsonc so publish/convert
-    //    keep working until they too go via the daemon (task #79).
-    let key: serde_json::Value = daemon_get_json(
-        daemon_port,
-        &daemon_token,
-        "/api/v1/account/key",
-    )?;
-    let api_key = key.get("key").and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow::anyhow!("daemon /account/key: missing key"))?
-        .to_string();
-    let mut creds = Credentials::load();
-    creds.account = Some(CredentialsAccount { token: Some(api_key) });
-    creds.save()?;
 
     println!("Logged in as {user_id}. Daemon stored token + bound to this account.");
-    println!("(transitional: credentials also mirrored to {} for publish/convert)", Credentials::path().display());
     Ok(())
-}
-
-/// POST a JSON body to the daemon, parse the JSON response.
-fn daemon_post_json(
-    port: u16,
-    daemon_token: &str,
-    path: &str,
-    body: serde_json::Value,
-) -> Result<serde_json::Value> {
-    let url = format!("http://127.0.0.1:{port}{path}");
-    let resp = crate::http::daemon_client()
-        .post(&url)
-        .bearer_auth(daemon_token)
-        .json(&body)
-        .timeout(std::time::Duration::from_secs(120))
-        .send()
-        .map_err(|e| anyhow::anyhow!("daemon {path} POST failed: {e}"))?;
-    crate::http::check_skew(resp.headers());
-    let status = resp.status();
-    let body_text = resp.text().unwrap_or_default();
-    if !status.is_success() {
-        let parsed: serde_json::Value = serde_json::from_str(&body_text).unwrap_or_default();
-        let err_msg = parsed.get("error").and_then(|v| v.as_str()).unwrap_or(&body_text);
-        anyhow::bail!("daemon {path} returned {status}: {err_msg}");
-    }
-    serde_json::from_str(&body_text)
-        .map_err(|e| anyhow::anyhow!("daemon {path}: parse response: {e}"))
-}
-
-/// GET a JSON response from the daemon.
-fn daemon_get_json(port: u16, daemon_token: &str, path: &str) -> Result<serde_json::Value> {
-    let url = format!("http://127.0.0.1:{port}{path}");
-    let resp = crate::http::daemon_client()
-        .get(&url)
-        .bearer_auth(daemon_token)
-        .timeout(std::time::Duration::from_secs(5))
-        .send()
-        .map_err(|e| anyhow::anyhow!("daemon {path} GET failed: {e}"))?;
-    crate::http::check_skew(resp.headers());
-    let status = resp.status();
-    let body_text = resp.text().unwrap_or_default();
-    if !status.is_success() {
-        let parsed: serde_json::Value = serde_json::from_str(&body_text).unwrap_or_default();
-        let err_msg = parsed.get("error").and_then(|v| v.as_str()).unwrap_or(&body_text);
-        anyhow::bail!("daemon {path} returned {status}: {err_msg}");
-    }
-    serde_json::from_str(&body_text)
-        .map_err(|e| anyhow::anyhow!("daemon {path}: parse response: {e}"))
 }
 
 /// `ship auth pair <code>` — confirm a pairing code from Studio.

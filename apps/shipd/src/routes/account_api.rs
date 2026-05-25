@@ -177,42 +177,10 @@ pub async fn logout(
     }
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
-pub struct GetKeyResponse {
-    pub key: String,
-}
-
-/// Transitional bridge — returns the stored API key so the CLI can
-/// dual-write to its legacy `credentials.jsonc` for `ship publish` and
-/// `ship convert <getship-url>` which still call the gateway directly.
-/// REMOVE once those call sites route through the daemon.
-#[utoipa::path(
-    operation_id = "getAccountKey",
-    get,
-    path = "/api/v1/account/key",
-    responses(
-        (status = 200, description = "Stored API key", body = GetKeyResponse),
-        (status = 401, description = "Not logged in"),
-        (status = 403, description = "Account ops require user presence"),
-    ),
-    tag = "account"
-)]
-pub async fn get_key(
-    Extension(svc): Extension<Arc<AccountService>>,
-) -> Response {
-    match svc.get_key().await {
-        Ok(key) => (StatusCode::OK, Json(GetKeyResponse { key })).into_response(),
-        Err(e) => (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
-}
-
-// User-presence enforcement (CallerKind::Cli) is now declared via
-// `/// @auth cli` on each `Route::*AccountLogin*` / `Route::Logout*` /
-// `Route::GetAccountKey` variant. The router enforces at registration
-// time; the comprehensive denial matrix (CLI passes, MCP denied even
-// with Scope::Full, SDK denied) is covered in
-// `apps/shipd/src/routes/scope_enforcement_tests.rs`.
+// User-presence enforcement (CallerKind::Cli) is declared via `/// @auth cli`
+// on each `Route::*AccountLogin*` / `Route::Logout*` variant. The router
+// enforces at registration time; the comprehensive denial matrix (CLI passes,
+// MCP denied even with Scope::Full, SDK denied) is covered in
+// `apps/shipd/src/routes/scope_enforcement_tests.rs`. The Connect AccountService
+// (account_rpc.rs) re-enforces the same presence check per-op, since the
+// ops_rpc router doesn't run the per-route middleware.

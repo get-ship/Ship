@@ -92,7 +92,6 @@ impl Modify for SecurityAndServer {
         crate::routes::account_api::complete_login,
         crate::routes::account_api::get_state,
         crate::routes::account_api::logout,
-        crate::routes::account_api::get_key,
     ),
     components(schemas(
         crate::routes::rest_api::MeshRegisterReq,
@@ -140,7 +139,6 @@ impl Modify for SecurityAndServer {
         crate::routes::account_api::StartLoginResponse,
         crate::routes::account_api::CompleteLoginRequest,
         crate::routes::account_api::CompleteLoginResponse,
-        crate::routes::account_api::GetKeyResponse,
     ))
 )]
 pub struct ApiDoc;

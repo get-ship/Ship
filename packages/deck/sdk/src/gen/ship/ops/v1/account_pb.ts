@@ -22,7 +22,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/account.proto.
  */
 export const file_ship_ops_v1_account: GenFile = /*@__PURE__*/
-  fileDesc("ChlzaGlwL29wcy92MS9hY2NvdW50LnByb3RvEgtzaGlwLm9wcy52MSIUChJHZXRBY2NvdW50U3RhdGVSZXEiCwoJTG9nb3V0UmVxMq8CCg5BY2NvdW50U2VydmljZRJeCgVTdGF0ZRIfLnNoaXAub3BzLnYxLkdldEFjY291bnRTdGF0ZVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIZirUYEXNoaXAuYWNjb3VudC5yZWFkkLUYARJkCglTdGF0ZUxpdmUSHy5zaGlwLm9wcy52MS5HZXRBY2NvdW50U3RhdGVSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGYq1GBFzaGlwLmFjY291bnQucmVhZJC1GAEwARJXCgZMb2dvdXQSFi5zaGlwLm9wcy52MS5Mb2dvdXRSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGoq1GBJzaGlwLmFjY291bnQud3JpdGWQtRgDYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
+  fileDesc("ChlzaGlwL29wcy92MS9hY2NvdW50LnByb3RvEgtzaGlwLm9wcy52MSIUChJHZXRBY2NvdW50U3RhdGVSZXEiCwoJTG9nb3V0UmVxIiAKCExvZ2luUmVxEhQKDHJlZGlyZWN0X3VyaRgBIAEoCSIyChBMb2dpbkNvbXBsZXRlUmVxEhAKCHN0YXRlX2lkGAEgASgJEgwKBGNvZGUYAiABKAky7QMKDkFjY291bnRTZXJ2aWNlEl4KBVN0YXRlEh8uc2hpcC5vcHMudjEuR2V0QWNjb3VudFN0YXRlUmVxGhkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhmKtRgRc2hpcC5hY2NvdW50LnJlYWSQtRgBEmQKCVN0YXRlTGl2ZRIfLnNoaXAub3BzLnYxLkdldEFjY291bnRTdGF0ZVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIZirUYEXNoaXAuYWNjb3VudC5yZWFkkLUYATABElcKBkxvZ291dBIWLnNoaXAub3BzLnYxLkxvZ291dFJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIairUYEnNoaXAuYWNjb3VudC53cml0ZZC1GAMSVQoFTG9naW4SFS5zaGlwLm9wcy52MS5Mb2dpblJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIairUYEnNoaXAuYWNjb3VudC53cml0ZZC1GAMSZQoNTG9naW5Db21wbGV0ZRIdLnNoaXAub3BzLnYxLkxvZ2luQ29tcGxldGVSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGoq1GBJzaGlwLmFjY291bnQud3JpdGWQtRgDYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
 
 /**
  * @generated from message ship.ops.v1.GetAccountStateReq
@@ -51,9 +51,54 @@ export const LogoutReqSchema: GenMessage<LogoutReq> = /*@__PURE__*/
   messageDesc(file_ship_ops_v1_account, 1);
 
 /**
- * Ship Cloud account state + the logout write. (login/complete/key remain a
- * pre-credential REST bootstrap — they're how you obtain the bearer a Connect
- * call requires, so they can't speak authenticated Connect. See #141.)
+ * PKCE login start: CLI passes its local-callback redirect_uri; daemon returns
+ * the browser URL + a state_id.
+ *
+ * @generated from message ship.ops.v1.LoginReq
+ */
+export type LoginReq = Message<"ship.ops.v1.LoginReq"> & {
+  /**
+   * @generated from field: string redirect_uri = 1;
+   */
+  redirectUri: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.LoginReq.
+ * Use `create(LoginReqSchema)` to create a new message.
+ */
+export const LoginReqSchema: GenMessage<LoginReq> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_account, 2);
+
+/**
+ * PKCE login finish: CLI passes the state_id + the code from its callback.
+ *
+ * @generated from message ship.ops.v1.LoginCompleteReq
+ */
+export type LoginCompleteReq = Message<"ship.ops.v1.LoginCompleteReq"> & {
+  /**
+   * @generated from field: string state_id = 1;
+   */
+  stateId: string;
+
+  /**
+   * @generated from field: string code = 2;
+   */
+  code: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.LoginCompleteReq.
+ * Use `create(LoginCompleteReqSchema)` to create a new message.
+ */
+export const LoginCompleteReqSchema: GenMessage<LoginCompleteReq> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_account, 3);
+
+/**
+ * Ship Cloud account ops. ALL ops require user presence (CallerKind::Cli or
+ * browser cookie) — MCP session tokens are categorically denied (SECURITY.md).
+ * The Connect transport doesn't run the per-route `@auth cli` middleware, so
+ * each impl enforces presence itself.
  *
  * @generated from service ship.ops.v1.AccountService
  */
@@ -83,6 +128,26 @@ export const AccountService: GenService<{
   logout: {
     methodKind: "unary";
     input: typeof LogoutReqSchema;
+    output: typeof JsonResponseSchema;
+  },
+  /**
+   * Daemon-mediated PKCE login (replaces POST /api/v1/account/login{,/complete}).
+   * The daemon owns PKCE state + the gateway exchange; the CLI calls these with
+   * its daemon bearer, so they speak authenticated Connect.
+   *
+   * @generated from rpc ship.ops.v1.AccountService.Login
+   */
+  login: {
+    methodKind: "unary";
+    input: typeof LoginReqSchema;
+    output: typeof JsonResponseSchema;
+  },
+  /**
+   * @generated from rpc ship.ops.v1.AccountService.LoginComplete
+   */
+  loginComplete: {
+    methodKind: "unary";
+    input: typeof LoginCompleteReqSchema;
     output: typeof JsonResponseSchema;
   },
 }> = /*@__PURE__*/

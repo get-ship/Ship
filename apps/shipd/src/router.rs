@@ -523,7 +523,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::CompleteAccountLogin, account_api::complete_login)
         .ship_route(Route::GetAccountState, account_api::get_state)
         .ship_route(Route::LogoutAccount, account_api::logout)
-        .ship_route(Route::GetAccountKey, account_api::get_key)
         // View authoring — chrome edit-mode handshake + agent tool dispatch.
         .ship_route(Route::EnterViewEditMode_template(), view_edit_mode_api::enter_edit_mode)
         .ship_route(Route::ExitViewEditMode_template(), view_edit_mode_api::exit_edit_mode)
