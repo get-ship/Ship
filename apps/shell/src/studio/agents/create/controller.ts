@@ -1,6 +1,7 @@
 import { controller, signal, derived, live } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+import { ops } from '../../../ops'
 
 // `navigate` is injected onto the proxy by the runtime mount context but
 // is not a template-declared scope key, so it isn't on `MutableState`.
@@ -127,19 +128,13 @@ export default controller({
       s.creating = true
       s.err = ''
       try {
-        const resp = await fetch('/api/v1/agents', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: s.id, doc: s.resolvedDoc }),
+        const m = await ops.agents.create({
+          id: s.id,
+          docJson: JSON.stringify(s.resolvedDoc),
+          scope: '',
         })
-        if (resp.ok) {
-          const body = (await resp.json()) as { id: string }
-          window.location.href = '/studio/agents/' + body.id
-          return
-        }
-        const body = (await resp.json().catch(() => ({}))) as { message?: string; error?: string }
-        s.err = body.message || body.error || `Create failed (${resp.status})`
+        window.location.href = '/studio/agents/' + m.id
+        return
       } catch (e) {
         s.err = (e as Error).message ?? 'Network error'
       } finally {

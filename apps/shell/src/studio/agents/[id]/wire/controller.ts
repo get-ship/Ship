@@ -1,6 +1,7 @@
 import { controller, signal, derived, effect, live, unwrap } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+import { ops } from '../../../../ops'
 
 // `navigate` is injected onto the proxy by the runtime mount context but
 // is not a template-declared scope key, so it isn't on `MutableState`.
@@ -34,11 +35,10 @@ export default controller({
       const id = s.agentId
       const path = kind === 'rule' ? 'rules' : kind === 'mcp' ? 'mcp' : 'skills'
       const sub = kind === 'mcp' ? 'servers' : 'refs'
-      fetch(`/api/v1/agents/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(selected.map((sid: string) => ({ op: 'add', path: `/${path}/${sub}/-`, value: sid }))),
+      void ops.agents.patch({
+        id,
+        scope: '',
+        patchJson: JSON.stringify(selected.map((sid: string) => ({ op: 'add', path: `/${path}/${sub}/-`, value: sid }))),
       }).then(() => { s.pickerOpen = false; s.pickerSelected = []; window.location.reload() })
     },
     goSettings: (s) => (s as unknown as Nav).navigate(`/studio/agents/${s.agentId}/settings`),

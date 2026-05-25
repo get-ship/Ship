@@ -294,10 +294,8 @@ export default controller({
 
     async function loadAgents(): Promise<void> {
       try {
-        const resp = await fetch('/api/v1/agents', { credentials: 'same-origin' })
-        if (!resp.ok) return
-        const body = await resp.json() as { items?: Array<{ id: string }> }
-        const list: AgentSummary[] = (body.items ?? []).map((a) => ({ id: a.id }))
+        const res = await ops.agents.list({})
+        const list: AgentSummary[] = res.items.map((a) => ({ id: a.id }))
         agents.set(list)
         if (!spawnAgent() && list.length > 0) spawnAgent.set(list[0]!.id)
       } catch { /* empty */ }
@@ -305,11 +303,9 @@ export default controller({
 
     async function loadProviders(): Promise<void> {
       try {
-        const resp = await fetch('/api/v1/harnesses/installed', { credentials: 'same-origin' })
-        if (!resp.ok) return
-        const body = await resp.json() as { harnesses: string[] }
-        harnesses.set(body.harnesses)
-        if (!spawnHarness() && body.harnesses.length > 0) spawnHarness.set(body.harnesses[0]!)
+        const res = await ops.agents.harnesses({})
+        harnesses.set(res.items)
+        if (!spawnHarness() && res.items.length > 0) spawnHarness.set(res.items[0]!)
       } catch { /* empty */ }
     }
 
