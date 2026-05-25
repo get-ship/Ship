@@ -30,121 +30,76 @@ fn check<T: serde::de::DeserializeOwned>(v: &Value) -> Result<()> {
     serde_json::from_value::<T>(v.clone()).map(|_| ()).map_err(|e| anyhow::anyhow!(e))
 }
 
-/// One op's fixture binding: dotted op name → (service, rpc method, validator).
-/// The service/method name the wire path uses; the validator pins the proto type.
-struct Binding {
-    op: &'static str,
-    service: &'static str,
-    method: &'static str,
-    validate: fn(&Value) -> Result<()>,
-}
-
-/// All typed-response ops across the authored ship.ops.v1 domain services.
-/// JsonResponse ops have no shape to validate and are absent.
-fn bindings() -> Vec<Binding> {
+/// Decode-validator per proto RESPONSE type. The one hand-maintained input —
+/// decode-validation needs the concrete generated Rust type, which a descriptor
+/// alone can't supply. Keyed by the proto message's simple name (the
+/// `MethodPolicy.output_type`). A NEW method reusing an existing type is covered
+/// automatically; only a new RESPONSE TYPE needs an entry here. The contract
+/// gate fails if a typed method's response type is missing from this map.
+fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
     use ship_ops_rpc::*;
-    macro_rules! b {
-        ($op:literal, $svc:literal, $m:literal, $t:ty) => {
-            Binding { op: $op, service: $svc, method: $m, validate: check::<$t> }
+    macro_rules! v {
+        ($t:ty) => {
+            (stringify!($t), check::<$t> as fn(&Value) -> Result<()>)
         };
     }
-    vec![
-        // agents
-        b!("agents.list", "agents_service", "List", AgentIndexResponse),
-        b!("agents.summaries", "agents_service", "Summaries", AgentsSummariesResponse),
-        b!("agents.detail", "agents_service", "Detail", AgentDetail),
-        b!("agents.templates", "agents_service", "Templates", AgentTemplatesResponse),
-        b!("agents.permission_presets", "agents_service", "PermissionPresets", PermissionPresetsResponse),
-        b!("agents.harnesses", "agents_service", "Harnesses", HarnessesResponse),
-        b!("agents.create", "agents_service", "Create", ScopedMutation),
-        b!("agents.put", "agents_service", "Put", ScopedMutation),
-        b!("agents.patch", "agents_service", "Patch", ScopedMutation),
-        b!("agents.delete", "agents_service", "Delete", ScopedMutation),
-        b!("agents.rename", "agents_service", "Rename", ScopedMutation),
-        b!("agents.duplicate", "agents_service", "Duplicate", ScopedMutation),
-        b!("agents.move_scope", "agents_service", "MoveScope", ScopedMutation),
-        // analytics
-        b!("analytics.list_sessions", "analytics_service", "ListSessions", AnalyticsSessionsResponse),
-        b!("analytics.get_session", "analytics_service", "GetSession", AnalyticsSessionResponse),
-        b!("analytics.tool_usage", "analytics_service", "ToolUsage", AnalyticsToolUsageResponse),
-        b!("analytics.session_turns", "analytics_service", "SessionTurns", AnalyticsSessionTurnsResponse),
-        // artifacts
-        b!("artifacts.list", "artifacts_service", "List", ArtifactsListResponse),
-        b!("artifacts.patch", "artifacts_service", "Patch", ArtifactRecord),
-        b!("artifacts.promote", "artifacts_service", "Promote", ArtifactRecord),
-        b!("artifacts.delete", "artifacts_service", "Delete", Deletion),
-        // chat
-        b!("chat.state", "chat_service", "State", ChatStateResponse),
-        // collections
-        b!("collections.create_item", "collections_service", "CreateItem", CollectionItem),
-        b!("collections.update_item", "collections_service", "UpdateItem", CollectionItem),
-        b!("collections.delete_item", "collections_service", "DeleteItem", Deletion),
-        // events
-        b!("events.list", "events_service", "List", EventsListResponse),
-        // git
-        b!("git.status", "git_service", "Status", StatusBuckets),
-        b!("git.log", "git_service", "Log", GitLogResponse),
-        b!("git.branches", "git_service", "Branches", GitBranchesResponse),
-        b!("git.overview", "git_service", "Overview", GitOverviewResponse),
-        b!("git.diff", "git_service", "Diff", GitDiffResponse),
-        // mcp
-        b!("mcp.list", "mcp_service", "List", McpIndexResponse),
-        b!("mcp.create", "mcp_service", "Create", ScopedMutation),
-        b!("mcp.put", "mcp_service", "Put", ScopedMutation),
-        b!("mcp.patch", "mcp_service", "Patch", ScopedMutation),
-        b!("mcp.delete", "mcp_service", "Delete", ScopedMutation),
-        // ops
-        b!("ops.meta", "ops_service", "Meta", MetaResponse),
-        // permissions
-        b!("permissions.list", "permissions_service", "List", PermissionsIndexResponse),
-        b!("permissions.tool_patterns", "permissions_service", "ToolPatterns", ToolPatternsResponse),
-        b!("permissions.create", "permissions_service", "Create", ScopedMutation),
-        b!("permissions.put", "permissions_service", "Put", ScopedMutation),
-        b!("permissions.patch", "permissions_service", "Patch", ScopedMutation),
-        b!("permissions.delete", "permissions_service", "Delete", ScopedMutation),
-        // pipelines
-        b!("pipelines.list", "pipelines_service", "List", PipelinesIndexResponse),
-        b!("pipelines.put", "pipelines_service", "Put", ScopedMutation),
-        b!("pipelines.patch", "pipelines_service", "Patch", ScopedMutation),
-        b!("pipelines.delete", "pipelines_service", "Delete", ScopedMutation),
-        // project
-        b!("project.active_project", "project_service", "ActiveProject", WorkspaceActiveResponse),
-        b!("project.add", "project_service", "Add", ProjectRecord),
-        // rules
-        b!("rules.list", "rules_service", "List", RulesIndexResponse),
-        b!("rules.get", "rules_service", "Get", RuleGetResponse),
-        b!("rules.create", "rules_service", "Create", ScopedMutation),
-        b!("rules.put", "rules_service", "Put", ScopedMutation),
-        b!("rules.delete", "rules_service", "Delete", ScopedMutation),
-        // runtime
-        b!("runtime.list_procs", "runtime_service", "ListProcs", ListProcsResponse),
-        // sessions
-        b!("sessions.list", "sessions_service", "List", SessionsListResponse),
-        // settings
-        b!("settings.set", "settings_service", "Set", SettingValue),
-        // skills
-        b!("skills.list", "skills_service", "List", SkillsIndexResponse),
-        b!("skills.file", "skills_service", "File", SkillFileResponse),
-        b!("skills.create", "skills_service", "Create", ScopedMutation),
-        b!("skills.delete", "skills_service", "Delete", ScopedMutation),
-        b!("skills.rename", "skills_service", "Rename", ScopedMutation),
-        b!("skills.duplicate", "skills_service", "Duplicate", ScopedMutation),
-        b!("skills.write_frontmatter", "skills_service", "WriteFrontmatter", ScopedMutation),
-        b!("skills.write_body", "skills_service", "WriteBody", ScopedMutation),
-        b!("skills.move_scope", "skills_service", "MoveScope", ScopedMutation),
-        b!("skills.write_file", "skills_service", "WriteFile", ScopedMutation),
-        b!("skills.delete_file", "skills_service", "DeleteFile", ScopedMutation),
-        // specs
-        b!("specs.list", "specs_service", "List", SpecsListResponse),
-        b!("specs.get", "specs_service", "Get", SpecGetResponse),
-        b!("specs.detail", "specs_service", "Detail", SpecDetail),
-        // view_errors
-        b!("view_errors.post", "view_errors_service", "Post", PostViewErrorResponse),
-        b!("view_errors.list", "view_errors_service", "List", ListViewErrorsResponse),
-        b!("view_errors.clear", "view_errors_service", "Clear", ClearViewErrorsResponse),
-        // workspaces
-        b!("workspaces.active", "workspaces_service", "Active", WorkspaceActiveResponse),
+    [
+        v!(ScopedMutation), v!(Deletion),
+        v!(AgentIndexResponse), v!(AgentsSummariesResponse), v!(AgentDetail),
+        v!(AgentTemplatesResponse), v!(PermissionPresetsResponse), v!(HarnessesResponse),
+        v!(AnalyticsSessionsResponse), v!(AnalyticsSessionResponse),
+        v!(AnalyticsToolUsageResponse), v!(AnalyticsSessionTurnsResponse),
+        v!(ArtifactsListResponse), v!(ArtifactRecord),
+        v!(ChatStateResponse), v!(CollectionItem),
+        v!(EventsListResponse),
+        v!(StatusBuckets), v!(GitLogResponse), v!(GitBranchesResponse),
+        v!(GitOverviewResponse), v!(GitDiffResponse),
+        v!(McpIndexResponse), v!(MetaResponse),
+        v!(PermissionsIndexResponse), v!(ToolPatternsResponse),
+        v!(PipelinesIndexResponse),
+        v!(WorkspaceActiveResponse), v!(ProjectRecord),
+        v!(RulesIndexResponse), v!(RuleGetResponse),
+        v!(ListProcsResponse), v!(SessionsListResponse), v!(SettingValue),
+        v!(SkillsIndexResponse), v!(SkillFileResponse),
+        v!(SpecsListResponse), v!(SpecGetResponse), v!(SpecDetail),
+        v!(PostViewErrorResponse), v!(ListViewErrorsResponse), v!(ClearViewErrorsResponse),
     ]
+    .into_iter()
+    .collect()
+}
+
+/// snake_case a PascalCase proto identifier: `WriteFrontmatter` → `write_frontmatter`.
+fn snake(s: &str) -> String {
+    let mut out = String::new();
+    for (i, ch) in s.char_indices() {
+        if ch.is_ascii_uppercase() {
+            if i != 0 {
+                out.push('_');
+            }
+            out.push(ch.to_ascii_lowercase());
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+/// The generated umbrella + streaming services — NOT per-domain fixture targets.
+/// `ReadOpsService`/`CommandOpsService` are the bulk-port scaffold (every op is
+/// ALSO on its per-domain service → fixtures there, not here); `StreamService`
+/// is server-streaming (no unary response fixture).
+fn is_non_fixture_service(service: &str) -> bool {
+    matches!(service, "ReadOpsService" | "CommandOpsService" | "StreamService")
+}
+
+/// Reconstruct the dotted op name from a proto (service, method): the service
+/// carries the domain (`RulesService` → `rules`), the method the rest
+/// (`Create` → `create`) ⇒ `rules.create`. Clean inverse — the service boundary
+/// removes the `.`-vs-`_` ambiguity that pascal() alone has.
+fn op_name(service: &str, method: &str) -> String {
+    let svc = snake(service);
+    let domain = svc.strip_suffix("_service").unwrap_or(&svc);
+    format!("{domain}.{}", snake(method))
 }
 
 pub fn run() -> Result<()> {
@@ -160,20 +115,39 @@ pub fn run() -> Result<()> {
         .and_then(Value::as_object)
         .context("theme.json: missing `responses` object")?;
 
+    let validators = type_validators();
     // service file → { Method: { response_ok: value } }
-    let mut by_service: BTreeMap<&str, serde_json::Map<String, Value>> = BTreeMap::new();
+    let mut by_service: BTreeMap<String, serde_json::Map<String, Value>> = BTreeMap::new();
     let mut count = 0usize;
-    for b in bindings() {
-        let value = responses
-            .get(b.op)
-            .with_context(|| format!("theme.json: no `responses.{}` for {}.{}", b.op, b.service, b.method))?;
-        (b.validate)(value).with_context(|| {
-            format!("fixture `{}` does not match proto {}.{}", b.op, b.service, b.method)
+
+    // ENUMERATE FROM THE PROTO (the SSOT) — every authored rpc method. Untyped
+    // (JsonResponse) methods have no shape to validate and are skipped; the
+    // generated umbrella + streaming services are not per-domain fixture targets.
+    for p in ship_ops_rpc::policy::read_policies() {
+        if is_non_fixture_service(&p.service) {
+            continue;
+        }
+        if p.output_type.is_empty() || p.output_type == "JsonResponse" {
+            continue;
+        }
+        let validate = validators.get(p.output_type.as_str()).with_context(|| {
+            format!(
+                "{}.{} returns typed `{}` but no fixture validator exists — \
+                 add `v!({})` to gen_fixtures::type_validators",
+                p.service, p.method, p.output_type, p.output_type
+            )
+        })?;
+        let op = op_name(&p.service, &p.method);
+        let value = responses.get(&op).with_context(|| {
+            format!("theme.json: no `responses.{op}` for {}.{}", p.service, p.method)
+        })?;
+        validate(value).with_context(|| {
+            format!("fixture `{op}` does not match proto {}.{}", p.service, p.method)
         })?;
         by_service
-            .entry(b.service)
+            .entry(snake(&p.service))
             .or_default()
-            .insert(b.method.to_string(), json!({ "response_ok": value }));
+            .insert(p.method.clone(), json!({ "response_ok": value }));
         count += 1;
     }
 
@@ -184,7 +158,7 @@ pub fn run() -> Result<()> {
             .with_context(|| format!("write {}", path.display()))?;
     }
     eprintln!(
-        "gen-fixtures: {count} op fixtures → {} service file(s) in {}",
+        "gen-fixtures: {count} op fixtures (proto-enumerated) → {} service file(s) in {}",
         by_service.len(),
         fixtures_dir.display()
     );

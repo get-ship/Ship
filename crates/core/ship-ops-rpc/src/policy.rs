@@ -71,6 +71,18 @@ pub struct MethodPolicy {
     pub blast: BlastRadius,
     /// Content-exposure flag (redaction / log hygiene); orthogonal to blast.
     pub sensitive: bool,
+    /// Simple (package-stripped) request message type, e.g. `"CreateRuleRequest"`.
+    pub input_type: String,
+    /// Simple (package-stripped) response message type, e.g. `"ScopedMutation"`.
+    /// `"JsonResponse"` marks an op not yet on a typed proto shape — no fixture
+    /// to validate. The generators + the contract gate key off this.
+    pub output_type: String,
+}
+
+/// Strip a descriptor type ref (`.ship.ops.v1.ScopedMutation`) to its simple
+/// name (`ScopedMutation`).
+fn simple_type(t: &str) -> String {
+    t.rsplit('.').next().unwrap_or(t).to_string()
 }
 
 impl MethodPolicy {
@@ -111,6 +123,8 @@ pub fn read_policies() -> Vec<MethodPolicy> {
                 let capability = opts.extension(&CAPABILITY).unwrap_or_default();
                 let blast = blast_from_proto(opts.extension(&BLAST_RADIUS));
                 let sensitive = opts.extension(&SENSITIVE).unwrap_or(false);
+                let input_type = simple_type(method.input_type.as_deref().unwrap_or_default());
+                let output_type = simple_type(method.output_type.as_deref().unwrap_or_default());
                 out.push(MethodPolicy {
                     package: package.clone(),
                     service: service_name.clone(),
@@ -118,6 +132,8 @@ pub fn read_policies() -> Vec<MethodPolicy> {
                     capability,
                     blast,
                     sensitive,
+                    input_type,
+                    output_type,
                 });
             }
         }
