@@ -128,6 +128,34 @@ impl PipelinesService for OpsImpl {
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
 
+    async fn end_turn(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedEndTurnReqView,
+    ) -> ServiceResult<JsonResponse> {
+        use axum::response::IntoResponse;
+        let auth = ctx
+            .extensions
+            .get::<AuthContext>()
+            .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?
+            .clone();
+        let req = crate::routes::runtime_api::jobs::TurnEndRequest {
+            slug: request.slug.to_string(),
+        };
+        // end_job manipulates the step monitor / emits job.completed directly;
+        // bridge its axum Response back to a value, as dispatch does.
+        let resp = crate::routes::runtime_api::end_job(
+            axum::extract::State(self.state().clone()),
+            axum::Extension(auth),
+            axum::Json(req),
+        )
+        .await
+        .into_response();
+        let value =
+            command::response_to_value(resp).await.map_err(command_error_to_connect)?;
+        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
     async fn focus(
         &self,
         _ctx: RequestContext,

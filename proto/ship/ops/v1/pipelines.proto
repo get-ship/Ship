@@ -67,6 +67,11 @@ message DispatchPipelineReq {
   string source_spec_path = 9;
 }
 
+// Agent-turn-end signal for a dispatched job, keyed by slug (#141).
+message EndTurnReq {
+  string slug = 1;
+}
+
 message ListPipelinesHistoryRequest {
   int64 limit = 1;
   int64 offset = 2;
@@ -142,6 +147,14 @@ service PipelinesService {
   // runtime_api::run_pipeline, which self-gates on the CreateRuns scope.
   rpc Dispatch(DispatchPipelineReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.dispatch";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  // Signal that an agent turn ended for a dispatched job (#141) — the typed
+  // Connect form of POST /api/v1/agent_sessions/end. Routes to
+  // runtime_api::end_job, which advances the step monitor for multi-step
+  // pipelines or emits job.completed for single-step jobs.
+  rpc EndTurn(EndTurnReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.runtime.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   // ── runtime writes (C1, ship.runtime.write) ───────────────────────────────
