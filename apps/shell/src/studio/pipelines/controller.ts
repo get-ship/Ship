@@ -88,10 +88,11 @@ export default controller({
     dispatchRun: async (s) => {
       const name = String(s.dispatchPipeline)
       if (!name) return
-      await fetch(`/api/v1/pipelines/${encodeURIComponent(name)}/dispatch`, {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spec: s.dispatchSpec, provider: s.dispatchProvider || null, headless: s.dispatchHeadless }),
+      await ops.pipelines.dispatch({
+        pipeline: name,
+        spec: String(s.dispatchSpec),
+        harness: String(s.dispatchProvider || ''),
+        auto: Boolean(s.dispatchHeadless),
       })
       s.dispatchOpen = false
     },

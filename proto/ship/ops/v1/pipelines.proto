@@ -53,6 +53,13 @@ message RunPipelineRequest {
   string slug = 1;
 }
 
+message DispatchPipelineReq {
+  string pipeline = 1;
+  string spec = 2;
+  string harness = 3;
+  bool auto = 4;
+}
+
 message ListPipelinesHistoryRequest {
   int64 limit = 1;
   int64 offset = 2;
@@ -122,6 +129,13 @@ service PipelinesService {
   rpc HistoryLive(ListPipelinesHistoryRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  // Kick off a pipeline run (spawns jobs) — the typed Connect form of the
+  // POST /pipelines/{name}/dispatch convenience route. Routes to
+  // runtime_api::run_pipeline, which self-gates on the CreateRuns scope.
+  rpc Dispatch(DispatchPipelineReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.runtime.dispatch";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   // ── runtime writes (C1, ship.runtime.write) ───────────────────────────────
   rpc UpdateStatus(UpdatePipelineStatusRequest) returns (JsonResponse) {

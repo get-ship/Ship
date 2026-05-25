@@ -26,7 +26,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/pipelines.proto.
  */
 export const file_ship_ops_v1_pipelines: GenFile = /*@__PURE__*/
-  fileDesc("ChtzaGlwL29wcy92MS9waXBlbGluZXMucHJvdG8SC3NoaXAub3BzLnYxIpkBChtVcGRhdGVQaXBlbGluZVN0YXR1c1JlcXVlc3QSFwoPcGlwZWxpbmVfcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIQCgh3b3JrdHJlZRgDIAEoCRILCgNwaWQYBCABKAMSEgoKZ2F0ZV9hZ2VudBgFIAEoCRIPCgdibG9ja2VyGAYgASgJEg0KBWVycm9yGAcgASgJIpwBCg9TdGVwRG9uZVJlcXVlc3QSDAoEc2x1ZxgBIAEoCRIPCgdzdW1tYXJ5GAIgASgJEjoKB291dHB1dHMYAyADKAsyKS5zaGlwLm9wcy52MS5TdGVwRG9uZVJlcXVlc3QuT3V0cHV0c0VudHJ5Gi4KDE91dHB1dHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIhYKFExpc3RQaXBlbGluZXNSZXF1ZXN0IjEKEkdldFBpcGVsaW5lUmVxdWVzdBIMCgRuYW1lGAEgASgJEg0KBXNjb3BlGAIgASgJIh4KHEdldFBpcGVsaW5lc1N1bW1hcmllc1JlcXVlc3QiJAoURm9jdXNQaXBlbGluZVJlcXVlc3QSDAoEbmFtZRgBIAEoCSIiChJSdW5QaXBlbGluZVJlcXVlc3QSDAoEc2x1ZxgBIAEoCSJZChtMaXN0UGlwZWxpbmVzSGlzdG9yeVJlcXVlc3QSDQoFbGltaXQYASABKAMSDgoGb2Zmc2V0GAIgASgDEhAKCHBpcGVsaW5lGAMgASgJEgkKAXEYBCABKAkiQwoSUHV0UGlwZWxpbmVSZXF1ZXN0EgwKBG5hbWUYASABKAkSEAoIZG9jX2pzb24YAiABKAkSDQoFc2NvcGUYAyABKAkiRwoUUGF0Y2hQaXBlbGluZVJlcXVlc3QSDAoEbmFtZRgBIAEoCRISCgpwYXRjaF9qc29uGAIgASgJEg0KBXNjb3BlGAMgASgJIjQKFURlbGV0ZVBpcGVsaW5lUmVxdWVzdBIMCgRuYW1lGAEgASgJEg0KBXNjb3BlGAIgASgJMr4MChBQaXBlbGluZXNTZXJ2aWNlEmsKBExpc3QSIS5zaGlwLm9wcy52MS5MaXN0UGlwZWxpbmVzUmVxdWVzdBojLnNoaXAub3BzLnYxLlBpcGVsaW5lc0luZGV4UmVzcG9uc2UiG4q1GBNzaGlwLnBpcGVsaW5lcy5yZWFkkLUYARJeCgNHZXQSHy5zaGlwLm9wcy52MS5HZXRQaXBlbGluZVJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiG4q1GBNzaGlwLnBpcGVsaW5lcy5yZWFkkLUYARJuCglTdW1tYXJpZXMSKS5zaGlwLm9wcy52MS5HZXRQaXBlbGluZXNTdW1tYXJpZXNSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhuKtRgTc2hpcC5waXBlbGluZXMucmVhZJC1GAESdAoNU3VtbWFyaWVzTGl2ZRIpLnNoaXAub3BzLnYxLkdldFBpcGVsaW5lc1N1bW1hcmllc1JlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiG4q1GBNzaGlwLnBpcGVsaW5lcy5yZWFkkLUYATABEmIKBUZvY3VzEiEuc2hpcC5vcHMudjEuRm9jdXNQaXBlbGluZVJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiG4q1GBNzaGlwLnBpcGVsaW5lcy5yZWFkkLUYARJoCglGb2N1c0xpdmUSIS5zaGlwLm9wcy52MS5Gb2N1c1BpcGVsaW5lUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIbirUYE3NoaXAucGlwZWxpbmVzLnJlYWSQtRgBMAESXgoDUnVuEh8uc2hpcC5vcHMudjEuUnVuUGlwZWxpbmVSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhuKtRgTc2hpcC5waXBlbGluZXMucmVhZJC1GAESZAoHUnVuTGl2ZRIfLnNoaXAub3BzLnYxLlJ1blBpcGVsaW5lUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIbirUYE3NoaXAucGlwZWxpbmVzLnJlYWSQtRgBMAESawoHSGlzdG9yeRIoLnNoaXAub3BzLnYxLkxpc3RQaXBlbGluZXNIaXN0b3J5UmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIbirUYE3NoaXAucGlwZWxpbmVzLnJlYWSQtRgBEnEKC0hpc3RvcnlMaXZlEiguc2hpcC5vcHMudjEuTGlzdFBpcGVsaW5lc0hpc3RvcnlSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhuKtRgTc2hpcC5waXBlbGluZXMucmVhZJC1GAEwARJvCgxVcGRhdGVTdGF0dXMSKC5zaGlwLm9wcy52MS5VcGRhdGVQaXBlbGluZVN0YXR1c1JlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGoq1GBJzaGlwLnJ1bnRpbWUud3JpdGWQtRgCEl8KCFN0ZXBEb25lEhwuc2hpcC5vcHMudjEuU3RlcERvbmVSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhqKtRgSc2hpcC5ydW50aW1lLndyaXRlkLUYAhJhCgNQdXQSHy5zaGlwLm9wcy52MS5QdXRQaXBlbGluZVJlcXVlc3QaGy5zaGlwLm9wcy52MS5TY29wZWRNdXRhdGlvbiIcirUYFHNoaXAucGlwZWxpbmVzLndyaXRlkLUYAhJlCgVQYXRjaBIhLnNoaXAub3BzLnYxLlBhdGNoUGlwZWxpbmVSZXF1ZXN0Ghsuc2hpcC5vcHMudjEuU2NvcGVkTXV0YXRpb24iHIq1GBRzaGlwLnBpcGVsaW5lcy53cml0ZZC1GAISZwoGRGVsZXRlEiIuc2hpcC5vcHMudjEuRGVsZXRlUGlwZWxpbmVSZXF1ZXN0Ghsuc2hpcC5vcHMudjEuU2NvcGVkTXV0YXRpb24iHIq1GBRzaGlwLnBpcGVsaW5lcy53cml0ZZC1GAJiBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_ops, file_ship_ops_v1_types]);
+  fileDesc("ChtzaGlwL29wcy92MS9waXBlbGluZXMucHJvdG8SC3NoaXAub3BzLnYxIpkBChtVcGRhdGVQaXBlbGluZVN0YXR1c1JlcXVlc3QSFwoPcGlwZWxpbmVfcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIQCgh3b3JrdHJlZRgDIAEoCRILCgNwaWQYBCABKAMSEgoKZ2F0ZV9hZ2VudBgFIAEoCRIPCgdibG9ja2VyGAYgASgJEg0KBWVycm9yGAcgASgJIpwBCg9TdGVwRG9uZVJlcXVlc3QSDAoEc2x1ZxgBIAEoCRIPCgdzdW1tYXJ5GAIgASgJEjoKB291dHB1dHMYAyADKAsyKS5zaGlwLm9wcy52MS5TdGVwRG9uZVJlcXVlc3QuT3V0cHV0c0VudHJ5Gi4KDE91dHB1dHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIhYKFExpc3RQaXBlbGluZXNSZXF1ZXN0IjEKEkdldFBpcGVsaW5lUmVxdWVzdBIMCgRuYW1lGAEgASgJEg0KBXNjb3BlGAIgASgJIh4KHEdldFBpcGVsaW5lc1N1bW1hcmllc1JlcXVlc3QiJAoURm9jdXNQaXBlbGluZVJlcXVlc3QSDAoEbmFtZRgBIAEoCSIiChJSdW5QaXBlbGluZVJlcXVlc3QSDAoEc2x1ZxgBIAEoCSJUChNEaXNwYXRjaFBpcGVsaW5lUmVxEhAKCHBpcGVsaW5lGAEgASgJEgwKBHNwZWMYAiABKAkSDwoHaGFybmVzcxgDIAEoCRIMCgRhdXRvGAQgASgIIlkKG0xpc3RQaXBlbGluZXNIaXN0b3J5UmVxdWVzdBINCgVsaW1pdBgBIAEoAxIOCgZvZmZzZXQYAiABKAMSEAoIcGlwZWxpbmUYAyABKAkSCQoBcRgEIAEoCSJDChJQdXRQaXBlbGluZVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIQCghkb2NfanNvbhgCIAEoCRINCgVzY29wZRgDIAEoCSJHChRQYXRjaFBpcGVsaW5lUmVxdWVzdBIMCgRuYW1lGAEgASgJEhIKCnBhdGNoX2pzb24YAiABKAkSDQoFc2NvcGUYAyABKAkiNAoVRGVsZXRlUGlwZWxpbmVSZXF1ZXN0EgwKBG5hbWUYASABKAkSDQoFc2NvcGUYAiABKAkypg0KEFBpcGVsaW5lc1NlcnZpY2USawoETGlzdBIhLnNoaXAub3BzLnYxLkxpc3RQaXBlbGluZXNSZXF1ZXN0GiMuc2hpcC5vcHMudjEuUGlwZWxpbmVzSW5kZXhSZXNwb25zZSIbirUYE3NoaXAucGlwZWxpbmVzLnJlYWSQtRgBEl4KA0dldBIfLnNoaXAub3BzLnYxLkdldFBpcGVsaW5lUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIbirUYE3NoaXAucGlwZWxpbmVzLnJlYWSQtRgBEm4KCVN1bW1hcmllcxIpLnNoaXAub3BzLnYxLkdldFBpcGVsaW5lc1N1bW1hcmllc1JlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiG4q1GBNzaGlwLnBpcGVsaW5lcy5yZWFkkLUYARJ0Cg1TdW1tYXJpZXNMaXZlEikuc2hpcC5vcHMudjEuR2V0UGlwZWxpbmVzU3VtbWFyaWVzUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIbirUYE3NoaXAucGlwZWxpbmVzLnJlYWSQtRgBMAESYgoFRm9jdXMSIS5zaGlwLm9wcy52MS5Gb2N1c1BpcGVsaW5lUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIbirUYE3NoaXAucGlwZWxpbmVzLnJlYWSQtRgBEmgKCUZvY3VzTGl2ZRIhLnNoaXAub3BzLnYxLkZvY3VzUGlwZWxpbmVSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhuKtRgTc2hpcC5waXBlbGluZXMucmVhZJC1GAEwARJeCgNSdW4SHy5zaGlwLm9wcy52MS5SdW5QaXBlbGluZVJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiG4q1GBNzaGlwLnBpcGVsaW5lcy5yZWFkkLUYARJkCgdSdW5MaXZlEh8uc2hpcC5vcHMudjEuUnVuUGlwZWxpbmVSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhuKtRgTc2hpcC5waXBlbGluZXMucmVhZJC1GAEwARJrCgdIaXN0b3J5Eiguc2hpcC5vcHMudjEuTGlzdFBpcGVsaW5lc0hpc3RvcnlSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhuKtRgTc2hpcC5waXBlbGluZXMucmVhZJC1GAEScQoLSGlzdG9yeUxpdmUSKC5zaGlwLm9wcy52MS5MaXN0UGlwZWxpbmVzSGlzdG9yeVJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiG4q1GBNzaGlwLnBpcGVsaW5lcy5yZWFkkLUYATABEmYKCERpc3BhdGNoEiAuc2hpcC5vcHMudjEuRGlzcGF0Y2hQaXBlbGluZVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIdirUYFXNoaXAucnVudGltZS5kaXNwYXRjaJC1GAISbwoMVXBkYXRlU3RhdHVzEiguc2hpcC5vcHMudjEuVXBkYXRlUGlwZWxpbmVTdGF0dXNSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhqKtRgSc2hpcC5ydW50aW1lLndyaXRlkLUYAhJfCghTdGVwRG9uZRIcLnNoaXAub3BzLnYxLlN0ZXBEb25lUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIairUYEnNoaXAucnVudGltZS53cml0ZZC1GAISYQoDUHV0Eh8uc2hpcC5vcHMudjEuUHV0UGlwZWxpbmVSZXF1ZXN0Ghsuc2hpcC5vcHMudjEuU2NvcGVkTXV0YXRpb24iHIq1GBRzaGlwLnBpcGVsaW5lcy53cml0ZZC1GAISZQoFUGF0Y2gSIS5zaGlwLm9wcy52MS5QYXRjaFBpcGVsaW5lUmVxdWVzdBobLnNoaXAub3BzLnYxLlNjb3BlZE11dGF0aW9uIhyKtRgUc2hpcC5waXBlbGluZXMud3JpdGWQtRgCEmcKBkRlbGV0ZRIiLnNoaXAub3BzLnYxLkRlbGV0ZVBpcGVsaW5lUmVxdWVzdBobLnNoaXAub3BzLnYxLlNjb3BlZE11dGF0aW9uIhyKtRgUc2hpcC5waXBlbGluZXMud3JpdGWQtRgCYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_ops, file_ship_ops_v1_types]);
 
 /**
  * @generated from message ship.ops.v1.UpdatePipelineStatusRequest
@@ -185,6 +185,38 @@ export const RunPipelineRequestSchema: GenMessage<RunPipelineRequest> = /*@__PUR
   messageDesc(file_ship_ops_v1_pipelines, 6);
 
 /**
+ * @generated from message ship.ops.v1.DispatchPipelineReq
+ */
+export type DispatchPipelineReq = Message<"ship.ops.v1.DispatchPipelineReq"> & {
+  /**
+   * @generated from field: string pipeline = 1;
+   */
+  pipeline: string;
+
+  /**
+   * @generated from field: string spec = 2;
+   */
+  spec: string;
+
+  /**
+   * @generated from field: string harness = 3;
+   */
+  harness: string;
+
+  /**
+   * @generated from field: bool auto = 4;
+   */
+  auto: boolean;
+};
+
+/**
+ * Describes the message ship.ops.v1.DispatchPipelineReq.
+ * Use `create(DispatchPipelineReqSchema)` to create a new message.
+ */
+export const DispatchPipelineReqSchema: GenMessage<DispatchPipelineReq> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_pipelines, 7);
+
+/**
  * @generated from message ship.ops.v1.ListPipelinesHistoryRequest
  */
 export type ListPipelinesHistoryRequest = Message<"ship.ops.v1.ListPipelinesHistoryRequest"> & {
@@ -214,7 +246,7 @@ export type ListPipelinesHistoryRequest = Message<"ship.ops.v1.ListPipelinesHist
  * Use `create(ListPipelinesHistoryRequestSchema)` to create a new message.
  */
 export const ListPipelinesHistoryRequestSchema: GenMessage<ListPipelinesHistoryRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_pipelines, 7);
+  messageDesc(file_ship_ops_v1_pipelines, 8);
 
 /**
  * @generated from message ship.ops.v1.PutPipelineRequest
@@ -241,7 +273,7 @@ export type PutPipelineRequest = Message<"ship.ops.v1.PutPipelineRequest"> & {
  * Use `create(PutPipelineRequestSchema)` to create a new message.
  */
 export const PutPipelineRequestSchema: GenMessage<PutPipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_pipelines, 8);
+  messageDesc(file_ship_ops_v1_pipelines, 9);
 
 /**
  * @generated from message ship.ops.v1.PatchPipelineRequest
@@ -268,7 +300,7 @@ export type PatchPipelineRequest = Message<"ship.ops.v1.PatchPipelineRequest"> &
  * Use `create(PatchPipelineRequestSchema)` to create a new message.
  */
 export const PatchPipelineRequestSchema: GenMessage<PatchPipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_pipelines, 9);
+  messageDesc(file_ship_ops_v1_pipelines, 10);
 
 /**
  * @generated from message ship.ops.v1.DeletePipelineRequest
@@ -290,7 +322,7 @@ export type DeletePipelineRequest = Message<"ship.ops.v1.DeletePipelineRequest">
  * Use `create(DeletePipelineRequestSchema)` to create a new message.
  */
 export const DeletePipelineRequestSchema: GenMessage<DeletePipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_pipelines, 10);
+  messageDesc(file_ship_ops_v1_pipelines, 11);
 
 /**
  * Pipeline config CRUD + runtime ops. Reads are C0; config writes and runtime
@@ -381,6 +413,18 @@ export const PipelinesService: GenService<{
   historyLive: {
     methodKind: "server_streaming";
     input: typeof ListPipelinesHistoryRequestSchema;
+    output: typeof JsonResponseSchema;
+  },
+  /**
+   * Kick off a pipeline run (spawns jobs) — the typed Connect form of the
+   * POST /pipelines/{name}/dispatch convenience route. Routes to
+   * runtime_api::run_pipeline, which self-gates on the CreateRuns scope.
+   *
+   * @generated from rpc ship.ops.v1.PipelinesService.Dispatch
+   */
+  dispatch: {
+    methodKind: "unary";
+    input: typeof DispatchPipelineReqSchema;
     output: typeof JsonResponseSchema;
   },
   /**

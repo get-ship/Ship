@@ -86,6 +86,43 @@ impl PipelinesService for OpsImpl {
         self.live_read("pipelines.run", json!({ "slug": request.slug })).await
     }
 
+    async fn dispatch(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedDispatchPipelineReqView,
+    ) -> ServiceResult<JsonResponse> {
+        use axum::response::IntoResponse;
+        let auth = ctx
+            .extensions
+            .get::<AuthContext>()
+            .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?
+            .clone();
+        let opt = |s: &str| if s.is_empty() { None } else { Some(s.to_string()) };
+        let req = crate::routes::runtime_api::PipelineRunRequest {
+            pipeline: request.pipeline.to_string(),
+            spec: opt(request.spec),
+            vars: None,
+            harness: opt(request.harness),
+            model: None,
+            workspace: None,
+            slug: None,
+            auto: request.auto,
+            source_spec_path: None,
+        };
+        // run_pipeline self-gates on the CreateRuns scope; bridge its axum
+        // Response back to a value, as the route-core ops do.
+        let resp = crate::routes::runtime_api::run_pipeline(
+            axum::extract::State(self.state().clone()),
+            axum::Extension(auth),
+            axum::Json(req),
+        )
+        .await
+        .into_response();
+        let value =
+            command::response_to_value(resp).await.map_err(command_error_to_connect)?;
+        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
     async fn focus(
         &self,
         _ctx: RequestContext,

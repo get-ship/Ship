@@ -167,10 +167,12 @@ export default controller({
     openDispatch: (s) => { s.dispatchOpen = true },
     closeDispatch: (s) => { s.dispatchOpen = false },
     dispatchRun: async (s) => {
-      const nm = s.name
-      await fetch(`/api/v1/pipelines/${encodeURIComponent(nm)}/dispatch`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spec: s.dispatchSpec, provider: s.dispatchProvider || null, headless: s.dispatchHeadless }),
+      const nm = String(s.name)
+      await ops.pipelines.dispatch({
+        pipeline: nm,
+        spec: String(s.dispatchSpec),
+        harness: String(s.dispatchProvider || ''),
+        auto: Boolean(s.dispatchHeadless),
       })
       s.dispatchOpen = false
     },
