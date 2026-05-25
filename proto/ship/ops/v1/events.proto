@@ -19,6 +19,16 @@ message EventsListReq {
   string q = 5;
 }
 
+// Cursor-walk poll for `ship tail` (#141): replays the event log forward
+// from a ULID cursor. Distinct from List (a filtered query) — Poll is
+// incremental resume-from-cursor with slug/namespace filters.
+message EventsPollReq {
+  string since_id = 1;
+  string slug = 2;
+  string namespace = 3;
+  int64 limit = 4;
+}
+
 // Events read surface. Reads are C0 (edge-authenticated).
 service EventsService {
   rpc List(EventsListReq) returns (EventsListResponse) {
@@ -26,6 +36,10 @@ service EventsService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc ListLive(EventsListReq) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.events.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Poll(EventsPollReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.events.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

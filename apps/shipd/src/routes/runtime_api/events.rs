@@ -45,36 +45,44 @@ pub async fn poll_events(
     State(state): State<ApiState>,
     Query(params): Query<EventsPollQuery>,
 ) -> impl IntoResponse {
-    let limit = params.limit.unwrap_or(200).min(2000);
-    let ship_dir = state.ship_dir();
-    if let Err(e) = ship_substrate::db::ensure_db_at(ship_dir) {
-        return (
+    match poll_events_core(
+        state.ship_dir(),
+        params.since_id.as_deref(),
+        params.slug.as_deref(),
+        params.namespace.as_deref(),
+        params.limit.unwrap_or(200),
+    ) {
+        Ok(data) => (StatusCode::OK, Json(MeshResponse { ok: true, data })),
+        Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
-        );
+            Json(MeshResponse { ok: false, data: serde_json::json!(e) }),
+        ),
     }
-    // Read the most recent N events ascending; we filter in memory.
-    let events = match ship_substrate::db::events::list_recent_events_at(ship_dir, 5_000) {
-        Ok(e) => e,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
-            );
-        }
-    };
+}
 
-    let cursor = params.since_id.as_deref();
-    let slug = params.slug.as_deref();
-    let ns = params.namespace.as_deref();
+/// Cursor-walk poll core, shared by the REST handler and `EventsService.Poll`
+/// (#141). Reads the most recent events ascending and filters in memory by
+/// `since_id` cursor, namespace prefix, and slug (envelope `entity_id` or
+/// payload `"slug"`). Returns `{ "events": [...] }`.
+pub fn poll_events_core(
+    ship_dir: &std::path::Path,
+    since_id: Option<&str>,
+    slug: Option<&str>,
+    namespace: Option<&str>,
+    limit: usize,
+) -> Result<serde_json::Value, String> {
+    let limit = limit.min(2000);
+    ship_substrate::db::ensure_db_at(ship_dir).map_err(|e| e.to_string())?;
+    let events = ship_substrate::db::events::list_recent_events_at(ship_dir, 5_000)
+        .map_err(|e| e.to_string())?;
 
     let filtered: Vec<_> = events
         .into_iter()
-        .filter(|e| match cursor {
+        .filter(|e| match since_id {
             Some(c) => e.id.as_str() > c,
             None => true,
         })
-        .filter(|e| match ns {
+        .filter(|e| match namespace {
             Some(prefix) => e.event_type.starts_with(&format!("{prefix}.")),
             None => true,
         })
@@ -94,13 +102,7 @@ pub async fn poll_events(
         .take(limit)
         .collect();
 
-    (
-        StatusCode::OK,
-        Json(MeshResponse {
-            ok: true,
-            data: serde_json::json!({ "events": filtered }),
-        }),
-    )
+    Ok(serde_json::json!({ "events": filtered }))
 }
 
 // `ActorGuard` moved to `ship_runtime` (alongside `SharedKernel`) so

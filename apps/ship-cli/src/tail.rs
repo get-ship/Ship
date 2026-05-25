@@ -1,55 +1,41 @@
 //! `ship tail <slug>` — stream events for a single slug.
 //!
-//! Implementation: 1-second polling against `/api/v1/events/poll`.
-//! SSE would be cleaner, but the existing /api/v1/events/stream SSE only
-//! delivers future events from the kernel mailbox — it has no replay
-//! cursor. Polling lets the caller resume cleanly across reconnects with
-//! a ULID `since_id`.
+//! Implementation: 1-second polling via `EventsService.Poll` (Connect).
+//! SSE would be cleaner, but the kernel mailbox stream only delivers future
+//! events — it has no replay cursor. Polling lets the caller resume cleanly
+//! across reconnects with a ULID `since_id`.
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use std::time::Duration;
 
 pub fn run(slug: &str, namespace: Option<&str>) -> Result<()> {
+    use connectrpc::client::{ClientConfig, HttpClient};
+    use ship_ops_rpc::{EventsPollReq, EventsServiceClient};
     let (port, token) = crate::daemon::ensure_daemon()?;
+    let uri: http::Uri =
+        format!("http://127.0.0.1:{port}").parse().context("building daemon URI")?;
+    let config =
+        ClientConfig::new(uri).default_header("authorization", format!("Bearer {token}"));
+    let client = EventsServiceClient::new(HttpClient::plaintext(), config);
+    let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
     let mut since: Option<String> = None;
-    let bearer = format!("Bearer {token}");
 
     println!("Tailing events for slug='{slug}' (Ctrl+C to stop)");
     loop {
-        let mut url = format!(
-            "http://127.0.0.1:{port}/api/v1/events/poll?slug={}",
-            urlencode(slug),
-        );
-        if let Some(ref c) = since {
-            url.push_str(&format!("&since_id={}", urlencode(c)));
-        }
-        if let Some(ns) = namespace {
-            url.push_str(&format!("&namespace={ns}"));
-        }
-
-        let mut resp = ureq::get(&url)
-            .header("Authorization", &bearer)
-            .config()
-            .http_status_as_error(false)
-            .build()
-            .call()
+        let req = EventsPollReq {
+            slug: slug.to_string(),
+            since_id: since.clone().unwrap_or_default(),
+            namespace: namespace.unwrap_or_default().to_string(),
+            ..Default::default()
+        };
+        let resp = rt
+            .block_on(client.poll(req))
             .map_err(|e| anyhow!("tail poll failed: {e}"))?;
-        let value: serde_json::Value = resp
-            .body_mut()
-            .read_json()
+        let value: serde_json::Value = serde_json::from_str(&resp.view().json)
             .map_err(|e| anyhow!("tail: malformed response body: {e}"))?;
 
-        if !value["ok"].as_bool().unwrap_or(false) {
-            return Err(anyhow!(
-                "daemon returned error: {}",
-                value["data"].as_str().unwrap_or("unknown")
-            ));
-        }
-
-        let events: Vec<serde_json::Value> = value["data"]["events"]
-            .as_array()
-            .cloned()
-            .unwrap_or_default();
+        let events: Vec<serde_json::Value> =
+            value["events"].as_array().cloned().unwrap_or_default();
         for e in &events {
             print_event(e);
             if let Some(id) = e["id"].as_str() {
@@ -109,15 +95,6 @@ fn summarize_payload(v: serde_json::Value) -> String {
     }
 }
 
-fn urlencode(s: &str) -> String {
-    s.chars()
-        .map(|c| match c {
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
-            other => format!("%{:02X}", other as u32),
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -136,11 +113,5 @@ mod tests {
         let v = serde_json::json!({"weird": "data"});
         let s = summarize_payload(v);
         assert!(s.contains("weird"));
-    }
-
-    #[test]
-    fn urlencode_basic() {
-        assert_eq!(urlencode("abc"), "abc");
-        assert_eq!(urlencode("a/b"), "a%2Fb");
     }
 }

@@ -69,6 +69,26 @@ impl EventsService for OpsImpl {
         }
         self.live_read("events.list", serde_json::Value::Object(args)).await
     }
+
+    async fn poll(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedEventsPollReqView,
+    ) -> ServiceResult<JsonResponse> {
+        fn opt(s: &str) -> Option<&str> {
+            if s.is_empty() { None } else { Some(s) }
+        }
+        let limit = if request.limit <= 0 { 200 } else { request.limit as usize };
+        let data = crate::routes::runtime_api::events::poll_events_core(
+            self.state().ship_dir(),
+            opt(request.since_id),
+            opt(request.slug),
+            opt(request.namespace),
+            limit,
+        )
+        .map_err(|e| ConnectError::internal(format!("events.poll: {e}")))?;
+        Ok(Response::new(JsonResponse { json: data.to_string(), ..Default::default() }))
+    }
 }
 
 #[cfg(test)]
