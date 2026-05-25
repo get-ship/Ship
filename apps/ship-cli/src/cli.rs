@@ -192,7 +192,7 @@ pub enum Commands {
         action: WorkspaceCommands,
     },
 
-    /// Manage MCP servers (serve, add, list, remove)
+    /// Manage external MCP servers (add, list, remove)
     Mcp {
         #[command(subcommand)]
         action: McpCommands,
