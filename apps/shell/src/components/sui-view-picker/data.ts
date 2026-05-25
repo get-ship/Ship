@@ -50,11 +50,9 @@ export function partition(args: { views: ApiView[]; pins: string[]; filter: stri
   return { pinned, others }
 }
 
-export async function fetchPins(settingsUrl: string, key: string): Promise<string[]> {
+export async function fetchPins(_settingsUrl: string, key: string): Promise<string[]> {
   try {
-    const resp = await fetch(settingsUrl, { credentials: 'same-origin' })
-    if (!resp.ok) return DEFAULT_PINS
-    const body = (await resp.json()) as { data?: Record<string, unknown> }
+    const body = JSON.parse((await ops.settings.state({})).json) as { data?: Record<string, unknown> }
     const raw = body.data?.[key]
     if (typeof raw === 'string') {
       try {
@@ -68,13 +66,9 @@ export async function fetchPins(settingsUrl: string, key: string): Promise<strin
   } catch { return DEFAULT_PINS }
 }
 
-export async function savePins(settingsUrl: string, key: string, pins: string[]): Promise<void> {
+export async function savePins(_settingsUrl: string, key: string, pins: string[]): Promise<void> {
   try {
-    await fetch(settingsUrl, {
-      method: 'PUT', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, value: JSON.stringify(pins) }),
-    })
+    await ops.settings.set({ key, valueJson: JSON.stringify(pins) })
   } catch { /* fire-and-forget */ }
 }
 
@@ -94,11 +88,9 @@ export async function fetchViews(_url?: string): Promise<ApiView[]> {
   } catch { return [] }
 }
 
-export async function fetchProject(url: string): Promise<Project | null> {
+export async function fetchProject(_url?: string): Promise<Project | null> {
   try {
-    const resp = await fetch(url, { credentials: 'same-origin' })
-    if (!resp.ok) return null
-    const body = (await resp.json()) as { projects?: Project[]; active?: string }
+    const body = JSON.parse((await ops.project.listProjects({})).json) as { projects?: Project[]; active?: string }
     const list = body.projects ?? []
     return list.find((p) => p.id === body.active) ?? list[0] ?? null
   } catch { return null }
@@ -106,11 +98,9 @@ export async function fetchProject(url: string): Promise<Project | null> {
 
 /** Full project list + the active project's id. Used by the unified
  *  view+project picker (per Task #54 — single popover for both). */
-export async function fetchProjects(url: string): Promise<{ projects: Project[]; activeId: string | null }> {
+export async function fetchProjects(_url?: string): Promise<{ projects: Project[]; activeId: string | null }> {
   try {
-    const resp = await fetch(url, { credentials: 'same-origin' })
-    if (!resp.ok) return { projects: [], activeId: null }
-    const body = (await resp.json()) as { projects?: Project[]; active?: string }
+    const body = JSON.parse((await ops.project.listProjects({})).json) as { projects?: Project[]; active?: string }
     return { projects: body.projects ?? [], activeId: body.active ?? null }
   } catch { return { projects: [], activeId: null } }
 }
