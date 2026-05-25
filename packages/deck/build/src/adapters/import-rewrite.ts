@@ -57,6 +57,18 @@ export function mirrorResolverPlugin(packageRoot: string): any {
       build.onResolve(
         { filter: /^@ship\// },
         ({ path: id, importer }: { path: string; importer?: string }) => {
+          // Shared-singleton framework modules stay EXTERNAL for every importer
+          // (mirror compiled.js AND the pack's own src) so each pack/view shares
+          // the ONE instance the host import map provides (`@ship/sui-runtime` →
+          // /_sui/runtime.js, etc.). Inlining a copy into a pack creates
+          // multiple runtime instances → split-brain signals (`state.$signals is
+          // undefined` at mount). This MUST run before the mirror-importer guard
+          // below, since the pack's `src/index.ts` imports aren't under the
+          // mirror root. (#108 de-dup; the deck bundler already externalizes
+          // these for its own targets — this covers the sui-build pack builds.)
+          const sm = id.match(/^@ship\/([^/]+)/)
+          const SHARED_SINGLETONS = new Set(['sui-runtime', 'sui-dom', 'sdk-client'])
+          if (sm && SHARED_SINGLETONS.has(sm[1]!)) return { path: id, external: true }
           if (!importer) return null
           if (!importer.startsWith(mirrorRoot)) return null
           const m = id.match(/^@ship\/([^/]+)(\/.*)?$/)
