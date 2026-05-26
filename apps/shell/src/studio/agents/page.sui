@@ -140,7 +140,7 @@
                           slot="leading"
                           tone={agentStatus()[a.id] === 'errored' ? 'destructive' : agentStatus()[a.id] === 'completed' ? 'success' : 'primary'}
                           size="sm"
-                          attr:pulse={agentStatus()[a.id] === 'running'}
+                          prop:pulse={agentStatus()[a.id] === 'running'}
                           label={agentStatus()[a.id]}></sui-status-dot>
                       {agentStatus()[a.id]}
                     </sui-chip>

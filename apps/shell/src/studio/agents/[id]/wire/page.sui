@@ -175,7 +175,7 @@
       {/match}
     </aside>
 
-    <sui-dialog attr:open={pickerOpen()} size="md" on:sui-close={closePicker}>
+    <sui-dialog prop:open={pickerOpen()} size="md" on:sui-close={closePicker}>
       <span slot="header">Add {pickerKind() === 'skill' ? 'skill' : pickerKind() === 'mcp' ? 'MCP server' : 'rule'}</span>
       <div class="ad-picker-body">
         {#if wireData().catalogs[pickerKind()]?.length === 0}
@@ -202,7 +202,7 @@
         <span style="flex:1; font-size:var(--text-xs); color:var(--muted-foreground)">{pickerSelected().length} selected</span>
         <sui-button variant="ghost" size="sm" on:click={closePicker}>Cancel</sui-button>
         <sui-button tone="primary" variant="solid" size="sm"
-          attr:disabled={pickerSelected().length === 0}
+          prop:disabled={pickerSelected().length === 0}
           on:click={savePicker}>Add</sui-button>
       </sui-toolbar>
     </sui-dialog>

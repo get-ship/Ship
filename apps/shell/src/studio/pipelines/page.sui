@@ -117,7 +117,7 @@
     <span>Best experienced on desktop</span>
   </div>
 
-  <sui-dialog attr:open={dispatchOpen()} size="lg" on:sui-close={closeDispatch}>
+  <sui-dialog prop:open={dispatchOpen()} size="lg" on:sui-close={closeDispatch}>
     <span slot="header">Dispatch pipeline run</span>
     <sui-field label="Pipeline">
       <sui-select bind:value={dispatchPipeline}>
@@ -145,7 +145,7 @@
   </sui-dialog>
 
   {#if workspaceId()}
-  <sui-dialog attr:open={newPipeOpen()} size="sm" on:sui-close={closeNewPipe}>
+  <sui-dialog prop:open={newPipeOpen()} size="sm" on:sui-close={closeNewPipe}>
     <span slot="header">New pipeline</span>
     <sui-field label="Name" hint="Lowercase, kebab-case. Becomes the filename.">
       <sui-input bind:value={newPipeName} placeholder="my-pipeline" autofocus></sui-input>
@@ -153,7 +153,7 @@
     {#if newPipeError()}<sui-alert tone="destructive" compact>{newPipeError()}</sui-alert>{/if}
     <sui-toolbar slot="footer">
       <sui-button variant="outline" on:click={closeNewPipe}>Cancel</sui-button>
-      <sui-button tone="primary" variant="solid" attr:loading={newPipeCreating()} attr:disabled={newPipeCreating()} on:click={createPipeline}>
+      <sui-button tone="primary" variant="solid" prop:loading={newPipeCreating()} prop:disabled={newPipeCreating()} on:click={createPipeline}>
         <sui-icon slot="leading" name="plus" size="sm"></sui-icon>Create
       </sui-button>
     </sui-toolbar>
