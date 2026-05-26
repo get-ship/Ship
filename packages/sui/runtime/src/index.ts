@@ -58,8 +58,13 @@
   }
 }
 
-export { signal, derived, effect, batch, untrack, selector } from './signal'
+export { signal, derived, effect, batch, untrack, selector, isSignal } from './signal'
 export type { Signal, Derived } from './signal'
+
+// The one MutableState proxy builder. `componentMountState` is emitted by the
+// compiler for component-mount; `createMountState` backs both mount paths.
+export { createMountState, componentMountState, pickSignals, SIGNALS_KEY } from './state-proxy'
+export type { MountStateOptions } from './state-proxy'
 
 export {
   createScope,

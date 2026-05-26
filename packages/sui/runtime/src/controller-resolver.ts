@@ -16,6 +16,7 @@
 // bearing shape — hook resolution lives in `./controller-hook-resolver`.
 
 import type { Signal } from './signal'
+import { isSignal } from './signal'
 import type {
   ControllerDef,
   ControllerHook,
@@ -24,6 +25,7 @@ import type {
   ScopedControllerDef,
 } from './controller'
 import { resolveHook } from './controller-hook-resolver'
+import { createMountState } from './state-proxy'
 import { pickShared, provide } from './context'
 import type {
   ResolverContext,
@@ -78,7 +80,11 @@ export function resolveController(
   Object.assign(baseScope, scopeAdds)
 
   const stateSignals = pickStateSignals(baseScope, ctx.stateKeys, scopeAdds)
-  const writableProxy = buildWritableProxy(stateSignals, baseScope)
+  // The one mount-state builder. View-mount + on-handlers read signal keys
+  // unwrapped (state.count++); the raw signal is reached via state.$signals.x.
+  const writableProxy = createMountState(baseScope, stateSignals, {
+    unwrap: true,
+  }) as MutableState<Record<string, Signal<unknown>>>
 
   const declScope: Record<string, unknown> = { ...baseScope }
 
@@ -178,89 +184,6 @@ function pickStateSignals(
   return out
 }
 
-function isSignal(v: unknown): v is Signal<unknown> {
-  return (
-    typeof v === 'function' &&
-    'set' in (v as object) &&
-    typeof (v as unknown as { set: unknown }).set === 'function'
-  )
-}
-
-/**
- * The writable-proxy key under which the raw signal map is exposed.
- *
- * The proxy's `get(key)` returns the unwrapped signal VALUE so that
- * arithmetic-style writes work: `state.count++`, `state.label = 'hi'`.
- * That ergonomic was load-bearing — `state.count.set(state.count() + 1)`
- * is uglier than the increment.
- *
- * The cost: `state.foo.set(v)` looks correct but silently throws
- * (`TypeError: (640).set is not a function`) when the signal value is
- * a primitive, because the value isn't the signal. A real ergonomics
- * trap in `mount(state, el)` handlers that want to mirror DOM state
- * back into a signal.
- *
- * The escape hatch: `state.$signals.foo.set(v)` returns the raw
- * `Signal<T>`, so callers who want explicit signal access have one.
- * The mount JSDoc on `MountSection` documents both shapes.
- */
-const SIGNALS_KEY = '$signals'
-
-function buildWritableProxy(
-  stateSignals: Record<string, Signal<unknown>>,
-  baseScope: Record<string, unknown>,
-): MutableState<Record<string, Signal<unknown>>> {
-  return new Proxy({} as Record<string, unknown>, {
-    get(_target, key: string) {
-      if (key === SIGNALS_KEY) return stateSignals
-      if (key in stateSignals) return stateSignals[key]!()
-      return baseScope[key]
-    },
-    set(_target, key: string, value: unknown) {
-      if (key in stateSignals) {
-        // signal.set treats a function argument as an updater — `set((prev) =>
-        // next)` — but a writable-proxy assignment like `state.dispose = () =>
-        // {...}` means STORE that function as the value, not invoke it. Wrap
-        // function values so signal.set sees a constant updater.
-        if (typeof value === 'function') {
-          stateSignals[key]!.set(() => value as never)
-        } else {
-          stateSignals[key]!.set(value)
-        }
-        return true
-      }
-      if (key === SIGNALS_KEY) {
-        console.warn(
-          `[ship-set] handler tried to write s.${SIGNALS_KEY} = … but ${SIGNALS_KEY} is the read-only signal-map accessor. The assignment was ignored.`,
-        )
-        return true
-      }
-      console.warn(
-        `[ship-set] handler tried to write s.${key} = … but ${key} is not declared as <state name="${key}"> in the template. The assignment was ignored.`,
-      )
-      // Return `true` so the proxy doesn't throw in strict-mode
-      // assignments (`s.x = v` in an ES module). The write is still
-      // dropped — we don't store anything on the underlying target —
-      // but the warning is the user-visible signal.
-      return true
-    },
-    has(_target, key: string) {
-      return key === SIGNALS_KEY || key in stateSignals || key in baseScope
-    },
-    ownKeys() {
-      return [SIGNALS_KEY, ...Object.keys(stateSignals)]
-    },
-    getOwnPropertyDescriptor(_target, key: string) {
-      if (key === SIGNALS_KEY) {
-        return { configurable: true, enumerable: true, writable: false, value: stateSignals }
-      }
-      if (key in stateSignals) {
-        return { configurable: true, enumerable: true, writable: true, value: stateSignals[key]!() }
-      }
-      return undefined
-    },
-  }) as MutableState<Record<string, Signal<unknown>>>
-}
 
 
 function buildOnHandlers(

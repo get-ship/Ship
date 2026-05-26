@@ -13,7 +13,7 @@
 // contract. Anything that knows about HTML structure (importmap, boot
 // scripts, doctype) lives OUTSIDE this file — in the host page.
 
-import { signal, type Signal } from './signal'
+import { signal, isSignal, type Signal } from './signal'
 import type { LiveSignal, LiveState } from './live'
 import type { RouteSignals } from './route'
 import { createScope, withScope } from './effect-scope'
@@ -494,11 +494,7 @@ function pickLiveSignals(
   const out: Record<string, Signal<unknown>> = {}
   for (const k of liveKeys) {
     const fromSetup = setupRet?.[k]
-    if (
-      typeof fromSetup === 'function' &&
-      'set' in (fromSetup as object) &&
-      typeof (fromSetup as unknown as { set: unknown }).set === 'function'
-    ) {
+    if (isSignal(fromSetup)) {
       out[k] = fromSetup as Signal<unknown>
     } else if (fallback[k]) {
       out[k] = fallback[k]!

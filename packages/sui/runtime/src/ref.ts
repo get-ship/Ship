@@ -11,7 +11,7 @@
 // Refs are write-once-from-runtime, read-many-from-controller —
 // authors should never call `.set()` on a ref themselves.
 
-import { signal, type Signal } from './signal'
+import { signal, isSignal, type Signal } from './signal'
 
 /**
  * Typed handle to a single rendered element. Reads as `null` before
@@ -41,10 +41,10 @@ export function attachRef<T extends Element>(
   varName: string,
   el: T,
 ): Signal<T | null> {
-  const existing = scope[varName] as Signal<T | null> | undefined
-  if (typeof existing === 'function' && typeof existing.set === 'function') {
-    existing.set(el)
-    return existing
+  const existing = scope[varName]
+  if (isSignal(existing)) {
+    ;(existing as Signal<T | null>).set(el)
+    return existing as Signal<T | null>
   }
   const slot = signal<T | null>(el)
   scope[varName] = slot

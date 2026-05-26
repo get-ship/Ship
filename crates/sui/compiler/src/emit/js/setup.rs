@@ -293,28 +293,18 @@ fn emit_component_lifecycle_wiring(w: &mut Writer) {
     // the LIFECYCLE_KEY bundle from the controller's setup result and wires
     // mount + unmount into __cleanups.
     //
-    // The __sp proxy returns $scope values as-is so signal-typed refs (e.g.
-    // termHost, prop signals) remain callable: `state.termHost()` works.
-    // The set-trap delegates writes back to signal.set() for mutable keys.
+    // `__sp` is the component-mount state: raw-signal reads (so refs/prop
+    // signals stay callable, `state.termHost()`) plus `state.$signals.x`. It's
+    // the SAME runtime builder the view-mount + on-handler paths use — the
+    // compiler emits a CALL to it, never a hand-rolled proxy, so the proxy
+    // contract can't drift between compiled output and the runtime (the #121
+    // `$signals`-undefined regression class).
     w.line("if (__r != null) {");
     w.enter();
     w.line("const __lc = Object.getOwnPropertyDescriptor(__r, \"__shipSetLifecycle\")?.value;");
     w.line("if (__lc) {");
     w.enter();
-    w.line("const __sp = new Proxy($scope, {");
-    w.enter();
-    // `state.$signals.x` is the canonical raw-signal accessor (matches the
-    // runtime writableProxy used on the view-mount + on-handler paths). Under
-    // __sp a scope key already resolves to its raw signal, so the signal map IS
-    // the scope target. Without this branch `state.$signals` is undefined and
-    // every controller migrated to the typed surface (#121) throws at mount.
-    w.line("get(t, k) { if (k === \"$signals\") return t; return t[k]; },");
-    // signal.set treats a function arg as an updater. When the user assigns a
-    // function via `state.foo = () => {…}`, they mean to STORE the function,
-    // not call it. Wrap so signal.set sees a constant-returning updater.
-    w.line("set(t, k, v) { const s = t[k]; if (s != null && typeof s.set === \"function\") { if (typeof v === \"function\") { s.set(() => v); } else { s.set(v); } return true; } return false; }");
-    w.leave();
-    w.line("});");
+    w.line("const __sp = componentMountState($scope);");
     w.line("if (__lc.mount) { const __mc = __lc.mount(__sp, host); if (typeof __mc === \"function\") __cleanups.push(__mc); }");
     w.line("if (__lc.unmount) __cleanups.push(() => __lc.unmount(__sp));");
     w.leave();

@@ -70,6 +70,20 @@ export interface Signal<T> {
 }
 
 /**
+ * The one signal type-guard. A signal is a callable getter carrying a `.set`
+ * writer. This is the single source of truth — controller-resolver, mount,
+ * ref, and the mount-state proxy all import it rather than re-deriving the
+ * shape (which had drifted into 2-check and 3-check copies).
+ */
+export function isSignal(v: unknown): v is Signal<unknown> {
+  return (
+    typeof v === 'function' &&
+    'set' in (v as object) &&
+    typeof (v as unknown as { set: unknown }).set === 'function'
+  )
+}
+
+/**
  * Subscribe the current observer (if any) to `subs` and record an untrack
  * thunk so it can be removed on the observer's next run or disposal.
  *
