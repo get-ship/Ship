@@ -127,9 +127,7 @@ fn is_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
-fn is_ident_start(b: u8) -> bool {
-    b.is_ascii_alphabetic() || b == b'_' || b == b'$'
-}
+use crate::scan::is_ident_start;
 
 #[cfg(test)]
 mod tests {

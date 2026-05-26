@@ -113,12 +113,7 @@ pub(super) fn next_top_separator(bytes: &[u8], start: usize, end: usize) -> usiz
     end
 }
 
-#[inline]
-pub(super) fn is_ident_start(c: u8) -> bool {
-    c == b'_' || c == b'$' || c.is_ascii_alphabetic()
-}
-
-#[inline]
-pub(super) fn is_ident_cont(c: u8) -> bool {
-    is_ident_start(c) || c.is_ascii_digit()
-}
+// The identifier predicates are crate-shared; re-export so this module's
+// consumers (scope_bound_expr, symbol_table) keep importing them from here
+// alongside the skip_* scanners that still live in this file.
+pub(super) use crate::scan::{is_ident_cont, is_ident_start};

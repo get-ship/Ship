@@ -151,12 +151,7 @@ pub(super) fn advance_past_entry(bytes: &[u8], start: usize, end: usize) -> usiz
     }
 }
 
-#[inline]
-pub(super) fn is_ident_start(c: u8) -> bool {
-    c == b'_' || c == b'$' || c.is_ascii_alphabetic()
-}
-
-#[inline]
-pub(super) fn is_ident_cont(c: u8) -> bool {
-    is_ident_start(c) || c.is_ascii_digit()
-}
+// Identifier predicates are crate-shared; re-export so this module's siblings
+// (scope_factory::mod, ::infer) keep importing them from `super::scan`
+// alongside the bounded skip_* scanners that still live here.
+pub(super) use crate::scan::{is_ident_cont, is_ident_start};

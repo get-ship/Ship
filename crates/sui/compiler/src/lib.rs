@@ -43,6 +43,7 @@ pub mod lower;
 pub mod out_layout;
 pub mod parse;
 pub mod render;
+pub(crate) mod scan;
 
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;

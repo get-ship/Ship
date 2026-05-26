@@ -678,12 +678,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn is_ident_start(c: u8) -> bool {
-    c == b'_' || c == b'$' || c.is_ascii_alphabetic()
-}
-fn is_ident_cont(c: u8) -> bool {
-    is_ident_start(c) || c.is_ascii_digit()
-}
+use crate::scan::{is_ident_cont, is_ident_start};
 
 /// Match the opener at `bytes[pos]` to its closer. Returns the offset
 /// of the closer, or `None` on imbalance / EOF. Tracks string and

@@ -276,13 +276,7 @@ fn looks_like_regex(bytes: &[u8], at: usize) -> bool {
     true
 }
 
-fn is_ident_start(c: u8) -> bool {
-    c.is_ascii_alphabetic() || c == b'_' || c == b'$'
-}
-
-fn is_ident_cont(c: u8) -> bool {
-    c.is_ascii_alphanumeric() || c == b'_' || c == b'$'
-}
+use crate::scan::{is_ident_cont, is_ident_start};
 
 fn reject(span: Span, msg: String, src: &str) -> CompileError {
     CompileError::new(msg)

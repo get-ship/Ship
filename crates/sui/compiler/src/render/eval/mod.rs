@@ -174,13 +174,7 @@ fn fallback_scan(src: &str) -> Vec<String> {
     out
 }
 
-fn is_ident_start(b: u8) -> bool {
-    b.is_ascii_alphabetic() || b == b'_' || b == b'$'
-}
-
-fn is_ident_continue(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
-}
+use crate::scan::{is_ident_cont as is_ident_continue, is_ident_start};
 
 fn is_reserved_word(s: &str) -> bool {
     matches!(

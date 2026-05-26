@@ -528,15 +528,7 @@ fn next_char_boundary(s: &str, i: usize) -> usize {
     j
 }
 
-#[inline]
-fn is_ident_start(c: u8) -> bool {
-    c == b'_' || c == b'$' || c.is_ascii_alphabetic()
-}
-
-#[inline]
-fn is_ident_cont(c: u8) -> bool {
-    is_ident_start(c) || c.is_ascii_digit()
-}
+use crate::scan::{is_ident_cont, is_ident_start};
 
 #[cfg(test)]
 mod tests {
