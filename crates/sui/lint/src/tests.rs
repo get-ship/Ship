@@ -234,3 +234,50 @@ fn typed_signals_access_passes_state_cast() {
         .collect();
     assert!(findings.is_empty(), "typed $signals access must pass: {findings:?}");
 }
+
+fn lint_tpl(source: &str) -> Vec<crate::Finding> {
+    crate::lint_sui_template_source(Path::new("/fake/page.sui"), source)
+        .into_iter()
+        .filter(|f| f.rule == crate::rules::attr_bool_prop::RULE_ID)
+        .collect()
+}
+
+#[test]
+fn attr_bool_on_sui_component_reports() {
+    let f = lint_tpl(r#"<sui-button attr:disabled={busy()}>Go</sui-button>"#);
+    assert_eq!(f.len(), 1, "attr:disabled on sui-button is a bool prop: {f:?}");
+    assert!(f[0].message.contains("prop:disabled"), "msg: {}", f[0].message);
+}
+
+#[test]
+fn attr_bool_multiline_tag_reports() {
+    let f = lint_tpl("<sui-button\n  variant=\"ghost\"\n  attr:loading={busy()}>x</sui-button>");
+    assert_eq!(f.len(), 1, "multi-line tag bool attr should report: {f:?}");
+}
+
+#[test]
+fn prop_bool_passes() {
+    let f = lint_tpl(r#"<sui-button prop:disabled={busy()}>Go</sui-button>"#);
+    assert!(f.is_empty(), "prop:disabled is correct: {f:?}");
+}
+
+#[test]
+fn attr_on_native_option_passes() {
+    // <option> isn't in the registry → not flagged (attr:selected is correct there).
+    let f = lint_tpl(r#"<option value="x" attr:selected={sel()}>x</option>"#);
+    assert!(f.is_empty(), "native element must not be flagged: {f:?}");
+}
+
+#[test]
+fn attr_on_string_prop_passes() {
+    // variant is a string/enum prop, not bool → not flagged.
+    let f = lint_tpl(r#"<sui-button attr:variant={v()}>x</sui-button>"#);
+    assert!(f.is_empty(), "string prop attr not flagged by this rule: {f:?}");
+}
+
+#[test]
+fn static_bool_flag_passes() {
+    // Bare flag / static attr (no brace binding) is not this rule's concern.
+    let f = lint_tpl(r#"<sui-dialog open></sui-dialog>"#);
+    assert!(f.is_empty(), "bare flag attr not flagged: {f:?}");
+}

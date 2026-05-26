@@ -40,7 +40,7 @@ pub struct PropRule {
     #[serde(default)]
     pub values: Option<Vec<String>>,
     /// Declared `type=` (bool / string / number) when given.
-    #[serde(default)]
+    #[serde(default, rename = "type")]
     pub ty: Option<String>,
     /// Declared default, when given. Used only for diagnostics today.
     #[serde(default)]

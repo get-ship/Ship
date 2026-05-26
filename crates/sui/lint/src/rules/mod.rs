@@ -10,6 +10,7 @@
 use std::path::Path;
 use crate::report::Finding;
 
+pub mod attr_bool_prop;
 pub mod attr_presence;
 pub mod controller_context;
 pub mod controller_navigation;
@@ -49,6 +50,7 @@ pub const SUI_TEMPLATE_RULES: &[(&str, RuleFn)] = &[
     (event_name::RULE_ID, event_name::check),
     (prop_value::RULE_ID, prop_value::check),
     (attr_presence::RULE_ID, attr_presence::check),
+    (attr_bool_prop::RULE_ID, attr_bool_prop::check),
     (space_literal::RULE_ID, space_literal::check),
     (layout_primitive::RULE_ID, layout_primitive::check),
     (dimension_literal::RULE_ID, dimension_literal::check),
