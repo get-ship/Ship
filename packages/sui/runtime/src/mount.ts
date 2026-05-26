@@ -12,6 +12,11 @@
 // IMPORTANT: this module owns the runtime-side half of the SUI mount
 // contract. Anything that knows about HTML structure (importmap, boot
 // scripts, doctype) lives OUTSIDE this file — in the host page.
+//
+// FILE_CAP_OVERRIDE: one cohesive concern — the mount() lifecycle. The private
+// helpers (build scope from payload, resolve/load the view + islands, open the
+// live SSE channel, extract lifecycle) are sequential steps of that one flow;
+// they share the payload/scope context and have no use apart from mount().
 
 import { signal, isSignal, type Signal } from './signal'
 import type { LiveSignal, LiveState } from './live'

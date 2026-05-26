@@ -30,6 +30,10 @@
 //!  * `dom_emit` — element + attribute emit
 //!  * `control_emit` — `{#if}`, `{#for}`, `{#match}`, `{#while-*}`
 
+// FILE_CAP_OVERRIDE: one cohesive concern — the Instr→JS emit orchestrator.
+// It already delegates element/attr emit to `dom_emit` and control flow to
+// `control_emit` (submodules); what remains is the single walk that dispatches
+// instructions to them. Splitting the dispatcher scatters one loop.
 use super::expr_rewrite::rewrite_for_scope;
 use super::writer::{js_string, Writer};
 use crate::ir::*;

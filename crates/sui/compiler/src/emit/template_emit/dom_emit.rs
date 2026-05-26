@@ -1,5 +1,9 @@
 //! Element + attribute DOM-construction emit.
 
+// FILE_CAP_OVERRIDE: one cohesive concern — emitting DOM construction for an
+// element and its attributes. emit_attr is a single (large) static/dynamic/
+// hook/modifier dispatch matrix; the modifier + kbd-shortcut helpers are its
+// leaves. Splitting by attr-kind fragments one mapping table.
 use super::super::expr_rewrite::rewrite_for_scope;
 use super::super::writer::{js_string, Writer};
 use super::TemplateEmitter;

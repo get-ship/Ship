@@ -10,6 +10,10 @@
 //! (`scope_member`, `bind_this_target`, `on_callable`) can ask
 //! `kind_of_scope("foo")` instead of re-walking the controller source.
 
+// FILE_CAP_OVERRIDE: one cohesive concern — a single SymbolTable builder + the
+// ScopeKind classifier. The collect_* fns are its construction internals
+// (section keys, use keys, scope kinds); splitting them scatters one
+// table-build across files for no clarity gain.
 use std::collections::BTreeMap;
 
 use crate::check::controller_parse::ParsedController;

@@ -10,6 +10,11 @@
 //! The walker mirrors `check::scope_bound_expr` so the `$scope.foo`
 //! qualification matches the deps the bindings registry tracks.
 
+// FILE_CAP_OVERRIDE: one cohesive concern — a single $scope-qualifying
+// expression rewriter. The peek_*/harvest_*/strip_* fns are lexical sub-steps
+// of that one walk (arrow params, destructure idents, type-annotation
+// stripping); they have no meaning apart from it.
+
 /// JS / browser globals + framework-known idents that resolve outside
 /// `$scope`. Kept in sync with `check::scope_bound::BUILTINS` — any
 /// identifier the validator accepts as a builtin must be left
