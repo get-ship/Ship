@@ -142,6 +142,42 @@ mod actor_tests {
     // ── Tests ──────────────────────────────────────────────────────────
 
     #[test]
+    fn find_live_window_for_space_returns_only_the_live_window() {
+        let (_ship_dir, mut conn) = setup();
+        let bus = bus();
+        let space = "sp-window-find-test";
+        let win = EventEnvelope::new(
+            event_types::ACTOR_CREATED,
+            "win-find-test",
+            &serde_json::json!({
+                "kind": "window",
+                "environment_type": "local",
+                "space_id": space,
+                "restart_count": 0
+            }),
+        )
+        .unwrap()
+        .with_context(Some(space), None)
+        .with_actor_id("win-find-test")
+        .elevate();
+        bus.dispatch(&win, &mut conn);
+        // process.spawned with our own (live) pid makes the row `live`.
+        bus.dispatch(
+            &process_spawned_event("win-find-test", std::process::id()),
+            &mut conn,
+        );
+
+        let found = crate::projections::actor::find_live_window_for_space(space).unwrap();
+        assert_eq!(found.map(|r| r.id).as_deref(), Some("win-find-test"), "live window found for its space");
+        assert!(
+            crate::projections::actor::find_live_window_for_space("sp-no-window-here")
+                .unwrap()
+                .is_none(),
+            "no window for an unrelated space"
+        );
+    }
+
+    #[test]
     fn dispatch_created_inserts_actor_row() {
         let (_ship_dir, mut conn) = setup();
         let bus = bus();

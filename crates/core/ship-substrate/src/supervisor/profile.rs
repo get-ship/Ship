@@ -66,6 +66,12 @@ pub enum ActorKind {
     Agent,
     PipelineStep,
     Shell,
+    /// A Tauri shell window hosting a space (process-per-app). Self-registers
+    /// with the daemon on launch; the launcher consults the actor registry for
+    /// single-instance and the supervisor pid-checks for liveness. A *lifecycle*
+    /// actor — identity/pid/lifecycle only, no mailbox (the webview gets events
+    /// over its Connect stream, not an actor mailbox).
+    Window,
 }
 
 impl ActorKind {
@@ -74,6 +80,7 @@ impl ActorKind {
             ActorKind::Agent => "agent",
             ActorKind::PipelineStep => "pipeline-step",
             ActorKind::Shell => "shell",
+            ActorKind::Window => "window",
         }
     }
 }

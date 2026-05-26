@@ -449,6 +449,24 @@ pub fn get_actor(actor_id: &str) -> Result<Option<ActorRow>> {
 /// `created` status is sticky after process exit.
 ///
 /// Linux: `/proc/<pid>` exists iff the process is alive.
+/// Single-instance source of truth for the multi-window shell: the live
+/// `window`-kind actor hosting `space_id`, if any. The launcher consults this
+/// to focus an existing window instead of spawning a duplicate. Windows are
+/// self-registering lifecycle actors (`ActorKind::Window`); `live` is the
+/// supervisor's pid probe.
+pub fn find_live_window_for_space(space_id: &str) -> Result<Option<ActorRow>> {
+    // "window" == ActorKind::Window.as_str(); the projection treats kind as a
+    // string throughout, so we filter on the string (no supervisor dep here).
+    let windows = list_actors(&ListActorsFilter {
+        kind: Some("window".to_string()),
+        limit: 256,
+        ..Default::default()
+    })?;
+    Ok(windows
+        .into_iter()
+        .find(|r| r.live && r.space_id.as_deref() == Some(space_id)))
+}
+
 pub fn pid_alive(pid: i64) -> bool {
     if pid <= 0 {
         return false;
