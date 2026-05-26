@@ -14,14 +14,18 @@
 //! Compartment denies at runtime (proven in #165 — confined views run with
 //! `fetch`/`window` undefined). This rule is the author-time mirror.
 //!
-//! **Severity: Error**, scoped to the CONFINED surface — view controllers (a
+//! **Severity: Warning**, scoped to the CONFINED surface — view controllers (a
 //! `views/` tree). First-party chrome component controllers
 //! (`apps/shell/src/components`, `packages/components` → any `/components/`
 //! path) run UNCONFINED in the host realm and legitimately use `fetch` /
-//! lazy-`import()`, so they are out of scope. The REST→Connect migration that
-//! held this at Warning has landed; zero `views/**` controllers use ambient
-//! authority, so Error is safe to enforce. (Third-party packs, when they ship
-//! confined, extend the confined surface.)
+//! lazy-`import()`, so they are out of scope.
+//!
+//! Promotion to Error is gated on every confined-surface view controller being
+//! migrated off raw ambient authority — NOT yet true (`views/artifacts` still
+//! calls `fetch('/api/v1/…')`). Until those migrate to `ship.<domain>.<op>()`,
+//! Error would hard-fail their compile, so this stays Warning. Note `fetch` is
+//! flagged only as a bare call or on a global (`window`/`globalThis`/`self`);
+//! `ship.git.fetch({})` is a sanctioned SDK op, not ambient authority.
 
 use std::path::{Path, PathBuf};
 
@@ -82,7 +86,7 @@ impl AmbientVisitor<'_> {
             line,
             col,
             rule: RULE_ID,
-            severity: Severity::Error,
+            severity: Severity::Warn,
             message: format!(
                 "controllers must not use ambient authority (`{what}`). All I/O goes \
                  through the `ship` SDK — the only sanctioned, policy-gated path. Raw \
@@ -100,10 +104,18 @@ impl<'a> Visit<'a> for AmbientVisitor<'_> {
             Expression::Identifier(id) if BANNED_CALLS.contains(&id.name.as_str()) => {
                 self.report(expr.span, id.name.as_str())
             }
-            // `navigator.sendBeacon(...)` / `window.fetch(...)`
+            // `window.fetch(...)` / `navigator.sendBeacon(...)` — but ONLY when the
+            // object is a global. A member `.fetch` on something else is a
+            // domain method, not ambient authority — `ship.git.fetch({})` is a
+            // sanctioned SDK op that happens to be named "fetch".
             Expression::StaticMemberExpression(m) => {
                 let p = m.property.name.as_str();
-                if p == "sendBeacon" || p == "fetch" {
+                let on_global = matches!(
+                    &m.object,
+                    Expression::Identifier(o)
+                        if matches!(o.name.as_str(), "window" | "globalThis" | "self" | "navigator")
+                );
+                if on_global && (p == "fetch" || p == "sendBeacon") {
                     self.report(expr.span, p)
                 }
             }
@@ -206,10 +218,22 @@ mod tests {
     }
 
     #[test]
-    fn error_severity_hard_fails_on_confined_surface() {
+    fn warning_severity_on_confined_surface() {
         let f = check(Path::new("views/git/controller.ts"), "fetch('/x')");
         assert_eq!(f.len(), 1);
-        assert_eq!(f[0].severity, Severity::Error);
+        assert_eq!(f[0].severity, Severity::Warn);
+    }
+
+    #[test]
+    fn allows_sdk_methods_named_fetch() {
+        // `ship.git.fetch({})` is a domain op, NOT ambient authority — only bare
+        // `fetch(` or a fetch on a global (window/globalThis/self) is flagged.
+        assert_eq!(n("const f = () => ship.git.fetch({})"), 0);
+        assert_eq!(n("repo.fetch()"), 0);
+        // …but the real ambient forms still fire.
+        assert_eq!(n("window.fetch('/x')"), 1);
+        assert_eq!(n("globalThis.fetch('/x')"), 1);
+        assert_eq!(n("navigator.sendBeacon('/x')"), 1);
     }
 
     #[test]
