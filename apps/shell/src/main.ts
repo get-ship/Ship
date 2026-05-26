@@ -75,14 +75,24 @@ interface MountFn {
   ): Promise<{ dispose(): void; element: HTMLElement; scope: Record<string, unknown> }>
 }
 
+// The daemon's base origin. Empty in a browser/vite context (same-origin; the
+// vite proxy forwards /api + /_sui + Connect to the daemon). In the proxy-less
+// Tauri webview, the host plants `window.__SHIP_DAEMON_URL__` =
+// `http://127.0.0.1:<port>` so every daemon call targets the absolute loopback
+// origin directly (no proxy — the doc's Connect-over-loopback model).
+function daemonBase(): string {
+  return (window as WindowWithSui).__SHIP_DAEMON_URL__?.replace(/\/$/, '') ?? ''
+}
+
 // Single SDK client instance, shared across every mounted view.
-const shipClient: ShipSDK = createClient()
+const shipClient: ShipSDK = createClient({ baseUrl: daemonBase() })
 
 // Host loader injected into every mount() — the `/_sui/` URL scheme lives
 // here at the app boundary, not inside the (host-agnostic) SUI runtime.
 const suiLoader: SuiLoader = {
   async fetchView(nameOrPath: string): Promise<ViewPayload> {
-    const path = nameOrPath.startsWith('/_sui/views/') ? nameOrPath : `/_sui/views/${nameOrPath}`
+    const rel = nameOrPath.startsWith('/_sui/views/') ? nameOrPath : `/_sui/views/${nameOrPath}`
+    const path = `${daemonBase()}${rel}`
     const res = await fetch(path, { credentials: 'same-origin' })
     if (!res.ok) {
       const body = await res.text().catch(() => '')
@@ -91,7 +101,7 @@ const suiLoader: SuiLoader = {
     return (await res.json()) as ViewPayload
   },
   loadComponent: (tag: string): Promise<void> =>
-    import(/* @vite-ignore */ `/_sui/sui-components/${tag}.js`).then(() => undefined),
+    import(/* @vite-ignore */ `${daemonBase()}/_sui/sui-components/${tag}.js`).then(() => undefined),
 }
 
 // Pre-register dynamic-route patterns the shell knows about. Views in
@@ -211,6 +221,12 @@ interface SuiRuntime {
 type WindowWithSui = Window & {
   __suiRuntime?: SuiRuntime
   __suiRuntimeReady?: Promise<SuiRuntime>
+  // Planted by the Tauri host (pre-load init script) so the proxy-less webview
+  // targets the daemon's absolute loopback origin. Undefined in a browser/vite
+  // context → '' → same-origin relative URLs (the vite proxy resolves them).
+  __SHIP_DAEMON_URL__?: string
+  // The space this window was launched for (`--app=<id>`); undefined = the hub.
+  __SHIP_APP_ID__?: string
 }
 
 function escapeHtml(s: string): string {
@@ -333,7 +349,7 @@ async function buildConfinedModule(viewName: string): Promise<unknown> {
       import('@ship/deck-host'),
       import('@ship/sui-dom'),
     ])
-    const res = await fetch(`/_sui/views/${viewName}/view.js`, { credentials: 'same-origin' })
+    const res = await fetch(`${daemonBase()}/_sui/views/${viewName}/view.js`, { credentials: 'same-origin' })
     if (!res.ok) return undefined
     const source = await res.text()
     const w = window as WindowWithSui
