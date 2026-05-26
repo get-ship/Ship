@@ -217,18 +217,6 @@ pub struct ActorCrashed {
     pub restart_count: u32,
 }
 
-// -- Gate aggregate ------------------------------------------------------------
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GatePassed {
-    pub evidence: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GateFailed {
-    pub evidence: String,
-}
-
 // Job event payloads (job.created, job.completed, job.failed, job.dispatched,
 // step.*, gate.*) carry the runtime pipeline shape and live in substrate at
 // `ship_substrate::events::job` since they reference `ship-pipelines` types.

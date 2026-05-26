@@ -15,8 +15,6 @@ pub const ACTOR_WOKE: &str = "actor.woke";
 pub const ACTOR_SLEPT: &str = "actor.slept";
 pub const ACTOR_STOPPED: &str = "actor.stopped";
 pub const ACTOR_CRASHED: &str = "actor.crashed";
-pub const GATE_PASSED: &str = "gate.passed";
-pub const GATE_FAILED: &str = "gate.failed";
 pub const PIPELINE_RUN_STARTED: &str = "pipeline.run.started";
 pub const PIPELINE_RUN_COMPLETED: &str = "pipeline.run.completed";
 pub const PIPELINE_RUN_FAILED: &str = "pipeline.run.failed";
@@ -182,8 +180,6 @@ pub const ALL: &[&str] = &[
     ACTOR_SLEPT,
     ACTOR_STOPPED,
     ACTOR_CRASHED,
-    GATE_PASSED,
-    GATE_FAILED,
     PIPELINE_RUN_STARTED,
     PIPELINE_RUN_COMPLETED,
     PIPELINE_RUN_FAILED,

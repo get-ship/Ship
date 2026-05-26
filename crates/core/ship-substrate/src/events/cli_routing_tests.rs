@@ -87,14 +87,14 @@ async fn session_event_delivered_to_subscribed_mailbox() {
     assert_eq!(received.event_type, event_types::SESSION_STARTED);
 }
 
-// ── gate outcome with CallerKind::Cli reaches kernel store ───────────────────
+// ── CLI-context event reaches kernel store ───────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn gate_outcome_with_cli_context_reaches_kernel_store() {
+async fn cli_context_event_reaches_kernel_store() {
     let tmp = tempdir().unwrap();
     let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let event = ev(event_types::GATE_PASSED);
+    let event = ev(event_types::SESSION_STARTED);
     // CallerKind::Cli is trusted — must not be rejected by validators.
     router.emit(event.clone(), &cli_ctx()).await.unwrap();
 
@@ -106,22 +106,22 @@ async fn gate_outcome_with_cli_context_reaches_kernel_store() {
             .await
     })
     .unwrap();
-    assert_eq!(count, 1, "gate outcome with Cli context must reach kernel store");
+    assert_eq!(count, 1, "cli-context event must reach kernel store");
 }
 
-// ── gate outcome delivered to subscribed actor mailbox ────────────────────────
+// ── CLI-context event delivered to subscribed mailbox ────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn gate_outcome_delivered_to_subscribed_mailbox() {
+async fn cli_context_event_delivered_to_subscribed_mailbox() {
     let tmp = tempdir().unwrap();
     let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
     let (_store, mut mailbox) = router.spawn_actor("agent.mcp", agent_config()).unwrap();
 
-    let event = ev(event_types::GATE_PASSED);
+    let event = ev(event_types::SESSION_STARTED);
     router.emit(event.clone(), &cli_ctx()).await.unwrap();
 
-    let received = mailbox.try_recv().expect("gate event must reach subscribed actor mailbox");
+    let received = mailbox.try_recv().expect("cli-context event must reach subscribed actor mailbox");
     assert_eq!(received.id, event.id);
 }
 

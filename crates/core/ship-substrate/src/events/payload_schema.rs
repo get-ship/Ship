@@ -64,9 +64,6 @@ fn schema_for_event_type(
         "actor.slept" => Some(check::<ActorSlept>),
         "actor.stopped" => Some(check::<ActorStopped>),
         "actor.crashed" => Some(check::<ActorCrashed>),
-        // gate
-        "gate.passed" => Some(check::<GatePassed>),
-        "gate.failed" => Some(check::<GateFailed>),
         // job — canonical 18-field payloads live in `crate::events::job`
         "pipeline.run.started" => Some(check::<crate::events::pipeline::PipelineRunStartedPayload>),
         "pipeline.run.completed" => Some(check::<crate::events::pipeline::PipelineRunCompletedPayload>),
