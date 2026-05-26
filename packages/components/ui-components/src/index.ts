@@ -16,11 +16,9 @@
 
 import '@ship/primitives'
 import './sui-graph-canvas/sui-graph-canvas.compiled.js'
-import './sui-pipeline-dag/sui-pipeline-dag.compiled.js'
-import './sui-pipeline-step/sui-pipeline-step.compiled.js'
-import './sui-pipeline-run/sui-pipeline-run.compiled.js'
-import './sui-pipeline-step-def/sui-pipeline-step-def.compiled.js'
-import './sui-pipeline-definition/sui-pipeline-definition.compiled.js'
+// sui-pipeline-* live in the dedicated @ship/pipelines pack (loaded via
+// '@ship/pipelines/bundle'); the umbrella must NOT also define them or they
+// register twice. The copies under src/ were diverged duplicates (#151).
 import './sui-log-stream/sui-log-stream.compiled.js'
 import './sui-harness-blob/sui-harness-blob.compiled.js'
 import './sui-auth-dialog/sui-auth-dialog.compiled.js'
