@@ -43,7 +43,7 @@ export function isShared(sig: unknown): boolean {
  * removed the property goes with it.
  */
 export function provide<T>(host: Element, key: string, value: T): void {
-  ;(host as Record<string, unknown>)[`__sui_ctx_${key}`] = value
+  ;(host as unknown as Record<string, unknown>)[`__sui_ctx_${key}`] = value
 }
 
 /**
@@ -56,9 +56,9 @@ export function provide<T>(host: Element, key: string, value: T): void {
 export function useShared<T>(host: Element, key: string): T | null {
   let cur: Element | null = host
   while (cur) {
-    const v = (cur as Record<string, unknown>)[`__sui_ctx_${key}`]
+    const v = (cur as unknown as Record<string, unknown>)[`__sui_ctx_${key}`]
     if (v !== undefined) return v as T
-    const parent = cur.parentElement
+    const parent: Element | null = cur.parentElement
     if (parent) {
       cur = parent
       continue

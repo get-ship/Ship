@@ -11,7 +11,10 @@ export default controller({
   scope: ({ route, ship }: ViewScope<Scope>) => {
     const agentId = derived(() => route.params.id() ?? '')
     const wireCtx = live(() => ship.agents.wire({ id: agentId() }))
-    const wireData = derived(() => unwrap(wireCtx as any) ?? null)
+    // ship.agents.wire is LiveSource<unknown> by SDK contract — the wire graph
+    // (agent + nodes + edges + catalogs) is dynamic, so the unwrapped value
+    // stays `any` for both the template and the mount effect below.
+    const wireData = derived<any>(() => unwrap(wireCtx as any) ?? null)
     const selectedKind = signal('agent')
     const selectedId = signal('')
     const pickerOpen = signal(false)

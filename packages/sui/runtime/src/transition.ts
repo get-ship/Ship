@@ -47,7 +47,7 @@ interface Registration {
   outT?: Transition
   inOpts: TransitionConfig
   outOpts: TransitionConfig
-  current?: Animation
+  current?: Animation | undefined
 }
 
 const REG = Symbol('sui:transition')

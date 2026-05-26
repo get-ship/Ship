@@ -73,8 +73,8 @@ export interface MountHandle<Scope = Record<string, unknown>> {
 
 interface SetupContext {
   ship?: unknown
-  route?: RouteSignals
-  navigate?: (path: string) => void
+  route?: RouteSignals | undefined
+  navigate?: ((path: string) => void) | undefined
   scope?: Record<string, unknown>
   stateKeys?: ReadonlySet<string>
 }
@@ -497,7 +497,7 @@ function pickLiveSignals(
     if (
       typeof fromSetup === 'function' &&
       'set' in (fromSetup as object) &&
-      typeof (fromSetup as { set: unknown }).set === 'function'
+      typeof (fromSetup as unknown as { set: unknown }).set === 'function'
     ) {
       out[k] = fromSetup as Signal<unknown>
     } else if (fallback[k]) {

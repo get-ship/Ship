@@ -111,7 +111,7 @@ function bearer(token: string): Interceptor {
 export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectClient {
   const transport = createConnectTransport({
     baseUrl: opts.baseUrl,
-    fetch: opts.fetch,
+    ...(opts.fetch ? { fetch: opts.fetch } : {}),
     interceptors: opts.token ? [bearer(opts.token)] : [],
   });
   return {

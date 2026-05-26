@@ -156,7 +156,7 @@ export type OnSection<Scope> = Record<
  * `ControllerHook`). Results are namespaced by key in the resolved
  * view scope.
  */
-export type UseSection<Scope> = Record<string, ControllerHook>
+export type UseSection = Record<string, ControllerHook>
 
 /**
  * `mount` lifecycle. Runs once after the rendered DOM is attached and
@@ -236,7 +236,7 @@ export interface ControllerShape<Scope = object> {
    * Composition of controller hooks. Static or factory form; factory
    * form receives the merged scope.
    */
-  use?: SectionInit<UseSection<Scope>, ViewScope<Scope>>
+  use?: SectionInit<UseSection, ViewScope<Scope>>
 
   /** Runs once after mount; receives writable state. */
   mount?: MountSection<Scope>
@@ -266,7 +266,7 @@ export interface ScopedControllerDef<Ctx, SC extends Record<string, unknown>> {
   scope: (init: Ctx, host?: Element) => SC
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   on?: Record<string, (state: MutableState<Ctx & SC>, ...args: any[]) => void | Promise<void>>
-  use?: SectionInit<UseSection<Ctx & SC>, Ctx & SC>
+  use?: SectionInit<UseSection, Ctx & SC>
   mount?: (state: MutableState<Ctx & SC>, el: HTMLElement) => (() => void) | void | Promise<void>
   unmount?: (state: MutableState<Ctx & SC>) => void
 }

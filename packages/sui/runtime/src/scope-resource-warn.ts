@@ -34,7 +34,7 @@ import { currentScope, onCleanup, type EffectScope } from './effect-scope'
 interface ResourceRecord {
   kind: string
   closed: boolean
-  stack?: string
+  stack?: string | undefined
 }
 
 const RECORDS_BY_SCOPE = new WeakMap<EffectScope, Set<ResourceRecord>>()
