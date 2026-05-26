@@ -6,4 +6,4 @@
 //! the runtime backstop.
 
 export { lockdownRealm, isRealmLocked, confineController } from './confine.ts'
-export { lowerFrameworkImports } from './lower-imports.ts'
+export { lowerFrameworkImports, lowerModuleToExpression } from './lower-imports.ts'
