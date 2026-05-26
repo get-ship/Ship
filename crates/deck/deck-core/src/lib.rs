@@ -15,6 +15,7 @@ pub mod mode_html;
 pub mod packs;
 pub mod render_helpers;
 pub mod resolver;
+pub mod routes;
 pub mod view;
 pub mod view_host;
 pub mod view_payload;

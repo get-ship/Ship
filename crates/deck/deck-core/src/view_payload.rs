@@ -42,10 +42,7 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
         Err(err) => return compile_error_response(name, &resolved.source, err, mode),
     };
     let css = collect_view_css(name, resolved.source_path.as_deref());
-    let module_url = match sub_path {
-        Some(s) => format!("/_sui/views/{name}/view.js?sub={s}"),
-        None => format!("/_sui/views/{name}/view.js"),
-    };
+    let module_url = crate::routes::view_module_url(name, sub_path);
     let island_bundles: Vec<String> = islands::collect_islands(&program.template)
         .into_iter()
         .map(|s| s.to_string())
