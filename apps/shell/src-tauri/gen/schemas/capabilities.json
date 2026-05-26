@@ -1,0 +1,1 @@
+{"main":{"identifier":"main","description":"Main window: updater + dialog (the C3 approval prompt) + process lifecycle + opener, plus the shell's own daemon-lifecycle and escalation commands. No wildcards.","local":true,"windows":["main"],"permissions":["core:default","updater:default","dialog:default","process:default","opener:default"]}}
