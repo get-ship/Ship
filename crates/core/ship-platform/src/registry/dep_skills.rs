@@ -176,25 +176,47 @@ fn parse_dep_skill(dep_ref: &str, raw: &str) -> Skill {
     let mut compatibility = None;
     let mut allowed_tools = vec![];
     let mut metadata: HashMap<String, String> = HashMap::new();
+    let mut grants: Vec<String> = vec![];
+    let mut requires: Vec<String> = vec![];
     let mut content_start = 0usize;
 
     if let Some(rest) = raw.strip_prefix("---\n")
         && let Some(end) = rest.find("\n---\n")
     {
         let fm = &rest[..end];
-        let mut in_metadata = false;
+        // Tracks an open YAML list/map block: "metadata" | "requires" | "grants".
+        // (Hand-rolled; only the block-list form is supported. The proper skill
+        // frontmatter parser should subsume this — see #106.)
+        let mut section = "";
         for line in fm.lines() {
-            if in_metadata {
-                if line.starts_with("  ") || line.starts_with('\t') {
-                    let trimmed = line.trim();
-                    if let Some((k, v)) = trimmed.split_once(':') {
-                        metadata.insert(k.trim().to_string(), v.trim().to_string());
+            let indented = line.starts_with("  ") || line.starts_with('\t');
+            if !section.is_empty() && indented {
+                let trimmed = line.trim();
+                match section {
+                    "metadata" => {
+                        if let Some((k, v)) = trimmed.split_once(':') {
+                            metadata.insert(k.trim().to_string(), v.trim().to_string());
+                        }
                     }
-                    continue;
-                } else {
-                    in_metadata = false;
+                    "requires" | "grants" => {
+                        let item = trimmed
+                            .trim_start_matches('-')
+                            .trim()
+                            .trim_matches('"')
+                            .trim_matches('\'');
+                        if !item.is_empty() {
+                            if section == "requires" {
+                                requires.push(item.to_string());
+                            } else {
+                                grants.push(item.to_string());
+                            }
+                        }
+                    }
+                    _ => {}
                 }
+                continue;
             }
+            section = "";
             if let Some(v) = line.strip_prefix("name:") {
                 name = v.trim().to_string();
             } else if let Some(v) = line.strip_prefix("description:") {
@@ -206,7 +228,11 @@ fn parse_dep_skill(dep_ref: &str, raw: &str) -> Skill {
             } else if let Some(v) = line.strip_prefix("allowed-tools:") {
                 allowed_tools = v.split_whitespace().map(str::to_string).collect();
             } else if line.trim_end() == "metadata:" {
-                in_metadata = true;
+                section = "metadata";
+            } else if line.trim_end() == "requires:" {
+                section = "requires";
+            } else if line.trim_end() == "grants:" {
+                section = "grants";
             } else if let Some(v) = line.strip_prefix("version:") {
                 metadata.insert("version".to_string(), v.trim().to_string());
             } else if let Some(v) = line.strip_prefix("author:") {
@@ -230,8 +256,8 @@ fn parse_dep_skill(dep_ref: &str, raw: &str) -> Skill {
         source: SkillSource::Community,
         vars: Default::default(),
         artifacts: vec![],
-        grants: vec![],
-        requires: vec![],
+        grants,
+        requires,
     }
 }
 
@@ -400,6 +426,84 @@ pub fn resolve_dep_agents(
         }
     }
     Ok(out)
+}
+
+/// Transitive capability surface of the installed dep tree (#119).
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct TransitiveCapabilities {
+    /// Union of `requires` across every locked package's exported skills.
+    pub required: Vec<String>,
+    /// Union of `grants` across them.
+    pub granted: Vec<String>,
+    /// `required` not self-satisfied by `granted` — what the operator must
+    /// approve at install (the supply-chain surface).
+    pub unmet: Vec<String>,
+}
+
+/// Compute the transitive capability surface of the dep tree (#119): walk each
+/// locked package's `exports.skills`, load them from the cache (reusing
+/// `resolve_dep_skill`), and union their `requires`/`grants`. `unmet` is what
+/// the tree demands that it doesn't grant itself. Surfaced at install for
+/// approval. Returns empty when there is no lockfile.
+pub fn transitive_capabilities(
+    lock_path: &Path,
+    cache_root: Option<&Path>,
+) -> Result<TransitiveCapabilities> {
+    if !lock_path.exists() {
+        return Ok(TransitiveCapabilities::default());
+    }
+    let lock =
+        ShipLock::from_file(lock_path).with_context(|| format!("reading {}", lock_path.display()))?;
+
+    let default_cache: PathBuf;
+    let cache_root = match cache_root {
+        Some(p) => p,
+        None => {
+            let home = home::home_dir().context("cannot determine home directory")?;
+            default_cache = ship_substrate::ShipHome::project_ship_dir(home).join("cache");
+            &default_cache
+        }
+    };
+
+    let mut required: Vec<String> = Vec::new();
+    let mut granted: Vec<String> = Vec::new();
+    for pkg in &lock.packages {
+        let hex = pkg.hash.strip_prefix("sha256:").unwrap_or(&pkg.hash);
+        let manifest_path = cache_root.join("objects").join(hex).join("ship.jsonc");
+        if !manifest_path.exists() {
+            continue;
+        }
+        let manifest = match compiler::manifest::ShipManifest::from_file(&manifest_path) {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::warn!("transitive caps: skipping {} — manifest: {e}", pkg.path);
+                continue;
+            }
+        };
+        for skill_export in &manifest.exports.skills {
+            let ref_str = format!("{}/{}", pkg.path, skill_export);
+            match resolve_dep_skill(&ref_str, &lock, cache_root) {
+                Ok(skills) => {
+                    for s in skills {
+                        required.extend(s.requires.iter().cloned());
+                        granted.extend(s.grants.iter().cloned());
+                    }
+                }
+                Err(e) => tracing::warn!("transitive caps: {ref_str}: {e}"),
+            }
+        }
+    }
+    required.sort();
+    required.dedup();
+    granted.sort();
+    granted.dedup();
+    let granted_set: std::collections::HashSet<&str> = granted.iter().map(String::as_str).collect();
+    let unmet: Vec<String> = required
+        .iter()
+        .filter(|r| !granted_set.contains(r.as_str()))
+        .cloned()
+        .collect();
+    Ok(TransitiveCapabilities { required, granted, unmet })
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

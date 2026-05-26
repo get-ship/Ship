@@ -44,6 +44,36 @@ fn resolve_dep_agents_empty_without_lockfile() {
     assert!(agents.is_empty(), "no lockfile => no dep agents");
 }
 
+// ── transitive_capabilities (#119) ────────────────────────────────────
+
+#[test]
+fn transitive_capabilities_unions_requires_and_grants() {
+    let tmp = TempDir::new().unwrap();
+    let hex = "cafebabe";
+    write_file(
+        tmp.path(),
+        &format!("objects/{hex}/ship.jsonc"),
+        r#"{ "id": "d", "module": { "name": "github.com/o/p", "version": "1.0.0" }, "exports": { "skills": ["skills/foo"], "agents": [] } }"#,
+    );
+    write_file(
+        tmp.path(),
+        &format!("objects/{hex}/skills/foo/SKILL.md"),
+        "---\nname: Foo\nrequires:\n  - cap.x\ngrants:\n  - cap.y\n---\n\nContent.",
+    );
+    let lock = make_lock("github.com/o/p", &format!("sha256:{hex}"));
+    let lock_path = tmp.path().join("ship.lock");
+    lock.write_atomic(&lock_path).unwrap();
+
+    let caps = transitive_capabilities(&lock_path, Some(tmp.path())).unwrap();
+    assert_eq!(caps.required, vec!["cap.x".to_string()], "union of requires");
+    assert_eq!(caps.granted, vec!["cap.y".to_string()], "union of grants");
+    assert_eq!(
+        caps.unmet,
+        vec!["cap.x".to_string()],
+        "cap.x required but not granted within the dep tree"
+    );
+}
+
 // ── is_dep_ref ────────────────────────────────────────────────────────
 
 #[test]
