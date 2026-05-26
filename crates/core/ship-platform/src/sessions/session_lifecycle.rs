@@ -28,9 +28,14 @@ pub fn start_session(
 ) -> Result<Session> {
     let branch = ensure_branch_key(branch)?;
     let workspace_id = sanitize_file_name(branch);
+    // The SPACE is the scope: one active session per space (space = one window
+    // = one app). Resolve the path-hash space id up front and key the
+    // active-session lookup on it, NOT the branch-slug workspace_id. The branch
+    // slug stays only as observability metadata on the payload.
+    let space_id = space_id_for_ship_dir(ship_dir);
 
-    // Idempotent: return existing active session.
-    if let Some(active) = get_active_session_db(&workspace_id)? {
+    // Idempotent: return existing active session for this space.
+    if let Some(active) = get_active_session_db(&space_id)? {
         let existing = hydrate_session(active);
         let payload = SessionAttached {
             existing_session_id: existing.id.clone(),
@@ -50,15 +55,6 @@ pub fn start_session(
     let primary_harness = resolve_primary_harness(primary_harness, &harnesses, branch)?;
     let _harnesses = compile_session_context(ship_dir, branch, None, agent_id.as_deref())?;
 
-    // Look up project_id from ship_dir.parent (the project root). When the
-    // project isn't registered, leaves project_id as None — registration is
-    // explicit, never implicit.
-    let project_lookup_path = ship_dir.parent().unwrap_or(ship_dir).to_path_buf();
-    let project_id = crate::projects::find_by_path(&project_lookup_path)
-        .ok()
-        .flatten()
-        .map(|p| p.id);
-
     let session_id = ship_substrate::gen_nanoid();
     let started_payload = SessionStarted {
         goal: normalize_optional_text(goal),
@@ -66,7 +62,9 @@ pub fn start_session(
         branch: branch.to_string(),
         agent_id,
         primary_harness: Some(primary_harness),
-        project_id,
+        // The space scope — always populated (path-hash identity), so the
+        // active-session lookup above resolves on subsequent calls.
+        project_id: Some(space_id),
         kind: Some("direct_attach".to_string()),
         pipeline_run_id: None,
         chat_thread_id: None,
@@ -111,9 +109,9 @@ pub fn end_session(
     request: EndSessionRequest,
 ) -> Result<Session> {
     let branch = ensure_branch_key(branch)?;
-    let workspace_id = sanitize_file_name(branch);
+    let space_id = space_id_for_ship_dir(ship_dir);
 
-    let mut active = get_active_session_db(&workspace_id)?
+    let mut active = get_active_session_db(&space_id)?
         .ok_or_else(|| anyhow!("No active session on branch '{}'", branch))?;
 
     let now = Utc::now().to_rfc3339();

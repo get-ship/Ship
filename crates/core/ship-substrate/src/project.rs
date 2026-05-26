@@ -12,6 +12,7 @@ mod global;
 mod identity;
 mod paths;
 mod registry;
+mod space;
 
 pub use app_state::{
     AppState, get_active_project_global, get_recent_projects_global, load_app_state,
@@ -32,6 +33,7 @@ pub use registry::{
     ProjectEntry, ProjectRegistry, get_registry_path, list_registered_projects, load_registry,
     register_project, save_registry, unregister_project,
 };
+pub use space::{daemon_space_id, set_daemon_space_id, set_daemon_space_id_from_root};
 
 #[cfg(test)]
 mod tests {

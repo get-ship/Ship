@@ -83,11 +83,16 @@ pub struct AuthContext {
 
 impl AuthContext {
     /// Convert to the runtime's `EmitContext` preserving the caller's identity.
+    ///
+    /// `project_id` carries the daemon's SPACE id (path-hash identity resolved
+    /// at startup), NOT the legacy `workspace_id` branch slug. A daemon serves
+    /// one space, so every space-scoped event it emits belongs to that space.
+    /// See spec `.artifacts/specs/space/116-event-partition.md`.
     pub fn to_emit_context(&self) -> ship_substrate::events::EmitContext {
         ship_substrate::events::EmitContext {
             caller_kind: self.caller_kind.clone(),
             skill_id: None,
-            project_id: self.workspace_id.clone(),
+            project_id: ship_substrate::project::daemon_space_id(),
             session_id: self.session_id.clone(),
         }
     }
@@ -107,7 +112,9 @@ impl AuthContext {
         ship_substrate::events::EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
-            project_id: self.workspace_id.clone(),
+            // SPACE id (daemon-resolved), not the branch-slug workspace_id.
+            // See spec `.artifacts/specs/space/116-event-partition.md`.
+            project_id: ship_substrate::project::daemon_space_id(),
             session_id: self.session_id.clone(),
         }
     }

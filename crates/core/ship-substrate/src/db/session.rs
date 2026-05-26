@@ -65,16 +65,20 @@ pub fn get_session_db(session_id: &str) -> Result<Option<SessionDb>> {
     Ok(row.as_ref().map(parse_session_row))
 }
 
-pub fn get_active_session_db(workspace_id: &str) -> Result<Option<SessionDb>> {
+/// Find the active session for a SPACE. Keyed on the space-scope column
+/// (`project_id`), not the legacy branch-slug `workspace_id`: a space has at
+/// most one active session (space = one window = one app). See spec
+/// `.artifacts/specs/space/116-event-partition.md`.
+pub fn get_active_session_db(space_id: &str) -> Result<Option<SessionDb>> {
     let mut conn = open_db()?;
     let sql = format!(
         "SELECT {SESSION_COLS} FROM sessions \
-         WHERE workspace_id = ? AND status = 'active' \
+         WHERE project_id = ? AND status = 'active' \
          ORDER BY started_at DESC LIMIT 1"
     );
     let row = block_on(async {
         sqlx::query(&sql)
-            .bind(workspace_id)
+            .bind(space_id)
             .fetch_optional(&mut conn)
             .await
     })?;
