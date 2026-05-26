@@ -141,7 +141,10 @@ dev-runtime-update:
 # Run all tests (Rust + loops). For a faster inner loop use test-fast.
 [group('daily')]
 test:
-    cargo test --workspace --features unstable
+    # ship-shell (apps/shell/src-tauri) is the desktop shell — needs webkit2gtk/
+    # libsoup; excluded from the framework test sweep. Build it via the Tauri
+    # toolchain (release.yml / `cargo build -p ship-shell` on a desktop box).
+    cargo test --workspace --exclude ship-shell --features unstable
 
 # Visual baselines — Playwright screenshots vs committed PNGs.
 # Daemon must be running (`just dev`). Pass --update-snapshots to refresh
@@ -153,7 +156,7 @@ visual *ARGS:
 # Library tests only — skips integration suites for fast inner-loop feedback.
 [group('daily')]
 test-fast:
-    cargo test --workspace --lib --features unstable
+    cargo test --workspace --exclude ship-shell --lib --features unstable
 
 # Run tests for a single crate. Usage: just test-pkg runtime
 [group('daily')]
@@ -163,13 +166,13 @@ test-pkg pkg:
 # cargo check across the workspace — fastest sanity gate.
 [group('daily')]
 check:
-    cargo check --workspace --all-targets --features unstable
+    cargo check --workspace --exclude ship-shell --all-targets --features unstable
 
 # Rust clippy + home-layout grep guards. Hard-fail on raw .ship/ joins
 # (devx-06 Tier 6).
 [group('daily')]
 lint:
-    cargo clippy --workspace --features unstable -- -D warnings
+    cargo clippy --workspace --exclude ship-shell --features unstable -- -D warnings
     @just check-raw
 
 # Visual QA against the daemon serving cwd. Discovers port automatically.
