@@ -29,8 +29,8 @@ page for full args, return shape, capability, and an example.
 
 ## Commands
 
-- [`mcp.create`](references/docs/mcp.create.mdoc) `[C1_WORKSPACE]` — Register a new external MCP server (errors if the id is taken).
-- [`mcp.delete`](references/docs/mcp.delete.mdoc) `[C1_WORKSPACE]` — Remove an MCP server entry (scope omitted walks project → user).
-- [`mcp.patch`](references/docs/mcp.patch.mdoc) `[C1_WORKSPACE]` — Apply RFC-6902 ops to an MCP server's config body.
-- [`mcp.put`](references/docs/mcp.put.mdoc) `[C1_WORKSPACE]` — Replace an MCP server's config (use mcp.create for net-new).
+- [`mcp.create`](references/docs/mcp.create.mdoc) `[C2_ELEVATED]` — Register a new external MCP server (errors if the id is taken).
+- [`mcp.delete`](references/docs/mcp.delete.mdoc) `[C2_ELEVATED]` — Remove an MCP server entry (scope omitted walks project → user).
+- [`mcp.patch`](references/docs/mcp.patch.mdoc) `[C2_ELEVATED]` — Apply RFC-6902 ops to an MCP server's config body.
+- [`mcp.put`](references/docs/mcp.put.mdoc) `[C2_ELEVATED]` — Replace an MCP server's config (use mcp.create for net-new).
 

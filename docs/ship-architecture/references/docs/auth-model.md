@@ -66,41 +66,49 @@ It is one decision, enforced at the dispatch chokepoint — `services::gate`, in
 `services::command::call` — so every write reaches it identically over REST and Connect
 (there is no per-transport gate). Reads are C0, authenticated at the edge.
 
-The model is **caller × blast-radius × grant**:
+The model is **caller × blast-tier × per-service ceiling** — the two axes that
+already exist (the proto **service** an op belongs to, and its risk **tier**), with
+**no separate capability taxonomy**:
 
-- **`blast_radius`** is a property of the op, carried on its registry descriptor:
-  **C0** (read / own-scope) · **C1** (workspace-mutating — the user's own risk) ·
-  **C2** (Ship/cloud-dangerous: credential mint, billing, changing another actor).
-  An unrecognized value fails closed to C2.
-- **Grants** are the restricted capability domains a caller holds —
-  `ship-orchestration` (dispatch / stop / steer agents) and `ship-authoring`
-  (write skills / agents / views). They are minted into the session at dispatch
-  and read from `AuthContext.grants`.
+- **`blast_radius`** is the op's risk tier, on its descriptor, four levels ordered
+  `C0 < C1 < C2 < C3`:
+  - **C0** read — anyone.
+  - **C1** workspace-write — any agent (the *operational baseline*: a dispatched
+    agent reads + workspace-writes everywhere out of the box).
+  - **C2** elevated — dispatch/stop/steer, authoring (agents/skills/mcp/create/view).
+    Granted, per service.
+  - **C3** critical — account, billing, permissions, `agent.grant`. Operator/2FA
+    only; never an agent. Unrecognized → fails closed to C3.
+- **An agent's authority** is a default ceiling (C1) plus the set of **services it's
+  elevated in** (the C2 set), read from `AuthContext.grants`. A **service** is the
+  op's domain (`git.commit` → `git`) — the proto-service curation, via `domain_of`,
+  not a second taxonomy.
 
-| Caller | C0 / C1, default domain | C0 / C1, restricted domain | C2 |
-|--------|-------------------------|----------------------------|----|
-| operator (human: CLI/browser, no `agent_id`) | allow | allow | allow |
-| agent (minted session token) | allow | allow iff domain ∈ grants | **deny** |
+`decide(blast, service, caller)`:
+
+| | C0 read | C1 write | C2 elevated | C3 critical |
+|---|---|---|---|---|
+| operator | allow | allow | allow | allow |
+| agent | allow | allow | allow **iff service ∈ elevated** | **deny** |
 
 <ship-alert tone="warning">
-C1 enforcement is happy-path hardening + least-privilege, **not** a Tier-1 security
-boundary — a host agent shares the uid and can act outside the daemon. The real
-boundary is credential location (C2 capability never lands on disk; it lives in the
-GUI/2FA session) plus Tier-2+ isolation for untrusted work.
+C1/C2 enforcement is least-privilege + accident-prevention, **not** a Tier-1 boundary
+— a host agent shares the uid and can act outside the daemon. The real boundary is
+credential location (C3 never lands on disk; it lives in the GUI/2FA session — see
+#86) plus Tier-2+ isolation for untrusted work.
 </ship-alert>
 
-### Grants: declared, minted, approved
+### Authority: require, grant, manage
 
-- A skill declares **`requires:`** (public, authored — "won't operate without this
-  capability"); the compiler issues **`grants:`** on capability-skills (never
-  hand-authored). An unmet requirement is a compile error.
-- An agent's grants are **minted at dispatch** (today from its role via
-  `grants_for_role`; the [provisioning model](/reference/architecture/op-surface/)
-  refines this to per-agent operator-approved sets). The token is an opaque handle;
-  grants are server-side state in the session registry.
-- **`agent.grant`** (C2, operator-only) is the human-in-the-loop approval: it adds
-  grants to an agent's live sessions so the next gated call passes — no re-mint, no
-  recompile.
+- A workflow/app declares **`requires:`** (public, authored — the capabilities it
+  needs). **Skills do not `grant:`** — that field is retired. An unmet requirement
+  surfaces at compile/install.
+- The **user grants**; the **runtime manages.** An agent's elevated services are
+  operator-approved state in the per-agent **provisioned baseline** (#85), carried
+  on `AuthContext.grants`. Role defaults seed it (`grants_for_role`: commander →
+  `[agent]`; designer → the authoring services) until per-agent provisioning.
+- **`agent.grant`** (C3, operator-only) is the human-in-the-loop approval point: it
+  adds elevated services to an agent's live sessions — no re-mint, no recompile.
 
 ## Three auth paths for browser clients
 

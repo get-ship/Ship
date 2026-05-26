@@ -24,9 +24,11 @@ op surface itself — how it's authored, gated, and projected — plus the last 
 **Built (on main):** 24 authored per-domain `ship.ops.v1` services covering the full
 op surface (migrated off the legacy `schema::OPS`/`COMMANDS` Rust tables), each mounted
 additively beside the still-generated `ReadOpsService`/`CommandOpsService`. One
-capability gate (`services::gate::decide`, blast-radius read from the proto descriptor
-set, fail-closed); grants minted at dispatch with the `requires:`/`grants:` split and
-`agent.grant` operator approval; the `@ship/sdk` Connect-Web client + event-bus/PTY
+capability gate (`services::gate::decide` — caller × blast-tier × per-service ceiling,
+4 tiers C0–C3, read from the proto descriptor, fail-closed to C3); an agent's elevated
+services are operator-approved (provisioned baseline), `agent.grant` (C3) the approval
+point — see [auth model](/reference/architecture/auth-model/); the `@ship/sdk`
+Connect-Web client + event-bus/PTY
 stream adapters; the **sdk-skill generator** (progressive-disclosure SKILL.md +
 per-op pages) and the **proto contract-fixture** pipeline (themed corpus → per-op
 fixtures, drift-checked).

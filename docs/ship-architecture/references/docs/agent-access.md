@@ -85,33 +85,34 @@ commands they can actually be granted.
 
 ## 3. Capabilities: declared, granted, tracked
 
-Identity answers *who*; the **capability gate** answers *may they*. The model is
-**caller × blast-radius × grant**, enforced once at the dispatch chokepoint
-(`services::gate::decide`, invoked by `services::command::call`) — identical over
-every transport.
+Identity answers *who*; the **gate** answers *may they*. The model is
+**caller × blast-tier × per-service ceiling** — the two axes that already exist
+(the proto **service** and the op's risk **tier**), **no separate capability
+taxonomy**. Enforced once at the dispatch chokepoint (`services::gate::decide`,
+invoked by `services::command::call`) — identical over every transport. Full table:
+[the auth model](/reference/architecture/auth-model/).
 
-- **`requires:`** is what a skill *declares* it needs (public, authored). The
-  compiler verifies it and issues **`grants:`** onto capability-skills — never
-  hand-written. An unmet requirement is a compile error.
-- **`blast_radius`** is the op's risk class, carried on its descriptor: **C0**
-  (read / own-scope) · **C1** (workspace-mutating) · **C2** (Ship/cloud-dangerous:
-  credential mint, billing, acting as another actor). Unrecognized → fails closed
-  to C2.
-- **Grants** are the restricted capability domains a caller holds —
-  `ship-orchestration`, `ship-authoring`. The operator clears the grant axis; an
-  agent is allowed C0/C1 in the default domain, a restricted domain only if it
-  holds the grant, and **C2 never**.
+- **`requires:`** is what a workflow/app *declares* it needs (public, authored).
+  **Skills don't `grant:`** — that field is retired; the user grants, the runtime
+  manages. An unmet requirement surfaces at compile/install.
+- **`blast_radius`** is the op's risk tier (`C0 < C1 < C2 < C3`): **C0** read ·
+  **C1** workspace-write · **C2** elevated (dispatch/stop/steer, authoring) ·
+  **C3** critical (account/billing/permissions/`agent.grant`). Unrecognized →
+  fails closed to C3.
+- **Authority** = a default **C1 ceiling** (every agent reads + workspace-writes
+  anywhere — the operational baseline) plus the **services it's elevated in** (the
+  C2 set). The gate allows a C2 op only when its service is in that set; **C3 is
+  operator-only, never an agent**. The service is the op's domain (`domain_of`).
 
 ### The grant source: provisioned baseline (#85)
 
-An agent's grants are **operator-approved server-side state**, not a claim the
-agent makes. `resolve_grants(agent_id, role)` is **provisioned-wins**: it reads
-the per-agent baseline from the `provisioned_grants` projection; if a baseline
-exists it fully replaces the role default; if none exists yet it falls back to the
-role's grants; unknown → empty (fail-closed). The baseline is seeded at install
-from the agent's resolved skill grants and changed only via `provision_grants`
-(operator/daemon authority — the agent can edit its skill files but not its
-baseline).
+An agent's **elevated services** are operator-approved server-side state, not a
+claim the agent makes. `resolve_grants(agent_id, role)` is **provisioned-wins**: it
+reads the per-agent baseline from the `provisioned_grants` projection; if a baseline
+exists it fully replaces the role default; otherwise it falls back to the role's
+elevated set (`grants_for_role`); unknown → empty (fail-closed, C1-baseline only).
+The baseline is changed only via `provision_grants` (operator/daemon authority —
+the agent can edit its skill files but not its elevated services).
 
 ### Tracking
 

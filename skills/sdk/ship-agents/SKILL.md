@@ -38,11 +38,11 @@ page for full args, return shape, capability, and an example.
 
 ## Commands
 
-- [`agents.create`](references/docs/agents.create.mdoc) `[C1_WORKSPACE]` — Create a new agent profile from a doc.
-- [`agents.delete`](references/docs/agents.delete.mdoc) `[C1_WORKSPACE]` — Delete an agent profile (scope omitted walks project → user).
-- [`agents.duplicate`](references/docs/agents.duplicate.mdoc) `[C1_WORKSPACE]` — Copy an agent profile to a new id.
-- [`agents.move_scope`](references/docs/agents.move_scope.mdoc) `[C1_WORKSPACE]` — Move an agent profile between project and user scope.
-- [`agents.patch`](references/docs/agents.patch.mdoc) `[C1_WORKSPACE]` — Apply RFC-6902 ops to an agent profile's doc.
-- [`agents.put`](references/docs/agents.put.mdoc) `[C1_WORKSPACE]` — Replace an agent profile's doc (use agents.create for net-new).
-- [`agents.rename`](references/docs/agents.rename.mdoc) `[C1_WORKSPACE]` — Rename an agent profile's id.
+- [`agents.create`](references/docs/agents.create.mdoc) `[C2_ELEVATED]` — Create a new agent profile from a doc.
+- [`agents.delete`](references/docs/agents.delete.mdoc) `[C2_ELEVATED]` — Delete an agent profile (scope omitted walks project → user).
+- [`agents.duplicate`](references/docs/agents.duplicate.mdoc) `[C2_ELEVATED]` — Copy an agent profile to a new id.
+- [`agents.move_scope`](references/docs/agents.move_scope.mdoc) `[C2_ELEVATED]` — Move an agent profile between project and user scope.
+- [`agents.patch`](references/docs/agents.patch.mdoc) `[C2_ELEVATED]` — Apply RFC-6902 ops to an agent profile's doc.
+- [`agents.put`](references/docs/agents.put.mdoc) `[C2_ELEVATED]` — Replace an agent profile's doc (use agents.create for net-new).
+- [`agents.rename`](references/docs/agents.rename.mdoc) `[C2_ELEVATED]` — Rename an agent profile's id.
 

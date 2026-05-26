@@ -32,15 +32,15 @@ page for full args, return shape, capability, and an example.
 
 ## Commands
 
-- [`skills.create`](references/docs/skills.create.mdoc) `[C1_WORKSPACE]` — Create a new skill (optional initial frontmatter + body).
-- [`skills.delete`](references/docs/skills.delete.mdoc) `[C1_WORKSPACE]` — Delete a skill (scope omitted walks project → user).
-- [`skills.delete_file`](references/docs/skills.delete_file.mdoc) `[C1_WORKSPACE]` — Delete a file inside a skill dir.
-- [`skills.delete_var`](references/docs/skills.delete_var.mdoc) `[C1_WORKSPACE]` — Delete a KV variable from a skill.
-- [`skills.duplicate`](references/docs/skills.duplicate.mdoc) `[C1_WORKSPACE]` — Copy a skill to a new id.
-- [`skills.move_scope`](references/docs/skills.move_scope.mdoc) `[C1_WORKSPACE]` — Move a skill between project and user scope.
-- [`skills.rename`](references/docs/skills.rename.mdoc) `[C1_WORKSPACE]` — Rename a skill's id.
-- [`skills.set_var`](references/docs/skills.set_var.mdoc) `[C1_WORKSPACE]` — Set a KV variable (value_json) on a skill.
-- [`skills.write_body`](references/docs/skills.write_body.mdoc) `[C1_WORKSPACE]` — Replace a skill's markdown body.
-- [`skills.write_file`](references/docs/skills.write_file.mdoc) `[C1_WORKSPACE]` — Write a UTF-8 text file inside a skill dir.
-- [`skills.write_frontmatter`](references/docs/skills.write_frontmatter.mdoc) `[C1_WORKSPACE]` — Replace a skill's frontmatter (YAML/JSON object).
+- [`skills.create`](references/docs/skills.create.mdoc) `[C2_ELEVATED]` — Create a new skill (optional initial frontmatter + body).
+- [`skills.delete`](references/docs/skills.delete.mdoc) `[C2_ELEVATED]` — Delete a skill (scope omitted walks project → user).
+- [`skills.delete_file`](references/docs/skills.delete_file.mdoc) `[C2_ELEVATED]` — Delete a file inside a skill dir.
+- [`skills.delete_var`](references/docs/skills.delete_var.mdoc) `[C2_ELEVATED]` — Delete a KV variable from a skill.
+- [`skills.duplicate`](references/docs/skills.duplicate.mdoc) `[C2_ELEVATED]` — Copy a skill to a new id.
+- [`skills.move_scope`](references/docs/skills.move_scope.mdoc) `[C2_ELEVATED]` — Move a skill between project and user scope.
+- [`skills.rename`](references/docs/skills.rename.mdoc) `[C2_ELEVATED]` — Rename a skill's id.
+- [`skills.set_var`](references/docs/skills.set_var.mdoc) `[C2_ELEVATED]` — Set a KV variable (value_json) on a skill.
+- [`skills.write_body`](references/docs/skills.write_body.mdoc) `[C2_ELEVATED]` — Replace a skill's markdown body.
+- [`skills.write_file`](references/docs/skills.write_file.mdoc) `[C2_ELEVATED]` — Write a UTF-8 text file inside a skill dir.
+- [`skills.write_frontmatter`](references/docs/skills.write_frontmatter.mdoc) `[C2_ELEVATED]` — Replace a skill's frontmatter (YAML/JSON object).
 
