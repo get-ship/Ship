@@ -1,4 +1,5 @@
 import { controller, signal, chrome } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-va-compile.sui'
 
 interface ErrorRow {
@@ -11,14 +12,13 @@ interface ErrorRow {
 
 interface ErrIn { line?: number; col?: number; severity?: 'error' | 'warning'; message: string }
 
-export default controller<Scope>({
-  scope: (state) => {
+export default controller({
+  scope: (state: ViewScope<Scope>) => {
     const errors = signal<ErrorRow[]>([])
-    const s = state as unknown as { view: () => string }
     function onClickRow(err: ErrorRow): void {
       chrome.dock.activate('va-source')
       document.dispatchEvent(new CustomEvent('sui:va:goto-line', {
-        detail: { view: s.view(), line: err.line, col: err.col },
+        detail: { view: state.view(), line: err.line, col: err.col },
         bubbles: true,
       }))
     }

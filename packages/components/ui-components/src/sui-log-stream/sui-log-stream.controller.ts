@@ -1,29 +1,20 @@
 import { controller, effect, ref } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-log-stream.sui'
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const preEl = ref<HTMLPreElement>(null)
     return { preEl }
   },
 
   mount(state, host) {
-    const scope = state as unknown as {
-      url: Signal<string>
-      event: Signal<string>
-      autoscroll: Signal<boolean>
-      active: Signal<boolean>
-      maxBytes: Signal<number>
-      preEl: Signal<HTMLPreElement | null>
-    }
-
     let source: EventSource | null = null
     let buffer = ''
     let stickyBottom = true
 
     const render = () => {
-      const pre = scope.preEl()
+      const pre = state.preEl as HTMLPreElement | null
       if (!pre) return
       const empty = buffer.length === 0
       if (empty) {
@@ -33,14 +24,14 @@ export default controller<Scope>({
         pre.textContent = buffer
         pre.removeAttribute('data-empty')
       }
-      if (scope.autoscroll() && stickyBottom) {
+      if (state.autoscroll && stickyBottom) {
         pre.scrollTop = pre.scrollHeight
       }
     }
 
     const append = (chunk: string) => {
       buffer += chunk
-      const cap = scope.maxBytes()
+      const cap = state.maxBytes as number
       if (buffer.length > cap) {
         const overflow = buffer.length - cap
         const cut = buffer.indexOf('\n', overflow)
@@ -59,8 +50,7 @@ export default controller<Scope>({
       }
     }
 
-    const open = () => {
-      const url = scope.url()
+    const open = (url: string, eventName: string) => {
       if (!url || source) return
       try {
         source = new EventSource(url, { withCredentials: true })
@@ -70,7 +60,7 @@ export default controller<Scope>({
         )
         return
       }
-      source.addEventListener(scope.event(), (ev) => {
+      source.addEventListener(eventName, (ev) => {
         const chunk = (ev as MessageEvent).data ?? ''
         append(chunk)
         host.dispatchEvent(
@@ -99,7 +89,7 @@ export default controller<Scope>({
     }
 
     const stopPreBind = effect(() => {
-      const pre = scope.preEl()
+      const pre = state.preEl as HTMLPreElement | null
       if (!pre) return
       pre.addEventListener('scroll', onScroll)
       render()
@@ -108,14 +98,14 @@ export default controller<Scope>({
 
     // Reconnect when url/event change while active; open/close when active flips.
     const stopActive = effect(() => {
-      scope.url()
-      scope.event()
-      const wantActive = scope.active()
+      const url = state.url as string
+      const eventName = state.event as string
+      const wantActive = state.active as boolean
       if (wantActive) {
         if (source) {
           close()
         }
-        open()
+        open(url, eventName)
       } else {
         close()
       }

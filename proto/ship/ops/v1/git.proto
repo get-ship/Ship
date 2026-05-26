@@ -116,6 +116,12 @@ service GitService {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  // Live variant (#138): streams the full overview value now + again on every
+  // `config` kernel event. Replaces `<data live source="ship.git.overview()">`.
+  rpc OverviewLive(GitOverviewReq) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc Diff(GitDiffReq) returns (GitDiffResponse) {
     option (ship.ops.v1.description) = "Diff for a commit or 'WORKING'.";
     option (ship.ops.v1.capability) = "ship.git.read";
@@ -123,6 +129,14 @@ service GitService {
   }
   rpc Annotations(GitAnnotationsReq) returns (JsonResponse) {
     option (ship.ops.v1.description) = "AnnotationsByLine for the active diff file.";
+    option (ship.ops.v1.capability) = "ship.git.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc DiffLive(GitDiffReq) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc AnnotationsLive(GitAnnotationsReq) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

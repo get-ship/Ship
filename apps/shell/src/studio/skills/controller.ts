@@ -3,8 +3,9 @@
 // the studio version splits list and detail into deck-routed views like agents.
 // Data: ship.skills.summaries({q,kind,tag}) via liveExpr (server-side filtered,
 // re-subscribes as q/kind change) — /sui-hosted views have no SDK client in ctx.
-import { controller, signal, derived, live } from '@ship/sui-runtime'
-import { liveExpr } from '@ship/sdk-client'
+import { controller, signal, live, derived } from '@ship/sui-runtime'
+import { ship } from '../../ops'
+import type { LiveSource, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type KindFilter = 'all' | 'smart' | 'docs'
@@ -30,32 +31,27 @@ interface RailValue {
   kind_counts: Array<{ id: string; label: string; count: number; selected: boolean }>
 }
 
-type LiveResult = { kind: string; value?: RailValue }
-
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const q = signal('')
     const kind = signal<KindFilter>('all')
     const rail = live(() =>
-      liveExpr<RailValue>(
-        `ship.skills.summaries(${JSON.stringify({ q: q(), kind: kind(), tag: '' })})`,
-      ),
+      ship.skills.summaries({ q: q(), kind: kind(), tag: '' }) as LiveSource<RailValue>,
     )
-    return { q, kind, rail }
-  },
-
-  derived: {
-    loading: ({ rail }) => (rail() as LiveResult).kind !== 'ok',
-    items: ({ rail }) => {
-      const r = rail() as LiveResult
-      if (r.kind !== 'ok' || !r.value) return []
-      return r.value.groups.flatMap((g) => g.skills)
-    },
-    total: ({ rail }) => {
-      const r = rail() as LiveResult
-      if (r.kind !== 'ok' || !r.value) return 0
-      return r.value.kind_counts.find((k) => k.id === 'all')?.count ?? 0
-    },
+    // `rail` is a `LiveSignal<unknown>` — call it directly and narrow the
+    // `ok` envelope's `value` (unknown to the type system) to the payload.
+    const loading = derived(() => rail().kind !== 'ok')
+    const items = derived(() => {
+      const r = rail()
+      if (r.kind !== 'ok') return []
+      return (r.value as RailValue).groups.flatMap((g) => g.skills)
+    })
+    const total = derived(() => {
+      const r = rail()
+      if (r.kind !== 'ok') return 0
+      return (r.value as RailValue).kind_counts.find((k) => k.id === 'all')?.count ?? 0
+    })
+    return { q, kind, rail, loading, items, total }
   },
 
   on: {

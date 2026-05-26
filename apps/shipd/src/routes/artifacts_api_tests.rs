@@ -14,6 +14,20 @@ mod tests {
         vec![("file", name, mime, bytes)]
     }
 
+    fn remove_all_files(dir: &std::path::Path) {
+        if !dir.is_dir() {
+            return;
+        }
+        for entry in std::fs::read_dir(dir).unwrap().flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                remove_all_files(&p);
+            } else {
+                let _ = std::fs::remove_file(&p);
+            }
+        }
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn upload_returns_201_with_metadata() {
         let daemon = TestDaemon::new().await;
@@ -100,78 +114,10 @@ mod tests {
         assert_eq!(resp.status, 404);
     }
 
-    fn remove_all_files(dir: &std::path::Path) {
-        if !dir.is_dir() {
-            return;
-        }
-        for entry in std::fs::read_dir(dir).unwrap().flatten() {
-            let p = entry.path();
-            if p.is_dir() {
-                remove_all_files(&p);
-            } else {
-                let _ = std::fs::remove_file(&p);
-            }
-        }
-    }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn delete_removes_blob_and_metadata() {
-        let daemon = TestDaemon::new().await;
-        let up = daemon
-            .post_multipart("/api/v1/artifacts", &upload_parts("gone.txt", "text/plain", b"bye"))
-            .await;
-        let id = up.body["data"]["id"].as_str().unwrap().to_string();
 
-        let del = daemon.delete(&format!("/api/v1/artifacts/{id}")).await;
-        assert_eq!(del.status, 200);
 
-        let get = daemon.get(&format!("/api/v1/artifacts/{id}")).await;
-        assert_eq!(get.status, 404);
-    }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn delete_unknown_id_returns_404() {
-        let daemon = TestDaemon::new().await;
-        let resp = daemon.delete("/api/v1/artifacts/nope").await;
-        assert_eq!(resp.status, 404);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn list_returns_all_and_filters_by_mime() {
-        let daemon = TestDaemon::new().await;
-        daemon.post_multipart("/api/v1/artifacts", &upload_parts("a.txt", "text/plain", b"a")).await;
-        daemon.post_multipart("/api/v1/artifacts", &upload_parts("b.png", "image/png", b"b")).await;
-        daemon.post_multipart("/api/v1/artifacts", &upload_parts("c.png", "image/png", b"c")).await;
-
-        let all = daemon.get("/api/v1/artifacts").await;
-        assert_eq!(all.status, 200);
-        assert_eq!(all.body["count"], 3);
-
-        let pngs = daemon.get("/api/v1/artifacts?mime=image/png").await;
-        assert_eq!(pngs.status, 200);
-        assert_eq!(pngs.body["count"], 2);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn upload_links_to_collection_item() {
-        let daemon = TestDaemon::new().await;
-        let up = daemon
-            .post_multipart(
-                "/api/v1/artifacts",
-                &[
-                    ("file", "r.txt", "text/plain", b"payload" as &[u8]),
-                    ("collection_id", "", "", b"notes" as &[u8]),
-                    ("item_id", "", "", b"note-1" as &[u8]),
-                ],
-            )
-            .await;
-        assert_eq!(up.status, 201, "body: {}", up.body);
-
-        let filtered = daemon.get("/api/v1/artifacts?collection_id=notes").await;
-        assert_eq!(filtered.status, 200);
-        assert_eq!(filtered.body["count"], 1);
-        assert_eq!(filtered.body["data"][0]["item_id"], "note-1");
-    }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn blob_stored_under_project_slug() {
@@ -191,36 +137,4 @@ mod tests {
         assert!(slugs[0].path().join("blobs").is_dir());
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn full_lifecycle_upload_list_download_delete() {
-        let daemon = TestDaemon::new().await;
-
-        let up = daemon
-            .post_multipart("/api/v1/artifacts", &upload_parts("life.txt", "text/plain", b"content"))
-            .await;
-        assert_eq!(up.status, 201);
-        let id = up.body["data"]["id"].as_str().unwrap().to_string();
-
-        let list = daemon.get("/api/v1/artifacts").await;
-        assert_eq!(list.body["count"], 1);
-
-        let req = Request::builder()
-            .method("GET")
-            .uri(format!("/api/v1/artifacts/{id}"))
-            .body(Body::empty())
-            .unwrap();
-        let resp = daemon.router.clone().oneshot(req).await.unwrap();
-        assert_eq!(resp.status().as_u16(), 200);
-        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
-        assert_eq!(bytes.as_ref(), b"content");
-
-        let del = daemon.delete(&format!("/api/v1/artifacts/{id}")).await;
-        assert_eq!(del.status, 200);
-
-        let gone = daemon.get(&format!("/api/v1/artifacts/{id}")).await;
-        assert_eq!(gone.status, 404);
-
-        let empty = daemon.get("/api/v1/artifacts").await;
-        assert_eq!(empty.body["count"], 0);
-    }
 }

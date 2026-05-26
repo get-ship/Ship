@@ -230,7 +230,12 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::ChatServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::DashboardServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::EventsServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::SpecsServiceExt::register(svc, router);
+    let router = ship_ops_rpc::SpecsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::ViewServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::CreateServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::DiscoveryServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::RegistryServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::SuiServiceExt::register(svc, router);
     router.into_axum_router()
 }
 

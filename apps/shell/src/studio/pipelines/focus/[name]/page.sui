@@ -1,29 +1,15 @@
-<style>
-.ship-view-pipeline-focus { color: var(--foreground); background: var(--background); }
-.ship-focus-wrap { width: 100%; max-width: 96rem; margin: 0 auto; padding: var(--space-6) var(--space-8); display: flex; flex-direction: column; gap: var(--space-6); }
-.ship-focus-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
-.ship-focus-title-block { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
-.ship-focus-title { display: flex; align-items: center; gap: var(--space-3); margin: 0; flex-wrap: wrap; }
-.ship-focus-name { font-family: var(--font-mono); font-size: var(--text-2xl); font-weight: var(--font-weight-bold); letter-spacing: -0.01em; color: var(--foreground); }
-.ship-focus-desc { font-size: var(--text-sm); color: var(--muted-foreground); line-height: 1.55; margin: 0; max-width: 56rem; }
-.ship-focus-actions { display: flex; gap: var(--space-2); }
-.ship-focus-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
-@media (max-width: 840px) { .ship-focus-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.ship-focus-section-label { font-family: var(--font-display); font-size: var(--text-xs); font-weight: var(--font-weight-semibold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); margin: 0; }
-.ship-focus-stack { display: flex; flex-direction: column; gap: var(--space-3); }
-.ship-focus-header-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-.ship-focus-kbd { font-family: var(--font-mono); font-size: var(--text-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: color-mix(in oklch, var(--muted) 60%, transparent); border: 1px solid color-mix(in oklch, var(--border) 70%, transparent); color: var(--muted-foreground); }
-.ship-focus-kbd-hint { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-xs); color: var(--muted-foreground); }
-.ship-live-run { transition: box-shadow var(--duration-medium) var(--ease-out); border-radius: var(--radius-lg); }
-.ship-live-run.ship-heartbeat { box-shadow: 0 0 0 3px color-mix(in oklch, var(--info) 30%, transparent); }
-</style>
-
-{#async ctx}
+<div class="studio-view" data-test="studio-view">
+  <sui-studio-rail></sui-studio-rail>
+  <main class="studio-content" data-test="studio-content">
+{#async focusCtx}
   {:loading}
   <sui-spinner size="md" centered></sui-spinner>
 
   {:error err}
-  <sui-alert tone="destructive">Failed to load pipeline: {err.message}</sui-alert>
+  <sui-error-state title="Couldn't load pipeline" data-test="error" role="alert">
+    {err.message}
+    <sui-button slot="action" tone="primary" variant="solid" on:click={() => window.location.reload()}>Retry</sui-button>
+  </sui-error-state>
 
   {:ok}
 {#if def()}
@@ -31,9 +17,6 @@
   <div class="ship-focus-wrap">
     <header class="ship-focus-head">
       <div class="ship-focus-title-block">
-        <sui-button variant="ghost" size="sm" style="width: fit-content" on:click={() => navigate('/studio/pipelines')}>
-          <sui-icon slot="leading" name="chevron-left" size="xs"></sui-icon>All pipelines
-        </sui-button>
         <h1 class="ship-focus-title">
           {#if def().active_runs > 0}<sui-status-dot tone="info" pulse></sui-status-dot>
           {:else if def().last_run_tone}<sui-status-dot attr:tone={def().last_run_tone_safe}></sui-status-dot>
@@ -72,10 +55,10 @@
 
     {#if opsMode() && activeForPipeline().length > 0}
     <section>
-      <h2 class="ship-focus-section-label" style="margin-bottom: var(--space-3);">Ops · active now</h2>
+      <h2 class="ship-focus-section-label ship-focus-section-label-spaced">Ops · active now</h2>
       <div class="ship-focus-stack">
         {#for run of activeForPipeline() key={run.slug}}
-          <ship-pipeline-run class="ship-live-run" attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent} on:ship-log-tick={(e) => pulseRun(e.currentTarget)}>
+          <sui-pipeline-run class="ship-live-run" attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent} on:ship-log-tick={(e) => pulseRun(e.currentTarget)}>
             <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
             <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/studio/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
@@ -84,22 +67,22 @@
               <sui-icon slot="leading" name="stop"></sui-icon>Stop
             </sui-button>
             {#if run.steps && run.steps.length > 0}
-            <ship-pipeline-dag>
+            <sui-pipeline-dag>
               {#for step of run.steps key={step.id}}
-                <ship-pipeline-step attr:name={step.id} attr:state={step.state} attr:step-type={step.step_type} attr:agent={step.agent}></ship-pipeline-step>
+                <sui-pipeline-step attr:name={step.id} attr:state={step.state} attr:step-type={step.step_type} attr:agent={step.agent}></sui-pipeline-step>
                 {#if !step.isLast}<span class="arrow" aria-hidden="true">→</span>{/if}
               {/for}
-            </ship-pipeline-dag>
+            </sui-pipeline-dag>
             {/if}
-            <ship-log-stream slot="footer" attr:url={'/api/v1/pipelines/runs/' + run.slug + '/log/stream'} active autoscroll></ship-log-stream>
-          </ship-pipeline-run>
+            <sui-log-stream slot="footer" attr:url={'/api/v1/pipelines/runs/' + run.slug + '/log/stream'} active autoscroll></sui-log-stream>
+          </sui-pipeline-run>
         {/for}
       </div>
     </section>
     {/if}
 
     <section>
-      <h2 class="ship-focus-section-label" style="margin-bottom: var(--space-3);">{opsMode() ? 'Overview' : 'Stats'}</h2>
+      <h2 class="ship-focus-section-label ship-focus-section-label-spaced">{opsMode() ? 'Overview' : 'Stats'}</h2>
       <div class="ship-focus-stats">
         <sui-stat><span slot="label">Total runs</span>{def().total_runs ?? 0}</sui-stat>
         <sui-stat attr:accent={def().success_accent}>
@@ -122,7 +105,7 @@
     <sui-card>
       <div slot="header" class="ship-focus-header-row">
         <h3 class="ship-focus-section-label">Edit {format()}</h3>
-        <div style="display: flex; align-items: center; gap: var(--space-2);">
+        <div class="ship-focus-editing">
           <span class="ship-focus-kbd-hint"><kbd class="ship-focus-kbd">⌘S</kbd> save · <kbd class="ship-focus-kbd">Esc</kbd> cancel</span>
           <sui-chip size="sm" tone="info">editing</sui-chip>
         </div>
@@ -134,10 +117,10 @@
         {#if editIssueCount() > 1}<span slot="actions">+{editIssueCount() - 1} more — see inline markers</span>{/if}
       </sui-alert>
       {/if}
-      <ship-code-editor id="pipeline-editor" bind:this={editorRef}
+      <sui-code-editor id="pipeline-editor" bind:this={editorRef}
         attr:language={format() === 'jsonc' ? 'jsonc' : format() === 'json' ? 'json' : 'yaml'}
         attr:value={raw()} on:ship-save={savePipeline} on:ship-cancel={cancelEdit}
-        style="min-height: 24rem;"></ship-code-editor>
+        class="ship-focus-editor"></sui-code-editor>
     </sui-card>
     {/if}
 
@@ -146,7 +129,7 @@
       <h3 slot="header" class="ship-focus-section-label">Steps</h3>
       {#if doc().steps && doc().steps.length > 0}
         {#for step of doc().steps key={step.id}}
-          <ship-pipeline-step-def
+          <sui-pipeline-step-def
             attr:index={step.index}
             attr:name={step.id}
             attr:step-type={step.step_type}
@@ -159,7 +142,7 @@
               {#if step.gate.forbid_changed}<sui-chip size="sm" tone="warning">forbid{step.gate.forbid_changed.match ? ' ' + step.gate.forbid_changed.match : ''}{step.gate.forbid_changed.min !== undefined ? ' > ' + step.gate.forbid_changed.min : ''}</sui-chip>{/if}
             </div>
             {/if}
-          </ship-pipeline-step-def>
+          </sui-pipeline-step-def>
         {/for}
       {:else}
         <sui-empty-state icon="list" heading="No steps" description="This pipeline file doesn't declare any steps."></sui-empty-state>
@@ -173,7 +156,7 @@
       <div class="ship-focus-stack">
         {#for run of runs() key={run.slug}}
           {#if !opsMode() || (run.state !== 'dispatched' && run.state !== 'pending' && run.state !== 'gate-pending')}
-          <ship-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
+          <sui-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
             <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
             <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/studio/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
@@ -185,14 +168,14 @@
             </sui-collapsible>
             {/if}
             {#if run.steps && run.steps.length > 0}
-            <ship-pipeline-dag>
+            <sui-pipeline-dag>
               {#for step of run.steps key={step.id}}
-                <ship-pipeline-step attr:name={step.id} attr:state={step.state} attr:step-type={step.step_type} attr:agent={step.agent}></ship-pipeline-step>
+                <sui-pipeline-step attr:name={step.id} attr:state={step.state} attr:step-type={step.step_type} attr:agent={step.agent}></sui-pipeline-step>
                 {#if !step.isLast}<span class="arrow" aria-hidden="true">→</span>{/if}
               {/for}
-            </ship-pipeline-dag>
+            </sui-pipeline-dag>
             {/if}
-          </ship-pipeline-run>
+          </sui-pipeline-run>
           {/if}
         {/for}
       </div>
@@ -200,7 +183,7 @@
     {/if}
   </div>
 
-  <sui-dialog prop:open={dispatchOpen()} size="lg" on:sui-close={closeDispatch}>
+  <sui-dialog attr:open={dispatchOpen()} size="lg" on:sui-close={closeDispatch}>
     <span slot="header">Dispatch {name()}</span>
     <sui-field label="Spec" hint="Plain text or markdown — what the run should do.">
       <sui-textarea bind:value={dispatchSpec} rows="10" placeholder="Describe the work in one or two paragraphs..."></sui-textarea>
@@ -221,11 +204,13 @@
   </sui-dialog>
 
   {#if workspaceId()}
-  <sui-alert-dialog prop:open={deleteOpen()} tone="destructive" confirm-label="Delete pipeline" cancel-label="Keep it" on:sui-confirm={deletePipeline} on:sui-cancel={closeDelete}>
+  <sui-alert-dialog attr:open={deleteOpen()} tone="destructive" confirm-label="Delete pipeline" cancel-label="Keep it" on:sui-confirm={deletePipeline} on:sui-cancel={closeDelete}>
     <span slot="title">Delete <code>{name()}</code>?</span>
-    <p style="margin: 0; color: var(--muted-foreground); line-height: 1.5;">This removes the pipeline file from <code>.ship/pipelines/</code>. Any runs already in flight keep going — only the definition is deleted.</p>
+    <p class="ship-focus-delete-note">This removes the pipeline file from <code>.ship/pipelines/</code>. Any runs already in flight keep going — only the definition is deleted.</p>
   </sui-alert-dialog>
   {/if}
 </div>
 {/if}
 {/async}
+  </main>
+</div>

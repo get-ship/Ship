@@ -83,13 +83,14 @@ fn handler_tag_means_handler_enforces() {
         .map(|r| r.variant_name())
         .collect();
 
-    // Today the only Handler routes are the dynamic-scope artifact ops.
-    // Their checks live in `apps/shipd/src/routes/artifacts_api.rs` via
-    // `can_read_artifacts` / `can_write_artifacts` / `can_delete_artifacts`.
+    // Today the only Handler routes are the dynamic-scope artifact ops
+    // (upload/download/metadata — delete/patch/promote now serve over
+    // ArtifactsService on Connect). Their checks live in
+    // `apps/shipd/src/routes/artifacts_api.rs` via `can_read_artifacts` /
+    // `can_write_artifacts`.
     let artifacts_src = include_str!("artifacts_api.rs");
     let mentions_check = artifacts_src.contains("can_read_artifacts")
-        && artifacts_src.contains("can_write_artifacts")
-        && artifacts_src.contains("can_delete_artifacts");
+        && artifacts_src.contains("can_write_artifacts");
     assert!(
         mentions_check,
         "Handler-tagged routes ({handler_routes:?}) require dynamic scope \

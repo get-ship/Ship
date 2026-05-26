@@ -1,12 +1,13 @@
 import { controller, derived, live, signal, unwrap } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { AGE_BUCKETS, bucketFor, decorate, previewKindFor, type ArtifactRow } from './decorate'
 
 interface ArtifactsListResponse { ok: boolean; data: ArtifactRow[]; count: number }
 type CollectionRow = { id: string; name?: string | null }
 
-export default controller<Scope>({
-  scope: (ctx) => {
+export default controller({
+  scope: (ctx: ViewScope<Scope>) => {
     const { ship } = ctx
     // Shell-injected navigator. Runtime's stock `navigate` only does
     // pushState; the shell's wrapper also triggers mountRoute.
@@ -211,7 +212,7 @@ export default controller<Scope>({
         s.uploadOpen = false
         s.uploadFiles = []
         s.uploadCollection = ''
-        await (s as any).refresh()
+        await s.refresh()
       } catch (e) {
         s.uploadError = (e as Error).message
       } finally {
@@ -241,7 +242,7 @@ export default controller<Scope>({
       if (!files || files.length === 0) return
       const first = files[0]
       if (!first) return
-      await (s as any).uploadDirect(first)
+      await s.uploadDirect(first)
     },
   },
 })

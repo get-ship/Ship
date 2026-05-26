@@ -1,11 +1,7 @@
 import { controller, signal } from '@ship/sui-runtime'
-import type { MutableState } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-setup.sui'
-
-// `on:`/`mount` handlers receive the writable state proxy. TS can't
-// contextually infer it (OnSection is a union of two function shapes), so
-// annotate explicitly — this is the real typed view, not `any`.
-type S = MutableState<Scope>
+import { ops } from '../../ops'
 
 const STORAGE_KEY = 'ship-setup-state'
 const TOTAL_STEPS = 6
@@ -51,7 +47,10 @@ function savePersisted(state: PersistedState): void {
 }
 
 function readEntry(s: Record<string, unknown>): PersistedState {
-  const sig = <T>(k: string): T => (s[k] as () => T)()
+  // `s` is the MutableState proxy: indexing a state key returns the UNWRAPPED
+  // value (the proxy already calls the signal). Read it directly — do NOT call
+  // it (the old `(s[k])()` invoked a number/string and crashed at runtime).
+  const sig = <T>(k: string): T => s[k] as T
   return {
     step: sig<number>('step'),
     identityName: sig<string>('identityName'),
@@ -78,23 +77,14 @@ async function fetchInstalledProviders(): Promise<string[]> {
 
 async function postProject(name: string, path: string): Promise<{ ok: boolean; error?: string; warning?: string }> {
   try {
-    const res = await fetch('/api/v1/projects', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path, label: name }),
-    })
-    const body = await res.json().catch(() => ({}))
-    if (res.ok) {
-      return { ok: true }
-    }
-    const msg = body?.error?.message ?? body?.message ?? `HTTP ${res.status}`
+    await ops.project.add({ path, name })
+    return { ok: true }
+  } catch (e) {
+    const msg = (e as Error).message ?? 'add failed'
     if (/not a directory|exists/i.test(msg)) {
       return { ok: false, warning: msg }
     }
     return { ok: false, error: msg }
-  } catch (e) {
-    return { ok: false, error: (e as Error).message }
   }
 }
 
@@ -108,8 +98,8 @@ function persistFromState(s: Record<string, unknown>, completed = false): void {
 // because the chrome scope proxy rejects extra property writes.
 let setupKeyCleanup: (() => void) | null = null
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const persisted = loadPersisted()
     return {
       step: signal<number>(persisted.completed ? 1 : (persisted.step ?? 1)),
@@ -132,17 +122,17 @@ export default controller<Scope>({
     }
   },
   on: {
-    goNext: (s: S) => {
-      const next = Math.min(TOTAL_STEPS, (s.step as number) + 1)
+    goNext: (s) => {
+      const next = Math.min(TOTAL_STEPS, s.step + 1)
       s.step = next
       persistFromState(s as unknown as Record<string, unknown>)
     },
-    goBack: (s: S) => {
-      const prev = Math.max(1, (s.step as number) - 1)
+    goBack: (s) => {
+      const prev = Math.max(1, s.step - 1)
       s.step = prev
       persistFromState(s as unknown as Record<string, unknown>)
     },
-    submitIdentity: (s: S) => {
+    submitIdentity: (s) => {
       const name = String(s.identityName ?? '').trim()
       if (!name) {
         s.identityError = 'Please enter a display name.'
@@ -152,7 +142,7 @@ export default controller<Scope>({
       s.step = 3
       persistFromState(s as unknown as Record<string, unknown>)
     },
-    selectProvider: (s: S, id: string) => {
+    selectProvider: (s, id: string) => {
       s.provider = id
       s.providerTestOk = false
       s.providerError = ''
@@ -173,7 +163,7 @@ export default controller<Scope>({
         persistFromState(s as unknown as Record<string, unknown>)
       })()
     },
-    validateProvider: (s: S) => {
+    validateProvider: (s) => {
       const id = String(s.provider ?? '')
       if (!id) return
       // Re-trigger by clearing then re-selecting through the same path.
@@ -192,13 +182,13 @@ export default controller<Scope>({
         persistFromState(s as unknown as Record<string, unknown>)
       })()
     },
-    submitProvider: (s: S) => {
+    submitProvider: (s) => {
       // Provider may be unvalidated (CLI missing) but user can still continue;
       // the wizard captures the choice and Settings can finish credentials.
       s.step = 4
       persistFromState(s as unknown as Record<string, unknown>)
     },
-    submitProject: (s: S) => {
+    submitProject: (s) => {
       const name = String(s.projectName ?? '').trim()
       if (!name) return
       const path = String(s.projectPath ?? '').trim() || defaultProjectPath(name)
@@ -224,24 +214,24 @@ export default controller<Scope>({
         persistFromState(s as unknown as Record<string, unknown>)
       })()
     },
-    submitSample: (s: S) => {
+    submitSample: (s) => {
       s.step = 6
       persistFromState(s as unknown as Record<string, unknown>)
     },
-    finish: (s: S) => {
+    finish: (s) => {
       persistFromState(s as unknown as Record<string, unknown>, true)
       try { localStorage.setItem('ship-setup-completed', '1') } catch { /* best-effort */ }
       window.location.href = '/'
     },
-    requestExit: (s: S) => { s.confirmingExit = true },
-    cancelExit: (s: S) => { s.confirmingExit = false },
-    confirmExit: (s: S) => {
+    requestExit: (s) => { s.confirmingExit = true },
+    cancelExit: (s) => { s.confirmingExit = false },
+    confirmExit: (s) => {
       s.confirmingExit = false
       persistFromState(s as unknown as Record<string, unknown>, true)
       try { localStorage.setItem('ship-setup-completed', '1') } catch { /* best-effort */ }
       window.location.href = '/'
     },
-    onFieldKeydown: (s: S, e: KeyboardEvent) => {
+    onFieldKeydown: (s, e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         const target = e.target as (HTMLInputElement & { blur(): void }) | null
         target?.blur()
@@ -250,13 +240,13 @@ export default controller<Scope>({
       }
       if (e.key === 'Enter') {
         e.preventDefault()
-        const step = s.step as number
-        if (step === 2) (s as Record<string, () => void>).submitIdentity?.()
-        else if (step === 4) (s as Record<string, () => void>).submitProject?.()
+        const step = s.step
+        if (step === 2) (s as unknown as Record<string, () => void>).submitIdentity?.()
+        else if (step === 4) (s as unknown as Record<string, () => void>).submitProject?.()
       }
     },
   },
-  mount: (state: S, _el) => {
+  mount: (state, _el) => {
     // Cmd+. (or Ctrl+.) dismisses the wizard with confirmation.
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === '.') {
@@ -266,7 +256,7 @@ export default controller<Scope>({
       }
       // Top-level Enter advances the welcome / sample / done steps.
       if (e.key === 'Enter' && !(e.target instanceof HTMLInputElement)) {
-        const step = state.step as number
+        const step = state.step
         if (step === 1) (state as unknown as Record<string, () => void>).goNext?.()
         else if (step === 5) (state as unknown as Record<string, () => void>).submitSample?.()
         else if (step === 6) (state as unknown as Record<string, () => void>).finish?.()

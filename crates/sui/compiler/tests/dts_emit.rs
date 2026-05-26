@@ -182,7 +182,12 @@ fn reflect_empty_does_not_add_scope_entry() {
 }
 
 #[test]
-fn scope_factory_fields_appear_in_scope() {
+fn scope_factory_fields_omitted_from_scope() {
+    // Scope-factory fields are typed solely by the controller's inferred SC.
+    // Re-declaring them in Scope put the same key in both Ctx and SC, so
+    // `$signals.x` collapsed to `unknown` — the root cause of the state casts
+    // (#121/#122). They are OMITTED from Scope now. Template expression reads
+    // (`{foo()}`) do not add Scope members; only `<data>`/props/use/ref do.
     let sui = r#"<p>{foo()} {label()}</p>"#;
     let controller = r#"
         import { controller, signal } from '@ship/sui-runtime'
@@ -195,24 +200,23 @@ fn scope_factory_fields_appear_in_scope() {
     "#;
     let dts = compile_dts_with_controller("page", sui, controller);
     assert!(
-        dts.contains("foo: Signal<number>"),
-        "expected typed Signal<number>, got: {dts}"
+        dts.contains("export interface Scope {}"),
+        "factory-only scope over an empty template must yield an empty Scope, got: {dts}"
     );
     assert!(
-        dts.contains("label: Signal<string>"),
-        "expected typed Signal<string>, got: {dts}"
+        !dts.contains("foo:") && !dts.contains("label:"),
+        "factory fields must NOT be re-declared in Scope, got: {dts}"
     );
     assert!(
-        dts.contains("// From controller scope: factory"),
-        "expected factory section header, got: {dts}"
+        !dts.contains("// From controller scope"),
+        "factory section header must be gone, got: {dts}"
     );
 }
 
 #[test]
-fn scope_factory_fields_resolve_shorthand_through_locals() {
-    // Block-body factory with shorthand return — exactly the pattern
-    // sui-error-boundary uses. The extractor should walk the body and
-    // pick up each binding's RHS heuristic.
+fn scope_factory_shorthand_fields_omitted_from_scope() {
+    // Block-body factory with shorthand return (the sui-error-boundary pattern)
+    // — same omit rule: caughtError/reset are SC-typed, absent from Scope.
     let sui = r#"<p>x</p>"#;
     let controller = r#"
         import { controller, signal } from '@ship/sui-runtime'
@@ -225,13 +229,10 @@ fn scope_factory_fields_resolve_shorthand_through_locals() {
         })
     "#;
     let dts = compile_dts_with_controller("page", sui, controller);
+    assert!(dts.contains("export interface Scope {}"), "got: {dts}");
     assert!(
-        dts.contains("caughtError: Signal<Error | null>"),
-        "expected shorthand caughtError typed, got: {dts}"
-    );
-    assert!(
-        dts.contains("reset: ") && dts.contains("=> void"),
-        "expected reset typed as void-returning arrow, got: {dts}"
+        !dts.contains("caughtError:") && !dts.contains("reset:"),
+        "factory fields must be omitted from Scope, got: {dts}"
     );
 }
 
@@ -272,9 +273,11 @@ fn no_scope_section_leaves_scope_unchanged() {
 }
 
 #[test]
-fn controller_scope_field_overrides_template_member_on_clash() {
-    // If a name appears in BOTH the template's bindings AND the factory,
-    // the factory's inferred type wins (it's the authoritative shape).
+fn template_member_clashing_with_factory_is_dropped_from_scope() {
+    // A name in BOTH a template `<data>` AND the factory: the template-derived
+    // `Signal<unknown>` is dropped (clash-retain) and the factory type is NOT
+    // re-declared (omit) — so `config` is absent from Scope entirely and typed
+    // solely by the inferred SC. (Was: factory type re-declared in Scope.)
     let sui = r#"<data name="config" source="ship.config.get()" /><p>x</p>"#;
     let controller = r#"
         import { controller, signal } from '@ship/sui-runtime'
@@ -284,13 +287,8 @@ fn controller_scope_field_overrides_template_member_on_clash() {
     "#;
     let dts = compile_dts_with_controller("page", sui, controller);
     assert!(
-        dts.contains("config: Signal<{ url: string }>"),
-        "expected factory-typed config to win, got: {dts}"
-    );
-    // The template-derived `Signal<unknown>` shape should NOT be present.
-    assert!(
-        !dts.contains("config: Signal<unknown>"),
-        "factory should override template-derived type, got: {dts}"
+        !dts.contains("config:"),
+        "clashing field must be omitted from Scope (SC-sourced), got: {dts}"
     );
 }
 

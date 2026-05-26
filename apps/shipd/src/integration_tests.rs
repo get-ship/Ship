@@ -13,13 +13,6 @@ async fn harness_provides_clean_environment() {
     assert!(ship_substrate::ShipHome::project_ship_dir(daemon.temp_dir.path()).exists());
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn harness_get_returns_json() {
-    let daemon = TestDaemon::new().await;
-    let resp = daemon.get("/api/v1/projects").await;
-    assert_eq!(resp.status, 200);
-    assert!(resp.body["projects"].is_array());
-}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn harness_post_returns_json() {
@@ -420,50 +413,6 @@ async fn mesh_send_to_unknown_agent_does_not_crash() {
     assert_eq!(resp.status, 200, "send to unknown must not crash");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn runtime_projects_via_harness_returns_ok() {
-    let daemon = TestDaemon::new().await;
-    let resp = daemon.get("/api/v1/projects").await;
-    assert_eq!(resp.status, 200);
-    assert!(resp.body["projects"].is_array());
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn runtime_sessions_via_harness() {
-    let daemon = TestDaemon::new().await;
-
-    let resp = daemon.get("/api/v1/sessions").await;
-    assert_eq!(resp.status, 200);
-    assert!(resp.body["data"]["sessions"].is_array());
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn runtime_agents_via_harness() {
-    let daemon = TestDaemon::new().await;
-
-    // Populate registry directly.
-    {
-        let mut reg = daemon.state.mesh_registry().write().await;
-        reg.insert(
-            "agent.api-test".into(),
-            ship_platform::services::mesh::MeshEntry {
-                agent_id: "agent.api-test".into(),
-                label: "agent.api-test".into(),
-                capabilities: vec!["rust".into()],
-                registered_at: chrono::Utc::now(),
-                status: ship_platform::services::mesh::AgentStatus::Active,
-            },
-        );
-    }
-
-    let resp = daemon.get("/api/v1/agents/active").await;
-    assert_eq!(resp.status, 200);
-    let agents = resp.body["data"]["agents"].as_array().unwrap();
-    assert!(
-        agents.iter().any(|a| a["agent_id"] == "agent.api-test"),
-        "registered agent must appear in runtime agents API"
-    );
-}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn event_route_via_harness() {

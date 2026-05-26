@@ -151,134 +151,6 @@ fn collect_types() -> TypeCollection {
     c.register::<ship_platform::sessions::ProviderMatrix>();
     c.register::<ship_platform::sessions::ProviderMatrixRepairReport>();
 
-    // ── Typed-op return types (ship.<domain>.<op> data surface) ─────────────
-    // These back `DataHandle<T>` in `generated/data.ts` — every name here must
-    // also appear in `gen_sdk::data_ts::MIGRATED_RETURN_TYPES`. Migrated domain
-    // by domain; see `schema::OPS` assembly.
-
-    // agents.* — single-source via `registry::agents::AGENTS_OPS`.
-    c.register::<ship_platform::services::agents::state::IndexEntry>();
-    c.register::<ship_platform::services::agents::state::ScopeTag>();
-    c.register::<ship_platform::services::agents::view_state::AgentDetail>();
-    c.register::<ship_platform::services::agents::view_state::Permissions>();
-    c.register::<ship_platform::services::agents::view_state::CatalogEntry>();
-    c.register::<ship_platform::services::agents::view_state::ToolPatternEntry>();
-    c.register::<ship_platform::services::agents::view_state::AgentCatalogs>();
-    c.register::<ship_platform::services::agents::view_state::AgentSummary>();
-    c.register::<ship_platform::services::agents::view_state::AgentsSummariesResponse>();
-    c.register::<ship_platform::services::agents::wire::WireNode>();
-    c.register::<ship_platform::services::agents::wire::WireEdge>();
-    c.register::<ship_platform::services::agents::wire::AgentWireCtx>();
-    c.register::<ship_platform::services::agents::settings_view::TierRow>();
-    c.register::<ship_platform::services::agents::settings_view::AgentSettingsCtx>();
-    c.register::<ship_platform::services::agents::create::AgentTemplate>();
-    c.register::<ship_platform::services::agents::create::PermissionPreset>();
-    c.register::<ship_platform::services::agents::create::AgentsCreateCtx>();
-    c.register::<ship_platform::services::agents::wire_types::AgentIndexResponse>();
-    c.register::<ship_platform::services::agents::wire_types::AgentGetResponse>();
-    c.register::<ship_platform::services::agents::wire_types::AgentTemplatesResponse>();
-    c.register::<ship_platform::services::agents::wire_types::PermissionPresetsResponse>();
-    c.register::<ship_platform::services::agents::wire_types::HarnessesResponse>();
-
-    // rules.* / mcp.* / permissions.* — file-backed index/get trio.
-    c.register::<ship_platform::services::rules::state::IndexEntry>();
-    c.register::<ship_platform::services::rules::state::ScopeTag>();
-    c.register::<ship_platform::services::rules::wire_types::RulesIndexResponse>();
-    c.register::<ship_platform::services::rules::wire_types::RuleGetResponse>();
-    c.register::<ship_platform::services::mcp::state::IndexEntry>();
-    c.register::<ship_platform::services::mcp::state::ScopeTag>();
-    c.register::<ship_platform::services::mcp::wire_types::McpIndexResponse>();
-    c.register::<ship_platform::services::mcp::wire_types::McpGetResponse>();
-    c.register::<ship_platform::services::permissions::state::IndexEntry>();
-    c.register::<ship_platform::services::permissions::state::ScopeTag>();
-    c.register::<ship_platform::services::permissions::wire_types::PermissionsIndexResponse>();
-    c.register::<ship_platform::services::permissions::wire_types::PermissionGetResponse>();
-    c.register::<ship_platform::services::permissions::wire_types::ToolPattern>();
-    c.register::<ship_platform::services::permissions::wire_types::ToolPatternsResponse>();
-
-    // account.* — Ship Cloud account snapshot (also exported in the framework
-    // collection for the chrome chip; registered here for the data.ts surface).
-    c.register::<ship_platform::account::types::AccountState>();
-    c.register::<ship_platform::account::types::MeView>();
-
-    // chat.* / sessions.* / events.* / artifacts.* — daemon-assembled shapes.
-    c.register::<shipd::views::chat_state::Sender>();
-    c.register::<shipd::views::chat_state::ChatMessage>();
-    c.register::<shipd::services::registry::wire::ChatStateResponse>();
-    c.register::<ship_platform::services::sessions::types::SessionKind>();
-    c.register::<ship_platform::services::sessions::types::SessionStatus>();
-    c.register::<ship_platform::services::sessions::types::SessionMeta>();
-    c.register::<shipd::services::registry::wire::SessionsListResponse>();
-    c.register::<shipd::views::events_state::EventRow>();
-    c.register::<shipd::views::events_state::EntityGroup>();
-    c.register::<shipd::services::registry::wire::EventsListResponse>();
-    c.register::<ship_platform::artifacts::ArtifactRecord>();
-    c.register::<shipd::services::registry::wire::ArtifactsListResponse>();
-
-    // skills.* (list / detail / file / get — summaries stays dynamic/unknown).
-    c.register::<ship_platform::services::skills::state::ScopeTag>();
-    c.register::<ship_platform::services::skills::state::IndexEntry>();
-    c.register::<ship_platform::services::skills::state::SkillDetail>();
-    c.register::<ship_platform::services::skills::view_state::SkillKind>();
-    c.register::<ship_platform::services::skills::view_state::SkillDetail>();
-    c.register::<shipd::services::registry::wire::SkillsIndexResponse>();
-    c.register::<shipd::services::registry::wire::SkillFileResponse>();
-
-    // pipelines.* (list / get + summaries / focus / run / history ctx).
-    c.register::<ship_platform::services::pipelines::state::ScopeTag>();
-    c.register::<ship_platform::services::pipelines::state::IndexEntry>();
-    c.register::<shipd::services::registry::wire::PipelinesIndexResponse>();
-    c.register::<shipd::services::registry::wire::PipelineGetResponse>();
-    c.register::<shipd::services::pipelines::shape::Stats>();
-    c.register::<shipd::services::pipelines::shape::StatusPill>();
-    c.register::<shipd::services::pipelines::shape::StepView>();
-    c.register::<shipd::services::pipelines::shape::RunView>();
-    c.register::<shipd::services::pipelines::view_state::BranchStats>();
-    c.register::<shipd::views::state::PipelineDef>();
-    c.register::<shipd::views::state::Filter>();
-    c.register::<shipd::services::pipelines::summaries::SummariesCtx>();
-    c.register::<shipd::services::pipelines::focus::FocusCtx>();
-    c.register::<shipd::services::pipelines::run_detail::RunDetailCtx>();
-    c.register::<shipd::services::pipelines::run_detail::StepObservationRow>();
-    c.register::<shipd::services::pipelines::run_detail::TimelineRow>();
-    c.register::<shipd::services::pipelines::history::HistoryCtx>();
-    c.register::<shipd::services::pipelines::history::HistoryRow>();
-
-    // specs.* (list / get / summaries / detail).
-    c.register::<shipd::services::specs::shape::Spec>();
-    c.register::<shipd::services::specs::view_state::SpecSummary>();
-    c.register::<shipd::services::specs::view_state::Counts>();
-    c.register::<shipd::services::specs::view_state::RailGroup>();
-    c.register::<shipd::services::specs::view_state::SummariesCtx>();
-    c.register::<shipd::services::specs::view_state::SpecDetail>();
-    c.register::<shipd::services::specs::parse::AcceptanceItem>();
-    c.register::<shipd::services::registry::wire::SpecsListResponse>();
-    c.register::<shipd::services::registry::wire::SpecGetResponse>();
-
-    // git.* (status / log / branches / overview / diff — annotations is a
-    // bare line→annotations map, left as unknown).
-    c.register::<ship_platform::services::git::state::StatusBuckets>();
-    c.register::<ship_platform::services::git::state::StatusFile>();
-    c.register::<ship_platform::services::git::state::CommitSummary>();
-    c.register::<ship_platform::services::git::state::BranchSummary>();
-    c.register::<ship_platform::services::git::diff::ParsedDiff>();
-    c.register::<shipd::services::registry::wire::GitLogResponse>();
-    c.register::<shipd::services::registry::wire::GitBranchesResponse>();
-    c.register::<shipd::services::registry::wire::GitOverviewResponse>();
-    c.register::<shipd::services::registry::wire::GitDiffResponse>();
-
-    // settings.*
-    c.register::<shipd::services::settings::view_state::ProviderRow>();
-    c.register::<shipd::services::settings::view_state::TerminalConfig>();
-    c.register::<shipd::services::settings::view_state::SelectOption>();
-    c.register::<shipd::services::settings::view_state::FeatureFlag>();
-    c.register::<shipd::services::settings::view_state::AboutInfo>();
-    c.register::<shipd::services::settings::view_state::SettingsCtx>();
-
-    // workspaces.*
-    c.register::<shipd::services::registry::wire::WorkspaceRow>();
-    c.register::<shipd::services::registry::wire::WorkspacesListResponse>();
-    c.register::<shipd::services::registry::wire::WorkspaceActiveResponse>();
 
     c
 }
@@ -309,27 +181,6 @@ fn collect_framework_types() -> TypeCollection {
     c.register::<shipd::views::write_api::LintFinding>();
     c.register::<shipd::views::resolve::ManifestRail>();
 
-    // shipd::services::git — overview, diff, status buckets.
-    c.register::<ship_platform::services::git::state::CommitSummary>();
-    c.register::<ship_platform::services::git::state::StatusFile>();
-    c.register::<ship_platform::services::git::state::StatusBuckets>();
-    c.register::<ship_platform::services::git::state::BranchSummary>();
-    c.register::<ship_platform::services::git::state::GitOverview>();
-    c.register::<ship_platform::services::git::state::GitDiff>();
-    c.register::<ship_platform::services::git::state::GitDiffArgs>();
-    c.register::<ship_platform::services::git::diff::DiffLine>();
-    c.register::<ship_platform::services::git::diff::DiffHunk>();
-    c.register::<ship_platform::services::git::diff::DiffFileView>();
-    c.register::<ship_platform::services::git::diff::ParsedDiff>();
-
-    // shipd::services::agents — summary list payload.
-    c.register::<ship_platform::services::agents::view_state::AgentSummary>();
-    c.register::<ship_platform::services::agents::view_state::AgentsSummariesResponse>();
-
-    // ship-platform::account — Ship Cloud account state for the chrome chip.
-    c.register::<ship_platform::account::types::AccountState>();
-    c.register::<ship_platform::account::types::MeView>();
-
     // view-authoring — contract types shared with the chrome edit-mode UI.
     c.register::<ship_platform::view_authoring::CompileError>();
     c.register::<ship_platform::view_authoring::SnapshotMeta>();
@@ -357,6 +208,47 @@ fn collect_framework_types() -> TypeCollection {
     c.register::<ship_platform::view_authoring::ViewEditModeEnterRequest>();
     c.register::<ship_platform::view_authoring::ViewEditModeExitRequest>();
     c.register::<ship_platform::view_authoring::ViewEditModeAck>();
+
+    c
+}
+
+/// Ship daemon-domain data types (git / agents / account). These belong to the
+/// SDK layer, NOT the framework — `@ship/sui-runtime` names no host concept.
+/// Output: `packages/deck/sdk-client/src/generated.ts`.
+fn collect_ship_data_types() -> TypeCollection {
+    let mut c = TypeCollection::default();
+
+    // git — overview, diff, status buckets.
+    c.register::<ship_platform::services::git::state::CommitSummary>();
+    c.register::<ship_platform::services::git::state::StatusFile>();
+    c.register::<ship_platform::services::git::state::StatusBuckets>();
+    c.register::<ship_platform::services::git::state::BranchSummary>();
+    c.register::<ship_platform::services::git::state::GitOverview>();
+    c.register::<ship_platform::services::git::state::GitDiff>();
+    c.register::<ship_platform::services::git::state::GitDiffArgs>();
+    c.register::<ship_platform::services::git::diff::DiffLine>();
+    c.register::<ship_platform::services::git::diff::DiffHunk>();
+    c.register::<ship_platform::services::git::diff::DiffFileView>();
+    c.register::<ship_platform::services::git::diff::ParsedDiff>();
+
+    // agents — summary list payload.
+    c.register::<ship_platform::services::agents::view_state::AgentSummary>();
+    c.register::<ship_platform::services::agents::view_state::AgentsSummariesResponse>();
+
+    // account — Ship Cloud account state for the chrome chip.
+    c.register::<ship_platform::account::types::AccountState>();
+    c.register::<ship_platform::account::types::MeView>();
+
+    // artifacts — metadata record (was hand-written in ship-sdk.ts).
+    c.register::<ship_platform::artifacts::ArtifactRecord>();
+
+    // skills — index row. `#[specta(rename = "SkillIndexEntry")]` on the Rust
+    // struct disambiguates it from the other domains' IndexEntry.
+    c.register::<ship_platform::services::skills::state::IndexEntry>();
+
+    // collections — list row + field record (was hand-written in ship-sdk.ts);
+    // pulls in CollectionFieldRecord as a nested type.
+    c.register::<shipd::services::registry::wire::CollectionSummary>();
 
     c
 }
@@ -443,12 +335,20 @@ fn gen_types(check: bool) {
         .export(&collect_framework_types())
         .expect("specta-typescript export failed (framework)");
 
+    // Ship daemon-domain data types (git/agents/account) live in the SDK
+    // layer, NOT the framework — @ship/sui-runtime names zero host concepts.
+    let ship_data_out = repo_root().join("packages/deck/sdk-client/src/generated.ts");
+    let ship_data_content = ts
+        .export(&collect_ship_data_types())
+        .expect("specta-typescript export failed (ship-data)");
+
     if check {
         let mut stale = false;
         for (path, expected) in [
             (&ui_out, &ui_content),
             (&cloud_out, &cloud_content),
             (&framework_out, &framework_content),
+            (&ship_data_out, &ship_data_content),
         ] {
             let existing = std::fs::read_to_string(path).unwrap_or_default();
             if existing != *expected {
@@ -471,6 +371,9 @@ fn gen_types(check: bool) {
     std::fs::write(&framework_out, &framework_content)
         .expect("failed to write framework generated.ts");
     eprintln!("Wrote {}", framework_out.display());
+    std::fs::write(&ship_data_out, &ship_data_content)
+        .expect("failed to write ship-data generated.ts");
+    eprintln!("Wrote {}", ship_data_out.display());
 }
 
 

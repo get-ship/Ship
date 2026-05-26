@@ -14,7 +14,6 @@ mod data_ts;
 mod framework;
 mod jsonc;
 mod ship_ops;
-mod urls;
 mod view_contexts;
 
 const VERSION: &str = "0.1.0";
@@ -28,11 +27,6 @@ pub fn run(repo_root: &Path) -> Result<()> {
     fs::create_dir_all(&out_dir)
         .with_context(|| format!("create {}", out_dir.display()))?;
 
-    write_doc(
-        &out_dir.join("sdk-urls.json"),
-        "sdk-urls",
-        urls::extract()?,
-    )?;
     write_doc(
         &out_dir.join("sdk-view-contexts.json"),
         "sdk-view-contexts",

@@ -5,7 +5,7 @@
 
 use axum::{
     Extension, Json,
-    extract::{Query, State},
+    extract::State,
     http::StatusCode,
     response::IntoResponse,
 };
@@ -23,7 +23,7 @@ use crate::wire::MeshResponse;
 
 // ---- Query params ----
 
-#[derive(Deserialize, utoipa::IntoParams)]
+#[derive(Deserialize)]
 pub struct SessionsQuery {
     pub workspace_id: Option<String>,
 }
@@ -41,90 +41,12 @@ pub(super) fn resolve_project_head_sha() -> Option<String> {
     ship_platform::services::orchestrator::git_helpers::resolve_head_sha(project_root)
 }
 
-/// GET /api/v1/sessions[?workspace_id=<id>]
-///
-/// Lists *workspace* sessions (event-sourced runtime sessions per
-/// branch). Distinct from the PTY-session registry
-/// (`sessions::api::list_pty_sessions` on `/api/v1/pty-sessions`) and
-/// the auth-session token registry (`auth::api::list_auth_sessions` on
-/// `/api/v1/auth/sessions`).
-#[utoipa::path(
-    operation_id = "listWorkspaceSessions",
-    get,
-    path = "/api/v1/sessions",
-    params(SessionsQuery),
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
-pub async fn list_workspace_sessions(
-    State(_state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
-    Query(params): Query<SessionsQuery>,
-) -> impl IntoResponse {
-    let workspace_id = params.workspace_id.as_deref();
-    match ship_substrate::db::session::list_sessions_db(workspace_id, 100) {
-        Ok(sessions) => {
-            let data: Vec<serde_json::Value> = sessions
-                .into_iter()
-                .map(|s| {
-                    serde_json::json!({
-                        "id": s.id,
-                        "workspace_id": s.workspace_id,
-                        "branch": s.branch,
-                        "status": s.status,
-                        "started_at": s.started_at,
-                        "ended_at": s.ended_at,
-                        "agent_id": s.agent_id,
-                        "primary_harness": s.primary_harness,
-                        "goal": s.goal,
-                        "summary": s.summary,
-                        "tool_call_count": s.tool_call_count,
-                        "created_at": s.created_at,
-                        "updated_at": s.updated_at,
-                    })
-                })
-                .collect();
-            (
-                StatusCode::OK,
-                Json(MeshResponse {
-                    ok: true,
-                    data: serde_json::json!({ "sessions": data }),
-                }),
-            )
-        }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(e.to_string()),
-            }),
-        ),
-    }
-        .into_response()
-}
-
-
 /// GET /api/v1/sessions/active-across-projects
 ///
 /// Returns the running sessions visible across every project the
 /// daemon knows about, each row labeled with `project_id` + project
 /// `name`. Chrome consumes this to surface "N agents running in other
 /// projects" without forcing it to fan-out per-project queries.
-#[utoipa::path(
-    operation_id = "listSessionsAcrossProjects",
-    get,
-    path = "/api/v1/sessions/active-across-projects",
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn list_sessions_across_projects(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -197,18 +119,16 @@ pub mod dispatch;
 pub mod events;
 pub mod jobs;
 pub mod pipeline_run;
-pub mod procs;
 
-pub use agents::{SteerAgentRequest, list_agents, steer_agent, stop_agent};
+pub use agents::{SteerAgentRequest, steer_agent, stop_agent};
 pub use daemon::{daemon_status, rebuild_projections};
 pub use dispatch::{DispatchRequest, dispatch_agent_session};
-pub use events::{EventsPollQuery, event_stream, poll_events};
+pub use events::{EventsPollQuery, event_stream};
 pub use jobs::{
     CancelJobRequest, EventSummary, PipelineRunDetailResponse, TurnEndRequest,
     cancel_job, end_job, get_job_detail, list_jobs,
 };
 pub use pipeline_run::{PipelineRunRequest, run_pipeline};
-pub use procs::{ProcsQuery, list_procs};
 
 // Helpers re-exported for the in-file test mod below.
 #[cfg(test)]
@@ -219,7 +139,7 @@ pub(crate) use jobs::drift_active_for_slug;
 mod tests {
     use super::*;
     use axum::Extension;
-    use axum::extract::{Query, State};
+    use axum::extract::State;
     use axum::response::IntoResponse;
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -246,78 +166,6 @@ mod tests {
         })
     }
 
-    async fn collect_body(response: axum::response::Response) -> serde_json::Value {
-        use http_body_util::BodyExt;
-        let bytes = response.into_body().collect().await.unwrap().to_bytes();
-        serde_json::from_slice(&bytes).unwrap()
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn list_workspace_sessions_returns_ok_no_workspace_id() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        let query = Query(SessionsQuery { workspace_id: None });
-        let response = list_workspace_sessions(State(state), test_auth(), query).await.into_response();
-        assert_eq!(response.status(), axum::http::StatusCode::OK);
-        let val = collect_body(response).await;
-        assert_eq!(val["ok"], serde_json::json!(true));
-        assert!(val["data"]["sessions"].is_array(), "expected sessions array");
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn list_workspace_sessions_returns_ok_with_workspace_id() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        let query = Query(SessionsQuery {
-            workspace_id: Some("nonexistent-workspace".to_string()),
-        });
-        let response = list_workspace_sessions(State(state), test_auth(), query).await.into_response();
-        assert_eq!(response.status(), axum::http::StatusCode::OK);
-        let val = collect_body(response).await;
-        assert_eq!(val["ok"], serde_json::json!(true));
-        assert!(val["data"]["sessions"].is_array());
-        assert_eq!(val["data"]["sessions"].as_array().unwrap().len(), 0);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn list_agents_returns_ok_empty_registry() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        let response = list_agents(State(state), test_auth()).await.into_response();
-        assert_eq!(response.status(), axum::http::StatusCode::OK);
-        let val = collect_body(response).await;
-        assert_eq!(val["ok"], serde_json::json!(true));
-        assert!(val["data"]["agents"].is_array());
-        assert_eq!(val["data"]["agents"].as_array().unwrap().len(), 0);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn list_agents_returns_populated_registry() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-
-        {
-            let mut reg = state.mesh_registry().write().await;
-            reg.insert(
-                "agent.test".into(),
-                ship_platform::services::mesh::MeshEntry {
-                    agent_id: "agent.test".into(),
-                    label: "Test Agent".into(),
-                    capabilities: vec!["rust".into()],
-                    registered_at: chrono::Utc::now(),
-                    status: ship_platform::services::mesh::AgentStatus::Active,
-                },
-            );
-        }
-
-        let response = list_agents(State(state), test_auth()).await.into_response();
-        let val = collect_body(response).await;
-        let agents = val["data"]["agents"].as_array().unwrap();
-        assert_eq!(agents.len(), 1);
-        assert_eq!(agents[0]["agent_id"], "agent.test");
-    }
-
-
     fn full_auth() -> AuthContext {
         AuthContext {
             caller_kind: ship_substrate::events::CallerKind::Cli,
@@ -327,6 +175,12 @@ mod tests {
             scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
         }
+    }
+
+    async fn collect_body(response: axum::response::Response) -> serde_json::Value {
+        use http_body_util::BodyExt;
+        let bytes = response.into_body().collect().await.unwrap().to_bytes();
+        serde_json::from_slice(&bytes).unwrap()
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -642,185 +496,6 @@ mod tests {
         assert_eq!(row["process_state"], serde_json::json!("alive"));
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn list_procs_filters_by_slug() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        emit_process_spawned(&state, "procs-a", 1).await;
-        emit_process_spawned(&state, "procs-b", 2).await;
-
-        let q = Query(ProcsQuery { slug: Some("procs-a".into()), kind: None, limit: None });
-        let response = list_procs(State(state), q).await.into_response();
-        let val = collect_body(response).await;
-        let procs = val["data"]["procs"].as_array().unwrap();
-        assert_eq!(procs.len(), 1);
-        assert_eq!(procs[0]["slug"], "procs-a");
-        assert_eq!(procs[0]["pid"], 1);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn list_procs_returns_all_when_no_slug() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        emit_process_spawned(&state, "all-a", 10).await;
-        emit_process_spawned(&state, "all-b", 11).await;
-
-        let q = Query(ProcsQuery { slug: None, kind: None, limit: None });
-        let response = list_procs(State(state), q).await.into_response();
-        let val = collect_body(response).await;
-        let procs = val["data"]["procs"].as_array().unwrap();
-        assert!(procs.len() >= 2);
-    }
-
-    async fn emit_process_spawned_with_kind(
-        state: &ApiState,
-        slug: &str,
-        pid: u32,
-        executor_kind: &str,
-    ) {
-        let payload = ship_substrate::events::process::ProcessSpawnedPayload {
-            slug: slug.to_string(),
-            pipeline_run_id: format!("job-{slug}"),
-            pid: Some(pid),
-            cmd: "claude".to_string(),
-            argv: vec![],
-            env_keys: vec![],
-            cwd: "/tmp".to_string(),
-            executor_kind: executor_kind.to_string(),
-            step_id: None,
-        };
-        let env = EventEnvelope::new(
-            ship_substrate::events::process::event_types::PROCESS_SPAWNED,
-            slug,
-            &payload,
-        )
-        .unwrap()
-        .with_actor_id("test");
-        state.persist_and_route(&env).await.unwrap();
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn list_procs_filters_by_kind_agent_keeps_pty() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        emit_process_spawned_with_kind(&state, "agent-pty", 30, "pty").await;
-        emit_process_spawned_with_kind(&state, "step-headless", 31, "process").await;
-
-        let q = Query(ProcsQuery { slug: None, kind: Some("agent".into()), limit: None });
-        let response = list_procs(State(state), q).await.into_response();
-        let val = collect_body(response).await;
-        let procs = val["data"]["procs"].as_array().unwrap();
-        let slugs: Vec<&str> = procs.iter().map(|p| p["slug"].as_str().unwrap()).collect();
-        assert!(slugs.contains(&"agent-pty"), "agent-pty should be present: {slugs:?}");
-        assert!(!slugs.contains(&"step-headless"), "step-headless should be filtered out: {slugs:?}");
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn list_procs_filters_by_kind_pipeline_step_keeps_process() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        emit_process_spawned_with_kind(&state, "agent-pty-2", 40, "pty").await;
-        emit_process_spawned_with_kind(&state, "step-headless-2", 41, "process").await;
-
-        let q = Query(ProcsQuery { slug: None, kind: Some("pipeline-step".into()), limit: None });
-        let response = list_procs(State(state), q).await.into_response();
-        let val = collect_body(response).await;
-        let procs = val["data"]["procs"].as_array().unwrap();
-        let slugs: Vec<&str> = procs.iter().map(|p| p["slug"].as_str().unwrap()).collect();
-        assert!(slugs.contains(&"step-headless-2"), "pipeline-step should match 'process' executor: {slugs:?}");
-        assert!(!slugs.contains(&"agent-pty-2"), "pty executor should be filtered out: {slugs:?}");
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn list_procs_rejects_unknown_kind_with_400() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        let q = Query(ProcsQuery { slug: None, kind: Some("widget".into()), limit: None });
-        let response = list_procs(State(state), q).await.into_response();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let val = collect_body(response).await;
-        assert_eq!(val["ok"], false);
-        let msg = val["data"].as_str().unwrap_or("");
-        assert!(msg.contains("widget"), "error message should name bad value: {msg}");
-        assert!(msg.contains("agent"), "error message should list valid values: {msg}");
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn poll_events_filters_by_slug() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        let _ = emit_job_created(&state, "tail-x").await;
-        let _ = emit_job_created(&state, "tail-y").await;
-
-        let q = Query(EventsPollQuery {
-            since_id: None,
-            slug: Some("tail-x".into()),
-            namespace: None,
-            limit: None,
-        });
-        let response = poll_events(State(state), q).await.into_response();
-        let val = collect_body(response).await;
-        let events = val["data"]["events"].as_array().unwrap();
-        assert!(!events.is_empty(), "should have at least one event for slug");
-        for e in events {
-            let payload: serde_json::Value =
-                serde_json::from_str(e["payload_json"].as_str().unwrap_or("{}")).unwrap();
-            assert_eq!(payload["slug"], "tail-x");
-        }
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn poll_events_namespace_filter() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        let _ = emit_job_created(&state, "ns-test").await;
-        emit_process_spawned(&state, "ns-test", 99).await;
-
-        let q = Query(EventsPollQuery {
-            since_id: None,
-            slug: Some("ns-test".into()),
-            namespace: Some("process".into()),
-            limit: None,
-        });
-        let response = poll_events(State(state), q).await.into_response();
-        let val = collect_body(response).await;
-        let events = val["data"]["events"].as_array().unwrap();
-        assert!(!events.is_empty());
-        for e in events {
-            assert!(
-                e["event_type"].as_str().unwrap().starts_with("process."),
-                "namespace filter must restrict to process.*"
-            );
-        }
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn poll_events_respects_since_id_cursor() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        let _ = emit_job_created(&state, "cursor-test").await;
-
-        let first = Query(EventsPollQuery {
-            since_id: None,
-            slug: Some("cursor-test".into()),
-            namespace: None,
-            limit: None,
-        });
-        let response = poll_events(State(state.clone()), first).await.into_response();
-        let val = collect_body(response).await;
-        let events = val["data"]["events"].as_array().unwrap();
-        let last_id = events.last().unwrap()["id"].as_str().unwrap().to_string();
-
-        let second = Query(EventsPollQuery {
-            since_id: Some(last_id),
-            slug: Some("cursor-test".into()),
-            namespace: None,
-            limit: None,
-        });
-        let response = poll_events(State(state), second).await.into_response();
-        let val = collect_body(response).await;
-        assert_eq!(val["data"]["events"].as_array().unwrap().len(), 0);
-    }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn daemon_status_returns_pid_and_uptime() {

@@ -23,17 +23,6 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
 ///   sweep flagged drift (no_process) without a coherence_restored after
 ///   it, `"terminal"` for jobs in a terminal status, `"none"` otherwise.
 /// - `notes`: optional truncated error / blocker for the row's NOTES column.
-#[utoipa::path(
-    operation_id = "listJobs",
-    get,
-    path = "/api/v1/agent_sessions",
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
     let jobs = match ship_platform::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir()) {
         Ok(j) => j,
@@ -192,18 +181,6 @@ pub struct EventSummary {
 }
 
 /// GET /api/v1/runtime/jobs/{pipeline_run_id}
-#[utoipa::path(
-    operation_id = "getJobDetail",
-    get,
-    path = "/api/v1/agent_sessions/{pipeline_run_id}",
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 404, description = "job not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn get_job_detail(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -276,7 +253,7 @@ pub async fn get_job_detail(
 
 // ---- Cancel ----
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct CancelJobRequest {
     #[serde(default = "default_cancel_reason")]
     pub reason: String,
@@ -289,21 +266,6 @@ pub(crate) fn default_cancel_reason() -> String {
 /// POST /api/v1/runtime/jobs/{slug}/cancel — emit `job.cancelled` for the
 /// job with this slug. Idempotent: returns 409 with the current status
 /// when the job is already in a terminal state, and emits no event.
-#[utoipa::path(
-    operation_id = "cancelJob",
-    post,
-    path = "/api/v1/agent_sessions/{slug}/cancel",
-    request_body = CancelJobRequest,
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 404, description = "job not found", body = crate::wire::ErrorResponse),
-        (status = 409, description = "job already finished", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn cancel_job(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -472,8 +434,7 @@ async fn cancel_agent_session(
 
 // ---- Job end (hook-triggered) ----
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({ "slug": "write-readme" }))]
+#[derive(Deserialize)]
 pub struct TurnEndRequest {
     pub slug: String,
 }
@@ -484,19 +445,6 @@ pub struct TurnEndRequest {
 /// For multi-step pipeline jobs, this sends a TurnEnded signal to the step
 /// monitor (which accumulates evidence before deciding to advance).
 /// For single-step jobs, emits job.completed directly.
-#[utoipa::path(
-    operation_id = "endJob",
-    post,
-    path = "/api/v1/agent_sessions/end",
-    request_body = TurnEndRequest,
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn end_job(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,

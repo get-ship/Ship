@@ -3,10 +3,10 @@ import type { Scope } from './sui-brand-mark.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
+    const sig = state.$signals
 
     const stopAria = effect(() => {
-      const label = scope.label()
+      const label = sig.label()
       if (label) {
         host.setAttribute('role', 'img')
         host.setAttribute('aria-label', label)

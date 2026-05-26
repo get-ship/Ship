@@ -52,31 +52,30 @@ pub fn load_job_context(pipeline_run_id: &str) -> SessionContextFromEvents {
 pub const RUNTIME_CONTRACT: &str = r#"## Runtime contract — completing this step
 
 This step is part of a Ship pipeline. The next step is waiting on you.
-Your job ends when you call `mcp__ship__step_done`.
+Your job ends when you run `ship step-done`.
 
 **The completion rule, full stop:**
 
 When the acceptance criteria in the job body are met (tests passing once,
-the requested change present, no compile errors), **call `step_done`
+the requested change present, no compile errors), **run `ship step-done`
 immediately and exit**. Do not iterate further. Do not re-verify. Do not
 explore neighboring code. The reviewer step is what catches missed cases —
 it has the diff and your summary. Trust it.
 
 ```
-mcp__ship__step_done({ summary: "added ping() + 2 tests, all green" })
+ship step-done --summary "added ping() + 2 tests, all green"
 ```
 
-**If you're blocked**, call `mcp__ship__log_progress` with the blocker
-and stop responding. The monitor will settle and the gate step will pick
-up the partial work for review. Do not call `step_done` for blocked work.
+`ship step-done` reads your job slug from `SHIP_ACTOR_ID` (injected at
+dispatch) and signals completion over Connect — no MCP, no slug juggling.
 
-**Progress updates** (optional, while still working): `mcp__ship__log_progress`
-records a checkpoint without advancing.
+**If you're blocked**, stop responding. The idle-timeout monitor will
+settle and the gate step picks up the partial work for review. Do not run
+`ship step-done` for blocked work.
 
 **Timeouts:** the step is killed if no subprocess activity is seen for
 5 minutes (idle timeout), or if the whole step runs past 60 minutes
 (hard cap). Long tool calls like `cargo test` keep the step alive
-naturally — you don't need to rush. If you haven't called `step_done`
-or `log_progress { blocker: ... }` before those limits, the monitor
-terminates the step as `timed out`.
+naturally — you don't need to rush. If you haven't run `ship step-done`
+before those limits, the monitor terminates the step as `timed out`.
 "#;

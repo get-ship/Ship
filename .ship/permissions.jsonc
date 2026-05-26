@@ -38,7 +38,6 @@
       "Glob",
       "Grep",
       "Bash(ship *)",
-      "mcp__ship__*",
       "mcp__*__read*",
       "mcp__*__list*",
       "mcp__*__search*",
@@ -62,7 +61,6 @@
       "Glob",
       "Grep",
       "Bash(ship *)",
-      "mcp__ship__*",
     ],
     "tools_deny": [
       "Write(apps/**/migrations/**/*.sql)",
@@ -81,7 +79,6 @@
     "tools_allow": [
       "Read", "Write", "Edit", "Glob", "Grep",
       "Bash(*)",
-      "mcp__ship__*",
     ],
     "tools_deny": [
       "Bash(rm -rf *)",
@@ -104,7 +101,6 @@
     "tools_allow": [
       "Read", "Write", "Edit", "Glob", "Grep",
       "Bash(*)",
-      "mcp__ship__*",
     ],
     "tools_deny": [
       "Bash(rm -rf *)",

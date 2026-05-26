@@ -289,7 +289,10 @@ describe('mount()', () => {
     }
   })
 
-  it('mount via name string fetches /_sui/views/<name>', async () => {
+  it('mount via name string resolves through the injected loader', async () => {
+    // The runtime is host-agnostic: mounting by name delegates payload
+    // resolution to `opts.loader.fetchView`. The `/_sui/...` URL scheme lives
+    // in the host's loader (shell / deck view-host), not in mount().
     const payload: ViewPayload = {
       name: 'demo-fetch',
       html: '<div>fetched</div>',
@@ -297,23 +300,23 @@ describe('mount()', () => {
       scope: {},
       moduleUrl: '/x',
     }
-    const fetchSpy = vi.fn(async (url: string) => {
-      expect(url).toBe('/_sui/views/demo-fetch')
-      return new Response(JSON.stringify(payload), {
-        headers: { 'content-type': 'application/json' },
-      })
+    const fetchView = vi.fn(async (nameOrPath: string) => {
+      expect(nameOrPath).toBe('demo-fetch')
+      return payload
     })
-    const prevFetch = globalThis.fetch
-    ;(globalThis as { fetch: typeof fetch }).fetch = fetchSpy as unknown as typeof fetch
+    const handle = await mount(target, 'demo-fetch', {
+      module: emptyModule(),
+      loader: { fetchView, loadComponent: async () => {} },
+    })
+    expect(fetchView).toHaveBeenCalledWith('demo-fetch')
+    expect(target.innerHTML).toBe('<div>fetched</div>')
+    handle.dispose()
+  })
 
-    try {
-      const handle = await mount(target, 'demo-fetch', { module: emptyModule() })
-      expect(fetchSpy).toHaveBeenCalled()
-      expect(target.innerHTML).toBe('<div>fetched</div>')
-      handle.dispose()
-    } finally {
-      globalThis.fetch = prevFetch
-    }
+  it('mount by name without a loader throws a clear error', async () => {
+    await expect(mount(target, 'demo-fetch', { module: emptyModule() })).rejects.toThrow(
+      /requires opts\.loader/,
+    )
   })
 
   it('throws if target is missing', async () => {

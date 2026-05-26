@@ -41,21 +41,6 @@ fn err(status: StatusCode, code: &str, message: &str) -> Response {
         .into_response()
 }
 
-#[utoipa::path(
-    operation_id = "enterViewEditMode",
-    post,
-    path = "/api/v1/views/{name}/edit-mode/enter",
-    request_body(
-        content_type = "application/json",
-        description = "Grant the calling session view-edit access to {name}"
-    ),
-    responses(
-        (status = 200, description = "Edit-mode grant recorded"),
-        (status = 400, description = "Invalid view name or body"),
-        (status = 401, description = "Unauthenticated"),
-    ),
-    tag = "view-authoring"
-)]
 pub async fn enter_edit_mode(
     Path(name): Path<String>,
     Extension(_auth): Extension<AuthContext>,
@@ -81,20 +66,6 @@ pub async fn enter_edit_mode(
     (StatusCode::OK, Json(ack)).into_response()
 }
 
-#[utoipa::path(
-    operation_id = "exitViewEditMode",
-    post,
-    path = "/api/v1/views/{name}/edit-mode/exit",
-    request_body(
-        content_type = "application/json",
-        description = "Revoke the calling session's view-edit grant for {name}"
-    ),
-    responses(
-        (status = 200, description = "Edit-mode grant revoked (idempotent)"),
-        (status = 400, description = "Invalid view name or body"),
-    ),
-    tag = "view-authoring"
-)]
 pub async fn exit_edit_mode(
     Path(name): Path<String>,
     Extension(_auth): Extension<AuthContext>,

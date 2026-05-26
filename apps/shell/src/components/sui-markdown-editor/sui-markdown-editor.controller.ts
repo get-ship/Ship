@@ -1,5 +1,5 @@
 import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { Signal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-markdown-editor.sui'
 import { createMarkdownEditor, readMarkdown, type MarkdownEditor } from './sui-markdown-editor.init'
 import { injectEditorStyles } from './sui-markdown-editor.styles'
@@ -32,9 +32,8 @@ type ExtScope = Scope & {
   _editorRef: { current: MarkdownEditor | null }
 }
 
-export default controller<Scope>({
-  scope: (state, host) => {
-    const s = state as unknown as ExtScope
+export default controller({
+  scope: (state: ViewScope<Scope>, host?: Element) => {
     const hostEl = host as HTMLElement
     const _editorRef: { current: MarkdownEditor | null } = { current: null }
     const marks = signal<MarkMap>({ ...EMPTY_MARKS })
@@ -59,7 +58,7 @@ export default controller<Scope>({
       return p.text.length > 140 ? p.text.slice(0, 140) + '…' : p.text
     })
 
-    function disabled() { return (s.disabled as Signal<boolean>)() }
+    function disabled() { return state.disabled() }
 
     function runCmd(fn: (ed: MarkdownEditor) => void) {
       const ed = _editorRef.current

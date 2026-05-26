@@ -46,20 +46,7 @@ pub const VETTED_IDS: &[&str] = &[
 
 // ── Public API types ───────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "id": "filesystem",
-    "name": "Filesystem",
-    "description": "Local filesystem access for MCP clients",
-    "homepage": "https://github.com/modelcontextprotocol/servers",
-    "tags": ["storage", "official"],
-    "vendor": "modelcontextprotocol",
-    "packageRegistry": "npm",
-    "command": "npx",
-    "args": ["-y", "@modelcontextprotocol/server-filesystem"],
-    "vetted": true,
-    "imageUrl": null
-}))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServer {
     pub id: String,
     pub name: String,
@@ -76,7 +63,7 @@ pub struct McpServer {
     pub image_url: Option<String>,
 }
 
-#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[derive(Debug, Deserialize)]
 pub struct McpServersQuery {
     #[serde(rename = "q")]
     pub query: Option<String>,
@@ -84,19 +71,7 @@ pub struct McpServersQuery {
     pub limit: Option<usize>,
 }
 
-#[derive(Debug, Serialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "servers": [{
-        "id": "filesystem",
-        "name": "Filesystem",
-        "tags": ["storage", "official"],
-        "vendor": "modelcontextprotocol",
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-filesystem"],
-        "vetted": true
-    }],
-    "cached": true
-}))]
+#[derive(Debug, Serialize)]
 pub struct McpServersResponse {
     pub servers: Vec<McpServer>,
     pub cached: bool,
@@ -401,19 +376,6 @@ pub fn apply_filters(
 
 // ── Handler ────────────────────────────────────────────────────────────────
 
-#[utoipa::path(
-    operation_id = "listMcpServers",
-    get,
-    path = "/api/v1/mcp/servers",
-    params(McpServersQuery),
-    responses(
-        (status = 200, description = "Filtered MCP server catalog", body = McpServersResponse),
-        (status = 400, description = "Query too long", body = crate::wire::ErrorResponse),
-        (status = 429, description = "Rate limited", body = crate::wire::ErrorResponse),
-    ),
-    security(),
-    tag = "runtime"
-)]
 pub async fn list_mcp_servers(
     Query(params): Query<McpServersQuery>,
     Extension(registry): Extension<Arc<McpRegistryState>>,

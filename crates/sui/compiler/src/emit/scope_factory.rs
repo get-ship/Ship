@@ -13,11 +13,20 @@
 //!    type heuristic against its RHS.
 //!
 //! Inferred types are best-effort string heuristics:
-//!  * `signal<T>(…)` → `Signal<T>`
-//!  * `signal(literal)` → `Signal<boolean | number | string | null>`
+//!  * `signal<T>(…)` → `Signal<T>`; `signal(literal)` → `Signal<typeof literal>`
+//!    (e.g. `signal(false)` → `Signal<boolean>`). The generic may itself be a
+//!    nested generic — `signal<Record<K, V>>(…)` — whose internal commas are
+//!    not entry separators (see `next_top_separator`/`skip_angle`).
 //!  * `ref<T>(…)` → `Signal<T | null>`; `ref(null)` → `Signal<HTMLElement | null>`
-//!  * `derived(() => …)` → `Signal<unknown>`
-//!  * `(...): T => …` / `(...) => {…}` → `(...args: unknown[]) => T | void`
+//!    (`Ref<T>` is itself an alias for `Signal<T | null>`, so this is exact).
+//!  * `derived(() => …)` / `computed` / `memo` → `Signal<unknown>` (the body's
+//!    return type is genuinely uninferrable from a byte scan; annotate
+//!    `derived<T>(…)` for a tighter type).
+//!  * `live(() => …)` → `LiveSignal<unknown>` (= `Signal<LiveState<unknown>>`),
+//!    or `LiveSignal<T>` when annotated `live<T>(…)`. The payload type usually
+//!    sits on an inner SDK call (`liveExpr<T>(…)`) referencing controller-local
+//!    types the `.d.ts` module can't import, so we don't fabricate it.
+//!  * `(...): T => …` / `(...) => {…}` → `(...args) => T | void`
 //!  * primitive literals (`42`, `'x'`, `true`) → primitive type
 //!  * anything else → `unknown`
 //!
@@ -40,6 +49,9 @@ pub fn extract(controller: &ParsedController) -> Vec<(String, String)> {
     let Some(obj_span) = locate_return_object(bytes, body_span) else {
         return Vec::new();
     };
+    // Types declared in the controller .ts (`interface Pin`, `type Foo`) can't
+    // resolve in the generated .sui.d.ts — see `downgrade_unresolvable`.
+    let locals = local_type_names(&controller.source);
     let mut out: Vec<(String, String)> = Vec::new();
     walk_entries(bytes, obj_span, |name, value_start, value_end| {
         let ty = if is_shorthand(bytes, name, value_start, value_end) {
@@ -48,9 +60,77 @@ pub fn extract(controller: &ParsedController) -> Vec<(String, String)> {
         } else {
             infer_ts_type(bytes, value_start, value_end)
         };
-        out.push((name.to_string(), ty));
+        out.push((name.to_string(), downgrade_unresolvable(&ty, &locals)));
     });
     out
+}
+
+/// Names declared locally in the controller source (`interface X`, `type X`,
+/// `enum X`, `class X`). These are visible to the controller's own type
+/// inference but NOT to the generated `.sui.d.ts`.
+fn local_type_names(source: &str) -> std::collections::HashSet<String> {
+    let mut set = std::collections::HashSet::new();
+    for kw in ["interface ", "type ", "enum ", "class "] {
+        let mut from = 0usize;
+        while let Some(rel) = source[from..].find(kw) {
+            let after = from + rel + kw.len();
+            let name: String = source[after..]
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !name.is_empty() {
+                set.insert(name);
+            }
+            from = after;
+        }
+    }
+    set
+}
+
+/// Downgrade a scope-factory field type whose generic references a
+/// controller-local type (e.g. `Signal<Pin[]>` where `Pin` is an `interface`
+/// in the controller) to `unknown`.
+///
+/// Why: the generated `.sui.d.ts` only imports the signal wrappers, so a
+/// dangling `Pin` degrades to `any` — and `any & <SC-inferred>` absorbs to
+/// `any`, muddying the controller's `MutableState`. `Signal<unknown>` instead
+/// resolves, and `unknown & Signal<Pin[]>` collapses to the precise `SC` type
+/// the controller's scope factory already carries. Precision lives in `SC`
+/// inference; the `.d.ts` stays self-contained. DOM/lib globals
+/// (`HTMLButtonElement`, `Record`, …) resolve fine and keep their generic.
+fn downgrade_unresolvable(ty: &str, locals: &std::collections::HashSet<String>) -> String {
+    let references_local = locals.iter().any(|n| word_appears(ty, n));
+    if !references_local {
+        return ty.to_string();
+    }
+    if ty.starts_with("Signal<LiveState<") {
+        "Signal<LiveState<unknown>>".to_string()
+    } else if ty.starts_with("LiveSignal<") {
+        "LiveSignal<unknown>".to_string()
+    } else if ty.starts_with("Signal<") {
+        "Signal<unknown>".to_string()
+    } else {
+        "unknown".to_string()
+    }
+}
+
+/// `word` occurs in `ty` bounded by non-identifier chars (so `Pin` matches in
+/// `Signal<Pin[]>` but not inside `Pinned`).
+fn word_appears(ty: &str, word: &str) -> bool {
+    let mut from = 0;
+    while let Some(rel) = ty[from..].find(word) {
+        let start = from + rel;
+        let end = start + word.len();
+        let before_ok = start == 0
+            || !ty.as_bytes()[start - 1].is_ascii_alphanumeric() && ty.as_bytes()[start - 1] != b'_';
+        let after_ok = end >= ty.len()
+            || !ty.as_bytes()[end].is_ascii_alphanumeric() && ty.as_bytes()[end] != b'_';
+        if before_ok && after_ok {
+            return true;
+        }
+        from = start + 1;
+    }
+    false
 }
 
 /// Find the byte span of the object literal returned by the factory.
@@ -405,6 +485,18 @@ fn infer_ts_type(bytes: &[u8], start: usize, end: usize) -> String {
                     Some(t) => format!("Signal<{t}>"),
                     None => "Signal<unknown>".to_string(),
                 },
+                // `live(thunk)` returns a `LiveSignal<T>` (= `Signal<LiveState<T>>`).
+                // When the author annotates `live<T>(…)` we honour it; otherwise the
+                // payload type lives on an inner SDK call (`liveExpr<T>(…)`) that
+                // references controller-local types the `.d.ts` module can't see, so
+                // we emit `LiveSignal<unknown>` rather than fabricate a broken ref.
+                // It's still a real, callable signal type — `sig()` yields
+                // `LiveState<unknown>` with its `kind`/`value` discriminant — which
+                // is what removes the `(sig as () => …)` thunk-casts at call sites.
+                "live" => match generic {
+                    Some(t) => format!("LiveSignal<{t}>"),
+                    None => "LiveSignal<unknown>".to_string(),
+                },
                 _ => "unknown".to_string(),
             };
         }
@@ -475,15 +567,26 @@ fn sanitize_arrow_params(raw: &str) -> String {
 
 /// Walk a TypeScript generic-args block starting at `bytes[start] == b'<'`.
 /// Returns the index immediately after the matching `>`; or `start` if
-/// the block is malformed.
+/// the block is malformed. String literals inside the args (string-literal
+/// union types like `signal<'a' | 'b'>(…)`) are skipped over rather than
+/// treated as a bail-out — that union is a perfectly good `Signal<'a' | 'b'>`.
 fn match_angle(bytes: &[u8], start: usize, end: usize) -> usize {
     if bytes[start] != b'<' {
         return start;
     }
     let mut depth = 0i32;
     let mut k = start;
+    let mut in_str: Option<u8> = None;
     while k < end {
-        match bytes[k] {
+        let c = bytes[k];
+        if let Some(q) = in_str {
+            if c == b'\\' { k = (k + 2).min(end); continue; }
+            if c == q { in_str = None; }
+            k += 1;
+            continue;
+        }
+        match c {
+            b'"' | b'\'' | b'`' => in_str = Some(c),
             b'<' => depth += 1,
             b'>' => {
                 depth -= 1;
@@ -491,7 +594,6 @@ fn match_angle(bytes: &[u8], start: usize, end: usize) -> usize {
                     return k + 1;
                 }
             }
-            b'"' | b'\'' | b'`' => return start, // string in type args — bail.
             _ => {}
         }
         k += 1;
@@ -635,11 +737,62 @@ fn next_top_separator(bytes: &[u8], start: usize, end: usize) -> usize {
         match c {
             b'"' | b'\'' | b'`' => { in_str = Some(c); k += 1; }
             b'(' | b'{' | b'[' => { k = skip_balanced(bytes, k, end); }
+            // A `<` in a generic position (`signal<Record<A, B>>(…)`) opens a
+            // type-argument block whose commas are NOT entry separators. Without
+            // skipping it, `signal<Record<Section, boolean>>(…)` truncated at the
+            // inner comma and the whole entry degraded to bare `unknown`. Only
+            // treat `<` as a generic when it follows an identifier char (`Foo<`)
+            // so we don't misread a stray comparison.
+            b'<' if k > start && is_ident_cont(bytes[k - 1]) => {
+                k = skip_angle(bytes, k, end);
+            }
             b',' | b'}' => return k,
             _ => k += 1,
         }
     }
     end
+}
+
+/// Skip a balanced `<…>` generic block starting at `bytes[i] == b'<'`.
+/// Returns the index just past the matching `>`, or `i + 1` if it can't
+/// balance (so the caller still makes progress). Tracks `(`/`{`/`[` and
+/// string literals inside the type args, and ignores `=>` / `<=` / `>=`
+/// so an arrow or comparison inside the block doesn't unbalance the count.
+fn skip_angle(bytes: &[u8], i: usize, end: usize) -> usize {
+    if i >= end || bytes[i] != b'<' {
+        return (i + 1).min(end);
+    }
+    let mut depth = 0i32;
+    let mut k = i;
+    let mut in_str: Option<u8> = None;
+    while k < end {
+        let c = bytes[k];
+        if let Some(q) = in_str {
+            if c == b'\\' { k = (k + 2).min(end); continue; }
+            if c == q { in_str = None; }
+            k += 1;
+            continue;
+        }
+        match c {
+            b'"' | b'\'' | b'`' => { in_str = Some(c); k += 1; }
+            b'(' | b'{' | b'[' => { k = skip_balanced(bytes, k, end); }
+            // `=>` is an arrow, not a closing angle.
+            b'=' if k + 1 < end && bytes[k + 1] == b'>' => { k += 2; }
+            // `<=` / `>=` are comparisons, not bracket motion.
+            b'<' if k + 1 < end && bytes[k + 1] == b'=' => { k += 2; }
+            b'>' if k + 1 < end && bytes[k + 1] == b'=' => { k += 2; }
+            b'<' => { depth += 1; k += 1; }
+            b'>' => {
+                depth -= 1;
+                k += 1;
+                if depth == 0 {
+                    return k;
+                }
+            }
+            _ => k += 1,
+        }
+    }
+    (i + 1).min(end)
 }
 
 fn advance_past_entry(bytes: &[u8], start: usize, end: usize) -> usize {
@@ -779,6 +932,106 @@ mod tests {
     fn missing_scope_section_returns_no_entries() {
         let c = ctrl("export default controller({ on: { click: () => {} } });");
         assert!(extract(&c).is_empty());
+    }
+
+    #[test]
+    fn live_without_generic_is_live_signal_unknown() {
+        let c = ctrl(
+            "export default controller({\n  \
+             scope: () => ({\n    \
+               rail: live(() => liveExpr(`ship.skills.summaries()`)),\n  \
+             }),\n});",
+        );
+        let v = extract(&c);
+        assert_eq!(names_types(&v), vec![("rail", "LiveSignal<unknown>")]);
+    }
+
+    #[test]
+    fn live_with_explicit_generic_uses_it() {
+        let c = ctrl(
+            "export default controller({\n  \
+             scope: () => ({\n    \
+               agents: live<AgentList>(() => ship.agents.summaries()),\n  \
+             }),\n});",
+        );
+        let v = extract(&c);
+        assert_eq!(names_types(&v), vec![("agents", "LiveSignal<AgentList>")]);
+    }
+
+    #[test]
+    fn controller_local_type_downgrades_to_unknown() {
+        // `Pin` is declared in the controller, so the generated .sui.d.ts
+        // can't resolve it — emit Signal<unknown> (the controller's SC
+        // inference carries the precise Signal<Pin[]>). DOM/lib globals and
+        // un-declared (imported) names are left untouched.
+        let c = ctrl(
+            "interface Pin { id: string }\n\
+             export default controller({\n  \
+             scope: () => ({\n    \
+               pins: signal<Pin[]>([]),\n    \
+               btn: ref<HTMLButtonElement>(null),\n  \
+             }),\n});",
+        );
+        let v = extract(&c);
+        assert_eq!(
+            names_types(&v),
+            vec![("pins", "Signal<unknown>"), ("btn", "Signal<HTMLButtonElement | null>")],
+        );
+    }
+
+    #[test]
+    fn live_inner_call_generic_does_not_leak_into_type() {
+        // The payload generic on the inner `liveExpr<RailValue>(…)` references a
+        // controller-local type the `.d.ts` can't import — must NOT be emitted as
+        // the LiveSignal arg (that's a broken ref). Stays `LiveSignal<unknown>`.
+        let c = ctrl(
+            "export default controller({\n  \
+             scope: () => ({\n    \
+               rail: live(() => liveExpr<RailValue>(`ship.skills.summaries()`)),\n  \
+             }),\n});",
+        );
+        let v = extract(&c);
+        assert_eq!(names_types(&v), vec![("rail", "LiveSignal<unknown>")]);
+    }
+
+    #[test]
+    fn signal_string_literal_union_generic_is_inferred() {
+        // Regression: `match_angle` bailed on the first string literal in the
+        // type args, so `signal<'a' | 'b'>(…)` degraded to bare `unknown`.
+        let c = ctrl(
+            "export default controller({\n  \
+             scope: () => ({\n    \
+               tab: signal<'schema' | 'rows' | 'jsonc'>('schema'),\n  \
+             }),\n});",
+        );
+        let v = extract(&c);
+        assert_eq!(
+            names_types(&v),
+            vec![("tab", "Signal<'schema' | 'rows' | 'jsonc'>")]
+        );
+    }
+
+    #[test]
+    fn nested_generic_signal_is_not_truncated_at_inner_comma() {
+        // Regression: `signal<Record<K, V>>(…)` truncated the value span at the
+        // first top-level comma (inside the generic), degrading the whole entry
+        // to bare `unknown`. The angle-aware separator keeps the full type.
+        let c = ctrl(
+            "export default controller({\n  \
+             scope: () => ({\n    \
+               open: signal<Record<Section, boolean>>({ a: true }),\n    \
+               q: signal(''),\n  \
+             }),\n});",
+        );
+        let v = extract(&c);
+        let map = names_types(&v);
+        assert!(
+            map.contains(&("open", "Signal<Record<Section, boolean>>")),
+            "{map:?}"
+        );
+        // The trailing entry must still be discovered (proves we resumed
+        // scanning past the generic, not swallowed the rest of the object).
+        assert!(map.contains(&("q", "Signal<string>")), "{map:?}");
     }
 
     #[test]

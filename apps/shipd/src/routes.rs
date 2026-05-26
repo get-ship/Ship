@@ -44,11 +44,8 @@ pub mod agent_sessions_attach;
 #[cfg(test)]
 mod agent_sessions_attach_tests;
 pub mod mcp_registry;
-pub mod agents_api;
-pub mod analytics_api;
 pub mod annotations_api;
 pub mod artifacts_api;
-pub mod collection_api;
 pub mod commands_api;
 pub mod create_api;
 #[cfg(test)]
@@ -58,15 +55,6 @@ pub mod git_api;
 pub mod hooks_api;
 pub mod human_webhook;
 pub mod logs_api;
-pub mod mcp_api;
-pub mod openapi;
-pub mod permissions_api;
-pub mod pipelines_api;
-pub mod rules_api;
-pub mod skills_api;
-pub mod openapi_modifier;
-pub mod openapi_types;
-pub mod projects_api;
 pub mod registry_api;
 pub mod rest_api;
 pub mod runtime_api;
@@ -77,7 +65,6 @@ mod search_api_tests;
 #[cfg(test)]
 mod scope_enforcement_tests;
 pub mod settings_api;
-pub mod specs_api;
 pub mod themes_api;
 pub mod view_edit_mode_api;
 pub mod view_edit_tool_api;
@@ -135,12 +122,6 @@ pub enum Route {
     /// @auth cli
     LogoutAccount,
 
-    /// Transitional bridge — returns the stored API key for legacy
-    /// CLI call sites (publish, convert) that still hit the gateway
-    /// directly. Remove once those route through the daemon.
-    /// @route GET "/api/v1/account/key"
-    /// @auth cli
-    GetAccountKey,
 
     // ── Shared assets (unauthenticated) ──────────────────────────────────
 
@@ -190,6 +171,10 @@ pub enum Route {
     /// @auth public
     SuiLucideIconsJson,
 
+    /// @route GET "/_sui/live-reload.js"
+    /// @auth public
+    SuiLiveReloadJs,
+
     /// @route GET "/_sui/sui-components/{file}"
     /// @auth public
     SuiComponentBundle { file: String },
@@ -222,14 +207,6 @@ pub enum Route {
     /// @auth public
     SuiViewHostForName { name: String },
 
-    /// @route GET "/_sui/hmr"
-    /// @auth public
-    SuiHmr,
-
-    /// @route GET "/_sui/hmr-client.js"
-    /// @auth public
-    SuiHmrClientJs,
-
     /// @route GET "/_sui/dev/hmr"
     /// @auth public
     SuiDevHmr,
@@ -250,221 +227,17 @@ pub enum Route {
     /// @auth public
     SuiSource { tag: String },
 
-    // ── AgentService — service-shaped CRUD + lifecycle ──
-
-    /// @route GET "/api/v1/agents"
-    /// @auth scope ReadWorkspace
-    AgentsList,
-
-    /// @route GET "/api/v1/agents/{id}"
-    /// @auth scope ReadWorkspace
-    AgentsGet { id: String },
-
-    /// @route PUT "/api/v1/agents/{id}"
-    /// @auth scope WriteWorkspace
-    AgentsPut { id: String },
-
-    /// @route PATCH "/api/v1/agents/{id}"
-    /// @auth scope WriteWorkspace
-    AgentsPatch { id: String },
-
-    /// @route DELETE "/api/v1/agents/{id}"
-    /// @auth scope WriteWorkspace
-    AgentsDelete { id: String },
-
-    /// @route POST "/api/v1/agents"
-    /// @auth scope CreateRuns
-    AgentsCreate,
-
-    /// @route POST "/api/v1/agents/{id}/rename"
-    /// @auth scope WriteWorkspace
-    AgentsRename { id: String },
-
-    /// @route POST "/api/v1/agents/{id}/duplicate"
-    /// @auth scope CreateRuns
-    AgentsDuplicate { id: String },
-
-    /// @route POST "/api/v1/agents/{id}/move"
-    /// @auth scope WriteWorkspace
-    AgentsMove { id: String },
-
     // ── PipelineService — service-shaped CRUD + run ops ──
-
-    /// @route GET "/api/v1/pipelines"
-    /// @auth scope ReadRuns
-    PipelinesList,
-
-    /// @route GET "/api/v1/pipelines/{name}"
-    /// @auth scope ReadRuns
-    PipelinesGet { name: String },
-
-    /// @route PUT "/api/v1/pipelines/{name}"
-    /// @auth scope WriteWorkspace
-    PipelinesPut { name: String },
-
-    /// @route PATCH "/api/v1/pipelines/{name}"
-    /// @auth scope WriteWorkspace
-    PipelinesPatch { name: String },
-
-    /// @route DELETE "/api/v1/pipelines/{name}"
-    /// @auth scope WriteWorkspace
-    PipelinesDelete { name: String },
-
-    /// @route POST "/api/v1/pipelines/{name}/dispatch"
-    /// @auth scope CreateRuns
-    PipelinesDispatch { name: String },
 
     /// @route POST "/api/v1/pipelines/run"
     /// @auth scope CreateRuns
     PipelinesRun,
 
-    /// @route POST "/api/v1/pipelines/runs/{slug}/cancel"
-    /// @auth scope ManageRuns
-    PipelineRunCancel { slug: String },
-
-    /// @route GET "/api/v1/pipelines/runs"
-    /// @auth scope ReadRuns
-    PipelineRunsList,
-
-    /// @route GET "/api/v1/pipelines/runs/{slug}"
-    /// @auth scope ReadRuns
-    PipelineRunGet { slug: String },
-
     /// @route GET "/api/v1/pipelines/runs/{slug}/log/stream"
     /// @auth scope ReadRuns
     PipelineRunLogStream { slug: String },
 
-    // ── RuleService — markdown rules at <scope>/rules/<id>.md ──
-
-    /// @route GET "/api/v1/rules"
-    /// @auth scope ReadWorkspace
-    RulesList,
-
-    /// @route GET "/api/v1/rules/{id}"
-    /// @auth scope ReadWorkspace
-    RulesGet { id: String },
-
-    /// @route PUT "/api/v1/rules/{id}"
-    /// @auth scope WriteWorkspace
-    RulesPut { id: String },
-
-    /// @route DELETE "/api/v1/rules/{id}"
-    /// @auth scope WriteWorkspace
-    RulesDelete { id: String },
-
-    /// @route POST "/api/v1/rules"
-    /// @auth scope CreateRuns
-    RulesCreate,
-
-    // ── McpService — entries in <scope>/mcp.jsonc ──
-
-    /// @route GET "/api/v1/mcp"
-    /// @auth scope ReadWorkspace
-    McpList,
-
-    /// @route GET "/api/v1/mcp/{id}"
-    /// @auth scope ReadWorkspace
-    McpGet { id: String },
-
-    /// @route PUT "/api/v1/mcp/{id}"
-    /// @auth scope WriteWorkspace
-    McpPut { id: String },
-
-    /// @route PATCH "/api/v1/mcp/{id}"
-    /// @auth scope WriteWorkspace
-    McpPatch { id: String },
-
-    /// @route DELETE "/api/v1/mcp/{id}"
-    /// @auth scope WriteWorkspace
-    McpDelete { id: String },
-
-    /// @route POST "/api/v1/mcp"
-    /// @auth scope CreateRuns
-    McpCreate,
-
-    // ── PermissionService — preset entries in <scope>/permissions.jsonc ──
-
-    /// @route GET "/api/v1/permissions"
-    /// @auth scope ReadWorkspace
-    PermissionsList,
-
-    /// @route GET "/api/v1/permissions/tool-patterns"
-    /// @auth scope ReadWorkspace
-    PermissionsToolPatterns,
-
-    /// @route GET "/api/v1/permissions/{id}"
-    /// @auth scope ReadWorkspace
-    PermissionsGet { id: String },
-
-    /// @route PUT "/api/v1/permissions/{id}"
-    /// @auth scope WriteWorkspace
-    PermissionsPut { id: String },
-
-    /// @route PATCH "/api/v1/permissions/{id}"
-    /// @auth scope WriteWorkspace
-    PermissionsPatch { id: String },
-
-    /// @route DELETE "/api/v1/permissions/{id}"
-    /// @auth scope WriteWorkspace
-    PermissionsDelete { id: String },
-
-    /// @route POST "/api/v1/permissions"
-    /// @auth scope CreateRuns
-    PermissionsCreate,
-
-    // ── SkillService — service-shaped CRUD + vars ──
-
-    /// @route GET "/api/v1/skills"
-    /// @auth scope ReadWorkspace
-    SkillsList,
-
-    /// @route GET "/api/v1/skills/{id}"
-    /// @auth scope ReadWorkspace
-    SkillsGet { id: String },
-
-    /// @route POST "/api/v1/skills"
-    /// @auth scope CreateRuns
-    SkillsCreate,
-
-    /// @route DELETE "/api/v1/skills/{id}"
-    /// @auth scope WriteWorkspace
-    SkillsDelete { id: String },
-
-    /// @route PUT "/api/v1/skills/{id}/frontmatter"
-    /// @auth scope WriteWorkspace
-    SkillsPutFrontmatter { id: String },
-
-    /// @route PUT "/api/v1/skills/{id}/body"
-    /// @auth scope WriteWorkspace
-    SkillsPutBody { id: String },
-
-    /// @route POST "/api/v1/skills/{id}/rename"
-    /// @auth scope WriteWorkspace
-    SkillsRename { id: String },
-
-    /// @route POST "/api/v1/skills/{id}/duplicate"
-    /// @auth scope CreateRuns
-    SkillsDuplicate { id: String },
-
-    /// @route POST "/api/v1/skills/{id}/move"
-    /// @auth scope WriteWorkspace
-    SkillsMove { id: String },
-
-    /// @route GET "/api/v1/skills/{id}/vars"
-    /// @auth scope ReadWorkspace
-    SkillsGetVars { id: String },
-
-    /// @route PUT "/api/v1/skills/{id}/vars/{key}"
-    /// @auth scope WriteWorkspace
-    SkillsPutVar { id: String, key: String },
-
-    /// @route DELETE "/api/v1/skills/{id}/vars/{key}"
-    /// @auth scope WriteWorkspace
-    SkillsDeleteVar { id: String, key: String },
-
-    /// @route POST "/api/v1/skills/{id}/invoke"
-    /// @auth scope ManageRuns
-    SkillsInvoke { id: String },
+    // ── Chat (command-bar send) ──────────────────────────────────────────
 
     /// @route POST "/api/v1/chat/send"
     /// @auth scope ManageRuns
@@ -472,17 +245,9 @@ pub enum Route {
 
     // ── Generic view serving ─────────────────────────────────────────────
 
-    /// @route GET "/api/v1/views"
-    /// @auth scope ReadWorkspace
-    ListViews,
-
     /// @route GET "/api/v1/ship/schema"
     /// @auth scope ReadWorkspace
     ShipSchema,
-
-    /// @route GET "/api/v1/view-source/{*path}"
-    /// @auth scope ReadWorkspace
-    ServeViewSource { path: String },
 
     /// @route GET "/api/v1/views/{name}/files"
     /// @auth scope ReadWorkspace
@@ -552,26 +317,6 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     InstalledProviders,
 
-    /// @route GET "/api/v1/projects"
-    /// @auth scope ReadWorkspace
-    ListProjects,
-
-    /// @route POST "/api/v1/projects"
-    /// @auth scope WriteWorkspace
-    AddProject,
-
-    /// @route POST "/api/v1/projects/switch"
-    /// @auth scope WriteWorkspace
-    SwitchProject,
-
-    /// @route POST "/api/v1/projects/{id}/activate"
-    /// @auth scope WriteWorkspace
-    ActivateProject { id: String },
-
-    /// @route GET "/api/v1/projects/active"
-    /// @auth scope ReadWorkspace
-    GetActiveProject,
-
     /// @route GET "/api/v1/sessions/active-across-projects"
     /// @auth scope ReadWorkspace
     ListSessionsAcrossProjects,
@@ -624,14 +369,6 @@ pub enum Route {
 
     // ── Runtime listings ─────────────────────────────────────────────────
 
-    /// @route GET "/api/v1/sessions"
-    /// @auth scope ReadWorkspace
-    ListSessions,
-
-    /// @route GET "/api/v1/agents/active"
-    /// @auth scope ReadWorkspace
-    ListAgents,
-
     /// @route POST "/api/v1/agents/{slug}/stop"
     /// @auth scope ManageRuns
     StopAgent { slug: String },
@@ -680,43 +417,9 @@ pub enum Route {
 
     // ── Process projection / events polling / daemon status (slice 6) ────
 
-    /// @route GET "/api/v1/procs"
-    /// @auth scope ReadWorkspace
-    ListProcs,
-
-    /// @route GET "/api/v1/events/poll"
-    /// @auth scope ReadWorkspace
-    PollEvents,
-
-    /// @route GET "/api/v1/daemon/status"
+    /// @route GET "/daemon/status"
     /// @auth scope ReadWorkspace
     DaemonStatus,
-
-    // ── Specs ────────────────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/specs"
-    /// @auth scope ReadRuns
-    ListSpecs,
-
-    /// @route POST "/api/v1/specs"
-    /// @auth scope CreateRuns
-    CreateSpec,
-
-    /// @route GET "/api/v1/specs/{id}"
-    /// @auth scope ReadRuns
-    GetSpec { id: String },
-
-    /// @route PUT "/api/v1/specs/{id}"
-    /// @auth scope WriteWorkspace
-    UpdateSpec { id: String },
-
-    /// @route DELETE "/api/v1/specs/{id}"
-    /// @auth scope WriteWorkspace
-    DeleteSpec { id: String },
-
-    /// @route POST "/api/v1/specs/{id}/launch"
-    /// @auth scope CreateRuns
-    LaunchSpec { id: String },
 
     // ── Events / projections ─────────────────────────────────────────────
 
@@ -733,18 +436,6 @@ pub enum Route {
     ProjectPty { id: String },
 
     // ── Settings / harnesses ─────────────────────────────────────────────
-
-    /// @route GET "/api/v1/settings"
-    /// @auth scope ReadWorkspace
-    ListSettings,
-
-    /// @route PUT "/api/v1/settings"
-    /// @auth scope AdminDaemon
-    UpdateSetting,
-
-    /// @route GET "/api/v1/settings/{key}"
-    /// @auth scope ReadWorkspace
-    GetSetting { key: String },
 
     /// @route GET "/api/v1/harnesses"
     /// @auth scope ReadWorkspace
@@ -763,22 +454,6 @@ pub enum Route {
     ListProjectAgents { id: String },
 
     // ── GitService — canonical `/api/git/*` surface ──────────────────────
-
-    /// @route GET "/api/v1/git/status"
-    /// @auth scope ReadWorkspace
-    GitStatus,
-
-    /// @route GET "/api/v1/git/diff"
-    /// @auth scope ReadWorkspace
-    GitDiff,
-
-    /// @route GET "/api/v1/git/log"
-    /// @auth scope ReadWorkspace
-    GitLog,
-
-    /// @route GET "/api/v1/git/branches"
-    /// @auth scope ReadWorkspace
-    GitBranches,
 
     /// @route POST "/api/v1/git/stage"
     /// @auth scope WriteWorkspace
@@ -897,58 +572,6 @@ pub enum Route {
     /// @auth scope MeshSend
     KillTree { actor_id: String },
 
-    // ── Analytics (ship-analytics projection) ────────────────────────────
-
-    /// @route GET "/api/v1/analytics/sessions"
-    /// @auth scope ReadWorkspace
-    ListAnalyticsSessions,
-
-    /// @route GET "/api/v1/analytics/sessions/{session_key}"
-    /// @auth scope ReadWorkspace
-    GetAnalyticsSession { session_key: String },
-
-    /// @route GET "/api/v1/analytics/tool-usage"
-    /// @auth scope ReadWorkspace
-    AnalyticsToolUsage,
-
-    /// @route GET "/api/v1/analytics/sessions/{session_key}/turns"
-    /// @auth scope ReadWorkspace
-    AnalyticsSessionTurns { session_key: String },
-
-    // ── Collections ──────────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/collections"
-    /// @auth scope ReadWorkspace
-    ListCollections,
-
-    /// @route GET "/api/v1/collections/{collection}/schema"
-    /// @auth scope ReadWorkspace
-    GetCollectionSchema { collection: String },
-
-    /// @route PUT "/api/v1/collections/{collection}/schema"
-    /// @auth scope WriteWorkspace
-    UpdateCollectionSchema { collection: String },
-
-    /// @route POST "/api/v1/collections/{collection}/items"
-    /// @auth scope WriteWorkspace
-    CreateCollectionItem { collection: String },
-
-    /// @route GET "/api/v1/collections/{collection}/items/{item_id}"
-    /// @auth scope ReadWorkspace
-    GetCollectionItem { collection: String, item_id: String },
-
-    /// @route PUT "/api/v1/collections/{collection}/items/{item_id}"
-    /// @auth scope WriteWorkspace
-    UpdateCollectionItem { collection: String, item_id: String },
-
-    /// @route DELETE "/api/v1/collections/{collection}/items/{item_id}"
-    /// @auth scope WriteWorkspace
-    DeleteCollectionItem { collection: String, item_id: String },
-
-    /// @route POST "/api/v1/collections/{collection}/query"
-    /// @auth scope ReadWorkspace
-    QueryCollection { collection: String },
-
     // ── Artifacts ────────────────────────────────────────────────────────
     // The list/upload/download/metadata/patch/delete handlers compute the
     // required scope dynamically from the artifact's stored `scope` field
@@ -962,10 +585,6 @@ pub enum Route {
     /// @auth handler
     ArtifactsUpload,
 
-    /// @route GET "/api/v1/artifacts"
-    /// @auth handler
-    ArtifactsList,
-
     /// @route GET "/api/v1/artifacts/{id}"
     /// @auth handler
     ArtifactDownload { id: String },
@@ -974,18 +593,6 @@ pub enum Route {
     /// @route GET "/api/v1/artifacts/{id}/metadata"
     /// @auth handler
     ArtifactMetadata { id: String },
-
-    /// @route PATCH "/api/v1/artifacts/{id}"
-    /// @auth handler
-    ArtifactPatch { id: String },
-
-    /// @route DELETE "/api/v1/artifacts/{id}"
-    /// @auth handler
-    ArtifactDelete { id: String },
-
-    /// @route POST "/api/v1/artifacts/{id}/promote"
-    /// @auth scope PromoteArtifact
-    ArtifactPromote { id: String },
 
     // ── Capabilities ─────────────────────────────────────────────────────
 

@@ -150,11 +150,39 @@ export function route(opts?: { url?: URL; routes?: RouteShape[] }): RouteSignals
 }
 
 /**
- * SPA-aware navigation. Pushes (or replaces) `path` into history and
- * fires the global route updater so every attached `route()` instance
- * re-evaluates its signals against the new URL.
+ * A host-supplied router. The runtime owns the *mechanism* (the reactive
+ * `route.*` signals); the host (Deck shell, Tauri shell, view-host) owns
+ * the *policy* — history, path→view matching, and mounting. `navigate()`
+ * delegates here so a single call from any bundle actually navigates.
  *
- * Outside the browser (no `window.history`), this is a no-op.
+ * Registered via {@link setRouterPort}. Mirrors `SuiLoader` / `ShipHost`:
+ * the runtime names no host concept, the host plugs one in.
+ */
+export interface RouterPort {
+  /** Navigate to `to` (a path). The host matches, updates history, and
+   *  mounts or updates the view as appropriate. */
+  navigate(to: string, opts?: { replace?: boolean }): void
+  /** Go back one history entry. */
+  back(): void
+}
+
+/**
+ * Register the host router. Call once at host startup. The port is held
+ * on `globalThis` so it is visible to every bundle that shares the single
+ * `@ship/sui-runtime` instance (matching `__shipSetRouteUpdate`).
+ */
+export function setRouterPort(port: RouterPort): void {
+  globalThis.__shipRouterPort = port
+}
+
+/**
+ * SPA-aware navigation. Delegates to the host {@link RouterPort} when one
+ * is registered — the host owns matching + mounting, so this actually
+ * switches views.
+ *
+ * When no port is registered (a single-view host like the view-host, or
+ * tests), it falls back to updating the URL + reactive `route.*` signals
+ * in place. Cross-view mounting requires a host router.
  *
  * ```ts
  * navigate('/agents/42')
@@ -162,6 +190,11 @@ export function route(opts?: { url?: URL; routes?: RouteShape[] }): RouteSignals
  * ```
  */
 export function navigate(path: string, opts: { replace?: boolean } = {}): void {
+  const port = globalThis.__shipRouterPort
+  if (port) {
+    port.navigate(path, opts)
+    return
+  }
   if (typeof window === 'undefined' || !window.history) return
   if (opts.replace) {
     window.history.replaceState({}, '', path)
@@ -293,4 +326,6 @@ function ensurePopstateListener(): void {
 declare global {
   // eslint-disable-next-line no-var
   var __shipSetRouteUpdate: (() => void) | undefined
+  // eslint-disable-next-line no-var
+  var __shipRouterPort: RouterPort | undefined
 }

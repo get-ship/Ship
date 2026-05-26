@@ -66,22 +66,6 @@ fn ok<T: serde::Serialize>(value: &T) -> Response {
     }
 }
 
-#[utoipa::path(
-    operation_id = "viewEditTool",
-    post,
-    path = "/api/v1/views/{name}/edit/tool",
-    request_body(
-        content_type = "application/json",
-        description = "Dispatch a view.* tool against {name}"
-    ),
-    responses(
-        (status = 200, description = "Tool result"),
-        (status = 400, description = "Invalid body"),
-        (status = 403, description = "Calling session not in view-edit mode"),
-        (status = 404, description = "View not found"),
-    ),
-    tag = "view-authoring"
-)]
 pub async fn dispatch_tool(
     Path(name): Path<String>,
     State(state): State<ApiState>,

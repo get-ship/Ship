@@ -8,25 +8,13 @@ use serde::Deserialize;
 use crate::ship_runtime::ApiState;
 use crate::wire::MeshResponse;
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct ChatSendRequest {
     pub text: String,
     #[serde(default)]
     pub workspace_id: Option<String>,
 }
 
-#[utoipa::path(
-    operation_id = "chatSend",
-    post,
-    path = "/api/v1/chat/send",
-    request_body = ChatSendRequest,
-    responses(
-        (status = 200, description = "Message emitted as studio.message kernel event"),
-        (status = 400, description = "Empty message body"),
-        (status = 500, description = "Kernel routing failed"),
-    ),
-    tag = "chat"
-)]
 pub async fn send_message(
     State(state): State<ApiState>,
     Json(req): Json<ChatSendRequest>,

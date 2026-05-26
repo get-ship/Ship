@@ -29,13 +29,21 @@ describe('<sui-nav-top>', () => {
     expect(shadow(el).querySelector('[part~="crumbs"]')).not.toBeNull()
   })
 
-  it('renders all action buttons', async () => {
+  it('renders the action cluster (fullscreen, theme picker, account menu)', async () => {
     const { el } = mount(reg, 'sui-nav-top')
     await flush()
     const shadow_ = shadow(el)
-    expect(shadow_.querySelector('[part~="rail-toggle"]')).not.toBeNull()
-    expect(shadow_.querySelector('[part~="dock-toggle"]')).not.toBeNull()
     expect(shadow_.querySelector('[part~="fullscreen"]')).not.toBeNull()
+    expect(shadow_.querySelector('sui-theme-picker')).not.toBeNull()
+    expect(shadow_.querySelector('sui-account-menu')).not.toBeNull()
+  })
+
+  it('has no rail-toggle or dock-toggle button (dropped — rail + dock own their own controls)', async () => {
+    const { el } = mount(reg, 'sui-nav-top')
+    await flush()
+    const shadow_ = shadow(el)
+    expect(shadow_.querySelector('[part~="rail-toggle"]')).toBeNull()
+    expect(shadow_.querySelector('[part~="dock-toggle"]')).toBeNull()
   })
 
   it('has no chat-toggle button (removed)', async () => {
@@ -55,11 +63,11 @@ describe('<sui-nav-top>', () => {
     expect(picker.getAttribute('placement')).toBe('bottom-end')
   })
 
-  it('path="" renders "dashboard" crumb as fallback', async () => {
+  it('path="" renders no view crumb (home — the brand logo is the home button)', async () => {
     const { el } = mount(reg, 'sui-nav-top', { path: '' })
     await flush()
     const crumbs = shadow(el).querySelector('.crumbs')!
-    expect(crumbs.textContent).toContain('Dashboard')
+    expect(crumbs.querySelector('a')).toBeNull()
   })
 
   it('path prop drives breadcrumb content', async () => {
@@ -96,33 +104,6 @@ describe('<sui-nav-top>', () => {
     expect(shadow(el).querySelector('.crumbs')!.textContent).toContain('Git')
   })
 
-  it('rail-toggle button dispatches sui:rail:toggle when clicked', async () => {
-    const { el } = mount(reg, 'sui-nav-top')
-    await flush()
-    const events: Event[] = []
-    el.addEventListener('sui:rail:toggle', (e) => events.push(e))
-    const btn = shadow(el).querySelector<HTMLElement>('[part~="rail-toggle"]')!
-    btn.click()
-    await flush()
-    expect(events).toHaveLength(1)
-  })
-
-  it('dock-toggle button dispatches sui:dock:toggle on document via chrome.dock.toggle', async () => {
-    const { el } = mount(reg, 'sui-nav-top')
-    await flush()
-    const events: Event[] = []
-    const onDoc = (e: Event): void => { events.push(e) }
-    document.addEventListener('sui:dock:toggle', onDoc)
-    try {
-      const btn = shadow(el).querySelector<HTMLElement>('[part~="dock-toggle"]')!
-      btn.click()
-      await flush()
-      expect(events).toHaveLength(1)
-    } finally {
-      document.removeEventListener('sui:dock:toggle', onDoc)
-    }
-  })
-
   it('dispatches sui:nav-top:ready on connect', async () => {
     const events: Event[] = []
     const container = reg.mk()
@@ -143,13 +124,6 @@ describe('<sui-nav-top>', () => {
     const { el } = mount(reg, 'sui-nav-top')
     const slot = shadow(el).querySelector<HTMLSlotElement>('slot[name="command-bar"]')
     expect(slot).not.toBeNull()
-  })
-
-  it('dock-toggle has aria-pressed attribute', async () => {
-    const { el } = mount(reg, 'sui-nav-top')
-    await flush()
-    const btn = shadow(el).querySelector('[part~="dock-toggle"]')!
-    expect(btn.hasAttribute('aria-pressed')).toBe(true)
   })
 
   it('project prop prepends a home-linked crumb', async () => {

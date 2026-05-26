@@ -1,18 +1,16 @@
 //! Split off from runtime_api.rs (mr-04 follow-up).
 
 use axum::{
-    Json,
-    extract::{Query, State},
+    extract::State,
     http::StatusCode,
-    response::IntoResponse,
 };
 use axum::response::sse::{Event, KeepAlive, Sse};
 use ship_substrate::events::ActorConfig;
 use serde::Deserialize;
 
-use crate::routes::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::ApiState;
 
-#[derive(Deserialize, utoipa::IntoParams)]
+#[derive(Deserialize)]
 pub struct EventsPollQuery {
     /// ULID cursor — return events with id > since_id, ordered ASC.
     pub since_id: Option<String>,
@@ -24,57 +22,29 @@ pub struct EventsPollQuery {
     pub limit: Option<usize>,
 }
 
-/// GET /api/v1/runtime/events/poll
-///
-/// Polling fallback for `ship tail`. SSE replays only future events;
-/// poll allows the CLI to walk the log forward from a known cursor.
-/// Use `since_id` (ULID) for incremental polling. Limit defaults to 200.
-#[utoipa::path(
-    operation_id = "pollEvents",
-    get,
-    path = "/api/v1/events/poll",
-    params(EventsPollQuery),
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
-pub async fn poll_events(
-    State(state): State<ApiState>,
-    Query(params): Query<EventsPollQuery>,
-) -> impl IntoResponse {
-    let limit = params.limit.unwrap_or(200).min(2000);
-    let ship_dir = state.ship_dir();
-    if let Err(e) = ship_substrate::db::ensure_db_at(ship_dir) {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
-        );
-    }
-    // Read the most recent N events ascending; we filter in memory.
-    let events = match ship_substrate::db::events::list_recent_events_at(ship_dir, 5_000) {
-        Ok(e) => e,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
-            );
-        }
-    };
-
-    let cursor = params.since_id.as_deref();
-    let slug = params.slug.as_deref();
-    let ns = params.namespace.as_deref();
+/// Cursor-walk poll core, shared by the REST handler and `EventsService.Poll`
+/// (#141). Reads the most recent events ascending and filters in memory by
+/// `since_id` cursor, namespace prefix, and slug (envelope `entity_id` or
+/// payload `"slug"`). Returns `{ "events": [...] }`.
+pub fn poll_events_core(
+    ship_dir: &std::path::Path,
+    since_id: Option<&str>,
+    slug: Option<&str>,
+    namespace: Option<&str>,
+    limit: usize,
+) -> Result<serde_json::Value, String> {
+    let limit = limit.min(2000);
+    ship_substrate::db::ensure_db_at(ship_dir).map_err(|e| e.to_string())?;
+    let events = ship_substrate::db::events::list_recent_events_at(ship_dir, 5_000)
+        .map_err(|e| e.to_string())?;
 
     let filtered: Vec<_> = events
         .into_iter()
-        .filter(|e| match cursor {
+        .filter(|e| match since_id {
             Some(c) => e.id.as_str() > c,
             None => true,
         })
-        .filter(|e| match ns {
+        .filter(|e| match namespace {
             Some(prefix) => e.event_type.starts_with(&format!("{prefix}.")),
             None => true,
         })
@@ -94,13 +64,7 @@ pub async fn poll_events(
         .take(limit)
         .collect();
 
-    (
-        StatusCode::OK,
-        Json(MeshResponse {
-            ok: true,
-            data: serde_json::json!({ "events": filtered }),
-        }),
-    )
+    Ok(serde_json::json!({ "events": filtered }))
 }
 
 // `ActorGuard` moved to `ship_runtime` (alongside `SharedKernel`) so
@@ -108,17 +72,6 @@ pub async fn poll_events(
 // banned by check-module-dag).
 
 /// GET /api/v1/runtime/events — SSE stream of all kernel events.
-#[utoipa::path(
-    operation_id = "eventStream",
-    get,
-    path = "/api/v1/events",
-    responses(
-        (status = 200, description = "SSE stream of kernel events"),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn event_stream(
     State(state): State<ApiState>,
 ) -> Result<Sse<impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>>>, (StatusCode, String)> {

@@ -1,0 +1,26 @@
+[package]
+name = "deck-axum"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Axum adapter for deck-core — maps DeckResponse onto axum responses and registers deck's hosting surface as a mountable router."
+
+[lib]
+name = "deck_axum"
+path = "src/lib.rs"
+
+[features]
+default = []
+specta = ["dep:specta", "deck-core/specta"]
+
+[dependencies]
+deck-core = { path = "../deck-core" }
+
+axum = { workspace = true, features = ["http1", "tokio", "ws"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+specta = { workspace = true, features = ["serde_json"], optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread"] }

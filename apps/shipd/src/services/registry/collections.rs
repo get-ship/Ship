@@ -4,8 +4,8 @@
 use serde_json::{json, Value};
 
 use super::wire::{
-    CollectionDetailResponse, CollectionItemsResponse, CollectionsListResponse,
-    CollectionsStateResponse,
+    CollectionDetailResponse, CollectionFieldRecord, CollectionItemsResponse,
+    CollectionSummary, CollectionsListResponse, CollectionsStateResponse,
 };
 use super::{required_str, RegistryError};
 use crate::ship_runtime::ApiState;
@@ -23,17 +23,17 @@ pub(crate) fn fields_tuples(s: &ship_platform::collections::schema::CollectionSc
     }])).collect()
 }
 
-pub(crate) fn fields_records(s: &ship_platform::collections::schema::CollectionSchema) -> Vec<Value> {
+pub(crate) fn fields_records(s: &ship_platform::collections::schema::CollectionSchema) -> Vec<CollectionFieldRecord> {
     s.fields.iter().map(|(k, v)| {
         let ty = format!("{:?}", v.field_type).to_lowercase();
-        json!({
-            "name": k,
-            "type": ty.clone(),
-            "field_type": ty,
-            "required": v.required,
-            "values": v.values,
-            "default": v.default,
-        })
+        CollectionFieldRecord {
+            name: k.clone(),
+            r#type: ty.clone(),
+            field_type: ty,
+            required: v.required,
+            values: v.values.clone(),
+            default: v.default.clone(),
+        }
     }).collect()
 }
 
@@ -54,7 +54,7 @@ pub(crate) fn is_builtin(id: &str) -> bool {
         .any(|s| s.id == id)
 }
 
-struct CollectionSummary {
+struct CollectionStats {
     item_count: usize,
     status_field: Option<String>,
     status_values: Vec<String>,
@@ -69,7 +69,7 @@ struct CollectionSummary {
 fn collection_summary(
     data: Option<&mut ship_substrate::data::DataService>,
     schema: &ship_platform::collections::schema::CollectionSchema,
-) -> CollectionSummary {
+) -> CollectionStats {
     let status_field = schema.fields.get("status").and_then(|f| {
         matches!(f.field_type, ship_platform::collections::schema::FieldType::Enum)
             .then(|| "status".to_string())
@@ -80,7 +80,7 @@ fn collection_summary(
         .and_then(|f| f.values.clone())
         .unwrap_or_default();
     let Some(svc) = data else {
-        return CollectionSummary {
+        return CollectionStats {
             item_count: 0,
             status_field,
             status_values,
@@ -89,7 +89,7 @@ fn collection_summary(
         };
     };
     if ship_platform::collections::store::ensure_collection_table(svc, schema).is_err() {
-        return CollectionSummary {
+        return CollectionStats {
             item_count: 0,
             status_field,
             status_values,
@@ -120,7 +120,7 @@ fn collection_summary(
             last = Some(item.updated_at.clone());
         }
     }
-    CollectionSummary {
+    CollectionStats {
         item_count: rows.len(),
         status_field,
         status_values,
@@ -197,20 +197,20 @@ ship_ops! {
         run: |_args, state, _files| {
             let schemas = load_schemas(state);
             let mut svc = ship_platform::collections::store::open_data_db(state.ship_dir()).ok();
-            let items: Vec<Value> = schemas.iter().map(|s| {
+            let items: Vec<CollectionSummary> = schemas.iter().map(|s| {
                 let summary = collection_summary(svc.as_mut(), s);
-                json!({
-                    "id": s.id,
-                    "name": s.name,
-                    "field_count": s.fields.len(),
-                    "fields": fields_records(s),
-                    "builtin": is_builtin(&s.id),
-                    "item_count": summary.item_count,
-                    "status_field": summary.status_field,
-                    "status_values": summary.status_values,
-                    "status_counts": summary.status_counts,
-                    "last_activity": summary.last_activity,
-                })
+                CollectionSummary {
+                    id: s.id.clone(),
+                    name: s.name.clone(),
+                    field_count: s.fields.len(),
+                    fields: fields_records(s),
+                    builtin: is_builtin(&s.id),
+                    item_count: summary.item_count,
+                    status_field: summary.status_field,
+                    status_values: summary.status_values,
+                    status_counts: summary.status_counts,
+                    last_activity: summary.last_activity,
+                }
             }).collect();
             Ok(CollectionsListResponse { items })
         },

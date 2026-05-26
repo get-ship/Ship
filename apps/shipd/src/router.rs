@@ -8,18 +8,17 @@ use axum::{
 };
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
-use utoipa::OpenApi;
 
 use crate::{
     auth, project_api, services, ship_runtime,
     sessions, views,
 };
 use crate::routes::{
-    account_api, actor_api, actors_api, agents_api, analytics_api, annotations_api,
-    artifacts_api, collection_api, commands_api, create_api, feedback_api, git_api,
-    hooks_api, human_webhook, logs_api, mcp_api, openapi, permissions_api,
-    pipelines_api, projects_api, registry_api, rest_api, rules_api, runtime_api,
-    sdk_manifest, search_api, settings_api, skills_api, specs_api, themes_api,
+    account_api, actor_api, actors_api, annotations_api,
+    artifacts_api, commands_api, create_api, feedback_api, git_api,
+    hooks_api, human_webhook, logs_api,
+    registry_api, rest_api, runtime_api,
+    sdk_manifest, search_api, settings_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
 };
@@ -158,6 +157,7 @@ pub fn build_router(
         .ship_public_route(Route::SuiSdkClientJs, deck::serve_sui_sdk_client)
         .ship_public_route(Route::SuiComponentsJs, deck::serve_sui_components)
         .ship_public_route(Route::SuiLucideIconsJson, deck::serve_sui_lucide_icons)
+        .ship_public_route(Route::SuiLiveReloadJs, deck::serve_sui_live_reload)
         .ship_public_route(Route::SuiComponentBundle_template(), deck::serve_sui_island)
         .ship_public_route(
             Route::SuiViewTemplate_template(),
@@ -193,9 +193,9 @@ pub fn build_router(
         // unfulfilled and every POST 500'd. It is registered in
         // `build_ship_routes` (the authenticated group) instead.
         .ship_public_route(Route::SuiSource_template(), views::sui_source::serve_sui_source)
-        // HMR routes (SuiHmr / SuiHmrClientJs / SuiDevHmr) are NOT wired
-        // here — they stay development-only and are merged into `root`
-        // inside the `daemon_mode == Development` block further below.
+        // The HMR route (SuiDevHmr) is NOT wired here — it stays
+        // development-only and is merged into `root` inside the
+        // `daemon_mode == Development` block further below.
         // Glob-param SUI fallbacks — the Route enum doesn't model `{*sub_path}`,
         // so these stay as direct `.route()` calls to preserve the donor
         // surface (view-host + payload sub-path + studio /sui/{name}/{*sub_path}).
@@ -284,19 +284,17 @@ pub fn build_router(
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
         .merge(api_ship_routes)
-        .nest("/api/v1", hook_routes)
+        // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
+        // consumed by generated git-hook shell scripts that POST via curl and
+        // can't speak Connect, so it's a permanent ingress holdout. Kept out of
+        // `/api/v1` so that namespace can shrink to just the auth-bootstrap.
+        .merge(hook_routes)
         .nest("/api", webhook_routes)
         // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
         // auth_middleware below so the gate sees AuthContext. See ops_rpc.
         .merge(crate::ops_rpc::router(rt.clone()))
         .layer(axum::Extension(feedback_guard))
         .layer(axum::Extension(account_service))
-        // Project the authed caller's identity + scopes into the shared
-        // `McpAuth` carrier so the in-daemon MCP gate (in the `mcp` crate,
-        // which can't see shipd's `AuthContext`) can read it from the
-        // request `Parts` rmcp forwards into the tool context. Inner to
-        // `auth_middleware` below, so `AuthContext` is already present.
-        .layer(axum::middleware::from_fn(inject_mcp_auth))
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with
         // auth) so requests must carry a valid bearer before short-circuit.
@@ -308,15 +306,10 @@ pub fn build_router(
         .merge(public_routes)
         .merge(mcp_registry_routes)
         .merge(webhook_source_route)
-        .route("/api/openapi.json", axum::routing::get(|| async {
-            Json(openapi::ApiDoc::openapi())
-        }))
         .merge(authenticated_routes);
-    // HMR routes are development-only; not registered in production mode.
+    // The HMR firehose is development-only; not registered in production.
     if daemon_mode == deck::DaemonMode::Development {
         let hmr_routes: Router<()> = Router::new()
-            .ship_public_route(Route::SuiHmr, views::sui_hmr::serve_hmr)
-            .ship_public_route(Route::SuiHmrClientJs, views::sui_hmr::serve_hmr_client_js)
             .ship_public_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr);
         root = root.merge(hmr_routes);
     }
@@ -336,27 +329,6 @@ pub fn build_router(
         ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
-}
-
-/// Project the request's `AuthContext` (shipd-internal) into the shared
-/// `ship_platform::auth::scopes::McpAuth` carrier and insert it into request
-/// extensions. The in-daemon-mounted MCP server (the `mcp` crate) reads this
-/// from the HTTP `Parts` rmcp forwards into the tool context to gate tools by
-/// the connection's token scopes. No-op when there's no `AuthContext` (the
-/// stdio shim path carries none and falls back to a trusted-local default).
-async fn inject_mcp_auth(
-    mut req: axum::extract::Request,
-    next: axum::middleware::Next,
-) -> axum::response::Response {
-    if let Some(auth) = req.extensions().get::<auth::AuthContext>().cloned() {
-        req.extensions_mut()
-            .insert(ship_platform::auth::scopes::McpAuth {
-                agent_id: auth.agent_id.unwrap_or_default(),
-                scopes: auth.scopes,
-                workspace_id: auth.workspace_id,
-            });
-    }
-    next.run(req).await
 }
 
 /// Stamp `X-Shipd-Build` on every response so clients can detect daemon
@@ -409,7 +381,6 @@ async fn build_header_middleware(
 /// - `/api/v1/projects/{id}/session-files/{*path}` — glob param, specific to
 ///   project_api's recursive file handler. Kept alongside the enum variant
 ///   that exposes the non-glob listing endpoint.
-/// - `/api/v1/skills/{id}/files/{*path}` — same reason (SkillService sub-file route).
 fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     Router::new()
@@ -430,28 +401,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::MeshSnapshot, actors_api::mesh_snapshot_handler)
         .ship_route(Route::MeshEventsStream, actors_api::mesh_events_handler)
         .ship_route(Route::KillTree_template(), actors_api::kill_tree_handler)
-        // Analytics (read-only — AnalyticsProjection)
-        .ship_route(
-            Route::ListAnalyticsSessions,
-            analytics_api::list_sessions_handler,
-        )
-        .ship_route(
-            Route::GetAnalyticsSession_template(),
-            analytics_api::get_session_handler,
-        )
-        .ship_route(
-            Route::AnalyticsToolUsage,
-            analytics_api::tool_usage_handler,
-        )
-        .ship_route(
-            Route::AnalyticsSessionTurns_template(),
-            analytics_api::session_turns_handler,
-        )
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Runtime
-        .ship_route(Route::ListSessions, runtime_api::list_workspace_sessions)
-        .ship_route(Route::ListAgents, runtime_api::list_agents)
         .ship_route(Route::StopAgent_template(), runtime_api::stop_agent)
         .ship_route(Route::SteerAgent_template(), runtime_api::steer_agent)
         .ship_route(Route::ListJobs, runtime_api::list_jobs)
@@ -467,13 +419,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             Route::AttachAgentSession_template(),
             crate::routes::agent_sessions_attach::attach_agent_session,
         )
-        .ship_route(Route::ListProcs, runtime_api::list_procs)
-        .ship_route(Route::PollEvents, runtime_api::poll_events)
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
-        // Views
-        .ship_route(Route::ListViews, views::list_views)
+        // Views — list + source now served by DiscoveryService (Connect, #139).
         .ship_route(Route::ShipSchema, services::schema::serve_schema)
-        .ship_route(Route::ServeViewSource_template(), views::source_api::serve_view_source)
         .ship_route(Route::ListViewFiles_template(), views::files_api::list_view_files)
         .ship_route(Route::CreateSurface_template(), create_api::create_surface)
         .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
@@ -491,11 +439,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
         .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
         .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses)
-        .ship_route(Route::ListProjects, projects_api::list_projects)
-        .ship_route(Route::AddProject, projects_api::add_project)
-        .ship_route(Route::SwitchProject, projects_api::switch_project)
-        .ship_route(Route::ActivateProject_template(), projects_api::activate_project)
-        .ship_route(Route::GetActiveProject, projects_api::get_active_project)
         .ship_route(Route::ListSessionsAcrossProjects, runtime_api::list_sessions_across_projects)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
@@ -522,7 +465,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::CompleteAccountLogin, account_api::complete_login)
         .ship_route(Route::GetAccountState, account_api::get_state)
         .ship_route(Route::LogoutAccount, account_api::logout)
-        .ship_route(Route::GetAccountKey, account_api::get_key)
         // View authoring — chrome edit-mode handshake + agent tool dispatch.
         .ship_route(Route::EnterViewEditMode_template(), view_edit_mode_api::enter_edit_mode)
         .ship_route(Route::ExitViewEditMode_template(), view_edit_mode_api::exit_edit_mode)
@@ -535,91 +477,28 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::Publish, registry_api::publish)
         // AgentService — generic CRUD + lifecycle. First-party and
         // third-party views use this surface equally.
-        .ship_route(Route::AgentsList, agents_api::list)
-        .ship_route(Route::AgentsGet_template(), agents_api::get)
-        .ship_route(Route::AgentsPut_template(), agents_api::put)
-        .ship_route(Route::AgentsPatch_template(), agents_api::patch)
-        .ship_route(Route::AgentsDelete_template(), agents_api::delete)
-        .ship_route(Route::AgentsCreate, agents_api::create)
-        .ship_route(Route::AgentsRename_template(), agents_api::rename)
-        .ship_route(Route::AgentsDuplicate_template(), agents_api::duplicate)
-        .ship_route(Route::AgentsMove_template(), agents_api::move_scope)
         // PipelineService — CRUD + run ops. Dispatch / cancel / log-stream
         // wrap the existing kernel-backed handlers so the write paths stay
         // single-sourced.
-        .ship_route(Route::PipelinesList, pipelines_api::list)
-        .ship_route(Route::PipelinesGet_template(), pipelines_api::get)
-        .ship_route(Route::PipelinesPut_template(), pipelines_api::put)
-        .ship_route(Route::PipelinesPatch_template(), pipelines_api::patch)
-        .ship_route(Route::PipelinesDelete_template(), pipelines_api::delete)
-        .ship_route(Route::PipelinesDispatch_template(), pipelines_api::dispatch)
-        .ship_route(Route::PipelineRunCancel_template(), pipelines_api::cancel_run)
-        .ship_route(Route::PipelineRunsList, pipelines_api::list_runs)
-        .ship_route(Route::PipelineRunGet_template(), pipelines_api::get_run)
         .ship_route(Route::PipelineRunLogStream_template(), logs_api::stream_job_log)
         // RuleService — markdown rules.
-        .ship_route(Route::RulesList, rules_api::list)
-        .ship_route(Route::RulesGet_template(), rules_api::get)
-        .ship_route(Route::RulesPut_template(), rules_api::put)
-        .ship_route(Route::RulesDelete_template(), rules_api::delete)
-        .ship_route(Route::RulesCreate, rules_api::create)
-        // McpService — entries in mcp.jsonc as a collection surface.
-        .ship_route(Route::McpList, mcp_api::list)
-        .ship_route(Route::McpGet_template(), mcp_api::get)
-        .ship_route(Route::McpPut_template(), mcp_api::put)
-        .ship_route(Route::McpPatch_template(), mcp_api::patch)
-        .ship_route(Route::McpDelete_template(), mcp_api::delete)
-        .ship_route(Route::McpCreate, mcp_api::create)
         // PermissionService — preset entries + composed tool-patterns.
-        .ship_route(Route::PermissionsList, permissions_api::list)
-        .ship_route(Route::PermissionsToolPatterns, permissions_api::tool_patterns)
-        .ship_route(Route::PermissionsGet_template(), permissions_api::get)
-        .ship_route(Route::PermissionsPut_template(), permissions_api::put)
-        .ship_route(Route::PermissionsPatch_template(), permissions_api::patch)
-        .ship_route(Route::PermissionsDelete_template(), permissions_api::delete)
-        .ship_route(Route::PermissionsCreate, permissions_api::create)
         // SkillService — service-shaped CRUD + file tree + vars. Replaces
         // the project-scoped skill endpoints that used to hang off
         // /api/v1/projects/{id}/skills/*.
-        .ship_route(Route::SkillsList, skills_api::list)
-        .ship_route(Route::SkillsGet_template(), skills_api::get)
-        .ship_route(Route::SkillsCreate, skills_api::create)
-        .ship_route(Route::SkillsDelete_template(), skills_api::delete)
-        .ship_route(Route::SkillsPutFrontmatter_template(), skills_api::put_frontmatter)
-        .ship_route(Route::SkillsPutBody_template(), skills_api::put_body)
-        .ship_route(Route::SkillsRename_template(), skills_api::rename)
-        .ship_route(Route::SkillsDuplicate_template(), skills_api::duplicate)
-        .ship_route(Route::SkillsMove_template(), skills_api::move_scope)
-        .ship_route(Route::SkillsGetVars_template(), skills_api::get_vars)
-        .ship_route(Route::SkillsPutVar_template(), skills_api::put_var)
-        .ship_route(Route::SkillsDeleteVar_template(), skills_api::delete_var)
-        .ship_route(Route::SkillsInvoke_template(), skills_api::invoke)
         .ship_route(Route::ChatSend, services::chat::send_message)
         // Specs REST
-        .ship_route(Route::ListSpecs, specs_api::list_specs)
-        .ship_route(Route::CreateSpec, specs_api::create_spec)
-        .ship_route(Route::GetSpec_template(), specs_api::get_spec)
-        .ship_route(Route::UpdateSpec_template(), specs_api::update_spec)
-        .ship_route(Route::DeleteSpec_template(), specs_api::delete_spec)
-        .ship_route(Route::LaunchSpec_template(), specs_api::launch_spec)
         // Events / projections
         .ship_route(Route::EventStream, runtime_api::event_stream)
         .ship_route(Route::RebuildProjections, runtime_api::rebuild_projections)
         .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
         // Settings
-        .ship_route(Route::ListSettings, settings_api::list_settings)
-        .ship_route(Route::UpdateSetting, settings_api::update_setting)
-        .ship_route(Route::GetSetting_template(), settings_api::get_setting)
         .ship_route(Route::ListProviders, settings_api::list_harnesses)
         // Project
         .ship_route(Route::ListSessionFiles_template(), project_api::list_session_files)
         .ship_route(Route::ListProjectAgents_template(), project_api::list_agents)
         // GitService — canonical `/api/v1/git/*` surface. Consolidates the
         // old workspace- and project-scoped git endpoints into one.
-        .ship_route(Route::GitStatus, git_api::status_handler)
-        .ship_route(Route::GitDiff, git_api::diff_handler)
-        .ship_route(Route::GitLog, git_api::log_handler)
-        .ship_route(Route::GitBranches, git_api::branches_handler)
         .ship_route(Route::GitStage, git_api::stage_handler)
         .ship_route(Route::GitUnstage, git_api::unstage_handler)
         .ship_route(Route::GitCommit, git_api::commit_handler)
@@ -640,30 +519,12 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
                     artifacts_api::MAX_UPLOAD_BYTES,
                 )),
         )
-        .ship_route(Route::ArtifactsList, artifacts_api::list_artifacts)
         .ship_route(Route::ArtifactDownload_template(), artifacts_api::download_artifact)
         .route(
             "/api/v1/artifacts/{id}",
             routing::head(artifacts_api::head_artifact),
         )
         .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
-        .ship_route(Route::ArtifactPatch_template(), artifacts_api::patch_artifact)
-        .ship_route(Route::ArtifactDelete_template(), artifacts_api::delete_artifact)
-        .ship_route(Route::ArtifactPromote_template(), artifacts_api::promote_artifact)
-        // Collections
-        // Collections — GET + POST on /api/v1/collections merged on one route.
-        .route(
-            "/api/v1/collections",
-            axum::routing::get(collection_api::list_collections)
-                .post(collection_api::create_collection),
-        )
-        .ship_route(Route::GetCollectionSchema_template(), collection_api::get_schema)
-        .ship_route(Route::UpdateCollectionSchema_template(), collection_api::update_schema)
-        .ship_route(Route::CreateCollectionItem_template(), collection_api::create_item)
-        .ship_route(Route::GetCollectionItem_template(), collection_api::get_item)
-        .ship_route(Route::UpdateCollectionItem_template(), collection_api::update_item)
-        .ship_route(Route::DeleteCollectionItem_template(), collection_api::delete_item)
-        .ship_route(Route::QueryCollection_template(), collection_api::query_items)
         // Command bar registry
         .ship_route(Route::ListCommands, commands_api::list_commands)
         // Unified search — cmdk find mode consumer.
@@ -689,13 +550,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             axum::routing::get(project_api::read_session_file)
                 .put(project_api::write_session_file)
                 .delete(project_api::delete_session_file),
-        )
-        // SkillService files subresource — glob param keeps this flat (the
-        // codegen Route enum doesn't model `{*path}`).
-        .route(
-            "/api/v1/skills/{id}/files/{*path}",
-            axum::routing::put(skills_api::put_file)
-                .delete(skills_api::delete_file),
         )
         .with_state(st)
 }
@@ -724,17 +578,6 @@ pub(crate) fn handle_panic(info: Box<dyn std::any::Any + Send + 'static>) -> Res
 ///
 /// Returns daemon uptime, PID, and status of all supervised background tasks.
 /// Any dead task sets the top-level `healthy` flag to false.
-#[utoipa::path(
-    operation_id = "healthCheck",
-    get,
-    path = "/api/health",
-    responses(
-        (status = 200, description = "Daemon health snapshot with supervised task status"),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    security(),
-    tag = "health"
-)]
 pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<serde_json::Value> {
     let tasks = rt.health_registry().snapshot();
     let all_healthy = tasks.iter().all(|t| t.alive);

@@ -1,4 +1,5 @@
 import { controller, derived, effect, ref, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-color-picker.sui'
 
 interface Swatch { hex: string; label: string }
@@ -82,8 +83,8 @@ const hslToHex = (h: number, s: number, l: number): string => {
   return rgbToHex((r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255)
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const open = signal(false)
     const hue = signal(0)
     const sat = signal(0)
@@ -99,14 +100,11 @@ export default controller<Scope>({
     const hueId = signal(`sui-color-picker-h-${id}`)
     const satId = signal(`sui-color-picker-s-${id}`)
     const lightId = signal(`sui-color-picker-l-${id}`)
+    const swatches = derived<Swatch[]>(() => SWATCHES)
     return {
       open, hue, sat, light, hueText, satText, lightText, hexDraft,
-      inputEl, panelEl, hexInputEl, hueId, satId, lightId,
+      inputEl, panelEl, hexInputEl, hueId, satId, lightId, swatches,
     }
-  },
-
-  derived: {
-    swatches: (): Swatch[] => SWATCHES,
   },
 
   mount(state, host) {
@@ -127,20 +125,20 @@ export default controller<Scope>({
       if (!rgb) return
       const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b)
       suppress = true
-      state.hue.set(hsl.h)
-      state.sat.set(hsl.s)
-      state.light.set(hsl.l)
-      state.hueText.set(String(hsl.h))
-      state.satText.set(String(hsl.s))
-      state.lightText.set(String(hsl.l))
-      state.hexDraft.set(hex)
+      state.hue = hsl.h
+      state.sat = hsl.s
+      state.light = hsl.l
+      state.hueText = String(hsl.h)
+      state.satText = String(hsl.s)
+      state.lightText = String(hsl.l)
+      state.hexDraft = hex
       suppress = false
     }
 
     const commitHex = (raw: string) => {
       const norm = normHex(raw)
       if (!norm) return false
-      state.value.set(norm)
+      state.value = norm
       syncFromHex(norm)
       emit(norm)
       return true
@@ -148,44 +146,44 @@ export default controller<Scope>({
 
     // External value → internal HSL.
     const stopValueSync = effect(() => {
-      const v = state.value()
+      const v = state.value
       if (suppress) return
       if (isHex(v)) syncFromHex(v)
     })
 
     // Initial seed.
-    if (isHex(state.value())) syncFromHex(state.value())
+    if (isHex(state.value)) syncFromHex(state.value)
 
     // Slider edits → value.
     const sliderEffect = effect(() => {
-      const h = Number(state.hueText())
-      const s = Number(state.satText())
-      const l = Number(state.lightText())
+      const h = Number(state.hueText)
+      const s = Number(state.satText)
+      const l = Number(state.lightText)
       if (suppress) return
       if (!Number.isFinite(h) || !Number.isFinite(s) || !Number.isFinite(l)) return
       const hex = hslToHex(h, s, l)
-      state.hue.set(Math.round(h))
-      state.sat.set(Math.round(s))
-      state.light.set(Math.round(l))
-      if (hex !== state.value().toLowerCase()) {
+      state.hue = Math.round(h)
+      state.sat = Math.round(s)
+      state.light = Math.round(l)
+      if (hex !== state.value.toLowerCase()) {
         suppress = true
-        state.value.set(hex)
-        state.hexDraft.set(hex)
+        state.value = hex
+        state.hexDraft = hex
         suppress = false
         emit(hex)
       }
     })
 
-    const inputEl = state.inputEl()
+    const inputEl = state.inputEl as HTMLInputElement | null
     if (!inputEl) return
 
     const openPanel = () => {
-      if (state.disabled() || state.open()) return
-      state.open.set(true)
+      if (state.disabled || state.open) return
+      state.open = true
     }
     const closePanel = () => {
-      if (!state.open()) return
-      state.open.set(false)
+      if (!state.open) return
+      state.open = false
     }
 
     const onInputClick = () => openPanel()
@@ -193,13 +191,13 @@ export default controller<Scope>({
       // User typed a hex in the trigger input.
       const v = inputEl.value.trim()
       if (v === '') return
-      if (!commitHex(v)) inputEl.value = state.value()
+      if (!commitHex(v)) inputEl.value = state.value
     }
     const onInputKeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && state.open()) {
+      if (e.key === 'Escape' && state.open) {
         e.preventDefault()
         closePanel()
-      } else if (e.key === 'ArrowDown' && !state.open()) {
+      } else if (e.key === 'ArrowDown' && !state.open) {
         e.preventDefault()
         openPanel()
       }
@@ -219,11 +217,11 @@ export default controller<Scope>({
     const onHexInputChange = (e: Event) => {
       const t = e.target as HTMLInputElement | null
       if (!t || !t.matches('.hex-row input')) return
-      if (!commitHex(t.value)) t.value = state.value()
+      if (!commitHex(t.value)) t.value = state.value
     }
 
     const onDocPointer = (e: Event) => {
-      if (!state.open()) return
+      if (!state.open) return
       const path = e.composedPath()
       if (path.includes(host)) return
       closePanel()

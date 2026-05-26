@@ -47,14 +47,7 @@ fn now_iso8601() -> String {
 }
 
 /// Normalized hook event sent by Claude HTTP hooks or the `ship hook` adapter.
-#[derive(Debug, Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "tool_name": "Bash",
-    "tool_input": { "command": "ls" },
-    "actor_id": "agent-writer",
-    "workspace": "default",
-    "session_id": "sess-2f9c"
-}))]
+#[derive(Debug, Deserialize)]
 pub struct ShipHookEvent {
     #[serde(default)]
     pub tool_name: Option<String>,
@@ -98,10 +91,8 @@ pub struct ShipHookEvent {
 }
 
 /// Hook response: allow or block with reason.
-#[derive(Debug, Serialize, utoipa::ToSchema)]
-#[schema(example = json!({ "action": "allow" }))]
+#[derive(Debug, Serialize)]
 pub struct HookResponse {
-    #[schema(example = "allow")]
     pub action: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
@@ -133,20 +124,7 @@ fn resolve_session(event: &ShipHookEvent, auth: &AuthContext) -> Option<String> 
     event.session_id.clone().or_else(|| auth.session_id.clone())
 }
 
-/// POST /api/v1/hooks/session-start
-#[utoipa::path(
-    operation_id = "hookSessionStart",
-    post,
-    path = "/api/v1/hooks/session-start",
-    request_body = ShipHookEvent,
-    responses(
-        (status = 200, description = "Hook processed", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "hooks"
-)]
+/// POST /hooks/session-start
 pub async fn hook_session_start(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -199,20 +177,7 @@ pub async fn hook_session_start(
     (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
-/// POST /api/v1/hooks/before-tool
-#[utoipa::path(
-    operation_id = "hookBeforeTool",
-    post,
-    path = "/api/v1/hooks/before-tool",
-    request_body = ShipHookEvent,
-    responses(
-        (status = 200, description = "Hook allow or block decision", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "hooks"
-)]
+/// POST /hooks/before-tool
 pub async fn hook_before_tool(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -295,20 +260,7 @@ fn broadcast_tool_use(
     let _ = session.0.event_tx.send(ev);
 }
 
-/// POST /api/v1/hooks/after-tool
-#[utoipa::path(
-    operation_id = "hookAfterTool",
-    post,
-    path = "/api/v1/hooks/after-tool",
-    request_body = ShipHookEvent,
-    responses(
-        (status = 200, description = "Hook processed", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "hooks"
-)]
+/// POST /hooks/after-tool
 pub async fn hook_after_tool(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -360,20 +312,7 @@ pub async fn hook_after_tool(
     (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
-/// POST /api/v1/hooks/session-end
-#[utoipa::path(
-    operation_id = "hookSessionEnd",
-    post,
-    path = "/api/v1/hooks/session-end",
-    request_body = ShipHookEvent,
-    responses(
-        (status = 200, description = "Hook processed", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "hooks"
-)]
+/// POST /hooks/session-end
 pub async fn hook_session_end(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -420,7 +359,7 @@ pub async fn hook_session_end(
     (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
-/// POST /api/v1/hooks/permission-denied
+/// POST /hooks/permission-denied
 ///
 /// Emitted by `ship hook before-tool` when its fail-closed integrity
 /// gate (cli-framework::hooks::tool_gate) denies a call before the
@@ -428,19 +367,6 @@ pub async fn hook_session_end(
 /// deny shape on stdout so the tool never runs; this endpoint just
 /// logs the denial as a kernel event so analytics + dashboards can
 /// show "denied" alongside "succeeded" / "errored".
-#[utoipa::path(
-    operation_id = "hookPermissionDenied",
-    post,
-    path = "/api/v1/hooks/permission-denied",
-    request_body = ShipHookEvent,
-    responses(
-        (status = 200, description = "Hook processed", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "hooks"
-)]
 pub async fn hook_permission_denied(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

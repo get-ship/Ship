@@ -16,6 +16,8 @@
 // sessionStorage so the grant survives a soft reload. It is distinct
 // from agent sessions spawned by cmdk.
 
+import { ops } from '../ops'
+
 const SESSION_STORAGE_KEY = 'ship.chrome.view-mcp.session_id'
 
 interface ViewMcp {
@@ -68,38 +70,18 @@ function ensureSessionId(): string {
 }
 
 async function dispatch<T = unknown>(view: string, op: string, args: Record<string, unknown> = {}): Promise<T> {
-  const session_id = ensureSessionId()
-  const resp = await fetch(
-    `/api/v1/views/${encodeURIComponent(view)}/edit/tool`,
-    {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id, op, args }),
-    },
-  )
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '')
-    throw new Error(`view.${op} failed: ${resp.status} ${text}`)
-  }
-  return await resp.json() as T
+  // ViewService.Tool (Connect) replaces POST /api/v1/views/<view>/edit/tool.
+  const resp = await ops.view.tool({
+    view, sessionId: ensureSessionId(), op, argsJson: JSON.stringify(args),
+  })
+  return JSON.parse(resp.json) as T
 }
 
 async function postLifecycle(view: string, kind: 'enter' | 'exit'): Promise<void> {
-  const session_id = ensureSessionId()
-  const resp = await fetch(
-    `/api/v1/views/${encodeURIComponent(view)}/edit-mode/${kind}`,
-    {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id }),
-    },
-  )
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '')
-    throw new Error(`edit-mode/${kind} failed: ${resp.status} ${text}`)
-  }
+  // ViewService.Enter/ExitEditMode (Connect) replaces the edit-mode/{kind} route.
+  const req = { view, sessionId: ensureSessionId() }
+  if (kind === 'enter') await ops.view.enterEditMode(req)
+  else await ops.view.exitEditMode(req)
 }
 
 const mcp: ViewMcp = {

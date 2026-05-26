@@ -1,4 +1,5 @@
 import { controller, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-va-activity.sui'
 
 interface Entry {
@@ -20,23 +21,17 @@ function formatTs(ms: number): string {
   return `${hh}:${mm}:${ss}`
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const entries = signal<Entry[]>([])
     return { entries }
   },
 
   mount(state, host) {
-    // sui-runtime mount-state proxy: reads return the signal (callable),
-    // writes proxy through to signal.set. Plain assignment is the
-    // canonical write form regardless of whether the property is a
-    // scope-declared signal or a bridged prop.
-    const s = state as unknown as {
-      entries: Entry[]
-      view: () => string
-    }
-    const readEntries = state as unknown as { entries: ReturnType<typeof signal<Entry[]>> }
-
+    // `state.entries` reads/writes the value (assignment forwards to .set);
+    // `state.$signals.entries` is the raw Signal for reactive reads;
+    // `state.view()` calls the non-state scope signal. No casts needed —
+    // MutableState<Scope> types all three.
     let counter = 0
 
     function push(entry: Omit<Entry, 'id' | 'tsFmt'>): void {
@@ -46,11 +41,11 @@ export default controller<Scope>({
         id: `va-${counter}`,
         tsFmt: formatTs(entry.ts),
       }
-      s.entries = [e, ...readEntries.entries()].slice(0, MAX_ENTRIES)
+      state.entries = [e, ...state.$signals.entries()].slice(0, MAX_ENTRIES)
     }
 
     function matchesView(detailView: string | undefined): boolean {
-      const v = s.view()
+      const v = state.view()
       if (!v) return true
       if (!detailView) return true
       return detailView === v
@@ -93,7 +88,7 @@ export default controller<Scope>({
 
     Object.defineProperty(host, 'clear', {
       configurable: true,
-      value: () => { s.entries = [] },
+      value: () => { state.entries = [] },
     })
 
     return () => {

@@ -11,6 +11,7 @@ package ship.ops.v1;
 
 import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/types.proto";
+import "ship/ops/v1/ops.proto";
 
 message ListSessionsReq {}
 
@@ -18,6 +19,10 @@ message ListSessionsReq {}
 service SessionsService {
   rpc List(ListSessionsReq) returns (SessionsListResponse) {
     option (ship.ops.v1.description) = "All live PTY sessions (agent chats, pipeline runs, shells) — Mission Control data.";
+    option (ship.ops.v1.capability) = "ship.sessions.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc ListLive(ListSessionsReq) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.sessions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

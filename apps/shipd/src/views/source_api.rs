@@ -1,17 +1,11 @@
-//! `GET /api/v1/view-source/{*path}` — return template + manifest source
-//! for the SUI view that matches `path`.
-//!
-//! Used by the shell's Source devtools tab to inspect the currently
-//! mounted view's on-disk source.
+//! View template + manifest source resolution — backs `DiscoveryService.Source`
+//! (#139). Used by the shell's Source devtools tab to inspect the currently
+//! mounted view's on-disk source. (The REST `GET /api/v1/view-source` handler
+//! it replaced is gone; only the value core remains.)
 
-use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::Json;
 use serde::Serialize;
 
-use crate::ship_runtime::ApiState;
-
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ViewSourceResponse {
     /// Dotted view name derived from the filesystem path.
@@ -29,27 +23,9 @@ pub struct ViewSourceResponse {
     pub scope: String,
 }
 
-#[utoipa::path(
-    operation_id = "serveViewSource",
-    get,
-    path = "/api/v1/view-source/{path}",
-    params(("path" = String, Path, description = "View path; matches a SUI view name")),
-    responses(
-        (status = 200, description = "Template + manifest source", body = ViewSourceResponse),
-        (status = 404, description = "No matching view"),
-    ),
-    tag = "framework"
-)]
-pub async fn serve_view_source(
-    State(_state): State<ApiState>,
-    Path(path): Path<String>,
-) -> Result<Json<ViewSourceResponse>, StatusCode> {
-    try_resolve_sui_view(&path)
-        .map(Json)
-        .ok_or(StatusCode::NOT_FOUND)
-}
-
-fn try_resolve_sui_view(path: &str) -> Option<ViewSourceResponse> {
+// The REST `GET /api/v1/view-source/{path}` handler is gone — `DiscoveryService.Source`
+// (Connect, #139) calls `try_resolve_sui_view` directly.
+pub fn try_resolve_sui_view(path: &str) -> Option<ViewSourceResponse> {
     let (name, sub) = match path.split_once('/') {
         Some((n, rest)) => (n, Some(rest)),
         None => (path, None),

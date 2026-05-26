@@ -22,7 +22,7 @@ const MAX_INLINE_BYTES: u64 = 100 * 1024;
 /// Files we surface in the explorer. Anything else is filtered.
 const ALLOWED_EXT: &[&str] = &["sui", "ts", "tsx", "css", "jsonc", "json", "yaml", "yml", "md"];
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ViewFile {
     /// Relative path from the view root (e.g. `page.sui`,
@@ -40,7 +40,7 @@ pub struct ViewFile {
     pub content: Option<String>,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ViewFilesResponse {
     pub view_name: String,
@@ -48,17 +48,6 @@ pub struct ViewFilesResponse {
     pub files: Vec<ViewFile>,
 }
 
-#[utoipa::path(
-    operation_id = "listViewFiles",
-    get,
-    path = "/api/v1/views/{name}/files",
-    params(("name" = String, Path, description = "View name")),
-    responses(
-        (status = 200, description = "Files under the view directory", body = ViewFilesResponse),
-        (status = 404, description = "View not found"),
-    ),
-    tag = "framework"
-)]
 pub async fn list_view_files(
     State(_state): State<ApiState>,
     Path(name): Path<String>,

@@ -21,25 +21,13 @@ use crate::routes::rest_api::ApiState;
 
 use super::err;
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct InputBody {
     /// Raw bytes (UTF-8 text). Added verbatim to PTY stdin — include
     /// `\n` for enter-key behaviour.
     pub data: String,
 }
 
-#[utoipa::path(
-    operation_id = "sessionInput",
-    post,
-    path = "/api/v1/sessions/{id}/input",
-    params(("id" = String, Path, description = "Session id")),
-    request_body = InputBody,
-    responses(
-        (status = 204, description = "Input accepted"),
-        (status = 404, description = "Not found"),
-    ),
-    tag = "sessions"
-)]
 pub async fn session_input(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -59,17 +47,6 @@ pub async fn session_input(
     (StatusCode::NO_CONTENT, ()).into_response()
 }
 
-#[utoipa::path(
-    operation_id = "streamSessionEvents",
-    get,
-    path = "/api/v1/sessions/{id}/events",
-    params(("id" = String, Path, description = "Session id")),
-    responses(
-        (status = 200, description = "SSE stream of parsed HarnessEvents", content_type = "text/event-stream"),
-        (status = 404, description = "Not found"),
-    ),
-    tag = "sessions"
-)]
 pub async fn stream_session_events(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -92,17 +69,6 @@ pub async fn stream_session_events(
     sse.into_response()
 }
 
-#[utoipa::path(
-    operation_id = "streamSession",
-    get,
-    path = "/api/v1/sessions/{id}/stream",
-    params(("id" = String, Path, description = "Session id")),
-    responses(
-        (status = 200, description = "SSE stream of PTY bytes + status events", content_type = "text/event-stream"),
-        (status = 404, description = "Not found"),
-    ),
-    tag = "sessions"
-)]
 pub async fn stream_session(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,

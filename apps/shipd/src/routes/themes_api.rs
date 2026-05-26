@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct ContrastRequest {
     /// Token map. Keys match the names in theme.schema.json. Unknown
     /// tokens are skipped.
@@ -32,7 +32,7 @@ pub struct ContrastRequest {
     pub min_interactive_ratio: Option<f64>,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct PairReport {
     pub foreground: String,
     pub background: String,
@@ -46,7 +46,7 @@ pub struct PairReport {
     pub passes: Option<bool>,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct ContrastReport {
     pub ok: bool,
     pub pairs: Vec<PairReport>,
@@ -69,16 +69,6 @@ const PAIRS: &[(&str, &str, &str, &str)] = &[
     ("border", "background", "border", "interactive"),
 ];
 
-#[utoipa::path(
-    operation_id = "themeContrast",
-    post,
-    path = "/api/v1/themes/contrast",
-    request_body = ContrastRequest,
-    responses(
-        (status = 200, description = "Contrast report", body = ContrastReport),
-    ),
-    tag = "framework"
-)]
 pub async fn theme_contrast(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,

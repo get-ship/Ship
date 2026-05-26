@@ -8,7 +8,7 @@
 import type { Disposer } from './bind'
 import type { Signal } from './signal'
 import { createScope, withScope, type EffectScope } from './effect-scope'
-import { withHost } from './signal'
+import { withHost, untrack } from './signal'
 import { attachHostApi } from './host-api'
 import { findNearestBoundary } from './error-boundary'
 
@@ -244,6 +244,9 @@ export function defineComponent(
     private cleanup: Disposer | undefined
     private scope: EffectScope | undefined
     private propSignals: Record<string, Signal<unknown>> = {}
+    /** Prop values set via JS property before `connectedCallback` populated
+     *  `propSignals` — buffered by the prop accessors, flushed on connect. */
+    private pendingProps: Record<string, unknown> | undefined
 
     connectedCallback() {
       this.dataset.component = tag
@@ -253,6 +256,12 @@ export function defineComponent(
         this.cleanup = withScope(this.scope, () =>
           withHost(this, () => factory(this, this.propSignals)),
         )
+        // Apply any prop set via JS property before connection created the
+        // signals (the prop accessors buffer pre-connect writes here).
+        if (this.pendingProps) {
+          for (const k in this.pendingProps) this.propSignals[k]?.set(this.pendingProps[k])
+          this.pendingProps = undefined
+        }
       } catch (err) {
         const boundary = findNearestBoundary(this.parentNode)
         if (boundary) {
@@ -284,6 +293,38 @@ export function defineComponent(
       const sig = this.propSignals[meta.camel]
       if (sig) sig.set(meta.decode(value))
     }
+  }
+
+  // JS property accessors for declared props, delegating to the prop signal —
+  // so `el.<camel> = v` (what the compiler's `prop:` binding emits) reaches the
+  // signal exactly like the attribute path, instead of writing a dead expando.
+  // Without these, `prop:open` on a prebuilt primitive silently no-ops (the
+  // bug behind dialogs not opening). Skip names already on the prototype chain
+  // (native HTMLElement props like `hidden`/`title`) so we never shadow built-in
+  // behavior — those keep using the attribute path. Reads are untracked: a
+  // property read is a point-in-time value, not a reactive subscription.
+  type PropHost = {
+    propSignals: Record<string, Signal<unknown>>
+    pendingProps?: Record<string, unknown>
+  }
+  for (const attr of schema.observedAttrs) {
+    const meta = schema.props[attr]
+    if (!meta) continue
+    const camel = meta.camel
+    if (camel in ShipSetElement.prototype) continue
+    Object.defineProperty(ShipSetElement.prototype, camel, {
+      configurable: true,
+      enumerable: false,
+      get(this: PropHost) {
+        const sig = this.propSignals[camel]
+        return sig ? untrack(() => sig()) : undefined
+      },
+      set(this: PropHost, value: unknown) {
+        const sig = this.propSignals[camel]
+        if (sig) sig.set(value)
+        else (this.pendingProps ??= {})[camel] = value
+      },
+    })
   }
 
   customElements.define(tag, ShipSetElement)

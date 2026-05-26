@@ -11,6 +11,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -61,6 +62,11 @@ pub enum WorkerError {
 pub struct WorkerHandle {
     cmd_tx: mpsc::Sender<PendingCall>,
     event_tx: broadcast::Sender<BundlerEvent>,
+    /// Whether file-watching is active. A completed `watch_start` is no
+    /// longer a pending request, so the supervisor re-arms watching from
+    /// this flag after a worker respawn (otherwise HMR silently dies until
+    /// a full daemon restart).
+    watching: Arc<AtomicBool>,
 }
 
 impl WorkerHandle {
@@ -96,6 +102,9 @@ impl WorkerHandle {
     /// Start file watching. Worker will emit BundlerEvent::ModuleChanged
     /// unsolicited over the broadcast channel.
     pub async fn start_watching(&self) -> Result<(), WorkerError> {
+        // Record intent first so a respawn before/after this call still
+        // re-arms watching on the new worker.
+        self.watching.store(true, Ordering::SeqCst);
         let id = ulid::Ulid::new().to_string();
         self.call(WorkerRequest::WatchStart { id }).await?;
         Ok(())
@@ -103,6 +112,7 @@ impl WorkerHandle {
 
     /// Stop file watching.
     pub async fn stop_watching(&self) -> Result<(), WorkerError> {
+        self.watching.store(false, Ordering::SeqCst);
         let id = ulid::Ulid::new().to_string();
         self.call(WorkerRequest::WatchStop { id }).await?;
         Ok(())
@@ -150,16 +160,22 @@ pub fn start_with_script(
 ) -> WorkerHandle {
     let (cmd_tx, cmd_rx) = mpsc::channel::<PendingCall>(64);
     let (event_tx, _) = broadcast::channel::<BundlerEvent>(128);
+    let watching = Arc::new(AtomicBool::new(false));
 
     let bun = home.runtime_bun();
     let event_tx2 = event_tx.clone();
     let cmd_rx = Arc::new(Mutex::new(cmd_rx));
+    let sup_cmd_tx = cmd_tx.clone();
+    let sup_watching = watching.clone();
 
     tokio::spawn(async move {
-        run_supervisor(bun, bundler_ts, repo_root, workspace, cmd_rx, event_tx2).await;
+        run_supervisor(
+            bun, bundler_ts, repo_root, workspace, cmd_rx, event_tx2, sup_cmd_tx, sup_watching,
+        )
+        .await;
     });
 
-    WorkerHandle { cmd_tx, event_tx }
+    WorkerHandle { cmd_tx, event_tx, watching }
 }
 
 async fn run_supervisor(
@@ -169,6 +185,8 @@ async fn run_supervisor(
     workspace: Option<PathBuf>,
     cmd_rx: Arc<Mutex<mpsc::Receiver<PendingCall>>>,
     event_tx: broadcast::Sender<BundlerEvent>,
+    cmd_tx: mpsc::Sender<PendingCall>,
+    watching: Arc<AtomicBool>,
 ) {
     // Toolchain probe — `~/.ship/runtime/` isn't populated until the
     // user runs `ship runtime install`. Don't spawn-and-backoff in a
@@ -196,6 +214,19 @@ async fn run_supervisor(
             Ok(mut child) => {
                 info!("bundler: worker started (pid={:?})", child.id());
                 backoff = INITIAL_BACKOFF;
+                // Re-arm watching on a respawn: a completed `watch_start` is
+                // no longer pending, so without this the new worker never
+                // watches and HMR silently dies. Queue it before draining the
+                // command loop so it's the first request the worker sees.
+                // (`restarts > 0` skips the initial spawn — the daemon issues
+                // the first `start_watching` explicitly.)
+                if restarts > 0 && watching.load(Ordering::SeqCst) {
+                    let (reply_tx, _reply_rx) = oneshot::channel();
+                    let id = ulid::Ulid::new().to_string();
+                    let _ = cmd_tx
+                        .send(PendingCall { request: WorkerRequest::WatchStart { id }, reply: reply_tx })
+                        .await;
+                }
                 run_worker_io(&mut child, &cmd_rx, &event_tx).await;
                 let _ = child.kill().await;
                 let _ = child.wait().await;

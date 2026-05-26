@@ -8,7 +8,7 @@
 //! (the ONE gate); item writes decode the typed `CollectionItem` / `Deletion`,
 //! schema writes stay `JsonResponse`.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 
@@ -36,6 +36,15 @@ impl CollectionsService for OpsImpl {
         self.collections_read("collections.list", Value::Null)
     }
 
+    #[allow(refining_impl_trait)]
+    async fn list_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListCollectionsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("collections.list", json!({})).await
+    }
+
     async fn detail(
         &self,
         _ctx: RequestContext,
@@ -50,6 +59,56 @@ impl CollectionsService for OpsImpl {
         request: ship_ops_rpc::OwnedGetCollectionItemsRequestView,
     ) -> ServiceResult<JsonResponse> {
         self.collections_read("collections.items", json!({ "collection": request.collection }))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn state_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetCollectionsStateRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("collections.state", json!({ "active": request.active })).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn detail_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetCollectionDetailRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("collections.detail", json!({ "id": request.id })).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn items_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetCollectionItemsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("collections.items", json!({ "collection": request.collection })).await
+    }
+
+    async fn get_item(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetCollectionItemReqView,
+    ) -> ServiceResult<JsonResponse> {
+        // No read-registry op exists for the single-item GET, so call the
+        // platform service directly (as the old REST handler did) and mirror
+        // its `{ ok, data }` envelope. NotFound maps to the Connect not_found.
+        use ship_platform::services::collections::service::Error;
+        let item = self
+            .state()
+            .collections()
+            .get_item(request.collection, request.id)
+            .await
+            .map_err(|e| match e {
+                Error::NotFound(m) => ConnectError::not_found(m),
+                Error::Validation(m) => ConnectError::invalid_argument(m),
+                other => ConnectError::internal(other.to_string()),
+            })?;
+        let value = json!({ "ok": true, "data": item });
+        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
 
     async fn create_item(

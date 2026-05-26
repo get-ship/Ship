@@ -27,30 +27,17 @@ use ship_platform::account::AccountService;
 
 
 
-#[derive(serde::Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({ "redirect_uri": "http://127.0.0.1:54321/callback" }))]
+#[derive(serde::Deserialize)]
 pub struct StartLoginRequest {
     pub redirect_uri: String,
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
+#[derive(serde::Serialize)]
 pub struct StartLoginResponse {
     pub state_id: String,
     pub browser_url: String,
 }
 
-#[utoipa::path(
-    operation_id = "startAccountLogin",
-    post,
-    path = "/api/v1/account/login",
-    request_body = StartLoginRequest,
-    responses(
-        (status = 200, description = "Login flow started", body = StartLoginResponse),
-        (status = 400, description = "Invalid redirect_uri"),
-        (status = 403, description = "Account ops require user presence"),
-    ),
-    tag = "account"
-)]
 pub async fn start_login(
     Extension(svc): Extension<Arc<AccountService>>,
     Json(req): Json<StartLoginRequest>,
@@ -83,30 +70,17 @@ pub async fn start_login(
     }
 }
 
-#[derive(serde::Deserialize, utoipa::ToSchema)]
+#[derive(serde::Deserialize)]
 pub struct CompleteLoginRequest {
     pub state_id: String,
     pub code: String,
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
+#[derive(serde::Serialize)]
 pub struct CompleteLoginResponse {
     pub user_id: String,
 }
 
-#[utoipa::path(
-    operation_id = "completeAccountLogin",
-    post,
-    path = "/api/v1/account/login/complete",
-    request_body = CompleteLoginRequest,
-    responses(
-        (status = 200, description = "Login complete; token stored", body = CompleteLoginResponse),
-        (status = 401, description = "Invalid or expired state, or PKCE failed at gateway"),
-        (status = 403, description = "Account ops require user presence"),
-        (status = 502, description = "Gateway unreachable or rejected exchange"),
-    ),
-    tag = "account"
-)]
 pub async fn complete_login(
     Extension(svc): Extension<Arc<AccountService>>,
     Json(req): Json<CompleteLoginRequest>,
@@ -131,16 +105,6 @@ pub async fn complete_login(
     }
 }
 
-#[utoipa::path(
-    operation_id = "getAccountState",
-    get,
-    path = "/api/v1/account/state",
-    responses(
-        (status = 200, description = "Account state snapshot"),
-        (status = 403, description = "Account ops require user presence"),
-    ),
-    tag = "account"
-)]
 pub async fn get_state(
     Extension(svc): Extension<Arc<AccountService>>,
 ) -> Response {
@@ -154,16 +118,6 @@ pub async fn get_state(
     }
 }
 
-#[utoipa::path(
-    operation_id = "logoutAccount",
-    post,
-    path = "/api/v1/account/logout",
-    responses(
-        (status = 204, description = "Token cleared (idempotent)"),
-        (status = 403, description = "Account ops require user presence"),
-    ),
-    tag = "account"
-)]
 pub async fn logout(
     Extension(svc): Extension<Arc<AccountService>>,
 ) -> Response {
@@ -177,42 +131,10 @@ pub async fn logout(
     }
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
-pub struct GetKeyResponse {
-    pub key: String,
-}
-
-/// Transitional bridge — returns the stored API key so the CLI can
-/// dual-write to its legacy `credentials.jsonc` for `ship publish` and
-/// `ship convert <getship-url>` which still call the gateway directly.
-/// REMOVE once those call sites route through the daemon.
-#[utoipa::path(
-    operation_id = "getAccountKey",
-    get,
-    path = "/api/v1/account/key",
-    responses(
-        (status = 200, description = "Stored API key", body = GetKeyResponse),
-        (status = 401, description = "Not logged in"),
-        (status = 403, description = "Account ops require user presence"),
-    ),
-    tag = "account"
-)]
-pub async fn get_key(
-    Extension(svc): Extension<Arc<AccountService>>,
-) -> Response {
-    match svc.get_key().await {
-        Ok(key) => (StatusCode::OK, Json(GetKeyResponse { key })).into_response(),
-        Err(e) => (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
-}
-
-// User-presence enforcement (CallerKind::Cli) is now declared via
-// `/// @auth cli` on each `Route::*AccountLogin*` / `Route::Logout*` /
-// `Route::GetAccountKey` variant. The router enforces at registration
-// time; the comprehensive denial matrix (CLI passes, MCP denied even
-// with Scope::Full, SDK denied) is covered in
-// `apps/shipd/src/routes/scope_enforcement_tests.rs`.
+// User-presence enforcement (CallerKind::Cli) is declared via `/// @auth cli`
+// on each `Route::*AccountLogin*` / `Route::Logout*` variant. The router
+// enforces at registration time; the comprehensive denial matrix (CLI passes,
+// MCP denied even with Scope::Full, SDK denied) is covered in
+// `apps/shipd/src/routes/scope_enforcement_tests.rs`. The Connect AccountService
+// (account_rpc.rs) re-enforces the same presence check per-op, since the
+// ops_rpc router doesn't run the per-route middleware.

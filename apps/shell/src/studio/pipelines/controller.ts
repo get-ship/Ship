@@ -1,4 +1,6 @@
-import { controller, signal, derived, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
+import { ship, ops } from '../../ops'
+import type { LiveSignal, LiveSource, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type PipelineDef = {
@@ -17,16 +19,21 @@ type SummariesCtx = {
 }
 
 const EMPTY: SummariesCtx = { stats_subtitle: '', defs: [], active_runs: [], providers: [] }
-// The view feeds data through the top-level `<data name="summaries">` element
-// (the agents pattern). derived: sections receive the live envelope as a scope
-// arg; unwrap → the value (or null while loading).
+// `summaries` is a live signal the controller owns: subscribe directly to the
+// `/_sui/data?expr=ship.pipelines.summaries()` SSE channel via `liveExpr` (the
+// pattern views/events + the history view use). The shell SDK object has no
+// `pipelines` surface, so the call form would throw — `liveExpr` wires the
+// channel by name instead. `{#async summaries}` + derived args read the signal.
 const read = (summaries: unknown): SummariesCtx => {
-  const v = unwrap(summaries) as SummariesCtx | undefined
-  return v && Array.isArray(v.defs) ? v : EMPTY
+  const v = unwrap(summaries as LiveSignal<Partial<SummariesCtx>>)
+  // Merge over EMPTY: the payload omits empty collections (active_runs,
+  // providers) — fall back so `{#for}` / `.length` never hit undefined.
+  return v && Array.isArray(v.defs) ? { ...EMPTY, ...v } : EMPTY
 }
 
-export default controller<Scope>({
-  scope: ({ route }) => {
+export default controller({
+  scope: ({ route }: ViewScope<Scope>) => {
+    const summaries = live(() => ship.pipelines.summaries() as LiveSource<SummariesCtx>)
     const q = derived(() => String(route.query.q() ?? ''))
     const agent = derived(() => String(route.query.agent() ?? ''))
     const pipeline = derived(() => String(route.query.pipeline() ?? ''))
@@ -41,14 +48,7 @@ export default controller<Scope>({
     const newPipeName = signal('')
     const newPipeError = signal('')
     const newPipeCreating = signal(false)
-    return {
-      q, agent, pipeline, status, tab,
-      dispatchOpen, dispatchSpec, dispatchPipeline, dispatchProvider, dispatchHeadless,
-      newPipeOpen, newPipeName, newPipeError, newPipeCreating,
-    }
-  },
-  derived: {
-    defs: ({ summaries }) => read(summaries).defs.map((d) => ({
+    const defs = derived(() => read(summaries).defs.map((d) => ({
       ...d,
       success_pct: Math.floor(d.success_rate * 100),
       // Map run tone → the sui-pipeline-card state taxonomy (ok/running/awaiting/err/none).
@@ -61,63 +61,68 @@ export default controller<Scope>({
             : d.last_run_tone === 'warning'
               ? 'awaiting'
               : 'none',
-    })),
-    activeRuns: ({ summaries }) => read(summaries).active_runs.map((r) => ({
+    })))
+    const activeRuns = derived(() => read(summaries).active_runs.map((r) => ({
       ...r,
       state_attr: r.state.replace('-', ''),
       steps: r.steps?.map((step, i, arr) => ({ ...step, isLast: i === arr.length - 1 })),
-    })),
-    providers: ({ summaries }) => read(summaries).providers,
-    workspaceId: ({ summaries }) => read(summaries).workspace_id ?? null,
-    statsSubtitle: ({ summaries }) => read(summaries).stats_subtitle,
+    })))
+    const providers = derived(() => read(summaries).providers)
+    const workspaceId = derived(() => read(summaries).workspace_id ?? null)
+    const statsSubtitle = derived(() => read(summaries).stats_subtitle)
+    return {
+      summaries,
+      q, agent, pipeline, status, tab,
+      dispatchOpen, dispatchSpec, dispatchPipeline, dispatchProvider, dispatchHeadless,
+      newPipeOpen, newPipeName, newPipeError, newPipeCreating,
+      defs, activeRuns, providers, workspaceId, statsSubtitle,
+    }
   },
   on: {
     openDispatch: (s) => {
-      const ds = s as unknown as { dispatchPipeline: string; defs: PipelineDef[]; dispatchOpen: boolean }
-      if (!ds.dispatchPipeline && ds.defs.length > 0) ds.dispatchPipeline = ds.defs[0].name
-      ds.dispatchOpen = true
+      if (!s.dispatchPipeline && s.defs.length > 0) s.dispatchPipeline = s.defs[0].name
+      s.dispatchOpen = true
     },
-    closeDispatch: (s) => { (s as unknown as { dispatchOpen: boolean }).dispatchOpen = false },
+    closeDispatch: (s) => { s.dispatchOpen = false },
     dispatchRun: async (s) => {
-      const ds = s as unknown as { dispatchPipeline: string; dispatchSpec: string; dispatchProvider: string; dispatchHeadless: boolean; dispatchOpen: boolean }
-      const name = String(ds.dispatchPipeline)
+      const name = String(s.dispatchPipeline)
       if (!name) return
-      await fetch(`/api/v1/pipelines/${encodeURIComponent(name)}/dispatch`, {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spec: ds.dispatchSpec, provider: ds.dispatchProvider || null, headless: ds.dispatchHeadless }),
+      await ship.pipelines.dispatch({
+        pipeline: name,
+        spec: String(s.dispatchSpec),
+        harness: String(s.dispatchProvider || ''),
+        auto: Boolean(s.dispatchHeadless),
       })
-      ds.dispatchOpen = false
+      s.dispatchOpen = false
     },
-    openNewPipe: (s) => { const ds = s as unknown as { newPipeOpen: boolean; newPipeName: string; newPipeError: string }; ds.newPipeOpen = true; ds.newPipeName = ''; ds.newPipeError = '' },
-    closeNewPipe: (s) => { (s as unknown as { newPipeOpen: boolean }).newPipeOpen = false },
+    openNewPipe: (s) => { s.newPipeOpen = true; s.newPipeName = ''; s.newPipeError = '' },
+    closeNewPipe: (s) => { s.newPipeOpen = false },
     createPipeline: async (s) => {
-      const ds = s as unknown as { workspaceId: string | null; newPipeName: string; newPipeError: string; newPipeCreating: boolean }
-      const ws = ds.workspaceId
+      const ws = s.workspaceId
       if (!ws) return
-      const name = String(ds.newPipeName).trim()
+      const name = String(s.newPipeName).trim()
       if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {
-        ds.newPipeError = 'Name must be lowercase kebab-case (a–z, 0–9, -).'; return
+        s.newPipeError = 'Name must be lowercase kebab-case (a–z, 0–9, -).'; return
       }
-      ds.newPipeCreating = true; ds.newPipeError = ''
+      s.newPipeCreating = true; s.newPipeError = ''
       const content = `{\n  "name": "${name}",\n  "description": "",\n  "steps": [\n    { "id": "one", "run": "echo hello" }\n  ]\n}\n`
+      // PipelinesService.Put (Connect) → writes to the active project. Replaces
+      // the PUT /api/v1/workspaces/{ws}/pipelines/{name} route (no daemon
+      // handler — the old fetch 404'd; this fixes it).
       try {
-        const resp = await fetch(
-          `/api/v1/workspaces/${encodeURIComponent(ws)}/pipelines/${encodeURIComponent(name)}`,
-          { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) },
-        )
-        if (resp.ok) { window.location.href = `/pipelines/focus/${encodeURIComponent(name)}?edit=1`; return }
-        const parsed = await resp.json().catch(() => ({}))
-        ds.newPipeError = (parsed as { data?: { error?: string } })?.data?.error ?? `HTTP ${resp.status}`
-      } catch (err) { ds.newPipeError = 'network: ' + ((err as Error)?.message ?? String(err)) }
-      finally { ds.newPipeCreating = false }
+        await ops.pipelines.put({ name, docJson: content, scope: 'project' })
+        window.location.href = `/studio/pipelines/focus/${encodeURIComponent(name)}?edit=1`
+      } catch (err) { s.newPipeError = (err as Error)?.message ?? String(err) }
+      finally { s.newPipeCreating = false }
     },
     stopRun: async (_s, jobId: string) => {
-      await fetch('/api/v1/agent_sessions/end', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: jobId }),
-      })
+      // FLAG (API arc, not transport): this routes to PipelinesService.EndTurn
+      // (turn-complete / step-advance), the Connect form of the old
+      // POST /agent_sessions/end. The old fetch sent `job_id` where the handler
+      // reads `slug` — likely a silent no-op. A true "stop" probably wants
+      // agent.Stop(slug), not end_job. Preserving best-effort transport here;
+      // the stop-vs-complete semantics are for the API-surface arc.
+      try { await ops.pipelines.endTurn({ slug: jobId }) } catch { /* best-effort */ }
     },
   },
 })

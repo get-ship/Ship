@@ -32,4 +32,12 @@ service WorkspacesService {
     option (ship.ops.v1.capability) = "ship.workspaces.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc ListLive(ListWorkspacesReq) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc ActiveLive(GetActiveWorkspaceReq) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
 }

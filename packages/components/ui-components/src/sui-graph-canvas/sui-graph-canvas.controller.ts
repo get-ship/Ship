@@ -154,21 +154,19 @@ function renderGraphHtml(
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
-
-    const canvas = scope.canvasEl() as HTMLElement | null
+    const canvas = state.canvasEl as HTMLElement | null
     if (!canvas) return
 
     const inner = canvas.ownerDocument.createElement('div')
     canvas.appendChild(inner)
 
     const stopRender = bindHtml(inner, () => {
-      const nodesRaw = scope.nodes() as string
-      const edgesRaw = scope.edges() as string
-      const width = (scope.width() as number) || 1000
-      const height = (scope.height() as number) || 600
-      const layout = (scope.layout() as string) || 'positioned'
-      const selectedId = scope.selectedId() as string
+      const nodesRaw = state.nodes as string
+      const edgesRaw = state.edges as string
+      const width = (state.width as number) || 1000
+      const height = (state.height as number) || 600
+      const layout = (state.layout as string) || 'positioned'
+      const selectedId = state.selectedId as string
       return renderGraphHtml(host, nodesRaw, edgesRaw, width, height, layout, selectedId)
     })
 

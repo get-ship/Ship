@@ -1,9 +1,10 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-sparkline.sui'
 import { linePath, parseNums, toneColor } from '../chart-util'
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const hasData = signal(false)
     const strokePath = signal('')
     const areaPath = signal('')

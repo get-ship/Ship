@@ -12,8 +12,9 @@ exercise SUI views or components. Three planes:
 
 | Plane | Use it for | Lives in |
 |---|---|---|
-| **MCP tools** | Live operations against an active project (scaffold, edit, mount, snapshot, diagnose) | `apps/mcp/src/server/mod.rs`, `apps/mcp/src/tools/*.rs` |
-| **`sui-lsp` binary** | Native Rust LSP over stdio for editors + Claude Code (`.lsp.json`). Same grammar as the build/MCP. | `crates/sui/lsp/` |
+| **MCP tools** | Live operations against an active project (scaffold, edit, mount, snapshot) | `apps/mcp/src/server/mod.rs`, `apps/mcp/src/tools/*.rs` |
+| **CLI lint + compile loop** | Fast per-edit verification now that MCP SUI tools are removed. | `cargo run -p sui-lint --example check -- <file>` (lint); `cargo run -p sui-compiler -- build <file>` (full compile) |
+| **`sui-lsp` binary** | Native Rust LSP over stdio for editors + Claude Code (`.lsp.json`). Same grammar as the build. | `crates/sui/lsp/` |
 | **`@ship/sui-lsp-browser`** | Browser-only structural analyser + completion sources. Web worker, no Node deps, no `typescript` package. Used by the docs playground; the shell editor can adopt it too. | `packages/deck/lsp-browser/src/` |
 | **`@ship/sui-eval`** | Regression-quality scoring of agent-produced SUI against a behavioural spec | `packages/deck/eval/src/index.ts` |
 
@@ -35,9 +36,9 @@ artifacts, dispatch) are platform-level and documented in
 | Tool | Signature | Use |
 |---|---|---|
 | `mcp__ship__scaffold_view` | `{ name, path?, layout? }` | Emit a fresh `views/<name>/` skeleton (`page.sui`, `controller.ts`, `manifest.jsonc`). Mirrors `node scripts/scaffold-view.mjs`. |
-| `mcp__ship__sui_diagnostics` | `{ file }` | Parse + analyse a `.sui` file; returns `[{line, col, severity, message}]`. The first call any agent should make after writing a template. |
-| `mcp__ship__sui_hover` | `{ file, line, col }` | Hover info at a cursor — prop type, directive doc, signal kind. |
-| `mcp__ship__sui_dependencies` | `{ file }` | What `<sui-*>` tags, signals, and routes a template references — for impact analysis before edits. |
+| ~~`mcp__ship__sui_diagnostics`~~ | removed | Use `cargo run -p sui-lint --example check -- <file>` instead. |
+| ~~`mcp__ship__sui_hover`~~ | removed | Use the `sui-lsp` binary via `.lsp.json` or `crates/sui/lsp/` for hover. |
+| ~~`mcp__ship__sui_dependencies`~~ | removed | Use `cargo run -p sui-compiler -- build <file>` for dependency analysis. |
 | `mcp__ship__view_compile_check` | `{ file }` | Full compile pass; returns `{ ok, errors, warnings }`. More expensive than `sui_diagnostics` but catches lowering-level issues. |
 | `mcp__ship__get_view_errors` | `{ view }` | Latest runtime error stream for a view session (post-mount errors, not compile errors). |
 
@@ -129,9 +130,10 @@ The native Rust language server (`crates/sui/lsp`, on PATH after
 repo's `.lsp.json`, VS Code via `sui.serverPath`, any editor via the `sui`
 language id. Same `sui-compiler` grammar as the build + the MCP tools.
 
-The old one-shot TypeScript CLI (`packages/deck/lsp/src/cli.ts`) is gone; agents
-without an editor use the in-process MCP tools above (`sui_diagnostics` /
-`sui_hover` / `sui_dependencies`) — no `bun`, no subprocess.
+The old one-shot TypeScript CLI (`packages/deck/lsp/src/cli.ts`) is gone. Agents
+without an editor use the binary loop: `cargo run -p sui-lint --example check -- <file>` for
+fast per-edit lint, and `cargo run -p sui-compiler -- build <file>` for the full
+compile pass — no `bun`, no subprocess.
 
 Output shape (diagnostics):
 
@@ -142,8 +144,7 @@ Output shape (diagnostics):
 ]
 ```
 
-The LSP CLI is the **same analyser** that `mcp__ship__sui_diagnostics`
-wraps — use whichever surface is closer to your runtime.
+The LSP binary uses the **same analyser** as the binary lint/compile loop — one Rust grammar, multiple delivery surfaces.
 
 ---
 

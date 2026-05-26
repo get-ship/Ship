@@ -170,7 +170,7 @@ pub async fn list_actor_events_handler(
     }
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct ActorInputReq {
     pub text: String,
 }

@@ -24,21 +24,21 @@ mod install;
 mod procs;
 mod runtime_cmd;
 mod tail;
+mod sui;
+mod job;
 mod logging;
 mod uninstall;
 mod mcp;
-mod mcp_serve;
 mod paths;
 mod profile;
 mod publish;
 mod ship_run;
 mod validate;
-mod openapi;
 mod trash_cmd;
 mod use_command;
 
 use anyhow::Result;
-use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, McpCommands, OpenapiCommands, WorkspaceCommands};
+use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, McpCommands, WorkspaceCommands};
 use std::path::PathBuf;
 
 /// Initialize the global KernelRouter for CLI commands that emit events.
@@ -220,6 +220,8 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             }
             Commands::Hook { action } => dispatch_hook(action),
             Commands::Procs { slug, kind, limit, json } => procs::run(slug.as_deref(), kind.as_deref(), limit, json),
+            Commands::Sui { action } => sui::run(action),
+            Commands::StepDone { summary } => job::step_done(summary),
             Commands::Tail { slug, namespace } => tail::run(&slug, namespace.as_deref()),
             Commands::Daemon { action } => {
                 use cli::DaemonCommands;
@@ -258,14 +260,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 Cli::command().print_help()?;
                 Ok(())
             }
-            Commands::Openapi { action } => dispatch_openapi(action),
         },
-    }
-}
-
-fn dispatch_openapi(action: OpenapiCommands) -> Result<()> {
-    match action {
-        OpenapiCommands::Export { pretty } => openapi::run(pretty),
     }
 }
 
@@ -439,7 +434,6 @@ fn dispatch_workspace(action: WorkspaceCommands) -> Result<()> {
 
 fn dispatch_mcp(action: McpCommands) -> Result<()> {
     match action {
-        McpCommands::Serve {} => mcp_serve::run(),
         McpCommands::List => mcp::list(),
         McpCommands::Add { id, name, url, .. } => {
             let url =

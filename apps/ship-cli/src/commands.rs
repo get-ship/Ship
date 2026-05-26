@@ -58,11 +58,6 @@ pub enum WorkspaceCommands {
 
 #[derive(Subcommand, Debug)]
 pub enum McpCommands {
-    /// Run the Ship MCP server over stdio (a thin local shim over the same
-    /// surface the daemon hosts at `$DAEMON/mcp`). The standalone `--http`
-    /// listener was retired — the daemon is the one HTTP transport.
-    Serve {},
-
     /// Register an MCP server (HTTP/SSE transport)
     Add {
         /// Stable server ID
@@ -92,4 +87,26 @@ pub enum McpCommands {
     List,
     /// Remove an MCP server
     Remove { id: String },
+}
+
+/// `ship sui` — SUI `.sui` language intelligence (diagnostics, hover,
+/// dependencies) over `SuiService` (Connect). The daemon answers in-process
+/// via the sui_compiler facade.
+#[derive(Subcommand, Debug)]
+pub enum SuiCommands {
+    /// All diagnostics (parse + semantic + lint) for a `.sui` file
+    Diagnostics {
+        /// `.sui` file — absolute or workspace-relative
+        file: String,
+    },
+    /// Hover info for the symbol under a 0-based (line, col) cursor
+    Hover {
+        file: String,
+        line: u32,
+        col: u32,
+    },
+    /// Dependency surface: custom-element tags, handled events, controller path
+    Dependencies {
+        file: String,
+    },
 }

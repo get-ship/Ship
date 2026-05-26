@@ -1,14 +1,16 @@
 import { controller, derived, effect } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-git-diff-line.sui'
 
 type LineType = 'add' | 'del' | 'context'
 
-export default controller<Scope>({
-  scope: (state, host) => {
-    // Bracket access because `new` is a reserved word — `state.new()` is
-    // a syntax error, but `state['new']()` is legal property access.
-    const propBag = state as unknown as Record<string, Signal<unknown>>
+export default controller({
+  scope: (ctx: ViewScope<Scope>, host) => {
+    // Bracket access because `new` is a reserved word — `ctx.new()` is
+    // a syntax error, but `ctx['new']()` is legal property access.
+    // Similarly `type` is a TS keyword in property position; bracket access required.
+    const propBag = ctx as unknown as Record<string, Signal<unknown>>
     const newSig = propBag['new'] as Signal<string>
     const oldSig = propBag['old'] as Signal<string>
     const typeSig = propBag['type'] as Signal<LineType>
@@ -22,7 +24,7 @@ export default controller<Scope>({
 
     function emitComment(e: Event): void {
       e.stopPropagation()
-      host.dispatchEvent(
+      host?.dispatchEvent(
         new CustomEvent('sui-comment', {
           detail: { old: oldSig?.() ?? '', new: newSig?.() ?? '' },
           bubbles: true,

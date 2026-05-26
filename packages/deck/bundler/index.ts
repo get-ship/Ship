@@ -48,7 +48,7 @@ const litAssetsDir = resolve(repoRoot, 'apps/shipd/assets')
 // deck's OWN product — the runtime bundles deck ships and bakes into its
 // binary (sui-runtime/dom/sdk-client + the primitives umbrella). These are
 // deck's, like Next shipping its own runtime; they stay in the crate.
-const deckOwnAssetsDir = resolve(repoRoot, 'crates/deck/deck-server/assets')
+const deckOwnAssetsDir = resolve(repoRoot, 'crates/deck/deck-core/assets')
 // deck's BUILD output for app/user content — code-split view + chrome bundles.
 // `.deck/` is to a deck app what `.next/` is to a Next app: the framework's
 // build output, owned by the project, never inside the framework's own crate.
@@ -76,7 +76,7 @@ const workspaceRoot = resolve(workspaceArg() ?? repoRoot)
 // discovery + watch attachment don't run twice for the same directory.
 const sourceRoots: string[] = workspaceRoot === repoRoot ? [repoRoot] : [repoRoot, workspaceRoot]
 
-// deck's own runtime bundles — baked into the deck-server binary. Everything
+// deck's own runtime bundles — baked into the deck-core crate. Everything
 // else under `sui-`/`views/` is app or user content and goes to `.deck/`.
 const DECK_OWN_BUNDLES = new Set(['sui-runtime', 'sui-dom', 'sui-sdk-client', 'sui-components'])
 
@@ -99,6 +99,11 @@ interface BundleTarget {
    *  as its contents. Imports inside should use absolute paths so they resolve
    *  regardless of where the virtual id "lives". */
   virtualEntry?: string
+  /** Real source files for virtual-entry targets (aggregates + separate-bundle
+   *  islands). `targetsForFile` matches a change against these — a `<virtual>`
+   *  entry has no real path, so the entry-dir heuristic can't be used (its
+   *  dirname is the repo root, which would match every file in the repo). */
+  sources?: string[]
 }
 
 // Separate-bundle discovery. Walks every top-level `<root>/<tag>/`
@@ -148,6 +153,7 @@ function discoverSeparateBundles(): BundleTarget[] {
         // imports use absolute paths so the tmp location is irrelevant.
         entry: '<virtual>',
         virtualEntry: suiPaths.map((p) => `import ${JSON.stringify(p)}`).join('\n') + '\n',
+        sources: suiPaths,
         external: ['@ship/sui-runtime', '@ship/sui-dom'],
         outFile: `sui-components/${e.name}.js`,
       })
@@ -199,6 +205,27 @@ function discoverViewBundles(): BundleTarget[] {
   return out
 }
 
+// Marketing-essentials aggregate sources — exactly the `<sui-*>` tags the
+// apps/site templates mount. Keep in sync when adding `<sui-*>` to apps/site.
+const MARKETING_SOURCES: string[] = [
+  // @ship/primitives — 8 of 94 tags marketing actually mounts.
+  'packages/components/primitives/src/sui-badge/sui-badge.sui',
+  'packages/components/primitives/src/sui-button/sui-button.sui',
+  'packages/components/primitives/src/sui-progress/sui-progress.sui',
+  'packages/components/primitives/src/sui-separator/sui-separator.sui',
+  'packages/components/primitives/src/sui-stat/sui-stat.sui',
+  'packages/components/primitives/src/sui-status-dot/sui-status-dot.sui',
+  'packages/components/primitives/src/sui-table/sui-table.sui',
+  'packages/components/primitives/src/sui-toolbar/sui-toolbar.sui',
+  // @ship/charts — 2 viz tags used on landing and the data section.
+  'packages/components/charts/src/sui-bar-chart/sui-bar-chart.sui',
+  'packages/components/charts/src/sui-sparkline/sui-sparkline.sui',
+  // apps/shell — brand mark + theme picker live in the shell pack today but
+  // the marketing site references them. Long-term move to a shared package.
+  'apps/shell/src/components/sui-brand-mark/sui-brand-mark.sui',
+  'apps/shell/src/components/sui-theme-picker/sui-theme-picker.sui',
+].map((p) => resolve(repoRoot, p))
+
 const TARGETS: BundleTarget[] = [
   { name: 'sui-runtime', entry: 'packages/sui/runtime/src/index.ts' },
   { name: 'sui-dom', entry: 'packages/sui/dom/src/index.ts', external: ['@ship/sui-runtime'] },
@@ -228,27 +255,8 @@ const TARGETS: BundleTarget[] = [
   {
     name: 'sui-marketing',
     entry: '<virtual>',
-    virtualEntry: [
-      // @ship/primitives — 8 of 94 tags marketing actually mounts.
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-badge/sui-badge.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-button/sui-button.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-progress/sui-progress.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-separator/sui-separator.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-stat/sui-stat.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-status-dot/sui-status-dot.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-table/sui-table.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-toolbar/sui-toolbar.sui'))}`,
-      // @ship/charts — 2 viz tags used on landing and the data section.
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/charts/src/sui-bar-chart/sui-bar-chart.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/charts/src/sui-sparkline/sui-sparkline.sui'))}`,
-      // apps/shell — brand mark + theme picker live in the shell pack
-      // today but the marketing site references them. Long-term these
-      // should move to a shared chrome package; short-term we include
-      // them so marketing keeps rendering correctly.
-      `import ${JSON.stringify(resolve(repoRoot, 'apps/shell/src/components/sui-brand-mark/sui-brand-mark.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'apps/shell/src/components/sui-theme-picker/sui-theme-picker.sui'))}`,
-      '',
-    ].join('\n'),
+    virtualEntry: MARKETING_SOURCES.map((p) => `import ${JSON.stringify(p)}`).join('\n') + '\n',
+    sources: MARKETING_SOURCES,
     external: ['@ship/sui-runtime', '@ship/sui-dom'],
     outFile: 'sui-marketing.js',
   },
@@ -366,6 +374,35 @@ async function refreshCatalog(): Promise<{ workspace: number; published: number 
     const out = resolve(repoRoot, '.ship/sui-out', dir, `${stem}.custom-elements.json`)
     mkdirSync(dirname(out), { recursive: true })
     await Bun.write(out, JSON.stringify(cem, null, 2) + '\n')
+  }
+  // Merge co-located `<tag>.examples.ts` fixtures into the freshly-written CEMs
+  // before aggregation. The Rust compiler can't execute TS examples, so this
+  // bun step writes the `examples` custom property onto each declaration — the
+  // pack-portable channel the Studio explorer + docs read.
+  try {
+    const inj = (await import(
+      resolve(repoRoot, 'packages/deck/build/src/inject-examples.ts')
+    )) as {
+      injectExamples: (o: {
+        sources: string[]
+        cemFor: (p: string) => string
+      }) => Promise<{ injected: number }>
+      suiOutCemFor: (root: string) => (p: string) => string
+      packDistCemFor: (p: string) => string
+    }
+    const sources = [
+      resolve(repoRoot, 'packages/components'),
+      resolve(repoRoot, 'apps/shell/src'),
+    ]
+    // The aggregator reads PUBLISHED packs from their `dist/custom-elements.json`
+    // and non-packaged origins from the `.ship/sui-out` mirror. Inject into both
+    // so examples reach whichever projection the entry comes from. Each pass
+    // skips tags whose target CEM doesn't exist.
+    const pack = (await inj.injectExamples({ sources, cemFor: inj.packDistCemFor })).injected
+    const mirror = (await inj.injectExamples({ sources, cemFor: inj.suiOutCemFor(repoRoot) })).injected
+    if (pack + mirror > 0) process.stdout.write(`✓ inject-examples (pack=${pack}, mirror=${mirror})\n`)
+  } catch (err) {
+    process.stderr.write(`[bundler] inject-examples skipped: ${String(err)}\n`)
   }
   const { buildCatalogs, stringifyCatalog } = await loadSuiCatalogLib()
   const { workspace, published } = await buildCatalogs({ repoRoot })
@@ -540,6 +577,13 @@ function debounceRebuild(targetName: string, cb: () => void) {
 function targetsForFile(absPath: string): BundleTarget[] {
   return TARGETS.filter((t) => {
     if (t.precompile?.some((p) => p.path === absPath)) return true
+    // Virtual-entry targets (aggregates + separate-bundle islands) have no
+    // real entry file — `<virtual>` resolves to `<repoRoot>/<virtual>`, whose
+    // dirname is the repo root, so the entry-dir heuristic below would match
+    // EVERY file in the repo. Match against the explicit source list instead.
+    if (t.sources) {
+      return t.sources.some((s) => absPath === s || absPath.startsWith(dirname(s) + '/'))
+    }
     const entryAbs = resolve(repoRoot, t.entry)
     if (entryAbs === absPath) return true
     // Rough heuristic: same package directory
@@ -660,7 +704,7 @@ function emit(msg: Response | Event) {
 // ── Main loop ─────────────────────────────────────────────────────────────────
 
 // CLI mode: `--all` runs a one-shot build of the sui-* family + views and
-// exits. This is the asset set `crates/deck/deck-server/build.rs` requires
+// exits. This is the asset set `crates/deck/deck-core/build.rs` requires
 // via its ASSETS const, so the root `bun run build:bundles` script can fan
 // out here in CI without scripting the stdin/stdout JSON protocol.
 //

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chrome, notifyViewUnmount } from '../src/chrome'
+import { setRouterPort } from '../src/route'
 
 interface CapturedEvent {
   type: string
@@ -59,24 +60,32 @@ describe('chrome wrapper', () => {
   })
 
   describe('navigate', () => {
-    it('pushes history and dispatches sui:navigate', () => {
-      const pushSpy = vi.spyOn(history, 'pushState')
-      const cap = captureAll(['sui:navigate'])
-      restore = () => { cap.restore(); pushSpy.mockRestore() }
+    // chrome.navigate delegates to the unified router via the runtime
+    // navigate() → host RouterPort (ADR unified-deck-router). It no longer
+    // pushes history or emits a `sui:navigate` *trigger* itself — the host
+    // router owns history + mounting and emits the route-change notification.
+    it('delegates to the registered RouterPort', () => {
+      const port = { navigate: vi.fn(), back: vi.fn() }
+      setRouterPort(port)
+      restore = () => { (globalThis as { __shipRouterPort?: unknown }).__shipRouterPort = undefined }
       chrome.navigate('/agents/foo')
-      expect(pushSpy).toHaveBeenCalledTimes(1)
-      expect(cap.events[0]!.detail).toMatchObject({ to: '/agents/foo' })
+      expect(port.navigate).toHaveBeenCalledWith('/agents/foo', {})
     })
 
-    it('uses replaceState when {replace: true}', () => {
-      const pushSpy = vi.spyOn(history, 'pushState')
-      const replaceSpy = vi.spyOn(history, 'replaceState')
-      const cap = captureAll(['sui:navigate'])
-      restore = () => { cap.restore(); pushSpy.mockRestore(); replaceSpy.mockRestore() }
+    it('forwards {replace: true} to the port', () => {
+      const port = { navigate: vi.fn(), back: vi.fn() }
+      setRouterPort(port)
+      restore = () => { (globalThis as { __shipRouterPort?: unknown }).__shipRouterPort = undefined }
       chrome.navigate('/skills', { replace: true })
-      expect(replaceSpy).toHaveBeenCalledTimes(1)
-      expect(pushSpy).not.toHaveBeenCalled()
-      expect((cap.events[0]!.detail as { replace?: boolean }).replace).toBe(true)
+      expect(port.navigate).toHaveBeenCalledWith('/skills', { replace: true })
+    })
+
+    it('falls back to history when no router is registered', () => {
+      ;(globalThis as { __shipRouterPort?: unknown }).__shipRouterPort = undefined
+      const pushSpy = vi.spyOn(history, 'pushState')
+      restore = () => pushSpy.mockRestore()
+      chrome.navigate('/agents/foo')
+      expect(pushSpy).toHaveBeenCalledTimes(1)
     })
   })
 

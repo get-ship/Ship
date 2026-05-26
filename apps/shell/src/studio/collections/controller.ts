@@ -1,6 +1,9 @@
 import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import { route as routeFactory } from '@ship/sui-runtime/route'
+import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+
+type SchemaInput = { name: string; type: string; required?: boolean; values?: string[] }
 
 type SchemaField = {
   name: string
@@ -129,8 +132,8 @@ function shortDate(iso: string): string {
   return new Date(then).toISOString().slice(0, 10)
 }
 
-export default controller<Scope>({
-  scope: ({ ship }) => {
+export default controller({
+  scope: ({ ship }: ViewScope<Scope>) => {
     const route = routeFactory()
     const activeId = derived(() => route.query.collection() || '')
     const collections = live(() => ship.collections.list())
@@ -240,8 +243,8 @@ export default controller<Scope>({
   },
   on: {
     setDraftField: (s, which: 'row' | 'edit', name: string, value: unknown) => {
-      const key = which === 'row' ? 'rowDraft' : 'editDraft'
-      s[key] = { ...(s[key] as object), [name]: value }
+      const key: 'rowDraft' | 'editDraft' = which === 'row' ? 'rowDraft' : 'editDraft'
+      s[key] = { ...s[key], [name]: value }
     },
     openEditRow: (s, item: { id: string; data?: Record<string, unknown> }) => {
       s.editId = item.id
@@ -250,11 +253,9 @@ export default controller<Scope>({
       s.editOpen = true
     },
     saveNewRow: async (s) => {
-      const id = s.activeId as string
+      const id = s.activeId
       try {
-        await (s.createItem as (a: { collection: string; data: Record<string, unknown> }) => Promise<unknown>)(
-          { collection: id, data: s.rowDraft as Record<string, unknown> },
-        )
+        await s.createItem({ collection: id, data: s.rowDraft })
       } catch (err) {
         s.drawerError = err instanceof Error ? err.message : 'Request failed'
         return
@@ -264,12 +265,10 @@ export default controller<Scope>({
       s.drawerError = ''
     },
     saveEdit: async (s) => {
-      const colId = s.activeId as string
-      const rowId = s.editId as string
+      const colId = s.activeId
+      const rowId = s.editId
       try {
-        await (s.updateItem as (a: {
-          collection: string; item_id: string; data: Record<string, unknown>
-        }) => Promise<unknown>)({ collection: colId, item_id: rowId, data: s.editDraft as Record<string, unknown> })
+        await s.updateItem({ collection: colId, item_id: rowId, data: s.editDraft })
       } catch (err) {
         s.drawerError = err instanceof Error ? err.message : 'Request failed'
         return
@@ -279,60 +278,52 @@ export default controller<Scope>({
       s.drawerError = ''
     },
     deleteRow: async (s) => {
-      const colId = s.activeId as string
-      const rowId = s.editId as string
+      const colId = s.activeId
+      const rowId = s.editId
       try {
-        await (s.deleteItem as (a: { collection: string; item_id: string }) => Promise<void>)({
-          collection: colId, item_id: rowId,
-        })
+        await s.deleteItem({ collection: colId, item_id: rowId })
       } catch { /* swallow — UI reflects via SSE refresh */ }
       s.editOpen = false
       s.editDraft = {}
       s.drawerError = ''
     },
     removeSchemaField: async (s, fieldName: string) => {
-      const detail = unwrap(s.colDetail as ReturnType<typeof live>) as
-        { schema?: { fields?: SchemaField[] } } | undefined
+      const detail = unwrap(s.colDetail as unknown as LiveSignal<{ schema?: { fields?: SchemaField[] } }>)
       const fields = detail?.schema?.fields ?? []
-      const fs = fields
+      const fs: SchemaInput[] = fields
         .filter(x => x.name !== fieldName)
         .map(x => ({
           name: x.name,
           type: x.field_type,
-          required: x.required,
+          ...(x.required === undefined ? {} : { required: x.required }),
           values: x.values ?? [],
         }))
-      const colId = s.activeId as string
+      const colId = s.activeId
       try {
-        await (s.updateSchema as (a: {
-          id: string
-          fields: Array<{ name: string; type: string; required?: boolean; values?: string[] }>
-        }) => Promise<unknown>)({ id: colId, fields: fs })
+        await s.updateSchema({ id: colId, fields: fs })
       } catch { /* surface via existing error path on next render */ }
     },
     cycleStatus: async (s, item: { id: string; data?: Record<string, unknown> }) => {
-      const values = s.statusValues as string[]
+      const values = s.statusValues
       if (!values || values.length === 0) return
       const current = (item.data?.['status'] as string | undefined) ?? ''
       const idx = values.indexOf(current)
       const next = values[(idx + 1) % values.length]
-      const colId = s.activeId as string
+      const colId = s.activeId
       try {
-        await (s.updateItem as (a: {
-          collection: string; item_id: string; data: Record<string, unknown>
-        }) => Promise<unknown>)({
+        await s.updateItem({
           collection: colId, item_id: item.id,
           data: { ...(item.data ?? {}), status: next },
         })
       } catch { /* SSE will reflect actual state on success/failure */ }
     },
     createCollection: async (s) => {
-      const id = (s.newColDraftId as string).trim()
+      const id = s.newColDraftId.trim()
       if (!id) { s.drawerError = 'Collection ID is required'; return }
       try {
-        await (s.createCol as (a: { id: string; name?: string; fields?: Record<string, unknown> }) => Promise<unknown>)({
+        await s.createCol({
           id,
-          name: (s.newColDraftName as string).trim() || id,
+          name: s.newColDraftName.trim() || id,
           fields: {},
         })
       } catch (err) {
@@ -343,13 +334,13 @@ export default controller<Scope>({
       s.newColDraftId = ''
       s.newColDraftName = ''
       s.drawerError = ''
-      ;(s as { navigate: (p: string) => void }).navigate('/studio/collections?collection=' + id)
+      s.navigate('/studio/collections?collection=' + id)
     },
     createFromExample: async (s, exampleId: string) => {
       const ex = EXAMPLES.find(e => e.id === exampleId)
       if (!ex) return
       try {
-        await (s.createCol as (a: { id: string; name?: string; fields?: Record<string, unknown> }) => Promise<unknown>)({
+        await s.createCol({
           id: ex.id,
           name: ex.name,
           fields: ex.fields,
@@ -358,7 +349,7 @@ export default controller<Scope>({
         s.drawerError = err instanceof Error ? err.message : 'Request failed'
         return
       }
-      ;(s as { navigate: (p: string) => void }).navigate('/studio/collections?collection=' + ex.id)
+      s.navigate('/studio/collections?collection=' + ex.id)
     },
   },
 })

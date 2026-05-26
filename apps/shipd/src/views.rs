@@ -64,7 +64,7 @@ use crate::wire::MeshResponse;
 
 pub use assets::{serve_theme_css, serve_themes_list, serve_view_tokens};
 pub use handlers::{
-    list_views, serve_view_asset, serve_view_bundle, serve_view_manifest,
+    list_views_catalog, serve_view_asset, serve_view_bundle, serve_view_manifest,
 };
 #[cfg(test)]
 pub(crate) use resolve::resolve_view_dir;

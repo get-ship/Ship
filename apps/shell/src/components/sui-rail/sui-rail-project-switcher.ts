@@ -7,6 +7,7 @@
 // nodes <sui-portal> teleports out of shadow-DOM reach).
 
 import { chrome, effect, type Signal } from '@ship/sui-runtime'
+import { ops } from '../../ops'
 
 export interface Project {
   id: string
@@ -125,9 +126,7 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
 
   const loadProjects = async (): Promise<void> => {
     try {
-      const resp = await fetch('/api/v1/projects', { credentials: 'same-origin' })
-      if (!resp.ok) return
-      const body = (await resp.json()) as ProjectsResponse
+      const body = JSON.parse((await ops.project.listProjects({})).json) as ProjectsResponse
       projects.set(body.projects ?? [])
       activeProjectId.set(body.active ?? null)
     } catch { /* leave previous state */ }
@@ -140,21 +139,7 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
     activeProjectId.set(id)
     closePopover()
     try {
-      const resp = await fetch(
-        `/api/v1/projects/${encodeURIComponent(id)}/activate`,
-        {
-          method: 'POST',
-          credentials: 'same-origin',
-        },
-      )
-      if (!resp.ok) {
-        activeProjectId.set(previousActive)
-        chrome.notify({
-          tone: 'destructive',
-          title: `Switch failed (${resp.status})`,
-        })
-        return
-      }
+      await ops.project.activate({ id })
       // The kernel-bus `project.switched` event drives the chrome's
       // view-remount + status-bar refresh path; chrome subscribes in
       // shell/src/main.ts. Keep the legacy DOM event so any existing
@@ -162,6 +147,7 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
       dispatchBubble(host, 'ship:project:change', { id })
     } catch {
       activeProjectId.set(previousActive)
+      chrome.notify({ tone: 'destructive', title: 'Switch failed' })
     }
     void loadProjects()
   }
@@ -170,20 +156,7 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
     const path = window.prompt('Path to project directory:')
     if (!path) return
     try {
-      const resp = await fetch('/api/v1/projects', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path }),
-      })
-      if (!resp.ok) {
-        const err = await resp.text().catch(() => '')
-        chrome.notify({
-          tone: 'warning',
-          title: `Add failed: ${err || resp.status}`,
-        })
-        return
-      }
+      await ops.project.add({ path, name: '' })
       await loadProjects()
       chrome.notify({ tone: 'success', title: 'Project added.' })
     } catch (e) {

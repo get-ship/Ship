@@ -2,6 +2,8 @@
 // drag-pin/unpin state machine. Split from render.ts so each module
 // stays under the 300-line engineering cap.
 
+import { ops } from '../../ops'
+
 export interface ApiView {
   name: string
   type: string
@@ -48,11 +50,9 @@ export function partition(args: { views: ApiView[]; pins: string[]; filter: stri
   return { pinned, others }
 }
 
-export async function fetchPins(settingsUrl: string, key: string): Promise<string[]> {
+export async function fetchPins(_settingsUrl: string, key: string): Promise<string[]> {
   try {
-    const resp = await fetch(settingsUrl, { credentials: 'same-origin' })
-    if (!resp.ok) return DEFAULT_PINS
-    const body = (await resp.json()) as { data?: Record<string, unknown> }
+    const body = JSON.parse((await ops.settings.state({})).json) as { data?: Record<string, unknown> }
     const raw = body.data?.[key]
     if (typeof raw === 'string') {
       try {
@@ -66,13 +66,9 @@ export async function fetchPins(settingsUrl: string, key: string): Promise<strin
   } catch { return DEFAULT_PINS }
 }
 
-export async function savePins(settingsUrl: string, key: string, pins: string[]): Promise<void> {
+export async function savePins(_settingsUrl: string, key: string, pins: string[]): Promise<void> {
   try {
-    await fetch(settingsUrl, {
-      method: 'PUT', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, value: JSON.stringify(pins) }),
-    })
+    await ops.settings.set({ key, valueJson: JSON.stringify(pins) })
   } catch { /* fire-and-forget */ }
 }
 
@@ -85,21 +81,16 @@ const HIDDEN_VIEWS = new Set([
   'pipelines-board',
 ])
 
-export async function fetchViews(url: string): Promise<ApiView[]> {
+export async function fetchViews(_url?: string): Promise<ApiView[]> {
   try {
-    const resp = await fetch(url, { credentials: 'same-origin' })
-    if (!resp.ok) return []
-    const body = (await resp.json()) as { data?: { views?: ApiView[] }; views?: ApiView[] }
-    const inferred = body.data?.views ?? body.views ?? []
-    return (inferred ?? []).filter((v) => !HIDDEN_VIEWS.has(v.name))
+    const body = JSON.parse((await ops.discovery.list({})).json) as { views?: ApiView[] }
+    return (body.views ?? []).filter((v) => !HIDDEN_VIEWS.has(v.name))
   } catch { return [] }
 }
 
-export async function fetchProject(url: string): Promise<Project | null> {
+export async function fetchProject(_url?: string): Promise<Project | null> {
   try {
-    const resp = await fetch(url, { credentials: 'same-origin' })
-    if (!resp.ok) return null
-    const body = (await resp.json()) as { projects?: Project[]; active?: string }
+    const body = JSON.parse((await ops.project.listProjects({})).json) as { projects?: Project[]; active?: string }
     const list = body.projects ?? []
     return list.find((p) => p.id === body.active) ?? list[0] ?? null
   } catch { return null }
@@ -107,11 +98,9 @@ export async function fetchProject(url: string): Promise<Project | null> {
 
 /** Full project list + the active project's id. Used by the unified
  *  view+project picker (per Task #54 — single popover for both). */
-export async function fetchProjects(url: string): Promise<{ projects: Project[]; activeId: string | null }> {
+export async function fetchProjects(_url?: string): Promise<{ projects: Project[]; activeId: string | null }> {
   try {
-    const resp = await fetch(url, { credentials: 'same-origin' })
-    if (!resp.ok) return { projects: [], activeId: null }
-    const body = (await resp.json()) as { projects?: Project[]; active?: string }
+    const body = JSON.parse((await ops.project.listProjects({})).json) as { projects?: Project[]; active?: string }
     return { projects: body.projects ?? [], activeId: body.active ?? null }
   } catch { return { projects: [], activeId: null } }
 }
@@ -120,11 +109,8 @@ export async function fetchProjects(url: string): Promise<{ projects: Project[];
  *  project. Returns true on success so the caller can refresh state. */
 export async function switchProject(id: string): Promise<boolean> {
   try {
-    const resp = await fetch(
-      `/api/v1/projects/${encodeURIComponent(id)}/activate`,
-      { method: 'POST', credentials: 'same-origin' },
-    )
-    return resp.ok
+    await ops.project.activate({ id })
+    return true
   } catch { return false }
 }
 

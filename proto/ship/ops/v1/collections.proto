@@ -25,6 +25,13 @@ message GetCollectionItemsRequest {
   string collection = 1;
 }
 
+// Single-item read (was the GET `…/items/{id}` REST handler). Fresh name to
+// avoid colliding with the plural GetCollectionItemsRequest.
+message GetCollectionItemReq {
+  string collection = 1;
+  string id = 2;
+}
+
 message CreateCollectionItemRequest {
   string collection = 1;
   string data_json = 2;
@@ -60,6 +67,10 @@ service CollectionsService {
     option (ship.ops.v1.capability) = "ship.collections.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc ListLive(ListCollectionsRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc Detail(GetCollectionDetailRequest) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Single collection: schema + items + total count.";
     option (ship.ops.v1.capability) = "ship.collections.read";
@@ -67,6 +78,22 @@ service CollectionsService {
   }
   rpc Items(GetCollectionItemsRequest) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Rows for a single collection.";
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc StateLive(GetCollectionsStateRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc DetailLive(GetCollectionDetailRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc ItemsLive(GetCollectionItemsRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc GetItem(GetCollectionItemReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.collections.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

@@ -1,0 +1,43 @@
+// `sui.*` — SUI language intelligence on the daemon (#141). Diagnostics,
+// hover, and dependency analysis for `.sui` templates, answered in-process by
+// the `sui_compiler` analysis facade (the same Rust intelligence the LSP
+// server uses) — no bun/node. Promoted off the MCP `sui_*` tools so the
+// capability survives the MCP crate's removal and is reachable via `ship ops`,
+// the shell, and any future external MCP host. All C0 reads.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/ops.proto";
+
+// A `.sui` file to analyze. Absolute, or workspace-relative (resolved against
+// SHIP_REPO_DIR or the nearest bun.lock root).
+message SuiFileReq {
+  string file = 1;
+}
+
+// Hover query at a 0-based LSP cursor.
+message SuiHoverReq {
+  string file = 1;
+  uint32 line = 2;
+  uint32 col = 3;
+}
+
+service SuiService {
+  // All diagnostics (parse + semantic + lint) for a `.sui` file, collected.
+  rpc Diagnostics(SuiFileReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  // Hover info for the symbol under the cursor (kind, origin, controller decl).
+  rpc Hover(SuiHoverReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  // Dependency surface: custom-element tags, handled events, controller path.
+  rpc Dependencies(SuiFileReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+}

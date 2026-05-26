@@ -1,95 +1,20 @@
-// Shell chrome smoke tests — covers the three new chrome primitives
-// (sui-shell-top, sui-shell-bottom, sui-blank-canvas) and the hotkey
-// surface main.ts wires. Layout assertions verify the three-zone grid
-// (top 36px · canvas · bottom 28px) is in place and there is no rail in
-// the shell mount.
+// Shell chrome smoke tests — covers the chrome primitives the shell mounts
+// (sui-shell-bottom, sui-blank-canvas) and the ⌘K command-palette surface
+// main.ts wires. The top bar is <sui-nav-top> (covered in sui-nav-top.test.ts);
+// the earlier <sui-shell-top> primitive was consolidated away.
 
 import { afterEach, describe, expect, it } from 'vitest'
-import '../../src/components/sui-shell-top/sui-shell-top.compiled.js'
 import '../../src/components/sui-shell-bottom/sui-shell-bottom.compiled.js'
 import '../../src/components/sui-blank-canvas/sui-blank-canvas.compiled.js'
-// Palette primitive lives in @ship/primitives; pull in the compiled
-// element + the two primitives its template references so the shell's
-// ⌘K → palette flow can be exercised end to end.
-import '../../../../packages/components/primitives/src/sui-command-palette/sui-command-palette.compiled.js'
+// sui-icon + sui-spinner are referenced by sui-blank-canvas's template.
 import '../../../../packages/components/primitives/src/sui-icon/sui-icon.compiled.js'
 import '../../../../packages/components/primitives/src/sui-spinner/sui-spinner.compiled.js'
-import { initCommandPalette, type PaletteSdk } from '../../src/chrome/command-palette'
 import { createContainerRegistry, flush, mount } from '../test-utils'
-
-import type { LiveSignal, LiveSource } from '@ship/sui-runtime'
-
-// A LiveSource that emits one `ok` frame synchronously on subscribe.
-function okSource<T>(value: T): LiveSource<T> {
-  return {
-    subscribe(sig: LiveSignal<T>) {
-      sig.set({ kind: 'ok', value })
-      return () => {}
-    },
-  }
-}
-
-function fakeSdk(): PaletteSdk {
-  return {
-    agents: { summaries: () => okSource({ items: [{ id: 'rust-compiler' }, { id: 'gatekeeper' }] }) },
-    skills: { list: () => okSource({ items: [{ id: 'tdd' }, { id: 'review' }] }) },
-  }
-}
 
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
-
-describe('<sui-shell-top>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-shell-top')).toBeDefined()
-  })
-
-  it('renders brand, cmdk pill, and right actions cluster', () => {
-    const { el } = mount(reg, 'sui-shell-top')
-    expect(shadow(el).querySelector('[part~="brand"]')).not.toBeNull()
-    expect(shadow(el).querySelector('[part~="cmdk"]')).not.toBeNull()
-    expect(shadow(el).querySelector('[part~="actions"]')).not.toBeNull()
-    expect(shadow(el).querySelector('[part~="theme-btn"]')).not.toBeNull()
-    expect(shadow(el).querySelector('[part~="notifications-btn"]')).not.toBeNull()
-    expect(shadow(el).querySelector('[part~="avatar"]')).not.toBeNull()
-  })
-
-  it('workspace prop renders into the wordmark hairline-separated label', async () => {
-    const { el } = mount(reg, 'sui-shell-top', { workspace: 'ship-monorepo' })
-    await flush()
-    const ws = shadow(el).querySelector('[part~="workspace"]')!
-    expect(ws.textContent?.trim()).toBe('ship-monorepo')
-  })
-
-  it('initials prop renders into the avatar', async () => {
-    const { el } = mount(reg, 'sui-shell-top', { initials: 'M' })
-    await flush()
-    const avatar = shadow(el).querySelector('[part~="avatar"]')!
-    expect(avatar.textContent?.trim()).toBe('M')
-  })
-
-  it('clicking the cmdk pill emits sui-open-command-palette', async () => {
-    const { el } = mount(reg, 'sui-shell-top')
-    const fired: Event[] = []
-    document.addEventListener('sui-open-command-palette', (e) => fired.push(e), { once: true })
-    const pill = shadow(el).querySelector('[part~="cmdk"]') as HTMLButtonElement
-    pill.click()
-    await flush()
-    expect(fired.length).toBe(1)
-  })
-
-  it('clicking the theme button emits sui:theme-picker:open', async () => {
-    const { el } = mount(reg, 'sui-shell-top')
-    const fired: Event[] = []
-    document.addEventListener('sui:theme-picker:open', (e) => fired.push(e), { once: true })
-    const btn = shadow(el).querySelector('[part~="theme-btn"]') as HTMLButtonElement
-    btn.click()
-    await flush()
-    expect(fired.length).toBe(1)
-  })
-})
 
 describe('<sui-shell-bottom>', () => {
   it('registers the custom element', () => {
@@ -206,22 +131,21 @@ describe('<sui-blank-canvas>', () => {
   })
 })
 
-describe('shell three-zone layout', () => {
-  it('app HTML mounts top, content, and bottom without a rail', () => {
+describe('shell chrome layout', () => {
+  it('app HTML mounts nav-top, content, and shell-bottom without a rail', () => {
     const container = reg.mk()
     container.innerHTML = `
       <div id="ship-app">
-        <sui-shell-top id="ship-shell-top"></sui-shell-top>
+        <sui-nav-top id="ship-nav-top"></sui-nav-top>
         <main id="ship-content" class="ship-content"></main>
         <sui-shell-bottom id="ship-shell-bottom" branch="main" workspace="ship-monorepo"></sui-shell-bottom>
       </div>
     `
-    expect(container.querySelector('#ship-shell-top')).not.toBeNull()
+    expect(container.querySelector('#ship-nav-top')).not.toBeNull()
     expect(container.querySelector('#ship-shell-bottom')).not.toBeNull()
     expect(container.querySelector('#ship-content')).not.toBeNull()
+    // No rail in the shell mount — the rail is a studio-scoped surface.
     expect(container.querySelector('#ship-rail')).toBeNull()
-    expect(container.querySelector('#ship-nav-top')).toBeNull()
-    expect(container.querySelector('#ship-status-bar')).toBeNull()
   })
 
   it('mounting <sui-blank-canvas> into the content slot is the default empty state', () => {
@@ -235,64 +159,3 @@ describe('shell three-zone layout', () => {
   })
 })
 
-describe('⌘K command palette wiring', () => {
-  let dispose: (() => void) | null = null
-  afterEach(() => {
-    dispose?.()
-    dispose = null
-    document.getElementById('ship-command-palette')?.remove()
-  })
-
-  const palette = () => document.getElementById('ship-command-palette') as HTMLElement
-  const rows = (el: HTMLElement) => Array.from(el.shadowRoot!.querySelectorAll('button.row')) as HTMLButtonElement[]
-  const headers = (el: HTMLElement) =>
-    Array.from(el.shadowRoot!.querySelectorAll('.group-h')).map((h) => h.textContent?.trim())
-
-  it('mounts a single palette element on body with the static groups', async () => {
-    dispose = initCommandPalette({ sdk: fakeSdk(), navigate: () => {} })
-    await flush()
-    expect(document.querySelectorAll('#ship-command-palette').length).toBe(1)
-    expect(headers(palette())).toEqual(['Open', 'Settings'])
-  })
-
-  it('sui-open-command-palette opens the palette and loads the dynamic Run group', async () => {
-    dispose = initCommandPalette({ sdk: fakeSdk(), navigate: () => {} })
-    await flush()
-    expect(palette().hasAttribute('open')).toBe(false)
-    document.dispatchEvent(new CustomEvent('sui-open-command-palette', { bubbles: true }))
-    await flush()
-    expect(palette().hasAttribute('open')).toBe(true)
-    // Run group is inserted between Open and Settings, populated from SDK.
-    expect(headers(palette())).toEqual(['Open', 'Run', 'Settings'])
-    const labels = rows(palette()).map((r) => r.querySelector('.row-label')?.textContent?.trim())
-    expect(labels).toContain('Run agent rust-compiler')
-    expect(labels).toContain('Invoke skill tdd')
-  })
-
-  it('selecting a nav row calls navigate with its path', async () => {
-    const visited: string[] = []
-    dispose = initCommandPalette({ sdk: fakeSdk(), navigate: (p) => visited.push(p) })
-    await flush()
-    document.dispatchEvent(new CustomEvent('sui-open-command-palette', { bubbles: true }))
-    await flush()
-    // First Open row is Studio.
-    rows(palette())[0]!.click()
-    await flush()
-    expect(visited).toEqual(['/studio'])
-  })
-
-  it('selecting a Run row dispatches sui:run with kind + id', async () => {
-    dispose = initCommandPalette({ sdk: fakeSdk(), navigate: () => {} })
-    await flush()
-    document.dispatchEvent(new CustomEvent('sui-open-command-palette', { bubbles: true }))
-    await flush()
-    const runs: Array<{ kind: string; id: string }> = []
-    document.addEventListener('sui:run', (e) => runs.push((e as CustomEvent).detail), { once: true })
-    const agentRow = rows(palette()).find(
-      (r) => r.querySelector('.row-label')?.textContent?.trim() === 'Run agent rust-compiler',
-    )!
-    agentRow.click()
-    await flush()
-    expect(runs).toEqual([{ kind: 'agent', id: 'rust-compiler' }])
-  })
-})

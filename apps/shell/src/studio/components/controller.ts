@@ -1,60 +1,122 @@
-// Components studio section — the canonical component explorer. Sources the
-// catalog from the daemon (published SUI catalog + views) via loadCatalog; the
-// custom-elements.json (CEM) feeds the prop metadata. This consolidates the
-// prior storybook-style viewers (ship-ui-studio, the dev-panel picker, the docs
-// pages) onto one surface; sharing the explorer as a component across the dev
-// panel + docs is a follow-up.
+// Components studio index — the canonical component explorer. Sources the
+// catalog from the daemon (the published SUI catalog at
+// /api/sui/catalog/published) via loadCatalog; the CEM feeds prop/slot
+// metadata and the per-component `examples` fixtures.
 //
-// User vs Dev mode: users should see published *packs*, not every element. A
-// component made of subcomponents (sui-accordion + sui-accordion-item) ships as
-// one pack. Until the catalog carries real pack metadata (a bundler-maturation
-// follow-up), we fold deterministically: an entry is a subcomponent when
-// another entry's tag is a prefix of it (sui-accordion-item ⊂ sui-accordion).
-// User mode shows pack roots only; Dev mode shows everything. Persisted so the
-// choice sticks across reloads.
-import { controller, signal } from '@ship/sui-runtime'
+// The index is grouped: a flat package filter (All / Primitives / Charts /
+// Pipelines) over a free-text search, rendering one section per semantic
+// category (Actions, Inputs, Layout, …). Categories are derived from the tag
+// (charts/pipelines packages fold into their own group). Subcomponents
+// (sui-accordion-item ⊂ sui-accordion) are folded into the parent's part
+// count and hidden from the index — one cell per shippable component.
+import { controller, signal, derived } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
-import { loadCatalog, type CatalogEntry } from './catalog'
+import { loadCatalog, categoryRank, type CatalogEntry } from './catalog'
 
-type Mode = 'user' | 'dev'
+type Filter = 'all' | 'primitives' | 'charts' | 'pipelines'
 
-const MODE_KEY = 'studio-components-mode'
-const readMode = (): Mode => {
-  if (typeof localStorage === 'undefined') return 'user'
-  return localStorage.getItem(MODE_KEY) === 'dev' ? 'dev' : 'user'
+const PKG_OF: Record<Exclude<Filter, 'all'>, string> = {
+  primitives: '@ship/primitives',
+  charts: '@ship/charts',
+  pipelines: '@ship/pipelines',
 }
 
-export default controller<Scope>({
-  scope: () => ({
-    sui: signal<CatalogEntry[]>([]),
-    loading: signal(true),
-    filterText: signal(''),
-    mode: signal<Mode>(readMode()),
-  }),
+interface IndexCell {
+  id: string
+  tag: string
+  description: string
+  propCount: number
+  parts: number
+}
 
-  derived: {
-    filtered: ({ filterText, sui, mode }) => {
+interface IndexGroup {
+  id: string
+  label: string
+  count: number
+  cells: IndexCell[]
+}
+
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
+    const sui = signal<CatalogEntry[]>([])
+    const loading = signal(true)
+    const filterText = signal('')
+    const filter = signal<Filter>('all')
+
+    // Visible (non-subcomponent) entries, filtered by package + text, then
+    // grouped into ordered category sections for the index.
+    const groups = derived(() => {
       const items = sui() as CatalogEntry[]
-      const text = (filterText() as string).toLowerCase()
-      const m = mode() as Mode
+      const text = filterText().toLowerCase().trim()
+      const f = filter()
+      const wantPkg = f === 'all' ? null : PKG_OF[f]
       const tags = items.map((i) => i.tag)
       const childCountOf = (tag: string) =>
         tags.filter((t) => t !== tag && t.startsWith(tag + '-')).length
       const isSubcomponent = (tag: string) =>
         tags.some((t) => t !== tag && tag.startsWith(t + '-'))
-      return items
+
+      const cells: Array<IndexCell & { category: string }> = items
+        .filter((e) => !isSubcomponent(e.tag))
+        .filter((e) => (wantPkg ? e.pkg === wantPkg : true))
         .filter((e) => {
-          const modeMatch = m === 'dev' || !isSubcomponent(e.tag)
-          const textMatch =
-            !text ||
+          if (!text) return true
+          return (
             e.id.toLowerCase().includes(text) ||
+            e.category.toLowerCase().includes(text) ||
             (e.description ?? '').toLowerCase().includes(text)
-          return modeMatch && textMatch
+          )
         })
-        .map((e) => ({ ...e, parts: childCountOf(e.tag) }))
-    },
-    totalCount: ({ sui }) => (sui() as CatalogEntry[]).length,
-    filteredCount: ({ filtered }) => (filtered() as CatalogEntry[]).length,
+        .map((e) => {
+          const parts = childCountOf(e.tag)
+          // No CEM description today → describe with real, present data:
+          // the prop count (and folded part count) the component carries.
+          const propCount = (e.props ?? []).length
+          const description =
+            e.description ??
+            (parts > 0
+              ? `${propCount} prop${propCount === 1 ? '' : 's'} · ${parts} part${parts === 1 ? '' : 's'}`
+              : `${propCount} prop${propCount === 1 ? '' : 's'}`)
+          return { id: e.id, tag: e.tag, description, propCount, parts, category: e.category }
+        })
+
+      const byCat = new Map<string, IndexCell[]>()
+      for (const c of cells) {
+        const arr = byCat.get(c.category) ?? []
+        arr.push({ id: c.id, tag: c.tag, description: c.description, propCount: c.propCount, parts: c.parts })
+        byCat.set(c.category, arr)
+      }
+      return [...byCat.entries()]
+        .map(([label, list]): IndexGroup => ({
+          id: label.toLowerCase(),
+          label,
+          count: list.length,
+          cells: list.sort((a, b) => a.tag.localeCompare(b.tag)),
+        }))
+        .sort((a, b) => categoryRank(a.label) - categoryRank(b.label))
+    })
+    const totalCount = derived(() => {
+      const items = sui() as CatalogEntry[]
+      const tags = items.map((i) => i.tag)
+      return items.filter((e) => !tags.some((t) => t !== e.tag && e.tag.startsWith(t + '-'))).length
+    })
+    // Per-package counts for the filter-pill badges (top-level components only).
+    const counts = derived(() => {
+      const items = sui() as CatalogEntry[]
+      const tags = items.map((i) => i.tag)
+      const roots = items.filter((e) => !tags.some((t) => t !== e.tag && e.tag.startsWith(t + '-')))
+      const by = (pkg: string) => roots.filter((e) => e.pkg === pkg).length
+      return {
+        all: roots.length,
+        primitives: by('@ship/primitives'),
+        charts: by('@ship/charts'),
+        pipelines: by('@ship/pipelines'),
+      }
+    })
+    // `groups` is a closure-local derived — readable directly.
+    const visibleCount = derived(() => groups().reduce((n, g) => n + g.count, 0))
+    return { sui, loading, filterText, filter, groups, totalCount, counts, visibleCount }
   },
 
   on: {
@@ -64,12 +126,12 @@ export default controller<Scope>({
     clearSearch: (s) => {
       s.filterText = ''
     },
-    setMode: (s, id: string) => {
-      s.mode = id as Mode
-      if (typeof localStorage !== 'undefined') localStorage.setItem(MODE_KEY, id)
+    setFilter: (s, id: string) => {
+      s.filter = id as Filter
     },
   },
 
+  // mount may be async; the runtime awaits it (MountSection allows Promise<void>).
   mount: async (state) => {
     state.sui = await loadCatalog()
     state.loading = false

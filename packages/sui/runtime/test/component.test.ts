@@ -92,6 +92,82 @@ describe('defineComponent', () => {
     el.remove()
   })
 
+  it('routes a JS property write through the prop signal (prop:X path)', () => {
+    // The compiler's `prop:X={v}` binding sets `el.X = v` as a JS property.
+    // Without an accessor that delegates to the signal, this writes a dead
+    // expando and the component never reacts — the bug behind dialogs that
+    // wouldn't open. The accessor must forward to `propSignals[camel]`.
+    const tag = nextTag()
+    let captured: Signal<unknown> | undefined
+    defineComponent(
+      tag,
+      {
+        observedAttrs: ['open'],
+        props: { open: { camel: 'open', decode: (r) => r !== null } },
+      },
+      (_host, propSignals) => {
+        propSignals.open = signal(false)
+        captured = propSignals.open
+        return () => {}
+      },
+    )
+    const el = document.createElement(tag) as HTMLElement & { open: boolean }
+    document.body.appendChild(el)
+    el.open = true
+    expect(captured!()).toBe(true)
+    // Reading the property reflects the signal value (untracked point-read).
+    expect(el.open).toBe(true)
+    el.remove()
+  })
+
+  it('buffers a pre-connect property write and flushes on connect', () => {
+    // `prop:X` can fire before the element is connected (signals not created
+    // yet). The accessor buffers into pendingProps; connectedCallback flushes
+    // it once the factory has populated propSignals.
+    const tag = nextTag()
+    let captured: Signal<unknown> | undefined
+    defineComponent(
+      tag,
+      {
+        observedAttrs: ['count'],
+        props: { count: { camel: 'count', decode: (r) => Number(r) } },
+      },
+      (_host, propSignals) => {
+        propSignals.count = signal(0)
+        captured = propSignals.count
+        return () => {}
+      },
+    )
+    const el = document.createElement(tag) as HTMLElement & { count: number }
+    el.count = 42 // before connect — signal does not exist yet
+    document.body.appendChild(el)
+    expect(captured!()).toBe(42)
+    el.remove()
+  })
+
+  it('does not shadow native HTMLElement props (e.g. title)', () => {
+    // Names already on the prototype chain keep the native attribute path —
+    // the accessor loop skips them so we never break built-in behavior.
+    const tag = nextTag()
+    defineComponent(
+      tag,
+      {
+        observedAttrs: ['title'],
+        props: { title: { camel: 'title', decode: (r) => r } },
+      },
+      (_host, propSignals) => {
+        propSignals.title = signal('')
+        return () => {}
+      },
+    )
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+    el.title = 'native'
+    // Native title reflects to the attribute — proof we didn't override it.
+    expect(el.getAttribute('title')).toBe('native')
+    el.remove()
+  })
+
   it('cleanup error does not throw', () => {
     const tag = nextTag()
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})

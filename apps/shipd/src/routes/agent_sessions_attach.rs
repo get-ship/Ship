@@ -39,21 +39,6 @@ use ship_substrate::supervisor::ActorHandle;
 /// - 409 if the session is registered but not PTY-backed
 /// - 503 if the dispatch subsystem has not initialized
 /// - 101 on successful upgrade
-#[utoipa::path(
-    operation_id = "attachAgentSession",
-    get,
-    path = "/api/v1/agent_sessions/{slug}/attach",
-    params(("slug" = String, Path, description = "Agent session slug")),
-    responses(
-        (status = 101, description = "WebSocket upgrade; bidirectional byte stream"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "No agent session for slug", body = crate::wire::ErrorResponse),
-        (status = 409, description = "Session is not PTY-backed", body = crate::wire::ErrorResponse),
-        (status = 503, description = "Dispatch subsystem unavailable", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn attach_agent_session(
     Path(slug): Path<String>,
     State(state): State<ApiState>,

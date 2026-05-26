@@ -22,17 +22,32 @@ import type { ViewPayload as GeneratedViewPayload } from './generated'
 
 /**
  * Wire shape returned by `GET /_sui/views/<name>[/<sub>]`. The base type
- * is generated from `crates/deck/deck-server/src/view_payload.rs::ViewPayload`
+ * is generated from `crates/deck/deck-host/src/view_payload.rs::ViewPayload`
  * via `cargo xtask gen-types`. The local generic specializes `scope` —
  * Rust ships it as untyped JSON; per-view modules narrow it here.
  */
 export type ViewPayload<Scope = Record<string, unknown>> =
   Omit<GeneratedViewPayload, 'scope'> & { scope: Scope }
 
+/**
+ * Host-provided loader. The runtime is host-agnostic — it does NOT know the
+ * URL scheme for fetching view payloads or component bundles. The host (deck
+ * view-host, shell) injects this adapter so the `/_sui/...` (or any) scheme
+ * lives at the boundary, not in the framework.
+ */
+export interface SuiLoader {
+  /** Resolve a view payload by `name[/sub]` (for the `mount(target, name)` form). */
+  fetchView(nameOrPath: string): Promise<ViewPayload>
+  /** Load + register a component island bundle by its custom-element tag. */
+  loadComponent(tag: string): Promise<void>
+}
+
 export interface MountOptions {
   ship?: unknown
   route?: RouteSignals
   navigate?: (path: string) => void
+  /** Host loader for by-name payload fetch + component-island loading. */
+  loader?: SuiLoader
   /** HMR — overlay these values onto fresh signals after re-mount. */
   restoreScope?: Record<string, unknown>
   /** Where to inject the payload's css. Default: a `<style>` adjacent
@@ -96,7 +111,7 @@ export async function mount<Scope = Record<string, unknown>>(
 
   const payload =
     typeof payloadOrName === 'string'
-      ? await fetchPayload(payloadOrName)
+      ? await resolveView(payloadOrName, opts.loader)
       : payloadOrName
 
   // 0a. Seed route params from the payload. The daemon captured these
@@ -110,7 +125,7 @@ export async function mount<Scope = Record<string, unknown>>(
   //     island bundle in `payload.islands`; the host page only
   //     bootstraps chrome islands, so view-owned islands (e.g.
   //     sui-markdown-editor) are pulled here on demand.
-  await loadViewIslands(payload.islands)
+  await loadViewIslands(payload.islands, opts.loader)
 
   // 1. Adopt SSR markup if present (morph in place), else clean-mount.
   //    The view-host shell ships SSR content inside `target` before this
@@ -365,32 +380,40 @@ function seedRouteParams(
   }
 }
 
-async function loadViewIslands(bundles: string[] | undefined): Promise<void> {
+async function loadViewIslands(
+  bundles: string[] | undefined,
+  loader: SuiLoader | undefined,
+): Promise<void> {
   if (!bundles || bundles.length === 0) return
   if (typeof customElements === 'undefined') return
+  const pending = bundles.filter((bundle) => !customElements.get(bundle))
+  if (pending.length === 0) return
+  if (!loader) {
+    throw new Error(
+      `[sui/mount] view declares component islands (${pending.join(', ')}) but no ` +
+        `opts.loader was provided — the host must supply a SuiLoader to load them.`,
+    )
+  }
   await Promise.all(
-    bundles
-      .filter((bundle) => !customElements.get(bundle))
-      .map((bundle) =>
-        import(/* @vite-ignore */ `/_sui/sui-components/${bundle}.js`).catch(
-          (err) => {
-            console.error(`[sui/mount] failed to load component bundle ${bundle}:`, err)
-          },
-        ),
-      ),
+    pending.map((bundle) =>
+      loader.loadComponent(bundle).catch((err) => {
+        console.error(`[sui/mount] failed to load component bundle ${bundle}:`, err)
+      }),
+    ),
   )
 }
 
-async function fetchPayload(nameOrPath: string): Promise<ViewPayload> {
-  const path = nameOrPath.startsWith('/_sui/views/')
-    ? nameOrPath
-    : `/_sui/views/${nameOrPath}`
-  const res = await fetch(path, { credentials: 'same-origin' })
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`[sui/mount] fetch ${path} ${res.status}: ${body.slice(0, 200)}`)
+async function resolveView(
+  nameOrPath: string,
+  loader: SuiLoader | undefined,
+): Promise<ViewPayload> {
+  if (!loader) {
+    throw new Error(
+      `[sui/mount] mounting by name ("${nameOrPath}") requires opts.loader — the ` +
+        `host must provide a SuiLoader. The runtime does not know the view URL scheme.`,
+    )
   }
-  return (await res.json()) as ViewPayload
+  return loader.fetchView(nameOrPath)
 }
 
 interface BuiltScope {

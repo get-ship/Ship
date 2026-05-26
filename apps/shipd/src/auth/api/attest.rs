@@ -11,17 +11,12 @@ use crate::auth::attest::{
 };
 use crate::auth::scopes::{SessionRegistry, generate_session_token};
 
-#[derive(serde::Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({ "jwt": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." }))]
+#[derive(serde::Deserialize)]
 pub struct AttestRequest {
     pub jwt: String,
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "session_token": "ses_01J3Z5ZQXAM3E4T7WABCDEF",
-    "expires_at_unix": 1_777_000_000
-}))]
+#[derive(serde::Serialize)]
 pub struct AttestResponse {
     pub session_token: String,
     pub expires_at_unix: i64,
@@ -48,21 +43,6 @@ fn configured_attestation_config() -> AttestationConfig {
 /// POST /auth/server-attest { jwt } — verify a JWT signed by a trusted
 /// issuer (getship.dev) and issue a session token. Unauthenticated; the
 /// JWT itself is the proof.
-#[utoipa::path(
-    operation_id = "serverAttest",
-    post,
-    path = "/auth/server-attest",
-    request_body = AttestRequest,
-    responses(
-        (status = 200, description = "Attestation accepted; session minted"),
-        (status = 401, description = "Invalid JWT", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Daemon bound to a different user", body = crate::wire::ErrorResponse),
-        (status = 502, description = "JWKS endpoint unavailable", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    security(),
-    tag = "auth"
-)]
 pub async fn server_attest(
     verifier: AttestationVerifier,
     session_registry: SessionRegistry,

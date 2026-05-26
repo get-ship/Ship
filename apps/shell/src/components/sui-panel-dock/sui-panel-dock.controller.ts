@@ -1,5 +1,5 @@
 import { controller, signal, ref } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { Signal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-panel-dock.sui'
 import { ensureResizePillStyles } from './resize-pill-styles'
 
@@ -55,31 +55,22 @@ const DEFAULT_TABS: DockTabDef[] = [
 const DEFAULT_HEIGHT = 240
 const MIN_HEIGHT = 120
 
-interface DockScope {
-  activeTab: Signal<string>
-  storageKey: () => string
-  resizing: Signal<boolean>
-  editModePill: () => boolean
-  editModeOn: Signal<boolean>
-}
-
-export default controller<Scope>({
-  scope: (state, host) => {
+export default controller({
+  scope: (state: ViewScope<Scope>, host?: Element) => {
     const tabs = signal<DockTabDef[]>(DEFAULT_TABS)
     const dragHeight = signal<number>(DEFAULT_HEIGHT)
     const resizeHandle = ref<HTMLElement>(null)
     const hostEl = host as HTMLElement | null
-    const s = state as unknown as DockScope
 
     const writeStored = (suffix: string, val: string): void => {
-      try { localStorage.setItem(`${s.storageKey()}-${suffix}`, val) }
+      try { localStorage.setItem(`${state.storageKey()}-${suffix}`, val) }
       catch { /* best-effort */ }
     }
 
     function activate(id: string): void {
       if (!tabs().some((t) => t.id === id)) return
-      if (s.activeTab() === id) return
-      s.activeTab.set(id)
+      if (state.activeTab() === id) return
+      state.activeTab.set(id)
       writeStored('active', id)
       hostEl?.dispatchEvent(
         new CustomEvent('sui:dock:activate', {
@@ -92,7 +83,7 @@ export default controller<Scope>({
       // can dock the source/signals/etc. alongside their editor. Each
       // tab declares its own URL via a known map; unknown tabs fall
       // back to a generic /sui/<tab> path.
-      const tab = s.activeTab()
+      const tab = state.activeTab()
       const url = ({
         terminal: '/sui/terminal',
         source: '/studio/components',
@@ -116,8 +107,8 @@ export default controller<Scope>({
       )
     }
     function onEditModeToggle(): void {
-      const next = !s.editModeOn()
-      s.editModeOn.set(next)
+      const next = !state.editModeOn()
+      state.editModeOn.set(next)
       hostEl?.dispatchEvent(
         new CustomEvent('sui:dock:edit-mode-toggle', {
           detail: { on: next }, bubbles: true, composed: true,

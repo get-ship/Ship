@@ -4,7 +4,8 @@
 // editable description, editable tags, variables, files. Data via liveExpr
 // (ship.skills.detail); writes via the /api/v1/skills REST surface.
 import { controller, signal, derived, live, effect } from '@ship/sui-runtime'
-import { liveExpr } from '@ship/sdk-client'
+import type { LiveSource, ViewScope } from '@ship/sui-runtime'
+import { ops, ship } from '../../../ops'
 import type { Scope } from './page.sui'
 
 interface SkillDetail {
@@ -30,13 +31,20 @@ const SOURCE_LABELS: Record<string, string> = {
 }
 const sourceLabel = (s: string): string => SOURCE_LABELS[s] ?? s
 
-export default controller<Scope>({
-  scope: ({ route }) => {
+// Parse the comma/whitespace tag input into a deduped, appended list.
+const appendTags = (input: string, current: string[]): string[] => {
+  const raw = input.trim().replace(/,+$/, '').trim()
+  if (!raw) return current
+  const next = [...current]
+  for (const p of raw.split(',').map((t) => t.trim()).filter(Boolean)) if (!next.includes(p)) next.push(p)
+  return next
+}
+
+export default controller({
+  scope: ({ route }: ViewScope<Scope>) => {
     const skillId = derived(() => route.params.id() ?? '')
     const skillRes = live(() =>
-      liveExpr<SkillDetail>(
-        `ship.skills.detail(${JSON.stringify({ id: skillId() || '__none__' })})`,
-      ),
+      ship.skills.detail({ id: skillId() || '__none__' }) as LiveSource<SkillDetail>,
     )
     const sk = derived<SkillDetail | null>(() => {
       const r = skillRes() as LiveResult
@@ -100,11 +108,7 @@ export default controller<Scope>({
       if (tags.length) fm.tags = tags
       if ((s.authors ?? []).length) fm.authors = s.authors
       try {
-        const resp = await fetch(`/api/v1/skills/${encodeURIComponent(id)}/frontmatter`, {
-          method: 'PUT', credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' }, body: JSON.stringify(fm),
-        })
-        if (!resp.ok) return { ok: false, msg: (await resp.text().catch(() => '')) || `Save failed (${resp.status})` }
+        await ops.skills.writeFrontmatter({ id, frontmatterJson: JSON.stringify(fm), scope: '' })
         return { ok: true, msg: 'Saved.' }
       } catch (e) {
         return { ok: false, msg: (e as Error).message ?? 'Save failed.' }
@@ -127,7 +131,7 @@ export default controller<Scope>({
 
   on: {
     toggleSection: (s, name: string, isOpen: boolean) => {
-      s.open = { ...(s.open as Record<string, boolean>), [name]: isOpen }
+      s.open = { ...s.open, [name]: isOpen }
     },
     onEditorInput: (s, e: Event) => {
       const d = (e as CustomEvent<{ value?: string }>).detail
@@ -135,16 +139,12 @@ export default controller<Scope>({
       if (typeof v === 'string') s.draft = v
     },
     save: async (s) => {
-      const id = s.skillId as string
+      const id = s.skillId
       if (!id || s.saving) return
       s.saving = true; s.saveBanner = null
       try {
-        const resp = await fetch(`/api/v1/skills/${encodeURIComponent(id)}/body`, {
-          method: 'PUT', credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' }, body: JSON.stringify({ body: s.draft }),
-        })
-        if (!resp.ok) { s.saveBanner = { ok: false, msg: (await resp.text().catch(() => '')) || `Save failed (${resp.status})` }; return }
-        s.baseline = s.draft as string
+        await ops.skills.writeBody({ id, body: s.draft, scope: '' })
+        s.baseline = s.draft
         s.saveBanner = { ok: true, msg: 'Saved.' }
       } catch (e) {
         s.saveBanner = { ok: false, msg: (e as Error).message ?? 'Save failed.' }
@@ -153,39 +153,39 @@ export default controller<Scope>({
       }
     },
     onDescInput: (s, e: Event) => { s.descDraft = (e.target as HTMLTextAreaElement).value ?? '' },
-    resetDesc: (s) => { s.descDraft = s.descBaseline as string; s.descBanner = null },
+    resetDesc: (s) => { s.descDraft = s.descBaseline; s.descBanner = null },
     saveDesc: async (s) => {
       if (s.descSaving || !s.descDirty) return
       s.descSaving = true; s.descBanner = null
-      const r = await (s.putFrontmatter as (p: { description?: string; tags?: string[] }) => Promise<Banner>)({ description: s.descDraft as string, tags: s.tagsBaseline as string[] })
-      if (r && r.ok) { s.descBaseline = s.descDraft as string; s.descBanner = { ok: true, msg: 'Saved.' } }
+      const r = await s.putFrontmatter({ description: s.descDraft, tags: s.tagsBaseline })
+      if (r && r.ok) { s.descBaseline = s.descDraft; s.descBanner = { ok: true, msg: 'Saved.' } }
       else s.descBanner = r
       s.descSaving = false
     },
     onTagsInput: (s, e: Event) => { s.tagsInput = (e.target as HTMLInputElement).value },
     addTag: (s) => {
-      const raw = (s.tagsInput as string).trim().replace(/,+$/, '').trim()
-      if (!raw) return
-      const next = [...(s.tagsList as string[])]
-      for (const p of raw.split(',').map((t) => t.trim()).filter(Boolean)) if (!next.includes(p)) next.push(p)
-      s.tagsList = next; s.tagsInput = ''
+      const next = appendTags(s.tagsInput, s.tagsList)
+      if (next !== s.tagsList) { s.tagsList = next; s.tagsInput = '' }
     },
     onTagsKeydown: (s, e: KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); (s as unknown as { addTag: () => void }).addTag?.() }
+      if (e.key !== 'Enter' && e.key !== ',') return
+      e.preventDefault()
+      const next = appendTags(s.tagsInput, s.tagsList)
+      if (next !== s.tagsList) { s.tagsList = next; s.tagsInput = '' }
     },
-    removeTag: (s, t: string) => { s.tagsList = (s.tagsList as string[]).filter((x) => x !== t) },
-    resetTags: (s) => { s.tagsList = [...(s.tagsBaseline as string[])]; s.tagsInput = ''; s.tagsBanner = null },
+    removeTag: (s, t: string) => { s.tagsList = s.tagsList.filter((x: string) => x !== t) },
+    resetTags: (s) => { s.tagsList = [...s.tagsBaseline]; s.tagsInput = ''; s.tagsBanner = null },
     saveTags: async (s) => {
       if (s.tagsSaving || !s.tagsDirty) return
-      if ((s.tagsInput as string).trim()) {
-        const raw = (s.tagsInput as string).trim().replace(/,+$/, '').trim()
-        const next = [...(s.tagsList as string[])]
-        for (const p of raw.split(',').map((t) => t.trim()).filter(Boolean)) if (!next.includes(p)) next.push(p)
+      if (s.tagsInput.trim()) {
+        const raw = s.tagsInput.trim().replace(/,+$/, '').trim()
+        const next = [...s.tagsList]
+        for (const p of raw.split(',').map((t: string) => t.trim()).filter(Boolean)) if (!next.includes(p)) next.push(p)
         s.tagsList = next; s.tagsInput = ''
       }
       s.tagsSaving = true; s.tagsBanner = null
-      const next = s.tagsList as string[]
-      const r = await (s.putFrontmatter as (p: { description?: string; tags?: string[] }) => Promise<Banner>)({ description: s.descBaseline as string, tags: next })
+      const next = s.tagsList
+      const r = await s.putFrontmatter({ description: s.descBaseline, tags: next })
       if (r && r.ok) { s.tagsBaseline = [...next]; s.tagsBanner = { ok: true, msg: 'Saved.' } }
       else s.tagsBanner = r
       s.tagsSaving = false

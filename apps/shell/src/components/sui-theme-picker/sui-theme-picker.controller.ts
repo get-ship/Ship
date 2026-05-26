@@ -1,5 +1,5 @@
 import { controller, signal, derived, effect, ref, chrome } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { Signal, ViewScope } from '@ship/sui-runtime'
 import {
   THEMES,
   applyTheme,
@@ -45,10 +45,8 @@ function ensureThemesCssInShadow(host: HTMLElement) {
   root.appendChild(link)
 }
 
-export default controller<Scope>({
-  scope: (init) => {
-    const initAny = init as unknown as { persist: Signal<boolean> }
-
+export default controller({
+  scope: (init: ViewScope<Scope>) => {
     const activeTheme = signal<ThemeId>(readStoredTheme())
     const panelOpen = signal(false)
     const groups = signal<ThemeGroup[]>(
@@ -80,7 +78,7 @@ export default controller<Scope>({
 
     function selectTheme(id: ThemeId): void {
       const next = applyTheme(id)
-      if (initAny.persist()) persistTheme(next)
+      if (init.persist()) persistTheme(next)
       activeTheme.set(next)
       const host = internals.host
       if (host) {

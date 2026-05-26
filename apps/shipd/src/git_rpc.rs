@@ -4,7 +4,7 @@
 //! Reads (C0) route through the sync read registry (`registry::call`). Writes
 //! (C1) route through `services::command::call`, the ONE gate.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde::de::DeserializeOwned;
 use serde_json::json;
 
@@ -61,6 +61,50 @@ impl GitService for OpsImpl {
             args.insert("limit".to_string(), json!(request.limit));
         }
         self.read_git_typed("git.overview", serde_json::Value::Object(args))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn overview_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGitOverviewReqView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        let mut args = serde_json::Map::new();
+        if !request.workspace_id.is_empty() {
+            args.insert("workspace_id".to_string(), json!(request.workspace_id));
+        }
+        if request.limit != 0 {
+            args.insert("limit".to_string(), json!(request.limit));
+        }
+        self.live_read("git.overview", serde_json::Value::Object(args)).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn diff_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGitDiffReqView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        let mut args = serde_json::Map::new();
+        args.insert("commit".to_string(), json!(request.commit));
+        if !request.workspace_id.is_empty() {
+            args.insert("workspace_id".to_string(), json!(request.workspace_id));
+        }
+        self.live_read("git.diff", serde_json::Value::Object(args)).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn annotations_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGitAnnotationsReqView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        let mut args = serde_json::Map::new();
+        args.insert("file".to_string(), json!(request.file));
+        if !request.workspace_id.is_empty() {
+            args.insert("workspace_id".to_string(), json!(request.workspace_id));
+        }
+        self.live_read("git.annotations", serde_json::Value::Object(args)).await
     }
 
     async fn diff(

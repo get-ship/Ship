@@ -33,10 +33,11 @@ describe('sniffEscapeHatches', () => {
 
 describe('scoreOutput — compile path', () => {
   it('compiled=false on a malformed template', async () => {
-    // Two <component> declarations is a parse error.
+    // The <state> directive was retired (reactive state lives in the
+    // controller's `scope:` factory now), so a top-level <state> is a
+    // parse error.
     const report = await scoreOutput({
-      template:
-        '<component name="a"><prop name="x" /></component><component name="b"><prop name="y" /></component>',
+      template: '<state name="n" value="0" /><span>{n()}</span>',
       behavioralTests: 'expect(true)',
     })
     expect(report.compiled).toBe(false)
@@ -69,11 +70,15 @@ describe('scoreOutput — boundedScope path', () => {
 
 describe('scoreOutput — behavioral path', () => {
   it('behavioral=true when assertions hold', async () => {
+    // Template-only behavioral check — the runtime evaluates mustache
+    // expressions at mount. (Client reactive state lives in a controller
+    // `scope:` factory now; the harness mounts templates without a setup,
+    // so the old inline-<state> counter is no longer expressible here. A
+    // setup-mounting path would restore reactive-state behavioral scoring.)
     const report = await scoreOutput({
-      template:
-        '<state name="n" value="0" /><span data-test="v">{n()}</span><button data-test="b" on:click={() => n.set(n() + 1)}>+</button>',
+      template: '<span data-test="v">{2 + 2}</span>',
       behavioralTests:
-        'expect(container.querySelector(\'[data-test="v"]\').textContent === "0");\ncontainer.querySelector(\'[data-test="b"]\').click();\nawait tick();\nexpect(container.querySelector(\'[data-test="v"]\').textContent === "1");',
+        'expect(container.querySelector(\'[data-test="v"]\').textContent === "4");',
     })
     expect(report.behavioral).toBe(true)
   })

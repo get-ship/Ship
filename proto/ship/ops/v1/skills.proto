@@ -140,6 +140,19 @@ service SkillsService {
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  // Live read variants (#138).
+  rpc ListLive(ListSkillsRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc SummariesLive(SkillSummariesRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc DetailLive(GetSkillDetailRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc Create(CreateSkillRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Create a new skill (optional initial frontmatter + body).";
     option (ship.ops.v1.capability) = "ship.skills.write";

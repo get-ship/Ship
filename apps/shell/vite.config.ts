@@ -186,6 +186,11 @@ export default defineConfig(({ mode }) => {
         "/_sui": proxyForDaemon(),
         "^/sui/.*": proxyForDaemon(),
         "/view-host": proxyForDaemon(),
+        // ConnectRPC op surface (`ship.<domain>.<op>()` → POST
+        // /ship.ops.v1.<Service>/<Method>). The GUI flip (#72/#116) moved shell
+        // data calls off /api/v1 onto these; without proxying them they hit the
+        // vite SPA fallback → 404 and no data renders.
+        "^/ship\\.ops\\.v1\\..*": proxyForDaemon(),
       },
     },
   };

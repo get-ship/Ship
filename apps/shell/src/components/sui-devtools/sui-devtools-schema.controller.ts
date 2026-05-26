@@ -1,6 +1,8 @@
 import { controller, signal, derived } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-schema.sui'
 import { isShellLocalView } from '../../chrome/shell-surfaces'
+import { ops as opsClient } from '../../ops'
 
 interface ArgDescriptor { name: string; kind: string; required?: boolean }
 interface OpDescriptor { name: string; description: string; args: ArgDescriptor[]; returns: string; permission: string; sensitive?: boolean }
@@ -46,8 +48,8 @@ function collectRefs(src: string, ops: Map<string, OpDescriptor>): DisplayRef[] 
   return [...seen.values()].sort((a, b) => a.op.localeCompare(b.op))
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const refs = signal<DisplayRef[]>([])
     const errorMsg = signal<string | null>(null)
     const knownCount = derived(() => refs().filter(r => r.known).length)
@@ -62,10 +64,9 @@ export default controller<Scope>({
     async function loadOps(): Promise<void> {
       if (ops.size > 0) return
       try {
-        const resp = await fetch('/api/v1/ship/schema', { credentials: 'same-origin' })
-        if (!resp.ok) return
-        const body = await resp.json() as { ok: boolean; data: { ops: OpDescriptor[] } }
-        ops = new Map(body.data.ops.map(op => [op.name, op]))
+        // DiscoveryService.Schema (Connect) replaces GET /api/v1/ship/schema.
+        const body = JSON.parse((await opsClient.discovery.schema({})).json) as { ops: OpDescriptor[] }
+        ops = new Map(body.ops.map(op => [op.name, op]))
       } catch { /* best-effort */ }
     }
 
@@ -92,13 +93,16 @@ export default controller<Scope>({
       if (isShellLocalView(stripped)) { s['refs'] = []; return }
       await loadOps()
       try {
-        const resp = await fetch(`/api/v1/view-source/${encodeURI(stripped)}`, { credentials: 'same-origin' })
-        if (resp.status === 404) { s['refs'] = []; return }
-        if (!resp.ok) { s['errorMsg'] = `fetch failed: ${resp.status}`; return }
-        const src = await resp.json() as { template: string; manifest: string | null }
+        const src = JSON.parse((await opsClient.discovery.source({ path: stripped })).json) as {
+          template: string
+          manifest: string | null
+        }
         s['refs'] = collectRefs(`${src.template}\n${src.manifest ?? ''}`, ops)
       } catch (e) {
-        s['errorMsg'] = (e as Error).message
+        // not_found → view has no daemon source; otherwise surface the error.
+        const msg = (e as Error).message ?? ''
+        if (/not.?found/i.test(msg)) { s['refs'] = [] }
+        else s['errorMsg'] = msg
       }
     }
 

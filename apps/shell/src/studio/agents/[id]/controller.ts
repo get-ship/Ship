@@ -1,6 +1,9 @@
-import { controller, derived, effect, live, signal, unwrap } from '@ship/sui-runtime'
+import { controller, derived, effect, live, navigate, signal, unwrap } from '@ship/sui-runtime'
+import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+import { studioRoutes } from '../../routes.gen'
 import { HUES, pickHue, pickInitials } from './hue'
+import { ops } from '../../../ops'
 
 type Permissions = {
   preset?: string
@@ -32,27 +35,26 @@ type AgentDetail = {
 type WireResp = { agent?: AgentDetail } | null | undefined
 type Banner = { ok: true; msg: string } | { ok: false; msg: string } | null
 
+
 async function readActiveAgent(): Promise<string> {
   try {
-    const resp = await fetch('/api/v1/settings/shell.agent.active', { credentials: 'same-origin' })
-    if (!resp.ok) return ''
-    const body = (await resp.json()) as { data?: unknown }
-    const value = body.data
-    if (typeof value === 'string') return value
-    if (value && typeof value === 'object' && 'value' in value && typeof (value as { value?: unknown }).value === 'string') {
-      return (value as { value: string }).value
+    const body = JSON.parse((await ops.settings.state({})).json) as {
+      data?: Record<string, unknown>
     }
+    const value = body.data?.['shell.agent.active']
+    if (typeof value === 'string') return value
     return ''
   } catch {
     return ''
   }
 }
 
-export default controller<Scope>({
-  scope: ({ route, ship }) => {
+export default controller({
+  scope: ({ route, ship }: ViewScope<Scope>) => {
     const agentId = derived(() => route.params.id() ?? '')
     const wireCtx = live(() => ship.agents.wire({ id: agentId() }))
-    const wireData = derived(() => (unwrap(wireCtx as unknown) ?? null) as WireResp)
+    // `wireCtx` emits as `unknown` (emitter gap); narrow to a LiveSignal.
+    const wireData = derived(() => (unwrap(wireCtx as LiveSignal<WireResp>) ?? null) as WireResp)
 
     const agent = derived<AgentDetail | null>(() => {
       const d = wireData()
@@ -60,7 +62,7 @@ export default controller<Scope>({
     })
 
     const notFound = derived(() => {
-      const ctx = unwrap(wireCtx as unknown)
+      const ctx = unwrap(wireCtx as LiveSignal<WireResp>)
       if (typeof ctx === 'undefined') return false
       const d = ctx as WireResp
       return !(d && d.agent && typeof d.agent.id === 'string')
@@ -195,31 +197,26 @@ export default controller<Scope>({
     }
   },
   on: {
-    goWire: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId}/wire`),
-    goSettings: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId}/settings`),
+    goWire: (s) => navigate(studioRoutes.agentsIdWire({ id: s.agentId })),
+    goSettings: (s) => navigate(studioRoutes.agentsIdSettings({ id: s.agentId })),
     // Segmented tabs: the control swallows per-option clicks, so navigate off
     // its sui-change event instead. overview → detail root; else → sub-route.
-    goTab: ({ navigate, agentId }, value: string) =>
-      navigate(value === 'overview' ? `/studio/agents/${agentId}` : `/studio/agents/${agentId}/${value}`),
-    goBack: ({ navigate }) => navigate('/studio/agents'),
-    goSkill: ({ navigate }, id: string) => navigate(`/studio/skills/${id}`),
+    goTab: (s, value: string) => {
+      const id = s.agentId
+      navigate(value === 'overview' ? studioRoutes.agentsId({ id }) : `/studio/agents/${id}/${value}`)
+    },
+    goBack: () => navigate('/studio/agents'),
+    goSkill: (_s, id: string) => navigate(studioRoutes.skillsId({ id })),
 
     activate: async (s) => {
       if (s.activating) return
       s.activating = true
       s.banner = null
       try {
-        const resp = await fetch('/api/v1/settings', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ key: 'shell.agent.active', value: s.agentId }),
+        await ops.settings.set({
+          key: 'shell.agent.active',
+          valueJson: JSON.stringify(s.agentId),
         })
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => '')
-          s.banner = { ok: false, msg: text || `Activate failed (${resp.status})` }
-          return
-        }
         s.activeAgentId = s.agentId
         s.banner = { ok: true, msg: 'Agent activated.' }
       } catch (err) {
@@ -233,17 +230,7 @@ export default controller<Scope>({
       s.activating = true
       s.banner = null
       try {
-        const resp = await fetch('/api/v1/settings', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ key: 'shell.agent.active', value: '' }),
-        })
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => '')
-          s.banner = { ok: false, msg: text || `Deactivate failed (${resp.status})` }
-          return
-        }
+        await ops.settings.set({ key: 'shell.agent.active', valueJson: JSON.stringify('') })
         s.activeAgentId = ''
         s.banner = { ok: true, msg: 'Agent cleared.' }
       } catch (err) {

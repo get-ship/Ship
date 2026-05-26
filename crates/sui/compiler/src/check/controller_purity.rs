@@ -30,7 +30,11 @@ pub fn check(source_path: Option<&Path>) -> Result<(), CompileError> {
     };
 
     let findings = sui_lint::lint_controller_source(&controller_path, &source);
-    let Some(first) = findings.first() else {
+    // The build gate fails only on Error-severity findings. Warnings surface
+    // through the LSP / `sui-lint` CLI (which call `lint_controller_source`
+    // directly) but don't break compilation — so a rule can ship as a
+    // surfaced-but-non-blocking warning before being promoted to a hard wall.
+    let Some(first) = findings.iter().find(|f| f.severity == sui_lint::Severity::Error) else {
         return Ok(());
     };
 

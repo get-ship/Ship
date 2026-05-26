@@ -51,16 +51,14 @@ fn resolve_rejects_traversal() {
 
 // ---- list_views ----
 
-#[tokio::test]
-async fn list_views_empty_returns_ok() {
-    let response = list_views().await.into_response();
-    let val = collect_body(response).await;
-    assert_eq!(val["ok"], true);
-    assert!(val["data"]["views"].is_array());
+#[test]
+fn list_views_empty_returns_ok() {
+    let val = list_views_catalog();
+    assert!(val["views"].is_array());
 }
 
-#[tokio::test]
-async fn list_views_finds_html_view() {
+#[test]
+fn list_views_finds_html_view() {
     let dir = TempDir::new().unwrap();
     let view_dir = setup_project_view(&dir, "dashboard");
     std::fs::write(view_dir.join("index.html"), "<h1>hi</h1>").unwrap();
@@ -69,15 +67,13 @@ async fn list_views_finds_html_view() {
         ship_substrate::env::Var::DevProjectDir,
         ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap(),
     );
-    let response = list_views().await.into_response();
-
-    let val = collect_body(response).await;
-    let views = val["data"]["views"].as_array().unwrap();
+    let val = list_views_catalog();
+    let views = val["views"].as_array().unwrap();
     assert!(views.iter().any(|v| v["name"] == "dashboard" && v["type"] == "html"));
 }
 
-#[tokio::test]
-async fn list_views_finds_component_view() {
+#[test]
+fn list_views_finds_component_view() {
     let dir = TempDir::new().unwrap();
     let view_dir = setup_project_view(&dir, "monitor");
     std::fs::write(view_dir.join("index.js"), "export default class {}").unwrap();
@@ -86,10 +82,8 @@ async fn list_views_finds_component_view() {
         ship_substrate::env::Var::DevProjectDir,
         ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap(),
     );
-    let response = list_views().await.into_response();
-
-    let val = collect_body(response).await;
-    let views = val["data"]["views"].as_array().unwrap();
+    let val = list_views_catalog();
+    let views = val["views"].as_array().unwrap();
     assert!(views.iter().any(|v| v["name"] == "monitor" && v["type"] == "component"));
 }
 

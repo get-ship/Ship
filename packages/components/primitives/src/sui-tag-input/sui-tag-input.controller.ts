@@ -1,4 +1,5 @@
 import { controller, derived, effect, ref, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-tag-input.sui'
 
 interface TagEntry { key: string; idx: number; label: string }
@@ -9,8 +10,8 @@ const parseCsv = (raw: string): string[] =>
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const tagList = signal<string[]>([])
     const entryValue = signal('')
     const inputEl = ref<HTMLInputElement>(null)
@@ -43,8 +44,8 @@ export default controller<Scope>({
 
     const writeBack = (next: string[]) => {
       suppressValueSync = true
-      state.tagList.set(next)
-      state.value.set(next.join(','))
+      state.tagList = next
+      state.value = next.join(',')
       suppressValueSync = false
       emit(next)
     }
@@ -52,18 +53,18 @@ export default controller<Scope>({
     // value attr (CSV) → internal tag array. Skips the round-trip when
     // we just wrote it ourselves via writeBack().
     const stopValueSync = effect(() => {
-      const raw = state.value()
+      const raw = state.value
       if (suppressValueSync) return
       const parsed = parseCsv(raw)
-      const cur = state.tagList()
+      const cur = state.tagList
       if (parsed.length === cur.length && parsed.every((v, i) => v === cur[i])) return
-      state.tagList.set(parsed)
+      state.tagList = parsed
     })
 
     // aria-label tracks the current tag set so SR announcement matches
     // what's on screen. Updated reactively whenever tagList changes.
     const stopAriaLabel = effect(() => {
-      const list = state.tagList()
+      const list = state.tagList
       const phrase =
         list.length === 0
           ? 'Tag input, no tags'
@@ -72,39 +73,39 @@ export default controller<Scope>({
     })
 
     const cap = (): number => {
-      const n = state.maxTags()
+      const n = state.maxTags
       return Number.isFinite(n) && n > 0 ? n : Infinity
     }
 
     const addTag = (raw: string) => {
-      if (state.disabled()) return
+      if (state.disabled) return
       const v = raw.trim()
       if (!v) return
-      const cur = state.tagList()
+      const cur = state.tagList
       if (cur.includes(v)) {
-        state.entryValue.set('')
+        state.entryValue = ''
         return
       }
       if (cur.length >= cap()) return
       writeBack([...cur, v])
-      state.entryValue.set('')
+      state.entryValue = ''
     }
 
     const removeAt = (idx: number) => {
-      if (state.disabled()) return
-      const cur = state.tagList()
+      if (state.disabled) return
+      const cur = state.tagList
       if (idx < 0 || idx >= cur.length) return
-      writeBack(cur.filter((_, i) => i !== idx))
+      writeBack(cur.filter((_: string, i: number) => i !== idx))
     }
 
-    const inputEl = state.inputEl()
+    const inputEl = state.inputEl as HTMLInputElement | null
     const onKeydown = (e: KeyboardEvent) => {
       if (!inputEl) return
       if (e.key === 'Enter') {
         e.preventDefault()
         addTag(inputEl.value)
       } else if (e.key === 'Backspace' && inputEl.value.length === 0) {
-        const cur = state.tagList()
+        const cur = state.tagList
         if (cur.length === 0) return
         e.preventDefault()
         removeAt(cur.length - 1)
@@ -128,8 +129,8 @@ export default controller<Scope>({
     host.shadowRoot?.addEventListener('ship-remove', onShadowRemove)
 
     host.expose!({
-      focus: () => state.inputEl()?.focus(),
-      blur: () => state.inputEl()?.blur(),
+      focus: () => (state.inputEl as HTMLInputElement | null)?.focus(),
+      blur: () => (state.inputEl as HTMLInputElement | null)?.blur(),
       clear: () => writeBack([]),
       addTag: (label: string) => addTag(label),
     })

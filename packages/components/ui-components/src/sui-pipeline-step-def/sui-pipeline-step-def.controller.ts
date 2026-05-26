@@ -1,5 +1,5 @@
 import { controller, derived } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-pipeline-step-def.sui'
 
 type Tone = 'muted' | 'info' | 'warning' | 'accent'
@@ -12,21 +12,16 @@ const TYPE_TONE: Record<string, Tone> = {
   human: 'warning',
 }
 
-export default controller<Scope>({
-  scope: (state) => {
-    const s = state as unknown as {
-      stepType: Signal<string>
-      after: Signal<string>
-      command: Signal<string>
-    }
-    const kindTone = derived<Tone>(() => TYPE_TONE[s.stepType()] ?? 'muted')
+export default controller({
+  scope: (ctx: ViewScope<Scope>) => {
+    const kindTone = derived<Tone>(() => TYPE_TONE[ctx.stepType()] ?? 'muted')
     const afterList = derived<string[]>(() =>
-      (s.after() || '')
+      String(ctx.after() || '')
         .split(',')
-        .map((x) => x.trim())
+        .map((x: string) => x.trim())
         .filter(Boolean),
     )
-    const commandTrim = derived<string>(() => (s.command() || '').trim())
+    const commandTrim = derived<string>(() => (ctx.command() || '').trim())
     return { kindTone, afterList, commandTrim }
   },
 })

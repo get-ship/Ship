@@ -32,6 +32,10 @@ service SettingsService {
     option (ship.ops.v1.capability) = "ship.settings.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc StateLive(GetSettingsRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.settings.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc Set(SetSettingRequest) returns (SettingValue) {
     option (ship.ops.v1.description) = "Set a runtime setting (value is arbitrary JSON).";
     option (ship.ops.v1.capability) = "ship.settings.write";

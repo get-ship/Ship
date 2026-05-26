@@ -1,5 +1,11 @@
 import { controller, signal, derived, live } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+import { ops } from '../../../ops'
+
+// `navigate` is injected onto the proxy by the runtime mount context but
+// is not a template-declared scope key, so it isn't on `MutableState`.
+type Nav = { navigate: (path: string) => void }
 
 type TemplateEntry = {
   id: string
@@ -28,8 +34,8 @@ function isValidId(id: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)
 }
 
-export default controller<Scope>({
-  scope: ({ ship }) => {
+export default controller({
+  scope: ({ ship }: ViewScope<Scope>) => {
     const createCtx = live(() => ship.agents.create_ctx())
     const step = signal(0)
     const template = signal('blank')
@@ -90,13 +96,13 @@ export default controller<Scope>({
     }
   },
   on: {
-    cancel: ({ navigate }) => navigate('/studio/agents'),
-    back: (s) => { s.step = Math.max(0, (s.step as number) - 1) },
+    cancel: (s) => (s as unknown as Nav).navigate('/studio/agents'),
+    back: (s) => { s.step = Math.max(0, s.step - 1) },
     next: (s) => {
       if (!s.stepValid) return
-      s.step = Math.min(3, (s.step as number) + 1)
+      s.step = Math.min(3, s.step + 1)
     },
-    goTo: (s, n: number) => { if (n <= (s.step as number)) s.step = n },
+    goTo: (s, n: number) => { if (n <= s.step) s.step = n },
     selectTemplate: (s, t: TemplateEntry) => {
       s.template = t.id
       s.preset = t.permission_preset
@@ -104,12 +110,12 @@ export default controller<Scope>({
       s.templateSkills = Array.isArray(t.skill_ids) ? t.skill_ids : []
     },
     toggleProvider: (s, p: string) => {
-      const cur = s.providers as string[]
-      s.providers = cur.includes(p) ? cur.filter(x => x !== p) : [...cur, p]
+      const cur = s.providers
+      s.providers = cur.includes(p) ? cur.filter((x: string) => x !== p) : [...cur, p]
     },
     nameInput: (s, e: CustomEvent<{ value: string }>) => {
       s.name = e.detail.value
-      if (!(s.id as string) && e.detail.value) {
+      if (!s.id && e.detail.value) {
         s.id = slugify(e.detail.value)
       }
     },
@@ -122,19 +128,13 @@ export default controller<Scope>({
       s.creating = true
       s.err = ''
       try {
-        const resp = await fetch('/api/v1/agents', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: s.id, doc: s.resolvedDoc }),
+        const m = await ops.agents.create({
+          id: s.id,
+          docJson: JSON.stringify(s.resolvedDoc),
+          scope: '',
         })
-        if (resp.ok) {
-          const body = (await resp.json()) as { id: string }
-          window.location.href = '/studio/agents/' + body.id
-          return
-        }
-        const body = (await resp.json().catch(() => ({}))) as { message?: string; error?: string }
-        s.err = body.message || body.error || `Create failed (${resp.status})`
+        window.location.href = '/studio/agents/' + m.id
+        return
       } catch (e) {
         s.err = (e as Error).message ?? 'Network error'
       } finally {

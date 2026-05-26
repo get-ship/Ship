@@ -1,5 +1,6 @@
 import { chrome, controller, derived, signal } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
+import { ops } from '../../ops'
 import type { Scope } from './sui-nav-top.sui'
 
 interface ApiView {
@@ -30,11 +31,9 @@ function humanize(id: string): string {
 
 async function fetchViewLabels(): Promise<Map<string, string>> {
   try {
-    const resp = await fetch('/api/v1/views', { credentials: 'same-origin' })
-    if (!resp.ok) return new Map()
-    const body = (await resp.json()) as { data?: { views?: ApiView[] } }
+    const body = JSON.parse((await ops.discovery.list({})).json) as { views?: ApiView[] }
     const map = new Map<string, string>()
-    for (const v of body.data?.views ?? []) {
+    for (const v of body.views ?? []) {
       if (v.rail?.label) map.set(v.name, v.rail.label)
     }
     return map
@@ -47,11 +46,11 @@ function navigateDoc(to: string): void {
   chrome.navigate(to)
 }
 
-export default controller<Scope>({
-  scope: (state, _host) => {
-    const path = (state as { path: () => string }).path
-    const projectProp = (state as { project: () => string }).project
-    const viewProp = (state as { view: () => string }).view
+export default controller({
+  scope: (state: ViewScope<Scope>) => {
+    const path = state.path
+    const projectProp = state.project
+    const viewProp = state.view
     const labels = signal<Map<string, string>>(new Map())
     const dockOpen = signal(false)
 
@@ -63,7 +62,7 @@ export default controller<Scope>({
       // Source segments: explicit `view` prop overrides path entirely.
       // Otherwise split the path; empty path falls back to the "dashboard"
       // crumb (parity with ship-nav-top.renderCrumbs).
-      const segs = view
+      const segs: string[] = view
         ? [view]
         : path().split('/').filter(Boolean)
       // Home (`/`) shows no view crumb — the brand logo is the home button.
@@ -104,10 +103,9 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
-    const scope = state as unknown as Scope
-    const pathSig = (scope as unknown as { path: Signal<string> }).path
-    const labelsSig = (scope as unknown as { labels: Signal<Map<string, string>> }).labels
-    const dockOpenSig = (scope as unknown as { dockOpen: Signal<boolean> }).dockOpen
+    const pathSig = state.$signals.path
+    const labelsSig = state.$signals.labels
+    const dockOpenSig = state.$signals.dockOpen
 
     if (!pathSig()) pathSig.set(location.pathname)
     dockOpenSig.set(document.body.classList.contains('dock-open'))
