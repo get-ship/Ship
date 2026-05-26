@@ -1,0 +1,32 @@
+[package]
+name = "ship-shell"
+version = "0.1.0"
+edition = "2021"
+description = "Ship native desktop shell — Tauri core: daemon lifecycle, updater, native C3 escalation gate. The webview runs the SUI shell as a Connect client over loopback."
+
+[lib]
+# Tauri's mobile/desktop split wants the app logic in a lib; the bin is a thin shim.
+name = "ship_shell_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "ship-shell"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+ship-substrate = { path = "../../../crates/core/ship-substrate" }
+tauri = { version = "2", features = [] }
+tauri-plugin-updater = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-process = "2"
+tauri-plugin-opener = "2"
+serde = { workspace = true }
+serde_json = "1"
+anyhow = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

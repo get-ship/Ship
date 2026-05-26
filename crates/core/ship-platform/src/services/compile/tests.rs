@@ -14,6 +14,16 @@ fn write(dir: &Path, rel: &str, content: &str) {
     std::fs::write(p, content).unwrap();
 }
 
+/// The project's own (on-disk) skills, excluding the embedded SDK capability-
+/// skills the compile pool now always carries (`load_compile_skills`). These
+/// loader tests assert disk-loading behavior, so they look past the embedded set.
+fn disk_skills(skills: &[compiler::Skill]) -> Vec<&compiler::Skill> {
+    skills
+        .iter()
+        .filter(|s| s.source != compiler::SkillSource::Builtin)
+        .collect()
+}
+
 fn setup_minimal_project(tmp: &TempDir) {
     write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
     write(
@@ -45,7 +55,7 @@ fn empty_ship_dir_gives_default_library() {
     std::fs::create_dir_all(&ship_dir).unwrap();
     let lib = load_library(&ship_dir).unwrap();
     assert!(lib.mcp_servers.is_empty());
-    assert!(lib.skills.is_empty());
+    assert!(disk_skills(&lib.skills).is_empty());
     assert!(lib.rules.is_empty());
 }
 
@@ -141,11 +151,12 @@ fn loads_skill_from_skill_md() {
         "---\nname: My Skill\ndescription: Does stuff\n---\n\nInstructions here.",
     );
     let lib = load_library(&ship_dir).unwrap();
-    assert_eq!(lib.skills.len(), 1);
-    assert_eq!(lib.skills[0].id, "my-skill");
-    assert_eq!(lib.skills[0].name, "My Skill");
-    assert_eq!(lib.skills[0].description.as_deref(), Some("Does stuff"));
-    assert_eq!(lib.skills[0].content, "Instructions here.");
+    let skills = disk_skills(&lib.skills);
+    assert_eq!(skills.len(), 1);
+    assert_eq!(skills[0].id, "my-skill");
+    assert_eq!(skills[0].name, "My Skill");
+    assert_eq!(skills[0].description.as_deref(), Some("Does stuff"));
+    assert_eq!(skills[0].content, "Instructions here.");
 }
 
 #[test]
@@ -159,9 +170,10 @@ fn loads_skill_from_flat_md() {
         "---\nname: Ship Coordination\ndescription: Coordination skill\n---\n\nContent here.",
     );
     let lib = load_library(&ship_dir).unwrap();
-    assert_eq!(lib.skills.len(), 1);
-    assert_eq!(lib.skills[0].id, "ship-coordination");
-    assert_eq!(lib.skills[0].name, "Ship Coordination");
+    let skills = disk_skills(&lib.skills);
+    assert_eq!(skills.len(), 1);
+    assert_eq!(skills[0].id, "ship-coordination");
+    assert_eq!(skills[0].name, "Ship Coordination");
 }
 
 #[test]
@@ -172,7 +184,7 @@ fn loads_skills_mixed_formats() {
     write(&ship_dir, "skills/flat-skill.md", "---\nname: Flat\n---\n\nFlat content.");
     write(&ship_dir, "skills/dir-skill/SKILL.md", "---\nname: Dir\n---\n\nDir content.");
     let lib = load_library(&ship_dir).unwrap();
-    assert_eq!(lib.skills.len(), 2);
+    assert_eq!(disk_skills(&lib.skills).len(), 2);
 }
 
 #[test]
