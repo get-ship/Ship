@@ -164,12 +164,27 @@ export default defineConfig(({ mode }) => {
     },
   });
 
+  // Proxy keys are path prefixes by default — `/sui` would also catch
+  // shell-routed paths like `/sui-demo` (a SUI view served via /sui-demo →
+  // shell mounts /_sui/views/sui-demo). Anchor the daemon-only standalone host
+  // at `^/sui/` so the prefix doesn't shadow shell views whose name starts with
+  // `sui`. The ConnectRPC op surface (`ship.<domain>.<op>()` → POST
+  // /ship.ops.v1.<Service>/<Method>, the #72/#116 flip target) is proxied too,
+  // else those data calls hit the SPA fallback → 404 and nothing renders.
+  const daemonProxy = {
+    "/api": proxyForDaemon(),
+    "/_sui": proxyForDaemon(),
+    "^/sui/.*": proxyForDaemon(),
+    "/view-host": proxyForDaemon(),
+    "^/ship\\.ops\\.v1\\..*": proxyForDaemon(),
+  };
+
   return {
     base: "/",
     plugins: [vitePidPlugin(daemonDir), suiRuntimeToDaemonUrl()],
     // The SUI runtime specifiers resolve to daemon `/_sui/*` URLs (see
-    // suiRuntimeToDaemonUrl); keep vite's dep pre-scanner from trying to read
-    // them off disk.
+    // suiRuntimeToDaemonUrl); keep vite's dep pre-scanner from reading them off
+    // disk.
     optimizeDeps: {
       exclude: [
         "@ship/sui-runtime",
@@ -180,25 +195,10 @@ export default defineConfig(({ mode }) => {
         "@ship/sdk-client",
       ],
     },
-    server: {
-      port: vitePort,
-      strictPort: true,
-      // Proxy keys are path prefixes by default — `/sui` would also catch
-      // shell-routed paths like `/sui-demo` (a SUI view served via /sui-demo
-      // → shell mounts /_sui/views/sui-demo). Anchor the daemon-only
-      // standalone host at `^/sui/` so the prefix doesn't shadow shell views
-      // whose name happens to start with `sui`.
-      proxy: {
-        "/api": proxyForDaemon(),
-        "/_sui": proxyForDaemon(),
-        "^/sui/.*": proxyForDaemon(),
-        "/view-host": proxyForDaemon(),
-        // ConnectRPC op surface (`ship.<domain>.<op>()` → POST
-        // /ship.ops.v1.<Service>/<Method>). The GUI flip (#72/#116) moved shell
-        // data calls off /api/v1 onto these; without proxying them they hit the
-        // vite SPA fallback → 404 and no data renders.
-        "^/ship\\.ops\\.v1\\..*": proxyForDaemon(),
-      },
-    },
+    server: { port: vitePort, strictPort: true, proxy: daemonProxy },
+    // `vite preview` serves the PRODUCTION build (now produced by deck's
+    // shell-app build, not vite). Same daemon proxy as dev so the deck-built
+    // dist can be exercised end-to-end against a running daemon (web-QA).
+    preview: { port: vitePort, strictPort: true, proxy: daemonProxy },
   };
 });
