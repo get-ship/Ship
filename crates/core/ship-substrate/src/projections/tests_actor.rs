@@ -237,7 +237,7 @@ mod actor_tests {
     }
 
     #[test]
-    fn dispatch_created_persists_cwd_and_project_id() {
+    fn dispatch_created_persists_cwd_and_space_id() {
         let (_ship_dir, mut conn) = setup();
         let bus = bus();
         let event = EventEnvelope::new(
@@ -247,7 +247,7 @@ mod actor_tests {
                 "kind": "agent",
                 "environment_type": "local",
                 "cwd": "/tmp/agent-cwd",
-                "project_id": "proj-abc123",
+                "space_id": "proj-abc123",
                 "restart_count": 0
             }),
         )
@@ -258,35 +258,35 @@ mod actor_tests {
         bus.dispatch(&event, &mut conn);
 
         let row: Option<(Option<String>, Option<String>)> = block_on(async {
-            sqlx::query_as("SELECT cwd, project_id FROM actors WHERE id = ?")
+            sqlx::query_as("SELECT cwd, space_id FROM actors WHERE id = ?")
                 .bind("actor-cwd-test")
                 .fetch_optional(&mut conn)
                 .await
         })
         .unwrap();
-        let (cwd, project_id) = row.expect("actor row missing");
+        let (cwd, space_id) = row.expect("actor row missing");
         assert_eq!(cwd.as_deref(), Some("/tmp/agent-cwd"));
-        assert_eq!(project_id.as_deref(), Some("proj-abc123"));
+        assert_eq!(space_id.as_deref(), Some("proj-abc123"));
     }
 
     #[test]
     fn dispatch_created_without_cwd_or_project_leaves_columns_null() {
         let (_ship_dir, mut conn) = setup();
         let bus = bus();
-        // Use the legacy event helper which omits cwd / project_id.
+        // Use the legacy event helper which omits cwd / space_id.
         let event = actor_created_event("actor-legacy-shape", "ws-legacy");
         bus.dispatch(&event, &mut conn);
 
         let row: Option<(Option<String>, Option<String>)> = block_on(async {
-            sqlx::query_as("SELECT cwd, project_id FROM actors WHERE id = ?")
+            sqlx::query_as("SELECT cwd, space_id FROM actors WHERE id = ?")
                 .bind("actor-legacy-shape")
                 .fetch_optional(&mut conn)
                 .await
         })
         .unwrap();
-        let (cwd, project_id) = row.expect("actor row missing");
+        let (cwd, space_id) = row.expect("actor row missing");
         assert!(cwd.is_none(), "legacy events leave cwd null");
-        assert!(project_id.is_none(), "legacy events leave project_id null");
+        assert!(space_id.is_none(), "legacy events leave space_id null");
     }
 
     // ── Cursor tracking ────────────────────────────────────────────────

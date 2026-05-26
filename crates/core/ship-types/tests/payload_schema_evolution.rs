@@ -177,17 +177,7 @@ fn actor_crashed_v1_round_trips() {
     let _: ActorCrashed = parse(json, "ActorCrashed");
 }
 
-// ── Gate / Job ────────────────────────────────────────────────────────────────
-
-#[test]
-fn gate_passed_v1_round_trips() {
-    let _: GatePassed = parse(r#"{"evidence": "all checks pass"}"#, "GatePassed");
-}
-
-#[test]
-fn gate_failed_v1_round_trips() {
-    let _: GateFailed = parse(r#"{"evidence": "missing test"}"#, "GateFailed");
-}
+// ── Job ───────────────────────────────────────────────────────────────────────
 
 // Job event payload evolution is pinned in `ship-substrate/src/events/job.rs`
 // where the canonical 18-field structs live (they reference `ship-pipelines`,

@@ -745,7 +745,7 @@ fn hydrate_if_needed(conn: &mut SqliteConnection) -> Result<()> {
     let rows = block_on(async {
         sqlx::query(
             "SELECT id, event_type, entity_id, actor, payload_json, version, \
-                    causation_id, project_id, session_id, \
+                    causation_id, space_id, session_id, \
                     actor_id, parent_actor_id, elevated, created_at \
              FROM events \
              WHERE event_type LIKE 'pipeline.%' \

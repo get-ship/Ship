@@ -15,7 +15,7 @@ fn runtime_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        project_id: None,
+        space_id: None,
         session_id: None,
     }
 }

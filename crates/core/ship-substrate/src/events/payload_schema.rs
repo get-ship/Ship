@@ -64,9 +64,6 @@ fn schema_for_event_type(
         "actor.slept" => Some(check::<ActorSlept>),
         "actor.stopped" => Some(check::<ActorStopped>),
         "actor.crashed" => Some(check::<ActorCrashed>),
-        // gate
-        "gate.passed" => Some(check::<GatePassed>),
-        "gate.failed" => Some(check::<GateFailed>),
         // job — canonical 18-field payloads live in `crate::events::job`
         "pipeline.run.started" => Some(check::<crate::events::pipeline::PipelineRunStartedPayload>),
         "pipeline.run.completed" => Some(check::<crate::events::pipeline::PipelineRunCompletedPayload>),
@@ -79,6 +76,7 @@ fn schema_for_event_type(
         ship_types::event_types::PIPELINE_STEP_SPAWN_FAILED => Some(check::<crate::events::pipeline::PipelineStepSpawnFailedPayload>),
         // config + declarative-tier domain events (Phase 4)
         "config.changed" => Some(check::<ConfigChanged>),
+        "config.file_changed" => Some(check::<ConfigFileChanged>),
         "agent.changed" => Some(check::<ConfigChanged>),
         "skill.changed" => Some(check::<ConfigChanged>),
         "view.changed" => Some(check::<ConfigChanged>),
@@ -173,7 +171,7 @@ mod tests {
         EmitContext {
             caller_kind: kind,
             skill_id: None,
-            project_id: None,
+            space_id: None,
             session_id: None,
         }
     }

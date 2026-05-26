@@ -51,7 +51,7 @@ pub async fn handle_pipeline_run_updated(
     let ctx = EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        project_id: None,
+        space_id: None,
         session_id: None,
     };
     match kernel.lock().await.emit(mesh_envelope, &ctx).await {

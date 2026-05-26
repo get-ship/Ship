@@ -79,7 +79,7 @@ Flow:
 2. **Idempotent check** — if an active session already exists for the branch, emit `session.attached`, persist an "attach" artifact, and return the existing session. No error.
 3. Resolve harnesses for the session's agent (via `compile::resolve_session_harnesses`) and the primary harness.
 4. Compile the session context.
-5. Look up `project_id` from the project root — left `None` if the project isn't registered (registration is explicit, never implicit).
+5. Resolve `space_id` — the path-hash of the project root (`space_id_for_ship_dir`), always populated. It is the sole space scope; the legacy branch-slug `workspace_id` is no longer a scope key.
 6. Insert the session row via `db::session_events::insert_session_with_started_event` — a single transaction does INSERT + emit `session.started`.
 
 The transactional insert keeps event append and projection update on one connection.

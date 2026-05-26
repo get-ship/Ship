@@ -50,3 +50,15 @@ pub(crate) fn ensure_branch_key(branch: &str) -> Result<&str> {
     Ok(trimmed)
 }
 
+// ---- Space scope -----------------------------------------------------------
+
+/// The SPACE id for a project given its `.ship` dir. This is the path-hash
+/// identity of the project root (`ship_dir.parent()`), matching the `projects`
+/// projection key (`ship_platform::projects::register`) and the
+/// `sessions.space_id` column. The sole domain scope — never a branch slug.
+/// See spec `.artifacts/specs/space/116-event-partition.md`.
+pub(crate) fn space_id_for_ship_dir(ship_dir: &std::path::Path) -> String {
+    let root = ship_dir.parent().unwrap_or(ship_dir);
+    ship_substrate::home::path_hash(root)
+}
+

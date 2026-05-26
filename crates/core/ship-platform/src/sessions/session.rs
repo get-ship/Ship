@@ -116,12 +116,13 @@ fn append_session_note_artifact(ship_dir: &Path, session_id: &str, note: &str) -
 // ---- Public session query/progress API -------------------------------------
 
 pub fn get_active_session(
-    _ship_dir: &Path,
+    ship_dir: &Path,
     branch: &str,
 ) -> Result<Option<Session>> {
-    let branch = ensure_branch_key(branch)?;
-    let workspace_id = sanitize_file_name(branch);
-    Ok(get_active_session_db(&workspace_id)?.map(hydrate_session))
+    // Keyed on the SPACE (one active session per space), not the branch slug.
+    let _branch = ensure_branch_key(branch)?;
+    let space_id = space_id_for_ship_dir(ship_dir);
+    Ok(get_active_session_db(&space_id)?.map(hydrate_session))
 }
 
 pub fn list_sessions(
@@ -148,7 +149,10 @@ pub fn record_session_progress(
 ) -> Result<(), WorkspaceError> {
     let branch = ensure_branch_key(branch)?;
     let workspace_id = sanitize_file_name(branch);
-    let active = get_active_session_db(&workspace_id)?
+    // Look up the active session by SPACE; the branch-slug workspace_id is kept
+    // only as the entity key on the progress event.
+    let space_id = space_id_for_ship_dir(ship_dir);
+    let active = get_active_session_db(&space_id)?
         .ok_or_else(|| anyhow::anyhow!("No active session on branch '{}'", branch))?;
 
     let normalized_note = note.trim();

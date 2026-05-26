@@ -62,7 +62,7 @@ pub fn view_snapshots_schema() -> CollectionSchema {
     // The artifact id holding the blob — looked up by `read_snapshot`.
     fields.insert("artifact_id".into(), def(FieldType::String, true, true));
     // Project that owns the snapshot, used to scope the underlying artifact.
-    fields.insert("project_id".into(), def(FieldType::String, true, true));
+    fields.insert("space_id".into(), def(FieldType::String, true, true));
 
     CollectionSchema {
         id: VIEW_SNAPSHOTS_COLLECTION_ID.to_string(),
@@ -88,7 +88,7 @@ pub async fn snapshot_view(
     svc: &mut DataService,
     kernel: &Arc<Mutex<KernelRouter>>,
     artifacts: &ArtifactService,
-    project_id: &str,
+    space_id: &str,
     view_name: &str,
     source: &str,
     turn_id: &str,
@@ -100,7 +100,7 @@ pub async fn snapshot_view(
     let bytes = source.as_bytes();
     let content_hash = sha256_hex(bytes);
     let scope = ArtifactScope::Project {
-        project_id: project_id.to_string(),
+        space_id: space_id.to_string(),
     };
     let artifact = artifacts
         .store(
@@ -128,7 +128,7 @@ pub async fn snapshot_view(
         "size_bytes": bytes.len() as u64,
         "is_full": true,
         "artifact_id": artifact.id,
-        "project_id": project_id,
+        "space_id": space_id,
     });
     let schema = view_snapshots_schema();
     let item = collection_service::create_item(

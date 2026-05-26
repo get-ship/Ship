@@ -41,7 +41,7 @@ message ArtifactRecord {
   uint64 size = 4;
   string path = 5;
   string scope = 6;
-  optional string project_id = 7;
+  optional string space_id = 7;
   optional string run_id = 8;
   optional string user_id = 9;
   optional string content_hash = 10;
@@ -298,7 +298,7 @@ message ActorRow {
   string kind = 2;
   string status = 3;
   optional string workspace_id = 4;
-  optional string project_id = 5;
+  optional string space_id = 5;
   optional string cwd = 6;
   optional string agent_id = 7;
   optional string harness = 8;

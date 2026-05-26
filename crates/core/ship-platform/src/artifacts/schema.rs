@@ -43,7 +43,7 @@ pub fn artifacts_schema() -> CollectionSchema {
             ..def(FieldType::String, true, true)
         },
     );
-    fields.insert("project_id".into(), def(FieldType::String, false, true));
+    fields.insert("space_id".into(), def(FieldType::String, false, true));
     fields.insert("run_id".into(), def(FieldType::String, false, true));
     fields.insert("user_id".into(), def(FieldType::String, false, true));
     fields.insert("content_hash".into(), def(FieldType::String, false, true));
@@ -74,7 +74,7 @@ mod tests {
         let s = artifacts_schema();
         assert_eq!(s.id, ARTIFACTS_COLLECTION_ID);
         for f in ["name", "path", "mime", "size", "collection_id", "item_id",
-                   "scope", "project_id", "run_id", "user_id", "content_hash",
+                   "scope", "space_id", "run_id", "user_id", "content_hash",
                    "expires_at", "owner_actor"] {
             assert!(s.fields.contains_key(f), "missing field: {f}");
         }

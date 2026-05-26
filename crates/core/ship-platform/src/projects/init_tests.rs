@@ -78,7 +78,7 @@ fn test_init_project() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_init_project_idempotent() -> anyhow::Result<()> {
+fn test_init_space_idempotent() -> anyhow::Result<()> {
     let tmp = tempdir()?;
     let ship_path = init_project(tmp.path())?;
     let project_skills_dir = skills_dir(&ship_path);

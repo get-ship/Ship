@@ -5,7 +5,7 @@ pub struct SessionDb {
     pub id: String,
     pub workspace_id: String,
     pub branch: String,
-    pub project_id: Option<String>,
+    pub space_id: Option<String>,
     pub kind: String,
     pub pipeline_run_id: Option<String>,
     pub chat_thread_id: Option<String>,

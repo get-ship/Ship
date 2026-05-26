@@ -15,16 +15,16 @@ pub fn project_slug_from_ship_dir(ship_dir: &Path) -> String {
 
 fn project_namespace_slug(ship_dir: &Path) -> String {
     let project_root = project_root_from_ship_dir(ship_dir);
-    let mut identity = read_project_identity(ship_dir).unwrap_or_default();
+    let mut identity = read_space_identity(ship_dir).unwrap_or_default();
 
     if identity.id.is_none()
-        && let Ok(id) = ensure_project_id(ship_dir)
+        && let Ok(id) = ensure_space_id(ship_dir)
     {
         identity.id = Some(id);
     }
 
     let name_token = project_name_token(project_root, identity.name.as_deref());
-    let id_token = project_id_token(ship_dir, identity.id.as_deref());
+    let id_token = space_id_token(ship_dir, identity.id.as_deref());
     let transient_prefix = if is_transient_project_root(project_root) {
         "tmp-"
     } else {
@@ -52,7 +52,7 @@ struct ProjectIdentity {
     name: Option<String>,
 }
 
-fn read_project_identity(ship_dir: &Path) -> Option<ProjectIdentity> {
+fn read_space_identity(ship_dir: &Path) -> Option<ProjectIdentity> {
     let path = ship_dir.join(crate::project::PRIMARY_CONFIG_FILE);
     if !path.exists() {
         return None;
@@ -102,7 +102,7 @@ fn project_name_token(project_root: &Path, configured_name: Option<&str>) -> Str
     }
 }
 
-fn project_id_token(ship_dir: &Path, configured_id: Option<&str>) -> String {
+fn space_id_token(ship_dir: &Path, configured_id: Option<&str>) -> String {
     let raw = configured_id
         .map(str::trim)
         .filter(|value| !value.is_empty())
@@ -198,8 +198,8 @@ fn path_slug_from_ship_dir(ship_dir: &Path) -> String {
 }
 
 /// Ensure a project has a persistent id in ship.jsonc and return it.
-pub fn ensure_project_id(ship_dir: &Path) -> Result<String> {
-    if let Some(identity) = read_project_identity(ship_dir)
+pub fn ensure_space_id(ship_dir: &Path) -> Result<String> {
+    if let Some(identity) = read_space_identity(ship_dir)
         && let Some(id) = identity.id
     {
         return Ok(id);

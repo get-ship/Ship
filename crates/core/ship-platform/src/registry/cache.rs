@@ -57,6 +57,11 @@ impl PackageCache {
         Self { root }
     }
 
+    /// The cache root directory (`~/.ship/cache/` by default).
+    pub fn root(&self) -> &std::path::Path {
+        &self.root
+    }
+
     fn objects_dir(&self) -> PathBuf {
         self.root.join("objects")
     }

@@ -167,7 +167,7 @@ impl Drop for ConnectionGuard {
                 let ctx = ship_substrate::events::EmitContext {
                     caller_kind: ship_substrate::events::CallerKind::Mcp,
                     skill_id: None,
-                    project_id: None,
+                    space_id: None,
                     session_id: None,
                 };
                 if let Err(e) = kernel.lock().await.emit(env, &ctx).await {
@@ -228,7 +228,7 @@ pub async fn spawn_mesh_service(
         let ctx = ship_substrate::events::EmitContext {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             skill_id: None,
-            project_id: None,
+            space_id: None,
             session_id: None,
         };
         while let Some(event) = outbox_rx.recv().await {

@@ -15,14 +15,15 @@ pub const ACTOR_WOKE: &str = "actor.woke";
 pub const ACTOR_SLEPT: &str = "actor.slept";
 pub const ACTOR_STOPPED: &str = "actor.stopped";
 pub const ACTOR_CRASHED: &str = "actor.crashed";
-pub const GATE_PASSED: &str = "gate.passed";
-pub const GATE_FAILED: &str = "gate.failed";
 pub const PIPELINE_RUN_STARTED: &str = "pipeline.run.started";
 pub const PIPELINE_RUN_COMPLETED: &str = "pipeline.run.completed";
 pub const PIPELINE_RUN_FAILED: &str = "pipeline.run.failed";
 pub const PIPELINE_RUN_DISPATCHED: &str = "pipeline.run.dispatched";
 pub const PIPELINE_RUN_UPDATED: &str = "pipeline.run.updated";
 pub const CONFIG_CHANGED: &str = "config.changed";
+/// Fine-grained per-file config change (path + content_hash) — see
+/// `ConfigFileChanged`. Emitted by the watcher alongside the coarse `*.changed`.
+pub const CONFIG_FILE_CHANGED: &str = "config.file_changed";
 pub const AGENT_CHANGED: &str = "agent.changed";
 pub const SKILL_CHANGED: &str = "skill.changed";
 pub const VIEW_CHANGED: &str = "view.changed";
@@ -81,17 +82,17 @@ pub const STUDIO_REPLY: &str = "studio.reply";
 
 /// Emitted by `ship compile` at end of a successful run. Records what was
 /// compiled (active agent, harness, plugins, ship version) for the
-/// `project_compile_state` projection. `entity_id` is the project_id.
+/// `project_compile_state` projection. `entity_id` is the space_id.
 pub const COMPILE_COMPLETED: &str = "compile.completed";
 
 /// Project registry — first time a project path is seen by the daemon.
-/// `entity_id` is the project_id (stable hash of the canonical path).
+/// `entity_id` is the space_id (stable hash of the canonical path).
 pub const PROJECT_REGISTERED: &str = "project.registered";
 /// Project registry — `last_seen_at` bump (re-open, switch, reattach).
 pub const PROJECT_SEEN: &str = "project.seen";
 /// Project registry — user removed the project from their registry.
 pub const PROJECT_ARCHIVED: &str = "project.archived";
-/// Active-project switch. `entity_id` is the newly-active project_id.
+/// Active-project switch. `entity_id` is the newly-active space_id.
 /// Payload carries the new + previous ids so chrome subscribers can
 /// distinguish a no-op set from a true context change.
 pub const PROJECT_SWITCHED: &str = "project.switched";
@@ -145,7 +146,7 @@ pub const RULE_UPDATED: &str = "rule.updated";
 pub const RULE_DELETED: &str = "rule.deleted";
 
 /// Permissions — `.ship/permissions.jsonc` was rewritten. `entity_id`
-/// is the project_id (or `"global"` for user-scope writes).
+/// is the space_id (or `"global"` for user-scope writes).
 pub const PERMISSIONS_UPDATED: &str = "permissions.updated";
 
 /// Capability provisioning — an agent's approved grant baseline was written.
@@ -182,14 +183,13 @@ pub const ALL: &[&str] = &[
     ACTOR_SLEPT,
     ACTOR_STOPPED,
     ACTOR_CRASHED,
-    GATE_PASSED,
-    GATE_FAILED,
     PIPELINE_RUN_STARTED,
     PIPELINE_RUN_COMPLETED,
     PIPELINE_RUN_FAILED,
     PIPELINE_RUN_DISPATCHED,
     PIPELINE_RUN_UPDATED,
     CONFIG_CHANGED,
+    CONFIG_FILE_CHANGED,
     AGENT_CHANGED,
     SKILL_CHANGED,
     VIEW_CHANGED,

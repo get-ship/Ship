@@ -24,11 +24,11 @@ fn permissions_content_hash_hex(content: &str) -> String {
 }
 
 /// Resolve the entity_id for a permissions write. Project-scoped writes
-/// use the project_id (when resolvable); user-scope or unresolvable
+/// use the space_id (when resolvable); user-scope or unresolvable
 /// project paths fall back to "global".
 fn permissions_entity_id(ship_dir: &Path) -> (String, String) {
-    use ship_substrate::project::ensure_project_id;
-    match ensure_project_id(ship_dir) {
+    use ship_substrate::project::ensure_space_id;
+    match ensure_space_id(ship_dir) {
         Ok(pid) if !pid.is_empty() => (pid, "project".to_string()),
         _ => ("global".to_string(), "global".to_string()),
     }

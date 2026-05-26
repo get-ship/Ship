@@ -242,7 +242,7 @@ pub async fn emit_event(
         ship_substrate::events::EmitContext {
             caller_kind: ship_substrate::events::CallerKind::Cli,
             skill_id: None,
-            project_id: body.workspace_id.clone(),
+            space_id: body.workspace_id.clone(),
             session_id: None,
         }
     };

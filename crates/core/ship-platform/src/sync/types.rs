@@ -40,7 +40,7 @@ mod tests {
             payload_json: "{}".to_string(),
             version: 1,
             causation_id: None,
-            project_id: Some("ws-1".to_string()),
+            space_id: Some("ws-1".to_string()),
             session_id: None,
             actor_id: None,
             parent_actor_id: None,
@@ -57,10 +57,10 @@ mod tests {
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("workspace.created"));
-        // project_id is in the envelope body (post-workspace_id→project_id
+        // space_id is in the envelope body (post-workspace_id→space_id
         // rename). Sync wire-format reviewers: this is the canonical
         // attribution field, not a duplicate of any header.
-        assert!(json.contains("project_id"));
+        assert!(json.contains("space_id"));
     }
 
     #[test]
@@ -82,7 +82,7 @@ mod tests {
                 "payload_json": "{}",
                 "version": 1,
                 "causation_id": null,
-                "project_id": "ws-1",
+                "space_id": "ws-1",
                 "session_id": null,
                 "actor_id": null,
                 "parent_actor_id": null,

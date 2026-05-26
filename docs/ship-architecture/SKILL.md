@@ -123,7 +123,7 @@ The kernel (`ship-kernel`) defines an `EventSink` trait but has no database depe
 
 ### Four runtime primitives
 
-The runtime has four concepts — no `workspace` primitive. **Project** is a directory with `.ship/` inside it; a tagging/filter primitive, not a context-lock. **Actor** is a running thing — it owns isolation (`cwd`, `project_id`, permissions, transport, lifecycle, MCP tool gate) and is supervisor-managed. **Session** is an analytics rollup over actor activity, with a `kind` discriminator (`pipeline_step | chat_thread | direct_attach`); telemetry is inline, there is no live session row. **Adapter** is an in-process module that talks to the outside world (git, tmux, harnesses) and emits events into the runtime log. Git worktrees are a git feature, resolved on demand — not a runtime primitive.
+The runtime has four concepts — no `workspace` primitive. **Project** is a directory with `.ship/` inside it; a tagging/filter primitive, not a context-lock. **Actor** is a running thing — it owns isolation (`cwd`, `space_id`, permissions, transport, lifecycle, MCP tool gate) and is supervisor-managed. **Session** is an analytics rollup over actor activity, with a `kind` discriminator (`pipeline_step | chat_thread | direct_attach`); telemetry is inline, there is no live session row. **Adapter** is an in-process module that talks to the outside world (git, tmux, harnesses) and emits events into the runtime log. Git worktrees are a git feature, resolved on demand — not a runtime primitive.
 
 ### Simplified pipelines
 

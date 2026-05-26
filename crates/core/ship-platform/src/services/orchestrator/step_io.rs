@@ -179,7 +179,7 @@ pub async fn run_step_promotes(
         }
     };
     let art_svc = ArtifactService::new(&ship_dir);
-    let project_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
+    let space_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
 
     // This step's own outputs (for promotes of self-produced artifacts).
     let own_outputs = get_step_outputs_from_events(pipeline_run_id, &step.id);
@@ -204,7 +204,7 @@ pub async fn run_step_promotes(
             continue;
         };
 
-        let target = match output_scope_to_artifact_scope(&promote.target_scope, &project_id) {
+        let target = match output_scope_to_artifact_scope(&promote.target_scope, &space_id) {
             Ok(s) => s,
             Err(e) => {
                 tracing::warn!(
@@ -405,11 +405,11 @@ fn find_artifact_for_promote(
 /// available in this context) and return an error.
 fn output_scope_to_artifact_scope(
     scope: &OutputScope,
-    project_id: &str,
+    space_id: &str,
 ) -> Result<ArtifactScope, String> {
     match scope {
         OutputScope::Project => Ok(ArtifactScope::Project {
-            project_id: project_id.to_string(),
+            space_id: space_id.to_string(),
         }),
         OutputScope::User => Err(
             "User-scope promotes require an explicit user_id; not available in the orchestrator \

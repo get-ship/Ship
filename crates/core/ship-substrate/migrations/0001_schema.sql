@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   -- rename in a follow-up. Do NOT add a workspaces table for it.
   workspace_id                TEXT NOT NULL,
   branch                      TEXT NOT NULL,
-  project_id                  TEXT,
+  space_id                  TEXT,
   kind                        TEXT NOT NULL DEFAULT 'direct_attach',
   pipeline_run_id             TEXT,
   chat_thread_id              TEXT,
@@ -56,8 +56,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS workspace_session_workspace_idx
   ON sessions(workspace_id, started_at DESC);
-CREATE INDEX IF NOT EXISTS workspace_session_project_idx
-  ON sessions(project_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS workspace_session_space_idx
+  ON sessions(space_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS workspace_session_status_idx
   ON sessions(status, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ws_session_drain
@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS events (
   payload_json     TEXT NOT NULL DEFAULT '{}',
   version          INTEGER NOT NULL DEFAULT 1,
   causation_id     TEXT,
-  project_id       TEXT,
+  space_id       TEXT,
   session_id       TEXT,
   actor_id         TEXT,
   parent_actor_id  TEXT,
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS events (
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_events_entity    ON events(entity_id, event_type);
-CREATE INDEX IF NOT EXISTS idx_events_project ON events(project_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_events_project ON events(space_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_events_session   ON events(session_id);
 CREATE INDEX IF NOT EXISTS idx_events_actor     ON events(actor_id, elevated);
 CREATE INDEX IF NOT EXISTS idx_events_job       ON events(job_id);
@@ -99,7 +99,7 @@ END;
 
 -- Bookmarks: sync push/pull positions and per-projection rebuild cursors.
 -- One row per named cursor; value is the last-applied event id (ULID).
--- Naming convention: `{purpose}:{scope}` — e.g. `push:platform:{project_id}`,
+-- Naming convention: `{purpose}:{scope}` — e.g. `push:platform:{space_id}`,
 -- `projection:auth_sessions`. Names are opaque to the table.
 CREATE TABLE IF NOT EXISTS cursors (
   name           TEXT PRIMARY KEY,
@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   token            TEXT PRIMARY KEY NOT NULL,
   agent_id         TEXT NOT NULL,
   scopes_json      TEXT NOT NULL,
-  project_id       TEXT,
+  space_id       TEXT,
   created_at_unix  INTEGER NOT NULL,
   expires_at_unix  INTEGER NOT NULL,
   revoked_at_unix  INTEGER,
@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS daemon_owner (
 
 -- Project registry — daemon's record of project paths it has seen.
 -- Materialized from project.registered / project.seen / project.archived
--- events. One row per project_id (stable hash of canonical path).
+-- events. One row per space_id (stable hash of canonical path).
 CREATE TABLE IF NOT EXISTS projects (
   id            TEXT PRIMARY KEY NOT NULL,
   path          TEXT NOT NULL,
@@ -164,7 +164,7 @@ CREATE INDEX IF NOT EXISTS idx_projects_last_seen ON projects(last_seen_at DESC)
 -- event's payload IS the truth. CLI `ship status` reads here; daemon reads
 -- here when answering "which agent is active for project X".
 CREATE TABLE IF NOT EXISTS project_compile_state (
-  project_id          TEXT PRIMARY KEY NOT NULL,
+  space_id          TEXT PRIMARY KEY NOT NULL,
   active_agent        TEXT,
   compiled_at         TEXT NOT NULL,
   ship_version        TEXT NOT NULL,
@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS actors (
   environment_type    TEXT NOT NULL DEFAULT 'local',
   status              TEXT NOT NULL DEFAULT 'created',
   workspace_id        TEXT,
-  project_id          TEXT,
+  space_id          TEXT,
   cwd                 TEXT,
   parent_actor_id     TEXT,
   restart_count       INTEGER NOT NULL DEFAULT 0,
@@ -205,7 +205,7 @@ CREATE TABLE IF NOT EXISTS actors (
   updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_actors_workspace  ON actors(workspace_id);
-CREATE INDEX IF NOT EXISTS idx_actors_project    ON actors(project_id);
+CREATE INDEX IF NOT EXISTS idx_actors_project    ON actors(space_id);
 CREATE INDEX IF NOT EXISTS idx_actors_status     ON actors(status);
 CREATE INDEX IF NOT EXISTS idx_actors_harness   ON actors(harness);
 CREATE INDEX IF NOT EXISTS idx_actors_agent_id   ON actors(agent_id);

@@ -76,7 +76,7 @@ pub async fn set_setting_and_emit(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        project_id: None,
+        space_id: None,
         session_id: None,
     };
     kernel.lock().await.emit(envelope, &ctx).await

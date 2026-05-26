@@ -365,10 +365,18 @@ pub async fn run_network(
 
     // Register the launch-time project (if any) into the project registry
     // so the launcher / shell sees it on first list. Idempotent.
-    if let Some(root) = project_root.as_ref()
-        && let Err(e) = ship_platform::projects::register(root.path(), None) {
+    //
+    // A daemon serves exactly one project = one space. Stamp the daemon's
+    // space identity (path-hash of the project root, matching the `projects`
+    // projection key) into the process-global so the per-request emit path
+    // carries the SPACE id on `space_id`, never the branch slug. See spec
+    // `.artifacts/specs/space/116-event-partition.md`.
+    if let Some(root) = project_root.as_ref() {
+        ship_substrate::project::set_daemon_space_id_from_root(root.path());
+        if let Err(e) = ship_platform::projects::register(root.path(), None) {
             tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
         }
+    }
 
     let token = match auth::read_token(&daemon_dir) {
         Ok(existing) if !existing.is_empty() => Arc::new(existing),

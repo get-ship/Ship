@@ -92,8 +92,8 @@ fn query_one_db(path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>>
     if let Some(ref v) = filter.event_type {
         qb.push(" AND event_type = ").push_bind(v.clone());
     }
-    if let Some(ref v) = filter.project_id {
-        qb.push(" AND project_id = ").push_bind(v.clone());
+    if let Some(ref v) = filter.space_id {
+        qb.push(" AND space_id = ").push_bind(v.clone());
     }
     if let Some(ref v) = filter.session_id {
         qb.push(" AND session_id = ").push_bind(v.clone());

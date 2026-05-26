@@ -14,8 +14,8 @@ mod mesh_scope {
         ActorIdentity { instance_id: ulid::Ulid::new().to_string(), label: label.into(), actor_type: ActorType::Agent }
     }
     fn ev(t: &str) -> EventEnvelope { EventEnvelope::new(t, "e", &serde_json::json!({})).unwrap() }
-    fn rt() -> EmitContext { EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, project_id: None, session_id: None } }
-    fn mcp() -> EmitContext { EmitContext { caller_kind: CallerKind::Mcp, skill_id: None, project_id: None, session_id: None } }
+    fn rt() -> EmitContext { EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, space_id: None, session_id: None } }
+    fn mcp() -> EmitContext { EmitContext { caller_kind: CallerKind::Mcp, skill_id: None, space_id: None, session_id: None } }
     fn setup() -> (tempfile::TempDir, KernelRouter) { let t = tempdir().unwrap(); let r = KernelRouter::new(crate::ShipHome::project_ship_dir(t.path())).unwrap(); (t, r) }
 
     fn sub(ns: &str, scope: DeliveryScope) -> PermittedSubscription {

@@ -32,10 +32,10 @@ pub struct SessionStarted {
     #[serde(default)]
     pub primary_harness: Option<String>,
     /// Project this session belongs to. Looked up at start from the
-    /// actor's project_id or the workspace path. None for sessions that
+    /// actor's space_id or the workspace path. None for sessions that
     /// have no associated project (daemon services, ephemeral runs).
     #[serde(default)]
-    pub project_id: Option<String>,
+    pub space_id: Option<String>,
     /// Entry-point discriminator: `pipeline_step | chat_thread |
     /// direct_attach`. Defaults to `direct_attach` when not specified.
     #[serde(default)]
@@ -187,7 +187,7 @@ pub struct ActorCreated {
     /// Project id this actor belongs to. Looked up from `runtime::projects`
     /// when None and `cwd` is registered. Daemon services may have neither.
     #[serde(default)]
-    pub project_id: Option<String>,
+    pub space_id: Option<String>,
     /// Filesystem cwd the actor runs in. Set explicitly at spawn; falls back
     /// to project root or supervisor cwd when omitted (legacy callers).
     #[serde(default)]
@@ -217,18 +217,6 @@ pub struct ActorCrashed {
     pub restart_count: u32,
 }
 
-// -- Gate aggregate ------------------------------------------------------------
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GatePassed {
-    pub evidence: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GateFailed {
-    pub evidence: String,
-}
-
 // Job event payloads (job.created, job.completed, job.failed, job.dispatched,
 // step.*, gate.*) carry the runtime pipeline shape and live in substrate at
 // `ship_substrate::events::job` since they reference `ship-pipelines` types.
@@ -248,7 +236,7 @@ pub struct ArtifactCreated {
     #[serde(default)]
     pub owner_actor: Option<String>,
     #[serde(default)]
-    pub project_id: Option<String>,
+    pub space_id: Option<String>,
     #[serde(default)]
     pub run_id: Option<String>,
 }
@@ -272,7 +260,7 @@ pub struct ArtifactDeleted {
     pub id: String,
     pub scope: String,
     #[serde(default)]
-    pub project_id: Option<String>,
+    pub space_id: Option<String>,
     #[serde(default)]
     pub run_id: Option<String>,
 }
@@ -283,6 +271,18 @@ pub struct ArtifactDeleted {
 pub struct ConfigChanged {
     pub subject: String,
     pub detail: Option<String>,
+}
+
+/// Fine-grained, per-file config change (Format-2 reactivity). Emitted by the
+/// watcher alongside the coarse `<domain>.changed`. The space scope rides on the
+/// envelope (`space_id`); the file is identified by `path` (relative to the
+/// watched domain dir) + its `content_hash` (empty string when the file was
+/// removed).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ConfigFileChanged {
+    pub domain: String,
+    pub path: String,
+    pub content_hash: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -311,7 +311,7 @@ pub struct AuthSessionCreated {
     pub scopes_json: String,
     /// Project scope, if the session is project-bound.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub project_id: Option<String>,
+    pub space_id: Option<String>,
     pub created_at_unix: i64,
     pub expires_at_unix: i64,
     /// How the session was issued: "pair", "attest", "dev", "pairing_code".
@@ -394,7 +394,7 @@ pub struct AccountKeyRefreshed {}
 
 // -- Project registry --------------------------------------------------------
 
-/// Payload for `project.registered`. `entity_id` is the project_id (stable
+/// Payload for `project.registered`. `entity_id` is the space_id (stable
 /// hash of the canonical path).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectRegistered {
@@ -424,12 +424,12 @@ pub struct ProjectArchived {
 }
 
 /// Payload for `project.switched`. `entity_id` on the envelope is the
-/// newly-active project_id; `previous` is the id this switch supersedes
+/// newly-active space_id; `previous` is the id this switch supersedes
 /// (`None` when nothing was previously active, e.g. cold boot).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectSwitched {
     /// Newly-active project id.
-    pub project_id: String,
+    pub space_id: String,
     /// Display name of the new active project.
     pub name: String,
     /// Canonical filesystem path.
@@ -445,7 +445,7 @@ pub struct ProjectSwitched {
 
 /// Payload for `compile.completed`. Records what was compiled for the
 /// `project_compile_state` projection. `entity_id` on the envelope is the
-/// project_id; this payload carries the compile-run details.
+/// space_id; this payload carries the compile-run details.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CompileCompleted {
     /// Active agent id at compile time, if any.
@@ -513,14 +513,14 @@ pub struct RuleDeleted {
     pub file_name: String,
 }
 
-/// Payload for `permissions.updated`. `entity_id` is the project_id
+/// Payload for `permissions.updated`. `entity_id` is the space_id
 /// (or `"global"` for user-scope writes). The full normalized permissions
 /// JSON travels in `permissions_json` so subscribers / sync can replay
 /// without reading the file.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PermissionsUpdated {
     /// "project" | "global" — matches the `entity_id` ("global" or a
-    /// project_id).
+    /// space_id).
     pub scope: String,
     /// Stable hash so consumers can dedupe identical writes.
     pub content_hash: String,

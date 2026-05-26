@@ -14,7 +14,7 @@ pub enum CallerKind {
 pub struct EmitContext {
     pub caller_kind: CallerKind,
     pub skill_id: Option<String>,
-    pub project_id: Option<String>,
+    pub space_id: Option<String>,
     pub session_id: Option<String>,
 }
 
@@ -55,7 +55,7 @@ mod tests {
         let ctx = EmitContext {
             caller_kind: CallerKind::Mcp,
             skill_id: None,
-            project_id: None,
+            space_id: None,
             session_id: None,
         };
         assert_eq!(ctx.caller_kind, CallerKind::Mcp);
