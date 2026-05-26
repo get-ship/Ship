@@ -267,8 +267,15 @@ const TARGETS: BundleTarget[] = [
 // ── sui-compiler integration ──────────────────────────────────────────────────
 
 function locateCompiler(): string {
-  const home = join(homedir(), '.ship', 'runtime', 'sui-compiler')
-  if (existsSync(home)) return home
+  // Resolution order is dev-first: an explicit override wins, then a locally
+  // built compiler in this repo's target/, then the deployed runtime copy.
+  // Rationale: in a repo context the local build is the freshest — preferring
+  // the deployed ~/.ship copy (the old order) silently shadowed local compiler
+  // changes, so a just-built fix appeared not to work until `ship runtime
+  // install` (the #149/#155 trap). The deployed copy is the FALLBACK for
+  // installed (non-repo) use, where target/ doesn't exist.
+  const override = process.env.SUI_COMPILER
+  if (override && existsSync(override)) return override
 
   let cur = isAbsolute(repoRoot) ? repoRoot : resolve(repoRoot)
   let topmost: string | null = null
@@ -279,11 +286,21 @@ function locateCompiler(): string {
     cur = parent
   }
   if (topmost) {
-    const release = join(topmost, 'target', 'release', 'sui-compiler')
-    if (existsSync(release)) return release
-    const debug = join(topmost, 'target', 'debug', 'sui-compiler')
-    if (existsSync(debug)) return debug
+    // Pick the most recently built of release/debug — dev iterates on debug,
+    // `just build` produces release; choosing by mtime means neither a stale
+    // release shadows a fresh debug nor vice-versa.
+    const candidates = [
+      join(topmost, 'target', 'release', 'sui-compiler'),
+      join(topmost, 'target', 'debug', 'sui-compiler'),
+    ].filter(existsSync)
+    if (candidates.length > 0) {
+      return candidates.sort((a, b) => lstatSync(b).mtimeMs - lstatSync(a).mtimeMs)[0]!
+    }
   }
+
+  const home = join(homedir(), '.ship', 'runtime', 'sui-compiler')
+  if (existsSync(home)) return home
+
   throw new Error('bundler: cannot locate sui-compiler; run `ship runtime install`')
 }
 
