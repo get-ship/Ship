@@ -87,7 +87,7 @@ async fn actor_spawn_refines_existing_actor_and_preserves_mailbox() {
         .emit(event, &ship_substrate::events::EmitContext {
             caller_kind: ship_substrate::events::CallerKind::Cli,
             skill_id: None,
-            project_id: None,
+            space_id: None,
             session_id: None,
         })
         .await

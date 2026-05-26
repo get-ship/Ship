@@ -89,7 +89,7 @@ fn artifacts() -> ArtifactsListResponse {
         size: 2048,
         path: "artifacts/report.md".to_string(),
         scope: "project".to_string(),
-        project_id: Some("ws-default".to_string()),
+        space_id: Some("ws-default".to_string()),
         run_id: Some("typed-ops-a1b2c3d".to_string()),
         user_id: None,
         content_hash: Some("sha256:abc123".to_string()),

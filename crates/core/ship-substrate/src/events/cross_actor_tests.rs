@@ -17,7 +17,7 @@ fn runtime_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        project_id: Some("feature/actor-test".to_string()),
+        space_id: Some("feature/actor-test".to_string()),
         session_id: None,
     }
 }
@@ -26,7 +26,7 @@ fn mcp_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        project_id: Some("feature/actor-test".to_string()),
+        space_id: Some("feature/actor-test".to_string()),
         session_id: None,
     }
 }

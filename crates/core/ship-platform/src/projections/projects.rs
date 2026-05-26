@@ -54,7 +54,7 @@ impl Projection for ProjectsProjection {
 
 fn apply_registered(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
     let payload: ProjectRegistered = serde_json::from_str(&event.payload_json)?;
-    let project_id = event.entity_id.clone();
+    let space_id = event.entity_id.clone();
     block_on(async {
         sqlx::query(
             "INSERT INTO projects \
@@ -68,7 +68,7 @@ fn apply_registered(event: &EventEnvelope, conn: &mut SqliteConnection) -> Resul
                archived_at  = NULL, \
                updated_at   = datetime('now')",
         )
-        .bind(&project_id)
+        .bind(&space_id)
         .bind(&payload.path)
         .bind(&payload.name)
         .bind(&payload.label)

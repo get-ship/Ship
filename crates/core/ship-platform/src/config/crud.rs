@@ -25,8 +25,8 @@ pub fn get_active_agent(project_dir: Option<PathBuf>) -> Result<Option<AgentProf
     let Some(ship_dir) = project_dir.clone() else {
         return Ok(None);
     };
-    let project_id = ship_substrate::project::ensure_project_id(&ship_dir)?;
-    let Some(state) = crate::projections::compile_state::load(&project_id)? else {
+    let space_id = ship_substrate::project::ensure_space_id(&ship_dir)?;
+    let Some(state) = crate::projections::compile_state::load(&space_id)? else {
         return Ok(None);
     };
     let Some(active_id) = state.active_agent else {

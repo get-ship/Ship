@@ -36,7 +36,7 @@ async fn fanout_all_lanes_succeed_judge_sees_every_lane_output() {
     let ship_dir = fresh_ship_dir();
     let pipeline_run_id = "job-fanout-all-ok";
     let run_scope = ArtifactScope::Run {
-        project_id: "test-proj".into(),
+        space_id: "test-proj".into(),
         run_id: pipeline_run_id.into(),
     };
 
@@ -104,7 +104,7 @@ async fn fanout_one_lane_fails_judge_sees_survivors_plus_failed_marker() {
     let ship_dir = fresh_ship_dir();
     let pipeline_run_id = "job-fanout-one-fails";
     let run_scope = ArtifactScope::Run {
-        project_id: "test-proj".into(),
+        space_id: "test-proj".into(),
         run_id: pipeline_run_id.into(),
     };
 

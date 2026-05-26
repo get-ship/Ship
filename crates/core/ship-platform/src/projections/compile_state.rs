@@ -1,5 +1,5 @@
 //! `project_compile_state` projection — the latest `compile.completed` event
-//! for each project_id materializes into a single row. CLI `ship status`
+//! for each space_id materializes into a single row. CLI `ship status`
 //! and the daemon read here when answering "what was last compiled for
 //! project X" without parsing JSON payloads on every read.
 
@@ -15,7 +15,7 @@ use ship_types::payload::CompileCompleted;
 /// Read model row materialized from `compile.completed` events.
 #[derive(Debug, Clone)]
 pub struct ProjectCompileState {
-    pub project_id: String,
+    pub space_id: String,
     pub active_agent: Option<String>,
     pub compiled_at: String,
     pub ship_version: String,
@@ -40,13 +40,13 @@ impl Projection for CompileStateProjection {
         }
         let payload: CompileCompleted = serde_json::from_str(&event.payload_json)?;
         let plugins_json = serde_json::to_string(&payload.plugins_installed)?;
-        let project_id = event.entity_id.clone();
+        let space_id = event.entity_id.clone();
         block_on(async {
             sqlx::query(
                 "INSERT INTO project_compile_state \
-                 (project_id, active_agent, compiled_at, ship_version, harness, plugins_installed_json, updated_at) \
+                 (space_id, active_agent, compiled_at, ship_version, harness, plugins_installed_json, updated_at) \
                  VALUES (?, ?, ?, ?, ?, ?, datetime('now')) \
-                 ON CONFLICT(project_id) DO UPDATE SET \
+                 ON CONFLICT(space_id) DO UPDATE SET \
                    active_agent = excluded.active_agent, \
                    compiled_at = excluded.compiled_at, \
                    ship_version = excluded.ship_version, \
@@ -54,7 +54,7 @@ impl Projection for CompileStateProjection {
                    plugins_installed_json = excluded.plugins_installed_json, \
                    updated_at = datetime('now')",
             )
-            .bind(&project_id)
+            .bind(&space_id)
             .bind(&payload.active_agent)
             .bind(&payload.compiled_at)
             .bind(&payload.ship_version)
@@ -78,15 +78,15 @@ impl Projection for CompileStateProjection {
 
 /// Read the materialized compile state for a project. None if there's never
 /// been a `compile.completed` event for that project.
-pub fn load(project_id: &str) -> Result<Option<ProjectCompileState>> {
+pub fn load(space_id: &str) -> Result<Option<ProjectCompileState>> {
     ship_substrate::db::ensure_db()?;
     let mut conn = ship_substrate::db::open_db()?;
     let row = block_on(async {
         sqlx::query(
-            "SELECT project_id, active_agent, compiled_at, ship_version, harness, plugins_installed_json \
-             FROM project_compile_state WHERE project_id = ?",
+            "SELECT space_id, active_agent, compiled_at, ship_version, harness, plugins_installed_json \
+             FROM project_compile_state WHERE space_id = ?",
         )
-        .bind(project_id)
+        .bind(space_id)
         .fetch_optional(&mut conn)
         .await
     })?;
@@ -95,7 +95,7 @@ pub fn load(project_id: &str) -> Result<Option<ProjectCompileState>> {
         let plugins_installed: Vec<String> =
             serde_json::from_str(&plugins_json).unwrap_or_default();
         ProjectCompileState {
-            project_id: r.get(0),
+            space_id: r.get(0),
             active_agent: r.try_get(1).ok(),
             compiled_at: r.get(2),
             ship_version: r.get(3),
@@ -126,7 +126,7 @@ mod tests {
         b
     }
 
-    fn compile_event(project_id: &str, agent: &str, time: &str) -> EventEnvelope {
+    fn compile_event(space_id: &str, agent: &str, time: &str) -> EventEnvelope {
         let payload = CompileCompleted {
             active_agent: Some(agent.to_string()),
             compiled_at: time.to_string(),
@@ -134,13 +134,13 @@ mod tests {
             harness: Some("claude".to_string()),
             plugins_installed: vec!["plug-a".to_string()],
         };
-        EventEnvelope::new(COMPILE_COMPLETED, project_id, &payload).unwrap()
+        EventEnvelope::new(COMPILE_COMPLETED, space_id, &payload).unwrap()
     }
 
     #[test]
     fn missing_project_returns_none() {
         let _conn = setup();
-        // Use a project_id that won't collide with prior test runs in the
+        // Use a space_id that won't collide with prior test runs in the
         // shared global DB.
         let id = format!("proj-missing-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
         assert!(load(&id).unwrap().is_none());
@@ -153,7 +153,7 @@ mod tests {
         let event = compile_event(&id, "planner", "2026-05-04T00:00:00Z");
         bus().dispatch(&event, &mut conn);
         let row = load(&id).unwrap().expect("row should exist");
-        assert_eq!(row.project_id, id);
+        assert_eq!(row.space_id, id);
         assert_eq!(row.active_agent.as_deref(), Some("planner"));
         assert_eq!(row.ship_version, "0.1.0");
         assert_eq!(row.harness.as_deref(), Some("claude"));

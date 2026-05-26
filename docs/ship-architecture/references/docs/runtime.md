@@ -53,7 +53,7 @@ The `db` module (`crates/core/ship-substrate/src/db/`) contains all platform.db 
 | `db::daemon_settings` | Machine-wide daemon settings |
 | `db::rebuild` | Projection rebuild from the event log |
 | `db::repair` / `db::integrity` | Schema integrity checks and repair |
-| `db::project_id_reconcile` | Project-id reconciliation |
+| `db::space_id_reconcile` | Project-id reconciliation |
 | `db::types` | Shared DB type definitions |
 
 The platform database path is `~/.ship/machine/db/platform.db`. The `ensure_db()` function runs sqlx migrations idempotently, sets WAL journal mode and foreign keys, then opens a connection. There are no per-actor event stores and no separate kernel store — all actors share `platform.db`'s `events` table (see Actor Model below). The key-value store moved out of platform.db; KV now lives in its own `kv.db`, accessed via `ship_platform::kv` (a single `kv.rs` with a namespaced API).
@@ -64,7 +64,7 @@ Tests get automatic isolation. The `get_global_dir()` function detects test bina
 
 ## Sessions
 
-A session is an analytics rollup over actor activity. Lifecycle: start, work (log progress), end with summary. It has a `kind` discriminator (`pipeline_step | chat_thread | direct_attach`) and context dimensions (`project_id`, `pipeline_run_id?`, `chat_thread_id?`, `branch?`).
+A session is an analytics rollup over actor activity. Lifecycle: start, work (log progress), end with summary. It has a `kind` discriminator (`pipeline_step | chat_thread | direct_attach`) and context dimensions (`space_id`, `pipeline_run_id?`, `chat_thread_id?`, `branch?`).
 
 Session records carry start/end timestamps, model used, progress notes, summary, files-changed count, gate result, and exit reason — telemetry is inline on the row, set at `session.ended`. There is no live session row: "what's running" is an actor question; "what happened" is a session query.
 
@@ -137,7 +137,7 @@ Persist-before-deliver: nothing reacts to an event that isn't durable first. Rea
 
 ## Events
 
-Events are immutable, append-only records. Each event has: id (ULID), event_type (namespaced), entity_id, actor, payload_json, version, causation_id, project_id, session_id, actor_id, parent_actor_id, job_id, agent_id, target_actor_id, elevated flag, and created_at timestamp. The `events` table has a `BEFORE UPDATE` trigger that hard-fails any mutation — append-only is enforced at the SQL layer.
+Events are immutable, append-only records. Each event has: id (ULID), event_type (namespaced), entity_id, actor, payload_json, version, causation_id, space_id, session_id, actor_id, parent_actor_id, job_id, agent_id, target_actor_id, elevated flag, and created_at timestamp. The `events` table has a `BEFORE UPDATE` trigger that hard-fails any mutation — append-only is enforced at the SQL layer.
 
 Skills declare artifact types in their SKILL.md frontmatter (`artifacts: [html, pdf, adr]`), not events. The platform infers applicable event types from artifact types. There is no `events.json` in skills.
 

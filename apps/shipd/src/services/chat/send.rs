@@ -57,7 +57,7 @@ pub async fn send_message(
     let ctx = ship_substrate::events::EmitContext {
         caller_kind: ship_substrate::events::CallerKind::Cli,
         skill_id: None,
-        project_id: req.workspace_id.clone(),
+        space_id: req.workspace_id.clone(),
         session_id: None,
     };
     if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {

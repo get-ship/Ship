@@ -71,7 +71,7 @@ pub async fn switch_to(
     let _ = super::touch(&record.id);
 
     let payload = ProjectSwitched {
-        project_id: record.id.clone(),
+        space_id: record.id.clone(),
         name: record.name.clone(),
         path: record.path.clone(),
         previous,
@@ -81,7 +81,7 @@ pub async fn switch_to(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        project_id: Some(record.id.clone()),
+        space_id: Some(record.id.clone()),
         session_id: None,
     };
     kernel.lock().await.emit(envelope, &ctx).await?;

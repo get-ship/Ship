@@ -29,7 +29,7 @@ pub fn build_event_context(envelope: &ship_substrate::events::EventEnvelope) -> 
         "entity_id": envelope.entity_id,
         "actor": envelope.actor,
         "actor_id": envelope.actor_id,
-        "project_id": envelope.project_id,
+        "space_id": envelope.space_id,
         "session_id": envelope.session_id,
         "causation_id": envelope.causation_id,
         "payload": payload,

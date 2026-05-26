@@ -43,7 +43,7 @@ fn augment_with_sdk_references(output: &mut CompileOutput) {
     }
 }
 
-use crate::registry::dep_skills::resolve_dep_skills;
+use crate::registry::dep_skills::{resolve_dep_agents, resolve_dep_skills};
 
 use agent::{apply_agent_to_library, collect_all_skill_refs};
 use mcp_allowlist::{ensure_ship_mcp_allowed_claude, ensure_ship_mcp_allowed_cursor};
@@ -111,6 +111,13 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
         .context("resolving dep skills from cache")?;
         library.skills.extend(dep_skills);
     }
+
+    // 3b. Compose dep agents from cache (each locked package's exports.agents),
+    // namespaced by package path. Auto-compose: an installed dep's agents become
+    // available in the space. (Composition engine #122; mirrors dep skills.)
+    let dep_agents = resolve_dep_agents(&ship_dir.join("ship.lock"), None)
+        .context("composing dep agents from cache")?;
+    library.agent_profiles.extend(dep_agents);
 
     // 4. Inject extra skills into the active agent's skill filter
     if !opts.extra_skills.is_empty() {
@@ -210,7 +217,7 @@ fn emit_compile_completed(
     use ship_substrate::events::types::{CompileCompleted, event_types::COMPILE_COMPLETED};
     use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 
-    let project_id = match ship_substrate::project::ensure_project_id(ship_dir) {
+    let space_id = match ship_substrate::project::ensure_space_id(ship_dir) {
         Ok(id) => id,
         Err(e) => {
             tracing::warn!("compile: cannot resolve project id: {e}");
@@ -224,7 +231,7 @@ fn emit_compile_completed(
         harness: harnesses.first().cloned(),
         plugins_installed: plugins_installed.to_vec(),
     };
-    let envelope = match EventEnvelope::new(COMPILE_COMPLETED, &project_id, &payload) {
+    let envelope = match EventEnvelope::new(COMPILE_COMPLETED, &space_id, &payload) {
         Ok(e) => e,
         Err(e) => {
             tracing::warn!("compile: cannot build envelope: {e}");

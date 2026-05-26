@@ -44,7 +44,7 @@ pub(super) fn resolve_project_head_sha() -> Option<String> {
 /// GET /api/v1/sessions/active-across-projects
 ///
 /// Returns the running sessions visible across every project the
-/// daemon knows about, each row labeled with `project_id` + project
+/// daemon knows about, each row labeled with `space_id` + project
 /// `name`. Chrome consumes this to surface "N agents running in other
 /// projects" without forcing it to fan-out per-project queries.
 pub async fn list_sessions_across_projects(
@@ -78,7 +78,7 @@ pub async fn list_sessions_across_projects(
         .into_iter()
         .map(|s| {
             let project_name = s
-                .project_id
+                .space_id
                 .as_deref()
                 .and_then(|id| by_id.get(id))
                 .map(|p| p.name.clone());
@@ -86,7 +86,7 @@ pub async fn list_sessions_across_projects(
                 "id": s.id,
                 "workspace_id": s.workspace_id,
                 "branch": s.branch,
-                "project_id": s.project_id,
+                "space_id": s.space_id,
                 "project_name": project_name,
                 "status": s.status,
                 "agent_id": s.agent_id,
@@ -527,7 +527,7 @@ mod tests {
             payload_json: "{}".into(),
             version: 1,
             causation_id: None,
-            project_id: None,
+            space_id: None,
             session_id: None,
             actor_id: None,
             parent_actor_id: None,
@@ -552,7 +552,7 @@ mod tests {
             payload_json: "{}".into(),
             version: 1,
             causation_id: None,
-            project_id: None,
+            space_id: None,
             session_id: None,
             actor_id: None,
             parent_actor_id: None,

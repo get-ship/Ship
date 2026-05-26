@@ -8,7 +8,7 @@ use super::{block_on, open_db};
 
 /// 28-column SELECT list for the `sessions` table. Shared with
 /// `session_drain.rs` — order must match [`parse_session_row`].
-pub(super) const SESSION_COLS: &str = "id, workspace_id, branch, project_id, kind, \
+pub(super) const SESSION_COLS: &str = "id, workspace_id, branch, space_id, kind, \
     pipeline_run_id, chat_thread_id, status, started_at, ended_at, agent_id, \
     primary_harness, goal, summary, updated_workspace_ids_json, tool_call_count, \
     drained_at, last_activity_at, duration_secs, model, files_changed, lines_added, \
@@ -23,7 +23,7 @@ pub(super) fn parse_session_row(row: &sqlx::sqlite::SqliteRow) -> SessionDb {
         id: row.get(0),
         workspace_id: row.get(1),
         branch: row.get(2),
-        project_id: row.get(3),
+        space_id: row.get(3),
         kind: row.get(4),
         pipeline_run_id: row.get(5),
         chat_thread_id: row.get(6),
@@ -65,16 +65,20 @@ pub fn get_session_db(session_id: &str) -> Result<Option<SessionDb>> {
     Ok(row.as_ref().map(parse_session_row))
 }
 
-pub fn get_active_session_db(workspace_id: &str) -> Result<Option<SessionDb>> {
+/// Find the active session for a SPACE. Keyed on the space-scope column
+/// (`space_id`), not the legacy branch-slug `workspace_id`: a space has at
+/// most one active session (space = one window = one app). See spec
+/// `.artifacts/specs/space/116-event-partition.md`.
+pub fn get_active_session_db(space_id: &str) -> Result<Option<SessionDb>> {
     let mut conn = open_db()?;
     let sql = format!(
         "SELECT {SESSION_COLS} FROM sessions \
-         WHERE workspace_id = ? AND status = 'active' \
+         WHERE space_id = ? AND status = 'active' \
          ORDER BY started_at DESC LIMIT 1"
     );
     let row = block_on(async {
         sqlx::query(&sql)
-            .bind(workspace_id)
+            .bind(space_id)
             .fetch_optional(&mut conn)
             .await
     })?;

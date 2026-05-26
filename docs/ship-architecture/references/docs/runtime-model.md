@@ -148,14 +148,14 @@ concepts:
    via `ship_platform::projections::projects`. Default `personal` project lives at
    `~/.ship/`.
 
-2. **Actor** — a running thing. Owns isolation: `cwd`, `project_id`,
+2. **Actor** — a running thing. Owns isolation: `cwd`, `space_id`,
    permissions, transport, lifecycle, MCP tool gate. Supervisor-
    managed. The unit of "what's running"; per-actor scope replaces
    the old MCP `active_workspace` singleton.
 
 3. **Session** — analytics rollup over actor activity. Has a `kind`
    discriminator (`pipeline_step | chat_thread | direct_attach`) and
-   context dimensions (`project_id`, `pipeline_run_id?`,
+   context dimensions (`space_id`, `pipeline_run_id?`,
    `chat_thread_id?`, `branch?`). Telemetry (tokens, files_changed,
    exit_reason, etc.) is inline; no separate "record" table. There
    is no live session row — "what's running" is an actor question;
@@ -243,7 +243,7 @@ The daemon's home for one user. Holds:
 - `artifacts/` — content-addressed blob outputs
 
 Nothing in `~/.ship/` is project-scoped except artifacts (which are
-addressed by project_id, not directory).
+addressed by space_id, not directory).
 
 ## Decision rules
 

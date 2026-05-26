@@ -5,7 +5,7 @@ use specta::Type;
 pub struct EventFilter {
     pub entity_id: Option<String>,
     pub event_type: Option<String>,
-    pub project_id: Option<String>,
+    pub space_id: Option<String>,
     pub session_id: Option<String>,
     pub actor_id: Option<String>,
     pub parent_actor_id: Option<String>,

@@ -56,7 +56,7 @@ pub fn install_defaults() {
             Box::new(ship_analytics::AnalyticsProjection::new()),
         ]
     }));
-    ship_substrate::supervisor::install_project_id_resolver(Box::new(|path| {
+    ship_substrate::supervisor::install_space_id_resolver(Box::new(|path| {
         projects::find_by_path(path).ok().flatten().map(|p| p.id)
     }));
     commands::seed_builtins();

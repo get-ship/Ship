@@ -12,6 +12,7 @@ mod global;
 mod identity;
 mod paths;
 mod registry;
+mod space;
 
 pub use app_state::{
     AppState, get_active_project_global, get_recent_projects_global, load_app_state,
@@ -20,7 +21,7 @@ pub use app_state::{
 pub use discovery::{BOUNDARY_FILE, get_project_dir, resolve_project_ship_dir, ship_dir_from_path};
 pub use global::get_global_dir;
 pub use identity::{
-    ensure_project_id, get_project_name, project_slug_from_ship_dir, sanitize_file_name,
+    ensure_space_id, get_project_name, project_slug_from_ship_dir, sanitize_file_name,
 };
 pub use paths::{
     adrs_dir, agents_ns, features_dir, mcp_config_path, modes_dir, notes_dir,
@@ -32,6 +33,7 @@ pub use registry::{
     ProjectEntry, ProjectRegistry, get_registry_path, list_registered_projects, load_registry,
     register_project, save_registry, unregister_project,
 };
+pub use space::{daemon_space_id, set_daemon_space_id, set_daemon_space_id_from_root};
 
 #[cfg(test)]
 mod tests {
@@ -281,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn ensure_project_id_populates_missing_id() -> Result<()> {
+    fn ensure_space_id_populates_missing_id() -> Result<()> {
         let tmp = tempdir()?;
         let ship = crate::ShipHome::project_ship_dir(tmp.path());
         fs::create_dir_all(&ship)?;
@@ -290,7 +292,7 @@ mod tests {
             r#"{"module": {"name": "legacy-project", "version": "1.0.0"}}"#,
         )?;
 
-        let id = ensure_project_id(&ship)?;
+        let id = ensure_space_id(&ship)?;
         assert!(!id.trim().is_empty());
 
         let raw = fs::read_to_string(ship.join(PRIMARY_CONFIG_FILE))?;

@@ -54,7 +54,7 @@ pub async fn spawn_human_gateway(
         let ctx = ship_substrate::events::EmitContext {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             skill_id: None,
-            project_id: None,
+            space_id: None,
             session_id: None,
         };
         while let Some(event) = outbox_rx.recv().await {

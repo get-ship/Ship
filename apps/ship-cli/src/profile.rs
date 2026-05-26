@@ -33,14 +33,14 @@ impl ProjectState {
             eprintln!("warning: could not open platform.db: {}", e);
             return ProjectState::default();
         }
-        let project_id = match ship_substrate::project::ensure_project_id(ship_dir) {
+        let space_id = match ship_substrate::project::ensure_space_id(ship_dir) {
             Ok(id) => id,
             Err(e) => {
                 eprintln!("warning: could not resolve project id: {}", e);
                 return ProjectState::default();
             }
         };
-        match ship_platform::projections::compile_state::load(&project_id) {
+        match ship_platform::projections::compile_state::load(&space_id) {
             Ok(Some(row)) => ProjectState {
                 active_agent: row.active_agent,
                 compiled_at: Some(row.compiled_at),

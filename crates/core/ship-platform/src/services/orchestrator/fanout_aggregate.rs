@@ -114,10 +114,10 @@ pub(crate) async fn emit_failed_marker(
             return None;
         }
     };
-    let project_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
+    let space_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
     let art_svc = ArtifactService::new(&ship_dir);
     let scope = ArtifactScope::Run {
-        project_id,
+        space_id,
         run_id: pipeline_run_id.to_string(),
     };
     let body = format!(

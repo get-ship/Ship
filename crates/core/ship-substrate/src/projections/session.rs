@@ -92,7 +92,7 @@ struct StartedPayload {
     workspace_id: String,
     branch: String,
     #[serde(default)]
-    project_id: Option<String>,
+    space_id: Option<String>,
     #[serde(default)]
     kind: Option<String>,
     #[serde(default)]
@@ -114,7 +114,7 @@ fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<(
     block_on(async {
         sqlx::query(
             "INSERT INTO sessions \
-             (id, workspace_id, branch, project_id, kind, \
+             (id, workspace_id, branch, space_id, kind, \
               pipeline_run_id, chat_thread_id, status, started_at, ended_at, \
               agent_id, primary_harness, goal, summary, \
               updated_workspace_ids_json, created_at, updated_at) \
@@ -122,7 +122,7 @@ fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<(
              ON CONFLICT(id) DO UPDATE SET \
                workspace_id = excluded.workspace_id, \
                branch = excluded.branch, \
-               project_id = excluded.project_id, \
+               space_id = excluded.space_id, \
                kind = excluded.kind, \
                pipeline_run_id = excluded.pipeline_run_id, \
                chat_thread_id = excluded.chat_thread_id, \
@@ -136,7 +136,7 @@ fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<(
         .bind(session_id)
         .bind(&p.workspace_id)
         .bind(&p.branch)
-        .bind(&p.project_id)
+        .bind(&p.space_id)
         .bind(&kind)
         .bind(&p.pipeline_run_id)
         .bind(&p.chat_thread_id)

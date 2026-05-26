@@ -86,7 +86,7 @@ fn envelope_round_trip_preserves_all_fields() {
     assert_eq!(loaded.actor, "ship");
     assert_eq!(loaded.version, 1);
     assert_eq!(loaded.causation_id.as_deref(), Some("cause-1"));
-    assert_eq!(loaded.project_id.as_deref(), Some("ws-1"));
+    assert_eq!(loaded.space_id.as_deref(), Some("ws-1"));
     assert_eq!(loaded.session_id.as_deref(), Some("sess-1"));
     assert_eq!(loaded.actor_id.as_deref(), Some("actor-a"));
     assert_eq!(loaded.parent_actor_id.as_deref(), Some("actor-parent"));

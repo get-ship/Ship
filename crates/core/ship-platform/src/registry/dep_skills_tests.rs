@@ -5,6 +5,75 @@ use compiler::lockfile::{LockPackage, ShipLock};
 use compiler::{Skill, SkillSource};
 use tempfile::TempDir;
 
+// ── resolve_dep_agents (composition engine #122) ──────────────────────
+
+#[test]
+fn resolve_dep_agents_namespaces_and_loads_from_cache() {
+    let tmp = TempDir::new().unwrap();
+    let cache_root = tmp.path().join("cache");
+    let hex = "abc123def456";
+    let obj = cache_root.join("objects").join(hex);
+    std::fs::create_dir_all(obj.join("agents")).unwrap();
+    std::fs::write(
+        obj.join("ship.jsonc"),
+        r#"{ "id": "dep1", "module": { "name": "github.com/x/y", "version": "1.0.0" }, "exports": { "skills": [], "agents": ["agents/helper.jsonc"] } }"#,
+    )
+    .unwrap();
+    std::fs::write(
+        obj.join("agents/helper.jsonc"),
+        r#"{ "agent": { "id": "helper", "name": "Helper" } }"#,
+    )
+    .unwrap();
+
+    let lock = make_lock("github.com/x/y", &format!("sha256:{hex}"));
+    let lock_path = tmp.path().join("ship.lock");
+    lock.write_atomic(&lock_path).unwrap();
+
+    let agents = resolve_dep_agents(&lock_path, Some(&cache_root)).unwrap();
+    assert_eq!(agents.len(), 1, "one dep agent composed from exports.agents");
+    assert_eq!(
+        agents[0].agent.id, "github.com/x/y/helper",
+        "agent id namespaced by package path"
+    );
+}
+
+#[test]
+fn resolve_dep_agents_empty_without_lockfile() {
+    let tmp = TempDir::new().unwrap();
+    let agents = resolve_dep_agents(&tmp.path().join("absent.lock"), Some(tmp.path())).unwrap();
+    assert!(agents.is_empty(), "no lockfile => no dep agents");
+}
+
+// ── transitive_capabilities (#119) ────────────────────────────────────
+
+#[test]
+fn transitive_capabilities_unions_requires_and_grants() {
+    let tmp = TempDir::new().unwrap();
+    let hex = "cafebabe";
+    write_file(
+        tmp.path(),
+        &format!("objects/{hex}/ship.jsonc"),
+        r#"{ "id": "d", "module": { "name": "github.com/o/p", "version": "1.0.0" }, "exports": { "skills": ["skills/foo"], "agents": [] } }"#,
+    );
+    write_file(
+        tmp.path(),
+        &format!("objects/{hex}/skills/foo/SKILL.md"),
+        "---\nname: Foo\nrequires:\n  - cap.x\ngrants:\n  - cap.y\n---\n\nContent.",
+    );
+    let lock = make_lock("github.com/o/p", &format!("sha256:{hex}"));
+    let lock_path = tmp.path().join("ship.lock");
+    lock.write_atomic(&lock_path).unwrap();
+
+    let caps = transitive_capabilities(&lock_path, Some(tmp.path())).unwrap();
+    assert_eq!(caps.required, vec!["cap.x".to_string()], "union of requires");
+    assert_eq!(caps.granted, vec!["cap.y".to_string()], "union of grants");
+    assert_eq!(
+        caps.unmet,
+        vec!["cap.x".to_string()],
+        "cap.x required but not granted within the dep tree"
+    );
+}
+
 // ── is_dep_ref ────────────────────────────────────────────────────────
 
 #[test]
