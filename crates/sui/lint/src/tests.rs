@@ -2,7 +2,10 @@
 
 use std::path::Path;
 
-use crate::{is_controller_path, lint_controller_source, rules::controller_purity};
+use crate::{
+    is_controller_path, lint_controller_source,
+    rules::{controller_purity, controller_state_cast},
+};
 
 fn lint(source: &str) -> Vec<crate::Finding> {
     lint_controller_source(Path::new("/fake/foo.controller.ts"), source)
@@ -157,4 +160,77 @@ export default controller({
         !findings.is_empty(),
         "expected synthetic .innerHTML write to report a violation; got none — rule regressed."
     );
+}
+
+#[test]
+fn state_cast_unknown_as_scope_reports() {
+    let src = r#"
+        import { controller } from '@ship/sui-runtime'
+        import type { Scope } from './foo.sui'
+        export default controller<Scope>({
+          mount(state, host) {
+            const scope = state as unknown as Scope
+            return () => { scope.open.set(false) }
+          },
+        })
+    "#;
+    let findings = lint(src);
+    assert_eq!(findings.len(), 1, "expected one state-cast finding, got {findings:?}");
+    assert_eq!(findings[0].rule, controller_state_cast::RULE_ID);
+    assert!(findings[0].message.contains("Scope"), "msg: {}", findings[0].message);
+    assert!(findings[0].suggest.is_some(), "should suggest $signals access");
+}
+
+#[test]
+fn state_cast_scope_intersection_reports() {
+    // `state as unknown as Scope & { extensions: Signal<X[]> }` (factory form).
+    let src = r#"
+        export default {
+          mount(state) {
+            const scope = state as unknown as Scope & { extensions: () => string[] }
+            return scope.extensions()
+          },
+        }
+    "#;
+    let findings = lint(src);
+    assert_eq!(findings.len(), 1, "intersection cast should report once, got {findings:?}");
+    assert_eq!(findings[0].rule, controller_state_cast::RULE_ID);
+}
+
+#[test]
+fn state_cast_scopeview_alias_reports() {
+    let src = r#"
+        type ScopeView = Scope
+        export default {
+          mount(state) {
+            const s = state as unknown as ScopeView
+            return s.value()
+          },
+        }
+    "#;
+    let findings = lint(src);
+    assert!(
+        findings.iter().any(|f| f.rule == controller_state_cast::RULE_ID),
+        "ScopeView alias cast should report, got {findings:?}"
+    );
+}
+
+#[test]
+fn typed_signals_access_passes_state_cast() {
+    // The post-#121 pattern: no cast, read via $signals — must NOT report.
+    let src = r#"
+        import { controller } from '@ship/sui-runtime'
+        export default controller({
+          mount(state, host) {
+            const el = state.$signals.dialogEl()
+            host.appendChild(el)
+            return () => { state.$signals.open.set(false) }
+          },
+        })
+    "#;
+    let findings: Vec<_> = lint(src)
+        .into_iter()
+        .filter(|f| f.rule == controller_state_cast::RULE_ID)
+        .collect();
+    assert!(findings.is_empty(), "typed $signals access must pass: {findings:?}");
 }
