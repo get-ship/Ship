@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 
 const jobs = new Hono<{
   Bindings: Env;
-  Variables: { projectId: string };
+  Variables: { spaceId: string };
 }>();
 
 /**
@@ -10,9 +10,9 @@ const jobs = new Hono<{
  * GET /api/jobs
  */
 jobs.get('/', async (c) => {
-  const projectId = c.get('projectId');
+  const spaceId = c.get('spaceId');
 
-  const id = c.env.PLATFORM.idFromName(projectId);
+  const id = c.env.PLATFORM.idFromName(spaceId);
   const stub = c.env.PLATFORM.get(id);
   const facade = await stub.jobs();
   const result = await facade.list();

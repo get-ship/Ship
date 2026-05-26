@@ -30,7 +30,7 @@ export interface ShipEventEnvelope {
   event_type: string
   entity_id: string
   actor_id?: string
-  project_id?: string
+  space_id?: string
   payload_json?: string
   created_at: string
 }

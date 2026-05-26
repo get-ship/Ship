@@ -5,7 +5,7 @@ interface MemberRow { user_id: string; role: string; created_at: string }
 
 const projects = new Hono<{
   Bindings: Env;
-  Variables: { projectId: string; userId: string };
+  Variables: { spaceId: string; userId: string };
 }>();
 
 /**
@@ -14,8 +14,8 @@ const projects = new Hono<{
  * GET /v1/projects
  */
 projects.get('/', async (c) => {
-  const projectId = c.get('projectId');
-  const stub = c.env.PLATFORM.get(c.env.PLATFORM.idFromName(projectId));
+  const spaceId = c.get('spaceId');
+  const stub = c.env.PLATFORM.get(c.env.PLATFORM.idFromName(spaceId));
   const facade = await stub.projects();
   const result = await facade.list();
   return c.json(result);
@@ -28,11 +28,11 @@ projects.get('/', async (c) => {
  * GET /v1/projects/:id/members
  */
 projects.get('/:id/members', async (c) => {
-  const projectId = c.req.param('id');
-  if (projectId !== c.get('projectId')) {
+  const spaceId = c.req.param('id');
+  if (spaceId !== c.get('spaceId')) {
     return c.json({ error: 'Path id does not match x-project-id' }, 400);
   }
-  const stub = c.env.PLATFORM.get(c.env.PLATFORM.idFromName(projectId));
+  const stub = c.env.PLATFORM.get(c.env.PLATFORM.idFromName(spaceId));
   const facade = await stub.projects();
   const list = await facade.listMembers();
   return c.json({ members: list });
@@ -44,8 +44,8 @@ projects.get('/:id/members', async (c) => {
  * POST /v1/projects/:id/members  { user_id, role? }
  */
 projects.post('/:id/members', async (c) => {
-  const projectId = c.req.param('id');
-  if (projectId !== c.get('projectId')) {
+  const spaceId = c.req.param('id');
+  if (spaceId !== c.get('spaceId')) {
     return c.json({ error: 'Path id does not match x-project-id' }, 400);
   }
 
@@ -60,7 +60,7 @@ projects.post('/:id/members', async (c) => {
   }
   const role: MemberRole = body.role === 'owner' ? 'owner' : 'member';
 
-  const stub = c.env.PLATFORM.get(c.env.PLATFORM.idFromName(projectId));
+  const stub = c.env.PLATFORM.get(c.env.PLATFORM.idFromName(spaceId));
   const facade = await stub.projects();
   const list = (await facade.listMembers()) as MemberRow[];
   const caller = list.find((m) => m.user_id === c.get('userId'));
@@ -78,13 +78,13 @@ projects.post('/:id/members', async (c) => {
  * DELETE /v1/projects/:id/members/:userId
  */
 projects.delete('/:id/members/:userId', async (c) => {
-  const projectId = c.req.param('id');
-  if (projectId !== c.get('projectId')) {
+  const spaceId = c.req.param('id');
+  if (spaceId !== c.get('spaceId')) {
     return c.json({ error: 'Path id does not match x-project-id' }, 400);
   }
   const targetUserId = c.req.param('userId');
 
-  const stub = c.env.PLATFORM.get(c.env.PLATFORM.idFromName(projectId));
+  const stub = c.env.PLATFORM.get(c.env.PLATFORM.idFromName(spaceId));
   const facade = await stub.projects();
   const list = (await facade.listMembers()) as MemberRow[];
   const caller = list.find((m) => m.user_id === c.get('userId'));

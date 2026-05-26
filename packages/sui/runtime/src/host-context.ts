@@ -18,7 +18,7 @@
  *  doesn't know a value omits it, and the runtime falls back. */
 export interface HostContext {
   /** Active project/workspace id. Scopes per-project runtime state. */
-  projectId?: string
+  spaceId?: string
   /** Per-tab session id, shared with the view-authoring handshake. */
   sessionId?: string
 }

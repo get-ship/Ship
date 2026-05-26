@@ -3,7 +3,7 @@ import type { EventEnvelope } from '@ship-cloud/types';
 
 const sync = new Hono<{
   Bindings: Env;
-  Variables: { projectId: string };
+  Variables: { spaceId: string };
 }>();
 
 /**
@@ -11,14 +11,14 @@ const sync = new Hono<{
  * POST /api/sync/platform/push
  */
 sync.post('/platform/push', async (c) => {
-  const projectId = c.get('projectId');
+  const spaceId = c.get('spaceId');
   const body = await c.req.json<{ events: EventEnvelope[] }>();
 
   if (!body.events || !Array.isArray(body.events)) {
     return c.json({ error: 'Missing events array' }, 400);
   }
 
-  const id = c.env.PLATFORM.idFromName(projectId);
+  const id = c.env.PLATFORM.idFromName(spaceId);
   const stub = c.env.PLATFORM.get(id);
   const syncFacade = await stub.sync();
   const result = await syncFacade.push(body.events);
@@ -31,11 +31,11 @@ sync.post('/platform/push', async (c) => {
  * GET /api/sync/platform/pull?since=<cursor>&limit=<n>
  */
 sync.get('/platform/pull', async (c) => {
-  const projectId = c.get('projectId');
+  const spaceId = c.get('spaceId');
   const since = c.req.query('since');
   const limit = c.req.query('limit');
 
-  const id = c.env.PLATFORM.idFromName(projectId);
+  const id = c.env.PLATFORM.idFromName(spaceId);
   const stub = c.env.PLATFORM.get(id);
   const syncFacade = await stub.sync();
   const result = await syncFacade.pull(

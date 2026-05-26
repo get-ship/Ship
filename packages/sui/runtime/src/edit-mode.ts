@@ -28,8 +28,8 @@ import { hostContext } from './host-context'
 
 const SIGNALS = new Map<string, Signal<boolean>>()
 
-function projectId(): string {
-  return hostContext().projectId ?? 'default'
+function spaceId(): string {
+  return hostContext().spaceId ?? 'default'
 }
 
 // Session id matches the key view-mcp.ts uses so both lifecycle producers
@@ -56,7 +56,7 @@ function sessionId(): string {
 }
 
 function signalKey(name: string): string {
-  return `${projectId()}.${name}`
+  return `${spaceId()}.${name}`
 }
 
 // One-shot migration: purge legacy `ship.edit-mode.*` keys from
@@ -153,7 +153,7 @@ export function __resetEditModeRegistryForTests(): void {
 const ANNOTATION_SIGNALS = new Map<string, Signal<boolean>>()
 
 export function annotationModeForView(name: string): Signal<boolean> {
-  const k = `ship.annotation-mode.${projectId()}.${name}`
+  const k = `ship.annotation-mode.${spaceId()}.${name}`
   const existing = ANNOTATION_SIGNALS.get(k)
   if (existing) return existing
   const sig = signal<boolean>(false)

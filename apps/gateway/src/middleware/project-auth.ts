@@ -10,21 +10,21 @@ import { requireSession } from '../lib/session-auth.js';
  *    claim the caller as 'owner' on first contact, established projects
  *    require an existing membership row. 403 otherwise.
  *
- * On success, sets `userId` and `projectId` on context for downstream
+ * On success, sets `userId` and `spaceId` on context for downstream
  * handlers.
  */
 export const requireProjectAuth = async (
-  c: Context<{ Bindings: Env; Variables: { projectId: string; userId: string } }>,
+  c: Context<{ Bindings: Env; Variables: { spaceId: string; userId: string } }>,
   next: Next,
 ) => {
   const session = await requireSession(c.req.raw, c.env);
   if (session instanceof Response) return session;
 
-  const projectId = c.req.header('x-project-id');
-  if (!projectId) return c.json({ error: 'Missing x-project-id header' }, 400);
+  const spaceId = c.req.header('x-project-id');
+  if (!spaceId) return c.json({ error: 'Missing x-project-id header' }, 400);
 
   try {
-    const id = c.env.PLATFORM.idFromName(projectId);
+    const id = c.env.PLATFORM.idFromName(spaceId);
     const stub = c.env.PLATFORM.get(id);
     const projects = await stub.projects();
     const { authorized } = await projects.claimOrCheck(session.sub);
@@ -37,6 +37,6 @@ export const requireProjectAuth = async (
   }
 
   c.set('userId', session.sub);
-  c.set('projectId', projectId);
+  c.set('spaceId', spaceId);
   await next();
 };

@@ -8,7 +8,7 @@ export const events = sqliteTable('events', {
   payload_json: text('payload_json').notNull(),       // JSON string
   version: integer('version').notNull(),              // always 1
   causation_id: text('causation_id'),
-  project_id: text('project_id'),
+  space_id: text('space_id'),
   session_id: text('session_id'),
   actor_id: text('actor_id'),
   parent_actor_id: text('parent_actor_id'),

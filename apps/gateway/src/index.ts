@@ -21,7 +21,7 @@ const CORS_ORIGINS = [
 // so an /api/ prefix would be redundant. /healthz and /readyz stay unversioned
 // per ops convention.
 
-const app = new Hono<{ Bindings: Env; Variables: { projectId: string; userId: string } }>()
+const app = new Hono<{ Bindings: Env; Variables: { spaceId: string; userId: string } }>()
   .onError(errorHandler)
   .use(
     '/v1/*',

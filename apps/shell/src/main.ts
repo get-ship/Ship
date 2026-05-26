@@ -1052,7 +1052,7 @@ async function syncProject(): Promise<void> {
     // Provide the active project to the runtime via the HostContext seam so
     // per-project runtime state (e.g. edit-mode keys) scopes correctly —
     // replaces the dead window.__shipProjectId global. See host-context.ts.
-    if (proj?.name) setHostContext({ projectId: proj.name })
+    if (proj?.name) setHostContext({ spaceId: proj.name })
     // Project identity in the top bar is now owned by <sui-project-switcher>
     // (it fetches + renders the active project itself); nav-top no longer takes
     // a `project` breadcrumb prefix.
