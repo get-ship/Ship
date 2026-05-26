@@ -107,7 +107,7 @@
         <h2 class="hw-h">Recent jobs<a class="hw-link" on:click={() => navigate('/studio/pipelines')}>all</a></h2>
         {#if recentJobs().length > 0}
           <ul class="hw-list">
-            {#for run of recentJobs() key={run.id}}
+            {#for run of recentJobs() key={run.slug ?? run.id}}
               <li class="hw-row" data-test="home-job">
                 <sui-status-dot prop:tone={run.tone ?? 'muted'} size="sm"></sui-status-dot>
                 <span class="hw-name">{run.slug ?? run.id}</span>
