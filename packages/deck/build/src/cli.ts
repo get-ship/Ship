@@ -80,18 +80,22 @@ async function loadConfig(configPath: string): Promise<SuiBuildConfig> {
   return config
 }
 
-async function buildOnce(config: SuiBuildConfig, ctx: AdapterContext): Promise<void> {
-  const result = await run(config, ctx, bunAdapter)
+function pickAdapter(name: 'bun' | 'esbuild'): SuiBundler {
+  return name === 'esbuild' ? esbuildAdapter : bunAdapter
+}
+
+async function buildOnce(config: SuiBuildConfig, ctx: AdapterContext, adapter: SuiBundler): Promise<void> {
+  const result = await run(config, ctx, adapter)
   for (const w of result.warnings) console.warn(`[sui-build] warn: ${w}`)
   console.log(
-    `[sui-build] built ${result.outputs.length} output(s) in ${result.durationMs}ms via ${bunAdapter.name}`,
+    `[sui-build] built ${result.outputs.length} output(s) in ${result.durationMs}ms via ${adapter.name}`,
   )
   for (const o of result.outputs) console.log(`  ${o}`)
 }
 
-async function watchMode(config: SuiBuildConfig, ctx: AdapterContext): Promise<void> {
+async function watchMode(config: SuiBuildConfig, ctx: AdapterContext, adapter: SuiBundler): Promise<void> {
   console.log('[sui-build] watching...')
-  await buildOnce(config, ctx)
+  await buildOnce(config, ctx, adapter)
 
   const srcDirs = [
     ...new Set(
@@ -108,7 +112,7 @@ async function watchMode(config: SuiBuildConfig, ctx: AdapterContext): Promise<v
     if (debounce) clearTimeout(debounce)
     debounce = setTimeout(async () => {
       try {
-        await buildOnce(config, ctx)
+        await buildOnce(config, ctx, adapter)
       } catch (err) {
         console.error('[sui-build] build error:', err)
       }
@@ -126,12 +130,13 @@ async function main() {
   mkdirSync(outdir, { recursive: true })
 
   const ctx: AdapterContext = { packageRoot, outdir }
+  const adapter = pickAdapter(args.bundler)
 
   if (args.watch) {
     config.mode = 'development'
-    await watchMode(config, ctx)
+    await watchMode(config, ctx, adapter)
   } else {
-    await buildOnce(config, ctx)
+    await buildOnce(config, ctx, adapter)
   }
 }
 
