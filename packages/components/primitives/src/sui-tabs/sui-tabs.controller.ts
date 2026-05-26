@@ -3,21 +3,20 @@ import type { Scope } from './sui-tabs.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     // Version counter bumped on slotchange to force the sync effect to re-run.
     const slotVersion = signal(0)
 
     const getTabs = (): Element[] => {
-      const slot = scope.tabSlot()
+      const slot = state.$signals.tabSlot()
       if (!slot) return Array.from(host.querySelectorAll(':scope > sui-tab'))
       return (slot as HTMLSlotElement).assignedElements()
         .filter(el => el.tagName.toLowerCase() === 'sui-tab')
     }
 
     const activate = (name: string) => {
-      if (scope.active() === name) return
-      scope.active.set(name)
+      if (state.$signals.active() === name) return
+      state.$signals.active.set(name)
       host.dispatchEvent(new CustomEvent('sui-tab-change', {
         detail: { name }, bubbles: true, composed: true,
       }))
@@ -27,14 +26,14 @@ export default controller<Scope>({
     // Runs reactively on active changes and on slotchange (via slotVersion).
     const stopSync = effect(() => {
       slotVersion()  // track so effect re-runs on slot mutations
-      const activeName = scope.active()
+      const activeName = state.$signals.active()
       const tabs = getTabs()
 
       // Default: first tab active when active is unset and tabs exist.
       let resolved = activeName
       if (!resolved && tabs.length > 0) {
         resolved = tabs[0]!.getAttribute('name') ?? ''
-        if (resolved) scope.active.set(resolved)
+        if (resolved) state.$signals.active.set(resolved)
       }
 
       for (const tab of tabs) {
@@ -64,7 +63,7 @@ export default controller<Scope>({
     })
 
     const onKeydown = (e: KeyboardEvent) => {
-      const vertical = scope.orientation() === 'vertical'
+      const vertical = state.$signals.orientation() === 'vertical'
       const nextKey = vertical ? 'ArrowDown' : 'ArrowRight'
       const prevKey = vertical ? 'ArrowUp' : 'ArrowLeft'
       const navKeys = [nextKey, prevKey, 'Home', 'End']
@@ -80,9 +79,9 @@ export default controller<Scope>({
 
       // Radix-parity: manual activation moves focus without changing the
       // active panel. Enter/Space on the focused tab activates it.
-      const manual = scope.activationMode() === 'manual'
+      const manual = state.$signals.activationMode() === 'manual'
       const focusedTab = (e.target as Element).closest('sui-tab')
-        ?? tabs.find(t => t.getAttribute('name') === scope.active())
+        ?? tabs.find(t => t.getAttribute('name') === state.$signals.active())
         ?? tabs[0]
       const focusedName = focusedTab?.getAttribute('name') ?? ''
 
@@ -93,7 +92,7 @@ export default controller<Scope>({
       }
 
       e.preventDefault()
-      const refName = manual ? focusedName : scope.active()
+      const refName = manual ? focusedName : state.$signals.active()
       const i = Math.max(0, names.indexOf(refName))
       let next = i
 
@@ -131,8 +130,8 @@ export default controller<Scope>({
 
     const onSlotChange = () => slotVersion.set(slotVersion() + 1)
 
-    const strip = scope.strip()
-    const tabSlot = scope.tabSlot()
+    const strip = state.$signals.strip()
+    const tabSlot = state.$signals.tabSlot()
 
     if (strip) {
       strip.addEventListener('keydown', onKeydown)

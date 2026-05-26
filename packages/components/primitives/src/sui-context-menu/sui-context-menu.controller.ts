@@ -10,11 +10,10 @@ type PopoverEl = HTMLElement & {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     const panelId = `sui-context-menu-panel-${++_seq}`
 
-    const triggerSlot = scope.triggerSlot() as HTMLSlotElement | null
-    const panelEl = scope.panelEl() as PopoverEl | null
+    const triggerSlot = state.$signals.triggerSlot() as HTMLSlotElement | null
+    const panelEl = state.$signals.panelEl() as PopoverEl | null
 
     if (!panelEl) return
     panelEl.id = panelId
@@ -88,7 +87,7 @@ export default controller<Scope>({
     const onToggle = (ev: Event) => {
       const te = ev as ToggleEvent
       const nowOpen = te.newState === 'open'
-      if (nowOpen !== scope.open()) scope.open.set(nowOpen)
+      if (nowOpen !== state.$signals.open()) state.$signals.open.set(nowOpen)
       host.setAttribute('data-state', nowOpen ? 'open' : 'closed')
       if (nowOpen) {
         host.emit!('sui-open')
@@ -106,7 +105,7 @@ export default controller<Scope>({
     }
 
     const onKeydown = (e: KeyboardEvent) => {
-      if (!scope.open()) return
+      if (!state.$signals.open()) return
       const items = getItems()
       if (!items.length) return
       const i = currentIndex()
@@ -137,7 +136,7 @@ export default controller<Scope>({
     bindNativeEvent(host, 'keydown', onKeydown as EventListener)
 
     const stopSync = effect(() => {
-      host.setAttribute('data-state', scope.open() ? 'open' : 'closed')
+      host.setAttribute('data-state', state.$signals.open() ? 'open' : 'closed')
     })
 
     return () => {

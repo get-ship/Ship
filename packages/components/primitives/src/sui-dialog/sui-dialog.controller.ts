@@ -6,15 +6,14 @@ let _seq = 0
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     const uid = ++_seq
     const headerId = `sui-dialog-header-${uid}`
     const bodyId = `sui-dialog-body-${uid}`
 
-    const dialogEl = scope.dialogEl() as HTMLDialogElement | null
-    const closeBtn = scope.closeBtn() as HTMLButtonElement | null
-    const sentinelStart = scope.sentinelStart() as HTMLElement | null
-    const sentinelEnd = scope.sentinelEnd() as HTMLElement | null
+    const dialogEl = state.$signals.dialogEl() as HTMLDialogElement | null
+    const closeBtn = state.$signals.closeBtn() as HTMLButtonElement | null
+    const sentinelStart = state.$signals.sentinelStart() as HTMLElement | null
+    const sentinelEnd = state.$signals.sentinelEnd() as HTMLElement | null
 
     if (!dialogEl) return
 
@@ -22,11 +21,11 @@ export default controller<Scope>({
     // come and go with each open cycle. Assign their `id` reactively
     // so aria-labelledby / aria-describedby keep resolving.
     const stopHeaderIdEffect = effect(() => {
-      const h = scope.headerEl() as HTMLElement | null
+      const h = state.$signals.headerEl() as HTMLElement | null
       if (h) h.id = headerId
     })
     const stopBodyIdEffect = effect(() => {
-      const b = scope.bodyEl() as HTMLElement | null
+      const b = state.$signals.bodyEl() as HTMLElement | null
       if (b) b.id = bodyId
     })
 
@@ -37,7 +36,7 @@ export default controller<Scope>({
     const focusReturn = new FocusReturn()
 
     function updateRole() {
-      dialogEl!.setAttribute('role', scope.roleOverride() || 'dialog')
+      dialogEl!.setAttribute('role', state.$signals.roleOverride() || 'dialog')
       dialogEl!.setAttribute('aria-modal', 'true')
     }
     updateRole()
@@ -74,20 +73,20 @@ export default controller<Scope>({
     }
 
     const onNativeClose = () => {
-      if (scope.open()) scope.open.set(false)
+      if (state.$signals.open()) state.$signals.open.set(false)
       if (hasScrollLock) { releaseScrollLock(); hasScrollLock = false }
       focusReturn.restore()
       host.dispatchEvent(new CustomEvent('sui-close', { bubbles: true, composed: true }))
     }
 
     const onBackdropClick = (e: MouseEvent) => {
-      if (!scope.dismissible()) return
-      if (e.target === dialogEl) scope.open.set(false)
+      if (!state.$signals.dismissible()) return
+      if (e.target === dialogEl) state.$signals.open.set(false)
     }
 
     const onDismiss = () => {
       host.dispatchEvent(new CustomEvent('sui-dismiss', { bubbles: true, composed: true }))
-      scope.open.set(false)
+      state.$signals.open.set(false)
     }
 
     const onSentinelStartFocus = () => {
@@ -106,7 +105,7 @@ export default controller<Scope>({
     sentinelEnd?.addEventListener('focus', onSentinelEndFocus)
 
     const stopOpenSync = effect(() => {
-      const wantOpen = scope.open()
+      const wantOpen = state.$signals.open()
       host.setAttribute('data-state', wantOpen ? 'open' : 'closed')
       if (wantOpen && !dialogEl.open) doOpen()
       else if (!wantOpen && dialogEl.open) doClose()
@@ -115,9 +114,9 @@ export default controller<Scope>({
     const stopRoleSync = effect(() => { updateRole() })
 
     ;(host as HTMLElement & { show(): void; showModal(): void; close(): void }).show = () =>
-      scope.open.set(true)
-    ;(host as HTMLElement & { showModal(): void }).showModal = () => scope.open.set(true)
-    ;(host as HTMLElement & { close(): void }).close = () => scope.open.set(false)
+      state.$signals.open.set(true)
+    ;(host as HTMLElement & { showModal(): void }).showModal = () => state.$signals.open.set(true)
+    ;(host as HTMLElement & { close(): void }).close = () => state.$signals.open.set(false)
 
     return () => {
       if (hasScrollLock) releaseScrollLock()

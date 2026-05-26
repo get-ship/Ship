@@ -8,7 +8,7 @@
  */
 
 import { controller, effect, ref, signal } from '@ship/sui-runtime'
-import type { Signal, ViewScope } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-agent-attach.sui'
 
 import { attachAgentSession, type AgentSessionAttachment } from './attach'
@@ -40,17 +40,13 @@ export default controller({
     // `state` is the writable proxy; ref-typed scope keys are Signals at
     // runtime — cast to Scope to call them. Non-scope attrs (slug,
     // autoConnect) are host attributes, read as Signals via the proxy.
-    const s = state as unknown as Scope & {
-      slug: Signal<string>
-      autoConnect: Signal<boolean>
-    }
 
     let attachment: AgentSessionAttachment | null = null
     const open = (): void => {
       attachment?.dispose()
       attachment = null
-      const term = s.termRef()
-      const slug = s.slug()
+      const term = state.$signals.termRef()
+      const slug = state.$signals.slug()
       if (!term || !slug) return
       state.disconnectReason = ''
       attachment = attachAgentSession(term, slug, {
@@ -85,10 +81,10 @@ export default controller({
     // new actor to the same drawer instance) so the consumer doesn't
     // need to thrash mount cycles by toggling the element in/out.
     disposers.push(effect(() => {
-      const slug = s.slug()
-      const auto = s.autoConnect()
+      const slug = state.$signals.slug()
+      const auto = state.$signals.autoConnect()
       // Subscribe to the term ref so we re-run after bind:this resolves.
-      void s.termRef()
+      void state.$signals.termRef()
       if (auto && slug) {
         open()
       } else {
@@ -110,7 +106,7 @@ export default controller({
     //     follow-up size change once flex sizing kicks in.
     let observer: ResizeObserver | null = null
     disposers.push(effect(() => {
-      const term = s.termRef()
+      const term = state.$signals.termRef()
       if (!term) return
       const refit = (): void => {
         try { term.fit?.() } catch { /* mid-teardown */ }

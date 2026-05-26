@@ -22,7 +22,7 @@
         </div>
         <div class="te-actions">
           {#if isActive()}
-            <sui-button variant="outline" size="sm" attr:disabled={true} data-test="theme-active">
+            <sui-button variant="outline" size="sm" prop:disabled={true} data-test="theme-active">
               <sui-icon slot="leading" name="check" size="xs"></sui-icon>Active
             </sui-button>
           {:else}

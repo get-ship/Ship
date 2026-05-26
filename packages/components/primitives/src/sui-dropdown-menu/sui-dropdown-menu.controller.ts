@@ -18,7 +18,6 @@ type PopoverEl = HTMLElement & {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     const seq = ++_seq
     const panelId = `sui-dropdown-menu-panel-${seq}`
     const anchorName = `--sui-dd-${seq}`
@@ -29,9 +28,9 @@ export default controller<Scope>({
     // the panel's position-anchor.
     host.style.setProperty('--sui-dd-anchor', anchorName)
 
-    const triggerWrap = scope.triggerWrap() as HTMLElement | null
-    const triggerSlot = scope.triggerSlot() as HTMLSlotElement | null
-    const panelEl = scope.panelEl() as PopoverEl | null
+    const triggerWrap = state.$signals.triggerWrap() as HTMLElement | null
+    const triggerSlot = state.$signals.triggerSlot() as HTMLSlotElement | null
+    const panelEl = state.$signals.panelEl() as PopoverEl | null
 
     if (!panelEl) return
     panelEl.id = panelId
@@ -86,7 +85,7 @@ export default controller<Scope>({
       for (const el of els) {
         el.setAttribute('aria-haspopup', 'menu')
         el.setAttribute('aria-controls', panelId)
-        el.setAttribute('aria-expanded', scope.open() ? 'true' : 'false')
+        el.setAttribute('aria-expanded', state.$signals.open() ? 'true' : 'false')
       }
     }
 
@@ -110,14 +109,14 @@ export default controller<Scope>({
 
     // ── Events ───────────────────────────────────────────────────────────
     const onTriggerClick = () => {
-      if (scope.open()) closePanel()
+      if (state.$signals.open()) closePanel()
       else openPanel()
     }
 
     const onToggle = (ev: Event) => {
       const te = ev as ToggleEvent
       const nowOpen = te.newState === 'open'
-      if (nowOpen !== scope.open()) scope.open.set(nowOpen)
+      if (nowOpen !== state.$signals.open()) state.$signals.open.set(nowOpen)
       host.setAttribute('data-state', nowOpen ? 'open' : 'closed')
       setupTrigger()
       if (nowOpen) queueMicrotask(() => { setupItems(); focusItem(0) })
@@ -131,7 +130,7 @@ export default controller<Scope>({
     }
 
     const onKeydown = (e: KeyboardEvent) => {
-      if (!scope.open()) return
+      if (!state.$signals.open()) return
       const items = getItems()
       if (!items.length) return
       const i = currentIndex()
@@ -156,7 +155,7 @@ export default controller<Scope>({
     bindNativeEvent(panelEl, 'slotchange', setupItems)
 
     const stopSync = effect(() => {
-      const wantOpen = scope.open()
+      const wantOpen = state.$signals.open()
       host.setAttribute('data-state', wantOpen ? 'open' : 'closed')
       setupTrigger()
     })

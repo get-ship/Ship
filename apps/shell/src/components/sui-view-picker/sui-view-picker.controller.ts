@@ -26,7 +26,6 @@ export default controller({
   }),
 
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     const views = signal<ApiView[]>([])
     const pins = signal<string[]>([])
@@ -40,15 +39,15 @@ export default controller({
     let filterTimer: ReturnType<typeof setTimeout> | null = null
     let loaded = false
 
-    const sUrl = (): string => scope.settingsUrl()
-    const sKey = (): string => scope.pinsKey()
+    const sUrl = (): string => state.$signals.settingsUrl()
+    const sKey = (): string => state.$signals.pinsKey()
 
     async function load(): Promise<void> {
       const [p, pr, vs, projList] = await Promise.all([
         fetchPins(sUrl(), sKey()),
-        fetchProject(scope.projectsUrl()),
-        fetchViews(scope.viewsUrl()),
-        fetchProjects(scope.projectsUrl()),
+        fetchProject(state.$signals.projectsUrl()),
+        fetchViews(state.$signals.viewsUrl()),
+        fetchProjects(state.$signals.projectsUrl()),
       ])
       pins.set(p); project.set(pr); views.set(vs)
       projects.set(projList.projects)
@@ -57,12 +56,12 @@ export default controller({
     }
 
     async function onPickProject(id: string): Promise<void> {
-      // Already-active click is a no-op (popover closes via scope.open).
-      if (id === activeProjectId()) { scope.open.set(false); return }
+      // Already-active click is a no-op (popover closes via state.$signals.open).
+      if (id === activeProjectId()) { state.$signals.open.set(false); return }
       // Optimistic: highlight + close. Refresh state on success.
       const prev = activeProjectId()
       activeProjectId.set(id)
-      scope.open.set(false)
+      state.$signals.open.set(false)
       const ok = await switchProject(id)
       if (!ok) {
         activeProjectId.set(prev)
@@ -91,7 +90,7 @@ export default controller({
       // sui:navigate + window.ship.navigate hand-roll. See ADR
       // unified-deck-router.
       navigate(path)
-      scope.open.set(false)
+      state.$signals.open.set(false)
     }
 
     const togglePin = async (name: string): Promise<void> => {
@@ -112,7 +111,7 @@ export default controller({
     })
 
     function paintBody(): void {
-      const bodyEl = scope.bodyEl()
+      const bodyEl = state.$signals.bodyEl()
       if (!bodyEl) return
       const { pinned, others } = part()
       renderBody(bodyEl, {
@@ -132,25 +131,25 @@ export default controller({
 
     const stopHeader = effect(() => {
       const p = project()
-      const n = scope.projectNameEl(); const pt = scope.projectPathEl()
+      const n = state.$signals.projectNameEl(); const pt = state.$signals.projectPathEl()
       if (n) n.textContent = p?.label ?? p?.name ?? 'Ship'
       if (pt) pt.textContent = p?.path ?? ''
     })
     const stopInstall = effect(() => {
-      const a = scope.installLink()
-      if (a) a.setAttribute('href', scope.installHref())
+      const a = state.$signals.installLink()
+      if (a) a.setAttribute('href', state.$signals.installHref())
     })
     const stopBody = effect(() => {
       const { pinned, others } = part()
       const total = pinned.length + others.length
-      const c = scope.countEl(); const pg = scope.pagerEl()
+      const c = state.$signals.countEl(); const pg = state.$signals.pagerEl()
       if (c) c.textContent = String(total)
       if (pg) pg.textContent = `${total} view${total === 1 ? '' : 's'}`
       paintBody()
     })
 
     // ── filter input ────────────────────────────────────────────
-    const fInput = scope.filterInput()
+    const fInput = state.$signals.filterInput()
     if (fInput) {
       bindNativeEvent(fInput, 'input', () => {
         if (filterTimer) clearTimeout(filterTimer)
@@ -163,18 +162,18 @@ export default controller({
     }
 
     // ── install link ────────────────────────────────────────────
-    const iLink = scope.installLink()
+    const iLink = state.$signals.installLink()
     if (iLink) bindNativeEvent(iLink, 'click', (e) => {
       e.preventDefault()
-      host.emit!('sui:view-picker:install', { href: scope.installHref() })
-      goto(scope.installHref().replace(/^\//, ''))
+      host.emit!('sui:view-picker:install', { href: state.$signals.installHref() })
+      goto(state.$signals.installHref().replace(/^\//, ''))
     })
 
     // ── open/close sync (host.open ↔ composed sui-popover) ──────
     let wasOpen = false
     const stopOpen = effect(() => {
-      const o = scope.open()
-      const pop = scope.popoverEl()
+      const o = state.$signals.open()
+      const pop = state.$signals.popoverEl()
       if (pop) {
         if (o && !pop.hasAttribute('open')) pop.setAttribute('open', '')
         else if (!o && pop.hasAttribute('open')) pop.removeAttribute('open')
@@ -198,7 +197,7 @@ export default controller({
     // close event if it fires while a drag is in flight; re-open via
     // the exposed show() method on the next frame.
     let isDragging = false
-    const popRoot = scope.rootEl()
+    const popRoot = state.$signals.rootEl()
     if (popRoot) {
       bindNativeEvent(popRoot, 'dragstart', () => { isDragging = true })
       bindNativeEvent(popRoot, 'dragend', () => {
@@ -209,16 +208,16 @@ export default controller({
       })
     }
 
-    const pop = scope.popoverEl()
+    const pop = state.$signals.popoverEl()
     if (pop) bindNativeEvent(pop, 'sui-toggle', (e) => {
       const open = !!(e as CustomEvent).detail?.open
       if (!open && isDragging) {
         // Popover light-dismissed mid-drag — re-open + suppress the
-        // scope.open mutation so the rest of the view doesn't tear down.
+        // state.$signals.open mutation so the rest of the view doesn't tear down.
         requestAnimationFrame(() => { (pop as unknown as { show?: () => void }).show?.() })
         return
       }
-      if (open !== scope.open()) scope.open.set(open)
+      if (open !== state.$signals.open()) state.$signals.open.set(open)
     })
 
     // Trigger click → toggle open. The composed sui-popover's
@@ -233,20 +232,20 @@ export default controller({
         return el?.getAttribute?.('slot') === 'trigger'
       })
       if (!onTrigger) return
-      scope.open.set(!scope.open())
+      state.$signals.open.set(!state.$signals.open())
     })
 
     host.expose!({
-      open: () => scope.open.set(true),
-      close: () => scope.open.set(false),
-      toggle: () => scope.open.set(!scope.open()),
+      open: () => state.$signals.open.set(true),
+      close: () => state.$signals.open.set(false),
+      toggle: () => state.$signals.open.set(!state.$signals.open()),
       refresh: () => load(),
     })
 
     // ── keyboard ────────────────────────────────────────────────
     function onKey(e: KeyboardEvent): void {
-      if (!scope.open()) return
-      if (e.key === 'Escape') { e.preventDefault(); scope.open.set(false); return }
+      if (!state.$signals.open()) return
+      if (e.key === 'Escape') { e.preventDefault(); state.$signals.open.set(false); return }
       if (e.key === '/' && document.activeElement !== fInput) {
         e.preventDefault(); fInput?.focus(); return
       }
@@ -260,7 +259,7 @@ export default controller({
         e.preventDefault()
         cursor.set(Math.min(visible.length - 1, cursor() + 1))
         requestAnimationFrame(() => {
-          scope.bodyEl()?.querySelector('.vp-row.is-cursor')?.scrollIntoView({ block: 'nearest' })
+          state.$signals.bodyEl()?.querySelector('.vp-row.is-cursor')?.scrollIntoView({ block: 'nearest' })
         })
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()

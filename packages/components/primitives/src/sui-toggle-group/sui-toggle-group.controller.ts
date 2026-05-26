@@ -5,12 +5,11 @@ type ToggleEl = HTMLElement & { focusButton?(): void }
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'group')
 
     const stopAriaOrientation = effect(() => {
-      host.setAttribute('aria-orientation', scope.orientation() as string)
+      host.setAttribute('aria-orientation', state.$signals.orientation() as string)
     })
 
     // Light-DOM hidden input for form participation.
@@ -19,7 +18,7 @@ export default controller<Scope>({
     host.appendChild(hiddenInput)
 
     const getToggles = (): ToggleEl[] => {
-      const slot = scope.defaultSlotEl() as HTMLSlotElement | null
+      const slot = state.$signals.defaultSlotEl() as HTMLSlotElement | null
       if (!slot) return Array.from(host.querySelectorAll(':scope > sui-toggle')) as ToggleEl[]
       return slot.assignedElements()
         .filter(el => el.tagName.toLowerCase() === 'sui-toggle') as ToggleEl[]
@@ -28,13 +27,13 @@ export default controller<Scope>({
     const enabledToggles = (): ToggleEl[] => getToggles().filter(t => !t.hasAttribute('disabled'))
 
     const getSelectedValues = (): Set<string> =>
-      new Set((scope.value() as string).split(',').filter(Boolean))
+      new Set((state.$signals.value() as string).split(',').filter(Boolean))
 
     const setSelectedValues = (vals: Set<string>) => {
       const joined = Array.from(vals).join(',')
-      scope.value.set(joined)
+      state.$signals.value.set(joined)
       syncToggles()
-      hiddenInput.name = scope.name() as string
+      hiddenInput.name = state.$signals.name() as string
       hiddenInput.value = joined
       host.dispatchEvent(new CustomEvent('sui-change', {
         detail: { value: joined },
@@ -45,8 +44,8 @@ export default controller<Scope>({
 
     const syncToggles = () => {
       const selected = getSelectedValues()
-      const size = scope.size() as string
-      const variant = scope.variant() as string
+      const size = state.$signals.size() as string
+      const variant = state.$signals.variant() as string
       for (const toggle of getToggles()) {
         const val = toggle.getAttribute('value') ?? ''
         toggle.toggleAttribute('pressed', selected.has(val))
@@ -65,7 +64,7 @@ export default controller<Scope>({
       const val = toggle.getAttribute('value') ?? ''
       const selected = getSelectedValues()
 
-      if ((scope.type() as string) === 'single') {
+      if ((state.$signals.type() as string) === 'single') {
         if (selected.has(val)) setSelectedValues(new Set())
         else setSelectedValues(new Set([val]))
       } else {
@@ -76,7 +75,7 @@ export default controller<Scope>({
     }
 
     const onKeydown = (e: KeyboardEvent) => {
-      const vertical = (scope.orientation() as string) === 'vertical'
+      const vertical = (state.$signals.orientation() as string) === 'vertical'
       const nextKey = vertical ? 'ArrowDown' : 'ArrowRight'
       const prevKey = vertical ? 'ArrowUp' : 'ArrowLeft'
       if (e.key !== nextKey && e.key !== prevKey) return
@@ -94,14 +93,14 @@ export default controller<Scope>({
     }
 
     const stopSync = effect(() => {
-      scope.value()
-      scope.size()
-      scope.variant()
+      state.$signals.value()
+      state.$signals.size()
+      state.$signals.variant()
       syncToggles()
     })
 
     const stopSlot = effect(() => {
-      const slot = scope.defaultSlotEl() as HTMLSlotElement | null
+      const slot = state.$signals.defaultSlotEl() as HTMLSlotElement | null
       if (!slot) return
       const onSlotChange = () => syncToggles()
       slot.addEventListener('slotchange', onSlotChange)
@@ -109,8 +108,8 @@ export default controller<Scope>({
     })
 
     const stopHidden = effect(() => {
-      hiddenInput.name = scope.name() as string
-      hiddenInput.value = scope.value() as string
+      hiddenInput.name = state.$signals.name() as string
+      hiddenInput.value = state.$signals.value() as string
     })
 
     host.addEventListener('sui-toggle', onToggle)

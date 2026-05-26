@@ -47,13 +47,11 @@ export interface SuiCompletionSource {
 }
 
 const DEBOUNCE_MS = 150
-type ScopeView = Scope
 
 export default controller<Scope>({
   mount(state, host) {
-    const s = state as unknown as ScopeView
 
-    const hostEl = (s.editorHost as unknown as Signal<HTMLElement | null>)()
+    const hostEl = (state.$signals.editorHost as unknown as Signal<HTMLElement | null>)()
     if (!hostEl) {
       console.warn('[sui-code-editor] bind:this ref is null — CodeMirror not initialized')
       return
@@ -71,11 +69,11 @@ export default controller<Scope>({
     let pendingDiagnostics: SuiDiagnostic[] | null = null
     let completions: SuiCompletionSource[] = []
 
-    const valSig = s.value as unknown as Signal<string>
-    const langSig = s.language as unknown as Signal<string>
-    const roSig = s.readonly as unknown as Signal<boolean>
-    const lnSig = s.lineNumbers as unknown as Signal<boolean>
-    const phSig = s.placeholder as unknown as Signal<string>
+    const valSig = state.$signals.value as unknown as Signal<string>
+    const langSig = state.$signals.language as unknown as Signal<string>
+    const roSig = state.$signals.readonly as unknown as Signal<boolean>
+    const lnSig = state.$signals.lineNumbers as unknown as Signal<boolean>
+    const phSig = state.$signals.placeholder as unknown as Signal<string>
 
     function buildCompletionExt(): Extension {
       if (completions.length === 0) return []

@@ -64,6 +64,7 @@ export type {
 } from './generated'
 // The Ship SDK surface + its hand-authored data types — owned here, not the framework.
 export type {
+  AccountState,
   ArtifactRecord,
   CollectionFieldRecord,
   CollectionSummary,

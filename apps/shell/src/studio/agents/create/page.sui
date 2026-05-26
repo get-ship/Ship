@@ -85,7 +85,7 @@
             <div class="field">
               <label>ID</label>
               <sui-input value={id()} on:sui-input={idInput} placeholder="rust-compiler"
-                attr:invalid={!idValid() && id()}
+                prop:invalid={!idValid() && id()}
                 attr:error-message={idError()}
                 data-test="id-input"></sui-input>
               {#if !idValid() && id()}
@@ -197,7 +197,7 @@
     <sui-button variant="ghost" size="sm" on:click={cancel}>Cancel</sui-button>
     {#if step() !== 3}
       <sui-button tone="primary" variant="solid" size="sm"
-        attr:disabled={!stepValid()}
+        prop:disabled={!stepValid()}
         on:click={next}
         data-test="continue">
         Continue
@@ -205,7 +205,7 @@
       </sui-button>
     {:else}
       <sui-button tone="primary" variant="solid" size="sm"
-        attr:disabled={creating() || !stepValid()}
+        prop:disabled={creating() || !stepValid()}
         on:click={create}
         data-test="create">
         <sui-icon slot="leading" name="check" size="xs"></sui-icon>

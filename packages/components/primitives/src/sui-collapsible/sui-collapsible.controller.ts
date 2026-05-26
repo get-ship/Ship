@@ -5,18 +5,17 @@ let _seq = 0
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     const contentId = `sui-collapsible-${++_seq}`
 
     const stopContentId = effect(() => {
-      const wrap = scope.contentWrap() as HTMLElement | null
+      const wrap = state.$signals.contentWrap() as HTMLElement | null
       if (wrap) wrap.id = contentId
     })
 
     const syncAriaExpanded = () => {
-      const slot = scope.triggerSlot() as HTMLSlotElement | null
+      const slot = state.$signals.triggerSlot() as HTMLSlotElement | null
       if (!slot) return
-      const isOpen = scope.open()
+      const isOpen = state.$signals.open()
       for (const el of slot.assignedElements()) {
         const h = el as HTMLElement
         h.setAttribute('aria-expanded', String(isOpen))
@@ -28,7 +27,7 @@ export default controller<Scope>({
     }
 
     const stopSlot = effect(() => {
-      const slot = scope.triggerSlot() as HTMLSlotElement | null
+      const slot = state.$signals.triggerSlot() as HTMLSlotElement | null
       if (!slot) return
       slot.addEventListener('slotchange', syncAriaExpanded)
       syncAriaExpanded()
@@ -36,15 +35,15 @@ export default controller<Scope>({
     })
 
     const stopOpenSync = effect(() => {
-      scope.open() // track
-      scope.triggerSlot() // track
+      state.$signals.open() // track
+      state.$signals.triggerSlot() // track
       syncAriaExpanded()
     })
 
     const toggle = () => {
-      if (scope.disabled()) return
-      const next = !scope.open()
-      scope.open.set(next)
+      if (state.$signals.disabled()) return
+      const next = !state.$signals.open()
+      state.$signals.open.set(next)
       host.dispatchEvent(
         new CustomEvent('sui-toggle', {
           detail: { open: next },
@@ -62,7 +61,7 @@ export default controller<Scope>({
     }
 
     const stopWrap = effect(() => {
-      const wrap = scope.triggerWrap() as HTMLElement | null
+      const wrap = state.$signals.triggerWrap() as HTMLElement | null
       if (!wrap) return
       wrap.addEventListener('click', toggle)
       wrap.addEventListener('keydown', onKeydown)

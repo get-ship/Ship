@@ -1,5 +1,5 @@
 import { controller, signal, derived, ref } from '@ship/sui-runtime'
-import type { Signal, ViewScope } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-annotation-layer.sui'
 import { type AnnotationEvent, buildAnnotationEvent } from './sui-annotation.internals'
 
@@ -176,38 +176,31 @@ export default controller({
   },
 
   mount(state, host) {
-    const scope = state as unknown as Scope & {
-      staged: Signal<AnnotationEvent[]>
-      pending: Signal<Pending | null>
-      drag: Signal<Drag | null>
-      noteText: Signal<string>
-      sendOne: (ev: AnnotationEvent) => Promise<void>
-    }
 
     let _drag: Drag | null = null
     let _raf: number | null = null
 
     const overlayPos = (e: PointerEvent): { x: number; y: number } => {
-      const el = scope.overlayEl() as HTMLElement | null
+      const el = state.$signals.overlayEl() as HTMLElement | null
       if (!el) return { x: 0, y: 0 }
       const r = el.getBoundingClientRect()
       return { x: e.clientX - r.left, y: e.clientY - r.top }
     }
 
     const onPointerDown = (e: PointerEvent): void => {
-      const m = scope.mode() as Mode
+      const m = state.$signals.mode() as Mode
       if (m === 'off') return
       const t = e.target as HTMLElement
       if (t.closest('[data-annotation-popover]') || t.closest('sui-annotation-marker')) return
-      if (scope.pending()) {
-        scope.pending.set(null)
-        scope.noteText.set('')
+      if (state.$signals.pending()) {
+        state.$signals.pending.set(null)
+        state.$signals.noteText.set('')
         return
       }
       e.preventDefault()
       const p = overlayPos(e)
       _drag = { startX: p.x, startY: p.y, curX: p.x, curY: p.y }
-      scope.drag.set(_drag)
+      state.$signals.drag.set(_drag)
       ;(e.target as Element).setPointerCapture?.(e.pointerId)
     }
 
@@ -218,7 +211,7 @@ export default controller({
       if (_raf !== null) return
       _raf = requestAnimationFrame(() => {
         _raf = null
-        if (_drag) scope.drag.set({ ..._drag })
+        if (_drag) state.$signals.drag.set({ ..._drag })
       })
     }
 
@@ -227,7 +220,7 @@ export default controller({
       const p = overlayPos(e)
       const dx = Math.abs(p.x - _drag.startX)
       const dy = Math.abs(p.y - _drag.startY)
-      const m = scope.mode() as Mode
+      const m = state.$signals.mode() as Mode
       let next: Pending | null = null
       if (m === 'point' || (m === 'region' && dx < 8 && dy < 8)) {
         next = { kind: 'point', x: p.x, y: p.y, selector: 'body' }
@@ -243,12 +236,12 @@ export default controller({
         next = { kind: 'region', x: x + dx / 2, y: y + dy / 2, rect }
       }
       _drag = null
-      scope.drag.set(null)
-      scope.noteText.set('')
-      if (next) scope.pending.set(next)
+      state.$signals.drag.set(null)
+      state.$signals.noteText.set('')
+      if (next) state.$signals.pending.set(next)
     }
 
-    const overlayEl = scope.overlayEl() as HTMLElement | null
+    const overlayEl = state.$signals.overlayEl() as HTMLElement | null
     if (overlayEl) {
       overlayEl.addEventListener('pointerdown', onPointerDown)
       overlayEl.addEventListener('pointermove', onPointerMove)
@@ -257,7 +250,7 @@ export default controller({
 
     Object.defineProperty(host, 'staged', {
       configurable: true,
-      get: () => scope.staged(),
+      get: () => state.$signals.staged(),
     })
 
     type LayerHost = HTMLElement & {
@@ -265,10 +258,10 @@ export default controller({
       clear: () => void
     }
     ;(host as LayerHost).send = async () => {
-      for (const ev of [...scope.staged()]) await scope.sendOne(ev)
+      for (const ev of [...state.$signals.staged()]) await state.sendOne(ev)
     }
     ;(host as LayerHost).clear = () => {
-      scope.staged.set([])
+      state.$signals.staged.set([])
     }
 
     return () => {

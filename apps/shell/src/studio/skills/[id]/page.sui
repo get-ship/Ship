@@ -22,7 +22,7 @@
                 <span class="sk-save-msg" attr:data-ok={saveBanner().ok}>{saveBanner().msg}</span>
               {/if}
               <sui-button tone="primary" variant="solid" size="sm" data-test="skill-save"
-                attr:disabled={!dirty() || saving()} on:click={save}>
+                prop:disabled={!dirty() || saving()} on:click={save}>
                 <sui-icon slot="leading" name="save" size="xs"></sui-icon>
                 {saving() ? 'Saving…' : dirty() ? 'Save' : 'Saved'}
               </sui-button>
@@ -49,7 +49,7 @@
 
         <!-- Metadata panel -->
         <aside class="sk-meta" aria-label="Skill metadata">
-          <sui-collapsible class="sk-coll" attr:open={openIdentityAttr()}
+          <sui-collapsible class="sk-coll" prop:open={openIdentityAttr()}
             on:sui-toggle={(e) => toggleSection('identity', e.detail.open)}>
             <div slot="trigger" class="sk-coll-trigger">
               <sui-icon name="id-card" size="xs" tone="muted"></sui-icon><span>Identity</span>
@@ -65,7 +65,7 @@
             </div>
           </sui-collapsible>
 
-          <sui-collapsible class="sk-coll" attr:open={openDescriptionAttr()}
+          <sui-collapsible class="sk-coll" prop:open={openDescriptionAttr()}
             on:sui-toggle={(e) => toggleSection('description', e.detail.open)}>
             <div slot="trigger" class="sk-coll-trigger">
               <sui-icon name="info" size="xs" tone="muted"></sui-icon><span>Description</span>
@@ -77,9 +77,9 @@
                 attr:disabled={descSaving()} prop:value={descDraft()} on:input={onDescInput}></textarea>
               <div class="sk-section-actions">
                 <span class="sk-hint">{descDirty() ? 'Unsaved' : 'Synced'}</span>
-                <sui-button variant="ghost" size="sm" attr:disabled={!descDirty() || descSaving()} on:click={resetDesc}>Cancel</sui-button>
+                <sui-button variant="ghost" size="sm" prop:disabled={!descDirty() || descSaving()} on:click={resetDesc}>Cancel</sui-button>
                 <sui-button variant="solid" tone="primary" size="sm" data-test="desc-save"
-                  attr:disabled={!descDirty() || descSaving()} on:click={saveDesc}>{descSaving() ? 'Saving…' : 'Save'}</sui-button>
+                  prop:disabled={!descDirty() || descSaving()} on:click={saveDesc}>{descSaving() ? 'Saving…' : 'Save'}</sui-button>
               </div>
               {#if descBanner()}
                 <sui-alert tone={descBanner().ok ? 'success' : 'destructive'}>{descBanner().msg}</sui-alert>
@@ -87,7 +87,7 @@
             </div>
           </sui-collapsible>
 
-          <sui-collapsible class="sk-coll" attr:open={openTagsAttr()}
+          <sui-collapsible class="sk-coll" prop:open={openTagsAttr()}
             on:sui-toggle={(e) => toggleSection('tags', e.detail.open)}>
             <div slot="trigger" class="sk-coll-trigger">
               <sui-icon name="tag" size="xs" tone="muted"></sui-icon><span>Tags</span>
@@ -106,9 +106,9 @@
                 prop:value={tagsInput()} on:input={onTagsInput} on:keydown={onTagsKeydown} />
               <div class="sk-section-actions">
                 <span class="sk-hint">{tagsDirty() ? 'Unsaved' : 'Synced'}</span>
-                <sui-button variant="ghost" size="sm" attr:disabled={!tagsDirty() || tagsSaving()} on:click={resetTags}>Cancel</sui-button>
+                <sui-button variant="ghost" size="sm" prop:disabled={!tagsDirty() || tagsSaving()} on:click={resetTags}>Cancel</sui-button>
                 <sui-button variant="solid" tone="primary" size="sm" data-test="tags-save"
-                  attr:disabled={!tagsDirty() || tagsSaving()} on:click={saveTags}>{tagsSaving() ? 'Saving…' : 'Save'}</sui-button>
+                  prop:disabled={!tagsDirty() || tagsSaving()} on:click={saveTags}>{tagsSaving() ? 'Saving…' : 'Save'}</sui-button>
               </div>
               {#if tagsBanner()}
                 <sui-alert tone={tagsBanner().ok ? 'success' : 'destructive'}>{tagsBanner().msg}</sui-alert>
@@ -117,7 +117,7 @@
           </sui-collapsible>
 
           {#if skVariables().length > 0}
-            <sui-collapsible class="sk-coll" attr:open={openVariablesAttr()}
+            <sui-collapsible class="sk-coll" prop:open={openVariablesAttr()}
               on:sui-toggle={(e) => toggleSection('variables', e.detail.open)}>
               <div slot="trigger" class="sk-coll-trigger">
                 <sui-icon name="braces" size="xs" tone="muted"></sui-icon><span>Variables</span>
@@ -129,7 +129,7 @@
           {/if}
 
           {#if skFiles().length > 0}
-            <sui-collapsible class="sk-coll" attr:open={openFilesAttr()}
+            <sui-collapsible class="sk-coll" prop:open={openFilesAttr()}
               on:sui-toggle={(e) => toggleSection('files', e.detail.open)}>
               <div slot="trigger" class="sk-coll-trigger">
                 <sui-icon name="file" size="xs" tone="muted"></sui-icon><span>Files</span>

@@ -3,13 +3,12 @@ import type { Scope } from './sui-navigation-item.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     const onClick = (e: Event) => {
-      if (scope.disabled()) return
-      if (!scope.href()) e.preventDefault()
+      if (state.$signals.disabled()) return
+      if (!state.$signals.href()) e.preventDefault()
       host.dispatchEvent(new CustomEvent('sui-nav-select', {
-        detail: { value: scope.value() },
+        detail: { value: state.$signals.value() },
         bubbles: true,
         composed: true,
       }))

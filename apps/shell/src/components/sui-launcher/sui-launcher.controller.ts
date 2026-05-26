@@ -49,7 +49,6 @@ function matchView(v: ApiView, filterVal: string): boolean {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     const views = signal<ApiView[]>([])
     const pins = signal<string[]>([])
@@ -60,12 +59,12 @@ export default controller<Scope>({
     let dragOver: string | null = null
     let filterTimer: ReturnType<typeof setTimeout> | null = null
 
-    const headEl = scope.headEl() as HTMLElement | null
-    const bodyEl = scope.bodyEl() as HTMLElement | null
-    const footEl = scope.footEl() as HTMLElement | null
-    const countEl = scope.countEl() as HTMLElement | null
-    const filterInput = scope.filterInput() as HTMLInputElement | null
-    const maskEl = scope.maskEl() as HTMLElement | null
+    const headEl = state.$signals.headEl() as HTMLElement | null
+    const bodyEl = state.$signals.bodyEl() as HTMLElement | null
+    const footEl = state.$signals.footEl() as HTMLElement | null
+    const countEl = state.$signals.countEl() as HTMLElement | null
+    const filterInput = state.$signals.filterInput() as HTMLInputElement | null
+    const maskEl = state.$signals.maskEl() as HTMLElement | null
 
     // ── foot is static — render once ─────────────────────────
     if (footEl) renderFoot(footEl)
@@ -104,7 +103,7 @@ export default controller<Scope>({
     // ── open/close effect ─────────────────────────────────────
     let wasOpen = false
     const stopOpen = effect(() => {
-      const isOpen = scope.open()
+      const isOpen = state.$signals.open()
       if (isOpen && !wasOpen) {
         cursor.set(0)
         filter.set('')
@@ -133,7 +132,7 @@ export default controller<Scope>({
 
     // ── global key handler ────────────────────────────────────
     function onGlobalKey(e: KeyboardEvent): void {
-      if (!scope.open()) return
+      if (!state.$signals.open()) return
       if (e.key === 'Escape') { e.preventDefault(); doClose(); return }
       if (e.key === '/' && document.activeElement !== filterInput) {
         e.preventDefault()
@@ -202,7 +201,7 @@ export default controller<Scope>({
     }
 
     function doClose(): void {
-      scope.open.set(false)
+      state.$signals.open.set(false)
     }
 
     // ── drag ──────────────────────────────────────────────────
@@ -233,7 +232,7 @@ export default controller<Scope>({
     function onDragEnd(): void { dragName = null; dragOver = null }
 
     // ── external open/close events ────────────────────────────
-    const onExtOpen = () => scope.open.set(true)
+    const onExtOpen = () => state.$signals.open.set(true)
     const onExtClose = () => doClose()
     bindNativeEvent(document, 'sui:launcher:open', onExtOpen)
     bindNativeEvent(document, 'sui:launcher:close', onExtClose)

@@ -3,14 +3,13 @@ import type { Scope } from './sui-stepper.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'progressbar')
 
     const stopEffect = effect(() => {
-      const t = Math.max(1, Math.floor(scope.total() || 0))
-      const c = Math.max(1, Math.min(t, Math.floor(scope.current() || 1)))
-      const label = scope.label()
+      const t = Math.max(1, Math.floor(state.$signals.total() || 0))
+      const c = Math.max(1, Math.min(t, Math.floor(state.$signals.current() || 1)))
+      const label = state.$signals.label()
 
       host.setAttribute('aria-valuemin', '1')
       host.setAttribute('aria-valuemax', String(t))
@@ -21,7 +20,7 @@ export default controller<Scope>({
         host.setAttribute('aria-label', `Step ${c} of ${t}`)
       }
 
-      const container = scope.dotsEl() as HTMLElement | null
+      const container = state.$signals.dotsEl() as HTMLElement | null
       if (!container) return
       const dots: HTMLSpanElement[] = []
       for (let i = 1; i <= t; i++) {

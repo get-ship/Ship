@@ -37,7 +37,7 @@
           {/if}
           {#if editMode()}
           <sui-button variant="outline" on:click={cancelEdit}>Cancel</sui-button>
-          <sui-button tone="primary" variant="solid" attr:loading={editSaving()} attr:disabled={editSaving()} on:click={savePipeline}>
+          <sui-button tone="primary" variant="solid" prop:loading={editSaving()} prop:disabled={editSaving()} on:click={savePipeline}>
             <sui-icon slot="leading" name="check" size="sm"></sui-icon>Save
           </sui-button>
           <sui-button variant="outline" tone="destructive" size="sm" on:click={openDelete}>
@@ -183,7 +183,7 @@
     {/if}
   </div>
 
-  <sui-dialog attr:open={dispatchOpen()} size="lg" on:sui-close={closeDispatch}>
+  <sui-dialog prop:open={dispatchOpen()} size="lg" on:sui-close={closeDispatch}>
     <span slot="header">Dispatch {name()}</span>
     <sui-field label="Spec" hint="Plain text or markdown — what the run should do.">
       <sui-textarea bind:value={dispatchSpec} rows="10" placeholder="Describe the work in one or two paragraphs..."></sui-textarea>
@@ -204,7 +204,7 @@
   </sui-dialog>
 
   {#if workspaceId()}
-  <sui-alert-dialog attr:open={deleteOpen()} tone="destructive" confirm-label="Delete pipeline" cancel-label="Keep it" on:sui-confirm={deletePipeline} on:sui-cancel={closeDelete}>
+  <sui-alert-dialog prop:open={deleteOpen()} tone="destructive" confirm-label="Delete pipeline" cancel-label="Keep it" on:sui-confirm={deletePipeline} on:sui-cancel={closeDelete}>
     <span slot="title">Delete <code>{name()}</code>?</span>
     <p class="ship-focus-delete-note">This removes the pipeline file from <code>.ship/pipelines/</code>. Any runs already in flight keep going — only the definition is deleted.</p>
   </sui-alert-dialog>

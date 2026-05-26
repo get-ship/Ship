@@ -3,11 +3,10 @@ import type { Scope } from './sui-textarea.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
-    let blurValue = scope.value()
+    let blurValue = state.$signals.value()
 
     const stopListeners = effect(() => {
-      const el = scope.textareaEl()
+      const el = state.$signals.textareaEl()
       if (!el) return
 
       const onNativeInput = () => {
@@ -19,7 +18,7 @@ export default controller<Scope>({
       }
 
       const onNativeBlur = () => {
-        const current = scope.value()
+        const current = state.$signals.value()
         if (current !== blurValue) {
           blurValue = current
           host.dispatchEvent(new CustomEvent('sui-change', {

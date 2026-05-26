@@ -23,11 +23,10 @@ interface ToastContainerLike extends HTMLElement {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     const onNotify = (e: Event): void => {
       const detail = ((e as CustomEvent).detail ?? {}) as NotifyDetail
-      const container = scope.containerEl() as ToastContainerLike | null
+      const container = state.$signals.containerEl() as ToastContainerLike | null
       if (!container || typeof container.show !== 'function') return
       container.show({
         tone: detail.tone,

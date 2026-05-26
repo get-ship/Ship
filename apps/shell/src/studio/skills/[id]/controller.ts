@@ -117,9 +117,9 @@ export default controller({
 
     return {
       skillId, sk, loading, skName, skSourceLabel, skVariables, skFiles, skAuthorsText, hasBody,
-      draft, dirty, saving, saveBanner,
-      descDraft, descDirty, descSaving, descBanner,
-      tagsList, tagsInput, tagsDirty, tagsSaving, tagsBanner,
+      draft, baseline, dirty, saving, saveBanner,
+      descDraft, descBaseline, descDirty, descSaving, descBanner,
+      tagsList, tagsBaseline, tagsInput, tagsDirty, tagsSaving, tagsBanner,
       open, putFrontmatter,
       openIdentityAttr: openAttr('identity'),
       openDescriptionAttr: openAttr('description'),

@@ -3,11 +3,10 @@ import type { Scope } from './sui-switch.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     // Dispatch sui-change after bind:checked has updated the signal.
     const stopChange = effect(() => {
-      const el = scope.inputEl()
+      const el = state.$signals.inputEl()
       if (!el) return
       const onNativeChange = () => {
         host.dispatchEvent(new CustomEvent('sui-change', {

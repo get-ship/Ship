@@ -6,8 +6,8 @@
  *
  *   1. bind:this={ref} in the template → Signal<El|null> in Scope.
  *   2. controller(def).mount runs AFTER template renders; access the ref via
- *      `(state as unknown as Scope).ref()` — the $scope proxy keeps signals
- *      callable even though MutableState<Scope> unwraps them to value types.
+ *      `state.$signals.ref()` — $signals exposes the underlying Signals
+ *      (callable) even though MutableState<Scope> unwraps them to value types.
  *   3. Wire engine events → host.dispatchEvent (Option A bridge).
  *   4. Return the cleanup function from mount; the compiler wires it into
  *      __cleanups so disconnect tears everything down.

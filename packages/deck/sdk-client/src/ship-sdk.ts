@@ -31,7 +31,7 @@ import type {
 } from './generated'
 import type { LiveSource } from '@ship/sui-runtime'
 
-export type { ArtifactRecord, CollectionFieldRecord, CollectionSummary, SkillIndexEntry }
+export type { AccountState, ArtifactRecord, CollectionFieldRecord, CollectionSummary, SkillIndexEntry }
 
 /** Live SDK handle exposed to controllers, hooks, and `<data>` sources. */
 export interface ShipSDK {

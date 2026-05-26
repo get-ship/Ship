@@ -33,35 +33,34 @@ function installDividerStyles(doc: Document) {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     installDividerStyles(host.ownerDocument)
 
     const resolveRole = () => {
-      if (scope.navigable()) return 'link'
-      if (scope.interactive()) return 'button'
+      if (state.$signals.navigable()) return 'link'
+      if (state.$signals.interactive()) return 'button'
       return 'listitem'
     }
 
     const stopRole = effect(() => {
-      scope.navigable()
-      scope.interactive()
+      state.$signals.navigable()
+      state.$signals.interactive()
       host.setAttribute('role', resolveRole())
     })
 
     const stopSelected = effect(() => {
-      host.setAttribute('aria-selected', scope.selected() ? 'true' : 'false')
+      host.setAttribute('aria-selected', state.$signals.selected() ? 'true' : 'false')
     })
 
     const stopDisabled = effect(() => {
-      host.setAttribute('aria-disabled', scope.disabled() ? 'true' : 'false')
+      host.setAttribute('aria-disabled', state.$signals.disabled() ? 'true' : 'false')
     })
 
     const stopTabindex = effect(() => {
-      const el = scope.tileEl() as HTMLElement | null
+      const el = state.$signals.tileEl() as HTMLElement | null
       if (!el) return
-      const interactive = scope.interactive()
-      const disabled = scope.disabled()
+      const interactive = state.$signals.interactive()
+      const disabled = state.$signals.disabled()
       if (interactive && !disabled) {
         el.setAttribute('tabindex', '0')
       } else {
@@ -70,7 +69,7 @@ export default controller<Scope>({
     })
 
     const dispatchSelect = (): boolean => {
-      if (scope.disabled() || !scope.interactive()) return false
+      if (state.$signals.disabled() || !state.$signals.interactive()) return false
       const ev = new CustomEvent('sui-select', {
         detail: {},
         bubbles: true,
@@ -82,16 +81,16 @@ export default controller<Scope>({
     }
 
     const onClick = (e: Event) => {
-      if (!scope.interactive()) return
+      if (!state.$signals.interactive()) return
       const prevented = dispatchSelect()
-      if (prevented && scope.navigable()) {
+      if (prevented && state.$signals.navigable()) {
         e.preventDefault()
       }
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!scope.interactive() || scope.disabled()) return
-      if (scope.navigable() && e.key === 'Enter') return
+      if (!state.$signals.interactive() || state.$signals.disabled()) return
+      if (state.$signals.navigable() && e.key === 'Enter') return
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         dispatchSelect()
@@ -99,7 +98,7 @@ export default controller<Scope>({
     }
 
     const stopHandlers = effect(() => {
-      const el = scope.tileEl() as HTMLElement | null
+      const el = state.$signals.tileEl() as HTMLElement | null
       if (!el) return
       el.addEventListener('click', onClick)
       el.addEventListener('keydown', onKeyDown)

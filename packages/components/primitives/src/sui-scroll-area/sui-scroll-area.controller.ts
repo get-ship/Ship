@@ -3,18 +3,17 @@ import type { Scope } from './sui-scroll-area.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     let scrollTimer: ReturnType<typeof setTimeout> | null = null
 
     const updateThumbs = () => {
-      const vp = scope.viewportEl() as HTMLElement | null
+      const vp = state.$signals.viewportEl() as HTMLElement | null
       if (!vp) return
 
-      const orientation = scope.orientation()
+      const orientation = state.$signals.orientation()
       const showV = orientation === 'vertical' || orientation === 'both'
       const showH = orientation === 'horizontal' || orientation === 'both'
-      const vThumb = scope.vThumb() as HTMLElement | null
-      const hThumb = scope.hThumb() as HTMLElement | null
+      const vThumb = state.$signals.vThumb() as HTMLElement | null
+      const hThumb = state.$signals.hThumb() as HTMLElement | null
 
       if (showV && vThumb) {
         const ratio = vp.clientHeight / vp.scrollHeight
@@ -47,8 +46,8 @@ export default controller<Scope>({
 
     const onScroll = () => {
       updateThumbs()
-      const vBar = scope.vScrollbar() as HTMLElement | null
-      const hBar = scope.hScrollbar() as HTMLElement | null
+      const vBar = state.$signals.vScrollbar() as HTMLElement | null
+      const hBar = state.$signals.hScrollbar() as HTMLElement | null
       vBar?.classList.add('active')
       hBar?.classList.add('active')
       if (scrollTimer) clearTimeout(scrollTimer)
@@ -58,7 +57,7 @@ export default controller<Scope>({
       }, 1200)
     }
 
-    const vp = scope.viewportEl() as HTMLElement | null
+    const vp = state.$signals.viewportEl() as HTMLElement | null
     if (vp) {
       vp.addEventListener('scroll', onScroll, { passive: true })
     }

@@ -3,16 +3,15 @@ import type { Scope } from './sui-radio.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     const stop = effect(() => {
-      const input = scope.inputEl() as HTMLInputElement | null
+      const input = state.$signals.inputEl() as HTMLInputElement | null
       if (!input) return
 
       const onClick = () => {
-        if (scope.disabled()) return
+        if (state.$signals.disabled()) return
         host.dispatchEvent(new CustomEvent('sui-radio-select', {
-          detail: { value: scope.value() },
+          detail: { value: state.$signals.value() },
           bubbles: true,
           composed: true,
         }))

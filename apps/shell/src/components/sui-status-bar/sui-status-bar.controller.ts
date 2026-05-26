@@ -56,9 +56,6 @@ export default controller({
   },
 
   mount(state, host) {
-    const scope = state as unknown as Scope & {
-      extensions: { (): ExtensionEntry[]; set(v: ExtensionEntry[]): void }
-    }
     const hostEl = host as HTMLElement
 
     if (!hostEl.hasAttribute('role')) hostEl.setAttribute('role', 'contentinfo')
@@ -66,7 +63,7 @@ export default controller({
 
     const entries = new Map<string, ExtensionEntry>()
     const repaint = (): void => {
-      scope.extensions.set(Array.from(entries.values()))
+      state.$signals.extensions.set(Array.from(entries.values()))
     }
 
     const onSet = (e: Event): void => {

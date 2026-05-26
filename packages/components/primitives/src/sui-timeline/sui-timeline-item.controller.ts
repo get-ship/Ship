@@ -3,12 +3,11 @@ import type { Scope } from './sui-timeline-item.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'listitem')
 
     const stopRole = effect(() => {
-      if (scope.interactive()) {
+      if (state.$signals.interactive()) {
         host.setAttribute('role', 'button')
         if (!host.hasAttribute('tabindex')) host.setAttribute('tabindex', '0')
       } else {
@@ -23,10 +22,10 @@ export default controller<Scope>({
       )
     }
 
-    const onClick = () => { if (scope.interactive()) emit() }
+    const onClick = () => { if (state.$signals.interactive()) emit() }
 
     const onKeydown = (e: KeyboardEvent) => {
-      if (!scope.interactive()) return
+      if (!state.$signals.interactive()) return
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         emit()

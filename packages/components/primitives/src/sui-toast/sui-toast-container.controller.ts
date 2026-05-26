@@ -54,7 +54,6 @@ interface ShowToastOptions {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     // ARIA defaults
     if (!host.hasAttribute('role')) host.setAttribute('role', 'region')
@@ -62,8 +61,8 @@ export default controller<Scope>({
     if (!host.hasAttribute('aria-live')) host.setAttribute('aria-live', 'polite')
 
     const slotVersion = signal(0)
-    const defaultSlotEl = scope.defaultSlotEl() as HTMLSlotElement | null
-    const stackEl = scope.stackEl() as HTMLElement | null
+    const defaultSlotEl = state.$signals.defaultSlotEl() as HTMLSlotElement | null
+    const stackEl = state.$signals.stackEl() as HTMLElement | null
 
     // Pull any author-supplied <sui-toast> children out of the host's
     // light DOM and into the portal-teleported stack. The slot still
@@ -84,15 +83,15 @@ export default controller<Scope>({
 
     const stopStackStyleEffect = effect(() => {
       if (!stackEl) return
-      const pos = scope.position() as ToastPosition
+      const pos = state.$signals.position() as ToastPosition
       stackEl.style.cssText = stackStyleFor(pos)
       stackEl.setAttribute('data-position', pos)
     })
 
     const stopSlotEffect = effect(() => {
       slotVersion()
-      const pos = scope.position() as ToastPosition
-      const maxVis = scope.maxVisible()
+      const pos = state.$signals.position() as ToastPosition
+      const maxVis = state.$signals.maxVisible()
       const dir = SLIDE_FROM[pos] ?? 'bottom'
 
       const toasts = getStackToasts()
