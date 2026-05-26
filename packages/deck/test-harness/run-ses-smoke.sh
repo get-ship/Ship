@@ -33,3 +33,14 @@ if [[ "$PASS" != *true* ]]; then
   exit 1
 fi
 echo "✓ SES lockdown + confinement + ambient-denial verified in a real browser"
+
+# Slice 2 — a REAL compiled view confines + evaluates in-browser under lockdown.
+$PW goto "http://127.0.0.1:$PORT/view-confine.html" >/dev/null 2>&1
+sleep 2
+echo "view-confine: $($PW --raw eval "JSON.stringify(window.__viewConfine)" 2>/dev/null | tail -1)"
+VPASS="$($PW --raw eval "(() => { const r = window.__viewConfine || {}; return r.lockdown === 'ok' && r.confined === 'ok' && r.hasSetup === true && r.ambientProbeDenied === true; })()" 2>/dev/null | tail -1)"
+if [[ "$VPASS" != *true* ]]; then
+  echo "FAIL: real view did not confine cleanly in-browser (got: $VPASS)" >&2
+  exit 1
+fi
+echo "✓ real compiled view confines to {default:{setup}} in-browser, ambient denied"
