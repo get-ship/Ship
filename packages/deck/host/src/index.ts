@@ -7,3 +7,5 @@
 
 export { lockdownRealm, isRealmLocked, confineController } from './confine.ts'
 export { lowerFrameworkImports, lowerModuleToExpression } from './lower-imports.ts'
+export { buildViewEndowments, confineViewModule } from './view-runner.ts'
+export type { ViewEndowmentInput, CompiledViewModule } from './view-runner.ts'
