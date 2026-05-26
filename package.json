@@ -5,6 +5,7 @@
     "packages": [
       "apps/docs",
       "apps/shell",
+      "apps/spaces",
       "apps/site",
       "apps/gateway",
       "packages/*",
