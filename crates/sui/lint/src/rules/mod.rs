@@ -15,6 +15,7 @@ pub mod attr_presence;
 pub mod controller_context;
 pub mod controller_navigation;
 pub mod controller_no_ambient_authority;
+pub mod controller_no_load_state;
 pub mod controller_purity;
 pub mod controller_state_cast;
 pub mod css_content_text;
@@ -38,6 +39,7 @@ pub const CONTROLLER_RULES: &[(&str, RuleFn)] = &[
     (controller_navigation::RULE_ID, controller_navigation::check),
     (controller_context::RULE_ID, controller_context::check),
     (controller_no_ambient_authority::RULE_ID, controller_no_ambient_authority::check),
+    (controller_no_load_state::RULE_ID, controller_no_load_state::check),
 ];
 
 /// Rules that lint a `*.sui` template source. The dispatcher in
