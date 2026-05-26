@@ -1,0 +1,8 @@
+//! `@ship/deck-host` — Deck's browser-side host.
+//!
+//! Owns secure view-controller execution (SES Compartment runner). The SUI
+//! runtime provides the hardened endowment surface; the author-time
+//! `sui-controller-no-ambient-authority` lint is the static first line; this is
+//! the runtime backstop.
+
+export { lockdownRealm, isRealmLocked, confineController } from './confine.ts'
