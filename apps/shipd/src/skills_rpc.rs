@@ -247,6 +247,7 @@ mod tests {
         let w = crate::ops_rpc::policy_for("ship.ops.v1.SkillsService/Create")
             .expect("SkillsService/Create must carry a policy in the descriptor");
         assert_eq!(w.capability, "ship.skills.write");
-        assert_eq!(w.blast_radius, ship_ops_rpc::BlastRadius::C1Workspace);
+        // Authoring (skill CRUD) is elevated — C2, granted per service.
+        assert_eq!(w.blast_radius, ship_ops_rpc::BlastRadius::C2Elevated);
     }
 }
