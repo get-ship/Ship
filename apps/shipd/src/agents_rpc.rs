@@ -292,6 +292,7 @@ mod tests {
         let w = crate::ops_rpc::policy_for("ship.ops.v1.AgentsService/Create")
             .expect("AgentsService/Create must carry a policy in the descriptor");
         assert_eq!(w.capability, "ship.agents.write");
-        assert_eq!(w.blast_radius, ship_ops_rpc::BlastRadius::C1Workspace);
+        // Authoring (agent-profile CRUD) is elevated — C2, granted per service.
+        assert_eq!(w.blast_radius, ship_ops_rpc::BlastRadius::C2Elevated);
     }
 }

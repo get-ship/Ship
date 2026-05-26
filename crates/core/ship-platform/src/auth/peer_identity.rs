@@ -32,15 +32,53 @@ pub enum PeerIdentity {
 
 /// Resolve the identity of the process at `peer_pid` (kernel-verified, taken
 /// from the connection's peer credentials). Reads the OS process container via
-/// `ship-host`; an agent container names the agent, anything else is the
-/// operator, an unreadable container fails closed.
-pub fn resolve(peer_pid: u32) -> PeerIdentity {
-    match ship_host::host().process_container(peer_pid) {
-        Some(container) => match agent_from_container(&container) {
-            Some(id) => PeerIdentity::Agent(id),
-            None => PeerIdentity::Operator,
-        },
-        None => PeerIdentity::Unresolved,
+/// `ship-host` and decides per [`decide`].
+pub fn resolve(peer_pid: u32, peer_uid: u32) -> PeerIdentity {
+    let host = ship_host::host();
+    decide(
+        host.process_container(peer_pid).as_deref(),
+        host.containers_supported(),
+        peer_uid,
+        ship_host::current_uid(),
+    )
+}
+
+/// The pure resolution policy (unit-tested independent of the OS):
+///
+/// - **agent container** (`ship-agent-<id>`) → [`PeerIdentity::Agent`].
+/// - **container present but not an agent** → the operator's own process tree,
+///   confirmed by same-owner uid.
+/// - **no container, backend NOT supported** (macOS/Windows today) → a
+///   same-owner peer is the operator; no agent could have been containerized.
+/// - **no container, backend IS supported** (Linux) → [`PeerIdentity::Unresolved`]:
+///   fail closed. An unreadable cgroup could be a transient race on a real
+///   agent — never silently promote it to operator.
+/// - **different owner uid** anywhere → [`PeerIdentity::Unresolved`] (defense in
+///   depth; the `0600` socket already restricts to our uid).
+fn decide(
+    container: Option<&str>,
+    containers_supported: bool,
+    peer_uid: u32,
+    host_uid: u32,
+) -> PeerIdentity {
+    if let Some(c) = container {
+        if let Some(id) = agent_from_container(c) {
+            return PeerIdentity::Agent(id);
+        }
+        return owner_or_unresolved(peer_uid, host_uid);
+    }
+    if containers_supported {
+        return PeerIdentity::Unresolved;
+    }
+    owner_or_unresolved(peer_uid, host_uid)
+}
+
+/// A peer running as our own uid is the operator; anyone else is unresolved.
+fn owner_or_unresolved(peer_uid: u32, host_uid: u32) -> PeerIdentity {
+    if peer_uid == host_uid {
+        PeerIdentity::Operator
+    } else {
+        PeerIdentity::Unresolved
     }
 }
 
@@ -85,5 +123,41 @@ mod tests {
     fn empty_or_prefix_without_id_is_not_an_agent() {
         assert_eq!(agent_from_container(""), None);
         assert_eq!(agent_from_container("/ship.slice/ship-agent-.scope"), None);
+    }
+
+    const ME: u32 = 1000;
+    const OTHER: u32 = 1001;
+
+    #[test]
+    fn agent_container_resolves_regardless_of_uid() {
+        // The container name is authoritative for an agent; uid isn't consulted.
+        let id = decide(Some("/ship.slice/ship-agent-x.scope"), true, OTHER, ME);
+        assert_eq!(id, PeerIdentity::Agent("x".into()));
+    }
+
+    #[test]
+    fn non_agent_container_same_owner_is_operator() {
+        let id = decide(Some("/user.slice/session-2.scope"), true, ME, ME);
+        assert_eq!(id, PeerIdentity::Operator);
+    }
+
+    #[test]
+    fn linux_no_container_fails_closed() {
+        // Backend supported (Linux) but no container read → never escalate.
+        assert_eq!(decide(None, true, ME, ME), PeerIdentity::Unresolved);
+    }
+
+    #[test]
+    fn no_backend_same_owner_is_operator() {
+        // macOS/Windows today: no named container, same-uid peer is the operator.
+        assert_eq!(decide(None, false, ME, ME), PeerIdentity::Operator);
+    }
+
+    #[test]
+    fn foreign_uid_never_resolves() {
+        // Defense in depth beyond the 0600 socket: a different-owner peer is
+        // never the operator, with or without a backend.
+        assert_eq!(decide(None, false, OTHER, ME), PeerIdentity::Unresolved);
+        assert_eq!(decide(Some("/user.slice/x.scope"), true, OTHER, ME), PeerIdentity::Unresolved);
     }
 }

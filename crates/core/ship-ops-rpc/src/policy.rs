@@ -15,35 +15,44 @@ use buffa::extension::Extension;
 use buffa::ExtensionSet;
 use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 
-/// Blast-radius class — the human-vs-agent line the gate enforces, carried as a
-/// proto method option. The canonical home is here (next to the FDS reader that
-/// produces it); shipd's gate re-exports it. `from_descriptor` fails closed to
-/// `C2Elevated` — a misdeclared op is gated to the human, never opened to agents.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+/// Blast-radius class — the risk gradient the gate enforces against an agent's
+/// ceiling, carried as a proto method option. The canonical home is here (next
+/// to the FDS reader that produces it); shipd's gate re-exports it.
+///
+/// Four tiers, ordered C0 < C1 < C2 < C3 (derive `Ord`): **C0** read (anyone),
+/// **C1** workspace-write (any agent), **C2** elevated (granted agents —
+/// dispatch/settings/authoring), **C3** critical (operator/2FA only —
+/// account/permissions/credentials). `from_descriptor`/unknown fails closed to
+/// `C3Critical` — the most restrictive tier — so a misdeclared op is operator-only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
 pub enum BlastRadius {
-    #[serde(rename = "C0_READ")]
+    #[serde(rename = "C0_SAFE")]
     C0Read,
     #[serde(rename = "C1_WORKSPACE")]
     C1Workspace,
     #[serde(rename = "C2_ELEVATED")]
     C2Elevated,
+    #[serde(rename = "C3_CRITICAL")]
+    C3Critical,
 }
 
 impl BlastRadius {
     pub fn from_descriptor(s: &str) -> Self {
         match s {
-            "C0_READ" => Self::C0Read,
+            "C0_SAFE" | "C0_READ" => Self::C0Read,
             "C1_WORKSPACE" => Self::C1Workspace,
             "C2_ELEVATED" => Self::C2Elevated,
-            _ => Self::C2Elevated,
+            "C3_CRITICAL" => Self::C3Critical,
+            _ => Self::C3Critical,
         }
     }
 
     pub fn as_descriptor(self) -> &'static str {
         match self {
-            Self::C0Read => "C0_READ",
+            Self::C0Read => "C0_SAFE",
             Self::C1Workspace => "C1_WORKSPACE",
             Self::C2Elevated => "C2_ELEVATED",
+            Self::C3Critical => "C3_CRITICAL",
         }
     }
 }
@@ -130,6 +139,61 @@ pub fn op_name(service: &str, method: &str) -> String {
     format!("{domain}.{}", snake(method))
 }
 
+/// The op-domain an op name belongs to — its first dotted segment
+/// (`git.create` → `git`). The domain is the unit of **capability**: one per
+/// per-domain proto service, 1:1 with an sdk-skill (`ship-<domain>`).
+pub fn domain_of(op_name: &str) -> &str {
+    op_name.split('.').next().unwrap_or(op_name)
+}
+
+/// The generated umbrella + streaming services are not capability domains:
+/// `ReadOps`/`CommandOps` are the retiring bulk-port scaffold (every op is also
+/// on its per-domain service); `StreamService` is server-streaming.
+pub fn is_non_domain_service(service: &str) -> bool {
+    matches!(service, "ReadOpsService" | "CommandOpsService" | "StreamService")
+}
+
+/// Operational domains (#95) are not part of the agent capability set: kernel/
+/// actor control (`actor.*`) and raw mesh coordination (`mesh.*`) are
+/// operator-surface ABI, not capabilities a user grants an agent.
+pub fn is_operational(op_name: &str) -> bool {
+    matches!(domain_of(op_name), "actor" | "mesh")
+}
+
+/// A grantable Ship capability: one op domain (e.g. `git`), 1:1 with its
+/// sdk-skill (`ship-git`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Capability {
+    /// Domain id, e.g. `git` — what a user grants and what `requires:` names.
+    pub id: String,
+    /// The sdk-skill that teaches this capability's ops, e.g. `ship-git`.
+    pub sdk_skill: String,
+}
+
+/// The agent-facing capability registry: every grantable domain, **derived from
+/// the proto descriptor** — the single source the sdk-skills are generated from,
+/// so the capability list, the sdk-skill set, and the gate's grant axis cannot
+/// drift. Excludes the umbrella scaffold and operational domains. Sorted/deduped;
+/// 1:1 with the generated sdk-skills. Capability is orthogonal to blast-radius
+/// (the internal C0/C1/C2 risk calc).
+pub fn capabilities() -> Vec<Capability> {
+    let mut domains: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for p in read_policies() {
+        if is_non_domain_service(&p.service) {
+            continue;
+        }
+        let name = op_name(&p.service, &p.method);
+        if is_operational(&name) {
+            continue;
+        }
+        domains.insert(domain_of(&name).to_string());
+    }
+    domains
+        .into_iter()
+        .map(|id| Capability { sdk_skill: format!("ship-{id}"), id })
+        .collect()
+}
+
 /// Project a proto field's (type, label) to the generators' arg-kind vocab.
 /// Field type numbers per `descriptor.proto`'s `FieldDescriptorProto.Type`;
 /// label 3 = repeated.
@@ -154,14 +218,17 @@ impl MethodPolicy {
     }
 }
 
-/// Map the proto `BlastRadius` enum number to the gate's class. Unspecified (0)
-/// or unknown → `C2Elevated` (**fail closed**: a misdeclared op is gated to the
-/// human). Reconciles the proto name (`C0_SAFE`) with the gate's `C0Read`.
+/// Map the proto `BlastRadius` enum number to the gate's tier. Unspecified (0)
+/// or unknown → `C3Critical` (**fail closed** to the most restrictive tier: a
+/// misdeclared op is operator-only). Reconciles the proto name (`C0_SAFE`) with
+/// the gate's `C0Read`.
 fn blast_from_proto(n: Option<i32>) -> BlastRadius {
     match n {
         Some(1) => BlastRadius::C0Read,      // BLAST_RADIUS_C0_SAFE
         Some(2) => BlastRadius::C1Workspace, // BLAST_RADIUS_C1_WORKSPACE
-        _ => BlastRadius::C2Elevated,        // C2_ELEVATED, UNSPECIFIED, unknown
+        Some(3) => BlastRadius::C2Elevated,  // BLAST_RADIUS_C2_ELEVATED
+        Some(4) => BlastRadius::C3Critical,  // BLAST_RADIUS_C3_CRITICAL
+        _ => BlastRadius::C3Critical,        // UNSPECIFIED, unknown — fail closed
     }
 }
 
@@ -265,5 +332,29 @@ mod tests {
         for p in read_policies() {
             assert!(!p.capability.is_empty(), "rpc `{}` has no capability option", p.method);
         }
+    }
+}
+
+#[cfg(test)]
+mod capability_tests {
+    use super::*;
+
+    #[test]
+    fn capabilities_are_per_domain_and_map_1to1_to_sdk_skills() {
+        let caps = capabilities();
+        assert!(!caps.is_empty(), "capability registry must derive domains from proto");
+        // Known domains present; sdk-skill id is exactly ship-<id>.
+        let git = caps.iter().find(|c| c.id == "git").expect("git capability");
+        assert_eq!(git.sdk_skill, "ship-git");
+        assert!(caps.iter().any(|c| c.id == "pipelines"));
+        // Operational domains (#95) and the umbrella scaffold are NOT capabilities.
+        assert!(!caps.iter().any(|c| c.id == "actor"));
+        assert!(!caps.iter().any(|c| c.id == "mesh"));
+        // No duplicates.
+        let mut ids: Vec<&str> = caps.iter().map(|c| c.id.as_str()).collect();
+        let n = ids.len();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), n, "capability ids are unique");
     }
 }

@@ -181,23 +181,27 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
     }
 }
 
-/// Restricted capability grants for a role — the gate's grant axis (distinct
-/// from `scopes`, which still drives REST route-auth + artifact perms until
-/// those die with the REST surface). Restricted domains are capability-defining
-/// (`ship-orchestration` = dispatch/control agents; `ship-authoring` = write
-/// skills/agents/views) and are never default — only these roles confer them.
-/// Default (C0/C1 non-restricted) domains need no grant.
+/// The **elevated services** (the C2 set) a role confers — the gate's scope axis
+/// (distinct from `scopes`, which drives REST route-auth + artifact perms until
+/// those die with the REST surface). The gate allows a C2 op only when its
+/// service is here; the **C1 baseline is implicit** (every agent reads +
+/// workspace-writes in every service); **C3 is never role-conferred**.
 ///
 /// This is the role-derived provisioning source today; the install/approval
 /// flow (`.artifacts/capability-provisioning-and-approval.md`) refines it into
-/// per-agent operator-approved grant sets.
+/// per-agent operator-approved sets. Authoring services are listed ahead of
+/// their C2 re-tiering — harmless while those ops are still C1.
 pub fn grants_for_role(role: Option<&str>) -> Vec<String> {
     let g: &[&str] = match role {
-        Some("commander") | Some("lead") => &["ship-orchestration"],
-        Some("designer") => &["ship-authoring"],
-        // contributor = the operator's own profile: every restricted domain.
-        Some("contributor") => &["ship-orchestration", "ship-authoring"],
-        // worker / unknown: no restricted grants (default C0/C1 only).
+        // Commander orchestrates: dispatch/stop/steer live in the `agent` service.
+        Some("commander") | Some("lead") => &["agent"],
+        // Designer authors: the C2 authoring services (agent profiles, skills,
+        // mcp, surface creation, view edit). Note `view`/`create` are singular —
+        // the actual op-domains.
+        Some("designer") => &["agents", "skills", "mcp", "create", "view"],
+        // contributor = the operator's own profile: every elevated service.
+        Some("contributor") => &["agent", "agents", "skills", "mcp", "create", "view"],
+        // worker / unknown: no elevated services (the C1 baseline only).
         _ => &[],
     };
     g.iter().map(|s| s.to_string()).collect()
@@ -501,8 +505,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         // No provisioned record → role baseline applies (migration-safe).
         let grants = resolve_grants_at(tmp.path(), "fresh-agent", Some("commander"));
-        assert_eq!(grants, vec!["ship-orchestration".to_string()]);
-        // A worker with no record gets no restricted grants.
+        assert_eq!(grants, vec!["agent".to_string()]);
+        // A worker with no record gets no elevated services (C1 baseline only).
         assert!(resolve_grants_at(tmp.path(), "w", Some("worker")).is_empty());
     }
 
@@ -522,14 +526,14 @@ mod tests {
         let ev = EventEnvelope::new(
             ship_types::event_types::AGENT_GRANTS_PROVISIONED,
             "pinned",
-            &serde_json::json!({ "grants": ["ship-authoring"], "source": "operator" }),
+            &serde_json::json!({ "grants": ["agents"], "source": "operator" }),
         )
         .unwrap();
         ProvisionedGrantsProjection.apply(&ev, &mut conn).unwrap();
 
-        // Role says commander (→ orchestration), but the provisioned set wins.
+        // Role says commander (→ `agent`), but the provisioned set wins.
         let grants = resolve_grants_at(tmp.path(), "pinned", Some("commander"));
-        assert_eq!(grants, vec!["ship-authoring".to_string()]);
+        assert_eq!(grants, vec!["agents".to_string()]);
     }
 
     #[test]

@@ -115,10 +115,27 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
     // test guarantees this is identical to the old `COMMANDS` lookup.
     if let Some(pol) = crate::services::op_policy::policy_for(name) {
         use crate::services::gate;
-        let domain = gate::classify(name);
+        let service = gate::service_of(name);
         let caller = gate::caller_from_auth(ctx.auth);
-        if let gate::Decision::Deny(msg) = gate::decide(pol.blast, &domain, &caller) {
+        if let gate::Decision::Deny(msg) = gate::decide(pol.blast, service, &caller) {
             return Err(CommandError::forbidden(msg));
+        }
+        // Security observability for #86 (daemon token grants Full). The on-disk
+        // daemon token is operator-class today, so the operator path clears C2
+        // (credential mint, billing, acting as another actor). Record every such
+        // clearance: this is the audit trail of what an on-disk credential can
+        // reach, and makes the eventual "C2 needs the GUI/2FA elevated session"
+        // flip observable before it lands. Non-breaking — log only.
+        if caller.is_operator
+            && matches!(pol.blast, gate::BlastRadius::C2Elevated | gate::BlastRadius::C3Critical)
+        {
+            tracing::warn!(
+                target: "ship::security::audit",
+                op = %name,
+                blast = pol.blast.as_descriptor(),
+                agent_id = ?ctx.auth.agent_id,
+                "elevated op (C2/C3) cleared by operator credential (on-disk token is operator-class; #86)"
+            );
         }
     }
     if let Some(value) = pipeline::try_dispatch(name, args, ctx).await? {
@@ -561,12 +578,12 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: vec![],
-            grants: vec!["ship-authoring".to_string()],
+            grants: vec!["skills".to_string()],
         };
         let created =
             call("skills.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
                 .await
-                .expect("ship-authoring grant clears the gate and the skill is created");
+                .expect("the `skills` capability clears the gate and the skill is created");
         assert_eq!(created["id"], "fixture-skill");
         assert_eq!(created["scope"], "user");
     }
@@ -604,12 +621,12 @@ mod tests {
             workspace_id: None,
             session_id: None,
             scopes: vec![],
-            grants: vec!["ship-authoring".to_string()],
+            grants: vec!["agents".to_string()],
         };
         let created =
             call("agents.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
                 .await
-                .expect("ship-authoring grant clears agents.create");
+                .expect("the `agents` capability clears agents.create");
         assert_eq!(created["id"], "fixture-agent");
         assert_eq!(created["scope"], "user");
     }

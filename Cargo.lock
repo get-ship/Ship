@@ -4380,6 +4380,7 @@ dependencies = [
  "git2",
  "globset",
  "home",
+ "include_dir",
  "indexmap",
  "json-patch",
  "jsonschema",

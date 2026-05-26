@@ -180,36 +180,36 @@ service AgentsService {
   rpc Create(CreateAgentRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Create a new agent profile from a doc.";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Put(PutAgentRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Replace an agent profile's doc (use agents.create for net-new).";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Patch(PatchAgentRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Apply RFC-6902 ops to an agent profile's doc.";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Delete(DeleteAgentRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Delete an agent profile (scope omitted walks project → user).";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Rename(RenameAgentRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Rename an agent profile's id.";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Duplicate(DuplicateAgentRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Copy an agent profile to a new id.";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc MoveScope(MoveAgentScopeRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Move an agent profile between project and user scope.";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
 }

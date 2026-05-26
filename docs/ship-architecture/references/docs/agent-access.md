@@ -85,33 +85,34 @@ commands they can actually be granted.
 
 ## 3. Capabilities: declared, granted, tracked
 
-Identity answers *who*; the **capability gate** answers *may they*. The model is
-**caller × blast-radius × grant**, enforced once at the dispatch chokepoint
-(`services::gate::decide`, invoked by `services::command::call`) — identical over
-every transport.
+Identity answers *who*; the **gate** answers *may they*. The model is
+**caller × blast-tier × per-service ceiling** — the two axes that already exist
+(the proto **service** and the op's risk **tier**), **no separate capability
+taxonomy**. Enforced once at the dispatch chokepoint (`services::gate::decide`,
+invoked by `services::command::call`) — identical over every transport. Full table:
+[the auth model](/reference/architecture/auth-model/).
 
-- **`requires:`** is what a skill *declares* it needs (public, authored). The
-  compiler verifies it and issues **`grants:`** onto capability-skills — never
-  hand-written. An unmet requirement is a compile error.
-- **`blast_radius`** is the op's risk class, carried on its descriptor: **C0**
-  (read / own-scope) · **C1** (workspace-mutating) · **C2** (Ship/cloud-dangerous:
-  credential mint, billing, acting as another actor). Unrecognized → fails closed
-  to C2.
-- **Grants** are the restricted capability domains a caller holds —
-  `ship-orchestration`, `ship-authoring`. The operator clears the grant axis; an
-  agent is allowed C0/C1 in the default domain, a restricted domain only if it
-  holds the grant, and **C2 never**.
+- **`requires:`** is what a workflow/app *declares* it needs (public, authored).
+  **Skills don't `grant:`** — that field is retired; the user grants, the runtime
+  manages. An unmet requirement surfaces at compile/install.
+- **`blast_radius`** is the op's risk tier (`C0 < C1 < C2 < C3`): **C0** read ·
+  **C1** workspace-write · **C2** elevated (dispatch/stop/steer, authoring) ·
+  **C3** critical (account/billing/permissions/`agent.grant`). Unrecognized →
+  fails closed to C3.
+- **Authority** = a default **C1 ceiling** (every agent reads + workspace-writes
+  anywhere — the operational baseline) plus the **services it's elevated in** (the
+  C2 set). The gate allows a C2 op only when its service is in that set; **C3 is
+  operator-only, never an agent**. The service is the op's domain (`domain_of`).
 
 ### The grant source: provisioned baseline (#85)
 
-An agent's grants are **operator-approved server-side state**, not a claim the
-agent makes. `resolve_grants(agent_id, role)` is **provisioned-wins**: it reads
-the per-agent baseline from the `provisioned_grants` projection; if a baseline
-exists it fully replaces the role default; if none exists yet it falls back to the
-role's grants; unknown → empty (fail-closed). The baseline is seeded at install
-from the agent's resolved skill grants and changed only via `provision_grants`
-(operator/daemon authority — the agent can edit its skill files but not its
-baseline).
+An agent's **elevated services** are operator-approved server-side state, not a
+claim the agent makes. `resolve_grants(agent_id, role)` is **provisioned-wins**: it
+reads the per-agent baseline from the `provisioned_grants` projection; if a baseline
+exists it fully replaces the role default; otherwise it falls back to the role's
+elevated set (`grants_for_role`); unknown → empty (fail-closed, C1-baseline only).
+The baseline is changed only via `provision_grants` (operator/daemon authority —
+the agent can edit its skill files but not its elevated services).
 
 ### Tracking
 
@@ -168,20 +169,34 @@ Everything OS-specific lives behind `ship_host::HostOs` — one adapter per
 platform. Two primitives matter here: reading a connection's peer identity, and
 placing a spawn in a per-agent container.
 
-| Platform | Peer identity | Process container | Per-agent auth |
-|----------|---------------|-------------------|----------------|
-| **Linux + systemd** | `SO_PEERCRED` ✅ | systemd transient user scope (`ship-agent-<id>.scope`) ✅ | **working** |
-| **WSL2 + systemd** | `SO_PEERCRED` ✅ | systemd transient scope ✅ | **working** (this dev host) |
-| **WSL2, no systemd** | `SO_PEERCRED` ✅ | none (no delegation) ⚠️ | degrades to operator |
-| **Linux, no systemd** | `SO_PEERCRED` ✅ | raw cgroupfs (needs delegation) — *not built* ⚠️ | degrades to operator |
-| **macOS** | `LOCAL_PEERPID` — *pending* | process-group (`setpgid`) — *pending* | pending → operator |
-| **Windows** | named pipe `GetNamedPipeClientProcessId` — *pending* | job object — *pending* | pending → operator |
+| Platform | Transport | Peer identity | Named container | Per-agent auth |
+|----------|-----------|---------------|-----------------|----------------|
+| **Linux + systemd** | `ship.sock` | `SO_PEERCRED` ✅ | systemd transient user scope (`ship-agent-<id>.scope`) ✅ | **working** |
+| **WSL2 + systemd** | `ship.sock` | `SO_PEERCRED` ✅ | systemd transient scope ✅ | **working** (this dev host) |
+| **WSL2 / Linux, no systemd** | `ship.sock` | `SO_PEERCRED` ✅ | none (no delegation; raw cgroupfs *not built*) ⚠️ | operator only |
+| **macOS** | `ship.sock` | `LOCAL_PEERPID` + `getpeereid` ✅ *(written, unverified on hw)* | process-group (`setpgid`) — *pending* | operator only |
+| **Windows** | **TCP + token** | n/a (AF_UNIX has no peer-cred) | job object — *pending* | token path |
 
-"Degrades to operator" means: the socket still authenticates the connection, but
-without a container the process inherits the operator's cgroup, so `resolve`
-returns `Operator` rather than `Agent(id)`. **Safe by default** — it never
-mis-attributes one agent as another, and never silently grants C2 — but on those
-hosts per-agent differentiation is not yet in force.
+How a platform without a **named** container resolves identity — `peer_identity::decide`:
+
+- An **agent** is named by its container (`ship-agent-<id>`) → `Agent(id)`.
+- A **container that isn't an agent's**, or **no container on a platform that has
+  no backend** (macOS today): a peer running as **our own uid is the operator**.
+  The `0600` socket already restricts callers to our uid; the uid check is
+  defense in depth. A foreign uid never resolves.
+- **No container where a backend *does* exist** (Linux): **fail closed**
+  (`Unresolved` → 401). An unreadable cgroup could be a transient `/proc` race on
+  a real agent — we never promote that to operator.
+
+So "operator only" means: the socket authenticates and the **operator** works
+fully, but agents resolve as the operator too (no per-agent differentiation)
+until that platform's container backend lands. Safe by default — it never
+mis-attributes one agent as another, and never silently grants C2.
+
+**Windows** is wholesale on the token path today: `ship.sock` is `cfg(unix)`, so
+the daemon never binds it and `ship ops` never finds it → TCP + operator token.
+Per-agent identity there needs a **named pipe** (`GetNamedPipeClientProcessId`) +
+job-object container — a separate transport, not `ship.sock`.
 
 Detection is cheap and cached: the Linux backend uses systemd only when the user
 manager is live (the `$XDG_RUNTIME_DIR/systemd/private` socket exists) and
@@ -190,10 +205,13 @@ fallback.
 
 ## 6. Known limitations
 
-- **macOS / Windows backends are pending.** On those hosts agents authenticate
-  over the socket but resolve as the operator until `LOCAL_PEERPID` /
-  named-pipe + `setpgid` / job-object adapters land. Windows AF_UNIX lacks
-  peer-cred entirely, so its transport is a named pipe, not `ship.sock`.
+- **macOS container backend is pending; its peer-cred is written but unverified.**
+  `peer_cred` has a macOS arm (`LOCAL_PEERPID` + `getpeereid`) authored against
+  the documented libc API but **not compile-verified on macOS hardware** (this
+  dev host is Linux) — validate on a Mac. With it, the operator works over the
+  socket; agents resolve as operator until the process-group container backend
+  (`setpgid`) lands. **Windows** has no AF_UNIX peer-cred, so it stays on the
+  TCP+token path until a named-pipe transport exists.
 - **`systemd-run` is not portable and is not bundled.** It's a thin D-Bus client
   to PID 1 — useless without a running systemd, and Linux-only. It is *one Linux
   backend strategy*, detected at runtime, never the universal mechanism. The

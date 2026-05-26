@@ -24,8 +24,8 @@ page for full args, return shape, capability, and an example.
 
 ## Commands
 
-- [`agent.dispatch`](references/docs/agent.dispatch.mdoc) `[C1_WORKSPACE]` — Dispatch a single agent session (the canonical agent command).
-- [`agent.grant`](references/docs/agent.grant.mdoc) `[C2_ELEVATED]` — Grant restricted capabilities to an agent (operator approval). Upgrades the agent's live sessions; the next gated call passes. C2 — operator-only, the human-in-the-loop approval point.
-- [`agent.steer`](references/docs/agent.steer.mdoc) `[C1_WORKSPACE]` — Inject a message into a running agent.
-- [`agent.stop`](references/docs/agent.stop.mdoc) `[C1_WORKSPACE]` — Stop a running agent by slug.
+- [`agent.dispatch`](references/docs/agent.dispatch.mdoc) `[C2_ELEVATED]` — Dispatch a single agent session (the canonical agent command).
+- [`agent.grant`](references/docs/agent.grant.mdoc) `[C3_CRITICAL]` — Grant restricted capabilities to an agent (operator approval). Upgrades the agent's live sessions; the next gated call passes. C3 — operator-only, the human-in-the-loop approval point.
+- [`agent.steer`](references/docs/agent.steer.mdoc) `[C2_ELEVATED]` — Inject a message into a running agent.
+- [`agent.stop`](references/docs/agent.stop.mdoc) `[C2_ELEVATED]` — Stop a running agent by slug.
 

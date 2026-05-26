@@ -38,6 +38,15 @@ pub trait HostOs: Send + Sync {
     /// systemd never blocks an agent from starting. Identity, not isolation:
     /// resource limits on the scope are a later concern.
     fn containerize(&self, id: &str, program: &str, args: &[String]) -> (String, Vec<String>);
+
+    /// Whether this platform can place an agent in a **named** process container
+    /// that [`process_container`] reads back (today: Linux cgroups). This gates
+    /// the resolver's fail-closed posture: where containers *are* supported, an
+    /// unreadable container must fail closed (it could be a transient `/proc`
+    /// race on a real agent — never silently promote to operator); where they
+    /// are *not* (macOS/Windows until their backends land), a same-owner peer
+    /// is the operator, because no agent could have been containerized anyway.
+    fn containers_supported(&self) -> bool;
 }
 
 /// Kernel-verified credentials of the process on the other end of a connected
@@ -54,8 +63,8 @@ pub struct PeerCred {
 /// Read the peer credentials off a connected unix-socket fd.
 ///
 /// - **Linux:** `SO_PEERCRED` → full `pid`/`uid`/`gid`.
-/// - **macOS:** pending (`LOCAL_PEERPID` + `getpeereid`) — returns `None` so
-///   callers fail closed until the backend lands on real hardware.
+/// - **macOS:** `LOCAL_PEERPID` (pid) + `getpeereid` (uid/gid).
+/// - **Other unix:** `None` (callers fail closed).
 ///
 /// Windows named-pipe peer identity (`GetNamedPipeClientProcessId`) is a
 /// separate path — a pipe handle, not a unix fd — so it isn't this function.
@@ -86,11 +95,60 @@ pub fn peer_cred(fd: std::os::unix::io::RawFd) -> Option<PeerCred> {
         }
         None
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    {
+        // macOS has no SO_PEERCRED: the peer pid comes from LOCAL_PEERPID, and
+        // uid/gid from getpeereid. NOTE: written against the documented libc API;
+        // not compile-verified on this Linux dev host — validate on macOS hardware.
+        let mut pid: libc::pid_t = 0;
+        let mut len = std::mem::size_of::<libc::pid_t>() as libc::socklen_t;
+        // SAFETY: getsockopt writes the peer pid into `pid`; `len` is its size.
+        let rc = unsafe {
+            libc::getsockopt(
+                fd,
+                libc::SOL_LOCAL,
+                libc::LOCAL_PEERPID,
+                std::ptr::addr_of_mut!(pid) as *mut libc::c_void,
+                &mut len,
+            )
+        };
+        if rc != 0 || pid <= 0 {
+            return None;
+        }
+        let mut uid: libc::uid_t = 0;
+        let mut gid: libc::gid_t = 0;
+        // SAFETY: getpeereid writes the connected socket's peer euid/egid.
+        let rc2 = unsafe { libc::getpeereid(fd, &mut uid, &mut gid) };
+        if rc2 != 0 {
+            return None;
+        }
+        return Some(PeerCred {
+            pid: pid as u32,
+            uid: uid as u32,
+            gid: gid as u32,
+        });
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
         let _ = fd;
         None
     }
+}
+
+/// The uid Ship is running as — the operator's uid. Used to recognize a
+/// same-owner peer as the operator on platforms without a named container
+/// backend. Unix only; on other platforms there is no host socket to resolve.
+#[cfg(unix)]
+pub fn current_uid() -> u32 {
+    // SAFETY: getuid is always successful and has no preconditions.
+    unsafe { libc::getuid() }
+}
+
+/// Non-unix stub: no host socket exists on these platforms, so this is never
+/// consulted for a connection; a sentinel that won't match any real peer uid.
+#[cfg(not(unix))]
+pub fn current_uid() -> u32 {
+    u32::MAX
 }
 
 /// The host adapter for the current platform.
@@ -123,6 +181,10 @@ impl HostOs for Linux {
         } else {
             (program.to_string(), args.to_vec())
         }
+    }
+
+    fn containers_supported(&self) -> bool {
+        true
     }
 }
 
@@ -221,6 +283,10 @@ impl HostOs for Unsupported {
         // platform backend lands.
         (program.to_string(), args.to_vec())
     }
+
+    fn containers_supported(&self) -> bool {
+        false
+    }
 }
 
 #[cfg(all(test, target_os = "linux"))]
@@ -268,6 +334,18 @@ mod tests {
         // Everything after `--` is the original command, in order.
         let dd = args.iter().position(|a| a == "--").unwrap();
         assert_eq!(&args[dd + 1..], &["claude", "--print", "hi"]);
+    }
+
+    #[test]
+    fn linux_supports_named_containers() {
+        assert!(host().containers_supported(), "linux cgroups are a named container backend");
+    }
+
+    #[test]
+    fn current_uid_is_our_uid() {
+        // Matches getuid via the shell — just assert it's a plausible uid and
+        // stable across calls (it reads the process's real uid).
+        assert_eq!(current_uid(), current_uid());
     }
 
     #[test]

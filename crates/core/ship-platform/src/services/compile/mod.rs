@@ -24,6 +24,25 @@ use anyhow::{Context, Result};
 use compiler::CompileOutput;
 use std::path::{Path, PathBuf};
 
+/// Deliver each included sdk-skill's `references/docs/*.mdoc` pages beside the
+/// `SKILL.md` the compiler emitted. The compiler writes the (templated)
+/// `SKILL.md`; its TOC links to per-op reference pages that live in the embedded
+/// sdk-skill tree — copy them into the same harness directory so the links
+/// resolve in the compiled output. No-op for authored skills (no embedded refs).
+fn augment_with_sdk_references(output: &mut CompileOutput) {
+    let dirs: Vec<String> = output
+        .skill_files
+        .keys()
+        .filter_map(|k| k.strip_suffix("/SKILL.md").map(str::to_string))
+        .collect();
+    for dir in dirs {
+        let id = dir.rsplit('/').next().unwrap_or("");
+        for (rel, content) in skill_parser::embedded_skill_reference_files(id) {
+            output.skill_files.insert(format!("{dir}/{rel}"), content);
+        }
+    }
+}
+
 use crate::registry::dep_skills::resolve_dep_skills;
 
 use agent::{apply_agent_to_library, collect_all_skill_refs};
@@ -140,10 +159,11 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
     // 7. Compile per harness
     let mut outputs = Vec::new();
     for harness_id in &harnesses {
-        let Some(output) = compiler::compile(&resolved, harness_id) else {
+        let Some(mut output) = compiler::compile(&resolved, harness_id) else {
             eprintln!("warning: unknown harness '{}', skipping", harness_id);
             continue;
         };
+        augment_with_sdk_references(&mut output);
         outputs.push((harness_id.clone(), output));
     }
 

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use super::permissions::PermissionPreset;
-use super::skill_parser::load_skills;
+use super::skill_parser::load_compile_skills;
 
 // ── MCP file types ────────────────────────────────────────────────────────────
 
@@ -125,7 +125,7 @@ pub fn load_library(ship_dir: &Path) -> Result<ProjectLibrary> {
         permissions: load_permissions(ship_dir)?,
         hooks: load_hooks(ship_dir)?,
         rules: load_rules(ship_dir)?,
-        skills: load_skills(ship_dir)?,
+        skills: load_compile_skills(ship_dir)?,
         agent_profiles: load_agent_profiles(ship_dir)?,
         ..Default::default()
     })

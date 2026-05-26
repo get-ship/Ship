@@ -58,6 +58,9 @@ notify = { workspace = true }
 cron = "0.12"
 sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 jsonschema = { version = "0.46", default-features = false }
+# Embeds the generated SDK capability-skills (skills/sdk/) into the binary so
+# every compile can offer them, not just inside the dev checkout.
+include_dir = "0.7"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { workspace = true }

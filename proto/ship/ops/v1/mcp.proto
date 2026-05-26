@@ -62,21 +62,21 @@ service McpService {
   rpc Create(CreateMcpRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Register a new external MCP server (errors if the id is taken).";
     option (ship.ops.v1.capability) = "ship.mcp.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Put(PutMcpRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Replace an MCP server's config (use mcp.create for net-new).";
     option (ship.ops.v1.capability) = "ship.mcp.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Patch(PatchMcpRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Apply RFC-6902 ops to an MCP server's config body.";
     option (ship.ops.v1.capability) = "ship.mcp.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Delete(DeleteMcpRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Remove an MCP server entry (scope omitted walks project → user).";
     option (ship.ops.v1.capability) = "ship.mcp.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
 }
