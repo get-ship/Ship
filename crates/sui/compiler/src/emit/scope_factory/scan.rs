@@ -4,71 +4,10 @@
 //! past the end of a balanced group. No scope-factory domain knowledge lives
 //! here — they're lexical leaves.
 //!
-//! (Sibling copies of some of these exist elsewhere in the compiler with
-//! diverged signatures; consolidating them crate-wide is tracked separately.)
-
-pub(super) fn skip_trivia(bytes: &[u8], mut i: usize, end: usize) -> usize {
-    loop {
-        while i < end && bytes[i].is_ascii_whitespace() {
-            i += 1;
-        }
-        if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'/' {
-            while i < end && bytes[i] != b'\n' {
-                i += 1;
-            }
-            continue;
-        }
-        if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'*' {
-            i += 2;
-            while i + 1 < end && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                i += 1;
-            }
-            i = (i + 2).min(end);
-            continue;
-        }
-        break;
-    }
-    i
-}
-
-pub(super) fn skip_balanced(bytes: &[u8], i: usize, end: usize) -> usize {
-    if i >= end {
-        return end;
-    }
-    let (open, close) = match bytes[i] {
-        b'(' => (b'(', b')'),
-        b'{' => (b'{', b'}'),
-        b'[' => (b'[', b']'),
-        _ => return i + 1,
-    };
-    let mut depth = 0i32;
-    let mut k = i;
-    let mut in_str: Option<u8> = None;
-    while k < end {
-        let c = bytes[k];
-        if let Some(q) = in_str {
-            if c == b'\\' { k = (k + 2).min(end); continue; }
-            if c == q { in_str = None; }
-            k += 1;
-            continue;
-        }
-        match c {
-            b'"' | b'\'' | b'`' => { in_str = Some(c); k += 1; }
-            c if c == open => { depth += 1; k += 1; }
-            c if c == close => { depth -= 1; k += 1; if depth == 0 { return k; } }
-            b'/' if k + 1 < end && bytes[k + 1] == b'/' => {
-                while k < end && bytes[k] != b'\n' { k += 1; }
-            }
-            b'/' if k + 1 < end && bytes[k + 1] == b'*' => {
-                k += 2;
-                while k + 1 < end && !(bytes[k] == b'*' && bytes[k + 1] == b'/') { k += 1; }
-                k = (k + 2).min(end);
-            }
-            _ => k += 1,
-        }
-    }
-    end
-}
+//! `skip_trivia`/`skip_balanced` (+ the identifier predicates) are crate-shared
+//! and re-exported below; this module keeps the scope-factory-specific scanners
+//! (`next_top_separator` with `<…>` generic handling, `skip_angle`,
+//! `advance_past_entry`).
 
 pub(super) fn next_top_separator(bytes: &[u8], start: usize, end: usize) -> usize {
     let mut k = start;
@@ -154,4 +93,4 @@ pub(super) fn advance_past_entry(bytes: &[u8], start: usize, end: usize) -> usiz
 // Identifier predicates are crate-shared; re-export so this module's siblings
 // (scope_factory::mod, ::infer) keep importing them from `super::scan`
 // alongside the bounded skip_* scanners that still live here.
-pub(super) use crate::scan::{is_ident_cont, is_ident_start};
+pub(super) use crate::scan::{is_ident_cont, is_ident_start, skip_balanced, skip_trivia};

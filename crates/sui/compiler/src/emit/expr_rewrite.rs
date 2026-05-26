@@ -464,39 +464,6 @@ fn strip_param_type_annotations(raw: &str) -> String {
     out
 }
 
-fn skip_balanced(bytes: &[u8], i: usize, end: usize) -> usize {
-    if i >= end { return end; }
-    let (open, close) = match bytes[i] {
-        b'(' => (b'(', b')'),
-        b'{' => (b'{', b'}'),
-        b'[' => (b'[', b']'),
-        _ => return i + 1,
-    };
-    let mut depth = 0i32;
-    let mut k = i;
-    let mut in_str: Option<u8> = None;
-    while k < end {
-        let c = bytes[k];
-        if let Some(q) = in_str {
-            if c == b'\\' { k += 2; continue; }
-            if c == q { in_str = None; }
-            k += 1;
-            continue;
-        }
-        match c {
-            b'"' | b'\'' | b'`' => { in_str = Some(c); k += 1; }
-            c if c == open => { depth += 1; k += 1; }
-            c if c == close => {
-                depth -= 1;
-                k += 1;
-                if depth == 0 { return k; }
-            }
-            _ => k += 1,
-        }
-    }
-    end
-}
-
 /// Largest `j <= i` such that `j` is a char boundary in `s`. Used by
 /// the template-literal recursion above to snap byte indices that
 /// `skip_balanced` may have landed inside a multi-byte UTF-8 char
@@ -528,7 +495,7 @@ fn next_char_boundary(s: &str, i: usize) -> usize {
     j
 }
 
-use crate::scan::{is_ident_cont, is_ident_start};
+use crate::scan::{is_ident_cont, is_ident_start, skip_balanced};
 
 #[cfg(test)]
 mod tests {
