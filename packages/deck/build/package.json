@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "description": "SUI bundling pipeline — sui-compiler runner + Bun.build adapter",
+  "description": "SUI bundling pipeline — sui-compiler runner + bun/esbuild adapters",
   "bin": {
     "sui-build": "./bin/sui-build.mjs"
   },
@@ -18,7 +18,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "chokidar": "^4.0.0"
+    "chokidar": "^4.0.0",
+    "esbuild": "^0.25.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

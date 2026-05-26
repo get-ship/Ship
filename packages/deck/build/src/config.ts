@@ -59,7 +59,7 @@ export interface BuildResult {
 
 /** A SuiBundler adapter — implementations live under src/adapters/. */
 export interface SuiBundler {
-  readonly name: 'bun'
+  readonly name: 'bun' | 'esbuild'
   build(config: SuiBuildConfig, ctx: AdapterContext): Promise<BuildResult>
 }
 
