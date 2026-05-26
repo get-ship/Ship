@@ -131,7 +131,10 @@ async fn emit_change(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: None,
+        // Stamp the daemon's space id so config-change events are space-scoped
+        // like every other space-scoped emit (#116). Resolved once at startup;
+        // `None` only in global-only mode (no discoverable project root).
+        space_id: ship_substrate::project::daemon_space_id(),
         session_id: None,
     };
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
