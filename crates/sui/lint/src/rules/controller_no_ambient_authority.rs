@@ -11,12 +11,17 @@
 //! view code is untrusted (agent-authored) and runs on the highest-privilege
 //! surface. All I/O must go through the `ship` SDK (the only sanctioned,
 //! policy-gated path); ambient network/eval is exactly what the Deck SES
-//! Compartment denies at runtime. This rule is the author-time mirror.
+//! Compartment denies at runtime (proven in #165 — confined views run with
+//! `fetch`/`window` undefined). This rule is the author-time mirror.
 //!
-//! **Severity: Warning (for now).** First-party controllers still call
-//! `fetch('/api/v1/…')` against the REST API; those migrate to the Connect
-//! client during REST removal. Once that lands, promote this to Error so the
-//! build gate enforces it (the gate already only hard-fails on Error).
+//! **Severity: Error**, scoped to the CONFINED surface — view controllers (a
+//! `views/` tree). First-party chrome component controllers
+//! (`apps/shell/src/components`, `packages/components` → any `/components/`
+//! path) run UNCONFINED in the host realm and legitimately use `fetch` /
+//! lazy-`import()`, so they are out of scope. The REST→Connect migration that
+//! held this at Warning has landed; zero `views/**` controllers use ambient
+//! authority, so Error is safe to enforce. (Third-party packs, when they ship
+//! confined, extend the confined surface.)
 
 use std::path::{Path, PathBuf};
 
@@ -33,7 +38,22 @@ pub const RULE_ID: &str = "sui-controller-no-ambient-authority";
 const BANNED_CALLS: &[&str] = &["fetch", "eval"];
 const BANNED_CTORS: &[&str] = &["XMLHttpRequest", "WebSocket", "EventSource"];
 
+/// The confined surface this rule governs: view controllers (a `views/` tree,
+/// incl. `.ship/views/`). Chrome component controllers (`/components/`) run
+/// unconfined in the host realm and legitimately use fetch/lazy-import, so they
+/// are out of scope. A view's own `_components/` (underscore) stays in scope —
+/// it's part of the confined view, and `/components/` does not match it.
+fn is_confined_surface(path: &Path) -> bool {
+    let p = path.to_string_lossy();
+    p.contains("views/") && !p.contains("/components/")
+}
+
 pub fn check(path: &Path, source: &str) -> Vec<Finding> {
+    // Only the confined surface is governed — unconfined chrome may use ambient
+    // authority freely.
+    if !is_confined_surface(path) {
+        return Vec::new();
+    }
     let allocator = Allocator::default();
     let ret = Parser::new(&allocator, source, SourceType::ts()).parse();
     if !ret.errors.is_empty() {
@@ -62,7 +82,7 @@ impl AmbientVisitor<'_> {
             line,
             col,
             rule: RULE_ID,
-            severity: Severity::Warn,
+            severity: Severity::Error,
             message: format!(
                 "controllers must not use ambient authority (`{what}`). All I/O goes \
                  through the `ship` SDK — the only sanctioned, policy-gated path. Raw \
@@ -153,8 +173,9 @@ mod tests {
     use super::*;
     use std::path::Path;
 
+    // A confined-surface path (view controller) — where the rule applies.
     fn n(src: &str) -> usize {
-        check(Path::new("x.controller.ts"), src).len()
+        check(Path::new("views/git/controller.ts"), src).len()
     }
 
     #[test]
@@ -185,8 +206,25 @@ mod tests {
     }
 
     #[test]
-    fn warning_severity_does_not_hard_fail() {
-        let f = check(Path::new("x.controller.ts"), "fetch('/x')");
-        assert_eq!(f[0].severity, Severity::Warn);
+    fn error_severity_hard_fails_on_confined_surface() {
+        let f = check(Path::new("views/git/controller.ts"), "fetch('/x')");
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].severity, Severity::Error);
+    }
+
+    #[test]
+    fn skips_unconfined_chrome_component_controllers() {
+        // First-party chrome runs unconfined and legitimately uses fetch/import.
+        let chrome = "apps/shell/src/components/sui-x/sui-x.controller.ts";
+        assert_eq!(check(Path::new(chrome), "fetch('/x'); import('./y.js')").len(), 0);
+        let pack = "packages/components/ui-components/src/sui-y/sui-y.controller.ts";
+        assert_eq!(check(Path::new(pack), "fetch('/z')").len(), 0);
+    }
+
+    #[test]
+    fn governs_a_views_private_component() {
+        // `_components` (underscore) inside a view stays in scope.
+        let priv_c = "views/dash/_components/sui-tile/sui-tile.controller.ts";
+        assert_eq!(check(Path::new(priv_c), "fetch('/x')").len(), 1);
     }
 }
