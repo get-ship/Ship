@@ -14,7 +14,7 @@ import type { SuiBuildConfig } from '@ship/sui-build'
 // `index.html` IIFE loads it eagerly alongside the umbrella aggregate.
 //
 // Chrome is the shell *app*'s content, so it builds to the project's `.deck/`
-// (deck's build output) — never into deck's own crate. deck-server reads it
+// (deck's build output) — never into deck's own crate. deck reads it
 // from the host-supplied `.deck` root.
 //
 // Heavy chrome (terminal, code-editor, markdown-editor, command-bar,

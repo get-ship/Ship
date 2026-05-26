@@ -206,7 +206,7 @@ pub async fn run_network(
     if let Some(ref w) = workspace_dir {
         tracing::info!(workspace = %w.display(), daemon_dir = %daemon_dir.display(), "shipd: project-scoped mode");
         // Make `--workspace` authoritative for the SUI resolver chain
-        // (deck-server's resolver consults `SHIP_DEV_PROJECT_DIR`
+        // (deck-core's resolver consults `SHIP_DEV_PROJECT_DIR`
         // first; without this it falls back to CWD + worktree-aware
         // resolution, which redirects into the parent checkout's
         // `views/` when the workspace lives inside a git worktree).

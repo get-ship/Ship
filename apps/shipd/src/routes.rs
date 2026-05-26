@@ -137,7 +137,7 @@ pub enum Route {
     /// @auth public
     ListThemes,
 
-    // ── SUI framework hosting (deck-server handlers) ──
+    // ── SUI framework hosting (deck-axum handlers) ──
 
     /// @route GET "/api/sui/catalog/workspace"
     /// @auth public

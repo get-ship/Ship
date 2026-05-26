@@ -19,7 +19,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "bundle": "bun build src/index.ts --target=browser --format=esm --outfile=../../../crates/deck/deck-server/assets/sui-runtime.js",
+    "bundle": "bun build src/index.ts --target=browser --format=esm --outfile=../../../crates/deck/deck-core/assets/sui-runtime.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "bench": "vitest bench --run"

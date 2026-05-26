@@ -17,7 +17,7 @@ const config: SuiBuildConfig = {
   entries: {
     'sui-components': 'src/index.ts',
   },
-  outdir: '../../../crates/deck/deck-server/assets',
+  outdir: '../../../crates/deck/deck-core/assets',
 }
 
 export default config

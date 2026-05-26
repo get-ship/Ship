@@ -19,7 +19,7 @@ import { setIconRegistry } from '../../primitives/src/sui-icon/registry'
 // the Rust server crate alongside the rest of the SUI bundle.
 const ICON_REGISTRY_PATH = resolve(
   process.cwd(),
-  '../../../crates/deck/deck-server/assets/lucide-icons.json',
+  '../../../crates/deck/deck-core/assets/lucide-icons.json',
 )
 setIconRegistry(JSON.parse(readFileSync(ICON_REGISTRY_PATH, 'utf8')))
 

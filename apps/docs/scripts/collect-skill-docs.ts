@@ -50,7 +50,7 @@ const PUBLIC_DIR = join(SCRIPT_DIR, "../public")
 // SUI bundles served as static assets. Mirror the names the daemon uses
 // under `/api/assets/` so the importmap in astro.config.mjs resolves the
 // same way against either the docs site or the daemon.
-const SUI_ASSETS_DIR = join(REPO_ROOT, "crates/deck/deck-server/assets")
+const SUI_ASSETS_DIR = join(REPO_ROOT, "crates/deck/deck-core/assets")
 const SUI_BUNDLES = [
   "sui-runtime.js",
   "sui-dom.js",
@@ -346,7 +346,7 @@ function run(): void {
   }
 
   // Lazy `<sui-*>` chunks live next to the umbrella bundle under
-  // crates/deck/deck-server/assets/sui-components/. The tutorial
+  // crates/deck/deck-core/assets/sui-components/. The tutorial
   // playground side-loads sui-code-editor.js from there; copy the
   // whole dir so any other chunk a future step needs is reachable.
   const chunkSrcDir = join(SUI_ASSETS_DIR, "sui-components")

@@ -247,7 +247,7 @@ lint-views:
 
 # Regenerate the aggregated SUI Custom Elements Manifest from per-component
 # CEMs under packages/components/ui-components/src/. Writes
-# crates/deck/deck-server/assets/sui-custom-elements.json which apps/shipd embeds.
+# crates/deck/deck-core/assets/sui-custom-elements.json which apps/shipd embeds.
 [group('occasional')]
 cem:
     bun run --filter @ship/ui-components build
@@ -309,7 +309,7 @@ build: _sui-compiler-lib
     bun run --filter @ship/primitives build
     echo "[4/9] charts build (@ship/charts → packages/components/charts/dist/)"
     bun run --filter @ship/charts build
-    echo "[5/9] ui-components build (sui-build → crates/deck/deck-server/assets/)"
+    echo "[5/9] ui-components build (sui-build → crates/deck/deck-core/assets/)"
     bun run --filter @ship/ui-components build
     echo "[6/9] view bundles + sui-* bundles (packages/deck/bundler/index.ts --all)"
     bun packages/deck/bundler/index.ts --all
@@ -329,7 +329,7 @@ build: _sui-compiler-lib
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in crates/deck/deck-server/assets/sui-runtime.js crates/deck/deck-server/assets/sui-components.js packages/components/primitives/dist/sui-primitives.js packages/components/charts/dist/sui-charts.js .deck/catalogs/workspace.json .deck/catalogs/published.json; do
+    for asset in crates/deck/deck-core/assets/sui-runtime.js crates/deck/deck-core/assets/sui-components.js packages/components/primitives/dist/sui-primitives.js packages/components/charts/dist/sui-charts.js .deck/catalogs/workspace.json .deck/catalogs/published.json; do
         if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1

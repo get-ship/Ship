@@ -3,7 +3,7 @@
  * static Astro build can serve them at the paths the importmap (in
  * src/layouts/BaseLayout.astro) expects.
  *
- * Source of truth: crates/deck/deck-server/assets/ — the same bundles
+ * Source of truth: crates/deck/deck-core/assets/ — the same bundles
  * the daemon serves at /api/assets/. This mirrors apps/docs's
  * collect-skill-docs.ts SUI copy step (without the markdoc collection).
  */
@@ -19,7 +19,7 @@ const PUBLIC_DIR = join(SCRIPT_DIR, '../public');
 //   * deck's OWN runtime bundles live in deck's crate (baked product).
 //   * the app-focused `sui-marketing.js` is deck *build output* and lives in
 //     the project's `.deck/` (deck's `.next`-equivalent).
-const SUI_ASSETS_DIR = join(REPO_ROOT, 'crates/deck/deck-server/assets');
+const SUI_ASSETS_DIR = join(REPO_ROOT, 'crates/deck/deck-core/assets');
 const DECK_OUT_DIR = join(REPO_ROOT, '.deck');
 const SHIPD_ASSETS_DIR = join(REPO_ROOT, 'apps/shipd/assets');
 
