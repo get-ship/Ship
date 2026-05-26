@@ -3,16 +3,15 @@ import type { Scope } from './sui-toggle.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     const stop = effect(() => {
-      const btn = scope.buttonEl() as HTMLButtonElement | null
+      const btn = state.$signals.buttonEl() as HTMLButtonElement | null
       if (!btn) return
       const onClick = () => {
-        if (scope.disabled()) return
-        scope.pressed.set(!scope.pressed())
+        if (state.$signals.disabled()) return
+        state.$signals.pressed.set(!state.$signals.pressed())
         host.dispatchEvent(new CustomEvent('sui-toggle', {
-          detail: { pressed: scope.pressed(), value: scope.value() },
+          detail: { pressed: state.$signals.pressed(), value: state.$signals.value() },
           bubbles: true,
           composed: true,
         }))

@@ -51,13 +51,12 @@ function populatePaths(svg: SVGSVGElement, fragment: string): void {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     const root = host.shadowRoot!
     let svgEl: SVGSVGElement | null = null
     let lastResolved: string | null = null
 
     const stopAria = effect(() => {
-      const label = scope.label()
+      const label = state.$signals.label()
       if (label) {
         host.setAttribute('role', 'img')
         host.setAttribute('aria-label', label)
@@ -73,9 +72,9 @@ export default controller<Scope>({
       // Subscribe to the registry-load signal so the effect re-runs
       // once the lazily-fetched registry lands.
       registryRev()
-      const requested = scope.name()
+      const requested = state.$signals.name()
       const resolved = resolveIconName(requested) ?? null
-      const label = scope.label()
+      const label = state.$signals.label()
       if (!resolved) {
         if (svgEl) {
           svgEl.remove()

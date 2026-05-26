@@ -101,12 +101,11 @@ function render(steps: Step[]): string {
 
 export default controller<Scope>({
   mount(state, _host) {
-    const scope = state as unknown as Scope
-    const el = scope.contentEl() as HTMLElement | null
+    const el = state.$signals.contentEl() as HTMLElement | null
     if (!el) return () => {}
     return bindHtml(el, () => {
       try {
-        return render(JSON.parse(scope.steps() || '[]') as Step[])
+        return render(JSON.parse(state.$signals.steps() || '[]') as Step[])
       } catch {
         return EMPTY_HTML
       }

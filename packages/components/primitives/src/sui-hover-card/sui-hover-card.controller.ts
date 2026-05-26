@@ -50,7 +50,6 @@ function positionPanel(trigger: HTMLElement, panel: HTMLElement, placement: Plac
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     const seq = ++_seq
     const cardId = `sui-hover-card-${seq}`
     const anchorName = `--sui-hc-${seq}`
@@ -59,8 +58,8 @@ export default controller<Scope>({
     // slotted trigger's anchor-name and the panel's position-anchor.
     host.style.setProperty('--sui-hc-anchor', anchorName)
 
-    const triggerSlot = scope.triggerSlot() as HTMLSlotElement | null
-    const panelEl = scope.panelEl() as PopoverEl | null
+    const triggerSlot = state.$signals.triggerSlot() as HTMLSlotElement | null
+    const panelEl = state.$signals.panelEl() as PopoverEl | null
 
     if (!panelEl) return
     panelEl.id = cardId
@@ -86,7 +85,7 @@ export default controller<Scope>({
       // CSS Anchor Positioning owns placement when the browser supports
       // it. JS fallback only fires on older engines.
       if (trigger && panelEl && !anchorSupported) {
-        positionPanel(trigger, panelEl as HTMLElement, (scope.placement() || 'bottom') as Placement)
+        positionPanel(trigger, panelEl as HTMLElement, (state.$signals.placement() || 'bottom') as Placement)
       }
       panelEl?.showPopover?.()
     }
@@ -102,7 +101,7 @@ export default controller<Scope>({
     const onToggle = (ev: Event) => {
       const te = ev as ToggleEvent
       const nowOpen = te.newState === 'open'
-      if (nowOpen !== scope.open()) scope.open.set(nowOpen)
+      if (nowOpen !== state.$signals.open()) state.$signals.open.set(nowOpen)
       host.setAttribute('data-state', nowOpen ? 'open' : 'closed')
       host.dispatchEvent(new CustomEvent(nowOpen ? 'sui-open' : 'sui-close', {
         bubbles: true, composed: true,
@@ -111,18 +110,18 @@ export default controller<Scope>({
 
     const onPointerEnter = () => {
       clearTimers()
-      showTimer = setTimeout(() => doShow(), scope.showDelay() ?? 300)
+      showTimer = setTimeout(() => doShow(), state.$signals.showDelay() ?? 300)
     }
 
     const onPointerLeave = () => {
       clearTimers()
-      hideTimer = setTimeout(() => doHide(), scope.hideDelay() ?? 100)
+      hideTimer = setTimeout(() => doHide(), state.$signals.hideDelay() ?? 100)
     }
 
     const onFocusIn = () => { clearTimers(); doShow() }
     const onFocusOut = () => {
       clearTimers()
-      hideTimer = setTimeout(() => doHide(), scope.hideDelay() ?? 100)
+      hideTimer = setTimeout(() => doHide(), state.$signals.hideDelay() ?? 100)
     }
 
     panelEl.addEventListener('toggle', onToggle)
@@ -135,7 +134,7 @@ export default controller<Scope>({
     host.addEventListener('focusout', onFocusOut)
 
     const stopSync = effect(() => {
-      host.setAttribute('data-state', scope.open() ? 'open' : 'closed')
+      host.setAttribute('data-state', state.$signals.open() ? 'open' : 'closed')
     })
 
     return () => {

@@ -14,11 +14,10 @@ import type { Scope } from './sui-metachip.sui'
 // the chip stays announced sensibly.
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     host.setAttribute('role', 'group')
     const stop = effect(() => {
-      const k = scope.label()?.trim() ?? ''
-      const v = scope.value()?.trim() ?? ''
+      const k = state.$signals.label()?.trim() ?? ''
+      const v = state.$signals.value()?.trim() ?? ''
       const text = k && v ? `${k}: ${v}` : k || v
       if (text) {
         host.setAttribute('aria-label', text)

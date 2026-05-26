@@ -56,18 +56,17 @@ function renderLines(lines: Line[]): string {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'region')
     if (!host.hasAttribute('aria-label')) host.setAttribute('aria-label', 'diff')
 
-    const el = scope.contentEl() as HTMLElement | null
+    const el = state.$signals.contentEl() as HTMLElement | null
     if (!el) return () => {}
 
     return bindHtml(el, () => {
-      const value = scope.value()
-      const from = scope.from()
-      const to = scope.to()
+      const value = state.$signals.value()
+      const from = state.$signals.from()
+      const to = state.$signals.to()
       let lines: Line[]
       if (value) {
         lines = parseUnified(value)

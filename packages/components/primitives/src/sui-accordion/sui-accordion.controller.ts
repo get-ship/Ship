@@ -3,7 +3,6 @@ import type { Scope } from './sui-accordion.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     const getItems = (): Element[] =>
       Array.from(host.querySelectorAll(':scope > sui-accordion-item'))
@@ -12,7 +11,7 @@ export default controller<Scope>({
       getItems().filter(i => !i.hasAttribute('disabled'))
 
     const getOpenValues = (): Set<string> => {
-      const v = scope.value()
+      const v = state.$signals.value()
       return new Set(v ? v.split(',').filter(Boolean) : [])
     }
 
@@ -29,7 +28,7 @@ export default controller<Scope>({
     }
 
     const stopEffect = effect(() => {
-      scope.value()
+      state.$signals.value()
       syncItems()
     })
 
@@ -39,20 +38,20 @@ export default controller<Scope>({
       const itemVal = ev.detail?.value as string
       const open = getOpenValues()
 
-      if (scope.type() === 'single') {
-        scope.value.set(open.has(itemVal) ? '' : itemVal)
+      if (state.$signals.type() === 'single') {
+        state.$signals.value.set(open.has(itemVal) ? '' : itemVal)
       } else {
         if (open.has(itemVal)) {
           open.delete(itemVal)
         } else {
           open.add(itemVal)
         }
-        scope.value.set(Array.from(open).join(','))
+        state.$signals.value.set(Array.from(open).join(','))
       }
 
       host.dispatchEvent(
         new CustomEvent('sui-change', {
-          detail: { value: scope.value() },
+          detail: { value: state.$signals.value() },
           bubbles: true,
           composed: true,
         }),

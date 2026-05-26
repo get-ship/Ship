@@ -5,14 +5,13 @@ let _seq = 0
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     const uid = ++_seq
     const triggerId = `sui-acc-trigger-${uid}`
     const contentId = `sui-acc-content-${uid}`
 
     const stopIds = effect(() => {
-      const btn = scope.triggerBtn() as HTMLButtonElement | null
-      const wrap = scope.contentWrap() as HTMLElement | null
+      const btn = state.$signals.triggerBtn() as HTMLButtonElement | null
+      const wrap = state.$signals.contentWrap() as HTMLElement | null
       if (btn) {
         btn.id = triggerId
         btn.setAttribute('aria-controls', contentId)
@@ -24,15 +23,15 @@ export default controller<Scope>({
     })
 
     const stopAriaExpanded = effect(() => {
-      const btn = scope.triggerBtn() as HTMLButtonElement | null
-      if (btn) btn.setAttribute('aria-expanded', scope.open() ? 'true' : 'false')
+      const btn = state.$signals.triggerBtn() as HTMLButtonElement | null
+      if (btn) btn.setAttribute('aria-expanded', state.$signals.open() ? 'true' : 'false')
     })
 
     const onClick = () => {
-      if (scope.disabled()) return
+      if (state.$signals.disabled()) return
       host.dispatchEvent(
         new CustomEvent('sui-accordion-item-toggle', {
-          detail: { value: scope.value() },
+          detail: { value: state.$signals.value() },
           bubbles: true,
           composed: true,
         }),
@@ -62,7 +61,7 @@ export default controller<Scope>({
     }
 
     const stopBtn = effect(() => {
-      const btn = scope.triggerBtn() as HTMLButtonElement | null
+      const btn = state.$signals.triggerBtn() as HTMLButtonElement | null
       if (!btn) return
       btn.addEventListener('click', onClick)
       btn.addEventListener('keydown', onKeydown)

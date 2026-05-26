@@ -5,7 +5,6 @@ type RadioEl = HTMLElement & { focusInput?(): void }
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'radiogroup')
 
@@ -18,13 +17,13 @@ export default controller<Scope>({
       Array.from(host.querySelectorAll(':scope > sui-radio')) as RadioEl[]
 
     const enabledRadios = (): RadioEl[] =>
-      getRadios().filter(r => !r.hasAttribute('disabled') && !(scope.disabled() as boolean))
+      getRadios().filter(r => !r.hasAttribute('disabled') && !(state.$signals.disabled() as boolean))
 
     const syncRadios = () => {
-      const currentValue = scope.value() as string
-      const isGroupDisabled = scope.disabled() as boolean
-      const groupTone = scope.tone() as string
-      const groupSize = scope.size() as string
+      const currentValue = state.$signals.value() as string
+      const isGroupDisabled = state.$signals.disabled() as boolean
+      const groupTone = state.$signals.tone() as string
+      const groupSize = state.$signals.size() as string
 
       for (const radio of getRadios()) {
         radio.toggleAttribute('checked', radio.getAttribute('value') === currentValue)
@@ -33,26 +32,26 @@ export default controller<Scope>({
         if (groupSize && !radio.hasAttribute('size')) radio.setAttribute('size', groupSize)
       }
 
-      hiddenInput.name = scope.name() as string
+      hiddenInput.name = state.$signals.name() as string
       hiddenInput.value = currentValue
     }
 
     const stopSync = effect(() => {
-      scope.value()
-      scope.disabled()
-      scope.tone()
-      scope.size()
+      state.$signals.value()
+      state.$signals.disabled()
+      state.$signals.tone()
+      state.$signals.size()
       syncRadios()
     })
 
     const stopLabel = effect(() => {
-      const label = scope.label() as string
+      const label = state.$signals.label() as string
       if (label) host.setAttribute('aria-label', label)
       else host.removeAttribute('aria-label')
     })
 
     const stopRequired = effect(() => {
-      const required = scope.required() as boolean
+      const required = state.$signals.required() as boolean
       if (required) host.setAttribute('aria-required', 'true')
       else host.removeAttribute('aria-required')
     })
@@ -61,8 +60,8 @@ export default controller<Scope>({
       const ce = e as CustomEvent
       ce.stopPropagation()
       const newVal = ce.detail.value as string
-      if (newVal === (scope.value() as string)) return
-      scope.value.set(newVal)
+      if (newVal === (state.$signals.value() as string)) return
+      state.$signals.value.set(newVal)
       syncRadios()
       host.dispatchEvent(new CustomEvent('sui-change', {
         detail: { value: newVal },
@@ -86,7 +85,7 @@ export default controller<Scope>({
         : enabled[(idx - 1 + enabled.length) % enabled.length]!
 
       const nextVal = next.getAttribute('value') ?? ''
-      scope.value.set(nextVal)
+      state.$signals.value.set(nextVal)
       syncRadios()
       next.focusInput?.()
 

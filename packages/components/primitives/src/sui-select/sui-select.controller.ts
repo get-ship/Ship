@@ -3,7 +3,6 @@ import type { Scope } from './sui-select.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     // Form association is wired by the compiler via `form-value` on the
     // value prop and `form-disabled` on the disabled prop in the .sui
@@ -17,7 +16,7 @@ export default controller<Scope>({
       ) as HTMLOptionElement[]
 
     const currentLabel = (): string => {
-      const v = scope.value()
+      const v = state.$signals.value()
       const opts = lightOptions()
       if (opts.length === 0) return v
       const match =
@@ -29,11 +28,11 @@ export default controller<Scope>({
     }
 
     const updatePlaceholder = () => {
-      const sel = scope.selectEl() as HTMLSelectElement | null
+      const sel = state.$signals.selectEl() as HTMLSelectElement | null
       if (!sel) {
         const opts = lightOptions()
         const match =
-          opts.find((o) => o.value === scope.value()) ??
+          opts.find((o) => o.value === state.$signals.value()) ??
           opts.find((o) => o.hasAttribute('selected')) ??
           opts[0]
         if (!match || match.value === '') host.setAttribute('data-placeholder', '')
@@ -46,17 +45,17 @@ export default controller<Scope>({
     }
 
     const syncOptions = () => {
-      const sel = scope.selectEl() as HTMLSelectElement | null
+      const sel = state.$signals.selectEl() as HTMLSelectElement | null
       if (!sel) return
       const sourceOpts = host.querySelectorAll(
         ':scope > option, :scope > optgroup',
       )
       sel.replaceChildren(...Array.from(sourceOpts, (o) => o.cloneNode(true)))
-      sel.value = scope.value()
+      sel.value = state.$signals.value()
     }
 
     const syncLabel = () => {
-      const labelEl = scope.valueLabel() as HTMLSpanElement | null
+      const labelEl = state.$signals.valueLabel() as HTMLSpanElement | null
       if (labelEl) labelEl.textContent = currentLabel()
     }
 
@@ -65,8 +64,8 @@ export default controller<Scope>({
     // Covers programmatic writes (host.value = 'x') and attribute-driven
     // updates uniformly.
     const stopValueSync = effect(() => {
-      const v = scope.value()
-      const sel = scope.selectEl() as HTMLSelectElement | null
+      const v = state.$signals.value()
+      const sel = state.$signals.selectEl() as HTMLSelectElement | null
       if (sel) sel.value = v
       syncLabel()
       updatePlaceholder()
@@ -78,7 +77,7 @@ export default controller<Scope>({
     // setFormValue effect picks up the new value.
     const onNativeChange = (e: Event) => {
       const v = (e.target as HTMLSelectElement).value
-      scope.value.set(v)
+      state.$signals.value.set(v)
       host.dispatchEvent(
         new CustomEvent('sui-change', {
           detail: { value: v },
@@ -88,12 +87,12 @@ export default controller<Scope>({
       )
     }
 
-    const selectEl = scope.selectEl() as HTMLSelectElement | null
+    const selectEl = state.$signals.selectEl() as HTMLSelectElement | null
     if (selectEl) selectEl.addEventListener('change', onNativeChange)
 
     // Light-DOM option/optgroup children → shadow select. Re-run on
     // every slotchange so consumers can add/remove options dynamically.
-    const optionsSlot = scope.optionsSlot() as HTMLSlotElement | null
+    const optionsSlot = state.$signals.optionsSlot() as HTMLSlotElement | null
     const onSlotChange = () => {
       syncOptions()
       syncLabel()

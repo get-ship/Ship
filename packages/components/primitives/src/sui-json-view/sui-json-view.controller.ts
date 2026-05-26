@@ -37,18 +37,17 @@ ${close1}</details>`
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'tree')
     if (!host.hasAttribute('aria-label')) host.setAttribute('aria-label', 'JSON tree')
 
-    const el = scope.contentEl() as HTMLElement | null
+    const el = state.$signals.contentEl() as HTMLElement | null
     if (!el) return () => {}
 
     return bindHtml(el, () => {
-      const data = scope.data()
-      const expanded = scope.expanded()
-      const depth = scope.depth()
+      const data = state.$signals.data()
+      const expanded = state.$signals.expanded()
+      const depth = state.$signals.depth()
 
       if (!data) return ''
 

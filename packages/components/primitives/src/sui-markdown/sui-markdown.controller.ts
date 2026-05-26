@@ -75,9 +75,8 @@ export function renderMarkdown(src: string): string {
 
 export default controller<Scope>({
   mount(state) {
-    const scope = state as unknown as Scope
-    const el = scope.contentEl() as HTMLElement | null
+    const el = state.$signals.contentEl() as HTMLElement | null
     if (!el) return () => {}
-    return bindHtml(el, () => renderMarkdown(scope.value() ?? ''))
+    return bindHtml(el, () => renderMarkdown(state.$signals.value() ?? ''))
   },
 })

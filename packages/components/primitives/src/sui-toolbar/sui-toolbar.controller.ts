@@ -3,13 +3,12 @@ import type { Scope } from './sui-toolbar.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'toolbar')
     if (!host.hasAttribute('aria-orientation')) host.setAttribute('aria-orientation', 'horizontal')
 
     const focusable = (): HTMLElement[] => {
-      const slot = scope.defaultSlot() as HTMLSlotElement | null
+      const slot = state.$signals.defaultSlot() as HTMLSlotElement | null
       const els = (slot?.assignedElements({ flatten: true }) ?? []) as HTMLElement[]
       return els.filter((el) => !el.hasAttribute('disabled'))
     }

@@ -5,7 +5,6 @@ let _seq = 0
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     const seq = ++_seq
     const bubbleId = `sui-tooltip-${seq}`
     const anchorName = `--sui-tooltip-${seq}`
@@ -16,12 +15,12 @@ export default controller<Scope>({
     host.style.setProperty('--sui-tooltip-anchor', anchorName)
 
     const stopBubbleId = effect(() => {
-      const bubble = scope.bubbleEl() as HTMLElement | null
+      const bubble = state.$signals.bubbleEl() as HTMLElement | null
       if (bubble) bubble.id = bubbleId
     })
 
     const wireTrigger = () => {
-      const slot = scope.defaultSlot() as HTMLSlotElement | null
+      const slot = state.$signals.defaultSlot() as HTMLSlotElement | null
       if (!slot) return
       const first = slot.assignedElements({ flatten: true })[0] as HTMLElement | undefined
       if (!first) return
@@ -35,7 +34,7 @@ export default controller<Scope>({
     }
 
     const stopSlot = effect(() => {
-      const slot = scope.defaultSlot() as HTMLSlotElement | null
+      const slot = state.$signals.defaultSlot() as HTMLSlotElement | null
       if (!slot) return
       slot.addEventListener('slotchange', wireTrigger)
       wireTrigger()

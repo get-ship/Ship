@@ -11,7 +11,7 @@
  */
 
 import { controller, signal, ref } from '@ship/sui-runtime'
-import type { Signal, ViewScope } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import { morph } from '@ship/sui-runtime'
 import type { Scope } from './sui-canvas.sui'
 import { getCanvasBridge, type CanvasEventDetail } from './bridge'
@@ -40,14 +40,9 @@ export default controller({
   },
 
   mount(state, host) {
-    const scope = state as unknown as Scope & {
-      surfaceEl: () => HTMLElement | null
-      canvasIdProp: Signal<string>
-      hasContent: Signal<boolean>
-    }
     const bridge = getCanvasBridge()
 
-    const surface = scope.surfaceEl()
+    const surface = state.$signals.surfaceEl()
     if (!surface) return
 
     // Slot for agent-emitted content. The empty-state lives at
@@ -68,9 +63,9 @@ export default controller({
         surface!.replaceChildren(contentRoot)
       }
       morph(contentRoot, sui)
-      scope.hasContent.set(true)
+      state.$signals.hasContent.set(true)
       host.dispatchEvent(new CustomEvent('sui-canvas-content', {
-        detail: { canvas_id: scope.canvasIdProp(), length: sui.length },
+        detail: { canvas_id: state.$signals.canvasIdProp(), length: sui.length },
         bubbles: true, composed: true,
       }))
     }
@@ -80,7 +75,7 @@ export default controller({
       const el = contentRoot.querySelector(target) as HTMLElement | null
       if (!el) {
         host.dispatchEvent(new CustomEvent('sui-canvas-morph', {
-          detail: { canvas_id: scope.canvasIdProp(), target, patch, miss: true },
+          detail: { canvas_id: state.$signals.canvasIdProp(), target, patch, miss: true },
           bubbles: true, composed: true,
         }))
         return
@@ -96,14 +91,14 @@ export default controller({
       if (patch.classAdd) for (const c of patch.classAdd) el.classList.add(c)
       if (patch.classRemove) for (const c of patch.classRemove) el.classList.remove(c)
       host.dispatchEvent(new CustomEvent('sui-canvas-morph', {
-        detail: { canvas_id: scope.canvasIdProp(), target, patch },
+        detail: { canvas_id: state.$signals.canvasIdProp(), target, patch },
         bubbles: true, composed: true,
       }))
     }
 
     function clear(): void {
       if (contentRoot.isConnected) contentRoot.remove()
-      scope.hasContent.set(false)
+      state.$signals.hasContent.set(false)
     }
 
     // ── Interaction streaming ────────────────────────────────────────
@@ -114,7 +109,7 @@ export default controller({
     // route — re-uses the platform's event rail.
 
     function emitInteraction(kind: string, payload: Record<string, unknown>): void {
-      const detail = { canvas_id: scope.canvasIdProp(), kind, ...payload }
+      const detail = { canvas_id: state.$signals.canvasIdProp(), kind, ...payload }
       host.dispatchEvent(new CustomEvent('sui-canvas-interact', {
         detail, bubbles: true, composed: true,
       }))
@@ -155,7 +150,7 @@ export default controller({
     surface.addEventListener('input', onInput)
 
     // ── Bridge subscription ──────────────────────────────────────────
-    const offBridge = bridge.subscribe(scope.canvasIdProp(), {
+    const offBridge = bridge.subscribe(state.$signals.canvasIdProp(), {
       onContent: ({ sui }) => setContent(sui),
       onMorph: ({ target, patch }) => applyMorph(target, patch as MorphPatch),
       onClear: () => clear(),
@@ -170,7 +165,7 @@ export default controller({
       contentRoot.isConnected ? contentRoot.innerHTML : ''
 
     host.dispatchEvent(new CustomEvent('sui-canvas-mounted', {
-      detail: { canvas_id: scope.canvasIdProp() },
+      detail: { canvas_id: state.$signals.canvasIdProp() },
       bubbles: true, composed: true,
     }))
 

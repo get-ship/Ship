@@ -3,7 +3,6 @@ import type { Scope } from './sui-error-state.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     let detailsOpen = false
 
     const updateToggleLabel = (btn: HTMLButtonElement) => {
@@ -12,7 +11,7 @@ export default controller<Scope>({
     }
 
     const stopDetailsSlot = effect(() => {
-      const slot = scope.detailsSlot() as HTMLSlotElement | null
+      const slot = state.$signals.detailsSlot() as HTMLSlotElement | null
       if (!slot) return
       const check = () => {
         const hasContent = slot.assignedNodes({ flatten: true }).some(n =>
@@ -25,7 +24,7 @@ export default controller<Scope>({
           host.removeAttribute('data-has-details')
           host.removeAttribute('data-details-open')
           detailsOpen = false
-          const btn = scope.detailsToggleBtn() as HTMLButtonElement | null
+          const btn = state.$signals.detailsToggleBtn() as HTMLButtonElement | null
           if (btn) updateToggleLabel(btn)
         }
       }
@@ -35,7 +34,7 @@ export default controller<Scope>({
     })
 
     const stopToggleInit = effect(() => {
-      const btn = scope.detailsToggleBtn() as HTMLButtonElement | null
+      const btn = state.$signals.detailsToggleBtn() as HTMLButtonElement | null
       if (!btn) return
       updateToggleLabel(btn)
       const onClick = () => {
@@ -52,7 +51,7 @@ export default controller<Scope>({
     })
 
     const stopActionSlot = effect(() => {
-      const slot = scope.actionSlot() as HTMLSlotElement | null
+      const slot = state.$signals.actionSlot() as HTMLSlotElement | null
       if (!slot) return
       const onSlotChange = () => {
         const retry = slot.assignedElements().find(

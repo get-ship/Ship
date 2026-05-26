@@ -1,5 +1,5 @@
 import { controller, signal, ref } from '@ship/sui-runtime'
-import type { Signal, ViewScope } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-panel-dock.sui'
 import { ensureResizePillStyles } from './resize-pill-styles'
 
@@ -123,14 +123,13 @@ export default controller({
   },
 
   mount(state, host) {
-    const scope = state as unknown as Scope
-    const tabsSig = (scope as unknown as { tabs: Signal<DockTabDef[]> }).tabs
-    const activeTabSig = (scope as unknown as { activeTab: Signal<string> }).activeTab
-    const resizingSig = (scope as unknown as { resizing: Signal<boolean> }).resizing
-    const dragHeightSig = (scope as unknown as { dragHeight: Signal<number> }).dragHeight
-    const storageKey = (scope as unknown as { storageKey: () => string }).storageKey
-    const activate = (scope as unknown as { activate: (id: string) => void }).activate
-    const resizeHandle = (scope as unknown as { resizeHandle: () => HTMLElement }).resizeHandle()
+    const tabsSig = state.$signals.tabs
+    const activeTabSig = state.$signals.activeTab
+    const resizingSig = state.$signals.resizing
+    const dragHeightSig = state.$signals.dragHeight
+    const storageKey = state.storageKey
+    const activate = state.activate
+    const resizeHandle = state.resizeHandle()
 
     ensureResizePillStyles()
     ensureTerminalSlotFilled(host)
@@ -156,7 +155,7 @@ export default controller({
 
     // Hydrate persisted state.
     const lastActive = readStored('active')
-    if (lastActive && tabsSig().some((t) => t.id === lastActive)) {
+    if (lastActive && tabsSig().some((t: DockTabDef) => t.id === lastActive)) {
       activeTabSig.set(lastActive)
     }
     const h = Number.parseInt(readStored('height') ?? '', 10)

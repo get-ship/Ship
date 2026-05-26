@@ -32,16 +32,15 @@ const APP_NAMES = new Set([...Object.keys(APP_GLYPH), ...Object.keys(APP_ALIASES
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     const stopEffect = effect(() => {
-      const name = scope.name()
-      const label = scope.label()
+      const name = state.$signals.name()
+      const label = state.$signals.label()
       const resolved = (APP_ALIASES[name] ?? name) as AppName
       const known = APP_NAMES.has(name)
       const glyph = known ? APP_GLYPH[resolved] : 'dot'
 
-      const icon = scope.glyphEl() as HTMLElement | null
+      const icon = state.$signals.glyphEl() as HTMLElement | null
       if (icon) icon.setAttribute('name', glyph)
 
       if (label) {

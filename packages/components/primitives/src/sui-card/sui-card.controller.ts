@@ -3,7 +3,6 @@ import type { Scope } from './sui-card.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -13,7 +12,7 @@ export default controller<Scope>({
     }
 
     const stopSync = effect(() => {
-      if (scope.interactive()) {
+      if (state.$signals.interactive()) {
         if (!host.hasAttribute('role')) host.setAttribute('role', 'button')
         if (!host.hasAttribute('tabindex')) host.setAttribute('tabindex', '0')
         host.addEventListener('keydown', onKeydown)

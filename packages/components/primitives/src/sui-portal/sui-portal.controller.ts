@@ -3,13 +3,12 @@ import type { Scope } from './sui-portal.sui'
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     const movedNodes: Node[] = []
     let currentTarget: Element | null = null
 
     const resolveTarget = (): Element | null => {
-      const selector = scope.target() || 'body'
+      const selector = state.$signals.target() || 'body'
       const el = document.querySelector(selector)
       if (!el) {
         console.warn(`[sui-portal] target "${selector}" not found in document`)
@@ -23,7 +22,7 @@ export default controller<Scope>({
       // appendChild moves the node (no clone), so it leaves the host's
       // light DOM in the same tick — slotchange will fire async, but the
       // listener is idempotent and only acts on nodes we haven't moved.
-      const slot = scope.portalSlot() as HTMLSlotElement | null
+      const slot = state.$signals.portalSlot() as HTMLSlotElement | null
       const sources = slot ? slot.assignedNodes() : Array.from(host.childNodes)
       for (const node of sources) {
         target.appendChild(node)
@@ -56,7 +55,7 @@ export default controller<Scope>({
       currentTarget = next
     })
 
-    const slot = scope.portalSlot() as HTMLSlotElement | null
+    const slot = state.$signals.portalSlot() as HTMLSlotElement | null
     const onSlotChange = () => {
       if (!currentTarget || !slot) return
       // Any newly slotted nodes (post-mount appends to host's light DOM)

@@ -5,7 +5,6 @@ type NavItem = HTMLElement & { focusLink?(): void }
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'navigation')
 
@@ -16,7 +15,7 @@ export default controller<Scope>({
       getItems().filter(i => !i.hasAttribute('disabled'))
 
     const syncItems = () => {
-      const val = scope.value() as string
+      const val = state.$signals.value() as string
       for (const item of getItems()) {
         item.toggleAttribute('active', item.getAttribute('value') === val)
       }
@@ -26,7 +25,7 @@ export default controller<Scope>({
       const ce = e as CustomEvent
       ce.stopPropagation()
       const val = ce.detail.value as string
-      scope.value.set(val)
+      state.$signals.value.set(val)
       syncItems()
       host.dispatchEvent(new CustomEvent('sui-change', {
         detail: { value: val },
@@ -55,12 +54,12 @@ export default controller<Scope>({
     }
 
     const stopSync = effect(() => {
-      scope.value()
+      state.$signals.value()
       syncItems()
     })
 
     const stopSlot = effect(() => {
-      const slot = scope.defaultSlotEl() as HTMLSlotElement | null
+      const slot = state.$signals.defaultSlotEl() as HTMLSlotElement | null
       if (!slot) return
       const onSlotChange = () => syncItems()
       slot.addEventListener('slotchange', onSlotChange)

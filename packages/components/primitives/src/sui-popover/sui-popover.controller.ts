@@ -24,15 +24,14 @@ interface PopoverEl extends HTMLElement {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     const id = ++anchorSeq
     const anchorName = `--sui-popover-${id}`
     const panelId = `sui-popover-panel-${id}`
 
     host.style.setProperty('--sui-popover-anchor', anchorName)
 
-    const triggerSlot = scope.triggerSlot()
-    const panelEl = scope.panelEl() as PopoverEl | null
+    const triggerSlot = state.$signals.triggerSlot()
+    const panelEl = state.$signals.panelEl() as PopoverEl | null
     if (!panelEl) return
 
     panelEl.id = panelId
@@ -44,20 +43,20 @@ export default controller<Scope>({
     // double-toggle and steal focus management from the browser.
     // We DO set the ARIA attributes the popover attribute doesn't infer
     // (haspopup) and reflect aria-expanded from the toggle event.
-    slotted(scope.triggerSlot as () => HTMLSlotElement | null, (els) => {
+    slotted(state.$signals.triggerSlot as () => HTMLSlotElement | null, (els) => {
       for (const el of els as HTMLElement[]) {
         el.setAttribute('popovertarget', panelId)
         el.setAttribute('aria-haspopup', 'dialog')
         el.setAttribute('aria-controls', panelId)
-        el.setAttribute('aria-expanded', scope.open() ? 'true' : 'false')
+        el.setAttribute('aria-expanded', state.$signals.open() ? 'true' : 'false')
       }
     })
 
-    // ── Native toggle event → reflect into scope.open + emit sui-toggle
+    // ── Native toggle event → reflect into state.$signals.open + emit sui-toggle
     function onToggle(ev: Event) {
       const newState = (ev as ToggleEvent).newState
       const nowOpen = newState === 'open'
-      // Reflect attribute so consumer-observable scope.open() flips.
+      // Reflect attribute so consumer-observable state.$signals.open() flips.
       // Guard against feedback: we only act if the attribute disagrees.
       const hasAttr = host.hasAttribute('open')
       if (nowOpen && !hasAttr) host.setAttribute('open', '')
@@ -93,7 +92,7 @@ export default controller<Scope>({
     // light-dismiss flips the attribute via onToggle → effect sees the
     // values agree and no-ops. No feedback loop.
     const stopOpenSync = effect(() => {
-      const wantOpen = scope.open()
+      const wantOpen = state.$signals.open()
       const isOpen = panelEl.matches?.(':popover-open') ?? false
       if (wantOpen && !isOpen) panelEl.showPopover?.()
       else if (!wantOpen && isOpen) panelEl.hidePopover?.()
@@ -106,7 +105,7 @@ export default controller<Scope>({
       const trigger = els[0]
       if (!trigger || !panelEl) return
       const r = trigger.getBoundingClientRect()
-      const placement = scope.placement() as Placement
+      const placement = state.$signals.placement() as Placement
       panelEl.style.top = ''
       panelEl.style.left = ''
       panelEl.style.right = ''
@@ -149,7 +148,7 @@ export default controller<Scope>({
     }
 
     function onWindowChange() {
-      if (!scope.open()) return
+      if (!state.$signals.open()) return
       positionFallback()
     }
     if (!anchorSupported) {
