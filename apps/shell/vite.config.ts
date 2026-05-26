@@ -3,6 +3,11 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+// URL scheme SSOT: generated from apps/shipd/src/routes.rs by its build.rs.
+// Never hardcode `/_sui/*.js` here — derive from the one route table. Import the
+// generated file directly (not the @ship/sdk barrel, which drags connect deps
+// that don't resolve in this node config context).
+import { suiRuntimeJs, suiDomJs, suiSdkClientJs } from "../../packages/deck/sdk/src/generated/routes";
 
 /**
  * Walk up from this config to find the workspace root (the dir
@@ -39,13 +44,15 @@ function repoRoot(): string {
 // (not the bare specifier — vite can't load that in serve mode) leaves the
 // import for the browser, which fetches it through the proxy.
 function suiRuntimeToDaemonUrl(): Plugin {
+  const rt = suiRuntimeJs();
   const MAP: Record<string, string> = {
-    "@ship/sui-runtime": "/_sui/runtime.js",
-    "@ship/sui-runtime/route": "/_sui/runtime.js",
-    "@ship/sui-runtime/template-hooks": "/_sui/runtime.js",
-    "@ship/sui-runtime/patch": "/_sui/runtime.js",
-    "@ship/sui-dom": "/_sui/dom.js",
-    "@ship/sdk-client": "/_sui/sdk-client.js",
+    "@ship/sui-runtime": rt,
+    // Subpath specifiers resolve to the same single runtime module.
+    "@ship/sui-runtime/route": rt,
+    "@ship/sui-runtime/template-hooks": rt,
+    "@ship/sui-runtime/patch": rt,
+    "@ship/sui-dom": suiDomJs(),
+    "@ship/sdk-client": suiSdkClientJs(),
   };
   return {
     name: "ship:sui-runtime-to-daemon",
