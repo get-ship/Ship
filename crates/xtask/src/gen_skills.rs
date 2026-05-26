@@ -58,7 +58,8 @@ struct OpRow {
 
 impl OpRow {
     fn is_read(&self) -> bool {
-        self.blast == "C0_READ"
+        // C0 is the read tier; the proto descriptor string is `C0_SAFE`.
+        self.blast == "C0_SAFE"
     }
 }
 

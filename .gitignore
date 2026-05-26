@@ -253,3 +253,6 @@ views/*/view.js
 views/*/dist/
 views/*/node_modules/
 views/*/*.d.ts
+
+# Local daemon runtime state created when shipd runs with cwd=repo
+/machine/

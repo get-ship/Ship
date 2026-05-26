@@ -4400,6 +4400,9 @@ dependencies = [
 [[package]]
 name = "ship-host"
 version = "0.1.0"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "ship-kernel"
@@ -4456,6 +4459,7 @@ dependencies = [
  "git2",
  "globset",
  "home",
+ "include_dir",
  "indexmap",
  "json-patch",
  "jsonschema",
@@ -4515,6 +4519,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
+ "ship-host",
  "ship-kernel",
  "ship-pipelines",
  "ship-types",
@@ -4602,6 +4607,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "ship-analytics",
+ "ship-host",
  "ship-ops-rpc",
  "ship-pipelines",
  "ship-platform",
