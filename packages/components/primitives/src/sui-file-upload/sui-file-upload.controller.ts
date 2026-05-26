@@ -1,4 +1,5 @@
 import { controller, derived, ref, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-file-upload.sui'
 
 function fmtSize(bytes: number): string {
@@ -15,8 +16,8 @@ interface DisplayFile {
   sizeStr: string
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const files = signal<File[]>([])
     const over = signal(false)
     const errorMsg = signal('')
@@ -37,15 +38,14 @@ export default controller<Scope>({
 
   mount(state, host) {
     const matchesAccept = (file: File): boolean => {
-      const tokens = state
-        .accept()
+      const tokens = state.accept
         .split(',')
-        .map((t) => t.trim().toLowerCase())
+        .map((t: string) => t.trim().toLowerCase())
         .filter(Boolean)
       if (tokens.length === 0) return true
       const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
       const type = file.type.toLowerCase()
-      return tokens.some((t) => {
+      return tokens.some((t: string) => {
         if (t.startsWith('.')) return ext === t
         if (t.endsWith('/*')) return type.startsWith(t.slice(0, -1))
         return type === t
@@ -63,57 +63,57 @@ export default controller<Scope>({
     }
 
     const addFiles = (incoming: File[]) => {
-      state.errorMsg.set('')
+      state.errorMsg = ''
       const valid: File[] = []
       for (const f of incoming) {
-        if (f.size > state.maxSize()) {
-          state.errorMsg.set(`"${f.name}" exceeds max size (${fmtSize(state.maxSize())}).`)
+        if (f.size > state.maxSize) {
+          state.errorMsg = `"${f.name}" exceeds max size (${fmtSize(state.maxSize)}).`
           continue
         }
-        if (state.accept() && !matchesAccept(f)) {
-          state.errorMsg.set(`"${f.name}" is not an accepted file type.`)
+        if (state.accept && !matchesAccept(f)) {
+          state.errorMsg = `"${f.name}" is not an accepted file type.`
           continue
         }
         valid.push(f)
       }
-      const cur = state.files()
-      const next = state.multiple() ? [...cur, ...valid] : valid.slice(0, 1)
-      state.files.set(next)
+      const cur = state.files
+      const next = state.multiple ? [...cur, ...valid] : valid.slice(0, 1)
+      state.files = next
       emitChange(next)
     }
 
     const removeAt = (idx: number) => {
-      const cur = state.files()
+      const cur = state.files
       if (idx < 0 || idx >= cur.length) return
-      const next = cur.filter((_, i) => i !== idx)
-      state.files.set(next)
-      state.errorMsg.set('')
+      const next = cur.filter((_: File, i: number) => i !== idx)
+      state.files = next
+      state.errorMsg = ''
       emitChange(next)
     }
 
     const openPicker = () => {
-      if (state.disabled()) return
-      state.inputEl()?.click()
+      if (state.disabled) return
+      ;(state.inputEl as HTMLInputElement | null)?.click()
     }
 
     const onClick = () => openPicker()
     const onKey = (e: KeyboardEvent) => {
-      if (state.disabled()) return
+      if (state.disabled) return
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         openPicker()
       }
     }
     const onDragOver = (e: DragEvent) => {
-      if (state.disabled()) return
+      if (state.disabled) return
       e.preventDefault()
-      state.over.set(true)
+      state.over = true
     }
-    const onDragLeave = () => state.over.set(false)
+    const onDragLeave = () => { state.over = false }
     const onDrop = (e: DragEvent) => {
-      if (state.disabled()) return
+      if (state.disabled) return
       e.preventDefault()
-      state.over.set(false)
+      state.over = false
       const list = e.dataTransfer?.files
       if (list && list.length) addFiles(Array.from(list))
     }
@@ -123,8 +123,8 @@ export default controller<Scope>({
       inp.value = ''
     }
 
-    const dropzoneEl = state.dropzoneEl()
-    const inputEl = state.inputEl()
+    const dropzoneEl = state.dropzoneEl as HTMLDivElement | null
+    const inputEl = state.inputEl as HTMLInputElement | null
 
     dropzoneEl?.addEventListener('click', onClick)
     dropzoneEl?.addEventListener('keydown', onKey)

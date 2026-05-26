@@ -1,4 +1,5 @@
 import { controller, derived, ref, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-date-picker.sui'
 
 interface DayCell {
@@ -56,8 +57,8 @@ const clampIso = (iso: string, min: string, max: string): string => {
   return iso
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: ({ value, min, max }: ViewScope<Scope>) => {
     const open = signal(false)
     const today = signal(todayIso())
     const focused = signal(todayIso())
@@ -65,15 +66,14 @@ export default controller<Scope>({
     const viewMonth = signal(new Date().getMonth())
     const inputEl = ref<HTMLInputElement>(null)
     const panelEl = ref<HTMLDivElement>(null)
-    return { open, today, focused, viewYear, viewMonth, inputEl, panelEl }
-  },
 
-  derived: {
-    monthLabel: ({ viewYear, viewMonth }): string =>
+    const monthLabel = derived<string>(() =>
       `${MONTHS[viewMonth()]} ${viewYear()}`,
-    dayHeaders: (): DayHeader[] =>
+    )
+    const dayHeaders = derived<DayHeader[]>(() =>
       DOW.map((label, idx) => ({ key: String(idx), label: DOW_SHORT[idx] ?? label })),
-    monthCells: ({ viewYear, viewMonth, value, focused, today, min, max }): DayCell[] => {
+    )
+    const monthCells = derived<DayCell[]>(() => {
       const year = viewYear()
       const month = viewMonth()
       const sel = value()
@@ -107,36 +107,38 @@ export default controller<Scope>({
         })
       }
       return cells
-    },
+    })
+
+    return { open, today, focused, viewYear, viewMonth, inputEl, panelEl, monthLabel, dayHeaders, monthCells }
   },
 
   mount(state, host) {
     const moveView = (delta: number) => {
-      let y = state.viewYear()
-      let m = state.viewMonth() + delta
+      let y = state.viewYear
+      let m = state.viewMonth + delta
       while (m < 0) { m += 12; y -= 1 }
       while (m > 11) { m -= 12; y += 1 }
-      state.viewYear.set(y)
-      state.viewMonth.set(m)
+      state.viewYear = y
+      state.viewMonth = m
     }
 
     const syncViewToValue = () => {
-      const seed = state.value() || state.focused() || todayIso()
+      const seed = state.value || state.focused || todayIso()
       const parts = parseIso(seed)
       if (!parts) return
-      state.viewYear.set(parts.y)
-      state.viewMonth.set(parts.m)
-      state.focused.set(seed)
+      state.viewYear = parts.y
+      state.viewMonth = parts.m
+      state.focused = seed
     }
 
     const commit = (iso: string) => {
       const parts = parseIso(iso)
       if (!parts) return
-      if (state.min() && iso < state.min()) return
-      if (state.max() && iso > state.max()) return
-      state.value.set(iso)
-      state.focused.set(iso)
-      state.open.set(false)
+      if (state.min && iso < state.min) return
+      if (state.max && iso > state.max) return
+      state.value = iso
+      state.focused = iso
+      state.open = false
       host.dispatchEvent(
         new CustomEvent('sui-change', {
           detail: { value: iso },
@@ -147,18 +149,18 @@ export default controller<Scope>({
     }
 
     const openPanel = () => {
-      if (state.disabled()) return
-      if (state.open()) return
+      if (state.disabled) return
+      if (state.open) return
       syncViewToValue()
-      state.open.set(true)
+      state.open = true
     }
 
     const closePanel = () => {
-      if (!state.open()) return
-      state.open.set(false)
+      if (!state.open) return
+      state.open = false
     }
 
-    const inputEl = state.inputEl()
+    const inputEl = state.inputEl as HTMLInputElement | null
     if (!inputEl) return
 
     const onInputClick = () => openPanel()
@@ -167,7 +169,7 @@ export default controller<Scope>({
       // User typed an ISO date manually; commit if it parses.
       const v = inputEl.value.trim()
       if (v === '') {
-        state.value.set('')
+        state.value = ''
         host.dispatchEvent(
           new CustomEvent('sui-change', {
             detail: { value: '' },
@@ -181,10 +183,10 @@ export default controller<Scope>({
       if (parts) commit(v)
     }
     const onInputKeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && state.open()) {
+      if (e.key === 'Escape' && state.open) {
         e.preventDefault()
         closePanel()
-      } else if (e.key === 'ArrowDown' && !state.open()) {
+      } else if (e.key === 'ArrowDown' && !state.open) {
         e.preventDefault()
         openPanel()
       }
@@ -195,7 +197,7 @@ export default controller<Scope>({
     inputEl.addEventListener('keydown', onInputKeydown)
 
     const onPanelKeydown = (e: KeyboardEvent) => {
-      const cur = state.focused() || state.value() || todayIso()
+      const cur = state.focused || state.value || todayIso()
       let next: string | null = null
       if (e.key === 'ArrowLeft') next = addDays(cur, -1)
       else if (e.key === 'ArrowRight') next = addDays(cur, 1)
@@ -207,12 +209,12 @@ export default controller<Scope>({
       else if (e.key === 'Escape') { e.preventDefault(); closePanel(); inputEl.focus(); return }
       if (next != null) {
         e.preventDefault()
-        const clamped = clampIso(next, state.min(), state.max())
-        state.focused.set(clamped)
+        const clamped = clampIso(next, state.min, state.max)
+        state.focused = clamped
         const parts = parseIso(clamped)
         if (parts) {
-          state.viewYear.set(parts.y)
-          state.viewMonth.set(parts.m)
+          state.viewYear = parts.y
+          state.viewMonth = parts.m
         }
       }
     }
@@ -232,13 +234,13 @@ export default controller<Scope>({
     }
 
     const onShadowKeydown = (e: KeyboardEvent) => {
-      if (!state.open()) return
+      if (!state.open) return
       const inPanel = (e.target as HTMLElement | null)?.closest?.('.panel')
       if (inPanel) onPanelKeydown(e)
     }
 
     const onDocPointer = (e: Event) => {
-      if (!state.open()) return
+      if (!state.open) return
       const path = e.composedPath()
       if (path.includes(host)) return
       closePanel()

@@ -60,30 +60,37 @@ message DeletePermissionRequest {
 // operator-only via services::command::call; this service only routes.
 service PermissionsService {
   rpc List(ListPermissionsRequest) returns (PermissionsIndexResponse) {
+    option (ship.ops.v1.description) = "List permission presets across scopes.";
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Get(GetPermissionRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Raw permission preset at the requested scope.";
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc ToolPatterns(GetToolPatternsRequest) returns (ToolPatternsResponse) {
+    option (ship.ops.v1.description) = "Enumerate tool-pattern capability names (for agent builders).";
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Create(CreatePermissionRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Create a new permission preset (errors if the id is taken).";
     option (ship.ops.v1.capability) = "ship.permissions.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Put(PutPermissionRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Replace a permission preset's body (use permissions.create for net-new).";
     option (ship.ops.v1.capability) = "ship.permissions.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Patch(PatchPermissionRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Apply RFC-6902 ops to a permission preset's body.";
     option (ship.ops.v1.capability) = "ship.permissions.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Delete(DeletePermissionRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Remove a permission preset (scope omitted walks project → user).";
     option (ship.ops.v1.capability) = "ship.permissions.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }

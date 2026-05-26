@@ -15,35 +15,44 @@ use buffa::extension::Extension;
 use buffa::ExtensionSet;
 use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 
-/// Blast-radius class — the human-vs-agent line the gate enforces, carried as a
-/// proto method option. The canonical home is here (next to the FDS reader that
-/// produces it); shipd's gate re-exports it. `from_descriptor` fails closed to
-/// `C2Elevated` — a misdeclared op is gated to the human, never opened to agents.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+/// Blast-radius class — the risk gradient the gate enforces against an agent's
+/// ceiling, carried as a proto method option. The canonical home is here (next
+/// to the FDS reader that produces it); shipd's gate re-exports it.
+///
+/// Four tiers, ordered C0 < C1 < C2 < C3 (derive `Ord`): **C0** read (anyone),
+/// **C1** workspace-write (any agent), **C2** elevated (granted agents —
+/// dispatch/settings/authoring), **C3** critical (operator/2FA only —
+/// account/permissions/credentials). `from_descriptor`/unknown fails closed to
+/// `C3Critical` — the most restrictive tier — so a misdeclared op is operator-only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
 pub enum BlastRadius {
-    #[serde(rename = "C0_READ")]
+    #[serde(rename = "C0_SAFE")]
     C0Read,
     #[serde(rename = "C1_WORKSPACE")]
     C1Workspace,
     #[serde(rename = "C2_ELEVATED")]
     C2Elevated,
+    #[serde(rename = "C3_CRITICAL")]
+    C3Critical,
 }
 
 impl BlastRadius {
     pub fn from_descriptor(s: &str) -> Self {
         match s {
-            "C0_READ" => Self::C0Read,
+            "C0_SAFE" | "C0_READ" => Self::C0Read,
             "C1_WORKSPACE" => Self::C1Workspace,
             "C2_ELEVATED" => Self::C2Elevated,
-            _ => Self::C2Elevated,
+            "C3_CRITICAL" => Self::C3Critical,
+            _ => Self::C3Critical,
         }
     }
 
     pub fn as_descriptor(self) -> &'static str {
         match self {
-            Self::C0Read => "C0_READ",
+            Self::C0Read => "C0_SAFE",
             Self::C1Workspace => "C1_WORKSPACE",
             Self::C2Elevated => "C2_ELEVATED",
+            Self::C3Critical => "C3_CRITICAL",
         }
     }
 }
@@ -53,6 +62,7 @@ const EXTENDEE: &str = "google.protobuf.MethodOptions";
 const CAPABILITY: Extension<StringCodec> = Extension::new(50001, EXTENDEE);
 const BLAST_RADIUS: Extension<EnumI32> = Extension::new(50002, EXTENDEE);
 const SENSITIVE: Extension<Bool> = Extension::new(50003, EXTENDEE);
+const DESCRIPTION: Extension<StringCodec> = Extension::new(50004, EXTENDEE);
 
 /// The gate-relevant policy declared on one rpc method. This is the single
 /// decode of the descriptor set — both the gate (keyed by op name) and the
@@ -71,6 +81,134 @@ pub struct MethodPolicy {
     pub blast: BlastRadius,
     /// Content-exposure flag (redaction / log hygiene); orthogonal to blast.
     pub sensitive: bool,
+    /// Simple (package-stripped) request message type, e.g. `"CreateRuleRequest"`.
+    pub input_type: String,
+    /// Simple (package-stripped) response message type, e.g. `"ScopedMutation"`.
+    /// `"JsonResponse"` marks an op not yet on a typed proto shape — no fixture
+    /// to validate. The generators + the contract gate key off this.
+    pub output_type: String,
+    /// One-line human description (the `description` method option). The SSOT
+    /// for sdk-skill + help doc text; empty if the rpc declares none.
+    pub description: String,
+    /// Request fields, derived from the input message — the op's args. Lets
+    /// sdk-skill + help generation read arg shapes from proto, not the registry.
+    pub args: Vec<MethodArg>,
+    /// Response fields, derived from the output message — the return schema.
+    /// Empty for opaque returns (e.g. `JsonResponse`). Powers OpenAPI-level
+    /// reference docs (the response *shape*, not just its type name).
+    pub returns_fields: Vec<MethodArg>,
+}
+
+/// One request field, projected to the arg-kind vocabulary the generators use.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MethodArg {
+    pub name: String,
+    /// `"string" | "number" | "bool" | "map" | "<base>[]"` (repeated).
+    pub kind: String,
+}
+
+/// Strip a descriptor type ref (`.ship.ops.v1.ScopedMutation`) to its simple
+/// name (`ScopedMutation`).
+fn simple_type(t: &str) -> String {
+    t.rsplit('.').next().unwrap_or(t).to_string()
+}
+
+/// snake_case a PascalCase proto identifier: `WriteFrontmatter` → `write_frontmatter`.
+pub fn snake(s: &str) -> String {
+    let mut out = String::new();
+    for (i, ch) in s.char_indices() {
+        if ch.is_ascii_uppercase() {
+            if i != 0 {
+                out.push('_');
+            }
+            out.push(ch.to_ascii_lowercase());
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+/// The dotted op name for a proto (service, method) — the SINGLE derivation used
+/// by `ship ops call`, gen-skills, and gen-fixtures: the service carries the
+/// domain (`RulesService` → `rules`), the method the rest (`List` → `list`) ⇒
+/// `rules.list`. The service boundary removes pascal()'s `.`-vs-`_` ambiguity.
+pub fn op_name(service: &str, method: &str) -> String {
+    let svc = snake(service);
+    let domain = svc.strip_suffix("_service").unwrap_or(&svc);
+    format!("{domain}.{}", snake(method))
+}
+
+/// The op-domain an op name belongs to — its first dotted segment
+/// (`git.create` → `git`). The domain is the unit of **capability**: one per
+/// per-domain proto service, 1:1 with an sdk-skill (`ship-<domain>`).
+pub fn domain_of(op_name: &str) -> &str {
+    op_name.split('.').next().unwrap_or(op_name)
+}
+
+/// The generated umbrella + streaming services are not capability domains:
+/// `ReadOps`/`CommandOps` are the retiring bulk-port scaffold (every op is also
+/// on its per-domain service); `StreamService` is server-streaming.
+pub fn is_non_domain_service(service: &str) -> bool {
+    matches!(service, "ReadOpsService" | "CommandOpsService" | "StreamService")
+}
+
+/// Operational domains (#95) are not part of the agent capability set: kernel/
+/// actor control (`actor.*`) and raw mesh coordination (`mesh.*`) are
+/// operator-surface ABI, not capabilities a user grants an agent.
+pub fn is_operational(op_name: &str) -> bool {
+    matches!(domain_of(op_name), "actor" | "mesh")
+}
+
+/// A grantable Ship capability: one op domain (e.g. `git`), 1:1 with its
+/// sdk-skill (`ship-git`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Capability {
+    /// Domain id, e.g. `git` — what a user grants and what `requires:` names.
+    pub id: String,
+    /// The sdk-skill that teaches this capability's ops, e.g. `ship-git`.
+    pub sdk_skill: String,
+}
+
+/// The agent-facing capability registry: every grantable domain, **derived from
+/// the proto descriptor** — the single source the sdk-skills are generated from,
+/// so the capability list, the sdk-skill set, and the gate's grant axis cannot
+/// drift. Excludes the umbrella scaffold and operational domains. Sorted/deduped;
+/// 1:1 with the generated sdk-skills. Capability is orthogonal to blast-radius
+/// (the internal C0/C1/C2 risk calc).
+pub fn capabilities() -> Vec<Capability> {
+    let mut domains: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for p in read_policies() {
+        if is_non_domain_service(&p.service) {
+            continue;
+        }
+        let name = op_name(&p.service, &p.method);
+        if is_operational(&name) {
+            continue;
+        }
+        domains.insert(domain_of(&name).to_string());
+    }
+    domains
+        .into_iter()
+        .map(|id| Capability { sdk_skill: format!("ship-{id}"), id })
+        .collect()
+}
+
+/// Project a proto field's (type, label) to the generators' arg-kind vocab.
+/// Field type numbers per `descriptor.proto`'s `FieldDescriptorProto.Type`;
+/// label 3 = repeated.
+fn field_kind(ty: Option<i32>, label: Option<i32>) -> String {
+    let base = match ty {
+        Some(8) => "bool",                       // BOOL
+        Some(9) | Some(12) | Some(14) => "string", // STRING | BYTES | ENUM
+        Some(10) | Some(11) => "map",            // GROUP | MESSAGE (nested object)
+        _ => "number",                            // all numeric scalar types
+    };
+    if label == Some(3) && base != "map" {
+        format!("{base}[]")
+    } else {
+        base.to_string()
+    }
 }
 
 impl MethodPolicy {
@@ -80,14 +218,17 @@ impl MethodPolicy {
     }
 }
 
-/// Map the proto `BlastRadius` enum number to the gate's class. Unspecified (0)
-/// or unknown → `C2Elevated` (**fail closed**: a misdeclared op is gated to the
-/// human). Reconciles the proto name (`C0_SAFE`) with the gate's `C0Read`.
+/// Map the proto `BlastRadius` enum number to the gate's tier. Unspecified (0)
+/// or unknown → `C3Critical` (**fail closed** to the most restrictive tier: a
+/// misdeclared op is operator-only). Reconciles the proto name (`C0_SAFE`) with
+/// the gate's `C0Read`.
 fn blast_from_proto(n: Option<i32>) -> BlastRadius {
     match n {
         Some(1) => BlastRadius::C0Read,      // BLAST_RADIUS_C0_SAFE
         Some(2) => BlastRadius::C1Workspace, // BLAST_RADIUS_C1_WORKSPACE
-        _ => BlastRadius::C2Elevated,        // C2_ELEVATED, UNSPECIFIED, unknown
+        Some(3) => BlastRadius::C2Elevated,  // BLAST_RADIUS_C2_ELEVATED
+        Some(4) => BlastRadius::C3Critical,  // BLAST_RADIUS_C3_CRITICAL
+        _ => BlastRadius::C3Critical,        // UNSPECIFIED, unknown — fail closed
     }
 }
 
@@ -98,6 +239,28 @@ fn blast_from_proto(n: Option<i32>) -> BlastRadius {
 pub fn read_policies() -> Vec<MethodPolicy> {
     let fds = FileDescriptorSet::decode_from_slice(crate::FILE_DESCRIPTOR_SET)
         .expect("embedded FILE_DESCRIPTOR_SET decodes");
+    // Message (simple name) → its fields, projected to arg kinds. Lets a method
+    // resolve its request fields (= args) from the descriptor.
+    let mut messages: std::collections::HashMap<String, Vec<MethodArg>> =
+        std::collections::HashMap::new();
+    for file in &fds.file {
+        for msg in &file.message_type {
+            let Some(mname) = msg.name.clone() else { continue };
+            let args = msg
+                .field
+                .iter()
+                .filter_map(|f| {
+                    f.name
+                        .clone()
+                        .map(|name| MethodArg {
+                            name,
+                            kind: field_kind(f.r#type.map(|t| t as i32), f.label.map(|l| l as i32)),
+                        })
+                })
+                .collect();
+            messages.insert(mname, args);
+        }
+    }
     let mut out = Vec::new();
     for file in &fds.file {
         let package = file.package.clone().unwrap_or_default();
@@ -111,6 +274,11 @@ pub fn read_policies() -> Vec<MethodPolicy> {
                 let capability = opts.extension(&CAPABILITY).unwrap_or_default();
                 let blast = blast_from_proto(opts.extension(&BLAST_RADIUS));
                 let sensitive = opts.extension(&SENSITIVE).unwrap_or(false);
+                let input_type = simple_type(method.input_type.as_deref().unwrap_or_default());
+                let output_type = simple_type(method.output_type.as_deref().unwrap_or_default());
+                let description = opts.extension(&DESCRIPTION).unwrap_or_default();
+                let args = messages.get(&input_type).cloned().unwrap_or_default();
+                let returns_fields = messages.get(&output_type).cloned().unwrap_or_default();
                 out.push(MethodPolicy {
                     package: package.clone(),
                     service: service_name.clone(),
@@ -118,6 +286,11 @@ pub fn read_policies() -> Vec<MethodPolicy> {
                     capability,
                     blast,
                     sensitive,
+                    input_type,
+                    output_type,
+                    description,
+                    args,
+                    returns_fields,
                 });
             }
         }
@@ -178,5 +351,29 @@ mod tests {
         for p in read_policies() {
             assert!(!p.capability.is_empty(), "rpc `{}` has no capability option", p.method);
         }
+    }
+}
+
+#[cfg(test)]
+mod capability_tests {
+    use super::*;
+
+    #[test]
+    fn capabilities_are_per_domain_and_map_1to1_to_sdk_skills() {
+        let caps = capabilities();
+        assert!(!caps.is_empty(), "capability registry must derive domains from proto");
+        // Known domains present; sdk-skill id is exactly ship-<id>.
+        let git = caps.iter().find(|c| c.id == "git").expect("git capability");
+        assert_eq!(git.sdk_skill, "ship-git");
+        assert!(caps.iter().any(|c| c.id == "pipelines"));
+        // Operational domains (#95) and the umbrella scaffold are NOT capabilities.
+        assert!(!caps.iter().any(|c| c.id == "actor"));
+        assert!(!caps.iter().any(|c| c.id == "mesh"));
+        // No duplicates.
+        let mut ids: Vec<&str> = caps.iter().map(|c| c.id.as_str()).collect();
+        let n = ids.len();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), n, "capability ids are unique");
     }
 }

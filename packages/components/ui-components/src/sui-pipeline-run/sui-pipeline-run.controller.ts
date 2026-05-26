@@ -1,5 +1,5 @@
 import { controller, derived, effect } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-pipeline-run.sui'
 
 type RunState =
@@ -31,29 +31,20 @@ const STATE_TO_TONE: Record<RunState, Tone> = {
   pending: 'muted',
 }
 
-export default controller<Scope>({
-  scope: (state) => {
-    const s = state as unknown as {
-      state: Signal<RunState>
-      slug: Signal<string>
-      agent: Signal<string>
-    }
-    const tone = derived<Tone>(() => STATE_TO_TONE[s.state()] ?? 'muted')
+export default controller({
+  scope: (ctx: ViewScope<Scope>) => {
+    // `ctx.state` is the run-state prop (string); accessing as a signal call.
+    const tone = derived<Tone>(() => STATE_TO_TONE[ctx.state() as RunState] ?? 'muted')
     return { tone }
   },
 
   mount(state, host) {
-    const scope = state as unknown as {
-      state: Signal<RunState>
-      slug: Signal<string>
-      agent: Signal<string>
-    }
     if (!host.hasAttribute('role')) host.setAttribute('role', 'article')
 
     const stopLabel = effect(() => {
-      const slug = scope.slug()
-      const agent = scope.agent()
-      const s = scope.state()
+      const slug = state.slug
+      const agent = state.agent
+      const s = state.state
       host.setAttribute(
         'aria-label',
         `Pipeline run ${slug || ''}${agent ? ` on ${agent}` : ''}: ${s}`,

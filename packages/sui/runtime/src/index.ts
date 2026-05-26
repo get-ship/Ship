@@ -76,6 +76,11 @@ export type { EffectScope } from './effect-scope'
 
 export { shared, isShared, provide, useShared, pickShared } from './context'
 
+// Host→runtime context seam (active project / session). Host-provided,
+// like RouterPort/ShipHost — replaces the old window.__ship* globals.
+export { setHostContext, hostContext } from './host-context'
+export type { HostContext } from './host-context'
+
 export { ref, attachRef } from './ref'
 export type { Ref } from './ref'
 
@@ -178,14 +183,9 @@ export type {
   BindWhileErrorOptions,
 } from './while'
 
-export type {
-  ArtifactRecord,
-  CollectionFieldRecord,
-  CollectionSummary,
-  ShipSDK,
-  SkillIndexEntry,
-  WorkspaceSummary,
-} from './ship'
+// The framework exports only the host seam. The concrete `ShipSDK` + its
+// data types live in `@ship/sdk-client` — the runtime names no host shape.
+export type { ShipHost } from './ship'
 
 export { component, prop } from './component'
 export type { PropDef, ComponentDef, ComponentSetupContext } from './component'
@@ -202,7 +202,6 @@ export type {
   ReadonlyView,
   MutableState,
   SectionInit,
-  DerivedSection,
   OnSection,
   UseSection,
   MountSection,
@@ -251,7 +250,7 @@ export { suiTonesSheet, suiBaseSheet, adoptSuiSheets } from './styles/index'
 // F1 mount unification — hosts call mount(target, payload, opts) to put
 // a view on screen. See .artifacts/design-f1-mount-unification.md.
 export { mount } from './mount'
-export type { ViewPayload, MountOptions, MountHandle } from './mount'
+export type { ViewPayload, MountOptions, MountHandle, SuiLoader } from './mount'
 
 // Chrome IPC — typed wrapper around the shell's event-driven chrome
 // surfaces (toasts, dock, command-bar, breadcrumb, status, theme,
@@ -280,8 +279,8 @@ export type {
 // resolves to the actual symbols. Authors continue to use the subpath
 // import (`from '@ship/sui-runtime/route'`); the importmap routes it
 // here.
-export { defineRoutes, navigate, route } from './route'
-export type { RouteShape, RouteSignals } from './route'
+export { defineRoutes, navigate, route, setRouterPort } from './route'
+export type { RouteShape, RouteSignals, RouterPort } from './route'
 
 // Re-export the patch applicator for the same reason as the route
 // surface above: `@ship/sdk-client`'s SSE layer imports
@@ -292,28 +291,14 @@ export type { Patch, PatchOp, PathToken } from './patch'
 
 // Generated daemon ↔ runtime data contract. Authored by `cargo xtask
 // gen-types` from Rust source; do not edit `generated.ts` by hand.
+// View-system contract types only — Ship daemon-domain data (git/agents/
+// account) lives in @ship/sdk-client, never the framework.
 export type {
-  AccountState,
-  AgentSummary,
-  AgentsSummariesResponse,
-  BranchSummary,
-  CommitSummary,
-  DiffFileView,
-  DiffHunk,
-  DiffLine,
-  GitDiff,
-  GitDiffArgs,
-  GitOverview,
   LintFinding,
-  LintViewRequest,
   ManifestRail,
-  MeView,
-  ParsedDiff,
   RailMeta,
   ResolveError,
   ResolvedView,
-  StatusBuckets,
-  StatusFile,
   ViewListEntry,
   ViewManifest,
   ViewSourceResponse,

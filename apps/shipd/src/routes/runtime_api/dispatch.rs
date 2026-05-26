@@ -31,7 +31,7 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
 /// Wire shape for `POST /api/v1/agent_sessions/dispatch`. Agent-centric —
 /// `agent` is required and there is no `pipeline` field; pipeline runs
 /// live at `POST /api/v1/pipelines/run`.
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DispatchRequest {
     /// Ship-agent profile id (required).
@@ -81,7 +81,6 @@ pub struct DispatchRequest {
     ///   - stream: server-mode (codex app-server, opencode REST).
     ///     Only codex/opencode today.
     #[serde(default = "default_invocation")]
-    #[schema(value_type = String, example = "pty")]
     pub invocation: InvocationMode,
 
     /// Does the harness stay alive after the current work, awaiting
@@ -188,13 +187,6 @@ fn billing_warning_for_axes(
 ///
 /// Agent-centric single-agent dispatch. Rejects payloads carrying a
 /// `pipeline` field (those belong at `POST /api/v1/pipelines/run`).
-#[utoipa::path(
-    post,
-    path = "/api/v1/agent_sessions/dispatch",
-    request_body = DispatchRequest,
-    responses((status = 200, body = MeshResponse)),
-    tag = "runtime"
-)]
 pub async fn dispatch_agent_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

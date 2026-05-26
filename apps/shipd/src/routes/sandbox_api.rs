@@ -57,16 +57,6 @@ fn state_label(s: SandboxState) -> &'static str {
     }
 }
 
-#[utoipa::path(
-    operation_id = "sandboxList",
-    get,
-    path = "/api/v1/sandboxes",
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-    ),
-    tag = "sandbox"
-)]
 pub async fn sandbox_list(State(_state): State<ApiState>) -> impl IntoResponse {
     let dispatcher = sandbox::dispatcher();
     let registry = dispatcher.registry();
@@ -106,16 +96,6 @@ pub async fn sandbox_list(State(_state): State<ApiState>) -> impl IntoResponse {
     (StatusCode::OK, Json(MeshResponse { ok: true, data: payload }))
 }
 
-#[utoipa::path(
-    operation_id = "sandboxGet",
-    get,
-    path = "/api/v1/sandboxes/{id}",
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 404, description = "not found", body = crate::routes::openapi_types::ErrorResponse),
-    ),
-    tag = "sandbox"
-)]
 pub async fn sandbox_get(
     State(_state): State<ApiState>,
     Path(id): Path<String>,

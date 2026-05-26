@@ -179,14 +179,11 @@ function injectXtermCSS(shadow: ShadowRoot): void {
   }
 }
 
-// Cast helper: bind:this refs are Signal<T> in Scope but MutableState<Scope>
-// unwraps them to T. The $scope proxy in the lifecycle wiring keeps them
-// callable, so we cast back to Scope to get the right call signature.
-type ScopeView = Scope
-
+// No scope factory → legacy form (curried needs a scope return to infer SC).
 export default controller<Scope>({
   mount(state, host) {
-    const s = state as unknown as ScopeView
+    // `state.$signals` exposes the raw Signal objects (callable / .set()).
+    const s = state.$signals
 
     const hostEl = (s.termHost as Signal<HTMLDivElement | null>)()
     if (!hostEl) {

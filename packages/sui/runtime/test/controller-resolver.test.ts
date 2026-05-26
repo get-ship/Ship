@@ -13,6 +13,7 @@ import {
   controller,
   resolveController,
   signal,
+  derived,
   type ControllerHook,
   type ResolvedBindings,
   type Signal,
@@ -169,75 +170,6 @@ describe('on — handlers receive a writable proxy', () => {
   })
 })
 
-describe('derived — memoized over scope', () => {
-  it('derived recomputes on dep change', () => {
-    const ctx = withState({ count: 1 })
-    const b = resolveController(
-      {
-        derived: { doubled: ({ count }: { count: () => number }) => count() * 2 },
-        on: { incr: (s: { count: number }) => { s.count++ } },
-      },
-      ctx,
-    ) as Record<string, () => number>
-    expect(b.doubled!()).toBe(2)
-    ;(b.incr as unknown as () => void)()
-    expect(b.doubled!()).toBe(4)
-    ;(b.incr as unknown as () => void)()
-    ;(b.incr as unknown as () => void)()
-    expect(b.doubled!()).toBe(8)
-  })
-
-  it('derived can read template-scope signals exposed via ctx.scope', () => {
-    const agents: Signal<string[]> = signal(['a', 'b', 'c'])
-    const ctx = withState({ query: 'b' }, { agents })
-    const b = resolveController(
-      {
-        derived: {
-          filtered: ({ agents, query }: { agents: () => string[]; query: () => string }) =>
-            agents().filter((a) => a.includes(query())),
-        },
-      },
-      ctx,
-    ) as Record<string, () => string[]>
-    expect(b.filtered!()).toEqual(['b'])
-    agents.set(['ba', 'cb', 'd'])
-    expect(b.filtered!()).toEqual(['ba', 'cb'])
-  })
-
-  it('derived that shadows a scope key reads the scope original, not itself', () => {
-    // Pre-fix: `derived: { x: ({x}) => x() * 2 }` closed over a
-    // declScope where `x` was the derived, so the memo recursed
-    // into itself on first read and stack-overflowed silently.
-    const count: Signal<number> = signal(3)
-    const ctx = withState({}, { count })
-    const b = resolveController(
-      {
-        derived: { count: ({ count }: { count: () => number }) => count() * 2 },
-      },
-      ctx,
-    ) as Record<string, () => number>
-    expect(b.count!()).toBe(6)
-    count.set(5)
-    expect(b.count!()).toBe(10)
-  })
-
-  it('non-shadowing derived still see other derived (chained derived works)', () => {
-    const ctx = withState({ first: 'Ada', last: 'Lovelace' })
-    const b = resolveController(
-      {
-        derived: {
-          full: ({ first, last }: { first: () => string; last: () => string }) =>
-            `${first()} ${last()}`,
-          greeting: ({ full }: { full: () => string }) => `hi ${full()}`,
-        },
-      },
-      ctx,
-    ) as Record<string, () => string>
-    expect(b.full!()).toBe('Ada Lovelace')
-    expect(b.greeting!()).toBe('hi Ada Lovelace')
-  })
-})
-
 describe('use — hooks compose under namespaced keys', () => {
   const useFilteredList = <T>(
     source: Signal<T[]>,
@@ -389,7 +321,7 @@ describe('controller() — drop-in compatibility with view() shape', () => {
   it('function-form def works through the wrap', () => {
     const ship = { hello: () => 'world' }
     const def = ({ ship: s }: { ship: typeof ship }) => ({
-      derived: { greeting: () => s.hello() },
+      scope: () => ({ greeting: derived(() => s.hello()) }),
     })
     const out = controller(def)
     const b = out.setup({ ship }) as Record<string, () => string>

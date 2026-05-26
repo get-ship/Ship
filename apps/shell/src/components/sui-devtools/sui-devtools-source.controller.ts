@@ -1,4 +1,5 @@
 import { chrome, controller, signal, derived, effect, ref } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-source.sui'
 import { isShellLocalView } from '../../chrome/shell-surfaces'
 
@@ -64,8 +65,8 @@ function subrouteOf(rel: string): string | undefined {
   return undefined
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const viewName = signal<string>('')
     const files = signal<ViewFile[]>([])
     const selectedPath = signal<string>('')

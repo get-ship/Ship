@@ -1,4 +1,5 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-area-chart.sui'
 import { linePath, parseJson, toneColor } from '../chart-util'
 
@@ -27,8 +28,8 @@ interface GridLine {
   y: number
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const seriesPaths = signal<SeriesPath[]>([])
     const gridLines = signal<GridLine[]>([])
     return { seriesPaths, gridLines }

@@ -10,21 +10,12 @@ use serde::Serialize;
 use crate::auth::{AuthContext};
 use ship_platform::commands::{self, CommandEntry};
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct CommandsResponse {
     pub ok: bool,
     pub commands: Vec<CommandEntry>,
 }
 
-#[utoipa::path(
-    operation_id = "listCommands",
-    get,
-    path = "/api/v1/commands",
-    responses(
-        (status = 200, description = "Registered slash commands", body = CommandsResponse),
-    ),
-    tag = "framework"
-)]
 pub async fn list_commands(
     Extension(_auth): Extension<AuthContext>,
 ) -> axum::response::Response {

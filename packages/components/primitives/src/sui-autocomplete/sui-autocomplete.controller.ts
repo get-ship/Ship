@@ -1,4 +1,5 @@
 import { controller, derived, ref, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-autocomplete.sui'
 
 interface Suggestion { value: string; label: string }
@@ -36,8 +37,8 @@ const readLightSuggestions = (host: HTMLElement): Suggestion[] => {
   })).filter((s) => s.value !== '')
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: ({ suggestions, value }: ViewScope<Scope>) => {
     const open = signal(false)
     const highlight = signal(0)
     const slotSuggestions = signal<Suggestion[]>([])
@@ -45,21 +46,15 @@ export default controller<Scope>({
     const listEl = ref<HTMLUListElement>(null)
     const suggestionsSlot = ref<HTMLSlotElement>(null)
     const listId = signal(`sui-autocomplete-list-${++listIdSeq}`)
-    return {
-      open, highlight, slotSuggestions,
-      inputEl, listEl, suggestionsSlot, listId,
-    }
-  },
 
-  derived: {
-    parsedSuggestions: ({ suggestions, slotSuggestions }) => {
+    const parsedSuggestions = derived<Suggestion[]>(() => {
       const fromAttr = parseJsonSuggestions(suggestions())
       if (fromAttr.length > 0) return fromAttr
       return slotSuggestions()
-    },
-    filtered: ({ parsedSuggestions, value }): FilteredSuggestion[] => {
+    })
+    const filtered = derived<FilteredSuggestion[]>(() => {
       const q = value().trim().toLowerCase()
-      const all = parsedSuggestions() as Suggestion[]
+      const all = parsedSuggestions()
       const matched = q
         ? all.filter((s) => s.value.toLowerCase().includes(q) || s.label.toLowerCase().includes(q))
         : all
@@ -68,44 +63,50 @@ export default controller<Scope>({
         idx,
         id: `sui-autocomplete-opt-${idx}`,
       }))
-    },
-    activeId: ({ open, filtered, highlight }): string => {
+    })
+    const activeId = derived<string>(() => {
       if (!open()) return ''
-      const list = filtered() as FilteredSuggestion[]
+      const list = filtered()
       const h = highlight()
       return list[h]?.id ?? ''
-    },
+    })
+
+    return {
+      open, highlight, slotSuggestions,
+      inputEl, listEl, suggestionsSlot, listId,
+      parsedSuggestions, filtered, activeId,
+    }
   },
 
   mount(state, host) {
     let lastEmitted: string | null = null
 
     const refreshSlotSuggestions = () => {
-      state.slotSuggestions.set(readLightSuggestions(host))
+      state.slotSuggestions = readLightSuggestions(host)
     }
     refreshSlotSuggestions()
-    const slot = state.suggestionsSlot()
+    const slot = state.suggestionsSlot as HTMLSlotElement | null
     slot?.addEventListener('slotchange', refreshSlotSuggestions)
 
-    const inputEl = state.inputEl()
+    const inputEl = state.inputEl as HTMLInputElement | null
     if (!inputEl) return
 
     const openList = () => {
-      if (state.disabled()) return
-      if (!state.open()) {
-        state.open.set(true)
-        state.highlight.set(0)
+      if (state.disabled) return
+      if (!state.open) {
+        state.open = true
+        state.highlight = 0
       }
     }
 
     const closeList = () => {
-      if (!state.open()) return
-      state.open.set(false)
+      if (!state.open) return
+      state.open = false
     }
 
     const commit = (text: string, label?: string) => {
-      state.value.set(text)
-      state.open.set(false)
+      state.value = text
+      state.open = false
       if (lastEmitted !== text) {
         lastEmitted = text
         host.dispatchEvent(
@@ -121,31 +122,31 @@ export default controller<Scope>({
     const onFocus = () => openList()
     const onClick = () => openList()
     const onInput = () => {
-      if (!state.open()) state.open.set(true)
-      state.highlight.set(0)
+      if (!state.open) state.open = true
+      state.highlight = 0
     }
     const onKeydown = (e: KeyboardEvent) => {
-      const list = state.filtered() as FilteredSuggestion[]
+      const list = state.filtered as FilteredSuggestion[]
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        if (!state.open()) { openList(); return }
+        if (!state.open) { openList(); return }
         if (list.length === 0) return
-        state.highlight.set((state.highlight() + 1) % list.length)
+        state.highlight = (state.highlight + 1) % list.length
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
-        if (!state.open()) { openList(); return }
+        if (!state.open) { openList(); return }
         if (list.length === 0) return
-        const h = state.highlight()
-        state.highlight.set(h <= 0 ? list.length - 1 : h - 1)
+        const h = state.highlight
+        state.highlight = h <= 0 ? list.length - 1 : h - 1
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        if (state.open() && list.length > 0) {
-          const sel = list[state.highlight()]
+        if (state.open && list.length > 0) {
+          const sel = list[state.highlight]
           if (sel) { commit(sel.value, sel.label); return }
         }
-        commit(state.value())
+        commit(state.value)
       } else if (e.key === 'Escape') {
-        if (!state.open()) return
+        if (!state.open) return
         e.preventDefault()
         closeList()
       } else if (e.key === 'Tab') {
@@ -170,7 +171,7 @@ export default controller<Scope>({
       if (!li) return
       e.preventDefault()
       const value = li.dataset.value ?? ''
-      const list = state.filtered() as FilteredSuggestion[]
+      const list = state.filtered as FilteredSuggestion[]
       const match = list.find((s) => s.value === value)
       commit(value, match?.label)
     }

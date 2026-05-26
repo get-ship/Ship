@@ -103,7 +103,7 @@ impl AgentPlatform for ShipdPlatform {
             token: token.clone(),
             agent_id: agent_id.to_string(),
             scopes: scopes_for_role(role),
-            grants: ship_platform::auth::scopes::grants_for_role(role),
+            grants: ship_platform::auth::scopes::resolve_grants(agent_id, role),
             workspace_id: None,
             created_at: std::time::Instant::now(),
             // Ephemeral, in-memory: lives for the daemon's run. A daemon restart

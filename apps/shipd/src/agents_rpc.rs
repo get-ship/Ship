@@ -6,7 +6,7 @@
 //! the typed proto shape or wrap as `JsonResponse`. Writes (C1) route through
 //! `services::command::call` (the ONE gate) and decode onto `ScopedMutation`.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
@@ -36,6 +36,15 @@ impl AgentsService for OpsImpl {
         _request: ship_ops_rpc::OwnedListAgentsSummariesRequestView,
     ) -> ServiceResult<AgentsSummariesResponse> {
         self.agents_typed_read::<AgentsSummariesResponse>("agents.summaries", Value::Null)
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn summaries_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListAgentsSummariesRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.summaries", json!({})).await
     }
 
     async fn detail(
@@ -82,6 +91,42 @@ impl AgentsService for OpsImpl {
         self.agents_read_json("agents.settings", args)
     }
 
+    #[allow(refining_impl_trait)]
+    async fn catalogs_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListAgentsCatalogsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.catalogs", json!({})).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn detail_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentDetailRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.detail", json!({ "id": request.id })).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn wire_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentWireRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.wire", json!({ "id": request.id })).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn settings_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentSettingsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.settings", json!({ "id": request.id })).await
+    }
+
     async fn templates(
         &self,
         _ctx: RequestContext,
@@ -112,6 +157,15 @@ impl AgentsService for OpsImpl {
         _request: ship_ops_rpc::OwnedGetAgentCreateCtxRequestView,
     ) -> ServiceResult<JsonResponse> {
         self.agents_read_json("agents.create_ctx", Value::Null)
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn create_ctx_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedGetAgentCreateCtxRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.create_ctx", json!({})).await
     }
 
     async fn create(
@@ -238,6 +292,7 @@ mod tests {
         let w = crate::ops_rpc::policy_for("ship.ops.v1.AgentsService/Create")
             .expect("AgentsService/Create must carry a policy in the descriptor");
         assert_eq!(w.capability, "ship.agents.write");
-        assert_eq!(w.blast_radius, ship_ops_rpc::BlastRadius::C1Workspace);
+        // Authoring (agent-profile CRUD) is elevated — C2, granted per service.
+        assert_eq!(w.blast_radius, ship_ops_rpc::BlastRadius::C2Elevated);
     }
 }

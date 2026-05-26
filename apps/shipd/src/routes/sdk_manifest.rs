@@ -48,7 +48,7 @@ fn entries(v: &Value) -> Option<&serde_json::Map<String, Value>> {
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct ActionUrl {
     pub method: String,
     pub path: String,
@@ -56,7 +56,7 @@ pub struct ActionUrl {
     pub purpose: Option<String>,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct ViewMeta {
     pub name: String,
     pub context: Value,
@@ -68,7 +68,7 @@ pub struct ViewMeta {
     pub collections_referenced: Vec<String>,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct SdkRoot {
     pub routes: Value,
     pub view_contexts: Value,
@@ -77,7 +77,7 @@ pub struct SdkRoot {
     pub triggers: Value,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct SdkSearchHit {
     pub kind: &'static str,
     pub id: String,
@@ -85,7 +85,7 @@ pub struct SdkSearchHit {
     pub path: String,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
+#[derive(Serialize)]
 pub struct SdkSearchResponse {
     pub query: String,
     pub hits: Vec<SdkSearchHit>,

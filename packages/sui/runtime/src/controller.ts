@@ -13,7 +13,7 @@
 // flat-merges into the host scope.
 
 import type { Signal } from './signal'
-import type { ShipSDK } from './ship'
+import type { ShipHost } from './ship'
 import type { RouteSignals } from './route'
 
 // ---------------------------------------------------------------------------
@@ -26,8 +26,17 @@ import type { RouteSignals } from './route'
  * template's `<state>` directive contributes to scope. Read-only
  * derived/data identifiers and non-signal values fall through.
  */
+// A signal of any value type. `Signal<unknown>` does NOT match a concrete
+// signal: `Signal` is invariant in `T` (it both reads `(): T` and writes
+// `set(v: T)`), so `Signal<number> extends Signal<unknown>` is *false*.
+// Using it as the filter constraint silently collapsed `StateKeys` to
+// `never` — `MutableState` had no keys, and every handler cast `s as any`
+// to touch its own state. `Signal<any>` matches a signal of any value type.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySignal = Signal<any>
+
 export type StateKeys<Scope> = {
-  [K in keyof Scope]: Scope[K] extends Signal<unknown> ? K : never
+  [K in keyof Scope]: Scope[K] extends AnySignal ? K : never
 }[keyof Scope]
 
 /** The signal-typed value at scope key K, or never. */
@@ -68,9 +77,28 @@ export type ReadonlyState<Scope> = {
  * current value, write replaces it. The runtime translates the
  * assignment into a `signal.set()` call.
  */
-export type MutableState<Scope> = {
-  [K in StateKeys<Scope>]: SignalValueAt<Scope, K>
-}
+export type MutableState<Scope> =
+  // Writable state keys: read returns the unwrapped value, write forwards to
+  // `signal.set()`. (`state.count = state.count + 1` works.)
+  {
+    [K in StateKeys<Scope>]: SignalValueAt<Scope, K>
+  } & {
+    // Every non-state scope key is readable as-is — a `derived` stays a
+    // callable `ReadonlyView<T>` (read it by calling, `s.label()`), a
+    // `<data>` live-signal stays its live shape. The runtime proxy falls
+    // through to the base scope for these. Readonly: handlers mutate only
+    // state keys.
+    readonly [K in Exclude<keyof Scope, StateKeys<Scope>>]: Scope[K]
+  } & {
+    // The ambient view context the proxy also exposes, matching the runtime
+    // (`baseScope` carries `ship` / `route` / `navigate`).
+    readonly ship: ShipHost
+    readonly route: RouteSignals
+    readonly navigate: (path: string) => void
+    // Explicit signal access for the escape-hatch cases the assignment style
+    // can't express (handing a `Signal<T>` to a callback, `.set(updater)`).
+    readonly $signals: { readonly [K in StateKeys<Scope>]: Scope[K] }
+  }
 
 /**
  * The shared view scope, as destructured by each controller section.
@@ -86,7 +114,7 @@ export type MutableState<Scope> = {
  * computation.
  */
 export type ViewScope<Scope = object> = Scope & {
-  ship: ShipSDK
+  ship: ShipHost
   route: RouteSignals
 }
 
@@ -96,16 +124,6 @@ export type ViewScope<Scope = object> = Scope & {
 
 /** A section-init can be a static value or a factory that receives scope. */
 export type SectionInit<V, Scope> = V | ((scope: Scope) => V)
-
-/**
- * `derived` section signature. Each key returns a value; the runtime
- * memoizes the result and tracks the function's reactive reads.
- * State here is read-only.
- */
-export type DerivedSection<Scope> = Record<
-  string,
-  (scope: ViewScope<Scope>) => unknown
->
 
 /**
  * `on` section signature. Each handler receives a writable state
@@ -118,17 +136,19 @@ export type DerivedSection<Scope> = Record<
  */
 export type OnSection<Scope> = Record<
   string,
-  // `any[]` (not `unknown[]`) is deliberate. Handlers declare typed
-  // args; under contravariant param checks they aren't assignable to
-  // a `(...args: unknown[])` constraint, so we widen to `any` so
-  // authors can name argument types without an intermediate cast.
+  // Single form — `state` is `MutableState<Scope>`, which now exposes
+  // writable state keys, readonly derived/data/scope keys, and ambient
+  // `ship`/`route`/`navigate`. A previous two-member union (state-only OR
+  // full-scope) defeated contextual inference: `(s) =>` fell back to
+  // implicit `any`, so authors annotated `type S = MutableState<Scope>` and
+  // then cast. One signature infers cleanly.
+  //
+  // `any[]` (not `unknown[]`) for the trailing args is deliberate: handlers
+  // declare typed args, and under contravariant param checks those aren't
+  // assignable to a `(...args: unknown[])` constraint, so we widen to `any`
+  // so authors can name argument types without an intermediate cast.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  | ((state: MutableState<Scope>, ...args: any[]) => void | Promise<void>)
-  | ((
-      scope: ViewScope<Scope> & { state: MutableState<Scope> },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ...args: any[]
-    ) => void | Promise<void>)
+  (state: MutableState<Scope>, ...args: any[]) => void | Promise<void>
 >
 
 /**
@@ -167,13 +187,16 @@ export type UseSection<Scope> = Record<string, ControllerHook>
  * factory-returned arrow. The compiler emits both groups into the
  * per-file `Scope` interface in `<file>.sui.d.ts`.
  */
-export type MountSection<Scope> = (state: Scope, el: HTMLElement) => (() => void) | void
+export type MountSection<Scope> = (
+  state: MutableState<Scope>,
+  el: HTMLElement,
+) => (() => void) | void | Promise<void>
 
 /**
  * `unmount` lifecycle. Runs once on disconnect; tear down whatever
  * `mount` set up. Receives the same `Scope`-typed state view as `mount`.
  */
-export type UnmountSection<Scope> = (state: Scope) => void
+export type UnmountSection<Scope> = (state: MutableState<Scope>) => void
 
 // ---------------------------------------------------------------------------
 // The controller surface
@@ -203,9 +226,6 @@ export interface ControllerShape<Scope = object> {
    */
   scope?: (init: ViewScope<Scope>, host?: Element) => Record<string, unknown>
 
-  /** Pure memos. Each key is a function `(scope) => T`. */
-  derived?: DerivedSection<Scope>
-
   /**
    * Event handlers. The **only** section in a controller that can
    * mutate state.
@@ -226,6 +246,32 @@ export interface ControllerShape<Scope = object> {
 }
 
 /**
+ * The canonical controller shape — single call, precise, cast-free.
+ *
+ * Both type parameters are INFERRED from the `def` object, so authors
+ * write `controller({ scope: (ctx: ViewScope<Scope>) => ({…}) })` with no
+ * explicit type argument and no currying:
+ *   - `Ctx` is inferred from the `scope` factory's PARAMETER annotation
+ *     (the compiler-generated `ViewScope<Scope>` the author imports). This
+ *     sidesteps TypeScript's all-or-nothing type-argument rule — nothing is
+ *     supplied explicitly, so nothing forces a second call.
+ *   - `SC` is inferred from the `scope` factory's RETURN — the controller's
+ *     own TS is the source of truth for `signal`/`derived`/`ref`/`live`
+ *     types, so handler state over `Ctx & SC` is precise.
+ *
+ * `scope` is required (it's where `Ctx` is declared); a pure-lifecycle
+ * controller returns `({})`.
+ */
+export interface ScopedControllerDef<Ctx, SC extends Record<string, unknown>> {
+  scope: (init: Ctx, host?: Element) => SC
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on?: Record<string, (state: MutableState<Ctx & SC>, ...args: any[]) => void | Promise<void>>
+  use?: SectionInit<UseSection<Ctx & SC>, Ctx & SC>
+  mount?: (state: MutableState<Ctx & SC>, el: HTMLElement) => (() => void) | void | Promise<void>
+  unmount?: (state: MutableState<Ctx & SC>) => void
+}
+
+/**
  * The two valid forms of a controller export — an object (tier 2) or
  * a function (tier 3). The function form's argument is `{ ship }`
  * only — template scope is not available at controller-instantiation
@@ -233,7 +279,7 @@ export interface ControllerShape<Scope = object> {
  */
 export type ControllerDef<Scope = object> =
   | ControllerShape<Scope>
-  | ((ctx: { ship: ShipSDK }) => ControllerShape<Scope>)
+  | ((ctx: { ship: ShipHost }) => ControllerShape<Scope>)
 
 // `controller(def)` runtime helper lives in `controller-resolver.ts`.
 
@@ -263,7 +309,7 @@ export interface ControllerHook<
    * Hook-internal state. Static initial values; the runtime constructs
    * a `Signal<T>` per key.
    */
-  state?: S | ((scope: { ship: ShipSDK } & Scope) => S)
+  state?: S | ((scope: { ship: ShipHost } & Scope) => S)
   /** Pure memos over the merged hook scope (state + outer scope). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   derived?: Record<string, (scope: any) => unknown>

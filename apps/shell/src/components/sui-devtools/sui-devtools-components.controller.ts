@@ -1,4 +1,5 @@
 import { chrome, controller, signal, derived, ref } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-components.sui'
 
 // The dock's Components tab inspects the workspace SUI catalog —
@@ -53,8 +54,8 @@ function flattenCatalog(entries: CatalogEntryWire[]): Entry[] {
   return out.sort((a, b) => a.tag.localeCompare(b.tag))
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const entries = signal<Entry[]>([])
     const filter = signal('')
     const shown = derived(() => {

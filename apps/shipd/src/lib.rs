@@ -52,6 +52,12 @@ pub mod chat_rpc;
 pub mod dashboard_rpc;
 pub mod events_rpc;
 pub mod specs_rpc;
+pub mod view_rpc;
+pub mod create_rpc;
+pub mod discovery_rpc;
+pub mod registry_rpc;
+pub mod sui_rpc;
+pub mod live_read;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;
@@ -528,6 +534,12 @@ pub async fn run_network(
     // subsequent starts; suppressible via `SHIP_NO_BROWSER=1`.
     daemon::first_run::maybe_open_setup(&global_dir, port);
 
+    // Host unix socket — the per-agent surface. Same app + gate as TCP, but
+    // auth comes from the connection's kernel peer credentials (no token).
+    // Best-effort and additive: TCP stays the primary surface regardless.
+    #[cfg(unix)]
+    let _host_socket = auth::peer_socket::spawn_host_socket(&daemon_dir, app.clone(), ct.clone());
+
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
@@ -569,8 +581,6 @@ pub async fn run_network(
 }
 
 #[cfg(test)]
-#[path = "routes/collection_tests.rs"]
-mod collection_tests;
 #[cfg(test)]
 #[path = "routes/artifacts_api_tests.rs"]
 mod artifacts_api_tests;

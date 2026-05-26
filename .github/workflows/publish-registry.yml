@@ -48,7 +48,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Build ship binary
-        run: cargo build --release -p ship-studio-cli
+        run: cargo build --release -p ship-cli
 
       # Write credentials file directly -- ship login is interactive (PKCE)
       # and cannot run in CI. The CLI reads ~/.ship/credentials as TOML:
@@ -56,7 +56,7 @@ jobs:
       #   [account]
       #   token = "..."
       #
-      # See: apps/ship-studio-cli/src/config.rs  Credentials::load()
+      # See: apps/ship-cli/src/config.rs  Credentials::load()
       - name: Write registry credentials
         run: |
           mkdir -p ~/.ship

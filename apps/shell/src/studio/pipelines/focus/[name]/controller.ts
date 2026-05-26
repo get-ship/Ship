@@ -1,5 +1,12 @@
-import { controller, signal, derived, live, ref, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, live, ref } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
+import { ship, ops } from '../../../../ops'
+import type { LiveSource } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+
+// `controller(def)` infers the scope-factory types from the `scope` param +
+// return, so handler state is precisely typed — no `<Scope>`, no currying,
+// no `s as any`, no `type S` annotation.
 
 type StepDef = {
   id: string; run?: string; agent?: string; provider?: string; model?: string;
@@ -16,9 +23,34 @@ type FocusCtx = {
 
 const EMPTY_DEF: PipelineDef = { total_runs: 0, active_runs: 0, success_rate: 0, step_count: 0 }
 const EMPTY_CTX: FocusCtx = { def: EMPTY_DEF, doc: { steps: [] }, raw: '', format: 'jsonc', runs: [], active_for_pipeline: [], other_for_pipeline: [], ops_mode: false, providers: [] }
-const read = (ctx: unknown): FocusCtx => (unwrap(ctx as any) as FocusCtx | undefined) ?? EMPTY_CTX
+// `envelope` is the live signal's current value (`focusCtx()`): pull the `ok`
+// value, falling back to EMPTY_CTX while loading / on error. Guards `.value`
+// for null on the focus op (returns 404→error, never a null ok value).
+const read = (envelope: unknown): FocusCtx => {
+  const env = envelope as { kind?: string; value?: Partial<FocusCtx> } | undefined
+  if (env?.kind !== 'ok' || !env.value) return EMPTY_CTX
+  // Merge over EMPTY_CTX: the payload omits optional collections (e.g.
+  // `providers`, `active_for_pipeline`) when empty — fall back so `{#for}`
+  // and `.map` never hit undefined.
+  return { ...EMPTY_CTX, ...env.value }
+}
 
 type Ed = HTMLElement & { value: string; getAttribute(n: string): string | null; setDiagnostics?(d: unknown[]): void }
+
+// `sui-code-editor` ships as a lazy island bundle (`/_sui/sui-components/<tag>.js`).
+// The daemon eagerly injects islands it finds by static-scanning templates, but the
+// editor only renders inside the `editMode` branch — fetch it on demand so the
+// element upgrades when the user opens the editor.
+// The active beforeUnload listener for this view instance. Module-scoped
+// because the writable state proxy only accepts declared template-state keys.
+let beforeUnloadListener: ((e: BeforeUnloadEvent) => void) | null = null
+let editorIslandLoaded = false
+function ensureEditorIsland(): void {
+  if (editorIslandLoaded || customElements.get('sui-code-editor')) { editorIslandLoaded = true; return }
+  editorIslandLoaded = true
+  const tag = 'sui-code-editor'
+  import(/* @vite-ignore */ `/_sui/sui-components/${tag}.js`).catch(() => { editorIslandLoaded = false })
+}
 
 const decorateRun = (r: RunView) => ({
   ...r,
@@ -43,24 +75,29 @@ const decorateStep = (step: StepDef, i: number) => ({
   after_joined: step.after ? step.after.join(',') : undefined,
 })
 
-export default controller<Scope>({
-  scope: ({ ship, route }) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const s = ship as any
-    const name = derived(() => String(route().params.name ?? ''))
-    const ctx = live(() => s.pipelines.focus({ name: name() }))
-    const def = derived(() => decorateDef(read(ctx()).def))
+export default controller({
+  scope: ({ route }: ViewScope<Scope>) => {
+    // `route` is a RouteSignals object; `params.name` is a Signal — read it via
+    // `route.params.name?.()` (matches every other studio dynamic-route view).
+    // Requires the `/studio/pipelines/focus/:name` pattern registered via
+    // defineRoutes at shell startup; absent that, name() is undefined → ''.
+    const name = derived(() => String(route.params.name?.() ?? ''))
+    // Subscribe to the focus op by name via `liveExpr` — the shell SDK object
+    // exposes no `pipelines` surface, so the call form would throw. Re-subscribes
+    // when `name()` changes. `liveExpr` wraps the SSE channel as a LiveSource.
+    const focusCtx = live(() => ship.pipelines.focus({ name: name() }) as LiveSource<FocusCtx>)
+    const def = derived(() => decorateDef(read(focusCtx()).def))
     const doc = derived(() => {
-      const d = read(ctx()).doc
+      const d = read(focusCtx()).doc
       return { ...d, steps: d.steps.map(decorateStep) }
     })
-    const raw = derived(() => read(ctx()).raw)
-    const format = derived(() => read(ctx()).format)
-    const workspaceId = derived(() => read(ctx()).workspace_id ?? null)
-    const runs = derived(() => read(ctx()).runs.map(decorateRun))
-    const activeForPipeline = derived(() => read(ctx()).active_for_pipeline.map(decorateRun))
-    const opsMode = derived(() => read(ctx()).ops_mode)
-    const providers = derived(() => read(ctx()).providers)
+    const raw = derived(() => read(focusCtx()).raw)
+    const format = derived(() => read(focusCtx()).format)
+    const workspaceId = derived(() => read(focusCtx()).workspace_id ?? null)
+    const runs = derived(() => read(focusCtx()).runs.map(decorateRun))
+    const activeForPipeline = derived(() => read(focusCtx()).active_for_pipeline.map(decorateRun))
+    const opsMode = derived(() => read(focusCtx()).ops_mode)
+    const providers = derived(() => read(focusCtx()).providers)
     const editMode = signal(false)
     const editSaving = signal(false)
     const editError = signal('')
@@ -74,97 +111,90 @@ export default controller<Scope>({
     const deleteOpen = signal(false)
     const editorRef = ref<Ed>(null)
     return {
-      ctx, name, def, doc, raw, format, workspaceId, runs, activeForPipeline, opsMode, providers,
+      focusCtx, name, def, doc, raw, format, workspaceId, runs, activeForPipeline, opsMode, providers,
       editMode, editSaving, editError, editErrorLine, editErrorCol, editIssueCount,
       dispatchOpen, dispatchSpec, dispatchProvider, dispatchHeadless, deleteOpen, editorRef,
     }
   },
   on: {
-    startEdit: (s) => { const ds = s as any; ds.editMode = true; ds.editError = ''; ds.editIssueCount = 0 },
+    startEdit: (s) => { ensureEditorIsland(); s.editMode = true; s.editError = ''; s.editIssueCount = 0 },
     cancelEdit: (s) => {
-      const ds = s as any
-      ds.editMode = false; ds.editError = ''; ds.editIssueCount = 0
-      const ed = ds.editorRef as Ed | null
+      s.editMode = false; s.editError = ''; s.editIssueCount = 0
+      const ed = s.editorRef
       if (ed) { ed.value = ed.getAttribute('value') ?? ''; ed.setDiagnostics?.([]) }
     },
     savePipeline: async (s) => {
-      const ds = s as any
-      const ed = ds.editorRef as Ed | null
+      const ed = s.editorRef
       if (!ed) return
-      const ws = ds.workspaceId as string | null
-      const nm = ds.name as string
+      const ws = s.workspaceId
+      const nm = s.name
       if (!ws) return
-      ds.editSaving = true; ds.editError = ''; ds.editErrorLine = 0; ds.editErrorCol = 0; ds.editIssueCount = 0
+      s.editSaving = true; s.editError = ''; s.editErrorLine = 0; s.editErrorCol = 0; s.editIssueCount = 0
       ed.setDiagnostics?.([])
+      // PipelinesService.Put (Connect) → active project. Replaces the dead
+      // PUT /api/v1/workspaces/{ws}/pipelines/{name} route (no daemon handler).
+      // FLAG (API arc): pipelines.put validates the name only — structured doc
+      // diagnostics (inline editor line/col) aren't wired; the old issues-parse
+      // path was dead code (the route 404'd).
       try {
-        const resp = await fetch(
-          `/api/v1/workspaces/${encodeURIComponent(ws)}/pipelines/${encodeURIComponent(nm)}`,
-          { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: ed.value }) },
-        )
-        if (resp.ok) { window.location.reload(); return }
-        const body = await resp.json().catch(() => ({}))
-        const data = body?.data ?? {}
-        const issues: any[] = Array.isArray(data.issues) ? data.issues : (data.parse ? [data.parse] : [])
-        const primary = issues[0]
-        if (primary) {
-          ds.editError = primary.message ?? 'validation error'
-          ds.editErrorLine = primary.line ?? 0; ds.editErrorCol = primary.column ?? 0
-          ds.editIssueCount = issues.length
-          ed.setDiagnostics?.(issues.map(i => ({ line: i.line ?? 1, column: i.column ?? 1, severity: i.kind === 'parse' ? 'error' : 'warning', message: i.message ?? 'validation error', source: i.path ?? i.kind })))
-        } else { ds.editError = data.error ?? `HTTP ${resp.status}` }
-      } catch (err: any) { ds.editError = 'network: ' + (err?.message ?? String(err)) }
-      finally { ds.editSaving = false }
+        await ops.pipelines.put({ name: nm, docJson: ed.value, scope: 'project' })
+        window.location.reload()
+      } catch (err: any) { s.editError = (err?.message ?? String(err)) }
+      finally { s.editSaving = false }
     },
     deletePipeline: async (s) => {
-      const ds = s as any
-      const ws = ds.workspaceId as string | null; const nm = ds.name as string
+      const ws = s.workspaceId; const nm = s.name
       if (!ws) return
       try {
-        const resp = await fetch(
-          `/api/v1/workspaces/${encodeURIComponent(ws)}/pipelines/${encodeURIComponent(nm)}`,
-          { method: 'DELETE', credentials: 'include' },
-        )
-        if (resp.ok) { window.location.href = '/studio/pipelines'; return }
-        const body = await resp.json().catch(() => ({}))
-        window.alert('Delete failed: ' + (body?.data ?? `HTTP ${resp.status}`))
+        await ops.pipelines.delete({ name: nm, scope: 'project' })
+        window.location.href = '/studio/pipelines'; return
       } catch (err: any) { window.alert('Delete failed: ' + (err?.message ?? String(err))) }
-      ds.deleteOpen = false
+      s.deleteOpen = false
     },
-    openDispatch: (s) => { (s as any).dispatchOpen = true },
-    closeDispatch: (s) => { (s as any).dispatchOpen = false },
+    openDispatch: (s) => { s.dispatchOpen = true },
+    closeDispatch: (s) => { s.dispatchOpen = false },
     dispatchRun: async (s) => {
-      const ds = s as any; const nm = ds.name as string
-      await fetch(`/api/v1/pipelines/${encodeURIComponent(nm)}/dispatch`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spec: ds.dispatchSpec, provider: ds.dispatchProvider || null, headless: ds.dispatchHeadless }),
+      const nm = String(s.name)
+      await ship.pipelines.dispatch({
+        pipeline: nm,
+        spec: String(s.dispatchSpec),
+        harness: String(s.dispatchProvider || ''),
+        auto: Boolean(s.dispatchHeadless),
       })
-      ds.dispatchOpen = false
+      s.dispatchOpen = false
     },
-    openDelete: (s) => { (s as any).deleteOpen = true },
-    closeDelete: (s) => { (s as any).deleteOpen = false },
+    openDelete: (s) => { s.deleteOpen = true },
+    closeDelete: (s) => { s.deleteOpen = false },
     stopRun: async (_s, jobId: string) => {
-      await fetch('/api/v1/agent_sessions/end', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: jobId }) })
+      // FLAG (API arc): routes to EndTurn (turn-complete); old call sent job_id
+      // where end_job reads slug (likely no-op). A true stop wants agent.Stop.
+      try { await ops.pipelines.endTurn({ slug: jobId }) } catch { /* best-effort */ }
     },
     pulseRun: (_s, el: HTMLElement) => {
       el.classList.add('ship-heartbeat')
-      const existing = (el as any).__pulseTimer
+      const existing = (el as unknown as { __pulseTimer?: ReturnType<typeof setTimeout> }).__pulseTimer
       if (existing) clearTimeout(existing)
-      ;(el as any).__pulseTimer = setTimeout(() => el.classList.remove('ship-heartbeat'), 1500)
+      ;(el as unknown as { __pulseTimer?: ReturnType<typeof setTimeout> }).__pulseTimer = setTimeout(() => el.classList.remove('ship-heartbeat'), 1500)
     },
   },
   mount: (s) => {
-    if (/[?&]edit=1(&|$)/.test(window.location.search)) (s as any).editMode = true
+    if (/[?&]edit=1(&|$)/.test(window.location.search)) { ensureEditorIsland(); s.editMode = true }
     const beforeUnload = (e: BeforeUnloadEvent) => {
-      if (!(s as any).editMode) return
-      const ed = (s as any).editorRef as Ed | null
+      if (!s.editMode) return
+      const ed = s.editorRef
       if (!ed) return
       if (ed.value !== (ed.getAttribute('value') ?? '')) { e.preventDefault(); e.returnValue = '' }
     }
     window.addEventListener('beforeunload', beforeUnload)
-    ;(s as any).__beforeUnload = beforeUnload
+    // Hold the listener at module scope: the runtime ignores writes to keys
+    // that aren't declared template state, so stashing it on `s` would drop it
+    // and leak the listener past unmount.
+    beforeUnloadListener = beforeUnload
   },
-  unmount: (s) => {
-    const fn = (s as any).__beforeUnload
-    if (fn) window.removeEventListener('beforeunload', fn)
+  unmount: () => {
+    if (beforeUnloadListener) {
+      window.removeEventListener('beforeunload', beforeUnloadListener)
+      beforeUnloadListener = null
+    }
   },
 })

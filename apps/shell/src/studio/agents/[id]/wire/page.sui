@@ -175,7 +175,7 @@
       {/match}
     </aside>
 
-    <sui-dialog prop:open={pickerOpen()} size="md" on:sui-close={closePicker}>
+    <sui-dialog attr:open={pickerOpen()} size="md" on:sui-close={closePicker}>
       <span slot="header">Add {pickerKind() === 'skill' ? 'skill' : pickerKind() === 'mcp' ? 'MCP server' : 'rule'}</span>
       <div class="ad-picker-body">
         {#if wireData().catalogs[pickerKind()]?.length === 0}

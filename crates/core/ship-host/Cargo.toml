@@ -1,0 +1,14 @@
+[package]
+name = "ship-host"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Ship's host-OS adapter layer (L0). Ship is its own runtime — agents/actors as processes, capabilities, isolation; this crate is the narrow seam to the underlying OS: process containers, peer credentials, spawn-into-container, signals — one adapter per platform (Linux/macOS/Windows). A leaf crate (depends only on the OS) so every higher layer can build on it without a cycle."
+
+[lints]
+workspace = true
+
+[dependencies]
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }

@@ -98,75 +98,118 @@ message MoveAgentScopeRequest {
 // authoring (same blast radius as skills/rules).
 service AgentsService {
   rpc List(ListAgentsRequest) returns (AgentIndexResponse) {
+    option (ship.ops.v1.description) = "List all agents as minimal IndexEntry rows.";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Summaries(ListAgentsSummariesRequest) returns (AgentsSummariesResponse) {
+    option (ship.ops.v1.description) = "List all agents with display metadata (label, harnesses, tags).";
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc SummariesLive(ListAgentsSummariesRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Detail(GetAgentDetailRequest) returns (AgentDetail) {
+    option (ship.ops.v1.description) = "Full view-shaped agent detail — catalogs, permissions, harnesses, tags.";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Catalogs(ListAgentsCatalogsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Catalog rows for the agents list (harnesses, skills, etc.).";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Get(GetAgentRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Raw agent doc from disk at the requested scope.";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Wire(GetAgentWireRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Graph payload (nodes + edges) for the agent-wire canvas.";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Settings(GetAgentSettingsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Tier list + catalog rows for the per-agent settings pane.";
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  // Live read variants (#138) — full value now + on every `config` event.
+  rpc CatalogsLive(ListAgentsCatalogsRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc DetailLive(GetAgentDetailRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc WireLive(GetAgentWireRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc SettingsLive(GetAgentSettingsRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Templates(ListAgentTemplatesRequest) returns (AgentTemplatesResponse) {
+    option (ship.ops.v1.description) = "Starter templates for the agent-create wizard.";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc PermissionPresets(ListAgentPermissionPresetsRequest) returns (PermissionPresetsResponse) {
+    option (ship.ops.v1.description) = "Permission presets for the agent-create wizard.";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Harnesses(ListAgentHarnessesRequest) returns (HarnessesResponse) {
+    option (ship.ops.v1.description) = "Enumerate known harnesses (claude, openai, gemini, ...).";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc CreateCtx(GetAgentCreateCtxRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Convenience: templates + presets + harnesses for the create view.";
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc CreateCtxLive(GetAgentCreateCtxRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Create(CreateAgentRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Create a new agent profile from a doc.";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Put(PutAgentRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Replace an agent profile's doc (use agents.create for net-new).";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Patch(PatchAgentRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Apply RFC-6902 ops to an agent profile's doc.";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Delete(DeleteAgentRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Delete an agent profile (scope omitted walks project → user).";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Rename(RenameAgentRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Rename an agent profile's id.";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Duplicate(DuplicateAgentRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Copy an agent profile to a new id.";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc MoveScope(MoveAgentScopeRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Move an agent profile between project and user scope.";
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
 }

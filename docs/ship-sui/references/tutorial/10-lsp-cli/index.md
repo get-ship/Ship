@@ -1,6 +1,6 @@
 ---
 title: "The LSP — diagnostics on tap"
-description: "One Rust grammar, three delivery channels — in-process MCP, the sui-lsp binary, and the in-browser WASM compiler."
+description: "One Rust grammar, two binary delivery channels — the sui-lint fast check and the sui-compiler full compile."
 group: "Tutorial"
 order: 10
 slug: "10-lsp-cli"
@@ -12,93 +12,62 @@ chapter: "agents"
 SUI's language intelligence is the Rust compiler — `sui_compiler::analyze`
 (diagnostics + scope symbols + dependencies) and `check_all` (every diagnostic,
 not just the first). It's the same grammar the build uses, exposed to agents
-through three channels. For agents, the channel is the in-process MCP tools
-(`mcp__ship__sui_*`) — no subprocess, no Node, no bun.
+through two binary commands.
 
-## diagnostics
+## Fast per-edit lint
 
-```ts
-mcp__ship__sui_diagnostics({ file: "views/tasks/page.sui" })
+```sh
+cargo run -p sui-lint --example check -- views/tasks/page.sui
 ```
 
-Returns every issue at once (the same set `cargo build` would emit):
+Exits 1 on findings. Covers grammar errors, missing bindings, unstable-key
+warnings, purity violations, CSS token errors, and prop-value mismatches. Run
+this in your edit loop — it's the cheapest check and catches the most
+common authoring errors.
 
-```json
-{
-  "diagnostics": [
-    { "line": 12, "col": 4, "end_line": 12, "end_col": 18, "severity": "error",
-      "message": "`new` is not allowed in renderable expressions", "rule": "expr `new Date()`" },
-    { "line": 18, "col": 9, "end_line": 18, "end_col": 9, "severity": "warning",
-      "message": "<data> directive without `name` attr", "rule": "sui-data-name" }
-  ]
-}
+Output on a file with issues:
+
+```
+views/tasks/page.sui:12:4 error: `new` is not allowed in renderable expressions [expr-subset]
+views/tasks/page.sui:18:9 warning: <data> directive without `name` attr [sui-data-name]
 ```
 
 `severity` is `error` (compile-blocking) or `warning` (compiles but suspicious).
-`rule` carries the lint rule id or the offending expression — useful for
-filtering or mapping to your editor's diagnostic provider. Positions are
-1-based.
+The rule id is in brackets — useful for filtering or mapping to your editor's
+diagnostic provider. Positions are 1-based.
 
-## hover
+## Full compile
 
-```ts
-mcp__ship__sui_hover({ file: "views/tasks/page.sui", line: 12, col: 8 })
+```sh
+cargo run -p sui-compiler -- build views/tasks/page.sui
 ```
 
-Resolves the symbol under the cursor — its binding kind and where it's declared
-in the controller. Use it to confirm whether `items` is a signal you call or a
-plain value, and to jump to its definition:
+Runs the full pipeline (parse → check → lint → lower → emit) and aborts on
+errors. More thorough than the lint check — catches lowering-level issues the
+fast pass misses. Also emits the compiled JS, `.sui.d.ts`, and SSR HTML into
+the project mirror tree. Use this after the lint check is clean.
 
-```json
-{ "hover": { "name": "items", "kind": "signal", "source": "scope", "line": 7, "col": 11 } }
+## The `sui-lsp` binary (editors)
+
+For editors — Claude Code (via `.lsp.json`), VS Code (`apps/vscode/`), or any
+LSP-capable editor — the `sui-lsp` binary (`crates/sui/lsp/`) provides the
+same intelligence over stdio. Same Rust grammar; hover, completion, and
+go-to-definition on top.
+
+```sh
+just install-dev   # builds + installs sui-lsp to ~/.local/bin
 ```
-
-`kind` is the binding shape (`signal` / `ref` / `derived` / `action` / `data` /
-`prop` / `value`); `source` is the section it came from (`scope` / `derived` /
-`on` / `data` / `prop`); `line`/`col` point into the paired `.controller.ts`
-(`0,0` when declared in the `.sui` itself).
-
-## dependencies
-
-```ts
-mcp__ship__sui_dependencies({ file: "views/tasks/page.sui" })
-```
-
-What does this view reach into — which custom elements it instantiates, which
-events it handles, and its paired controller. Read it before an edit to scope
-the blast radius:
-
-```json
-{
-  "tags": ["sui-button", "sui-card", "sui-status-dot"],
-  "events": ["click", "keydown"],
-  "controller": "views/tasks/controller.ts"
-}
-```
-
-## Try it
-
-The example to the right is a healthy view — no compile errors.
-
-1. **Diagnostics**: `sui_diagnostics` returns `{ "diagnostics": [] }`. Healthy.
-2. **Break it**: introduce a bad modifier (`on:click|nope`) or a non-renderable
-   expression (`{new Date()}`) in the template and watch the inline squiggle
-   appear — the playground editor runs the **WASM** build of the same compiler,
-   so it reports exactly what `sui_diagnostics` and `cargo build` would.
 
 ## Why this matters
 
 There is **one** source of truth — the Rust `sui_compiler` grammar — flowing
-through three channels:
+through multiple surfaces:
 
-- **WASM compiler** in this playground → inline squiggles, and the
-  `@ship/sui-lsp-browser` analyser behind the editor.
-- **In-process MCP** (`sui_diagnostics` / `sui_hover` / `sui_dependencies`) →
-  for agents; `apps/mcp` calls `sui_compiler` directly, no subprocess.
-- **The `sui-lsp` binary** (`crates/sui/lsp/`, on PATH via `just install-dev`) →
-  standard LSP over stdio for editors (VS Code, Claude Code via `.lsp.json`,
-  opencode, any LSP client).
+- **`sui-lint`** — fast per-edit binary for agents and CI
+- **`sui-compiler`** — full compile with emit, used by `sui-build` and the daemon
+- **`sui-lsp`** — LSP server for editors over stdio
+- **WASM compiler** (`packages/sui/compiler-wasm`) — in-browser diagnostics for the docs playground
 
-A human typing in the docs site, an agent inside Claude Code, and an editor on
-your laptop all see the *same* diagnostics — because they're all the same
+A human typing in the docs site, an agent running `sui-lint`, and an editor
+on your laptop all see the *same* diagnostics — because they're all the same
 compiler. No second grammar to drift out of sync.

@@ -1,4 +1,5 @@
 import { controller, signal, derived } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-signals.sui'
 
 // The signal tree reads from `window.__suiCurrentScope`, published by
@@ -45,8 +46,8 @@ function renderValue(v: unknown): string {
   try { return JSON.stringify(v) } catch { return String(v) }
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const sigs = signal<Record<string, unknown>>({})
     const filter = signal('')
     const allCount = derived(() => Object.keys(sigs()).length)

@@ -105,20 +105,6 @@ pub fn shared_guard() -> &'static FeedbackGuard {
     &FEEDBACK_GUARD
 }
 
-#[utoipa::path(
-    operation_id = "postFeedback",
-    post,
-    path = "/api/v1/feedback",
-    request_body(content_type = "application/json", description = "FeedbackEvent — kind, author_kind, target, payload"),
-    responses(
-        (status = 200, description = "Feedback accepted"),
-        (status = 400, description = "Invalid feedback payload", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 429, description = "Rate limited", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
 pub async fn post_feedback(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

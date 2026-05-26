@@ -647,7 +647,7 @@ fn print_supervision_only(s: &SupervisionStatus) {
 
 fn print_live_status(port: u16, token: &str, supervision: &SupervisionStatus) -> Result<()> {
     let supervisor_pid = supervision.pid;
-    let url = format!("http://127.0.0.1:{port}/api/v1/daemon/status");
+    let url = format!("http://127.0.0.1:{port}/daemon/status");
     let mut resp = ureq::get(&url)
         .header("Authorization", &format!("Bearer {token}"))
         .config()

@@ -25,17 +25,6 @@ const VIEW_TOKENS_CSS: &str = concat!(
 );
 
 /// GET /api/v1/runtime/assets/view-tokens.css
-#[utoipa::path(
-    operation_id = "serveViewTokens",
-    get,
-    path = "/api/assets/view-tokens.css",
-    responses(
-        (status = 200, description = "Design tokens + base CSS for views", content_type = "text/css"),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    security(),
-    tag = "views"
-)]
 pub async fn serve_view_tokens() -> axum::response::Response {
     axum::response::Response::builder()
         .status(StatusCode::OK)
@@ -49,17 +38,6 @@ pub async fn serve_view_tokens() -> axum::response::Response {
 
 /// GET /api/v1/runtime/assets/theme.css
 /// Returns the active theme's CSS overrides. No-cache so theme changes apply immediately.
-#[utoipa::path(
-    operation_id = "serveThemeCss",
-    get,
-    path = "/api/assets/theme.css",
-    responses(
-        (status = 200, description = "Active theme CSS overrides", content_type = "text/css"),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    security(),
-    tag = "views"
-)]
 pub async fn serve_theme_css() -> axum::response::Response {
     let css = crate::views::themes::resolve_theme_css();
     axum::response::Response::builder()
@@ -72,17 +50,6 @@ pub async fn serve_theme_css() -> axum::response::Response {
 
 /// GET /api/v1/runtime/themes
 /// Returns JSON list of all available themes.
-#[utoipa::path(
-    operation_id = "serveThemesList",
-    get,
-    path = "/api/v1/themes",
-    responses(
-        (status = 200, description = "Available themes", content_type = "application/json"),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    security(),
-    tag = "views"
-)]
 pub async fn serve_themes_list() -> axum::response::Response {
     let themes = crate::views::themes::list_themes();
     let json = serde_json::to_string(&themes).unwrap_or_else(|_| "[]".to_string());

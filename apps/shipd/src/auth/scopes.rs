@@ -141,12 +141,7 @@ pub fn require_scope(
 
 // ── Session register endpoint ──────────────────────────────────────────────
 
-#[derive(serde::Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "agent_id": "agent-writer",
-    "role": "worker",
-    "workspace_id": "default"
-}))]
+#[derive(serde::Deserialize)]
 pub struct SessionRegisterRequest {
     pub agent_id: String,
     #[serde(default)]
@@ -155,11 +150,7 @@ pub struct SessionRegisterRequest {
     pub workspace_id: Option<String>,
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "session_token": "ses_01J3Z5ZQXAM3E4T7W",
-    "scopes": ["read_workspace", "read_runs", "emit_events"]
-}))]
+#[derive(serde::Serialize)]
 pub struct SessionRegisterResponse {
     pub session_token: String,
     pub scopes: Vec<Scope>,
@@ -170,18 +161,6 @@ pub struct SessionRegisterResponse {
 /// Requires daemon token authentication. Role escalation to "contributor"
 /// (which grants `Scope::Full`) is blocked; offending requests are
 /// downgraded to "worker".
-#[utoipa::path(
-    operation_id = "sessionRegister",
-    post,
-    path = "/api/session/register",
-    request_body = SessionRegisterRequest,
-    responses(
-        (status = 200, description = "Session token minted for the agent role", body = SessionRegisterResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Requires daemon token"),
-    ),
-    tag = "auth"
-)]
 pub async fn session_register(
     registry: SessionRegistry,
     axum::Extension(auth): axum::Extension<crate::auth::AuthContext>,
@@ -209,19 +188,14 @@ pub async fn session_register(
         }
         other => other,
     };
-    // `mint_session` builds the scopes + grants axes, inserts the session into
-    // the registry, and returns the token — the manual construction main used
-    // is folded into it (it now sets `grants` via `grants_for_role`).
-    let (token, scopes) = match mint_session(
-        &registry,
-        req.agent_id,
-        req.workspace_id,
-        effective_role,
-        None,
-    )
-    .await
-    {
-        Ok(pair) => pair,
+    // Scopes from the role; grants are provisioned-baseline-aware
+    // (`resolve_grants` — provisioned-wins, role fallback). Built + inserted
+    // manually here rather than via `mint_session` so session_register gets the
+    // provisioned grants, not just the role defaults.
+    let scopes = scopes_for_role(effective_role);
+    let grants = ship_platform::auth::scopes::resolve_grants(&req.agent_id, effective_role);
+    let token = match generate_session_token() {
+        Ok(t) => t,
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -233,6 +207,19 @@ pub async fn session_register(
                 .into_response();
         }
     };
+
+    let session = DaemonSession {
+        token: token.clone(),
+        agent_id: req.agent_id,
+        scopes: scopes.clone(),
+        grants,
+        workspace_id: req.workspace_id,
+        created_at: std::time::Instant::now(),
+        expires_at_unix: None,
+        ephemeral: true,
+    };
+
+    registry.lock().await.insert(token.clone(), session);
 
     axum::Json(SessionRegisterResponse {
         session_token: token,

@@ -1,4 +1,4 @@
-//! Generate sdk-skills from the op registry (`cargo xtask gen-skills`).
+//! Generate sdk-skills from the proto op surface (`cargo xtask gen-skills`).
 //!
 //! Skills-as-API with **progressive disclosure**: each capability domain (git,
 //! pipelines, rules, …) becomes a tiny `SKILL.md` table-of-contents plus one
@@ -14,7 +14,9 @@
 //! `docs/<skill>/references/docs/*.mdoc`). One generator, two consumers — the
 //! agent's reference and the public API docs are the same source.
 //!
-//! Projected from `schema::OPS` + `COMMANDS` — never hand-maintained. Output:
+//! Enumerated from the `ship.ops.v1` proto descriptor (the SSOT) — description,
+//! args, return schema, policy all read from the FileDescriptorSet, never
+//! hand-maintained. Output:
 //! `skills/sdk/ship-<domain>/` — the `sdk` subdir of the skills tree holds the
 //! generated sdk-skill kind, a peer to `skills/docs/` (doc-skills) and the
 //! hand-authored smart-skills at `skills/`. Each file is stamped AUTO-GENERATED.
@@ -25,7 +27,9 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
-use shipd::services::schema::ArgDescriptor;
+use ship_ops_rpc::policy::{
+    MethodArg, domain_of, is_non_domain_service, is_operational, op_name, snake,
+};
 
 /// Output root, relative to the repo: the `sdk` subdir of the skills tree.
 /// Separate from the hand-authored `docs/` doc-site source (which it must not
@@ -36,38 +40,35 @@ const OUT_REL: &str = "skills/sdk";
 struct OpRow {
     name: String,
     description: String,
-    args: &'static [ArgDescriptor],
-    /// Reads carry a `returns` shape tag; commands leave this empty.
+    args: Vec<MethodArg>,
+    /// Response message type (every op is typed under proto-SSOT).
     returns: String,
+    /// Response message fields — the return schema (empty for opaque JSON).
+    returns_fields: Vec<MethodArg>,
     /// Required capability (e.g. `ship.git.write`).
     permission: String,
-    /// Gate class for commands ("C1_WORKSPACE" | "C2_ELEVATED"); empty for reads.
+    /// Gate class: "C0_READ" | "C1_WORKSPACE" | "C2_ELEVATED".
     blast: String,
     sensitive: bool,
+    /// Proto service + method — used to locate this op's contract fixture
+    /// (`proto/fixtures/<snake(service)>.json` → `[method].response_ok`).
+    service: String,
+    method: String,
 }
 
 impl OpRow {
     fn is_read(&self) -> bool {
-        self.blast.is_empty()
+        // C0 is the read tier; the proto descriptor string is `C0_SAFE`.
+        self.blast == "C0_SAFE"
     }
-}
-
-fn domain_of(name: &str) -> &str {
-    name.split('.').next().unwrap_or(name)
-}
-
-/// Operational/internal domains — kernel/mesh control the operator/debug
-/// surface calls but agents must never invoke directly (audience axis, #95).
-/// Excluded from the generated *agent* sdk-skills; they remain real ABI on the
-/// operator surface.
-fn is_operational(domain: &str) -> bool {
-    matches!(domain, "actor" | "mesh" | "event")
 }
 
 /// A JSON placeholder value for an arg kind — seeds the `ship ops call` example.
 fn placeholder(kind: &str) -> &'static str {
-    let base = kind.trim_end_matches('?');
-    match base {
+    if kind.ends_with("[]") {
+        return "[]";
+    }
+    match kind.trim_end_matches('?') {
         "number" => "0",
         "bool" => "false",
         "map" => "{}",
@@ -75,46 +76,49 @@ fn placeholder(kind: &str) -> &'static str {
     }
 }
 
-/// Example args object: required args with kind-typed placeholders. Empty `{}`
-/// when the op takes no required args.
-fn example_json(args: &[ArgDescriptor]) -> String {
-    let req: Vec<String> = args
+/// Example args object: every request field with a kind-typed placeholder — the
+/// full request shape (proto3 carries no required/optional distinction, so we
+/// show all fields). Empty `{}` when the op takes no args.
+fn example_json(args: &[MethodArg]) -> String {
+    if args.is_empty() {
+        return "{}".to_string();
+    }
+    let fields: Vec<String> = args
         .iter()
-        .filter(|a| a.required)
-        .map(|a| format!("\"{}\": {}", a.name, placeholder(a.kind)))
+        .map(|a| format!("\"{}\": {}", a.name, placeholder(&a.kind)))
         .collect();
-    if req.is_empty() { "{}".to_string() } else { format!("{{ {} }}", req.join(", ")) }
+    format!("{{ {} }}", fields.join(", "))
 }
 
+
+/// Enumerate the agent-facing op surface FROM THE PROTO DESCRIPTOR (the SSOT) —
+/// no Rust registry read. Operational ops (#95) and the umbrella scaffold are
+/// excluded. Sorted by name for deterministic output.
 fn collect() -> BTreeMap<String, Vec<OpRow>> {
     let mut by_domain: BTreeMap<String, Vec<OpRow>> = BTreeMap::new();
-    for op in shipd::services::schema::OPS.iter() {
-        if is_operational(domain_of(op.name)) {
+    for p in ship_ops_rpc::policy::read_policies() {
+        if is_non_domain_service(&p.service) {
             continue;
         }
-        by_domain.entry(domain_of(op.name).to_string()).or_default().push(OpRow {
-            name: op.name.to_string(),
-            description: op.description.to_string(),
-            args: op.args,
-            returns: op.returns.to_string(),
-            permission: op.permission.to_string(),
-            blast: String::new(),
-            sensitive: op.sensitive,
+        let name = op_name(&p.service, &p.method);
+        if is_operational(&name) {
+            continue;
+        }
+        by_domain.entry(domain_of(&name).to_string()).or_default().push(OpRow {
+            description: p.description,
+            args: p.args,
+            returns: p.output_type,
+            returns_fields: p.returns_fields,
+            permission: p.capability,
+            blast: p.blast.as_descriptor().to_string(),
+            sensitive: p.sensitive,
+            service: p.service,
+            method: p.method,
+            name,
         });
     }
-    for cmd in shipd::services::schema::COMMANDS {
-        if is_operational(domain_of(cmd.name)) {
-            continue;
-        }
-        by_domain.entry(domain_of(cmd.name).to_string()).or_default().push(OpRow {
-            name: cmd.name.to_string(),
-            description: cmd.description.to_string(),
-            args: cmd.args,
-            returns: String::new(),
-            permission: cmd.permission.to_string(),
-            blast: cmd.blast_radius.to_string(),
-            sensitive: cmd.sensitive,
-        });
+    for ops in by_domain.values_mut() {
+        ops.sort_by(|a, b| a.name.cmp(&b.name));
     }
     by_domain
 }
@@ -130,7 +134,7 @@ fn render_skill_toc(domain: &str, ops: &[OpRow]) -> String {
     );
     let _ = write!(
         s,
-        "<!-- AUTO-GENERATED by `cargo xtask gen-skills` from the op registry. Do not edit. -->\n\n# ship-{domain}\n\nYour interface to the `{domain}` ops. Invoke each over ConnectRPC:\n\n```\nship ops call <name> --json '<args-json>'\n```\n\nReads are safe (C0). Commands carry a blast-radius class. Open an op's reference\npage for full args, return shape, capability, and an example.\n\n",
+        "<!-- AUTO-GENERATED by `cargo xtask gen-skills` from the proto op surface (ship.ops.v1). Do not edit. -->\n\n# ship-{domain}\n\nYour interface to the `{domain}` ops. Invoke each over ConnectRPC:\n\n```\nship ops call <name> --json '<args-json>'\n```\n\nReads are safe (C0). Commands carry a blast-radius class. Open an op's reference\npage for full args, return shape, capability, and an example.\n\n",
     );
     let (reads, cmds): (Vec<&OpRow>, Vec<&OpRow>) = ops.iter().partition(|o| o.is_read());
     if !reads.is_empty() {
@@ -157,7 +161,12 @@ fn render_skill_toc(domain: &str, ops: &[OpRow]) -> String {
 /// A per-op reference page — full detail, doc-site frontmatter so the collector
 /// harvests it to the public API docs. `audience: public` (it IS the public
 /// reference); the agent reads the file directly regardless of audience.
-fn render_op_page(domain: &str, op: &OpRow, order: usize) -> String {
+fn render_op_page(
+    domain: &str,
+    op: &OpRow,
+    order: usize,
+    fixtures: &BTreeMap<String, serde_json::Value>,
+) -> String {
     let mut s = String::new();
     let kind = if op.is_read() { "read" } else { "command" };
     let _ = write!(
@@ -166,7 +175,7 @@ fn render_op_page(domain: &str, op: &OpRow, order: usize) -> String {
         name = op.name,
         desc = op.description,
     );
-    let _ = write!(s, "<!-- AUTO-GENERATED by `cargo xtask gen-skills`. Source: op registry. Do not edit. -->\n\n");
+    let _ = write!(s, "<!-- AUTO-GENERATED by `cargo xtask gen-skills`. Source: proto descriptor (ship.ops.v1). Do not edit. -->\n\n");
     let _ = write!(s, "# `{}`\n\n{}\n\n", op.name, op.description);
 
     // Policy line.
@@ -186,36 +195,70 @@ fn render_op_page(domain: &str, op: &OpRow, order: usize) -> String {
     if op.args.is_empty() {
         s.push_str("None.\n\n");
     } else {
-        s.push_str("| name | type | required |\n|------|------|----------|\n");
-        for a in op.args {
-            let req = if a.required { "yes" } else { "no" };
-            let _ = write!(s, "| `{}` | `{}` | {} |\n", a.name, a.kind, req);
+        s.push_str("| name | type |\n|------|------|\n");
+        for a in &op.args {
+            let _ = write!(s, "| `{}` | `{}` |\n", a.name, a.kind);
         }
         s.push('\n');
     }
 
-    // Return.
-    s.push_str("## Returns\n\n");
-    if op.is_read() {
-        let _ = write!(s, "`{}` (JSON).\n\n", op.returns);
-    } else {
-        s.push_str("Status JSON (the mutation result).\n\n");
+    // Return — type name + (when known) the response schema fields.
+    let _ = write!(s, "## Returns\n\n`{}` (JSON).\n\n", op.returns);
+    if !op.returns_fields.is_empty() {
+        s.push_str("| field | type |\n|-------|------|\n");
+        for f in &op.returns_fields {
+            let _ = write!(s, "| `{}` | `{}` |\n", f.name, f.kind);
+        }
+        s.push('\n');
     }
 
     // Invocation.
     let _ = write!(
         s,
-        "## Invoke\n\n```\nship ops call {} --json '{}'\n```\n\nKind: {}.\n",
+        "## Invoke\n\n```\nship ops call {} --json '{}'\n```\n\nKind: {}.\n\n",
         op.name,
-        example_json(op.args),
+        example_json(&op.args),
         kind,
     );
+
+    // Realistic response example — the contract fixture (proto/fixtures), the
+    // SAME data the cross-language contract tests decode. Authoritative usage.
+    if let Some(example) = fixtures
+        .get(&snake(&op.service))
+        .and_then(|svc| svc.get(&op.method))
+        .and_then(|m| m.get("response_ok"))
+    {
+        if let Ok(pretty) = serde_json::to_string_pretty(example) {
+            let _ = write!(s, "## Example response\n\n```json\n{pretty}\n```\n");
+        }
+    }
     s
+}
+
+/// Load the contract fixtures keyed by service-file stem (`rules_service` →
+/// its `{Method: {response_ok}}` object), so op pages can inline a realistic
+/// response example — the SAME data the cross-language contract tests decode.
+fn load_fixtures(root: &std::path::Path) -> BTreeMap<String, serde_json::Value> {
+    let mut out = BTreeMap::new();
+    let dir = root.join("proto/fixtures");
+    let Ok(entries) = std::fs::read_dir(&dir) else { return out };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let stem = path.file_stem().map(|s| s.to_string_lossy().to_string());
+        let is_service = stem.as_deref().is_some_and(|s| s.ends_with("_service"));
+        if path.extension().is_some_and(|e| e == "json") && is_service {
+            if let Ok(v) = serde_json::from_slice::<serde_json::Value>(&std::fs::read(&path).unwrap_or_default()) {
+                out.insert(stem.unwrap(), v);
+            }
+        }
+    }
+    out
 }
 
 pub fn run() -> Result<()> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let out_root = root.join(OUT_REL);
+    let fixtures = load_fixtures(&root);
     let by_domain = collect();
     let (mut skills, mut pages) = (0usize, 0usize);
     for (domain, ops) in &by_domain {
@@ -230,7 +273,7 @@ pub fn run() -> Result<()> {
 
         for (i, op) in ops.iter().enumerate() {
             let page = refs_dir.join(format!("{}.mdoc", op.name));
-            std::fs::write(&page, render_op_page(domain, op, i))
+            std::fs::write(&page, render_op_page(domain, op, i, &fixtures))
                 .with_context(|| format!("writing {}", page.display()))?;
             pages += 1;
         }
@@ -240,4 +283,49 @@ pub fn run() -> Result<()> {
         out_root.display()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn surfaced_op_names() -> std::collections::BTreeSet<String> {
+        collect().into_values().flatten().map(|r| r.name).collect()
+    }
+
+    #[test]
+    fn reads_are_surfaced_not_audience_filtered() {
+        // Observation is non-harmful for an assistant — reads stay agent-facing.
+        // events.list is a read in OPS and is surfaced (no audience exclusion).
+        // NOTE: mesh.snapshot / actors.list are declared but NOT assembled into
+        // schema::OPS (their domains aren't in build_ops DOMAIN_ORDER), so they
+        // can't be surfaced here yet — surfacing them is a separate OPS-assembly
+        // change (the reads-are-agent-facing decision). Tracked, not done here.
+        let names = surfaced_op_names();
+        assert!(names.contains("events.list"), "events.list must be surfaced");
+    }
+
+    #[test]
+    fn operational_writes_are_excluded() {
+        // Kernel/actor control + mesh coordination are not part of the agent
+        // capability set (mesh reserved for the future higher layer).
+        let names = surfaced_op_names();
+        for op in [
+            "actor.input",
+            "actor.kill_tree",
+            "mesh.send",
+            "mesh.broadcast",
+            "mesh.status",
+        ] {
+            assert!(!names.contains(op), "operational write '{op}' must NOT be surfaced");
+        }
+    }
+
+    #[test]
+    fn is_operational_matches_actor_and_mesh_writes() {
+        assert!(is_operational("actor.input"));
+        assert!(is_operational("mesh.send"));
+        assert!(!is_operational("rules.create"));
+        assert!(!is_operational("agents.create"));
+    }
 }

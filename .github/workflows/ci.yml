@@ -44,9 +44,9 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --features unstable -- -D warnings
       - name: Build (stable)
-        run: cargo build -p ship-cli -p mcp -p shipd
+        run: cargo build -p ship-cli -p shipd
       - name: Build (unstable)
-        run: cargo build --features unstable -p ship-cli -p mcp -p shipd
+        run: cargo build --features unstable -p ship-cli -p shipd
       # sdk-skills are generated from the op registry (schema::OPS/COMMANDS) and
       # tracked, like reads.gen.proto. Regenerate and assert no diff so an op
       # change can't land without its skill + API-doc page being refreshed.

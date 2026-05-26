@@ -1,6 +1,8 @@
 import { controller, signal, derived, live, chrome } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import { route as routeFactory } from '@ship/sui-runtime/route'
-import { liveExpr } from '@ship/sdk-client'
+import { ship } from '../../../ops'
+import type { LiveSource } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type HistoryRow = {
@@ -18,16 +20,6 @@ const EMPTY: HistoryCtx = {
   offset: 0, limit: 50, has_prev: false, has_next: false, pipelines: [],
 }
 
-// The `/sui/<name>` view-host mounts views without a `ship` SDK client in
-// ctx, so `ship.<x>.<y>()` calls stick on `loading`. Wire the live source
-// directly to `/_sui/data?expr=…` via `liveExpr`, matching views/events.
-interface HistoryArgs { q: string; pipeline: string; offset: number; limit: number }
-function historyExpr(args: HistoryArgs): string {
-  const lit: Record<string, string | number> = { offset: args.offset, limit: args.limit }
-  if (args.q) lit.q = args.q
-  if (args.pipeline) lit.pipeline = args.pipeline
-  return `ship.pipelines.history(${JSON.stringify(lit)})`
-}
 // `envelope` is the read LiveSignal value (`ctx()`): pull the `ok` value,
 // falling back to EMPTY while loading / on error.
 const read = (envelope: unknown): HistoryCtx => {
@@ -35,16 +27,16 @@ const read = (envelope: unknown): HistoryCtx => {
   return env?.kind === 'ok' && env.value ? env.value : EMPTY
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const route = routeFactory()
     const q = derived(() => String(route.query.q() ?? ''))
     const pipelineFilter = derived(() => String(route.query.pipeline() ?? ''))
     const offset = derived(() => parseInt(String(route.query.offset() ?? '0'), 10))
     const limit = derived(() => parseInt(String(route.query.limit() ?? '50'), 10))
-    const historyData = live(() => liveExpr<HistoryCtx>(historyExpr({
+    const historyData = live(() => ship.pipelines.history({
       q: q(), pipeline: pipelineFilter(), offset: offset(), limit: limit(),
-    })))
+    }) as LiveSource<HistoryCtx>)
     const rows = derived(() => read(historyData()).rows)
     const total = derived(() => read(historyData()).total)
     const hasPrev = derived(() => read(historyData()).has_prev)

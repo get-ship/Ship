@@ -8,6 +8,7 @@ description = "L1 platform primitives — agents, collections, artifacts, trigge
 
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
+ship-host = { path = "../ship-host" }
 ship-analytics = { path = "../ship-analytics" }
 ship-kernel = { path = "../ship-kernel" }
 ship-types = { path = "../ship-types" }
@@ -31,7 +32,6 @@ walkdir = "2.3"
 futures-util = { workspace = true }
 getrandom = { workspace = true }
 jsonwebtoken = "9"
-utoipa = "5"
 # RFC 6902 JSON Patch — FilesService.patch_jsonc consumes these from
 # write_api handlers. No partial-edit shims; patch() is the canonical
 # partial-update path.
@@ -61,6 +61,9 @@ notify = { workspace = true }
 cron = "0.12"
 sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 jsonschema = { version = "0.46", default-features = false }
+# Embeds the generated SDK capability-skills (skills/sdk/) into the binary so
+# every compile can offer them, not just inside the dev checkout.
+include_dir = "0.7"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { workspace = true }

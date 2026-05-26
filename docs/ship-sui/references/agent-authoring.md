@@ -41,7 +41,7 @@ gets wrong most often:**
 Verify the scaffold parses before adding logic:
 
 ```sh
-mcp__ship__sui_diagnostics({ file: "views/<name>/page.sui" })
+cargo run -p sui-lint --example check -- views/<name>/page.sui
 ```
 
 ---
@@ -406,7 +406,7 @@ Hard-won. Each one is from a real fix in this repo.
 
 7. **`route` is not a function (in chat).** The `defineRoutes` call
    must run at the top level of `controller.ts` (it side-effect
-   registers patterns). See `views/ship-ui-studio/[name]/controller.ts:21-24`
+   registers patterns). See `apps/shell/src/studio/components/[name]/controller.ts`
    for the canonical position — BEFORE the `controller<Scope>({…})`
    default export. Putting it inside `scope:` runs it too late, and
    the first `route()` call from a `derived` will throw.
@@ -435,11 +435,11 @@ Run these before declaring the edit done. Each one fails fast on a
 class of error the others miss.
 
 ```sh
-# 1. Compiler-grammar + missing bindings + unstable-key warnings:
-mcp__ship__sui_diagnostics({ file: "views/<name>/page.sui" })
+# 1. Fast per-edit lint — grammar, missing bindings, unstable keys, purity:
+cargo run -p sui-lint --example check -- views/<name>/page.sui
 
-# 2. Type + binding info at a specific point (hover):
-mcp__ship__sui_hover({ file: "views/<name>/page.sui", line: 12, col: 4 })
+# 2. Full compile — lint folds in; aborts on errors:
+cargo run -p sui-compiler -- build views/<name>/page.sui
 
 # 3. Build all .sui sources + run lint + cargo test (proxy for CI):
 just smoke-deploy
@@ -476,5 +476,5 @@ shell-routing bugs vs view-content bugs.
 | Runtime symbol I'm using doesn't exist | `references/runtime-primitives.md` |
 | Component vs view; what `<prop>` accepts | `references/authoring-patterns.md` |
 | Where the compiler lives, what `view-host` serves | `references/4-layer-overview.md` |
-| `sui-build` / LSP / MCP shims | `references/tooling.md` |
+| `sui-build` / LSP / per-edit lint loop | `references/tooling.md` |
 | Copy-paste-and-modify worked examples | `references/cookbook.md` |

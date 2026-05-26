@@ -10,15 +10,7 @@
 use crate::auth::AuthContext;
 use crate::auth::scopes::{Scope, SessionRegistry, remove_persisted_session};
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "token_prefix": "ses_01J3Z5ZQ",
-    "agent_id": "agent-writer",
-    "workspace_id": "default",
-    "scopes": ["read_workspace", "manage_runs"],
-    "expires_at_unix": 1_777_000_000,
-    "ephemeral": false
-}))]
+#[derive(serde::Serialize)]
 pub struct SessionSummary {
     /// First 12 chars of the token for display — never the full value.
     pub token_prefix: String,
@@ -29,36 +21,13 @@ pub struct SessionSummary {
     pub ephemeral: bool,
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "sessions": [
-        {
-            "token_prefix": "ses_01J3Z5ZQ",
-            "agent_id": "agent-writer",
-            "workspace_id": "default",
-            "scopes": ["read_workspace"],
-            "expires_at_unix": 1_777_000_000,
-            "ephemeral": false
-        }
-    ]
-}))]
+#[derive(serde::Serialize)]
 pub struct ListSessionsResponse {
     pub sessions: Vec<SessionSummary>,
 }
 
 /// GET /api/auth/sessions — list active auth-token sessions. Requires
 /// `Scope::Full`.
-#[utoipa::path(
-    operation_id = "listAuthSessions",
-    get,
-    path = "/auth/sessions",
-    responses(
-        (status = 200, description = "Active auth-token sessions", body = ListSessionsResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Requires daemon token"),
-    ),
-    tag = "auth"
-)]
 pub async fn list_auth_sessions(
     session_registry: SessionRegistry,
     axum::Extension(auth): axum::Extension<AuthContext>,
@@ -82,8 +51,7 @@ pub async fn list_auth_sessions(
     Ok(axum::Json(ListSessionsResponse { sessions }))
 }
 
-#[derive(serde::Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({ "token_prefix": "ses_01J3Z5ZQ", "all": false }))]
+#[derive(serde::Deserialize)]
 pub struct RevokeSessionsRequest {
     /// If set, revoke only sessions whose token starts with this prefix.
     /// If unset AND `all` is true, revoke every non-ephemeral session.
@@ -93,26 +61,12 @@ pub struct RevokeSessionsRequest {
     pub all: bool,
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
-#[schema(example = json!({ "revoked": 3 }))]
+#[derive(serde::Serialize)]
 pub struct RevokeSessionsResponse {
     pub revoked: usize,
 }
 
 /// POST /api/auth/sessions/revoke — revoke sessions. Requires Scope::Full.
-#[utoipa::path(
-    operation_id = "revokeSessions",
-    post,
-    path = "/auth/sessions/revoke",
-    request_body = RevokeSessionsRequest,
-    responses(
-        (status = 200, description = "Sessions revoked", body = RevokeSessionsResponse),
-        (status = 400, description = "Invalid request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Requires daemon token"),
-    ),
-    tag = "auth"
-)]
 pub async fn revoke_sessions(
     session_registry: SessionRegistry,
     axum::Extension(auth): axum::Extension<AuthContext>,

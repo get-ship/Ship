@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 /// Coarse-grained capability scopes for daemon session access control.
 /// Each handler declares which scope it requires; the auth layer checks
 /// the session's granted scopes before the handler runs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Scope {
     ReadWorkspace,
@@ -181,26 +181,104 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
     }
 }
 
-/// Restricted capability grants for a role — the gate's grant axis (distinct
-/// from `scopes`, which still drives REST route-auth + artifact perms until
-/// those die with the REST surface). Restricted domains are capability-defining
-/// (`ship-orchestration` = dispatch/control agents; `ship-authoring` = write
-/// skills/agents/views) and are never default — only these roles confer them.
-/// Default (C0/C1 non-restricted) domains need no grant.
+/// The **elevated services** (the C2 set) a role confers — the gate's scope axis
+/// (distinct from `scopes`, which drives REST route-auth + artifact perms until
+/// those die with the REST surface). The gate allows a C2 op only when its
+/// service is here; the **C1 baseline is implicit** (every agent reads +
+/// workspace-writes in every service); **C3 is never role-conferred**.
 ///
 /// This is the role-derived provisioning source today; the install/approval
 /// flow (`.artifacts/capability-provisioning-and-approval.md`) refines it into
-/// per-agent operator-approved grant sets.
+/// per-agent operator-approved sets. Authoring services are listed ahead of
+/// their C2 re-tiering — harmless while those ops are still C1.
 pub fn grants_for_role(role: Option<&str>) -> Vec<String> {
     let g: &[&str] = match role {
-        Some("commander") | Some("lead") => &["ship-orchestration"],
-        Some("designer") => &["ship-authoring"],
-        // contributor = the operator's own profile: every restricted domain.
-        Some("contributor") => &["ship-orchestration", "ship-authoring"],
-        // worker / unknown: no restricted grants (default C0/C1 only).
+        // Commander orchestrates: dispatch/stop/steer live in the `agent` service.
+        Some("commander") | Some("lead") => &["agent"],
+        // Designer authors: the C2 authoring services (agent profiles, skills,
+        // mcp, surface creation, view edit). Note `view`/`create` are singular —
+        // the actual op-domains.
+        Some("designer") => &["agents", "skills", "mcp", "create", "view"],
+        // contributor = the operator's own profile: every elevated service.
+        Some("contributor") => &["agent", "agents", "skills", "mcp", "create", "view"],
+        // worker / unknown: no elevated services (the C1 baseline only).
         _ => &[],
     };
     g.iter().map(|s| s.to_string()).collect()
+}
+
+/// The grants the mint path stamps onto a new session for `agent_id`.
+///
+/// The per-agent **provisioned baseline** (operator-approved, seeded at install
+/// from the agent's resolved skill grants) is the source of truth. When no
+/// baseline has been recorded yet, fall back to the role-derived grants — this
+/// keeps un-provisioned agents (and dev-mode pairs) working exactly as before.
+/// The provisioned record, once present, fully replaces the role default.
+pub fn resolve_grants(agent_id: &str, role: Option<&str>) -> Vec<String> {
+    resolve_from(crate::projections::provisioned_grants_for(agent_id), agent_id, role)
+}
+
+/// Test/`_at` variant of [`resolve_grants`] against a specific home dir.
+pub fn resolve_grants_at(
+    home: &std::path::Path,
+    agent_id: &str,
+    role: Option<&str>,
+) -> Vec<String> {
+    resolve_from(
+        crate::projections::provisioned_grants::provisioned_grants_for_at(home, agent_id),
+        agent_id,
+        role,
+    )
+}
+
+/// Write an agent's provisioned grant baseline via an `agent.grants.provisioned`
+/// event. `source` is "install" (seeded from resolved skill grants) or
+/// "operator" (explicit approval); `approved_by` carries the operator id for
+/// the latter. Append is transactional-with-projection, so a subsequent
+/// [`resolve_grants`] for the same agent observes this write immediately.
+///
+/// This is **operator/daemon authority** — the agent never calls it. An agent
+/// controls its skill files but not its provisioned baseline.
+pub fn provision_grants(
+    agent_id: &str,
+    grants: &[String],
+    source: &str,
+    approved_by: Option<&str>,
+) -> anyhow::Result<()> {
+    let payload = ship_substrate::events::types::AgentGrantsProvisioned {
+        grants: grants.to_vec(),
+        source: source.to_string(),
+        approved_by: approved_by.map(|s| s.to_string()),
+    };
+    let envelope = ship_substrate::events::EventEnvelope::new(
+        ship_substrate::events::types::event_types::AGENT_GRANTS_PROVISIONED,
+        agent_id,
+        &payload,
+    )?;
+    let store = ship_substrate::persistence::event_store::SqliteEventStore::new()?;
+    ship_substrate::persistence::event_store::EventStore::append(&store, &envelope)?;
+    Ok(())
+}
+
+/// Compose a provisioned-lookup result with the role fallback.
+fn resolve_from(
+    lookup: anyhow::Result<Option<Vec<String>>>,
+    agent_id: &str,
+    role: Option<&str>,
+) -> Vec<String> {
+    match lookup {
+        Ok(Some(grants)) => grants,
+        Ok(None) => grants_for_role(role),
+        Err(e) => {
+            // Fail closed-ish: a projection read error must not silently grant
+            // the role baseline's restricted domains. Log and deny extras.
+            tracing::warn!(
+                agent_id,
+                "resolve_grants: provisioned read failed ({e}); denying restricted grants"
+            );
+            Vec::new()
+        }
+    }
 }
 
 // ── Session registry ────────────────────────────────────────────────────────
@@ -488,6 +566,42 @@ mod tests {
         let scopes = scopes_for_role(Some("contributor"));
         assert!(Scope::Full.is_granted_by(&scopes));
         assert!(Scope::AdminDaemon.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn resolve_grants_falls_back_to_role_when_unprovisioned() {
+        let tmp = tempfile::tempdir().unwrap();
+        // No provisioned record → role baseline applies (migration-safe).
+        let grants = resolve_grants_at(tmp.path(), "fresh-agent", Some("commander"));
+        assert_eq!(grants, vec!["agent".to_string()]);
+        // A worker with no record gets no elevated services (C1 baseline only).
+        assert!(resolve_grants_at(tmp.path(), "w", Some("worker")).is_empty());
+    }
+
+    #[test]
+    fn resolve_grants_provisioned_record_overrides_role() {
+        use ship_substrate::events::EventEnvelope;
+        use crate::projections::provisioned_grants::ProvisionedGrantsProjection;
+        use ship_substrate::projections::registry::Projection;
+
+        let tmp = tempfile::tempdir().unwrap();
+        ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
+        let mut conn = ship_substrate::db::open_db_at(
+            &ship_substrate::db::platform_db_path(tmp.path()),
+        )
+        .unwrap();
+        // Operator provisions a *narrower* set than the commander role default.
+        let ev = EventEnvelope::new(
+            ship_types::event_types::AGENT_GRANTS_PROVISIONED,
+            "pinned",
+            &serde_json::json!({ "grants": ["agents"], "source": "operator" }),
+        )
+        .unwrap();
+        ProvisionedGrantsProjection.apply(&ev, &mut conn).unwrap();
+
+        // Role says commander (→ `agent`), but the provisioned set wins.
+        let grants = resolve_grants_at(tmp.path(), "pinned", Some("commander"));
+        assert_eq!(grants, vec!["agents".to_string()]);
     }
 
     #[test]

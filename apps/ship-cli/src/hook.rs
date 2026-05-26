@@ -104,7 +104,7 @@ fn daemon_info() -> Option<(u16, String)> {
 fn post_to_daemon(endpoint: &str, body: &serde_json::Value) -> Result<serde_json::Value> {
     let (port, token) = daemon_info()
         .ok_or_else(|| anyhow!("daemon not running (no port/token file)"))?;
-    let url = format!("http://127.0.0.1:{port}/api/v1/hooks/{endpoint}");
+    let url = format!("http://127.0.0.1:{port}/hooks/{endpoint}");
     let client = crate::http::daemon_client();
     let resp = client
         .post(&url)
@@ -240,9 +240,11 @@ pub fn run_session_end() -> Result<()> {
     })
 }
 
-/// Signal job completion to the daemon via REST API.
+/// Signal job completion to the daemon via `PipelinesService.EndTurn` (Connect).
 /// Non-fatal — best-effort fallback for pipeline advancement.
 fn signal_job_completed(slug: &str) {
+    use connectrpc::client::{ClientConfig, HttpClient};
+    use ship_ops_rpc::{EndTurnReq, PipelinesServiceClient};
     let cwd = match std::env::current_dir() {
         Ok(c) => c,
         Err(_) => return,
@@ -251,15 +253,17 @@ fn signal_job_completed(slug: &str) {
         Some(h) => h,
         None => return,
     };
-    let client = crate::http::daemon_client();
-    if let Ok(resp) = client
-        .post(format!("http://127.0.0.1:{}/api/v1/agent_sessions/end", handle.port))
-        .bearer_auth(&handle.token)
-        .json(&serde_json::json!({"slug": slug}))
-        .timeout(std::time::Duration::from_secs(5))
-        .send()
-    {
-        crate::http::check_skew(resp.headers());
+    let uri: http::Uri = match format!("http://127.0.0.1:{}", handle.port).parse() {
+        Ok(u) => u,
+        Err(_) => return,
+    };
+    let config = ClientConfig::new(uri)
+        .default_header("authorization", format!("Bearer {}", handle.token));
+    let client = PipelinesServiceClient::new(HttpClient::plaintext(), config);
+    if let Ok(rt) = tokio::runtime::Runtime::new() {
+        let _ = rt.block_on(
+            client.end_turn(EndTurnReq { slug: slug.to_string(), ..Default::default() }),
+        );
     }
 }
 

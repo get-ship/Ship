@@ -66,9 +66,23 @@ shell-dev:
 
 # Force a one-shot rebuild of every asset bundle served by the daemon
 # (sui-runtime, sui-dom, sui-components, islands, ship-elements, views/*).
+# Regenerate the typed dynamic-route table from the view file tree (SSOT).
+[group('daily')]
+gen-routes:
+    @node scripts/gen-routes.mjs
+
+# Build the standalone SUI component packs (primitives/charts/pipelines/
+# ui-components) → each package's `dist/`, served by the daemon at
+# `/_sui/packs/<id>/`. These are gitignored build outputs that the deck
+# bundler does NOT produce, so without this they go stale (and a stale pack
+# that inlines its own @ship/sui-runtime causes split-brain signals → blank
+# shell). Part of dev-build-all so the JS build is actually complete.
+build-packs: _sui-compiler-lib
+    @bun run --filter './packages/components/*' build
+
 # Runs `packages/deck/bundler/index.ts --all` against the installed bun toolchain.
 [group('daily')]
-dev-build-all: _sui-compiler-lib
+dev-build-all: _sui-compiler-lib gen-routes build-packs
     @bun packages/deck/bundler/index.ts --all
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
@@ -302,8 +316,8 @@ build: _sui-compiler-lib
     echo "[7/9] sui-catalog walk (→ .deck/catalogs/{workspace,published}.json)"
     bun run --filter @ship/sui-catalog build
     bun packages/deck/catalog/src/cli.ts
-    echo "[8/9] cargo build --release (ship-cli + shipd + mcp)"
-    cargo build --release -p ship-cli -p shipd -p mcp
+    echo "[8/9] cargo build --release (ship-cli + shipd)"
+    cargo build --release -p ship-cli -p shipd
     echo "[9/9] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
@@ -326,16 +340,16 @@ build: _sui-compiler-lib
     [ "$missing" = "0" ] || { echo "build: outputs incomplete" >&2; exit 1; }
     echo "build complete — release binaries at $target_dir/release/"
 
-# Build CLI + MCP + shipd (unstable dev build).
+# Build CLI + shipd (unstable dev build).
 [group('occasional')]
 build-dev:
-    cargo build --features unstable -p ship-cli -p mcp -p shipd -p sui-lsp
+    cargo build --features unstable -p ship-cli -p shipd -p sui-lsp
 
 # Cargo-only release build (no front-end). Use `just build` for the full
 # production artifact set; this recipe is the cargo subset.
 [group('occasional')]
 build-release:
-    cargo build --release -p ship-cli -p mcp -p shipd
+    cargo build --release -p ship-cli -p shipd
 
 # Install dev binaries to ~/.local/bin (ship + shipd).
 [group('occasional')]
@@ -418,8 +432,8 @@ logs:
 # Verify both stable and unstable compile (CI gate).
 [group('occasional')]
 check-gates:
-    cargo build -p ship-cli -p mcp
-    cargo build --features unstable -p ship-cli -p mcp
+    cargo build -p ship-cli -p shipd
+    cargo build --features unstable -p ship-cli -p shipd
     just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
 

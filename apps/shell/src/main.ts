@@ -19,7 +19,7 @@
 //      ⌘? opens help.
 
 import { createClient, type ShipSDK } from '@ship/sdk-client'
-import { shipFetch, gitStatus } from '@ship/sdk'
+import { ops } from './ops'
 // Charts pack — single workspace import registers every <sui-*-chart>,
 // <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
 // before the first view mounts. Charts moved out of @ship/ui-components
@@ -49,8 +49,10 @@ import '@ship/pipelines/bundle'
 // here only re-ran every `customElements.define()` as a no-op — the source of
 // ~90 "called twice" warnings. Custom elements upgrade lazily, so there's no
 // need to register them a second time from the shell entry.
-import { route as createRoute, defineRoutes } from '@ship/sui-runtime/route'
-import { chrome, notifyViewUnmount } from '@ship/sui-runtime'
+import { route as createRoute, defineRoutes, setRouterPort } from '@ship/sui-runtime/route'
+import { STUDIO_ROUTE_PATTERNS } from './studio/routes.gen'
+import { chrome, notifyViewUnmount, setHostContext } from '@ship/sui-runtime'
+import type { SuiLoader, ViewPayload } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
 import { initProjectSwitch } from './project-switch'
@@ -65,6 +67,7 @@ interface MountFn {
     opts?: {
       cssScope?: 'adjacent' | 'document-head' | 'none'
       ship?: ShipSDK
+      loader?: SuiLoader
       module?: unknown
       route?: unknown
       navigate?: (path: string) => void
@@ -75,6 +78,22 @@ interface MountFn {
 // Single SDK client instance, shared across every mounted view.
 const shipClient: ShipSDK = createClient()
 
+// Host loader injected into every mount() — the `/_sui/` URL scheme lives
+// here at the app boundary, not inside the (host-agnostic) SUI runtime.
+const suiLoader: SuiLoader = {
+  async fetchView(nameOrPath: string): Promise<ViewPayload> {
+    const path = nameOrPath.startsWith('/_sui/views/') ? nameOrPath : `/_sui/views/${nameOrPath}`
+    const res = await fetch(path, { credentials: 'same-origin' })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(`[shell] fetch ${path} ${res.status}: ${body.slice(0, 200)}`)
+    }
+    return (await res.json()) as ViewPayload
+  },
+  loadComponent: (tag: string): Promise<void> =>
+    import(/* @vite-ignore */ `/_sui/sui-components/${tag}.js`).then(() => undefined),
+}
+
 // Pre-register dynamic-route patterns the shell knows about. Views in
 // `views/<name>/[id]/` use these to read `route.params.id()`. Views
 // can also register their own at controller-import time, but those
@@ -84,20 +103,12 @@ const shipClient: ShipSDK = createClient()
 // `routeSignals` proxy never sees them. Registering here at the shell
 // layer means params get seeded against the SHAPES the shell knows.
 defineRoutes([
-  // Studio is a deck view (views/studio/). Its nested tool routes carry
-  // dynamic params the shell seeds for `route.params.id()` reads in the
-  // agents detail/settings/wire controllers.
-  { pattern: '/studio/agents/:id' },
-  { pattern: '/studio/agents/:id/settings' },
-  { pattern: '/studio/agents/:id/wire' },
-  { pattern: '/studio/themes/:id' },
-  { pattern: '/studio/components/:name' },
-  { pattern: '/studio/skills/:id' },
-  { pattern: '/studio/collections/:id' },
-  { pattern: '/studio/pipelines/focus/:name' },
-  { pattern: '/studio/pipelines/run/:slug' },
+  // Daemon-view dynamic params (no studio [param] dir backs these yet —
+  // a follow-up can codegen views/ too). Studio's nested tool routes are
+  // generated from the `[param]` dir tree (SSOT). See ADR unified-deck-router.
   { pattern: '/artifacts/:id' },
   { pattern: '/workspaces/:id' },
+  ...STUDIO_ROUTE_PATTERNS,
 ])
 
 // Shared route signal. Views that declare dynamic params read
@@ -105,10 +116,12 @@ defineRoutes([
 // history.pushState the shell triggers.
 const routeSignals = createRoute()
 
-// `navigate(path)` passed to controllers — fire a same-origin link click
-// equivalent via history.pushState + the existing internal-anchor flow.
-function navigate(path: string): void {
-  history.pushState({}, '', path)
+// The shell's router. `history.pushState` (or replace) + match + mount-or-
+// update. Registered as the runtime's `RouterPort` below, so a single
+// `navigate()` from any view bundle routes through here and actually mounts.
+function navigate(path: string, opts: { replace?: boolean } = {}): void {
+  if (opts.replace) history.replaceState({}, '', path)
+  else history.pushState({}, '', path)
   const next = readRouteFromUrl(location.pathname)
   if (!next) return
   if (currentRoute && currentRoute.view === next.view && SAME_SHELL_VIEWS.has(next.view)) {
@@ -119,6 +132,15 @@ function navigate(path: string): void {
   }
   void mountRoute(next)
 }
+
+// Make the shell the host router: the runtime's `navigate()` (called from
+// any view bundle) delegates here instead of the old signals-only path that
+// never mounted. Collapses the runtime/`window.ship.navigate`/`sui:navigate`
+// split into one entry point. See ADR `unified-deck-router`.
+setRouterPort({
+  navigate: (to, o) => navigate(to, o ?? {}),
+  back: () => history.back(),
+})
 
 // ── window.ship API ──────────────────────────────────────────────────
 
@@ -157,12 +179,6 @@ declare global {
      *  a corresponding `sui:scope:change` event fires on document so
      *  consumers can re-anchor without polling. */
     __suiCurrentScope?: Record<string, unknown> | null
-    /** Daemon operating mode, derived from `<meta name="ship-mode">` at
-     *  boot. `'Production'` when shipd serves prebuilt shell HTML in
-     *  production; `'Development'` everywhere else (Vite dev server,
-     *  un-rewritten static index). The status bar renders a DEV badge
-     *  whenever this is `'Development'`. */
-    __shipMode?: 'Production' | 'Development'
     /** Identifier for the currently-mounted view. Read by
      *  `@ship/sui-runtime/chrome`'s wrapper API to stamp per-view claims
      *  (breadcrumb, status keys, theme overrides, focus push). Set on
@@ -366,6 +382,9 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
       // `ship` is undefined and the data lambda throws — visible
       // as views stuck on `Loading…` because the patch never lands.
       ship: shipClient,
+      // Host loader — the SUI runtime no longer knows the `/_sui/` URL scheme;
+      // this adapter supplies by-name payload fetch + component-island loading.
+      loader: suiLoader,
       // Shared `route` signal so views with `/x/:id`-style patterns
       // can read `route.params.id()`. Without this, mount.ts wires
       // `route: undefined` into setupCtx and dynamic-route controllers
@@ -554,7 +573,6 @@ const shellBottom = document.getElementById('ship-shell-bottom') as HTMLElement 
 let daemonOnline = false
 
 const shipMode = readShipMode()
-window.__shipMode = shipMode
 if (shellBottom) {
   shellBottom.setAttribute('mode', shipMode.toLowerCase())
   const versionMeta = document.querySelector('meta[name="ship-version"]') as HTMLMetaElement | null
@@ -566,10 +584,11 @@ async function updateStatus(): Promise<void> {
   if (!shellBottom) return
   shellBottom.setAttribute('theme', document.documentElement.dataset.theme ?? 'ship-light')
 
-  // Fetch the active project's actual git branch via /api/v1/git/status.
+  // Fetch the active project's actual git branch via GitService.Overview
+  // (Connect). Branch lives on the overview, not the status buckets.
   try {
-    const envelope = await shipFetch<{ data?: { branch?: string }; branch?: string }>(gitStatus())
-    const branch = envelope?.data?.branch ?? envelope?.branch ?? 'unknown'
+    const overview = await ops.git.overview({})
+    const branch = overview.branch ?? 'unknown'
     shellBottom.setAttribute('branch', branch)
     if (!daemonOnline) {
       shellBottom.setAttribute('online', '')
@@ -890,14 +909,13 @@ window.addEventListener('popstate', () => {
   void mountRoute(r)
 })
 
-// External navigation requests — components that need to navigate dispatch
-// `sui:navigate` with `{ to: path }` (window.ship.navigate, sui-launcher,
-// sui-command-bar palette items). They push history state themselves, but
-// without this listener nothing remounts the view, so picking a result in
-// the cmd-bar or the views picker updated the URL silently and the page
-// kept showing the old view. mountRoute's own dispatches use either no
-// detail or fire after currentRoute is updated, so the sameView guard
-// prevents a remount loop.
+// Legacy `sui:navigate {to}` trigger receiver. Navigation now flows through
+// the runtime `navigate()` → `RouterPort` (registered above), so first-party
+// callers no longer dispatch this as a trigger — `sui:navigate` is the
+// route-change *notification* the rails/nav-top/devtools subscribe to. This
+// listener stays as a compatibility shim for any external `{to}` dispatch;
+// the `sameRoute` guard makes the notification dispatches (no detail, or
+// fired after currentRoute updates) no-ops, so there is no remount loop.
 document.addEventListener('sui:navigate', (e: Event) => {
   const detail = (e as CustomEvent).detail as { to?: string } | undefined
   if (!detail?.to) return
@@ -959,11 +977,17 @@ void updateStatus()
 // shell-bottom carries the workspace name as a prop.
 async function syncProject(): Promise<void> {
   try {
-    const resp = await fetch('/api/v1/projects/active', { credentials: 'same-origin' })
-    if (!resp.ok) return
-    const body = (await resp.json()) as { active?: { name?: string; label?: string } | null }
-    const name = body.active?.label || body.active?.name || ''
+    const body = JSON.parse((await ops.project.listProjects({})).json) as {
+      projects?: Array<{ id: string; name?: string; label?: string }>
+      active?: string
+    }
+    const proj = body.projects?.find((p) => p.id === body.active) ?? null
+    const name = proj?.label || proj?.name || ''
     if (shellBottom) shellBottom.setAttribute('workspace', name)
+    // Provide the active project to the runtime via the HostContext seam so
+    // per-project runtime state (e.g. edit-mode keys) scopes correctly —
+    // replaces the dead window.__shipProjectId global. See host-context.ts.
+    if (proj?.name) setHostContext({ projectId: proj.name })
     // Project identity in the top bar is now owned by <sui-project-switcher>
     // (it fetches + renders the active project itself); nav-top no longer takes
     // a `project` breadcrumb prefix.

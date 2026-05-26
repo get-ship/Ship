@@ -30,9 +30,9 @@ client-server loop against a mock daemon. From here:
 - **LSP**: the native `sui-lsp` binary (`crates/sui/lsp/`, on PATH after
   `just install-dev`) — diagnostics/hover/completion over stdio, the same
   `sui-compiler` grammar the build uses.
-- **MCP** (if your agent has it attached): `sui_diagnostics` / `sui_hover` /
-  `sui_dependencies` run in-process — no subprocess. Every authoring surface is
-  documented in `docs/ship-sui/references/docs/agent-surfaces.md`.
+- **Binary lint/compile loop**: `cargo run -p sui-lint --example check -- <file>` for
+  fast per-edit lint; `cargo run -p sui-compiler -- build <file>` for the full compile.
+  Every authoring surface is documented in `docs/ship-sui/references/docs/agent-surfaces.md`.
 - **`@ship/sui-eval`**: programmatic behavioural scoring. Wire into
   CI to gate PRs that touch `.sui` files.
 - **VS Code extension** at `apps/vscode/` — auto-launches `sui-lsp` on

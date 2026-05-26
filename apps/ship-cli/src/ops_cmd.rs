@@ -7,57 +7,218 @@
 //! `schema::OPS` + `COMMANDS` the surface is generated from), so the CLI never
 //! re-expresses the registry — it projects it. Replaces the internal MCP tool
 //! surface as the way agents call ops.
+//!
+//! ## Transport
+//!
+//! Two ways to reach the daemon, one indirection (`transport()`):
+//! - **Host unix socket** (`<daemon_dir>/ship.sock`) — preferred when present.
+//!   The agent path: identity comes from the connection's kernel peer
+//!   credentials (`SO_PEERCRED`), so **no token is presented**. An agent only
+//!   ever has this; it cannot mint or read the operator token.
+//! - **TCP + operator token** — fallback for the operator's own shell and for
+//!   platforms without the socket. Goes through `ensure_daemon()`.
+//!
+//! `ship ops` is the seam that absorbs the transport choice; the sdk-skills
+//! teach only `ship ops call …` and never mention sockets, ports, or tokens.
 
 use anyhow::{Context, Result};
 use serde_json::Value;
 
-/// PascalCase a dotted/underscored op name → the generated Connect method
-/// (`pipeline.update_status` → `PipelineUpdateStatus`). Mirrors `xtask::pascal`.
-fn pascal(op: &str) -> String {
-    op.split(['.', '_'])
-        .map(|seg| {
-            let mut c = seg.chars();
-            match c.next() {
-                Some(f) => f.to_uppercase().chain(c).collect::<String>(),
-                None => String::new(),
-            }
+/// Resolve a dotted op name → its proto `(service, method)` via the embedded
+/// FileDescriptorSet — the SSOT, the SAME source gen-skills documents. Routes to
+/// the per-domain service (`RulesService/Create`), not the retiring generated
+/// umbrella; so every documented op (incl. proto-only ones like `analytics.*`
+/// the Rust registry never carried) is callable. Streaming + umbrella excluded.
+fn resolve(name: &str) -> Option<(String, String)> {
+    ship_ops_rpc::policy::read_policies()
+        .into_iter()
+        .find(|p| {
+            !matches!(
+                p.service.as_str(),
+                "ReadOpsService" | "CommandOpsService" | "StreamService"
+            ) && ship_ops_rpc::policy::op_name(&p.service, &p.method) == name
         })
-        .collect()
+        .map(|p| (p.service, p.method))
 }
 
-/// Resolve where `ship ops` dials and with what bearer token.
-///
-/// Two cases, checked in order:
-///  1. **Isolated agent** — when the spawn path injected `SHIP_DAEMON_URL`
-///     (the host daemon's origin, rewritten reachable from the sandbox) we dial
-///     it with the minted, *scoped* `SHIP_TOKEN`. This is the in-sandbox analogue
-///     of the operator's local daemon: the agent never starts a daemon and never
-///     sees the operator/Full token (the "root token never enters a container"
-///     rule). Both vars are set together by `wire_sidecar_sandbox`.
-///  2. **Operator shell** — no injected endpoint: discover-or-start the local
-///     daemon and use its token (`ensure_daemon`).
-fn resolve_transport() -> Result<(String, String)> {
+/// How to reach the daemon's op surface.
+enum OpTransport {
+    /// Injected HTTP endpoint + scoped token — the isolated-agent path. The
+    /// spawn path sets `SHIP_DAEMON_URL` (the host daemon, rewritten
+    /// sandbox-reachable) + a minted, scoped `SHIP_TOKEN`. There's no host
+    /// socket across the sandbox boundary and the operator/Full token must
+    /// never enter a container, so this is how an in-sandbox agent dials home.
+    Injected { base: String, token: String },
+    /// Host unix socket — local-agent path, identity via peer-cred, no token.
+    #[cfg(unix)]
+    Unix(std::path::PathBuf),
+    /// TCP + operator token — operator path / platforms without the socket.
+    Tcp { port: u16, token: String },
+}
+
+/// Choose the transport, in order: an injected endpoint (isolated agent), then
+/// the host socket if it exists (local agent, tokenless), then TCP+token via
+/// `ensure_daemon()` (operator). The injected case is first and never starts a
+/// daemon — inside a sandbox there's no local daemon to start.
+fn transport() -> Result<OpTransport> {
     if let Ok(endpoint) = std::env::var("SHIP_DAEMON_URL") {
-        let endpoint = endpoint.trim_end_matches('/');
-        if !endpoint.is_empty() {
+        let base = endpoint.trim_end_matches('/').to_string();
+        if !base.is_empty() {
             let token = std::env::var("SHIP_TOKEN").unwrap_or_default();
-            return Ok((endpoint.to_string(), token));
+            return Ok(OpTransport::Injected { base, token });
         }
     }
+    #[cfg(unix)]
+    if let Some(sock) = discover_socket() {
+        return Ok(OpTransport::Unix(sock));
+    }
     let (port, token) = crate::daemon::ensure_daemon()?;
-    Ok((format!("http://127.0.0.1:{port}"), token))
+    Ok(OpTransport::Tcp { port, token })
+}
+
+/// HTTP `method` to `base`+`path` with a bearer token (Injected/Tcp share this).
+fn token_http(base: &str, token: &str, method: &str, path: &str, body: Option<&str>) -> Result<(u16, String)> {
+    let url = format!("{base}{path}");
+    let client = reqwest::blocking::Client::new();
+    let req = match body {
+        Some(b) => client
+            .post(&url)
+            .header("content-type", "application/json")
+            .header("connect-protocol-version", "1")
+            .body(b.to_string()),
+        None => client.get(&url),
+    };
+    let _ = method; // POST iff body.is_some(); GET otherwise.
+    let resp = req.bearer_auth(token).send().context("calling op")?;
+    Ok((resp.status().as_u16(), resp.text().unwrap_or_default()))
+}
+
+/// The host socket for the daemon serving this cwd, if it's bound. Never starts
+/// a daemon — the socket exists only when one is already running.
+#[cfg(unix)]
+fn discover_socket() -> Option<std::path::PathBuf> {
+    let cwd = std::env::current_dir().ok()?;
+    let dir = ship_substrate::home::discover_running_daemon(&cwd)?.dir;
+    let sock = dir.join("ship.sock");
+    sock.exists().then_some(sock)
+}
+
+/// POST Connect-JSON to `path`, returning `(status, body)`.
+fn op_post(path: &str, body: &str) -> Result<(u16, String)> {
+    match transport()? {
+        OpTransport::Injected { base, token } => token_http(&base, &token, "POST", path, Some(body)),
+        #[cfg(unix)]
+        OpTransport::Unix(sock) => {
+            let (s, b) = unix_http(&sock, "POST", path, Some(body))?;
+            Ok((s, String::from_utf8_lossy(&b).into_owned()))
+        }
+        OpTransport::Tcp { port, token } => {
+            token_http(&format!("http://127.0.0.1:{port}"), &token, "POST", path, Some(body))
+        }
+    }
+}
+
+/// GET `path`, returning `(status, body)`.
+fn op_get(path: &str) -> Result<(u16, String)> {
+    match transport()? {
+        OpTransport::Injected { base, token } => token_http(&base, &token, "GET", path, None),
+        #[cfg(unix)]
+        OpTransport::Unix(sock) => {
+            let (s, b) = unix_http(&sock, "GET", path, None)?;
+            Ok((s, String::from_utf8_lossy(&b).into_owned()))
+        }
+        OpTransport::Tcp { port, token } => {
+            token_http(&format!("http://127.0.0.1:{port}"), &token, "GET", path, None)
+        }
+    }
+}
+
+/// Minimal blocking HTTP/1.1 over a unix socket. We control both ends (axum)
+/// and the bodies are small Connect-JSON, so `Connection: close` + read-to-EOF
+/// is sufficient; chunked is de-chunked defensively. No token — the daemon
+/// authenticates this connection from its kernel peer credentials.
+#[cfg(unix)]
+fn unix_http(
+    sock: &std::path::Path,
+    method: &str,
+    path: &str,
+    body: Option<&str>,
+) -> Result<(u16, Vec<u8>)> {
+    use std::io::{Read, Write};
+    use std::os::unix::net::UnixStream;
+
+    let mut stream = UnixStream::connect(sock)
+        .with_context(|| format!("connecting host socket {}", sock.display()))?;
+    let mut req = format!("{method} {path} HTTP/1.1\r\nHost: ship\r\nConnection: close\r\n");
+    if let Some(b) = body {
+        req.push_str("content-type: application/json\r\n");
+        req.push_str("connect-protocol-version: 1\r\n");
+        req.push_str(&format!("content-length: {}\r\n", b.len()));
+    }
+    req.push_str("\r\n");
+    stream.write_all(req.as_bytes())?;
+    if let Some(b) = body {
+        stream.write_all(b.as_bytes())?;
+    }
+    stream.flush()?;
+    let mut raw = Vec::new();
+    stream.read_to_end(&mut raw)?;
+    parse_http_response(&raw)
+}
+
+/// Split a raw HTTP/1.1 response into `(status, body)`. Byte-based (no str
+/// slicing on non-char boundaries). Handles Content-Length (read-to-EOF) and
+/// `Transfer-Encoding: chunked`.
+#[cfg(unix)]
+fn parse_http_response(raw: &[u8]) -> Result<(u16, Vec<u8>)> {
+    let pos = raw
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .context("malformed HTTP response (no header terminator)")?;
+    let head = String::from_utf8_lossy(&raw[..pos]);
+    let body = &raw[pos + 4..];
+    let status = head
+        .lines()
+        .next()
+        .and_then(|l| l.split_whitespace().nth(1))
+        .and_then(|c| c.parse::<u16>().ok())
+        .context("malformed HTTP status line")?;
+    let chunked = head.lines().any(|l| {
+        let l = l.to_ascii_lowercase();
+        l.starts_with("transfer-encoding:") && l.contains("chunked")
+    });
+    let body = if chunked { dechunk(body) } else { body.to_vec() };
+    Ok((status, body))
+}
+
+/// De-chunk an HTTP/1.1 chunked body. Stops at the terminating `0` chunk or any
+/// malformed size line. Tolerant by design — the server is our own axum.
+#[cfg(unix)]
+fn dechunk(mut body: &[u8]) -> Vec<u8> {
+    let mut out = Vec::new();
+    while let Some(nl) = body.windows(2).position(|w| w == b"\r\n") {
+        let size = std::str::from_utf8(&body[..nl])
+            .ok()
+            .and_then(|s| usize::from_str_radix(s.trim(), 16).ok())
+            .unwrap_or(0);
+        if size == 0 {
+            break;
+        }
+        let start = nl + 2;
+        let end = (start + size).min(body.len());
+        out.extend_from_slice(&body[start..end]);
+        body = body.get(end + 2..).unwrap_or(&[]);
+    }
+    out
 }
 
 /// Fetch the op catalog (reads + commands) from the daemon.
-fn catalog(base: &str, token: &str) -> Result<(Vec<Value>, Vec<Value>)> {
-    let url = format!("{base}/api/v1/ship/schema");
-    let resp: Value = reqwest::blocking::Client::new()
-        .get(&url)
-        .bearer_auth(token)
-        .send()
-        .context("fetching op schema")?
-        .json()
-        .context("parsing op schema")?;
+fn catalog() -> Result<(Vec<Value>, Vec<Value>)> {
+    let (status, text) = op_get("/api/v1/ship/schema")?;
+    if !(200..300).contains(&status) {
+        anyhow::bail!("fetching op schema failed ({status}): {text}");
+    }
+    let resp: Value = serde_json::from_str(&text).context("parsing op schema")?;
     let ops = resp["data"]["ops"].as_array().cloned().unwrap_or_default();
     let cmds = resp["data"]["commands"].as_array().cloned().unwrap_or_default();
     Ok((ops, cmds))
@@ -65,8 +226,7 @@ fn catalog(base: &str, token: &str) -> Result<(Vec<Value>, Vec<Value>)> {
 
 /// `ship ops` / `ship ops list` — the scoped catalog (#70).
 pub fn list() -> Result<()> {
-    let (base, token) = resolve_transport()?;
-    let (ops, cmds) = catalog(&base, &token)?;
+    let (ops, cmds) = catalog()?;
     println!("reads ({}):", ops.len());
     for o in &ops {
         println!(
@@ -89,31 +249,15 @@ pub fn list() -> Result<()> {
 
 /// `ship ops call <name> [--json '{…}']` — generic Connect invoke.
 pub fn call(name: &str, json_args: Option<String>) -> Result<()> {
-    let (base, token) = resolve_transport()?;
-    let (ops, cmds) = catalog(&base, &token)?;
-    let service = if ops.iter().any(|o| o["name"].as_str() == Some(name)) {
-        "ReadOpsService"
-    } else if cmds.iter().any(|c| c["name"].as_str() == Some(name)) {
-        "CommandOpsService"
-    } else {
-        anyhow::bail!("unknown op `{name}` — run `ship ops list`");
-    };
+    let (service, method) =
+        resolve(name).with_context(|| format!("unknown op `{name}` — run `ship ops list`"))?;
     let body: Value = match json_args {
         Some(s) => serde_json::from_str(&s).context("parsing --json args")?,
         None => serde_json::json!({}),
     };
-    let url = format!("{base}/ship.ops.v1.{service}/{}", pascal(name));
-    let resp = reqwest::blocking::Client::new()
-        .post(&url)
-        .bearer_auth(token)
-        .header("content-type", "application/json")
-        .header("connect-protocol-version", "1")
-        .body(body.to_string())
-        .send()
-        .context("calling op")?;
-    let status = resp.status();
-    let text = resp.text().unwrap_or_default();
-    if !status.is_success() {
+    let path = format!("/ship.ops.v1.{service}/{method}");
+    let (status, text) = op_post(&path, &body.to_string())?;
+    if !(200..300).contains(&status) {
         anyhow::bail!("op `{name}` failed ({status}): {text}");
     }
     // Reads + commands return JsonResponse { json: "<inner>" }; unwrap for readability.
@@ -129,16 +273,51 @@ pub fn call(name: &str, json_args: Option<String>) -> Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 
-    // Serialize the two env vars resolve_transport reads — parallel tests must
-    // not see each other's values.
+    #[test]
+    fn content_length_body_parses() {
+        let raw = b"HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 13\r\n\r\n{\"json\":\"ok\"}";
+        let (status, body) = parse_http_response(raw).unwrap();
+        assert_eq!(status, 200);
+        assert_eq!(body, b"{\"json\":\"ok\"}");
+    }
+
+    #[test]
+    fn non_2xx_status_is_surfaced() {
+        let raw = b"HTTP/1.1 403 Forbidden\r\ncontent-length: 6\r\n\r\ndenied";
+        let (status, body) = parse_http_response(raw).unwrap();
+        assert_eq!(status, 403);
+        assert_eq!(body, b"denied");
+    }
+
+    #[test]
+    fn chunked_body_is_dechunked() {
+        // Two chunks ("Wiki" + "pedia") then the 0 terminator.
+        let raw = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nWiki\r\n5\r\npedia\r\n0\r\n\r\n";
+        let (status, body) = parse_http_response(raw).unwrap();
+        assert_eq!(status, 200);
+        assert_eq!(body, b"Wikipedia");
+    }
+
+    #[test]
+    fn missing_terminator_errors() {
+        assert!(parse_http_response(b"HTTP/1.1 200 OK\r\nno-end").is_err());
+    }
+}
+
+#[cfg(test)]
+mod transport_tests {
+    use super::*;
+
+    // Serialize the two env vars `transport()` reads — parallel tests must not
+    // see each other's values.
     static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
-    fn resolve_transport_prefers_injected_endpoint_and_scoped_token() {
+    fn injected_endpoint_wins_with_scoped_token_no_daemon() {
         let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let prev_url = std::env::var_os("SHIP_DAEMON_URL");
         let prev_tok = std::env::var_os("SHIP_TOKEN");
@@ -149,9 +328,15 @@ mod tests {
             std::env::set_var("SHIP_TOKEN", "ship_sess_deadbeef");
         }
 
-        let (base, token) = resolve_transport().expect("env path resolves");
-        assert_eq!(base, "http://host.docker.internal:4500");
-        assert_eq!(token, "ship_sess_deadbeef", "must carry the scoped SHIP_TOKEN, not start a daemon");
+        // Injected wins over socket/ensure_daemon and carries the scoped token —
+        // never the operator/Full token, never starting a daemon.
+        match transport().expect("injected path resolves") {
+            OpTransport::Injected { base, token } => {
+                assert_eq!(base, "http://host.docker.internal:4500");
+                assert_eq!(token, "ship_sess_deadbeef");
+            }
+            _ => panic!("expected Injected transport when SHIP_DAEMON_URL is set"),
+        }
 
         // SAFETY: still under ENV_LOCK.
         unsafe {

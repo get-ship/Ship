@@ -19,16 +19,7 @@ use serde::Deserialize;
 use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "actor_id": "agent-writer",
-    "config": {
-        "kind": "agent",
-        "harness": "claude",
-        "spec_path": ".ship/specs/write-readme.md"
-    },
-    "capabilities": ["writes.prose", "reads.repo"]
-}))]
+#[derive(Deserialize)]
 pub struct ActorSpawnReq {
     /// Optional client-suggested id. When present, must be a ULID
     /// (used by daemon-spawned agents that pre-mint via `gen_ulid`
@@ -38,44 +29,18 @@ pub struct ActorSpawnReq {
     /// minter.
     #[serde(default)]
     pub actor_id: Option<String>,
-    #[schema(value_type = Object)]
     pub config: ship_substrate::events::ActorConfig,
     /// Optional mesh capabilities for auto-registration.
     pub capabilities: Option<Vec<String>>,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "envelope": {
-        "kind": "pipeline.run.completed",
-        "slug": "write-readme",
-        "ts": "2026-04-22T10:15:00Z"
-    },
-    "workspace_id": "default",
-    "session_id": "sess-2f9c"
-}))]
+#[derive(Deserialize)]
 pub struct EventRouteReq {
-    #[schema(value_type = Object)]
     pub envelope: ship_substrate::events::EventEnvelope,
     pub workspace_id: Option<String>,
     pub session_id: Option<String>,
 }
 
-#[utoipa::path(
-    operation_id = "actorSpawn",
-    post,
-    path = "/api/v1/actor/spawn",
-    request_body = ActorSpawnReq,
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 404, description = "actor not found", body = crate::wire::ErrorResponse),
-        (status = 409, description = "actor already exists", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "actor"
-)]
 pub async fn actor_spawn(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -224,19 +189,6 @@ fn is_ulid_shape(s: &str) -> bool {
     })
 }
 
-#[utoipa::path(
-    operation_id = "eventRoute",
-    post,
-    path = "/api/v1/events/route",
-    request_body = EventRouteReq,
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "actor"
-)]
 pub async fn event_route(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

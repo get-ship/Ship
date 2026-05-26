@@ -1,6 +1,7 @@
 // <sui-pipeline-card> — derives the state label so the chip renders real DOM
 // text (awaiting → "review"), not CSS ::after content.
-import { controller } from '@ship/sui-runtime'
+import { controller, derived } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-pipeline-card.sui'
 
 const STATE_LABEL: Record<string, string> = {
@@ -11,10 +12,8 @@ const STATE_LABEL: Record<string, string> = {
   none: '',
 }
 
-const read = (v: unknown): string => (typeof v === 'function' ? (v as () => unknown)() : v) as string
-
-export default controller<Scope>({
-  derived: {
-    stateLabel: ({ state }) => STATE_LABEL[read(state)] ?? '',
-  },
+export default controller({
+  scope: ({ state }: ViewScope<Scope>) => ({
+    stateLabel: derived(() => STATE_LABEL[String(state())] ?? ''),
+  }),
 })

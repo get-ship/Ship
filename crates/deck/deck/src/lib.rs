@@ -1,29 +1,29 @@
-//! deck — thin re-export facade over deck-server + deck-host.
+//! deck — thin re-export facade over deck-axum + deck-core + deck-host.
 //!
-//! All logic lives in `deck-host` (pure framework) and `deck-server` (axum
-//! handlers). This crate exists so shipd's imports (`deck::*`)
+//! Hosting logic lives in `deck-core` (transport-agnostic, returns
+//! `DeckResponse`); `deck-axum` is the axum adapter (`serve_*` handlers +
+//! `router`). This crate re-exports both so shipd's imports (`deck::*`)
 //! continue to resolve without changes.
 
-pub mod assets;
-pub mod bundle;
-pub mod packs;
-pub mod render_helpers;
-pub mod resolver;
-pub mod view;
-pub mod view_host;
-pub mod view_payload;
+// axum handlers + adapter surface.
+pub use deck_axum::{
+    into_axum, mode_from_ext, router, serve_catalog_published, serve_catalog_workspace,
+    serve_meta, serve_pack_asset, serve_sui_components, serve_sui_dom, serve_sui_island,
+    serve_sui_live_reload, serve_sui_lucide_icons, serve_sui_runtime, serve_sui_sdk_client,
+    serve_sui_view_css,
+    serve_sui_view_setup, serve_sui_view_template, serve_view_host, serve_view_payload,
+    serve_view_payload_subpath,
+};
 
-pub use deck_server::assets::{
-    serve_sui_components, serve_sui_dom, serve_sui_island, serve_sui_lucide_icons,
-    serve_sui_runtime, serve_sui_sdk_client,
+// Contract types (transport-agnostic), surfaced for hosts that name them.
+pub use deck_core::{
+    CachePolicy, DaemonBuildInfo, DaemonMode, DeckResponse, ViewSetupQuery, inject_mode_meta,
+    mode_str,
 };
-pub use deck_server::packs::{
-    serve_catalog_published, serve_catalog_workspace, serve_pack_asset,
-};
-pub use deck_server::view::{
-    serve_sui_view_css, serve_sui_view_setup, serve_sui_view_template, ViewSetupQuery,
-};
-pub use deck_server::view_host::serve_view_host;
-pub use deck_server::view_payload::{serve_view_payload, serve_view_payload_subpath};
-pub use deck_server::DaemonMode;
-pub use deck_server::meta::{serve_meta, DaemonBuildInfo};
+
+// Submodule surfaces consumers reach into directly (shipd, xtask SDK gen).
+//
+// `render_helpers` lives in deck-axum (its `not_found` returns an axum
+// response); `resolver` + `view_payload` are pure and live in deck-core.
+pub use deck_axum::render_helpers;
+pub use deck_core::{resolver, view_payload};

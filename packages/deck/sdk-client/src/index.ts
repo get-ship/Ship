@@ -12,19 +12,32 @@
 // Keeping `index.ts` to the surface declaration only respects the 300-
 // line file cap and makes the SDK surface readable at a glance.
 
-import {
-  type AgentsSummariesResponse,
-  type ArtifactRecord,
-  type GitDiff,
-  type GitDiffArgs,
-  type GitOverview,
-  type LiveSource,
-  type ShipSDK,
-} from '@ship/sui-runtime'
+import type { LiveSource } from '@ship/sui-runtime'
+import type {
+  AgentsSummariesResponse,
+  GitDiff,
+  GitDiffArgs,
+  GitOverview,
+} from './generated'
+import type { ArtifactRecord, ShipSDK } from './ship-sdk'
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { makeSseSource } from './sse'
+import { liveStream } from './live-stream'
+import { createShipConnectClient } from '@ship/sdk/connect'
 
-export { makeSseSource, liveExpr } from './sse'
+// Bind the SUI runtime's host-agnostic `ShipHost` slot to the concrete
+// `ShipSDK` via declaration merging. The runtime types `ViewScope.ship` as
+// the empty `ShipHost`; this augmentation — owned by the SDK provider, not
+// the framework — makes `ship.<domain>.<op>()` fully typed in controllers
+// while the runtime stays free of any Ship concept. (When the SDK surface
+// moves to the generated connect client, this augmentation moves with it.)
+declare module '@ship/sui-runtime' {
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  interface ShipHost extends ShipSDK {}
+}
+
+export { makeSseSource } from './sse'
+export { liveStream } from './live-stream'
 export {
   displayName as accountDisplayName,
   initials as accountInitials,
@@ -37,22 +50,26 @@ export {
   type AccountStatus,
 } from './account'
 
+// Generated daemon data types — sourced from the SDK layer's own generated.ts
+// (gen-types output), NOT the framework. @ship/sui-runtime names no Ship type.
 export type {
   AgentSummary,
   AgentsSummariesResponse,
-  ArtifactRecord,
   BranchSummary as GitBranch,
-  CollectionFieldRecord,
-  CollectionSummary,
   CommitSummary as GitCommit,
   GitDiff,
   GitDiffArgs,
   GitOverview,
+  StatusFile as GitFileEntry,
+} from './generated'
+// The Ship SDK surface + its hand-authored data types — owned here, not the framework.
+export type {
+  ArtifactRecord,
+  CollectionFieldRecord,
+  CollectionSummary,
   ShipSDK,
   SkillIndexEntry,
-  StatusFile as GitFileEntry,
-  WorkspaceSummary,
-} from '@ship/sui-runtime'
+} from './ship-sdk'
 
 /** Options accepted by `createClient`. */
 export interface CreateClientOpts {
@@ -84,16 +101,51 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
   const baseUrl = (opts?.baseUrl ?? '').replace(/\/$/, '')
   const ESCtor = opts?.EventSource ?? globalThis.EventSource
 
-  // Build the `/_sui/data?expr=...` SSE URL for a single op call. The
-  // daemon parses the expr as `ship.<domain>.<op>(<json>?)`. Args are
-  // emitted as a JSON object literal when present.
+  // Per-domain Connect clients (#72). Mutations route here; the daemon's
+  // auth middleware reads the session cookie (same-origin transport), so no
+  // token plumbing. Opaque `JsonResponse` ops decode back to the existing
+  // ShipSDK shape via `okJson` — a pure transport swap, callers unchanged.
+  const connect = createShipConnectClient({ baseUrl })
+  const okJson = async <T>(p: Promise<{ json: string }>): Promise<T> =>
+    JSON.parse((await p).json) as T
+  // Typed mutations (ScopedMutation / CollectionItem) carry the id directly;
+  // adapt to the ShipSDK `{ ok, id }` envelope the REST path returned.
+  const okId = async (p: Promise<{ id: string }>): Promise<{ ok: true; id: string }> => ({
+    ok: true,
+    id: (await p).id,
+  })
+
+  // Live reads stream over the per-domain Connect `<Op>Live` rpcs (#138):
+  // `ship.<domain>.<op>()` opens `ops.<domain>.<op>Live` and flips the signal on
+  // each full-value frame — real typed RPC on the wire, no expr string, no SSE
+  // eval. The (domain, op) → client-method lookup is the one internal bridge;
+  // the `ShipSDK` interface keeps every caller fully typed. Snake_case args are
+  // camelCased to match the generated message fields.
+  type LiveMethod = (req: unknown, opts: { signal: AbortSignal }) => AsyncIterable<{ json: string }>
+  const camelKeys = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(camelKeys)
+    if (v && typeof v === 'object') {
+      return Object.fromEntries(
+        Object.entries(v as Record<string, unknown>).map(([k, val]) => [
+          k.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()),
+          camelKeys(val),
+        ]),
+      )
+    }
+    return v
+  }
   const sse = <T>(domain: string, op: string, args?: unknown): LiveSource<T> => {
-    const argsLit = args === undefined ? '' : JSON.stringify(args)
-    const expr = `ship.${domain}.${op}(${argsLit})`
-    return makeSseSource<T>(
-      `${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`,
-      ESCtor,
-    )
+    const method = op.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()) + 'Live'
+    const svc = (connect as unknown as Record<string, Record<string, LiveMethod>>)[domain]
+    const fn = svc?.[method]
+    // mesh + canvas have no per-domain Connect service yet (operational / canvas
+    // #99 in-flux) — those alone fall back to the legacy expr-SSE channel.
+    if (typeof fn !== 'function') {
+      const argsLit = args === undefined ? '' : JSON.stringify(args)
+      const expr = `ship.${domain}.${op}(${argsLit})`
+      return makeSseSource<T>(`${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`, ESCtor)
+    }
+    return liveStream<T>((signal) => fn(camelKeys(args ?? {}), { signal }))
   }
 
   // Curried HTTP helpers — bind baseUrl once so the per-op factories
@@ -116,16 +168,9 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       settings:  (args) => sse('agents', 'settings', args),
       catalogs:    () => sse('agents', 'catalogs'),
       create:    (args) =>
-        json<{ ok: true; id: string }>('POST', '/api/v1/agents', {
-          id: args.id,
-          doc: args.doc,
-        }),
+        okId(connect.agents.create({ id: args.id, docJson: JSON.stringify(args.doc), scope: '' })),
       update:    (args) =>
-        json<{ ok: true; id: string }>(
-          'PUT',
-          `/api/v1/agents/${encodeURIComponent(args.id)}`,
-          args.doc,
-        ),
+        okId(connect.agents.put({ id: args.id, docJson: JSON.stringify(args.doc), scope: '' })),
     },
     canvas: {
       doc:  (args) => sse('canvas', 'doc', args),
@@ -140,42 +185,42 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       items:  (args) => sse('collections', 'items', args),
       list:      () => sse('collections', 'list'),
       create: (args) =>
-        json<{ ok: true; id: string }>('POST', '/api/v1/collections', {
-          id: args.id,
-          name: args.name ?? args.id,
-          fields: args.fields ?? {},
-        }),
+        okJson<{ ok: true; id: string }>(
+          connect.collections.createSchema({
+            schemaJson: JSON.stringify({
+              id: args.id,
+              name: args.name ?? args.id,
+              fields: args.fields ?? {},
+            }),
+          }),
+        ),
       update_schema: (args) =>
-        json<{ ok: true; id: string }>(
-          'PUT',
-          `/api/v1/collections/${encodeURIComponent(args.id)}/schema`,
-          { id: args.id, fields: args.fields },
+        okJson<{ ok: true; id: string }>(
+          connect.collections.updateSchema({
+            collection: args.id,
+            schemaJson: JSON.stringify({ id: args.id, fields: args.fields }),
+          }),
         ),
       get_item: (args) =>
-        body<{ ok: true; data: { id: string; data: Record<string, unknown> } }>(
-          `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`,
-          'json',
+        okJson<{ ok: true; data: { id: string; data: Record<string, unknown> } }>(
+          connect.collections.getItem({ collection: args.collection, id: args.item_id }),
         ),
-      create_item: (args) => {
-        const b: Record<string, unknown> = { data: args.data }
-        if (args.id !== undefined) b.id = args.id
-        return json<{ ok: true; id: string }>(
-          'POST',
-          `/api/v1/collections/${encodeURIComponent(args.collection)}/items`,
-          b,
-        )
-      },
+      create_item: (args) =>
+        okId(connect.collections.createItem({
+          collection: args.collection,
+          dataJson: JSON.stringify(args.data),
+          id: args.id ?? '',
+        })),
       update_item: (args) =>
-        json<{ ok: true; id: string }>(
-          'PUT',
-          `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`,
-          { data: args.data },
-        ),
+        okId(connect.collections.updateItem({
+          collection: args.collection,
+          id: args.item_id,
+          dataJson: JSON.stringify(args.data),
+        })),
       delete_item: (args) =>
-        json<void>(
-          'DELETE',
-          `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`,
-        ),
+        connect.collections
+          .deleteItem({ collection: args.collection, id: args.item_id })
+          .then(() => {}),
     },
     dashboard: {
       state: () => sse('dashboard', 'state'),
@@ -190,31 +235,59 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       annotations: (args: { file: string; workspace_id?: string }) =>
         sse('git', 'annotations', args),
       stage:       (args) =>
-        json<{ ok: true; staged: number }>('POST', '/api/v1/git/stage', args),
+        okJson<{ ok: true; staged: number }>(
+          connect.git.stage({ workspaceId: args.workspace_id ?? '', paths: args.paths }),
+        ),
       unstage:     (args) =>
-        json<{ ok: true; unstaged: number }>('POST', '/api/v1/git/unstage', args),
+        okJson<{ ok: true; unstaged: number }>(
+          connect.git.unstage({ workspaceId: args.workspace_id ?? '', paths: args.paths }),
+        ),
       commit:      (args) =>
-        json<{ ok: true; sha: string; branch: string | null }>(
-          'POST', '/api/v1/git/commit', args,
+        okJson<{ ok: true; sha: string; branch: string | null }>(
+          connect.git.commit({
+            workspaceId: args.workspace_id ?? '',
+            message: args.message,
+            author: args.author ?? '',
+          }),
         ),
       push:        (args) =>
-        json<{ ok: true; remote: string; force: boolean }>(
-          'POST', '/api/v1/git/push', args ?? {},
+        okJson<{ ok: true; remote: string; force: boolean }>(
+          connect.git.push({
+            workspaceId: args?.workspace_id ?? '',
+            remote: args?.remote ?? '',
+            force: args?.force ?? false,
+          }),
         ),
       fetch:       (args) =>
-        json<{ ok: true; remote: string }>('POST', '/api/v1/git/fetch', args ?? {}),
+        okJson<{ ok: true; remote: string }>(
+          connect.git.fetch({ workspaceId: args?.workspace_id ?? '', remote: args?.remote ?? '' }),
+        ),
       pull:        (args) =>
-        json<{ ok: true; head: string }>('POST', '/api/v1/git/pull', args ?? {}),
+        okJson<{ ok: true; head: string }>(
+          connect.git.pull({ workspaceId: args?.workspace_id ?? '', remote: args?.remote ?? '' }),
+        ),
       checkout:    (args) =>
-        json<{ ok: true; ref: string; resolved: string }>(
-          'POST', '/api/v1/git/checkout', { ref: args.ref, workspace_id: args.workspace_id },
+        okJson<{ ok: true; ref: string; resolved: string }>(
+          connect.git.checkout({ workspaceId: args.workspace_id ?? '', refname: args.ref }),
         ),
       branch_create: (args) =>
-        json<{ ok: true; name: string }>('POST', '/api/v1/git/branch', args),
+        okJson<{ ok: true; name: string }>(
+          connect.git.branchCreate({
+            workspaceId: args.workspace_id ?? '',
+            name: args.name,
+            checkout: args.checkout ?? false,
+          }),
+        ),
       branch_delete: (args) =>
-        json<{ ok: true; name: string }>('DELETE', '/api/v1/git/branch', args),
+        okJson<{ ok: true; name: string }>(
+          connect.git.branchDelete({
+            workspaceId: args.workspace_id ?? '',
+            name: args.name,
+            force: args.force ?? false,
+          }),
+        ),
       init:        (args) =>
-        json<{ ok: true }>('POST', '/api/v1/git/init', args ?? {}),
+        okJson<{ ok: true }>(connect.git.init({ workspaceId: args?.workspace_id ?? '' })),
     },
     mesh: {
       snapshot: () => sse('mesh', 'snapshot'),
@@ -231,16 +304,6 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
           args,
         ),
       end: (args) => json<void>('DELETE', `/api/v1/sessions/${encodeURIComponent(args.id)}`),
-    },
-    workspaces: {
-      list:    () => sse('workspaces', 'list'),
-      active:  () => sse('workspaces', 'active'),
-      activate: (args) =>
-        json<{ ok: true; active: string }>(
-          'POST',
-          '/api/v1/projects/switch',
-          { id: args.id },
-        ),
     },
     artifacts: {
       list: (args) => sse('artifacts', 'list', args),
@@ -279,6 +342,19 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
             session_id: args.session_id,
           },
         ),
+    },
+    pipelines: {
+      summaries: () => sse('pipelines', 'summaries'),
+      run:    (args) => sse('pipelines', 'run', args),
+      focus:  (args) => sse('pipelines', 'focus', args),
+      history: (args) => sse('pipelines', 'history', args ?? {}),
+      dispatch: (args) =>
+        okJson(connect.pipelines.dispatch({
+          pipeline: args.pipeline,
+          spec: args.spec ?? '',
+          harness: args.harness ?? '',
+          auto: args.auto ?? false,
+        })),
     },
   }
 }

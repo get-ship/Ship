@@ -7,7 +7,7 @@
 //! `services::command::call`, the ONE gate, which enforces the grant and
 //! decodes the typed `SettingValue` return.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::{json, Value};
 
 use ship_ops_rpc::{JsonResponse, SettingValue, SettingsService};
@@ -43,6 +43,15 @@ impl SettingsService for OpsImpl {
             crate::services::registry::call("settings.state", &Value::Null, self.state())
                 .map_err(|e| ConnectError::internal(format!("settings.state: {e}")))?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn state_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedGetSettingsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("settings.state", json!({})).await
     }
 
     async fn set(

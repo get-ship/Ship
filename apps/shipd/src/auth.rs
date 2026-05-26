@@ -13,6 +13,10 @@
 // preserve the `crate::auth::{attest,pairing}` paths the daemon uses.
 pub use ship_platform::auth::{attest, pairing};
 pub mod identity;
+/// Host unix socket — per-agent peer-credential auth. Unix-only: relies on
+/// `SO_PEERCRED` and `UnixListener`. Windows uses a named-pipe path (future).
+#[cfg(unix)]
+pub mod peer_socket;
 pub mod scopes;
 pub mod session;
 
@@ -165,6 +169,16 @@ pub async fn auth_middleware(
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
+    // 0. Already authenticated by an outer layer? The host unix socket
+    //    resolves identity from the connection's kernel peer credentials and
+    //    inserts `AuthContext` before this middleware runs (no token is
+    //    presented on that transport). Honor it — one gate, two auth sources.
+    //    On TCP nothing inserts `AuthContext` ahead of this layer, so this is
+    //    a no-op there.
+    if req.extensions().get::<AuthContext>().is_some() {
+        return next.run(req).await;
+    }
+
     // 1. Cookie check — browser sessions.
     if let Some(cookie_header) = req.headers().get("cookie").and_then(|v| v.to_str().ok())
         && let Some(session_id) = crate::auth::session::parse_session_cookie(cookie_header)

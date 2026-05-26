@@ -137,8 +137,16 @@ kill_daemon() {
         sleep 0.1
     done
     if kill -0 "$pid" 2>/dev/null; then
-        echo "kill_daemon: shipd pid $pid ignored SIGTERM after 10s" >&2
-        return 1
+        # shipd ignored SIGTERM within the graceful window. That's a daemon
+        # shutdown bug worth fixing — but blocking `dev-restart` on it strands
+        # the worktree with a zombie daemon. Surface it loudly, then escalate to
+        # SIGKILL so the restart proceeds.
+        echo "kill_daemon: shipd pid $pid ignored SIGTERM after 10s — escalating to SIGKILL (daemon graceful-shutdown bug)" >&2
+        kill -9 "$pid" 2>/dev/null || true
+        deadline=$(( $(date +%s) + 3 ))
+        while kill -0 "$pid" 2>/dev/null && [ "$(date +%s)" -lt "$deadline" ]; do
+            sleep 0.1
+        done
     fi
     rm -f "$pf" "$d/port"
     echo "shipd stopped (pid $pid)"

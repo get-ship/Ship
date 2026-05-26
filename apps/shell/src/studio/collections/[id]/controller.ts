@@ -9,7 +9,9 @@
 // uses.
 
 import { controller, signal, derived, live, unwrap, defineRoutes } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+import { ops } from '../../../ops'
 
 defineRoutes([{ pattern: '/studio/collections/:id' }])
 
@@ -81,8 +83,8 @@ function buildCell(
   return { kind: 'text', value: String(raw) }
 }
 
-export default controller<Scope>({
-  scope: ({ ship, route }) => {
+export default controller({
+  scope: ({ ship, route }: ViewScope<Scope>) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = ship as any
     const collectionId = derived(() => route.params.id() ?? '')
@@ -156,22 +158,21 @@ export default controller<Scope>({
   },
   on: {
     setDraftField: (state, name: string, value: unknown) => {
-      state.rowDraft = { ...(state.rowDraft as Record<string, unknown>), [name]: value }
+      state.rowDraft = { ...state.rowDraft, [name]: value }
     },
     cycleStatus: async (state, item: { id: string; data?: Record<string, unknown> }) => {
-      const detail = state.detailValue as CollectionDetail | null
-      const statusField = detail?.schema.fields?.find(f => f.name === 'status')
+      const detail = state.detailValue
+      const statusField = detail?.schema.fields?.find((f: SchemaField) => f.name === 'status')
       const values = statusField?.values ?? []
       if (values.length === 0) return
       const current = (item.data?.['status'] as string | undefined) ?? ''
       const idx = values.indexOf(current)
       const next = values[(idx + 1) % values.length]
-      const id = state.collectionId as string
-      await fetch(`/api/v1/collections/${id}/items/${encodeURIComponent(item.id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ data: { ...(item.data ?? {}), status: next } }),
+      const id = state.collectionId
+      await ops.collections.updateItem({
+        collection: id,
+        id: item.id,
+        dataJson: JSON.stringify({ ...(item.data ?? {}), status: next }),
       }).catch(() => undefined)
     },
     openNewRow: (state) => {
@@ -184,16 +185,16 @@ export default controller<Scope>({
       state.drawerError = ''
     },
     saveNewRow: async (state) => {
-      const id = state.collectionId as string
+      const id = state.collectionId
       if (!id) { state.drawerError = 'No collection id'; return }
-      const res = await fetch(`/api/v1/collections/${id}/items`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ data: state.rowDraft }),
-      })
-      if (!res.ok) {
-        state.drawerError = await res.text().catch(() => 'Request failed')
+      try {
+        await ops.collections.createItem({
+          collection: id,
+          dataJson: JSON.stringify(state.rowDraft),
+          id: '',
+        })
+      } catch (e) {
+        state.drawerError = (e as Error).message ?? 'Request failed'
         return
       }
       state.newRowOpen = false

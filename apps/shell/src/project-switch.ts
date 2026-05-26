@@ -17,6 +17,7 @@
 // surface the breakdown as a toast.
 
 import { chrome } from '@ship/sui-runtime'
+import { ops } from './ops'
 import type { KernelBridge } from './kernel-bridge'
 
 interface CrossSession {
@@ -69,11 +70,7 @@ async function updateCrossProjectIndicator(statusBar: HTMLElement | null): Promi
   if (!statusBar) return
   let activeId: string | null = null
   try {
-    const resp = await fetch('/api/v1/projects/active', { credentials: 'same-origin' })
-    if (resp.ok) {
-      const body = (await resp.json()) as { active?: { id?: string } | null }
-      activeId = body.active?.id ?? null
-    }
+    activeId = (await ops.project.activeProject({})).id ?? null
   } catch { /* every running session counts as "elsewhere" when we can't read active */ }
 
   let sessions: CrossSession[] = []
@@ -142,10 +139,7 @@ function onCrossIndicatorClick(byProject: Map<string, { name: string; count: num
   // that things run elsewhere."
   if (byProject.size === 1) {
     const id = byProject.keys().next().value as string
-    void fetch(`/api/v1/projects/${encodeURIComponent(id)}/activate`, {
-      method: 'POST',
-      credentials: 'same-origin',
-    })
+    void ops.project.activate({ id })
     return
   }
   const summary = Array.from(byProject.values())

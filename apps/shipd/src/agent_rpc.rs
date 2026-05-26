@@ -106,11 +106,13 @@ mod tests {
         let dispatch = crate::ops_rpc::policy_for("ship.ops.v1.AgentService/Dispatch")
             .expect("AgentService/Dispatch must carry a policy in the descriptor");
         assert_eq!(dispatch.capability, "ship.runtime.dispatch");
-        assert_eq!(dispatch.blast_radius, ship_ops_rpc::BlastRadius::C1Workspace);
+        // Dispatch spawns/controls agents — C2 (elevated, granted to commander).
+        assert_eq!(dispatch.blast_radius, ship_ops_rpc::BlastRadius::C2Elevated);
 
         let grant = crate::ops_rpc::policy_for("ship.ops.v1.AgentService/Grant")
             .expect("AgentService/Grant must carry a policy in the descriptor");
         assert_eq!(grant.capability, "ship.agents.grant");
-        assert_eq!(grant.blast_radius, ship_ops_rpc::BlastRadius::C2Elevated);
+        // Grant hands out authority — C3 (operator/2FA only).
+        assert_eq!(grant.blast_radius, ship_ops_rpc::BlastRadius::C3Critical);
     }
 }

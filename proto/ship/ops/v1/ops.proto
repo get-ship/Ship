@@ -19,6 +19,7 @@ service OpsService {
   // Daemon build/version metadata. C0: safe for any caller.
   rpc Meta(MetaRequest) returns (MetaResponse) {
     option (ship.ops.v1.capability) = "ship.meta.read";
+    option (ship.ops.v1.description) = "Daemon metadata: version, capabilities, and the served op surface.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
 }

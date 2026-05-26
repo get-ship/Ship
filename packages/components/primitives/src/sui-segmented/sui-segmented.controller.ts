@@ -1,4 +1,5 @@
 import { controller, signal, effect, ref } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-segmented.sui'
 
 interface OptionEl extends HTMLElement {
@@ -17,8 +18,8 @@ interface Option {
 const cssEscape = (s: string): string =>
   typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(s) : s.replace(/[^\w-]/g, '\\$&')
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const options = signal<Option[]>([])
     const containerEl = ref<HTMLDivElement>(null)
     return { options, containerEl }
@@ -45,12 +46,12 @@ export default controller<Scope>({
     }
 
     const select = (val: string) => {
-      if (state.disabled()) return
-      const opts = state.options()
-      const opt = opts.find((o) => o.value === val)
+      if (state.disabled) return
+      const opts = state.options
+      const opt = opts.find((o: Option) => o.value === val)
       if (!opt || opt.disabled) return
-      if (state.value() === val) return
-      state.value.set(val)
+      if (state.value === val) return
+      state.value = val
       host.dispatchEvent(
         new CustomEvent('sui-change', {
           detail: { value: val },
@@ -68,11 +69,11 @@ export default controller<Scope>({
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
-      const opts = state.options()
-      const enabled = opts.filter((o) => !o.disabled && !state.disabled())
+      const opts = state.options
+      const enabled = opts.filter((o: Option) => !o.disabled && !state.disabled)
       if (!enabled.length) return
-      const values = enabled.map((o) => o.value)
-      const cur = state.value()
+      const values = enabled.map((o: Option) => o.value)
+      const cur = state.value
       const i = Math.max(0, values.indexOf(cur))
       let next = i
 
@@ -102,17 +103,17 @@ export default controller<Scope>({
       })
     }
 
-    state.options.set(readOptions())
-    const observer = new MutationObserver(() => state.options.set(readOptions()))
+    state.options = readOptions()
+    const observer = new MutationObserver(() => { state.options = readOptions() })
     observer.observe(host, { childList: true, subtree: false })
 
     const stopHidden = effect(() => {
-      hiddenInput.name = state.name()
-      hiddenInput.value = state.value()
+      hiddenInput.name = state.name
+      hiddenInput.value = state.value
     })
 
     const stopContainer = effect(() => {
-      const container = state.containerEl()
+      const container = state.containerEl as HTMLDivElement | null
       if (!container) return
       container.addEventListener('click', onClick)
       container.addEventListener('keydown', onKeyDown)

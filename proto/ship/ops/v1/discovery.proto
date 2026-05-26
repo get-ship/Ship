@@ -1,0 +1,43 @@
+// `discovery.*` — view catalog + on-disk view source, as a hand-authored
+// per-domain proto-SSOT service (#139). These are filesystem reads (scan the
+// view search dirs; read a view's template + manifest), distinct from the
+// served bundle and from the `view.*` authoring writes (view.proto). The
+// daemon's `views::discovery` module + `views::source_api` own the scan/read
+// logic; this service is the typed Connect surface over their value cores,
+// replacing GET /api/v1/views and GET /api/v1/view-source/{path}.
+//
+// Both are C0 reads returning opaque JsonResponse (the catalog + source shapes
+// are view-shaped blobs, not stable proto messages).
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/ops.proto";
+
+message DiscoveryListReq {}
+
+message DiscoverySourceReq {
+  // View path (dotted view name, optionally `name/sub`).
+  string path = 1;
+}
+
+message DiscoverySchemaReq {}
+
+service DiscoveryService {
+  rpc List(DiscoveryListReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Source(DiscoverySourceReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  // The `ship.*` op catalog — every op's name/args/returns/permission, the
+  // SSOT for view-template lint, `window.ship.*` codegen, MCP tool binding,
+  // and editor autocomplete. Replaces GET /api/v1/ship/schema. C0 read.
+  rpc Schema(DiscoverySchemaReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+}

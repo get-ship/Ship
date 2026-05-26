@@ -21,7 +21,6 @@ use anyhow::Result;
 
 pub use ship_platform::config::Credentials;
 pub use ship_platform::config::DiskBackedConfig;
-pub use ship_platform::config::credentials::Account as CredentialsAccount;
 
 use ship_platform::config::library::{Cloud, Defaults, Identity, LibrarySettings};
 use ship_platform::config::local::{Dispatch, LocalSettings, Terminal, Worktrees};

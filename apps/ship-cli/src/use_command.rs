@@ -4,7 +4,7 @@
 //! this module forwards launch-bearing invocations to the daemon's
 //! `POST /api/v1/agent_sessions/dispatch` endpoint.
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 
 /// Inputs forwarded from the CLI `Use` variant for the launch path.
@@ -211,18 +211,24 @@ fn mode_label(opts: &LaunchOpts) -> &'static str {
 /// POST the dispatch body to the running daemon, auto-starting if needed.
 /// Translates connection failures into a clear "shipd not running" error.
 fn post_dispatch(body: &serde_json::Value) -> Result<serde_json::Value> {
+    use connectrpc::client::{ClientConfig, HttpClient};
+    use ship_ops_rpc::{AgentServiceClient, DispatchAgentRequest};
     let (port, token) = crate::daemon::ensure_daemon()
         .map_err(|e| anyhow::anyhow!("shipd not running: {e}\nTry: ship daemon start"))?;
-    let url = format!("http://127.0.0.1:{port}/api/v1/agent_sessions/dispatch");
-    let resp: serde_json::Value = ureq::post(&url)
-        .header("Content-Type", "application/json")
-        .header("Authorization", &format!("Bearer {token}"))
-        .send_json(body)
-        .map_err(|e| anyhow::anyhow!("dispatch POST failed: {e}"))?
-        .body_mut()
-        .read_json()
-        .map_err(|e| anyhow::anyhow!("dispatch response was not JSON: {e}"))?;
-    Ok(resp)
+    // agent.Dispatch (Connect) replaces POST /api/v1/agent_sessions/dispatch.
+    // build_dispatch_body already emits the DispatchAgentRequest field shape.
+    let req: DispatchAgentRequest =
+        serde_json::from_value(body.clone()).context("building dispatch request")?;
+    let uri: http::Uri =
+        format!("http://127.0.0.1:{port}").parse().context("building daemon URI")?;
+    let config =
+        ClientConfig::new(uri).default_header("authorization", format!("Bearer {token}"));
+    let client = AgentServiceClient::new(HttpClient::plaintext(), config);
+    let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
+    let resp = rt
+        .block_on(client.dispatch(req))
+        .map_err(|e| anyhow::anyhow!("dispatch call failed: {e}"))?;
+    serde_json::from_str(&resp.view().json).context("parsing dispatch response")
 }
 
 #[cfg(test)]

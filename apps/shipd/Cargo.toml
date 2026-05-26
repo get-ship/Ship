@@ -21,6 +21,7 @@ path = "src/main.rs"
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
 ship-isolation = { path = "../../crates/core/ship-isolation", default-features = false }
+ship-host = { path = "../../crates/core/ship-host" }
 ship-pipelines = { path = "../../crates/core/ship-pipelines" }
 ship-supervisor = { path = "../../crates/core/ship-supervisor" }
 ship-types = { path = "../../crates/core/ship-types" }
@@ -36,10 +37,6 @@ http = "1"
 deck = { path = "../../crates/deck/deck" }
 sui-compiler = { path = "../../crates/sui/compiler" }
 sui-signals = { path = "../../crates/sui/signals" }
-# The MCP server surface. shipd mounts ShipServer at /mcp (the single
-# daemon-hosted MCP transport). Acyclic: mcp reaches shipd only over HTTP,
-# never as a crate dep.
-mcp = { path = "../mcp" }
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }
@@ -67,7 +64,6 @@ futures = "0.3"
 notify = { workspace = true }
 tower = { version = "0.5", features = ["timeout"] }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }
-utoipa = { version = "5", features = ["axum_extras"] }
 datastar = { version = "=0.3.1", features = ["axum"] }
 jsonwebtoken = "9"
 reqwest = { workspace = true, features = ["rustls-tls", "json"] }

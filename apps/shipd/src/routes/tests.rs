@@ -14,17 +14,17 @@ fn unit_variant_full_path_is_literal() {
 
 #[test]
 fn named_variant_substitutes_params() {
-    let url = Route::UpdateSpec {
+    let url = Route::ArtifactDownload {
         id: "abc".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/v1/specs/abc");
+    assert_eq!(url, "/api/v1/artifacts/abc");
 
-    let url = Route::DeleteSpec {
-        id: "spec-42".to_string(),
+    let url = Route::ArtifactMetadata {
+        id: "art-42".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/v1/specs/spec-42");
+    assert_eq!(url, "/api/v1/artifacts/art-42/metadata");
 
     let url = Route::GetJob {
         pipeline_run_id: "job-xyz".to_string(),
@@ -35,12 +35,12 @@ fn named_variant_substitutes_params() {
 
 #[test]
 fn multi_param_variant_substitutes_all() {
-    let url = Route::SkillsPutVar {
-        id: "code".to_string(),
-        key: "model".to_string(),
+    let url = Route::SuiPackAsset {
+        pack_id: "core".to_string(),
+        file: "index.js".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/v1/skills/code/vars/model");
+    assert_eq!(url, "/_sui/packs/core/index.js");
 }
 
 #[test]
@@ -48,14 +48,14 @@ fn method_returns_uppercase_str() {
     assert_eq!(Route::ListJobs.method(), "GET");
     assert_eq!(Route::DispatchPipeline.method(), "POST");
     assert_eq!(
-        Route::UpdateSpec {
-            id: String::new()
+        Route::WriteViewTemplate {
+            name: String::new()
         }
         .method(),
         "PUT"
     );
     assert_eq!(
-        Route::DeleteSpec {
+        Route::CloseViewSession {
             id: String::new()
         }
         .method(),
@@ -66,19 +66,19 @@ fn method_returns_uppercase_str() {
 #[test]
 fn template_path_preserves_placeholders() {
     assert_eq!(
-        Route::UpdateSpec {
-            id: String::new()
+        Route::WriteViewTemplate {
+            name: String::new()
         }
         .template_path(),
-        "/api/v1/specs/{id}"
+        "/api/v1/views/{name}/template"
     );
     assert_eq!(
-        Route::SkillsPutVar {
-            id: String::new(),
-            key: String::new()
+        Route::SuiPackAsset {
+            pack_id: String::new(),
+            file: String::new()
         }
         .template_path(),
-        "/api/v1/skills/{id}/vars/{key}"
+        "/_sui/packs/{pack_id}/{file}"
     );
 }
 
@@ -139,7 +139,6 @@ fn api_v1_prefix_invariants() {
             ("ListJobs", Route::ListJobs.full_path()),
             ("DispatchPipeline", Route::DispatchPipeline.full_path()),
             ("Capabilities", Route::Capabilities.full_path()),
-            ("ListProjects", Route::ListProjects.full_path()),
             ("EmitEvent", Route::EmitEvent.full_path()),
             ("PostFeedback", Route::PostFeedback.full_path()),
         ]

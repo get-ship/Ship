@@ -100,7 +100,7 @@ pub fn run(opts: RunOptions) -> Result<()> {
         format!("ship-{sanitized}")
     };
 
-    match post_to_daemon("/api/v1/pipelines/run", &body) {
+    match dispatch_pipeline(&body) {
         Ok(resp) => {
             eprintln!("Pipeline: {pipeline_name}");
             eprintln!("Steps:    {}", steps.len());
@@ -293,18 +293,26 @@ fn print_dry_run(
     }
 }
 
-/// POST JSON to the daemon API, auto-starting the daemon if needed.
-fn post_to_daemon(path: &str, body: &serde_json::Value) -> Result<serde_json::Value> {
+/// Dispatch the pipeline via `PipelinesService.Dispatch` (Connect), replacing
+/// `POST /api/v1/pipelines/run`. `body` carries the full PipelineRunRequest
+/// field shape, which deserializes directly into the widened DispatchPipelineReq.
+fn dispatch_pipeline(body: &serde_json::Value) -> Result<serde_json::Value> {
+    use anyhow::Context;
+    use connectrpc::client::{ClientConfig, HttpClient};
+    use ship_ops_rpc::{DispatchPipelineReq, PipelinesServiceClient};
     let (port, token) = crate::daemon::ensure_daemon()?;
-
-    let url = format!("http://127.0.0.1:{port}{path}");
-    let resp: serde_json::Value = ureq::post(&url)
-        .header("Content-Type", "application/json")
-        .header("Authorization", &format!("Bearer {token}"))
-        .send_json(body)?
-        .body_mut()
-        .read_json()?;
-    Ok(resp)
+    let req: DispatchPipelineReq =
+        serde_json::from_value(body.clone()).context("building dispatch request")?;
+    let uri: http::Uri =
+        format!("http://127.0.0.1:{port}").parse().context("building daemon URI")?;
+    let config =
+        ClientConfig::new(uri).default_header("authorization", format!("Bearer {token}"));
+    let client = PipelinesServiceClient::new(HttpClient::plaintext(), config);
+    let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
+    let resp = rt
+        .block_on(client.dispatch(req))
+        .map_err(|e| anyhow::anyhow!("dispatch call failed: {e}"))?;
+    serde_json::from_str(&resp.view().json).context("parsing dispatch response")
 }
 
 #[cfg(test)]

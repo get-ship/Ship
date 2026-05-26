@@ -8,7 +8,7 @@
 //! C0 reads + C1 writes). All writes route through `services::command::call`
 //! (the one gate). Reads call the sync read registry directly.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::json;
 
 use ship_ops_rpc::{
@@ -59,6 +59,103 @@ impl PipelinesService for OpsImpl {
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
 
+    #[allow(refining_impl_trait)]
+    async fn summaries_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedGetPipelinesSummariesRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("pipelines.summaries", serde_json::json!({})).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn focus_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedFocusPipelineRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("pipelines.focus", json!({ "name": request.name })).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn run_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedRunPipelineRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("pipelines.run", json!({ "slug": request.slug })).await
+    }
+
+    async fn dispatch(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedDispatchPipelineReqView,
+    ) -> ServiceResult<JsonResponse> {
+        use axum::response::IntoResponse;
+        let auth = ctx
+            .extensions
+            .get::<AuthContext>()
+            .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?
+            .clone();
+        let opt = |s: &str| if s.is_empty() { None } else { Some(s.to_string()) };
+        let vars: std::collections::HashMap<String, String> = request
+            .vars
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        let req = crate::routes::runtime_api::PipelineRunRequest {
+            pipeline: request.pipeline.to_string(),
+            spec: opt(request.spec),
+            vars: if vars.is_empty() { None } else { Some(vars) },
+            harness: opt(request.harness),
+            model: opt(request.model),
+            workspace: opt(request.workspace),
+            slug: opt(request.slug),
+            auto: request.auto,
+            source_spec_path: opt(request.source_spec_path),
+        };
+        // run_pipeline self-gates on the CreateRuns scope; bridge its axum
+        // Response back to a value, as the route-core ops do.
+        let resp = crate::routes::runtime_api::run_pipeline(
+            axum::extract::State(self.state().clone()),
+            axum::Extension(auth),
+            axum::Json(req),
+        )
+        .await
+        .into_response();
+        let value =
+            command::response_to_value(resp).await.map_err(command_error_to_connect)?;
+        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    async fn end_turn(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedEndTurnReqView,
+    ) -> ServiceResult<JsonResponse> {
+        use axum::response::IntoResponse;
+        let auth = ctx
+            .extensions
+            .get::<AuthContext>()
+            .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?
+            .clone();
+        let req = crate::routes::runtime_api::jobs::TurnEndRequest {
+            slug: request.slug.to_string(),
+        };
+        // end_job manipulates the step monitor / emits job.completed directly;
+        // bridge its axum Response back to a value, as dispatch does.
+        let resp = crate::routes::runtime_api::end_job(
+            axum::extract::State(self.state().clone()),
+            axum::Extension(auth),
+            axum::Json(req),
+        )
+        .await
+        .into_response();
+        let value =
+            command::response_to_value(resp).await.map_err(command_error_to_connect)?;
+        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
     async fn focus(
         &self,
         _ctx: RequestContext,
@@ -92,11 +189,25 @@ impl PipelinesService for OpsImpl {
             "limit": request.limit,
             "offset": request.offset,
             "pipeline": request.pipeline,
+            "q": request.q,
         });
         let value =
             crate::services::registry::call("pipelines.history", &args, self.state())
                 .map_err(|e| ConnectError::internal(format!("pipelines.history: {e}")))?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn history_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedListPipelinesHistoryRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        let args = json!({
+            "limit": request.limit, "offset": request.offset,
+            "pipeline": request.pipeline, "q": request.q,
+        });
+        self.live_read("pipelines.history", args).await
     }
 
     // ── runtime writes (C1, ship.runtime.write) ───────────────────────────────

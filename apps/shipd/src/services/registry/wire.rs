@@ -222,10 +222,45 @@ pub struct WorkspaceActiveResponse {
 
 // ── collections ───────────────────────────────────────────────────────
 
+/// One field row in a collection summary. Single Rust source for the TS
+/// `CollectionFieldRecord` (was hand-written in @ship/sdk-client). Serde output
+/// is byte-identical to the prior `json!` in registry/collections.rs.
+#[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct CollectionFieldRecord {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub r#type: String,
+    pub field_type: String,
+    pub required: bool,
+    pub values: Option<Vec<String>>,
+    pub default: Option<Value>,
+}
+
+/// One row of `ship.collections.list()` — schema metadata + per-collection
+/// stats. Single Rust source for the TS `CollectionSummary` (was hand-written
+/// AND incomplete — missing the 5 stats fields). Byte-identical to the json!.
+#[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct CollectionSummary {
+    pub id: String,
+    pub name: Option<String>,
+    pub field_count: usize,
+    pub fields: Vec<CollectionFieldRecord>,
+    pub builtin: bool,
+    pub item_count: usize,
+    pub status_field: Option<String>,
+    pub status_values: Vec<String>,
+    #[cfg_attr(feature = "specta", specta(type = std::collections::HashMap<String, i64>))]
+    pub status_counts: serde_json::Map<String, Value>,
+    pub last_activity: Option<String>,
+}
+
 /// Wire shape of `ship.collections.list()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct CollectionsListResponse {
-    pub items: Vec<Value>,
+    pub items: Vec<CollectionSummary>,
 }
 
 /// Wire shape of `ship.collections.detail()`.

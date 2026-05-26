@@ -1,4 +1,5 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-bar-chart.sui'
 import { parseLabels, parseNums, toneColor } from '../chart-util'
 
@@ -14,8 +15,8 @@ interface Bar {
   title: string
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const bars = signal<Bar[]>([])
     const isEmpty = signal(true)
     return { bars, isEmpty }

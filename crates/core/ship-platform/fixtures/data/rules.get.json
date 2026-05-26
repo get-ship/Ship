@@ -1,5 +1,0 @@
-{
-  "id": "no-placeholders",
-  "scope": "project",
-  "body": "# No placeholders\n\nNo TODOs, no fake data. If it's not finished, remove it.\n"
-}

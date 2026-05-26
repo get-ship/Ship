@@ -18,18 +18,10 @@ const HIDDEN_FROM_PICKERS: &[&str] = &[
     "specs",
 ];
 
-/// GET /api/v1/views
-#[utoipa::path(
-    operation_id = "listViews",
-    get,
-    path = "/api/v1/views",
-    responses(
-        (status = 200, description = "Catalog of available views"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-    ),
-    tag = "views"
-)]
-pub async fn list_views() -> impl IntoResponse {
+/// Value-returning core for the view catalog (`{ views: [...] }`). Backs the
+/// `DiscoveryService.List` Connect op (#139); the REST `GET /api/v1/views`
+/// handler it replaced is gone.
+pub fn list_views_catalog() -> serde_json::Value {
     let mut views: HashMap<String, ViewListEntry> = HashMap::new();
     for d in super::discovery::view_search_dirs() {
         scan_views_dir(&d.path, d.source, &mut views);
@@ -37,7 +29,7 @@ pub async fn list_views() -> impl IntoResponse {
     views.retain(|name, _| !HIDDEN_FROM_PICKERS.contains(&name.as_str()));
     let mut list: Vec<ViewListEntry> = views.into_values().collect();
     list.sort_by(|a, b| a.name.cmp(&b.name));
-    mesh_ok(serde_json::json!({ "views": list }))
+    serde_json::json!({ "views": list })
 }
 
 /// GET /api/v1/view/{name}/asset/{file} — serve static assets from view dir.
@@ -83,18 +75,6 @@ pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axu
 }
 
 /// GET /api/v1/view/{name}/manifest
-#[utoipa::path(
-    operation_id = "serveViewManifest",
-    get,
-    path = "/api/v1/view/{name}/manifest",
-    params(("name" = String, Path, description = "View name")),
-    responses(
-        (status = 200, description = "View manifest JSON"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 404, description = "View not found", body = crate::wire::ErrorResponse),
-    ),
-    tag = "views"
-)]
 pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse {
     if !is_valid_view_name(&name) { return mesh_err(StatusCode::BAD_REQUEST, "invalid view name"); }
     let (view_dir, _) = match resolve_view_dir(&name, None) {
@@ -127,18 +107,6 @@ pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse 
 }
 
 /// GET /api/v1/view/{name}/bundle — raw JS, not JSON-wrapped.
-#[utoipa::path(
-    operation_id = "serveViewBundle",
-    get,
-    path = "/api/v1/view/{name}/bundle",
-    params(("name" = String, Path, description = "View name")),
-    responses(
-        (status = 200, description = "View module bundle (JavaScript)", content_type = "application/javascript"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 404, description = "View not found", body = crate::wire::ErrorResponse),
-    ),
-    tag = "views"
-)]
 pub async fn serve_view_bundle(Path(name): Path<String>) -> axum::response::Response {
     use axum::http::header;
 

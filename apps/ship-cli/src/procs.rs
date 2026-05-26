@@ -1,7 +1,7 @@
 //! `ship procs [--slug X] [--kind K]` — list process records from the
 //! ProcessRecord projection. Read-only view of process lifecycle.
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 
 /// Valid `--kind` values, mirroring `SessionKind` in
 /// `crates/core/ship-platform/src/services/sessions/types.rs`.
@@ -12,45 +12,43 @@ pub fn run(slug: Option<&str>, kind: Option<&str>, limit: Option<usize>, json: b
         validate_kind(k)?;
     }
     let (port, token) = crate::daemon::ensure_daemon()?;
-    let mut url = format!("http://127.0.0.1:{port}/api/v1/procs");
-    let mut q: Vec<String> = vec![];
-    if let Some(s) = slug {
-        q.push(format!("slug={}", urlencode(s)));
-    }
-    if let Some(k) = kind {
-        q.push(format!("kind={}", urlencode(k)));
-    }
-    if let Some(l) = limit {
-        q.push(format!("limit={l}"));
-    }
-    if !q.is_empty() {
-        url.push('?');
-        url.push_str(&q.join("&"));
-    }
-
-    let mut resp = ureq::get(&url)
-        .header("Authorization", &format!("Bearer {token}"))
-        .config()
-        .http_status_as_error(false)
-        .build()
-        .call()
-        .map_err(|e| anyhow!("procs request failed: {e}"))?;
-    let value: serde_json::Value = resp
-        .body_mut()
-        .read_json()
-        .map_err(|e| anyhow!("procs: malformed response body: {e}"))?;
-
-    if !value["ok"].as_bool().unwrap_or(false) {
-        return Err(anyhow!(
-            "daemon returned error: {}",
-            value["data"].as_str().unwrap_or("unknown")
-        ));
-    }
-
-    let procs: Vec<serde_json::Value> = value["data"]["procs"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
+    // RuntimeService.ListProcs (Connect) replaces GET /api/v1/procs. The typed
+    // RuntimeProcess messages are serde-Serializable, so re-encode to the Value
+    // shape the printer already consumes (snake_case fields).
+    let procs: Vec<serde_json::Value> = {
+        use connectrpc::client::{ClientConfig, HttpClient};
+        use ship_ops_rpc::{ListProcsRequest, RuntimeServiceClient};
+        let uri: http::Uri =
+            format!("http://127.0.0.1:{port}").parse().context("building daemon URI")?;
+        let config =
+            ClientConfig::new(uri).default_header("authorization", format!("Bearer {token}"));
+        let client = RuntimeServiceClient::new(HttpClient::plaintext(), config);
+        let req = ListProcsRequest {
+            slug: slug.map(str::to_string),
+            kind: kind.map(str::to_string),
+            limit: limit.map(|l| l as u32),
+            ..Default::default()
+        };
+        let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
+        let resp = rt
+            .block_on(client.list_procs(req))
+            .map_err(|e| anyhow!("procs call failed: {e}"))?;
+        resp.view()
+            .processes
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "pid": p.pid,
+                    "slug": p.slug,
+                    "step_id": p.step_id,
+                    "cmd": p.cmd,
+                    "status": p.status,
+                    "spawned_at": p.spawned_at,
+                    "exited_at": p.exited_at,
+                })
+            })
+            .collect()
+    };
 
     if json {
         println!("{}", serde_json::to_string_pretty(&procs)?);
@@ -119,30 +117,9 @@ fn truncate(s: &str, n: usize) -> String {
     }
 }
 
-/// Minimal URL component encoder — only escapes characters that would break
-/// query parsing. We deliberately avoid pulling in a crate for one call.
-fn urlencode(s: &str) -> String {
-    s.chars()
-        .map(|c| match c {
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
-            other => format!("%{:02X}", other as u32),
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn urlencode_passes_unreserved() {
-        assert_eq!(urlencode("simple-slug_01"), "simple-slug_01");
-    }
-
-    #[test]
-    fn urlencode_escapes_reserved() {
-        assert_eq!(urlencode("a&b=c"), "a%26b%3Dc");
-    }
 
     #[test]
     fn fmt_ts_round_trips_iso() {

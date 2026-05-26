@@ -1,4 +1,5 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-heatmap.sui'
 import { parseJson, parseLabels, parseNums, toneColor } from '../chart-util'
 
@@ -11,8 +12,8 @@ interface Cell {
   fill: string
 }
 
-export default controller<Scope>({
-  scope: () => ({
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => ({
     cells: signal<Cell[]>([]),
     svgW: signal(0),
     svgH: signal(0),

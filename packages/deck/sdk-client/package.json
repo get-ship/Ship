@@ -17,6 +17,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@ship/sdk": "workspace:*",
     "@ship/sui-runtime": "workspace:*"
   },
   "devDependencies": {

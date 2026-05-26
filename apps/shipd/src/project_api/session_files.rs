@@ -77,19 +77,6 @@ pub(super) fn collect_files_recursive(
 }
 
 /// GET /api/v1/projects/{id}/session-files
-#[utoipa::path(
-    operation_id = "listSessionFiles",
-    get,
-    path = "/api/v1/projects/{id}/session-files",
-    params(("id" = String, Path, description = "Workspace id")),
-    responses(
-        (status = 200, description = "Files list under .artifacts/", body = MeshResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "project"
-)]
 pub async fn list_session_files(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -108,22 +95,6 @@ pub async fn list_session_files(
 }
 
 /// GET /api/v1/projects/{id}/session-files/*path
-#[utoipa::path(
-    operation_id = "readSessionFile",
-    get,
-    path = "/api/v1/projects/{id}/session-files/{path}",
-    params(
-        ("id" = String, Path, description = "Workspace id"),
-        ("path" = String, Path, description = "Relative path under .artifacts/"),
-    ),
-    responses(
-        (status = 200, description = "File content (data-URI for images, text otherwise)", body = MeshResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 404, description = "File not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "project"
-)]
 pub async fn read_session_file(
     State(state): State<ApiState>,
     Path((id, file_path)): Path<(String, String)>,
@@ -172,31 +143,12 @@ pub async fn read_session_file(
     Ok(ok_response(serde_json::json!({ "content": content })))
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct WriteFileReq {
     pub content: String,
 }
 
 /// PUT /api/v1/projects/{id}/session-files/*path
-#[utoipa::path(
-    operation_id = "writeSessionFile",
-    put,
-    path = "/api/v1/projects/{id}/session-files/{path}",
-    params(
-        ("id" = String, Path, description = "Workspace id"),
-        ("path" = String, Path, description = "Relative path under .artifacts/"),
-    ),
-    request_body = WriteFileReq,
-    responses(
-        (status = 200, description = "File written", body = MeshResponse),
-        (status = 400, description = "Path escapes base directory", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "project"
-)]
 pub async fn write_session_file(
     State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,
@@ -234,23 +186,6 @@ pub async fn write_session_file(
 }
 
 /// DELETE /api/v1/projects/{id}/session-files/*path
-#[utoipa::path(
-    operation_id = "deleteSessionFile",
-    delete,
-    path = "/api/v1/projects/{id}/session-files/{path}",
-    params(
-        ("id" = String, Path, description = "Workspace id"),
-        ("path" = String, Path, description = "Relative path under .artifacts/"),
-    ),
-    responses(
-        (status = 200, description = "File deleted", body = MeshResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "File not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "project"
-)]
 pub async fn delete_session_file(
     State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,

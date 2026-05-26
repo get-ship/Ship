@@ -6,8 +6,8 @@
 //! platform-specific fields); `workspaces.active` decodes onto the typed
 //! `WorkspaceActiveResponse` from types.proto.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
-use serde_json::Value;
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
+use serde_json::{json, Value};
 
 use ship_ops_rpc::{JsonResponse, WorkspaceActiveResponse, WorkspacesService};
 
@@ -37,6 +37,24 @@ impl WorkspacesService for OpsImpl {
         serde_json::from_value::<WorkspaceActiveResponse>(value)
             .map(Response::new)
             .map_err(|e| ConnectError::internal(format!("workspaces.active decode: {e}")))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn list_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListWorkspacesReqView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("workspaces.list", json!({})).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn active_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedGetActiveWorkspaceReqView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("workspaces.active", json!({})).await
     }
 }
 

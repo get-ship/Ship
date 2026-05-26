@@ -1,12 +1,13 @@
 import { controller, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-breadcrumb.sui'
 
 interface Item {
   slot: string
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const items = signal<Item[]>([])
     const lastSlot = signal<string>('')
     return { items, lastSlot }
@@ -22,8 +23,8 @@ export default controller<Scope>({
         el.setAttribute('slot', slot)
         return { slot }
       })
-      state.lastSlot.set(next.length > 0 ? next[next.length - 1]!.slot : '')
-      state.items.set(next)
+      state.lastSlot = next.length > 0 ? next[next.length - 1]!.slot : ''
+      state.items = next
     }
 
     sync()

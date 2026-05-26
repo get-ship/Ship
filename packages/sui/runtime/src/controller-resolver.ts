@@ -15,14 +15,13 @@
 // `ControllerHook` (composed via `use:`) still owns its own state-
 // bearing shape — hook resolution lives in `./controller-hook-resolver`.
 
-import { derived as memo } from './signal'
 import type { Signal } from './signal'
 import type {
   ControllerDef,
   ControllerHook,
   ControllerShape,
   MutableState,
-  ReadonlyView,
+  ScopedControllerDef,
 } from './controller'
 import { resolveHook } from './controller-hook-resolver'
 import { pickShared, provide } from './context'
@@ -83,9 +82,6 @@ export function resolveController(
 
   const declScope: Record<string, unknown> = { ...baseScope }
 
-  const deriveds = buildDeriveds(shape, declScope, baseScope)
-  Object.assign(declScope, deriveds)
-
   const useResults = buildUseResults(shape, declScope, ctx)
   for (const [k, v] of Object.entries(useResults)) {
     declScope[k] = v
@@ -95,7 +91,6 @@ export function resolveController(
 
   const bindings: ResolvedBindings = {
     ...scopeAdds,
-    ...deriveds,
     ...onHandlers,
     ...useResults,
   }
@@ -267,36 +262,6 @@ function buildWritableProxy(
   }) as MutableState<Record<string, Signal<unknown>>>
 }
 
-function buildDeriveds(
-  shape: ControllerShape<object>,
-  declScope: Record<string, unknown>,
-  baseScope: Record<string, unknown>,
-): Record<string, ReadonlyView<unknown>> {
-  const section = shape.derived ?? {}
-  const out: Record<string, ReadonlyView<unknown>> = {}
-  for (const [k, fn] of Object.entries(section)) {
-    // Shadow-protection: if a derived's body destructures its own
-    // key, that read MUST resolve to the underlying scope signal,
-    // not the derived itself. Otherwise `derived: { x: ({x}) => x() }`
-    // closes over a declScope where `x` is the derived, and the
-    // memo recurses into itself the first time anything consumes it.
-    // The bug compiles cleanly, mounts cleanly, and renders nothing
-    // — pre-fix it took a stack-overflow probe to surface.
-    const shadowsScope = k in baseScope
-    const scopeView = shadowsScope
-      ? new Proxy(declScope, {
-          get(target, prop) {
-            return prop === k ? baseScope[k] : Reflect.get(target, prop)
-          },
-          has(target, prop) {
-            return prop in baseScope || prop in target
-          },
-        })
-      : declScope
-    out[k] = memo(() => (fn as (s: unknown) => unknown)(scopeView))
-  }
-  return out
-}
 
 function buildOnHandlers(
   shape: ControllerShape<object>,
@@ -373,12 +338,27 @@ export interface ControllerExport<Scope = object> {
  * }))
  * ```
  */
-export function controller<Scope>(
-  def: ControllerDef<Scope>,
-): ControllerExport<Scope> {
+// CANONICAL form: `controller(def)` with no explicit type argument. Both
+// `Ctx` (from the `scope` factory's param annotation) and `SC` (from its
+// return) are inferred → precise, cast-free handler state over `Ctx & SC`,
+// single call, no currying. This overload is listed first and matches calls
+// with no type arguments; the explicit-`<Scope>` overloads below are the
+// deprecated legacy/curried bridges (an explicit single `<Scope>` can't bind
+// this overload's two inferred params, so resolution falls through to them).
+export function controller<Ctx, SC extends Record<string, unknown>>(
+  def: ScopedControllerDef<Ctx, SC>,
+): ControllerExport<Ctx & SC>
+// Legacy form `controller<Scope>(def)` — for controllers with NO `scope:`
+// factory (only `on`/`mount`). Their scope is entirely template-declared, so
+// the compiler-emitted `Scope` is already precise (no casts). A controller
+// that contributes scope uses the inferred form above.
+export function controller<Scope>(def: ControllerDef<Scope>): ControllerExport<Scope>
+// Implementation signature: `any` so it satisfies both overloads (the
+// overloads are the real public contract).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function controller(def: any): ControllerExport<object> {
   return {
-    setup: (ctx) =>
-      resolveController(def as ControllerDef<object>, ctx),
-    __def: def,
+    setup: (ctx) => resolveController(def as ControllerDef<object>, ctx),
+    __def: def as ControllerDef<object>,
   }
 }

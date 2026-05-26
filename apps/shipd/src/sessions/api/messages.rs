@@ -22,7 +22,7 @@ use crate::routes::rest_api::ApiState;
 use super::super::lifecycle;
 use super::{err, work_dir_for};
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct MessageBody {
     pub text: String,
     /// Optional context attachments. Rendered into the prompt as
@@ -33,7 +33,7 @@ pub struct MessageBody {
     pub annotations: Vec<Annotation>,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct Annotation {
     /// `"text" | "file" | "diff" | "comment"` — drives the wrapping
     /// XML tag and any per-type formatting. Unknown values pass
@@ -45,7 +45,7 @@ pub struct Annotation {
     pub source: Option<AnnotationSource>,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct AnnotationSource {
     /// e.g. "file", "selection", "diff-hunk", "comment"
     pub kind: String,
@@ -88,19 +88,6 @@ fn xml_escape(s: &str) -> String {
         .replace('"', "&quot;")
 }
 
-#[utoipa::path(
-    operation_id = "sessionMessage",
-    post,
-    path = "/api/v1/sessions/{id}/message",
-    params(("id" = String, Path, description = "Agent session id")),
-    request_body = MessageBody,
-    responses(
-        (status = 202, description = "Accepted; response streams via /events"),
-        (status = 404, description = "Not found"),
-        (status = 400, description = "Not an agent session"),
-    ),
-    tag = "sessions"
-)]
 pub async fn session_message(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -307,18 +294,6 @@ pub async fn session_message(
     }
 }
 
-#[utoipa::path(
-    operation_id = "sessionReply",
-    post,
-    path = "/api/v1/sessions/{id}/reply",
-    params(("id" = String, Path, description = "Agent session id")),
-    request_body = MessageBody,
-    responses(
-        (status = 202, description = "Reply broadcast to session subscribers"),
-        (status = 404, description = "Not found"),
-    ),
-    tag = "sessions"
-)]
 pub async fn session_reply(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

@@ -2,7 +2,7 @@
  * <sui-account-menu> (chrome) and views/settings (settings card).
  * Both surfaces derive from these — drift here ripples to both. */
 import { describe, expect, it } from 'vitest'
-import type { AccountState } from '@ship/sui-runtime'
+import type { AccountState } from '../src/generated'
 import {
   readIdentity,
   displayName,

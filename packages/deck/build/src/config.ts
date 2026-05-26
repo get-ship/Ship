@@ -8,6 +8,14 @@ export interface SuiBuildConfig {
   /** Code-split bundles loaded on demand. Same shape as `entries`. */
   lazyBundles?: Record<string, string>
 
+  /** Extra source directories scanned recursively for `.sui` files to
+   *  compile (emit `<stem>.compiled.js` + `<stem>.sui.d.ts` into the mirror
+   *  tree) but NOT bundle. Used for view trees whose controllers import the
+   *  generated `Scope` from a sibling `.sui` and need the d.ts to resolve,
+   *  yet are loaded by the daemon view-host rather than this package's
+   *  bundle entries. Relative to the package root. */
+  compileDirs?: string[]
+
   /** Where bundled outputs land. Relative to the package root. `entries`
    *  emit directly under `outdir`; `lazyBundles` emit under
    *  `outdir/<lazyOutSubdir>` when set (see below). */
@@ -51,7 +59,7 @@ export interface BuildResult {
 
 /** A SuiBundler adapter — implementations live under src/adapters/. */
 export interface SuiBundler {
-  readonly name: 'bun'
+  readonly name: 'bun' | 'esbuild'
   build(config: SuiBuildConfig, ctx: AdapterContext): Promise<BuildResult>
 }
 

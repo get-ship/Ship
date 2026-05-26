@@ -35,7 +35,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Build ship binary
-        run: cargo build -p ship-studio-cli
+        run: cargo build -p ship-cli
 
       - name: ship init --global
         run: "$SHIP_BIN" init --global

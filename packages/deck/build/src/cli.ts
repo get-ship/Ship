@@ -2,8 +2,9 @@ import { dirname, resolve } from 'node:path'
 import { existsSync, mkdirSync } from 'node:fs'
 import { watch } from 'chokidar'
 import { bunAdapter } from './adapters/bun.js'
+import { esbuildAdapter } from './adapters/esbuild.js'
 import { run } from './runner.js'
-import type { SuiBuildConfig, AdapterContext } from './config.js'
+import type { SuiBuildConfig, AdapterContext, SuiBundler } from './config.js'
 
 const HELP = `
 sui-build — SUI bundling pipeline
@@ -15,6 +16,7 @@ Options:
   --config <path>        Path to sui.config.ts (default: sui.config.ts in cwd)
   --watch                Re-build on source changes
   --mode development|production  Build mode (default: production)
+  --bundler bun|esbuild  Which bundler adapter to use (default: bun)
   --help                 Show this message
 `.trim()
 
@@ -22,6 +24,7 @@ interface CliArgs {
   config: string
   watch: boolean
   mode: 'development' | 'production'
+  bundler: 'bun' | 'esbuild'
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -29,9 +32,12 @@ function parseArgs(argv: string[]): CliArgs {
     config: resolve(process.cwd(), 'sui.config.ts'),
     watch: false,
     mode: 'production',
+    bundler: 'bun',
   }
   const envMode = process.env['SUI_BUILD_MODE']
   if (envMode === 'development' || envMode === 'production') args.mode = envMode
+  const envBundler = process.env['SUI_BUILD_BUNDLER']
+  if (envBundler === 'bun' || envBundler === 'esbuild') args.bundler = envBundler
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '--help' || arg === '-h') {
@@ -48,6 +54,13 @@ function parseArgs(argv: string[]): CliArgs {
         process.exit(1)
       }
       args.mode = m
+    } else if (arg === '--bundler') {
+      const b = argv[++i]
+      if (b !== 'bun' && b !== 'esbuild') {
+        console.error(`sui-build: --bundler must be "bun" or "esbuild", got: ${b}`)
+        process.exit(1)
+      }
+      args.bundler = b
     }
   }
   return args

@@ -69,14 +69,17 @@ message ClearViewErrorsResponse {
 service ViewErrorsService {
   rpc Post(PostViewErrorRequest) returns (PostViewErrorResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.description) = "Record a view runtime error reported by the browser.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc List(ListViewErrorsRequest) returns (ListViewErrorsResponse) {
     option (ship.ops.v1.capability) = "ship.views.read";
+    option (ship.ops.v1.description) = "List recorded view runtime errors.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Clear(ClearViewErrorsRequest) returns (ClearViewErrorsResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.description) = "Clear recorded view runtime errors.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
 }

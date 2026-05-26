@@ -2,7 +2,7 @@
 //! (`ship-ops-rpc`), mounted additively beside the REST/SSE routes. Proto owns
 //! op shapes + policy; this owns the handlers and (later) gate enforcement. The
 //! first op, `Meta` (C0), proves the proto → trait → mount pipeline end to end.
-//! See docs/ship-architecture/references/docs/future/agent-access-and-skills-api.md.
+//! See docs/ship-architecture/references/docs/op-surface.md.
 
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
@@ -232,7 +232,12 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::ChatServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::DashboardServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::EventsServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::SpecsServiceExt::register(svc, router);
+    let router = ship_ops_rpc::SpecsServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::ViewServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::CreateServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::DiscoveryServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::RegistryServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::SuiServiceExt::register(svc, router);
     router.into_axum_router()
 }
 

@@ -15,20 +15,13 @@ use crate::auth::AuthContext;
 use crate::auth::pairing::{ClaimResult, ConfirmError, InitError, SharedPairingRegistry};
 use crate::auth::scopes::{Scope, SessionRegistry, generate_session_token};
 
-#[derive(serde::Deserialize, Default, utoipa::ToSchema)]
-#[schema(example = json!({ "client_label": "studio-macbook" }))]
+#[derive(serde::Deserialize, Default)]
 pub struct PairInitRequest {
     #[serde(default)]
     pub client_label: Option<String>,
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "code": "842-019",
-    "claim_token": "pt_01J3Z5ZQXAM3E4T7W",
-    "code_expires_in_secs": 300,
-    "dev_mode": false
-}))]
+#[derive(serde::Serialize)]
 pub struct PairInitResponse {
     pub code: String,
     pub claim_token: String,
@@ -36,26 +29,24 @@ pub struct PairInitResponse {
     pub dev_mode: bool,
 }
 
-#[derive(serde::Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({ "code": "842-019" }))]
+#[derive(serde::Deserialize)]
 pub struct PairConfirmRequest {
     pub code: String,
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
-#[schema(example = json!({ "ok": true }))]
+#[derive(serde::Serialize)]
 pub struct PairConfirmResponse {
     pub ok: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
 
-#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[derive(serde::Deserialize)]
 pub struct PairStatusQuery {
     pub claim_token: String,
 }
 
-#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[derive(Debug, serde::Serialize)]
 #[serde(tag = "status", rename_all = "lowercase")]
 pub enum PairStatusResponse {
     Pending,
@@ -69,19 +60,6 @@ pub enum PairStatusResponse {
 /// In dev mode, the pairing is auto-approved: the response includes the
 /// session token directly via the pending approval, and the client can skip
 /// the confirmation step. This is signaled via `dev_mode: true`.
-#[utoipa::path(
-    operation_id = "pairInit",
-    post,
-    path = "/auth/pair/init",
-    request_body = PairInitRequest,
-    responses(
-        (status = 200, description = "Pairing initiated", body = PairInitResponse),
-        (status = 429, description = "Too many pending pairings", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    security(),
-    tag = "auth"
-)]
 pub async fn pair_init(
     registry: SharedPairingRegistry,
     session_registry: SessionRegistry,
@@ -139,22 +117,6 @@ pub async fn pair_init(
 
 /// POST /api/auth/pair/confirm — confirm a pending pairing (requires daemon
 /// token via auth middleware).
-#[utoipa::path(
-    operation_id = "pairConfirm",
-    post,
-    path = "/api/auth/pair/confirm",
-    request_body = PairConfirmRequest,
-    responses(
-        (status = 200, description = "Pairing confirmed; session persisted", body = PairConfirmResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Requires daemon token", body = PairConfirmResponse),
-        (status = 404, description = "Unknown or already-used code", body = PairConfirmResponse),
-        (status = 409, description = "Pairing already approved", body = PairConfirmResponse),
-        (status = 410, description = "Pairing code expired", body = PairConfirmResponse),
-        (status = 500, description = "Server error", body = PairConfirmResponse),
-    ),
-    tag = "auth"
-)]
 pub async fn pair_confirm(
     registry: SharedPairingRegistry,
     session_registry: SessionRegistry,
@@ -244,18 +206,6 @@ pub async fn pair_confirm(
 
 /// GET /auth/pair/status?claim_token=... — poll for approval (unauthenticated;
 /// the claim_token itself is the secret).
-#[utoipa::path(
-    operation_id = "pairStatus",
-    get,
-    path = "/auth/pair/status",
-    params(PairStatusQuery),
-    responses(
-        (status = 200, description = "Pairing status — pending|approved|expired|unknown", body = PairStatusResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    security(),
-    tag = "auth"
-)]
 pub async fn pair_status(
     registry: SharedPairingRegistry,
     axum::extract::Query(q): axum::extract::Query<PairStatusQuery>,

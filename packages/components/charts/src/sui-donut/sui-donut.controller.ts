@@ -1,4 +1,5 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-donut.sui'
 import { arcPath, parseJson, toneColor } from '../chart-util'
 
@@ -9,8 +10,8 @@ interface Segment {
   title: string
 }
 
-export default controller<Scope>({
-  scope: () => ({
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => ({
     segments: signal<Segment[]>([]),
   }),
 

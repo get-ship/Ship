@@ -11,9 +11,52 @@
 
 use axum::{Json, http::StatusCode, response::{IntoResponse, Response}};
 use serde_json::json;
+use ship_platform::auth::peer_identity::PeerIdentity;
+use ship_platform::auth::scopes::scopes_for_role;
 use ship_substrate::events::CallerKind;
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext, Scope};
+
+/// Build an [`AuthContext`] from a **kernel-verified** peer identity — the
+/// host-socket transport's auth source, parallel to the token/session branches
+/// of `auth_middleware` but anchored in the connection's peer credentials, not
+/// a presented secret. One `AuthContext` shape, one gate: the result flows to
+/// `services::gate` exactly like a token-derived context.
+///
+/// - [`PeerIdentity::Operator`] → the operator credential (`Cli` + `Scope::Full`,
+///   no restricted grants), mirroring the daemon-token branch. `role`/`grants`
+///   are ignored — the operator clears the gate's grant axis.
+/// - [`PeerIdentity::Agent`] → an agent caller (`Mcp`), scoped by `role`, with
+///   `grants` the per-agent provisioned baseline (#85). The agent presents no
+///   identity claim; `id` came from its kernel process container, and the
+///   caller resolves `grants` (DB-backed) at the runtime layer.
+/// - [`PeerIdentity::Unresolved`] → `None`: the host couldn't attribute the
+///   peer, so the caller MUST fail closed (reject), never default to operator.
+pub fn auth_context_from_peer(
+    identity: &PeerIdentity,
+    role: Option<&str>,
+    grants: Vec<String>,
+) -> Option<AuthContext> {
+    match identity {
+        PeerIdentity::Operator => Some(AuthContext {
+            caller_kind: CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![Scope::Full],
+            grants: vec![],
+        }),
+        PeerIdentity::Agent(id) => Some(AuthContext {
+            caller_kind: CallerKind::Mcp,
+            agent_id: Some(id.clone()),
+            workspace_id: None,
+            session_id: None,
+            scopes: scopes_for_role(role),
+            grants,
+        }),
+        PeerIdentity::Unresolved => None,
+    }
+}
 
 /// Reject if an MCP caller's claimed agent_id (from body/path) doesn't
 /// match the agent_id bound to its session. Non-MCP callers pass through.
@@ -176,5 +219,31 @@ mod tests {
     fn cli_caller_passes_through() {
         assert!(enforce_mcp_identity(&cli(), Some("anything")).is_ok());
         assert!(enforce_mcp_identity(&cli(), None).is_ok());
+    }
+
+    #[test]
+    fn peer_operator_is_the_operator_credential() {
+        let ctx = auth_context_from_peer(&PeerIdentity::Operator, None, vec![])
+            .expect("operator resolves");
+        assert_eq!(ctx.caller_kind, CallerKind::Cli);
+        assert_eq!(ctx.agent_id, None);
+        assert!(ctx.scopes.contains(&Scope::Full));
+        assert!(ctx.grants.is_empty(), "operator clears the grant axis");
+    }
+
+    #[test]
+    fn peer_agent_carries_id_and_passed_grants() {
+        let id = PeerIdentity::Agent("rust-lane-01".to_string());
+        let ctx = auth_context_from_peer(&id, Some("commander"), vec!["ship-orchestration".into()])
+            .expect("agent resolves");
+        assert_eq!(ctx.caller_kind, CallerKind::Mcp);
+        assert_eq!(ctx.agent_id.as_deref(), Some("rust-lane-01"));
+        assert_eq!(ctx.grants, vec!["ship-orchestration".to_string()]);
+    }
+
+    #[test]
+    fn peer_unresolved_fails_closed() {
+        // No attribution → no context → the caller must reject the connection.
+        assert!(auth_context_from_peer(&PeerIdentity::Unresolved, None, vec![]).is_none());
     }
 }

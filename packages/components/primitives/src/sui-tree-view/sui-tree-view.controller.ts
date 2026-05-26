@@ -1,4 +1,5 @@
 import { controller, signal } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-tree-view.sui'
 
 export interface TreeNode {
@@ -7,8 +8,8 @@ export interface TreeNode {
   children?: TreeNode[]
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const nodes = signal<TreeNode[]>([])
     return { nodes }
   },
@@ -16,12 +17,12 @@ export default controller<Scope>({
   mount(state, host) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const initNodes = (host as any).nodes
-    if (initNodes != null) state.nodes.set(initNodes)
+    if (initNodes != null) state.nodes = initNodes
 
     Object.defineProperty(host, 'nodes', {
       configurable: true,
-      get: () => state.nodes(),
-      set: (v: TreeNode[]) => state.nodes.set(v),
+      get: () => state.nodes,
+      set: (v: TreeNode[]) => { state.nodes = v },
     })
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'tree')

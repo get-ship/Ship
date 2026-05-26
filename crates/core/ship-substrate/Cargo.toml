@@ -10,6 +10,7 @@ unstable = []
 
 [dependencies]
 ship-kernel = { path = "../ship-kernel" }
+ship-host = { path = "../ship-host" }
 ship-types = { path = "../ship-types" }
 ship-pipelines = { path = "../ship-pipelines", features = ["specta"] }
 serde = { workspace = true }

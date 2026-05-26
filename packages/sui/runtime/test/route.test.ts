@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effect, signal } from '../src/signal'
 import { live } from '../src/live'
-import { defineRoutes, navigate, route } from '../src/route'
+import { defineRoutes, navigate, route, setRouterPort } from '../src/route'
 
 // Reset the global popstate / updater state before each test by
 // poking at the module-level cache via a fresh navigate(). The tests
@@ -13,6 +13,8 @@ beforeEach(() => {
 
 afterEach(() => {
   window.history.replaceState({}, '', '/')
+  // Clear any router port a test installed so it doesn't leak into others.
+  ;(globalThis as { __shipRouterPort?: unknown }).__shipRouterPort = undefined
 })
 
 const tick = () => new Promise((r) => setTimeout(r, 0))
@@ -150,6 +152,37 @@ describe('route()', () => {
     })
     other.set(1)
     expect(pathseen).toBe('/')
+    dispose()
+  })
+})
+
+describe('navigate() + RouterPort', () => {
+  it('delegates to a registered host RouterPort instead of touching history', () => {
+    const port = { navigate: vi.fn(), back: vi.fn() }
+    setRouterPort(port)
+    navigate('/agents/42')
+    expect(port.navigate).toHaveBeenCalledWith('/agents/42', {})
+    // The host owns history; navigate() must not push when a port is set.
+    expect(window.location.pathname).toBe('/')
+  })
+
+  it('forwards replace option to the port', () => {
+    const port = { navigate: vi.fn(), back: vi.fn() }
+    setRouterPort(port)
+    navigate('/login', { replace: true })
+    expect(port.navigate).toHaveBeenCalledWith('/login', { replace: true })
+  })
+
+  it('falls back to in-place history + signal update when no port is registered', () => {
+    // (afterEach clears the port; none registered here.)
+    const r = route()
+    let seen = ''
+    const dispose = effect(() => {
+      seen = r.pathname()
+    })
+    navigate('/foo')
+    expect(window.location.pathname).toBe('/foo')
+    expect(seen).toBe('/foo')
     dispose()
   })
 })

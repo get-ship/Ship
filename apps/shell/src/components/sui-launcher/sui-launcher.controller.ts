@@ -1,53 +1,41 @@
 import { chrome, controller, effect, signal, bindNativeEvent } from '@ship/sui-runtime'
 import type { Scope } from './sui-launcher.sui'
 import { type ApiView, type Project, humanize, renderHead, renderFoot, renderBody } from './render'
+import { ops } from '../../ops'
 
 const SETTING_KEY = 'shell.rail.pinned'
 const DEFAULT_PINS = ['dashboard', 'pipelines', 'agents', 'skills', 'git']
 
 async function fetchPins(): Promise<string[]> {
   try {
-    const resp = await fetch('/api/v1/settings', { credentials: 'same-origin' })
-    if (!resp.ok) return DEFAULT_PINS
-    const body = (await resp.json()) as { data?: Record<string, unknown> }
-    const raw = body.data?.[SETTING_KEY]
-    if (typeof raw === 'string') {
-      try {
-        const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed) && parsed.every((v) => typeof v === 'string'))
-          return parsed as string[]
-      } catch { /* fall through */ }
-    } else if (Array.isArray(raw) && raw.every((v) => typeof v === 'string')) {
-      return raw as string[]
+    const body = JSON.parse((await ops.settings.state({})).json) as {
+      data?: Record<string, unknown>
     }
+    const raw = body.data?.[SETTING_KEY]
+    if (Array.isArray(raw) && raw.every((v) => typeof v === 'string')) return raw as string[]
     return DEFAULT_PINS
   } catch { return DEFAULT_PINS }
 }
 
 async function savePins(pins: string[]): Promise<void> {
   try {
-    await fetch('/api/v1/settings', {
-      method: 'PUT', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: SETTING_KEY, value: JSON.stringify(pins) }),
-    })
+    await ops.settings.set({ key: SETTING_KEY, valueJson: JSON.stringify(pins) })
   } catch { /* best-effort */ }
 }
 
 async function fetchViews(): Promise<ApiView[]> {
   try {
-    const resp = await fetch('/api/v1/views', { credentials: 'same-origin' })
-    if (!resp.ok) return []
-    const body = (await resp.json()) as { data?: { views?: ApiView[] } }
-    return body.data?.views ?? []
+    const body = JSON.parse((await ops.discovery.list({})).json) as { views?: ApiView[] }
+    return body.views ?? []
   } catch { return [] }
 }
 
 async function fetchProject(): Promise<Project | null> {
   try {
-    const resp = await fetch('/api/v1/projects', { credentials: 'same-origin' })
-    if (!resp.ok) return null
-    const body = (await resp.json()) as { projects: Project[]; active?: string }
+    const body = JSON.parse((await ops.project.listProjects({})).json) as {
+      projects: Project[]
+      active?: string
+    }
     return body.projects.find((p) => p.id === body.active) ?? body.projects[0] ?? null
   } catch { return null }
 }

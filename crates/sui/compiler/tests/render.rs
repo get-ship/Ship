@@ -196,7 +196,10 @@ fn keys_increment_in_source_order() {
 }
 
 #[test]
-fn agents_view_renders_without_panic() {
+fn real_view_renders_without_panic() {
+    // A real repo view through the full render pipeline. (Was `views/agents`,
+    // which the studio reorg moved to apps/shell/src/studio/; `views/git` is a
+    // real top-level view that still lives here.)
     let src = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
@@ -205,13 +208,13 @@ fn agents_view_renders_without_panic() {
             .unwrap()
             .parent()
             .unwrap()
-            .join("views/agents/page.sui"),
+            .join("views/git/page.sui"),
     )
-    .expect("read agents view");
-    let program = parse(&src).expect("agents view parses");
-    let opts = RenderOpts { view_name: "agents".into() };
-    let out = render(&program, &opts).expect("agents view renders");
-    assert!(!out.html.is_empty(), "agents view must produce non-empty HTML");
+    .expect("read git view");
+    let program = parse(&src).expect("git view parses");
+    let opts = RenderOpts { view_name: "git".into() };
+    let out = render(&program, &opts).expect("git view renders");
+    assert!(!out.html.is_empty(), "git view must produce non-empty HTML");
     // Sanity: the static container should be present.
     assert!(out.html.contains("ship-view"), "container class missing: {}", &out.html[..200.min(out.html.len())]);
 }
@@ -264,18 +267,11 @@ fn json_island_present_after_body() {
 
 #[test]
 fn agents_view_island_carries_loading_envelope() {
-    let src = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join("views/agents/page.sui"),
-    )
-    .expect("read agents view");
-    let program = parse(&src).expect("parse");
+    // Inline template rather than reading a view file — exercises the same
+    // live-`<data>` → loading-envelope + init-map behavior without depending on
+    // a specific view's on-disk location (agents moved in the studio reorg).
+    let src = "<data name=\"agents\" source=\"ship.agents.summaries()\" live />\n<p>hi</p>";
+    let program = parse(src).expect("parse");
     let opts = RenderOpts { view_name: "agents".into() };
     let out = render(&program, &opts).expect("render");
     assert!(out.html.contains(ISLAND_OPEN), "island missing");
@@ -332,20 +328,14 @@ fn match_unevaluable_falls_back() {
 
 #[test]
 fn agents_view_round_trip_with_d3() {
-    let src = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join("views/agents/page.sui"),
-    )
-    .expect("read agents view");
-    let program = parse(&src).expect("parse agents view");
+    // Inline template mirroring the agents view's live-data + guarded-for shape
+    // (the view file moved to apps/shell/src/studio/ in the reorg). The outer
+    // `{#if agents().kind === 'ok'}` is falsy against the loading envelope at
+    // SSR, so the inner `{#for}` never reaches the output.
+    let src = "<data name=\"agents\" source=\"ship.agents.summaries()\" live />\n{#if agents().kind === 'ok'}{#for a of agents().value key={a.id}}<p>{a.id}</p>{/for}{/if}";
+    let program = parse(src).expect("parse agents template");
     let opts = RenderOpts { view_name: "agents".into() };
-    let out = render(&program, &opts).expect("render agents view");
+    let out = render(&program, &opts).expect("render agents template");
     // Outer `{#if agents().kind === 'ok'}` evaluates against the loading
     // envelope at SSR time, so it falls into the placeholder branch.
     assert!(
@@ -373,6 +363,9 @@ fn agents_view_round_trip_with_d3() {
 /// the registry entry's kind matches.
 #[test]
 fn walker_keys_match_registry() {
+    // Parity is view-agnostic; exercise it against a real complex view.
+    // (Was `views/agents`, moved in the reorg → `views/git` is a real
+    // top-level view with many binding kinds.)
     let src = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
@@ -381,12 +374,12 @@ fn walker_keys_match_registry() {
             .unwrap()
             .parent()
             .unwrap()
-            .join("views/agents/page.sui"),
+            .join("views/git/page.sui"),
     )
-    .expect("read agents view");
+    .expect("read git view");
     let program = parse(&src).expect("parse");
     let registry = bindings::build(&program);
-    let opts = RenderOpts { view_name: "agents".into() };
+    let opts = RenderOpts { view_name: "git".into() };
     let out = render(&program, &opts).expect("render");
 
     // Pull `(kind_str, key)` pairs out of the rendered HTML in order.

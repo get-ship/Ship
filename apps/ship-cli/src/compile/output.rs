@@ -1,64 +1,11 @@
-//! File writing — emit compiler output to the filesystem with progress reporting.
+//! Terminal presentation for compile output — dry-run printing and session gitignore.
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use compiler::{CompileOutput, get_harness};
 use std::path::Path;
 
-// ── File writer ──────────────────────────────────────────────────────────────
+// ── Dry-run printing ─────────────────────────────────────────────────────────
 
-pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Result<()> {
-    let desc = get_harness(harness_id)
-        .ok_or_else(|| anyhow!("unknown harness: {}", harness_id))?;
-
-    // Delegate filesystem writes to the compiler's native output module.
-    compiler::write_output(root, harness_id, output)?;
-
-    // Progress reporting: announce each written file.
-    if let Some(file_name) = desc.context_file.file_name()
-        && output.context_content.is_some()
-    {
-        println!("  {} {}", harness_id, file_name);
-    }
-    if let Some(ref mcp_path) = output.mcp_config_path
-        && harness_id != "codex" {
-            println!("  {} {}", harness_id, mcp_path);
-        }
-    for path in output.skill_files.keys() {
-        println!("  {} {}", harness_id, path);
-    }
-    for path in output.rule_files.keys() {
-        println!("  {} {}", harness_id, path);
-    }
-    if output.claude_settings_patch.is_some() {
-        println!("  {} .claude/settings.json", harness_id);
-    }
-    for path in output.agent_files.keys() {
-        println!("  {} {}", harness_id, path);
-    }
-    if output.codex_config_patch.is_some() {
-        println!("  {} .codex/config.toml", harness_id);
-    }
-    if output.codex_hooks_json.is_some() {
-        println!("  {} .codex/hooks.json", harness_id);
-    }
-    if output.codex_policy_content.is_some() { println!("  {} .codex/rules/ship.rules", harness_id) }
-    if output.cursor_hooks_patch.is_some() {
-        println!("  {} .cursor/hooks.json", harness_id);
-    }
-    if output.cursor_cli_permissions.is_some() {
-        println!("  {} .cursor/cli.json", harness_id);
-    }
-    if output.cursor_environment_json.is_some() {
-        println!("  {} .cursor/environment.json", harness_id);
-    }
-    if output.opencode_config_patch.is_some() {
-        println!("  {} opencode.json", harness_id);
-    }
-
-    Ok(())
-}
-
-/// Dry-run: print what would be written.
 pub(crate) fn print_dry_run(harness_id: &str, output: &CompileOutput) {
     println!("[dry-run] harness: {}", harness_id);
     if let Some(f) = get_harness(harness_id).and_then(|d| d.context_file.file_name())
@@ -105,15 +52,9 @@ pub(crate) fn print_dry_run(harness_id: &str, output: &CompileOutput) {
     }
 }
 
-// ── JSON merge helpers (re-exported from compiler for local use) ─────────────
-
-#[allow(unused_imports)]
-pub(crate) use compiler::{ensure_parent, merge_json, merge_json_file};
-
 // ── Session scratch space ────────────────────────────────────────────────────
 
-/// Ensure `.artifacts/` is listed in the root `.gitignore`.
-/// Called once per `ship use` — idempotent.
+/// Ensure `.artifacts/` is listed in the root `.gitignore`. Idempotent.
 pub(crate) fn ensure_session_gitignored(root: &Path) -> Result<()> {
     const ENTRY: &str = ".artifacts/";
     let path = root.join(".gitignore");

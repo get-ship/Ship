@@ -48,22 +48,27 @@ message DeleteRuleRequest {
 // on dispatch — same policy the generated CommandOpsService carries.
 service RulesService {
   rpc List(ListRulesRequest) returns (RulesIndexResponse) {
+    option (ship.ops.v1.description) = "List markdown rules across scopes.";
     option (ship.ops.v1.capability) = "ship.rules.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Get(GetRuleRequest) returns (RuleGetResponse) {
+    option (ship.ops.v1.description) = "Raw rule body at the requested scope.";
     option (ship.ops.v1.capability) = "ship.rules.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Create(CreateRuleRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Create a new markdown rule (errors if the id is taken).";
     option (ship.ops.v1.capability) = "ship.rules.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Put(PutRuleRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Replace a rule's body (use rules.create for net-new).";
     option (ship.ops.v1.capability) = "ship.rules.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   rpc Delete(DeleteRuleRequest) returns (ScopedMutation) {
+    option (ship.ops.v1.description) = "Trash a rule (scope omitted walks project → user).";
     option (ship.ops.v1.capability) = "ship.rules.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }

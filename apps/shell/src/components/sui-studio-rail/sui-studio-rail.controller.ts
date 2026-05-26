@@ -12,7 +12,9 @@
 // "soon" placeholders (no href, no fabricated count).
 
 import { controller, signal, derived, effect } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-studio-rail.sui'
+import { ops } from '../../ops'
 
 interface RailEntry {
   id: string
@@ -56,8 +58,8 @@ function isActive(path: string, href: string): true | null {
   return path === href || path.startsWith(href + '/') ? true : null
 }
 
-export default controller<Scope>({
-  scope: () => {
+export default controller({
+  scope: (_ctx: ViewScope<Scope>) => {
     const path = signal(typeof location !== 'undefined' ? location.pathname : '/studio')
     const agentCount = signal<string>('')
 
@@ -75,14 +77,12 @@ export default controller<Scope>({
     // One-shot count fetch. Tolerant of shape + failure — a missing count
     // simply hides the badge.
     effect(() => {
-      if (typeof fetch === 'undefined') return
       let cancelled = false
-      void fetch('/api/v1/agents', { credentials: 'same-origin' })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((body) => {
-          if (cancelled || !body) return
-          const items = Array.isArray(body) ? body : (body.items ?? body.data ?? [])
-          if (Array.isArray(items)) agentCount.set(String(items.length))
+      void ops.agents
+        .list({})
+        .then((res) => {
+          if (cancelled) return
+          agentCount.set(String(res.items.length))
         })
         .catch(() => { /* leave the badge empty when the API is unreachable */ })
       return () => { cancelled = true }

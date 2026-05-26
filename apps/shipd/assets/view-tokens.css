@@ -1,9 +1,10 @@
 /*
  * Daemon-view base styles.
  *
- * Design tokens themselves come from `packages/ship-set/src/tokens.css` and are
- * concatenated in front of this file at compile time (see views.rs).
- * Only view-container-scoped resets and defaults belong here.
+ * Design tokens themselves come from the single canonical source
+ * `packages/components/ui-components/src/tokens/{tokens,themes}.css`, which
+ * `apps/shipd/src/views/assets.rs` include_str!s and concatenates in front of
+ * this file at compile time. Only view-container-scoped resets + defaults here.
  */
 
 /* Universal box-sizing — safe everywhere, including across shadow DOM

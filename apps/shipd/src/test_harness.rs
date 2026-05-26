@@ -94,18 +94,6 @@ impl TestDaemon {
         // directly at /api/v1/{projects,sessions,agents/active,events}.
         let runtime_routes = Router::new()
             .route(
-                "/projects",
-                axum::routing::get(crate::routes::projects_api::list_projects),
-            )
-            .route(
-                "/sessions",
-                axum::routing::get(crate::routes::runtime_api::list_workspace_sessions),
-            )
-            .route(
-                "/agents/active",
-                axum::routing::get(crate::routes::runtime_api::list_agents),
-            )
-            .route(
                 "/events",
                 axum::routing::get(crate::routes::runtime_api::event_stream),
             )
@@ -120,44 +108,17 @@ impl TestDaemon {
         let artifacts_routes = Router::new()
             .route(
                 "/artifacts",
-                axum::routing::post(crate::routes::artifacts_api::upload_artifact)
-                    .get(crate::routes::artifacts_api::list_artifacts),
+                axum::routing::post(crate::routes::artifacts_api::upload_artifact),
             )
             .route(
                 "/artifacts/{id}",
-                axum::routing::get(crate::routes::artifacts_api::download_artifact)
-                    .delete(crate::routes::artifacts_api::delete_artifact),
+                axum::routing::get(crate::routes::artifacts_api::download_artifact),
             )
             .layer(axum::extract::DefaultBodyLimit::max(
                 crate::routes::artifacts_api::MAX_UPLOAD_BYTES,
             ))
             .with_state(api_state.clone());
 
-        let collection_routes = Router::new()
-            .route(
-                "/collections",
-                axum::routing::get(crate::routes::collection_api::list_collections)
-                    .post(crate::routes::collection_api::create_collection),
-            )
-            .route(
-                "/collections/{collection}/schema",
-                axum::routing::get(crate::routes::collection_api::get_schema),
-            )
-            .route(
-                "/collections/{collection}/items",
-                axum::routing::post(crate::routes::collection_api::create_item),
-            )
-            .route(
-                "/collections/{collection}/items/{item_id}",
-                axum::routing::get(crate::routes::collection_api::get_item)
-                    .put(crate::routes::collection_api::update_item)
-                    .delete(crate::routes::collection_api::delete_item),
-            )
-            .route(
-                "/collections/{collection}/query",
-                axum::routing::post(crate::routes::collection_api::query_items),
-            )
-            .with_state(api_state.clone());
 
         let search_routes = Router::new()
             .route(
@@ -174,7 +135,6 @@ impl TestDaemon {
         let router = Router::new()
             .nest("/api/v1", api_routes)
             .nest("/api/v1", capabilities_routes)
-            .nest("/api/v1", collection_routes)
             .nest("/api/v1", artifacts_routes)
             .nest("/api/v1", runtime_routes)
             .nest("/api/v1", search_routes)

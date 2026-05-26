@@ -9,11 +9,13 @@
 //! per-artifact scope ACL (`can_write_artifacts` / `can_delete_artifacts`).
 //! Byte-moving store/get are NOT here — blobs stay on serving routes.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde::de::DeserializeOwned;
 use serde_json::json;
 
-use ship_ops_rpc::{ArtifactRecord, ArtifactsListResponse, ArtifactsService, Deletion};
+use ship_ops_rpc::{
+    ArtifactRecord, ArtifactsListResponse, ArtifactsService, Deletion, JsonResponse,
+};
 
 use crate::auth::AuthContext;
 use crate::ops_rpc::{command_error_to_connect, OpsImpl};
@@ -42,6 +44,21 @@ impl ArtifactsService for OpsImpl {
         let msg = serde_json::from_value::<ArtifactsListResponse>(value)
             .map_err(|e| ConnectError::internal(format!("artifacts.list decode: {e}")))?;
         Ok(Response::new(msg))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn list_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedListArtifactsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        let args = json!({
+            "scope": request.scope, "mime": request.mime,
+            "collection_id": request.collection_id, "item_id": request.item_id,
+            "owner_actor": request.owner_actor, "content_hash": request.content_hash,
+            "sort": request.sort, "limit": request.limit, "offset": request.offset,
+        });
+        self.live_read("artifacts.list", args).await
     }
 
     async fn patch(

@@ -11,7 +11,7 @@
  */
 
 import { controller, signal, ref } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
+import type { Signal, ViewScope } from '@ship/sui-runtime'
 import { morph } from '@ship/sui-runtime'
 import type { Scope } from './sui-canvas.sui'
 import { getCanvasBridge, type CanvasEventDetail } from './bridge'
@@ -31,9 +31,9 @@ type CanvasHost = HTMLElement & {
   getContentHtml(): string
 }
 
-export default controller<Scope>({
-  scope: (props) => {
-    const canvasIdProp = (props as { canvasId: Signal<string> }).canvasId
+export default controller({
+  scope: (props: ViewScope<Scope>) => {
+    const canvasIdProp = props.canvasId
     const hasContent = signal(false)
     const surfaceEl = ref<HTMLElement>(null)
     return { canvasIdProp, hasContent, surfaceEl }

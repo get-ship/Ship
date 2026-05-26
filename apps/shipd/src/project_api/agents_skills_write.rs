@@ -24,15 +24,12 @@ use ship_platform::services::skills::state as skills_state;
 
 // ── Request bodies ────────────────────────────────────────────────────────────
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 pub struct WriteFileReq {
     pub content: String,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "value_json": "\"gitmoji\""
-}))]
+#[derive(Deserialize)]
 pub struct SetVarReq {
     pub value_json: String,
 }
@@ -40,26 +37,6 @@ pub struct SetVarReq {
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
 /// PUT /api/v1/projects/{id}/skills/{skillId}/files/{*path}
-#[utoipa::path(
-    operation_id = "writeSkillFile",
-    put,
-    path = "/api/v1/projects/{id}/skills/{skillId}/files/{path}",
-    params(
-        ("id" = String, Path, description = "Workspace id"),
-        ("skillId" = String, Path, description = "Skill id"),
-        ("path" = String, Path, description = "Relative path under the skill directory"),
-    ),
-    request_body = WriteFileReq,
-    responses(
-        (status = 200, description = "File written", body = MeshResponse),
-        (status = 400, description = "Invalid skill id or path", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "project"
-)]
 pub async fn write_skill_file(
     State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,
@@ -83,25 +60,6 @@ pub async fn write_skill_file(
 }
 
 /// DELETE /api/v1/projects/{id}/skills/{skillId}/files/{*path}
-#[utoipa::path(
-    operation_id = "deleteSkillFile",
-    delete,
-    path = "/api/v1/projects/{id}/skills/{skillId}/files/{path}",
-    params(
-        ("id" = String, Path, description = "Workspace id"),
-        ("skillId" = String, Path, description = "Skill id"),
-        ("path" = String, Path, description = "Relative path under the skill directory"),
-    ),
-    responses(
-        (status = 200, description = "File deleted", body = MeshResponse),
-        (status = 400, description = "Invalid skill id or path", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "File not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "project"
-)]
 pub async fn delete_skill_file(
     State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,
@@ -118,23 +76,6 @@ pub async fn delete_skill_file(
 }
 
 /// GET /api/v1/projects/{id}/skills/{skillId}/vars
-#[utoipa::path(
-    operation_id = "getSkillVars",
-    get,
-    path = "/api/v1/projects/{id}/skills/{skillId}/vars",
-    params(
-        ("id" = String, Path, description = "Workspace id"),
-        ("skillId" = String, Path, description = "Skill id"),
-    ),
-    responses(
-        (status = 200, description = "Merged skill vars", body = MeshResponse),
-        (status = 400, description = "Invalid skill id", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "project"
-)]
 pub async fn get_skill_vars(
     State(state): State<ApiState>,
     Path((id, skill_id)): Path<(String, String)>,
@@ -163,26 +104,6 @@ pub async fn get_skill_vars(
 }
 
 /// PUT /api/v1/projects/{id}/skills/{skillId}/vars/{key}
-#[utoipa::path(
-    operation_id = "setSkillVar",
-    put,
-    path = "/api/v1/projects/{id}/skills/{skillId}/vars/{key}",
-    params(
-        ("id" = String, Path, description = "Workspace id"),
-        ("skillId" = String, Path, description = "Skill id"),
-        ("key" = String, Path, description = "Variable key"),
-    ),
-    request_body = SetVarReq,
-    responses(
-        (status = 200, description = "Variable set", body = MeshResponse),
-        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Unknown variable or skill", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "project"
-)]
 pub async fn set_skill_var(
     State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,

@@ -15,9 +15,13 @@ enum BlastRadius {
   BLAST_RADIUS_C0_SAFE = 1;
   // Mutates the caller's own space — the user's own risk.
   BLAST_RADIUS_C1_WORKSPACE = 2;
-  // Ship/cloud-dangerous (credentials, billing, capability-defining writes).
-  // Auth gate: off the agent surface; human-session credential only.
+  // Elevated — dispatch/control agents, settings, mcp, authoring. Off the
+  // default agent surface; granted to trusted agents (e.g. commander) via a
+  // raised per-service ceiling. Not human-only.
   BLAST_RADIUS_C2_ELEVATED = 3;
+  // Critical — cloud/credential/billing/permissions. Operator (human, GUI/2FA)
+  // only; never granted to an agent regardless of ceiling.
+  BLAST_RADIUS_C3_CRITICAL = 4;
 }
 
 extend google.protobuf.MethodOptions {
@@ -28,4 +32,8 @@ extend google.protobuf.MethodOptions {
   BlastRadius blast_radius = 50002;
   // Content-exposure flag (redaction / log hygiene); orthogonal to blast radius.
   bool op_sensitive = 50003;
+  // One-line human description of the op — the SSOT for sdk-skill + `ship --help`
+  // doc text. Moves the last prose that lived in the Rust registry into proto,
+  // so the registry's descriptor tables lose their final reader.
+  string description = 50004;
 }

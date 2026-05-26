@@ -50,22 +50,6 @@ pub struct SearchQuery {
     pub cursor: Option<String>,
 }
 
-#[utoipa::path(
-    operation_id = "searchAll",
-    get,
-    path = "/api/v1/search",
-    params(
-        ("q" = Option<String>, Query, description = "Query string"),
-        ("types" = Option<String>, Query, description = "Comma-separated kind filter (view,collection,collection_item,agent,skill,session,artifact)"),
-        ("limit" = Option<usize>, Query, description = "Page size (default 20, max 200)"),
-        ("cursor" = Option<String>, Query, description = "Opaque cursor from a previous response"),
-    ),
-    responses(
-        (status = 200, description = "Mixed-kind ranked hits"),
-        (status = 401, description = "Unauthorized", body = crate::wire::ErrorResponse),
-    ),
-    tag = "search"
-)]
 pub async fn search(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,

@@ -14,10 +14,10 @@ const ATTR_TARGETS = {
   branch: '#status-branch',
 } as const
 
+// No scope factory → legacy form (curried needs a scope return to infer SC).
 export default controller<Scope>({
   mount(state, host) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const scope = state as unknown as any
+    const scope = state.$signals
     const moved: Partial<Record<SlotName, HTMLElement[]>> = {}
 
     function contribute() {

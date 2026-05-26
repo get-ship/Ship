@@ -30,8 +30,9 @@ pub mod types {
             // project-switch-wiring added project.switched for 84 total.
             // Drift to 88: 4 new constants since this counter was last
             // updated (verify via grep before bumping further).
+            // 89: #85a added agent.grants.provisioned (per-agent grant baseline).
             // Adjust this when adding/removing event types.
-            assert_eq!(ALL.len(), 88, "exactly 88 event type constants required");
+            assert_eq!(ALL.len(), 89, "exactly 89 event type constants required");
         }
     }
 }

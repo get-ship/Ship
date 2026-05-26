@@ -30,9 +30,10 @@ function describe(el: HTMLElement): { tag: string; selector: string; id: string 
   return { tag, selector, id }
 }
 
+// No scope factory → legacy form (curried needs a scope return to infer SC).
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
+    const scope = state.$signals
     const boxEl = scope.boxEl() as HTMLElement | null
     const labelEl = scope.labelEl() as HTMLElement | null
 

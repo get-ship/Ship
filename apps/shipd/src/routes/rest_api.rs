@@ -18,48 +18,31 @@ pub type SharedKernel = crate::ship_runtime::SharedKernel;
 
 // ---- Request / Response types ----
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "agent_id": "agent-writer",
-    "capabilities": ["writes.prose", "reads.repo"]
-}))]
+#[derive(Deserialize)]
 pub struct MeshRegisterReq {
     pub agent_id: String,
     pub capabilities: Vec<String>,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "from": "agent-planner",
-    "to": "agent-writer",
-    "body": { "task": "draft README section: overview" }
-}))]
+#[derive(Deserialize)]
 pub struct MeshSendReq {
     pub from: String,
     pub to: String,
     /// Arbitrary JSON message body. Delivered verbatim to the target agent's
     /// `mesh.send` event; schema is caller-defined.
-    #[schema(value_type = Object)]
     pub body: serde_json::Value,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "from": "agent-planner",
-    "body": { "announcement": "build step complete" },
-    "capability_filter": "reads.repo"
-}))]
+#[derive(Deserialize)]
 pub struct MeshBroadcastReq {
     pub from: String,
     /// Arbitrary JSON broadcast payload. Delivered to every agent whose
     /// capabilities match `capability_filter` (or all agents when unset).
-    #[schema(value_type = Object)]
     pub body: serde_json::Value,
     pub capability_filter: Option<String>,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({ "agent_id": "agent-writer", "status": "idle" }))]
+#[derive(Deserialize)]
 pub struct MeshStatusReq {
     pub agent_id: String,
     pub status: String,
@@ -73,19 +56,6 @@ pub use crate::wire::MeshResponse;
 
 // ---- Handlers ----
 
-#[utoipa::path(
-    operation_id = "meshRegister",
-    post,
-    path = "/api/v1/mesh/register",
-    request_body = MeshRegisterReq,
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "mesh"
-)]
 pub async fn mesh_register(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -165,20 +135,6 @@ pub async fn mesh_register(
     }
 }
 
-#[utoipa::path(
-    operation_id = "meshSend",
-    post,
-    path = "/api/v1/mesh/send",
-    request_body = MeshSendReq,
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 404, description = "target agent not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "mesh"
-)]
 pub async fn mesh_send(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -207,19 +163,6 @@ pub async fn mesh_send(
     }
 }
 
-#[utoipa::path(
-    operation_id = "meshBroadcast",
-    post,
-    path = "/api/v1/mesh/broadcast",
-    request_body = MeshBroadcastReq,
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "mesh"
-)]
 pub async fn mesh_broadcast(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -246,17 +189,6 @@ pub async fn mesh_broadcast(
     }
 }
 
-#[utoipa::path(
-    operation_id = "meshDiscover",
-    get,
-    path = "/api/v1/mesh/discover",
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "mesh"
-)]
 pub async fn mesh_discover(
     State(state): State<ApiState>,
 ) -> impl IntoResponse {
@@ -275,19 +207,6 @@ pub async fn mesh_discover(
     (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!({ "agents": agents }) }))
 }
 
-#[utoipa::path(
-    operation_id = "meshStatusUpdate",
-    post,
-    path = "/api/v1/mesh/status",
-    request_body = MeshStatusReq,
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "mesh"
-)]
 pub async fn mesh_status_update(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -319,13 +238,7 @@ pub async fn mesh_status_update(
 
 // ---- Capabilities ----
 
-#[derive(Serialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "authenticated": true,
-    "mode": "local",
-    "tier": "owner",
-    "features": ["mesh", "artifacts", "collections", "pipelines"]
-}))]
+#[derive(Serialize)]
 pub struct CapabilitiesResponse {
     pub authenticated: bool,
     pub mode: String,
@@ -333,17 +246,6 @@ pub struct CapabilitiesResponse {
     pub features: Vec<String>,
 }
 
-#[utoipa::path(
-    operation_id = "capabilities",
-    get,
-    path = "/api/v1/capabilities",
-    responses(
-        (status = 200, body = CapabilitiesResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "capabilities"
-)]
 pub async fn capabilities(
     Extension(auth): Extension<AuthContext>,
 ) -> impl IntoResponse {
@@ -367,29 +269,12 @@ pub async fn capabilities(
 
 // ---- Checkout hook ----
 
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "branch": "job/write-readme",
-    "path": "/home/me/project"
-}))]
+#[derive(Deserialize)]
 pub struct CheckoutHookReq {
     pub branch: String,
     pub path: String,
 }
 
-#[utoipa::path(
-    operation_id = "hooksCheckout",
-    post,
-    path = "/api/v1/hooks/checkout",
-    request_body = CheckoutHookReq,
-    responses(
-        (status = 200, description = "Workspace reconciled for the checked-out branch", body = MeshResponse),
-        (status = 400, description = "Invalid project path", body = crate::wire::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "hooks"
-)]
 pub async fn hooks_checkout(
     Json(req): Json<CheckoutHookReq>,
 ) -> impl IntoResponse {
@@ -424,19 +309,6 @@ pub async fn hooks_checkout(
 /// SSE endpoint — drains an agent's mailbox as server-sent events.
 /// The agent must register first (which spawns the actor + stashes the mailbox).
 /// Only one SSE connection per agent is supported (mailbox is taken, not cloned).
-#[utoipa::path(
-    operation_id = "meshEvents",
-    get,
-    path = "/api/v1/mesh/events/{agent_id}",
-    params(("agent_id" = String, Path, description = "Agent ID")),
-    responses(
-        (status = 200, description = "SSE stream of mesh events"),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 404, description = "no mailbox for agent — register first", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "mesh"
-)]
 pub async fn mesh_events(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 pub use crate::commands::{
-    EventsCommands, HookCommands, IsolationCommands, McpCommands, WorkspaceCommands,
+    EventsCommands, HookCommands, IsolationCommands, McpCommands, SuiCommands, WorkspaceCommands,
 };
 
 const AFTER_HELP: &str = "\x1b[1mDaily Workflow:\x1b[0m
@@ -194,7 +194,7 @@ pub enum Commands {
         action: WorkspaceCommands,
     },
 
-    /// Manage MCP servers (serve, add, list, remove)
+    /// Manage external MCP servers (add, list, remove)
     Mcp {
         #[command(subcommand)]
         action: McpCommands,
@@ -336,6 +336,20 @@ pub enum Commands {
         namespace: Option<String>,
     },
 
+    /// SUI `.sui` language intelligence — diagnostics, hover, dependencies
+    Sui {
+        #[command(subcommand)]
+        action: SuiCommands,
+    },
+
+    /// Declare the current pipeline step complete (job slug from SHIP_ACTOR_ID).
+    /// The agent's completion signal — advances the step monitor.
+    StepDone {
+        /// One-line summary of what the step accomplished.
+        #[arg(long)]
+        summary: String,
+    },
+
     /// Manage the Ship daemon (shipd) background process
     Daemon {
         #[command(subcommand)]
@@ -370,11 +384,6 @@ pub enum Commands {
     /// Show help — same as --help
     Help,
 
-    /// Export the daemon's OpenAPI spec to stdout (no daemon required)
-    Openapi {
-        #[command(subcommand)]
-        action: OpenapiCommands,
-    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -391,15 +400,6 @@ pub enum OpsCommands {
     },
 }
 
-#[derive(Subcommand, Debug)]
-pub enum OpenapiCommands {
-    /// Print the daemon's OpenAPI spec as JSON
-    Export {
-        /// Pretty-print the JSON output
-        #[arg(long)]
-        pretty: bool,
-    },
-}
 
 
 #[derive(Subcommand, Debug)]

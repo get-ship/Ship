@@ -148,6 +148,14 @@ pub const RULE_DELETED: &str = "rule.deleted";
 /// is the project_id (or `"global"` for user-scope writes).
 pub const PERMISSIONS_UPDATED: &str = "permissions.updated";
 
+/// Capability provisioning — an agent's approved grant baseline was written.
+/// `entity_id` is the agent_id; the `provisioned_grants` projection
+/// materializes one row per agent (latest write wins). Emitted at install
+/// (source="install", seeded from the agent's resolved skill grants) and on
+/// operator approval (source="operator"). The mint path reads this baseline;
+/// `requires:`/`grants:` in skills are intent, never authority.
+pub const AGENT_GRANTS_PROVISIONED: &str = "agent.grants.provisioned";
+
 /// Session status transition (e.g. Idle → Thinking). `entity_id` is
 /// the session id. Useful for "what's the agent doing right now?" UIs.
 pub const SESSION_STATUS_CHANGED: &str = "session.status_changed";
@@ -243,6 +251,7 @@ pub const ALL: &[&str] = &[
     RULE_UPDATED,
     RULE_DELETED,
     PERMISSIONS_UPDATED,
+    AGENT_GRANTS_PROVISIONED,
     SESSION_STATUS_CHANGED,
     SESSION_TURN_FAILED,
 ];

@@ -66,6 +66,9 @@ function collectSuiFiles(config: SuiBuildConfig, ctx: AdapterContext): string[] 
   for (const src of Object.values({ ...config.entries, ...(config.lazyBundles ?? {}) })) {
     dirs.add(dirname(resolve(ctx.packageRoot, src)))
   }
+  for (const dir of config.compileDirs ?? []) {
+    dirs.add(resolve(ctx.packageRoot, dir))
+  }
   const files: string[] = []
   for (const dir of dirs) {
     if (existsSync(dir)) files.push(...walkSui(dir))
