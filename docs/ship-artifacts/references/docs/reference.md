@@ -37,7 +37,7 @@ All routes require a valid daemon token.
 
 ### List filters
 
-`scope`, `project_id`, `run_id`, `user_id`, `mime`, `collection_id`, `content_hash`, `owner_actor`, `expires_at`, plus `limit`/`offset`/`sort`.
+`scope`, `space_id`, `run_id`, `user_id`, `mime`, `collection_id`, `content_hash`, `owner_actor`, `expires_at`, plus `limit`/`offset`/`sort`.
 
 ## MCP tools
 
@@ -61,7 +61,7 @@ Stored in the built-in `artifacts` collection on `data.db`.
 | `size` | integer | Bytes. |
 | `path` | string | Relative blob path (backend-opaque). |
 | `scope` | string | `run` \| `project` \| `user` |
-| `project_id` | string? | Set for `run` and `project` scopes. |
+| `space_id` | string? | Set for `run` and `project` scopes. |
 | `run_id` | string? | Set for `run` scope. |
 | `user_id` | string? | Set for `user` scope. |
 | `content_hash` | string | SHA-256 hex. |
@@ -92,10 +92,10 @@ Pipeline agents (worker/lead/commander roles) receive `Read/Write/DeleteArtifact
 
 | Event | Payload |
 |---|---|
-| `artifact.created` | `id`, `scope`, `name`, `mime`, `size`, `content_hash`, `owner_actor`, `project_id`, `run_id` |
+| `artifact.created` | `id`, `scope`, `name`, `mime`, `size`, `content_hash`, `owner_actor`, `space_id`, `run_id` |
 | `artifact.updated` | `id`, `scope`, `changed` (map of updated fields) |
 | `artifact.moved` | `id`, `from_scope`, `to_scope` |
-| `artifact.deleted` | `id`, `scope`, `project_id`, `run_id` |
+| `artifact.deleted` | `id`, `scope`, `space_id`, `run_id` |
 
 Each mutation also emits a `collection.item_*` event for the underlying metadata row.
 

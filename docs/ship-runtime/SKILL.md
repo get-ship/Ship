@@ -90,7 +90,7 @@ SQLite database layer:
 - `daemon_settings.rs` — daemon settings table access
 - `envelope.rs`, `events.rs`, `actor_events.rs` — event persistence
 - `cursors.rs` — replay cursor tracking
-- `integrity.rs`, `repair.rs`, `project_id_reconcile.rs` — integrity checks and repair
+- `integrity.rs`, `repair.rs`, `space_id_reconcile.rs` — integrity checks and repair
 - `rebuild.rs` — projection rebuild from event log
 
 ### sync/ — `crates/core/ship-platform/src/sync/`
