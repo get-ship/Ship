@@ -28,6 +28,7 @@ const r = await Bun.build({
   entrypoints: [
     join(root, 'browser/lockdown-smoke.ts'),
     join(root, 'browser/view-confine.ts'),
+    join(root, 'browser/bench-confine.ts'),
   ],
   outdir: dist,
   target: 'browser',
@@ -43,7 +44,7 @@ if (!r.success) {
 }
 
 // HTML wrappers are tracked source (browser/*.html); copy next to the bundles.
-for (const html of ['index.html', 'view-confine.html']) {
+for (const html of ['index.html', 'view-confine.html', 'bench.html']) {
   await copyFile(join(root, 'browser', html), join(dist, html))
 }
 process.stdout.write(`✓ harness build → ${dist}\n`)

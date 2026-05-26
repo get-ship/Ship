@@ -44,3 +44,8 @@ if [[ "$VPASS" != *true* ]]; then
   exit 1
 fi
 echo "✓ real compiled view confines to {default:{setup}} in-browser, ambient denied"
+
+# Slice 6 — confinement overhead bench (informational; not a pass/fail gate).
+$PW goto "http://127.0.0.1:$PORT/bench.html" >/dev/null 2>&1
+sleep 2
+echo "bench: $($PW --raw eval "JSON.stringify(window.__bench)" 2>/dev/null | tail -1)"
