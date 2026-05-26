@@ -49,6 +49,7 @@ pub fn run() {
             daemon::daemon_start,
             auth::request_escalation,
             launcher::install_app_launcher,
+            launcher::open_space,
         ])
         .setup(move |app| {
             if let Some(window) = app.get_webview_window("main") {
