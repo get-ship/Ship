@@ -17,19 +17,19 @@ export default controller({
     // sanctioned, policy-gated path the SES Compartment enforces at runtime.
     // `reloadNonce` re-triggers the live source for the Retry button / post-upload
     // refresh (reading it inside live()'s source makes the effect re-subscribe).
+    // Exposed to the template, which owns the loading/error/ok flow via
+    // {#while-loading of artifacts} / {#while-error err of artifacts} / {#if
+    // artifacts().kind === 'ok'}. The controller only derives DATA (via unwrap),
+    // never branches on `.kind` — that's the template's job (sui-controller-no-
+    // load-state). `reloadNonce` re-subscribes for Retry / post-upload refresh.
     const reloadNonce = signal(0)
-    const artifactsLive = live<ArtifactsListResponse>(() => {
+    const artifacts = live<ArtifactsListResponse>(() => {
       reloadNonce()
       return ship.artifacts.list({ limit: 200 }) as unknown as LiveSource<ArtifactsListResponse>
     })
     const items = derived<ArtifactRow[]>(() => {
-      const r = unwrap(artifactsLive)
+      const r = unwrap(artifacts)
       return r && Array.isArray(r.data) ? decorate(r.data) : []
-    })
-    const loading = derived(() => artifactsLive().kind === 'loading')
-    const loadError = derived(() => {
-      const s = artifactsLive()
-      return s.kind === 'error' ? (s.error?.message ?? 'Failed to load artifacts') : ''
     })
 
     const mimeFilter = signal<string>('')
@@ -154,7 +154,7 @@ export default controller({
     }
 
     return {
-      items, loading, loadError,
+      artifacts, items,
       mimeFilter, collectionFilter, actorFilter, ageFilter, searchQuery,
       detailItem, detailOpen, previewText, previewLoading, previewError,
       uploadOpen, uploadFiles, uploadCollection, uploadError, uploading, dragActive,
