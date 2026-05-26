@@ -98,7 +98,7 @@ struct CreatedPayload {
     #[serde(default)]
     workspace_id: Option<String>,
     #[serde(default)]
-    project_id: Option<String>,
+    space_id: Option<String>,
     #[serde(default)]
     cwd: Option<String>,
     #[serde(default)]
@@ -142,7 +142,7 @@ fn apply_created(
         // the original row, refresh updated_at only.
         sqlx::query(
             "INSERT INTO actors \
-             (id, kind, environment_type, status, workspace_id, project_id, cwd, \
+             (id, kind, environment_type, status, workspace_id, space_id, cwd, \
               parent_actor_id, restart_count, agent_id, harness, model, transport, \
               persistence, system_prompt_hash, pid, capabilities_json, \
               created_at, updated_at, last_event_at) \
@@ -152,7 +152,7 @@ fn apply_created(
                  kind = excluded.kind, \
                  environment_type = excluded.environment_type, \
                  workspace_id = excluded.workspace_id, \
-                 project_id = excluded.project_id, \
+                 space_id = excluded.space_id, \
                  cwd = excluded.cwd, \
                  parent_actor_id = excluded.parent_actor_id, \
                  agent_id = excluded.agent_id, \
@@ -168,7 +168,7 @@ fn apply_created(
         .bind(&p.kind)
         .bind(&p.environment_type)
         .bind(&p.workspace_id)
-        .bind(&p.project_id)
+        .bind(&p.space_id)
         .bind(&p.cwd)
         .bind(&p.parent_actor_id)
         .bind(p.restart_count as i64)
@@ -305,7 +305,7 @@ pub struct ActorRow {
     pub kind: String,
     pub status: String,
     pub workspace_id: Option<String>,
-    pub project_id: Option<String>,
+    pub space_id: Option<String>,
     pub cwd: Option<String>,
     pub agent_id: Option<String>,
     pub harness: Option<String>,
@@ -339,7 +339,7 @@ pub struct ListActorsFilter {
 }
 
 const SELECT_COLS: &str =
-    "id, kind, status, workspace_id, project_id, cwd, agent_id, harness, model, \
+    "id, kind, status, workspace_id, space_id, cwd, agent_id, harness, model, \
      transport, persistence, harness_session_id, system_prompt_hash, \
      pid, capabilities_json, parent_actor_id, restart_count, exit_code, \
      exit_reason, duration_ms, created_at, updated_at, last_event_at";
@@ -378,7 +378,7 @@ fn row_to_actor(row: &sqlx::sqlite::SqliteRow) -> ActorRow {
         kind: row.try_get("kind").unwrap_or_default(),
         status,
         workspace_id: row.try_get("workspace_id").ok(),
-        project_id: row.try_get("project_id").ok(),
+        space_id: row.try_get("space_id").ok(),
         cwd: row.try_get("cwd").ok(),
         agent_id: row.try_get("agent_id").ok(),
         harness: row.try_get("harness").ok(),

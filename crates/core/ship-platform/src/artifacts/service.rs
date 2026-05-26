@@ -32,7 +32,7 @@ pub struct ArtifactRecord {
     pub size: u64,
     pub path: String,
     pub scope: String,
-    pub project_id: Option<String>,
+    pub space_id: Option<String>,
     pub run_id: Option<String>,
     pub user_id: Option<String>,
     pub content_hash: Option<String>,
@@ -69,7 +69,7 @@ impl ArtifactRecord {
             size,
             path: require_str("path")?,
             scope: require_str("scope")?,
-            project_id: opt_str("project_id"),
+            space_id: opt_str("space_id"),
             run_id: opt_str("run_id"),
             user_id: opt_str("user_id"),
             content_hash: opt_str("content_hash"),
@@ -176,8 +176,8 @@ impl ArtifactService {
             "content_hash": content_hash,
         });
 
-        if let Some(pid) = scope.project_id() {
-            data["project_id"] = serde_json::Value::String(pid.to_string());
+        if let Some(pid) = scope.space_id() {
+            data["space_id"] = serde_json::Value::String(pid.to_string());
         }
         if let Some(rid) = scope.run_id() {
             data["run_id"] = serde_json::Value::String(rid.to_string());
@@ -221,7 +221,7 @@ impl ArtifactService {
             "size": bytes.len() as u64,
             "content_hash": content_hash,
             "owner_actor": owner_actor,
-            "project_id": scope.project_id(),
+            "space_id": scope.space_id(),
             "run_id": scope.run_id(),
         })).await;
 
@@ -301,7 +301,7 @@ impl ArtifactService {
             emit_artifact_event(kernel, "artifact.deleted", id, serde_json::json!({
                 "id": id,
                 "scope": record.scope,
-                "project_id": record.project_id,
+                "space_id": record.space_id,
                 "run_id": record.run_id,
             })).await;
         }
@@ -417,11 +417,11 @@ impl ArtifactService {
         new_data["scope"] = serde_json::Value::String(target_scope.kind_str().to_string());
         new_data["content_hash"] = serde_json::Value::String(content_hash);
         // Clear scope-specific IDs then set appropriate ones.
-        new_data["project_id"] = serde_json::Value::Null;
+        new_data["space_id"] = serde_json::Value::Null;
         new_data["run_id"] = serde_json::Value::Null;
         new_data["user_id"] = serde_json::Value::Null;
-        if let Some(pid) = target_scope.project_id() {
-            new_data["project_id"] = serde_json::Value::String(pid.to_string());
+        if let Some(pid) = target_scope.space_id() {
+            new_data["space_id"] = serde_json::Value::String(pid.to_string());
         }
         if let Some(rid) = target_scope.run_id() {
             new_data["run_id"] = serde_json::Value::String(rid.to_string());
@@ -488,16 +488,16 @@ impl ArtifactService {
 fn record_to_scope(record: &ArtifactRecord) -> Result<ArtifactScope> {
     match record.scope.as_str() {
         "run" => {
-            let project_id = record.project_id.clone()
-                .ok_or_else(|| anyhow!("run-scope artifact missing project_id"))?;
+            let space_id = record.space_id.clone()
+                .ok_or_else(|| anyhow!("run-scope artifact missing space_id"))?;
             let run_id = record.run_id.clone()
                 .ok_or_else(|| anyhow!("run-scope artifact missing run_id"))?;
-            Ok(ArtifactScope::Run { project_id, run_id })
+            Ok(ArtifactScope::Run { space_id, run_id })
         }
         "project" => {
-            let project_id = record.project_id.clone()
-                .ok_or_else(|| anyhow!("project-scope artifact missing project_id"))?;
-            Ok(ArtifactScope::Project { project_id })
+            let space_id = record.space_id.clone()
+                .ok_or_else(|| anyhow!("project-scope artifact missing space_id"))?;
+            Ok(ArtifactScope::Project { space_id })
         }
         "user" => {
             let user_id = record.user_id.clone()
@@ -525,12 +525,12 @@ fn find_blob_by_hash(
     filter.insert("scope".into(), serde_json::Value::String(scope.kind_str().to_string()));
     filter.insert("content_hash".into(), serde_json::Value::String(content_hash.to_string()));
     match scope {
-        ArtifactScope::Run { project_id, run_id } => {
-            filter.insert("project_id".into(), serde_json::Value::String(project_id.clone()));
+        ArtifactScope::Run { space_id, run_id } => {
+            filter.insert("space_id".into(), serde_json::Value::String(space_id.clone()));
             filter.insert("run_id".into(), serde_json::Value::String(run_id.clone()));
         }
-        ArtifactScope::Project { project_id } => {
-            filter.insert("project_id".into(), serde_json::Value::String(project_id.clone()));
+        ArtifactScope::Project { space_id } => {
+            filter.insert("space_id".into(), serde_json::Value::String(space_id.clone()));
         }
         ArtifactScope::User { user_id } => {
             filter.insert("user_id".into(), serde_json::Value::String(user_id.clone()));
@@ -564,12 +564,12 @@ fn count_refs_to_path(
     filter.insert("scope".into(), serde_json::Value::String(scope.kind_str().to_string()));
     filter.insert("path".into(), serde_json::Value::String(rel_path.to_string()));
     match scope {
-        ArtifactScope::Run { project_id, run_id } => {
-            filter.insert("project_id".into(), serde_json::Value::String(project_id.clone()));
+        ArtifactScope::Run { space_id, run_id } => {
+            filter.insert("space_id".into(), serde_json::Value::String(space_id.clone()));
             filter.insert("run_id".into(), serde_json::Value::String(run_id.clone()));
         }
-        ArtifactScope::Project { project_id } => {
-            filter.insert("project_id".into(), serde_json::Value::String(project_id.clone()));
+        ArtifactScope::Project { space_id } => {
+            filter.insert("space_id".into(), serde_json::Value::String(space_id.clone()));
         }
         ArtifactScope::User { user_id } => {
             filter.insert("user_id".into(), serde_json::Value::String(user_id.clone()));
@@ -603,7 +603,7 @@ async fn emit_artifact_event(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        project_id: None,
+        space_id: None,
         session_id: None,
     };
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {

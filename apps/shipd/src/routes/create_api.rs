@@ -141,7 +141,7 @@ pub(crate) async fn create_surface_core(
                 let ctx = ship_substrate::events::EmitContext {
                     caller_kind: ship_substrate::events::CallerKind::Cli,
                     skill_id: None,
-                    project_id: None,
+                    space_id: None,
                     session_id: None,
                 };
                 if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {

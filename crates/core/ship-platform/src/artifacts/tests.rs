@@ -31,11 +31,11 @@ fn setup() -> (ArtifactService, DataService, Arc<Mutex<KernelRouter>>, tempfile:
 }
 
 fn project_scope(slug: &str) -> ArtifactScope {
-    ArtifactScope::Project { project_id: slug.to_string() }
+    ArtifactScope::Project { space_id: slug.to_string() }
 }
 
 fn run_scope(slug: &str, run: &str) -> ArtifactScope {
-    ArtifactScope::Run { project_id: slug.to_string(), run_id: run.to_string() }
+    ArtifactScope::Run { space_id: slug.to_string(), run_id: run.to_string() }
 }
 
 fn user_scope(uid: &str) -> ArtifactScope {
@@ -64,7 +64,7 @@ async fn store_get_delete_project_scope() {
         .unwrap();
 
     assert_eq!(rec.scope, "project");
-    assert_eq!(rec.project_id.as_deref(), Some("myproj"));
+    assert_eq!(rec.space_id.as_deref(), Some("myproj"));
     assert_eq!(rec.name, "hello.txt");
     assert!(rec.content_hash.is_some());
 
@@ -86,7 +86,7 @@ async fn store_get_delete_run_scope() {
         .unwrap();
 
     assert_eq!(rec.scope, "run");
-    assert_eq!(rec.project_id.as_deref(), Some("proj"));
+    assert_eq!(rec.space_id.as_deref(), Some("proj"));
     assert_eq!(rec.run_id.as_deref(), Some("run-001"));
 
     let (_, bytes) = svc.get(&mut data, &rec.id).unwrap().unwrap();
@@ -131,7 +131,7 @@ async fn promote_run_to_project() {
         .unwrap();
 
     assert_eq!(promoted.scope, "project");
-    assert_eq!(promoted.project_id.as_deref(), Some("proj"));
+    assert_eq!(promoted.space_id.as_deref(), Some("proj"));
     assert!(promoted.run_id.is_none());
 
     // Old id is gone, new id exists.
@@ -273,7 +273,7 @@ async fn gc_skips_non_expired() {
 fn project_scope_blob_path_unchanged() {
     let tmp = tempfile::tempdir().unwrap();
     let backend = LocalFsBackend::new(tmp.path().to_path_buf());
-    let scope = ArtifactScope::Project { project_id: "demo".to_string() };
+    let scope = ArtifactScope::Project { space_id: "demo".to_string() };
     let path = backend.blob_path(&scope, "01HABCDEF");
     let s = path.to_string_lossy();
     assert!(s.contains("/artifacts/demo/blobs/01/01HABCDEF"), "got: {s}");
@@ -283,7 +283,7 @@ fn project_scope_blob_path_unchanged() {
 fn run_scope_blob_path_structure() {
     let tmp = tempfile::tempdir().unwrap();
     let backend = LocalFsBackend::new(tmp.path().to_path_buf());
-    let scope = ArtifactScope::Run { project_id: "p".to_string(), run_id: "r1".to_string() };
+    let scope = ArtifactScope::Run { space_id: "p".to_string(), run_id: "r1".to_string() };
     let path = backend.blob_path(&scope, "01HABCDEF");
     let s = path.to_string_lossy();
     assert!(s.contains("/artifacts/p/runs/r1/01/01HABCDEF"), "got: {s}");
@@ -470,17 +470,17 @@ async fn invalid_scope_in_row_errors_loudly() {
 }
 
 /// Per-scope lock keys distinguish run/project/user. A `User { user_id }`
-/// must never share a lock with a `Project { project_id }` of the same
+/// must never share a lock with a `Project { space_id }` of the same
 /// string value.
 #[test]
 fn scope_lock_keys_are_namespaced() {
-    let p = ArtifactScope::Project { project_id: "alice".into() };
+    let p = ArtifactScope::Project { space_id: "alice".into() };
     let u = ArtifactScope::User { user_id: "alice".into() };
     assert_ne!(p.lock_key(), u.lock_key());
     assert!(p.lock_key().starts_with("project:"));
     assert!(u.lock_key().starts_with("user:"));
 
-    let r1 = ArtifactScope::Run { project_id: "p".into(), run_id: "r1".into() };
-    let r2 = ArtifactScope::Run { project_id: "p".into(), run_id: "r2".into() };
+    let r1 = ArtifactScope::Run { space_id: "p".into(), run_id: "r1".into() };
+    let r2 = ArtifactScope::Run { space_id: "p".into(), run_id: "r2".into() };
     assert_ne!(r1.lock_key(), r2.lock_key());
 }

@@ -517,7 +517,7 @@ mod tests {
             "size": 4096,
             "path": "runs/r1/out.log",
             "scope": "run",
-            "project_id": "proj",
+            "space_id": "proj",
             "run_id": "r1",
             "created_at": "2026-05-23T00:00:00Z"
             // content_hash / expires_at / owner_actor / collection_id / item_id

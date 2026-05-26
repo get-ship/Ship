@@ -61,9 +61,9 @@ fn parse_scope(scope_str: &str, run_id: Option<&str>, user_id: Option<&str>, pro
     match scope_str {
         "run" => {
             let rid = run_id.ok_or("run_id required for scope=run")?;
-            Ok(ArtifactScope::Run { project_id: project_slug.to_string(), run_id: rid.to_string() })
+            Ok(ArtifactScope::Run { space_id: project_slug.to_string(), run_id: rid.to_string() })
         }
-        "project" => Ok(ArtifactScope::Project { project_id: project_slug.to_string() }),
+        "project" => Ok(ArtifactScope::Project { space_id: project_slug.to_string() }),
         "user" => {
             let uid = user_id.ok_or("user_id required for scope=user")?;
             Ok(ArtifactScope::User { user_id: uid.to_string() })

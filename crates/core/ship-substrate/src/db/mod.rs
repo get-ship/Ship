@@ -13,7 +13,7 @@ pub mod envelope;
 pub mod events;
 pub mod integrity;
 mod migrate;
-pub mod project_id_reconcile;
+pub mod space_id_reconcile;
 pub mod repair;
 #[cfg(test)]
 mod events_tests;
@@ -196,14 +196,14 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
 
     // Pre-migration column reconcile. `events.workspace_id` was renamed to
-    // `events.project_id` in commit 0b52fa28 by patching the 0001 baseline
+    // `events.space_id` in commit 0b52fa28 by patching the 0001 baseline
     // in place rather than introducing a new migration. DBs created before
     // that patch still carry the old column name and silently break event
     // writes. Detect and rename here, before sqlx_migrate inspects schema,
-    // so the canonical insert path (`INSERT INTO events (... project_id ...)`)
+    // so the canonical insert path (`INSERT INTO events (... space_id ...)`)
     // succeeds on existing installs without touching user data.
-    project_id_reconcile::reconcile_events_project_id_column(&mut conn).with_context(|| {
-        format!("events.project_id reconcile failed on {}", path.display())
+    space_id_reconcile::reconcile_events_space_id_column(&mut conn).with_context(|| {
+        format!("events.space_id reconcile failed on {}", path.display())
     })?;
 
     // Tolerant migration pass — see `db::migrate`. It relaxes exactly one
@@ -288,7 +288,7 @@ const BASELINE_TABLE_STATEMENTS: &[&str] = &[
         id                          TEXT PRIMARY KEY,
         workspace_id                TEXT NOT NULL,
         branch                      TEXT NOT NULL,
-        project_id                  TEXT,
+        space_id                  TEXT,
         kind                        TEXT NOT NULL DEFAULT 'direct_attach',
         pipeline_run_id             TEXT,
         chat_thread_id              TEXT,
@@ -328,7 +328,7 @@ const BASELINE_TABLE_STATEMENTS: &[&str] = &[
         token            TEXT PRIMARY KEY NOT NULL,
         agent_id         TEXT NOT NULL,
         scopes_json      TEXT NOT NULL,
-        project_id       TEXT,
+        space_id       TEXT,
         created_at_unix  INTEGER NOT NULL,
         expires_at_unix  INTEGER NOT NULL,
         revoked_at_unix  INTEGER,
@@ -352,7 +352,7 @@ const BASELINE_TABLE_STATEMENTS: &[&str] = &[
         updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
     )",
     "CREATE TABLE IF NOT EXISTS project_compile_state (
-        project_id              TEXT PRIMARY KEY NOT NULL,
+        space_id              TEXT PRIMARY KEY NOT NULL,
         active_agent            TEXT,
         compiled_at             TEXT NOT NULL,
         ship_version            TEXT NOT NULL,

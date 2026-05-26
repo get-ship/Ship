@@ -92,7 +92,7 @@ pub async fn launch_collection_item(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        project_id: envelope.project_id.clone(),
+        space_id: envelope.space_id.clone(),
         session_id: envelope.session_id.clone(),
     };
     kernel

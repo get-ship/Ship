@@ -7,7 +7,7 @@ fn skill_ctx(skill_id: &str) -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: Some(skill_id.to_string()),
-        project_id: None,
+        space_id: None,
         session_id: None,
     }
 }
@@ -16,7 +16,7 @@ fn caller_ctx(kind: CallerKind) -> EmitContext {
     EmitContext {
         caller_kind: kind,
         skill_id: None,
-        project_id: None,
+        space_id: None,
         session_id: None,
     }
 }

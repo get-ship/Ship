@@ -405,7 +405,7 @@ fn emit_studio_reply(actor_id: &str, text: &str) {
         let ctx = ship_substrate::events::EmitContext {
             caller_kind: ship_substrate::events::CallerKind::Runtime,
             skill_id: None,
-            project_id: None,
+            space_id: None,
             session_id: None,
         };
         if let Err(e) = ship_substrate::db::block_on_anyhow(async move {

@@ -161,8 +161,8 @@ async fn op_write_source(
 
     // Take the new-source snapshot upfront so we can persist on success
     // or discard on failure.
-    let project_id = state.project_slug().unwrap_or_default();
-    if project_id.is_empty() {
+    let space_id = state.project_slug().unwrap_or_default();
+    if space_id.is_empty() {
         return err(
             StatusCode::INTERNAL_SERVER_ERROR,
             "no_project",
@@ -184,7 +184,7 @@ async fn op_write_source(
     // compile-success, delete on compile-failure.
     let snapshot_meta = match snapshot_now(
         state,
-        &project_id,
+        &space_id,
         name,
         &req.source,
         &turn_id,
@@ -504,7 +504,7 @@ fn resolve_view(name: &str) -> Result<(String, std::path::PathBuf), Response> {
 
 async fn snapshot_now(
     state: &ApiState,
-    project_id: &str,
+    space_id: &str,
     view_name: &str,
     source: &str,
     turn_id: &str,
@@ -518,7 +518,7 @@ async fn snapshot_now(
         data,
         state.kernel(),
         &artifacts,
-        project_id,
+        space_id,
         view_name,
         source,
         turn_id,

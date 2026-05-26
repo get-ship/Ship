@@ -123,7 +123,7 @@ mod session_tests {
     }
 
     #[test]
-    fn started_payload_persists_project_id_and_kind_dimensions() {
+    fn started_payload_persists_space_id_and_kind_dimensions() {
         let mut conn = setup();
         let bus = bus();
         let event = EventEnvelope::new(
@@ -133,7 +133,7 @@ mod session_tests {
                 "goal": "pipeline step",
                 "workspace_id": "ws-dim",
                 "branch": "feat/dim",
-                "project_id": "proj-aaa",
+                "space_id": "proj-aaa",
                 "kind": "pipeline_step",
                 "pipeline_run_id": "run-1",
                 "agent_id": "rust-runtime",
@@ -151,7 +151,7 @@ mod session_tests {
         let row: Option<SessionDimRow> =
             block_on(async {
                 sqlx::query_as(
-                    "SELECT project_id, kind, pipeline_run_id, chat_thread_id \
+                    "SELECT space_id, kind, pipeline_run_id, chat_thread_id \
                      FROM sessions WHERE id = ?",
                 )
                 .bind("sess-dim-1")
@@ -159,9 +159,9 @@ mod session_tests {
                 .await
             })
             .unwrap();
-        let (project_id, kind, pipeline_run_id, chat_thread_id) =
+        let (space_id, kind, pipeline_run_id, chat_thread_id) =
             row.expect("session row missing");
-        assert_eq!(project_id.as_deref(), Some("proj-aaa"));
+        assert_eq!(space_id.as_deref(), Some("proj-aaa"));
         assert_eq!(kind, "pipeline_step");
         assert_eq!(pipeline_run_id.as_deref(), Some("run-1"));
         assert!(chat_thread_id.is_none());

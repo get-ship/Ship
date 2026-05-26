@@ -22,7 +22,7 @@ const PUSH_SCOPE_PREFIX: &str = "push:platform";
 pub(crate) trait SyncTransport: Send + 'static {
     fn push_platform_events(
         &self,
-        project_id: &str,
+        space_id: &str,
         events: &[EventEnvelope],
     ) -> Result<PushResponse>;
 }
@@ -30,10 +30,10 @@ pub(crate) trait SyncTransport: Send + 'static {
 impl SyncTransport for SyncClient {
     fn push_platform_events(
         &self,
-        project_id: &str,
+        space_id: &str,
         events: &[EventEnvelope],
     ) -> Result<PushResponse> {
-        self.push_platform_events(project_id, events)
+        self.push_platform_events(space_id, events)
     }
 }
 
@@ -41,7 +41,7 @@ impl SyncTransport for SyncClient {
 #[derive(Debug, Clone)]
 pub struct SyncConfig {
     pub endpoint: String,
-    pub project_id: String,
+    pub space_id: String,
     pub push_interval_secs: u64,
     /// Emit a push immediately once this many elevated events have accumulated.
     pub push_threshold: usize,
@@ -51,7 +51,7 @@ impl Default for SyncConfig {
     fn default() -> Self {
         Self {
             endpoint: "https://api.getship.dev".to_string(),
-            project_id: String::new(),
+            space_id: String::new(),
             push_interval_secs: 30,
             push_threshold: 50,
         }
@@ -82,7 +82,7 @@ impl SyncServiceHandler {
     }
 
     fn push_scope(&self) -> String {
-        format!("{PUSH_SCOPE_PREFIX}:{}", self.config.project_id)
+        format!("{PUSH_SCOPE_PREFIX}:{}", self.config.space_id)
     }
 
     fn push_cycle(&mut self, store: &ActorStore) -> Result<()> {
@@ -92,7 +92,7 @@ impl SyncServiceHandler {
         if events.is_empty() {
             return Ok(());
         }
-        let resp = self.client.push_platform_events(&self.config.project_id, &events)?;
+        let resp = self.client.push_platform_events(&self.config.space_id, &events)?;
         cursors::set(&scope, &resp.cursor)?;
         self.elevated_since_push = 0;
         let payload = serde_json::json!({
@@ -126,7 +126,7 @@ impl ServiceHandler for SyncServiceHandler {
         store.append(&EventEnvelope::new(
             "sync.started",
             "sync",
-            &serde_json::json!({"project_id": &self.config.project_id}),
+            &serde_json::json!({"space_id": &self.config.space_id}),
         )?)?;
         Ok(())
     }
@@ -171,7 +171,7 @@ mod tests {
     impl SyncTransport for MockTransport {
         fn push_platform_events(
             &self,
-            _project_id: &str,
+            _space_id: &str,
             _events: &[EventEnvelope],
         ) -> anyhow::Result<PushResponse> {
             Ok(PushResponse {
@@ -186,7 +186,7 @@ mod tests {
     impl SyncTransport for FailTransport {
         fn push_platform_events(
             &self,
-            _project_id: &str,
+            _space_id: &str,
             _events: &[EventEnvelope],
         ) -> anyhow::Result<PushResponse> {
             anyhow::bail!("simulated network error")
@@ -236,7 +236,7 @@ mod tests {
         let store_tmp = tempdir().unwrap();
         let store = make_store(&store_tmp);
         let config = SyncConfig {
-            project_id: "proj-cursor".to_string(),
+            space_id: "proj-cursor".to_string(),
             ..SyncConfig::default()
         };
         let mut handler = SyncServiceHandler::with_transport(
@@ -248,7 +248,7 @@ mod tests {
 
         handler.push_cycle(&store).unwrap();
 
-        let scope = format!("push:platform:{}", config.project_id);
+        let scope = format!("push:platform:{}", config.space_id);
         assert_eq!(
             cursors::get(&scope).unwrap(),
             Some("01JBBBBBBBBBBBBBBBBBBBBBBBB".to_string())
@@ -263,7 +263,7 @@ mod tests {
         let store_tmp = tempdir().unwrap();
         let store = make_store(&store_tmp);
         let config = SyncConfig {
-            project_id: "proj-empty".to_string(),
+            space_id: "proj-empty".to_string(),
             ..SyncConfig::default()
         };
         let mut handler = SyncServiceHandler::with_transport(
@@ -275,7 +275,7 @@ mod tests {
 
         handler.push_cycle(&store).unwrap();
 
-        let scope = format!("push:platform:{}", config.project_id);
+        let scope = format!("push:platform:{}", config.space_id);
         assert!(cursors::get(&scope).unwrap().is_none());
     }
 
@@ -287,7 +287,7 @@ mod tests {
         let store_tmp = tempdir().unwrap();
         let store = make_store(&store_tmp);
         let config = SyncConfig {
-            project_id: "proj-fail".to_string(),
+            space_id: "proj-fail".to_string(),
             ..SyncConfig::default()
         };
         let mut handler =
@@ -295,7 +295,7 @@ mod tests {
 
         assert!(handler.push_cycle(&store).is_err());
 
-        let scope = format!("push:platform:{}", config.project_id);
+        let scope = format!("push:platform:{}", config.space_id);
         assert!(
             cursors::get(&scope).unwrap().is_none(),
             "cursor must not advance on transport failure"

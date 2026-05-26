@@ -37,7 +37,7 @@ mod mesh_kernel {
     }
 
     fn ctx() -> EmitContext {
-        EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, project_id: None, session_id: None }
+        EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, space_id: None, session_id: None }
     }
 
     fn identity(label: &str) -> ActorIdentity {

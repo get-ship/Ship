@@ -96,11 +96,11 @@ fn emit_step_done(
 async fn three_step_flow_resolves_consumes_and_promotes_patch() {
     let ship_dir = fresh_ship_dir();
 
-    let project_id = "test-proj";
+    let space_id = "test-proj";
     let pipeline_run_id = "job-three-step";
     let run_id = "run-001";
     let run_scope = ArtifactScope::Run {
-        project_id: project_id.into(),
+        space_id: space_id.into(),
         run_id: run_id.into(),
     };
 

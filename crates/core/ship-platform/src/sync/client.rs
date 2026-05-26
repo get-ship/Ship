@@ -21,7 +21,7 @@ impl SyncClient {
     /// Push platform events (workspace.*, job.*, session.*, gate.*) to cloud.
     pub fn push_platform_events(
         &self,
-        project_id: &str,
+        space_id: &str,
         events: &[EventEnvelope],
     ) -> Result<PushResponse> {
         let url = format!("{}/api/sync/platform/push", self.base_url);
@@ -31,7 +31,7 @@ impl SyncClient {
         let resp: PushResponse = self
             .agent
             .post(&url)
-            .header("x-project-id", project_id)
+            .header("x-project-id", space_id)
             .send_json(&body)
             .context("sync push request failed")?
             .body_mut()
@@ -43,7 +43,7 @@ impl SyncClient {
     /// Pull platform events from cloud since cursor.
     pub fn pull_platform_events(
         &self,
-        project_id: &str,
+        space_id: &str,
         cursor: Option<&str>,
     ) -> Result<PullResponse> {
         let mut url = format!("{}/api/sync/platform/pull", self.base_url);
@@ -53,7 +53,7 @@ impl SyncClient {
         let resp: PullResponse = self
             .agent
             .get(&url)
-            .header("x-project-id", project_id)
+            .header("x-project-id", space_id)
             .call()
             .context("sync pull request failed")?
             .body_mut()
@@ -66,7 +66,7 @@ impl SyncClient {
     pub fn push_workspace_events(
         &self,
         workspace_id: &str,
-        project_id: &str,
+        space_id: &str,
         events: &[EventEnvelope],
     ) -> Result<PushResponse> {
         let url = format!(
@@ -79,7 +79,7 @@ impl SyncClient {
         let resp: PushResponse = self
             .agent
             .post(&url)
-            .header("x-project-id", project_id)
+            .header("x-project-id", space_id)
             .send_json(&body)
             .context("workspace sync push failed")?
             .body_mut()
@@ -92,7 +92,7 @@ impl SyncClient {
     pub fn pull_workspace_events(
         &self,
         workspace_id: &str,
-        project_id: &str,
+        space_id: &str,
         cursor: Option<&str>,
     ) -> Result<PullResponse> {
         let mut url = format!(
@@ -105,7 +105,7 @@ impl SyncClient {
         let resp: PullResponse = self
             .agent
             .get(&url)
-            .header("x-project-id", project_id)
+            .header("x-project-id", space_id)
             .call()
             .context("workspace sync pull failed")?
             .body_mut()
@@ -129,7 +129,7 @@ mod tests {
             payload_json: "{}".to_string(),
             version: 1,
             causation_id: None,
-            project_id: Some("ws-1".to_string()),
+            space_id: Some("ws-1".to_string()),
             session_id: None,
             actor_id: None,
             parent_actor_id: None,
@@ -140,11 +140,11 @@ mod tests {
     }
 
     #[test]
-    fn push_request_body_has_no_project_id() {
+    fn push_request_body_has_no_space_id() {
         let events = sample_events();
         let body = PushRequest { events };
         let json = serde_json::to_value(&body).unwrap();
-        assert!(json.get("project_id").is_none(), "project_id must be in header, not body");
+        assert!(json.get("space_id").is_none(), "space_id must be in header, not body");
         assert_eq!(json["events"].as_array().unwrap().len(), 1);
     }
 

@@ -224,7 +224,7 @@ pub struct ActorSpawnExtras {
     pub persistence: Option<String>,
     pub system_prompt_hash: Option<String>,
     pub capabilities: Vec<String>,
-    pub project_id: Option<String>,
+    pub space_id: Option<String>,
     pub cwd: Option<String>,
 }
 
@@ -254,7 +254,7 @@ pub fn emit_actor_created_for(session: &PtySession, extras: &ActorSpawnExtras) {
         system_prompt_hash: extras.system_prompt_hash.clone(),
         pid: m.pid,
         capabilities: extras.capabilities.clone(),
-        project_id: extras.project_id.clone(),
+        space_id: extras.space_id.clone(),
         cwd: extras.cwd.clone(),
     };
     let actor_id = m.id.clone();

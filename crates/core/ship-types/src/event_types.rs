@@ -79,17 +79,17 @@ pub const STUDIO_REPLY: &str = "studio.reply";
 
 /// Emitted by `ship compile` at end of a successful run. Records what was
 /// compiled (active agent, harness, plugins, ship version) for the
-/// `project_compile_state` projection. `entity_id` is the project_id.
+/// `project_compile_state` projection. `entity_id` is the space_id.
 pub const COMPILE_COMPLETED: &str = "compile.completed";
 
 /// Project registry — first time a project path is seen by the daemon.
-/// `entity_id` is the project_id (stable hash of the canonical path).
+/// `entity_id` is the space_id (stable hash of the canonical path).
 pub const PROJECT_REGISTERED: &str = "project.registered";
 /// Project registry — `last_seen_at` bump (re-open, switch, reattach).
 pub const PROJECT_SEEN: &str = "project.seen";
 /// Project registry — user removed the project from their registry.
 pub const PROJECT_ARCHIVED: &str = "project.archived";
-/// Active-project switch. `entity_id` is the newly-active project_id.
+/// Active-project switch. `entity_id` is the newly-active space_id.
 /// Payload carries the new + previous ids so chrome subscribers can
 /// distinguish a no-op set from a true context change.
 pub const PROJECT_SWITCHED: &str = "project.switched";
@@ -143,7 +143,7 @@ pub const RULE_UPDATED: &str = "rule.updated";
 pub const RULE_DELETED: &str = "rule.deleted";
 
 /// Permissions — `.ship/permissions.jsonc` was rewritten. `entity_id`
-/// is the project_id (or `"global"` for user-scope writes).
+/// is the space_id (or `"global"` for user-scope writes).
 pub const PERMISSIONS_UPDATED: &str = "permissions.updated";
 
 /// Capability provisioning — an agent's approved grant baseline was written.

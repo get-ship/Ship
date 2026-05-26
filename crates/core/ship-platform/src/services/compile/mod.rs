@@ -210,7 +210,7 @@ fn emit_compile_completed(
     use ship_substrate::events::types::{CompileCompleted, event_types::COMPILE_COMPLETED};
     use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 
-    let project_id = match ship_substrate::project::ensure_project_id(ship_dir) {
+    let space_id = match ship_substrate::project::ensure_space_id(ship_dir) {
         Ok(id) => id,
         Err(e) => {
             tracing::warn!("compile: cannot resolve project id: {e}");
@@ -224,7 +224,7 @@ fn emit_compile_completed(
         harness: harnesses.first().cloned(),
         plugins_installed: plugins_installed.to_vec(),
     };
-    let envelope = match EventEnvelope::new(COMPILE_COMPLETED, &project_id, &payload) {
+    let envelope = match EventEnvelope::new(COMPILE_COMPLETED, &space_id, &payload) {
         Ok(e) => e,
         Err(e) => {
             tracing::warn!("compile: cannot build envelope: {e}");

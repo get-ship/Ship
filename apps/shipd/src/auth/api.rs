@@ -81,13 +81,13 @@ mod tests {
     fn auth_context_to_emit_context() {
         // The daemon's space id is the sole scope. Setting it once here (the
         // only reader of this set-once global in the shipd test binary) lets us
-        // assert the new behavior: `project_id` carries the SPACE id and is
+        // assert the new behavior: `space_id` carries the SPACE id and is
         // *independent* of the legacy branch-slug `workspace_id`.
         ship_substrate::project::set_daemon_space_id("space-abc".into());
         let auth = AuthContext {
             caller_kind: CallerKind::Mcp,
             agent_id: Some("agent.test".into()),
-            // A branch slug that must NOT leak into project_id anymore.
+            // A branch slug that must NOT leak into space_id anymore.
             workspace_id: Some("ws-1".into()),
             session_id: Some("sess-1".into()),
             scopes: vec![Scope::Full],
@@ -96,9 +96,9 @@ mod tests {
         let ctx = auth.to_emit_context();
         assert_eq!(ctx.caller_kind, CallerKind::Mcp);
         assert_eq!(
-            ctx.project_id,
+            ctx.space_id,
             Some("space-abc".into()),
-            "project_id must carry the daemon space id, not the branch slug"
+            "space_id must carry the daemon space id, not the branch slug"
         );
         assert_eq!(ctx.session_id, Some("sess-1".into()));
     }

@@ -2,8 +2,8 @@
 //!
 //! Backed by the `cursors` table in `platform.db`. Names are opaque strings
 //! the caller chooses; the table has no opinion. Conventions used today:
-//! - `push:platform:{project_id}` — sync push cursor per project
-//! - `pull:platform:{project_id}` — sync pull cursor per project
+//! - `push:platform:{space_id}` — sync push cursor per project
+//! - `pull:platform:{space_id}` — sync pull cursor per project
 //! - `projection:{name}` — per-projection rebuild cursor
 //!
 //! Living in platform.db (next to the event log) means cursor advances can

@@ -369,7 +369,7 @@ pub async fn run_network(
     // A daemon serves exactly one project = one space. Stamp the daemon's
     // space identity (path-hash of the project root, matching the `projects`
     // projection key) into the process-global so the per-request emit path
-    // carries the SPACE id on `project_id`, never the branch slug. See spec
+    // carries the SPACE id on `space_id`, never the branch slug. See spec
     // `.artifacts/specs/space/116-event-partition.md`.
     if let Some(root) = project_root.as_ref() {
         ship_substrate::project::set_daemon_space_id_from_root(root.path());

@@ -4,7 +4,7 @@
 //! is the path-hash identity of the project root, resolved once at daemon
 //! startup (`ProjectRoot::discover`) and stored here as a process-global so the
 //! per-request emit path can stamp it onto every space-scoped event's
-//! `project_id` field.
+//! `space_id` field.
 //!
 //! This is the sole domain scope. The legacy `workspace_id` (a git branch slug)
 //! must never be used as a scope/partition/delivery key — see spec

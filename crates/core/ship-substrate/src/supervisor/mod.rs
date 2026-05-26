@@ -33,15 +33,15 @@ use std::sync::OnceLock;
 /// Optional resolver that maps a working-directory path to a project id.
 /// Installed by the platform crate (`ship_platform::projects`); used by
 /// `spawn_actor` to attribute the emitted `actor.created` event to a
-/// project. When unset, project_id is left None.
+/// project. When unset, space_id is left None.
 type ProjectIdResolver = Box<dyn Fn(&Path) -> Option<String> + Send + Sync>;
 static PROJECT_ID_RESOLVER: OnceLock<ProjectIdResolver> = OnceLock::new();
 
-pub fn install_project_id_resolver(resolver: ProjectIdResolver) {
+pub fn install_space_id_resolver(resolver: ProjectIdResolver) {
     let _ = PROJECT_ID_RESOLVER.set(resolver);
 }
 
-fn resolve_project_id(path: &Path) -> Option<String> {
+fn resolve_space_id(path: &Path) -> Option<String> {
     PROJECT_ID_RESOLVER.get().and_then(|f| f(path))
 }
 
@@ -241,12 +241,12 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
     let emit_pid = child.pid();
     std::thread::spawn(move || {
         let cwd = emit_profile.work_dir.to_string_lossy().to_string();
-        let project_id = resolve_project_id(&emit_profile.work_dir);
+        let space_id = resolve_space_id(&emit_profile.work_dir);
         let payload = crate::events::types::ActorCreated {
             kind: emit_profile.kind.as_str().to_string(),
             environment_type: "local".to_string(),
             workspace_id: emit_profile.workspace_id.clone(),
-            project_id,
+            space_id,
             cwd: Some(cwd),
             agent_id: emit_profile.agent_id.clone(),
             harness: emit_profile.harness.clone(),

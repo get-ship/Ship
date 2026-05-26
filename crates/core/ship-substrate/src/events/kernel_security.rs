@@ -135,14 +135,14 @@ impl KernelRouter {
                 DeliveryScope::Workspace => {
                     // Space-scoped delivery: the actor receives the event only
                     // when the event's SPACE matches the space this actor is
-                    // bound to. `event.project_id` now always carries the
+                    // bound to. `event.space_id` now always carries the
                     // daemon's path-hash space id (never a branch slug — see
                     // spec `.artifacts/specs/space/116-event-partition.md`), and
                     // a daemon serves exactly one space, so this equality is
                     // effectively "belongs to this daemon's space". The opaque
                     // match key is the actor's bound scope (legacy field name
                     // `workspace_id`; rename deferred to a later slice).
-                    if event.project_id.as_deref() == meta.workspace_id.as_deref() {
+                    if event.space_id.as_deref() == meta.workspace_id.as_deref() {
                         return Some(true);
                     }
                 }

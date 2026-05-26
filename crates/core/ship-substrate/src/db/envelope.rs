@@ -15,7 +15,7 @@ use crate::db::block_on;
 /// Canonical 14-column SELECT list for the `events` table.
 /// Order MUST match [`envelope_from_row`]'s column indices.
 pub const EVENT_COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-    causation_id, project_id, session_id, \
+    causation_id, space_id, session_id, \
     actor_id, parent_actor_id, elevated, created_at, target_actor_id";
 
 /// INSERT a 14-column event row using an existing connection. No transaction
@@ -29,7 +29,7 @@ pub(crate) fn insert_event_row(
         sqlx::query(
             "INSERT INTO events \
              (id, event_type, entity_id, actor, payload_json, version, \
-              causation_id, project_id, session_id, \
+              causation_id, space_id, session_id, \
               actor_id, parent_actor_id, elevated, created_at, target_actor_id) \
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
@@ -40,7 +40,7 @@ pub(crate) fn insert_event_row(
         .bind(&event.payload_json)
         .bind(event.version as i64)
         .bind(&event.causation_id)
-        .bind(&event.project_id)
+        .bind(&event.space_id)
         .bind(&event.session_id)
         .bind(&event.actor_id)
         .bind(&event.parent_actor_id)
@@ -63,7 +63,7 @@ pub fn envelope_from_row(
     has_target_actor: bool,
 ) -> Result<EventEnvelope> {
     // Columns: id(0) event_type(1) entity_id(2) actor(3) payload_json(4) version(5)
-    //          causation_id(6) project_id(7) session_id(8)
+    //          causation_id(6) space_id(7) session_id(8)
     //          actor_id(9) parent_actor_id(10) elevated(11) created_at(12)
     //          [target_actor_id(13)]
     let created_at_str: String = row.get(12);
@@ -89,7 +89,7 @@ pub fn envelope_from_row(
         payload_json: row.get(4),
         version: row.get::<i64, _>(5) as u32,
         causation_id: row.get(6),
-        project_id: row.get(7),
+        space_id: row.get(7),
         session_id: row.get(8),
         actor_id: row.get(9),
         parent_actor_id: row.get(10),

@@ -11,9 +11,9 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ArtifactScope {
     /// Ephemeral run artifact. Blob lives under the project's runs directory.
-    Run { project_id: String, run_id: String },
+    Run { space_id: String, run_id: String },
     /// Persistent project-level artifact. Backwards-compatible path.
-    Project { project_id: String },
+    Project { space_id: String },
     /// User-personal artifact, not tied to a specific project.
     User { user_id: String },
 }
@@ -28,10 +28,10 @@ impl ArtifactScope {
         }
     }
 
-    pub fn project_id(&self) -> Option<&str> {
+    pub fn space_id(&self) -> Option<&str> {
         match self {
-            ArtifactScope::Run { project_id, .. } | ArtifactScope::Project { project_id } => {
-                Some(project_id.as_str())
+            ArtifactScope::Run { space_id, .. } | ArtifactScope::Project { space_id } => {
+                Some(space_id.as_str())
             }
             ArtifactScope::User { .. } => None,
         }
@@ -55,8 +55,8 @@ impl ArtifactScope {
     /// `project:<project>` / `user:<user>`.
     pub fn lock_key(&self) -> String {
         match self {
-            ArtifactScope::Run { project_id, run_id } => format!("run:{project_id}:{run_id}"),
-            ArtifactScope::Project { project_id } => format!("project:{project_id}"),
+            ArtifactScope::Run { space_id, run_id } => format!("run:{space_id}:{run_id}"),
+            ArtifactScope::Project { space_id } => format!("project:{space_id}"),
             ArtifactScope::User { user_id } => format!("user:{user_id}"),
         }
     }
@@ -84,18 +84,18 @@ impl LocalFsBackend {
     pub fn blob_path(&self, scope: &ArtifactScope, id: &str) -> PathBuf {
         let prefix: String = id.chars().take(2).collect();
         match scope {
-            ArtifactScope::Run { project_id, run_id } => self
+            ArtifactScope::Run { space_id, run_id } => self
                 .global_dir
                 .join("artifacts")
-                .join(project_id)
+                .join(space_id)
                 .join("runs")
                 .join(run_id)
                 .join(&prefix)
                 .join(id),
-            ArtifactScope::Project { project_id } => self
+            ArtifactScope::Project { space_id } => self
                 .global_dir
                 .join("artifacts")
-                .join(project_id)
+                .join(space_id)
                 .join("blobs")
                 .join(&prefix)
                 .join(id),
@@ -166,10 +166,10 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 pub fn relative_blob_path(_scope: &ArtifactScope, id: &str, _backend: &LocalFsBackend) -> String {
     let prefix: String = id.chars().take(2).collect();
     match _scope {
-        ArtifactScope::Run { project_id, run_id } => {
-            format!("{project_id}/runs/{run_id}/{prefix}/{id}")
+        ArtifactScope::Run { space_id, run_id } => {
+            format!("{space_id}/runs/{run_id}/{prefix}/{id}")
         }
-        ArtifactScope::Project { project_id } => format!("{project_id}/blobs/{prefix}/{id}"),
+        ArtifactScope::Project { space_id } => format!("{space_id}/blobs/{prefix}/{id}"),
         ArtifactScope::User { user_id } => format!("users/{user_id}/{prefix}/{id}"),
     }
 }

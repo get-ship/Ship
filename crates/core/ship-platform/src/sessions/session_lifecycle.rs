@@ -64,7 +64,7 @@ pub fn start_session(
         primary_harness: Some(primary_harness),
         // The space scope — always populated (path-hash identity), so the
         // active-session lookup above resolves on subsequent calls.
-        project_id: Some(space_id),
+        space_id: Some(space_id),
         kind: Some("direct_attach".to_string()),
         pipeline_run_id: None,
         chat_thread_id: None,

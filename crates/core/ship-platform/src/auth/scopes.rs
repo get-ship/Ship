@@ -339,7 +339,7 @@ pub fn persist_session(session: &DaemonSession) {
         // The daemon's SPACE id (sole domain scope), not the branch-slug
         // workspace_id. A daemon serves one space; the session belongs to it.
         // See spec `.artifacts/specs/space/116-event-partition.md`.
-        project_id: ship_substrate::project::daemon_space_id(),
+        space_id: ship_substrate::project::daemon_space_id(),
         created_at_unix: created_unix,
         expires_at_unix,
         source: "persist".to_string(),
@@ -417,12 +417,12 @@ pub async fn hydrate_sessions(registry: &SessionRegistry) {
             // Persisted sessions are operator/paired (is_operator clears grants);
             // restricted grants aren't persisted — re-minted on register.
             grants: vec![],
-            // The persisted `auth_sessions.project_id` now carries the daemon's
+            // The persisted `auth_sessions.space_id` now carries the daemon's
             // SPACE id (see `persist_session`), not a branch slug. Restoring it
             // into the legacy `workspace_id` field keeps it consistent with the
-            // daemon's single space. Emit `project_id` is sourced from the
+            // daemon's single space. Emit `space_id` is sourced from the
             // daemon space global, not this field.
-            workspace_id: row.project_id,
+            workspace_id: row.space_id,
             created_at: std::time::Instant::now(),
             expires_at_unix: Some(row.expires_at_unix),
             ephemeral: false,

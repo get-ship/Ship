@@ -44,9 +44,9 @@ fn parse_target(
         "run" => {
             let run_id = run_id
                 .ok_or_else(|| CommandError::bad_args("run_id required for target_scope=run"))?;
-            Ok(ArtifactScope::Run { project_id: project_slug.to_string(), run_id })
+            Ok(ArtifactScope::Run { space_id: project_slug.to_string(), run_id })
         }
-        "project" => Ok(ArtifactScope::Project { project_id: project_slug.to_string() }),
+        "project" => Ok(ArtifactScope::Project { space_id: project_slug.to_string() }),
         "user" => {
             let user_id = user_id
                 .ok_or_else(|| CommandError::bad_args("user_id required for target_scope=user"))?;
