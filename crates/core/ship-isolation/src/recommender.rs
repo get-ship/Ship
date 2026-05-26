@@ -258,10 +258,11 @@ fn preferred_strategy_in_tier(
 
 /// Does this OS provide an in-place Tier 1 (host process-level) sandbox?
 /// Windows has none — `@anthropic-ai/sandbox-runtime` is mac+Linux only and
-/// there's no portable Win32 primitive — so isolation on Windows means
-/// escalating to the WSL substrate. The per-OS default already routes Windows
-/// to Container (WSL/Docker); this names the policy and drives the nudge when
-/// no substrate is installed.
+/// there's no portable Win32 primitive. `shipd` still runs native on Windows;
+/// isolation there means escalating to a Linux substrate at *runtime*
+/// (Docker-on-Windows or WSL — never an install target). The per-OS default
+/// routes Windows to Container; this names the policy and drives the nudge
+/// when neither substrate is installed.
 pub fn os_provides_tier1(os: HostOs) -> bool {
     !matches!(os, HostOs::Windows | HostOs::Unknown)
 }

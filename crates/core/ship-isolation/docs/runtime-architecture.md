@@ -285,8 +285,17 @@ The current capability probe extends with a **deployment row**:
 |---|---|---|---|---|---|
 | shipd on macOS | ✓ | Seatbelt | docker / podman | lima | (future) |
 | shipd on Linux | ✓ | bwrap / srt | docker / youki | lima / WSL2 | (future) |
-| shipd on Windows | ✓ | — | podman / WSL2 | WSL2 | (future) |
+| shipd on Windows | ✓ | — | docker / WSL2 | WSL2 | (future) |
 | shipd in container | ✓ | bwrap (capability dependent) | none (no DnD) | none | (future) |
+
+`shipd` installs and runs **native on every host OS, Windows included** —
+there is no install-to-WSL path. WSL2 (and Docker-on-Windows, itself usually
+WSL-backed) are *runtime substrates* the native daemon reaches for Tier 2/3,
+not an install target. Windows simply has no Tier 1 (no portable Win32
+process-sandbox primitive), so isolation there means a Linux substrate — opt-in,
+and only when the user wants more than Noop. The substrate carries a `/mnt`
+path-translation tax for projects on the Windows filesystem; that is inherent
+to crossing into a Linux VM, not a property of how Ship installs.
 
 Recommender returns the achievable tier set for the current
 deployment. UI surfaces it honestly — "shipd is itself in a

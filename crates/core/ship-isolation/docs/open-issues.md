@@ -38,10 +38,12 @@ in earlier drafts — k8s baggage avoided).
      runs natively on Windows; WSL is the tier-strategy substrate it reaches
      for the higher tiers (symmetric with Lima/Firecracker). Isolator written
      + wired + recommendable; launch + Windows→distro localhost-forward
-     POC-verified on a WSL2 box. The "push to WSL when no Tier 1" recommender
-     policy is **done** — Windows defaults to the WSL substrate, a soft Tier-1
-     preference escalates to it, and a host with no substrate nudges enabling
-     WSL2 (`os_provides_tier1` + tests). Remaining: run `wsl_sidecar_live` on
+     POC-verified on a WSL2 box. The "push to a substrate when no Tier 1"
+     recommender policy is **done** — `shipd` stays native on Windows; the
+     default isolation tier is Container (Docker-on-Windows or WSL), a soft
+     Tier-1 preference escalates to it, and a host with neither substrate
+     nudges enabling WSL2 (`os_provides_tier1` + tests). Remaining: run
+     `wsl_sidecar_live` on
      Windows (forwarding is host↔distro, so the cell only greens on the
      Windows host), and publish the `ship-substrate` rootfs + the installer
      that imports it.

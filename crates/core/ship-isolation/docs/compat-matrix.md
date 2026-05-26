@@ -57,8 +57,10 @@ The dimension that varies most (harness-native flags + "does it even run").
   verifying them needs the actual harness installed + an escape assertion.
   That's the next live target.
 - **Windows-native has no Tier-1 story** — `@anthropic-ai/sandbox-runtime`
-  is mac+Linux only, and there's no portable Windows sandbox primitive. The
-  Windows path *is* WSL (a Linux substrate) → it inherits the Linux column.
+  is mac+Linux only, and there's no portable Windows sandbox primitive. `shipd`
+  still runs native on Windows; the *isolation* path is a Linux substrate
+  (Docker-on-Windows or WSL), so Tier 2/3 inherit the Linux column. The
+  substrate is a runtime choice, never an install target.
 - **Intel Macs**: claude-code unavailable (hard 🔴 for that harness there).
 
 ## Grid 2 — Tiers 2/3/4 (substrate): OS × tier
