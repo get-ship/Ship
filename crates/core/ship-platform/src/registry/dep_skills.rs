@@ -338,6 +338,70 @@ pub fn resolve_dep_skills(
     Ok(dep_skills)
 }
 
+/// Compose dep AGENTS into the consuming space (composition engine, #122).
+///
+/// Auto-compose model: each locked package's `exports.agents` are loaded from the
+/// content-addressed cache and made available in the space. Each agent's id is
+/// namespaced by the package path so dep agents never collide with local agents
+/// or with each other. Mirrors `resolve_dep_skills`'s lock + cache resolution.
+/// Returns an empty vec when there is no lockfile (no deps installed).
+pub fn resolve_dep_agents(
+    lock_path: &Path,
+    cache_root: Option<&Path>,
+) -> Result<Vec<compiler::AgentProfile>> {
+    if !lock_path.exists() {
+        return Ok(vec![]);
+    }
+    let lock =
+        ShipLock::from_file(lock_path).with_context(|| format!("reading {}", lock_path.display()))?;
+
+    let default_cache: PathBuf;
+    let cache_root = match cache_root {
+        Some(p) => p,
+        None => {
+            let home = home::home_dir().context("cannot determine home directory")?;
+            default_cache = ship_substrate::ShipHome::project_ship_dir(home).join("cache");
+            &default_cache
+        }
+    };
+
+    let mut out = Vec::new();
+    for pkg in &lock.packages {
+        let hex = pkg.hash.strip_prefix("sha256:").unwrap_or(&pkg.hash);
+        let cache_dir = cache_root.join("objects").join(hex);
+        let manifest_path = cache_dir.join("ship.jsonc");
+        if !manifest_path.exists() {
+            continue;
+        }
+        let manifest = match compiler::manifest::ShipManifest::from_file(&manifest_path) {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::warn!("dep agents: skipping {} — manifest parse: {e}", pkg.path);
+                continue;
+            }
+        };
+        for agent_rel in &manifest.exports.agents {
+            let agent_path = cache_dir.join(agent_rel);
+            let content = match std::fs::read_to_string(&agent_path) {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::warn!("dep agents: {}::{agent_rel} unreadable: {e}", pkg.path);
+                    continue;
+                }
+            };
+            match compiler::jsonc::from_jsonc_str::<compiler::AgentProfile>(&content) {
+                Ok(mut profile) => {
+                    // Namespace by package path — collision-safe + deterministic.
+                    profile.agent.id = format!("{}/{}", pkg.path, profile.agent.id);
+                    out.push(profile);
+                }
+                Err(e) => tracing::warn!("dep agents: {}::{agent_rel} parse: {e}", pkg.path),
+            }
+        }
+    }
+    Ok(out)
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
