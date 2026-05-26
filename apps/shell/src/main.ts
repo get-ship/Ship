@@ -293,6 +293,66 @@ function disposeCurrentMount(): void {
   if (prevId) notifyViewUnmount(prevId)
 }
 
+// ── SES confinement (opt-in) ─────────────────────────────────────────────────
+// Deck confines view code via @ship/deck-host. OFF by default; the confined
+// path lazy-loads deck-host (+ ses) only when enabled, so the default shell is
+// unchanged (no ses in the bundle's hot path). Enable with localStorage
+// `ship-ses-confine` = '1' (a follow-up defaults this to production mode). #165.
+function confineEnabled(): boolean {
+  try {
+    return localStorage.getItem('ship-ses-confine') === '1'
+  } catch {
+    return false
+  }
+}
+
+// Confined modules are cached per view name — the descriptor is stateless
+// (setup runs fresh per mount), so reuse matches the unconfined path's reliance
+// on the browser's dynamic-import cache. Without this, every remount (e.g. live
+// re-render) re-fetched + re-confined the source. Promise-valued so concurrent
+// mounts share one in-flight build.
+const confinedCache = new Map<string, Promise<unknown>>()
+
+// Build the confined module for a daemon-served view: fetch its compiled source,
+// endow the SHARED runtime (window.__suiRuntime — the importmap instance, NOT a
+// second copy, so signals stay one universe per #149) + dom + policy-gated
+// ship/route/navigate + the real document, and confine under lockdown. Returns
+// undefined on any failure (incl. non-daemon views like bundled studio, whose
+// view.js 404s) → caller falls back to the normal unconfined path.
+function confinedModuleFor(viewName: string): Promise<unknown> {
+  const cached = confinedCache.get(viewName)
+  if (cached) return cached
+  const built = buildConfinedModule(viewName)
+  confinedCache.set(viewName, built)
+  return built
+}
+
+async function buildConfinedModule(viewName: string): Promise<unknown> {
+  try {
+    const [{ buildViewEndowments, confineViewModule }, dom] = await Promise.all([
+      import('@ship/deck-host'),
+      import('@ship/sui-dom'),
+    ])
+    const res = await fetch(`/_sui/views/${viewName}/view.js`, { credentials: 'same-origin' })
+    if (!res.ok) return undefined
+    const source = await res.text()
+    const w = window as WindowWithSui
+    const endow = buildViewEndowments({
+      runtime: (w.__suiRuntime ?? {}) as unknown as Record<string, unknown>,
+      dom: dom as unknown as Record<string, unknown>,
+      ship: shipClient,
+      route: routeSignals,
+      navigate,
+      doc: document,
+    })
+    // confineViewModule returns the `{ default }` module shape mount() accepts.
+    return confineViewModule(source, endow)
+  } catch (err) {
+    console.warn('[shell] SES confinement failed; mounting unconfined:', err)
+    return undefined
+  }
+}
+
 async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<void> {
   const slot = document.getElementById('ship-content')
   if (!slot) throw new Error('shell: #ship-content missing from index.html')
@@ -351,7 +411,12 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
   window.__suiCurrentViewId = nextViewId
 
   try {
-    const moduleOverride: unknown = opts.module
+    // Explicit override (HMR) wins; otherwise, when SES confinement is on,
+    // produce the confined view module to pass to mount().
+    let moduleOverride: unknown = opts.module
+    if (moduleOverride === undefined && confineEnabled()) {
+      moduleOverride = await confinedModuleFor(r.view)
+    }
     const res = await fetch(payloadUrl(r), { credentials: 'same-origin' })
     if (!res.ok) {
       disposeCurrentMount()
@@ -1037,13 +1102,27 @@ function initHelpOverlay(): void {
   document.addEventListener('sui-open-help', () => host.setAttribute('open', ''))
 }
 
-const initial = readRoute()
-if (initial) {
-  // `/` IS home — keep the URL bare. The rail no longer carries a
-  // separate Home item (the brand mark in nav-top is the home affordance),
-  // so there's no rail-tile to highlight for the home route.
-  void mountRoute(initial)
-} else {
-  const slot = document.getElementById('ship-content')
-  if (slot) showLanding(slot)
+async function boot(): Promise<void> {
+  // SES: lock the realm BEFORE the first mount so confineController's harden()
+  // works (harden requires lockdown). Lazy + gated — default-off shells never
+  // import deck-host/ses. Failure degrades to unconfined rather than blanking.
+  if (confineEnabled()) {
+    try {
+      const { lockdownRealm } = await import('@ship/deck-host')
+      lockdownRealm()
+    } catch (err) {
+      console.warn('[shell] lockdown failed; continuing unconfined:', err)
+    }
+  }
+  const initial = readRoute()
+  if (initial) {
+    // `/` IS home — keep the URL bare. The rail no longer carries a
+    // separate Home item (the brand mark in nav-top is the home affordance),
+    // so there's no rail-tile to highlight for the home route.
+    void mountRoute(initial)
+  } else {
+    const slot = document.getElementById('ship-content')
+    if (slot) showLanding(slot)
+  }
 }
+void boot()

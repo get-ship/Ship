@@ -30,6 +30,7 @@
     "@codemirror/view": "^6",
     "@lezer/highlight": "^1",
     "@ship/charts": "workspace:*",
+    "@ship/deck-host": "workspace:*",
     "@ship/pipelines": "workspace:*",
     "@ship/primitives": "workspace:*",
     "@ship/sdk": "workspace:*",

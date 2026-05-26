@@ -5,8 +5,8 @@
 //! SUI→Deck dependency or a live-path edit. Default (unconfined) mount is
 //! untouched; a host opts in per view.
 
-import { confineController } from './confine.ts'
-import { lowerModuleToExpression } from './lower-imports.ts'
+import { confineController } from './confine'
+import { lowerModuleToExpression } from './lower-imports'
 
 /** The minimal node-factory surface the compiled view's renderer needs. */
 interface NodeFactories {
