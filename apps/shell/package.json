@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "sui-build && vite build",
+    "build": "sui-build && bun ../../packages/deck/bundler/shell-app.ts --shell-root . --out dist",
     "pretest": "sui-build",
     "test": "vitest run",
     "test:watch": "vitest",
