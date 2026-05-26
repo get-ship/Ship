@@ -28,57 +28,12 @@ use crate::auth::scopes::Scope;
 /// working. `from_descriptor` fails closed to `C2Elevated`.
 pub use ship_ops_rpc::BlastRadius;
 
-/// A capability domain — a skill-group. `restricted` domains are
-/// capability-defining (they hand out capability) and are never default-granted;
-/// an agent reaches them only with an explicit grant.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Domain {
-    pub group: &'static str,
-    pub restricted: bool,
-}
-
-/// Classify a command name's domain from its `<domain>.<op>` prefix.
-///
-/// Restricted (capability-defining) groups:
-/// - `ship-orchestration` — `agent.*` (dispatch / stop / steer: spawn & control actors)
-/// - `ship-authoring`    — `create.*`, `view.*` (write skills / agents / views)
-///
-/// Ordinary workspace mutations (pipeline, project, mesh, git, annotations) are
-/// the default group, open to any in-scope agent.
-///
-/// **An unrecognized prefix fails closed** to a restricted, ungrantable group:
-/// a newly-added op domain that nobody has classified is gated to the operator
-/// until someone consciously places it here. The `command_prefixes_are_all_classified`
-/// conformance test fails the build if a `COMMANDS` entry lands in this bucket,
-/// so the fail-closed path is a tripwire, not a silent denial in production.
-pub fn classify(name: &str) -> Domain {
-    match name.split('.').next().unwrap_or(name) {
-        // restricted — capability-defining. Note the singular/plural split:
-        // `agent.*` is runtime control (dispatch/stop/steer → orchestration);
-        // `agents.*` authors profiles (defines capability → ship-authoring).
-        "agent" => Domain { group: "ship-orchestration", restricted: true },
-        "agents" => Domain { group: "ship-authoring", restricted: true },
-        // `mcp` registers external MCP servers → new tools agents can call, so
-        // configuring it is authoring agent capability, not ordinary workspace
-        // mutation. Gated behind the ship-authoring grant.
-        // `skills` are themselves capability groups — authoring one defines what
-        // agents can do. Restricted ship-authoring, like create/view/mcp.
-        "create" | "view" | "mcp" | "skills" => Domain { group: "ship-authoring", restricted: true },
-        // `permissions` edits the security policy that governs agents. It is
-        // C2 (operator-only) at the blast axis, so agents are denied regardless;
-        // restricted ship-authoring here is defense in depth on the grant axis.
-        "permissions" => Domain { group: "ship-authoring", restricted: true },
-        // default — ordinary workspace mutation
-        // `actor`/`event` are kernel control (operational/internal — operator/debug
-        // surface, not agent capability, #95). Behaviour-preserving C1 today;
-        // tightening the dangerous ones (kill_tree, event.emit) to C2 is deferred.
-        "pipeline" | "pipelines" | "project" | "mesh" | "git" | "annotation" | "annotations"
-        | "feedback" | "rules" | "artifacts" | "collections" | "settings" | "actor" | "event" => {
-            Domain { group: "ship-workspace", restricted: false }
-        }
-        // unknown — fail closed
-        _ => Domain { group: "ship-unclassified", restricted: true },
-    }
+/// The **service** an op belongs to — its op-domain (`git.commit` → `git`), the
+/// existing proto-service curation. This is the *scope* axis of authority: an
+/// agent's grant is the set of services it's **elevated** in. Derived via
+/// `ship_ops_rpc::policy::domain_of` — no second taxonomy.
+pub fn service_of(name: &str) -> &str {
+    ship_ops_rpc::policy::domain_of(name)
 }
 
 /// The gate's verdict. `Ask` (interactive confirmation, task #82) is a future
@@ -90,54 +45,53 @@ pub enum Decision {
     Deny(&'static str),
 }
 
-/// The authenticated caller, reduced to exactly what the gate needs: are they
-/// the operator (full trust), and which restricted skill-groups do they hold?
-/// Default (non-restricted) groups are implicit — every agent has them — so
-/// only restricted grants are listed.
+/// The authenticated caller, reduced to what the gate needs: are they the
+/// operator (full trust), and which **services they're elevated in** (the C2
+/// set). The C1 baseline is implicit — every agent has workspace-write
+/// everywhere — so only the elevated (C2) services are listed.
 #[derive(Debug, Clone)]
 pub struct Caller {
     pub is_operator: bool,
-    pub restricted_grants: Vec<String>,
+    pub elevated_services: Vec<String>,
 }
 
-/// Map `AuthContext` onto the gate's [`Caller`]. The restricted grants are the
-/// real minted set (`auth.grants`), provisioned from the agent's role/skills at
-/// session-register — no longer derived from `scopes`. The operator line still
-/// reads `Scope::Full` (the operator marker, a separate axis from grants that
+/// Map `AuthContext` onto the gate's [`Caller`]. `auth.grants` carries the
+/// agent's elevated services (the C2 set), provisioned per-agent (#85). The
+/// operator line reads `Scope::Full` (the operator marker, a separate axis that
 /// dies with the REST route-auth conversion in P4).
 pub fn caller_from_auth(auth: &AuthContext) -> Caller {
     let is_operator = (matches!(auth.caller_kind, CallerKind::Cli) && auth.agent_id.is_none())
         || auth.has_scope(Scope::Full);
-    Caller { is_operator, restricted_grants: auth.grants.clone() }
+    Caller { is_operator, elevated_services: auth.grants.clone() }
 }
 
-/// The decision. Pure — no I/O, no auth lookups.
+/// The decision. Pure — no I/O, no auth lookups. `service` is the op's domain
+/// (`service_of`); `blast` its risk tier.
 ///
 /// ```text
-/// operator                      -> Allow (full trust, all classes)
-/// C2                            -> Deny  (agents never; operator handled above)
-/// C0/C1, default domain         -> Allow (any in-scope agent)
-/// C0/C1, restricted, granted    -> Allow
-/// C0/C1, restricted, not granted-> Deny
+/// operator                          -> Allow (full trust, all tiers)
+/// C3 critical                       -> Deny  (operator/2FA only; never an agent)
+/// C0 read                           -> Allow (observation is non-harmful, #95)
+/// C1 workspace                      -> Allow (the operational baseline — any agent)
+/// C2 elevated, service in grant     -> Allow
+/// C2 elevated, service not granted  -> Deny
 /// ```
-pub fn decide(blast: BlastRadius, domain: &Domain, caller: &Caller) -> Decision {
+///
+/// The model is **service × blast-tier with a default-C1 ceiling**: every agent
+/// gets C0/C1 everywhere (functions out of the box); C2 needs the op's service
+/// in the agent's elevated set; C3 is operator-only.
+pub fn decide(blast: BlastRadius, service: &str, caller: &Caller) -> Decision {
     if caller.is_operator {
         return Decision::Allow;
     }
     match blast {
-        // C2/C3 stay operator-only here; the per-service-ceiling rewrite (which
-        // makes C2 grantable to commander agents and keeps C3 operator-only) is
-        // the coupled migration. Adding C3 is behavior-preserving until then.
-        BlastRadius::C2Elevated | BlastRadius::C3Critical => {
-            Decision::Deny("op requires a human-operator credential")
-        }
-        BlastRadius::C0Read | BlastRadius::C1Workspace => {
-            // Default (non-restricted) domains are open to any in-scope agent;
-            // restricted domains need the matching grant. Both paths Allow.
-            if !domain.restricted || caller.restricted_grants.iter().any(|g| g == domain.group) {
+        BlastRadius::C3Critical => Decision::Deny("op requires a human-operator credential (2FA)"),
+        BlastRadius::C0Read | BlastRadius::C1Workspace => Decision::Allow,
+        BlastRadius::C2Elevated => {
+            if caller.elevated_services.iter().any(|s| s == service) {
                 Decision::Allow
             } else {
-                Decision::Deny("op requires a granted capability (restricted skill-group)")
+                Decision::Deny("op requires elevation (C2) in this service — not granted")
             }
         }
     }
@@ -147,10 +101,10 @@ pub fn decide(blast: BlastRadius, domain: &Domain, caller: &Caller) -> Decision 
 mod tests {
     use super::*;
 
-    fn caller(is_operator: bool, grants: &[&str]) -> Caller {
+    fn caller(is_operator: bool, elevated: &[&str]) -> Caller {
         Caller {
             is_operator,
-            restricted_grants: grants.iter().map(|s| s.to_string()).collect(),
+            elevated_services: elevated.iter().map(|s| s.to_string()).collect(),
         }
     }
 
@@ -166,79 +120,72 @@ mod tests {
     }
 
     #[test]
-    fn classify_marks_capability_defining_domains_restricted() {
-        assert!(classify("agent.dispatch").restricted);
-        assert_eq!(classify("agent.dispatch").group, "ship-orchestration");
-        assert!(classify("view.tool").restricted);
-        assert!(classify("create.surface").restricted);
-        assert!(!classify("pipeline.step_done").restricted);
-        assert!(!classify("git.commit").restricted);
-        assert!(!classify("mesh.send").restricted);
+    fn service_is_the_op_domain() {
+        assert_eq!(service_of("git.commit"), "git");
+        assert_eq!(service_of("pipelines.dispatch"), "pipelines");
     }
 
     #[test]
-    fn operator_clears_every_class() {
+    fn operator_clears_every_tier() {
         let op = caller(true, &[]);
-        let restricted = classify("agent.dispatch");
-        assert_eq!(decide(BlastRadius::C2Elevated, &restricted, &op), Decision::Allow);
-        assert_eq!(decide(BlastRadius::C1Workspace, &restricted, &op), Decision::Allow);
+        assert_eq!(decide(BlastRadius::C3Critical, "account", &op), Decision::Allow);
+        assert_eq!(decide(BlastRadius::C2Elevated, "pipelines", &op), Decision::Allow);
     }
 
     #[test]
-    fn agent_gets_default_c1_but_not_c2() {
+    fn baseline_agent_gets_c0_c1_everywhere_not_c2_or_c3() {
+        // The operational baseline: any agent reads + workspace-writes in any
+        // service, out of the box, with no elevated services.
         let worker = caller(false, &[]);
-        let default = classify("pipeline.update_status");
-        assert_eq!(decide(BlastRadius::C1Workspace, &default, &worker), Decision::Allow);
-        // C2 is human-only regardless of grants.
-        assert!(matches!(
-            decide(BlastRadius::C2Elevated, &default, &worker),
-            Decision::Deny(_)
-        ));
+        assert_eq!(decide(BlastRadius::C0Read, "settings", &worker), Decision::Allow);
+        assert_eq!(decide(BlastRadius::C1Workspace, "git", &worker), Decision::Allow);
+        assert_eq!(decide(BlastRadius::C1Workspace, "pipelines", &worker), Decision::Allow);
+        // C2 needs elevation in that service; C3 is operator-only.
+        assert!(matches!(decide(BlastRadius::C2Elevated, "pipelines", &worker), Decision::Deny(_)));
+        assert!(matches!(decide(BlastRadius::C3Critical, "account", &worker), Decision::Deny(_)));
     }
 
     #[test]
-    fn command_prefixes_are_all_classified() {
-        // Every registered command must classify to a real group — never the
-        // fail-closed `ship-unclassified` bucket. If this fails, a new command
-        // prefix was added without placing it in `classify` (default vs
-        // restricted), which would silently gate (or ungate) it. Classify it.
+    fn c2_allowed_only_in_elevated_services() {
+        // A commander elevated in `pipelines` can run that service's C2 ops
+        // (dispatch) but not C2 elsewhere — per-service scoping.
+        let commander = caller(false, &["pipelines"]);
+        assert_eq!(decide(BlastRadius::C2Elevated, "pipelines", &commander), Decision::Allow);
+        assert!(matches!(decide(BlastRadius::C2Elevated, "settings", &commander), Decision::Deny(_)));
+        // C1 everywhere still holds (baseline); C3 still operator-only even in
+        // an elevated service.
+        assert_eq!(decide(BlastRadius::C1Workspace, "settings", &commander), Decision::Allow);
+        assert!(matches!(decide(BlastRadius::C3Critical, "pipelines", &commander), Decision::Deny(_)));
+    }
+
+    #[test]
+    fn every_c2_command_service_is_grantable() {
+        // Service membership only *gates* C2 ops — C0/C1 are allowed regardless
+        // (baseline), C3 is always operator-only. So the invariant that matters:
+        // every **C2** command's service is reachable by *some* role's elevated
+        // set — otherwise it's permanently un-grantable (silently operator-only).
+        // We check the grantable union (what `grants_for_role` confers), which
+        // covers command-only authoring domains (`view`/`create`) the read-derived
+        // registry doesn't carry.
+        use ship_platform::auth::scopes::grants_for_role;
+        let mut grantable: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        for role in [Some("commander"), Some("designer"), Some("contributor")] {
+            grantable.extend(grants_for_role(role));
+        }
+        // Operational domains (#95) are operator-surface, never agent-grantable.
+        let operational = |s: &str| matches!(s, "actor" | "mesh" | "meta" | "permissions");
         for cmd in crate::services::schema::COMMANDS {
-            let domain = classify(cmd.name);
-            assert_ne!(
-                domain.group, "ship-unclassified",
-                "command `{}` has an unclassified domain prefix — add it to gate::classify",
-                cmd.name
+            if BlastRadius::from_descriptor(cmd.blast_radius) != BlastRadius::C2Elevated {
+                continue;
+            }
+            let svc = service_of(cmd.name);
+            assert!(
+                grantable.contains(svc) || operational(svc),
+                "C2 command `{}` service `{}` is not grantable by any role — \
+                 add it to a role in grants_for_role or re-tier it",
+                cmd.name,
+                svc
             );
         }
-    }
-
-    #[test]
-    fn unknown_prefix_fails_closed_for_agents() {
-        let agent = caller(false, &[]);
-        let unknown = classify("brandnew.op");
-        assert!(unknown.restricted);
-        assert!(matches!(
-            decide(BlastRadius::C1Workspace, &unknown, &agent),
-            Decision::Deny(_)
-        ));
-    }
-
-    #[test]
-    fn restricted_domain_needs_the_matching_grant() {
-        let worker = caller(false, &[]);
-        let commander = caller(false, &["ship-orchestration"]);
-        let designer = caller(false, &["ship-authoring"]);
-        let dispatch = classify("agent.dispatch");
-        let author = classify("view.tool");
-
-        // Worker can't dispatch or author.
-        assert!(matches!(decide(BlastRadius::C1Workspace, &dispatch, &worker), Decision::Deny(_)));
-        assert!(matches!(decide(BlastRadius::C1Workspace, &author, &worker), Decision::Deny(_)));
-        // Commander dispatches but doesn't author.
-        assert_eq!(decide(BlastRadius::C1Workspace, &dispatch, &commander), Decision::Allow);
-        assert!(matches!(decide(BlastRadius::C1Workspace, &author, &commander), Decision::Deny(_)));
-        // Designer authors but doesn't dispatch.
-        assert_eq!(decide(BlastRadius::C1Workspace, &author, &designer), Decision::Allow);
-        assert!(matches!(decide(BlastRadius::C1Workspace, &dispatch, &designer), Decision::Deny(_)));
     }
 }

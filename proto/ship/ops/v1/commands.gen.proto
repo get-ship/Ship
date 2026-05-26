@@ -33,19 +33,19 @@ service CommandOpsService {
   }
   rpc McpCreate(McpCreateRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.mcp.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc McpPut(McpPutRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.mcp.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc McpPatch(McpPatchRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.mcp.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc McpDelete(McpDeleteRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.mcp.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc PermissionsCreate(PermissionsCreateRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.permissions.write";
@@ -97,75 +97,75 @@ service CommandOpsService {
   }
   rpc SkillsCreate(SkillsCreateRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.skills.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc SkillsDelete(SkillsDeleteRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.skills.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc SkillsRename(SkillsRenameRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.skills.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc SkillsDuplicate(SkillsDuplicateRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.skills.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc SkillsWriteFrontmatter(SkillsWriteFrontmatterRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.skills.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc SkillsWriteBody(SkillsWriteBodyRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.skills.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc SkillsMoveScope(SkillsMoveScopeRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.skills.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc SkillsWriteFile(SkillsWriteFileRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.skills.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc SkillsDeleteFile(SkillsDeleteFileRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.skills.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc SkillsSetVar(SkillsSetVarRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.skills.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc SkillsDeleteVar(SkillsDeleteVarRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.skills.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc AgentsCreate(AgentsCreateRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc AgentsPut(AgentsPutRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc AgentsPatch(AgentsPatchRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc AgentsDelete(AgentsDeleteRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc AgentsRename(AgentsRenameRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc AgentsDuplicate(AgentsDuplicateRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc AgentsMoveScope(AgentsMoveScopeRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc PipelinesPut(PipelinesPutRequest) returns (ScopedMutation) {
     option (ship.ops.v1.capability) = "ship.pipelines.write";
@@ -245,7 +245,7 @@ service CommandOpsService {
   }
   rpc AgentStop(AgentStopRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc ActorInput(ActorInputRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.actor.write";
@@ -257,43 +257,43 @@ service CommandOpsService {
   }
   rpc AgentGrant(AgentGrantRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.grant";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C3_CRITICAL;
   }
   rpc AgentSteer(AgentSteerRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc AgentDispatch(AgentDispatchRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.dispatch";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc CreateSurface(CreateSurfaceRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.surfaces.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc ViewPatchSession(ViewPatchSessionRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc ViewAppendSession(ViewAppendSessionRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc ViewSignalSession(ViewSignalSessionRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc ViewEnterEditMode(ViewEnterEditModeRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc ViewExitEditMode(ViewExitEditModeRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc ViewTool(ViewToolRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc AnnotationPost(AnnotationPostRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.annotations.write";
