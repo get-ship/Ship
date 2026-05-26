@@ -22,7 +22,8 @@ use tokio::sync::mpsc;
 use ship_substrate::events::kernel_router::KernelRouter;
 use ship_types::{CallerKind, EmitContext};
 use ship_types::envelope::EventEnvelope;
-use ship_types::payload::ConfigChanged;
+use ship_types::payload::{ConfigChanged, ConfigFileChanged};
+use ship_types::event_types;
 
 /// One watcher registration. Caller chooses the path, event type, and
 /// debounce window.
@@ -80,7 +81,7 @@ impl WatcherService {
             return Ok(());
         }
 
-        let (tx, mut rx) = mpsc::unbounded_channel::<()>();
+        let (tx, mut rx) = mpsc::unbounded_channel::<Vec<PathBuf>>();
         let tx_cb = tx.clone();
 
         let mut w = notify::recommended_watcher(move |res: notify::Result<Event>| {
@@ -90,7 +91,7 @@ impl WatcherService {
                     EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
                 )
             {
-                let _ = tx_cb.send(());
+                let _ = tx_cb.send(ev.paths);
             }
         })?;
         w.watch(&spec.dir, spec.recursive)?;
@@ -99,12 +100,22 @@ impl WatcherService {
         let event_type = spec.event_type;
         let subject = spec.subject;
         let debounce = spec.debounce;
+        let dir = spec.dir;
 
         let task = tokio::spawn(async move {
-            while rx.recv().await.is_some() {
+            while let Some(first) = rx.recv().await {
+                // Collect the distinct paths touched during the debounce window.
+                let mut paths: std::collections::HashSet<PathBuf> = first.into_iter().collect();
                 tokio::time::sleep(debounce).await;
-                while rx.try_recv().is_ok() {}
+                while let Ok(more) = rx.try_recv() {
+                    paths.extend(more);
+                }
+                // Coarse domain signal — existing consumers (compile invalidation).
                 emit_change(&kernel, event_type, &subject).await;
+                // Fine-grained per-file events — Format-2 reactivity / sync.
+                for path in &paths {
+                    emit_file_changed(&kernel, &subject, &dir, path).await;
+                }
             }
         });
         self.tasks.push(task);
@@ -139,5 +150,47 @@ async fn emit_change(
     };
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
         tracing::warn!("watcher: failed to emit {event_type}: {e}");
+    }
+}
+
+/// Emit a fine-grained `config.file_changed` for one changed file: the path
+/// relative to the watched domain dir + its content hash (empty when the file
+/// was removed). Space-scoped via the daemon's space id, like every other
+/// space-scoped emit (#116).
+async fn emit_file_changed(
+    kernel: &Arc<Mutex<KernelRouter>>,
+    domain: &str,
+    dir: &std::path::Path,
+    path: &std::path::Path,
+) {
+    let rel = path
+        .strip_prefix(dir)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .to_string();
+    // Empty hash signals a removed file (read fails) — a valid "deleted" marker.
+    let content_hash = std::fs::read(path)
+        .map(|bytes| crate::artifacts::sha256_hex(&bytes))
+        .unwrap_or_default();
+    let payload = ConfigFileChanged {
+        domain: domain.to_string(),
+        path: rel.clone(),
+        content_hash,
+    };
+    let envelope = match EventEnvelope::new(event_types::CONFIG_FILE_CHANGED, &rel, &payload) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("watcher: failed to build config.file_changed envelope: {e}");
+            return;
+        }
+    };
+    let ctx = EmitContext {
+        caller_kind: CallerKind::Runtime,
+        skill_id: None,
+        space_id: ship_substrate::project::daemon_space_id(),
+        session_id: None,
+    };
+    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
+        tracing::warn!("watcher: failed to emit config.file_changed: {e}");
     }
 }

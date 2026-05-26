@@ -273,6 +273,18 @@ pub struct ConfigChanged {
     pub detail: Option<String>,
 }
 
+/// Fine-grained, per-file config change (Format-2 reactivity). Emitted by the
+/// watcher alongside the coarse `<domain>.changed`. The space scope rides on the
+/// envelope (`space_id`); the file is identified by `path` (relative to the
+/// watched domain dir) + its `content_hash` (empty string when the file was
+/// removed).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ConfigFileChanged {
+    pub domain: String,
+    pub path: String,
+    pub content_hash: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectLog {
     pub action: String,

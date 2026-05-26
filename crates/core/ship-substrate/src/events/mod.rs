@@ -33,8 +33,9 @@ pub mod types {
             // 89: #85a added agent.grants.provisioned (per-agent grant baseline).
             // 87: #116 removed the stale gate.passed/gate.failed shadows of
             // pipeline.gate.* (no emitter/consumer).
+            // 88: #116 added config.file_changed (fine-grained per-file watcher event).
             // Adjust this when adding/removing event types.
-            assert_eq!(ALL.len(), 87, "exactly 87 event type constants required");
+            assert_eq!(ALL.len(), 88, "exactly 88 event type constants required");
         }
     }
 }

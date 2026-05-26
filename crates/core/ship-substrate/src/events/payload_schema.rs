@@ -76,6 +76,7 @@ fn schema_for_event_type(
         ship_types::event_types::PIPELINE_STEP_SPAWN_FAILED => Some(check::<crate::events::pipeline::PipelineStepSpawnFailedPayload>),
         // config + declarative-tier domain events (Phase 4)
         "config.changed" => Some(check::<ConfigChanged>),
+        "config.file_changed" => Some(check::<ConfigFileChanged>),
         "agent.changed" => Some(check::<ConfigChanged>),
         "skill.changed" => Some(check::<ConfigChanged>),
         "view.changed" => Some(check::<ConfigChanged>),

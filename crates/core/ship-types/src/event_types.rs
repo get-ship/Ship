@@ -21,6 +21,9 @@ pub const PIPELINE_RUN_FAILED: &str = "pipeline.run.failed";
 pub const PIPELINE_RUN_DISPATCHED: &str = "pipeline.run.dispatched";
 pub const PIPELINE_RUN_UPDATED: &str = "pipeline.run.updated";
 pub const CONFIG_CHANGED: &str = "config.changed";
+/// Fine-grained per-file config change (path + content_hash) — see
+/// `ConfigFileChanged`. Emitted by the watcher alongside the coarse `*.changed`.
+pub const CONFIG_FILE_CHANGED: &str = "config.file_changed";
 pub const AGENT_CHANGED: &str = "agent.changed";
 pub const SKILL_CHANGED: &str = "skill.changed";
 pub const VIEW_CHANGED: &str = "view.changed";
@@ -186,6 +189,7 @@ pub const ALL: &[&str] = &[
     PIPELINE_RUN_DISPATCHED,
     PIPELINE_RUN_UPDATED,
     CONFIG_CHANGED,
+    CONFIG_FILE_CHANGED,
     AGENT_CHANGED,
     SKILL_CHANGED,
     VIEW_CHANGED,
