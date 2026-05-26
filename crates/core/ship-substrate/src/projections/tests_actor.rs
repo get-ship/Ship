@@ -178,6 +178,26 @@ mod actor_tests {
     }
 
     #[test]
+    fn register_window_emits_window_actor_created_with_pid() {
+        let (_ship_dir, mut conn) = setup();
+        crate::db::actor_events::register_window("win-reg-test", "sp-reg-test", 4242).unwrap();
+
+        let payload_json: String = block_on(async {
+            sqlx::query_scalar(
+                "SELECT payload_json FROM events \
+                 WHERE event_type = 'actor.created' AND entity_id = 'win-reg-test'",
+            )
+            .fetch_one(&mut conn)
+            .await
+        })
+        .unwrap();
+        let p: ship_types::payload::ActorCreated = serde_json::from_str(&payload_json).unwrap();
+        assert_eq!(p.kind, "window", "kind is window");
+        assert_eq!(p.space_id.as_deref(), Some("sp-reg-test"), "space_id in payload");
+        assert_eq!(p.pid, Some(4242), "self-reported pid carried");
+    }
+
+    #[test]
     fn dispatch_created_inserts_actor_row() {
         let (_ship_dir, mut conn) = setup();
         let bus = bus();

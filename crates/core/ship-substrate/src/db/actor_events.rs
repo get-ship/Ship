@@ -91,6 +91,36 @@ pub fn emit_actor_created_simple(
     )
 }
 
+/// Register a Tauri shell window as a lifecycle actor (process-per-app).
+///
+/// Unlike agent actors (daemon-spawned → pid arrives later via `process.spawned`),
+/// a window self-spawns and reports its own pid here — so the row is `live`
+/// immediately and `find_live_window_for_space` can serve single-instance. A
+/// *lifecycle* actor: identity + pid + lifecycle, no mailbox (the webview gets
+/// events over its Connect stream). `space_id` goes in the payload (what the
+/// actor projection reads), not just the envelope.
+pub fn register_window(actor_id: &str, space_id: &str, pid: u32) -> Result<()> {
+    let payload = ActorCreated {
+        kind: "window".to_string(), // ActorKind::Window — projection treats kind as a string
+        environment_type: "local".to_string(),
+        space_id: Some(space_id.to_string()),
+        pid: Some(pid),
+        persistence: Some("long-lived".to_string()),
+        ..Default::default()
+    };
+    emit_actor_created(actor_id, &payload, Some(space_id), None)
+}
+
+/// Deregister a window on close — emits `actor.stopped` so it leaves the live
+/// set and `find_live_window_for_space` stops matching it.
+pub fn deregister_window(actor_id: &str, space_id: &str) -> Result<()> {
+    let payload = ActorStopped {
+        reason: "window closed".to_string(),
+        ..Default::default()
+    };
+    emit_actor_stopped(actor_id, &payload, Some(space_id), None)
+}
+
 /// Persist `actor.created` (event row + projection) and deliver the live
 /// mailbox notification, all synchronously and without building a throwaway
 /// async runtime.
