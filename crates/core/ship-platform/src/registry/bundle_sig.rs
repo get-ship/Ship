@@ -130,3 +130,96 @@ pub fn verify_bundle_attestation(
 
     Ok(claim)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jsonwebtoken::{EncodingKey, Header};
+
+    // Test-only Ed25519 keypairs, generated offline with
+    // `openssl genpkey -algorithm ed25519`. The trusted-key `x` (raw 32-byte
+    // pubkey, base64url-no-pad) was derived from the PEM via:
+    //   openssl pkey -pubout -outform DER | tail -c 32 | basenc --base64url
+    // (the trailing 32 DER bytes are the raw Ed25519 point; the leading 12
+    // bytes are the fixed SPKI prefix). These live only in this test module.
+    const TEST_KID: &str = "test-publisher-1";
+    const TEST_PRIV_PEM: &str = "-----BEGIN PRIVATE KEY-----\n\
+        MC4CAQAwBQYDK2VwBCIEIAFISiAspm6fXMD6Gg3dlW8qtiRFxoiHbiCjCuys/rg5\n\
+        -----END PRIVATE KEY-----\n";
+    const TEST_PUB_X: &str = "mZAmshQk4uLsAab8Rhqqt9kJGbP9F6hZZ39eyfUncAQ";
+
+    // A second, unrelated keypair — used to sign with a key that is NOT in the
+    // trusted set (same kid → signature must fail to verify).
+    const OTHER_PRIV_PEM: &str = "-----BEGIN PRIVATE KEY-----\n\
+        MC4CAQAwBQYDK2VwBCIEIOKTdLdQ37vqn0+6MYF8iMq3vrfGWl/d9nZWeYoMfIww\n\
+        -----END PRIVATE KEY-----\n";
+
+    fn trusted() -> Vec<TrustedKey> {
+        vec![TrustedKey { kid: TEST_KID.to_string(), x_base64url: TEST_PUB_X.to_string() }]
+    }
+
+    /// Sign a `BundleClaim` JWT with the given Ed25519 PKCS8 PEM and `kid`.
+    fn sign(claim: &BundleClaim, priv_pem: &str, kid: &str) -> String {
+        let key = EncodingKey::from_ed_pem(priv_pem.as_bytes()).expect("valid ed25519 pem");
+        let mut header = Header::new(Algorithm::EdDSA);
+        header.kid = Some(kid.to_string());
+        jsonwebtoken::encode(&header, claim, &key).expect("sign jwt")
+    }
+
+    fn sample_claim(sha256: &str) -> BundleClaim {
+        BundleClaim {
+            path: "ship/themes/midnight".to_string(),
+            version: "1.2.0".to_string(),
+            sha256: sha256.to_string(),
+            kid: Some(TEST_KID.to_string()),
+            iat: Some(1_700_000_000),
+        }
+    }
+
+    #[test]
+    fn valid_attestation_with_matching_hash_verifies() {
+        let hash = "a".repeat(64);
+        let claim = sample_claim(&hash);
+        let jwt = sign(&claim, TEST_PRIV_PEM, TEST_KID);
+
+        let verified = verify_bundle_attestation(&hash, &jwt, &trusted()).expect("verify ok");
+        assert_eq!(verified, claim);
+        assert_eq!(verified.path, "ship/themes/midnight");
+        assert_eq!(verified.version, "1.2.0");
+    }
+
+    #[test]
+    fn tampered_tarball_hash_mismatch() {
+        let signed_hash = "a".repeat(64);
+        let claim = sample_claim(&signed_hash);
+        let jwt = sign(&claim, TEST_PRIV_PEM, TEST_KID);
+
+        // Verify against a DIFFERENT tarball hash — signature is valid but the
+        // content binding is broken.
+        let actual_hash = "b".repeat(64);
+        let err = verify_bundle_attestation(&actual_hash, &jwt, &trusted()).unwrap_err();
+        assert_eq!(err, BundleVerifyError::HashMismatch);
+    }
+
+    #[test]
+    fn signature_by_untrusted_key_rejected() {
+        let hash = "c".repeat(64);
+        let claim = sample_claim(&hash);
+        // Signed by OTHER key but carrying the trusted kid → key is selected,
+        // signature fails to verify.
+        let jwt = sign(&claim, OTHER_PRIV_PEM, TEST_KID);
+
+        let err = verify_bundle_attestation(&hash, &jwt, &trusted()).unwrap_err();
+        assert_eq!(err, BundleVerifyError::SignatureInvalid);
+    }
+
+    #[test]
+    fn unknown_kid_rejected() {
+        let hash = "d".repeat(64);
+        let claim = sample_claim(&hash);
+        let jwt = sign(&claim, TEST_PRIV_PEM, "some-unknown-kid");
+
+        let err = verify_bundle_attestation(&hash, &jwt, &trusted()).unwrap_err();
+        assert_eq!(err, BundleVerifyError::UntrustedKey);
+    }
+}
