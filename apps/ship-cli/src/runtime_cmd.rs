@@ -18,6 +18,8 @@ pub fn run_install(bun: Option<PathBuf>, sui_compiler: Option<PathBuf>) -> Resul
         bun_source: bun,
         sui_compiler_source: sui_compiler,
         bundler_ts_source: None,
+        // None → auto-discover under node_modules/@esbuild/<platform>/.
+        esbuild_source: None,
         clean: false,
     };
     install(&home, opts)?;
@@ -31,6 +33,7 @@ pub fn run_update(bun: Option<PathBuf>, sui_compiler: Option<PathBuf>) -> Result
         bun_source: bun,
         sui_compiler_source: sui_compiler,
         bundler_ts_source: None,
+        esbuild_source: None,
         clean: true,
     };
     update(&home, opts)?;

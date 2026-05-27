@@ -25,6 +25,8 @@ pub enum InstallError {
     MissingSuiCompiler(String),
     #[error("could not locate `bundler.ts`: {0}.\n  Pass --bundler-ts <path> or ensure packages/deck/bundler/index.ts exists in the workspace.")]
     MissingBundlerTs(String),
+    #[error("could not locate `esbuild` binary: {0}.\n  Pass --esbuild <path> or `bun install` so node_modules/@esbuild/<platform>/bin/esbuild exists.")]
+    MissingEsbuild(String),
     #[error("io error at {path}: {source}")]
     Io {
         path: PathBuf,
@@ -43,6 +45,9 @@ pub struct InstallOptions {
     pub sui_compiler_source: Option<PathBuf>,
     /// Explicit path to bundler.ts to copy in.
     pub bundler_ts_source: Option<PathBuf>,
+    /// Explicit path to the esbuild Go binary to copy in. When `None`,
+    /// install auto-discovers it under `node_modules/@esbuild/<platform>/`.
+    pub esbuild_source: Option<PathBuf>,
     /// When true, wipe `~/.ship/runtime/` before reinstalling.
     pub clean: bool,
 }
@@ -61,6 +66,16 @@ pub fn install(home: &ShipHome, opts: InstallOptions) -> Result<(), InstallError
     copy_executable(&bun_src, &home.runtime_bun())?;
     copy_executable(&compiler_src, &home.runtime_sui_compiler())?;
     copy_file(&bundler_ts_src, &home.runtime_bundler_ts())?;
+
+    // esbuild (#163) is sourced best-effort at this step: the Rust `Bundler`
+    // does not yet shell out to it (bun + bundler.ts are still the active
+    // path), so a missing esbuild must NOT break `ship runtime install`. It
+    // becomes REQUIRED — and `ensure_present` will gate on it — when the
+    // bundler port swaps to esbuild. An EXPLICIT source that doesn't exist is
+    // still an error (the caller asked for that file specifically).
+    if let Some(esbuild_src) = locate_esbuild(opts.esbuild_source.as_deref())? {
+        copy_executable(&esbuild_src, &home.runtime_esbuild())?;
+    }
 
     ensure_present(home)?;
     Ok(())
@@ -106,6 +121,87 @@ fn locate_bundler_ts(explicit: Option<&Path>) -> Result<PathBuf, InstallError> {
         return Ok(p.to_path_buf());
     }
     walk_for_bundler_ts().map_err(InstallError::MissingBundlerTs)
+}
+
+/// Locate the esbuild Go binary. An explicit path is required to exist (the
+/// caller asked for it). With no explicit path, auto-discovery is best-effort:
+/// `Ok(None)` when not found (caller skips sourcing it — see `install`).
+fn locate_esbuild(explicit: Option<&Path>) -> Result<Option<PathBuf>, InstallError> {
+    if let Some(p) = explicit {
+        if !p.exists() {
+            return Err(InstallError::MissingEsbuild(format!(
+                "{} does not exist",
+                p.display()
+            )));
+        }
+        return Ok(Some(p.to_path_buf()));
+    }
+    Ok(discover_esbuild())
+}
+
+/// The esbuild package-name suffix for the current platform (e.g. `linux-x64`).
+/// `None` on platforms esbuild doesn't ship a prebuilt for.
+fn esbuild_platform() -> Option<&'static str> {
+    use std::env::consts::{ARCH, OS};
+    Some(match (OS, ARCH) {
+        ("linux", "x86_64") => "linux-x64",
+        ("linux", "aarch64") => "linux-arm64",
+        ("macos", "x86_64") => "darwin-x64",
+        ("macos", "aarch64") => "darwin-arm64",
+        ("windows", "x86_64") => "win32-x64",
+        _ => return None,
+    })
+}
+
+/// Walk up from cwd to the topmost Cargo workspace, then probe node_modules for
+/// the platform-specific esbuild Go binary in both the npm-hoisted and the bun
+/// (`.bun/@esbuild+<platform>@<ver>/`) layouts. Best-effort.
+fn discover_esbuild() -> Option<PathBuf> {
+    let platform = esbuild_platform()?;
+    let bin = if cfg!(windows) { "esbuild.exe" } else { "esbuild" };
+    let cwd = std::env::current_dir().ok()?;
+    let mut cur = cwd.as_path();
+    let mut root: Option<PathBuf> = None;
+    for _ in 0..16 {
+        if cur.join("Cargo.toml").exists() {
+            root = Some(cur.to_path_buf());
+        }
+        match cur.parent() {
+            Some(p) => cur = p,
+            None => break,
+        }
+    }
+    let nm = root?.join("node_modules");
+    // npm-hoisted layout.
+    let hoisted = nm.join("@esbuild").join(platform).join("bin").join(bin);
+    if hoisted.exists() {
+        return Some(hoisted);
+    }
+    // bun layout: node_modules/.bun/@esbuild+<platform>@<ver>/node_modules/@esbuild/<platform>/bin/esbuild
+    let prefix = format!("@esbuild+{platform}@");
+    let entries = std::fs::read_dir(nm.join(".bun")).ok()?;
+    let mut candidates: Vec<PathBuf> = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| n.starts_with(&prefix))
+                .unwrap_or(false)
+        })
+        .map(|p| {
+            p.join("node_modules")
+                .join("@esbuild")
+                .join(platform)
+                .join("bin")
+                .join(bin)
+        })
+        .filter(|p| p.exists())
+        .collect();
+    // Lexical sort is good enough across the 0.1x–0.2x versions present; we
+    // only need a working esbuild, not a specific one.
+    candidates.sort();
+    candidates.pop()
 }
 
 fn walk_for_target_binary(name: &str) -> Result<PathBuf, String> {
@@ -268,6 +364,7 @@ mod tests {
                 bun_source: Some(bun_src),
                 sui_compiler_source: Some(compiler_src),
                 bundler_ts_source: Some(bundler_ts_src),
+                esbuild_source: None,
                 clean: false,
             },
         )
@@ -276,6 +373,63 @@ mod tests {
         assert!(home.runtime_bun().is_file());
         assert!(home.runtime_sui_compiler().is_file());
         assert!(home.runtime_bundler_ts().is_file());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn install_copies_explicit_esbuild_source() {
+        let tmp = tempdir().unwrap();
+        let home = ShipHome::for_test(tmp.path());
+
+        let bun_src = tmp.path().join("fake-bun");
+        let compiler_src = tmp.path().join("fake-compiler");
+        let bundler_ts_src = tmp.path().join("bundler.ts");
+        let esbuild_src = tmp.path().join("fake-esbuild");
+        make_fake_executable(&bun_src, "#!/bin/sh\nexit 0\n");
+        make_fake_executable(&compiler_src, "#!/bin/sh\nexit 0\n");
+        make_file(&bundler_ts_src, "// bundler\n");
+        make_fake_executable(&esbuild_src, "#!/bin/sh\necho 0.27.7\n");
+
+        install(
+            &home,
+            InstallOptions {
+                bun_source: Some(bun_src),
+                sui_compiler_source: Some(compiler_src),
+                bundler_ts_source: Some(bundler_ts_src),
+                esbuild_source: Some(esbuild_src),
+                clean: false,
+            },
+        )
+        .unwrap();
+
+        assert!(home.runtime_esbuild().is_file(), "esbuild must land in the runtime dir");
+    }
+
+    #[test]
+    fn install_errors_when_explicit_esbuild_missing() {
+        let tmp = tempdir().unwrap();
+        let home = ShipHome::for_test(tmp.path());
+        let bun_src = tmp.path().join("fake-bun");
+        let compiler_src = tmp.path().join("fake-compiler");
+        let bundler_ts_src = tmp.path().join("bundler.ts");
+        #[cfg(unix)]
+        {
+            make_fake_executable(&bun_src, "#!/bin/sh\nexit 0\n");
+            make_fake_executable(&compiler_src, "#!/bin/sh\nexit 0\n");
+            make_file(&bundler_ts_src, "// bundler\n");
+        }
+        let err = install(
+            &home,
+            InstallOptions {
+                bun_source: Some(bun_src),
+                sui_compiler_source: Some(compiler_src),
+                bundler_ts_source: Some(bundler_ts_src),
+                esbuild_source: Some(tmp.path().join("no-esbuild-here")),
+                clean: false,
+            },
+        )
+        .unwrap_err();
+        assert!(matches!(err, InstallError::MissingEsbuild(_)));
     }
 
     #[cfg(unix)]
@@ -298,6 +452,7 @@ mod tests {
                     bun_source: Some(bun_src.clone()),
                     sui_compiler_source: Some(compiler_src.clone()),
                     bundler_ts_source: Some(bundler_ts_src.clone()),
+                    esbuild_source: None,
                     clean: false,
                 },
             )
@@ -317,6 +472,7 @@ mod tests {
                 bun_source: Some(tmp.path().join("nope")),
                 sui_compiler_source: Some(tmp.path().join("nope2")),
                 bundler_ts_source: Some(tmp.path().join("nope3")),
+                esbuild_source: None,
                 clean: false,
             },
         )
@@ -347,6 +503,7 @@ mod tests {
                 bun_source: Some(bun_src),
                 sui_compiler_source: Some(compiler_src),
                 bundler_ts_source: Some(bundler_ts_src),
+                esbuild_source: None,
                 clean: true,
             },
         )

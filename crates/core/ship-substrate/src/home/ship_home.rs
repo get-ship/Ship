@@ -25,6 +25,7 @@ const RUNTIME_DIR: &str = "runtime";
 const RUNTIME_BUN: &str = "bun";
 const RUNTIME_SUI_COMPILER: &str = "sui-compiler";
 const RUNTIME_BUNDLER_TS: &str = "bundler.ts";
+const RUNTIME_ESBUILD: &str = "esbuild";
 
 /// Which SQLite database file under `machine/db/`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
@@ -193,6 +194,15 @@ impl ShipHome {
     /// `~/.ship/runtime/bundler.ts` — the Bun bundler worker script.
     pub fn runtime_bundler_ts(&self) -> PathBuf {
         self.runtime_dir().join(RUNTIME_BUNDLER_TS)
+    }
+
+    /// `~/.ship/runtime/esbuild` — the standalone esbuild Go binary the Rust
+    /// `Bundler` shells out to (#163). Sourced by `ship runtime install` (CLI)
+    /// or self-extracted from the embedded copy on the desktop binary's first
+    /// launch. Replaces `Bun.build` in the bundling path; `bun` itself retires
+    /// from the runtime once the worker port lands.
+    pub fn runtime_esbuild(&self) -> PathBuf {
+        self.runtime_dir().join(RUNTIME_ESBUILD)
     }
 }
 
