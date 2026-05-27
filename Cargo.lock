@@ -1634,6 +1634,7 @@ name = "deck"
 version = "0.1.0"
 dependencies = [
  "deck-axum",
+ "deck-bundler",
  "deck-core",
  "deck-host",
  "specta",
@@ -1650,6 +1651,23 @@ dependencies = [
  "specta",
  "tempfile",
  "tokio",
+]
+
+[[package]]
+name = "deck-bundler"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "notify",
+ "rolldown",
+ "rolldown_common",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -7562,8 +7580,6 @@ dependencies = [
  "portable-pty",
  "reqwest 0.12.28",
  "rmp-serde",
- "rolldown",
- "rolldown_common",
  "sea-query",
  "semver",
  "serde",

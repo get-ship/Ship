@@ -27,3 +27,7 @@ pub use deck_core::{
 // response); `resolver` + `view_payload` are pure and live in deck-core.
 pub use deck_axum::render_helpers;
 pub use deck_core::{resolver, view_payload};
+
+// The bundler — deck owns bundling (#167). Consumers that named
+// `ship_platform::bundler::*` now use `deck::bundler::*`.
+pub use deck_bundler as bundler;

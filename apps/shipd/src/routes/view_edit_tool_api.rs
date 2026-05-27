@@ -543,10 +543,10 @@ struct WriteArgs {
 }
 
 fn compile_error_from_worker(
-    err: &ship_platform::bundler::BundlerError,
+    err: &deck::bundler::BundlerError,
     view_name: &str,
 ) -> (String, String, u32, Option<u32>) {
-    use ship_platform::bundler::BundlerError;
+    use deck::bundler::BundlerError;
     let default_file = format!("views/{view_name}/page.sui");
     match err {
         BundlerError::Bundle { message, .. } => (message.clone(), default_file, 1, None),

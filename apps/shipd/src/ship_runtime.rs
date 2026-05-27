@@ -117,7 +117,7 @@ pub struct ShipRuntime {
     /// `std::sync::OnceLock` is the right primitive — using
     /// `tokio::sync::OnceCell` would require `get_or_init` to take an
     /// `async` initializer.
-    pub bundler: std::sync::OnceLock<ship_platform::bundler::Bundler>,
+    pub bundler: std::sync::OnceLock<deck::bundler::Bundler>,
     /// `RulesService` impl — pilot for the modular-runtime spec 02
     /// service-layer pattern. HTTP handlers in `services::rules` go
     /// through this trait so the cloud worker / browser embed / unit
@@ -633,7 +633,7 @@ impl ShipRuntime {
     /// root defaults to the workspace dir (or cwd as fallback) since that's
     /// where `packages/` and `views/` live; the bundler compiles `.sui` by
     /// spawning that compiler in its Rolldown `load` hook.
-    pub fn bundler(&self) -> &ship_platform::bundler::Bundler {
+    pub fn bundler(&self) -> &deck::bundler::Bundler {
         self.bundler.get_or_init(|| {
             let home = ship_substrate::ShipHome::at(self.ship_dir.clone());
             // `repo_root` is the bundler's CWD + `SHIP_REPO_ROOT` — where
@@ -650,7 +650,7 @@ impl ShipRuntime {
                 .unwrap_or_else(|| self.ship_dir.clone());
             // In-process Rolldown bundler (#163) — no worker script, no child
             // process. Bundles `repo_root`'s built-ins + the user `workspace`.
-            ship_platform::bundler::Bundler::start(&home, repo_root, workspace)
+            deck::bundler::Bundler::start(&home, repo_root, workspace)
         })
     }
 

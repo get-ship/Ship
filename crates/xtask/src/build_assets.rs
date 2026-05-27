@@ -12,7 +12,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use ship_platform::bundler::Bundler;
+use deck::bundler::Bundler;
 use ship_substrate::ShipHome;
 
 /// The framework bundles `deck-core/build.rs` bakes via `include_str!`. Verified

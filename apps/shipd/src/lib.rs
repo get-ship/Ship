@@ -283,7 +283,7 @@ pub async fn run_network(
             }
             loop {
                 match events.recv().await {
-                    Ok(ship_platform::bundler::BundlerEvent::ModuleChanged { target, out_path, bytes }) => {
+                    Ok(deck::bundler::BundlerEvent::ModuleChanged { target, out_path, bytes }) => {
                         // Mirror view-targeted compiles onto the per-view
                         // SSE channel so view-edit-mode UI can flash a
                         // "saved" indicator without subscribing to /_sui/dev/hmr.
@@ -320,7 +320,7 @@ pub async fn run_network(
                             });
                         }
                     }
-                    Ok(ship_platform::bundler::BundlerEvent::CompileError { target, message, line, col, file }) => {
+                    Ok(deck::bundler::BundlerEvent::CompileError { target, message, line, col, file }) => {
                         if let Some(view_name) =
                             views::sui_view_edit_sse::view_name_from_bundler_target(&target)
                         {
