@@ -5,6 +5,7 @@
 //! `proto.rs` (JSON-line protocol types). Callers only ever see this module.
 
 pub mod build;
+pub mod catalog;
 pub mod compile;
 pub mod esbuild;
 pub mod proto;
