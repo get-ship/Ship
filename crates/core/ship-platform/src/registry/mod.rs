@@ -19,6 +19,7 @@ pub mod fetch;
 pub mod hash;
 pub mod init_deps;
 pub mod install;
+pub mod install_bundle;
 mod install_helpers;
 pub mod resolver;
 pub mod tracking;
