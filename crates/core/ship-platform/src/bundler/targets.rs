@@ -244,6 +244,25 @@ impl BundleLayout {
     }
 }
 
+impl BundleLayout {
+    /// Targets a changed file affects (watch rebuild). Virtual aggregates match
+    /// their explicit `sources` (or their dirs); real entries match the entry
+    /// file or its package dir. Mirrors the worker's `targetsForFile`.
+    pub fn targets_for_file(&self, abs: &Path) -> Vec<BundleTarget> {
+        self.all_targets()
+            .into_iter()
+            .filter(|t| match &t.entry {
+                TargetEntry::Virtual { sources } => sources
+                    .iter()
+                    .any(|s| abs == s || s.parent().is_some_and(|d| abs.starts_with(d))),
+                TargetEntry::Real(entry) => {
+                    abs == entry || entry.parent().is_some_and(|d| abs.starts_with(d))
+                }
+            })
+            .collect()
+    }
+}
+
 fn sui_files_in(dir: &Path) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
     entries

@@ -543,25 +543,20 @@ struct WriteArgs {
 }
 
 fn compile_error_from_worker(
-    err: &ship_platform::bundler::WorkerError,
+    err: &ship_platform::bundler::BundlerError,
     view_name: &str,
 ) -> (String, String, u32, Option<u32>) {
-    use ship_platform::bundler::WorkerError;
+    use ship_platform::bundler::BundlerError;
     let default_file = format!("views/{view_name}/page.sui");
     match err {
-        WorkerError::BundleError { message, target } => (
-            message.clone(),
-            target.clone().unwrap_or(default_file),
-            1,
-            None,
-        ),
-        WorkerError::NotRunning => (
-            "bundler worker not running".into(),
+        BundlerError::Bundle { message, .. } => (message.clone(), default_file, 1, None),
+        BundlerError::UnknownTarget(t) => (format!("unknown target: {t}"), default_file, 1, None),
+        BundlerError::NoCompiler => (
+            "sui-compiler not found; run `ship runtime install`".into(),
             default_file,
             1,
             None,
         ),
-        WorkerError::Timeout => ("bundler timeout".into(), default_file, 1, None),
     }
 }
 

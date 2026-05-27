@@ -354,9 +354,6 @@ pub async fn run_network(
                             });
                         }
                     }
-                    Ok(ship_platform::bundler::BundlerEvent::WorkerRestarted) => {
-                        tracing::info!("bundler: worker restarted");
-                    }
                     Err(_) => break,
                 }
             }
