@@ -26,5 +26,11 @@
       "key": "theme",
       "value_json": "\"dark\""
     }
+  },
+  "WindowIntent": {
+    "response_ok": {
+      "decision": "focus",
+      "actor_id": "window-harbor-01"
+    }
   }
 }

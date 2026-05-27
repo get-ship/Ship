@@ -8,8 +8,8 @@ use ship_ops_rpc::{
     ArtifactsListResponse, ChatStateResponse, CollectionItem, Deletion, EventsListResponse,
     ListProcsResponse, McpIndexResponse, PermissionsIndexResponse, PipelinesIndexResponse,
     ProjectRecord, SessionsListResponse, SettingValue, SkillFileResponse, SkillsIndexResponse,
-    SpaceInfoResponse, SpecDetail, SpecGetResponse, SpecsListResponse, ToolPatternsResponse,
-    WorkspaceActiveResponse,
+    SpaceInfoResponse, SpaceWindowIntentResponse, SpecDetail, SpecGetResponse, SpecsListResponse,
+    ToolPatternsResponse, WorkspaceActiveResponse,
 };
 
 const ARTIFACTS: &str = include_str!("../../../../proto/fixtures/artifacts_service.json");
@@ -198,6 +198,14 @@ fn space_set_setting_parses_key_and_value() {
         serde_json::from_str(&response_ok(SPACE, "SetSetting")).expect("parse SettingValue");
     assert_eq!(r.key, "theme");
     assert_eq!(r.value_json, "\"dark\"");
+}
+
+#[test]
+fn space_window_intent_parses_decision() {
+    let r: SpaceWindowIntentResponse = serde_json::from_str(&response_ok(SPACE, "WindowIntent"))
+        .expect("parse SpaceWindowIntentResponse");
+    assert_eq!(r.decision, "focus");
+    assert_eq!(r.actor_id.as_deref(), Some("window-harbor-01"));
 }
 
 #[test]

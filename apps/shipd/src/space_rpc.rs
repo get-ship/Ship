@@ -27,13 +27,18 @@
 //! `set_setting` (#129) is the per-space override write: it routes through the
 //! one gate (`space_gated_call` → `space.setting.set`), which emits
 //! `space.setting.changed` with the caller's space riding the envelope.
+//!
+//! `window_intent` (#125) is the focus-vs-spawn decision for opening a space
+//! window: the daemon mediates (it owns window liveness via the actor
+//! projection) and returns "focus"+actor_id or "spawn"; the Tauri shell adaptor
+//! executes it (only it can touch an OS window). The daemon never spawns.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::{json, Value};
 
 use ship_ops_rpc::{
     JsonResponse, ProjectRecord, SettingValue, SpaceInfoResponse, SpaceService,
-    WorkspaceActiveResponse,
+    SpaceWindowIntentResponse, WorkspaceActiveResponse,
 };
 
 use crate::auth::AuthContext;
@@ -120,6 +125,31 @@ impl SpaceService for OpsImpl {
         }))
     }
 
+    async fn window_intent(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedSpaceWindowIntentRequestView,
+    ) -> ServiceResult<SpaceWindowIntentResponse> {
+        // Mediation, not initiation: consult the actor projection for a live
+        // window of this space. A hit ⟹ the shell should focus it (no duplicate);
+        // a miss ⟹ the shell spawns one. The daemon decides; it never spawns.
+        let existing =
+            ship_substrate::projections::actor::find_live_window_for_space(&request.space_id)
+                .map_err(|e| ConnectError::internal(format!("find_live_window_for_space: {e}")))?;
+        let resp = match existing {
+            Some(row) => SpaceWindowIntentResponse {
+                decision: "focus".to_string(),
+                actor_id: Some(row.id),
+                ..Default::default()
+            },
+            None => SpaceWindowIntentResponse {
+                decision: "spawn".to_string(),
+                ..Default::default()
+            },
+        };
+        Ok(Response::new(resp))
+    }
+
     async fn add(
         &self,
         ctx: RequestContext,
@@ -184,6 +214,7 @@ mod tests {
             "ship.ops.v1.SpaceService/List",
             "ship.ops.v1.SpaceService/Active",
             "ship.ops.v1.SpaceService/Info",
+            "ship.ops.v1.SpaceService/WindowIntent",
             "ship.ops.v1.SpaceService/ListLive",
             "ship.ops.v1.SpaceService/ActiveLive",
         ] {

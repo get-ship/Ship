@@ -42,6 +42,21 @@ message SetSpaceSettingRequest {
   string value_json = 2;
 }
 
+// Focus-vs-spawn decision for opening a space window (#125). The daemon
+// MEDIATES (it owns window liveness via the actor projection); the shell adaptor
+// EXECUTES (only it can spawn/focus an OS window). `open` in the adaptor calls
+// this first: `focus` + actor_id ⟹ raise the existing window; `spawn` ⟹ create
+// one (then register-space-window). The daemon never spawns — it decides.
+message SpaceWindowIntentRequest {
+  string space_id = 1;
+}
+message SpaceWindowIntentResponse {
+  // "focus" when a live window for the space exists, else "spawn".
+  string decision = 1;
+  // The live window's actor id to raise (set only when decision == "focus").
+  optional string actor_id = 2;
+}
+
 // The active space's identity + config snapshot — what a space window reads to
 // bootstrap. `settings_json` is the `settings.state` snapshot (daemon-global
 // today; per-space settings layering lands later and flows through this same
@@ -71,6 +86,11 @@ service SpaceService {
   rpc Info(SpaceInfoRequest) returns (SpaceInfoResponse) {
     option (ship.ops.v1.capability) = "ship.workspaces.read";
     option (ship.ops.v1.description) = "The active space's identity and effective (global→space) config.";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc WindowIntent(SpaceWindowIntentRequest) returns (SpaceWindowIntentResponse) {
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.description) = "Focus-vs-spawn decision for opening a space window (the shell adaptor executes it).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Add(AddSpaceRequest) returns (ProjectRecord) {
