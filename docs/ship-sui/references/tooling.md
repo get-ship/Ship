@@ -52,7 +52,7 @@ Entry: `packages/deck/build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The ru
 
 Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/components/ui-components/` (writes `crates/deck/deck-core/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
 
-**Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. The dev-time bundler is `packages/deck/bundler/index.ts`, a Bun worker spawned by the daemon (see [end-to-end dev loop](#end-to-end-edit-loop-in-dev) below). Both pipelines target the same on-disk asset trees that the release binary later `include_str!`s.
+**Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. **Since #163 the daemon bundles IN-PROCESS via Rolldown** (`crates/core/ship-platform/src/bundler/` — a Rust Rolldown plugin that compiles `.sui` via `sui-compiler` in its `load` hook; no bun worker, no subprocess). The former `packages/deck/bundler/index.ts` Bun worker the daemon spawned is retired. Both pipelines still target the same on-disk asset trees the release binary `include_str!`s. See `docs/ship-architecture/references/docs/toolchain.md`.
 
 ## `sui-lsp` — the language server
 
@@ -175,17 +175,18 @@ Both scaffolds emit the manifest / template / controller / style files documente
 ## End-to-end edit loop in dev
 
 ```sh
-just dev                              # daemon + embedded Bun bundler worker
+just dev                              # daemon (in-process Rolldown bundler)
 # (optional) just shell-dev          # vite outer shell at :3200, proxies to daemon
 # edit views/home/page.sui or controller.ts
-#  → bundler.ts re-runs Bun.build, writes to crates/deck/deck-core/assets/...
-#  → emits module_changed over JSON stdout to shipd
+#  → the daemon's in-process bundler (notify watch) re-bundles via Rolldown,
+#    writing to crates/deck/deck-core/assets/... or .deck/...
+#  → emits BundlerEvent::ModuleChanged (broadcast) → sui_hmr
 #  → shipd republishes on /_sui/dev/hmr (SSE)
 #  → apps/shell/src/hmr.ts cache-busts /_sui/views/home/view.js
 #  → mount() re-runs in place; SSR snapshot stays, no full reload
 ```
 
-`just dev` starts only the daemon (`scripts/dev/start.sh`); the bundler worker is spawned by shipd itself (`apps/shipd/src/lib.rs:214`). To hit the daemon through the shell outer shell, run `just shell-dev` in a second terminal — it proxies `/api`, `/_sui`, `^/sui/.*`, and `/view-host` to the daemon. To force-rebuild every served asset without editing, run `just dev-build-all` (runs `bundler.ts --all` for a one-shot full rebuild).
+`just dev` starts only the daemon (`scripts/dev/start.sh`); bundling + watching happen IN-PROCESS (`crates/core/ship-platform/src/bundler/`, `Bundler::start_watching`) — no spawned worker. To hit the daemon through the outer shell, run `just shell-dev` in a second terminal — it proxies `/api`, `/_sui`, `^/sui/.*`, and `/view-host` to the daemon.
 
 For a clean dev restart use `just dev-restart`. Visual regressions: `just visual` (Playwright vs committed PNGs; pass `--update-snapshots` to refresh after a deliberate change). Perf regressions: `just bench-check` (fails on >15% vs the latest committed baseline; override via `BENCH_REGRESSION_THRESHOLD`).
 
@@ -200,7 +201,7 @@ Shipd has two operating modes, selected via `--mode <development|production>` (o
 | Aspect | Development (default) | Production |
 |---|---|---|
 | Frontend serving | Vite dev server (`just shell-dev`) at 3200 +offset, proxying `/api`, `/_sui`, `/view-host` to the daemon | Daemon serves prebuilt shell HTML directly; no Vite, no proxy, no second port |
-| Bundler | Bun worker spawned by shipd watches sources and rewrites the asset trees on edit | Pre-bundled by `just build`; daemon `include_str!`s the static output |
+| Bundler | In-process Rolldown (`Bundler::start_watching`, notify) re-bundles on edit; no spawned worker | Pre-bundled by `just build`; daemon `include_str!`s the static output |
 | HMR | `/_sui/dev/hmr` SSE channel; `apps/shell/src/hmr.ts` cache-busts view modules and re-runs `mount()` in place | Disabled — HMR routes are not registered in production |
 | Cache headers | `Cache-Control: no-cache` on every asset and view artifact; no ETag | `Cache-Control: public, immutable, max-age=31536000` on framework bundles, `must-revalidate` on view artifacts; ETag on every response |
 | SSR cache | Bypassed every request (sources may have changed under us) | Memoized on first hit and reused until the daemon restarts |
