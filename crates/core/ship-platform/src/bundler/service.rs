@@ -174,4 +174,38 @@ mod tests {
             "aggregate keeps the runtime singleton external"
         );
     }
+
+    /// Exploratory: build EVERY real target (umbrella, all islands, all views)
+    /// + catalog into a scratch out_root, and print the report. Ignored by
+    /// default (slow, whole-repo, source-state-dependent). Run:
+    /// `cargo test -p ship-platform full_build_all -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn full_build_all_smoke() {
+        let repo = repo_root();
+        let scratch = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        let layout = BundleLayout::new(repo, None).with_out_root(scratch.path().to_path_buf());
+        let report = build_all(&layout, &tools(), staging.path(), true);
+
+        eprintln!("built {} targets", report.built.len());
+        eprintln!("catalog: {:?}", report.catalog);
+        eprintln!("errors ({}):", report.errors.len());
+        for (name, err) in &report.errors {
+            eprintln!("  ✘ {name}: {}", err.lines().next().unwrap_or(""));
+        }
+        // Leaf framework + views/islands/marketing build under the CLI model.
+        // KNOWN-PENDING: the umbrella aggregates (sui-components, sui-chrome)
+        // side-effect-import 119 transitive `./X.compiled.js` siblings that
+        // need a RESOLVER (compile-on-resolve) — esbuild CLI has no plugin, so
+        // they fail here. This is the A-vs-B decision point (see
+        // .artifacts/bundler-seam.md): resolve via esbuild service protocol
+        // (Rust onResolve/onLoad) or re-enumerate umbrellas as virtual aggregates.
+        for core in ["sui-runtime", "sui-dom", "sui-sdk-client"] {
+            assert!(
+                report.built.iter().any(|m| m.target == core),
+                "core target {core} must build"
+            );
+        }
+    }
 }
