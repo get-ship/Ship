@@ -27,6 +27,25 @@ use anyhow::{Result, anyhow};
 use sqlx::SqliteConnection;
 use sqlx::migrate::{Migrate, MigrateError};
 
+/// Pre-launch only. The base schema (`0001_schema.sql`) is still the *living*
+/// schema: renames and tweaks edit it in place rather than appending a forward
+/// migration, which changes its checksum and trips the strict runner's
+/// "applied migration was modified" hard error. While we have no users, that
+/// guard is pure friction — it fires on every schema-rename branch.
+///
+/// With this `true`, a drifted-but-embedded migration's recorded checksum is
+/// re-stamped to match the binary (loud WARN) instead of crashing. This is
+/// safe *because the migration log is not the source of truth for existing-DB
+/// schema evolution* here — the runtime reconcile modules (e.g.
+/// `space_id_reconcile`) plus `CREATE TABLE IF NOT EXISTS` DDL bring an
+/// already-migrated DB up to the edited schema. The re-baseline only silences
+/// the bookkeeping mismatch.
+///
+/// Flip to `false` at launch (or squash the chain first): from then on an
+/// edited applied migration is corruption again, the strict invariant the rest
+/// of this runner documents.
+const PRE_LAUNCH_REBASELINE: bool = true;
+
 /// Apply every embedded `platform.db` migration not yet recorded in the DB,
 /// tolerating a database whose `_sqlx_migrations` log is *ahead* of this
 /// binary. See the module docs for the exact invariant.
@@ -67,6 +86,10 @@ pub async fn run_tolerant(conn: &mut SqliteConnection) -> Result<()> {
         }
     }
 
+    if PRE_LAUNCH_REBASELINE {
+        rebaseline_drifted_checksums(&migrator, &mut *conn).await?;
+    }
+
     migrator.run(&mut *conn).await.map_err(|e| match e {
         MigrateError::VersionMismatch(v) => anyhow!(
             "migration {v} checksum mismatch: an already-applied migration was \
@@ -84,6 +107,50 @@ pub async fn run_tolerant(conn: &mut SqliteConnection) -> Result<()> {
         ),
         other => anyhow!("platform.db migration failed: {other}"),
     })
+}
+
+/// Pre-launch re-baseline pass (see [`PRE_LAUNCH_REBASELINE`]). For every
+/// migration the binary embeds that is *also* recorded as applied but with a
+/// differing checksum, overwrite the recorded checksum with the embedded one
+/// and WARN. Versions only in the DB (log-ahead) are left to
+/// `set_ignore_missing`; versions only in the binary are applied normally by
+/// the runner. Net effect: editing the living base schema pre-launch is no
+/// longer fatal, while genuine "apply the new migrations" behaviour is intact.
+async fn rebaseline_drifted_checksums(
+    migrator: &sqlx::migrate::Migrator,
+    conn: &mut SqliteConnection,
+) -> Result<()> {
+    use std::collections::HashMap;
+
+    let embedded: HashMap<i64, &[u8]> =
+        migrator.iter().map(|m| (m.version, &*m.checksum)).collect();
+
+    let applied = conn
+        .list_applied_migrations()
+        .await
+        .map_err(|e| anyhow!("read _sqlx_migrations log: {e}"))?;
+
+    for a in applied {
+        let Some(&emb) = embedded.get(&a.version) else {
+            continue; // log-ahead version — handled by set_ignore_missing
+        };
+        if a.checksum.as_ref() != emb {
+            tracing::warn!(
+                version = a.version,
+                "pre-launch: re-baselining drifted migration checksum — the \
+                 living base schema was edited in place. Add a forward \
+                 migration (or squash) before launch; runtime reconcile + \
+                 CREATE-IF-NOT-EXISTS handle existing-DB schema drift."
+            );
+            sqlx::query("UPDATE _sqlx_migrations SET checksum = ? WHERE version = ?")
+                .bind(emb)
+                .bind(a.version)
+                .execute(&mut *conn)
+                .await
+                .map_err(|e| anyhow!("re-baseline checksum for migration {}: {e}", a.version))?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -182,13 +249,20 @@ mod tests {
         run_tolerant(&mut conn).await.unwrap();
     }
 
-    /// A version present in both the binary and the DB log but with a
-    /// *different* checksum is real corruption — still a hard error.
+    /// Pre-launch ([`PRE_LAUNCH_REBASELINE`]): a recorded checksum that drifted
+    /// from the embedded migration is re-baselined, not fatal — editing the
+    /// living base schema must not brick a dev DB. The recorded checksum is
+    /// restored to the embedded value and the run completes.
     #[tokio::test(flavor = "multi_thread")]
-    async fn checksum_mismatch_is_a_hard_error() {
+    async fn drifted_checksum_is_rebaselined_pre_launch() {
+        assert!(
+            PRE_LAUNCH_REBASELINE,
+            "this test encodes the pre-launch posture; flip it + this test at launch"
+        );
         let (_tmp, mut conn) = fresh_db();
 
-        // Corrupt the recorded checksum of an applied migration.
+        // Simulate an edited-in-place applied migration: corrupt its recorded
+        // checksum so it no longer matches the embedded source.
         let version: i64 =
             sqlx::query_scalar("SELECT MIN(version) FROM _sqlx_migrations")
                 .fetch_one(&mut conn)
@@ -200,10 +274,18 @@ mod tests {
             .await
             .unwrap();
 
-        let err = run_tolerant(&mut conn).await.unwrap_err();
-        assert!(
-            err.to_string().contains("checksum mismatch"),
-            "expected a checksum-mismatch hard error, got: {err}"
-        );
+        // Strict would hard-error; pre-launch re-baselines and completes.
+        run_tolerant(&mut conn).await.expect("drift is re-baselined, not fatal");
+
+        let recorded: Vec<u8> =
+            sqlx::query_scalar("SELECT checksum FROM _sqlx_migrations WHERE version = ?")
+                .bind(version)
+                .fetch_one(&mut conn)
+                .await
+                .unwrap();
+        assert_ne!(recorded, b"\xde\xad\xbe\xef", "recorded checksum must be re-stamped to the embedded value");
+
+        // Idempotent: a clean re-run changes nothing and stays green.
+        run_tolerant(&mut conn).await.expect("re-run is clean");
     }
 }
