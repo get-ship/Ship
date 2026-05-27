@@ -341,6 +341,7 @@ mod tests {
                     scopes: vec![],
                     grants: vec![],
                     workspace_id: None,
+                    pid: None,
                     created_at: std::time::Instant::now(),
                     expires_at_unix: None,
                     ephemeral: true,

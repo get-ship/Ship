@@ -19,6 +19,7 @@ pub mod identity;
 pub mod peer_socket;
 pub mod scopes;
 pub mod session;
+pub mod space_window;
 
 #[cfg(test)]
 mod auth_tests;
@@ -259,6 +260,21 @@ pub async fn auth_middleware(
         let registry = session_registry.lock().await;
         return match registry.get(token) {
             Some(session) => {
+                // Pid-binding: a space window token is bound to its registering
+                // process. The kernel pid arrives via the peer-cred layer
+                // (UDS only); on TCP it's absent → a bound token fails closed.
+                // An unbound session (CLI/agent/legacy) is not pid-restricted.
+                let peer_pid = req
+                    .extensions()
+                    .get::<crate::auth::peer_socket::PeerPid>()
+                    .and_then(|p| p.0);
+                if !session.pid_authorizes(peer_pid) {
+                    return (
+                        StatusCode::FORBIDDEN,
+                        "session token bound to a different process",
+                    )
+                        .into_response();
+                }
                 // Identity is bound to the session at registration time and
                 // cannot be overridden by client headers. x-ship-session-id
                 // remains freely settable — it's the agent's own session context,

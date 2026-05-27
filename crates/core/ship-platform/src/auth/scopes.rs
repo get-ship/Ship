@@ -294,6 +294,12 @@ pub struct DaemonSession {
     /// route-auth + artifacts). See `.artifacts/capability-provisioning-and-approval.md`.
     pub grants: Vec<String>,
     pub workspace_id: Option<String>,
+    /// Kernel-verified pid this token is bound to, if any. Set for webview
+    /// window tokens (minted from the connection's `SO_PEERCRED` pid): the
+    /// token is then two-factor — the secret *and* being that exact process.
+    /// `None` for unbound sessions (CLI daemon token, agent peer sessions,
+    /// legacy/hydrated sessions), which are not pid-restricted.
+    pub pid: Option<u32>,
     pub created_at: std::time::Instant,
     /// Unix seconds when this session expires. None = never expires (in-memory only).
     pub expires_at_unix: Option<i64>,
@@ -307,6 +313,22 @@ impl DaemonSession {
         match self.expires_at_unix {
             Some(t) => chrono::Utc::now().timestamp() >= t,
             None => false,
+        }
+    }
+
+    /// True iff this session's pid binding (if any) is satisfied by the
+    /// kernel-verified `peer_pid` of the calling connection.
+    ///
+    /// An unbound session (`pid == None`) is not pid-restricted and passes.
+    /// A pid-bound session (a webview window token) requires the caller to be
+    /// that exact process: `peer_pid` must be `Some` and equal. Fail closed —
+    /// a bound token presented with no kernel pid (e.g. over TCP, where
+    /// `SO_PEERCRED` can't attest) is rejected, so the binding can't be
+    /// stripped by switching transports.
+    pub fn pid_authorizes(&self, peer_pid: Option<u32>) -> bool {
+        match self.pid {
+            None => true,
+            Some(bound) => peer_pid == Some(bound),
         }
     }
 }
@@ -423,6 +445,10 @@ pub async fn hydrate_sessions(registry: &SessionRegistry) {
             // daemon's single space. Emit `space_id` is sourced from the
             // daemon space global, not this field.
             workspace_id: row.space_id,
+            // Hydrated (persisted) sessions are operator/paired, not pid-bound.
+            // Window tokens are ephemeral and never persisted, so a restored
+            // session is never pid-restricted.
+            pid: None,
             created_at: std::time::Instant::now(),
             expires_at_unix: Some(row.expires_at_unix),
             ephemeral: false,
@@ -452,6 +478,66 @@ pub fn is_session_token(token: &str) -> bool {
     token.starts_with("ship_sess_")
 }
 
+/// The scope set for a space window session — the operator's GUI surface
+/// **minus the operator marker**. Deliberately excludes `Scope::Full` (which
+/// would flip `is_operator` and clear C3) and `Scope::AdminDaemon` (operator
+/// territory). The scopes axis is the dying REST route-auth (#78); the gate's
+/// real enforcement is the grant axis + `is_operator`, so the only load-bearing
+/// property here is "broad, but never Full".
+pub fn space_window_scopes() -> Vec<Scope> {
+    let mut s = vec![
+        Scope::ReadWorkspace,
+        Scope::WriteWorkspace,
+        Scope::ReadRuns,
+        Scope::CreateRuns,
+        Scope::ManageRuns,
+        Scope::EmitEvents,
+        Scope::MeshSend,
+        Scope::MeshBroadcast,
+        Scope::LogProgress,
+        Scope::StepDone,
+        Scope::SuiAuthoring,
+    ];
+    s.extend(pipeline_agent_artifact_scopes());
+    s
+}
+
+/// Mint a pid-bound, C2-capped session for a space window.
+///
+/// The token represents the operator working *inside a space*: it can do
+/// anything at C2 (the operator's own elevated set) but is **structurally
+/// incapable of C3**. It is never `is_operator` — no `Scope::Full`, and session
+/// tokens resolve as `CallerKind::Mcp` — so `gate::decide` denies every C3 op
+/// regardless of grants. C3 only ever happens through the separate approval
+/// flow; a space token can never reach it.
+///
+/// Bound to `peer_pid` (kernel-verified via `SO_PEERCRED` at register): the
+/// token is two-factor — the secret AND being that exact process. A leaked
+/// token replayed from another process fails [`DaemonSession::pid_authorizes`].
+///
+/// Ephemeral by construction: window tokens live for the window's run and are
+/// never persisted (a persisted session hydrates with `pid: None`; a window
+/// re-registers and re-mints on launch).
+pub fn space_window_session(space_id: &str, peer_pid: u32, token: String) -> DaemonSession {
+    DaemonSession {
+        token,
+        // The space identity — non-empty so the operator branch
+        // (`Cli` + `agent_id.is_none()`) can't match. ("contributor" grants
+        // below are documented as the operator's own profile; the space is the
+        // operator's own surface.)
+        agent_id: format!("space:{space_id}"),
+        scopes: space_window_scopes(),
+        // Every C2 elevated service — the operator's own profile. C3 stays
+        // denied structurally (is_operator is false).
+        grants: grants_for_role(Some("contributor")),
+        workspace_id: None,
+        pid: Some(peer_pid),
+        created_at: std::time::Instant::now(),
+        expires_at_unix: None,
+        ephemeral: true,
+    }
+}
+
 /// Hex-encode a byte slice with lowercase ASCII. Used by token formatters
 /// across the auth module; defined here so the platform side doesn't
 /// depend on shipd's `auth::hex_encode`.
@@ -467,6 +553,66 @@ pub fn hex_encode(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn session_bound_to(pid: Option<u32>) -> DaemonSession {
+        DaemonSession {
+            token: "ship_sess_x".to_string(),
+            agent_id: "win".to_string(),
+            scopes: vec![],
+            grants: vec![],
+            workspace_id: None,
+            pid,
+            created_at: std::time::Instant::now(),
+            expires_at_unix: None,
+            ephemeral: true,
+        }
+    }
+
+    #[test]
+    fn space_window_session_is_pid_bound_c2_never_operator() {
+        let s = space_window_session("acme-space", 4242, "ship_sess_win".to_string());
+        // Bound to the registering process.
+        assert_eq!(s.pid, Some(4242));
+        assert!(s.pid_authorizes(Some(4242)));
+        assert!(!s.pid_authorizes(Some(1)));
+        // Structurally never the operator: no Full scope (Full would flip
+        // is_operator and clear C3).
+        assert!(
+            !s.scopes.contains(&Scope::Full),
+            "a space window token must never carry Scope::Full"
+        );
+        assert!(
+            !s.scopes.contains(&Scope::AdminDaemon),
+            "a space window token must not carry AdminDaemon"
+        );
+        // Has the full C2 elevated set (operator's own profile).
+        assert_eq!(s.grants, grants_for_role(Some("contributor")));
+        assert!(s.ephemeral, "window tokens are never persisted");
+    }
+
+    #[test]
+    fn unbound_session_passes_regardless_of_peer_pid() {
+        // CLI daemon token, agent peer session, legacy session — not pid-bound.
+        let s = session_bound_to(None);
+        assert!(s.pid_authorizes(Some(1234)));
+        assert!(s.pid_authorizes(None));
+    }
+
+    #[test]
+    fn bound_session_requires_matching_peer_pid() {
+        let s = session_bound_to(Some(4242));
+        assert!(s.pid_authorizes(Some(4242)), "the bound process is authorized");
+        assert!(!s.pid_authorizes(Some(9999)), "a different process is rejected (stolen token)");
+    }
+
+    #[test]
+    fn bound_session_fails_closed_without_peer_pid() {
+        // A pid-bound window token presented over a transport that can't
+        // attest a pid (TCP, no SO_PEERCRED) must be rejected — the binding
+        // can't be stripped by switching transports.
+        let s = session_bound_to(Some(4242));
+        assert!(!s.pid_authorizes(None));
+    }
 
     #[test]
     fn scope_full_grants_everything() {

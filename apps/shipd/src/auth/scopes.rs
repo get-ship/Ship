@@ -209,6 +209,7 @@ pub async fn session_register(
         scopes: scopes.clone(),
         grants,
         workspace_id: req.workspace_id,
+        pid: None,
         created_at: std::time::Instant::now(),
         expires_at_unix: None,
         ephemeral: true,
