@@ -114,6 +114,14 @@ message WorkspaceActiveResponse {
   optional string id = 1;
 }
 
+// Result of the C3 `space.window.close` command — the window's pid-bound token
+// was revoked and its lifecycle closed. Shared shape (here, not space.proto)
+// so the generated commands.gen.proto can name it as the command response_type.
+message CloseWindowResponse {
+  bool closed = 1;
+  bool token_revoked = 2;
+}
+
 // artifacts.list — a page of artifact records (reuses ArtifactRecord).
 message ArtifactsListResponse {
   repeated ArtifactRecord items = 1;

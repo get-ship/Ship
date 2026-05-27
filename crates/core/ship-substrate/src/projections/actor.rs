@@ -450,6 +450,17 @@ pub fn get_actor(actor_id: &str) -> Result<Option<ActorRow>> {
 ///
 /// Linux: `/proc/<pid>` exists iff the process is alive.
 /// Single-instance source of truth for the multi-window shell: the live
+/// All `window`-kind actors (live and recently-closed), newest-first up to the
+/// list cap. The daemon's window-control surface (`SpaceService.WindowList`)
+/// reads this to report what's open — actor id, space, pid, live state.
+pub fn list_windows() -> Result<Vec<ActorRow>> {
+    list_actors(&ListActorsFilter {
+        kind: Some("window".to_string()),
+        limit: 256,
+        ..Default::default()
+    })
+}
+
 /// `window`-kind actor hosting `space_id`, if any. The launcher consults this
 /// to focus an existing window instead of spawning a duplicate. Windows are
 /// self-registering lifecycle actors (`ActorKind::Window`); `live` is the

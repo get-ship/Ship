@@ -32,13 +32,21 @@
 //! window: the daemon mediates (it owns window liveness via the actor
 //! projection) and returns "focus"+actor_id or "spawn"; the Tauri shell adaptor
 //! executes it (only it can touch an OS window). The daemon never spawns.
+//!
+//! The window control surface makes the daemon authoritative over windows it
+//! can't itself spawn: `window_list` (C0) enumerates window actors + pid + live
+//! state; `close_window` (C3, operator-only) revokes the window's pid-bound
+//! token (instant authority cut) and closes its lifecycle. The shell destroys
+//! the OS frame; revocation neuters the webview regardless. A space shell (C2)
+//! cannot close another window — that's the C3 boundary.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::{json, Value};
 
 use ship_ops_rpc::{
-    JsonResponse, ProjectRecord, SettingValue, SpaceInfoResponse, SpaceService,
-    SpaceWindowIntentResponse, WorkspaceActiveResponse,
+    CloseWindowResponse, JsonResponse, ProjectRecord, SettingValue, SpaceInfoResponse,
+    SpaceService, SpaceWindowIntentResponse, SpaceWindowListResponse, WindowInfo,
+    WorkspaceActiveResponse,
 };
 
 use crate::auth::AuthContext;
@@ -150,6 +158,41 @@ impl SpaceService for OpsImpl {
         Ok(Response::new(resp))
     }
 
+    async fn window_list(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedSpaceWindowListRequestView,
+    ) -> ServiceResult<SpaceWindowListResponse> {
+        // The daemon knows what's open — window actors with pid + live state.
+        let rows = ship_substrate::projections::actor::list_windows()
+            .map_err(|e| ConnectError::internal(format!("list_windows: {e}")))?;
+        let windows = rows
+            .into_iter()
+            .map(|r| WindowInfo {
+                actor_id: r.id,
+                space_id: r.space_id,
+                pid: r.pid,
+                live: r.live,
+                ..Default::default()
+            })
+            .collect();
+        Ok(Response::new(SpaceWindowListResponse { windows, ..Default::default() }))
+    }
+
+    async fn close_window(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedCloseWindowRequestView,
+    ) -> ServiceResult<CloseWindowResponse> {
+        // C3 — the one gate enforces operator-only before the handler runs.
+        let args = json!({ "actor_id": request.actor_id });
+        let value = space_gated_call(self.state(), &ctx, "space.window.close", args).await?;
+        let msg = serde_json::from_value::<CloseWindowResponse>(value).map_err(|e| {
+            ConnectError::internal(format!("decode space.window.close response: {e}"))
+        })?;
+        Ok(Response::new(msg))
+    }
+
     async fn add(
         &self,
         ctx: RequestContext,
@@ -215,6 +258,7 @@ mod tests {
             "ship.ops.v1.SpaceService/Active",
             "ship.ops.v1.SpaceService/Info",
             "ship.ops.v1.SpaceService/WindowIntent",
+            "ship.ops.v1.SpaceService/WindowList",
             "ship.ops.v1.SpaceService/ListLive",
             "ship.ops.v1.SpaceService/ActiveLive",
         ] {
@@ -245,5 +289,15 @@ mod tests {
             .expect("SpaceService/SetSetting must carry a policy in the descriptor");
         assert_eq!(p.capability, "ship.settings.write");
         assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C1Workspace);
+    }
+
+    #[test]
+    fn space_op_policy_close_window_is_c3_critical() {
+        // Revoking a window's token is operator-only — C3 so a space shell (C2)
+        // structurally cannot close another window.
+        let p = policy_for("ship.ops.v1.SpaceService/CloseWindow")
+            .expect("SpaceService/CloseWindow must carry a policy in the descriptor");
+        assert_eq!(p.capability, "ship.projects.write");
+        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C3Critical);
     }
 }

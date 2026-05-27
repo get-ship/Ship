@@ -32,5 +32,18 @@
       "decision": "focus",
       "actor_id": "window-harbor-01"
     }
+  },
+  "WindowList": {
+    "response_ok": {
+      "windows": [
+        { "actor_id": "window-harbor-01", "space_id": "harbor", "pid": 4242, "live": true }
+      ]
+    }
+  },
+  "CloseWindow": {
+    "response_ok": {
+      "closed": true,
+      "token_revoked": true
+    }
   }
 }

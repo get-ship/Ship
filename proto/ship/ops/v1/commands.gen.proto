@@ -187,6 +187,10 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.settings.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc SpaceWindowClose(SpaceWindowCloseRequest) returns (CloseWindowResponse) {
+    option (ship.ops.v1.capability) = "ship.projects.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C3_CRITICAL;
+  }
   rpc ProjectAdd(ProjectAddRequest) returns (ProjectRecord) {
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -565,6 +569,10 @@ message SettingsSetRequest {
 message SpaceSettingSetRequest {
   string key = 1;
   string value_json = 2;
+}
+
+message SpaceWindowCloseRequest {
+  string actor_id = 1;
 }
 
 message ProjectAddRequest {

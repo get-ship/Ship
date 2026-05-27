@@ -8,8 +8,8 @@ use ship_ops_rpc::{
     ArtifactsListResponse, ChatStateResponse, CollectionItem, Deletion, EventsListResponse,
     ListProcsResponse, McpIndexResponse, PermissionsIndexResponse, PipelinesIndexResponse,
     ProjectRecord, SessionsListResponse, SettingValue, SkillFileResponse, SkillsIndexResponse,
-    SpaceInfoResponse, SpaceWindowIntentResponse, SpecDetail, SpecGetResponse, SpecsListResponse,
-    ToolPatternsResponse, WorkspaceActiveResponse,
+    CloseWindowResponse, SpaceInfoResponse, SpaceWindowIntentResponse, SpaceWindowListResponse,
+    SpecDetail, SpecGetResponse, SpecsListResponse, ToolPatternsResponse, WorkspaceActiveResponse,
 };
 
 const ARTIFACTS: &str = include_str!("../../../../proto/fixtures/artifacts_service.json");
@@ -198,6 +198,24 @@ fn space_set_setting_parses_key_and_value() {
         serde_json::from_str(&response_ok(SPACE, "SetSetting")).expect("parse SettingValue");
     assert_eq!(r.key, "theme");
     assert_eq!(r.value_json, "\"dark\"");
+}
+
+#[test]
+fn space_window_list_parses_windows() {
+    let r: SpaceWindowListResponse = serde_json::from_str(&response_ok(SPACE, "WindowList"))
+        .expect("parse SpaceWindowListResponse");
+    assert_eq!(r.windows.len(), 1);
+    assert_eq!(r.windows[0].actor_id, "window-harbor-01");
+    assert_eq!(r.windows[0].pid, Some(4242));
+    assert!(r.windows[0].live);
+}
+
+#[test]
+fn space_close_window_parses_revocation() {
+    let r: CloseWindowResponse = serde_json::from_str(&response_ok(SPACE, "CloseWindow"))
+        .expect("parse CloseWindowResponse");
+    assert!(r.closed);
+    assert!(r.token_revoked);
 }
 
 #[test]

@@ -57,6 +57,51 @@ pub async fn try_dispatch(
             // Echo the typed SettingValue shape (value re-serialized as a string).
             Ok(Some(serde_json::json!({ "key": key, "value_json": value.to_string() })))
         }
+        "space.window.close" => {
+            // The daemon is the brain: it owns the window's pid-bound token and
+            // lifecycle. Closing = revoke the token (instant authority cut) then
+            // close the actor lifecycle. The OS frame is the shell's to destroy;
+            // revocation neuters the webview regardless. C3 — operator-only (the
+            // gate already enforced is_operator before we get here).
+            let actor_id = req_str(args, "actor_id")?;
+
+            let Some(window) = ship_substrate::projections::actor::get_actor(&actor_id)
+                .map_err(|e| CommandError::service(e.to_string()))?
+            else {
+                return Err(CommandError::bad_args(format!("no window actor `{actor_id}`")));
+            };
+            if window.kind != "window" {
+                return Err(CommandError::bad_args(format!(
+                    "actor `{actor_id}` is not a window (kind={})",
+                    window.kind
+                )));
+            }
+
+            // Revoke: drop every session whose pid-bound identity matches this
+            // window (same space + pid). A window is single-instance per space,
+            // so this is the window's token.
+            let token_revoked = {
+                let mut reg = ctx.state.session_registry().lock().await;
+                let before = reg.len();
+                reg.retain(|_, s| {
+                    !(s.space_id == window.space_id && s.pid == window.pid.map(|p| p as u32))
+                });
+                before != reg.len()
+            };
+
+            // Close the lifecycle (off-thread: durable event append uses block_on).
+            if let Some(space_id) = window.space_id.clone() {
+                let aid = actor_id.clone();
+                tokio::task::spawn_blocking(move || {
+                    ship_substrate::db::actor_events::deregister_window(&aid, &space_id)
+                })
+                .await
+                .map_err(|e| CommandError::service(format!("deregister join: {e}")))?
+                .map_err(|e| CommandError::service(e.to_string()))?;
+            }
+
+            Ok(Some(serde_json::json!({ "closed": true, "token_revoked": token_revoked })))
+        }
         _ => Ok(None),
     }
 }

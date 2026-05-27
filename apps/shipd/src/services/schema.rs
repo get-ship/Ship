@@ -701,6 +701,18 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "SettingValue",
         sensitive: false,
     },
+    // Window control (the daemon is the brain). Revoking a window's pid-bound
+    // token + closing its lifecycle is operator-only — C3 so a space shell (C2)
+    // can't close another window.
+    CommandDescriptor {
+        name: "space.window.close",
+        description: "Revoke a window's pid-bound token and close its lifecycle (operator-only).",
+        args: &[ArgDescriptor { name: "actor_id", kind: "string", required: true }],
+        permission: "ship.projects.write",
+        blast_radius: "C3_CRITICAL",
+        response_type: "CloseWindowResponse",
+        sensitive: true,
+    },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.add",

@@ -57,6 +57,30 @@ message SpaceWindowIntentResponse {
   optional string actor_id = 2;
 }
 
+// ── Window control surface (the daemon is the brain) ─────────────────────
+// The daemon owns window liveness, pid, and the pid-bound C2 token; it can
+// enumerate windows and revoke their authority. It cannot spawn an OS window
+// (no handle) — the shell adaptor does that — but it holds the kill switch.
+message SpaceWindowListRequest {}
+message WindowInfo {
+  string actor_id = 1;
+  optional string space_id = 2;
+  optional int64 pid = 3;
+  bool live = 4;
+}
+message SpaceWindowListResponse {
+  repeated WindowInfo windows = 1;
+}
+
+message CloseWindowRequest {
+  string actor_id = 1;
+}
+// CloseWindowResponse lives in types.proto — it's the response_type of the
+// generated `space.window.close` command (commands.gen.proto), which only
+// imports types.proto. Closing a window REVOKES its pid-bound token (instant
+// authority cut) and closes the window actor's lifecycle; the shell destroys
+// the OS frame.
+
 // The active space's identity + config snapshot — what a space window reads to
 // bootstrap. `settings_json` is the `settings.state` snapshot (daemon-global
 // today; per-space settings layering lands later and flows through this same
@@ -92,6 +116,16 @@ service SpaceService {
     option (ship.ops.v1.capability) = "ship.workspaces.read";
     option (ship.ops.v1.description) = "Focus-vs-spawn decision for opening a space window (the shell adaptor executes it).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc WindowList(SpaceWindowListRequest) returns (SpaceWindowListResponse) {
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.description) = "Enumerate window actors the daemon knows about (actor id, space, pid, live).";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc CloseWindow(CloseWindowRequest) returns (CloseWindowResponse) {
+    option (ship.ops.v1.capability) = "ship.projects.write";
+    option (ship.ops.v1.description) = "Revoke a window's pid-bound token and close its lifecycle (operator-only).";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C3_CRITICAL;
   }
   rpc Add(AddSpaceRequest) returns (ProjectRecord) {
     option (ship.ops.v1.description) = "Register a directory as a space (ensures its .ship/ exists).";
