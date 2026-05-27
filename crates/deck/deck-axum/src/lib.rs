@@ -12,9 +12,9 @@ pub mod render_helpers;
 pub use handlers::{
     serve_catalog_published, serve_catalog_workspace, serve_meta, serve_pack_asset,
     serve_sui_components, serve_sui_dom, serve_sui_island, serve_sui_live_reload,
-    serve_sui_lucide_icons, serve_sui_runtime, serve_sui_sdk_client, serve_sui_view_css,
-    serve_sui_view_setup, serve_sui_view_template, serve_view_host, serve_view_payload,
-    serve_view_payload_subpath,
+    serve_space, serve_space_asset, serve_sui_lucide_icons, serve_sui_runtime,
+    serve_sui_sdk_client, serve_sui_view_css, serve_sui_view_setup, serve_sui_view_template,
+    serve_view_host, serve_view_payload, serve_view_payload_subpath,
 };
 
 // Re-export the contract types so `deck`'s facade (and shipd through it)
@@ -89,6 +89,8 @@ pub fn router() -> Router {
         .route("/_sui/views/{name}/view.css", get(serve_sui_view_css))
         .route("/_sui/views/{name}", get(serve_view_payload))
         .route("/_sui/views/{name}/{*sub_path}", get(serve_view_payload_subpath))
+        .route("/space/_assets/{file}", get(serve_space_asset))
+        .route("/space/{id}", get(serve_space))
         .route("/view-host", get(serve_view_host))
         .route("/view-host/{*rest}", get(serve_view_host))
         .route("/sui/{name}", get(serve_view_host))

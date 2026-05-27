@@ -98,6 +98,22 @@ pub async fn serve_view_host(
     into_axum(deck_core::serve_view_host(mode_from_ext(mode), uri.path()))
 }
 
+// ── Space scaffold handlers ───────────────────────────────────────────────────
+
+pub async fn serve_space(
+    mode: Option<Extension<DaemonMode>>,
+    Path(id): Path<String>,
+) -> Response {
+    into_axum(deck_core::serve_space(mode_from_ext(mode), &id))
+}
+
+pub async fn serve_space_asset(
+    mode: Option<Extension<DaemonMode>>,
+    Path(file): Path<String>,
+) -> Response {
+    into_axum(deck_core::serve_space_asset(mode_from_ext(mode), &file))
+}
+
 // ── View-payload handlers ─────────────────────────────────────────────────────
 
 pub async fn serve_view_payload(
