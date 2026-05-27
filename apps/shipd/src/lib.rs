@@ -40,7 +40,7 @@ pub mod pipelines_rpc;
 pub mod git_rpc;
 pub mod agents_rpc;
 pub mod agent_rpc;
-pub mod project_rpc;
+pub mod space_rpc;
 pub mod settings_rpc;
 pub mod annotation_rpc;
 pub mod feedback_rpc;

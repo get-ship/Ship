@@ -1,0 +1,58 @@
+// `space.*` as a hand-authored, per-domain proto-SSOT service (#89) — the
+// space registry surface (a space = the unit of isolation/coordination/config,
+// one .ship/ directory). Mounted ADDITIVELY beside the generated
+// ReadOpsService/CommandOpsService (which still serve these ops until the GUI
+// flip, #72). Old descriptor tables + dispatch stay untouched.
+//
+// Request messages take fresh names (AddSpaceRequest, ActivateSpaceRequest,
+// SpaceListRequest, SpaceActiveRequest) to avoid colliding with the generated
+// commands.gen.proto/reads.gen.proto declarations in this same package. Return
+// types are SHARED shapes from types.proto (ProjectRecord / WorkspaceActiveResponse
+// — kept under their current wire names; those rename with the retiring umbrella,
+// #72) and JsonResponse from ops.proto, imported, not redeclared.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/ops.proto";
+import "ship/ops/v1/types.proto";
+
+message SpaceListRequest {}
+
+message SpaceActiveRequest {}
+
+message AddSpaceRequest {
+  string path = 1;
+  string name = 2;
+}
+
+message ActivateSpaceRequest {
+  string id = 1;
+}
+
+// Space registry reads (C0) + writes (C1). Reads surface the space list and
+// the active-space projection. Writes register a new space path or switch the
+// active space; both route through the one gate (services::command::call).
+service SpaceService {
+  rpc List(SpaceListRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.description) = "List the registered spaces (each a .ship/ directory).";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Active(SpaceActiveRequest) returns (WorkspaceActiveResponse) {
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.description) = "The active space and its state.";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Add(AddSpaceRequest) returns (ProjectRecord) {
+    option (ship.ops.v1.description) = "Register a directory as a space (ensures its .ship/ exists).";
+    option (ship.ops.v1.capability) = "ship.projects.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc Activate(ActivateSpaceRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Switch the daemon's active space.";
+    option (ship.ops.v1.capability) = "ship.projects.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+}

@@ -1,24 +1,28 @@
-//! `ProjectService` handler — proto-as-SSOT migration of `project.*` and
-//! `workspaces.*` (#89), mounted additively beside the generated
-//! ReadOps/CommandOps until the GUI flip (#72).
+//! `SpaceService` handler — proto-as-SSOT migration of the space registry
+//! surface (#89), mounted additively beside the generated ReadOps/CommandOps
+//! until the GUI flip (#72). A space = the unit of isolation/coordination/config
+//! (one .ship/ directory).
 //!
 //! Reads (C0) call the sync read registry (`registry::call`) and wrap JSON in
-//! `JsonResponse` or decode onto the typed `WorkspaceActiveResponse`. Writes
-//! (C1) route through `services::command::call`, the ONE gate, which applies
-//! `gate::decide` exactly as the generated CommandOpsService does.
+//! `JsonResponse` or decode onto the typed `WorkspaceActiveResponse` (the shared
+//! return shape keeps its current wire name until the umbrella retires, #72).
+//! Writes (C1) route through `services::command::call`, the ONE gate, which
+//! applies `gate::decide` exactly as the generated CommandOpsService does. The
+//! internal dispatch op names (`workspaces.list`, `project.add`, …) are the
+//! retiring-umbrella op ids and stay as-is this pass.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use serde_json::{json, Value};
 
-use ship_ops_rpc::{JsonResponse, ProjectRecord, ProjectService, WorkspaceActiveResponse};
+use ship_ops_rpc::{JsonResponse, ProjectRecord, SpaceService, WorkspaceActiveResponse};
 
 use crate::auth::AuthContext;
 use crate::ops_rpc::{command_error_to_connect, OpsImpl};
 use crate::services::command::{self, CommandCtx};
 
-/// Shared gated dispatch for project writes. Free function to avoid naming
+/// Shared gated dispatch for space writes. Free function to avoid naming
 /// collision with `gated_mutation` on `impl OpsImpl` in `rules_rpc`.
-async fn project_gated_call(
+async fn space_gated_call(
     state: &crate::ship_runtime::ApiState,
     ctx: &RequestContext,
     op: &str,
@@ -33,11 +37,11 @@ async fn project_gated_call(
 }
 
 #[allow(refining_impl_trait)]
-impl ProjectService for OpsImpl {
-    async fn list_projects(
+impl SpaceService for OpsImpl {
+    async fn list(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedProjectsListRequestView,
+        _request: ship_ops_rpc::OwnedSpaceListRequestView,
     ) -> ServiceResult<JsonResponse> {
         let value =
             crate::services::registry::call("workspaces.list", &Value::Null, self.state())
@@ -45,10 +49,10 @@ impl ProjectService for OpsImpl {
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
 
-    async fn active_project(
+    async fn active(
         &self,
         _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedProjectsActiveRequestView,
+        _request: ship_ops_rpc::OwnedSpaceActiveRequestView,
     ) -> ServiceResult<WorkspaceActiveResponse> {
         let value =
             crate::services::registry::call("workspaces.active", &Value::Null, self.state())
@@ -61,10 +65,10 @@ impl ProjectService for OpsImpl {
     async fn add(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedAddProjectRequestView,
+        request: ship_ops_rpc::OwnedAddSpaceRequestView,
     ) -> ServiceResult<ProjectRecord> {
         let args = json!({ "path": request.path, "name": request.name });
-        let value = project_gated_call(self.state(), &ctx, "project.add", args).await?;
+        let value = space_gated_call(self.state(), &ctx, "project.add", args).await?;
         let msg = serde_json::from_value::<ProjectRecord>(value)
             .map_err(|e| ConnectError::internal(format!("decode project.add response: {e}")))?;
         Ok(Response::new(msg))
@@ -73,10 +77,10 @@ impl ProjectService for OpsImpl {
     async fn activate(
         &self,
         ctx: RequestContext,
-        request: ship_ops_rpc::OwnedActivateProjectRequestView,
+        request: ship_ops_rpc::OwnedActivateSpaceRequestView,
     ) -> ServiceResult<JsonResponse> {
         let args = json!({ "id": request.id });
-        let value = project_gated_call(self.state(), &ctx, "project.activate", args).await?;
+        let value = space_gated_call(self.state(), &ctx, "project.activate", args).await?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
 }
@@ -86,10 +90,10 @@ mod tests {
     use crate::ops_rpc::policy_for;
 
     #[test]
-    fn project_op_policy_reads_are_c0_safe() {
+    fn space_op_policy_reads_are_c0_safe() {
         for path in [
-            "ship.ops.v1.ProjectService/ListProjects",
-            "ship.ops.v1.ProjectService/ActiveProject",
+            "ship.ops.v1.SpaceService/List",
+            "ship.ops.v1.SpaceService/Active",
         ] {
             let p = policy_for(path).unwrap_or_else(|| panic!("{path} missing from policy map"));
             assert_eq!(p.capability, "ship.workspaces.read", "{path}");
@@ -98,10 +102,10 @@ mod tests {
     }
 
     #[test]
-    fn project_op_policy_writes_are_c1_workspace() {
+    fn space_op_policy_writes_are_c1_workspace() {
         for path in [
-            "ship.ops.v1.ProjectService/Add",
-            "ship.ops.v1.ProjectService/Activate",
+            "ship.ops.v1.SpaceService/Add",
+            "ship.ops.v1.SpaceService/Activate",
         ] {
             let p = policy_for(path).unwrap_or_else(|| panic!("{path} missing from policy map"));
             assert_eq!(p.capability, "ship.projects.write", "{path}");

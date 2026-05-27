@@ -46,7 +46,7 @@ fn main() {
         .arg("ship/ops/v1/git.proto")
         .arg("ship/ops/v1/agents.proto")
         .arg("ship/ops/v1/agent.proto")
-        .arg("ship/ops/v1/project.proto")
+        .arg("ship/ops/v1/space.proto")
         .arg("ship/ops/v1/settings.proto")
         .arg("ship/ops/v1/annotation.proto")
         .arg("ship/ops/v1/feedback.proto")
@@ -90,7 +90,7 @@ fn main() {
             "ship/ops/v1/git.proto",
             "ship/ops/v1/agents.proto",
             "ship/ops/v1/agent.proto",
-            "ship/ops/v1/project.proto",
+            "ship/ops/v1/space.proto",
             "ship/ops/v1/settings.proto",
             "ship/ops/v1/annotation.proto",
             "ship/ops/v1/feedback.proto",

@@ -424,8 +424,8 @@
     "pipelines.put": { "id": "ship-feature", "scope": "project" },
     "pipelines.patch": { "id": "ship-feature", "scope": "project" },
     "pipelines.delete": { "id": "ship-feature", "scope": "project" },
-    "project.active_project": { "id": "harbor" },
-    "project.add": {
+    "space.active": { "id": "harbor" },
+    "space.add": {
       "id": "harbor",
       "path": "/home/dev/harbor",
       "name": "Harbor",

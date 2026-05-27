@@ -18,7 +18,7 @@ const EVENTS: &str = include_str!("../../../../proto/fixtures/events_service.jso
 const MCP: &str = include_str!("../../../../proto/fixtures/mcp_service.json");
 const PERMISSIONS: &str = include_str!("../../../../proto/fixtures/permissions_service.json");
 const PIPELINES: &str = include_str!("../../../../proto/fixtures/pipelines_service.json");
-const PROJECT: &str = include_str!("../../../../proto/fixtures/project_service.json");
+const SPACE: &str = include_str!("../../../../proto/fixtures/space_service.json");
 const RUNTIME: &str = include_str!("../../../../proto/fixtures/runtime_service.json");
 const SESSIONS: &str = include_str!("../../../../proto/fixtures/sessions_service.json");
 const SETTINGS: &str = include_str!("../../../../proto/fixtures/settings_service.json");
@@ -105,9 +105,9 @@ fn pipelines_list_parses_index() {
 }
 
 #[test]
-fn project_add_parses_record() {
+fn space_add_parses_record() {
     let r: ProjectRecord =
-        serde_json::from_str(&response_ok(PROJECT, "Add")).expect("parse ProjectRecord");
+        serde_json::from_str(&response_ok(SPACE, "Add")).expect("parse ProjectRecord");
     assert_eq!(r.id, "harbor");
     assert_eq!(r.path, "/home/dev/harbor");
 }
