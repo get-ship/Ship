@@ -6732,15 +6732,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rolldown_spike"
-version = "0.1.0"
-dependencies = [
- "rolldown",
- "rolldown_common",
- "tokio",
-]
-
-[[package]]
 name = "rolldown_std_utils"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7571,6 +7562,8 @@ dependencies = [
  "portable-pty",
  "reqwest 0.12.28",
  "rmp-serde",
+ "rolldown",
+ "rolldown_common",
  "sea-query",
  "semver",
  "serde",

@@ -9,6 +9,7 @@ pub mod catalog;
 pub mod compile;
 pub mod esbuild;
 pub mod proto;
+pub mod rolldown_bundle;
 pub mod service;
 pub mod targets;
 pub mod worker;

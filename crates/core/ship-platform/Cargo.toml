@@ -61,6 +61,8 @@ jsonschema = { version = "0.46", default-features = false }
 # Embeds the generated SDK capability-skills (skills/sdk/) into the binary so
 # every compile can offer them, not just inside the dev checkout.
 include_dir = "0.7"
+rolldown = "1.0.3"
+rolldown_common = "1.0.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { workspace = true }
