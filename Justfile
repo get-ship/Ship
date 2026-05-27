@@ -69,7 +69,7 @@ shell-dev:
 # Regenerate the typed dynamic-route table from the view file tree (SSOT).
 [group('daily')]
 gen-routes:
-    @node scripts/gen-routes.mjs
+    @bun scripts/gen-routes.ts
 
 # Build the standalone SUI component packs (primitives/charts/pipelines/
 # ui-components) → each package's `dist/`, served by the daemon at
