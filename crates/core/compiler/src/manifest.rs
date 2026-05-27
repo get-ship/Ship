@@ -92,7 +92,10 @@ impl ManifestDepValue {
 
 // ── Exports section ────────────────────────────────────────────────────────────
 
-/// Paths exported by this module. Validated at publish time, not parse time.
+/// Paths exported by this module — the full traveling artifact set a package can
+/// ship. Validated at publish time, not parse time. A package is ONE bundle
+/// regardless of which combination it carries (skills, an app's views, the lot).
+/// The composition engine (#122) consumes each list, namespaced by package.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct ManifestExports {
     /// Skill directory paths relative to `.ship/` (must contain SKILL.md).
@@ -101,6 +104,20 @@ pub struct ManifestExports {
     /// Agent file paths relative to `.ship/` (must end in .jsonc).
     #[serde(default)]
     pub agents: Vec<String>,
+    /// View directory paths relative to `.ship/` (a `.sui` template + optional
+    /// paired controller). Composed under the package namespace (routes).
+    #[serde(default)]
+    pub views: Vec<String>,
+    /// Pipeline file paths relative to `.ship/` (.jsonc).
+    #[serde(default)]
+    pub pipelines: Vec<String>,
+    /// Trigger file paths relative to `.ship/` (.jsonc).
+    #[serde(default)]
+    pub triggers: Vec<String>,
+    /// Collection-schema file paths relative to `.ship/` (.jsonc). Same-name
+    /// schema collision across packages is an error (not silently merged).
+    #[serde(default)]
+    pub collections: Vec<String>,
 }
 
 // ── Raw manifest for deserialisation ──────────────────────────────────────────

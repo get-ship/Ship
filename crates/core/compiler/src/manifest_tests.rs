@@ -36,7 +36,11 @@ fn parse_full_manifest() {
         },
         "exports": {
             "skills": ["agents/skills/my-skill"],
-            "agents": ["agents/profiles/my-agent.jsonc"]
+            "agents": ["agents/profiles/my-agent.jsonc"],
+            "views": ["views/dashboard"],
+            "pipelines": ["pipelines/ship-feature.jsonc"],
+            "triggers": ["triggers/on-push.jsonc"],
+            "collections": ["collections/notes.jsonc"]
         }
     }"#;
     let m = ShipManifest::from_jsonc_str(jsonc).unwrap();
@@ -59,6 +63,11 @@ fn parse_full_manifest() {
 
     assert_eq!(m.exports.skills, vec!["agents/skills/my-skill"]);
     assert_eq!(m.exports.agents, vec!["agents/profiles/my-agent.jsonc"]);
+    // The full traveling set — a package bundles any combination (#122 / store).
+    assert_eq!(m.exports.views, vec!["views/dashboard"]);
+    assert_eq!(m.exports.pipelines, vec!["pipelines/ship-feature.jsonc"]);
+    assert_eq!(m.exports.triggers, vec!["triggers/on-push.jsonc"]);
+    assert_eq!(m.exports.collections, vec!["collections/notes.jsonc"]);
 }
 
 #[test]

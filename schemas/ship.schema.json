@@ -180,6 +180,26 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Agent config file paths relative to .ship/, e.g. agents/my-agent.jsonc."
+        },
+        "views": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "View directory paths relative to .ship/, e.g. views/dashboard. Composed under the package namespace."
+        },
+        "pipelines": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Pipeline file paths relative to .ship/, e.g. pipelines/ship-feature.jsonc."
+        },
+        "triggers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Trigger file paths relative to .ship/, e.g. triggers/on-push.jsonc."
+        },
+        "collections": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Collection-schema file paths relative to .ship/. Same-name schema collision across packages is an error."
         }
       },
       "additionalProperties": false
