@@ -102,6 +102,7 @@ async fn ship_route_registers_handler_end_to_end() {
             caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: None,
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
             grants: vec![],

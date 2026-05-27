@@ -107,6 +107,7 @@ mod tests {
             scopes: vec![Scope::ReadWorkspace],
             grants: vec![],
             workspace_id: None,
+            space_id: None,
             pid: None,
             created_at: std::time::Instant::now(),
             expires_at_unix,

@@ -391,3 +391,47 @@ async fn anomalous_token_format_fails_closed() {
     let (status, _) = send(router, req).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "anomalous credential format must fail closed");
 }
+
+// ── Per-connection space on the emit path (Arc 2 / #128) ──────────────────
+
+/// A space-window session carries its OWN space onto the emit context, not the
+/// daemon's process-global home space. This is the multi-space invariant: one
+/// shipd serves many spaces, and a window's emits land in that window's space.
+#[test]
+fn space_window_auth_emits_into_its_own_space() {
+    let session = space_window_session("sp-OTHER", 4242, "ship_sess_x".to_string());
+    let auth = AuthContext {
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
+        agent_id: Some(session.agent_id.clone()),
+        workspace_id: session.workspace_id.clone(),
+        space_id: session.space_id.clone(),
+        session_id: None,
+        scopes: session.scopes.clone(),
+        grants: session.grants.clone(),
+    };
+    assert_eq!(
+        auth.to_emit_context().space_id.as_deref(),
+        Some("sp-OTHER"),
+        "window emit space must be the session's space, not daemon_space_id()"
+    );
+}
+
+/// An operator/daemon-token AuthContext carries no session space, so its emit
+/// space falls back to the daemon's home space (`daemon_space_id()`).
+#[test]
+fn operator_auth_falls_back_to_daemon_home_space() {
+    let auth = AuthContext {
+        caller_kind: ship_substrate::events::CallerKind::Cli,
+        agent_id: None,
+        workspace_id: None,
+        space_id: None,
+        session_id: None,
+        scopes: vec![],
+        grants: vec![],
+    };
+    assert_eq!(
+        auth.to_emit_context().space_id,
+        ship_substrate::project::daemon_space_id(),
+        "operator emit space must fall back to the daemon home space"
+    );
+}

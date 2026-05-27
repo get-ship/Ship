@@ -294,6 +294,14 @@ pub struct DaemonSession {
     /// route-auth + artifacts). See `.artifacts/capability-provisioning-and-approval.md`.
     pub grants: Vec<String>,
     pub workspace_id: Option<String>,
+    /// The space this session belongs to (path-hash space identity). Authoritative
+    /// per-connection space for the emit path: a space-window session carries its
+    /// OWN space here (`space_window_session`), so events it emits are stamped with
+    /// that space rather than the daemon's process-global home space. `None` for
+    /// sessions with no resolvable space (falls back to `daemon_space_id()` at emit).
+    /// Distinct from `workspace_id` (a git branch slug). See spec
+    /// `.artifacts/specs/space/128-multi-space-emit.md`.
+    pub space_id: Option<String>,
     /// Kernel-verified pid this token is bound to, if any. Set for webview
     /// window tokens (minted from the connection's `SO_PEERCRED` pid): the
     /// token is then two-factor — the secret *and* being that exact process.
@@ -439,12 +447,12 @@ pub async fn hydrate_sessions(registry: &SessionRegistry) {
             // Persisted sessions are operator/paired (is_operator clears grants);
             // restricted grants aren't persisted — re-minted on register.
             grants: vec![],
-            // The persisted `auth_sessions.space_id` now carries the daemon's
-            // SPACE id (see `persist_session`), not a branch slug. Restoring it
-            // into the legacy `workspace_id` field keeps it consistent with the
-            // daemon's single space. Emit `space_id` is sourced from the
-            // daemon space global, not this field.
-            workspace_id: row.space_id,
+            // The persisted `auth_sessions.space_id` carries the SPACE id (see
+            // `persist_session`), not a branch slug — restore it into the explicit
+            // `space_id` field, which is what the emit path reads. `workspace_id`
+            // (the branch slug) is not persisted on sessions.
+            workspace_id: None,
+            space_id: row.space_id,
             // Hydrated (persisted) sessions are operator/paired, not pid-bound.
             // Window tokens are ephemeral and never persisted, so a restored
             // session is never pid-restricted.
@@ -531,6 +539,10 @@ pub fn space_window_session(space_id: &str, peer_pid: u32, token: String) -> Dae
         // denied structurally (is_operator is false).
         grants: grants_for_role(Some("contributor")),
         workspace_id: None,
+        // The window's OWN space — the load-bearing line for multi-space. Events
+        // this session emits are stamped with this space, not the daemon's home
+        // space. See spec `.artifacts/specs/space/128-multi-space-emit.md`.
+        space_id: Some(space_id.to_string()),
         pid: Some(peer_pid),
         created_at: std::time::Instant::now(),
         expires_at_unix: None,
@@ -561,6 +573,7 @@ mod tests {
             scopes: vec![],
             grants: vec![],
             workspace_id: None,
+            space_id: None,
             pid,
             created_at: std::time::Instant::now(),
             expires_at_unix: None,

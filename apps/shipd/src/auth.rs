@@ -73,6 +73,13 @@ pub struct AuthContext {
     pub caller_kind: CallerKind,
     pub agent_id: Option<String>,
     pub workspace_id: Option<String>,
+    /// The space this request belongs to (path-hash space identity), carried
+    /// from the authenticated session. A space-window session carries its OWN
+    /// space here; operator/agent/daemon-token requests leave it `None` and fall
+    /// back to the daemon's home space (`daemon_space_id()`) at emit. This is the
+    /// per-connection space source that replaces the process-global on the emit
+    /// path. See spec `.artifacts/specs/space/128-multi-space-emit.md`.
+    pub space_id: Option<String>,
     pub session_id: Option<String>,
     /// Granted scopes for this request. Daemon token gets `[Full]`.
     pub scopes: Vec<Scope>,
@@ -85,15 +92,20 @@ pub struct AuthContext {
 impl AuthContext {
     /// Convert to the runtime's `EmitContext` preserving the caller's identity.
     ///
-    /// `space_id` carries the daemon's SPACE id (path-hash identity resolved
-    /// at startup), NOT the legacy `workspace_id` branch slug. A daemon serves
-    /// one space, so every space-scoped event it emits belongs to that space.
-    /// See spec `.artifacts/specs/space/116-event-partition.md`.
+    /// `space_id` is the request's space: the session-carried space when the
+    /// caller is a space window, else the daemon's home space (`daemon_space_id()`)
+    /// as a fallback. This is the per-connection space source — one shipd serves
+    /// many spaces, so the emit space follows the session, not a process-global.
+    /// NOT the legacy `workspace_id` branch slug. See spec
+    /// `.artifacts/specs/space/128-multi-space-emit.md`.
     pub fn to_emit_context(&self) -> ship_substrate::events::EmitContext {
         ship_substrate::events::EmitContext {
             caller_kind: self.caller_kind.clone(),
             skill_id: None,
-            space_id: ship_substrate::project::daemon_space_id(),
+            space_id: self
+                .space_id
+                .clone()
+                .or_else(ship_substrate::project::daemon_space_id),
             session_id: self.session_id.clone(),
         }
     }
@@ -113,9 +125,13 @@ impl AuthContext {
         ship_substrate::events::EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
-            // SPACE id (daemon-resolved), not the branch-slug workspace_id.
-            // See spec `.artifacts/specs/space/116-event-partition.md`.
-            space_id: ship_substrate::project::daemon_space_id(),
+            // Session-carried space when present (space window), else the
+            // daemon's home space. Not the branch-slug workspace_id. See spec
+            // `.artifacts/specs/space/128-multi-space-emit.md`.
+            space_id: self
+                .space_id
+                .clone()
+                .or_else(ship_substrate::project::daemon_space_id),
             session_id: self.session_id.clone(),
         }
     }
@@ -196,6 +212,7 @@ pub async fn auth_middleware(
                             caller_kind: CallerKind::Cli,
                             agent_id: None,
                             workspace_id: session.workspace_id.clone(),
+                            space_id: session.space_id.clone(),
                             session_id: None,
                             scopes: session.scopes.clone(),
                             grants: session.grants.clone(),
@@ -285,6 +302,9 @@ pub async fn auth_middleware(
                     caller_kind: CallerKind::Mcp,
                     agent_id: Some(session.agent_id.clone()),
                     workspace_id: session.workspace_id.clone(),
+                    // The session's space — for a space-window token this is the
+                    // window's own space, so its emits land in that space.
+                    space_id: session.space_id.clone(),
                     session_id,
                     scopes: session.scopes.clone(),
                     // The minted restricted grants — the gate's grant axis.
@@ -327,6 +347,9 @@ pub async fn auth_middleware(
         caller_kind,
         agent_id,
         workspace_id,
+        // Daemon/SDK (operator) tokens carry no session space; emits fall back
+        // to the daemon's home space.
+        space_id: None,
         session_id,
         scopes,
         // Daemon/SDK tokens are operator-class (is_operator clears the gate);

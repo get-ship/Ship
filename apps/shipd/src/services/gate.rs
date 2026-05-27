@@ -160,6 +160,7 @@ mod tests {
             caller_kind: CallerKind::Mcp,
             agent_id: Some(session.agent_id.clone()),
             workspace_id: session.workspace_id.clone(),
+            space_id: None,
             session_id: None,
             scopes: session.scopes.clone(),
             grants: session.grants.clone(),

@@ -330,6 +330,7 @@ mod tests {
             caller_kind: kind,
             agent_id: agent.map(str::to_string),
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec![],
