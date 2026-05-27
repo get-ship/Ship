@@ -98,6 +98,37 @@ fn resolve_cache_root(cache_root: Option<&Path>) -> Result<PathBuf> {
     }
 }
 
+/// The traveling-artifact root a loader should read for `ship_dir`.
+///
+/// - **Depless space** (no `ship.lock` or no packages): the raw `.ship/` itself
+///   — composition is a no-op, so we skip materialization entirely. This is the
+///   common case; it copies nothing and behaves exactly as before.
+/// - **Has deps**: the materialized composed overlay (local base + dep exports).
+///
+/// Falls back to the raw `.ship/` on any materialization error — composition
+/// must never break a load that worked before deps were introduced. Loaders for
+/// the four non-library traveling types (views/pipelines/triggers/collections)
+/// resolve their root through this instead of using `ship_dir` directly.
+pub fn composed_root_for(ship_dir: &Path) -> PathBuf {
+    let lock_path = ship_dir.join("ship.lock");
+    let has_deps = ShipLock::from_file(&lock_path)
+        .map(|l| !l.packages.is_empty())
+        .unwrap_or(false);
+    if !has_deps {
+        return ship_dir.to_path_buf();
+    }
+    match materialize_space(ship_dir, None) {
+        Ok(root) => root,
+        Err(e) => {
+            tracing::warn!(
+                "compose: materialize failed for {}, falling back to raw .ship: {e}",
+                ship_dir.display()
+            );
+            ship_dir.to_path_buf()
+        }
+    }
+}
+
 /// Resolve the local `.ship/` base + locked dep exports into a composed root.
 ///
 /// Returns the path to `<cache_root>/composed/<input-hash>/`. The directory is
