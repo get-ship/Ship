@@ -39,6 +39,9 @@ pub fn install_defaults() {
         vec![
             Box::new(projections::CompileStateProjection),
             Box::new(projections::ProjectsProjection),
+            // Per-space settings overlay (event-sourced), layered over the
+            // global daemon settings by `SpaceService.Info`.
+            Box::new(projections::SpaceSettingsProjection),
             Box::new(projections::AuthSessionsProjection),
             Box::new(projections::DaemonOwnerProjection),
             // Per-agent approved grant baseline the mint path reads.
