@@ -91,8 +91,13 @@ pub fn parse_schema(jsonc: &str) -> anyhow::Result<CollectionSchema> {
 }
 
 /// Load all schemas from a `.ship/collections/` directory.
+///
+/// Reads from the composed overlay (local + dep-exported schemas) when the space
+/// has deps; the raw `.ship/` otherwise (depless = identical). Same-name schema
+/// collision across packages is already rejected at materialization.
 pub fn load_schemas(ship_dir: &Path) -> anyhow::Result<Vec<CollectionSchema>> {
-    let schemas_dir = ship_dir.join("collections");
+    let root = crate::registry::compose::composed_root_for(ship_dir);
+    let schemas_dir = root.join("collections");
     if !schemas_dir.is_dir() {
         return Ok(vec![]);
     }
