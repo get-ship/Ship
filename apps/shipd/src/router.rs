@@ -128,59 +128,18 @@ pub fn build_router(
         .ship_public_route(Route::AssetViewTokensCss, views::serve_view_tokens)
         .ship_public_route(Route::AssetThemeCss, views::serve_theme_css)
         .ship_public_route(Route::ListThemes, views::serve_themes_list)
-        // SUI framework hosting — runtime/dom/sdk/components bundles +
-        // per-view template/payload/css + data/mutation/patch endpoints.
-        // These sit under `/_sui/*` (plus `/view-host` and `/sui/{name}`);
-        // the handlers live in `deck` (asset serving) and
-        // `apps/shipd/src/views/sui_*.rs` (project-scoped, state-aware).
-        // State plumbs through `with_state(rt.clone())` at the bottom of
-        // this builder. HMR routes stay dev-only — see further below.
+        // SUI state-aware endpoints (sse/data/mutation/source) extract
+        // `State<ApiState>`, so they live HERE, behind the
+        // `with_state(rt.clone())` at the bottom of this builder.
         //
-        // Restored after the phase2-substrate-split merge dropped the
-        // wiring originally added in 30313c8f; without it every `/_sui/*`
-        // request 404s and shell cannot boot.
-        // Workspace catalog endpoints — replace the retired
-        // `/api/assets/sui-custom-elements.json` umbrella. Two
-        // projections (workspace = every component, published = only
-        // non-private packaged components) emitted by
-        // `bun packages/deck/catalog/src/cli.ts` to
-        // `.deck/catalogs/{workspace,published}.json`.
-        .ship_public_route(Route::SuiCatalogWorkspace, deck::serve_catalog_workspace)
-        .ship_public_route(Route::SuiCatalogPublished, deck::serve_catalog_published)
-        // Generalized pack-bundle handler — serves
-        // `/_sui/packs/<pack-id>/<bundle>` for any workspace package
-        // with a `customElements` field in package.json. Index built
-        // lazily by walking the root workspaces glob.
-        .ship_public_route(Route::SuiPackAsset_template(), deck::serve_pack_asset)
-        .ship_public_route(Route::SuiRuntimeJs, deck::serve_sui_runtime)
-        .ship_public_route(Route::SuiDomJs, deck::serve_sui_dom)
-        .ship_public_route(Route::SuiSdkClientJs, deck::serve_sui_sdk_client)
-        .ship_public_route(Route::SuiComponentsJs, deck::serve_sui_components)
-        .ship_public_route(Route::SuiLucideIconsJson, deck::serve_sui_lucide_icons)
-        .ship_public_route(Route::SuiLiveReloadJs, deck::serve_sui_live_reload)
-        .ship_public_route(Route::SuiComponentBundle_template(), deck::serve_sui_island)
-        .ship_public_route(
-            Route::SuiViewTemplate_template(),
-            deck::serve_sui_view_template,
-        )
-        .ship_public_route(
-            Route::SuiViewSetup_template(),
-            deck::serve_sui_view_setup,
-        )
-        .ship_public_route(
-            Route::SuiViewPayload_template(),
-            deck::serve_view_payload,
-        )
-        .ship_public_route(
-            Route::SuiViewCss_template(),
-            deck::serve_sui_view_css,
-        )
+        // The STATELESS deck serving surface — framework bundles
+        // (runtime/dom/sdk/components/lucide/live-reload), workspace +
+        // published catalogs, pack assets, per-view template/setup/css/
+        // payload (+ sub-path), `/view-host`, `/sui/{name}`, and `/space`
+        // — is mounted as ONE unit via `deck::router()` in the root
+        // assembly below. deck-axum is the single source of truth for
+        // those paths; shipd no longer hand-lists them here.
         .ship_public_route(Route::SuiViewSse_template(), views::sui_sse::serve_sui_sse)
-        .ship_public_route(Route::SuiViewHost, deck::serve_view_host)
-        .ship_public_route(
-            Route::SuiViewHostForName_template(),
-            deck::serve_view_host,
-        )
         .ship_public_route(Route::SuiData, views::sui_data::serve_data)
         .ship_public_route(
             Route::SuiMutation_template(),
@@ -196,21 +155,6 @@ pub fn build_router(
         // The HMR route (SuiDevHmr) is NOT wired here — it stays
         // development-only and is merged into `root` inside the
         // `daemon_mode == Development` block further below.
-        // Glob-param SUI fallbacks — the Route enum doesn't model `{*sub_path}`,
-        // so these stay as direct `.route()` calls to preserve the donor
-        // surface (view-host + payload sub-path + studio /sui/{name}/{*sub_path}).
-        .route(
-            "/_sui/views/{name}/{*sub_path}",
-            axum::routing::get(deck::serve_view_payload_subpath),
-        )
-        .route(
-            "/view-host/{*rest}",
-            axum::routing::get(deck::serve_view_host),
-        )
-        .route(
-            "/sui/{name}/{*sub_path}",
-            axum::routing::get(deck::serve_view_host),
-        )
         // First-run flow — both routes are unauthenticated so a fresh
         // install can reach the setup wizard before any browser is paired.
         .ship_public_route(Route::Index, views::setup::index_handler)
@@ -304,6 +248,15 @@ pub fn build_router(
 
     let mut root = Router::new()
         .merge(public_routes)
+        // deck's whole stateless serving surface as ONE mountable unit
+        // (framework bundles, catalogs, pack assets, per-view
+        // template/setup/css/payload + sub-path, `/view-host`,
+        // `/sui/{name}`, and `/space/{id}` + `/space/_assets`). Mounted
+        // OUTSIDE the auth layer — these are static, no user-specific data,
+        // same posture as the rest of `/_sui/*`. `Router<()>` (its handlers
+        // read `Option<Extension<DaemonMode>>`, not `State`), so it merges
+        // straight into the stateless root. deck-axum owns these paths.
+        .merge(deck::router())
         .merge(mcp_registry_routes)
         .merge(webhook_source_route)
         .merge(authenticated_routes);
@@ -599,4 +552,40 @@ pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<ser
         "dev_mode": pairing::is_dev_mode(),
         "tasks": tasks,
     }))
+}
+
+#[cfg(test)]
+mod merge_tests {
+    //! Guards the deck-axum router mount (`root.merge(deck::router())`).
+    //!
+    //! axum performs route-conflict detection eagerly during construction
+    //! and at `into_make_service()`. The risk in mounting deck's whole
+    //! surface is its catch-all `/_sui/views/{name}/{*sub_path}` coexisting
+    //! with the state-aware static `/_sui/views/{name}/sse` that shipd keeps
+    //! in `public_routes`. This reproduces that union (plus the new
+    //! `/space/*` paths) and forces the conflict check — a panic here is the
+    //! regression we'd otherwise only catch at daemon boot.
+
+    use axum::{Router, routing::get};
+
+    async fn noop() -> &'static str {
+        "ok"
+    }
+
+    #[test]
+    fn deck_router_merges_with_kept_static_sui_routes_without_conflict() {
+        // The state-aware paths shipd keeps in `public_routes` that share the
+        // `/_sui/views/{name}/` prefix with deck's catch-all.
+        let kept: Router = Router::new()
+            .route("/_sui/views/{name}/sse", get(noop))
+            .route("/_sui/data", get(noop))
+            .route("/_sui/mutation/{name}", axum::routing::post(noop))
+            .route("/_sui/source/{tag}", get(noop));
+
+        // Merging deck's surface (catch-all + /space + view-host + bundles)
+        // with the kept routes must not panic, and the union must build into
+        // a service.
+        let merged = Router::new().merge(deck::router()).merge(kept);
+        let _service = merged.into_make_service();
+    }
 }
