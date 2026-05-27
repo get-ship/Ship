@@ -685,6 +685,22 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "SettingValue",
         sensitive: false,
     },
+    // ── space (per-space settings overlay; #129) ─────────────────
+    // Event-sourced per-space override, layered over the global daemon
+    // settings. C1 like settings.set; the space_id is resolved from the
+    // caller's emit context, not an arg.
+    CommandDescriptor {
+        name: "space.setting.set",
+        description: "Set a per-space settings override (value is arbitrary JSON).",
+        args: &[
+            ArgDescriptor { name: "key", kind: "string", required: true },
+            ArgDescriptor { name: "value_json", kind: "string", required: true },
+        ],
+        permission: "ship.settings.write",
+        blast_radius: "C1_WORKSPACE",
+        response_type: "SettingValue",
+        sensitive: false,
+    },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.add",

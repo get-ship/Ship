@@ -16,19 +16,24 @@
 //! pushed on each projection change via `live_read`.
 //!
 //! `info` (#129) is the single-space introspection read: the active space's
-//! identity (id/root/name from the projects projection) plus its settings
-//! snapshot (`settings.state`). NOTE: `settings.state` is the daemon-global
-//! settings table today — per-space settings layering (theme/layout/isolation
-//! per space) is not yet wired; when it lands it flows through this same
-//! `settings_json` field with no API change. Space-scoped *events* need no op
-//! here — they're served by the events surface, now that the emit path stamps
-//! `space_id` per connection (#128).
+//! identity (id/root/name from the projects projection) plus its effective
+//! settings snapshot. The settings are layered global ⟵ space: the daemon-global
+//! `settings.state` object is the base, overlaid per-key by the space's
+//! event-sourced overrides (`space_settings::get_all`). The merged object is
+//! serialized into `settings_json` — space overrides win per-key. Space-scoped
+//! *events* need no op here — they're served by the events surface, now that the
+//! emit path stamps `space_id` per connection (#128).
+//!
+//! `set_setting` (#129) is the per-space override write: it routes through the
+//! one gate (`space_gated_call` → `space.setting.set`), which emits
+//! `space.setting.changed` with the caller's space riding the envelope.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::{json, Value};
 
 use ship_ops_rpc::{
-    JsonResponse, ProjectRecord, SpaceInfoResponse, SpaceService, WorkspaceActiveResponse,
+    JsonResponse, ProjectRecord, SettingValue, SpaceInfoResponse, SpaceService,
+    WorkspaceActiveResponse,
 };
 
 use crate::auth::AuthContext;
@@ -92,10 +97,20 @@ impl SpaceService for OpsImpl {
             },
             None => (None, None),
         };
-        // Config: the daemon settings snapshot. `settings.state` is global today;
-        // per-space layering lands later and flows through this same field.
-        let settings = crate::services::registry::call("settings.state", &Value::Null, self.state())
-            .map_err(|e| ConnectError::internal(format!("settings.state: {e}")))?;
+        // Config: the effective settings, layered global ⟵ space. The daemon
+        // settings snapshot (`settings.state`) is the base; the space's
+        // event-sourced overrides overlay it per-key (space wins). Global
+        // `settings.state` itself is untouched — the overlay is read-time.
+        let mut settings =
+            crate::services::registry::call("settings.state", &Value::Null, self.state())
+                .map_err(|e| ConnectError::internal(format!("settings.state: {e}")))?;
+        if let (Some(id), Some(obj)) = (space_id.as_deref(), settings.as_object_mut())
+            && let Ok(overrides) = ship_platform::projections::space_settings::get_all(id)
+        {
+            for (key, value) in overrides {
+                obj.insert(key, value);
+            }
+        }
         Ok(Response::new(SpaceInfoResponse {
             space_id,
             root,
@@ -125,6 +140,19 @@ impl SpaceService for OpsImpl {
         let args = json!({ "id": request.id });
         let value = space_gated_call(self.state(), &ctx, "project.activate", args).await?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    async fn set_setting(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedSetSpaceSettingRequestView,
+    ) -> ServiceResult<SettingValue> {
+        let args = json!({ "key": request.key, "value_json": request.value_json });
+        let value = space_gated_call(self.state(), &ctx, "space.setting.set", args).await?;
+        let msg = serde_json::from_value::<SettingValue>(value).map_err(|e| {
+            ConnectError::internal(format!("decode space.setting.set response: {e}"))
+        })?;
+        Ok(Response::new(msg))
     }
 
     #[allow(refining_impl_trait)]
@@ -175,5 +203,16 @@ mod tests {
             assert_eq!(p.capability, "ship.projects.write", "{path}");
             assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C1Workspace, "{path}");
         }
+    }
+
+    #[test]
+    fn space_op_policy_set_setting_is_c1_workspace_settings_write() {
+        // The per-space override write (#129) is a settings capability (it sets a
+        // settings value), C1 like settings.set — distinct from the projects.write
+        // registry writes above.
+        let p = policy_for("ship.ops.v1.SpaceService/SetSetting")
+            .expect("SpaceService/SetSetting must carry a policy in the descriptor");
+        assert_eq!(p.capability, "ship.settings.write");
+        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C1Workspace);
     }
 }

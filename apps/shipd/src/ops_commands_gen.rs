@@ -797,6 +797,24 @@ impl ::ship_ops_rpc::CommandOpsService for OpsImpl {
             Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
         }
     }
+    async fn space_setting_set(
+        &self,
+        ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSpaceSettingSetRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::SettingValue> {
+        let auth = ctx.extensions.get::<crate::auth::AuthContext>().ok_or_else(|| ::connectrpc::ConnectError::unauthenticated("auth context required"))?;
+        let mut args = ::serde_json::Map::new();
+        args.insert("key".to_string(), ::serde_json::json!(req.key));
+        args.insert("value_json".to_string(), ::serde_json::json!(req.value_json));
+        let cmd_ctx = crate::services::command::CommandCtx { state: &self.state, auth };
+        match crate::services::command::call("space.setting.set", &::serde_json::Value::Object(args), &cmd_ctx).await {
+            Ok(value) => {
+                let msg = ::serde_json::from_value::<::ship_ops_rpc::SettingValue>(value).map_err(|e| ::connectrpc::ConnectError::internal(format!("decode space.setting.set response: {e}")))?;
+                Ok(::connectrpc::Response::new(msg))
+            }
+            Err(e) => Err(crate::ops_rpc::command_error_to_connect(e)),
+        }
+    }
     async fn project_add(
         &self,
         ctx: ::connectrpc::RequestContext,

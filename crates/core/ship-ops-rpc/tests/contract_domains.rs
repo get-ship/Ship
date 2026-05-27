@@ -191,6 +191,16 @@ fn space_info_parses_identity_and_settings() {
 }
 
 #[test]
+fn space_set_setting_parses_key_and_value() {
+    // Per-space override write (#129) returns the typed SettingValue — the same
+    // shape as settings.set; the typed return needs a fixture sample.
+    let r: SettingValue =
+        serde_json::from_str(&response_ok(SPACE, "SetSetting")).expect("parse SettingValue");
+    assert_eq!(r.key, "theme");
+    assert_eq!(r.value_json, "\"dark\"");
+}
+
+#[test]
 fn space_active_parses_id() {
     let r: WorkspaceActiveResponse =
         serde_json::from_str(&response_ok(SPACE, "Active")).expect("parse WorkspaceActiveResponse");

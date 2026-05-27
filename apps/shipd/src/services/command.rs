@@ -32,6 +32,7 @@ mod skills;
 mod pipeline;
 mod project;
 mod rules;
+mod space;
 mod surfaces;
 mod views;
 
@@ -148,6 +149,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = project::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = space::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = rules::try_dispatch(name, args, ctx).await? {

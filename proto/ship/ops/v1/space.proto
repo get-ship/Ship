@@ -33,6 +33,15 @@ message ActivateSpaceRequest {
 
 message SpaceInfoRequest {}
 
+// Per-space settings override write (#129). Distinct name from settings.proto's
+// SetSettingRequest — same package, two definitions would collide. The space
+// is resolved from the caller's per-connection emit context, not an arg.
+message SetSpaceSettingRequest {
+  string key = 1;
+  // JSON-serialized value (arbitrary — a setting value can be any JSON type).
+  string value_json = 2;
+}
+
 // The active space's identity + config snapshot — what a space window reads to
 // bootstrap. `settings_json` is the `settings.state` snapshot (daemon-global
 // today; per-space settings layering lands later and flows through this same
@@ -72,6 +81,14 @@ service SpaceService {
   rpc Activate(ActivateSpaceRequest) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Switch the daemon's active space.";
     option (ship.ops.v1.capability) = "ship.projects.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  // Per-space settings override (#129). Event-sourced overlay layered over the
+  // global daemon settings by Info; the space is the caller's per-connection
+  // space. Routes through the one gate (services::command::call → space.setting.set).
+  rpc SetSetting(SetSpaceSettingRequest) returns (SettingValue) {
+    option (ship.ops.v1.description) = "Set a per-space settings override (value is arbitrary JSON).";
+    option (ship.ops.v1.capability) = "ship.settings.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
   // Live (streaming) variants of the C0 reads — fold of the retired

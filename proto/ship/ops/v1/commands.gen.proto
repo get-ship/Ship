@@ -183,6 +183,10 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.settings.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc SpaceSettingSet(SpaceSettingSetRequest) returns (SettingValue) {
+    option (ship.ops.v1.capability) = "ship.settings.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
   rpc ProjectAdd(ProjectAddRequest) returns (ProjectRecord) {
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
@@ -554,6 +558,11 @@ message PipelinesDeleteRequest {
 }
 
 message SettingsSetRequest {
+  string key = 1;
+  string value_json = 2;
+}
+
+message SpaceSettingSetRequest {
   string key = 1;
   string value_json = 2;
 }

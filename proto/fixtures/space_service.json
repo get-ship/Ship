@@ -20,5 +20,11 @@
       "name": "Harbor",
       "settings_json": "{\"theme\":\"dark\"}"
     }
+  },
+  "SetSetting": {
+    "response_ok": {
+      "key": "theme",
+      "value_json": "\"dark\""
+    }
   }
 }
