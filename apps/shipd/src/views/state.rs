@@ -192,7 +192,10 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
     let mut walker = std::env::current_dir().ok();
     let mut project_local = None;
     while let Some(d) = walker.as_ref() {
-        let cand = ship_substrate::ShipHome::project_ship_dir(d).join("pipelines");
+        let ship = ship_substrate::ShipHome::project_ship_dir(d);
+        // Composed overlay (local + dep pipelines) when the space has deps; raw
+        // `.ship/` otherwise — so dep pipelines list, not just load.
+        let cand = ship_platform::registry::compose::composed_root_for(&ship).join("pipelines");
         if cand.is_dir() {
             project_local = Some(cand);
             break;
