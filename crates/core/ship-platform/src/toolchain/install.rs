@@ -206,7 +206,9 @@ pub(crate) fn discover_esbuild() -> Option<PathBuf> {
     candidates.pop()
 }
 
-fn walk_for_target_binary(name: &str) -> Result<PathBuf, String> {
+/// `pub(crate)` so the bundler's dev fallback for locating sui-compiler reuses
+/// the one target/ discovery path.
+pub(crate) fn walk_for_target_binary(name: &str) -> Result<PathBuf, String> {
     let cwd = std::env::current_dir().map_err(|e| format!("cwd: {e}"))?;
     let mut cur = cwd.as_path();
     let mut topmost: Option<PathBuf> = None;
