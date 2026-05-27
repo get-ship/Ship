@@ -155,8 +155,10 @@ fn esbuild_platform() -> Option<&'static str> {
 
 /// Walk up from cwd to the topmost Cargo workspace, then probe node_modules for
 /// the platform-specific esbuild Go binary in both the npm-hoisted and the bun
-/// (`.bun/@esbuild+<platform>@<ver>/`) layouts. Best-effort.
-fn discover_esbuild() -> Option<PathBuf> {
+/// (`.bun/@esbuild+<platform>@<ver>/`) layouts. Best-effort. `pub(crate)` so the
+/// bundler's dev fallback (`bundler::esbuild::locate_esbuild_binary`) reuses the
+/// one discovery path rather than duplicating it.
+pub(crate) fn discover_esbuild() -> Option<PathBuf> {
     let platform = esbuild_platform()?;
     let bin = if cfg!(windows) { "esbuild.exe" } else { "esbuild" };
     let cwd = std::env::current_dir().ok()?;
