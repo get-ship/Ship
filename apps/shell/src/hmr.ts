@@ -13,7 +13,7 @@
 // HMR is a Deck host concern, not a SUI-runtime one; the shell and the
 // third-party view host share the same Deck client for the dev path.
 //
-// Bundler target shape (see crates/core/ship-platform/src/bundler/targets.rs):
+// Bundler target shape (see crates/deck/deck-bundler/src/targets.rs):
 //   views/<name>/view      → one bundle per views/<name>/page.sui
 //   sui-components/<name>  → separate-bundle component
 //   sui-runtime, sui-dom, sui-components, …

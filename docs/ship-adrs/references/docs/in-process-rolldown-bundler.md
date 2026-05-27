@@ -50,8 +50,9 @@ oxc uses `if let` guards, stabilized between our pin (1.93.1) and current stable
 
 ## Decision
 
-The daemon bundles **in-process via Rolldown**, embedded in `ship-platform`
-(`crates/core/ship-platform/src/bundler/`):
+The daemon bundles **in-process via Rolldown**. The bundler is a deck crate
+(`crates/deck/deck-bundler/`, #167 — deck is the framework and owns serve +
+bundle; it originally landed in `ship-platform` and was moved):
 
 - A native Rust Rolldown `Plugin` (`rolldown_bundle.rs`): `resolve_id`
   externalizes the framework singletons, redirects `.compiled.js` siblings, and

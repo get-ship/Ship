@@ -52,7 +52,7 @@ Entry: `packages/deck/build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The ru
 
 Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/components/ui-components/` (writes `crates/deck/deck-core/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
 
-**Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. **Since #163 the daemon bundles IN-PROCESS via Rolldown** (`crates/core/ship-platform/src/bundler/` — a Rust Rolldown plugin that compiles `.sui` via `sui-compiler` in its `load` hook; no bun worker, no subprocess). The former `packages/deck/bundler/index.ts` Bun worker the daemon spawned is retired. Both pipelines still target the same on-disk asset trees the release binary `include_str!`s. See `docs/ship-architecture/references/docs/toolchain.md`.
+**Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. **The daemon bundles IN-PROCESS via Rolldown** (`crates/deck/deck-bundler/` — deck owns bundling per #167; a Rust Rolldown plugin compiles `.sui` via `sui-compiler` in its `load` hook; no bun worker, no subprocess). The former `packages/deck/bundler/index.ts` Bun worker the daemon spawned is retired. Both pipelines still target the same on-disk asset trees the release binary `include_str!`s. See `docs/ship-architecture/references/docs/toolchain.md`.
 
 ## `sui-lsp` — the language server
 
@@ -186,7 +186,7 @@ just dev                              # daemon (in-process Rolldown bundler)
 #  → mount() re-runs in place; SSR snapshot stays, no full reload
 ```
 
-`just dev` starts only the daemon (`scripts/dev/start.sh`); bundling + watching happen IN-PROCESS (`crates/core/ship-platform/src/bundler/`, `Bundler::start_watching`) — no spawned worker. To hit the daemon through the outer shell, run `just shell-dev` in a second terminal — it proxies `/api`, `/_sui`, `^/sui/.*`, and `/view-host` to the daemon.
+`just dev` starts only the daemon (`scripts/dev/start.sh`); bundling + watching happen IN-PROCESS (`crates/deck/deck-bundler/`, `Bundler::start_watching`) — no spawned worker. To hit the daemon through the outer shell, run `just shell-dev` in a second terminal — it proxies `/api`, `/_sui`, `^/sui/.*`, and `/view-host` to the daemon.
 
 For a clean dev restart use `just dev-restart`. Visual regressions: `just visual` (Playwright vs committed PNGs; pass `--update-snapshots` to refresh after a deliberate change). Perf regressions: `just bench-check` (fails on >15% vs the latest committed baseline; override via `BENCH_REGRESSION_THRESHOLD`).
 

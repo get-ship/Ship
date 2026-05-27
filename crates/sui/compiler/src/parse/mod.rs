@@ -84,7 +84,7 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
                 }
                 // Top-level `<bundle separate />` is a bundler hint (read by
                 // the bundler's `discover_separate_bundles` in
-                // crates/core/ship-platform/src/bundler/targets.rs to opt the
+                // crates/deck/deck-bundler/src/targets.rs to opt the
                 // component into its own code-split bundle). The compiler lifts
                 // it out so it never reaches the template emit path.
                 "bundle" => {

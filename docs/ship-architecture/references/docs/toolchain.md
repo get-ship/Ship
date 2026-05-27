@@ -24,7 +24,8 @@ constructs paths under the runtime dir directly.
 
 ## How bundling works now
 
-The daemon's `Bundler` (`crates/core/ship-platform/src/bundler/`) is in-process:
+The daemon's `Bundler` (`crates/deck/deck-bundler/`, #167 — deck owns bundling)
+is in-process:
 
 - **Engine:** Rolldown (oxc-based, Rust-native), embedded in `ship-platform`.
   Requires the pinned toolchain to be Rust **1.95+** (oxc uses `if let` guards,
@@ -88,7 +89,7 @@ build:bundles` both call it. There is one bundle-target definition
 
 ## See also
 
-- `crates/core/ship-platform/src/bundler/` — the in-process Rolldown bundler.
+- `crates/deck/deck-bundler/` — the in-process Rolldown bundler (deck owns it).
 - `crates/core/ship-platform/src/toolchain/` — runtime-dir install/ensure.
 - `docs/ship-adrs/references/docs/in-process-rolldown-bundler.md` — the ADR
   (decision + alternatives + consequences).

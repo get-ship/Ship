@@ -2,7 +2,7 @@ use crate::{DaemonMode, DeckResponse};
 
 // Per-tag island bundles are served by file existence under
 // `assets/sui-components/`. The in-process Rolldown bundler
-// (`crates/core/ship-platform/src/bundler/`, baked via `cargo xtask
+// (`crates/deck/deck-bundler/src/`, baked via `cargo xtask
 // build-assets`) is the source of truth for what lands there. The previous
 // hand-maintained `is_known_island` allowlist was retired alongside
 // the workspace-catalog cut-over — origin metadata in

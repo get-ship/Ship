@@ -33,7 +33,7 @@ const SUI_BUNDLES: ReadonlyArray<{ name: string; from: string }> = [
   // contained 80+ tags the marketing pages never instantiate. If a new
   // tag is added to apps/site/src, append it to the `sui-marketing`
   // bundle target's MARKETING_SOURCES in
-  // `crates/core/ship-platform/src/bundler/targets.rs`. It builds to `.deck/`.
+  // `crates/deck/deck-bundler/src/targets.rs`. It builds to `.deck/`.
   { name: 'sui-marketing.js', from: DECK_OUT_DIR },
 ] as const;
 
