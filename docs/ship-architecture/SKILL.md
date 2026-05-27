@@ -63,7 +63,7 @@ Platform primitives — the domain services on top of substrate state. Owns:
 
 ### ship-application (L2)
 
-Application layer — built-in apps consuming the same SDK as L3. Owns `bundler/` (view bundler worker supervisor), `toolchain/` (Node toolchain management), and `project/`.
+Application layer — built-in apps consuming the same SDK as L3. Owns `bundler/` (in-process Rolldown bundler, #163), `toolchain/` (`sui-compiler` runtime-dir management), and `project/`.
 
 ### ship-pipelines
 

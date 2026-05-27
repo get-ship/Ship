@@ -1,9 +1,9 @@
 //! Bundle target resolution for the Rust bundler (#163).
 //!
-//! Faithful port of the Bun worker's `TARGETS` + `discoverSeparateBundles` +
-//! `discoverViewBundles` + `assetsDirFor`. A `BundleTarget` names what to build,
-//! where its entry is, what stays external, and where the output lands. The
-//! build loop (compile → esbuild) iterates these; nothing here touches the
+//! `TARGETS` + `discoverSeparateBundles` + `discoverViewBundles` +
+//! `assetsDirFor` for the bundler. A `BundleTarget` names what to build, where
+//! its entry is, what stays external, and where the output lands. The Rolldown
+//! build (`rolldown_bundle.rs`) iterates these; nothing here touches the
 //! filesystem beyond discovery reads.
 
 use std::collections::HashSet;

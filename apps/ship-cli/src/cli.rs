@@ -359,7 +359,7 @@ pub enum Commands {
         dry_run: bool,
     },
 
-    /// Manage the bundled JS toolchain at ~/.ship/runtime/ (Bun + sui-compiler + bundler.ts)
+    /// Manage the toolchain at ~/.ship/runtime/ (the sui-compiler binary; #163 retired bun)
     Runtime {
         #[command(subcommand)]
         action: RuntimeCommands,

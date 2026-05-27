@@ -1,11 +1,11 @@
-//! sui-compiler integration for the Rust bundler (#163, two-phase model).
+//! sui-compiler integration for the Rust bundler (#163).
 //!
-//! Phase 1 of the two-phase bundle: compile a `.sui` source to `.js` on disk
-//! via the sui-compiler binary, so phase 2 (`bundler::esbuild`) bundles
-//! already-compiled entries with NO plugin — the only model compatible with the
-//! esbuild Go binary. Mirrors the Bun worker's `compileSuiFile`
-//! (`sui-compiler build <file> --out <dir> [--component-name <stem>]`) but
-//! writes to a caller-owned dir instead of feeding `Bun.build` inline.
+//! Compiles a `.sui` source to `.js` on disk via the sui-compiler binary. This
+//! is invoked inline from the Rolldown plugin's `load` hook
+//! (`rolldown_bundle.rs`) — Rolldown resolves the module graph and calls back
+//! here to materialize each `.sui` as JS, so there is no separate bundle phase.
+//! Runs `sui-compiler build <file> --out <dir> [--component-name <stem>]` and
+//! writes to a caller-owned dir.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
