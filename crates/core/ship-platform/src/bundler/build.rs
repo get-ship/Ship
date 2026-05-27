@@ -174,9 +174,77 @@ fn compile_one(
         path: out_dir.clone(),
         source,
     })?;
-    compile_sui(compiler_bin, sui, &out_dir, mode, &stem)
+    let js_path = compile_sui(compiler_bin, sui, &out_dir, mode, &stem)
         .map(|r| r.js_path)
-        .map_err(|source| BuildError::Compile { target: target.name.clone(), source })
+        .map_err(|source| BuildError::Compile { target: target.name.clone(), source })?;
+
+    // The compiler emits the controller as a SIBLING relative import
+    // (`from "./<stem>.controller.ts"`), assuming output sits next to source.
+    // Output lives in staging, so rewrite relative specifiers to absolute paths
+    // anchored at the real source dir — esbuild then resolves the controller
+    // (and its own relative deps, from their real location) with no plugin.
+    let source_dir = sui.parent().unwrap_or(&layout.repo_root);
+    let js = std::fs::read_to_string(&js_path).map_err(|source| BuildError::Io {
+        target: target.name.clone(),
+        path: js_path.clone(),
+        source,
+    })?;
+    let rewritten = rewrite_relative_imports(&js, source_dir);
+    std::fs::write(&js_path, rewritten).map_err(|source| BuildError::Io {
+        target: target.name.clone(),
+        path: js_path.clone(),
+        source,
+    })?;
+    Ok(js_path)
+}
+
+/// Rewrite relative `from "./x"` / `from "../x"` specifiers to absolute paths
+/// resolved against `source_dir`. The compiler only emits double-quoted `from`
+/// specifiers (the controller import + the externalized `@ship/*`), so this
+/// covers the surface; bare/`@`-prefixed specifiers pass through unchanged.
+fn rewrite_relative_imports(js: &str, source_dir: &Path) -> String {
+    const NEEDLE: &str = "from \"";
+    let mut out = String::with_capacity(js.len());
+    let mut rest = js;
+    while let Some(pos) = rest.find(NEEDLE) {
+        let spec_start = pos + NEEDLE.len();
+        out.push_str(&rest[..spec_start]); // up to + including the opening quote
+        let after = &rest[spec_start..];
+        match after.find('"') {
+            Some(close) => {
+                let spec = &after[..close];
+                if spec.starts_with("./") || spec.starts_with("../") {
+                    let abs = normalize_path(&source_dir.join(spec));
+                    out.push_str(&abs.to_string_lossy());
+                } else {
+                    out.push_str(spec);
+                }
+                out.push('"');
+                rest = &after[close + 1..];
+            }
+            None => {
+                out.push_str(after);
+                return out;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Lexically normalize `.`/`..` in a path (no filesystem access).
+fn normalize_path(p: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for c in p.components() {
+        match c {
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
+            std::path::Component::CurDir => {}
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
 }
 
 fn target_sources(target: &BundleTarget) -> Vec<String> {

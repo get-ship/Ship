@@ -67,25 +67,36 @@ pub struct BundleTarget {
 pub struct BundleLayout {
     pub repo_root: PathBuf,
     pub source_roots: Vec<PathBuf>,
+    /// Base dir output paths are computed under (the `crates/.../assets`, `.deck`,
+    /// `apps/shipd/assets` subtrees hang off this). Defaults to `repo_root`;
+    /// redirect for tests / out-of-tree builds so output never clobbers
+    /// committed assets.
+    pub out_root: PathBuf,
 }
 
 impl BundleLayout {
     pub fn new(repo_root: PathBuf, workspace_root: Option<PathBuf>) -> Self {
-        let source_roots = match workspace_root {
-            Some(ws) if ws != repo_root => vec![repo_root.clone(), ws],
+        let source_roots = match &workspace_root {
+            Some(ws) if *ws != repo_root => vec![repo_root.clone(), ws.clone()],
             _ => vec![repo_root.clone()],
         };
-        Self { repo_root, source_roots }
+        Self { out_root: repo_root.clone(), repo_root, source_roots }
+    }
+
+    /// Redirect output under `out_root` (sources still resolve from `repo_root`).
+    pub fn with_out_root(mut self, out_root: PathBuf) -> Self {
+        self.out_root = out_root;
+        self
     }
 
     fn deck_own_assets(&self) -> PathBuf {
-        self.repo_root.join("crates/deck/deck-core/assets")
+        self.out_root.join("crates/deck/deck-core/assets")
     }
     fn deck_out(&self) -> PathBuf {
-        self.repo_root.join(".deck")
+        self.out_root.join(".deck")
     }
     fn lit_assets(&self) -> PathBuf {
-        self.repo_root.join("apps/shipd/assets")
+        self.out_root.join("apps/shipd/assets")
     }
 
     /// Output dir for a target by name. Deck-own bundles → the crate's assets;
