@@ -8,7 +8,7 @@ import { githubRoutes } from './routes/github.js';
 import { registryRoutes } from './routes/registry.js';
 import { opsRoutes } from './routes/ops.js';
 import { waitlistRoutes } from './routes/waitlist.js';
-import { connectAuthHandler } from './lib/connect-router.js';
+import { connectRpcHandler } from './lib/connect-router.js';
 
 const CORS_ORIGINS = [
   'http://localhost:3000',
@@ -42,7 +42,10 @@ const app = new Hono<{ Bindings: Env; Variables: { projectId: string; userId: st
   // daemon-attest, and identity (replaces the equivalent REST handlers).
   // Convention: `/<package>.<Service>/<Method>`. Versioning lives in the
   // proto package, hence no /v1/ prefix on these paths.
-  .all('/ship.gateway.v1.AuthService/*', (c) => connectAuthHandler(c.req.raw, c.env))
+  .all('/ship.gateway.v1.AuthService/*', (c) => connectRpcHandler(c.req.raw, c.env))
+  // Connect-RPC RegistryService — signed-bundle distribution (resolve / fetch /
+  // publish). Same handler; routes by Connect path.
+  .all('/ship.gateway.v1.RegistryService/*', (c) => connectRpcHandler(c.req.raw, c.env))
   // Auth, GitHub, registry routes (no x-project-id middleware) — paths declared
   // inside the route modules using absolute /v1/... prefixes. authRoutes here
   // still owns Better Auth catch-all + CLI redirects + JWKS — non-RPC shapes.

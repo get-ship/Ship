@@ -79,9 +79,10 @@ const mockEnv = { SHIP_ATTESTATION_ISSUER: 'https://getship.dev' } as unknown as
 // /ship.gateway.v1.AuthService/* route reaches the Connect handler.
 async function makeApp() {
   const { Hono } = await import('hono')
-  const { connectAuthHandler } = await import('../src/lib/connect-router.js')
+  const { connectRpcHandler } = await import('../src/lib/connect-router.js')
   const app = new Hono<{ Bindings: Env }>()
-  app.all('/ship.gateway.v1.AuthService/*', (c) => connectAuthHandler(c.req.raw, c.env))
+  app.all('/ship.gateway.v1.AuthService/*', (c) => connectRpcHandler(c.req.raw, c.env))
+  app.all('/ship.gateway.v1.RegistryService/*', (c) => connectRpcHandler(c.req.raw, c.env))
   return app
 }
 
