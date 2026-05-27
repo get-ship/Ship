@@ -54,7 +54,7 @@ pub fn locate_sui_compiler(home: &ShipHome) -> Option<PathBuf> {
     if installed.exists() {
         return Some(installed);
     }
-    crate::toolchain::install::walk_for_target_binary("sui-compiler").ok()
+    ship_substrate::locate::walk_for_target_binary("sui-compiler").ok()
 }
 
 /// Compile one `.sui` to `<out_dir>/<stem>.js`. The emitted module imports its

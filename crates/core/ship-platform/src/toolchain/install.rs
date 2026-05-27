@@ -64,38 +64,8 @@ fn locate_sui_compiler(explicit: Option<&Path>) -> Result<PathBuf, InstallError>
         }
         return Ok(p.to_path_buf());
     }
-    walk_for_target_binary("sui-compiler").map_err(InstallError::MissingSuiCompiler)
-}
-
-/// Walk up from cwd to the topmost Cargo workspace, then return the freshest
-/// `target/{release,debug}/<name>`. `pub(crate)` so the bundler's compiler
-/// locator (`bundler::compile::locate_sui_compiler`) reuses the one path.
-pub(crate) fn walk_for_target_binary(name: &str) -> Result<PathBuf, String> {
-    let cwd = std::env::current_dir().map_err(|e| format!("cwd: {e}"))?;
-    let mut cur = cwd.as_path();
-    let mut topmost: Option<PathBuf> = None;
-    for _ in 0..16 {
-        if cur.join("Cargo.toml").exists() {
-            topmost = Some(cur.to_path_buf());
-        }
-        match cur.parent() {
-            Some(p) => cur = p,
-            None => break,
-        }
-    }
-    let root = topmost.ok_or_else(|| "no Cargo workspace found above cwd".to_string())?;
-    let release = root.join("target").join("release").join(name);
-    if release.exists() {
-        return Ok(release);
-    }
-    let debug = root.join("target").join("debug").join(name);
-    if debug.exists() {
-        return Ok(debug);
-    }
-    Err(format!(
-        "neither {}/target/release/{name} nor target/debug/{name} found",
-        root.display()
-    ))
+    ship_substrate::locate::walk_for_target_binary("sui-compiler")
+        .map_err(InstallError::MissingSuiCompiler)
 }
 
 fn wipe(dir: &Path) -> Result<(), InstallError> {
