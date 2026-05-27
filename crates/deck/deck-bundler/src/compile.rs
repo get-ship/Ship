@@ -139,7 +139,7 @@ mod tests {
     use tempfile::tempdir;
 
     fn compiler_bin() -> PathBuf {
-        crate::toolchain::install::walk_for_target_binary("sui-compiler")
+        ship_substrate::locate::walk_for_target_binary("sui-compiler")
             .expect("sui-compiler must be built for tests — `cargo build -p sui-compiler`")
     }
 

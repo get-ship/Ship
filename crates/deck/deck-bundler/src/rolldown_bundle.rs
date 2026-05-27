@@ -253,7 +253,7 @@ mod tests {
     }
 
     fn compiler() -> PathBuf {
-        crate::toolchain::install::walk_for_target_binary("sui-compiler")
+        ship_substrate::locate::walk_for_target_binary("sui-compiler")
             .expect("sui-compiler built")
     }
 
