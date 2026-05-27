@@ -75,9 +75,20 @@ pub async fn serve_sui_view_template(
 
 pub async fn serve_sui_view_setup(
     mode: Option<Extension<DaemonMode>>,
+    bundler: Option<Extension<deck_bundler::Bundler>>,
     Path(name): Path<String>,
     Query(q): Query<ViewSetupQuery>,
 ) -> Response {
+    // Deck owns bundling (#167). If the view bundle isn't on disk yet, build it
+    // in-process via Rolldown — the controller is inlined natively, no bun. The
+    // daemon's watcher keeps `.deck` warm afterward; this covers the cold miss.
+    let no_sub = q.sub.as_deref().filter(|s| !s.is_empty()).is_none();
+    if no_sub
+        && deck_core::resolve_view_js(&name).is_none()
+        && let Some(Extension(b)) = bundler.as_ref()
+    {
+        let _ = b.build(&format!("views/{name}/view")).await;
+    }
     into_axum(deck_core::serve_sui_view_setup(mode_from_ext(mode), &name, q.sub.as_deref()))
 }
 

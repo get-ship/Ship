@@ -1645,6 +1645,7 @@ name = "deck-axum"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "deck-bundler",
  "deck-core",
  "serde",
  "serde_json",

@@ -270,6 +270,10 @@ pub fn build_router(
         // Daemon-mode Extension — Sui handlers read it via
         // `Option<Extension<DaemonMode>>` without router-state plumbing.
         .layer(axum::Extension(daemon_mode))
+        // Bundler Extension (#167) — deck's view.js handler builds an unbuilt
+        // view in-process via Rolldown on a cache miss (controller inlined, no
+        // bun). The same instance the watcher drives.
+        .layer(axum::Extension(rt.bundler().clone()))
         // X-Shipd-Build header on every response: build SHA + dirty flag.
         // CLI/shell/browser read this to detect daemon-vs-client skew.
         .layer(axum::middleware::from_fn(build_header_middleware))

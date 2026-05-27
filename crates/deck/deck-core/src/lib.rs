@@ -9,7 +9,6 @@
 pub mod response;
 
 pub mod assets;
-pub mod bundle;
 pub mod meta;
 pub mod mode_html;
 pub mod packs;
