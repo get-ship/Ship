@@ -12,9 +12,11 @@
 //!
 //! The pid is taken from the connection's `SO_PEERCRED` (the `PeerPid` the
 //! host-socket layer threads into extensions), never from the request body — a
-//! process cannot claim another's pid to the kernel. The space identity is the
-//! daemon's own space (`daemon_space_id`), never client-supplied: a daemon
-//! serves exactly one space.
+//! process cannot claim another's pid to the kernel. The target space MAY be
+//! supplied (one daemon serves many spaces): a window can open onto any
+//! REGISTERED space, validated against the projects projection. Omitting it
+//! falls back to the daemon's home space (`daemon_space_id`). An unregistered
+//! space id is refused — a window can't conjure a space.
 //!
 //! Authority: only the operator's own process may register a space window. Over
 //! the host socket the peer-cred layer resolves the operator to an `is_operator`
@@ -45,6 +47,7 @@ pub async fn register_space_window(
     registry: &SessionRegistry,
     auth: &AuthContext,
     peer_pid: Option<u32>,
+    target_space_id: Option<&str>,
 ) -> Result<RegisterSpaceWindowResponse, (StatusCode, String)> {
     // Only the operator's own process may open a space window.
     if !crate::services::gate::caller_from_auth(auth).is_operator {
@@ -60,11 +63,35 @@ pub async fn register_space_window(
                 .to_string(),
         ));
     };
-    let Some(space_id) = ship_substrate::project::daemon_space_id() else {
-        return Err((
-            StatusCode::CONFLICT,
-            "daemon has no space identity to bind the window to".to_string(),
-        ));
+    // Resolve the target space. A supplied id must be a REGISTERED space (the
+    // window can't conjure one); omitting it binds the daemon's home space.
+    let space_id = match target_space_id {
+        Some(id) => {
+            match ship_platform::projections::projects::get(id) {
+                Ok(Some(_)) => id.to_string(),
+                Ok(None) => {
+                    return Err((
+                        StatusCode::NOT_FOUND,
+                        format!("no registered space `{id}` to bind the window to"),
+                    ));
+                }
+                Err(e) => {
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("space lookup failed: {e}"),
+                    ));
+                }
+            }
+        }
+        None => {
+            let Some(home) = ship_substrate::project::daemon_space_id() else {
+                return Err((
+                    StatusCode::CONFLICT,
+                    "daemon has no space identity to bind the window to".to_string(),
+                ));
+            };
+            home
+        }
     };
 
     let actor_id = ship_substrate::gen_ulid();
@@ -149,11 +176,11 @@ mod tests {
         let registry = empty_registry();
         // Use our own pid so the registered window row reads `live`.
         let pid = std::process::id();
-        let resp = register_space_window(&registry, &operator(), Some(pid))
+        let resp = register_space_window(&registry, &operator(), Some(pid), None)
             .await
             .expect("operator registers a space window");
 
-        assert_eq!(resp.space_id, space);
+        assert_eq!(resp.space_id, space, "no target ⟹ binds the daemon home space");
         // The minted session is in the registry, pid-bound and C2 (never operator).
         let reg = registry.lock().await;
         let session = reg.get(&resp.session_token).expect("session minted");
@@ -174,7 +201,7 @@ mod tests {
     #[tokio::test]
     async fn non_operator_is_refused() {
         let registry = empty_registry();
-        let err = register_space_window(&registry, &agent(), Some(1234))
+        let err = register_space_window(&registry, &agent(), Some(1234), None)
             .await
             .expect_err("agents may not register space windows");
         assert_eq!(err.0, StatusCode::FORBIDDEN);
@@ -183,9 +210,28 @@ mod tests {
     #[tokio::test]
     async fn missing_peer_pid_is_refused() {
         let registry = empty_registry();
-        let err = register_space_window(&registry, &operator(), None)
+        let err = register_space_window(&registry, &operator(), None, None)
             .await
             .expect_err("registration without an attested pid is refused");
         assert_eq!(err.0, StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn unregistered_target_space_is_refused() {
+        let tmp = tempfile::tempdir().unwrap();
+        ship_substrate::testutil::init_project_minimal(tmp.path().to_path_buf()).unwrap();
+        ship_substrate::db::ensure_db().unwrap();
+        let registry = empty_registry();
+        // A target space id that was never registered must be refused — a window
+        // can't conjure a space.
+        let err = register_space_window(
+            &registry,
+            &operator(),
+            Some(std::process::id()),
+            Some("space-does-not-exist"),
+        )
+        .await
+        .expect_err("an unregistered target space is refused");
+        assert_eq!(err.0, StatusCode::NOT_FOUND);
     }
 }

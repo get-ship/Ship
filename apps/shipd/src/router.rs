@@ -267,12 +267,16 @@ pub fn build_router(
         .route("/api/space-window/register", axum::routing::post(move |
             auth_ext: axum::Extension<auth::AuthContext>,
             peer_pid: Option<axum::Extension<auth::peer_socket::PeerPid>>,
+            query: axum::extract::Query<std::collections::HashMap<String, String>>,
         | {
             let reg = space_window_registry.clone();
             async move {
                 use axum::response::IntoResponse;
                 let pid = peer_pid.and_then(|p| (p.0).0);
-                match auth::space_window::register_space_window(&reg, &auth_ext.0, pid).await {
+                // Optional `?space_id=` targets a specific registered space;
+                // omitted ⟹ the daemon's home space.
+                let target = query.get("space_id").map(String::as_str);
+                match auth::space_window::register_space_window(&reg, &auth_ext.0, pid, target).await {
                     Ok(resp) => axum::Json(resp).into_response(),
                     Err((status, msg)) => (status, msg).into_response(),
                 }
