@@ -94,6 +94,14 @@ pub fn compute_file_hash(path: &Path) -> anyhow::Result<String> {
     Ok(format!("sha256:{}", hex::encode_sha256(&content)))
 }
 
+/// `"sha256:<lowercase-hex>"` over in-memory bytes — the integrity hash of a
+/// downloaded bundle tarball (the transport artifact a bundle attestation
+/// binds). Same encoding as [`compute_file_hash`], computed on bytes already
+/// in memory (e.g. a fetched CDN response).
+pub fn content_hash_bytes(bytes: &[u8]) -> String {
+    format!("sha256:{}", hex::encode_sha256(bytes))
+}
+
 /// Per-export content hashes and a combined top-level hash.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExportHashes {

@@ -131,6 +131,25 @@ pub fn verify_bundle_attestation(
     Ok(claim)
 }
 
+/// Verify a downloaded bundle tarball against its attestation — the daemon's
+/// trust gate before a fetched bundle enters the cache.
+///
+/// The attestation binds the **transport artifact** (the tarball bytes,
+/// npm-style integrity), so this recomputes the content hash from the *actual
+/// bytes received* and requires the attestation to match. A registry/CDN that
+/// swaps or corrupts the bytes can't produce a matching publisher signature, so
+/// tampering surfaces as `HashMismatch` (bytes changed) or `SignatureInvalid`
+/// (forged attestation). The caller downloads from the gateway's signed
+/// `download_url`, then calls this BEFORE trusting or caching the bytes.
+pub fn verify_downloaded_bundle(
+    bytes: &[u8],
+    attestation_jwt: &str,
+    trusted_keys: &[TrustedKey],
+) -> Result<BundleClaim, BundleVerifyError> {
+    let computed = crate::registry::hash::content_hash_bytes(bytes);
+    verify_bundle_attestation(&computed, attestation_jwt, trusted_keys)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,5 +240,36 @@ mod tests {
 
         let err = verify_bundle_attestation(&hash, &jwt, &trusted()).unwrap_err();
         assert_eq!(err, BundleVerifyError::UntrustedKey);
+    }
+
+    #[test]
+    fn downloaded_bundle_verifies_against_its_bytes() {
+        // The attestation is signed over the hash of the ACTUAL bytes — the
+        // daemon recomputes from what it received and the binding holds.
+        let bytes = b"a pretend bundle tarball's bytes";
+        let hash = crate::registry::hash::content_hash_bytes(bytes);
+        let claim = sample_claim(hash.trim_start_matches("sha256:"));
+        // sample_claim stores the bare hex; verify recomputes the `sha256:` form
+        // — keep the claim's sha256 in the same shape as content_hash_bytes.
+        let claim = BundleClaim { sha256: hash.clone(), ..claim };
+        let jwt = sign(&claim, TEST_PRIV_PEM, TEST_KID);
+
+        let verified =
+            verify_downloaded_bundle(bytes, &jwt, &trusted()).expect("downloaded bundle verifies");
+        assert_eq!(verified.sha256, hash);
+    }
+
+    #[test]
+    fn downloaded_bundle_tampered_bytes_rejected() {
+        // Attestation signed over the original bytes; the daemon receives
+        // DIFFERENT bytes (a swap/corruption) → the recomputed hash won't match.
+        let original = b"the genuine bundle bytes";
+        let hash = crate::registry::hash::content_hash_bytes(original);
+        let claim = BundleClaim { sha256: hash, ..sample_claim("") };
+        let jwt = sign(&claim, TEST_PRIV_PEM, TEST_KID);
+
+        let tampered = b"swapped malicious bytes";
+        let err = verify_downloaded_bundle(tampered, &jwt, &trusted()).unwrap_err();
+        assert_eq!(err, BundleVerifyError::HashMismatch);
     }
 }
