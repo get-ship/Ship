@@ -150,6 +150,42 @@ pub fn verify_downloaded_bundle(
     verify_bundle_attestation(&computed, attestation_jwt, trusted_keys)
 }
 
+/// Map a JWKS document to the trusted bundle-publisher key set.
+///
+/// Parses `{ "keys": [ { "kty": "OKP", "crv": "Ed25519", "x": "...", "kid":
+/// "..." } ] }` and keeps only Ed25519 keys carrying a `kid`. The daemon
+/// assembles its full trust anchor as the baked-in first-party key
+/// ([`FIRST_PARTY_KID`]) UNION the publisher keys this returns (fetched from the
+/// gateway JWKS, the same source `auth::attest` uses). Malformed JWKS → empty.
+pub fn trusted_keys_from_jwks(jwks_json: &str) -> Vec<TrustedKey> {
+    #[derive(serde::Deserialize)]
+    struct Jwk {
+        kid: Option<String>,
+        kty: Option<String>,
+        crv: Option<String>,
+        x: Option<String>,
+    }
+    #[derive(serde::Deserialize)]
+    struct Jwks {
+        #[serde(default)]
+        keys: Vec<Jwk>,
+    }
+    let Ok(parsed) = serde_json::from_str::<Jwks>(jwks_json) else {
+        return Vec::new();
+    };
+    parsed
+        .keys
+        .into_iter()
+        .filter_map(|k| {
+            let is_ed = k.kty.as_deref() == Some("OKP") && k.crv.as_deref() == Some("Ed25519");
+            match (is_ed, k.kid, k.x) {
+                (true, Some(kid), Some(x)) => Some(TrustedKey { kid, x_base64url: x }),
+                _ => None,
+            }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -240,6 +276,31 @@ mod tests {
 
         let err = verify_bundle_attestation(&hash, &jwt, &trusted()).unwrap_err();
         assert_eq!(err, BundleVerifyError::UntrustedKey);
+    }
+
+    #[test]
+    fn jwks_maps_ed25519_keys_and_skips_others() {
+        let jwks = format!(
+            r#"{{"keys":[
+                {{"kty":"OKP","crv":"Ed25519","kid":"{TEST_KID}","x":"{TEST_PUB_X}"}},
+                {{"kty":"RSA","kid":"rsa-1","n":"...","e":"AQAB"}},
+                {{"kty":"OKP","crv":"X25519","kid":"x-1","x":"abc"}}
+            ]}}"#
+        );
+        let keys = trusted_keys_from_jwks(&jwks);
+        assert_eq!(keys.len(), 1, "only the Ed25519 signing key is trusted");
+        assert_eq!(keys[0].kid, TEST_KID);
+        assert_eq!(keys[0].x_base64url, TEST_PUB_X);
+        // And a key from JWKS actually verifies a real attestation.
+        let hash = "e".repeat(64);
+        let jwt = sign(&sample_claim(&hash), TEST_PRIV_PEM, TEST_KID);
+        assert!(verify_bundle_attestation(&hash, &jwt, &keys).is_ok());
+    }
+
+    #[test]
+    fn malformed_jwks_yields_no_keys() {
+        assert!(trusted_keys_from_jwks("not json").is_empty());
+        assert!(trusted_keys_from_jwks(r#"{"keys":[]}"#).is_empty());
     }
 
     #[test]
