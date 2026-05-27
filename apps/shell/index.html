@@ -23,7 +23,12 @@
        into window.__shipMode and the status bar's [mode] attribute. -->
   <meta name="ship-mode" content="development" />
 
-  <link rel="stylesheet" href="/api/assets/view-tokens.css" />
+  <!-- view-tokens.css is daemon-served and its origin is only known at runtime
+       (the discovered loopback port in the proxy-less Tauri webview; same-origin
+       under vite). main.ts injects the <link> against `daemonBase()` so the one
+       code path works in both. Kept off the static document precisely because a
+       root-absolute `/api/...` href resolves to the webview origin (tauri://) in
+       prod, not the daemon — there is no proxy. -->
   <link rel="stylesheet" href="/src/chrome/layout.css" />
 
   <!-- R4: lucide icon table is fetched on demand by <sui-icon> rather

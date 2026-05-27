@@ -84,6 +84,22 @@ function daemonBase(): string {
   return (window as WindowWithSui).__SHIP_DAEMON_URL__?.replace(/\/$/, '') ?? ''
 }
 
+// Inject the daemon's design-token stylesheet against the discovered base, as
+// early as module-eval allows. It can't be a static <link> in index.html: the
+// daemon origin is only known at runtime (the loopback port in the proxy-less
+// Tauri webview), and a root-absolute `/api/...` href would resolve to the
+// webview origin there, not the daemon. Same-origin under vite (`daemonBase()`
+// is ''), absolute under Tauri. CSP `style-src` admits the loopback origin.
+function injectTokenStyles(): void {
+  if (document.querySelector('link[data-ship-view-tokens]')) return
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.href = `${daemonBase()}/api/assets/view-tokens.css`
+  link.setAttribute('data-ship-view-tokens', '')
+  document.head.appendChild(link)
+}
+injectTokenStyles()
+
 // Single SDK client instance, shared across every mounted view.
 const shipClient: ShipSDK = createClient({ baseUrl: daemonBase() })
 
