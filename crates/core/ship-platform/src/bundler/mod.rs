@@ -7,6 +7,7 @@
 pub mod compile;
 pub mod esbuild;
 pub mod proto;
+pub mod targets;
 pub mod worker;
 
 use std::path::PathBuf;
