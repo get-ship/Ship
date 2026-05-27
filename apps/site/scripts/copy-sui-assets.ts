@@ -32,7 +32,8 @@ const SUI_BUNDLES: ReadonlyArray<{ name: string; from: string }> = [
   // The full `sui-components.js` umbrella (~740 KB) was 5× larger and
   // contained 80+ tags the marketing pages never instantiate. If a new
   // tag is added to apps/site/src, append it to the `sui-marketing`
-  // bundle target in `packages/deck/bundler/index.ts`. It builds to `.deck/`.
+  // bundle target's MARKETING_SOURCES in
+  // `crates/core/ship-platform/src/bundler/targets.rs`. It builds to `.deck/`.
   { name: 'sui-marketing.js', from: DECK_OUT_DIR },
 ] as const;
 
@@ -51,7 +52,7 @@ for (const { name, from } of SUI_BUNDLES) {
   if (!existsSync(src)) {
     console.log(
       `[copy-sui-assets] ${name} not found at ${src}. ` +
-      `Run 'bun run packages/deck/bundler/index.ts --all' first.`,
+      `Run 'cargo xtask build-assets' first.`,
     );
     continue;
   }

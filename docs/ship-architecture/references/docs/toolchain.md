@@ -77,10 +77,14 @@ Every `ship_platform::toolchain` error carries a recovery hint in `Display`:
 
 bun is **dev/build-time tooling only**, never shipped:
 - `apps/shell` prod build (`sui-build && bun shell-app.ts`) and dev server (vite).
-- the `@ship/sui-build` CLI (`packages/deck/build`) + `packages/deck/bundler/
-  index.ts --all` for baking the framework assets at CI time. (Porting that bake
-  to `Bundler::build_all` via an xtask is the remaining follow-on to drop bun
-  from the contributor build too.)
+- the `@ship/sui-build` CLI (`packages/deck/build`) and the lucide icon-registry
+  gen (`scripts/codegen/generate-lucide-registry.mjs`).
+
+The framework-asset bake is **not** bun: `cargo xtask build-assets` drives the
+same in-process Rolldown `Bundler::build_all`, writing the framework bundles to
+`crates/deck/deck-core/assets`. `just build` step [6/9] and `npm run
+build:bundles` both call it. There is one bundle-target definition
+(`bundler/targets.rs`) and one engine for both the daemon and the bake.
 
 ## See also
 

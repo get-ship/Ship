@@ -71,18 +71,22 @@ binary.
 ## Consequences
 
 - **bun leaves the deployment bundle.** The shipped daemon + runtime dir are
-  bun-free. bun remains **dev/build-time only** (the `apps/shell` SPA build via
-  `shell-app.ts`, the `@ship/sui-build` CI bundler, and — until ported — CI
-  asset baking via `bundler/index.ts --all`). vite is dev-only (shell HMR) and
-  never ships.
+  bun-free. The CI asset bake also moved off bun: `cargo xtask build-assets`
+  drives the same in-process Rolldown bundler, so `bundler/index.ts` is deleted.
+  bun remains **dev/build-time only** for the `apps/shell` SPA build (via
+  `shell-app.ts`), the `@ship/sui-build` package builds, and the lucide
+  icon-registry gen. vite is dev-only (shell HMR) and never ships.
 - **HMR** for daemon-served surfaces is all-Rust: in-process notify watch →
   `BundlerEvent` → `sui_hmr` SSE (`/_sui/dev/hmr`) → `live-reload.js`.
 - **No subprocess / protocol / supervisor** — a build is an async call.
 - **Toolchain obligation:** the workspace now requires Rust 1.95+. Future oxc
   bumps may move this floor.
-- **Follow-ons:** (1) port the build-time asset bake to `Bundler::build_all`
-  (xtask) so `bundler/index.ts` + build-time bun can be deleted; (2) end-to-end
-  daemon serve + HMR verification (was blocked by a dev-db migration crash).
+- **Follow-on (done):** the build-time asset bake was ported to
+  `cargo xtask build-assets` (calls `Bundler::build_all`), and `bundler/index.ts`
+  (the bun bundler, a parallel SSOT to `targets.rs`) is deleted. The bake and the
+  daemon now share one bundle-target definition and one engine.
+- **Follow-on (open):** end-to-end daemon serve + HMR verification (was blocked
+  by a dev-db migration crash).
 
 Full exploration log: `.artifacts/bundler-seam.md` (working notes; this ADR is
 the durable record).

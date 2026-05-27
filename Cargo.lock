@@ -10972,6 +10972,7 @@ dependencies = [
  "shipd",
  "specta",
  "specta-typescript",
+ "tokio",
 ]
 
 [[package]]

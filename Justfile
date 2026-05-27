@@ -80,10 +80,11 @@ gen-routes:
 build-packs: _sui-compiler-lib
     @bun run --filter './packages/components/*' build
 
-# Runs `packages/deck/bundler/index.ts --all` against the installed bun toolchain.
+# Bakes the framework bundles via the in-process Rolldown bundler (#163) — the
+# same engine shipd runs. No bun; spawns the `sui-compiler` binary built above.
 [group('daily')]
 dev-build-all: _sui-compiler-lib gen-routes build-packs
-    @bun packages/deck/bundler/index.ts --all
+    @cargo xtask build-assets
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
@@ -314,8 +315,8 @@ build: _sui-compiler-lib
     bun run --filter @ship/charts build
     echo "[5/9] ui-components build (sui-build → crates/deck/deck-core/assets/)"
     bun run --filter @ship/ui-components build
-    echo "[6/9] view bundles + sui-* bundles (packages/deck/bundler/index.ts --all)"
-    bun packages/deck/bundler/index.ts --all
+    echo "[6/9] view bundles + sui-* bundles (cargo xtask build-assets — in-process Rolldown)"
+    cargo xtask build-assets
     echo "[7/9] sui-catalog walk (→ .deck/catalogs/{workspace,published}.json)"
     bun run --filter @ship/sui-catalog build
     bun packages/deck/catalog/src/cli.ts

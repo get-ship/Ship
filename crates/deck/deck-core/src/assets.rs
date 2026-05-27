@@ -1,9 +1,9 @@
 use crate::{DaemonMode, DeckResponse};
 
 // Per-tag island bundles are served by file existence under
-// `assets/sui-components/`. The bundler (packages/deck/bundler/index.ts +
-// packages/deck/build via the umbrella's sui.config.ts `lazyOutSubdir`)
-// is the source of truth for what lands there. The previous
+// `assets/sui-components/`. The in-process Rolldown bundler
+// (`crates/core/ship-platform/src/bundler/`, baked via `cargo xtask
+// build-assets`) is the source of truth for what lands there. The previous
 // hand-maintained `is_known_island` allowlist was retired alongside
 // the workspace-catalog cut-over — origin metadata in
 // `.deck/catalogs/workspace.json` makes per-tag gating
@@ -128,7 +128,7 @@ pub fn serve_sui_island(mode: DaemonMode, file: &str) -> DeckResponse {
     let rel = format!("sui-components/{bundle}.js");
     match read_deck_asset(&rel) {
         Some(js) => DeckResponse::js_asset(js, mode),
-        None => DeckResponse::not_found("island bundle missing — run `bun run packages/deck/bundler/index.ts --all`"),
+        None => DeckResponse::not_found("island bundle missing — run `cargo xtask build-assets`"),
     }
 }
 

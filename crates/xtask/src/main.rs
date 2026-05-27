@@ -4,6 +4,7 @@
 //!   cargo xtask gen-types          # regenerate packages/deck/sdk/src/generated.ts
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
 
+mod build_assets;
 mod gen_fixtures;
 mod gen_ops;
 mod gen_skills;
@@ -262,6 +263,12 @@ fn main() {
             let check = args.iter().any(|a| a == "--check");
             gen_types(check);
         }
+        "build-assets" => {
+            if let Err(e) = build_assets::run(&repo_root()) {
+                eprintln!("build-assets failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "gen-sdk" => {
             if let Err(e) = gen_sdk::run(&repo_root()) {
                 eprintln!("gen-sdk failed: {e:#}");
@@ -302,6 +309,7 @@ fn main() {
             eprintln!("Usage: cargo xtask <command>");
             eprintln!();
             eprintln!("Commands:");
+            eprintln!("  build-assets       Bake framework bundles via in-process Rolldown (replaces bun bundler/index.ts --all)");
             eprintln!("  gen-types          Regenerate packages/deck/sdk/src/generated.ts");
             eprintln!("  gen-types --check  Verify generated file is up-to-date (CI)");
             eprintln!("  gen-sdk            Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
