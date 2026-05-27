@@ -33,6 +33,31 @@ export interface ShellBuildOptions {
   outDir?: string
   /** Minify the JS/CSS chunks (default true). */
   minify?: boolean
+  /**
+   * Self-contained ("bundled hub") mode. When true, materialize the entire
+   * `/_sui/*` framework + chrome surface into `<outDir>/_sui/` so the shell
+   * loads its CODE from local disk (CSP `script-src 'self'`) with the daemon
+   * reserved for DATA only — the prod posture for the Tauri hub, which has no
+   * dev-server proxy to forward `/_sui/*` to the daemon. The importmap + IIFE
+   * URLs in `index.html` are unchanged (`/_sui/runtime.js`, etc.); they simply
+   * resolve to these local files now, so the single-runtime guarantee the
+   * importmap provides is preserved byte-for-byte. Default false (externalized,
+   * daemon-served — the dev/vite posture). See `.artifacts/tauri-multi-window-arc.md`.
+   */
+  bundleFramework?: boolean
+  /**
+   * Dir holding deck's baked framework bundles (`sui-runtime.js`, `sui-dom.js`,
+   * `sui-sdk-client.js`, `sui-components.js`, `lucide-icons.json`). Defaults to
+   * `<repoRoot>/crates/deck/deck-core/assets`, discovered by walking up from
+   * `shellRoot`. Only read when `bundleFramework` is true.
+   */
+  frameworkAssetsDir?: string
+  /**
+   * Project deck build output dir holding the per-tag chrome/island bundles
+   * (`sui-components/<tag>.js`). Defaults to `<repoRoot>/.deck`. Only read when
+   * `bundleFramework` is true.
+   */
+  deckOutDir?: string
 }
 
 export interface ShellBuildResult {
@@ -41,6 +66,77 @@ export interface ShellBuildResult {
   cssHref: string
   jsBytes: number
   cssBytes: number
+  /** Count of `/_sui/*` files materialized into `outDir` (0 unless bundled). */
+  frameworkAssets: number
+}
+
+/** deck's baked framework bundles → their `/_sui/*` URL filename in `dist`. */
+const FRAMEWORK_ASSETS: ReadonlyArray<readonly [src: string, distRel: string]> = [
+  ['sui-runtime.js', '_sui/runtime.js'],
+  ['sui-dom.js', '_sui/dom.js'],
+  ['sui-sdk-client.js', '_sui/sdk-client.js'],
+  ['sui-components.js', '_sui/components.js'],
+  ['lucide-icons.json', '_sui/lucide-icons.json'],
+]
+
+/**
+ * Walk up from `start` to the repo root — the first ancestor that holds the
+ * marker `crates/deck/deck-core/assets`. Throws rather than guess, so a
+ * mis-located build fails loudly instead of silently shipping a hub that 404s
+ * its own runtime.
+ */
+export function findRepoRoot(start: string): string {
+  let dir = resolve(start)
+  for (;;) {
+    if (existsSync(join(dir, 'crates/deck/deck-core/assets'))) return dir
+    const parent = resolve(dir, '..')
+    if (parent === dir) {
+      throw new Error(
+        `shell-app: could not find repo root (crates/deck/deck-core/assets) above ${start}`,
+      )
+    }
+    dir = parent
+  }
+}
+
+/**
+ * Materialize the full `/_sui/*` surface into `<outDir>/_sui/` for a
+ * self-contained hub: deck's baked framework bundles by name, the lucide table,
+ * and every per-tag chrome/island bundle from `.deck/sui-components/`. The IIFE
+ * loader in `index.html` may request any of those on demand, so copy the whole
+ * `sui-components` dir, not just the first-paint list. Returns the file count.
+ */
+export async function materializeFrameworkSurface(
+  outDir: string,
+  frameworkAssetsDir: string,
+  deckOutDir: string,
+): Promise<number> {
+  const suiDir = join(outDir, '_sui')
+  await mkdir(join(suiDir, 'sui-components'), { recursive: true })
+  let count = 0
+
+  for (const [src, distRel] of FRAMEWORK_ASSETS) {
+    const from = join(frameworkAssetsDir, src)
+    if (!existsSync(from)) {
+      throw new Error(`shell-app: bundleFramework: missing framework asset ${from}`)
+    }
+    await copyFile(from, join(outDir, distRel))
+    count++
+  }
+
+  const islandsDir = join(deckOutDir, 'sui-components')
+  if (!existsSync(islandsDir)) {
+    throw new Error(
+      `shell-app: bundleFramework: no ${islandsDir} (run the deck bundler / sui-build first)`,
+    )
+  }
+  for (const f of await readdir(islandsDir, { withFileTypes: true })) {
+    if (f.isFile() && f.name.endsWith('.js')) {
+      await copyFile(join(islandsDir, f.name), join(suiDir, 'sui-components', f.name))
+      count++
+    }
+  }
+  return count
 }
 
 /**
@@ -151,7 +247,25 @@ export async function buildShellApp(opts: ShellBuildOptions): Promise<ShellBuild
     .replace('/src/chrome/layout.css', css.href)
   await writeFile(join(outDir, 'index.html'), rewritten)
 
-  return { outDir, jsHref: js.href, cssHref: css.href, jsBytes: js.bytes, cssBytes: css.bytes }
+  // Self-contained hub: materialize the `/_sui/*` code surface locally so the
+  // importmap + IIFE URLs resolve same-origin (no daemon-for-code dependency).
+  let frameworkAssets = 0
+  if (opts.bundleFramework) {
+    const repoRoot = findRepoRoot(shellRoot)
+    const frameworkAssetsDir =
+      opts.frameworkAssetsDir ?? join(repoRoot, 'crates/deck/deck-core/assets')
+    const deckOutDir = opts.deckOutDir ?? join(repoRoot, '.deck')
+    frameworkAssets = await materializeFrameworkSurface(outDir, frameworkAssetsDir, deckOutDir)
+  }
+
+  return {
+    outDir,
+    jsHref: js.href,
+    cssHref: css.href,
+    jsBytes: js.bytes,
+    cssBytes: css.bytes,
+    frameworkAssets,
+  }
 }
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
@@ -167,10 +281,12 @@ if (import.meta.main) {
   const shellRoot = arg('--shell-root') ?? process.cwd()
   const outDir = arg('--out')
   const minify = !argv.includes('--no-minify')
+  const bundleFramework = argv.includes('--bundle-framework')
   try {
-    const r = await buildShellApp({ shellRoot, outDir, minify })
+    const r = await buildShellApp({ shellRoot, outDir, minify, bundleFramework })
     process.stdout.write(
-      `✓ shell-app → ${r.outDir}\n  js  ${r.jsHref} (${r.jsBytes} bytes)\n  css ${r.cssHref} (${r.cssBytes} bytes)\n`,
+      `✓ shell-app → ${r.outDir}\n  js  ${r.jsHref} (${r.jsBytes} bytes)\n  css ${r.cssHref} (${r.cssBytes} bytes)\n` +
+        (r.frameworkAssets > 0 ? `  _sui  ${r.frameworkAssets} files (self-contained)\n` : ''),
     )
   } catch (err) {
     process.stderr.write(`✗ shell-app: ${err instanceof Error ? err.message : String(err)}\n`)
