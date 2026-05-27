@@ -10,6 +10,7 @@
 //! - [`types`] — minimal `ShipManifest`/`Dependency` view for the install
 //!   pipeline; the full lockfile types live in `compiler::lockfile`.
 
+pub mod bundle_sig;
 pub mod cache;
 pub mod compose;
 pub mod constraint;
