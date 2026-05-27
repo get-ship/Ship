@@ -198,6 +198,47 @@ mod actor_tests {
     }
 
     #[test]
+    fn reap_dead_windows_closes_dead_window_lifecycle_and_spares_live() {
+        let (_ship_dir, mut conn) = setup();
+        // A window that vanished without deregistering: pid that cannot be
+        // alive (well past any real pid). Its row stays non-terminal with a
+        // dead pid — exactly the state the reaper exists to close.
+        crate::db::actor_events::register_window("win-reap-dead", "sp-reap-a", 2_000_000_000)
+            .unwrap();
+        // A window whose process is genuinely alive (our own pid).
+        crate::db::actor_events::register_window("win-reap-live", "sp-reap-b", std::process::id())
+            .unwrap();
+
+        let reaped = crate::db::actor_events::reap_dead_windows().unwrap();
+        assert!(
+            reaped.iter().any(|id| id == "win-reap-dead"),
+            "dead window must be reaped"
+        );
+        assert!(
+            !reaped.iter().any(|id| id == "win-reap-live"),
+            "live window must NOT be reaped"
+        );
+        assert_eq!(
+            query_actor_status(&mut conn, "win-reap-dead").as_deref(),
+            Some("stopped"),
+            "reaper emits actor.stopped, closing the lifecycle in the log"
+        );
+        assert_ne!(
+            query_actor_status(&mut conn, "win-reap-live").as_deref(),
+            Some("stopped"),
+            "live window stays open"
+        );
+
+        // Idempotent: a second sweep sees the now-terminal row and skips it,
+        // so it never double-emits stopped for an already-closed window.
+        let again = crate::db::actor_events::reap_dead_windows().unwrap();
+        assert!(
+            !again.iter().any(|id| id == "win-reap-dead"),
+            "already-stopped window is not reaped twice"
+        );
+    }
+
+    #[test]
     fn dispatch_created_inserts_actor_row() {
         let (_ship_dir, mut conn) = setup();
         let bus = bus();

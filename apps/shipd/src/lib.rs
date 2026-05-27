@@ -267,6 +267,9 @@ pub async fn run_network(
     rt.session_scanner().await;
     // Start the artifact GC loop (runs now then every hour).
     rt.start_artifact_gc();
+    // Start the window-reaper loop (closes the log lifecycle of crashed
+    // shell windows that never deregistered; every 30s).
+    rt.start_window_reaper();
     daemon::human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
     rt.start_hook_engine().await;
     rt.start_config_watcher();

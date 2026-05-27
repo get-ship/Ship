@@ -764,6 +764,41 @@ impl ShipRuntime {
         );
     }
 
+    /// Start the window-reaper loop (sweeps every 30s).
+    ///
+    /// Window actors self-spawn and report their pid; a clean close emits
+    /// `deregister_window`, but a crash leaves the row non-terminal with a
+    /// dead pid. The launcher's single-instance query already pid-probes, so
+    /// it's honest either way — but the event log never recorded the death.
+    /// This loop emits `actor.stopped` for vanished windows so the lifecycle
+    /// is closed in the log. CLEANUP ONLY — the launcher owns (re)spawn.
+    ///
+    /// `reap_dead_windows` does a durable append (`block_on`), so it runs on a
+    /// `spawn_blocking` thread — never inline on this async worker.
+    pub fn start_window_reaper(&self) {
+        ship_substrate::task_health::spawn_supervised(
+            &self.health_registry,
+            "window-reaper",
+            move || async move {
+                loop {
+                    match tokio::task::spawn_blocking(
+                        ship_substrate::db::actor_events::reap_dead_windows,
+                    )
+                    .await
+                    {
+                        Ok(Ok(reaped)) if !reaped.is_empty() => {
+                            tracing::info!(count = reaped.len(), ?reaped, "window-reaper: closed dead windows")
+                        }
+                        Ok(Ok(_)) => {}
+                        Ok(Err(e)) => tracing::warn!("window-reaper: sweep failed: {e}"),
+                        Err(e) => tracing::warn!("window-reaper: join error: {e}"),
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                }
+            },
+        );
+    }
+
     /// Start the hook engine: spawns external source adapters (webhook, file, cron)
     /// and the hot-reload watcher. Idempotent — subsequent calls are no-ops.
     pub async fn start_hook_engine(&self) {
