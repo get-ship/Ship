@@ -4,6 +4,7 @@
 //! All heavy lifting lives in `worker.rs` (process management) and
 //! `proto.rs` (JSON-line protocol types). Callers only ever see this module.
 
+pub mod build;
 pub mod compile;
 pub mod esbuild;
 pub mod proto;
