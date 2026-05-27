@@ -51,7 +51,6 @@ fn main() {
         .arg("ship/ops/v1/annotation.proto")
         .arg("ship/ops/v1/feedback.proto")
         .arg("ship/ops/v1/sessions.proto")
-        .arg("ship/ops/v1/workspaces.proto")
         .arg("ship/ops/v1/account.proto")
         .arg("ship/ops/v1/chat.proto")
         .arg("ship/ops/v1/dashboard.proto")
@@ -95,7 +94,6 @@ fn main() {
             "ship/ops/v1/annotation.proto",
             "ship/ops/v1/feedback.proto",
             "ship/ops/v1/sessions.proto",
-            "ship/ops/v1/workspaces.proto",
             "ship/ops/v1/account.proto",
             "ship/ops/v1/chat.proto",
             "ship/ops/v1/dashboard.proto",

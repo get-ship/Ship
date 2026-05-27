@@ -55,4 +55,15 @@ service SpaceService {
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  // Live (streaming) variants of the C0 reads — fold of the retired
+  // WorkspacesService (#89): the space list and the active-space pointer
+  // pushed on each projection change.
+  rpc ListLive(SpaceListRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc ActiveLive(SpaceActiveRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
 }

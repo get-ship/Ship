@@ -45,7 +45,6 @@ pub mod settings_rpc;
 pub mod annotation_rpc;
 pub mod feedback_rpc;
 pub mod sessions_rpc;
-pub mod workspaces_rpc;
 pub mod account_rpc;
 pub mod chat_rpc;
 pub mod dashboard_rpc;

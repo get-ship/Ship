@@ -10,8 +10,12 @@
 //! applies `gate::decide` exactly as the generated CommandOpsService does. The
 //! internal dispatch op names (`workspaces.list`, `project.add`, …) are the
 //! retiring-umbrella op ids and stay as-is this pass.
+//!
+//! `list_live`/`active_live` are the streaming C0 reads folded in from the
+//! retired `WorkspacesService` (#127): the space list and active-space pointer
+//! pushed on each projection change via `live_read`.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::{json, Value};
 
 use ship_ops_rpc::{JsonResponse, ProjectRecord, SpaceService, WorkspaceActiveResponse};
@@ -83,6 +87,24 @@ impl SpaceService for OpsImpl {
         let value = space_gated_call(self.state(), &ctx, "project.activate", args).await?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
+
+    #[allow(refining_impl_trait)]
+    async fn list_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedSpaceListRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("workspaces.list", json!({})).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn active_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedSpaceActiveRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("workspaces.active", json!({})).await
+    }
 }
 
 #[cfg(test)]
@@ -94,6 +116,8 @@ mod tests {
         for path in [
             "ship.ops.v1.SpaceService/List",
             "ship.ops.v1.SpaceService/Active",
+            "ship.ops.v1.SpaceService/ListLive",
+            "ship.ops.v1.SpaceService/ActiveLive",
         ] {
             let p = policy_for(path).unwrap_or_else(|| panic!("{path} missing from policy map"));
             assert_eq!(p.capability, "ship.workspaces.read", "{path}");

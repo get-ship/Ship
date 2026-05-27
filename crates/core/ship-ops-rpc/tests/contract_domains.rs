@@ -1,6 +1,6 @@
 //! Contract tests for the domain-service fixture files: artifacts, chat,
-//! collections, events, mcp, permissions, pipelines, project, runtime,
-//! sessions, settings, skills, specs, workspaces. One test per distinct
+//! collections, events, mcp, permissions, pipelines, space, runtime,
+//! sessions, settings, skills, specs. One test per distinct
 //! read shape; a single representative ScopedMutation/Deletion test each.
 
 use serde_json::Value;
@@ -24,7 +24,6 @@ const SESSIONS: &str = include_str!("../../../../proto/fixtures/sessions_service
 const SETTINGS: &str = include_str!("../../../../proto/fixtures/settings_service.json");
 const SKILLS: &str = include_str!("../../../../proto/fixtures/skills_service.json");
 const SPECS: &str = include_str!("../../../../proto/fixtures/specs_service.json");
-const WORKSPACES: &str = include_str!("../../../../proto/fixtures/workspaces_service.json");
 
 fn response_ok(fixtures_json: &str, method: &str) -> String {
     let v: Value = serde_json::from_str(fixtures_json).expect("fixtures parse");
@@ -182,8 +181,8 @@ fn specs_detail_parses_acceptance() {
 }
 
 #[test]
-fn workspaces_active_parses_id() {
+fn space_active_parses_id() {
     let r: WorkspaceActiveResponse =
-        serde_json::from_str(&response_ok(WORKSPACES, "Active")).expect("parse WorkspaceActiveResponse");
+        serde_json::from_str(&response_ok(SPACE, "Active")).expect("parse WorkspaceActiveResponse");
     assert_eq!(r.id.as_deref(), Some("harbor"));
 }
