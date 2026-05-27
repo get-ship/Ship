@@ -86,5 +86,5 @@ bun is **dev/build-time tooling only**, never shipped:
 
 - `crates/core/ship-platform/src/bundler/` — the in-process Rolldown bundler.
 - `crates/core/ship-platform/src/toolchain/` — runtime-dir install/ensure.
-- `.artifacts/bundler-seam.md` — the full #163 decision record (esbuild →
-  rolldown, the toolchain bump, the spikes).
+- `docs/ship-adrs/references/docs/in-process-rolldown-bundler.md` — the ADR
+  (decision + alternatives + consequences).
