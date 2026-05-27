@@ -31,6 +31,20 @@ message ActivateSpaceRequest {
   string id = 1;
 }
 
+message SpaceInfoRequest {}
+
+// The active space's identity + config snapshot — what a space window reads to
+// bootstrap. `settings_json` is the `settings.state` snapshot (daemon-global
+// today; per-space settings layering lands later and flows through this same
+// field). Identity fields are `None` when the daemon resolved no space root
+// (global-only mode).
+message SpaceInfoResponse {
+  optional string space_id = 1;
+  optional string root = 2;
+  optional string name = 3;
+  string settings_json = 4;
+}
+
 // Space registry reads (C0) + writes (C1). Reads surface the space list and
 // the active-space projection. Writes register a new space path or switch the
 // active space; both route through the one gate (services::command::call).
@@ -43,6 +57,11 @@ service SpaceService {
   rpc Active(SpaceActiveRequest) returns (WorkspaceActiveResponse) {
     option (ship.ops.v1.capability) = "ship.workspaces.read";
     option (ship.ops.v1.description) = "The active space and its state.";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Info(SpaceInfoRequest) returns (SpaceInfoResponse) {
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.description) = "The active space's identity and effective (global→space) config.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Add(AddSpaceRequest) returns (ProjectRecord) {

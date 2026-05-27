@@ -14,11 +14,22 @@
 //! `list_live`/`active_live` are the streaming C0 reads folded in from the
 //! retired `WorkspacesService` (#127): the space list and active-space pointer
 //! pushed on each projection change via `live_read`.
+//!
+//! `info` (#129) is the single-space introspection read: the active space's
+//! identity (id/root/name from the projects projection) plus its settings
+//! snapshot (`settings.state`). NOTE: `settings.state` is the daemon-global
+//! settings table today — per-space settings layering (theme/layout/isolation
+//! per space) is not yet wired; when it lands it flows through this same
+//! `settings_json` field with no API change. Space-scoped *events* need no op
+//! here — they're served by the events surface, now that the emit path stamps
+//! `space_id` per connection (#128).
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::{json, Value};
 
-use ship_ops_rpc::{JsonResponse, ProjectRecord, SpaceService, WorkspaceActiveResponse};
+use ship_ops_rpc::{
+    JsonResponse, ProjectRecord, SpaceInfoResponse, SpaceService, WorkspaceActiveResponse,
+};
 
 use crate::auth::AuthContext;
 use crate::ops_rpc::{command_error_to_connect, OpsImpl};
@@ -64,6 +75,34 @@ impl SpaceService for OpsImpl {
         let msg = serde_json::from_value::<WorkspaceActiveResponse>(value)
             .map_err(|e| ConnectError::internal(format!("workspaces.active decode: {e}")))?;
         Ok(Response::new(msg))
+    }
+
+    async fn info(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedSpaceInfoRequestView,
+    ) -> ServiceResult<SpaceInfoResponse> {
+        // Identity: the daemon's active/home space, with root+name from the
+        // projects projection (the registry of known spaces).
+        let space_id = ship_substrate::project::daemon_space_id();
+        let (root, name) = match space_id.as_deref() {
+            Some(id) => match ship_platform::projections::projects::get(id) {
+                Ok(Some(row)) => (Some(row.path), Some(row.name)),
+                _ => (None, None),
+            },
+            None => (None, None),
+        };
+        // Config: the daemon settings snapshot. `settings.state` is global today;
+        // per-space layering lands later and flows through this same field.
+        let settings = crate::services::registry::call("settings.state", &Value::Null, self.state())
+            .map_err(|e| ConnectError::internal(format!("settings.state: {e}")))?;
+        Ok(Response::new(SpaceInfoResponse {
+            space_id,
+            root,
+            name,
+            settings_json: settings.to_string(),
+            ..Default::default()
+        }))
     }
 
     async fn add(
@@ -116,6 +155,7 @@ mod tests {
         for path in [
             "ship.ops.v1.SpaceService/List",
             "ship.ops.v1.SpaceService/Active",
+            "ship.ops.v1.SpaceService/Info",
             "ship.ops.v1.SpaceService/ListLive",
             "ship.ops.v1.SpaceService/ActiveLive",
         ] {

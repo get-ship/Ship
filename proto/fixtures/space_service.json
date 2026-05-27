@@ -12,5 +12,13 @@
       "created_at": "2026-01-01T00:00:00Z",
       "last_seen_at": "2026-05-24T18:30:00Z"
     }
+  },
+  "Info": {
+    "response_ok": {
+      "space_id": "harbor",
+      "root": "/home/dev/harbor",
+      "name": "Harbor",
+      "settings_json": "{\"theme\":\"dark\"}"
+    }
   }
 }

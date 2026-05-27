@@ -8,7 +8,8 @@ use ship_ops_rpc::{
     ArtifactsListResponse, ChatStateResponse, CollectionItem, Deletion, EventsListResponse,
     ListProcsResponse, McpIndexResponse, PermissionsIndexResponse, PipelinesIndexResponse,
     ProjectRecord, SessionsListResponse, SettingValue, SkillFileResponse, SkillsIndexResponse,
-    SpecDetail, SpecGetResponse, SpecsListResponse, ToolPatternsResponse, WorkspaceActiveResponse,
+    SpaceInfoResponse, SpecDetail, SpecGetResponse, SpecsListResponse, ToolPatternsResponse,
+    WorkspaceActiveResponse,
 };
 
 const ARTIFACTS: &str = include_str!("../../../../proto/fixtures/artifacts_service.json");
@@ -178,6 +179,15 @@ fn specs_detail_parses_acceptance() {
     assert_eq!(r.acceptance.len(), 2);
     assert!(r.acceptance[0].done);
     assert!(!r.acceptance[1].done);
+}
+
+#[test]
+fn space_info_parses_identity_and_settings() {
+    let r: SpaceInfoResponse =
+        serde_json::from_str(&response_ok(SPACE, "Info")).expect("parse SpaceInfoResponse");
+    assert_eq!(r.space_id.as_deref(), Some("harbor"));
+    assert_eq!(r.root.as_deref(), Some("/home/dev/harbor"));
+    assert!(r.settings_json.contains("theme"));
 }
 
 #[test]
