@@ -652,31 +652,9 @@ impl ShipRuntime {
                 .clone()
                 .or_else(|| std::env::current_dir().ok())
                 .unwrap_or_else(|| self.ship_dir.clone());
-            // Prefer the canonical in-repo bundler source over the deployed
-            // copy at `~/.ship/runtime/bundler.ts`. The deployed copy drifts
-            // (only refreshed by `ship runtime install`), so a dev daemon
-            // running against the repo must use the live source — otherwise a
-            // stale worker emits to old asset paths. `packages/deck/bundler/
-            // index.ts` IS the worker script (same stdin/stdout protocol).
-            let bundler_override = repo_root
-                .join("packages")
-                .join("deck")
-                .join("bundler")
-                .join("index.ts");
-            if bundler_override.is_file() {
-                tracing::info!(
-                    path = %bundler_override.display(),
-                    "bundler: using in-repo bundler source (dev override)"
-                );
-                ship_platform::bundler::Bundler::start_with_script(
-                    &home,
-                    repo_root,
-                    bundler_override,
-                    workspace,
-                )
-            } else {
-                ship_platform::bundler::Bundler::start(&home, repo_root, workspace)
-            }
+            // In-process Rolldown bundler (#163) — no worker script, no child
+            // process. Bundles `repo_root`'s built-ins + the user `workspace`.
+            ship_platform::bundler::Bundler::start(&home, repo_root, workspace)
         })
     }
 

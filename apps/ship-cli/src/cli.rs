@@ -521,22 +521,18 @@ pub enum ConfigCommands {
 
 #[derive(Subcommand, Debug)]
 pub enum RuntimeCommands {
-    /// Install or repair ~/.ship/runtime/ from local sources (Bun on PATH +
-    /// in-repo target/release/sui-compiler + packages/deck/bundler/index.ts by
-    /// default; override with --bun / --sui-compiler).
+    /// Install or repair ~/.ship/runtime/ from local sources. Since the daemon
+    /// bundles in-process via Rolldown, the only component is sui-compiler
+    /// (in-repo target/{release,debug}/sui-compiler by default; override with
+    /// --sui-compiler).
     Install {
-        /// Path to the Bun binary to copy in. Defaults to `which bun`.
-        #[arg(long, value_name = "PATH")]
-        bun: Option<PathBuf>,
         /// Path to the sui-compiler binary to copy in. Defaults to a walk-up
-        /// search for target/release/sui-compiler from cwd.
+        /// search for target/{release,debug}/sui-compiler from cwd.
         #[arg(long = "sui-compiler", value_name = "PATH")]
         sui_compiler: Option<PathBuf>,
     },
     /// Wipe ~/.ship/runtime/ and reinstall fresh. Same flags as install.
     Update {
-        #[arg(long, value_name = "PATH")]
-        bun: Option<PathBuf>,
         #[arg(long = "sui-compiler", value_name = "PATH")]
         sui_compiler: Option<PathBuf>,
     },

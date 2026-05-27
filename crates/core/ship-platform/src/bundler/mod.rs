@@ -74,17 +74,6 @@ impl Bundler {
         }
     }
 
-    /// Compatibility shim: the bun worker took a `bundler.ts` script path. The
-    /// in-process bundler has no script — ignore it.
-    pub fn start_with_script(
-        home: &ShipHome,
-        repo_root: PathBuf,
-        _script: PathBuf,
-        workspace: Option<PathBuf>,
-    ) -> Self {
-        Self::start(home, repo_root, workspace)
-    }
-
     fn layout(&self) -> BundleLayout {
         BundleLayout::new(self.repo_root.clone(), self.workspace.clone())
     }
