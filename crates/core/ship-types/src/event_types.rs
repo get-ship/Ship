@@ -165,6 +165,13 @@ pub const SESSION_STATUS_CHANGED: &str = "session.status_changed";
 /// individual turn is the unit of failure.
 pub const SESSION_TURN_FAILED: &str = "session.turn_failed";
 
+/// Per-space settings override — a single (space, key) value was set. The
+/// space scope rides the envelope (`space_id`, stamped via `with_context`),
+/// NOT the payload — mirror `CONFIG_FILE_CHANGED`. Layered OVER the global
+/// daemon settings (`settings.state`); space overrides win per-key. `entity_id`
+/// is the setting key. Payload: `SpaceSettingChanged`.
+pub const SPACE_SETTING_CHANGED: &str = "space.setting.changed";
+
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
     WORKSPACE_ACTIVATED,
@@ -190,6 +197,7 @@ pub const ALL: &[&str] = &[
     PIPELINE_RUN_UPDATED,
     CONFIG_CHANGED,
     CONFIG_FILE_CHANGED,
+    SPACE_SETTING_CHANGED,
     AGENT_CHANGED,
     SKILL_CHANGED,
     VIEW_CHANGED,

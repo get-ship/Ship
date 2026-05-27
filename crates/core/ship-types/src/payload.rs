@@ -285,6 +285,17 @@ pub struct ConfigFileChanged {
     pub content_hash: String,
 }
 
+/// Per-space settings override (`space.setting.changed`). `entity_id` on the
+/// envelope is the setting `key`; the space scope rides the envelope's
+/// `space_id` (stamped via `with_context`), NOT this payload — mirror
+/// `ConfigFileChanged`. `value_json` is the JSON-serialized override value
+/// (arbitrary — a setting value can be any JSON type).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SpaceSettingChanged {
+    pub key: String,
+    pub value_json: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectLog {
     pub action: String,
