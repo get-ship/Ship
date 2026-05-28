@@ -1,0 +1,87 @@
+<!--
+  views/eval — SUI eval surface. Reads the sui-eval-runs collection
+  (one row per (run_id, lane_id)), groups rows by run, lays out a
+  side-by-side comparison per run.
+
+  Schema lives in .ship/collections/sui-eval-runs.jsonc. Rows are
+  written by .ship/pipelines/sui-eval/scripts/record.ts via
+  `ship ops call collections.create_item`. The runs() live source is
+  declared in controller.ts (renderable subset doesn't admit
+  `.items()` method calls in <data> source expressions).
+-->
+
+<div class="eval-view">
+  <header class="eval-head">
+    <div>
+      <h1 class="eval-title">Evals</h1>
+      <p class="eval-sub">SKILL × model authoring runs from the sui-eval pipeline.</p>
+    </div>
+  </header>
+
+  {#while-loading of runs}
+    <div class="eval-loading" role="status" aria-live="polite" aria-busy="true">
+      <sui-skeleton shape="line" size="lg" style="width:60%"></sui-skeleton>
+      <sui-skeleton shape="line" size="md" style="width:80%"></sui-skeleton>
+      <sui-skeleton shape="line" size="md" style="width:40%"></sui-skeleton>
+    </div>
+  {/while-loading}
+
+  {#while-error err of runs}
+    <sui-error-state title="Couldn't load eval runs" role="alert">
+      {err.message}
+    </sui-error-state>
+  {/while-error}
+
+  {#if runs().kind === 'ok'}
+    {#if groups().length === 0}
+      <sui-empty-state variant="default" size="md" role="status">
+        <sui-icon slot="icon" name="bar-chart-3"></sui-icon>
+        <span slot="title">No eval runs yet</span>
+        <span slot="description">
+          Run <span class="mono-snip">ship run sui-eval</span> to produce the first row.
+          The grade step writes one row per (run_id, lane_id) into the
+          <span class="mono-snip">sui-eval-runs</span> collection.
+        </span>
+      </sui-empty-state>
+    {:else}
+      <ul class="run-list" aria-label="Eval runs">
+        {#for grp of groups() key={grp.runId}}
+          <li class="run-card">
+            <div class="run-card-head">
+              <span class="run-card-id mono-snip">{grp.runId}</span>
+              <span class="run-card-lanes">{grp.lanes.length} lane{grp.lanes.length === 1 ? '' : 's'}</span>
+            </div>
+            <div class="run-card-lanes-grid">
+              {#for lane of grp.lanes key={lane.lane_id}}
+                <article class="lane-cell" class:lane-cell--failed={!lane.compile_passed}>
+                  <header class="lane-cell-head">
+                    <span class="lane-cell-id">{lane.lane_id}</span>
+                    {#if lane.model}<span class="lane-cell-model mono-snip">{lane.model}</span>{/if}
+                  </header>
+                  <div class="lane-cell-score">
+                    <span class="lane-cell-score-num">{lane.composite_str}</span>
+                    <span class="lane-cell-score-label">composite</span>
+                  </div>
+                  <dl class="lane-cell-stats">
+                    <div>
+                      <dt>compile</dt>
+                      <dd>{lane.compile_label}</dd>
+                    </div>
+                    <div>
+                      <dt>lint errors</dt>
+                      <dd>{lane.lint_errors}</dd>
+                    </div>
+                    <div>
+                      <dt>lint warnings</dt>
+                      <dd>{lane.lint_warnings}</dd>
+                    </div>
+                  </dl>
+                </article>
+              {/for}
+            </div>
+          </li>
+        {/for}
+      </ul>
+    {/if}
+  {/if}
+</div>
