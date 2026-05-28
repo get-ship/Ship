@@ -10,7 +10,7 @@ mod scaffold;
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -104,21 +104,14 @@ fn run() -> Result<()> {
     }
 }
 
-/// Walk up for the workspace root — the `crates/deck/deck-core/assets` marker.
-/// It's the cwd for module resolution and the source of the framework bundles.
+/// Resolve the Cargo workspace root from `start`. It's the cwd for module
+/// resolution and the source of the framework bundles. Walking the topmost
+/// `Cargo.toml` is the one canonical fact; any monorepo-specific marker
+/// surfaces later when bundle_app reads the framework assets dir.
 fn find_repo_root(start: &Path) -> Result<PathBuf> {
-    let mut dir = start.to_path_buf();
-    loop {
-        if dir.join("crates/deck/deck-core/assets").exists() {
-            return Ok(dir);
-        }
-        if !dir.pop() {
-            bail!(
-                "deck build: no workspace root (crates/deck/deck-core/assets) above {}",
-                start.display()
-            );
-        }
-    }
+    ship_substrate::locate::workspace_root_from(start).ok_or_else(|| {
+        anyhow!("deck build: no Cargo workspace root above {}", start.display())
+    })
 }
 
 fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, minify: bool) -> Result<()> {

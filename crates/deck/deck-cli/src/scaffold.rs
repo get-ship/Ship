@@ -12,7 +12,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 
 /// Validate `name` against `/^[a-z][a-z0-9-]*$/` — the route-segment shape
 /// the daemon resolver expects and the file-system shape we write.
@@ -60,18 +60,13 @@ fn title_case(name: &str) -> String {
         .join(" ")
 }
 
-/// Walk up for the repo root (the `views/` parent — same marker scaffolds
-/// have always used). Lets `deck scaffold` work from any cwd inside the repo.
+/// Resolve the Cargo workspace root from `start`. Lets `deck scaffold` work
+/// from any cwd inside the repo; the views/ + deck-core monorepo markers
+/// surface naturally when the scaffold tries to write into those paths.
 fn find_repo_root(start: &Path) -> Result<PathBuf> {
-    let mut dir = start.to_path_buf();
-    loop {
-        if dir.join("views").is_dir() && dir.join("crates/deck/deck-core").is_dir() {
-            return Ok(dir);
-        }
-        if !dir.pop() {
-            bail!("no repo root above {} (looked for views/ + crates/deck/deck-core/)", start.display());
-        }
-    }
+    ship_substrate::locate::workspace_root_from(start).ok_or_else(|| {
+        anyhow!("no Cargo workspace root above {}", start.display())
+    })
 }
 
 pub fn run_view(name: String, route_path: Option<String>, component_tag: Option<String>) -> Result<()> {
