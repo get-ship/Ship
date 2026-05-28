@@ -53,7 +53,7 @@ pub struct CompileOutput {
     /// `None` when the harness merges MCP into a larger settings file.
     pub mcp_config_path: Option<String>,
 
-    /// Context file content (CLAUDE.md / GEMINI.md / AGENTS.md).
+    /// Context file content (CLAUDE.md / AGENTS.md).
     /// `None` if the harness has no context file or there is no content to emit.
     pub context_content: Option<String>,
 

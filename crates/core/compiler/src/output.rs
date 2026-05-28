@@ -1,9 +1,4 @@
-//! Native (non-WASM) output writer — emits [`CompileOutput`] to the filesystem.
-//!
-//! Gated with `#[cfg(not(target_arch = "wasm32"))]` so it doesn't break WASM builds.
-//! The compiler's pure-transform half stays WASM-safe; this module handles I/O.
-
-#![cfg(not(target_arch = "wasm32"))]
+//! Output writer — emits [`CompileOutput`] to the filesystem.
 
 use anyhow::{Result, anyhow};
 use std::path::Path;
@@ -19,7 +14,7 @@ pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Re
     let desc = get_harness(harness_id)
         .ok_or_else(|| anyhow!("unknown harness: {}", harness_id))?;
 
-    // Context file (CLAUDE.md, GEMINI.md, AGENTS.md)
+    // Context file (CLAUDE.md, AGENTS.md)
     if let (Some(content), Some(file_name)) =
         (&output.context_content, desc.context_file.file_name())
     {

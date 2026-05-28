@@ -70,8 +70,9 @@ fn codex_uses_mcp_servers_key() {
     assert_eq!(desc.mcp_key.as_str(), "mcp_servers");
 }
 
-/// Source: https://geminicli.com/docs/tools/mcp-server
-/// Gemini has NO "type" field — transport is inferred from which property is present.
+/// All registered JSON-shaped harnesses infer transport from field presence
+/// (command → stdio, url → SSE/HTTP) and must not emit a `"type"` field for
+/// stdio servers. (OpenCode opts in to a typed shape and is excluded.)
 #[test]
 fn no_harness_emits_type_field_for_stdio() {
     let r = resolved(vec![make_server("github")]);
@@ -117,7 +118,7 @@ fn claude_mcp_config_path_in_output() {
     assert_eq!(out.mcp_config_path.as_deref(), Some(".mcp.json"));
 }
 
-// ── Context file (CLAUDE.md / AGENTS.md / GEMINI.md) ─────────────────────────
+// ── Context file (CLAUDE.md / AGENTS.md) ─────────────────────────────────────
 
 #[test]
 fn harness_context_file_names() {
