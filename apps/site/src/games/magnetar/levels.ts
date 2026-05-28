@@ -43,7 +43,7 @@ export const LEVELS: LevelSpec[] = [
     launch: { x: LEFT + 30, y: BOT - 10 },
     initialAim: -Math.PI / 3,
     target: { x: RIGHT - 30, y: TOP + 20, radius: 22 },
-    planets: [{ x: 240, y: 290, mass: 2.0, radius: 22 }],
+    planets: [{ x: 240, y: 290, mass: 1.3, radius: 22 }],
     tokens: [],
     walls: [],
     shots: 3,
@@ -54,7 +54,7 @@ export const LEVELS: LevelSpec[] = [
     launch: { x: LEFT + 30, y: BOT - 20 },
     initialAim: -Math.PI / 2.4,
     target: { x: LEFT + 30, y: TOP + 10, radius: 22 },
-    planets: [{ x: 320, y: 290, mass: 3.0, radius: 28 }],
+    planets: [{ x: 320, y: 290, mass: 2.0, radius: 28 }],
     tokens: [{ x: 380, y: 220 }],
     walls: [],
     shots: 3,
@@ -66,8 +66,8 @@ export const LEVELS: LevelSpec[] = [
     initialAim: -Math.PI / 2,
     target: { x: 240, y: TOP + 10, radius: 22 },
     planets: [
-      { x: 130, y: 250, mass: 1.5, radius: 20 },
-      { x: 350, y: 350, mass: 1.5, radius: 20 },
+      { x: 130, y: 250, mass: 1.0, radius: 20 },
+      { x: 350, y: 350, mass: 1.0, radius: 20 },
     ],
     tokens: [
       { x: 220, y: 220 },
@@ -84,8 +84,8 @@ export const LEVELS: LevelSpec[] = [
     initialAim: -Math.PI / 2.5,
     target: { x: RIGHT - 30, y: TOP + 30, radius: 22 },
     planets: [
-      { x: 220, y: 330, mass: -2.4, radius: 24 },
-      { x: 340, y: 240, mass: 1.6, radius: 20 },
+      { x: 220, y: 330, mass: -1.6, radius: 24 },
+      { x: 340, y: 240, mass: 1.0, radius: 20 },
     ],
     tokens: [{ x: 150, y: 250 }],
     walls: [],
@@ -98,8 +98,8 @@ export const LEVELS: LevelSpec[] = [
     initialAim: -Math.PI / 2,
     target: { x: 240, y: TOP + 10, radius: 22 },
     planets: [
-      { x: LEFT + 50, y: 300, mass: 2.0, radius: 22 },
-      { x: RIGHT - 50, y: 300, mass: 2.0, radius: 22 },
+      { x: LEFT + 50, y: 300, mass: 1.4, radius: 22 },
+      { x: RIGHT - 50, y: 300, mass: 1.4, radius: 22 },
     ],
     tokens: [
       { x: 240, y: 250 },

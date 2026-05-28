@@ -40,20 +40,20 @@ export interface Target {
   radius: number
 }
 
-// Gravity tuning. The visible curve of the projectile path is the whole
-// game, so this needs to be aggressive enough that a planet 80-120 px
-// from the trajectory bends it by tens of pixels — not the 2 px of
-// deflection the prior 5800/280 combo produced.
+// Gravity tuning. Strong enough that a planet 80-120 px from the
+// trajectory bends the path by tens of pixels (a clear visible arc),
+// soft enough that the projectile doesn't slam into every planet it
+// passes within 60 px of. The trajectory predictor and the live
+// integrator share these constants so the ghost line matches the actual
+// flight to the pixel.
 //
-// At a perpendicular distance of 100 px from a mass-2 planet, the
-// instantaneous acceleration is G*m/r² = 28000*2/10000 = 5.6 px/s².
-// Over the ~2.5s flight time (slower launch speed gives gravity time to
-// act), perpendicular deflection ≈ 0.5 * 5.6 * 6.25 = ~17 px — a clear
-// arc. The trajectory predictor uses the same constants so the ghost
-// line matches the actual flight to the pixel.
-export const G = 28000
+// At perpendicular distance 80 from a mass-1.5 planet, acceleration
+// = G*m/r² = 18000*1.5/6400 = 4.2 px/s². Over a 2.5s flight that's
+// ~13 px of perpendicular deflection — a recognizable bend without
+// turning every level into a planet-trap.
+export const G = 18000
 export const MIN_DIST = 18
-export const LAUNCH_SPEED = 220
+export const LAUNCH_SPEED = 230
 export const PROJECTILE_R = 4
 export const TOKEN_R = 8
 
