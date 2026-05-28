@@ -1,26 +1,15 @@
-//! `sui-state-direct-assign` — controllers do not assign to `state.<key>`
-//! directly; call `.set(…)` on the signal instead.
+//! `sui-state-set-call` — controllers do not write through `state.<key>.set(…)`.
 //!
-//! From #178: two signal-write idioms lived in the codebase:
-//! - `state.lineColor.set(v)` (sparkline.controller.ts)
-//! - `state.caughtError = err` (sui-error-boundary.controller.ts)
+//! After #179 (proxy unwrap unified — `state.x` is the value everywhere, not
+//! a callable signal), `state.x.set(…)` calls `.set` on the unwrapped value
+//! and errors at runtime. The canonical write form is the assignment-style
+//! `state.x = …` — the proxy's set-trap routes it through `signal.set(v)`.
 //!
-//! Both work at runtime — the proxy's `set` trap routes the assignment
-//! through `signal.set(v)`. But two visible shapes for one underlying
-//! operation is exactly the "two idioms in one codebase" trap an agent
-//! falls into by copying the wrong exemplar. The proxy magic is for the
-//! framework's benefit, not the author's — the call form is uniform with
-//! every other signal in SUI (`x.set(v)` whether `x` came from a scope
-//! factory, a `<state>` element, or a free `signal()`).
-//!
-//! Heuristic: flag `state.<key> = …` AssignmentExpressions where the LHS
-//! object is the identifier `state` (the convention for the mount
-//! callback's first parameter). Nested receivers (`state.foo.bar = …`)
-//! are out of scope — those are usually field mutations on a non-signal
-//! value, a different concern. Authors who name the state parameter
-//! something other than `state` bypass the lint, which is acceptable: the
-//! convention is the contract, and the rare deviation is an explicit
-//! choice the lint shouldn't second-guess.
+//! The escape hatch for the rare cases that genuinely need the signal
+//! (updater function, handing a `Signal<T>` to a callback) is
+//! `state.$signals.x.set(updater)`. The lint specifically allows that
+//! shape — only `state.<key>.set(...)` (one identifier between `state.`
+//! and `.set`) is flagged.
 
 use std::path::{Path, PathBuf};
 
@@ -32,7 +21,7 @@ use oxc_ast_visit::Visit;
 use oxc_parser::Parser;
 use oxc_span::{SourceType, Span};
 
-pub const RULE_ID: &str = "sui-state-direct-assign";
+pub const RULE_ID: &str = "sui-state-set-call";
 
 pub fn check(path: &Path, source: &str) -> Vec<Finding> {
     let allocator = Allocator::default();
@@ -42,7 +31,7 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
         return Vec::new();
     }
 
-    let mut visitor = DirectAssignVisitor {
+    let mut visitor = SetCallVisitor {
         source,
         file: path.to_path_buf(),
         findings: Vec::new(),
@@ -51,13 +40,13 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
     visitor.findings
 }
 
-struct DirectAssignVisitor<'src> {
+struct SetCallVisitor<'src> {
     source: &'src str,
     file: PathBuf,
     findings: Vec<Finding>,
 }
 
-impl<'src> DirectAssignVisitor<'src> {
+impl<'src> SetCallVisitor<'src> {
     fn report(&mut self, span: Span, key: &str) {
         let (line, col) = byte_offset_to_line_col(self.source, span.start as usize);
         self.findings.push(Finding {
@@ -67,50 +56,60 @@ impl<'src> DirectAssignVisitor<'src> {
             rule: RULE_ID,
             severity: Severity::Warn,
             message: format!(
-                "controllers do not assign `state.{key} = …` directly. Two visible \
-                 shapes for one operation is the wrong-exemplar trap; pick the call \
-                 form everywhere."
+                "`state.{key}.set(…)` calls `.set` on the unwrapped value, not the \
+                 signal. Write via the assignment form — the proxy routes it through \
+                 `signal.set` for you."
             ),
             suggest: Some(format!(
-                "Use `state.{key}.set(…)` — same runtime, one shape across views, \
-                 components, and free signals."
+                "Use `state.{key} = …` for the value write. For the rare updater-\
+                 function case, use `state.$signals.{key}.set(updater)`."
             )),
         });
     }
 }
 
-impl<'a, 'src> Visit<'a> for DirectAssignVisitor<'src> {
-    fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'a>) {
-        if let Some(key) = direct_state_member(&expr.left) {
+impl<'a, 'src> Visit<'a> for SetCallVisitor<'src> {
+    fn visit_call_expression(&mut self, expr: &CallExpression<'a>) {
+        if let Some(key) = state_member_set_call(&expr.callee) {
             self.report(expr.span, key);
         }
-        oxc_ast_visit::walk::walk_assignment_target(self, &expr.left);
-        self.visit_expression(&expr.right);
-    }
-
-    fn visit_update_expression(&mut self, expr: &UpdateExpression<'a>) {
-        // `state.count++` / `state.count--` route through the same set-trap
-        // path; they're the same shape with a different syntax.
-        if let SimpleAssignmentTarget::StaticMemberExpression(m) = &expr.argument
-            && let Expression::Identifier(id) = &m.object
-            && id.name.as_str() == "state"
-        {
-            self.report(expr.span, m.property.name.as_str());
+        self.visit_expression(&expr.callee);
+        for arg in &expr.arguments {
+            if let Some(e) = arg.as_expression() {
+                self.visit_expression(e);
+            }
         }
-        oxc_ast_visit::walk::walk_simple_assignment_target(self, &expr.argument);
     }
 }
 
-/// Extract `<key>` from a `state.<key>` `AssignmentTarget` (lhs of `=`).
-/// Returns `None` for other shapes (nested member, computed access, etc.).
-fn direct_state_member<'a>(target: &'a AssignmentTarget<'a>) -> Option<&'a str> {
-    let inner = target.as_member_expression()?;
-    let MemberExpression::StaticMemberExpression(m) = inner else { return None };
-    let Expression::Identifier(id) = &m.object else { return None };
+/// Match the callee shape `state.<key>.set` (one identifier between the
+/// `state.` and `.set`). Returns the key on match.
+///
+/// Specifically allows the `state.$signals.<key>.set` escape hatch by
+/// rejecting any nesting depth greater than `state.<key>.set` — see the
+/// `does_not_flag_signals_escape_hatch` test for what slips through.
+fn state_member_set_call<'a>(expr: &'a Expression<'a>) -> Option<&'a str> {
+    let outer = match expr {
+        Expression::StaticMemberExpression(m) => m,
+        _ => return None,
+    };
+    if outer.property.name.as_str() != "set" {
+        return None;
+    }
+    let inner = match &outer.object {
+        Expression::StaticMemberExpression(m) => m,
+        _ => return None,
+    };
+    let Expression::Identifier(id) = &inner.object else { return None };
     if id.name.as_str() != "state" {
         return None;
     }
-    Some(m.property.name.as_str())
+    // Reject `state.$signals.x.set` — that's the explicit escape hatch.
+    let key = inner.property.name.as_str();
+    if key == "$signals" {
+        return None;
+    }
+    Some(key)
 }
 
 fn byte_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
@@ -137,11 +136,11 @@ mod tests {
     use std::path::Path;
 
     #[test]
-    fn flags_direct_assign() {
+    fn flags_state_x_set() {
         let src = r#"
             export default controller<Scope>({
               mount(state, host) {
-                state.caughtError = err
+                state.count.set(5)
                 return () => {}
               },
             })
@@ -149,31 +148,16 @@ mod tests {
         let findings = check(Path::new("foo.controller.ts"), src);
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].rule, RULE_ID);
-        assert!(findings[0].message.contains("caughtError"));
-        assert!(findings[0].suggest.as_ref().unwrap().contains("state.caughtError.set"));
+        assert!(findings[0].message.contains("count"));
+        assert!(findings[0].suggest.as_ref().unwrap().contains("state.count = …"));
     }
 
     #[test]
-    fn flags_increment() {
+    fn does_not_flag_direct_assign() {
         let src = r#"
             export default controller<Scope>({
               mount(state, host) {
-                state.count++
-                state.count--
-                return () => {}
-              },
-            })
-        "#;
-        let findings = check(Path::new("foo.controller.ts"), src);
-        assert_eq!(findings.len(), 2);
-    }
-
-    #[test]
-    fn does_not_flag_set_call() {
-        let src = r#"
-            export default controller<Scope>({
-              mount(state, host) {
-                state.label.set('hi')
+                state.count = 5
                 return () => {}
               },
             })
@@ -182,14 +166,13 @@ mod tests {
     }
 
     #[test]
-    fn does_not_flag_nested_assignment() {
-        // state.foo.bar = … is a field mutation on a non-signal value, not
-        // a direct-signal-set. Out of scope; a different lint (or human review)
-        // owns mutations like that.
+    fn does_not_flag_signals_escape_hatch() {
+        // state.$signals.x.set(updater) is the explicit signal-level access
+        // for updater-function writes — passes the lint.
         let src = r#"
             export default controller<Scope>({
               mount(state, host) {
-                state.foo.bar = 42
+                state.$signals.count.set((prev) => prev + 1)
                 return () => {}
               },
             })
@@ -198,13 +181,12 @@ mod tests {
     }
 
     #[test]
-    fn does_not_flag_non_state_identifier() {
-        // The lint is scoped to the conventional `state` name. Authors who
-        // rename it bypass the lint — explicit opt-out is fine.
+    fn does_not_flag_set_call_on_non_state() {
         let src = r#"
             export default controller<Scope>({
-              mount(s, host) {
-                s.caughtError = err
+              mount(state, host) {
+                const local = signal(0)
+                local.set(5)
                 return () => {}
               },
             })

@@ -181,7 +181,9 @@ Detail: `references/tooling.md`.
 3. **Templates declare; controllers do.** Declarative → template; imperative → controller.
 4. **No `<script>` blocks in templates.** Logic in paired `.controller.ts`.
 5. **No `customElements.define` in view code.** The compiler emits it for components.
-6. **Read signals by call:** `count()` reads, `count.set(n)` writes.
+6. **Reads + writes — pick the form by context, but only one form per context.**
+   - In **templates / `derived` / `effect`** (declarative + reactive): `x()` reads + tracks, `x.set(v)` writes. The scope passes raw `Signal<T>` here. **Never** `state.x` — there is no `state` proxy in these contexts.
+   - In **controller imperative blocks** (`on:` handlers, `mount`, `unmount`): `state.x` reads the value, `state.x = v` writes. The proxy unwraps signal keys to values and routes assignments through `signal.set`. **Never** `state.x()` (the value isn't callable) or `state.x.set(v)` (calls `.set` on the value, not the signal). The escape hatch for updater-function writes is `state.$signals.x.set(prev => …)`.
 7. **Block syntax for control flow.** `{#if}/{#for}/{#match}/{#while-loading}/{#while-error}`.
 8. **No `el.innerHTML / .outerHTML / .insertAdjacentHTML`** in `*.controller.ts`. Use `bindHtml()`.
 9. **`{#for}` blocks declare `key={EXPR}`.** Without a stable key DOM identity is lost on reorder. `sui-for-key` lint warns when missing.
