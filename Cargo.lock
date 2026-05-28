@@ -1678,6 +1678,7 @@ dependencies = [
  "anyhow",
  "clap",
  "deck-bundler",
+ "ship-substrate",
  "tokio",
 ]
 

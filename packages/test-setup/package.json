@@ -1,0 +1,14 @@
+{
+  "name": "@ship/test-setup",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Shared vitest/jsdom setup helpers: JSDOM polyfills (ResizeObserver, matchMedia, Popover, Dialog, ToggleEvent, PointerEvent) + lucide-icon-map loader. Each consumer's test/setup.ts imports from here so the polyfills + icon shape stay in lockstep — replaces ~360 lines of copy-pasted boilerplate across three test setups.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3"
+  }
+}
