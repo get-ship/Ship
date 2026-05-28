@@ -11,7 +11,7 @@ fn session_start_emits_correct_event() {
 #[test]
 fn session_start_workspace_id_in_context() {
     let event = handle_session_start("actor-x", "ws-x").expect("handle_session_start failed");
-    assert_eq!(event.project_id.as_deref(), Some("ws-x"));
+    assert_eq!(event.space_id.as_deref(), Some("ws-x"));
 }
 
 #[test]

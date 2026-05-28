@@ -748,3 +748,133 @@ async fn seed_dispatched_agent_session(
         .with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
 }
+
+// ── Fanout-lane drift fix: is_known_dispatch consults actor_state ─────
+//
+// Fanout lanes are live, registered processes that have NO jobs row
+// (the pipeline-run carries the PARENT slug) and NO agent_sessions row
+// (lanes are spawned directly by the fanout dispatcher). Before this
+// fix Check B classified every live lane as a stray orphan and killed
+// it ~one sweep after spawn — the supervisor-drift murder. The
+// actor_state read model DOES name the lane (its spawn emits
+// actor.created), so the sweep now recognizes it as a known dispatch.
+
+/// Seed an `actor.created` for `slug` through the kernel. The
+/// ActorProjection (always in the default projection bus) materializes
+/// the `actors` row that the sweep's actor_state check reads.
+async fn seed_actor_created(kernel: &Arc<Mutex<KernelRouter>>, slug: &str) {
+    use ship_substrate::events::{CallerKind, EmitContext};
+    let ctx = EmitContext {
+        caller_kind: CallerKind::Runtime,
+        skill_id: None,
+        space_id: None,
+        session_id: None,
+    };
+    let payload = serde_json::json!({
+        "kind": "pipeline-step",
+        "environment_type": "local",
+    });
+    let env = EventEnvelope::new("actor.created", slug, &payload)
+        .unwrap()
+        .with_actor_id(slug);
+    kernel.lock().await.emit(env, &ctx).await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn sweep_does_not_kill_live_fanout_lane_with_actor_row() {
+    // A live registered lane slug with an actor_state row but no jobs /
+    // agent_sessions record. The pre-fix Check B would emit
+    // process.killed; the actor_state arm of is_known_dispatch now
+    // spares it.
+    crate::install_defaults();
+    let _tmp = tempfile::TempDir::new().unwrap();
+    let kernel = make_kernel();
+    let lane_slug = "sui-eval-m7hbn6ga-build-haiku";
+    let octx = make_octx(
+        Arc::new(DeadExecutor),
+        Arc::new(RegistryWithLiveSlug(lane_slug)),
+    );
+
+    seed_actor_created(&kernel, lane_slug).await;
+
+    run_sweep(&kernel, &octx).await.unwrap();
+
+    let killed: Vec<_> = find_events_by_type("process.killed")
+        .into_iter()
+        .filter(|e| e.entity_id == lane_slug)
+        .collect();
+    assert!(
+        killed.is_empty(),
+        "sweep must not kill a live fanout lane that has an actor_state row; \
+         got: {killed:?}"
+    );
+
+    let drift: Vec<_> = find_events_by_type(sup_events::SUPERVISOR_DRIFT_DETECTED)
+        .into_iter()
+        .filter(|e| e.entity_id == lane_slug)
+        .collect();
+    assert!(
+        drift.is_empty(),
+        "no drift for a live, actor-backed lane during normal lifecycle; got: {drift:?}"
+    );
+}
+
+// ── Real orphan detection: dead handle (PID killed externally) ────────
+//
+// Acceptance criterion #3: a registered actor whose PID is killed out
+// from under the daemon must be flagged drifted within one cadence. The
+// executor reports the handle dead → drain_dead evicts it → the sweep
+// emits supervisor.drift_detected. This is the honest "in-memory said
+// alive, process is gone" signal, and it still fires for actors with no
+// jobs row (bare actors / fanout lanes).
+
+/// Registry whose single registered handle is reported dead by the
+/// executor — `drain_dead` evicts and returns it, mirroring an
+/// externally-killed PID. `live_slugs` is empty afterward (it was
+/// drained), so Check B never sees it; the drain pass owns the signal.
+struct RegistryWithDeadHandle(&'static str);
+#[async_trait]
+impl ProcessRegistryPort for RegistryWithDeadHandle {
+    async fn register(&self, _slug: &str, _handle: ExecutorHandle) {}
+    async fn unregister(&self, _slug: &str) {}
+    async fn live_slugs(&self) -> Vec<String> { vec![] }
+    async fn take(&self, _slug: &str) -> Option<ExecutorHandle> { None }
+    async fn drain_dead(&self, _executor: &dyn SessionExecutor) -> Vec<String> {
+        vec![self.0.to_string()]
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn sweep_flags_drift_for_externally_killed_actor() {
+    crate::install_defaults();
+    let _tmp = tempfile::TempDir::new().unwrap();
+    let kernel = make_kernel();
+    let slug = "sweep-killed-actor-1";
+    // The actor was spawned and registered (actor_state row exists), then
+    // its PID was killed externally — the executor now reports it dead.
+    let octx = make_octx(
+        Arc::new(DeadExecutor),
+        Arc::new(RegistryWithDeadHandle(slug)),
+    );
+    seed_actor_created(&kernel, slug).await;
+
+    run_sweep(&kernel, &octx).await.unwrap();
+
+    let drift = find_events_by_type(sup_events::SUPERVISOR_DRIFT_DETECTED);
+    assert!(
+        drift.iter().any(|e| {
+            let p: serde_json::Value = serde_json::from_str(&e.payload_json).unwrap_or_default();
+            p["slug"] == slug && p["actual_state"] == "process_died"
+        }),
+        "externally-killed actor must be flagged drifted within one cadence"
+    );
+
+    let restored = find_events_by_type(sup_events::SUPERVISOR_COHERENCE_RESTORED);
+    assert!(
+        restored.iter().any(|e| {
+            let p: serde_json::Value = serde_json::from_str(&e.payload_json).unwrap_or_default();
+            p["slug"] == slug && p["action"] == "reaped_dead_handle"
+        }),
+        "coherence_restored with reaped_dead_handle for the bare dead actor"
+    );
+}
