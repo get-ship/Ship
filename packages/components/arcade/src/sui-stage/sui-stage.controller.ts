@@ -29,16 +29,19 @@ export default controller({
     let disposed = false
     const unsubs: Array<() => void> = []
     const bound = new Map<string, Signal<unknown>>()
-    bound.set('state', state.state as unknown as Signal<unknown>)
-    bound.set('score', state.score as unknown as Signal<unknown>)
+    // The unified mount-state proxy auto-unwraps signals on property read;
+    // raw signals live under $signals. We need them raw here so the HUD
+    // binding can call sig() inside its effects.
+    const signals = (state as unknown as { $signals: Record<string, Signal<unknown>> }).$signals
+    bound.set('state', signals.state!)
+    bound.set('score', signals.score!)
     let hudCleanup: (() => void) | null = null
     let emitters = new Map<string, Emitter>()
 
     const ready = (async () => {
-      // Component-mount state preserves signals as callables — call the ref
-      // to read the canvas element (the bind:this populates it post-render).
-      const canvasSignal = state.canvasRef as unknown as () => HTMLCanvasElement | null
-      const canvas = typeof canvasSignal === 'function' ? canvasSignal() : (state.canvasRef as unknown as HTMLCanvasElement | null)
+      // Refs are auto-unwrapped under the unified proxy: state.canvasRef IS
+      // the element (or null), no signal-call needed.
+      const canvas = state.canvasRef as HTMLCanvasElement | null
       if (!canvas) return
       const numWidth = Number(host.getAttribute('width') ?? 640)
       const numHeight = Number(host.getAttribute('height') ?? 480)
@@ -160,7 +163,9 @@ export default controller({
       hudCleanup = wireHudBindings(host, bound)
 
       unsubs.push(stage.onState((s) => {
-        state.state.set(s)
+        // Proxy write-trap routes `state.state = s` through the underlying
+        // signal.set; never call .set on the unwrapped value.
+        state.state = s
         host.dispatchEvent(new CustomEvent('sui-stage:state', { bubbles: true, composed: true, detail: { state: s } }))
       }))
       unsubs.push(stage.onTick((dt, idx) => {
@@ -186,7 +191,7 @@ export default controller({
     api.start = () => { stage?.start() }
     api.pause = () => { stage?.pause() }
     api.resume = () => { stage?.resume() }
-    api.reset = () => { stage?.reset(); state.score.set(0) }
+    api.reset = () => { stage?.reset(); state.score = 0 }
     api.fire = (action, detail) => { stage?.input.fire(action, detail) }
     api.bind = (name, sig) => {
       bound.set(name, sig)
