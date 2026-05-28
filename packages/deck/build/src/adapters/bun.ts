@@ -120,6 +120,7 @@ export const bunAdapter: SuiBundler = {
         define: { 'process.env.NODE_ENV': nodeEnvDef },
         plugins: [mirrorResolverPlugin(ctx.packageRoot)],
         ...(config.loaders ? { loader: config.loaders } : {}),
+        ...(config.external ? { external: config.external } : {}),
       })
 
       if (!result.success) {

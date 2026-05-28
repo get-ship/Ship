@@ -1,0 +1,51 @@
+---
+/*
+ * DocsWindow — links to the live Ship documentation. Marketing surface
+ * only; the real docs are hosted separately. Each link opens out-of-band.
+ */
+import Window from './Window.astro';
+const { open = false } = Astro.props;
+
+const sections = [
+  { k: 'Getting started',  v: 'Install Ship, point it at a workspace, run your first agent.', href: 'https://ship.com/docs/start' },
+  { k: 'Agents',           v: 'Profiles, skills, permissions, MCP — and how `ship use` compiles them.', href: 'https://ship.com/docs/agents' },
+  { k: 'Pipelines',        v: 'Declarative DAGs, gates, triggers, restart semantics.', href: 'https://ship.com/docs/pipelines' },
+  { k: 'Views & SUI',      v: 'Author UI in `.sui` files — primitives, signals, hot-reload.', href: 'https://ship.com/docs/sui' },
+  { k: 'Collections',      v: 'Schemaful data with auto-events and reactive subscriptions.', href: 'https://ship.com/docs/collections' },
+  { k: 'CLI reference',    v: '`ship daemon`, `ship dispatch`, `ship use`, `ship mcp serve`.', href: 'https://ship.com/docs/cli' },
+];
+---
+<Window app="docs" title="Docs" meta="how Ship works" mark="D" accent="dashboard" open={open}>
+  <div class="win-scroll docs">
+    <div class="stage">
+      <div class="eyebrow">Docs · how Ship works</div>
+      <h2 class="hl">Build with Ship.</h2>
+      <p class="prompt">Start with the install, then dig into agents, pipelines, and SUI views.</p>
+
+      <div class="grid">
+        {sections.map((s) => (
+          <a href={s.href} class="row" target="_blank" rel="noopener noreferrer">
+            <sui-list-tile interactive>
+              <span class="k">{s.k}</span>
+              <span slot="meta" class="v">{s.v}</span>
+              <span slot="trailing" class="ext">↗</span>
+            </sui-list-tile>
+          </a>
+        ))}
+      </div>
+    </div>
+  </div>
+</Window>
+
+<style>
+  .docs { display: flex; }
+  .stage { margin: auto; width: 100%; max-width: 640px; padding: 26px 28px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--w-accent); }
+  .hl { font-family: var(--font-display); font-size: clamp(26px, 3.4vw, 34px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.04; margin: 6px 0 4px; color: var(--foreground); }
+  .prompt { font-size: 13.5px; line-height: 1.5; color: color-mix(in oklch, var(--foreground) 66%, var(--background)); margin: 0 0 14px; }
+  .grid { display: flex; flex-direction: column; gap: 4px; }
+  .row { text-decoration: none; color: inherit; display: block; }
+  .k { font-weight: 700; font-size: 13.5px; color: var(--foreground); }
+  .v { font-size: 12px; color: color-mix(in oklch, var(--foreground) 64%, var(--background)); }
+  .ext { font-family: var(--font-mono); font-size: 14px; color: color-mix(in oklch, var(--w-accent) 70%, var(--foreground)); }
+</style>

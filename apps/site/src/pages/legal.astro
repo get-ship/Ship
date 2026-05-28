@@ -1,0 +1,37 @@
+---
+import RoomLayout from '../layouts/RoomLayout.astro';
+---
+<RoomLayout title="SHIP — legal & privacy" description="Ship is local-first: your data stays on your machine. Beta terms + security contact.">
+  <div class="room-card wide legal">
+    <div class="room-eyebrow">Legal · Public beta</div>
+    <h1 class="room-title">The short version.</h1>
+    <p class="room-lede">Full terms land before general availability. During public beta, here's the honest summary — no dark patterns, no surprises.</p>
+
+    <div class="sec">
+      <h2>Privacy</h2>
+      <p>Ship is <b>local-first</b>. Your prompts, data, collections, and artifacts stay on your machine — we don't collect or transmit them. The only thing we store is the email you give us for the waitlist, used solely to tell you when installers land. Bring-your-own-model means your model provider's terms govern what you send them.</p>
+    </div>
+    <div class="sec">
+      <h2>Terms</h2>
+      <p>Ship is <b>free for personal use</b> during public beta and provided as-is while we stabilise it. Paid sync (Pro) is billed monthly and cancellable anytime — your local Ship keeps working either way. Complete Terms of Service will be published here before GA.</p>
+    </div>
+    <div class="sec">
+      <h2>Security</h2>
+      <p>Agents are <b>scoped by default</b>: filesystem, shell, and network access are explicit per agent, privileged actions wait for your approval, and everything is audited. Found something? Email <a href="mailto:security@getship.dev">security@getship.dev</a>.</p>
+    </div>
+
+    <div class="room-switch"><a href="/">← Back to the desktop</a></div>
+  </div>
+</RoomLayout>
+
+<style>
+  .legal { text-align: left; }
+  .legal .room-eyebrow, .legal .room-title, .legal .room-lede { align-self: flex-start; }
+  .legal .room-title, .legal .room-lede { text-align: left; }
+  .sec { display: flex; flex-direction: column; gap: 5px; }
+  .sec h2 { font-family: var(--font-display); font-size: 15px; font-weight: 700; margin: 0; color: var(--foreground); }
+  .sec p { font-size: 12.5px; line-height: 1.55; margin: 0; color: color-mix(in oklch, var(--foreground) 72%, var(--background)); }
+  .sec p b { color: var(--foreground); font-weight: 600; }
+  .sec a { color: var(--accent); text-decoration: none; }
+  .room-switch { align-self: flex-start; }
+</style>

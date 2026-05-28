@@ -18,8 +18,11 @@
   ────────────────────────────────────────────────────────────────────────
   Props:
     placement (union, 'bottom-end', reflect)  panel placement
-    label-style (union, 'text'|'compact', 'text', reflect)
-                                              compact = dot + caret only
+    label-style (union, 'text'|'compact', 'compact', reflect)
+                                              compact (default) = palette
+                                              icon only, no label/caret —
+                                              the shell + marketing site
+                                              both use this
     persist (bool, true, reflect)             write-through to localStorage
                                               + /api/settings via persistTheme
   ────────────────────────────────────────────────────────────────────────
@@ -30,7 +33,7 @@
 -->
 
 <prop name="placement" values="top|top-end|bottom|bottom-end|left|left-end|right|right-end" default="bottom-end" reflect />
-<prop name="label-style" values="text|compact" default="text" reflect />
+<prop name="label-style" values="text|compact" default="compact" reflect />
 <prop name="persist" type="bool" default="true" reflect />
 
 <style>
@@ -84,8 +87,16 @@
     text-overflow: ellipsis;
     max-width: 14ch;
   }
-  :host([label-style='compact']) .label { display: none; }
-  :host([label-style='compact']) .caret { display: none; }
+  /* Compact is the default. Only the explicit `[label-style='text']`
+     opt-in shows the current-theme label + caret next to the icon.
+     We can't rely on `:host([label-style='compact'])` because the SUI
+     runtime's reflect=true only writes the attribute when the prop
+     actually changes — an unset prop sitting at its default leaves the
+     host attribute absent, and the selector wouldn't match. */
+  :host(:not([label-style='text'])) .label { display: none; }
+  :host(:not([label-style='text'])) .caret { display: none; }
+  /* Compact trigger collapses to just the palette icon — no inner gap. */
+  :host(:not([label-style='text'])) .trigger { --tp-trigger-gap: 0; padding: var(--space-1); }
 
   .caret {
     width: 10px; height: 6px;

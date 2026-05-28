@@ -1,0 +1,842 @@
+---
+/*
+ * AgentsWindow v4 — feedback pass:
+ * - Emoji icons swapped for SVG line glyphs (consistent, palette-friendly).
+ * - Configurable diverges from Universal — it's a GUI editing experience
+ *   (sui-segmented + chip toggles), not another JSON dump.
+ * - Universal compiled-output panel actually styled + fills its column.
+ * - Programmable copy corrected: skills give tools, pipelines chain agents,
+ *   triggers fire them. "Compose skills into pipelines" was nonsense.
+ * - Observable rebuilt as a rich GUI dashboard (stats + charts + live list)
+ *   — Ship is a custom-UI runtime, not a terminal.
+ * - Visual: bigger canvas, hover-glow on each annotatable element, the
+ *   annotation tag lives on the canvas next to its marker.
+ */
+import Window from './Window.astro';
+const { open = false } = Astro.props;
+
+const agentProfile = {
+  name: 'inbox-triage',
+  model: 'claude-opus-4-7',
+  skills: ['format-email', 'summarize-thread', 'draft-reply'],
+  rules: ['always respect tone'],
+  permissions: { network: ['gmail.googleapis.com'], files: ['inbox/**'] },
+  mcp: ['gmail', 'linear'],
+  space: 'personal',
+};
+
+// What `ship use <harness>` actually writes — file lists per provider.
+// Sourced from observed dispatch.sh output: each harness gets a different
+// directory layout but the same source-of-truth agent profile.
+const harnesses = [
+  { id: 'claude',   name: 'Claude Code', logo: '/harness-logos/claude.svg', adaptive: false },
+  { id: 'codex',    name: 'Codex',       logo: '/harness-logos/OpenAI-black-monoblossom.svg', adaptive: true },
+  { id: 'cursor',   name: 'Cursor',      logo: '/harness-logos/cursor.svg', adaptive: true },
+  { id: 'opencode', name: 'OpenCode',    logo: '/harness-logos/opencode-logo-dark.svg', adaptive: true },
+  { id: 'pi',       name: 'pi',          logo: '/harness-logos/pi-logo-on-light.svg', adaptive: true },
+];
+
+const compiled: Record<string, { cmd: string; tree: Array<{ path: string; note: string }> }> = {
+  claude: { cmd: 'ship use claude', tree: [
+    { path: 'CLAUDE.md',                       note: 'project rules' },
+    { path: '.mcp.json',                       note: 'MCP servers' },
+    { path: '.claude/agents/inbox-triage.md',  note: 'agent profile' },
+    { path: '.claude/skills/',                 note: '5 skills compiled' },
+    { path: '.claude/settings.json',           note: 'provider settings' },
+  ] },
+  codex: { cmd: 'ship use codex', tree: [
+    { path: 'AGENTS.md',                       note: 'project rules' },
+    { path: '.codex/config.toml',              note: 'provider settings' },
+    { path: '.codex/agents/inbox-triage.toml', note: 'agent profile' },
+    { path: '.codex/skills/',                  note: '5 skills compiled' },
+  ] },
+  cursor: { cmd: 'ship use cursor', tree: [
+    { path: '.cursor/rules/',                  note: 'project rules' },
+    { path: '.cursor/mcp.json',                note: 'MCP servers' },
+    { path: '.cursor/agents/inbox-triage.md',  note: 'agent profile' },
+  ] },
+  opencode: { cmd: 'ship use opencode', tree: [
+    { path: '.opencode/agent.toml',            note: 'agent profile' },
+    { path: '.opencode/rules.md',              note: 'project rules' },
+    { path: '.opencode/mcp.json',              note: 'MCP servers' },
+  ] },
+  pi: { cmd: 'ship use pi', tree: [
+    { path: '.pi/config.yaml',                 note: 'agent + provider' },
+    { path: '.pi/rules/',                      note: 'project rules' },
+    { path: '.pi/skills/',                     note: '5 skills compiled' },
+  ] },
+};
+
+// Mono-stroke SVG glyphs (currentColor, 16×16, 1.6 stroke) — consistent,
+// theme-aware, no emoji.
+const G = {
+  universal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg>',
+  configurable: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10"/><circle cx="17" cy="7" r="2.3"/><path d="M20 7h-1"/><path d="M4 12h3"/><circle cx="10" cy="12" r="2.3"/><path d="M13 12h7"/><path d="M4 17h12"/><circle cx="19" cy="17" r="2.3"/></svg>',
+  programmable: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5C5 5 5 12 5 12s0 7 4 7"/><path d="M15 5c4 0 4 7 4 7s0 7-4 7"/></svg>',
+  observable: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16l4-8 3 5 3-9 3 6 5-2"/></svg>',
+  visual: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><circle cx="7" cy="6.5" r="0.7" fill="currentColor"/></svg>',
+};
+
+const facets = [
+  { id: 'visual',       icon: G.visual,       title: 'Visual' },
+  { id: 'universal',    icon: G.universal,    title: 'Universal' },
+  { id: 'configurable', icon: G.configurable, title: 'Configurable' },
+  { id: 'programmable', icon: G.programmable, title: 'Programmable' },
+  { id: 'observable',   icon: G.observable,   title: 'Observable' },
+];
+
+// Configurable demo: a believable GUI form for editing an agent.
+const skillsOpts = ['format-email','summarize-thread','draft-reply','translate','schedule'];
+const mcpOpts    = ['gmail','linear','slack','github','notion'];
+---
+<Window app="agents" title="Agents" meta="first-class actors" mark="A" accent="agents" open={open} popout>
+  <div class="win-scroll agents">
+    <div class="stage">
+      <div class="eyebrow">Agents · first-class actors</div>
+      <h2 class="hl">One config. Every model.</h2>
+      <p class="prompt">A Ship agent is a lot more than a chatbot. See what one’s actually made of:</p>
+
+      <div class="cols">
+        <div class="nav">
+          {facets.map((f) => (
+            <sui-list-tile class="facet" interactive selected={f.id === 'visual' ? 'true' : undefined} data-pick={f.id}>
+              <span slot="leading" class="f-ico" set:html={f.icon} />
+              {f.title}
+            </sui-list-tile>
+          ))}
+        </div>
+
+        <div class="content">
+          {/* ── Universal — harness cards row, then files for selected. ─ */}
+          <div class="panel" data-panel="universal" hidden
+               data-popout-head="One config. Every model."
+               data-popout-body="One agent in the GUI compiles to Claude Code, Codex, Cursor, OpenCode, and pi — each provider's native format. Switch the model or tool any time without rewriting your agent. No lock-in, no fork.">
+            <div class="h-row">
+              {harnesses.map((h, i) => (
+                <button class="h-card" type="button" data-harness={h.id} data-active={i === 1 ? 'true' : undefined}>
+                  <img src={h.logo} class:list={['h-card-logo', { adaptive: h.adaptive }]} alt="" />
+                  <span class="h-card-name">{h.name}</span>
+                  <span class="h-card-meta">{compiled[h.id].tree.length} files · <sui-status-dot tone="success" size="sm"></sui-status-dot></span>
+                </button>
+              ))}
+            </div>
+
+            <div class="h-tree-wrap">
+              {harnesses.map((h, i) => (
+                <div class="h-tree" data-tree={h.id} hidden={i !== 1}>
+                  {compiled[h.id].tree.map((row) => (
+                    <div class="h-trow">
+                      <span class="h-tpath">{row.path}</span>
+                      <span class="h-tnote">{row.note}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Configurable (GUI editing, not JSON) ────────────────────── */}
+          <div class="panel" data-panel="configurable" hidden
+               data-popout-head="Everything is configuration."
+               data-popout-body="Skills, permissions, rules, MCP servers, model, space — every facet of your agent is a field you tune in the Ship GUI. Nothing buried in files, nothing duplicated per provider. Version-controlled, replayable, and shareable as one declaration.">
+            <div class="cfg-form">
+              <div class="cfg-row">
+                <label class="cfg-k">Model</label>
+                <div class="seg-row" data-segrow>
+                  <sui-button class="seg" variant="solid" size="sm" tone="primary" data-val="claude-opus" data-on="true">Claude</sui-button>
+                  <sui-button class="seg" variant="ghost" size="sm" data-val="gpt-4">GPT-4</sui-button>
+                  <sui-button class="seg" variant="ghost" size="sm" data-val="gemini">Gemini</sui-button>
+                  <sui-button class="seg" variant="ghost" size="sm" data-val="local">Local</sui-button>
+                </div>
+              </div>
+              <div class="cfg-row">
+                <label class="cfg-k">Skills</label>
+                <div class="chip-row">
+                  {skillsOpts.map((s, i) => (
+                    <sui-badge class="chip" variant={i < 3 ? 'soft' : 'outline'} size="sm" data-toggle={s} data-on={i < 3 ? 'true' : 'false'}>{s}</sui-badge>
+                  ))}
+                </div>
+              </div>
+              <div class="cfg-row">
+                <label class="cfg-k">Permissions</label>
+                <div class="seg-row" data-segrow>
+                  <sui-button class="seg" variant="ghost" size="sm" data-val="read-only">Read-only</sui-button>
+                  <sui-button class="seg" variant="solid" size="sm" tone="primary" data-val="standard" data-on="true">Standard</sui-button>
+                  <sui-button class="seg" variant="ghost" size="sm" data-val="full">Full access</sui-button>
+                </div>
+              </div>
+              <div class="cfg-row">
+                <label class="cfg-k">MCP servers</label>
+                <div class="chip-row">
+                  {mcpOpts.map((s, i) => (
+                    <sui-badge class="chip" variant={i < 2 ? 'soft' : 'outline'} size="sm" data-toggle={s} data-on={i < 2 ? 'true' : 'false'}>{s}</sui-badge>
+                  ))}
+                </div>
+              </div>
+              <div class="cfg-row">
+                <label class="cfg-k">Space</label>
+                <div class="seg-row" data-segrow>
+                  <sui-button class="seg" variant="solid" size="sm" tone="primary" data-val="personal" data-on="true">Personal</sui-button>
+                  <sui-button class="seg" variant="ghost" size="sm" data-val="acme">Acme Team</sui-button>
+                  <sui-button class="seg" variant="ghost" size="sm" data-val="launch">Launch Group</sui-button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Programmable ────────────────────────────────────────────── */}
+          <div class="panel" data-panel="programmable" hidden
+               data-popout-head="Programmable agents."
+               data-popout-body="Skills are the reusable abilities an agent can call. Pipelines chain agents together — each step its own agent, model, or skill, restartable from any failure. Triggers fire pipelines on events: schedules, file watchers, webhooks, MCP signals. You decide the wiring.">
+            {/* Wire diagram — 3 nodes connected with arrows. Active node
+                glows + lifts. The detail card below mirrors the active node. */}
+            <div class="p-wire">
+              <button class="p-node" type="button" data-step="1" data-active>
+                <span class="p-node-kind">SKILL</span>
+                <span class="p-node-name">format-email</span>
+              </button>
+              <span class="p-arrow" aria-hidden="true">→</span>
+              <button class="p-node" type="button" data-step="2">
+                <span class="p-node-kind">PIPELINE</span>
+                <span class="p-node-name">inbox-triage</span>
+              </button>
+              <span class="p-arrow" aria-hidden="true">→</span>
+              <button class="p-node" type="button" data-step="3">
+                <span class="p-node-kind">TRIGGER</span>
+                <span class="p-node-name">gmail.new-message</span>
+              </button>
+            </div>
+
+            {/* Detail card per step — only the active one is visible. */}
+            <div class="p-detail-wrap">
+              <sui-card class="p-detail" variant="soft" padding="md" data-step="1">
+                <p class="p-detail-desc">A reusable ability. Cleans a draft's tone, restructures paragraphs, normalises the signoff.</p>
+                <div class="p-detail-fields">
+                  <div class="p-field"><span class="p-field-k">input</span><code class="p-field-v">{`{ draft, tone: 'formal' | 'casual' }`}</code></div>
+                  <div class="p-field"><span class="p-field-k">output</span><code class="p-field-v">{`{ formatted }`}</code></div>
+                  <div class="p-field"><span class="p-field-k">used by</span><span class="p-field-v">4 pipelines · 12 agents</span></div>
+                </div>
+              </sui-card>
+              <sui-card class="p-detail" variant="soft" padding="md" data-step="2" hidden>
+                <p class="p-detail-desc">Chains agents into a workflow. Each step can be a different agent, model, or skill. Restartable from any failed step.</p>
+                <div class="p-detail-fields p-detail-steps">
+                  <div class="p-pstep"><span class="p-pstep-i">1</span><code>read</code><span class="p-pstep-meta">skill</span></div>
+                  <div class="p-pstep"><span class="p-pstep-i">2</span><code>summarize-thread</code><span class="p-pstep-meta">skill</span></div>
+                  <div class="p-pstep"><span class="p-pstep-i">3</span><code>format-email</code><span class="p-pstep-meta">skill ×3</span></div>
+                  <div class="p-pstep"><span class="p-pstep-i">4</span><code>draft-reply</code><span class="p-pstep-meta">agent</span></div>
+                  <div class="p-pstep"><span class="p-pstep-i">5</span><code>review.gate</code><span class="p-pstep-meta">human approval</span></div>
+                </div>
+              </sui-card>
+              <sui-card class="p-detail" variant="soft" padding="md" data-step="3" hidden>
+                <p class="p-detail-desc">Fires the pipeline on real events — no babysitting. Backoff with exponential retry; replay any past firing from the event log.</p>
+                <div class="p-detail-fields">
+                  <div class="p-field"><span class="p-field-k">source</span><code class="p-field-v">gmail (MCP)</code></div>
+                  <div class="p-field"><span class="p-field-k">filter</span><code class="p-field-v">from:!noreply &amp; priority:!low</code></div>
+                  <div class="p-field"><span class="p-field-k">others</span><span class="p-field-v">cron · file watcher · webhook · MCP signal</span></div>
+                </div>
+              </sui-card>
+            </div>
+          </div>
+
+          {/* ── Observable (GUI dashboard, not terminal) ────────────────── */}
+          <div class="panel" data-panel="observable" hidden
+               data-popout-head="Watch every move."
+               data-popout-body="Every agent action — prompts, tool calls, decisions, outputs — lands on a live, event-sourced bus. The GUI shows the mesh in real time, scrub backwards to replay any moment, audit any run. Observability is a property of the runtime, not instrumentation you have to add.">
+            <div class="o-grid">
+              <sui-card variant="soft" padding="md" class="o-kpi">
+                <div class="o-kpi-row">
+                  <sui-stat size="sm" tone="primary">
+                    <span slot="label">agents active</span>
+                    5
+                    <span slot="trend">live</span>
+                  </sui-stat>
+                  <sui-stat size="sm" tone="success">
+                    <span slot="label">events / min</span>
+                    234
+                    <span slot="trend">+18%</span>
+                  </sui-stat>
+                </div>
+                <div class="o-spark">
+                  <div class="o-spark-label">throughput · last 60s</div>
+                  <sui-sparkline data="22,28,34,42,48,52,58,62,68,74,82,88" tone="primary" width="320" height="42" fill label="events"></sui-sparkline>
+                </div>
+              </sui-card>
+              <sui-card variant="soft" padding="md" class="o-bars">
+                <div class="o-bars-label">events per agent · last hour</div>
+                <div class="o-bars-list">
+                  <div class="o-bar-row"><span class="o-bar-name">inbox-triage</span><div class="o-bar-track"><span class="o-bar-fill" style="width:78%"></span></div><span class="o-bar-n">78</span></div>
+                  <div class="o-bar-row"><span class="o-bar-name">code-review</span><div class="o-bar-track"><span class="o-bar-fill" style="width:54%"></span></div><span class="o-bar-n">54</span></div>
+                  <div class="o-bar-row"><span class="o-bar-name">daily-recap</span><div class="o-bar-track"><span class="o-bar-fill" style="width:32%"></span></div><span class="o-bar-n">32</span></div>
+                  <div class="o-bar-row"><span class="o-bar-name">on-call-watch</span><div class="o-bar-track"><span class="o-bar-fill" style="width:18%"></span></div><span class="o-bar-n">18</span></div>
+                </div>
+              </sui-card>
+              <div class="o-events">
+                <sui-list-tile density="compact" class="o-ev">
+                  <sui-status-dot slot="leading" tone="success" size="sm"></sui-status-dot>
+                  Inbox · drafted 5 replies
+                  <span slot="trailing" class="o-ago">2s ago</span>
+                </sui-list-tile>
+                <sui-list-tile density="compact" class="o-ev">
+                  <sui-status-dot slot="leading" tone="success" size="sm"></sui-status-dot>
+                  Repo · ran the test suite
+                  <span slot="trailing" class="o-ago">40s ago</span>
+                </sui-list-tile>
+                <sui-list-tile density="compact" class="o-ev">
+                  <sui-status-dot slot="leading" tone="warning" pulse size="sm"></sui-status-dot>
+                  Launch · waiting on your review
+                  <span slot="trailing" class="o-ago">now</span>
+                </sui-list-tile>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Visual — inspector-mode hover, click to drop a tagged pin. */}
+          <div class="panel" data-panel="visual"
+               data-popout-head="Chat, reimagined."
+               data-popout-body="Instead of a wall of text, an agent renders a real surface — stats, charts, copy — that you can point at and annotate. Markup beats paragraphs. The surface and your notes both stay in the run, replayable like everything else on the bus.">
+            <div class="v-layer" data-canvas>
+              <sui-card class="v-surface" variant="outline" padding="md">
+                <sui-toolbar justify="split" class="v-bar">
+                  <span class="v-bar-title">Q3 recap · draft</span>
+                  <sui-badge variant="soft" size="sm">share</sui-badge>
+                </sui-toolbar>
+                <div class="v-row">
+                  <sui-stat size="md" tone="success" class="v-hot" data-inspect="sui-stat">
+                    <span slot="label">ARR</span>
+                    $1.24M
+                    <span slot="trend">+18%</span>
+                  </sui-stat>
+                  <div class="v-spark v-hot" data-inspect="sui-sparkline"><sui-sparkline data="32,48,42,52,58,74,82" tone="primary" width="220" height="56" fill label="q3"></sui-sparkline></div>
+                </div>
+                <p class="v-copy v-hot" data-inspect="markdown"><b>What shipped</b><br/>Auth rewrite landed; mobile picker stable on iOS 18; 2 P0s closed.</p>
+                <div class="v-row">
+                  <sui-stat size="sm" tone="primary" class="v-hot" data-inspect="sui-stat">
+                    <span slot="label">NPS</span>
+                    72
+                    <span slot="trend">+9</span>
+                  </sui-stat>
+                  <sui-stat size="sm" tone="warning" class="v-hot" data-inspect="sui-stat">
+                    <span slot="label">P0s open</span>
+                    0
+                    <span slot="trend">-2</span>
+                  </sui-stat>
+                </div>
+              </sui-card>
+            </div>
+            <p class="v-hint">hover to inspect an element, click to pin it</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <sui-toast-host position="top-right" class="agents-toasts"></sui-toast-host>
+</Window>
+
+<style>
+  .agents { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .stage {
+    /* Top-anchored, full window width, fills available height so the
+       demo can use the pixels we own. Tight padding so the canvas
+       reaches close to the window frame. */
+    flex: 1; min-height: 0;
+    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    padding: 14px 22px 12px;
+    display: flex; flex-direction: column; align-items: stretch; text-align: center;
+  }
+  /* Header band is compact — the canvas is the hero, not the headline. */
+  .eyebrow { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--w-accent); }
+  .hl { font-family: var(--font-display); font-size: clamp(22px, 2.6vw, 30px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.02; margin: 2px 0 0; color: var(--foreground); }
+  .hl-accent {
+    background: linear-gradient(100deg, var(--w-accent), color-mix(in oklch, var(--w-accent) 50%, var(--accent)));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .prompt { font-size: 12.5px; line-height: 1.4; color: color-mix(in oklch, var(--foreground) 64%, var(--background)); margin: 4px auto 0; max-width: 52ch; }
+
+  .cols {
+    flex: 1; min-height: 0;
+    display: grid;
+    grid-template-columns: 168px 1fr;
+    grid-template-rows: 1fr;   /* fill the .stage's available height */
+    gap: 14px;
+    width: 100%; text-align: left; align-items: stretch;
+    margin-top: 10px;
+  }
+  .nav { display: flex; flex-direction: column; gap: 3px; }
+  .f-ico { width: 16px; height: 16px; display: inline-grid; place-items: center; color: var(--w-accent); }
+  .f-ico :global(svg) { width: 16px; height: 16px; }
+  .content {
+    /* Right column demo "stage" inside the cols. Fills the cols height
+       so the active panel can use the available space; .panel itself
+       stretches its content vertically.
+       Padding is intentionally tight (8px) so the visible "canvas" of
+       each panel is as close to the window frame as possible. The card
+       border/background still announces the demo region, but the panel
+       content (Visual's surface, Universal's harness grid, etc.) is the
+       hero — not the wrapper. */
+    width: 100%;
+    min-height: 0;
+    background: color-mix(in oklch, var(--card) 72%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 22%, transparent);
+    border-radius: 12px;
+    padding: 8px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 28px -16px color-mix(in oklch, var(--w-accent) 50%, transparent);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  /* When Visual is active, drop the wrapper's chrome entirely — the
+     surface itself IS the canvas. No card-inside-a-card; the Q3 recap
+     gets every pixel from the cols edge to the window frame. */
+  .content:has(.panel[data-panel="visual"]:not([hidden])) {
+    padding: 0;
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .panel {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column; gap: 12px;
+    justify-content: center;
+  }
+  .panel[hidden] { display: none; }
+  .panel[data-panel="visual"] { justify-content: stretch; }
+  .p-cap { font-size: 13px; line-height: 1.5; color: color-mix(in oklch, var(--foreground) 74%, var(--background)); margin: 0; }
+  .p-cap b { color: var(--foreground); font-weight: 700; }
+
+  /* ── Universal — 5 harness cards in a row, file list below. ── */
+  .p-sub { font-size: 12px; color: color-mix(in oklch, var(--foreground) 56%, var(--background)); margin: -4px 0 14px; font-style: italic; }
+  .h-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .h-card {
+    appearance: none;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 14px 8px 10px;
+    background: color-mix(in oklch, var(--card) 80%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
+    border-radius: 10px;
+    cursor: pointer;
+    color: inherit;
+    transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  }
+  .h-card:hover { transform: translateY(-2px); border-color: color-mix(in oklch, var(--w-accent) 30%, transparent); }
+  .h-card[data-active='true'] {
+    background: color-mix(in oklch, var(--w-accent) 14%, var(--card));
+    border-color: var(--w-accent);
+    box-shadow: 0 6px 18px -6px color-mix(in oklch, var(--w-accent) 60%, transparent);
+  }
+  .h-card-logo { width: 28px; height: 28px; object-fit: contain; }
+  :global(.dark) .h-card-logo.adaptive { filter: invert(1); }
+  .h-card-name { font-weight: 700; font-size: 13px; color: var(--foreground); }
+  .h-card-meta {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: color-mix(in oklch, var(--foreground) 56%, var(--background));
+  }
+  .h-tree-wrap {
+    /* Natural height; the panel centres us vertically. Keeps the file
+       tree visually right-sized to its content rather than padding out
+       an empty bordered box. */
+    border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
+    border-radius: 10px;
+    background: color-mix(in oklch, var(--background) 60%, transparent);
+    padding: 8px 0;
+  }
+  .h-tree[hidden] { display: none; }
+  .h-trow {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline; gap: 16px;
+    padding: 7px 18px;
+    transition: background-color 120ms ease;
+  }
+  .h-trow:hover { background: color-mix(in oklch, var(--w-accent) 8%, transparent); }
+  .h-tpath {
+    font-family: var(--font-mono); font-size: 12.5px; color: var(--foreground);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .h-tnote { font-size: 11.5px; color: color-mix(in oklch, var(--foreground) 56%, var(--background)); white-space: nowrap; }
+
+  /* ── Configurable (GUI form) ── */
+  .cfg-form {
+    display: flex; flex-direction: column; gap: 14px; padding: 8px 4px;
+  }
+  .cfg-row { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 12px; }
+  .cfg-k { font-size: 12px; font-weight: 600; color: color-mix(in oklch, var(--foreground) 70%, var(--background)); text-transform: lowercase; letter-spacing: 0.02em; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 5px; }
+  /* Segmented look out of sui-button row (the real sui-segmented has a
+     controller bug — its containerEl ref is read without dereferencing,
+     so the click/keydown effect throws). Buttons work and theme-shift. */
+  .seg-row { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: color-mix(in oklch, var(--foreground) 6%, transparent); border: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent); }
+  .seg { --sui-button-radius: 6px; }
+  .chip { cursor: pointer; transition: filter 140ms ease, opacity 140ms ease; }
+  .chip[data-on='false'] { opacity: 0.45; filter: grayscale(0.4); }
+  .chip:hover { filter: brightness(1.08); }
+  .cfg-note { font-size: 11.5px; color: color-mix(in oklch, var(--foreground) 60%, var(--background)); margin: 4px 0 0; font-style: italic; }
+
+  /* ── Programmable — wire diagram + per-step detail card. ── */
+  .p-wire { display: flex; align-items: stretch; gap: 8px; margin-bottom: 12px; }
+  .p-node {
+    flex: 1; min-width: 0;
+    appearance: none; cursor: pointer; text-align: left;
+    background: color-mix(in oklch, var(--card) 84%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 14%, transparent);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 3px;
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+  .p-node:hover { border-color: color-mix(in oklch, var(--w-accent) 40%, transparent); transform: translateY(-1px); }
+  .p-node[data-active] {
+    background: color-mix(in oklch, var(--w-accent) 14%, var(--card));
+    border-color: var(--w-accent);
+    box-shadow: 0 6px 18px -6px color-mix(in oklch, var(--w-accent) 60%, transparent);
+  }
+  .p-node-kind {
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.16em; color: color-mix(in oklch, var(--w-accent) 80%, var(--foreground));
+  }
+  .p-node-name { font-weight: 700; font-size: 13px; color: var(--foreground); }
+  .p-arrow {
+    display: grid; place-items: center; flex: 0 0 14px;
+    font-size: 16px; color: color-mix(in oklch, var(--w-accent) 60%, var(--foreground));
+  }
+
+  .p-detail-wrap { display: flex; flex-direction: column; }
+  .p-detail { transition: opacity 200ms ease; }
+  .p-detail[hidden] { display: none; }
+  .p-detail-desc { font-size: 12.5px; line-height: 1.5; color: color-mix(in oklch, var(--foreground) 72%, var(--background)); margin: 0 0 10px; }
+  .p-detail-fields { display: flex; flex-direction: column; gap: 6px; }
+  .p-field { display: grid; grid-template-columns: 78px 1fr; align-items: baseline; gap: 10px; }
+  .p-field-k {
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 56%, var(--background));
+  }
+  .p-field-v { font-size: 11.5px; color: var(--foreground); }
+  code.p-field-v {
+    font-family: var(--font-mono);
+    padding: 1px 6px; border-radius: 4px;
+    background: color-mix(in oklch, var(--w-accent) 12%, transparent);
+  }
+  .p-detail-steps { gap: 4px; }
+  .p-pstep {
+    display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 10px;
+    padding: 5px 8px;
+    background: color-mix(in oklch, var(--background) 60%, transparent);
+    border-radius: 6px;
+  }
+  .p-pstep-i {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: color-mix(in oklch, var(--w-accent) 80%, transparent);
+    color: white; font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  .p-pstep code { font-family: var(--font-mono); font-size: 11.5px; color: var(--foreground); }
+  .p-pstep-meta { font-size: 10.5px; color: color-mix(in oklch, var(--foreground) 56%, var(--background)); }
+
+  /* ── Observable dashboard ── */
+  .o-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    grid-template-rows: auto auto;
+  }
+  .o-kpi, .o-bars { min-width: 0; }
+  .o-kpi-row { display: flex; gap: 16px; margin-bottom: 8px; }
+  .o-spark { display: flex; flex-direction: column; gap: 4px; }
+  .o-spark-label, .o-bars-label { font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.12em; color: color-mix(in oklch, var(--foreground) 54%, var(--background)); }
+  .o-bars-list { display: flex; flex-direction: column; gap: 7px; margin-top: 6px; }
+  .o-bar-row { display: grid; grid-template-columns: 90px 1fr 32px; align-items: center; gap: 8px; font-size: 11.5px; }
+  .o-bar-name { color: color-mix(in oklch, var(--foreground) 72%, var(--background)); }
+  .o-bar-track { height: 6px; border-radius: 3px; background: color-mix(in oklch, var(--foreground) 10%, transparent); overflow: hidden; }
+  .o-bar-fill { display: block; height: 100%; background: linear-gradient(90deg, color-mix(in oklch, var(--w-accent) 70%, transparent), var(--w-accent)); border-radius: 3px; }
+  .o-bar-n { font-family: var(--font-mono); font-size: 10.5px; color: color-mix(in oklch, var(--foreground) 62%, var(--background)); text-align: right; }
+  .o-events { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px; }
+  .o-ago { font-family: var(--font-mono); font-size: 10.5px; color: color-mix(in oklch, var(--foreground) 50%, var(--background)); }
+
+  /* ── Visual — annotated surface with devtools-inspector hover.
+     The Q3 recap IS the canvas. Content-sized card centred in the
+     available space — no awkward "filled by space-between" stretch. */
+  .v-layer { position: relative; display: flex; flex-direction: column; justify-content: center; flex: 1; min-height: 0; padding: 4px; }
+  .v-surface {
+    background: color-mix(in oklch, var(--card) 94%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 28%, transparent);
+    border-radius: 14px;
+    box-shadow: 0 16px 40px -22px color-mix(in oklch, var(--w-accent) 60%, transparent);
+    display: flex; flex-direction: column;
+    gap: 16px;
+    padding: 22px 26px;
+  }
+  .v-bar { flex: 0 0 auto; }
+  .v-bar-title { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--foreground); }
+  .v-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+    align-items: center;
+  }
+  .v-row > * { display: flex; align-items: center; }
+  .v-spark { justify-content: flex-end; }
+  .v-spark sui-sparkline { width: 100%; max-width: 100%; }
+  .v-copy {
+    font-size: 13px; line-height: 1.55;
+    color: color-mix(in oklch, var(--foreground) 70%, var(--background));
+    margin: 0; padding: 12px 14px;
+    border-radius: 8px;
+    background: color-mix(in oklch, var(--w-accent) 5%, transparent);
+  }
+  .v-copy b { color: var(--foreground); font-weight: 700; font-size: 13.5px; display: block; margin-bottom: 4px; }
+
+  /* Inspector hover — devtools-style outline + tag label. The transition
+     on outline keeps it from looking like an abrupt "I selected this." */
+  .v-hot {
+    position: relative;
+    cursor: crosshair;
+    outline: 0px solid transparent;
+    outline-offset: 4px;
+    border-radius: 4px;
+    transition: outline-color 120ms ease, outline-width 120ms ease, background-color 120ms ease;
+  }
+  .v-hot:hover {
+    outline: 1.5px dashed var(--w-accent);
+    background: color-mix(in oklch, var(--w-accent) 6%, transparent);
+  }
+  .v-hot:hover::before {
+    content: attr(data-inspect);
+    position: absolute; top: -19px; left: -2px;
+    background: var(--w-accent);
+    color: white;
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: lowercase;
+    padding: 2px 6px; border-radius: 3px 3px 3px 0;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px -1px color-mix(in oklch, var(--w-accent) 60%, transparent);
+    z-index: 5; pointer-events: none;
+  }
+  .v-hot.pinned { outline: 1.5px solid color-mix(in oklch, var(--w-accent) 70%, transparent) !important; }
+
+  /* Pin marker we draw on click — a small numbered chip anchored to the
+     element. Replaces sui-annotation-layer here because its popover is
+     not edge-aware and overflows the window. */
+  .v-layer :global(.v-pin) {
+    position: absolute;
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--w-accent);
+    color: white;
+    padding: 2px 7px 2px 4px;
+    border-radius: 4px 8px 8px 0;
+    font-family: var(--font-body); font-size: 10.5px; font-weight: 600;
+    box-shadow: 0 3px 8px -1px color-mix(in oklch, var(--w-accent) 55%, transparent);
+    z-index: 4; pointer-events: none;
+    transform-origin: 0 100%;
+    animation: v-pop 240ms cubic-bezier(.32,.72,0,1);
+    max-width: 200px;
+  }
+  .v-layer :global(.v-pin i) {
+    font-style: normal; font-size: 9px; font-weight: 800;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: color-mix(in oklch, white 22%, var(--w-accent));
+    display: grid; place-items: center; flex: none;
+  }
+  @keyframes v-pop {
+    from { opacity: 0; transform: scale(0.6) translateY(4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .v-hint { font-family: var(--font-mono); font-size: 10px; color: color-mix(in oklch, var(--foreground) 50%, var(--background)); margin: 8px 0 0; text-align: right; }
+
+  @media (max-width: 760px) {
+    .stage { padding: 14px 14px; }
+    .cols { grid-template-columns: 1fr; gap: 10px; }
+    /* Facet nav becomes a horizontal chip row that scrolls if needed. */
+    .nav {
+      flex-direction: row; flex-wrap: nowrap;
+      gap: 4px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
+    }
+    .nav :global(.facet) { flex: 0 0 auto; scroll-snap-align: start; }
+    .h-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .h-row :global(.h-card):last-child { grid-column: 1 / -1; }
+    .u-split, .o-grid { grid-template-columns: 1fr; }
+    .cfg-row { grid-template-columns: 1fr; gap: 4px; }
+    .p-wire { flex-wrap: wrap; }
+    .v-row { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  /*
+   * AgentsWindow v4 runtime.
+   * - Facet nav (tile click → toggle panel).
+   * - Universal: text streams into a styled <pre> we own (sui-code's own
+   *   chrome was too quiet here).
+   * - Programmable: stepper auto-advances through 3 cards every 2.4s.
+   * - Configurable: chip toggles flip data-on (CSS handles the look).
+   * - Observable: bar widths animate up on entry.
+   * - Visual: sui-annotation-staged → drop a real marker AND render the
+   *   note text as a tag positioned next to the marker on the canvas.
+   */
+  const stage = document.querySelector<HTMLElement>('[data-app-window="agents"] .stage');
+  if (stage) {
+    const tiles = Array.from(stage.querySelectorAll<HTMLElement>('.facet[data-pick]'));
+    const panels = Array.from(stage.querySelectorAll<HTMLElement>('[data-panel]'));
+    let activeFacet = 'visual';
+    const onEnter: Record<string, (panel: HTMLElement) => void> = {};
+    const onLeave: Record<string, (panel: HTMLElement) => void> = {};
+    // Popout content is per-facet — find the active panel's
+    // data-popout-head + data-popout-body and write them into the drawer.
+    const agentWindow = stage.closest<HTMLElement>('.os-window');
+    const popHead = agentWindow?.querySelector<HTMLElement>('[data-popout] .popout-copy strong');
+    const popBody = agentWindow?.querySelector<HTMLElement>('[data-popout] .popout-copy span');
+    const syncPopout = (panel: HTMLElement) => {
+      if (popHead) popHead.textContent = panel.dataset.popoutHead || '';
+      if (popBody) popBody.textContent = panel.dataset.popoutBody || '';
+    };
+
+    const setFacet = (id: string) => {
+      const prev = activeFacet;
+      activeFacet = id;
+      for (const x of tiles) (x.dataset.pick === id ? x.setAttribute('selected', 'true') : x.removeAttribute('selected'));
+      for (const p of panels) p.hidden = p.dataset.panel !== id;
+      const nextPanel = panels.find((p) => p.dataset.panel === id);
+      if (nextPanel) syncPopout(nextPanel);
+      if (prev !== id) {
+        onLeave[prev]?.(panels.find((p) => p.dataset.panel === prev)!);
+        onEnter[id]?.(nextPanel!);
+      }
+    };
+    for (const t of tiles) t.addEventListener('click', () => setFacet(t.dataset.pick!));
+
+    // ── Universal: harness cards. Auto-cycles the active card every 4s
+    //    so the multi-harness story plays without input. Clicking a card
+    //    pauses the auto-cycle and selects manually.
+    const universalPanel = stage.querySelector<HTMLElement>('[data-panel="universal"]')!;
+    const hCards = Array.from(universalPanel.querySelectorAll<HTMLElement>('.h-card[data-harness]'));
+    const hTrees = Array.from(universalPanel.querySelectorAll<HTMLElement>('.h-tree[data-tree]'));
+    const harnessOrder = ['claude', 'codex', 'cursor', 'opencode', 'pi'];
+    let uniTimer = 0;
+    const pickHarness = (id: string) => {
+      for (const c of hCards) (c.dataset.harness === id ? c.setAttribute('data-active', 'true') : c.removeAttribute('data-active'));
+      for (const t of hTrees) t.hidden = t.dataset.tree !== id;
+    };
+    const cycleHarness = () => {
+      const cur = hCards.find((c) => c.dataset.active === 'true')?.dataset.harness || 'codex';
+      pickHarness(harnessOrder[(harnessOrder.indexOf(cur) + 1) % harnessOrder.length]);
+    };
+    for (const c of hCards) {
+      c.addEventListener('click', () => {
+        if (uniTimer) { clearInterval(uniTimer); uniTimer = 0; }
+        pickHarness(c.dataset.harness!);
+      });
+    }
+    onEnter.universal = () => { uniTimer = window.setInterval(cycleHarness, 4000); };
+    onLeave.universal = () => { if (uniTimer) { clearInterval(uniTimer); uniTimer = 0; } };
+
+    // ── Configurable: chip toggles + segmented-style sui-button rows. ───
+    const cfgPanel = stage.querySelector<HTMLElement>('[data-panel="configurable"]')!;
+    for (const chip of Array.from(cfgPanel.querySelectorAll<HTMLElement>('.chip[data-toggle]'))) {
+      chip.addEventListener('click', () => {
+        const on = chip.getAttribute('data-on') === 'true';
+        chip.setAttribute('data-on', on ? 'false' : 'true');
+        chip.setAttribute('variant', on ? 'outline' : 'soft');
+      });
+    }
+    for (const row of Array.from(cfgPanel.querySelectorAll<HTMLElement>('[data-segrow]'))) {
+      const segs = Array.from(row.querySelectorAll<HTMLElement>('.seg[data-val]'));
+      for (const s of segs) {
+        s.addEventListener('click', () => {
+          for (const other of segs) {
+            if (other === s) {
+              other.setAttribute('variant', 'solid');
+              other.setAttribute('tone', 'primary');
+              other.setAttribute('data-on', 'true');
+            } else {
+              other.setAttribute('variant', 'ghost');
+              other.removeAttribute('tone');
+              other.removeAttribute('data-on');
+            }
+          }
+        });
+      }
+    }
+
+    // ── Programmable: auto-cycle wire nodes; clicking a node selects it. ─
+    const progPanel = stage.querySelector<HTMLElement>('[data-panel="programmable"]')!;
+    const wireNodes = Array.from(progPanel.querySelectorAll<HTMLElement>('.p-node[data-step]'));
+    const detailCards = Array.from(progPanel.querySelectorAll<HTMLElement>('.p-detail[data-step]'));
+    let stepTimer = 0;
+    const showStep = (n: number): void => {
+      for (const node of wireNodes) (Number(node.dataset.step) === n ? node.setAttribute('data-active', '') : node.removeAttribute('data-active'));
+      for (const c of detailCards) c.hidden = Number(c.dataset.step) !== n;
+    };
+    for (const node of wireNodes) {
+      node.addEventListener('click', () => {
+        if (stepTimer) { clearInterval(stepTimer); stepTimer = 0; }
+        showStep(Number(node.dataset.step));
+      });
+    }
+    onEnter.programmable = () => {
+      let n = 1; showStep(n);
+      stepTimer = window.setInterval(() => { n = (n % 3) + 1; showStep(n); }, 2800);
+    };
+    onLeave.programmable = () => { if (stepTimer) { clearInterval(stepTimer); stepTimer = 0; } };
+
+    // ── Observable: animate bar fills in on entry. ──────────────────────
+    const obsPanel = stage.querySelector<HTMLElement>('[data-panel="observable"]')!;
+    onEnter.observable = () => {
+      const bars = Array.from(obsPanel.querySelectorAll<HTMLElement>('.o-bar-fill'));
+      for (const b of bars) {
+        const w = b.style.width;
+        b.style.width = '0';
+        requestAnimationFrame(() => { b.style.transition = 'width 900ms cubic-bezier(.32,.72,0,1)'; b.style.width = w; });
+      }
+    };
+
+    // ── Visual: inspector hover (CSS only) + click-to-pin. We dropped
+    //    sui-annotation-layer here because its inline popover doesn't
+    //    edge-detect and overflowed the window; the marketing demo cares
+    //    about the *idea* of point-at-and-annotate, not the textarea.
+    const visualPanel = stage.querySelector<HTMLElement>('[data-panel="visual"]')!;
+    const layer = visualPanel.querySelector<HTMLElement>('[data-canvas]');
+    const NOTES = ['make this the hero', 'tighten this copy', 'use brand blue', 'cut this', 'ship it'];
+    // Cap concurrent pins. Was unbounded — each click appended a span
+    // that never got cleaned up, so the canvas's DOM + the pinned class
+    // list grew forever. 5 is enough to convey the pattern; FIFO drops
+    // the oldest pin + un-pins its host element.
+    const PIN_CAP = 5;
+    const pinQueue: Array<{ pin: HTMLElement; host: HTMLElement }> = [];
+    let pinIdx = 0;
+    layer?.addEventListener('click', (ev: Event) => {
+      const hot = (ev.target as HTMLElement).closest<HTMLElement>('.v-hot');
+      if (!hot || !layer) return;
+      pinIdx += 1;
+      hot.classList.add('pinned');
+      const lr = layer.getBoundingClientRect();
+      const er = hot.getBoundingClientRect();
+      const pin = document.createElement('span');
+      pin.className = 'v-pin';
+      pin.style.left = `${er.left - lr.left + er.width - 6}px`;
+      pin.style.top = `${er.top - lr.top - 22}px`;
+      pin.innerHTML = `<i>${pinIdx}</i>${NOTES[(pinIdx - 1) % NOTES.length]}`;
+      layer.appendChild(pin);
+      pinQueue.push({ pin, host: hot });
+      while (pinQueue.length > PIN_CAP) {
+        const drop = pinQueue.shift();
+        if (!drop) break;
+        drop.pin.remove();
+        // Only un-pin the host if no other live pin references it.
+        if (!pinQueue.some((q) => q.host === drop.host)) {
+          drop.host.classList.remove('pinned');
+        }
+      }
+    });
+
+    setFacet('visual');
+  }
+</script>

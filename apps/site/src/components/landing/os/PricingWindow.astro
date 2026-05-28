@@ -1,0 +1,57 @@
+---
+/*
+ * PricingWindow — conversion surface in `glass`. Two honest tiers from
+ * /pricing: Local (free, runs on your machine) and Pro ($20/mo, sync).
+ */
+import Window from './Window.astro';
+const { open = false } = Astro.props;
+const local = ['Local-first storage — your data, your machine', 'Bring your own model', 'Every app, agent + view', 'Unlimited skills'];
+const pro = ['Everything in Local', 'Sync your install across devices', 'Cloud compute (rolling out)', 'Cancel anytime — local Ship keeps working'];
+---
+<Window app="pricing" title="Pricing" meta="plans" mark="$" accent="pipelines" open={open}>
+  <div class="win-scroll pricing">
+    <header class="win-hero">
+      <div class="parallax grid" data-parallax="0.4"></div>
+      <div class="win-eyebrow">Pricing</div>
+      <h2 class="win-headline">Free locally.<br />$20 when you sync.</h2>
+      <p class="win-lede">Ship runs free on your machine forever. Pay only when you want your install synced across devices.</p>
+    </header>
+
+    <section class="win-section tiers" data-reveal>
+      <div class="tier">
+        <div class="th"><span class="tn">Local</span><sui-badge variant="soft" size="sm">free</sui-badge></div>
+        <div class="price"><span class="amt">Free</span></div>
+        <ul>{local.map((f) => <li>{f}</li>)}</ul>
+        <sui-button variant="outline" size="md"><a href="/download" class="cta-a" data-open-window="download">Download</a></sui-button>
+      </div>
+      <div class="tier hot">
+        <div class="ribbon">Sync your install</div>
+        <div class="th"><span class="tn">Pro</span><sui-badge tone="primary" variant="soft" size="sm">popular</sui-badge></div>
+        <div class="price"><span class="amt">$20</span><span class="cad">/ month</span></div>
+        <ul>{pro.map((f) => <li>{f}</li>)}</ul>
+        <sui-button tone="primary" variant="solid" size="md"><a href="/download" class="cta-a" data-open-window="download">Start with Pro</a></sui-button>
+      </div>
+    </section>
+
+    <section class="win-section" data-reveal>
+      <p class="win-stext">No account needed to start — download, run locally, upgrade if and when sync earns it.</p>
+    </section>
+  </div>
+</Window>
+
+<style>
+  .tiers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tier { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 12px; background: var(--card); border: 1px solid color-mix(in oklch, var(--border) 78%, transparent); }
+  .tier.hot { border-color: color-mix(in oklch, var(--w-accent) 50%, var(--border)); box-shadow: 0 0 0 4px color-mix(in oklch, var(--w-accent) 7%, transparent); }
+  .ribbon { position: absolute; top: -9px; right: 14px; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: white; background: var(--w-accent); padding: 3px 8px; border-radius: 999px; }
+  .th { display: flex; align-items: center; justify-content: space-between; }
+  .tn { font-family: var(--font-display); font-size: 17px; font-weight: 700; }
+  .price { display: flex; align-items: baseline; gap: 5px; }
+  .amt { font-family: var(--font-display); font-size: 30px; font-weight: 800; letter-spacing: -0.03em; }
+  .cad { font-family: var(--font-mono); font-size: 11px; color: color-mix(in oklch, var(--foreground) 55%, var(--background)); }
+  ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; flex: 1; }
+  li { font-size: 12px; line-height: 1.4; padding-left: 18px; position: relative; color: color-mix(in oklch, var(--foreground) 80%, var(--background)); }
+  li::before { content: "✓"; position: absolute; left: 0; color: var(--w-accent); font-weight: 700; }
+  .cta-a { color: inherit; text-decoration: none; }
+  @media (max-width: 760px) { .tiers { grid-template-columns: 1fr; } }
+</style>

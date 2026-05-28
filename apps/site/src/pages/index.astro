@@ -1,32 +1,9 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import '../styles/landing.css';
-import Navbar from '../components/Navbar.astro';
-import Hero from '../components/landing/Hero.astro';
-import ClusterStrip from '../components/landing/ClusterStrip.astro';
-import SectionAgents from '../components/landing/SectionAgents.astro';
-import SectionData from '../components/landing/SectionData.astro';
-import SectionViews from '../components/landing/SectionViews.astro';
-import FooterCta from '../components/landing/FooterCta.astro';
-import TweaksPanel from '../components/landing/TweaksPanel.astro';
-
-const isDev = import.meta.env.DEV;
+import '../styles/landing-os.css';
+import Desktop from '../components/landing/os/Desktop.astro';
 ---
 
-<BaseLayout title="SHIP — the missing AI interface" bodyClass="landing-root">
-  <Navbar />
-  <main id="main">
-    <Hero />
-    <ClusterStrip />
-    <SectionAgents />
-    <SectionData />
-    <SectionViews />
-  </main>
-  <FooterCta />
-  {isDev && <TweaksPanel />}
+<BaseLayout title="SHIP — AI that runs on your machine" bodyClass="os-root">
+  <Desktop initialWindow="welcome" />
 </BaseLayout>
-
-<script>
-  import '../scripts/landing';
-  import '../scripts/motion';
-</script>

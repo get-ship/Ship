@@ -208,22 +208,44 @@ function discoverViewBundles(): BundleTarget[] {
 // Marketing-essentials aggregate sources — exactly the `<sui-*>` tags the
 // apps/site templates mount. Keep in sync when adding `<sui-*>` to apps/site.
 const MARKETING_SOURCES: string[] = [
-  // @ship/primitives — 8 of 94 tags marketing actually mounts.
+  // @ship/primitives — the tags marketing actually mounts.
   'packages/components/primitives/src/sui-badge/sui-badge.sui',
   'packages/components/primitives/src/sui-button/sui-button.sui',
+  'packages/components/primitives/src/sui-card/sui-card.sui',
+  'packages/components/primitives/src/sui-code/sui-code.sui',
+  'packages/components/primitives/src/sui-diff/sui-diff.sui',
+  // sui-icon: the lucide-resolving glyph tag. Used internally by
+  // <sui-theme-picker> (the palette icon) and available to templates.
+  // The icon registry is fetched from `/_sui/lucide-icons.json` —
+  // `apps/site/scripts/copy-sui-assets.ts` copies it into `public/_sui/`.
+  'packages/components/primitives/src/sui-icon/sui-icon.sui',
+  'packages/components/primitives/src/sui-json-view/sui-json-view.sui',
+  'packages/components/primitives/src/sui-list-tile/sui-list-tile.sui',
   'packages/components/primitives/src/sui-progress/sui-progress.sui',
+  'packages/components/primitives/src/sui-segmented/sui-segmented.sui',
+  'packages/components/primitives/src/sui-segmented/sui-segmented-option.sui',
   'packages/components/primitives/src/sui-separator/sui-separator.sui',
+  'packages/components/primitives/src/sui-skeleton/sui-skeleton.sui',
   'packages/components/primitives/src/sui-stat/sui-stat.sui',
   'packages/components/primitives/src/sui-status-dot/sui-status-dot.sui',
+  'packages/components/primitives/src/sui-stepper/sui-stepper.sui',
+  'packages/components/primitives/src/sui-tab-panel/sui-tab-panel.sui',
   'packages/components/primitives/src/sui-table/sui-table.sui',
+  'packages/components/primitives/src/sui-tabs/sui-tab.sui',
+  'packages/components/primitives/src/sui-tabs/sui-tabs.sui',
+  'packages/components/primitives/src/sui-toast/sui-toast.sui',
+  'packages/components/primitives/src/sui-toast-host/sui-toast-host.sui',
   'packages/components/primitives/src/sui-toolbar/sui-toolbar.sui',
-  // @ship/charts — 2 viz tags used on landing and the data section.
+  // @ship/charts — viz tags used on landing and the data section.
   'packages/components/charts/src/sui-bar-chart/sui-bar-chart.sui',
   'packages/components/charts/src/sui-sparkline/sui-sparkline.sui',
-  // apps/shell — brand mark + theme picker live in the shell pack today but
-  // the marketing site references them. Long-term move to a shared package.
+  // apps/shell — brand mark + theme picker + annotation layer (real Ship
+  // annotation primitive, paired with sui-canvas in-app; on the marketing
+  // site we use it in `staging` mode so nothing POSTs).
   'apps/shell/src/components/sui-brand-mark/sui-brand-mark.sui',
   'apps/shell/src/components/sui-theme-picker/sui-theme-picker.sui',
+  'apps/shell/src/components/sui-annotation/sui-annotation-layer.sui',
+  'apps/shell/src/components/sui-annotation/sui-annotation-marker.sui',
 ].map((p) => resolve(repoRoot, p))
 
 const TARGETS: BundleTarget[] = [

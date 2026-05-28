@@ -180,7 +180,7 @@
 <span class="spacer"></span>
 <span class="cmd-slot"><slot name="command-bar"></slot></span>
 <span class="spacer"></span>
-<sui-theme-picker placement="bottom-end" part="theme-picker" label-style="compact"></sui-theme-picker>
+<sui-theme-picker placement="bottom-end" part="theme-picker"></sui-theme-picker>
 <sui-account-menu placement="bottom-end" part="account-menu"></sui-account-menu>
 <sui-button variant="ghost" size="sm" part="fullscreen"
   title="Fullscreen (F11)" aria-label="Toggle fullscreen" on:click={onFullscreen}>

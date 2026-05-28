@@ -8,13 +8,14 @@
  * collect-skill-docs.ts SUI copy step (without the markdoc collection).
  */
 
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, '../../..');
 const PUBLIC_DIR = join(SCRIPT_DIR, '../public');
+const SITE_STYLES = join(SCRIPT_DIR, '../src/styles');
 // Two source roots, by layer:
 //   * deck's OWN runtime bundles live in deck's crate (baked product).
 //   * the app-focused `sui-marketing.js` is deck *build output* and lives in
@@ -36,13 +37,6 @@ const SUI_BUNDLES: ReadonlyArray<{ name: string; from: string }> = [
   { name: 'sui-marketing.js', from: DECK_OUT_DIR },
 ] as const;
 
-// <sui-theme-picker> injects a <link rel="stylesheet" href="/api/assets/view-tokens.css">
-// into its shadow root. Mirror that path so the request resolves on a
-// static host (we have no daemon serving /api/assets/*).
-const DAEMON_API_ASSETS: ReadonlyArray<{ src: string; dst: string }> = [
-  { src: join(SHIPD_ASSETS_DIR, 'view-tokens.css'), dst: join(PUBLIC_DIR, 'api/assets/view-tokens.css') },
-];
-
 mkdirSync(PUBLIC_DIR, { recursive: true });
 
 let copied = 0;
@@ -59,14 +53,47 @@ for (const { name, from } of SUI_BUNDLES) {
   copied++;
 }
 
-for (const { src, dst } of DAEMON_API_ASSETS) {
-  if (!existsSync(src)) {
-    console.log(`[copy-sui-assets] ${src} not found; skipping.`);
-    continue;
+// <sui-icon> fetches /_sui/lucide-icons.json on first mount. The daemon
+// serves it; on a static host we have to copy it ourselves. Without this
+// every <sui-icon name="…"> renders empty — which is what was breaking
+// <sui-theme-picker>'s palette trigger here.
+{
+  const dst = join(PUBLIC_DIR, '_sui/lucide-icons.json');
+  const src = join(SUI_ASSETS_DIR, 'lucide-icons.json');
+  if (existsSync(src)) {
+    mkdirSync(dirname(dst), { recursive: true });
+    copyFileSync(src, dst);
+    copied++;
+  } else {
+    console.log(`[copy-sui-assets] ${src} not found; <sui-icon> will render empty.`);
   }
-  mkdirSync(dirname(dst), { recursive: true });
-  copyFileSync(src, dst);
-  copied++;
+}
+
+// <sui-theme-picker> injects <link href="/api/assets/view-tokens.css"> into
+// its shadow root and expects the per-theme `[data-theme-preview="<id>"]`
+// rules to be present so its swatch cards each render in their own theme.
+// The daemon concatenates tokens.css + themes.css in front of the base
+// view-tokens.css at runtime (apps/shipd/src/views/assets.rs). On a static
+// host there is no daemon, so we reproduce that concatenation here from the
+// site's own canonical token/theme sheets — otherwise every swatch falls
+// back to the active theme.
+{
+  const dst = join(PUBLIC_DIR, 'api/assets/view-tokens.css');
+  const base = join(SHIPD_ASSETS_DIR, 'view-tokens.css');
+  const parts = [
+    join(SITE_STYLES, 'tokens.css'),
+    join(SITE_STYLES, 'themes.css'),
+    base,
+  ];
+  const missing = parts.find((p) => !existsSync(p));
+  if (missing) {
+    console.log(`[copy-sui-assets] ${missing} not found; skipping view-tokens.css.`);
+  } else {
+    mkdirSync(dirname(dst), { recursive: true });
+    const bundled = parts.map((p) => readFileSync(p, 'utf8')).join('\n');
+    writeFileSync(dst, bundled);
+    copied++;
+  }
 }
 
 console.log(`[copy-sui-assets] Copied ${copied} assets to public/.`);

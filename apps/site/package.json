@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "bun run scripts/copy-sui-assets.ts && node scripts/build-og-image.mjs",
+    "predev": "bun run -F @ship/arcade build && bun run scripts/copy-sui-assets.ts && node scripts/build-og-image.mjs",
     "dev": "astro dev",
-    "prebuild": "bun run scripts/copy-sui-assets.ts && node scripts/build-og-image.mjs",
+    "prebuild": "bun run -F @ship/arcade build && bun run scripts/copy-sui-assets.ts && node scripts/build-og-image.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "deploy": "astro build && wrangler deploy",
@@ -17,6 +17,9 @@
     "@better-auth/stripe": "^1.6.11",
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource-variable/syne": "^5.2.7",
+    "@ship/arcade": "workspace:*",
+    "@ship/arcade-engine": "workspace:*",
+    "@ship/sui-runtime": "workspace:*",
     "astro": "^6.1.1",
     "better-auth": "^1.6.11"
   },

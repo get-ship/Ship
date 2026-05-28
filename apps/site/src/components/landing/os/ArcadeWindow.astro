@@ -1,0 +1,44 @@
+---
+/*
+ * ArcadeWindow — the window IS the game. Galaga's stage has an
+ * intrinsic 480×540 pixel footprint. We center it in the window's
+ * content area so fullscreen mode doesn't leave the game pinned to
+ * the upper-left of a giant empty canvas.
+ */
+import Window from './Window.astro';
+import Galaga from '../../../games/galaga/index.astro';
+const { open = false } = Astro.props;
+---
+<Window app="arcade" title="Arcade" meta="ship galaga" mark="A" accent="arcade" open={open}>
+  <div class="arcade-stage">
+    <Galaga />
+  </div>
+</Window>
+
+<style>
+  .arcade-stage {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    /* Fullscreen: the game centers in the viewport. Mini: the window
+       is sized exactly to the stage so this just renders the stage at
+       0,0 with no slack. Either way the game is dead-centered. */
+    padding: 0;
+    overflow: hidden;
+  }
+  /* Mobile: the game canvas is a fixed 480×540 (Galaga's intrinsic
+     stage). On a 360px-wide phone it overflows by ~120px. Scale it
+     to fit using a transform — preserves the game's pixel ratio and
+     all the sub-element positions (HUD, sprites, particle paths). */
+  @media (max-width: 760px) {
+    .arcade-stage :global(sui-stage) {
+      /* Scale to whichever dimension is more constrained. The math
+         picks the smaller of (viewport-width / 480, viewport-height / 580)
+         so neither edge clips. The clamp at 1 prevents the game from
+         growing past its native size on larger devices. */
+      transform: scale(min(1, min(calc((100vw - 16px) / 480), calc((100vh - 80px) / 580))));
+      transform-origin: center top;
+    }
+  }
+</style>
