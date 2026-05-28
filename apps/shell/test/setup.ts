@@ -2,26 +2,36 @@
 // Intentionally minimal — these suppress uncaught errors without simulating
 // real behavior. Tests only care about DOM structure / ARIA / event flow.
 
-// Prime the lucide icon registry from the on-disk asset. Production
-// `<sui-icon>` lazy-fetches the registry from `/_sui/lucide-icons.json`
-// (R4 of the components-bundle audit); tests don't have that endpoint
-// and assert synchronously, so we inject the same map at startup so
-// resolution is sync. The JSON is the canonical source — the prior
-// generated `.ts` re-export was removed when the bundle moved out.
+// Prime the per-icon cache from the committed lucide JSON. Production
+// `<sui-icon>` fetches each icon from `/_sui/icons/<name>.svg`; tests
+// don't have that endpoint and assert synchronously, so we pre-seed
+// every icon as the daemon would return it. Kept in lockstep with
+// `deck-core/src/assets.rs::serve_sui_icon` and `ICON_ALIASES`.
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 // sui-icon lives in @ship/primitives — its registry primer is still
 // needed here because chrome tests render `<sui-icon>` inside nav-top,
 // status-bar, etc.
-import { setIconRegistry } from '../../../packages/components/primitives/src/sui-icon/registry'
+import { primeIconCache } from '../../../packages/components/primitives/src/sui-icon/registry'
 
-// Vitest runs from the package root; lucide-icons.json is deck's own baked
-// product, in the deck-core crate (moved there in the deck-core/deck-axum split).
-const ICON_REGISTRY_PATH = resolve(
+const ICON_JSON_PATH = resolve(
   process.cwd(),
   '../../crates/deck/deck-core/assets/lucide-icons.json',
 )
-setIconRegistry(JSON.parse(readFileSync(ICON_REGISTRY_PATH, 'utf8')))
+const ICONS: Record<string, string> = JSON.parse(readFileSync(ICON_JSON_PATH, 'utf8'))
+const wrap = (inner: string) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" ` +
+  `stroke="currentColor" stroke-width="2" stroke-linecap="round" ` +
+  `stroke-linejoin="round">${inner}</svg>`
+for (const [name, inner] of Object.entries(ICONS)) primeIconCache(name, wrap(inner))
+for (const [alias, real] of [
+  ['git', 'git-branch'],
+  ['refresh', 'refresh-cw'],
+  ['stop', 'stop-circle'],
+  ['warning', 'triangle-alert'],
+] as const) {
+  if (ICONS[real]) primeIconCache(alias, wrap(ICONS[real]))
+}
 
 
 if (typeof ResizeObserver === 'undefined') {

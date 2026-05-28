@@ -335,14 +335,24 @@ function run(): void {
     if (existsSync(src)) copyFileSync(src, join(apiAssetsDir, name))
   }
 
-  // `<sui-icon>` fetches its lucide registry from `/_sui/lucide-icons.json`
-  // at first mount. Without it every icon renders an empty shadow root.
+  // `<sui-icon>` fetches each lucide icon from `/_sui/icons/<name>.svg`.
+  // The docs site is a static deploy with no daemon — split the committed
+  // JSON into one file per icon so the same per-icon URLs resolve here.
   const sUiDir = join(PUBLIC_DIR, "_sui")
   mkdirSync(sUiDir, { recursive: true })
   const lucideSrc = join(SUI_ASSETS_DIR, "lucide-icons.json")
   if (existsSync(lucideSrc)) {
-    copyFileSync(lucideSrc, join(sUiDir, "lucide-icons.json"))
-    console.log(`[collect-docs] Emitted /_sui/lucide-icons.json.`)
+    const iconsDir = join(sUiDir, "icons")
+    mkdirSync(iconsDir, { recursive: true })
+    const wrap = (inner: string) =>
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" ` +
+      `stroke="currentColor" stroke-width="2" stroke-linecap="round" ` +
+      `stroke-linejoin="round">${inner}</svg>`
+    const map: Record<string, string> = JSON.parse(readFileSync(lucideSrc, "utf8"))
+    for (const [name, inner] of Object.entries(map)) {
+      writeFileSync(join(iconsDir, `${name}.svg`), wrap(inner))
+    }
+    console.log(`[collect-docs] Emitted ${Object.keys(map).length} icons under /_sui/icons/.`)
   }
 
   // Lazy `<sui-*>` chunks live next to the umbrella bundle under
