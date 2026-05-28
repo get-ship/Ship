@@ -12,7 +12,6 @@ interface LaneRow {
   lane_id: string
   model?: string
   composite: number
-  composite_str: string
   compile_passed: boolean
   compile_label: string
   lint_errors: number
@@ -43,14 +42,12 @@ export default controller<Scope>({
       for (const item of items) {
         const data = (item.data ?? {}) as Partial<LaneRow>
         if (!data.run_id || !data.lane_id) continue
-        const composite = typeof data.composite === 'number' ? data.composite : 0
         const compile_passed = data.compile_passed === true
         const lane: LaneRow = {
           run_id: data.run_id,
           lane_id: data.lane_id,
           model: data.model,
-          composite,
-          composite_str: composite.toFixed(2),
+          composite: typeof data.composite === 'number' ? data.composite : 0,
           compile_passed,
           compile_label: compile_passed ? 'pass' : 'fail',
           lint_errors: typeof data.lint_errors === 'number' ? data.lint_errors : 0,

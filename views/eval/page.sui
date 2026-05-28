@@ -59,7 +59,7 @@
                     {#if lane.model}<span class="lane-cell-model mono-snip">{lane.model}</span>{/if}
                   </header>
                   <div class="lane-cell-score">
-                    <span class="lane-cell-score-num">{lane.composite_str}</span>
+                    <span class="lane-cell-score-num">{lane.composite.toFixed(2)}</span>
                     <span class="lane-cell-score-label">composite</span>
                   </div>
                   <dl class="lane-cell-stats">

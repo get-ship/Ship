@@ -21,6 +21,11 @@ use crate::ir::expr::Expr;
 /// the natural read-only collection helpers.
 const METHOD_ALLOWLIST: &[&str] = &[
     "slice", "map", "filter", "includes", "toString", "length", "keys", "values", "entries",
+    // Deterministic formatters — referentially transparent, no I/O, no eval-shaped
+    // arguments. Real agent friction: writing `count.toFixed(2)` in a template is
+    // the natural shape and used to reject; documenting the workaround in SKILL is
+    // strictly worse than admitting it.
+    "toFixed",
 ];
 
 /// Forbidden keywords that may appear bare in an expression.

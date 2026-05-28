@@ -114,6 +114,23 @@ fn allowlisted_methods_evaluate() {
 }
 
 #[test]
+fn to_fixed_formats_numbers() {
+    let sc = s(&[
+        ("n", json!(3.14159)),
+        ("zero", json!(0)),
+        ("neg", json!(-1.5)),
+        ("nan", json!("not-a-number")),
+    ]);
+    assert_eq!(eval("n.toFixed(2)", &sc).unwrap(), json!("3.14"));
+    assert_eq!(eval("n.toFixed(0)", &sc).unwrap(), json!("3"));
+    assert_eq!(eval("n.toFixed(4)", &sc).unwrap(), json!("3.1416"));
+    assert_eq!(eval("zero.toFixed(3)", &sc).unwrap(), json!("0.000"));
+    assert_eq!(eval("neg.toFixed(1)", &sc).unwrap(), json!("-1.5"));
+    // Coerce-to-number on string: matches JS — "not-a-number" → NaN → "NaN".
+    assert_eq!(eval("nan.toFixed(2)", &sc).unwrap(), json!("NaN"));
+}
+
+#[test]
 fn map_callback_is_non_evaluable() {
     // `.map`/`.filter` always return NonEvaluable — the parser doesn't
     // accept arrow callbacks (no `=>` token), and we can't model JS
