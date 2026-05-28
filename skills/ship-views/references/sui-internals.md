@@ -55,11 +55,12 @@ Two slices in the registry:
 
 JS bundle changes only land in the running daemon after:
 
-1. `node scripts/build-bundles.mjs --force` — rebuilds `apps/shipd/assets/sui-*.js` and per-view `.js` from TS sources.
-2. `cargo build -p shipd` — Rust `include_str!`s the bundles at compile time, so it must rebuild after step 1.
-3. `bash scripts/dev/restart.sh` — cycles the per-worktree daemon.
+1. `sui-build` — compiles every `.sui` source in the touched package.
+2. `cargo run -p xtask -- build-assets` — rebakes the framework bundles (sui-runtime/dom/sdk-client/components) into `crates/deck/deck-core/assets/` via the in-process Rolldown bundler (#163, #170).
+3. `cargo build -p shipd` — picks up the newly baked bundles via `include_str!` in `crates/deck/deck-core/src/assets.rs`.
+4. `bash scripts/dev/restart.sh` — cycles the per-worktree daemon.
 
-Skipping any step ships stale bytes. The `include_str!` call sites are `apps/shipd/src/views/sui_view.rs` and `apps/shipd/src/views/sui.rs`.
+Skipping any step ships stale bytes.
 
 ## Tests — run all four when changing the framework
 
