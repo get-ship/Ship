@@ -6,6 +6,8 @@
 //! `deck-bundler` (Rolldown). `.sui` sources must be compiled first
 //! (`sui-build`); `deck dev` / `deck serve` are future commands.
 
+mod scaffold;
+
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
@@ -28,6 +30,10 @@ enum Command {
         shell_root: PathBuf,
     },
 
+    /// Generate boilerplate for a new view or primitive component.
+    #[command(subcommand)]
+    Scaffold(Scaffold),
+
     /// Build a SUI SPA app (hub, space scaffold) to a static output dir.
     Build {
         /// App root holding index.html, src/, public/ (default: cwd).
@@ -42,6 +48,31 @@ enum Command {
         /// Skip minification.
         #[arg(long)]
         no_minify: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum Scaffold {
+    /// New SUI view under `views/<name>/` (page.sui + controller.ts +
+    /// style.css + manifest.jsonc; optional view-private widget).
+    View {
+        /// View dir name + manifest `name` field. Lowercase ASCII + hyphens.
+        name: String,
+        /// URL pattern; defaults to `/<name>`.
+        #[arg(long)]
+        path: Option<String>,
+        /// Optional view-private widget; tag must start with `<name>-`.
+        #[arg(long)]
+        component: Option<String>,
+    },
+
+    /// New SUI primitive under `packages/components/primitives/src/<tag>/`.
+    Component {
+        /// Tag name (must start with `sui-`).
+        tag: String,
+        /// Also write a paired `<tag>.controller.ts` stub.
+        #[arg(long)]
+        controller: bool,
     },
 }
 
@@ -60,6 +91,12 @@ fn run() -> Result<()> {
             let n = deck_bundler::routes::generate_routes(&root)?;
             println!("deck routes → {n} dynamic routes");
             Ok(())
+        }
+        Command::Scaffold(Scaffold::View { name, path, component }) => {
+            scaffold::run_view(name, path, component)
+        }
+        Command::Scaffold(Scaffold::Component { tag, controller }) => {
+            scaffold::run_component(tag, controller)
         }
         Command::Build { shell_root, out, bundle_framework, no_minify } => {
             build(shell_root, out, bundle_framework, !no_minify)

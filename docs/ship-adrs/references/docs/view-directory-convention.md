@@ -131,6 +131,6 @@ Existing skill docs suggested YAML. Rejected for v1: the codebase has converged 
 
 - `views/home/` ships in the new convention and the router (`packages/ship-set/src/router/`) resolves `/` → `views/home/page.sui`.
 - The router's happy-path test (vitest) loads a manifest fixture and resolves a URL.
-- `scripts/scaffold-view.mjs` produces a working stub matching the convention.
+- `deck scaffold view` produces a working stub matching the convention.
 - The `ship-views` skill documents the convention with the migrated example.
 - A follow-on job migrates the remaining first-party views (`agents`, `counter`, `git`) and updates the daemon resolver. This ADR is the contract that job aims at.

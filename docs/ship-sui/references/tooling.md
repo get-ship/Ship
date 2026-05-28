@@ -161,13 +161,13 @@ The script honours `SHIP_DISPATCH_CONFIRM` for non-interactive confirmation prom
 
 ```sh
 # Drop a fresh view directory:
-node scripts/scaffold-view.mjs settings
-node scripts/scaffold-view.mjs settings --path /settings
-node scripts/scaffold-view.mjs settings --component settings-toolbar
+deck scaffold view settings
+deck scaffold view settings --path /settings
+deck scaffold view settings --component settings-toolbar
 
 # Drop a fresh component directory:
-node scripts/scaffold-sui-component.mjs my-widget
-node scripts/scaffold-sui-component.mjs my-widget --controller
+deck scaffold component my-widget
+deck scaffold component my-widget --controller
 ```
 
 Both scaffolds emit the manifest / template / controller / style files documented in `references/authoring-patterns.md` § Scaffolds. Run them from the repo root.

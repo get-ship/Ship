@@ -44,7 +44,7 @@ Components live under `packages/components/ui-components/src/<tag>/` (first-part
 
 **Templates declare. Controllers do.** A controller that emits markup is a bug — the `sui-controller-purity` lint rejects `el.innerHTML`, `outerHTML`, and `insertAdjacentHTML` in `*.controller.ts`. Use `bindHtml(el, () => string)` for HTML-blob cases (markdown, third-party SVG).
 
-Scaffolds: `node scripts/scaffold-view.mjs <name>` and `node scripts/scaffold-sui-component.mjs <tag>`.
+Scaffolds: `deck scaffold view <name>` and `deck scaffold component <tag>`.
 
 ## Minimal pair
 

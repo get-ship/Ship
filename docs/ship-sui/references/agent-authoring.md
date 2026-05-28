@@ -13,8 +13,8 @@ against `bun run --filter @ship/sui-runtime test`.
 ## 1. The 30-second scaffold
 
 ```sh
-node scripts/scaffold-view.mjs <name>          # e.g. tasks
-node scripts/scaffold-view.mjs <name> --path /tasks
+deck scaffold view <name>          # e.g. tasks
+deck scaffold view <name> --path /tasks
 ```
 
 Output (`views/<name>/`):
