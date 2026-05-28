@@ -356,6 +356,13 @@
       "name": "@ship/deck-test-harness",
       "version": "0.0.0",
     },
+    "packages/eval-harness": {
+      "name": "@ship/eval-harness",
+      "version": "0.0.0",
+      "devDependencies": {
+        "typescript": "~5.8.3",
+      },
+    },
     "packages/sui/compiler-wasm": {
       "name": "@ship/sui-compiler-wasm",
       "version": "0.1.0",
@@ -981,6 +988,8 @@
     "@ship/deck-test-harness": ["@ship/deck-test-harness@workspace:packages/deck/test-harness"],
 
     "@ship/docs": ["@ship/docs@workspace:apps/docs"],
+
+    "@ship/eval-harness": ["@ship/eval-harness@workspace:packages/eval-harness"],
 
     "@ship/pipelines": ["@ship/pipelines@workspace:packages/components/pipelines"],
 

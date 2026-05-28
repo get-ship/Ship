@@ -1,0 +1,13 @@
+{
+  "id": "sui-counter",
+  "kind": "component",
+  "tag": "sui-counter",
+  "reference": "sui-counter",
+  "weights": {
+    "compile": 0.4,
+    "lint": 0.2,
+    "structural": 0.3,
+    "render": 0.1
+  },
+  "notes": "Smallest component shape that exercises props (numeric + bounded), events (typed payload), and tone — three of the four authoring axes. Renders is reserved for future when #164 lands."
+}
