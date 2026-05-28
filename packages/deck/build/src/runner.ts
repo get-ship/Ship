@@ -9,7 +9,27 @@ import { aggregateCem, stringifyCem } from './aggregate-cem.js'
 /** Injected spawn function — lets tests avoid needing the real binary. */
 export type CompilerSpawn = (suiPath: string, stem: string) => Promise<void>
 
-type MtimeCache = Record<string, number>
+/** Cache entry shape — bumped to v2 to include the component-name flag the
+ *  compiler was invoked with. A direct `sui-compiler build` invocation in
+ *  view mode + a later `sui-build` pass in component mode used to share an
+ *  mtime cache key and skip the regen, silently leaving wrong-mode output
+ *  on disk (#176). Including the component-name distinguishes the two. */
+interface CacheEntryV2 {
+  mtime: number
+  /** The `--component-name` value passed to the compiler. `undefined` means
+   *  view-mode emission. */
+  componentName?: string | undefined
+}
+type Cache = Record<string, CacheEntryV2 | number>
+
+function readCacheEntry(c: Cache, key: string): CacheEntryV2 | undefined {
+  const entry = c[key]
+  if (entry === undefined) return undefined
+  // v1 schema migration: an old entry is a bare mtime number. Treat it as
+  // an unknown-mode entry and force regen by returning undefined here —
+  // worst case is one extra compile on the first run after the upgrade.
+  return typeof entry === 'number' ? undefined : entry
+}
 
 function findWorkspaceRoot(startDir: string): string {
   let dir = startDir
@@ -76,9 +96,9 @@ function collectSuiFiles(config: SuiBuildConfig, ctx: AdapterContext): string[] 
   return [...new Set(files)]
 }
 
-async function loadCache(cacheFile: string): Promise<MtimeCache> {
+async function loadCache(cacheFile: string): Promise<Cache> {
   try {
-    return JSON.parse(await readFile(cacheFile, 'utf8')) as MtimeCache
+    return JSON.parse(await readFile(cacheFile, 'utf8')) as Cache
   } catch {
     return {}
   }
@@ -130,15 +150,25 @@ export async function run(
       warnings.push(`skipped missing file: ${suiPath}`)
       continue
     }
-    // Skip only when mtime matches AND the compiled artifact still exists in
-    // the mirror tree. If the mirror was wiped (clean state) but the cache
-    // wasn't, esbuild/bun would otherwise fail to resolve the .compiled.js
-    // import that the source siblings reference.
+    // Skip only when mtime matches AND component-name matches AND the
+    // compiled artifact still exists in the mirror tree. If the mirror was
+    // wiped (clean state) but the cache wasn't, esbuild/bun would otherwise
+    // fail to resolve the .compiled.js import that the source siblings
+    // reference. Including component-name in the cache key (#176) handles
+    // the case where a direct `sui-compiler build` left view-mode output
+    // on disk and sui-build's mtime-only cache would otherwise skip the
+    // regen that produces the correct component-mode artifact.
     const expected = expectedCompiledPath(suiPath, repoRoot)
-    if (cache[suiPath] === mtime && existsSync(expected)) continue
     const stem = basename(suiPath, '.sui')
+    const prev = readCacheEntry(cache, suiPath)
+    if (
+      prev !== undefined
+      && prev.mtime === mtime
+      && prev.componentName === stem
+      && existsSync(expected)
+    ) continue
     await doSpawn(suiPath, stem)
-    cache[suiPath] = mtime
+    cache[suiPath] = { mtime, componentName: stem }
   }
 
   await writeFile(cacheFile, JSON.stringify(cache), 'utf8')

@@ -190,8 +190,31 @@ fn build(
     // Component mode: tag name comes from --component-name when supplied,
     // otherwise defaults to the filename stem at compile-one time. Shadow
     // is always on for components — no opt-out flag.
+    //
+    // Guardrail (#176): when an input matches the `<tag>/<tag>.sui` component
+    // convention AND no explicit mode/component-name was given, refuse rather
+    // than silently emit view-mode output. View-mode output for a component
+    // path doesn't register the custom element — bundle succeeds, browser
+    // loads it, nothing happens. Surface the ambiguity at compile time
+    // instead of debugging it at runtime.
     let count = targets.len();
     for path in targets {
+        let explicit = mode.is_some() || component_name.is_some();
+        if !explicit && let Some(tag) = looks_like_component_path(&path) {
+            return Err(anyhow!(
+                "refusing to silently emit view-mode output for {}\n\
+                 \n\
+                 The path matches the `<tag>/<tag>.sui` component convention\n\
+                 (tag = `{tag}`). View-mode output for a component path will\n\
+                 NOT register the custom element — the browser loads the\n\
+                 bundle but nothing renders.\n\
+                 \n\
+                 Pass one of these to confirm what you mean:\n  \
+                 --component-name {tag}    (the common case — emit component output)\n  \
+                 --mode view               (escape hatch — emit view-mode anyway)",
+                path.display(),
+            ));
+        }
         let component_meta = match (mode.clone(), component_name.clone()) {
             (Some(ModeArg::Component), name) => Some(ComponentMeta {
                 name: name.unwrap_or_else(|| stem_of(&path)),
@@ -220,6 +243,21 @@ fn stem_of(path: &Path) -> String {
 
 fn is_sui_source(name: &str) -> bool {
     name.ends_with(".sui") || name.ends_with(".html.set")
+}
+
+/// `<tag>/<tag>.sui` — the convention every SUI component follows. The
+/// directory name IS the component contract; if it matches the file stem,
+/// this is a component source, not a view. Returns the tag on match.
+///
+/// Pre-existing footgun (#176): running `sui-compiler build` directly on a
+/// component path without `--component-name` silently emits view-mode
+/// output. The bundle succeeds, the browser loads it, nothing happens —
+/// no custom element registers. The runtime has no way to recover (no
+/// fallback `customElements.define()` call lives in view-mode output).
+fn looks_like_component_path(path: &Path) -> Option<String> {
+    let stem = path.file_stem().and_then(|s| s.to_str())?;
+    let parent = path.parent()?.file_name().and_then(|s| s.to_str())?;
+    if stem == parent { Some(stem.to_string()) } else { None }
 }
 
 fn collect_targets(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
