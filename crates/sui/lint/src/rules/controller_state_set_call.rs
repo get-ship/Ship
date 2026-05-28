@@ -54,7 +54,7 @@ impl<'src> SetCallVisitor<'src> {
             line,
             col,
             rule: RULE_ID,
-            severity: Severity::Warn,
+            severity: Severity::Error,
             message: format!(
                 "`state.{key}.set(…)` calls `.set` on the unwrapped value, not the \
                  signal. Write via the assignment form — the proxy routes it through \

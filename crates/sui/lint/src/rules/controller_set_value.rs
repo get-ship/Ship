@@ -60,7 +60,7 @@ impl<'src> SetValueVisitor<'src> {
             line,
             col,
             rule: RULE_ID,
-            severity: Severity::Warn,
+            severity: Severity::Error,
             message: "controllers do not call `setAttribute(\"value\", …)` — silent on \
                 non-form elements; bypasses reactivity on form ones."
                 .to_string(),
