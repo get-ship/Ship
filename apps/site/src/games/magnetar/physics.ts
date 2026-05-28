@@ -40,9 +40,20 @@ export interface Target {
   radius: number
 }
 
-export const G = 5800
-export const MIN_DIST = 14
-export const LAUNCH_SPEED = 280
+// Gravity tuning. The visible curve of the projectile path is the whole
+// game, so this needs to be aggressive enough that a planet 80-120 px
+// from the trajectory bends it by tens of pixels — not the 2 px of
+// deflection the prior 5800/280 combo produced.
+//
+// At a perpendicular distance of 100 px from a mass-2 planet, the
+// instantaneous acceleration is G*m/r² = 28000*2/10000 = 5.6 px/s².
+// Over the ~2.5s flight time (slower launch speed gives gravity time to
+// act), perpendicular deflection ≈ 0.5 * 5.6 * 6.25 = ~17 px — a clear
+// arc. The trajectory predictor uses the same constants so the ghost
+// line matches the actual flight to the pixel.
+export const G = 28000
+export const MIN_DIST = 18
+export const LAUNCH_SPEED = 220
 export const PROJECTILE_R = 4
 export const TOKEN_R = 8
 

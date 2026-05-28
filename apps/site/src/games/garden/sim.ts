@@ -14,11 +14,17 @@ const NEIGHBOR_OFFSETS: Array<[number, number]> = [
   [0, -1], [1, 0], [0, 1], [-1, 0],
 ]
 
-/** Base spread rate (probability per tick, scaled by neighbour count).
- *  Tuned so a 75-second round fills ~85-90% of the grid under balanced
- *  play. Earlier value (0.18) made the grid saturate in ~7 seconds. */
-const BASE_SPREAD = 0.04
-const ALLY_BONUS = 0.05
+/** Per-tick spread parameters. The naïve formula
+ *  `chance = BASE + allies * BONUS` makes growth scale with the *count*
+ *  of active cells (each cell rolls every tick), which saturates the
+ *  528-cell grid in seconds. We mitigate with a saturation factor that
+ *  drops the global chance toward zero as the grid approaches the
+ *  threshold: `chance *= max(0.2, 1 - filled / (TOTAL * SAT_END))`.
+ *  This gives a clear arc — fast early growth, gradual mid-game,
+ *  slow end-game — and the 75-second timer becomes meaningful again. */
+const BASE_SPREAD = 0.16
+const ALLY_BONUS = 0.04
+const SAT_END = 0.85
 
 export interface ContestEvent {
   /** Pixel position of the contesting cell — where to drop particles. */
@@ -45,7 +51,15 @@ export function stepSim(ctx: SimContext): SimStep {
   // Snapshot the current owner state so colonizations in this tick don't
   // cascade into themselves (each cell decides based on previous tick).
   const prev = new Array<Owner>(grid.cells.length)
-  for (let i = 0; i < grid.cells.length; i++) prev[i] = grid.cells[i]!.owner
+  let filled = 0
+  for (let i = 0; i < grid.cells.length; i++) {
+    const o = grid.cells[i]!.owner
+    prev[i] = o
+    if (o !== 'empty') filled++
+  }
+  // Saturation factor: spread chance scales down as the grid fills so
+  // the endgame is gradual rather than explosive.
+  const saturation = Math.max(0.2, 1 - filled / (grid.cells.length * SAT_END))
 
   for (let i = 0; i < grid.cells.length; i++) {
     const source = grid.cells[i]!
@@ -64,9 +78,9 @@ export function stepSim(ctx: SimContext): SimStep {
       else if (p === 'empty') empties.push({ col: nc, row: nr, idx: ni })
       else foes.push({ col: nc, row: nr })
     }
-    // Spread chance: base + ally bonus per same-color neighbor
-    // (max 4 allies → roughly 0.24, capped naturally by tick rate).
-    const chance = BASE_SPREAD + allies * ALLY_BONUS
+    // Spread chance: base + ally bonus per same-color neighbor, scaled
+    // by global saturation so growth tapers as the grid fills.
+    const chance = (BASE_SPREAD + allies * ALLY_BONUS) * saturation
     if (empties.length > 0 && ctx.rng() < chance) {
       const target = empties[Math.floor(ctx.rng() * empties.length)]!
       const targetCell = grid.cells[target.idx]!
