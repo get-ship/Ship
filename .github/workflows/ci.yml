@@ -31,6 +31,10 @@ jobs:
         run: bun run build:bundles
       - name: Check silent-error patterns
         run: bash scripts/lint/check-silent-errors.sh
+      - name: Check migration discipline (naming + immutability)
+        run: |
+          bash scripts/lint/check-migration-naming.sh
+          bash scripts/lint/check-migration-discipline.sh
       - name: Check SUI layer-cut (no framework -> host imports)
         run: bash scripts/lint/check-sui-layer-cut.sh
       - name: Check SUI bundle sizes (within budget)

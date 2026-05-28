@@ -38,9 +38,20 @@ MIG_DIR="crates/core/ship-substrate/migrations"
 LOCK="scripts/lint/migration-checksums.lock"
 
 # Baseline / grandfathered files exempt from rule 1 (idempotency allowed).
+#
+# `0001_schema.sql` + `0002_drop_kv_state.sql` are the squashed baseline.
+# The four `202605*` files below predate this rule's enforcement; they
+# already shipped using `CREATE TABLE IF NOT EXISTS`. Editing them now
+# would violate rule 2 (immutability), so they stay grandfathered until
+# the next baseline squash. New migrations from this date forward must
+# use `DROP TABLE IF EXISTS; CREATE TABLE` per the rule.
 is_baseline() {
     case "$1" in
         0001_schema.sql | 0002_drop_kv_state.sql) return 0 ;;
+        202605181930_analytics.sql) return 0 ;;
+        202605190100_analytics_turns.sql) return 0 ;;
+        202605191822_agent_sessions.sql) return 0 ;;
+        202605250300_provisioned_grants.sql) return 0 ;;
         *) return 1 ;;
     esac
 }
