@@ -294,11 +294,18 @@
     const eyebrow = el('div', 'mag-overlay-eyebrow', 'Lost contact')
     const title = el('div', 'mag-overlay-title', 'Drift')
     const meta = el('div', 'mag-overlay-meta', `${level} · score ${score}`)
-    const cta = el('button', 'mag-cta', 'Retry') as HTMLButtonElement
-    cta.type = 'button'
-    cta.dataset.action = 'retry'
-    overlay.append(eyebrow, title, meta, cta)
-    cta.focus({ preventScroll: true })
+    // Retry the same level OR skip to the next. Skip exists so a hard
+    // level is never an actual dead-end.
+    const ctaRow = el('div', 'mag-cta-row')
+    const skip = el('button', 'mag-cta mag-cta-ghost', 'Skip') as HTMLButtonElement
+    skip.type = 'button'
+    skip.dataset.action = 'skip'
+    const retry = el('button', 'mag-cta', 'Retry') as HTMLButtonElement
+    retry.type = 'button'
+    retry.dataset.action = 'retry'
+    ctaRow.append(skip, retry)
+    overlay.append(eyebrow, title, meta, ctaRow)
+    retry.focus({ preventScroll: true })
   }
   function showWon(score: number, high: number) {
     if (!overlay) return
@@ -358,7 +365,7 @@
     if (!target) return
     const action = target.dataset.action
     if (action === 'start') startGame()
-    else if (action === 'next') {
+    else if (action === 'next' || action === 'skip') {
       clearOverlay()
       stageEl?.next?.()
     } else if (action === 'retry' || action === 'replay') {
@@ -385,7 +392,7 @@
       ev.preventDefault()
       const action = overlay.querySelector<HTMLElement>('[data-action]')?.dataset.action
       if (action === 'start') startGame()
-      else if (action === 'next') { clearOverlay(); stageEl?.next?.() }
+      else if (action === 'next' || action === 'skip') { clearOverlay(); stageEl?.next?.() }
       else if (action === 'retry' || action === 'replay') { clearOverlay(); stageEl?.restart?.() }
       return
     }
