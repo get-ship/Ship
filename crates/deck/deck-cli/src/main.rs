@@ -74,6 +74,14 @@ enum Scaffold {
         #[arg(long)]
         controller: bool,
     },
+
+    /// New first-party SUI component pack under `packages/components/<name>/`.
+    /// Generates package.json, sui.config.ts, tsconfig.json, the umbrella
+    /// `src/index.ts`, and a starter `<name>-example` component.
+    Pack {
+        /// Pack name (lowercase + hyphens). Becomes `@ship/<name>`.
+        name: String,
+    },
 }
 
 fn main() {
@@ -98,6 +106,7 @@ fn run() -> Result<()> {
         Command::Scaffold(Scaffold::Component { tag, controller }) => {
             scaffold::run_component(tag, controller)
         }
+        Command::Scaffold(Scaffold::Pack { name }) => scaffold::run_pack(name),
         Command::Build { shell_root, out, bundle_framework, no_minify } => {
             build(shell_root, out, bundle_framework, !no_minify)
         }

@@ -207,3 +207,163 @@ pub fn run_component(tag: String, want_controller: bool) -> Result<()> {
     println!("     (rebakes deck-core/assets/sui-components.js so the daemon serves it)");
     Ok(())
 }
+
+/// Validate a pack name — lowercase ASCII + digits + hyphens, starts with a
+/// letter. Becomes both the directory name and the npm package suffix
+/// (`@ship/<name>`).
+fn validate_pack_name(name: &str) -> Result<()> {
+    if name.is_empty() {
+        bail!("pack name is required");
+    }
+    if !name.starts_with(|c: char| c.is_ascii_lowercase()) {
+        bail!("pack name must start with a lowercase letter — got {name:?}");
+    }
+    if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+        bail!("pack name must match /^[a-z][a-z0-9-]*$/ — got {name:?}");
+    }
+    Ok(())
+}
+
+pub fn run_pack(name: String) -> Result<()> {
+    validate_pack_name(&name)?;
+    let repo_root = find_repo_root(&std::env::current_dir().context("cwd")?)?;
+    let base = repo_root.join("packages/components").join(&name);
+    if base.exists() {
+        bail!("directory already exists: {}", base.display());
+    }
+    fs::create_dir_all(base.join("src").join(format!("{name}-example")))?;
+
+    let pkg_json = format!(
+        "{{\n  \
+         \"name\": \"@ship/{name}\",\n  \
+         \"version\": \"0.1.0\",\n  \
+         \"description\": \"Ship {name} pack — SUI components registry. \
+         Author tags under src/<tag>/<tag>.sui; the umbrella in src/index.ts side-effect-imports each compiled.js so a single `import \\\"@ship/{name}\\\"` registers them all.\",\n  \
+         \"type\": \"module\",\n  \
+         \"main\": \"src/index.ts\",\n  \
+         \"types\": \"src/index.ts\",\n  \
+         \"customElements\": \"dist/custom-elements.json\",\n  \
+         \"exports\": {{\n    \
+         \".\": \"./src/index.ts\",\n    \
+         \"./bundle\": \"./dist/sui-{name}.js\"\n  \
+         }},\n  \
+         \"scripts\": {{\n    \
+         \"build\": \"sui-build\",\n    \
+         \"pretest\": \"sui-build\",\n    \
+         \"test\": \"vitest run\",\n    \
+         \"test:watch\": \"vitest\"\n  \
+         }},\n  \
+         \"dependencies\": {{\n    \
+         \"@ship/sui-build\": \"workspace:*\",\n    \
+         \"@ship/sui-dom\": \"workspace:*\",\n    \
+         \"@ship/sui-runtime\": \"workspace:*\"\n  \
+         }},\n  \
+         \"devDependencies\": {{\n    \
+         \"vitest\": \"^4.1.5\"\n  \
+         }}\n\
+         }}\n"
+    );
+    fs::write(base.join("package.json"), pkg_json)?;
+
+    let sui_config = format!(
+        "import type {{ SuiBuildConfig }} from '@ship/sui-build'\n\n\
+         // `@ship/{name}` — SUI components pack.\n\
+         //\n\
+         // One umbrella entry (`sui-{name}`) that side-effect-imports every\n\
+         // `<tag>/<tag>.compiled.js`; consumers do `import '@ship/{name}'`\n\
+         // (or `import '@ship/{name}/bundle'`) and every tag registers globally\n\
+         // before any view template instantiates them.\n\n\
+         const config: SuiBuildConfig = {{\n  \
+         entries: {{\n    \
+         'sui-{name}': 'src/index.ts',\n  \
+         }},\n  \
+         outdir: 'dist',\n  \
+         aggregateCemTo: 'dist/custom-elements.json',\n  \
+         aggregateCemSources: ['src'],\n\
+         }}\n\n\
+         export default config\n"
+    );
+    fs::write(base.join("sui.config.ts"), sui_config)?;
+
+    let tsconfig = format!(
+        "{{\n  \
+         \"compilerOptions\": {{\n    \
+         \"target\": \"ES2022\",\n    \
+         \"module\": \"ESNext\",\n    \
+         \"moduleResolution\": \"Bundler\",\n    \
+         \"lib\": [\"ES2022\", \"DOM\", \"DOM.Iterable\"],\n    \
+         \"strict\": true,\n    \
+         \"noUncheckedIndexedAccess\": true,\n    \
+         \"exactOptionalPropertyTypes\": true,\n    \
+         \"declaration\": true,\n    \
+         \"outDir\": \"dist\",\n    \
+         \"rootDir\": \"src\",\n    \
+         \"skipLibCheck\": true,\n    \
+         \"esModuleInterop\": true,\n    \
+         \"isolatedModules\": true,\n    \
+         \"verbatimModuleSyntax\": true,\n    \
+         \"noEmit\": false,\n    \
+         // The `.sui.d.ts` declarations sui-compiler emits land in the\n    \
+         // project mirror tree at `<repo-root>/.ship/sui-out/<src-rel>/`.\n    \
+         // rootDirs lets tsc treat src + the mirror as one virtual root\n    \
+         // for relative module resolution (the import-from-./X.sui case).\n    \
+         \"rootDirs\": [\n      \
+         \"src\",\n      \
+         \"../../../.ship/sui-out/packages/components/{name}/src\"\n    \
+         ]\n  \
+         }},\n  \
+         \"include\": [\"src/**/*\"],\n  \
+         \"exclude\": [\"test\", \"dist\"]\n\
+         }}\n"
+    );
+    fs::write(base.join("tsconfig.json"), tsconfig)?;
+
+    let index_ts = format!(
+        "// @ship/{name} — SUI component registry.\n\
+         //\n\
+         // Side-effect imports for every tag in the pack. Each\n\
+         // `<tag>.compiled.js` calls `customElements.define()` on import,\n\
+         // so a single `import '@ship/{name}'` at the consumer registers\n\
+         // every tag in this pack globally. Add new tags below as you\n\
+         // scaffold them.\n\n\
+         import './{name}-example/{name}-example.compiled.js'\n"
+    );
+    fs::write(base.join("src/index.ts"), index_ts)?;
+
+    let example_sui = format!(
+        "<!--\n  \
+         {name}-example — placeholder primitive for the @ship/{name} pack.\n\n  \
+         Replace or delete this when you author the pack's first real tag.\n\
+         -->\n\n\
+         <prop name=\"label\" type=\"string\" default=\"hello\" reflect />\n\n\
+         <style>\n  \
+         :host {{ display: inline-block; padding: 0.5em 1em; \n         \
+         border: 1px solid var(--border, #d0d7de); border-radius: 0.5em; \n         \
+         font-family: system-ui, sans-serif; color: var(--foreground); }}\n\
+         </style>\n\n\
+         <span part=\"root\">{{label()}}</span>\n"
+    );
+    fs::write(
+        base.join(format!("src/{name}-example/{name}-example.sui")),
+        example_sui,
+    )?;
+
+    let example_controller = format!(
+        "// {name}-example — placeholder controller; replace alongside the .sui.\n\n\
+         export default null\n"
+    );
+    fs::write(
+        base.join(format!("src/{name}-example/{name}-example.controller.ts")),
+        example_controller,
+    )?;
+
+    println!("[scaffold] created packages/components/{name}/");
+    println!("[scaffold]   package.json  sui.config.ts  tsconfig.json");
+    println!("[scaffold]   src/index.ts  src/{name}-example/<.sui + .controller.ts>");
+    println!("[scaffold] next steps:");
+    println!("  1. bun install — wires the new workspace package.");
+    println!("  2. bun run --filter @ship/{name} build — first compile.");
+    println!("  3. Replace the {name}-example placeholder with the pack's first tag.");
+    println!("  4. (When ready to consume) Add `@ship/{name}: workspace:*` to apps/shell/package.json + `import '@ship/{name}/bundle'` to apps/shell/src/main.ts.");
+    Ok(())
+}
