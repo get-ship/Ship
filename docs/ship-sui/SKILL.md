@@ -15,6 +15,23 @@ SUI is the template format every Ship view and built-in component is authored in
 
 > The body below is the on-ramp — enough to author a first component / view in 30 minutes. For deep dives see `references/`.
 
+## Hard rules (skim before you author)
+
+The 7 cardinals. Skipping any of these gets caught by `sui-lint` or `tsc` — but you save a build cycle by reading first.
+
+1. **Templates declare, controllers do.** No `<script>` blocks in templates; no markup in controllers — `el.innerHTML`, `outerHTML`, `insertAdjacentHTML` are banned in `*.controller.ts` (sui-controller-purity). Use `bindHtml(el, () => string)` for HTML-blob cases.
+2. **Reads + writes — one form per context.** In **templates / `derived` / `effect`** (declarative + reactive): `x()` reads + tracks, `x.set(v)` writes. The scope passes raw `Signal<T>`; **never** `state.x` here. In **controller imperative blocks** (`on:` handlers, `mount`, `unmount`): `state.x` reads the value, `state.x = v` writes (the proxy unwraps + routes through `signal.set`). **Never** `state.x()` (value isn't callable) or `state.x.set(v)` (calls `.set` on the value). Escape hatch for updater-function writes: `state.$signals.x.set(prev => …)`.
+3. **Mutations in `on:*` handlers only.** `state.x = v` in a `derived` body, `effect`, or template expression is a type error.
+4. **Subscriptions in `<data>` elements.** Never call `ship.*` outside `<data>` (or inside an `on:` mutation form). The runtime tracks SSE subscriptions per-element; calling outside leaks.
+5. **Block syntax for control flow.** `{#if}/{#for}/{#match}/{#while-loading}/{#while-error}`. **`{#for}` requires `key={EXPR}`** — without a stable key DOM identity is lost on reorder. `sui-for-key` warns when missing.
+6. **No `customElements.define` in view code.** The compiler emits it for components. No `<script type="module">` in `index.html` to register tags either — the pack umbrellas (`@ship/primitives/bundle` etc.) handle it.
+7. **Dynamic routes need `defineRoutes` at shell startup.** Views under `views/<name>/[id]/` only see `route.params.id()` if the host registered the pattern via `defineRoutes([{pattern: '/<name>/:id'}])` — per-controller `defineRoutes` lands in a different runtime module instance and won't reach the shell's signal proxy.
+
+Minor gotchas (the lint catches these but worth knowing):
+- `on:<event>` event names match the platform whitelist (DOM events, `sui-*` / `ship-*` custom events, `tag:event` cross-component). `sui-event-name` warns on typos.
+- `ship.<domain>.detail({id})` returns `null` on miss — `unwrap(sig)` resolves to `null`, so a bare `sig().value.name` crashes. Use `{#if sig().kind === 'ok' && sig().value}` or pre-compute via `derived(() => unwrap(sig)?.name ?? '')`.
+- `setAttribute('value', x)` on a non-form element is invisible — use `bindText(el, () => x)`. `sui-controller-set-value` warns.
+
 ## The four layers
 
 | Layer | Owns | Entry |
@@ -173,23 +190,6 @@ Mutations are HTTP POST/DELETE through the same client (e.g. `ship.sessions.star
 | Drift detection | `GET /api/_meta` returns `{compilerVersion, daemonVersion, builtAt, git, dirty}`. Every compiled artifact carries a `_compilerVersion` marker (leading `/*! */` comment in JS, sidecar field in CEM/schema/meta). Shell compares its loaded bundle against the daemon to surface stale-bundle drift. | `crates/deck/deck-core/src/meta.rs` |
 
 Detail: `references/tooling.md`.
-
-## Hard rules
-
-1. **Mutations in `on.*` handlers only.** `s.x = v` in a derived or template expression is a type error.
-2. **Subscriptions in `<data>` elements.** Never call `ship.*` outside `<data>` (or inside an `on:` mutation form).
-3. **Templates declare; controllers do.** Declarative → template; imperative → controller.
-4. **No `<script>` blocks in templates.** Logic in paired `.controller.ts`.
-5. **No `customElements.define` in view code.** The compiler emits it for components.
-6. **Reads + writes — pick the form by context, but only one form per context.**
-   - In **templates / `derived` / `effect`** (declarative + reactive): `x()` reads + tracks, `x.set(v)` writes. The scope passes raw `Signal<T>` here. **Never** `state.x` — there is no `state` proxy in these contexts.
-   - In **controller imperative blocks** (`on:` handlers, `mount`, `unmount`): `state.x` reads the value, `state.x = v` writes. The proxy unwraps signal keys to values and routes assignments through `signal.set`. **Never** `state.x()` (the value isn't callable) or `state.x.set(v)` (calls `.set` on the value, not the signal). The escape hatch for updater-function writes is `state.$signals.x.set(prev => …)`.
-7. **Block syntax for control flow.** `{#if}/{#for}/{#match}/{#while-loading}/{#while-error}`.
-8. **No `el.innerHTML / .outerHTML / .insertAdjacentHTML`** in `*.controller.ts`. Use `bindHtml()`.
-9. **`{#for}` blocks declare `key={EXPR}`.** Without a stable key DOM identity is lost on reorder. `sui-for-key` lint warns when missing.
-10. **`on:<event>` event names match the platform whitelist** (DOM events, `sui-*` / `ship-*` custom events, `tag:event` cross-component). `sui-event-name` lint warns on typos.
-11. **Guard live-signal `.value` for null in detail/get ops.** `ship.<domain>.detail({id})` returns `null` on miss — `unwrap(sig)` resolves to `null`, so a bare `sig().value.name` crashes. Use `{#if sig().kind === 'ok' && sig().value}` or pre-compute via `derived(() => unwrap(sig)?.name ?? '')` in the controller.
-12. **Dynamic routes need `defineRoutes` at shell startup.** Views under `views/<name>/[id]/` only see `route.params.id()` if the host registered the pattern via `defineRoutes([{pattern: '/<name>/:id'}])`. View-bundle imports of `@ship/sui-runtime/route` live in a different module instance from the shell's, so per-controller `defineRoutes` calls don't reach the shell's signal proxy.
 
 ## Before declaring an edit done
 
