@@ -371,11 +371,6 @@ install: build-release
     cargo install --path apps/ship-cli
     cp -f "$target/release/shipd" ~/.local/bin/shipd
 
-# Rebuild WASM compiler (requires build-essential).
-[group('occasional')]
-wasm:
-    wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm
-
 # Rebuild the in-browser SUI template compiler. wasm-pack writes into
 # `packages/sui/compiler-wasm/pkg/` (gitignored) so the package's own
 # package.json + .gitignore stay intact; the workspace re-exports the

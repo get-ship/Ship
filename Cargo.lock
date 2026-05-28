@@ -966,18 +966,15 @@ name = "compiler"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "getrandom 0.2.17",
  "indexmap 2.14.0",
  "minijinja",
  "nanoid",
  "semver",
  "serde",
- "serde-wasm-bindgen",
  "serde_json",
  "specta",
  "tempfile",
  "toml 0.8.2",
- "wasm-bindgen",
 ]
 
 [[package]]

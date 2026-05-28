@@ -75,11 +75,11 @@ pub(super) fn server_entry(desc: &HarnessDescriptor, s: &McpServerConfig) -> Jso
 }
 
 pub(super) fn ship_server_entry(emit_type: bool, ship_home_dir: Option<&str>) -> Json {
-    // The compiler is WASM-safe and cannot depend on `ship_substrate::ShipHome` or
-    // read environment variables. Callers (CLI/daemon) inject the resolved
-    // home path; when absent (e.g. WASM frontends), we omit the env block
-    // entirely and let the spawned `ship mcp serve` resolve its own home via
-    // the standard `SHIP_HOME` / default discovery path.
+    // The compiler is a pure transform and cannot depend on
+    // `ship_substrate::ShipHome` or read environment variables. Callers
+    // (CLI/daemon) inject the resolved home path; when absent, we omit the env
+    // block entirely and let the spawned `ship mcp serve` resolve its own home
+    // via the standard `SHIP_HOME` / default discovery path.
     let mut e = match ship_home_dir {
         Some(dir) => serde_json::json!({
             "command": "ship",

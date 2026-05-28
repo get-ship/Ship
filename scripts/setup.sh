@@ -19,17 +19,8 @@ fi
 echo "==> Rust: $(rustc --version)"
 
 # rust-toolchain.toml will pin the correct version on first cargo invocation
-# wasm32 target needed for compiler crate
-rustup target add wasm32-unknown-unknown 2>/dev/null || true
 
-# ── 2. wasm-pack ─────────────────────────────────────────────────────────────
-if ! command -v wasm-pack &>/dev/null; then
-  echo "==> Installing wasm-pack..."
-  cargo install wasm-pack --locked
-fi
-echo "==> wasm-pack: $(wasm-pack --version)"
-
-# ── 3. Bun ───────────────────────────────────────────────────────────────────
+# ── 2. Bun ───────────────────────────────────────────────────────────────────
 if ! command -v bun &>/dev/null; then
   echo "==> Installing bun..."
   curl -fsSL https://bun.sh/install | bash
@@ -37,16 +28,16 @@ if ! command -v bun &>/dev/null; then
 fi
 echo "==> bun: $(bun --version)"
 
-# ── 4. Install ship binary from source ───────────────────────────────────────
+# ── 3. Install ship binary from source ───────────────────────────────────────
 echo "==> Building + installing ship binary..."
 cargo install --path "$REPO_ROOT/apps/ship-cli" --locked --force
 echo "==> ship: $(ship --version)"
 
-# ── 5. bun install ───────────────────────────────────────────────────────────
+# ── 4. bun install ───────────────────────────────────────────────────────────
 echo "==> Installing JS dependencies..."
 cd "$REPO_ROOT" && bun install
 
-# ── 6. Claude Code plugins (superpowers + tools) ─────────────────────────────
+# ── 5. Claude Code plugins (superpowers + tools) ─────────────────────────────
 if command -v claude &>/dev/null; then
   echo "==> Installing Claude Code plugins (user scope)..."
   claude plugin install superpowers@claude-plugins-official 2>/dev/null || echo "  superpowers: already installed or unavailable"
@@ -56,7 +47,7 @@ else
   echo "  (claude CLI not found — install Claude Code to get plugin support)"
 fi
 
-# ── 7. Worktrees ─────────────────────────────────────────────────────────────
+# ── 6. Worktrees ─────────────────────────────────────────────────────────────
 echo ""
 echo "==> Setting up worktrees..."
 cd "$REPO_ROOT"
@@ -81,7 +72,7 @@ setup_worktree "ship-cli"    "feat/cli-init"
 setup_worktree "ship-server" "feat/server-auth"
 setup_worktree "ship-web"    "feat/web-import"
 
-# ── 8. Clean stale Claude config ─────────────────────────────────────────────
+# ── 7. Clean stale Claude config ─────────────────────────────────────────────
 echo ""
 echo "==> Checking Claude config..."
 CLAUDE_SETTINGS="$HOME/.claude/settings.json"
