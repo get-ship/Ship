@@ -1,0 +1,397 @@
+---
+// Magnetar — gravity-slingshot puzzle.
+//
+// Drag-to-aim, release-to-fire. Each level is a discrete puzzle: planets curve
+// the projectile, tokens score, walls bite, the portal ends the level. Six
+// progressive levels. The director loads one at a time.
+---
+
+<div class="magnetar-mount" data-magnetar>
+  <sui-stage width="480" height="540" tick-rate="60" fps="60" background="card">
+    <sui-input map="ArrowLeft,A" action="aim-left"></sui-input>
+    <sui-input map="ArrowRight,D" action="aim-right"></sui-input>
+    <sui-input map="Space,Enter" action="fire" repeat="false"></sui-input>
+
+    <sui-hud align="corner-tl">
+      <div class="mag-stack">
+        <div class="mag-chip">
+          <span class="mag-chip-label">Level</span>
+          <span class="mag-chip-value" data-bind="level">First Light</span>
+        </div>
+        <div class="mag-chip">
+          <span class="mag-chip-label">Score</span>
+          <span class="mag-chip-value" data-bind="score">0</span>
+        </div>
+      </div>
+    </sui-hud>
+
+    <sui-hud align="corner-tr">
+      <div class="mag-stack mag-right">
+        <div class="mag-chip mag-chip-shots">
+          <span class="mag-chip-label">Shots</span>
+          <span class="mag-chip-value" data-bind="shots">3</span>
+        </div>
+        <div class="mag-chip mag-chip-tokens">
+          <span class="mag-chip-label">Tokens</span>
+          <span class="mag-chip-value" data-bind="tokens">0</span>
+        </div>
+      </div>
+    </sui-hud>
+
+    <sui-hud align="bottom">
+      <div class="mag-hint" data-bind="hint">Drag from the launch pad to aim. Release to fire.</div>
+    </sui-hud>
+
+    <sui-hud align="center" pointer-events="auto">
+      <div class="mag-overlay" data-overlay></div>
+    </sui-hud>
+  </sui-stage>
+</div>
+
+<style is:global>
+  .magnetar-mount {
+    display: inline-block;
+    position: relative;
+    line-height: 0;
+  }
+  .magnetar-mount sui-stage {
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 480 / 540;
+    border-radius: 14px;
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--border) 60%, transparent),
+      0 24px 60px -16px color-mix(in oklch, var(--warning) 28%, transparent),
+      0 8px 32px -12px color-mix(in oklch, var(--foreground) 18%, transparent);
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .mag-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-family: var(--font-body, system-ui);
+    pointer-events: none;
+    line-height: 1.2;
+  }
+  .mag-right { align-items: flex-end; }
+
+  .mag-chip {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 110px;
+    padding: 6px 10px 7px;
+    background: color-mix(in oklch, var(--card, #000) 38%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border, #fff) 26%, transparent);
+    border-radius: 8px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: var(--foreground, #fff);
+  }
+  .mag-right .mag-chip { align-items: flex-end; }
+  .mag-chip-shots  { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warning) 34%, transparent); }
+  .mag-chip-tokens { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--accent) 34%, transparent); }
+
+  .mag-chip-label {
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+  .mag-chip-value {
+    font-size: 16px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+  .mag-chip-shots  .mag-chip-value { color: var(--warning); }
+  .mag-chip-tokens .mag-chip-value { color: var(--accent); }
+
+  .mag-hint {
+    display: inline-block;
+    padding: 6px 14px;
+    background: color-mix(in oklch, var(--card, #000) 55%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border, #fff) 22%, transparent);
+    border-radius: 999px;
+    font-family: var(--font-body, system-ui);
+    font-size: 12px;
+    color: var(--foreground, #fff);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    max-width: 360px;
+    line-height: 1.4;
+    text-align: center;
+  }
+
+  .mag-overlay {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 26px 36px 22px;
+    min-width: 260px;
+    text-align: center;
+    color: var(--foreground, #fff);
+    background: color-mix(in oklch, var(--card, #0a0d12) 80%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border, #fff) 30%, transparent);
+    border-radius: 14px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 16px 48px -16px color-mix(in oklch, var(--foreground, #000) 40%, transparent);
+    font-family: var(--font-body, system-ui);
+  }
+  .mag-overlay[data-state] { display: flex; }
+  .mag-overlay-eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    opacity: 0.55;
+  }
+  .mag-overlay-title {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    font-family: var(--font-display, var(--font-body, system-ui));
+  }
+  .mag-overlay-meta {
+    font-size: 13px;
+    opacity: 0.78;
+    line-height: 1.45;
+    max-width: 32ch;
+  }
+  .mag-overlay-keys {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: 11px;
+    opacity: 0.85;
+  }
+  .mag-key {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: color-mix(in oklch, var(--foreground, #fff) 12%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground, #fff) 22%, transparent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .mag-cta {
+    appearance: none;
+    border: none;
+    margin-top: 4px;
+    padding: 10px 22px;
+    border-radius: 8px;
+    background: var(--warning);
+    color: var(--background);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 80ms ease-out, filter 80ms ease-out;
+  }
+  .mag-cta:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .mag-cta:active { transform: translateY(0); filter: brightness(0.96); }
+  .mag-cta:focus-visible {
+    outline: 2px solid var(--ring, var(--warning));
+    outline-offset: 3px;
+  }
+</style>
+
+<script>
+  import '@ship/arcade/bundle'
+  import type { Stage } from '@ship/arcade-engine'
+  import { effect } from '@ship/sui-runtime'
+  import { createMagnetarDirector } from './director.ts'
+  import { LEVELS } from './levels.ts'
+
+  const root = document.querySelector<HTMLElement>('[data-magnetar]')
+  const stageEl = root?.querySelector('sui-stage') as (HTMLElement & {
+    stage?: Stage
+    start?(): void
+    pause?(): void
+    resume?(): void
+    setAim?(rad: number): void
+    fire?(): void
+    restart?(): void
+    next?(): void
+  }) | null
+  const overlay = root?.querySelector<HTMLElement>('[data-overlay]')
+
+  const LOGICAL_W = 480
+  const LOGICAL_H = 540
+
+  function el(tag: string, cls?: string, text?: string): HTMLElement {
+    const node = document.createElement(tag)
+    if (cls) node.className = cls
+    if (text !== undefined) node.textContent = text
+    return node
+  }
+  function key(label: string): HTMLElement { return el('span', 'mag-key', label) }
+
+  function showStart() {
+    if (!overlay) return
+    overlay.replaceChildren()
+    overlay.dataset.state = 'idle'
+    const eyebrow = el('div', 'mag-overlay-eyebrow', 'SHIP Arcade')
+    const title = el('div', 'mag-overlay-title', 'Magnetar')
+    const meta = el('div', 'mag-overlay-meta', 'Slingshot through gravity. Curve around planets to thread the portal.')
+    const keys = el('div', 'mag-overlay-keys')
+    keys.append(key('Drag'), key('Release'), key('R'), key('Space'))
+    const cta = el('button', 'mag-cta', 'Launch') as HTMLButtonElement
+    cta.type = 'button'
+    cta.dataset.action = 'start'
+    overlay.append(eyebrow, title, meta, keys, cta)
+    cta.focus({ preventScroll: true })
+  }
+  function showCleared(score: number, tokensLeft: number) {
+    if (!overlay) return
+    overlay.replaceChildren()
+    overlay.dataset.state = 'cleared'
+    const eyebrow = el('div', 'mag-overlay-eyebrow', 'Threaded')
+    const title = el('div', 'mag-overlay-title', 'Level cleared')
+    const meta = el('div', 'mag-overlay-meta', tokensLeft > 0 ? `Score ${score} · ${tokensLeft} token${tokensLeft === 1 ? '' : 's'} missed` : `Score ${score} · clean run`)
+    const cta = el('button', 'mag-cta', 'Next') as HTMLButtonElement
+    cta.type = 'button'
+    cta.dataset.action = 'next'
+    overlay.append(eyebrow, title, meta, cta)
+    cta.focus({ preventScroll: true })
+  }
+  function showFailed(score: number, level: string) {
+    if (!overlay) return
+    overlay.replaceChildren()
+    overlay.dataset.state = 'failed'
+    const eyebrow = el('div', 'mag-overlay-eyebrow', 'Lost contact')
+    const title = el('div', 'mag-overlay-title', 'Drift')
+    const meta = el('div', 'mag-overlay-meta', `${level} · score ${score}`)
+    const cta = el('button', 'mag-cta', 'Retry') as HTMLButtonElement
+    cta.type = 'button'
+    cta.dataset.action = 'retry'
+    overlay.append(eyebrow, title, meta, cta)
+    cta.focus({ preventScroll: true })
+  }
+  function showWon(score: number, high: number) {
+    if (!overlay) return
+    overlay.replaceChildren()
+    overlay.dataset.state = 'won'
+    const eyebrow = el('div', 'mag-overlay-eyebrow', 'Eclipse')
+    const title = el('div', 'mag-overlay-title', 'Mission complete')
+    const meta = el('div', 'mag-overlay-meta', `Score ${score} · Best ${high}`)
+    const cta = el('button', 'mag-cta', 'Run Again') as HTMLButtonElement
+    cta.type = 'button'
+    cta.dataset.action = 'start'
+    overlay.append(eyebrow, title, meta, cta)
+    cta.focus({ preventScroll: true })
+  }
+  function clearOverlay() {
+    if (!overlay) return
+    delete overlay.dataset.state
+    overlay.replaceChildren()
+  }
+
+  let game: ReturnType<typeof createMagnetarDirector> | null = null
+  let stopStateEffect: (() => void) | null = null
+
+  function ensureGame() {
+    if (game || !stageEl?.stage) return
+    game = createMagnetarDirector({ stage: stageEl.stage, stageHost: stageEl })
+    stopStateEffect?.()
+    stopStateEffect = effect(() => {
+      const g = game
+      if (!g) return
+      const s = g.state()
+      if (s === 'cleared') showCleared(g.score(), g.tokensLeft())
+      else if (s === 'failed') showFailed(g.score(), g.levelName())
+      else if (s === 'won') showWon(g.score(), 0)
+    })
+  }
+
+  function startGame() {
+    ensureGame()
+    if (!game) return
+    clearOverlay()
+    game.start()
+  }
+
+  stageEl?.addEventListener('sui-stage:ready', () => {
+    ensureGame()
+    showStart()
+    // Run the loop on idle so starfield + target pulse animate.
+    stageEl.start?.()
+  })
+
+  root?.addEventListener('click', (ev) => {
+    const target = (ev.target as HTMLElement | null)?.closest<HTMLElement>('[data-action]')
+    if (!target) return
+    const action = target.dataset.action
+    if (action === 'start') startGame()
+    else if (action === 'next') {
+      clearOverlay()
+      stageEl?.next?.()
+    } else if (action === 'retry') {
+      clearOverlay()
+      stageEl?.restart?.()
+    }
+  })
+
+  document.addEventListener('keydown', (ev) => {
+    if (overlay?.dataset.state && (ev.key === 'Enter' || ev.key === ' ')) {
+      ev.preventDefault()
+      const action = overlay.querySelector<HTMLElement>('[data-action]')?.dataset.action
+      if (action === 'start') startGame()
+      else if (action === 'next') { clearOverlay(); stageEl?.next?.() }
+      else if (action === 'retry') { clearOverlay(); stageEl?.restart?.() }
+      return
+    }
+    if (ev.key === 'r' || ev.key === 'R') { stageEl?.restart?.() }
+  })
+
+  // Pointer-drag aim: pointerdown anywhere → start aiming relative to the
+  // launch pad position, pointermove → update aim, pointerup → fire.
+  let aiming = false
+  function logicalCoords(ev: PointerEvent): { x: number; y: number } | null {
+    if (!stageEl) return null
+    const rect = stageEl.getBoundingClientRect()
+    if (rect.width === 0) return null
+    const x = ((ev.clientX - rect.left) / rect.width) * LOGICAL_W
+    const y = ((ev.clientY - rect.top) / rect.height) * LOGICAL_H
+    return { x, y }
+  }
+  stageEl?.addEventListener('pointerdown', (ev) => {
+    if (overlay?.dataset.state) return
+    aiming = true
+    const p = logicalCoords(ev as PointerEvent)
+    if (!p || !stageEl) return
+    updateAimFromPoint(p.x, p.y)
+  })
+  stageEl?.addEventListener('pointermove', (ev) => {
+    if (!aiming) return
+    const p = logicalCoords(ev as PointerEvent)
+    if (!p) return
+    updateAimFromPoint(p.x, p.y)
+  })
+  stageEl?.addEventListener('pointerup', () => {
+    if (!aiming) return
+    aiming = false
+    stageEl?.fire?.()
+  })
+  stageEl?.addEventListener('pointercancel', () => { aiming = false })
+
+  function updateAimFromPoint(px: number, py: number) {
+    if (!game || !stageEl) return
+    const idx = game.levelIndex()
+    const pad = LEVELS[idx]?.launch ?? { x: 240, y: 470 }
+    const angle = Math.atan2(py - pad.y, px - pad.x)
+    stageEl.setAim?.(angle)
+  }
+</script>
