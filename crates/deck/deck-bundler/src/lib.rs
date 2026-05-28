@@ -6,6 +6,7 @@
 //! targets on filesystem change (via `notify`), emitting `BundlerEvent`s on a
 //! broadcast channel for HMR. Output lands in `assets_dir_for` (sui-out/dist).
 
+pub mod app;
 pub mod catalog;
 pub mod compile;
 pub mod proto;

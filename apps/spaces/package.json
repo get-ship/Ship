@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Space scaffold — the thin per-space frontend the Tauri webview loads for `--app=<id>` windows. NO hub code (no marketplace/settings/auth/studio): just the SUI runtime + deck-host confinement + a loader that reads __SHIP_APP_ID__ and mounts the space's surface. Built by deck's shell-app build into apps/spaces/dist.",
+  "description": "Space scaffold — the thin per-space frontend the Tauri webview loads for `--app=<id>` windows. NO hub code (no marketplace/settings/auth/studio): just the SUI runtime + deck-host confinement + a loader that reads __SHIP_APP_ID__ and mounts the space's surface. Built by `deck build` (deck-cli) into .deck/space-scaffold.",
   "scripts": {
-    "build": "bun ../../packages/deck/bundler/shell-app.ts --shell-root . --out ../../.deck/space-scaffold",
+    "build": "cargo run -q -p deck-cli -- build --shell-root . --out ../../.deck/space-scaffold",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

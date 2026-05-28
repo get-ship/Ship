@@ -6,7 +6,7 @@
 // tabs) must skip them — otherwise every visit logs a spurious 404.
 //
 // Keep in sync with the local-mount gate in `main.ts` (`mountRoute`) and the
-// shell build (`packages/deck/bundler/shell-app.ts`). Add a name here when a
+// shell build (`deck build`, crates/deck/deck-cli). Add a name here when a
 // new shell-owned surface lands.
 //
 // `studio` is daemon-served from `apps/shell/views/` (the daemon view-source
