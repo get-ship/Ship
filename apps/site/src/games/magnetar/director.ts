@@ -12,10 +12,13 @@ import { hitsPlanet, hitsTarget, hitsToken, hitsWall, integrate, LAUNCH_SPEED, p
 
 const STAGE_W = 480
 const STAGE_H = 540
-const PREDICT_STEPS = 90
+// Predictor budget: with the slow projectile + strong gravity, paths
+// can swing back on themselves over 3+ seconds. We need enough lookahead
+// for the player to see the curve before they commit.
+const PREDICT_STEPS = 180
 const PREDICT_DT = 1 / 60
 const FLIGHT_DT = 1 / 60
-const GHOST_POOL = 60
+const GHOST_POOL = 80
 const STARS_PER_LAYER = 32
 const PER_TARGET = 1000
 const PER_TOKEN = 200

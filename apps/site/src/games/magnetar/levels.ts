@@ -1,9 +1,11 @@
-// Declarative level data for Magnetar.
+// Level data for Magnetar — gravity-slingshot puzzles.
 //
-// Six puzzles, gentle ramp. Every game element lives inside the safe play
-// zone (x: 50-430, y: 150-440) so nothing renders under the HUD chips or
-// the bottom hint pill. The director loads one at a time and rebuilds
-// entities; nothing here ticks.
+// Every level placed so gravity is part of the solution: planets sit
+// where they BEND the path toward the target, not where they block it.
+// The hint nudges the player toward using the curve.
+//
+// All elements live inside the safe play zone (x: 60-420, y: 160-440)
+// so nothing renders under the HUD chips or the bottom hint pill.
 
 export interface LevelSpec {
   name: string
@@ -18,97 +20,82 @@ export interface LevelSpec {
   shots: number
 }
 
-// Safe-zone constants — anything outside these bounds risks getting hidden
-// behind the corner HUD chips (top, ~130 tall) or the bottom hint pill.
-const TOP = 160
-const BOT = 440
-const LEFT = 60
-const RIGHT = 420
-
 export const LEVELS: LevelSpec[] = [
   {
     name: 'First Light',
     hint: 'Drag from the launch pad to aim. Release to fire.',
-    launch: { x: 240, y: BOT - 10 },
+    launch: { x: 240, y: 450 },
     initialAim: -Math.PI / 2,
-    target: { x: 240, y: TOP + 10, radius: 22 },
+    target: { x: 240, y: 180, radius: 22 },
     planets: [],
     tokens: [],
     walls: [],
     shots: 3,
   },
   {
-    name: 'Single Pull',
-    hint: 'A planet bends the path. Aim wide of it.',
-    launch: { x: LEFT + 30, y: BOT - 10 },
-    initialAim: -Math.PI / 3,
-    target: { x: RIGHT - 30, y: TOP + 20, radius: 22 },
-    planets: [{ x: 240, y: 290, mass: 1.3, radius: 22 }],
+    name: 'Gravity Assist',
+    hint: "The planet pulls. Aim wide of the target — let gravity bring you home.",
+    launch: { x: 90, y: 440 },
+    initialAim: -Math.PI / 6,
+    target: { x: 380, y: 220, radius: 22 },
+    planets: [{ x: 260, y: 250, mass: 2.0, radius: 22 }],
     tokens: [],
     walls: [],
     shots: 3,
   },
   {
-    name: 'Swing-By',
-    hint: 'Loop around the heavy mass to reach the portal.',
-    launch: { x: LEFT + 30, y: BOT - 20 },
-    initialAim: -Math.PI / 2.4,
-    target: { x: LEFT + 30, y: TOP + 10, radius: 22 },
-    planets: [{ x: 320, y: 290, mass: 2.0, radius: 28 }],
-    tokens: [{ x: 380, y: 220 }],
+    name: 'Around the Bend',
+    hint: 'Target is above you. Use the planet to slingshot up.',
+    launch: { x: 90, y: 430 },
+    initialAim: -Math.PI / 12,
+    target: { x: 380, y: 200, radius: 22 },
+    planets: [{ x: 240, y: 330, mass: 2.6, radius: 28 }],
+    tokens: [{ x: 90, y: 220 }, { x: 380, y: 330 }],
     walls: [],
     shots: 3,
   },
   {
-    name: 'Token Sweep',
-    hint: 'Collect tokens en route — bonus per pickup.',
-    launch: { x: 240, y: BOT - 10 },
+    name: 'Slingshot',
+    hint: 'Two pulls. Find the corridor between them.',
+    launch: { x: 240, y: 440 },
     initialAim: -Math.PI / 2,
-    target: { x: 240, y: TOP + 10, radius: 22 },
+    target: { x: 240, y: 180, radius: 22 },
     planets: [
-      { x: 130, y: 250, mass: 1.0, radius: 20 },
-      { x: 350, y: 350, mass: 1.0, radius: 20 },
+      { x: 130, y: 300, mass: 1.6, radius: 22 },
+      { x: 350, y: 300, mass: 1.6, radius: 22 },
     ],
-    tokens: [
-      { x: 220, y: 220 },
-      { x: 260, y: 300 },
-      { x: 230, y: 380 },
-    ],
+    tokens: [{ x: 240, y: 300 }],
     walls: [],
     shots: 3,
   },
   {
     name: 'Repulsor',
-    hint: 'The bright planet pushes — let it kick you in.',
-    launch: { x: LEFT + 30, y: BOT - 20 },
-    initialAim: -Math.PI / 2.5,
-    target: { x: RIGHT - 30, y: TOP + 30, radius: 22 },
+    hint: 'The bright planet shoves you away. Use it as a kick.',
+    launch: { x: 90, y: 380 },
+    initialAim: -Math.PI / 4,
+    target: { x: 400, y: 220, radius: 22 },
     planets: [
-      { x: 220, y: 330, mass: -1.6, radius: 24 },
-      { x: 340, y: 240, mass: 1.0, radius: 20 },
+      { x: 200, y: 320, mass: -2.4, radius: 24 },
+      { x: 330, y: 240, mass: 1.4, radius: 20 },
     ],
-    tokens: [{ x: 150, y: 250 }],
+    tokens: [{ x: 280, y: 380 }],
     walls: [],
     shots: 3,
   },
   {
-    name: 'Slalom',
-    hint: 'Walls bite. Curve through the gap.',
-    launch: { x: 240, y: BOT - 10 },
-    initialAim: -Math.PI / 2,
-    target: { x: 240, y: TOP + 10, radius: 22 },
+    name: 'Cradle',
+    hint: 'A heavy mass below the target. Drop into orbit; let it carry you.',
+    launch: { x: 90, y: 230 },
+    initialAim: -Math.PI / 8,
+    target: { x: 400, y: 230, radius: 22 },
     planets: [
-      { x: LEFT + 50, y: 300, mass: 1.4, radius: 22 },
-      { x: RIGHT - 50, y: 300, mass: 1.4, radius: 22 },
+      { x: 240, y: 360, mass: 3.0, radius: 28 },
     ],
     tokens: [
-      { x: 240, y: 250 },
-      { x: 240, y: 360 },
+      { x: 240, y: 200 },
+      { x: 340, y: 320 },
     ],
-    walls: [
-      { x: 0, y: 300, width: 70, height: 16 },
-      { x: 410, y: 300, width: 70, height: 16 },
-    ],
+    walls: [],
     shots: 3,
   },
 ]

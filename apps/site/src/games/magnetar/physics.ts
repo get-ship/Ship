@@ -40,20 +40,25 @@ export interface Target {
   radius: number
 }
 
-// Gravity tuning. Strong enough that a planet 80-120 px from the
-// trajectory bends the path by tens of pixels (a clear visible arc),
-// soft enough that the projectile doesn't slam into every planet it
-// passes within 60 px of. The trajectory predictor and the live
-// integrator share these constants so the ghost line matches the actual
-// flight to the pixel.
+// Gravity tuning, take 3. The earlier "subtle bend" tuning produced
+// barely-visible curves and made levels feel like "point and shoot" or
+// (worse) "the planet blocks every direct path." A real gravity puzzle
+// needs DRAMATIC curves — the kind of arcs Angry Birds Space made
+// legible: the projectile clearly bends toward planets, can be flung
+// around them, and finds its way home by following the field.
 //
-// At perpendicular distance 80 from a mass-1.5 planet, acceleration
-// = G*m/r² = 18000*1.5/6400 = 4.2 px/s². Over a 2.5s flight that's
-// ~13 px of perpendicular deflection — a recognizable bend without
-// turning every level into a planet-trap.
-export const G = 18000
-export const MIN_DIST = 18
-export const LAUNCH_SPEED = 230
+// At perpendicular distance 100 px from a mass-2 planet:
+//   a = G*m/r² = 80000*2/10000 = 16 px/s²
+// Over the ~3.4s flight (slow projectile gives gravity time to act),
+// perpendicular deflection ≈ 0.5*16*11.56 = ~92 px. That's a clearly
+// visible orbital arc, not a "did it bend?" pixel-level deflection.
+//
+// MIN_DIST is the floor distance for the inverse-square so close
+// approaches don't blow up to infinity; raised slightly to keep
+// slingshot speeds tractable for the symplectic integrator.
+export const G = 80000
+export const MIN_DIST = 22
+export const LAUNCH_SPEED = 140
 export const PROJECTILE_R = 4
 export const TOKEN_R = 8
 
