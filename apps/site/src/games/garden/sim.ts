@@ -14,8 +14,11 @@ const NEIGHBOR_OFFSETS: Array<[number, number]> = [
   [0, -1], [1, 0], [0, 1], [-1, 0],
 ]
 
-/** Base spread rate (probability per tick, scaled by neighbour count). */
-const BASE_SPREAD = 0.18
+/** Base spread rate (probability per tick, scaled by neighbour count).
+ *  Tuned so a 75-second round fills ~85-90% of the grid under balanced
+ *  play. Earlier value (0.18) made the grid saturate in ~7 seconds. */
+const BASE_SPREAD = 0.04
+const ALLY_BONUS = 0.05
 
 export interface ContestEvent {
   /** Pixel position of the contesting cell — where to drop particles. */
@@ -61,8 +64,9 @@ export function stepSim(ctx: SimContext): SimStep {
       else if (p === 'empty') empties.push({ col: nc, row: nr, idx: ni })
       else foes.push({ col: nc, row: nr })
     }
-    // Spread chance: base + 0.18 per ally (max 4 allies → 0.9).
-    const chance = BASE_SPREAD + allies * 0.18
+    // Spread chance: base + ally bonus per same-color neighbor
+    // (max 4 allies → roughly 0.24, capped naturally by tick rate).
+    const chance = BASE_SPREAD + allies * ALLY_BONUS
     if (empties.length > 0 && ctx.rng() < chance) {
       const target = empties[Math.floor(ctx.rng() * empties.length)]!
       const targetCell = grid.cells[target.idx]!

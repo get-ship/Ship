@@ -1,8 +1,9 @@
 // Declarative level data for Magnetar.
 //
-// Six puzzles, gentle ramp. Each defines the launch pad, target portal, and
-// the optional planets/tokens/walls populating the field. The director loads
-// one at a time and rebuilds entities; nothing here ticks.
+// Six puzzles, gentle ramp. Every game element lives inside the safe play
+// zone (x: 50-430, y: 150-440) so nothing renders under the HUD chips or
+// the bottom hint pill. The director loads one at a time and rebuilds
+// entities; nothing here ticks.
 
 export interface LevelSpec {
   name: string
@@ -17,16 +18,20 @@ export interface LevelSpec {
   shots: number
 }
 
-const W = 480
-const H = 540
+// Safe-zone constants — anything outside these bounds risks getting hidden
+// behind the corner HUD chips (top, ~130 tall) or the bottom hint pill.
+const TOP = 160
+const BOT = 440
+const LEFT = 60
+const RIGHT = 420
 
 export const LEVELS: LevelSpec[] = [
   {
     name: 'First Light',
     hint: 'Drag from the launch pad to aim. Release to fire.',
-    launch: { x: W / 2, y: H - 70 },
+    launch: { x: 240, y: BOT - 10 },
     initialAim: -Math.PI / 2,
-    target: { x: W / 2, y: 80, radius: 22 },
+    target: { x: 240, y: TOP + 10, radius: 22 },
     planets: [],
     tokens: [],
     walls: [],
@@ -35,10 +40,10 @@ export const LEVELS: LevelSpec[] = [
   {
     name: 'Single Pull',
     hint: 'A planet bends the path. Aim wide of it.',
-    launch: { x: 80, y: H - 70 },
+    launch: { x: LEFT + 30, y: BOT - 10 },
     initialAim: -Math.PI / 3,
-    target: { x: W - 80, y: 100, radius: 22 },
-    planets: [{ x: W / 2, y: H / 2, mass: 1.0, radius: 22 }],
+    target: { x: RIGHT - 30, y: TOP + 20, radius: 22 },
+    planets: [{ x: 240, y: 290, mass: 1.0, radius: 22 }],
     tokens: [],
     walls: [],
     shots: 3,
@@ -46,28 +51,28 @@ export const LEVELS: LevelSpec[] = [
   {
     name: 'Swing-By',
     hint: 'Loop around the heavy mass to reach the portal.',
-    launch: { x: 80, y: H - 80 },
+    launch: { x: LEFT + 30, y: BOT - 20 },
     initialAim: -Math.PI / 2.4,
-    target: { x: 80, y: 90, radius: 22 },
-    planets: [{ x: W / 2 + 80, y: H / 2, mass: 2.2, radius: 28 }],
-    tokens: [{ x: W - 100, y: H / 2 - 80 }],
+    target: { x: LEFT + 30, y: TOP + 10, radius: 22 },
+    planets: [{ x: 320, y: 290, mass: 2.2, radius: 28 }],
+    tokens: [{ x: 380, y: 220 }],
     walls: [],
     shots: 3,
   },
   {
     name: 'Token Sweep',
-    hint: 'Collect all three tokens en route.',
-    launch: { x: W / 2, y: H - 70 },
+    hint: 'Collect tokens en route — bonus per pickup.',
+    launch: { x: 240, y: BOT - 10 },
     initialAim: -Math.PI / 2,
-    target: { x: W / 2, y: 80, radius: 22 },
+    target: { x: 240, y: TOP + 10, radius: 22 },
     planets: [
-      { x: 130, y: 220, mass: 1.0, radius: 20 },
-      { x: W - 130, y: 320, mass: 1.0, radius: 20 },
+      { x: 130, y: 250, mass: 1.0, radius: 20 },
+      { x: 350, y: 350, mass: 1.0, radius: 20 },
     ],
     tokens: [
-      { x: 230, y: 150 },
-      { x: W - 230, y: 240 },
-      { x: 240, y: 360 },
+      { x: 220, y: 220 },
+      { x: 260, y: 300 },
+      { x: 230, y: 380 },
     ],
     walls: [],
     shots: 3,
@@ -75,34 +80,34 @@ export const LEVELS: LevelSpec[] = [
   {
     name: 'Repulsor',
     hint: 'The bright planet pushes — let it kick you in.',
-    launch: { x: 80, y: H - 80 },
+    launch: { x: LEFT + 30, y: BOT - 20 },
     initialAim: -Math.PI / 2.5,
-    target: { x: W - 80, y: 110, radius: 22 },
+    target: { x: RIGHT - 30, y: TOP + 30, radius: 22 },
     planets: [
-      { x: 240, y: 320, mass: -1.4, radius: 24 },
-      { x: 360, y: 200, mass: 1.0, radius: 20 },
+      { x: 220, y: 330, mass: -1.4, radius: 24 },
+      { x: 340, y: 240, mass: 1.0, radius: 20 },
     ],
-    tokens: [{ x: 140, y: 200 }],
+    tokens: [{ x: 150, y: 250 }],
     walls: [],
     shots: 3,
   },
   {
     name: 'Slalom',
     hint: 'Walls bite. Curve through the gap.',
-    launch: { x: W / 2, y: H - 70 },
+    launch: { x: 240, y: BOT - 10 },
     initialAim: -Math.PI / 2,
-    target: { x: W / 2, y: 80, radius: 22 },
+    target: { x: 240, y: TOP + 10, radius: 22 },
     planets: [
-      { x: 110, y: H / 2, mass: 1.4, radius: 22 },
-      { x: W - 110, y: H / 2, mass: 1.4, radius: 22 },
+      { x: LEFT + 50, y: 300, mass: 1.4, radius: 22 },
+      { x: RIGHT - 50, y: 300, mass: 1.4, radius: 22 },
     ],
     tokens: [
-      { x: W / 2, y: 240 },
-      { x: W / 2, y: 360 },
+      { x: 240, y: 250 },
+      { x: 240, y: 360 },
     ],
     walls: [
-      { x: 0, y: 280, width: 80, height: 16 },
-      { x: W - 80, y: 280, width: 80, height: 16 },
+      { x: 0, y: 300, width: 70, height: 16 },
+      { x: 410, y: 300, width: 70, height: 16 },
     ],
     shots: 3,
   },

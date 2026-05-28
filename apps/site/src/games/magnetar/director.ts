@@ -97,6 +97,7 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
       warning: stage.palette.resolve('warning'),
       destructive: stage.palette.resolve('destructive'),
       accent: stage.palette.resolve('accent'),
+      info: stage.palette.resolve('info'),
       foreground: stage.palette.resolve('foreground'),
       background: stage.palette.resolve('background'),
     }
@@ -196,9 +197,9 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
         tag: 'planet', z: 1,
         x: pl.x, y: pl.y,
         visual: { kind: 'composite', parts: [
-          { shape: 'circle', radius: pl.radius + 12, fill: isPush ? p.warning : p.accent, alpha: 0.12 },
-          { shape: 'circle', radius: pl.radius + 6, fill: isPush ? p.warning : p.accent, alpha: 0.18 },
-          { shape: 'circle', radius: pl.radius, fill: isPush ? p.warning : p.accent },
+          { shape: 'circle', radius: pl.radius + 12, fill: isPush ? p.destructive : p.info, alpha: 0.12 },
+          { shape: 'circle', radius: pl.radius + 6, fill: isPush ? p.destructive : p.info, alpha: 0.18 },
+          { shape: 'circle', radius: pl.radius, fill: isPush ? p.destructive : p.info },
         ] },
       })
     })
@@ -394,9 +395,9 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
         const pl = spec.planets[i]!
         const isPush = pl.mass < 0
         stage.world.repaintComposite(entities.planets[i]!, [
-          { shape: 'circle', radius: pl.radius + 12, fill: isPush ? p.warning : p.accent, alpha: 0.12 },
-          { shape: 'circle', radius: pl.radius + 6, fill: isPush ? p.warning : p.accent, alpha: 0.18 },
-          { shape: 'circle', radius: pl.radius, fill: isPush ? p.warning : p.accent },
+          { shape: 'circle', radius: pl.radius + 12, fill: isPush ? p.destructive : p.info, alpha: 0.12 },
+          { shape: 'circle', radius: pl.radius + 6, fill: isPush ? p.destructive : p.info, alpha: 0.18 },
+          { shape: 'circle', radius: pl.radius, fill: isPush ? p.destructive : p.info },
         ])
       }
       stage.world.repaintShape(entities.targetGlow, { kind: 'shape', shape: 'circle', radius: spec.target.radius + 16, fill: p.primary, stroke: p.primary, strokeWidth: 1 })
