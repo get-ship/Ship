@@ -132,6 +132,17 @@ pub async fn serve_space_asset(
     into_axum(deck_core::serve_space_asset(mode_from_ext(mode), &file))
 }
 
+pub async fn serve_hub(mode: Option<Extension<DaemonMode>>) -> Response {
+    into_axum(deck_core::serve_hub(mode_from_ext(mode)))
+}
+
+pub async fn serve_hub_asset(
+    mode: Option<Extension<DaemonMode>>,
+    Path(file): Path<String>,
+) -> Response {
+    into_axum(deck_core::serve_hub_asset(mode_from_ext(mode), &file))
+}
+
 // ── View-payload handlers ─────────────────────────────────────────────────────
 
 pub async fn serve_view_payload(

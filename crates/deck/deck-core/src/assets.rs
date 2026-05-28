@@ -70,14 +70,15 @@ pub fn resolve_view_js(name: &str) -> Option<String> {
     read_deck_asset(&format!("views/{name}/view.js"))
 }
 
-// ── Space scaffold (apps/spaces → .deck/space-scaffold) ───────────────────────
+// ── Space + hub scaffolds (apps/spaces → .deck/space-scaffold;
+//                            apps/shell → .deck/hub-scaffold) ─────────────────
 //
-// A Tauri `--app=<id>` window navigates to `/space/<id>`; the daemon serves the
-// thin scaffold from here, SAME-ORIGIN — so the scaffold's `/_sui` + Connect
-// resolve to this daemon with no proxy/origin-injection (the spaces serving
-// model; the hub is bundled, spaces are daemon-served). The launched id is
-// planted before any module script; the scaffold's hashed asset refs are
-// rewritten to `/space/_assets/` (served by `serve_space_asset`).
+// A Tauri `--app=<id>` window navigates to `/space/<id>`; the no-`--app`
+// (hub) window navigates to `/hub`. The daemon serves both as SAME-ORIGIN
+// HTML so the scaffold's `/_sui` + Connect resolve to this daemon with no
+// proxy/origin-injection. Spaces plant a launched id; the hub plants
+// nothing (the `home` space is the implicit context). Each scaffold's
+// hashed asset refs are rewritten to `/{space,hub}/_assets/`.
 
 pub fn serve_space(mode: DaemonMode, id: &str) -> DeckResponse {
     let Some(html) = read_deck_asset("space-scaffold/index.html") else {
@@ -98,6 +99,28 @@ pub fn serve_space_asset(mode: DaemonMode, file: &str) -> DeckResponse {
         Some(body) if file.ends_with(".css") => DeckResponse::css_view(body, mode),
         Some(body) => DeckResponse::js_asset(body, mode),
         None => DeckResponse::not_found(format!("space asset not found: {file}")),
+    }
+}
+
+/// `GET /hub` — the hub scaffold (apps/shell). Tauri's no-`--app` window
+/// navigates here so the hub loads SAME-ORIGIN with the daemon — `/_sui` +
+/// Connect resolve to this daemon with no proxy, the same model as
+/// `/space/<id>`. Replaces the prior `frontendDist: ../dist` static-bundle
+/// path; dev/prod parity through the daemon.
+pub fn serve_hub(mode: DaemonMode) -> DeckResponse {
+    let Some(html) = read_deck_asset("hub-scaffold/index.html") else {
+        return DeckResponse::not_found("hub scaffold not built (run apps/shell build)");
+    };
+    let html = html.replace("\"/assets/", "\"/hub/_assets/");
+    let html = crate::mode_html::inject_mode_meta(&html, mode);
+    DeckResponse::html_view(html, mode)
+}
+
+pub fn serve_hub_asset(mode: DaemonMode, file: &str) -> DeckResponse {
+    match read_deck_asset(&format!("hub-scaffold/assets/{file}")) {
+        Some(body) if file.ends_with(".css") => DeckResponse::css_view(body, mode),
+        Some(body) => DeckResponse::js_asset(body, mode),
+        None => DeckResponse::not_found(format!("hub asset not found: {file}")),
     }
 }
 
