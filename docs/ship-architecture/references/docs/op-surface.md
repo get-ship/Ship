@@ -32,12 +32,12 @@ Connect-Web client + event-bus/PTY
 stream adapters; the **sdk-skill generator** (progressive-disclosure SKILL.md +
 per-op pages) and the **proto contract-fixture** pipeline (themed corpus → per-op
 fixtures, drift-checked).
-**The last mile (gated on the sui-framework branch):** migrate `view.*`/`create.*`
-(coupled to the studio rewrite); the **GUI flip** (#72) onto the per-domain clients;
-then the **deletions** this arc exists for — the generated umbrella services + the
-Rust descriptor tables + REST/OpenAPI/utoipa (#78), specta (#81), the `fixtures/data`
-POC, and the `Scope` enum. The surface is **additive** until then: old + new coexist,
-GUI still rides the old path. See `.artifacts/sui-framework-handoff.md`.
+**The last mile (delivered):** the `view.*`/`create.*` migration landed alongside
+the studio rewrite; the GUI flip (#72) flipped onto per-domain clients in #116; the
+REST cull (#137) deleted the mutation routes; the utoipa removal (#135) deleted the
+OpenAPI annotations; the CLI flip (#141) moved `ship` off `/api/v1`. What remains:
+the `specta` prune (#136 still tracks the last residual). The surface is no longer
+additive — the legacy paths are gone.
 </ship-alert>
 
 ## Goal
@@ -263,16 +263,16 @@ load-bearing security.
 
 ### Then the deletions (the payoff this arc exists for)
 
-The migration has been **additive** — Connect stands beside REST/OpenAPI/SSE/specta,
-deleting nothing yet. The consolidation only pays once step 5 lands and these go:
+The migration was **additive** during the arc — Connect stood beside REST/OpenAPI/
+SSE/specta. The deletion phase has now landed:
 
-- **REST + OpenAPI** — relocate the route cores into `command::call` / platform
-  services, then delete the mutation routes + `utoipa` annotations. **No
-  strangler-fig** (no external consumers — delete, don't wrap).
-- **specta** — once TS types come from buf, strip `derive(specta::Type)` from the
-  domain crates.
+- **REST + OpenAPI** (#137, #135) — mutation routes deleted, `utoipa` annotations
+  removed. No strangler-fig needed (no external consumers).
+- **specta** (#136 still tracks the residual) — once TS types come fully from buf,
+  `derive(specta::Type)` strips from the domain crates.
 - **`Scope`** — the enum dies with the REST route-auth (`RequiredAuth::Scope`) +
-  artifact perms that still consume it.
+  artifact perms that still consume it. The REST route-auth piece is already gone;
+  artifact perms are the last consumer.
 
 ### Capability provisioning (the grant source)
 

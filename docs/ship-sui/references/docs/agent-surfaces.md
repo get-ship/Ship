@@ -12,8 +12,8 @@ exercise SUI views or components. Three planes:
 
 | Plane | Use it for | Lives in |
 |---|---|---|
-| **MCP tools** | Live operations against an active project (scaffold, edit, mount, snapshot) | `apps/mcp/src/server/mod.rs`, `apps/mcp/src/tools/*.rs` |
-| **CLI lint + compile loop** | Fast per-edit verification now that MCP SUI tools are removed. | `cargo run -p sui-lint --example check -- <file>` (lint); `cargo run -p sui-compiler -- build <file>` (full compile) |
+| **`ship ops call`** | Live operations against an active project. Per-domain ConnectRPC ops (the post-#143 surface — `apps/mcp/` no longer exists). List with `ship ops list`. | `ship ops call <op-name> --json '{…}'` |
+| **CLI lint + compile loop** | Fast per-edit verification — the primary authoring path. | `cargo run -p sui-lint --example check -- <file>` (lint); `cargo run -p sui-compiler -- build <file>` (full compile) |
 | **`sui-lsp` binary** | Native Rust LSP over stdio for editors + Claude Code (`.lsp.json`). Same grammar as the build. | `crates/sui/lsp/` |
 | **`@ship/sui-lsp-browser`** | Browser-only structural analyser + completion sources. Web worker, no Node deps, no `typescript` package. Used by the docs playground; the shell editor can adopt it too. | `packages/deck/lsp-browser/src/` |
 | **`@ship/sui-eval`** | Regression-quality scoring of agent-produced SUI against a behavioural spec | `packages/deck/eval/src/index.ts` |
