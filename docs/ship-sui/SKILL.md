@@ -1,7 +1,7 @@
 ---
 name: ship-sui
 stable-id: ship-sui
-description: SUI — Ship's `.sui` template format. Authoring guidance, the four-layer architecture (compiler / runtime / daemon view-host / authoring), and the supporting tooling (`sui-lsp`, `sui-build`, UI Studio, devtools, dispatch).
+description: USE BEFORE EDITING ANY `.sui` FILE OR `controller.ts`. Templates declare, controllers do — mutations only in `on:*` handlers, no `fetch` in controllers, no `innerHTML`. Skip this and the lint rejects your view at build time.
 tags: [ship, sui, views, components, runtime, compiler]
 authors: [ship]
 audience: agent-only
