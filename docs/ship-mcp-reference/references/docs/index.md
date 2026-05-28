@@ -1,8 +1,22 @@
 ---
 group: MCP Tools
 order: 1
-title: MCP Tools
-description: The 47 tools Ship exposes to AI agents via the Model Context Protocol — grouped by surface.
+title: MCP Tools — retired
+description: The legacy 47-tool MCP surface, now removed (MCP cull). For coordination see ship-coordination; for ops use `ship ops call`; for step-done use `ship step-done`.
+---
+
+> ## Retired
+>
+> The 47-tool MCP surface described below has been removed (issues #142, #143, #144 — the MCP cull). The `apps/mcp/` crate no longer exists. `ship mcp serve` no longer exists. Agents no longer call MCP tools to coordinate or invoke ops.
+>
+> **Current surfaces:**
+>
+> - **Coordination** (`create_workspace`, `log_progress`, `complete_workspace`, `mesh_broadcast`) → see [ship-coordination](/coordination/). A reduced coordination set is still exposed there.
+> - **Ops** (previously per-domain MCP tools): `ship ops call <op-name> --json '{…}'`. List with `ship ops list`. The CLI absorbs transport choice (host unix socket vs TCP + token).
+> - **Step completion** (previously `end_session` / `report_step_done`): `ship step-done`.
+>
+> Everything below is preserved for historical reference. Every `ship mcp` invocation and every tool name listed here is broken.
+
 ---
 
 Ship runs an MCP server (`apps/mcp/`) that exposes its runtime — workspaces, sessions, agents, jobs, views, artifacts, and collections — to AI agents over the Model Context Protocol. Any MCP-aware client can connect; `ship use` writes an `.mcp.json` that Claude Code, Cursor, Codex, Gemini, and OpenCode pick up automatically.

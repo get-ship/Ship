@@ -14,7 +14,7 @@ All Ship configuration uses JSONC (JSON with comments). Each config file support
 ```
 .ship/
   ship.jsonc              # Project manifest
-  ship.lock               # Dependency lockfile (generated, TOML)
+  ship.lock               # Dependency lockfile (tool-authored JSONC)
   permissions.jsonc        # Permission presets
   mcp.jsonc               # MCP server definitions
   agents/

@@ -32,7 +32,7 @@
   {
     "id": "cmd-install",
     "status": "stable",
-    "notes": "Resolves dependencies from ship.toml with --frozen lockfile check and --offline mode. Tested."
+    "notes": "Resolves dependencies from ship.jsonc with --frozen lockfile check and --offline mode. Tested."
   },
   {
     "id": "cmd-publish",

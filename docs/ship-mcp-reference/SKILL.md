@@ -1,16 +1,24 @@
 ---
 name: ship-mcp-reference
 stable-id: ship-mcp-reference
-description: Use when calling Ship MCP tools — workspace management, session lifecycle, job coordination, events. Complete tool reference with parameters.
-tags: [ship, mcp, reference]
+description: RETIRED. The 47-tool MCP surface was removed in the MCP cull (#142–#144). For coordination, use `ship-coordination`. For ops, use `ship ops call <op-name> --json '…'`. For step-done, use `ship step-done`.
+tags: [ship, mcp, retired]
 authors: [ship]
 ---
 
-# Ship MCP Tools
+# Ship MCP Tools — RETIRED
 
-> Note: the MCP tool surface is under active revision; tool/resource lists below may be out of date.
+> **This document is retired.** The 47-tool MCP surface, the `apps/mcp/` crate, and the `ship mcp serve` transport were all removed during the MCP cull (issues #142, #143, #144). Agents no longer call MCP tools to coordinate or invoke ops.
+>
+> **For coordination** (`create_workspace`, `log_progress`, `complete_workspace`, `mesh_broadcast`): see [`ship-coordination`](../ship-coordination/SKILL.md). A small set of coordination tools is still exposed; that doc describes the current surface.
+>
+> **For ops** (anything previously called via MCP like `start_session`, `create_adr`, `set_agent`): use `ship ops call <op-name> --json '{…}'`. List available ops with `ship ops list`. The CLI absorbs the transport choice (host unix socket vs TCP + token).
+>
+> **For step completion** (previously `end_session` / `report_step_done`): use `ship step-done` directly.
+>
+> The body below is preserved for historical reference only — every `ship mcp` invocation and every tool name listed below is broken.
 
-The Ship MCP server (`ship mcp serve`) exposes platform tools to agents via the Model Context Protocol. Never access the database directly -- always use these tools or the `ship` CLI.
+---
 
 ## Three-Stage Workflow
 

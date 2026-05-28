@@ -68,7 +68,7 @@ The compiler is pure — no I/O — except for `manifest::from_file` and `lockfi
 
 ## ship.lock — the lockfile
 
-`crates/core/compiler/src/lockfile.rs`. TOML format. Records direct resolved dependencies with exact commits and content hashes.
+`crates/core/compiler/src/lockfile.rs`. **JSONC format** (matches every other `.ship/` config). Records direct resolved dependencies with exact commits and content hashes.
 
 **Not to be confused with `.ship/ship.state`**, which holds per-workspace runtime state (active profile, compiled_at). The lockfile comment calls this out explicitly because the rename from `.ship/ship.lock` (old meaning) to `.ship/ship.state` caused collisions historically.
 
@@ -93,9 +93,10 @@ pub struct LockPackage {
 
 ### Read / write
 
-- `ShipLock::from_file(path)` — parse from `.ship/ship.lock`. Returns error with context on failure.
+- `ShipLock::from_file(path)` — parse from `.ship/ship.lock`. Accepts JSONC (line comments, block comments, trailing commas). Returns error with context on failure.
+- `ShipLock::from_jsonc_str(s)` — parse a JSONC string. `from_json_str` is a doc-hidden alias for back-compat with older callers.
 - `ShipLock::default()` — fresh lockfile with version=1 and empty packages.
-- Serialization goes through `toml` crate. Deterministic because `BTreeMap` orders keys and `Vec` preserves insertion order.
+- `to_json_string()` writes deterministic pure JSON — packages sorted by `path` so the output is byte-identical for the same logical content. Comments belong in user-authored configs; the lockfile is tool-authored.
 
 Writers beyond the compiler live in `ship_platform::registry::install_helpers` (`load_lock_if_present`, `write_lock_atomic`, `should_write_lock`). See [Registry](/runtime/registry/).
 
@@ -113,10 +114,10 @@ Lockfile tampering or upstream retag produces hash mismatch and blocks install.
 ## Why two files, why these names
 
 - **ship.jsonc** is user-authored. Has comments. JSONC is the default Ship format.
-- **ship.lock** is tool-authored. No comments. TOML was chosen because the lockfile is machine-produced and the toml crate round-trips cleanly with serde.
+- **ship.lock** is tool-authored. The reader accepts JSONC (line comments, block comments, trailing commas); the writer emits pure JSON for deterministic diffs. Same on-disk extension as every other `.ship/` config, so editor tooling treats it uniformly.
 - **ship.state** (not in scope here, but called out to avoid confusion) is workspace runtime state. Used to live at `ship.lock`; renamed to disambiguate.
 
-Changing the on-disk format for either would break existing projects and isn't planned.
+The lockfile used to be TOML; the reader was migrated to JSONC in commit `94bb54c87` (#187) after lane-spawn parse failures during the eval pipeline dogfood surfaced the format mismatch with the rest of `.ship/`.
 
 ## Validation
 
