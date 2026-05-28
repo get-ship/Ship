@@ -13,8 +13,8 @@ against `bun run --filter @ship/sui-runtime test`.
 ## 1. The 30-second scaffold
 
 ```sh
-node scripts/scaffold-view.mjs <name>          # e.g. tasks
-node scripts/scaffold-view.mjs <name> --path /tasks
+deck scaffold view <name>          # e.g. tasks
+deck scaffold view <name> --path /tasks
 ```
 
 Output (`views/<name>/`):
@@ -350,9 +350,10 @@ Two places, both required:
    probe failure (see `.artifacts/sui-arc/shell-probe-evidence.md` § Rail
    inventory bugs).
 
-`icon` is a lucide-icons name. The full table is fetched on demand by
-`<sui-icon>` from `/_sui/lucide-icons.json` — don't bundle, don't
-hard-code.
+`icon` is a lucide-icons name. `<sui-icon>` fetches one icon at a time from
+`/_sui/icons/<name>.svg` (the daemon embeds the set + serves per-icon;
+browser HTTP-caches each one). Don't bundle the registry, don't hard-code SVG.
+For non-lucide art, use `<sui-icon src="…">` (CDN escape hatch).
 
 ---
 

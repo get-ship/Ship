@@ -1,15 +1,15 @@
-//! `~/.ship/runtime/` — bundled toolchain (bun + sui-compiler + bundler.ts).
+//! `~/.ship/runtime/` — bundled toolchain (sui-compiler).
 //!
-//! Checks that the three required components exist. Path computation stays
-//! in `home::ShipHome` per the home-layout ADR.
+//! Since #163 the daemon bundles assets IN-PROCESS via Rolldown (compiled into
+//! the binary) — no bun, no `bundler.ts` worker. The only runtime component is
+//! the sui-compiler binary the bundler's `load` hook spawns to compile `.sui`.
+//! Path computation stays in `home::ShipHome` per the home-layout ADR.
 //!
 //! # Layout
 //!
 //! ```text
 //! ~/.ship/runtime/
-//!   bun             # ~100 MB, single static binary
-//!   sui-compiler    # Rust release build
-//!   bundler.ts      # Bun worker script (copied in by `ship runtime install`)
+//!   sui-compiler    # Rust release build, spawned to compile .sui
 //! ```
 
 use std::path::PathBuf;
@@ -29,17 +29,10 @@ pub enum ToolchainError {
 
 pub type Result<T> = std::result::Result<T, ToolchainError>;
 
-/// Verify that every required toolchain component exists on disk. Returns
-/// the first missing or unusable piece, in the order:
-/// 1. `runtime/` directory
-/// 2. `bun` binary (executable on Unix)
-/// 3. `sui-compiler` binary (executable on Unix)
-/// 4. `bundler.ts` script
+/// Verify the toolchain: the `runtime/` dir and the `sui-compiler` binary.
 pub fn ensure_present(home: &ShipHome) -> Result<()> {
     check_runtime_dir(home)?;
-    check_bun(home)?;
     check_sui_compiler(home)?;
-    check_bundler_ts(home)?;
     Ok(())
 }
 
@@ -51,25 +44,9 @@ pub fn check_runtime_dir(home: &ShipHome) -> Result<()> {
     Ok(())
 }
 
-pub fn check_bun(home: &ShipHome) -> Result<()> {
-    let path = home.runtime_bun();
-    require_executable(home, &path, "bun")
-}
-
 pub fn check_sui_compiler(home: &ShipHome) -> Result<()> {
     let path = home.runtime_sui_compiler();
     require_executable(home, &path, "sui-compiler")
-}
-
-pub fn check_bundler_ts(home: &ShipHome) -> Result<()> {
-    let path = home.runtime_bundler_ts();
-    if !path.exists() {
-        return Err(ToolchainError::Incomplete {
-            root: home.runtime_dir(),
-            component: "bundler.ts",
-        });
-    }
-    Ok(())
 }
 
 #[cfg(unix)]
@@ -131,65 +108,44 @@ mod tests {
         touch(path);
     }
 
-    fn populate_full_toolchain(home: &ShipHome) {
-        std::fs::create_dir_all(home.runtime_dir()).unwrap();
-        touch_exec(&home.runtime_bun());
-        touch_exec(&home.runtime_sui_compiler());
-        touch(&home.runtime_bundler_ts());
-    }
-
     #[test]
     fn ensure_present_errors_when_runtime_dir_missing() {
         let tmp = tempdir().unwrap();
         let home = ShipHome::for_test(tmp.path());
         let err = ensure_present(&home).unwrap_err();
         assert!(matches!(err, ToolchainError::Missing { .. }));
-        let msg = format!("{err}");
-        assert!(msg.contains("ship runtime install"));
+        assert!(format!("{err}").contains("ship runtime install"));
     }
 
     #[test]
-    fn ensure_present_errors_when_bun_missing() {
+    fn ensure_present_errors_when_sui_compiler_missing() {
         let tmp = tempdir().unwrap();
         let home = ShipHome::for_test(tmp.path());
         std::fs::create_dir_all(home.runtime_dir()).unwrap();
         let err = ensure_present(&home).unwrap_err();
-        let msg = format!("{err}");
-        assert!(msg.contains("bun"), "{msg}");
-        assert!(msg.contains("ship runtime install"));
+        assert!(format!("{err}").contains("sui-compiler"));
     }
 
     #[test]
-    fn ensure_present_errors_when_bundler_ts_missing() {
+    fn ensure_present_passes_with_sui_compiler() {
         let tmp = tempdir().unwrap();
         let home = ShipHome::for_test(tmp.path());
         std::fs::create_dir_all(home.runtime_dir()).unwrap();
-        touch_exec(&home.runtime_bun());
         touch_exec(&home.runtime_sui_compiler());
-        // bundler.ts NOT created
-        let err = ensure_present(&home).unwrap_err();
-        let msg = format!("{err}");
-        assert!(msg.contains("bundler.ts"), "{msg}");
-    }
-
-    #[test]
-    fn ensure_present_passes_with_full_toolchain() {
-        let tmp = tempdir().unwrap();
-        let home = ShipHome::for_test(tmp.path());
-        populate_full_toolchain(&home);
         ensure_present(&home).unwrap();
     }
 
     #[cfg(unix)]
     #[test]
-    fn ensure_present_errors_on_non_executable_bun() {
+    fn ensure_present_errors_on_non_executable_compiler() {
         use std::os::unix::fs::PermissionsExt;
         let tmp = tempdir().unwrap();
         let home = ShipHome::for_test(tmp.path());
-        populate_full_toolchain(&home);
-        let mut perm = std::fs::metadata(home.runtime_bun()).unwrap().permissions();
+        std::fs::create_dir_all(home.runtime_dir()).unwrap();
+        touch_exec(&home.runtime_sui_compiler());
+        let mut perm = std::fs::metadata(home.runtime_sui_compiler()).unwrap().permissions();
         perm.set_mode(0o644);
-        std::fs::set_permissions(home.runtime_bun(), perm).unwrap();
+        std::fs::set_permissions(home.runtime_sui_compiler(), perm).unwrap();
         let err = ensure_present(&home).unwrap_err();
         assert!(matches!(err, ToolchainError::NotExecutable { .. }));
     }

@@ -21,11 +21,11 @@ export default controller({
 
   mount(state, _host) {
     const stop = effect(() => {
-      const rowLabels = parseLabels(state.rows())
-      const colLabels = parseLabels(state.cols())
-      const cs = state.cellSize()
-      const gp = state.gap()
-      const rawData = state.data()
+      const rowLabels = parseLabels(state.rows)
+      const colLabels = parseLabels(state.cols)
+      const cs = state.cellSize
+      const gp = state.gap
+      const rawData = state.data
 
       // Resolve grid: prefer JSON 2D array, fall back to 1D comma-separated numbers.
       const jsonResult = parseJson<number[][]>(rawData, [])
@@ -52,11 +52,11 @@ export default controller({
       const vMax = allVals.length ? Math.max(...allVals) : 1
       const vRange = vMax - vMin
 
-      const toneVar = toneColor(state.tone())
+      const toneVar = toneColor(state.tone)
       const step = cs + gp
 
-      state.svgW.set(ncols > 0 ? ncols * cs + (ncols - 1) * gp : 0)
-      state.svgH.set(nrows > 0 ? nrows * cs + (nrows - 1) * gp : 0)
+      state.svgW = ncols > 0 ? ncols * cs + (ncols - 1) * gp : 0
+      state.svgH = nrows > 0 ? nrows * cs + (nrows - 1) * gp : 0
 
       const result: Cell[] = []
       for (let ri = 0; ri < nrows; ri++) {
@@ -80,7 +80,7 @@ export default controller({
           })
         }
       }
-      state.cells.set(result)
+      state.cells = result
     })
 
     return () => stop()

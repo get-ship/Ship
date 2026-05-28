@@ -22,15 +22,19 @@ jobs:
           bun-version: latest
       - name: Install JS deps
         run: bun install --frozen-lockfile
-      # Build sui-compiler upfront so build-bundles + precompile-sui find the
-      # binary at target/debug/sui-compiler instead of paying `cargo run` per
-      # `.sui` file. Required by scripts/precompile-sui.mjs.
+      # Build sui-compiler upfront so the asset bundle + the `sui-build`
+      # pretest hook find target/debug/sui-compiler instead of paying
+      # `cargo run` per `.sui` file.
       - name: Build sui-compiler
         run: cargo build -p sui-compiler
       - name: Build daemon asset bundles
         run: bun run build:bundles
       - name: Check silent-error patterns
         run: bash scripts/lint/check-silent-errors.sh
+      - name: Check migration discipline (naming + immutability)
+        run: |
+          bash scripts/lint/check-migration-naming.sh
+          bash scripts/lint/check-migration-discipline.sh
       - name: Check SUI layer-cut (no framework -> host imports)
         run: bash scripts/lint/check-sui-layer-cut.sh
       - name: Check SUI bundle sizes (within budget)
@@ -80,7 +84,7 @@ jobs:
       # See `tests/integration/resource-symmetry.test.ts`.
       - name: Integration test (resource symmetry)
         run: bunx vitest run --config tests/integration/vitest.config.ts
-      # Runs `pretest` first (scripts/precompile-sui.mjs), which exercises
+      # Runs `pretest` first (the package's `sui-build` hook), which exercises
       # every framework check baked into the sui-compiler pipeline:
       # controller-purity, css-token, bind-this-ref, on-callable, and
       # the rest of the type-strengthening passes. The earlier

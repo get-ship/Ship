@@ -1,8 +1,10 @@
 <!--
   <sui-icon> — SUI port of <ship-icon>.
-  Canonical inline SVG icon. Resolves `name` against the curated
-  Lucide registry. Names not in the registry fall through to the
-  default slot — provide raw SVG there for one-off glyphs.
+  Canonical inline SVG icon. With `name`, fetches one lucide icon from
+  the daemon (`/_sui/icons/<name>.svg`). With `src`, fetches an arbitrary
+  SVG URL (CDN escape hatch, e.g. simpleicons.org for brand marks). Names
+  that 404 fall through to the default slot — provide raw SVG there for
+  one-off glyphs.
 
   Prop / event / method parity vs <ship-icon>
   ────────────────────────────────────────────────────────────────────────────
@@ -33,6 +35,7 @@
 -->
 
 <prop name="name" type="string" default="" reflect />
+<prop name="src" type="string" default="" />
 <prop name="size" values="xs|sm|md|lg|xl" default="md" reflect />
 <prop name="tone" values="default|info|success|warning|destructive|accent|muted|primary" default="default" reflect />
 <prop name="label" type="string" default="" reflect />

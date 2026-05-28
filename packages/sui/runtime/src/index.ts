@@ -63,8 +63,9 @@ export type { Signal, Derived } from './signal'
 
 // The one MutableState proxy builder. `componentMountState` is emitted by the
 // compiler for component-mount; `createMountState` backs both mount paths.
+// One read shape: `state.x` is the value (signal keys unwrapped); writes route
+// through signal.set via the proxy's set trap.
 export { createMountState, componentMountState, pickSignals, SIGNALS_KEY } from './state-proxy'
-export type { MountStateOptions } from './state-proxy'
 
 export {
   createScope,

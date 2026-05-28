@@ -246,11 +246,11 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             Commands::Doctor => doctor::run(),
             Commands::Build { dry_run } => build::run(dry_run),
             Commands::Runtime { action } => match action {
-                cli::RuntimeCommands::Install { bun, sui_compiler } => {
-                    runtime_cmd::run_install(bun, sui_compiler)
+                cli::RuntimeCommands::Install { sui_compiler } => {
+                    runtime_cmd::run_install(sui_compiler)
                 }
-                cli::RuntimeCommands::Update { bun, sui_compiler } => {
-                    runtime_cmd::run_update(bun, sui_compiler)
+                cli::RuntimeCommands::Update { sui_compiler } => {
+                    runtime_cmd::run_update(sui_compiler)
                 }
                 cli::RuntimeCommands::Doctor => runtime_cmd::run_doctor(),
             },

@@ -111,12 +111,13 @@ pub struct ShipRuntime {
     hook_engine: std::sync::OnceLock<std::sync::Arc<ship_platform::triggers::engine::HookEngine>>,
     /// Declarative-tier config watcher (Phase 4) — emits domain.changed events.
     config_watcher: std::sync::OnceLock<ship_platform::config::ConfigWatcher>,
-    /// Bun bundler worker — owned here, lazily started on first access.
-    /// `Bundler::start` is synchronous (it spawns a child and returns a
-    /// handle), so `std::sync::OnceLock` is the right primitive — using
+    /// In-process Rolldown bundler (#163) — owned here, lazily started on
+    /// first access. `Bundler::start` is synchronous (it locates the
+    /// `sui-compiler` binary and sets up channels, no child process), so
+    /// `std::sync::OnceLock` is the right primitive — using
     /// `tokio::sync::OnceCell` would require `get_or_init` to take an
     /// `async` initializer.
-    pub bundler: std::sync::OnceLock<ship_platform::bundler::Bundler>,
+    pub bundler: std::sync::OnceLock<deck::bundler::Bundler>,
     /// `RulesService` impl — pilot for the modular-runtime spec 02
     /// service-layer pattern. HTTP handlers in `services::rules` go
     /// through this trait so the cloud worker / browser embed / unit
@@ -625,19 +626,14 @@ impl ShipRuntime {
         self.workspace_dir.as_deref()
     }
 
-    /// Lazily start and return the Bun bundler worker.
+    /// Lazily start and return the in-process Rolldown bundler (#163).
     ///
-    /// The worker process is spawned on first call and supervised thereafter.
-    /// The repo root defaults to the workspace dir (or cwd as fallback) since
-    /// that's where `packages/` and `views/` live.
-    ///
-    /// Dev-mode override: if the workspace contains a checked-in
-    /// `packages/deck/bundler/index.ts`, point the worker at *that* copy instead of
-    /// the one stashed under `~/.ship/runtime/`. Without this, contributors
-    /// editing `packages/deck/bundler/index.ts` in the repo see no effect until
-    /// they re-run `ship runtime install` — a footgun that has bitten more
-    /// than one debugging session.
-    pub fn bundler(&self) -> &ship_platform::bundler::Bundler {
+    /// `Bundler::start` locates the `sui-compiler` binary and returns a handle
+    /// — no child process, no worker script, so nothing to supervise. The repo
+    /// root defaults to the workspace dir (or cwd as fallback) since that's
+    /// where `packages/` and `views/` live; the bundler compiles `.sui` by
+    /// spawning that compiler in its Rolldown `load` hook.
+    pub fn bundler(&self) -> &deck::bundler::Bundler {
         self.bundler.get_or_init(|| {
             let home = ship_substrate::ShipHome::at(self.ship_dir.clone());
             // `repo_root` is the bundler's CWD + `SHIP_REPO_ROOT` — where
@@ -652,31 +648,9 @@ impl ShipRuntime {
                 .clone()
                 .or_else(|| std::env::current_dir().ok())
                 .unwrap_or_else(|| self.ship_dir.clone());
-            // Prefer the canonical in-repo bundler source over the deployed
-            // copy at `~/.ship/runtime/bundler.ts`. The deployed copy drifts
-            // (only refreshed by `ship runtime install`), so a dev daemon
-            // running against the repo must use the live source — otherwise a
-            // stale worker emits to old asset paths. `packages/deck/bundler/
-            // index.ts` IS the worker script (same stdin/stdout protocol).
-            let bundler_override = repo_root
-                .join("packages")
-                .join("deck")
-                .join("bundler")
-                .join("index.ts");
-            if bundler_override.is_file() {
-                tracing::info!(
-                    path = %bundler_override.display(),
-                    "bundler: using in-repo bundler source (dev override)"
-                );
-                ship_platform::bundler::Bundler::start_with_script(
-                    &home,
-                    repo_root,
-                    bundler_override,
-                    workspace,
-                )
-            } else {
-                ship_platform::bundler::Bundler::start(&home, repo_root, workspace)
-            }
+            // In-process Rolldown bundler (#163) — no worker script, no child
+            // process. Bundles `repo_root`'s built-ins + the user `workspace`.
+            deck::bundler::Bundler::start(&home, repo_root, workspace)
         })
     }
 

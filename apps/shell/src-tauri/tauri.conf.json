@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "VITE_PORT=3200 bun run dev",
     "beforeBuildCommand": "bun run build",
-    "frontendDist": "../dist",
+    "frontendDist": "bootstrap",
     "devUrl": "http://127.0.0.1:3200"
   },
   "app": {

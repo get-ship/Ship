@@ -35,7 +35,7 @@ artifacts, dispatch) are platform-level and documented in
 
 | Tool | Signature | Use |
 |---|---|---|
-| `mcp__ship__scaffold_view` | `{ name, path?, layout? }` | Emit a fresh `views/<name>/` skeleton (`page.sui`, `controller.ts`, `manifest.jsonc`). Mirrors `node scripts/scaffold-view.mjs`. |
+| `mcp__ship__scaffold_view` | `{ name, path?, layout? }` | Emit a fresh `views/<name>/` skeleton (`page.sui`, `controller.ts`, `manifest.jsonc`). Mirrors `deck scaffold view`. |
 | ~~`mcp__ship__sui_diagnostics`~~ | removed | Use `cargo run -p sui-lint --example check -- <file>` instead. |
 | ~~`mcp__ship__sui_hover`~~ | removed | Use the `sui-lsp` binary via `.lsp.json` or `crates/sui/lsp/` for hover. |
 | ~~`mcp__ship__sui_dependencies`~~ | removed | Use `cargo run -p sui-compiler -- build <file>` for dependency analysis. |

@@ -16,10 +16,12 @@ default:
 # ── Daily ────────────────────────────────────────────────────────────────────
 
 # One-shot fresh-clone setup. Order matters and is dependency-driven: the
-# gitignored generated assets (lucide registry, sdk-*.json, the FFI cdylib,
-# the wasm pkg) must exist before the cargo + bun builds that consume them,
-# or a cold clone fails at compile/bundle time. On dispatched worktrees these
-# are copied from the launch repo by dispatch.sh; this recipe generates them.
+# gitignored generated assets (sdk-*.json, the FFI cdylib, the wasm pkg) must
+# exist before the cargo + bun builds that consume them, or a cold clone
+# fails at compile/bundle time. On dispatched worktrees these are copied from
+# the launch repo by dispatch.sh; this recipe generates them.
+# (lucide-icons.json is committed source — regenerate via
+# `cargo run -p xtask -- gen-icons` after a lucide-static version bump.)
 [group('daily')]
 bootstrap:
     #!/usr/bin/env bash
@@ -27,9 +29,6 @@ bootstrap:
     command -v bun  >/dev/null || { echo "bun not on PATH — install via 'curl -fsSL https://bun.sh/install | bash'" >&2; exit 1; }
     bun install
     cargo run -p xtask --quiet -- gen-types
-    # lucide-icons.json — deck-server's build.rs panics without it, so it must
-    # land before any cargo build that compiles deck-server (incl. gen-sdk).
-    bun scripts/codegen/generate-lucide-registry.mjs
     # sdk-*.json bootstrap cycle: shipd include_str!s these, and gen-sdk runs
     # *through* shipd (via xtask). Seed empty placeholders so shipd compiles,
     # then gen-sdk overwrites them with real content.
@@ -69,7 +68,7 @@ shell-dev:
 # Regenerate the typed dynamic-route table from the view file tree (SSOT).
 [group('daily')]
 gen-routes:
-    @node scripts/gen-routes.mjs
+    @cargo run -q -p deck-cli -- routes --shell-root apps/shell
 
 # Build the standalone SUI component packs (primitives/charts/pipelines/
 # ui-components) → each package's `dist/`, served by the daemon at
@@ -80,10 +79,11 @@ gen-routes:
 build-packs: _sui-compiler-lib
     @bun run --filter './packages/components/*' build
 
-# Runs `packages/deck/bundler/index.ts --all` against the installed bun toolchain.
+# Bakes the framework bundles via the in-process Rolldown bundler (#163) — the
+# same engine shipd runs. No bun; spawns the `sui-compiler` binary built above.
 [group('daily')]
 dev-build-all: _sui-compiler-lib gen-routes build-packs
-    @bun packages/deck/bundler/index.ts --all
+    @cargo xtask build-assets
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
@@ -314,8 +314,8 @@ build: _sui-compiler-lib
     bun run --filter @ship/charts build
     echo "[5/9] ui-components build (sui-build → crates/deck/deck-core/assets/)"
     bun run --filter @ship/ui-components build
-    echo "[6/9] view bundles + sui-* bundles (packages/deck/bundler/index.ts --all)"
-    bun packages/deck/bundler/index.ts --all
+    echo "[6/9] view bundles + sui-* bundles (cargo xtask build-assets — in-process Rolldown)"
+    cargo xtask build-assets
     echo "[7/9] sui-catalog walk (→ .deck/catalogs/{workspace,published}.json)"
     bun run --filter @ship/sui-catalog build
     bun packages/deck/catalog/src/cli.ts
@@ -470,13 +470,6 @@ check-no-set-var-global-dir:
     fi
     @echo "No set_var(SHIP_GLOBAL_DIR) found ✓"
 
-# Populate the local daemon with one agent + skill + collection + artifact
-# so first-run dev doesn't look like a dead app. Targets the daemon serving
-# the current worktree (discovers port + token from its daemon_dir).
-# Requires `just dev` to be running.
-[group('daily')]
-seed:
-    @scripts/dev/seed.sh
 
 # Seed the local *registry* (not the daemon) with @unofficial packages.
 # Separate from `just seed`; targets registry-site dev server on :3000.

@@ -1,0 +1,30 @@
+[package]
+name = "deck-bundler"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Deck's in-process Rolldown bundler (#163/#167) — compiles + bundles SUI views/components/framework via a native Rust plugin that spawns sui-compiler in its load hook. The bundling half of the deck framework; serving is deck-core/deck-axum."
+
+[lib]
+name = "deck_bundler"
+path = "src/lib.rs"
+
+[dependencies]
+ship-substrate = { path = "../../core/ship-substrate" }
+
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+notify = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
+rolldown = "1.0.3"
+rolldown_common = "1.0.3"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true

@@ -88,7 +88,8 @@ Daemon-side route table (`apps/shipd/src/router.rs`) mounts the surface:
 
 | Route | Handler |
 |---|---|
-| `GET /_sui/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` / `lucide-icons.json` | `crates/deck/deck-core/src/assets.rs` |
+| `GET /_sui/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` | `crates/deck/deck-core/src/assets.rs` |
+| `GET /_sui/icons/{name}.svg` | `crates/deck/deck-core/src/assets.rs` (per-icon lucide; daemon embeds the set) |
 | `GET /_sui/sui-components/{name}.js` | separate-bundle component |
 | `GET /_sui/views/{name}/view.sui` / `view.js` / `view.css` | `crates/deck/deck-core/src/view.rs` (route segment stems are `view.*` regardless of on-disk `page.sui`/`controller.ts`/`style.css`) |
 | `GET /_sui/views/{name}` | `crates/deck/deck-core/src/view_payload.rs` |
@@ -135,7 +136,7 @@ Five rules carried over from the `ship-views` skill:
 4. **`manifest.jsonc` is required for views.** JSONC, not YAML.
 5. **`_components/` for view-private widgets.** Tag MUST prefix with the view name (`home-hero` for `views/home/`) so two views can each ship their own widget without colliding on `customElements.define`.
 
-Every first-party view is on this shape — `views/agents/`, `views/git/`, `views/home/`, etc. all ship `page.sui` + `controller.ts` + `style.css` + `manifest.jsonc`. The router (`packages/ship-set/src/router/`) walks only manifest-bearing directories.
+Every first-party view is on this shape — `views/agents/`, `views/git/`, `views/home/`, etc. all ship `page.sui` + `controller.ts` + `style.css` + `manifest.jsonc`. The router (`@ship/sui-runtime/route + defineRoutes() in apps/shell/src/main.ts`) walks only manifest-bearing directories.
 
 ## How the layers compose
 

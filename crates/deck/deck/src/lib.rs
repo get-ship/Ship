@@ -8,9 +8,9 @@
 // axum handlers + adapter surface.
 pub use deck_axum::{
     into_axum, mode_from_ext, router, serve_catalog_published, serve_catalog_workspace,
-    serve_meta, serve_pack_asset, serve_sui_components, serve_sui_dom, serve_sui_island,
-    serve_sui_live_reload, serve_sui_lucide_icons, serve_sui_runtime, serve_sui_sdk_client,
-    serve_sui_view_css,
+    serve_hub, serve_hub_asset, serve_meta, serve_pack_asset, serve_sui_components,
+    serve_sui_dom, serve_sui_icon, serve_sui_island, serve_sui_live_reload,
+    serve_sui_runtime, serve_sui_sdk_client, serve_sui_view_css,
     serve_sui_view_setup, serve_sui_view_template, serve_view_host, serve_view_payload,
     serve_view_payload_subpath,
 };
@@ -27,3 +27,7 @@ pub use deck_core::{
 // response); `resolver` + `view_payload` are pure and live in deck-core.
 pub use deck_axum::render_helpers;
 pub use deck_core::{resolver, view_payload};
+
+// The bundler — deck owns bundling (#167). Consumers that named
+// `ship_platform::bundler::*` now use `deck::bundler::*`.
+pub use deck_bundler as bundler;

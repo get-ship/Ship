@@ -140,9 +140,9 @@ No casts. No "scope signals missing" defensive throws. If a key is mistyped or m
 ## Scaffolds
 
 ```sh
-node scripts/scaffold-view.mjs settings
-node scripts/scaffold-view.mjs settings --component settings-toolbar
-node scripts/scaffold-sui-component.mjs my-widget --controller
+deck scaffold view settings
+deck scaffold view settings --component settings-toolbar
+deck scaffold component my-widget --controller
 ```
 
 The first generates `views/settings/` with `page.sui` + `controller.ts` + `style.css` + `manifest.jsonc`. The `--component` flag also scaffolds `_components/settings-toolbar/`. The component scaffold drops `packages/components/ui-components/src/my-widget/` with `<tag>.sui`; `--controller` adds the paired controller.

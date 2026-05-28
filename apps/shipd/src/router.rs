@@ -133,8 +133,8 @@ pub fn build_router(
         // `with_state(rt.clone())` at the bottom of this builder.
         //
         // The STATELESS deck serving surface — framework bundles
-        // (runtime/dom/sdk/components/lucide/live-reload), workspace +
-        // published catalogs, pack assets, per-view template/setup/css/
+        // (runtime/dom/sdk/components/live-reload), per-icon lucide,
+        // workspace + published catalogs, pack assets, per-view template/setup/css/
         // payload (+ sub-path), `/view-host`, `/sui/{name}`, and `/space`
         // — is mounted as ONE unit via `deck::router()` in the root
         // assembly below. deck-axum is the single source of truth for
@@ -270,6 +270,10 @@ pub fn build_router(
         // Daemon-mode Extension — Sui handlers read it via
         // `Option<Extension<DaemonMode>>` without router-state plumbing.
         .layer(axum::Extension(daemon_mode))
+        // Bundler Extension (#167) — deck's view.js handler builds an unbuilt
+        // view in-process via Rolldown on a cache miss (controller inlined, no
+        // bun). The same instance the watcher drives.
+        .layer(axum::Extension(rt.bundler().clone()))
         // X-Shipd-Build header on every response: build SHA + dirty flag.
         // CLI/shell/browser read this to detect daemon-vs-client skew.
         .layer(axum::middleware::from_fn(build_header_middleware))

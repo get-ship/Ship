@@ -445,7 +445,7 @@ To CREATE a new component (not just consume one), drop a pair under
 `packages/components/ui-components/src/<tag>/`:
 
 ```sh
-node scripts/scaffold-sui-component.mjs my-widget --controller
+deck scaffold component my-widget --controller
 ```
 
 The scaffold lays out:

@@ -18,14 +18,14 @@ declare -A BUDGETS=(
   [sui-dom.js]=4000
 )
 
-# Run bundles. Output goes to crates/deck/deck-server/assets/ per the bundle scripts.
-bun run --filter @ship/sui-runtime bundle >/dev/null 2>&1
-bun run --filter @ship/sui-dom bundle >/dev/null 2>&1
+# Produce the framework bundles via the canonical in-process Rolldown bake
+# (#163) — the same engine the daemon runs. Output lands in deck-core/assets.
+cargo xtask build-assets >/dev/null 2>&1
 
 failures=0
 echo "sui bundle sizes:"
 for name in "${!BUDGETS[@]}"; do
-  path="crates/deck/deck-server/assets/$name"
+  path="crates/deck/deck-core/assets/$name"
   if [ ! -f "$path" ]; then
     echo "  FAIL: $name not produced at $path" >&2
     failures=$((failures + 1))

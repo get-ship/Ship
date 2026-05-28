@@ -196,8 +196,8 @@ export default defineConfig(({ mode }) => {
       ],
     },
     server: { port: vitePort, strictPort: true, proxy: daemonProxy },
-    // `vite preview` serves the PRODUCTION build (now produced by deck's
-    // shell-app build, not vite). Same daemon proxy as dev so the deck-built
+    // `vite preview` serves the PRODUCTION build (now produced by `deck build`,
+    // not vite). Same daemon proxy as dev so the deck-built
     // dist can be exercised end-to-end against a running daemon (web-QA).
     preview: { port: vitePort, strictPort: true, proxy: daemonProxy },
   };

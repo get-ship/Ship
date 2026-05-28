@@ -3,7 +3,6 @@ pub mod account;
 pub mod agents;
 pub mod artifacts;
 pub mod auth;
-pub mod bundler;
 pub mod collections;
 pub mod commands;
 pub mod config;

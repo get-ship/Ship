@@ -31,13 +31,18 @@
        prod, not the daemon — there is no proxy. -->
   <link rel="stylesheet" href="/src/chrome/layout.css" />
 
-  <!-- R4: lucide icon table is fetched on demand by <sui-icon> rather
-       than bundled into sui-components.js. The shell paints six rail
-       icons (dashboard, pipelines, bot, git-branch, sparkles, palette,
-       play) on first paint, so prefetch the registry while the bundle
-       loads — when the first <sui-icon> mounts, the JSON is already in
-       HTTP cache and the fetch resolves near-instant. -->
-  <link rel="prefetch" href="/_sui/lucide-icons.json" as="fetch" type="application/json" crossorigin />
+  <!-- Lucide icons are served per-icon by the daemon at
+       `/_sui/icons/<name>.svg`. The browser HTTP-caches each one; on
+       first paint the shell mounts six rail icons (dashboard, pipelines,
+       bot, git-branch, sparkles, palette, play) — small enough that the
+       per-icon fetch races the bundle load. Prefetch the six explicitly
+       so they're warm by the time <sui-icon> mounts. -->
+  <link rel="prefetch" href="/_sui/icons/layout-dashboard.svg" as="image" />
+  <link rel="prefetch" href="/_sui/icons/workflow.svg" as="image" />
+  <link rel="prefetch" href="/_sui/icons/bot.svg" as="image" />
+  <link rel="prefetch" href="/_sui/icons/git-branch.svg" as="image" />
+  <link rel="prefetch" href="/_sui/icons/sparkles.svg" as="image" />
+  <link rel="prefetch" href="/_sui/icons/palette.svg" as="image" />
 
   <!-- Pre-paint theme: read persisted theme before first paint to prevent FOUC. -->
   <script>

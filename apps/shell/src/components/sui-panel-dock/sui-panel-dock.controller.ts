@@ -63,14 +63,14 @@ export default controller({
     const hostEl = host as HTMLElement | null
 
     const writeStored = (suffix: string, val: string): void => {
-      try { localStorage.setItem(`${state.storageKey()}-${suffix}`, val) }
+      try { localStorage.setItem(`${state.storageKey}-${suffix}`, val) }
       catch { /* best-effort */ }
     }
 
     function activate(id: string): void {
       if (!tabs().some((t) => t.id === id)) return
-      if (state.activeTab() === id) return
-      state.activeTab.set(id)
+      if (state.activeTab === id) return
+      state.activeTab = id
       writeStored('active', id)
       hostEl?.dispatchEvent(
         new CustomEvent('sui:dock:activate', {
@@ -83,7 +83,7 @@ export default controller({
       // can dock the source/signals/etc. alongside their editor. Each
       // tab declares its own URL via a known map; unknown tabs fall
       // back to a generic /sui/<tab> path.
-      const tab = state.activeTab()
+      const tab = state.activeTab
       const url = ({
         terminal: '/sui/terminal',
         source: '/studio/components',
@@ -107,8 +107,8 @@ export default controller({
       )
     }
     function onEditModeToggle(): void {
-      const next = !state.editModeOn()
-      state.editModeOn.set(next)
+      const next = !state.editModeOn
+      state.editModeOn = next
       hostEl?.dispatchEvent(
         new CustomEvent('sui:dock:edit-mode-toggle', {
           detail: { on: next }, bubbles: true, composed: true,
@@ -129,7 +129,7 @@ export default controller({
     const dragHeightSig = state.$signals.dragHeight
     const storageKey = state.storageKey
     const activate = state.activate
-    const resizeHandle = state.resizeHandle()
+    const resizeHandle = state.resizeHandle
 
     ensureResizePillStyles()
     ensureTerminalSlotFilled(host)

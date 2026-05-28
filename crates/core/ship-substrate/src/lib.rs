@@ -16,6 +16,7 @@ pub mod spawn_bounded;
 pub mod task_health;
 pub mod git;
 pub mod home;
+pub mod locate;
 pub mod log;
 pub mod persistence;
 pub mod project;

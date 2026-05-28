@@ -1,83 +1,101 @@
 # Toolchain — `~/.ship/runtime/`
 
-Ship ships with a bundled JS toolchain at `~/.ship/runtime/`. It mirrors what `rustup` does for Rust: one well-known directory contains every binary and script Ship's build / dev pipeline needs, pinned to the Ship version that installed it.
+Ship's asset bundler runs **in-process inside the daemon** (Rolldown, compiled
+into `shipd`). The only thing the runtime dir needs is the `sui-compiler` binary
+the bundler spawns to compile `.sui` files. It mirrors what `rustup` does for
+Rust: one well-known dir, pinned to the Ship version that installed it.
+
+> History (#163): this used to be a bundled `bun` binary + a long-lived
+> `bundler.ts` worker the daemon spawned and drove over a JSON-line stdin/stdout
+> protocol. That worker is **retired** — the daemon now bundles in-process via
+> Rolldown, so there is no child process, no protocol, and no bun in the
+> deployment bundle.
 
 ## Layout
 
 ```
 ~/.ship/runtime/
-  bun                 # Bun static binary (~100 MB)
   sui-compiler        # Rust release build of crates/sui/compiler
-  bundler.ts          # Bun worker script — the asset bundler
 ```
 
-No `node_modules/`, no `package.json`, no lockfile. `bundler.ts` runs under Bun and calls Bun's built-in APIs (`Bun.build`, `Bun.plugin`) directly.
+The directory is owned by `crates/core/ship-substrate/src/home/ship_home.rs` —
+every accessor (`runtime_dir`, `runtime_sui_compiler`) lives there; no other code
+constructs paths under the runtime dir directly.
 
-The directory is owned by `crates/core/ship-substrate/src/home/ship_home.rs` — every accessor lives there, no other code constructs paths under `~/.ship/runtime/` directly.
+## How bundling works now
 
-## Why Bun-native bundling
+The daemon's `Bundler` (`crates/deck/deck-bundler/`, #167 — deck owns bundling)
+is in-process:
 
-- **No node_modules tree.** The previous Vite-based pipeline required `npm install`-ing `vite` and `@ship/vite-plugin-sui` into `~/.ship/runtime/`. Now the runtime dir is three files.
-- **In-process API.** `Bun.build()` and `Bun.plugin()` are part of the Bun binary. There is nothing to install and nothing to resolve.
-- **Worker protocol.** `bundler.ts` is a long-lived subprocess supervised by `shipd`. Requests arrive on stdin as JSON lines; responses and push events go back on stdout. The daemon owns the process lifecycle — the bundler is not a server.
-- **Supervised restarts.** The Rust side (`crates/core/ship-application/src/bundler/`) wraps the worker with exponential-backoff restarts (1 s → 30 s, max 20 restarts). A crashed worker does not take the daemon with it.
+- **Engine:** Rolldown (oxc-based, Rust-native), embedded in `ship-platform`.
+  Requires the pinned toolchain to be Rust **1.95+** (oxc uses `if let` guards,
+  stabilized in 1.95) — see `rust-toolchain.toml`.
+- **SUI plugin** (`rolldown_bundle.rs`): a native Rust Rolldown `Plugin`.
+  `resolve_id` redirects `./X.compiled.js` siblings, externalizes the framework
+  singletons (`@ship/sui-runtime`/`-dom`/`sdk-client`), and re-anchors
+  `@ship/<pkg>` to workspace `src/`. `load` spawns `sui-compiler` to compile
+  `.sui` → JS. Rolldown handles TS transpile + node resolution natively.
+- **Output:** `assets_dir_for` — `crates/deck/deck-core/assets` for the baked
+  framework bundles, `.deck/` for views/components/spaces. No source-tree writes.
+- **API** (`bundler/mod.rs`): `Bundler::start` → `build(target)` / `build_all`
+  (+ catalog aggregation) / `start_watching` / `subscribe_events` / `shutdown`,
+  all async, in-process.
 
-## Components
+## HMR
 
-### `bun`
+`start_watching` runs a `notify` watcher over the source dirs; on a `.sui`/
+`.ts`/`.js` change it re-bundles the affected targets and emits a
+`BundlerEvent` (`ModuleChanged` / `CompileError`) on a broadcast channel. The
+daemon (`apps/shipd/src/lib.rs`) forwards these to `views::sui_hmr` →
+`/_sui/dev/hmr` SSE → the `live-reload.js` client baked into
+`crates/deck/deck-core/assets`. All Rust, no bun, no vite.
 
-Executes `bundler.ts`. Also used for ad-hoc dev scripts. Pinned to the Ship version that installed the toolchain. Updated via `ship runtime update`.
-
-### `sui-compiler`
-
-The Rust ahead-of-time compiler for `.sui` files. Invoked by `bundler.ts` via `Bun.spawn` to transform `.sui` source to JavaScript. Same binary as `crates/sui/compiler` ships under `target/release/sui-compiler` for in-repo dev.
-
-### `bundler.ts`
-
-The worker script installed from `packages/deck/bundler/index.ts` in the repo. Receives JSON-line requests from the daemon (`build`, `build_all`, `watch_start`, `watch_stop`, `shutdown`) and replies with JSON-line responses (`bundle`, `ack`, `error`) or push events (`module_changed`, `compile_error`, `ready`).
-
-See `crates/core/ship-application/src/bundler/proto.rs` for the Rust-side protocol types.
-
-## Worker protocol
-
-```
-stdin  → { "id": 1, "kind": "build", "target": "counter" }
-stdout ← { "id": 1, "kind": "bundle", "target": "counter", "bytes": 4096, "out_path": "..." }
-
-stdin  → { "id": 2, "kind": "watch_start" }
-stdout ← { "id": 2, "kind": "ack" }
-stdout ← { "kind": "module_changed", "target": "counter", "out_path": "...", "bytes": 4200 }
-
-stdin  → { "id": 3, "kind": "shutdown" }
-```
-
-Every request carries a numeric `id`; every response echoes it. Push events (`module_changed`, `compile_error`, `ready`) carry no `id`.
+(The shell SPA's *dev* server uses vite for its own HMR — `apps/shell` `bun run
+dev`. That's dev-only; the prod shell ships as a pre-built static bundle. vite
+never ships in the daemon or the shell bundle.)
 
 ## CLI
 
 ```sh
-ship runtime install       # populate ~/.ship/runtime/ from local sources
-ship runtime update        # wipe + reinstall
-ship runtime doctor        # verify every required component is present
-just dev-build-all         # run one-shot build via bundler.ts
+ship runtime install   # populate ~/.ship/runtime/ (sui-compiler) from local sources
+ship runtime update    # wipe + reinstall
+ship runtime doctor    # verify sui-compiler is present + executable
 ```
 
-`runtime install` resolves `bun` from `--bun <path>` or `which bun` on `PATH`; `sui-compiler` from `--sui-compiler <path>` or a walk-up search for `target/release|debug/sui-compiler` from cwd; `bundler.ts` from `--bundler-ts <path>` or a walk-up search for `packages/deck/bundler/index.ts` from cwd. `update` wipes the runtime dir then reinstalls.
-
-`runtime doctor` checks: runtime dir exists → bun present and executable → sui-compiler present and executable → bundler.ts present.
+`runtime install` resolves `sui-compiler` from `--sui-compiler <path>` or a
+walk-up search for `target/{release,debug}/sui-compiler` from cwd. `update`
+wipes the runtime dir then reinstalls.
 
 ## Errors
 
-Every error in `ship_application::toolchain` carries a recovery hint in its `Display` impl:
+Every `ship_platform::toolchain` error carries a recovery hint in `Display`:
 
 - **"Ship toolchain not installed at …"** → `ship runtime install`
-- **"Ship toolchain is incomplete: missing …"** → `ship runtime install` (idempotent; repairs partials)
-- **"Ship toolchain binary … is not executable"** → `ship runtime install` (resets +x bits)
-- **"bundler.ts not found at …"** → `ship runtime install` or `ship runtime update`
+- **"Ship toolchain is incomplete: missing sui-compiler"** → `ship runtime install`
+- **"… is not executable"** → `ship runtime install` (resets +x)
+
+## bun, today
+
+bun is **dev/build-time tooling only**, never shipped:
+- the `@ship/sui-build` CLI (`packages/deck/build`) — compiles `.sui` ahead of
+  an app build. The `apps/shell` dev server is vite (dev-only). The lucide
+  icon set is committed source at `crates/deck/deck-core/assets/lucide-icons.json`
+  and regenerated only on a lucide-static version bump via
+  `cargo run -p xtask -- gen-icons` (#172).
+
+The `apps/shell` / `apps/spaces` SPA prod build is **not** bun: `deck build`
+(`crates/deck/deck-cli`, #170) bundles the app via Rolldown — `sui-build && deck
+build`. One engine for framework + views + apps.
+
+The framework-asset bake is **not** bun: `cargo xtask build-assets` drives the
+same in-process Rolldown `Bundler::build_all`, writing the framework bundles to
+`crates/deck/deck-core/assets`. `just build` step [6/9] and `npm run
+build:bundles` both call it. There is one bundle-target definition
+(`bundler/targets.rs`) and one engine for both the daemon and the bake.
 
 ## See also
 
-- `docs/ship-sui/SKILL.md` — the `.sui` edit → browser update path via the Bun worker is documented under the Tooling section there.
-- `crates/core/ship-application/src/toolchain/` — the Rust orchestration code.
-- `crates/core/ship-application/src/bundler/` — the worker supervisor and IPC layer.
-- `packages/deck/bundler/index.ts` — the worker source.
+- `crates/deck/deck-bundler/` — the in-process Rolldown bundler (deck owns it).
+- `crates/core/ship-platform/src/toolchain/` — runtime-dir install/ensure.
+- `docs/ship-adrs/references/docs/in-process-rolldown-bundler.md` — the ADR
+  (decision + alternatives + consequences).

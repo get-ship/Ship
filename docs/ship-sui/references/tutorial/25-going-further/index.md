@@ -16,7 +16,7 @@ client-server loop against a mock daemon. From here:
 ## Build something real
 
 1. **`scaffold_view`** — the MCP tool that emits a fresh
-   `views/<name>/` skeleton. Or `node scripts/scaffold-view.mjs <name>`
+   `views/<name>/` skeleton. Or `deck scaffold view <name>`
    from a shell.
 2. **`docs/ship-sui/references/agent-authoring.md`** — the do-now
    checklist. File layout, the `<data>` directive's real shape,

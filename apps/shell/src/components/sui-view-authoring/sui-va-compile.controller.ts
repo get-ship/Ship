@@ -18,7 +18,7 @@ export default controller({
     function onClickRow(err: ErrorRow): void {
       chrome.dock.activate('va-source')
       document.dispatchEvent(new CustomEvent('sui:va:goto-line', {
-        detail: { view: state.view(), line: err.line, col: err.col },
+        detail: { view: state.view, line: err.line, col: err.col },
         bubbles: true,
       }))
     }

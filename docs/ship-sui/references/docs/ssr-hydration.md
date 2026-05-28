@@ -140,6 +140,6 @@ Both follow from the IR-as-source-of-truth move. Two parsers (Rust + JS) and two
 | `from '@ship/sui-dom'` | `attach()`, `AttachOptions`, `loadSetup` | Production views, daemon asset bundles |
 | `from '@ship/sui-dom/legacy'` | `hydrate()`, `parseSetSource()`, `HydrateOptions` | Tests, eval harness |
 
-The parser (`hydrate`, `parseSetSource`, `directives/`) lives exclusively in the `legacy` subpath. The default `@ship/sui-dom` bundle (`sui-dom.js`) contains zero parser code; it sits at ≤ 4.8 KB gzip today, against a 9 KB ceiling enforced by the build-bundles.mjs CI gate.
+The parser (`hydrate`, `parseSetSource`, `directives/`) lives exclusively in the `legacy` subpath. The default `@ship/sui-dom` bundle (`sui-dom.js`) contains zero parser code; it sits at ≤ 4.8 KB gzip today, against a 9 KB ceiling enforced by `scripts/lint/check-sui-bundle-size.sh` in CI.
 
-**Never import `@ship/sui-dom/legacy` from a production view.** Doing so would pull the full parser (~5 KB gzip) into the view bundle and violate the size budget. The build-bundles.mjs audit asserts zero references to `parseSetSource` in `sui-dom.js`.
+**Never import `@ship/sui-dom/legacy` from a production view.** Doing so would pull the full parser (~5 KB gzip) into the view bundle and violate the size budget. The bundle-size lint asserts zero references to `parseSetSource` in `sui-dom.js`.

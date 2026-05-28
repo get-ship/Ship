@@ -153,7 +153,7 @@ Authors don't call `component()` directly — the compiler emits it.
 
 ## Bundling + registration
 
-1. `node scripts/build-bundles.mjs --force` compiles every `.sui` source and bundles `apps/shipd/assets/sui-components.js`. Paired controllers get their `.controller.ts` esbuild-inlined here.
+1. The daemon's in-process Rolldown bundler (#163) compiles every `.sui` source and bundles `crates/deck/deck-core/assets/sui-components.js` (paired `.controller.ts` resolved + inlined by the bundler's load hook). `@ship/sui-build` produces the same tree at CI time.
 2. The shell loads `sui-components.js` once at boot via the importmap → all `<sui-*>` elements register globally.
 3. `<sui-button>` and friends are usable in any view.
 

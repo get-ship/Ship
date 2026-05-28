@@ -32,8 +32,15 @@ pub async fn serve_sui_components(mode: Option<Extension<DaemonMode>>) -> Respon
     into_axum(deck_core::serve_sui_components(mode_from_ext(mode)))
 }
 
-pub async fn serve_sui_lucide_icons(mode: Option<Extension<DaemonMode>>) -> Response {
-    into_axum(deck_core::serve_sui_lucide_icons(mode_from_ext(mode)))
+/// `GET /_sui/icons/{file}` — one lucide icon. `{file}` is captured whole
+/// (e.g. `search.svg`) because axum 0.8 forbids mixing path-params with
+/// literal suffixes in the same segment; we strip `.svg` here.
+pub async fn serve_sui_icon(
+    mode: Option<Extension<DaemonMode>>,
+    Path(file): Path<String>,
+) -> Response {
+    let name = file.strip_suffix(".svg").unwrap_or(&file);
+    into_axum(deck_core::serve_sui_icon(mode_from_ext(mode), name))
 }
 
 pub async fn serve_sui_live_reload(mode: Option<Extension<DaemonMode>>) -> Response {
@@ -75,9 +82,20 @@ pub async fn serve_sui_view_template(
 
 pub async fn serve_sui_view_setup(
     mode: Option<Extension<DaemonMode>>,
+    bundler: Option<Extension<deck_bundler::Bundler>>,
     Path(name): Path<String>,
     Query(q): Query<ViewSetupQuery>,
 ) -> Response {
+    // Deck owns bundling (#167). If the view bundle isn't on disk yet, build it
+    // in-process via Rolldown — the controller is inlined natively, no bun. The
+    // daemon's watcher keeps `.deck` warm afterward; this covers the cold miss.
+    let no_sub = q.sub.as_deref().filter(|s| !s.is_empty()).is_none();
+    if no_sub
+        && deck_core::resolve_view_js(&name).is_none()
+        && let Some(Extension(b)) = bundler.as_ref()
+    {
+        let _ = b.build(&format!("views/{name}/view")).await;
+    }
     into_axum(deck_core::serve_sui_view_setup(mode_from_ext(mode), &name, q.sub.as_deref()))
 }
 
@@ -112,6 +130,17 @@ pub async fn serve_space_asset(
     Path(file): Path<String>,
 ) -> Response {
     into_axum(deck_core::serve_space_asset(mode_from_ext(mode), &file))
+}
+
+pub async fn serve_hub(mode: Option<Extension<DaemonMode>>) -> Response {
+    into_axum(deck_core::serve_hub(mode_from_ext(mode)))
+}
+
+pub async fn serve_hub_asset(
+    mode: Option<Extension<DaemonMode>>,
+    Path(file): Path<String>,
+) -> Response {
+    into_axum(deck_core::serve_hub_asset(mode_from_ext(mode), &file))
 }
 
 // ── View-payload handlers ─────────────────────────────────────────────────────

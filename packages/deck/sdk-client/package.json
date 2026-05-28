@@ -12,7 +12,6 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "bundle": "bun build src/index.ts --target=browser --format=esm --external=@ship/sui-runtime --outfile=../../../crates/deck/deck-core/assets/sui-sdk-client.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },

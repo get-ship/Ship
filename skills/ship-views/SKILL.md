@@ -1,7 +1,7 @@
 ---
 name: ship-views
 stable-id: ship-views
-description: Author Ship views in SUI — `.sui` templates with optional paired `.controller.ts`, AOT-compiled, server-rendered first, hydrated by attach().
+description: USE BEFORE AUTHORING A VIEW. SUI templates compile AOT to ESM and hydrate server-rendered HTML. Pair `.sui` with optional `controller.ts` + `style.css` + required `manifest.jsonc`. Wrong shape and the resolver won't find it.
 tags: [views, sui, sdk, extension-authoring, ship-elements]
 authors: [ship]
 audience: agent
@@ -114,8 +114,8 @@ export default controller<Scope>({
 Scaffold a new view:
 
 ```sh
-node scripts/scaffold-view.mjs settings
-node scripts/scaffold-view.mjs settings --component settings-toolbar
+deck scaffold view settings
+deck scaffold view settings --component settings-toolbar
 ```
 
 ## Template surface (compact)
@@ -424,7 +424,7 @@ groupings + the LSP CLI + `@ship/sui-eval` scoring lives in
 
 | Tool | When |
 |---|---|
-| `mcp__ship__scaffold_view({ name, path?, layout? })` | Emit a fresh `views/<name>/` skeleton. MCP equivalent of `node scripts/scaffold-view.mjs`. |
+| `mcp__ship__scaffold_view({ name, path?, layout? })` | Emit a fresh `views/<name>/` skeleton. MCP equivalent of `deck scaffold view`. |
 | `mcp__ship__sui_diagnostics({ file })` | First thing after writing. Returns `[{ line, col, severity, message, source }]`. Same analyser as the VS Code LSP. |
 | `mcp__ship__sui_hover({ file, line, col })` | Type / directive / prop info at a cursor. Use when you're not sure what shape a binding wants. |
 | `mcp__ship__sui_dependencies({ file })` | What tags / signals / routes this file reaches into. Read before edits to scope blast radius. |

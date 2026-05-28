@@ -24,26 +24,25 @@ export default controller({
 
   mount(state, _host) {
     const stop = effect(() => {
-      const nums = parseNums(state.data())
+      const nums = parseNums(state.data)
       if (nums.length === 0) {
-        state.bars.set([])
-        state.isEmpty.set(true)
+        state.bars = []
+        state.isEmpty = true
         return
       }
-      const labels = parseLabels(state.labels())
-      const w = state.width()
-      const h = state.height()
-      const rawMax = state.max()
+      const labels = parseLabels(state.labels)
+      const w = state.width
+      const h = state.height
+      const rawMax = state.max
       const maxVal = rawMax > 0 ? rawMax : Math.max(...nums, 0)
       const safeMax = maxVal <= 0 ? 1 : maxVal
-      const color = toneColor(state.tone())
+      const color = toneColor(state.tone)
       const gap = 4
       const radius = 3
-      const horizontal = state.orientation() === 'horizontal'
+      const horizontal = state.orientation === 'horizontal'
       const n = nums.length
 
-      state.bars.set(
-        nums.map((v, i) => {
+      state.bars = nums.map((v, i) => {
           const ratio = Math.max(0, v) / safeMax
           let x: number, y: number, barW: number, barH: number
           if (horizontal) {
@@ -68,9 +67,8 @@ export default controller({
             color,
             title: `${labels[i] ?? String(v)}: ${v}`,
           }
-        }),
-      )
-      state.isEmpty.set(false)
+        })
+      state.isEmpty = false
     })
 
     return () => stop()

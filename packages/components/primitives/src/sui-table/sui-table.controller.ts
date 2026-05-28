@@ -73,20 +73,20 @@ export default controller({
   mount(state, host) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const initRows = (host as any).rows
-    if (initRows != null) state.rows.set(initRows)
+    if (initRows != null) state.rows = initRows
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const initCols = (host as any).columns
-    if (initCols != null) state.columns.set(initCols)
+    if (initCols != null) state.columns = initCols
 
     Object.defineProperty(host, 'rows', {
       configurable: true,
-      get: () => state.rows(),
-      set: (v: Row[]) => state.rows.set(v),
+      get: () => state.rows,
+      set: (v: Row[]) => state.rows = v,
     })
     Object.defineProperty(host, 'columns', {
       configurable: true,
-      get: () => state.columns(),
-      set: (v: Column[]) => state.columns.set(v),
+      get: () => state.columns,
+      set: (v: Column[]) => state.columns = v,
     })
 
     installLightDomStyles(host.ownerDocument)

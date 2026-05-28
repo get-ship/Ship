@@ -25,8 +25,8 @@ import { controller, effect } from '@ship/sui-runtime'
 import type { Signal } from '@ship/sui-runtime'
 
 // Import Scope from the compiler-emitted .d.ts (produced alongside the .sui).
-// This module resolves after `node scripts/build-bundles.mjs` compiles the
-// template; typecheck fails before first build — that is expected.
+// This module resolves after `sui-build` compiles the template; typecheck
+// fails before first build — that is expected.
 import type { Scope } from './sui-terminal.sui'
 
 // xterm.js is bundled eagerly into sui-components.js by esbuild. Dynamic
