@@ -8,6 +8,7 @@
 
 pub mod app;
 pub mod catalog;
+pub mod routes;
 pub mod compile;
 pub mod proto;
 pub mod rolldown_bundle;

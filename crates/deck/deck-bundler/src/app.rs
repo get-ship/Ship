@@ -121,6 +121,10 @@ pub async fn bundle_app(
     framework_assets_dir: &Path,
     deck_out_dir: &Path,
 ) -> Result<AppBuild> {
+    // Typed route table first (#168): main.ts imports routes.gen.ts, so it must
+    // be current before Rolldown reads the graph. No-op for apps with no studio.
+    crate::routes::generate_routes(shell_root).context("generate routes.gen.ts")?;
+
     let index_path = shell_root.join("index.html");
     let html = std::fs::read_to_string(&index_path)
         .with_context(|| format!("read {}", index_path.display()))?;

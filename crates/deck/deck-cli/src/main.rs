@@ -20,6 +20,14 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Regenerate the typed dynamic-route table (routes.gen.ts) from the app's
+    /// studio view tree. Also run inside `build`; standalone for dev iteration.
+    Routes {
+        /// App root holding src/studio (default: cwd).
+        #[arg(long, default_value = ".")]
+        shell_root: PathBuf,
+    },
+
     /// Build a SUI SPA app (hub, space scaffold) to a static output dir.
     Build {
         /// App root holding index.html, src/, public/ (default: cwd).
@@ -46,6 +54,13 @@ fn main() {
 
 fn run() -> Result<()> {
     match Cli::parse().command {
+        Command::Routes { shell_root } => {
+            let cwd = std::env::current_dir().context("cwd")?;
+            let root = if shell_root.is_absolute() { shell_root } else { cwd.join(shell_root) };
+            let n = deck_bundler::routes::generate_routes(&root)?;
+            println!("deck routes → {n} dynamic routes");
+            Ok(())
+        }
         Command::Build { shell_root, out, bundle_framework, no_minify } => {
             build(shell_root, out, bundle_framework, !no_minify)
         }
