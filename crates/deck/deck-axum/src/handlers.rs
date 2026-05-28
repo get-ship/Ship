@@ -32,8 +32,15 @@ pub async fn serve_sui_components(mode: Option<Extension<DaemonMode>>) -> Respon
     into_axum(deck_core::serve_sui_components(mode_from_ext(mode)))
 }
 
-pub async fn serve_sui_lucide_icons(mode: Option<Extension<DaemonMode>>) -> Response {
-    into_axum(deck_core::serve_sui_lucide_icons(mode_from_ext(mode)))
+/// `GET /_sui/icons/{file}` — one lucide icon. `{file}` is captured whole
+/// (e.g. `search.svg`) because axum 0.8 forbids mixing path-params with
+/// literal suffixes in the same segment; we strip `.svg` here.
+pub async fn serve_sui_icon(
+    mode: Option<Extension<DaemonMode>>,
+    Path(file): Path<String>,
+) -> Response {
+    let name = file.strip_suffix(".svg").unwrap_or(&file);
+    into_axum(deck_core::serve_sui_icon(mode_from_ext(mode), name))
 }
 
 pub async fn serve_sui_live_reload(mode: Option<Extension<DaemonMode>>) -> Response {

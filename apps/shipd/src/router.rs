@@ -133,8 +133,8 @@ pub fn build_router(
         // `with_state(rt.clone())` at the bottom of this builder.
         //
         // The STATELESS deck serving surface — framework bundles
-        // (runtime/dom/sdk/components/lucide/live-reload), workspace +
-        // published catalogs, pack assets, per-view template/setup/css/
+        // (runtime/dom/sdk/components/live-reload), per-icon lucide,
+        // workspace + published catalogs, pack assets, per-view template/setup/css/
         // payload (+ sub-path), `/view-host`, `/sui/{name}`, and `/space`
         // — is mounted as ONE unit via `deck::router()` in the root
         // assembly below. deck-axum is the single source of truth for

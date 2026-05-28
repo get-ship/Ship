@@ -37,7 +37,7 @@ pub use response::{CachePolicy, DeckResponse, compute_etag};
 
 pub use assets::{
     resolve_view_js, serve_space, serve_space_asset, serve_sui_components, serve_sui_dom,
-    serve_sui_island, serve_sui_live_reload, serve_sui_lucide_icons, serve_sui_runtime,
+    serve_sui_icon, serve_sui_island, serve_sui_live_reload, serve_sui_runtime,
     serve_sui_sdk_client,
 };
 pub use meta::{serve_meta, DaemonBuildInfo};
