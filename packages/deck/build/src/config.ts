@@ -41,6 +41,15 @@ export interface SuiBuildConfig {
    *  Example: { '.svg': 'text' } inlines SVG content as a JS string. */
   loaders?: Record<string, string>
 
+  /** Bare-specifier imports to leave un-inlined in the pack bundle. The
+   *  consumer is responsible for providing them at load time (typically via
+   *  an importmap, like `@ship/sui-runtime`). Used when a pack depends on a
+   *  shared runtime that should not duplicate across packs — e.g. a 2D
+   *  engine that vendors Pixi. The mirror-resolver plugin always
+   *  externalizes the framework singletons (`sui-runtime`, `sui-dom`,
+   *  `sdk-client`); `external` is the per-pack additive list. */
+  external?: string[]
+
   /** Aggregate per-component `*.custom-elements.json` to this path after a
    *  successful build. Relative to the config file (sui.config.ts). */
   aggregateCemTo?: string

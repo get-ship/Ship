@@ -18,5 +18,20 @@ export default defineConfig({
     resolve: {
       conditions: ['browser', 'import', 'module', 'default'],
     },
+    // SUI runtime + dom are loaded by importmap from /sui-runtime.js +
+    // /sui-dom.js (see BaseLayout.astro); keeping them external in the
+    // page bundles prevents Astro from duplicating ~140 KB of runtime
+    // into every script chunk that touches a SUI component.
+    build: {
+      rollupOptions: {
+        external: [
+          '@ship/sui-runtime',
+          '@ship/sui-runtime/route',
+          '@ship/sui-runtime/template-hooks',
+          '@ship/sui-dom',
+          '@ship/sdk-client',
+        ],
+      },
+    },
   },
 });
