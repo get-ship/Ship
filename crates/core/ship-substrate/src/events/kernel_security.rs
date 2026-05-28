@@ -95,8 +95,8 @@ impl KernelRouter {
         // Replay events since cursor, sorted by ULID for guaranteed ordering.
         if let Some(pos) = cursor_pos {
             let log = self.event_log.lock().unwrap_or_else(|e| e.into_inner());
-            let mut replay: Vec<_> = log[pos..]
-                .iter()
+            let mut replay: Vec<_> = log
+                .since(pos)
                 .filter(|ev| self.should_deliver(ev, label))
                 .cloned()
                 .collect();

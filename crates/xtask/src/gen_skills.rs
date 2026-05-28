@@ -323,9 +323,9 @@ mod tests {
 
     #[test]
     fn is_operational_command_matches_actor_and_mesh_writes() {
-        assert!(is_operational_command("actor.input"));
-        assert!(is_operational_command("mesh.send"));
-        assert!(!is_operational_command("rules.create"));
-        assert!(!is_operational_command("agents.create"));
+        assert!(is_operational("actor.input"));
+        assert!(is_operational("mesh.send"));
+        assert!(!is_operational("rules.create"));
+        assert!(!is_operational("agents.create"));
     }
 }
