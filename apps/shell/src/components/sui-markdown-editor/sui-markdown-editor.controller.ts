@@ -58,7 +58,7 @@ export default controller({
       return p.text.length > 140 ? p.text.slice(0, 140) + '…' : p.text
     })
 
-    function disabled() { return state.disabled() }
+    function disabled() { return state.disabled }
 
     function runCmd(fn: (ed: MarkdownEditor) => void) {
       const ed = _editorRef.current

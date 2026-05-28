@@ -22,14 +22,13 @@ export default controller({
 
   mount(state, _host) {
     const stop = effect(() => {
-      const segs = parseJson<SegInput[]>(state.segments(), [])
+      const segs = parseJson<SegInput[]>(state.segments, [])
       const sum = segs.reduce((a, s) => a + Math.max(0, s.count), 0)
-      const rawTotal = state.total()
+      const rawTotal = state.total
       const denom = rawTotal > 0 ? rawTotal : sum
       const safeDenom = denom <= 0 ? 1 : denom
 
-      state.bars.set(
-        segs
+      state.bars = segs
           .filter((s) => s.count > 0)
           .map((s, i) => {
             const pct = (Math.max(0, s.count) / safeDenom) * 100
@@ -38,8 +37,7 @@ export default controller({
               style: `width:${pct.toFixed(3)}%;background:${toneColor(s.tone)};`,
               title: `${s.label ?? s.tone}: ${s.count}`,
             }
-          }),
-      )
+          })
     })
 
     return () => stop()

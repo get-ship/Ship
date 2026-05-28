@@ -18,24 +18,23 @@ export default controller({
   mount(state, _host) {
     const stop = effect(() => {
       const raw = parseJson<Array<{ label: string; value: number; tone?: string }>>(
-        state.data(),
+        state.data,
         [],
       )
       const total = raw.reduce((acc, s) => acc + Math.max(0, s.value), 0)
       if (total <= 0) {
-        state.segments.set([])
+        state.segments = []
         return
       }
-      const sz = state.size()
-      const t = state.thickness()
+      const sz = state.size
+      const t = state.thickness
       const r = (sz - t) / 2
       const cx = sz / 2
       const cy = sz / 2
       const TWO_PI = 2 * Math.PI
       let angle = -Math.PI / 2
 
-      state.segments.set(
-        raw
+      state.segments = raw
           .filter((seg) => seg.value > 0)
           .map((seg, i) => {
             const rawSweep = (seg.value / total) * TWO_PI
@@ -49,8 +48,7 @@ export default controller({
               color: toneColor(seg.tone),
               title: `${seg.label}: ${seg.value}`,
             }
-          }),
-      )
+          })
     })
 
     return () => stop()

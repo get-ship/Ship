@@ -17,24 +17,24 @@ export default controller({
 
   mount(state, _host) {
     const stop = effect(() => {
-      const sz = state.size()
-      const t = state.thickness()
+      const sz = state.size
+      const t = state.thickness
       const r = (sz - t) / 2 - 2
       const cx = sz / 2
       const cy = sz / 2
 
-      state.trackD.set(arcPath(cx, cy, r, START_ANGLE, END_ANGLE))
+      state.trackD = arcPath(cx, cy, r, START_ANGLE, END_ANGLE)
 
-      const val = state.value()
-      const min = state.min()
-      const max = state.max()
+      const val = state.value
+      const min = state.min
+      const max = state.max
       const ratio = Math.max(0, Math.min(1, (val - min) / (max - min || 1)))
       const valueEndAngle = START_ANGLE + (END_ANGLE - START_ANGLE) * ratio
-      state.valueD.set(ratio > 0 ? arcPath(cx, cy, r, START_ANGLE, valueEndAngle) : '')
+      state.valueD = ratio > 0 ? arcPath(cx, cy, r, START_ANGLE, valueEndAngle) : ''
 
-      const explicitTone = state.tone()
-      const low = state.lowThreshold()
-      const high = state.highThreshold()
+      const explicitTone = state.tone
+      const low = state.lowThreshold
+      const high = state.highThreshold
       let resolved: string = explicitTone
       if (!resolved) {
         if (low > 0 && val < low) resolved = 'destructive'
@@ -42,7 +42,7 @@ export default controller({
         else if (low > 0 || high > 0) resolved = 'success'
         else resolved = 'primary'
       }
-      state.arcColor.set(toneColor(resolved))
+      state.arcColor = toneColor(resolved)
     })
 
     return () => stop()

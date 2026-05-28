@@ -188,7 +188,7 @@ export default controller({
     const shown = derived(() => {
       const all = entries()
       const needle = filter().trim()
-      const cat = state.categoryFilter().trim().toLowerCase()
+      const cat = state.categoryFilter.trim().toLowerCase()
       const pubOnly = publishedOnly()
       return all.filter((e) => {
         if (pubOnly && e.private) return false
@@ -249,14 +249,14 @@ export default controller({
     }
 
     function onTileClick(tag: string): void {
-      if (state.selectMode() === 'multi') {
+      if (state.selectMode === 'multi') {
         const q = queue()
         if (q.includes(tag)) queue.set(q.filter((t) => t !== tag))
         else queue.set([...q, tag])
         return
       }
       emitPicked([tag])
-      if (state.mode() === 'modal') { h.open = false }
+      if (state.mode === 'modal') { h.open = false }
     }
 
     function commit(): void {
@@ -264,7 +264,7 @@ export default controller({
       if (tags.length === 0) return
       emitPicked([...tags])
       queue.set([])
-      if (state.mode() === 'modal') h.open = false
+      if (state.mode === 'modal') h.open = false
     }
 
     function onDialogClose(): void { h.open = false }
@@ -287,7 +287,7 @@ export default controller({
     //     signal itself; WRITE proxies through to signal.set.
     //   • bridged props (catalogUrl, …): READ returns the signal getter
     //     (callable). Invoke with () to read its current string value.
-    // Prior `state.entries.set(...)` form worked for entries (`.set` on
+    // Prior `state.entries = ...` form worked for entries (`.set` on
     // signal) but failed an earlier refactor when entries was misread as
     // the value. Plain assignment via the proxy is the canonical write
     // path and is unambiguous: `state.entries = next` becomes

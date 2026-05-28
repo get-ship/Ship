@@ -29,7 +29,7 @@ export default controller({
 
     const queue = derived<QueueItem[]>(() => {
       try {
-        const raw = state.queueJson() || '[]'
+        const raw = state.queueJson || '[]'
         const parsed = JSON.parse(raw) as QueueItem[]
         return Array.isArray(parsed) ? parsed : []
       } catch { return [] }
@@ -39,9 +39,9 @@ export default controller({
       queue,
       onExit:            () => emit(hostEl, 'sui:edit-mode:exit'),
       onAnnotateToggle:  () => emit(hostEl, 'sui:annotation-mode:toggle'),
-      onSend:            () => { state.expanded.set(false); emit(hostEl, 'sui:annotations:send') },
-      onClearAll:        () => { state.expanded.set(false); emit(hostEl, 'sui:annotations:clear') },
-      onToggleExpand:    () => state.expanded.set(!state.expanded()),
+      onSend:            () => { state.expanded = false; emit(hostEl, 'sui:annotations:send') },
+      onClearAll:        () => { state.expanded = false; emit(hostEl, 'sui:annotations:clear') },
+      onToggleExpand:    () => state.expanded = !state.expanded,
       onRemove:          (id: string) => emit(hostEl, 'sui:annotations:remove', { id }),
       onCommentInput:    (e: Event, id: string) => {
         const ta = e.target as HTMLTextAreaElement | null

@@ -57,7 +57,7 @@ export default controller({
 
     const close = () => {
       hostEl.dispatchEvent(new CustomEvent('sui-help-close', { bubbles: true, composed: true }))
-      if (state.open()) state.open.set(false)
+      if (state.open) state.open = false
     }
 
     return { dialogEl, groups, onClose: () => close() }

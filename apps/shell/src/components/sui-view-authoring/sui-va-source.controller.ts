@@ -25,7 +25,7 @@ export default controller({
     }
 
     async function onSave(): Promise<void> {
-      const name = state.view()
+      const name = state.view
       if (!name) return
       const mcp = window.__viewMcp
       if (!mcp) return
