@@ -1,18 +1,29 @@
 //! The one `MutableState` proxy. Both mount paths build their writable state
-//! through `createMountState` — there is no second implementation.
+//! through `createMountState` — there is no second implementation, and there
+//! is no per-mount mode flag.
 //!
-//! Two paths, one builder, one difference (a flag):
-//! - **view-mount + `on:` handlers** read signal keys as their UNWRAPPED value
-//!   (the ergonomic `state.count++`, `state.label = 'hi'`); the raw signal is
-//!   reached via `state.$signals.x`. → `unwrap: true`.
-//! - **component-mount** reads signal keys as the RAW signal so refs and prop
-//!   signals stay callable (`state.termHost()`, `state.open()`). → `unwrap: false`.
+//! Reads of declared signal keys return the UNWRAPPED value (the ergonomic
+//! `state.count++`, `state.label = 'hi'`). Writes route through `signal.set`
+//! via the set-trap. The raw signal is reached via `state.$signals.x` for the
+//! cases the assignment-style can't express (handing a `Signal<T>` to a
+//! callback, calling `.set(updater)` with a function).
 //!
-//! Everything else — `$signals`, set-routing (with the function-wrap for
-//! `state.foo = () => …`), `has`/`ownKeys`/descriptors — is identical and lives
-//! here once. The compiler emits a call to `componentMountState` instead of
-//! hand-rolling a proxy into every compiled module (so behavior can't drift
-//! between compiled output and the runtime).
+//! Non-signal scope members (methods, plain refs, `derived` getters that
+//! arrived as callable views) fall through unchanged — `state.togglePanel`
+//! is the bound method, `state.foo` is whatever the factory returned.
+//!
+//! The unwrap is INTENTIONAL sugar for IMPERATIVE contexts (`on:` handlers,
+//! `mount`, `unmount`) where reactive tracking doesn't apply — those are
+//! one-shot reads, not subscriptions. Reactive contexts (`derived`, `effect`,
+//! templates) receive the raw scope, not this proxy, so they always work
+//! against callable signals.
+//!
+//! History: the proxy used to take an `unwrap: boolean` option — component-
+//! mount passed `unwrap: false`, leaving `state.x` as the raw signal. That
+//! created a type/runtime lie (`MutableState<Scope>` unwraps in TS, but the
+//! component runtime didn't), which silently broke casts like
+//! `state.canvasRef as HTMLCanvasElement`. The fork retired in favor of one
+//! shape; the 58 component sites that called `state.x()` became `state.x`.
 
 import type { Signal } from './signal'
 import { isSignal } from './signal'
@@ -20,30 +31,22 @@ import { isSignal } from './signal'
 /** The read-only accessor key exposing the raw signal map: `state.$signals.x`. */
 export const SIGNALS_KEY = '$signals'
 
-export interface MountStateOptions {
-  /** Reading a signal key returns its unwrapped value (view) vs the raw,
-   *  callable signal (component). */
-  unwrap: boolean
-}
-
 /**
  * Build the canonical writable-state proxy over `scope`. `signals` is the
  * writable-signal subset of `scope` (drives `$signals`, set-routing, and key
- * enumeration). `unwrap` selects value-read vs raw-signal-read semantics.
+ * enumeration). Reads of signal keys return the unwrapped value; writes
+ * route through `signal.set`.
  */
 export function createMountState(
   scope: Record<string, unknown>,
   signals: Record<string, Signal<unknown>>,
-  opts: MountStateOptions,
 ): Record<string, unknown> {
-  const { unwrap } = opts
   return new Proxy(scope, {
     get(t, k: string | symbol) {
       if (k === SIGNALS_KEY) return signals
-      // Unwrap only DECLARED signal keys (view ergonomic); everything else —
-      // non-signal members, and all keys under unwrap:false — reads raw, so
-      // refs/prop-signals stay callable (state.termHost()).
-      if (unwrap && (k as string) in signals) return signals[k as string]!()
+      // Unwrap DECLARED signal keys (the ergonomic read). Non-signal members
+      // fall through — methods, refs that arrived as functions, etc.
+      if ((k as string) in signals) return signals[k as string]!()
       return (t as Record<string | symbol, unknown>)[k]
     },
     set(_t, k: string | symbol, value: unknown) {
@@ -87,7 +90,7 @@ export function createMountState(
         configurable: true,
         enumerable: true,
         writable: true,
-        value: unwrap ? sig() : sig,
+        value: sig(),
       }
     },
   }) as Record<string, unknown>
@@ -104,9 +107,9 @@ export function pickSignals(scope: Record<string, unknown>): Record<string, Sign
 
 /**
  * Component-mount state. The compiler emits `componentMountState($scope)` in
- * place of a hand-rolled proxy. Raw-signal reads (`unwrap: false`) keep refs
- * and prop signals callable; `$signals` exposes the signal map.
+ * place of a hand-rolled proxy. Behavior matches view-mount — one shape,
+ * one builder, no flag.
  */
 export function componentMountState(scope: Record<string, unknown>): Record<string, unknown> {
-  return createMountState(scope, pickSignals(scope), { unwrap: false })
+  return createMountState(scope, pickSignals(scope))
 }
