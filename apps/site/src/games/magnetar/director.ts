@@ -1,14 +1,14 @@
 // Magnetar director — gravity-slingshot puzzle orchestration.
 //
-// Loads a level (planets, target, tokens, walls), exposes aim + fire over the
-// stage host API, runs the projectile flight through the same integrator the
-// trajectory ghost uses, scores token + target hits, and steps through the
-// level list.
+// Loads a level (planets, target, walls), exposes aim + fire over the stage
+// host API, runs the projectile flight through the same integrator the
+// trajectory ghost uses, scores target hits with per-shot accuracy bonuses,
+// and steps through the level list.
 
 import { effect, signal, type Signal } from '@ship/sui-runtime'
 import type { Entity, Stage } from '@ship/arcade-engine'
 import { LEVELS, type LevelSpec } from './levels.ts'
-import { hitsPlanet, hitsTarget, hitsToken, hitsWall, integrate, LAUNCH_SPEED, predictPath, PROJECTILE_R, TOKEN_R } from './physics.ts'
+import { hitsPlanet, hitsTarget, hitsWall, integrate, LAUNCH_SPEED, predictPath, PROJECTILE_R } from './physics.ts'
 
 const STAGE_W = 480
 const STAGE_H = 540
@@ -20,8 +20,10 @@ const PREDICT_DT = 1 / 60
 const FLIGHT_DT = 1 / 60
 const GHOST_POOL = 80
 const STARS_PER_LAYER = 32
-const PER_TARGET = 1000
-const PER_TOKEN = 200
+// Per-shot accuracy scoring: clear on first shot pays max, third shot
+// still passes but cheap. No tokens — replay value comes from "can I
+// thread this on one shot?" not "did I miss an impossible pickup?"
+const SCORE_BY_SHOTS_USED = [3000, 2000, 1000] // shots used 1, 2, 3
 
 interface StageHostApi extends HTMLElement {
   bind?(name: string, sig: Signal<unknown>): void
@@ -47,7 +49,7 @@ export interface MagnetarHandle {
   levelIndex: Signal<number>
   levelName: Signal<string>
   shotsLeft: Signal<number>
-  tokensLeft: Signal<number>
+  lastShotsUsed: Signal<number>
   state: Signal<'idle' | 'aiming' | 'flying' | 'cleared' | 'failed' | 'won'>
   hint: Signal<string>
   setAimAngle(rad: number): void
@@ -60,7 +62,6 @@ interface LevelEntities {
   planets: Entity[]
   target: Entity
   targetGlow: Entity
-  tokens: Array<{ entity: Entity; x: number; y: number; taken: boolean }>
   walls: Entity[]
 }
 
@@ -82,15 +83,17 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
   const levelIndex = signal(0)
   const levelName = signal(LEVELS[0]!.name)
   const shotsLeft = signal(LEVELS[0]!.shots)
-  const tokensLeft = signal(LEVELS[0]!.tokens.length)
   const gameState = signal<'idle' | 'aiming' | 'flying' | 'cleared' | 'failed' | 'won'>('idle')
   const hint = signal(LEVELS[0]!.hint)
   const high = signal(readHigh())
+  // Per-level shot accounting — used to compute the accuracy bonus
+  // when the target is cleared.
+  let shotsUsedThisLevel = 0
+  const lastShotsUsed = signal(0)
 
   stageHost.bind?.('score', score as unknown as Signal<unknown>)
   stageHost.bind?.('level', levelName as unknown as Signal<unknown>)
   stageHost.bind?.('shots', shotsLeft as unknown as Signal<unknown>)
-  stageHost.bind?.('tokens', tokensLeft as unknown as Signal<unknown>)
   stageHost.bind?.('hint', hint as unknown as Signal<unknown>)
   stageHost.bind?.('high', high as unknown as Signal<unknown>)
 
@@ -185,7 +188,6 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
   let aimAngle = LEVELS[0]!.initialAim
   let flightPos = { x: 0, y: 0 }
   let flightVel = { x: 0, y: 0 }
-  let levelTokensTaken = 0
 
   function spawnLevel(spec: LevelSpec) {
     p = pal()
@@ -193,7 +195,7 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
     launchPad.x = spec.launch.x
     launchPad.y = spec.launch.y
     aimAngle = spec.initialAim
-    levelTokensTaken = 0
+    shotsUsedThisLevel = 0
     const planets = spec.planets.map((pl) => {
       const isPush = pl.mass < 0
       return stage.world.spawn({
@@ -220,27 +222,16 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
         { shape: 'circle', radius: spec.target.radius - 6, fill: p.primary },
       ] },
     })
-    const tokens = spec.tokens.map((t) => ({
-      x: t.x, y: t.y, taken: false,
-      entity: stage.world.spawn({
-        tag: 'token', z: 2, x: t.x, y: t.y,
-        visual: { kind: 'composite', parts: [
-          { shape: 'circle', radius: TOKEN_R + 4, fill: p.warning, alpha: 0.18 },
-          { shape: 'circle', radius: TOKEN_R, fill: p.warning },
-        ] },
-      }),
-    }))
     const walls = spec.walls.map((w) => stage.world.spawn({
       tag: 'wall', z: 1,
       x: w.x + w.width / 2, y: w.y + w.height / 2,
       visual: { kind: 'shape', shape: 'rect', width: w.width, height: w.height, fill: p.destructive },
       alpha: 0.55,
     }))
-    entities = { planets, target, targetGlow, tokens, walls }
+    entities = { planets, target, targetGlow, walls }
     levelName.set(spec.name)
     hint.set(spec.hint)
     shotsLeft.set(spec.shots)
-    tokensLeft.set(spec.tokens.length)
     gameState.set('aiming')
     refreshAim()
   }
@@ -250,7 +241,6 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
     for (const e of entities.planets) e.destroy()
     entities.target.destroy()
     entities.targetGlow.destroy()
-    for (const t of entities.tokens) t.entity.destroy()
     for (const e of entities.walls) e.destroy()
     entities = null
   }
@@ -300,6 +290,7 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
     projectile.alpha = 1
     clearGhost()
     aimIndicator.alpha = 0
+    shotsUsedThisLevel += 1
     gameState.set('flying')
     trailEmitter.x = flightPos.x
     trailEmitter.y = flightPos.y
@@ -311,9 +302,12 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
     trailEmitter.y = -1000
     aimIndicator.alpha = 0.85
     if (reason === 'hit-target') {
-      const spec = LEVELS[levelIndex()]!
-      const bonus = PER_TARGET + levelTokensTaken * PER_TOKEN
+      // Per-shot accuracy bonus. shotsUsedThisLevel was incremented at
+      // fire time, so it's 1-based: 1 = first-shot clear.
+      const idx = Math.min(shotsUsedThisLevel - 1, SCORE_BY_SHOTS_USED.length - 1)
+      const bonus = SCORE_BY_SHOTS_USED[Math.max(0, idx)]!
       score.set(score() + bonus)
+      lastShotsUsed.set(shotsUsedThisLevel)
       gameState.set('cleared')
       impactEmitter.x = entities!.target.x
       impactEmitter.y = entities!.target.y
@@ -327,12 +321,6 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
     impactEmitter.burst(reason === 'crash' ? 18 : 8)
     const left = shotsLeft() - 1
     shotsLeft.set(left)
-    // Reset tokens that were collected this attempt so the next shot starts fresh.
-    if (entities) {
-      for (const t of entities.tokens) { t.taken = false; t.entity.alpha = 1 }
-      tokensLeft.set(entities.tokens.length)
-    }
-    levelTokensTaken = 0
     if (left <= 0) {
       gameState.set('failed')
     } else {
@@ -351,19 +339,6 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
     projectile.y = flightPos.y
     trailEmitter.x = flightPos.x
     trailEmitter.y = flightPos.y
-    // Token collection.
-    for (const t of entities.tokens) {
-      if (!t.taken && hitsToken(flightPos, t)) {
-        t.taken = true
-        t.entity.alpha = 0
-        levelTokensTaken++
-        tokensLeft.set(tokensLeft() - 1)
-        impactEmitter.x = t.x
-        impactEmitter.y = t.y
-        impactEmitter.setColor(p.warning)
-        impactEmitter.burst(10)
-      }
-    }
     if (hitsTarget(flightPos, spec.target)) { endShot('hit-target'); return }
     if (hitsPlanet(flightPos, spec.planets) || hitsWall(flightPos, spec.walls)) { endShot('crash'); return }
     if (flightPos.x < -PROJECTILE_R || flightPos.x > STAGE_W + PROJECTILE_R || flightPos.y < -PROJECTILE_R || flightPos.y > STAGE_H + PROJECTILE_R) {
@@ -408,12 +383,6 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
         { shape: 'circle', radius: spec.target.radius, fill: p.primary, alpha: 0.22 },
         { shape: 'circle', radius: spec.target.radius - 6, fill: p.primary },
       ])
-      for (const t of entities.tokens) {
-        stage.world.repaintComposite(t.entity, [
-          { shape: 'circle', radius: TOKEN_R + 4, fill: p.warning, alpha: 0.18 },
-          { shape: 'circle', radius: TOKEN_R, fill: p.warning },
-        ])
-      }
       for (const w of entities.walls) stage.world.repaintShape(w, { kind: 'shape', shape: 'rect', width: w.display.width || 1, height: w.display.height || 1, fill: p.destructive })
     }
   }))
@@ -491,7 +460,7 @@ export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
     },
     pause() { stage.pause() },
     resume() { stage.resume() },
-    score, levelIndex, levelName, shotsLeft, tokensLeft, state: gameState, hint,
+    score, levelIndex, levelName, shotsLeft, lastShotsUsed, state: gameState, hint,
     setAimAngle(rad: number) { aimAngle = rad; refreshAim() },
     fire,
     restartLevel() { spawnLevel(LEVELS[levelIndex()]!) },
