@@ -53,7 +53,7 @@
             </div>
             <div class="run-card-lanes-grid">
               {#for lane of grp.lanes key={lane.lane_id}}
-                <article class="lane-cell" class:lane-cell--failed={!lane.compile_passed}>
+                <article class="lane-cell" attr:data-passed={lane.compile_passed ? 'true' : 'false'}>
                   <header class="lane-cell-head">
                     <span class="lane-cell-id">{lane.lane_id}</span>
                     {#if lane.model}<span class="lane-cell-model mono-snip">{lane.model}</span>{/if}

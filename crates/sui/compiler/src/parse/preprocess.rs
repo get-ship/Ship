@@ -34,6 +34,22 @@ fn quote_brace_attrs(source: &str) -> String {
             i = j;
             continue;
         }
+        // HTML comments — skip the body verbatim. The tag-mode quote
+        // tracker doesn't understand comments; an apostrophe inside
+        // (e.g. "doesn't") would leak `in_single` state into every
+        // later attribute on the page, breaking `={…}` brace-attr
+        // quoting for the rest of the file.
+        if source[i..].starts_with("<!--") {
+            let body_start = i + 4;
+            let close_rel = source[body_start..].find("-->");
+            let end = match close_rel {
+                Some(rel) => body_start + rel + 3,
+                None => bytes.len(),
+            };
+            out.push_str(&source[i..end]);
+            i = end;
+            continue;
+        }
         out.push('<');
         i += 1;
         let mut in_single = false;
@@ -267,5 +283,52 @@ mod tests {
         let out = preprocess(src);
         assert!(out.contains("</data>"));
         assert!(out.contains(r#"on:click="{() =&gt; x()}""#) || out.contains(r#"on:click="{() => x()}""#));
+    }
+
+    #[test]
+    fn html_comment_with_apostrophe_does_not_leak_quote_state() {
+        // Regression: an apostrophe inside an HTML comment (e.g.
+        // "doesn't") used to toggle the preprocessor's `in_single`
+        // tracker, which then leaked into every subsequent attribute
+        // — every brace-attr after the comment failed to get quoted
+        // and the HTML parser later rejected the unquoted `={` shape.
+        // Real repro: views/eval/page.sui's header comment.
+        let src = r#"<!--
+  Note: the renderable subset doesn't admit `.items({…})` here.
+-->
+<article attr:data-passed={c ? 'true' : 'false'}></article>"#;
+        let out = preprocess(src);
+        assert!(
+            out.contains(r#"attr:data-passed="{c ? 'true' : 'false'}""#),
+            "brace-attr after a comment containing an apostrophe must \
+             still get quoted, got:\n{out}",
+        );
+    }
+
+    #[test]
+    fn html_comment_with_nested_tag_does_not_leak() {
+        // The fake `<data>` inside this comment used to be read as a
+        // tag boundary. The first `>` (inside `<data>`) ended the
+        // inner-while's "tag mode" early; subsequent text was
+        // misclassified. With the comment-aware skip, the body is
+        // copied verbatim and the real `<button>` is parsed correctly.
+        let src = r#"<!-- see <data> usage --><button on:click={() => f()}>x</button>"#;
+        let out = preprocess(src);
+        assert!(out.contains("</data>") || out.contains("<data>"));
+        assert!(
+            out.contains(r#"on:click="{() => f()}""#)
+                || out.contains(r#"on:click="{() =&gt; f()}""#),
+            "on:click brace-attr after comment must get quoted, got:\n{out}",
+        );
+    }
+
+    #[test]
+    fn unterminated_comment_copies_to_eof() {
+        // Defensive: a malformed file with no closing `-->` shouldn't
+        // panic or read past end-of-file. Copy the rest verbatim and
+        // let the downstream parser produce its own diagnostic.
+        let src = "<!-- never closed";
+        let out = preprocess(src);
+        assert_eq!(out, src);
     }
 }
