@@ -16,10 +16,12 @@ default:
 # ── Daily ────────────────────────────────────────────────────────────────────
 
 # One-shot fresh-clone setup. Order matters and is dependency-driven: the
-# gitignored generated assets (lucide registry, sdk-*.json, the FFI cdylib,
-# the wasm pkg) must exist before the cargo + bun builds that consume them,
-# or a cold clone fails at compile/bundle time. On dispatched worktrees these
-# are copied from the launch repo by dispatch.sh; this recipe generates them.
+# gitignored generated assets (sdk-*.json, the FFI cdylib, the wasm pkg) must
+# exist before the cargo + bun builds that consume them, or a cold clone
+# fails at compile/bundle time. On dispatched worktrees these are copied from
+# the launch repo by dispatch.sh; this recipe generates them.
+# (lucide-icons.json is committed source — regenerate via
+# `cargo run -p xtask -- gen-icons` after a lucide-static version bump.)
 [group('daily')]
 bootstrap:
     #!/usr/bin/env bash
@@ -27,9 +29,6 @@ bootstrap:
     command -v bun  >/dev/null || { echo "bun not on PATH — install via 'curl -fsSL https://bun.sh/install | bash'" >&2; exit 1; }
     bun install
     cargo run -p xtask --quiet -- gen-types
-    # lucide-icons.json — deck-server's build.rs panics without it, so it must
-    # land before any cargo build that compiles deck-server (incl. gen-sdk).
-    bun scripts/codegen/generate-lucide-registry.mjs
     # sdk-*.json bootstrap cycle: shipd include_str!s these, and gen-sdk runs
     # *through* shipd (via xtask). Seed empty placeholders so shipd compiles,
     # then gen-sdk overwrites them with real content.

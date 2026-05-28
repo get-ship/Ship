@@ -6,8 +6,8 @@
 //! `Bundler::build_all` writes the framework singletons + component umbrella +
 //! catalog to `crates/deck/deck-core/assets` (`assets_dir_for`) and views /
 //! islands to `.deck/`. `deck-core/build.rs` validates the framework set at
-//! cargo-build time. `lucide-icons.json` is a separate icon-registry artifact
-//! (not bundling) and is not produced here.
+//! cargo-build time. `lucide-icons.json` is committed source (not bundling)
+//! and is regenerated separately via `cargo xtask gen-icons`.
 
 use std::path::Path;
 
@@ -49,6 +49,6 @@ pub fn run(repo_root: &Path) -> Result<()> {
     }
 
     println!("build-assets: framework bundles + catalog baked via in-process Rolldown");
-    println!("note: lucide-icons.json is a separate icon-registry artifact (not produced here)");
+    println!("note: lucide-icons.json is committed source; regen via `cargo xtask gen-icons`");
     Ok(())
 }
