@@ -10,11 +10,9 @@ audience: internal
 
 Query items with structured filters, sorting, and pagination.
 
-## Endpoint
+## Querying collections
 
-```
-POST /api/v1/collections/{collection}/query
-```
+The REST endpoint `POST /api/v1/collections/{collection}/query` was deprecated after the Connect migration (#138). Call the `CollectionsService.query` Connect RPC: `ship ops call collections.query --json '{...}'`.
 
 ## Request body
 

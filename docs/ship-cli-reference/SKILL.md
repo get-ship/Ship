@@ -150,7 +150,7 @@ JSONC-backed (live in `~/.ship/library/settings.jsonc` or `~/.ship/machine/local
 | `terminal.program` | enum | `wt` \| `iterm` \| `tmux` \| `gnome` \| `vscode` \| `manual` \| `auto` |
 | `dispatch.confirm` | bool | Prompt before dispatching a job |
 
-Daemon-KV-backed (live in `platform.db`, shared with `/api/v1/settings` and the Studio settings page):
+Daemon-KV-backed (live in `platform.db`, shared with the SettingsService Connect RPC and the Studio settings page):
 
 | Key | Type | Default | Notes |
 |---|---|---|---|

@@ -2,7 +2,6 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import markdoc from "@astrojs/markdoc";
 import starlightSidebarTopics from "starlight-sidebar-topics";
-import starlightOpenAPI, { openAPISidebarGroups } from "starlight-openapi";
 
 // Internals visibility:
 //   - dev (bun run dev): always on — contributors want access locally.
@@ -215,9 +214,6 @@ function buildTopics(isInternal) {
               label: "Contributing",
               autogenerate: { directory: "contributing" },
             },
-            // openAPISidebarGroups is a placeholder — starlight-openapi replaces
-            // it with the generated per-endpoint sidebar entries at build time.
-            ...openAPISidebarGroups,
           ],
         },
       ]
@@ -397,23 +393,22 @@ export default defineConfig({
           // In public builds, Internals-only pages render without a topic bar.
           exclude: excludedPatterns,
         }),
-        ...(isInternal
-          ? [
-              starlightOpenAPI([
-                {
-                  // `api-reference`, not `http-api`: the ship-http-api skill
-                  // owns the hand-written /http-api/ guide pages. The generated
-                  // per-endpoint reference lives alongside it at /api-reference/.
-                  base: "api-reference",
-                  schema: "./openapi.json",
-                  sidebar: {
-                    label: "HTTP API Reference",
-                    collapsed: false,
-                  },
-                },
-              ]),
-            ]
-          : []),
+        // starlight-openapi removed: openapi.json was a stale artifact from
+        // the pre-Connect REST cull. Endpoints now documented via Connect ops.
+        // ...(isInternal
+        //   ? [
+        //       starlightOpenAPI([
+        //         {
+        //           base: "api-reference",
+        //           schema: "./openapi.json",
+        //           sidebar: {
+        //             label: "HTTP API Reference",
+        //             collapsed: false,
+        //           },
+        //         },
+        //       ]),
+        //     ]
+        //   : []),
       ],
       // All URLs are preserved — no content was moved, only sidebar topology
       // changed. No redirects needed.
