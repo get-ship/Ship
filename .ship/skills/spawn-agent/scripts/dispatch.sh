@@ -303,6 +303,13 @@ auto_kickstart_tmux() {
     sleep 1
     tmux send-keys -t "$session" Enter
   ) &
+  # Detach from the parent's job table so the background poller survives
+  # dispatch.sh exiting. Without disown, when the script returns its parent
+  # (e.g. a script-launcher) can deliver SIGHUP to backgrounded children and
+  # kill the kickstart before claude's menu finishes rendering — observed on
+  # the 3rd agent in a batch where the parent exits faster than the kickstart
+  # has had time to detect the prompt.
+  disown
 }
 
 # ── Open terminal ─────────────────────────────────────────────────────────────

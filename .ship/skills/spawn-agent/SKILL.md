@@ -86,13 +86,10 @@ These are personal configuration — set in your shell profile, not in project f
 ---
 > Execute this job yourself. Do not delegate the implementation to a subagent — subagents are only for read-only parallel research, never for writing the code this job asks for.
 >
-> If you notice a bug or problem outside your file scope, log it via
-> `mcp__ship__log_progress` and continue your work.
+> If you notice a bug or problem outside your file scope, jot it as a one-line note in the commit body (`note(out-of-scope): ...`) and continue your work — don't widen scope to fix it.
 >
 > **When all acceptance criteria are met:**
-> 1. Call `mcp__ship__complete_workspace` with a one-paragraph summary of what changed.
-> 2. Call `mcp__ship__mesh_broadcast` with `{ "topic": "job.completed", "workspace_id": "<id>", "summary": "<same summary>" }`.
->    This notifies commander. If shipd is not running, skip step 2 — step 1 is sufficient.
+> Run `ship step-done --summary "<one-line summary of what shipped>"`. That's the canonical completion signal — it advances the step monitor and records the summary on the event log. The orchestrator picks up the completion from there.
 ```
 
 ## Test/Impl Split
