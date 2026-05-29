@@ -1,0 +1,59 @@
+<!--
+  <sui-message-list> — a keyed, scrollable column of <sui-message>
+  bubbles. Items arrive via the `items` JS-property (`prop:items={...}`);
+  each must carry a stable `id` for keyed reconciliation. With
+  `sticky-bottom` (default), the list auto-scrolls to the newest message
+  unless the user has scrolled up to read history.
+
+  Item shape (all but `id` / `content` optional):
+    { id, content, role?, contentType?, timestamp?, status? }
+
+  Pure framework primitive — no SDK, no data fetching. Consumers feed
+  their own array.
+
+  Props
+  ─────────────────────────────────────────────────────────────────────
+  sticky-bottom  (bool)  Auto-scroll to newest unless scrolled up.
+  ─────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="sticky-bottom" type="bool" default="true" reflect />
+
+<style>
+  :host {
+    display: block;
+    min-height: 0;
+    font-family: var(--font-body);
+  }
+  :host([hidden]) { display: none; }
+
+  .scroll {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 12px);
+    height: 100%;
+    overflow-y: auto;
+    padding: var(--space-3, 12px);
+    scrollbar-width: thin;
+  }
+  .empty {
+    display: contents;
+  }
+  ::slotted([slot='empty']) {
+    margin: auto;
+  }
+</style>
+
+<div class="scroll" part="scroll" bind:this={scrollEl}>
+  {#for item of items() key={item.id}}
+    <sui-message
+      role={item.role || 'assistant'}
+      content-type={item.contentType || 'text'}
+      timestamp={item.timestamp || ''}
+      status={item.status || 'sent'}
+    >{item.content}</sui-message>
+  {/for}
+  {#if items().length === 0}
+    <div class="empty"><slot name="empty"></slot></div>
+  {/if}
+</div>
