@@ -556,10 +556,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Highlight', innerHTML: 'highlighted text' },
     { label: 'Accent', attrs: { tone: 'accent' }, innerHTML: 'accent run' },
   ],
-  'sui-metachip': [
-    { label: 'Pair', attrs: { label: 'env', value: 'prod' } },
-    { label: 'Tone', attrs: { label: 'role', value: 'reviewer', tone: 'accent' } },
-  ],
 
   /* Pipeline composites --------------------------------------------- */
   'sui-pipeline-step-def': [

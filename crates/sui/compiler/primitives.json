@@ -77,10 +77,6 @@
       "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
       "variant": { "values": ["default", "outline"], "default": "default" }
     },
-    "sui-center": {
-      "max": { "values": ["prose", "form", "wide", "full"], "default": "prose" },
-      "padded": { "type": "bool", "default": "false" }
-    },
     "sui-checkbox": {
       "checked": { "type": "bool", "default": "false" },
       "disabled": { "type": "bool", "default": "false" },
@@ -221,10 +217,6 @@
       "selected-id": { "type": "string", "default": "" },
       "width": { "type": "number", "default": "1000" }
     },
-    "sui-grid": {
-      "gap": { "values": ["0", "1", "2", "3", "4", "5", "6", "7", "8"], "default": "4" },
-      "min": { "type": "string", "default": "14rem" }
-    },
     "sui-harness-blob": {
       "harness": { "values": ["claude", "codex", "cursor", "gemini", "opencode"], "default": "claude" },
       "size": { "values": ["sm", "md", "lg"], "default": "md" },
@@ -307,10 +299,6 @@
       "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "warning" }
     },
     "sui-markdown": {
-      "value": { "type": "string", "default": "" }
-    },
-    "sui-metachip": {
-      "label": { "type": "string", "default": "" },
       "value": { "type": "string", "default": "" }
     },
     "sui-navigation-item": {

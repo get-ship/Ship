@@ -390,12 +390,11 @@
                   <div class="git-branch-grid">
                     <sui-card>
                       <div slot="header" class="git-card-head">Status</div>
-                      <sui-metachip label="Head" value={activeBranch().name}></sui-metachip>
+                      <div class="git-meta-row"><span class="git-meta-label">Head</span><span class="git-meta-value">{activeBranch().name}</span></div>
                       {#if activeBranch().upstream}
-                        <sui-metachip label="Upstream" value={activeBranch().upstream}></sui-metachip>
+                        <div class="git-meta-row"><span class="git-meta-label">Upstream</span><span class="git-meta-value">{activeBranch().upstream}</span></div>
                       {/if}
-                      <sui-metachip label="Divergence"
-                        value={'↑' + activeBranch().ahead + ' ↓' + activeBranch().behind}></sui-metachip>
+                      <div class="git-meta-row"><span class="git-meta-label">Divergence</span><span class="git-meta-value">{'↑' + activeBranch().ahead + ' ↓' + activeBranch().behind}</span></div>
                     </sui-card>
                     <sui-card>
                       <div slot="header" class="git-card-head">Actions</div>
