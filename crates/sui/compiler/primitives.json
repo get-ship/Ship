@@ -12,20 +12,13 @@
     },
     "sui-alert": {
       "dismissible": { "type": "bool", "default": "false" },
-      "tone": { "values": ["info", "success", "warning", "destructive", "muted"], "default": "info" }
+      "tone": { "values": ["default", "info", "success", "warning", "destructive", "muted"], "default": "default" }
     },
     "sui-alert-dialog": {
       "cancel-label": { "type": "string", "default": "Cancel" },
       "confirm-label": { "type": "string", "default": "Confirm" },
       "open": { "type": "bool", "default": "false" },
       "tone": { "values": ["default", "destructive"], "default": "default" }
-    },
-    "sui-app-icon": {
-      "label": { "type": "string", "default": "" },
-      "name": { "type": "string", "default": "" },
-      "radius": { "type": "string", "default": "" },
-      "size": { "values": ["sm", "md", "lg"], "default": "md" },
-      "variant": { "values": ["glyph", "tile", "solid"], "default": "glyph" }
     },
     "sui-auth-dialog": {
       "backdrop": { "values": ["default", "blur", "solid"], "default": "blur" },
@@ -69,14 +62,14 @@
       "expanded": { "type": "string", "default": "" },
       "label": { "type": "string", "default": "" },
       "loading": { "type": "bool", "default": "false" },
-      "pressed": { "type": "string", "default": "" },
+      "pressed": { "values": ["true", "false", "mixed"], "default": "false" },
       "size": { "values": ["xs", "sm", "md", "lg"], "default": "md" },
       "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
       "type": { "values": ["button", "submit", "reset"], "default": "button" },
       "variant": { "values": ["solid", "soft", "outline", "ghost", "default"], "default": "default" }
     },
     "sui-card": {
-      "accent-bar": { "type": "bool", "default": "false" },
+      "accent-bar": { "values": ["off", "hover", "static"], "default": "off" },
       "fill": { "type": "bool", "default": "false" },
       "interactive": { "type": "bool", "default": "false" },
       "padding": { "values": ["none", "sm", "md", "lg"], "default": "md" },
@@ -104,8 +97,8 @@
       "disabled": { "type": "bool", "default": "false" },
       "removable": { "type": "bool", "default": "false" },
       "selected": { "type": "bool", "default": "false" },
-      "size": { "values": ["sm", "md", "lg"], "default": "sm" },
-      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "muted" },
+      "size": { "values": ["sm", "md", "lg"], "default": "md" },
+      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
       "variant": { "values": ["solid", "soft", "outline", "ghost"], "default": "soft" }
     },
     "sui-cluster": {
@@ -172,7 +165,7 @@
     },
     "sui-divider": {
       "orientation": { "values": ["horizontal", "vertical"], "default": "horizontal" },
-      "tone": { "values": ["default", "muted", "primary", "destructive"], "default": "default" },
+      "tone": { "values": ["default", "muted", "primary", "info", "success", "warning", "destructive", "accent"], "default": "default" },
       "variant": { "values": ["solid", "dashed"], "default": "solid" }
     },
     "sui-drawer": {
@@ -186,7 +179,7 @@
     },
     "sui-empty-state": {
       "size": { "values": ["sm", "md", "lg"], "default": "md" },
-      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "muted" },
+      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
       "variant": { "values": ["default", "inline", "placeholder", "connecting"], "default": "default" }
     },
     "sui-error-boundary": {
@@ -266,8 +259,12 @@
     "sui-icon": {
       "label": { "type": "string", "default": "" },
       "name": { "type": "string", "default": "" },
+      "radius": { "type": "string", "default": "" },
+      "set": { "values": ["lucide", "app"], "default": "lucide" },
       "size": { "values": ["xs", "sm", "md", "lg", "xl"], "default": "md" },
-      "tone": { "values": ["default", "info", "success", "warning", "destructive", "accent", "muted", "primary"], "default": "default" }
+      "src": { "type": "string", "default": "" },
+      "tone": { "values": ["default", "info", "success", "warning", "destructive", "accent", "muted", "primary"], "default": "default" },
+      "variant": { "values": ["glyph", "tile", "solid"], "default": "glyph" }
     },
     "sui-input": {
       "autocomplete": { "type": "string", "default": "" },
@@ -294,12 +291,12 @@
     },
     "sui-kbd": {
       "keys": { "type": "string", "default": "" },
-      "size": { "values": ["sm", "md"], "default": "md" }
+      "size": { "values": ["sm", "md", "lg"], "default": "md" }
     },
     "sui-label": {
       "for": { "type": "string", "default": "" },
       "required": { "type": "bool", "default": "false" },
-      "size": { "values": ["sm", "md"], "default": "sm" }
+      "size": { "values": ["sm", "md", "lg"], "default": "md" }
     },
     "sui-link": {
       "external": { "type": "bool", "default": "false" },
@@ -308,17 +305,6 @@
       "target": { "type": "string", "default": "" },
       "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
       "variant": { "values": ["default", "underline", "subtle"], "default": "default" }
-    },
-    "sui-list-tile": {
-      "density": { "type": "string", "default": "normal" },
-      "disabled": { "type": "bool", "default": "false" },
-      "interactive": { "type": "bool", "default": "false" },
-      "navigable": { "type": "string", "default": "" },
-      "rel": { "type": "string", "default": "" },
-      "selected": { "type": "bool", "default": "false" },
-      "target": { "type": "string", "default": "" },
-      "tone": { "type": "string", "default": "default" },
-      "variant": { "type": "string", "default": "row" }
     },
     "sui-loading": {
       "compact": { "type": "bool", "default": "false" },
@@ -355,32 +341,6 @@
       "per-page": { "type": "number", "default": "25" },
       "total": { "type": "number", "default": "0" }
     },
-    "sui-pipeline-definition": {
-      "description": { "type": "string", "default": "" },
-      "name": { "type": "string", "default": "" },
-      "steps": { "type": "number", "default": "0" }
-    },
-    "sui-pipeline-run": {
-      "agent": { "type": "string", "default": "" },
-      "slug": { "type": "string", "default": "" },
-      "state": { "values": ["dispatched", "gatepending", "running", "completed", "failed", "merged", "pending"], "default": "pending" }
-    },
-    "sui-pipeline-step": {
-      "agent": { "type": "string", "default": "" },
-      "name": { "type": "string", "default": "" },
-      "state": { "values": ["pending", "running", "completed", "failed"], "default": "pending" },
-      "step-type": { "values": ["agent", "gate", "merge", "run", "human"], "default": "agent" }
-    },
-    "sui-pipeline-step-def": {
-      "after": { "type": "string", "default": "" },
-      "agent": { "type": "string", "default": "" },
-      "command": { "type": "string", "default": "" },
-      "harness": { "type": "string", "default": "" },
-      "index": { "type": "number", "default": "0" },
-      "model": { "type": "string", "default": "" },
-      "name": { "type": "string", "default": "" },
-      "step-type": { "values": ["agent", "gate", "run", "merge", "human"], "default": "agent" }
-    },
     "sui-popover": {
       "open": { "type": "bool", "default": "false" },
       "placement": { "values": ["top", "top-end", "bottom", "bottom-end", "left", "left-end", "right", "right-end"], "default": "bottom" }
@@ -393,7 +353,7 @@
       "label": { "type": "string", "default": "" },
       "max": { "type": "number", "default": "100" },
       "size": { "values": ["sm", "md", "lg"], "default": "md" },
-      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent"], "default": "primary" },
+      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
       "value": { "type": "number", "default": "0" }
     },
     "sui-progress-ring": {
@@ -428,7 +388,7 @@
     "sui-segmented": {
       "disabled": { "type": "bool", "default": "false" },
       "name": { "type": "string", "default": "" },
-      "size": { "values": ["sm", "md"], "default": "md" },
+      "size": { "values": ["sm", "md", "lg"], "default": "md" },
       "value": { "type": "string", "default": "" }
     },
     "sui-segmented-option": {
@@ -468,6 +428,7 @@
       "value": { "type": "number", "default": "0" }
     },
     "sui-spinner": {
+      "centered": { "type": "bool", "default": "false" },
       "label": { "type": "string", "default": "Loading" },
       "size": { "values": ["xs", "sm", "md", "lg"], "default": "md" },
       "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" }
@@ -476,19 +437,14 @@
       "align": { "values": ["start", "center", "end", "stretch"], "default": "stretch" },
       "gap": { "values": ["0", "1", "2", "3", "4", "5", "6", "7", "8"], "default": "4" }
     },
-    "sui-stat": {
-      "interactive": { "type": "bool", "default": "false" },
-      "size": { "values": ["sm", "md", "lg"], "default": "md" },
-      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent"], "default": "default" }
-    },
     "sui-status-dot": {
       "label": { "type": "string", "default": "" },
       "pulse": { "type": "bool", "default": "false" },
       "size": { "values": ["sm", "md"], "default": "md" },
-      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "success" }
+      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" }
     },
     "sui-step-segments": {
-      "size": { "values": ["sm", "md"], "default": "sm" },
+      "size": { "values": ["sm", "md", "lg"], "default": "md" },
       "values": { "type": "string", "default": "" }
     },
     "sui-stepper": {
@@ -608,7 +564,7 @@
     "sui-toolbar": {
       "align": { "values": ["center", "start", "end", "baseline"], "default": "center" },
       "gap": { "values": ["sm", "md", "lg"], "default": "md" },
-      "justify": { "values": ["start", "center", "end", "between"], "default": "start" },
+      "justify": { "values": ["start", "center", "end", "between", "split"], "default": "start" },
       "variant": { "values": ["default", "bordered"], "default": "default" }
     },
     "sui-tooltip": {

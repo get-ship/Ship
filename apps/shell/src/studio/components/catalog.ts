@@ -65,7 +65,7 @@ const CATEGORY_BY_TAG: Record<string, string> = {
   'sui-error-state': 'Feedback', 'sui-banner': 'Feedback', 'sui-callout': 'Feedback',
   // Indicators
   'sui-badge': 'Indicators', 'sui-chip': 'Indicators', 'sui-status-dot': 'Indicators',
-  'sui-stat': 'Indicators', 'sui-avatar': 'Indicators', 'sui-app-icon': 'Indicators',
+  'sui-stat': 'Indicators', 'sui-avatar': 'Indicators',
   'sui-icon': 'Indicators', 'sui-kbd': 'Indicators', 'sui-tag': 'Indicators',
   'sui-meter': 'Indicators',
   // Overlays

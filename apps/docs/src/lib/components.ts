@@ -184,7 +184,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-annotation-list': 'observability',
 
   // Domain
-  'sui-app-icon': 'domain',
   'sui-auth-dialog': 'domain',
   'sui-pipeline-dag': 'domain',
   'sui-pipeline-step': 'domain',
@@ -295,7 +294,6 @@ const HIDDEN_TAGS = new Set([
   'sui-rail-section',
   'sui-view-chrome',
   'sui-view-picker',
-  'sui-app-icon',
   'sui-brand-mark',
   'sui-devtools-components',
   'sui-devtools-schema',

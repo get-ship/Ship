@@ -8,7 +8,6 @@ import { SLOT_COMPOSITIONS } from '../picker-slot-compositions'
 // accept arbitrary text or needs specific attrs.
 const DEFAULT_ATTRS: Record<string, Record<string, string>> = {
   'sui-icon':      { name: 'package',  size: 'md' },
-  'sui-app-icon':  { name: 'dashboard', size: 'md' },
   'sui-avatar':    { initials: 'AB' },
   'sui-badge':     {},
   'sui-button':    {},

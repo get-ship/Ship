@@ -571,9 +571,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Pair', attrs: { label: 'env', value: 'prod' } },
     { label: 'Tone', attrs: { label: 'role', value: 'reviewer', tone: 'accent' } },
   ],
-  'sui-app-icon': [
-    { label: 'Default', attrs: { name: 'studio', size: '40' } },
-  ],
 
   /* Pipeline composites --------------------------------------------- */
   'sui-pipeline-step-def': [
