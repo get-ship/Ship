@@ -132,6 +132,33 @@ else
   git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" "$BASE_BRANCH"
 fi
 
+# ── Install per-worktree pre-push hook ────────────────────────────────────────
+# Dispatched agents run with bypassPermissions so they don't pause for
+# routine work — that means the only thing standing between them and a
+# remote push is git itself. Install a per-worktree pre-push hook that
+# refuses every push. Operators who legitimately need to push from a
+# dispatched worktree set SHIP_ALLOW_PUSH=1 in their shell to bypass.
+#
+# Per-worktree hooks live at <main-repo>/.git/worktrees/<slug>/hooks/ —
+# resolved by git for that worktree only, never affects the main repo.
+WORKTREE_GITDIR="$(git -C "$WORKTREE_PATH" rev-parse --git-dir)"
+HOOK_DIR="$WORKTREE_GITDIR/hooks"
+mkdir -p "$HOOK_DIR"
+cat > "$HOOK_DIR/pre-push" <<'PREPUSH'
+#!/usr/bin/env bash
+# Installed by ship dispatch.sh. Dispatched agents do not push to remote;
+# the orchestrator gates by reading local worktree state. Bypass with
+# SHIP_ALLOW_PUSH=1 if you (a human) are pushing intentionally.
+if [[ -n "${SHIP_ALLOW_PUSH:-}" ]]; then exit 0; fi
+echo "" >&2
+echo "  ✖ git push blocked — this is a dispatched worktree." >&2
+echo "    Agents commit locally; the operator gates and pushes from the main repo." >&2
+echo "    If you ARE the operator pushing intentionally: SHIP_ALLOW_PUSH=1 git push ..." >&2
+echo "" >&2
+exit 1
+PREPUSH
+chmod +x "$HOOK_DIR/pre-push"
+
 # ── Write job spec ────────────────────────────────────────────────────────────
 DEST_SPEC="$WORKTREE_PATH/.artifacts/job-spec.md"
 mkdir -p "$(dirname "$DEST_SPEC")"
@@ -334,14 +361,15 @@ if [[ -n "${SHIP_AGENT_MODEL:-}" ]]; then
   MODEL_FLAG="--model ${SHIP_AGENT_MODEL}"
 fi
 if [[ "$PROVIDER_CLI" == "claude" ]]; then
-  # `--permission-mode auto` is the safer default: auto-approves benign tool
-  # use (file reads/edits, builds, tests, local git) but still gates
-  # destructive/external operations (`git push`, mass deletes, etc.).
-  # `--dangerously-skip-permissions` was the prior default; it bypasses
-  # everything and that's how subagents were able to push to remote
-  # without consent. Override with SHIP_PERMISSION_MODE=bypassPermissions
-  # if a legitimate job needs the old behavior.
-  PERMISSION_MODE="${SHIP_PERMISSION_MODE:-auto}"
+  # bypassPermissions: agent never pauses to ask the operator (they're not
+  # at the keyboard). Network/remote operations are gated at the git layer
+  # by the per-worktree pre-push hook installed above — bypassPermissions
+  # at the claude level + pre-push at the git level layer correctly:
+  # routine work runs unattended, push is refused without operator intent.
+  #
+  # Tried --permission-mode auto first; too cautious — agents paused on
+  # routine actions the operator couldn't approve, and the work stalled.
+  PERMISSION_MODE="${SHIP_PERMISSION_MODE:-bypassPermissions}"
   LAUNCH_FLAGS="--permission-mode ${PERMISSION_MODE} --dangerously-load-development-channels server:ship ${MODEL_FLAG}"
 elif [[ "$PROVIDER_CLI" == "codex" ]]; then
   LAUNCH_FLAGS="${MODEL_FLAG}"
