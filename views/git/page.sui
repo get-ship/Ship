@@ -318,21 +318,25 @@
             <aside class="git-bleft" aria-label="Branches">
               <sui-scroll-area class="git-branches-rail">
                 {#for b of branches() key={b.name}}
-                  <sui-list-tile interactive density="compact"
+                  <div class="list-tile list-tile--compact"
                     data-test="git-branch-tile"
-                    attr:tone={b.active ? 'primary' : null}
-                    prop:selected={activeBranchName() === b.name}
-                    on:sui-select={() => selectBranch(b.name)}>
-                    <sui-status-dot slot="leading"
-                      attr:tone={b.active ? 'success' : 'muted'}
-                      prop:pulse={b.active}></sui-status-dot>
-                    <span class="git-mono git-branch-name">{b.name}</span>
-                    <span slot="meta">{b.upstream ? b.upstream : 'local only'}</span>
-                    <span slot="trailing" class="git-mono git-branch-deltas">
-                      {b.ahead > 0 ? '↑' + b.ahead : ''}
-                      {b.behind > 0 ? ' ↓' + b.behind : ''}
-                    </span>
-                  </sui-list-tile>
+                    role="button"
+                    tabindex="0"
+                    style={activeBranchName() === b.name ? 'background:color-mix(in oklch, var(--primary) 10%, var(--muted));border-color:var(--primary)' : ''}
+                    on:click={() => selectBranch(b.name)}
+                    on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectBranch(b.name); } }}>
+                    <div class="list-tile-row">
+                      <sui-status-dot
+                        tone={b.active ? 'success' : 'muted'}
+                        pulse={b.active}></sui-status-dot>
+                      <span class="list-tile-primary git-mono git-branch-name">{b.name}</span>
+                      <span class="git-mono git-branch-deltas">
+                        {b.ahead > 0 ? '↑' + b.ahead : ''}
+                        {b.behind > 0 ? ' ↓' + b.behind : ''}
+                      </span>
+                    </div>
+                    <div class="list-tile-secondary">{b.upstream ? b.upstream : 'local only'}</div>
+                  </div>
                 {/for}
               </sui-scroll-area>
             </aside>
