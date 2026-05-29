@@ -10,6 +10,10 @@ authors: [ship]
 
 Launch a specialist agent in a git worktree to execute a job. One command does everything.
 
+## Hard rule for dispatched agents
+
+**NEVER push to a remote.** Agents commit locally to their branch. The orchestrator gates by reading the local worktree state. `git push` is a side-effect on a shared remote that requires explicit human authorization — never assume it. If a job spec ever says "push", treat it as a typo and stop at commit.
+
 ## Usage
 
 ```bash
@@ -88,7 +92,7 @@ These are personal configuration — set in your shell profile, not in project f
 >
 > If you notice a bug or problem outside your file scope, jot it as a one-line note in the commit body (`note(out-of-scope): ...`) and continue your work — don't widen scope to fix it.
 >
-> **When all acceptance criteria are met:** commit cleanly and push the branch. That's the completion signal. The gate-side process polls worktree state; nothing else needs to be called.
+> **When all acceptance criteria are met:** commit cleanly. **DO NOT push the branch.** Pushing to remote is forbidden without the human's explicit say-so. The gate-side process reads the local worktree to discover your work — remote is irrelevant.
 >
 > (If you're invoked as a pipeline step — `SHIP_ACTOR_ID` is set, you're inside `ship run` — then ALSO call `pipelines.step_done` over the daemon RPC surface to advance the step monitor:
 > ```
