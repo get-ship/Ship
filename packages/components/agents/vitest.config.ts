@@ -32,6 +32,7 @@ export default defineConfig({
       '@ship/sui-runtime': resolve(__dirname, '../../sui/runtime/src/index.ts'),
       '@ship/sui-dom': resolve(__dirname, '../../sui/dom/src/index.ts'),
       '@ship/sdk-client': resolve(__dirname, '../../deck/sdk-client/src/index.ts'),
+      '@sui/chat-elements': resolve(__dirname, '../../sui/chat-elements/src/index.ts'),
     },
   },
   test: {
