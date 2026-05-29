@@ -44,6 +44,17 @@ function errMessage(err: unknown): string {
   try { return JSON.stringify(err) } catch { return String(err) }
 }
 
+const SUBJECT_RE = /^([a-z]+(?:\([^)]+\))?!?):\s*(.+)$/
+
+function parseCommitSubject(subject: string): { prefix: string; rest: string } {
+  const m = subject.match(SUBJECT_RE)
+  return m ? { prefix: `${m[1]}:`, rest: m[2] } : { prefix: '', rest: subject }
+}
+
+function getAuthorInitial(author: string): string {
+  return (author || '?').charAt(0).toUpperCase()
+}
+
 export default controller({
   scope: ({ ship }: ViewScope<Scope>) => {
     // Mutation closures captured here so `on:` handlers can fire daemon
@@ -173,6 +184,7 @@ export default controller({
       stagedCount, unstagedCount, canCommit, fileGroups,
       activeBranch, diffFiles, diffReady, diffIsWorking,
       overviewErrMsg, isNoRepo,
+      parseCommitSubject, getAuthorInitial,
     }
   },
 

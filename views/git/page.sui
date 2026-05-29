@@ -285,15 +285,36 @@
           {:else}
             <div class="git-history-rows" data-test="history-rows">
               {#for c of commitFilter.filtered() key={c.sha}}
-                <sui-history-row
-                  sha={c.short_sha}
-                  subject={c.subject}
-                  author={c.author}
-                  timestamp={c.date}
-                  additions={c.additions + ''}
-                  deletions={c.deletions + ''}
-                  on:sui-select={() => selectCommit(c.sha)}>
-                </sui-history-row>
+                {@const { prefix: scopePrefix, rest: subjectRest } = parseCommitSubject(c.subject)}
+                {@const initial = getAuthorInitial(c.author)}
+                <div class="git-history-row" data-test="history-row"
+                  role="button" tabindex="0"
+                  on:click={() => selectCommit(c.sha)}
+                  on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCommit(c.sha); } }}>
+                  <div class="git-history-lane">
+                    <svg width="44" height="46" aria-hidden="true">
+                      <line x1="22" y1="0" x2="22" y2="46"
+                        stroke="var(--primary)" stroke-width="1.5" opacity="0.45"></line>
+                      <circle cx="22" cy="23" r="4.5"
+                        fill="var(--background)"
+                        stroke="var(--primary)" stroke-width="2"></circle>
+                    </svg>
+                  </div>
+                  <div class="git-history-avatar">{initial}</div>
+                  <div class="git-history-msg">
+                    <div class="git-history-title">
+                      {#if scopePrefix}<span class="git-history-scope">{scopePrefix}</span> {/if}{subjectRest}
+                    </div>
+                    <div class="git-history-meta">
+                      <span>{c.short_sha}</span>
+                      <span>{c.date}</span>
+                    </div>
+                  </div>
+                  <div class="git-history-stats">
+                    {#if c.additions > 0}<span class="git-add">+{c.additions}</span>{/if}
+                    {#if c.deletions > 0}<span class="git-del">−{c.deletions}</span>{/if}
+                  </div>
+                </div>
               {/for}
             </div>
           {/if}
