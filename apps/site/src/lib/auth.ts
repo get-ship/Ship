@@ -145,14 +145,8 @@ export async function requestPasswordReset(
   redirectTo = '/reset-password',
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    const res = await fetch(`${GATEWAY_URL}/v1/auth/forget-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ email, redirectTo }),
-    });
-    const data = await res.json();
-    if (!res.ok || data?.error) return { ok: false, error: humanize(data?.error?.message ?? data?.error?.code ?? 'Unknown error') };
+    const res = await authClient.requestPasswordReset({ email, redirectTo });
+    if (res?.error) return { ok: false, error: humanize(res.error.message ?? res.error.code) };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: (e as Error).message ?? 'Could not request reset.' };
