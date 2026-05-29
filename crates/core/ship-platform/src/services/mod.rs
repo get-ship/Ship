@@ -13,6 +13,7 @@ pub mod orchestrator;
 pub mod process_registry;
 pub mod harness_adapter;
 pub mod harnesses;
+pub mod line_accumulator;
 pub mod watcher;
 
 #[cfg(feature = "unstable")]

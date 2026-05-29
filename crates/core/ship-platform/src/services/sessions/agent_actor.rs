@@ -161,7 +161,10 @@ fn spawn_reader_middleware(
         // render it; running the matcher would just burn cycles + the
         // 16K menu_buf budget for nothing.
         let needs_menu_dismiss = harness == "claude";
-        let mut line_buf = String::new();
+        // Bounded accumulator — a claude PTY in interactive (TUI) mode emits
+        // a newline-less alternate-screen render stream; an unbounded buffer
+        // would grow at the full PTY rate (shipd-leak-193).
+        let mut acc = crate::services::line_accumulator::LineAccumulator::new();
 
         loop {
             match rx.recv().await {
@@ -172,12 +175,8 @@ fn spawn_reader_middleware(
 
                     // Harness parse → event_tx.
                     if let Some(ref adapter) = adapter {
-                        line_buf.push_str(&String::from_utf8_lossy(&chunk));
-                        while let Some(nl) = line_buf.find('\n') {
-                            let line: String = line_buf.drain(..=nl).collect();
-                            let trimmed = line.trim_end_matches(['\n', '\r']);
-                            if !trimmed.is_empty()
-                                && let Some(ev) = adapter.parse_output(trimmed) {
+                        for line in acc.push(&String::from_utf8_lossy(&chunk)) {
+                            if let Some(ev) = adapter.parse_output(&line) {
                                     // Persist `.ship/session.json` once per
                                     // session — subsequent dispatches with
                                     // `resume: true` read this to recover
@@ -300,19 +299,16 @@ pub fn run_headless_turn(
                 return;
             }
         };
-        let mut line_buf = String::new();
+        // Bounded accumulator — stream-json is newline-delimited so this
+        // drains continuously, but the cap guards against a harness that
+        // emits a newline-less stream on a PTY (shipd-leak-193).
+        let mut acc = crate::services::line_accumulator::LineAccumulator::new();
         loop {
             match rx.recv().await {
                 Ok(chunk) => {
                     let _ = session_clone.0.output_tx.send(chunk.clone());
-                    line_buf.push_str(&String::from_utf8_lossy(&chunk));
-                    while let Some(nl) = line_buf.find('\n') {
-                        let line: String = line_buf.drain(..=nl).collect();
-                        let trimmed = line.trim_end_matches(['\n', '\r']);
-                        if trimmed.is_empty() {
-                            continue;
-                        }
-                        if let Some(ev) = adapter.parse_output(trimmed) {
+                    for line in acc.push(&String::from_utf8_lossy(&chunk)) {
+                        if let Some(ev) = adapter.parse_output(&line) {
                             if let HarnessEvent::SessionStarted { session_id } = &ev {
                                 let (harness_id_opt, agent_opt) = {
                                     let m = session_clone.0.meta.lock().unwrap();
