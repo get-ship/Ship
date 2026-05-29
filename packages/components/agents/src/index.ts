@@ -7,3 +7,4 @@
 // before any of these tags mount, otherwise the lazy `ship` Proxy will
 // throw on first access.
 import './ship-agents-table/ship-agents-table.compiled.js'
+import './ship-agent-card/ship-agent-card.compiled.js'
