@@ -158,11 +158,6 @@
       "to": { "type": "string", "default": "" },
       "value": { "type": "string", "default": "" }
     },
-    "sui-divider": {
-      "orientation": { "values": ["horizontal", "vertical"], "default": "horizontal" },
-      "tone": { "values": ["default", "muted", "primary", "info", "success", "warning", "destructive", "accent"], "default": "default" },
-      "variant": { "values": ["solid", "dashed"], "default": "solid" }
-    },
     "sui-drawer": {
       "dismissible": { "type": "bool", "default": "true" },
       "open": { "type": "bool", "default": "false" },
