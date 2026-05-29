@@ -70,6 +70,14 @@ pub fn take_pre_registered_mailbox(actor_id: &str) -> Option<Mailbox> {
     mailbox_stash().lock().ok()?.remove(actor_id)
 }
 
+/// leak-193 diagnostics: count of mailboxes pre-registered by `spawn_actor`
+/// but not yet drained by an MCP refine. A monotonic climb here means
+/// Agent-kind spawns whose MCP child never connected are stranding kernel
+/// mailboxes.
+pub fn pre_registered_mailbox_count() -> usize {
+    mailbox_stash().lock().map(|s| s.len()).unwrap_or(0)
+}
+
 /// Drop any stashed Mailbox for `actor_id` without consuming it. Called
 /// when an actor is being torn down before its consumer has arrived.
 pub fn discard_pre_registered_mailbox(actor_id: &str) {

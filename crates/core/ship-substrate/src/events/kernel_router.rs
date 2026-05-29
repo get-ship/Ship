@@ -31,6 +31,8 @@ use crate::events::validator::{EmitContext, EventValidator};
 
 #[cfg(feature = "unstable")]
 use crate::events::kernel_security::ActorMeta;
+#[cfg(feature = "unstable")]
+use crate::events::replay_log::ReplayLog;
 
 #[cfg(feature = "unstable")]
 pub use ship_kernel::router::MAILBOX_CAPACITY;
@@ -75,61 +77,6 @@ impl RateCounter {
             .filter(|(start, _)| *start >= cutoff)
             .map(|(_, count)| *count)
             .sum()
-    }
-}
-
-/// Bounded in-memory ring of recently-emitted events, used by the
-/// `unstable` cursor-replay path to redeliver events a permissioned
-/// actor missed while it was stopped.
-///
-/// Previously this was a plain `Vec` that grew on EVERY `emit` for the
-/// life of the daemon and was never pruned — an unbounded leak whose
-/// growth tracked the 30s coherence-sweep cadence (every sweep emits a
-/// handful of events that landed here forever) and drove shipd RSS up
-/// without limit. Bounding it caps retained-event RSS to `CAP`
-/// envelopes regardless of uptime.
-///
-/// Cursors are LOGICAL positions — counts of total events ever appended,
-/// not physical indices. `base` tracks how many events were dropped off
-/// the front so reads translate logical → physical. A cursor older than
-/// what remains in memory replays from the oldest retained event; the
-/// rest are durable in the SQLite event store, so this is bounded
-/// best-effort redelivery, not data loss.
-#[cfg(feature = "unstable")]
-#[derive(Default)]
-pub(crate) struct ReplayLog {
-    events: std::collections::VecDeque<EventEnvelope>,
-    /// Events dropped off the front. Logical positions `0..base` are no
-    /// longer retained in memory.
-    base: usize,
-}
-
-#[cfg(feature = "unstable")]
-impl ReplayLog {
-    /// Max retained envelopes. ~10k covers the restart-replay window with
-    /// room to spare while keeping in-memory event retention bounded.
-    const CAP: usize = 10_000;
-
-    /// Append an event, evicting the oldest while over `CAP`.
-    fn append(&mut self, event: EventEnvelope) {
-        self.events.push_back(event);
-        while self.events.len() > Self::CAP {
-            self.events.pop_front();
-            self.base += 1;
-        }
-    }
-
-    /// Logical length = total events ever appended (including pruned).
-    /// This is the value stored as an actor's replay cursor.
-    pub(crate) fn logical_len(&self) -> usize {
-        self.base + self.events.len()
-    }
-
-    /// Retained events at logical positions `>= from`, oldest first. A
-    /// cursor below `base` clamps to the oldest retained event.
-    pub(crate) fn since(&self, from: usize) -> impl Iterator<Item = &EventEnvelope> {
-        let start = from.saturating_sub(self.base);
-        self.events.iter().skip(start)
     }
 }
 
@@ -348,6 +295,42 @@ impl KernelRouter {
         self.inner.list_actors()
     }
 
+    /// leak-193 diagnostics — one-line snapshot of every in-router container
+    /// whose unbounded growth could drive shipd RSS. Cheap (lock + len());
+    /// called by the daemon's diag logger when `SHIP_LEAK_DIAG=1`.
+    pub fn diag_line(&self) -> String {
+        let actors = self.inner.actor_count();
+        let subs: usize = self
+            .inner
+            .subscriptions()
+            .values()
+            .map(|v| v.len())
+            .sum();
+        let rate_counters = self
+            .rate_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .len();
+        #[cfg(feature = "unstable")]
+        {
+            let log = self.event_log.lock().unwrap_or_else(|e| e.into_inner());
+            format!(
+                "kernel: actors={actors} sub_edges={subs} rate_counters={rate_counters} \
+                 event_log_phys={} event_log_bytes={} event_log_logical={} actor_meta={} actor_cursors={} unstable_senders={}",
+                log.len(),
+                log.retained_bytes(),
+                log.logical_len(),
+                self.actor_meta.len(),
+                self.actor_cursors.len(),
+                self.unstable_senders.len(),
+            )
+        }
+        #[cfg(not(feature = "unstable"))]
+        {
+            format!("kernel: actors={actors} sub_edges={subs} rate_counters={rate_counters}")
+        }
+    }
+
     pub fn kernel_store_path(&self) -> &Path {
         &self.kernel_store_path
     }
@@ -414,57 +397,4 @@ pub(crate) fn flush_wal(db_path: &Path) -> Result<()> {
             .await
     })?;
     Ok(())
-}
-
-#[cfg(all(test, feature = "unstable"))]
-mod replay_log_tests {
-    use super::ReplayLog;
-    use ship_types::envelope::EventEnvelope;
-
-    fn ev() -> EventEnvelope {
-        EventEnvelope::new("studio.test", "e", &serde_json::json!({})).unwrap()
-    }
-
-    #[test]
-    fn append_is_bounded_but_logical_len_keeps_growing() {
-        let mut log = ReplayLog::default();
-        let total = ReplayLog::CAP + 5;
-        for _ in 0..total {
-            log.append(ev());
-        }
-        // Physical retention is capped...
-        assert_eq!(log.events.len(), ReplayLog::CAP, "retained events capped at CAP");
-        assert_eq!(log.base, 5, "the 5 oldest events were pruned off the front");
-        // ...but the logical cursor space keeps counting every append, so a
-        // cursor handed out before pruning stays meaningful.
-        assert_eq!(log.logical_len(), total);
-    }
-
-    #[test]
-    fn since_translates_logical_positions_across_pruning() {
-        let mut log = ReplayLog::default();
-        let total = ReplayLog::CAP + 5;
-        for _ in 0..total {
-            log.append(ev());
-        }
-        // A cursor at the very latest logical position replays nothing.
-        assert_eq!(log.since(total).count(), 0);
-        // One before the end replays exactly one event.
-        assert_eq!(log.since(total - 1).count(), 1);
-        // A cursor older than what we retain clamps to the oldest retained
-        // event — never panics, never double-counts.
-        assert_eq!(log.since(0).count(), ReplayLog::CAP);
-        assert_eq!(log.since(log.base).count(), ReplayLog::CAP);
-    }
-
-    #[test]
-    fn no_pruning_below_cap_keeps_exact_positions() {
-        let mut log = ReplayLog::default();
-        for _ in 0..10 {
-            log.append(ev());
-        }
-        assert_eq!(log.base, 0);
-        assert_eq!(log.logical_len(), 10);
-        assert_eq!(log.since(3).count(), 7);
-    }
 }
