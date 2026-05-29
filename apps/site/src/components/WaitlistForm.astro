@@ -48,6 +48,11 @@ const security = [
   { id: 'sandbox',    label: 'OS sandbox' },
   { id: 'not-sure',   label: 'Not yet' },
 ];
+/* Q4 — which Ship tier the visitor is interested in. */
+const tiers = [
+  { id: 'personal', label: 'Personal Ship (local)' },
+  { id: 'pro',      label: 'Pro · cloud-side (when it\'s ready)' },
+];
 ---
 
 <form class={`wl wl-${size}`} data-waitlist data-list={list} data-source={source ?? ''} novalidate>
@@ -93,6 +98,15 @@ const security = [
             ))}
           </div>
         </fieldset>
+
+        <fieldset class="wl-q" data-wl-q="tier">
+          <legend>Which Ship tier interests you?</legend>
+          <div class="wl-chips" data-wl-single data-wl-field="tier">
+            {tiers.map((t) => (
+              <button class="wl-chip" type="button" data-val={t.id}>{t.label}</button>
+            ))}
+          </div>
+        </fieldset>
       </div>
     </div>
   )}
@@ -129,11 +143,19 @@ const security = [
 
     // ── Chip groups (single / multi) ─────────────────────────────────
     const fields: Record<string, string | string[]> = {};
+    // Pre-fill tier from ?reason=pro query parameter if present
+    if (new URLSearchParams(window.location.search).get('reason') === 'pro') {
+      fields.tier = 'pro';
+    }
     for (const group of Array.from(form.querySelectorAll<HTMLElement>('[data-wl-field]'))) {
       const name = group.dataset.wlField!;
       const multi = group.hasAttribute('data-wl-multi');
       if (multi) fields[name] = [];
       for (const chip of Array.from(group.querySelectorAll<HTMLButtonElement>('.wl-chip'))) {
+        // Pre-select chip if it matches pre-filled tier
+        if (name === 'tier' && fields.tier === chip.dataset.val) {
+          chip.classList.add('on');
+        }
         chip.addEventListener('click', () => {
           if (multi) {
             const set = new Set(fields[name] as string[]);
@@ -174,7 +196,7 @@ const security = [
           q.classList.toggle('missing', missing.includes(q.dataset.wlQ!));
         }
         if (missing.length) {
-          if (err) { err.hidden = false; err.textContent = 'Answer all three questions to join the list.'; }
+          if (err) { err.hidden = false; err.textContent = 'Answer the required questions to join the list.'; }
           survey.querySelector<HTMLElement>('.wl-q.missing')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
           return;
         }
@@ -192,6 +214,7 @@ const security = [
             harnesses: (fields.harnesses as string[]) || [],
             channel:  (fields.channel  as string) || undefined,
             security: (fields.security as string) || undefined,
+            tier:     (fields.tier     as string) || undefined,
           }),
         });
         if (!res.ok) {

@@ -285,7 +285,7 @@ Three games built on \`@ship/arcade\`. Open primitives, one tiny engine, real cu
 ## Cabinets
 - **Galaga** · shooter — defend the formation
 - **Particle Garden** · strategy — drop seeds, hold ground
-- **Magnetar** · puzzle — gravity slingshot through portals
+- **Magnetar** · puzzle — bend the ship's path home through planets and pulsars
 
 ## Source
 - \`packages/arcade-engine\` — engine + vendored pixi

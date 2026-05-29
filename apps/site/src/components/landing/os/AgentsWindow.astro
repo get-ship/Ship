@@ -67,7 +67,7 @@ const annotations = [
 
 const facets = [
   { id: 'visual',       title: 'Visual',       eyebrow: 'Visual',       headline: 'Chat, reimagined.',                kicker: 'An agent renders a real surface. Point at it, annotate it, replay it.' },
-  { id: 'universal',    title: 'Universal',    eyebrow: 'Universal',    headline: 'One config. Every model.',         kicker: 'Same agent compiles to Claude Code, Codex, Cursor, OpenCode, pi — each provider’s native format. No lock-in, no fork.' },
+  { id: 'universal',    title: 'Universal',    eyebrow: 'Universal',    headline: 'One config. Every model.',         kicker: "Same agent compiles to Claude Code, Codex, Cursor, OpenCode, pi — each provider's native format. No lock-in, no fork." },
   { id: 'configurable', title: 'Configurable', eyebrow: 'Configurable', headline: 'Everything is a field.',           kicker: 'Skills, permissions, rules, MCP servers, model, space — every facet of your agent is a knob you turn in the GUI.' },
   { id: 'programmable', title: 'Programmable', eyebrow: 'Programmable', headline: 'Skills, pipelines, triggers.',     kicker: 'Skills give tools. Pipelines chain agents. Triggers fire them on real events.' },
   { id: 'observable',   title: 'Observable',   eyebrow: 'Observable',   headline: 'Watch every move.',                kicker: 'Every action lands on a live, event-sourced bus. Scrub back, replay, audit. Observability is a property of the runtime.' },
@@ -157,7 +157,7 @@ const facets = [
           <span class="sec-num">02</span>
           <span class="sec-tag">Universal</span>
           <h3 class="sec-hl">One config. Every model.</h3>
-          <p class="sec-sub">A single agent profile compiles to each provider’s native format. Switch model or tool any time. No fork, no rewrite.</p>
+          <p class="sec-sub">A single agent profile compiles to each provider's native format. Switch model or tool any time. No fork, no rewrite.</p>
         </header>
 
         <div class="sec-body universal-body">
@@ -177,6 +177,7 @@ const facets = [
               <code class="u-cmd">ship use <span data-h-name>codex</span></code>
               <span class="u-stage-meta">writes</span>
             </header>
+            <!-- SCREENSHOT TODO: real Ship shell showing compiled files for different harnesses — deferred until SUI ready -->
             <div class="u-tree-wrap">
               {harnesses.map((h, i) => (
                 <ul class="u-tree" data-tree={h.id} hidden={i !== 1}>
@@ -265,7 +266,7 @@ const facets = [
 <span class="y-k">rules</span>:
   - always respect tone
 </pre>
-            <footer class="cfg-preview-foot">Generated live. The GUI <em>is</em> the editor — version this file, share it, fork your teammate’s.</footer>
+            <footer class="cfg-preview-foot">Generated live. The GUI <em>is</em> the editor — version this file, share it, fork your teammate's.</footer>
           </aside>
         </div>
       </section>
@@ -283,7 +284,7 @@ const facets = [
           <ol class="p-spine">
             <li class="p-node p-skill" data-step="1" data-active>
               <header class="p-node-h"><span class="p-kind">SKILL</span><span class="p-name">format-email</span></header>
-              <p class="p-desc">A reusable ability. Cleans a draft’s tone, restructures paragraphs, normalises the signoff.</p>
+              <p class="p-desc">A reusable ability. Cleans a draft's tone, restructures paragraphs, normalises the signoff.</p>
               <dl class="p-fields">
                 <div><dt>input</dt><dd><code>{`{ draft, tone: 'formal' | 'casual' }`}</code></dd></div>
                 <div><dt>output</dt><dd><code>{`{ formatted }`}</code></dd></div>

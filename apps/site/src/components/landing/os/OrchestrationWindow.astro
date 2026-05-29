@@ -22,7 +22,7 @@ const pipeline = {
   title: 'friday-wrap-up',
   oneliner: 'A weekly recap, drafted in your voice, sent only after you sign off.',
   steps: [
-    { kind: 'agent'  as const, name: 'collect-week', detail: 'gathers this week’s GitHub + calendar via your installed tools' },
+    { kind: 'agent'  as const, name: 'collect-week', detail: "gathers this week's GitHub + calendar via your installed tools" },
     { kind: 'agent'  as const, name: 'draft-recap',  detail: 'writes the email in your voice — your prior emails are the few-shot' },
     { kind: 'review' as const, name: 'you',          detail: 'see the draft inline, edit or approve' },
     { kind: 'output' as const, name: 'email → team@', detail: 'custom outputs: email, file write, http POST, MCP tool call, view binding' },
@@ -91,6 +91,8 @@ const sections = [
           <h3 class="sec-hl">Anatomy of a workflow.</h3>
           <p class="sec-sub">Each step is one of three things — an agent, a human review, or a custom output. Composed once, replayable forever, restartable from any failed step.</p>
         </header>
+
+        <!-- SCREENSHOT TODO: real Ship shell showing friday-wrap-up pipeline with live status — deferred until SUI ready -->
 
         <div class="sec-body pipe-body">
           {/* Left: concrete example pipeline */}
@@ -203,7 +205,7 @@ const sections = [
 
       {/* ── Closer ──────────────────────────────────────────────────── */}
       <footer class="closer">
-        <p>Pipelines are <b>code</b> — version them, share them across spaces, fork your teammate’s. Nothing here you have to wait for SaaS to ship.</p>
+        <p>Pipelines are <b>code</b> — version them, share them across spaces, fork your teammate's. Nothing here you have to wait for SaaS to ship.</p>
       </footer>
 
       <DownloadCTA message="Stop drafting recap emails. Wire the pipeline." />

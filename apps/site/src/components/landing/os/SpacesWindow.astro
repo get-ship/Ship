@@ -104,6 +104,7 @@ const VIEW_GLYPH: Record<Space['views'][number]['kind'], string> = {
         <p class="prompt">A space holds its own views, agents, and data — isolated and yours to shape. Share one with your team; every window is scoped to the space you're in.</p>
       </header>
 
+      <!-- SCREENSHOT TODO: real Ship shell with Personal / Acme / Launch spaces switching — deferred until SUI ready -->
       <div class="board" data-board>
         {/* ── Switcher: 3 fat tabs, each one a real space identity. ── */}
         <div class="switch" role="tablist" aria-label="Spaces">
@@ -132,7 +133,7 @@ const VIEW_GLYPH: Record<Space['views'][number]['kind'], string> = {
             <header class="p-head">
               <div class="p-id">
                 <span class="p-id-name">{s.name}</span>
-                <span class="p-id-meta">{s.shared ? 'shared space · synced' : 'private · on this Mac'}</span>
+                <span class="p-id-meta">{s.shared ? 'shared space · synced' : 'private · on this machine'}</span>
               </div>
               <p class="p-brief">{s.brief}</p>
             </header>
