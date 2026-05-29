@@ -132,32 +132,46 @@ else
   git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" "$BASE_BRANCH"
 fi
 
-# ── Install per-worktree pre-push hook ────────────────────────────────────────
+# ── Install shared pre-push hook (blocks job/* branches) ──────────────────────
 # Dispatched agents run with bypassPermissions so they don't pause for
 # routine work — that means the only thing standing between them and a
-# remote push is git itself. Install a per-worktree pre-push hook that
-# refuses every push. Operators who legitimately need to push from a
-# dispatched worktree set SHIP_ALLOW_PUSH=1 in their shell to bypass.
+# remote push is git itself.
 #
-# Per-worktree hooks live at <main-repo>/.git/worktrees/<slug>/hooks/ —
-# resolved by git for that worktree only, never affects the main repo.
-WORKTREE_GITDIR="$(git -C "$WORKTREE_PATH" rev-parse --git-dir)"
-HOOK_DIR="$WORKTREE_GITDIR/hooks"
+# Git's default for worktrees is to use the MAIN repo's hooks dir
+# (git-common-dir/hooks), not the per-worktree one. So we install one
+# shared hook at <main>/.git/hooks/pre-push that gates by ref name:
+# any push of refs/heads/job/* is refused. Operator pushes from main /
+# feature branches are unaffected.
+#
+# Bypass with SHIP_ALLOW_PUSH=1 git push ... (deliberate, one-shot).
+COMMON_GITDIR="$(git -C "$WORKTREE_PATH" rev-parse --git-common-dir)"
+HOOK_DIR="$COMMON_GITDIR/hooks"
 mkdir -p "$HOOK_DIR"
-cat > "$HOOK_DIR/pre-push" <<'PREPUSH'
+HOOK_FILE="$HOOK_DIR/pre-push"
+HOOK_MARK="# ship-dispatch:pre-push v1"
+if [[ ! -f "$HOOK_FILE" ]] || ! grep -q "$HOOK_MARK" "$HOOK_FILE" 2>/dev/null; then
+  cat > "$HOOK_FILE" <<'PREPUSH'
 #!/usr/bin/env bash
-# Installed by ship dispatch.sh. Dispatched agents do not push to remote;
-# the orchestrator gates by reading local worktree state. Bypass with
-# SHIP_ALLOW_PUSH=1 if you (a human) are pushing intentionally.
+# ship-dispatch:pre-push v1
+# Blocks pushes of refs/heads/job/* — those are dispatched agent branches
+# the operator gates locally. Operator bypass: SHIP_ALLOW_PUSH=1 git push ...
 if [[ -n "${SHIP_ALLOW_PUSH:-}" ]]; then exit 0; fi
-echo "" >&2
-echo "  ✖ git push blocked — this is a dispatched worktree." >&2
-echo "    Agents commit locally; the operator gates and pushes from the main repo." >&2
-echo "    If you ARE the operator pushing intentionally: SHIP_ALLOW_PUSH=1 git push ..." >&2
-echo "" >&2
-exit 1
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/job/*)
+      echo "" >&2
+      echo "  ✖ git push blocked — $remote_ref is a dispatched agent branch." >&2
+      echo "    Operator gates locally and merges from the main repo." >&2
+      echo "    Intentional push: SHIP_ALLOW_PUSH=1 git push ..." >&2
+      echo "" >&2
+      exit 1 ;;
+  esac
+done
+exit 0
 PREPUSH
-chmod +x "$HOOK_DIR/pre-push"
+  chmod +x "$HOOK_FILE"
+  echo "Installed shared pre-push hook: $HOOK_FILE"
+fi
 
 # ── Write job spec ────────────────────────────────────────────────────────────
 DEST_SPEC="$WORKTREE_PATH/.artifacts/job-spec.md"
