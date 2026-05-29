@@ -88,8 +88,13 @@ These are personal configuration — set in your shell profile, not in project f
 >
 > If you notice a bug or problem outside your file scope, jot it as a one-line note in the commit body (`note(out-of-scope): ...`) and continue your work — don't widen scope to fix it.
 >
-> **When all acceptance criteria are met:**
-> Run `ship step-done --summary "<one-line summary of what shipped>"`. That's the canonical completion signal — it advances the step monitor and records the summary on the event log. The orchestrator picks up the completion from there.
+> **When all acceptance criteria are met:** commit cleanly and push the branch. That's the completion signal. The gate-side process polls worktree state; nothing else needs to be called.
+>
+> (If you're invoked as a pipeline step — `SHIP_ACTOR_ID` is set, you're inside `ship run` — then ALSO call `pipelines.step_done` over the daemon RPC surface to advance the step monitor:
+> ```
+> ship ops call pipelines.step_done --json '{"slug":"'$SHIP_ACTOR_ID'","summary":"<one-liner>"}'
+> ```
+> The CLI is a thin transport; everything flows through `ship ops call`. There is no special completion CLI.)
 ```
 
 ## Test/Impl Split
