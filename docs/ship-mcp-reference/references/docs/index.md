@@ -2,7 +2,7 @@
 group: MCP Tools
 order: 1
 title: MCP Tools — retired
-description: The legacy 47-tool MCP surface, now removed (MCP cull). For coordination see ship-coordination; for ops use `ship ops call`; for step-done use `ship step-done`.
+description: The legacy 47-tool MCP surface, now removed (MCP cull). For coordination see ship-coordination; for ops use `ship ops call`.
 ---
 
 > ## Retired
@@ -13,7 +13,7 @@ description: The legacy 47-tool MCP surface, now removed (MCP cull). For coordin
 >
 > - **Coordination** (`create_workspace`, `log_progress`, `complete_workspace`, `mesh_broadcast`) → see [ship-coordination](/coordination/). A reduced coordination set is still exposed there.
 > - **Ops** (previously per-domain MCP tools): `ship ops call <op-name> --json '{…}'`. List with `ship ops list`. The CLI absorbs transport choice (host unix socket vs TCP + token).
-> - **Step completion** (previously `end_session` / `report_step_done`): `ship step-done`.
+> - **Step completion** (previously `end_session` / `report_step_done`): `ship ops call pipelines.step_done --json '{"slug":"<slug>","summary":"<summary>"}'`.
 >
 > Everything below is preserved for historical reference. Every `ship mcp` invocation and every tool name listed here is broken.
 

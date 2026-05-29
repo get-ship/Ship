@@ -49,7 +49,7 @@
     // We reference the on-disk task-spec.md so the agent reads it from
     // its own worktree; keeps this file readable and lets the spec
     // grow without ballooning the pipeline jsonc.
-    "Read `.ship/pipelines/sui-eval/task-spec.md` from your worktree root and execute it. The mockups it references are under `.ship/pipelines/sui-eval/mockups/0-welcome.png` … `3-registered.png`. Open each one. When the four screens are wired, the manifest is registered, and the verification commands at the bottom of the spec pass, call `ship step-done` with a one-line summary.\n",
+    "Read `.ship/pipelines/sui-eval/task-spec.md` from your worktree root and execute it. The mockups it references are under `.ship/pipelines/sui-eval/mockups/0-welcome.png` … `3-registered.png`. Open each one. When the four screens are wired, the manifest is registered, and the verification commands at the bottom of the spec pass, call `ship ops call pipelines.step_done --json '{\"slug\":\"'\"'$SHIP_ACTOR_ID'\"'\",\"summary\":\"one-line summary\"}'` to signal completion.\n",
     // step_specs[1] — grade (run). No agent text; shell exits.
     "",
     // step_specs[2] — record (run). No agent text; shell exits.

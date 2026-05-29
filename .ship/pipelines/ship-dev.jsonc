@@ -20,8 +20,8 @@
     }
   ],
   "step_specs": [
-    "# Implementer — step 1 of 3\n\nExecute the spec at `.artifacts/pipeline/spec.md`. Make the requested change, write tests if behavior is changing, ensure `cargo check` passes locally before signalling done.\n\n**Completion rule:** the moment `cargo check` and the relevant `cargo test` pass once, run `ship step-done` with a one-line summary (files changed, test count) and stop. Do not run additional verification rounds — the verify step (next) will do that for you.\n",
+    "# Implementer — step 1 of 3\n\nExecute the spec at `.artifacts/pipeline/spec.md`. Make the requested change, write tests if behavior is changing, ensure `cargo check` passes locally before signalling done.\n\n**Completion rule:** the moment `cargo check` and the relevant `cargo test` pass once, run `ship ops call pipelines.step_done --json '{\"slug\":\"'\"'$SHIP_ACTOR_ID'\"'\",\"summary\":\"one-line summary (files changed, test count)\"}'` to signal completion and stop. Do not run additional verification rounds — the verify step (next) will do that for you.\n",
     "# Verify — step 2 of 3 (shell only, no agent)\n\n`cargo check` and `cargo test` run in the same worktree the implementer used. Reuses the implementer's compiled artifacts (target/ is shared). Exit non-zero on any test failure — pipeline halts before review.\n",
-    "# Reviewer — step 3 of 3\n\nGrade the implementer's work against `.artifacts/pipeline/spec.md`:\n1. Did the change accomplish the spec's stated goal?\n2. Are tests present where behavior changed?\n3. Diff stays inside the spec's allowed file scope?\n\nVerdict: `ship step-done` with pass/fail + evidence. On fail, quote the offending diff hunk.\n"
+    "# Reviewer — step 3 of 3\n\nGrade the implementer's work against `.artifacts/pipeline/spec.md`:\n1. Did the change accomplish the spec's stated goal?\n2. Are tests present where behavior changed?\n3. Diff stays inside the spec's allowed file scope?\n\nVerdict: `ship ops call pipelines.step_done --json '{\"slug\":\"'\"'$SHIP_ACTOR_ID'\"'\",\"summary\":\"pass/fail + evidence\"}'` to signal completion. On fail, quote the offending diff hunk.\n"
   ]
 }
