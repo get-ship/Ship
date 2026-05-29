@@ -67,6 +67,23 @@ Expressions inside `{ ... }` are SSR'd if they stay inside this subset:
 
 Expressions **outside** the subset (function invocations beyond signal reads, closures, `new`, `await`, `this`, arbitrary JS) become client-only. The compiler emits a placeholder marker; the client runtime evaluates on attach. The compiler also emits a warning so the author can decide whether to refactor toward the subset.
 
+### Method allowlist
+
+Method calls inside the subset are restricted to the allowlist in `crates/sui/compiler/src/check/expr_subset.rs::METHOD_ALLOWLIST`. Anything outside is rejected at compile time. Current entries (read-only, deterministic, no I/O, no eval-shaped args):
+
+`slice`, `map`, `filter`, `includes`, `toString`, `length`, `keys`, `values`, `entries`, `toFixed`
+
+### Closure rule — adding a method
+
+Any addition to the allowlist must satisfy four constraints, **in this order**:
+
+1. **Referentially transparent.** No I/O, no allocation that escapes, no mutation, no closures-as-args, no eval-shaped args. If the method takes a function (e.g. `.map(fn)`), the function must itself stay inside the renderable subset — verified by walking the AST.
+2. **SSR implementation in `crates/sui/compiler/src/render/eval/methods.rs::dispatch`.** Match the method name, evaluate via the `coerce`/`exec` helpers, return a `serde_json::Value`. Must produce identical output to the runtime JS semantics for the same inputs — round-trip tested.
+3. **Test pair.** One test in `crates/sui/compiler/tests/` exercising the method through SSR (input → expected HTML). One test in a framework integration test exercising the same expression in a `.sui` view's attached state — confirms SSR output matches client-eval output character-for-character.
+4. **Docs entry.** Add to the allowlist line above (this section), with one line of rationale if non-obvious. If the method has subtle browser-vs-server semantics (number formatting locales, etc.), call them out.
+
+Reject the addition if any of (1)–(4) can't be met. The subset is intentionally narrow — a method that requires special-casing in SSR is a method we shouldn't admit. Better to direct the author to a `derived()` in the controller.
+
 ## Markers
 
 The serialization shape between the server-emitted HTML and the client attach runtime:
