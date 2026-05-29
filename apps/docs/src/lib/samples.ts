@@ -611,12 +611,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   ],
 
   /* Observability primitives missing per-variant samples ------------ */
-  'sui-history-row': [
-    {
-      label: 'Commit row',
-      raw: `<div style="width:320px;text-align:left;"><sui-history-row hash="58e50eb8" subject="chore: revert .artifacts exception" author="micah" at="2026-05-15T18:30:00Z"></sui-history-row></div>`,
-    },
-  ],
   'sui-log-stream': [
     {
       label: 'Tail',
