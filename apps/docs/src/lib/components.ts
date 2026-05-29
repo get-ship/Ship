@@ -74,7 +74,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
 
   // Actions
   'sui-button': 'actions',
-  'sui-toolbar': 'actions',
   'sui-theme-toggle': 'actions',
   'sui-theme-picker': 'actions',
 

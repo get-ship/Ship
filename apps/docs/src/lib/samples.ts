@@ -360,16 +360,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   'sui-timeline-item': [
     { label: 'Default', attrs: { at: '09:14', tone: 'success' }, innerHTML: 'Weekly digest sent' },
   ],
-  'sui-toolbar': [
-    {
-      label: 'Default',
-      raw: `<sui-toolbar>
-  <sui-button size="sm" variant="ghost">Cancel</sui-button>
-  <span slot="spacer"></span>
-  <sui-button size="sm" tone="primary" variant="solid">Save</sui-button>
-</sui-toolbar>`,
-    },
-  ],
   'sui-toggle': [
     { label: 'On', attrs: { pressed: '' }, innerHTML: 'Pressed' },
     { label: 'Off', innerHTML: 'Idle' },
