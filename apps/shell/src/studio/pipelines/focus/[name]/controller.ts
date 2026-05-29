@@ -4,6 +4,25 @@ import { ship, ops } from '../../../../ops'
 import type { LiveSource } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
+const MINUTE = 60_000
+const HOUR = 3_600_000
+const DAY = 86_400_000
+
+function formatRelative(iso: string, now = Date.now()): string {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return iso
+  const diff = now - t
+  const abs = Math.abs(diff)
+  const suffix = diff >= 0 ? 'ago' : 'from now'
+  if (abs < MINUTE) return 'just now'
+  if (abs < HOUR) return `${Math.floor(abs / MINUTE)}m ${suffix}`
+  if (abs < DAY) return `${Math.floor(abs / HOUR)}h ${suffix}`
+  const days = Math.floor(abs / DAY)
+  if (days < 30) return `${days}d ${suffix}`
+  if (days < 365) return `${Math.floor(days / 30)}mo ${suffix}`
+  return `${Math.floor(days / 365)}y ${suffix}`
+}
+
 // `controller(def)` infers the scope-factory types from the `scope` param +
 // return, so handler state is precisely typed — no `<Scope>`, no currying,
 // no `s as any`, no `type S` annotation.
@@ -113,7 +132,7 @@ export default controller({
     return {
       focusCtx, name, def, doc, raw, format, workspaceId, runs, activeForPipeline, opsMode, providers,
       editMode, editSaving, editError, editErrorLine, editErrorCol, editIssueCount,
-      dispatchOpen, dispatchSpec, dispatchProvider, dispatchHeadless, deleteOpen, editorRef,
+      dispatchOpen, dispatchSpec, dispatchProvider, dispatchHeadless, deleteOpen, editorRef, formatRelative,
     }
   },
   on: {

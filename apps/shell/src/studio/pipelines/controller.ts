@@ -3,6 +3,25 @@ import { ship, ops } from '../../ops'
 import type { LiveSignal, LiveSource, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
+const MINUTE = 60_000
+const HOUR = 3_600_000
+const DAY = 86_400_000
+
+function formatRelative(iso: string, now = Date.now()): string {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return iso
+  const diff = now - t
+  const abs = Math.abs(diff)
+  const suffix = diff >= 0 ? 'ago' : 'from now'
+  if (abs < MINUTE) return 'just now'
+  if (abs < HOUR) return `${Math.floor(abs / MINUTE)}m ${suffix}`
+  if (abs < DAY) return `${Math.floor(abs / HOUR)}h ${suffix}`
+  const days = Math.floor(abs / DAY)
+  if (days < 30) return `${days}d ${suffix}`
+  if (days < 365) return `${Math.floor(days / 30)}mo ${suffix}`
+  return `${Math.floor(days / 365)}y ${suffix}`
+}
+
 type PipelineDef = {
   name: string; description?: string; step_count: number; total_runs: number;
   active_runs: number; success_rate: number; last_run_at?: string;
@@ -71,7 +90,7 @@ export default controller({
     const workspaceId = derived(() => read(summaries).workspace_id ?? null)
     const statsSubtitle = derived(() => read(summaries).stats_subtitle)
     return {
-      summaries,
+      summaries, formatRelative,
       q, agent, pipeline, status, tab,
       dispatchOpen, dispatchSpec, dispatchPipeline, dispatchProvider, dispatchHeadless,
       newPipeOpen, newPipeName, newPipeError, newPipeCreating,
