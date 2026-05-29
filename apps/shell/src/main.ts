@@ -18,7 +18,7 @@
 //      ⌘. navigates to /studio; ⌃` toggles the terminal panel;
 //      ⌘? opens help.
 
-import { createClient, type ShipSDK } from '@ship/sdk-client'
+import { createClient, setShipClient, type ShipSDK } from '@ship/sdk-client'
 import { ops } from './ops'
 // Charts pack — single workspace import registers every <sui-*-chart>,
 // <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
@@ -104,6 +104,10 @@ injectTokenStyles()
 
 // Single SDK client instance, shared across every mounted view.
 const shipClient: ShipSDK = createClient({ baseUrl: daemonBase() })
+// Expose the client to `ship-*` packs (e.g. @ship/agents) that import
+// the lazy `ship` Proxy from `@ship/sdk-client`. Pure `sui-*` packs do
+// not reach for the SDK and are unaffected.
+setShipClient(shipClient)
 
 // Host loader injected into every mount() — the `/_sui/` URL scheme lives
 // here at the app boundary, not inside the (host-agnostic) SUI runtime.

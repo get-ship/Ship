@@ -98,6 +98,52 @@ export interface CreateClientOpts {
  * await ship.agents.create({ id: 'foo', doc: { ... } })
  * ```
  */
+// ── Shared singleton (pre-bound packs) ────────────────────────────────────
+//
+// `ship-*` packs (e.g. @ship/agents, @ship/sessions) reach for the SDK
+// from inside a web component — below the view tier where ViewScope
+// supplies `ship`. The host (shell `main.ts`) calls `setShipClient`
+// once at startup; pack components `import { ship }` and use it
+// directly. The Proxy is lazy — importing it does not require the
+// shell to have initialized; only first use does.
+//
+// This mirrors the `setHostContext` / `hostContext()` seam: the
+// runtime/SDK names no host concept, the host plugs one in. Pure
+// `sui-*` packs do not reach for `ship` and do not see this singleton.
+
+let _shipClient: ShipSDK | null = null
+
+/** Register the SDK client for `ship-*` pack components. Call once at
+ *  host startup, before any pack mounts. */
+export function setShipClient(client: ShipSDK): void {
+  _shipClient = client
+}
+
+/** Read the registered client (rarely needed directly — prefer `ship`). */
+export function getShipClient(): ShipSDK {
+  if (!_shipClient) {
+    throw new Error(
+      '[@ship/sdk-client] ship client not initialized. Host must call setShipClient() at startup.',
+    )
+  }
+  return _shipClient
+}
+
+/** The lazy SDK singleton for `ship-*` packs.
+ *
+ * ```ts
+ * import { ship } from '@ship/sdk-client'
+ * const agents = live(() => ship.agents.summaries())
+ * ```
+ *
+ * Throws if read before the host calls `setShipClient`. Safe to import
+ * at any time — the trap only fires on access. */
+export const ship: ShipSDK = new Proxy({} as ShipSDK, {
+  get(_target, prop, _receiver) {
+    return Reflect.get(getShipClient() as object, prop)
+  },
+})
+
 export function createClient(opts?: CreateClientOpts): ShipSDK {
   const baseUrl = (opts?.baseUrl ?? '').replace(/\/$/, '')
   const ESCtor = opts?.EventSource ?? globalThis.EventSource
