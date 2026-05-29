@@ -40,7 +40,7 @@ const ports: PortCase[] = [
   { tag: 'sui-chip',       attr: 'tone',  value: 'primary', shadowPart: '.chip' },
   { tag: 'sui-card',       attr: 'padding', value: 'lg',    shadowPart: '.content' },
   { tag: 'sui-link',       attr: 'tone',  value: 'primary', shadowPart: 'a' },
-  { tag: 'sui-divider',    attr: 'orientation', value: 'vertical', shadowPart: '.line' },
+  { tag: 'sui-separator',  attr: 'orientation', value: 'vertical', shadowPart: '.sep' },
   { tag: 'sui-skeleton',   attr: 'shape', value: 'circle',  shadowPart: '.sk' },
   { tag: 'sui-mark',       attr: 'tone',  value: 'success', shadowPart: 'mark' },
   { tag: 'sui-kbd',        attr: 'size',  value: 'sm',      shadowPart: 'kbd' },
