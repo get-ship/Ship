@@ -282,7 +282,14 @@ export default controller<Scope>({
     // that wraps <sui-terminal> in a flex container. Without this, the
     // first fit measures a 0-height container and xterm sticks at a
     // handful of rows until the user manually triggers a resize.
-    el.fit = () => { try { fit.fit() } catch { /* mid-teardown */ } }
+    // Define directly on the instance to shadow the prototype accessor,
+    // preventing the signal-based setter from being invoked.
+    Object.defineProperty(el, 'fit', {
+      value: () => { try { fit.fit() } catch { /* mid-teardown */ } },
+      writable: false,
+      enumerable: false,
+      configurable: true,
+    })
     el.terminal = term
 
     // Reactive prop updates via effect() — re-runs when signals change.

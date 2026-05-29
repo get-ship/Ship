@@ -79,7 +79,7 @@ describe('<sui-terminal>', () => {
     expect(el.getAttribute('theme')).toBe('dark')
   })
 
-  it.skip('reflects fit attribute — TODO: bool-prop initial bare-attr reflect; pre-existing framework behavior, not a lift regression', () => {
+  it('reflects fit attribute', () => {
     const c = mkContainer()
     c.innerHTML = '<sui-terminal fit></sui-terminal>'
     const el = c.querySelector('sui-terminal')!
