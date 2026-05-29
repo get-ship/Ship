@@ -129,14 +129,14 @@ test.describe('view-authoring frontend', () => {
     await enterEditMode(page)
     // Activate Components tab.
     await page.evaluate(() => (document.getElementById('ship-panel-dock') as HTMLElement & { activate(t: string): void }).activate('va-components'))
-    // Mocked source contains <sui-card>, <sui-progress>.
+    // Mocked source contains <sui-card>, <sui-button>.
     await expect.poll(async () => {
       return page.evaluate(() => {
         const el = document.querySelector('sui-va-components')
         if (!el) return []
         return Array.from(el.shadowRoot!.querySelectorAll('.chip .tag')).map((n) => n.textContent ?? '')
       })
-    }, { timeout: 7000 }).toEqual(expect.arrayContaining(['<sui-card>', '<sui-progress>']))
+    }, { timeout: 7000 }).toEqual(expect.arrayContaining(['<sui-card>', '<sui-button>']))
   })
 
   test('picker tile click fires sui:component:picked with the tag', async ({ page }) => {

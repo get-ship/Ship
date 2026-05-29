@@ -223,28 +223,10 @@ export const SHOTS: Record<string, ComponentShot[]> = {
 </sui-field>`,
     },
   ],
-  'sui-progress': [
-    { label: '40%',         raw: '<div style="width:220px;"><sui-progress value="40"  max="100" label="40%"></sui-progress></div>' },
-    { label: 'Success 78%', raw: '<div style="width:220px;"><sui-progress value="78"  max="100" tone="success" label="78%"></sui-progress></div>' },
-  ],
   'sui-separator': [
     { label: 'Horizontal', raw: '<div style="width:240px;"><sui-separator></sui-separator></div>' },
     { label: 'Dashed',     raw: '<div style="width:240px;"><sui-separator variant="dashed"></sui-separator></div>' },
     { label: 'Vertical',   raw: '<div style="display:inline-flex;align-items:center;gap:8px;height:24px;">Left<sui-separator orientation="vertical"></sui-separator>Right</div>' },
-  ],
-  'sui-breadcrumb': [
-    {
-      label: 'Default',
-      raw: `<sui-breadcrumb>
-  <sui-breadcrumb-item href="/">Home</sui-breadcrumb-item>
-  <sui-breadcrumb-item href="/components">Components</sui-breadcrumb-item>
-  <sui-breadcrumb-item active>sui-button</sui-breadcrumb-item>
-</sui-breadcrumb>`,
-    },
-  ],
-  'sui-breadcrumb-item': [
-    { label: 'Link',   attrs: { href: '/components' }, innerHTML: 'Components' },
-    { label: 'Active', attrs: { active: '' },          innerHTML: 'Active page' },
   ],
   'sui-icon': [
     { label: 'settings', attrs: { name: 'settings', size: 'md' } },
@@ -420,13 +402,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   </div>
 </sui-collapsible></div>`,
     },
-  ],
-  'sui-stepper': [
-    { label: 'Step 2 of 4', attrs: { current: '2', total: '4' } },
-    { label: 'Step 3 of 5', attrs: { current: '3', total: '5', size: 'lg', tone: 'accent' } },
-  ],
-  'sui-pagination': [
-    { label: 'Default', attrs: { page: '3', 'page-count': '12' } },
   ],
   'sui-error-state': [
     {

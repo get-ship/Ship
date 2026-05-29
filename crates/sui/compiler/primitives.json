@@ -50,13 +50,6 @@
       "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
       "variant": { "values": ["solid", "soft", "outline"], "default": "soft" }
     },
-    "sui-breadcrumb": {
-      "separator": { "type": "string", "default": "/" }
-    },
-    "sui-breadcrumb-item": {
-      "active": { "type": "bool", "default": "false" },
-      "href": { "type": "string", "default": "" }
-    },
     "sui-button": {
       "disabled": { "type": "bool", "default": "false" },
       "expanded": { "type": "string", "default": "" },
@@ -293,34 +286,12 @@
     "sui-navigation-menu": {
       "value": { "type": "string", "default": "" }
     },
-    "sui-pagination": {
-      "page": { "type": "number", "default": "1" },
-      "per-page": { "type": "number", "default": "25" },
-      "total": { "type": "number", "default": "0" }
-    },
     "sui-popover": {
       "open": { "type": "bool", "default": "false" },
       "placement": { "values": ["top", "top-end", "bottom", "bottom-end", "left", "left-end", "right", "right-end"], "default": "bottom" }
     },
     "sui-portal": {
       "target": { "type": "string", "default": "body" }
-    },
-    "sui-progress": {
-      "indeterminate": { "type": "bool", "default": "false" },
-      "label": { "type": "string", "default": "" },
-      "max": { "type": "number", "default": "100" },
-      "size": { "values": ["sm", "md", "lg"], "default": "md" },
-      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
-      "value": { "type": "number", "default": "0" }
-    },
-    "sui-progress-ring": {
-      "indeterminate": { "type": "bool", "default": "false" },
-      "label": { "type": "string", "default": "" },
-      "max": { "type": "number", "default": "100" },
-      "size": { "type": "number", "default": "48" },
-      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent"], "default": "primary" },
-      "track-width": { "type": "number", "default": "4" },
-      "value": { "type": "number", "default": "0" }
     },
     "sui-radio": {
       "checked": { "type": "bool", "default": "false" },
@@ -390,13 +361,6 @@
       "size": { "values": ["sm", "md"], "default": "md" },
       "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" }
     },
-    "sui-stepper": {
-      "current": { "type": "number", "default": "1" },
-      "label": { "type": "string", "default": "" },
-      "size": { "values": ["sm", "md", "lg"], "default": "md" },
-      "tone": { "type": "string", "default": "" },
-      "total": { "type": "number", "default": "4" }
-    },
     "sui-switch": {
       "checked": { "type": "bool", "default": "false" },
       "disabled": { "type": "bool", "default": "false" },
@@ -436,15 +400,6 @@
       "sticky": { "type": "bool", "default": "false" },
       "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
       "variant": { "values": ["underline", "pill", "enclosed"], "default": "underline" }
-    },
-    "sui-tag-input": {
-      "disabled": { "type": "bool", "default": "false" },
-      "max-tags": { "type": "number", "default": "0" },
-      "name": { "type": "string", "default": "" },
-      "placeholder": { "type": "string", "default": "" },
-      "size": { "values": ["sm", "md", "lg"], "default": "md" },
-      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
-      "value": { "type": "string", "default": "" }
     },
     "sui-textarea": {
       "described-by": { "type": "string", "default": "" },
