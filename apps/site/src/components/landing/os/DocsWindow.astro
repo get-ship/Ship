@@ -67,7 +67,7 @@ interface ArticleBundle {
   related: string[];
   Content: Awaited<ReturnType<typeof render>>['Content'];
   headings: Awaited<ReturnType<typeof render>>['headings'];
-  rawBody: string;
+  rawBody: string | undefined;
 }
 
 const articles: ArticleBundle[] = await Promise.all(
