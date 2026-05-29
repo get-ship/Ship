@@ -41,6 +41,7 @@
     "@ship/ui-components": "workspace:*",
     "@ship/sui-lsp-browser": "workspace:*",
     "@ship/sui-runtime": "workspace:*",
+    "@sui/terminal": "workspace:*",
     "@tiptap/core": "^3.21.0",
     "@tiptap/extension-code-block-lowlight": "^3.21.0",
     "@tiptap/extension-image": "^3.21.0",
@@ -51,10 +52,6 @@
     "@tiptap/extension-task-list": "^3.21.0",
     "@tiptap/extension-typography": "^3.21.0",
     "@tiptap/starter-kit": "^3.21.0",
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/addon-web-links": "^0.12.0",
-    "@xterm/addon-webgl": "^0.19.0",
-    "@xterm/xterm": "^6.0.0",
     "lowlight": "^3.3.0",
     "tiptap-markdown": "^0.9.0"
   },
