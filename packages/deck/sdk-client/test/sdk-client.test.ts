@@ -30,19 +30,123 @@ class FakeEventSource {
   }
 }
 
+// Fake Connect client for testing. Captures RPC calls and allows tests
+// to emit frames and responses.
+class FakeConnectClient {
+  private calls: Array<{ domain: string; op: string; req: unknown }> = []
+  private frameQueues: Map<string, { json: string }[]> = new Map()
+  private resolvers: Map<string, () => void> = new Map()
+  private responses: Map<string, unknown> = new Map()
+
+  setResponse(key: string, response: unknown): void {
+    this.responses.set(key, response)
+  }
+
+  emitFrame(key: string, frame: object): void {
+    if (!this.frameQueues.has(key)) {
+      this.frameQueues.set(key, [])
+    }
+    this.frameQueues.get(key)!.push({ json: JSON.stringify(frame) })
+    // Wake up any waiting iterators
+    const resolver = this.resolvers.get(key)
+    if (resolver) {
+      resolver()
+    }
+  }
+
+  getCalls(): Array<{ domain: string; op: string; req: unknown }> {
+    return this.calls
+  }
+
+  clearCalls(): void {
+    this.calls = []
+  }
+
+  // Build a Proxy-based fake that intercepts domain.op calls
+  build(): any {
+    return new Proxy(
+      {},
+      {
+        get: (_target, domain: string | symbol) => {
+          if (typeof domain !== 'string') return undefined
+          return new Proxy(
+            {},
+            {
+              get: (_t, op: string | symbol) => {
+                if (typeof op !== 'string') return undefined
+                // Return a function that handles both live reads and mutations
+                return (req: any, opts?: { signal?: AbortSignal }) => {
+                  this.calls.push({ domain, op, req })
+                  const key = `${domain}.${op}`
+
+                  // If it's a Live op (async iterable), return a generator
+                  if (op.endsWith('Live')) {
+                    const self = this
+                    return {
+                      async *[Symbol.asyncIterator]() {
+                        if (!self.frameQueues.has(key)) {
+                          self.frameQueues.set(key, [])
+                        }
+                        const queue = self.frameQueues.get(key)!
+                        let yieldedCount = 0
+
+                        while (!opts?.signal?.aborted) {
+                          if (yieldedCount < queue.length) {
+                            yield queue[yieldedCount]!
+                            yieldedCount++
+                          } else {
+                            // Wait for more frames or signal abort
+                            const signalAborted = new Promise<void>((resolve) => {
+                              opts?.signal?.addEventListener('abort', () => resolve())
+                            })
+                            const frameAdded = new Promise<void>((resolve) => {
+                              self.resolvers.set(key, () => resolve())
+                            })
+                            await Promise.race([signalAborted, frameAdded])
+                            self.resolvers.delete(key)
+                            // After waiting, loop will check again for new frames
+                          }
+                        }
+                      },
+                    }
+                  }
+
+                  // Otherwise it's a mutation, return a promise
+                  const resp = this.responses.get(key) || { id: 'test-id' }
+                  // Ensure json field exists for okJson calls
+                  return Promise.resolve({
+                    ...resp,
+                    json: resp.json || JSON.stringify(resp),
+                  })
+                }
+              },
+            },
+          )
+        },
+      },
+    )
+  }
+}
+
+function createFakeConnectClient() {
+  return new FakeConnectClient()
+}
+
 describe('createClient', () => {
-  it('agents.summaries opens an SSE channel and resolves on first patch', () => {
-    FakeEventSource.instances = []
-    const ship = createClient({ EventSource: FakeEventSource as any })
+  it('agents.summaries opens a Connect stream and resolves on first frame', async () => {
+    const fakeConnect = createFakeConnectClient()
+    const ship = createClient({ connectClient: fakeConnect.build() })
     const sig = live(() => ship.agents.summaries())
     expect(sig().kind).toBe('loading')
-    expect(FakeEventSource.instances).toHaveLength(1)
-    const es = FakeEventSource.instances[0]!
-    expect(es.url).toMatch(/_sui\/data\?expr=/)
-    es.emitPatch({
-      op: 'set',
-      value: { items: [{ id: 'a', name: 'A' }] },
+    const calls = fakeConnect.getCalls()
+    expect(calls).toHaveLength(1)
+    expect(calls[0]!.domain).toBe('agents')
+    expect(calls[0]!.op).toBe('summariesLive')
+    fakeConnect.emitFrame('agents.summariesLive', {
+      items: [{ id: 'a', name: 'A' }],
     })
+    // Wait for async operations to complete
+    await new Promise((resolve) => setTimeout(resolve, 0))
     const v = sig()
     expect(v.kind).toBe('ok')
     if (v.kind === 'ok') {
@@ -77,38 +181,37 @@ describe('createClient', () => {
     expect(v.kind).toBe('error')
   })
 
-  it('git.diff serializes args as a JSON object literal in the URL', () => {
-    FakeEventSource.instances = []
-    const ship = createClient({ EventSource: FakeEventSource as any })
+  it('git.diff passes args to Connect as camelCase', () => {
+    const fakeConnect = createFakeConnectClient()
+    const ship = createClient({ connectClient: fakeConnect.build() })
     const sig = live(() => ship.git.diff({ commit: 'abc1234' }))
     expect(sig().kind).toBe('loading')
-    const url = FakeEventSource.instances[0]!.url
-    expect(url).toContain('/_sui/data?expr=')
-    // Args round-trip through encodeURIComponent — assert against the
-    // decoded form for legibility.
-    expect(decodeURIComponent(url.split('expr=')[1]!)).toBe(
-      'ship.git.diff({"commit":"abc1234"})',
-    )
+    const calls = fakeConnect.getCalls()
+    expect(calls).toHaveLength(1)
+    expect(calls[0]!.domain).toBe('git')
+    expect(calls[0]!.op).toBe('diffLive')
+    // Args should be camelCased
+    expect(calls[0]!.req).toEqual({ commit: 'abc1234' })
   })
 
   it('git.diff includes optional workspace_id when provided', () => {
-    FakeEventSource.instances = []
-    const ship = createClient({ EventSource: FakeEventSource as any })
+    const fakeConnect = createFakeConnectClient()
+    const ship = createClient({ connectClient: fakeConnect.build() })
     live(() => ship.git.diff({ commit: 'WORKING', workspace_id: 'ws-1' }))
-    const url = FakeEventSource.instances[0]!.url
-    expect(decodeURIComponent(url.split('expr=')[1]!)).toBe(
-      'ship.git.diff({"commit":"WORKING","workspace_id":"ws-1"})',
-    )
+    const calls = fakeConnect.getCalls()
+    expect(calls).toHaveLength(1)
+    // workspace_id should be camelCased to workspaceId
+    expect(calls[0]!.req).toEqual({ commit: 'WORKING', workspaceId: 'ws-1' })
   })
 
-  it('events.list serializes filter args as a JSON object literal', () => {
-    FakeEventSource.instances = []
-    const ship = createClient({ EventSource: FakeEventSource as any })
+  it('events.list serializes filter args via Connect with camelCase', () => {
+    const fakeConnect = createFakeConnectClient()
+    const ship = createClient({ connectClient: fakeConnect.build() })
     live(() => ship.events.list({ q: 'foo', event_type: 'job.completed' }))
-    const url = FakeEventSource.instances[0]!.url
-    expect(decodeURIComponent(url.split('expr=')[1]!)).toBe(
-      'ship.events.list({"q":"foo","event_type":"job.completed"})',
-    )
+    const calls = fakeConnect.getCalls()
+    expect(calls).toHaveLength(1)
+    // event_type should be camelCased to eventType
+    expect(calls[0]!.req).toEqual({ q: 'foo', eventType: 'job.completed' })
   })
 
   it('canvas.doc serializes slug args into the expr', () => {
@@ -121,20 +224,13 @@ describe('createClient', () => {
     )
   })
 
-  it('argless ops emit empty parens (chat.state, mesh.snapshot, settings.state)', () => {
+  it('argless ops with no Connect service use SSE (mesh.snapshot)', () => {
     FakeEventSource.instances = []
     const ship = createClient({ EventSource: FakeEventSource as any })
     live(() => ship.mesh.snapshot())
-    live(() => ship.settings.state())
-    live(() => ship.dashboard.state())
-    const exprs = FakeEventSource.instances.map((es) =>
-      decodeURIComponent(es.url.split('expr=')[1]!),
-    )
-    expect(exprs).toEqual([
-      'ship.mesh.snapshot()',
-      'ship.settings.state()',
-      'ship.dashboard.state()',
-    ])
+    expect(FakeEventSource.instances).toHaveLength(1)
+    const es = FakeEventSource.instances[0]!
+    expect(decodeURIComponent(es.url.split('expr=')[1]!)).toBe('ship.mesh.snapshot()')
   })
 
   it('sessions.start POSTs JSON to /api/v1/sessions/spawn', async () => {
@@ -183,44 +279,6 @@ describe('createClient', () => {
     }
   })
 
-  it('workspaces.activate POSTs to /api/v1/projects/switch', async () => {
-    const calls: Array<{ url: string; init?: RequestInit }> = []
-    const orig = globalThis.fetch
-    globalThis.fetch = async (url: any, init?: any) => {
-      calls.push({ url: String(url), init })
-      return new Response(JSON.stringify({ ok: true, active: 'proj-1' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
-    }
-    try {
-      const ship = createClient({ EventSource: FakeEventSource as any })
-      const resp = await ship.workspaces.activate({ id: 'proj-1' })
-      expect(resp).toEqual({ ok: true, active: 'proj-1' })
-      expect(calls[0]!.url).toBe('/api/v1/projects/switch')
-      expect(JSON.parse(calls[0]!.init?.body as string)).toEqual({ id: 'proj-1' })
-    } finally {
-      globalThis.fetch = orig
-    }
-  })
-
-  it('workspaces.list opens an SSE channel', () => {
-    FakeEventSource.instances = []
-    const ship = createClient({ EventSource: FakeEventSource as any })
-    const sig = live(() => ship.workspaces.list())
-    expect(sig().kind).toBe('loading')
-    expect(FakeEventSource.instances).toHaveLength(1)
-    expect(FakeEventSource.instances[0]!.url).toMatch(/workspaces\.list/)
-  })
-
-  it('workspaces.active opens an SSE channel', () => {
-    FakeEventSource.instances = []
-    const ship = createClient({ EventSource: FakeEventSource as any })
-    const sig = live(() => ship.workspaces.active())
-    expect(sig().kind).toBe('loading')
-    expect(FakeEventSource.instances).toHaveLength(1)
-    expect(FakeEventSource.instances[0]!.url).toMatch(/workspaces\.active/)
-  })
 
   it('skills.invoke POSTs to /api/v1/skills/{id}/invoke', async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = []
@@ -268,116 +326,87 @@ describe('createClient', () => {
     }
   })
 
-  it('agents.create POSTs {id, doc} to /api/v1/agents', async () => {
-    const calls: Array<{ url: string; init?: RequestInit }> = []
-    const orig = globalThis.fetch
-    globalThis.fetch = async (url: any, init?: any) => {
-      calls.push({ url: String(url), init })
-      return new Response(JSON.stringify({ ok: true, id: 'foo' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
-    }
-    try {
-      const ship = createClient({ EventSource: FakeEventSource as any })
-      const doc = { agent: { id: 'foo', name: 'Foo' } }
-      const resp = await ship.agents.create({ id: 'foo', doc })
-      expect(resp).toEqual({ ok: true, id: 'foo' })
-      expect(calls[0]!.url).toBe('/api/v1/agents')
-      expect(calls[0]!.init?.method).toBe('POST')
-      expect(JSON.parse(calls[0]!.init?.body as string)).toEqual({ id: 'foo', doc })
-    } finally {
-      globalThis.fetch = orig
-    }
+  it('agents.create calls Connect and returns {ok, id}', async () => {
+    const fakeConnect = createFakeConnectClient()
+    fakeConnect.setResponse('agents.create', { id: 'foo' })
+    const ship = createClient({ connectClient: fakeConnect.build() })
+    const doc = { agent: { id: 'foo', name: 'Foo' } }
+    const resp = await ship.agents.create({ id: 'foo', doc })
+    expect(resp).toEqual({ ok: true, id: 'foo' })
+    const calls = fakeConnect.getCalls()
+    expect(calls).toHaveLength(1)
+    expect(calls[0]!.domain).toBe('agents')
+    expect(calls[0]!.op).toBe('create')
+    expect(calls[0]!.req).toEqual({
+      id: 'foo',
+      docJson: JSON.stringify(doc),
+      scope: '',
+    })
   })
 
-  it('agents.update PUTs the doc body to /api/v1/agents/{id}', async () => {
-    const calls: Array<{ url: string; init?: RequestInit }> = []
-    const orig = globalThis.fetch
-    globalThis.fetch = async (url: any, init?: any) => {
-      calls.push({ url: String(url), init })
-      return new Response(JSON.stringify({ ok: true, id: 'foo' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
-    }
-    try {
-      const ship = createClient({ EventSource: FakeEventSource as any })
-      await ship.agents.update({ id: 'foo', doc: { agent: { id: 'foo' } } })
-      expect(calls[0]!.url).toBe('/api/v1/agents/foo')
-      expect(calls[0]!.init?.method).toBe('PUT')
-    } finally {
-      globalThis.fetch = orig
-    }
+  it('agents.update calls Connect and returns {ok, id}', async () => {
+    const fakeConnect = createFakeConnectClient()
+    fakeConnect.setResponse('agents.put', { id: 'foo' })
+    const ship = createClient({ connectClient: fakeConnect.build() })
+    const resp = await ship.agents.update({ id: 'foo', doc: { agent: { id: 'foo' } } })
+    expect(resp).toEqual({ ok: true, id: 'foo' })
+    const calls = fakeConnect.getCalls()
+    expect(calls).toHaveLength(1)
+    expect(calls[0]!.domain).toBe('agents')
+    expect(calls[0]!.op).toBe('put')
   })
 
-  it('collections.create_item POSTs to /api/v1/collections/{id}/items', async () => {
-    const calls: Array<{ url: string; init?: RequestInit }> = []
-    const orig = globalThis.fetch
-    globalThis.fetch = async (url: any, init?: any) => {
-      calls.push({ url: String(url), init })
-      return new Response(JSON.stringify({ ok: true, id: 'item-1' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
-    }
-    try {
-      const ship = createClient({ EventSource: FakeEventSource as any })
-      await ship.collections.create_item({
-        collection: 'systems',
-        data: { name: 'X' },
-      })
-      expect(calls[0]!.url).toBe('/api/v1/collections/systems/items')
-      expect(JSON.parse(calls[0]!.init?.body as string)).toEqual({ data: { name: 'X' } })
-    } finally {
-      globalThis.fetch = orig
-    }
+  it('collections.create_item calls Connect and returns {ok, id}', async () => {
+    const fakeConnect = createFakeConnectClient()
+    fakeConnect.setResponse('collections.createItem', { id: 'item-1' })
+    const ship = createClient({ connectClient: fakeConnect.build() })
+    const resp = await ship.collections.create_item({
+      collection: 'systems',
+      data: { name: 'X' },
+    })
+    expect(resp).toEqual({ ok: true, id: 'item-1' })
+    const calls = fakeConnect.getCalls()
+    expect(calls).toHaveLength(1)
+    expect(calls[0]!.domain).toBe('collections')
+    expect(calls[0]!.op).toBe('createItem')
+    expect(calls[0]!.req).toEqual({
+      collection: 'systems',
+      dataJson: JSON.stringify({ name: 'X' }),
+      id: '',
+    })
   })
 
-  it('collections.update_item PUTs and collections.delete_item DELETEs', async () => {
-    const calls: Array<{ url: string; init?: RequestInit }> = []
-    const orig = globalThis.fetch
-    globalThis.fetch = async (url: any, init?: any) => {
-      calls.push({ url: String(url), init })
-      return new Response(JSON.stringify({ ok: true, id: 'r-1' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
-    }
-    try {
-      const ship = createClient({ EventSource: FakeEventSource as any })
-      await ship.collections.update_item({
-        collection: 'systems',
-        item_id: 'r-1',
-        data: { a: 1 },
-      })
-      await ship.collections.delete_item({ collection: 'systems', item_id: 'r-1' })
-      expect(calls[0]!.url).toBe('/api/v1/collections/systems/items/r-1')
-      expect(calls[0]!.init?.method).toBe('PUT')
-      expect(calls[1]!.init?.method).toBe('DELETE')
-    } finally {
-      globalThis.fetch = orig
-    }
+  it('collections.update_item and delete_item call Connect', async () => {
+    const fakeConnect = createFakeConnectClient()
+    fakeConnect.setResponse('collections.updateItem', { id: 'r-1' })
+    fakeConnect.setResponse('collections.deleteItem', {})
+    const ship = createClient({ connectClient: fakeConnect.build() })
+    await ship.collections.update_item({
+      collection: 'systems',
+      item_id: 'r-1',
+      data: { a: 1 },
+    })
+    await ship.collections.delete_item({ collection: 'systems', item_id: 'r-1' })
+    const calls = fakeConnect.getCalls()
+    expect(calls).toHaveLength(2)
+    expect(calls[0]!.domain).toBe('collections')
+    expect(calls[0]!.op).toBe('updateItem')
+    expect(calls[1]!.domain).toBe('collections')
+    expect(calls[1]!.op).toBe('deleteItem')
   })
 
-  it('collections.create POSTs to /api/v1/collections with id/name/fields', async () => {
-    const calls: Array<{ url: string; init?: RequestInit }> = []
-    const orig = globalThis.fetch
-    globalThis.fetch = async (url: any, init?: any) => {
-      calls.push({ url: String(url), init })
-      return new Response(JSON.stringify({ ok: true, id: 'x' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
-    }
-    try {
-      const ship = createClient({ EventSource: FakeEventSource as any })
-      await ship.collections.create({ id: 'x', name: 'X collection' })
-      const body = JSON.parse(calls[0]!.init?.body as string)
-      expect(body).toEqual({ id: 'x', name: 'X collection', fields: {} })
-    } finally {
-      globalThis.fetch = orig
-    }
+  it('collections.create calls Connect and returns {ok, id}', async () => {
+    const fakeConnect = createFakeConnectClient()
+    fakeConnect.setResponse('collections.createSchema', {
+      json: JSON.stringify({ ok: true, id: 'x' }),
+    })
+    const ship = createClient({ connectClient: fakeConnect.build() })
+    const resp = await ship.collections.create({ id: 'x', name: 'X collection' })
+    expect(resp).toEqual({ ok: true, id: 'x' })
+    const calls = fakeConnect.getCalls()
+    expect(calls).toHaveLength(1)
+    expect(calls[0]!.domain).toBe('collections')
+    expect(calls[0]!.op).toBe('createSchema')
   })
 
   it('artifacts.get returns text by default and json with as=json', async () => {

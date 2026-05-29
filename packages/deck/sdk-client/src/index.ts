@@ -86,6 +86,11 @@ export interface CreateClientOpts {
    * `globalThis.EventSource`. Tests pass a fake.
    */
   EventSource?: typeof globalThis.EventSource
+  /**
+   * Connect client injection for tests — defaults to real client.
+   * Tests pass a fake to control RPC responses and live streams.
+   */
+  connectClient?: unknown
 }
 
 /**
@@ -154,7 +159,7 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
   // auth middleware reads the session cookie (same-origin transport), so no
   // token plumbing. Opaque `JsonResponse` ops decode back to the existing
   // ShipSDK shape via `okJson` — a pure transport swap, callers unchanged.
-  const connect = createShipConnectClient({ baseUrl })
+  const connect = (opts?.connectClient ?? createShipConnectClient({ baseUrl })) as any
   const okJson = async <T>(p: Promise<{ json: string }>): Promise<T> =>
     JSON.parse((await p).json) as T
   // Typed mutations (ScopedMutation / CollectionItem) carry the id directly;
