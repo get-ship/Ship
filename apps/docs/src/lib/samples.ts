@@ -551,12 +551,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Canvas', overlay: true, caption: 'Force-directed graph canvas. Needs JS-driven node/edge data.' },
   ],
 
-  /* Status / utility primitives without per-variant samples ---------- */
-  'sui-mark': [
-    { label: 'Highlight', innerHTML: 'highlighted text' },
-    { label: 'Accent', attrs: { tone: 'accent' }, innerHTML: 'accent run' },
-  ],
-
   /* Pipeline composites --------------------------------------------- */
   'sui-pipeline-step-def': [
     {

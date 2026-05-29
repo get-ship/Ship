@@ -295,9 +295,6 @@
       "max-bytes": { "type": "number", "default": "1000000" },
       "url": { "type": "string", "default": "" }
     },
-    "sui-mark": {
-      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "warning" }
-    },
     "sui-markdown": {
       "value": { "type": "string", "default": "" }
     },
