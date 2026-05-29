@@ -94,8 +94,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   // Status
   'sui-alert': 'status',
   'sui-badge': 'status',
-  'sui-progress': 'status',
-  'sui-progress-ring': 'status',
   'sui-spinner': 'status',
   'sui-stat': 'status',
   'sui-status-dot': 'status',
@@ -108,11 +106,9 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-accordion-item': 'data',
   'sui-collapsible': 'data',
   'sui-empty-state': 'data',
-  'sui-pagination': 'data',
   'sui-tabs': 'data',
   'sui-tab': 'data',
   'sui-tab-panel': 'data',
-  'sui-stepper': 'data',
 
   // Layout
   'sui-card': 'layout',
@@ -137,8 +133,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
 
   // Utility
   'sui-avatar': 'utility',
-  'sui-breadcrumb': 'utility',
-  'sui-breadcrumb-item': 'utility',
   'sui-chip': 'utility',
   'sui-icon': 'utility',
   'sui-link': 'utility',
@@ -262,7 +256,6 @@ const HIDDEN_TAGS = new Set([
   'sui-tab-panel',
   'sui-tree-item',
   'sui-accordion-item',
-  'sui-breadcrumb-item',
   'sui-navigation-item',
   'sui-pipeline-step-def',
   'sui-timeline-item',

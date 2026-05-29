@@ -14,7 +14,6 @@ const DEFAULT_ATTRS: Record<string, Record<string, string>> = {
   'sui-status-dot':{ tone: 'success' },
   'sui-skeleton':  { width: '60px', height: '12px' },
   'sui-stat':      { label: 'Stat', value: '42' },
-  'sui-progress':  { value: '60' },
   'sui-spinner':   {},
   'sui-tag':       {},
   'sui-chip':      {},
