@@ -79,6 +79,7 @@ export async function getSession(): Promise<Session | null> {
     const { data } = await authClient.getSession();
     if (!data?.user) return null;
     const u = data.user as Record<string, unknown>;
+    const sess = data.session as Record<string, unknown>;
     return {
       user: {
         id: String(u.id),
@@ -87,7 +88,14 @@ export async function getSession(): Promise<Session | null> {
         image: (u.image as string | null | undefined) ?? null,
         plan: (u.plan as Plan | undefined) ?? 'local',
       },
-      session: data.session as Session['session'],
+      session: {
+        id: String(sess.id),
+        token: String(sess.token),
+        expiresAt: sess.expiresAt instanceof Date ? sess.expiresAt.toISOString() : String(sess.expiresAt),
+        createdAt: sess.createdAt instanceof Date ? sess.createdAt.toISOString() : String(sess.createdAt),
+        userAgent: (sess.userAgent as string | null | undefined) ?? null,
+        ipAddress: (sess.ipAddress as string | null | undefined) ?? null,
+      },
     };
   } catch {
     return null;
@@ -137,8 +145,14 @@ export async function requestPasswordReset(
   redirectTo = '/reset-password',
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    const res = await authClient.forgetPassword({ email, redirectTo });
-    if (res?.error) return { ok: false, error: humanize(res.error.message ?? res.error.code) };
+    const res = await fetch(`${GATEWAY_URL}/v1/auth/forget-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email, redirectTo }),
+    });
+    const data = await res.json();
+    if (!res.ok || data?.error) return { ok: false, error: humanize(data?.error?.message ?? data?.error?.code ?? 'Unknown error') };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: (e as Error).message ?? 'Could not request reset.' };
