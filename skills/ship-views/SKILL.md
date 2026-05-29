@@ -423,40 +423,40 @@ groupings + the LSP CLI + `@ship/sui-eval` scoring lives in
 
 | Tool | When |
 |---|---|
-| `mcp__ship__scaffold_view({ name, path?, layout? })` | Emit a fresh `views/<name>/` skeleton. MCP equivalent of `deck scaffold view`. |
-| `mcp__ship__sui_diagnostics({ file })` | First thing after writing. Returns `[{ line, col, severity, message, source }]`. Same analyser as the VS Code LSP. |
-| `mcp__ship__sui_hover({ file, line, col })` | Type / directive / prop info at a cursor. Use when you're not sure what shape a binding wants. |
-| `mcp__ship__sui_dependencies({ file })` | What tags / signals / routes this file reaches into. Read before edits to scope blast radius. |
-| `mcp__ship__view_compile_check({ file })` | Full lowering pipeline. Catches issues `sui_diagnostics` (parse + analyse only) misses. |
-| `mcp__ship__get_view_errors({ view })` | Runtime errors from a mounted view session (post-mount, not compile). |
+| `ship ops call create.surface --json '{"kind":"view","name":"<name>"}'` | Emit a fresh `views/<name>/` skeleton. |
+| `ship sui diagnostics <file>` | First thing after writing. Returns `[{ line, col, severity, message, source }]`. Same analyser as the VS Code LSP. |
+| `ship sui hover <file> <line> <col>` | Type / directive / prop info at a cursor. Use when you're not sure what shape a binding wants. |
+| `ship sui dependencies <file>` | What tags / signals / routes this file reaches into. Read before edits to scope blast radius. |
+| `TODO(#207-followup): verify replacement for mcp__ship__view_compile_check` | Full lowering pipeline. Catches issues `sui_diagnostics` (parse + analyse only) misses. |
+| `TODO(#207-followup): verify replacement for mcp__ship__get_view_errors` | Runtime errors from a mounted view session (post-mount, not compile). |
 
 ### Source I/O + snapshots
 
 | Tool | When |
 |---|---|
-| `mcp__ship__view_read_source({ view, file? })` | Read one file or the full view dir. |
-| `mcp__ship__view_write_source({ view, file, contents })` | Write — triggers recompile + SSE notify. |
-| `mcp__ship__view_list_siblings({ view })` | Sibling `_components/<view>-<tag>/` widgets. |
-| `mcp__ship__view_list_snapshots({ view })` | Timeline — every save creates one. |
-| `mcp__ship__view_restore_snapshot({ view, snapshot_id })` | Revert; non-destructive. |
+| Read tool on `views/<name>/` | Read one file or the full view dir. |
+| Edit/Write tools on `views/<name>/` | Write — triggers recompile + SSE notify. |
+| `TODO(#207-followup): verify replacement for mcp__ship__view_list_siblings` | Sibling `_components/<view>-<tag>/` widgets. |
+| `TODO(#207-followup): verify replacement for mcp__ship__view_list_snapshots` | Timeline — every save creates one. |
+| `TODO(#207-followup): verify replacement for mcp__ship__view_restore_snapshot` | Revert; non-destructive. |
 
 ### Live mount + poke
 
 | Tool | When |
 |---|---|
-| `mcp__ship__open_view({ view, route? })` | Mount in the agent's session shell; returns a `session_id`. |
-| `mcp__ship__patch_view({ session_id, selector, html })` | Morph an HTML subtree in place. |
-| `mcp__ship__signal_view({ session_id, name, value })` | Set a reactive signal as if the user did via UI. |
-| `mcp__ship__view_preview_snapshot({ session_id })` | PNG + DOM dump — for evals, QA, before/after diffs. |
-| `mcp__ship__close_view({ session_id })` | Release. |
+| `TODO(#207-followup): verify replacement for mcp__ship__open_view` | Mount in the agent's session shell; returns a `session_id`. |
+| `ship ops call view.patch_session --json '{"selector":"...","html":"..."}'` | Morph an HTML subtree in place. |
+| `ship ops call view.signal_session --json '{"name":"...","value":...}'` | Set a reactive signal as if the user did via UI. |
+| `TODO(#207-followup): verify replacement for mcp__ship__view_preview_snapshot` | PNG + DOM dump — for evals, QA, before/after diffs. |
+| `TODO(#207-followup): verify replacement for mcp__ship__close_view` | Release. |
 
 ### Theme + collections
 
 | Tool | When |
 |---|---|
-| `mcp__ship__view_theme_tokens({})` | Active theme's tokens. Read before authoring CSS so you stay token-locked. |
-| `mcp__ship__view_collections_schema({})` | Schemas for project-defined `<data source="…">` collections. Use before writing a `<data>`. |
-| `mcp__ship__view_annotate({ view, selector, note })` | Pin a TODO/comment to a DOM node; surfaces in the dev panel. |
+| `TODO(#207-followup): verify replacement for mcp__ship__view_theme_tokens` | Active theme's tokens. Read before authoring CSS so you stay token-locked. |
+| `ship ops call collections.list` | Schemas for project-defined `<data source="…">` collections. Use before writing a `<data>`. |
+| `ship ops call annotation.post --json '{"..."}'` | Pin a TODO/comment to a DOM node; surfaces in the dev panel. |
 
 ### Verify before "done"
 
@@ -480,13 +480,10 @@ sui-compiler build views/tasks/             # whole view dir (template + sibling
 This is the gate you can *always* run — in any session, with or without the
 Ship MCP server connected. If you only do one thing before declaring done, do this.
 
-> **Transitional — the `mcp__ship__*` tools are being retired** in favour of
-> generated skills + CLI. They wrap the same analyser as `sui-compiler build`
-> and may still be present (`sui_diagnostics`, `view_compile_check`); use them
-> for structured output if they are, but **do not build new reliance on them** —
-> `sui-compiler build` is the durable gate. `@ship/sui-eval`
-> (`runEval({ description, spec, catalog })`) remains the behavioural-scoring
-> path when you authored against an interaction-script + asserts contract.
+> **The MCP tool surface has been removed.** Use `sui-compiler build` as the
+> durable gate. `@ship/sui-eval` (`runEval({ description, spec, catalog })`) remains
+> the behavioural-scoring path when you authored against an interaction-script + asserts
+> contract.
 
 ```sh
 # The verify loop:
@@ -502,7 +499,7 @@ language server.
 
 | Surface | How |
 |---|---|
-| **MCP** (agents) | `mcp__ship__sui_diagnostics` / `_hover` / `_dependencies`. See above. |
+| **CLI** (agents) | `ship sui diagnostics` / `hover` / `dependencies`. See above. |
 | **VS Code** | `apps/vscode/` auto-launches the `sui-lsp` binary on `.sui` open. |
 | **Any editor / Claude Code / opencode** | Point the LSP client at the `sui-lsp` binary (`crates/sui/lsp/`, on PATH via `just install-dev`) over stdio. Claude Code uses the repo `.lsp.json`. |
 | **Browser** | `@ship/sui-lsp-browser` runs the WASM `analyze` (same Rust grammar) for diagnostics in the docs playground; hover/completion are static-dictionary for now. |

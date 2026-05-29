@@ -322,8 +322,8 @@ Three MCP surfaces are relevant when working with tokens / themes:
 
 | Tool | When |
 |---|---|
-| `mcp__ship__view_theme_tokens({})` | Read the **active** theme's resolved tokens. Use before you author CSS in a component so you stay token-locked instead of guessing. Returns `{ --background, --foreground, --card, --ring, --tone-*-bg, … }`. |
-| `mcp__ship__sui_diagnostics({ file })` | After editing a `.sui` template that reads tokens via `var(--…)`, run diagnostics to confirm no broken refs. |
+| `TODO(#207-followup): verify replacement for mcp__ship__view_theme_tokens` | Read the **active** theme's resolved tokens. Use before you author CSS in a component so you stay token-locked instead of guessing. Returns `{ --background, --foreground, --card, --ring, --tone-*-bg, … }`. |
+| `ship sui diagnostics <file>` | After editing a `.sui` template that reads tokens via `var(--…)`, run diagnostics to confirm no broken refs. |
 | `ship://components` (resource) | Component catalog includes `cssProperties` per primitive — what CSS custom properties each component accepts as design-token override points. |
 
 Full agent surface inventory: `docs/ship-sui/references/docs/agent-surfaces.md`.
