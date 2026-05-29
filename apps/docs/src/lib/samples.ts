@@ -503,10 +503,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
 </sui-status-bar>`,
     },
   ],
-  'sui-divider': [
-    { label: 'Horizontal', raw: '<div style="width:280px;"><sui-divider></sui-divider></div>' },
-    { label: 'With label', raw: '<div style="width:280px;"><sui-divider label="or"></sui-divider></div>' },
-  ],
   'sui-navigation-menu': [
     {
       label: 'Pages',
