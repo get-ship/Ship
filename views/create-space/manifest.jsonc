@@ -1,0 +1,7 @@
+{
+  "name": "create-space",
+  "path": "/create-space",
+  "title": "Create a Space",
+  "layout": "bare",
+  "auth": "public"
+}
