@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 # Ship dispatch — create a worktree, write a job spec, compile the agent, open a terminal.
 # Usage: bash scripts/dispatch.sh --slug <name> --agent <agent> --spec <file> [options]
+#   --batch <name>   batch this dispatch into a shared wt window named
+#                    "ship-batch-<name>"; first call opens the window, each
+#                    subsequent call with the same name adds a split-pane.
+#                    Lets you monitor N parallel agents in one wt window
+#                    instead of N tabs. Lock expires after 24h.
+# Env:
+#   WT_PROFILE       Windows Terminal profile name (default: $WSL_DISTRO_NAME).
+#                    Set to your preferred profile (e.g. "Ubuntu") so panes
+#                    inherit your font/colors instead of wt's default profile.
 set -euo pipefail
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
@@ -28,6 +37,7 @@ AGENT=""
 SPEC_FILE=""
 SHIP_AGENT_MODEL="${SHIP_AGENT_MODEL:-}"
 EXTRA_SKILLS=()
+BATCH_NAME=""
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -42,6 +52,7 @@ while [[ $# -gt 0 ]]; do
     --no-open)  NO_OPEN=true; shift ;;
     --dry-run)  DRY_RUN=true; shift ;;
     --confirm)  CONFIRM=1; shift ;;
+    --batch)    BATCH_NAME="$2"; shift 2 ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
@@ -354,16 +365,43 @@ case "$TERMINAL" in
     ;;
   wt)
     # From WSL: create a named tmux session so auto_kickstart_tmux can interact
-    # with it via send-keys, then open a wt tab that attaches to it.
+    # with it via send-keys, then open a wt tab/pane that attaches to it.
     # bash --login ensures ~/.bash_profile is sourced (PATH includes ~/.local/bin).
     WSL_DISTRO="${WSL_DISTRO_NAME:-Ubuntu}"
+    # `-p <profile>` selects the user's preferred Windows Terminal profile
+    # (font/colors/etc.) instead of wt's default. Defaults to the distro
+    # name (matches the convention `WT_PROFILE=Ubuntu` for an Ubuntu WSL
+    # profile). Override with WT_PROFILE=<name> in the environment.
+    WT_PROFILE="${WT_PROFILE:-$WSL_DISTRO}"
     tmux new-session -d -s "$SLUG" -c "$WORKTREE_PATH" 2>/dev/null || true
     tmux send-keys -t "$SLUG" "$PROVIDER_CLI $LAUNCH_FLAGS" Enter
-    # `-w 0` targets the focused Windows Terminal window so new-tab
-    # actually creates a tab in the existing wt window instead of
-    # spawning a fresh wt window each dispatch.
-    wt.exe -w 0 new-tab --title "$SLUG" -- wsl.exe -d "$WSL_DISTRO" bash --login -c "tmux attach-session -t $SLUG" 2>/dev/null || \
-      echo "Windows Terminal launch failed. Attach manually: tmux attach-session -t $SLUG"
+
+    if [[ -n "$BATCH_NAME" ]]; then
+      # Batching: every dispatch with the same --batch NAME lands in one
+      # wt window (so a single tab logically holds N agent panes — easier
+      # to monitor 4-5 parallel agents at once). First call opens the
+      # window + first pane; subsequent calls split-pane into it via
+      # `-w ship-batch-<NAME>` window targeting. Marker file in /tmp
+      # decides first-vs-subsequent.
+      WT_WINDOW="ship-batch-${BATCH_NAME}"
+      BATCH_LOCK="/tmp/.ship-dispatch-batch-${BATCH_NAME}.lock"
+      if [[ -f "$BATCH_LOCK" ]] && (( $(date -r "$BATCH_LOCK" +%s 2>/dev/null || echo 0) > $(($(date +%s) - 86400)) )); then
+        # Same batch within 24h → split-pane in the batch window.
+        wt.exe -w "$WT_WINDOW" split-pane -V -p "$WT_PROFILE" wsl.exe -d "$WSL_DISTRO" bash --login -c "tmux attach-session -t $SLUG" 2>/dev/null || \
+          echo "Windows Terminal split-pane failed. Attach manually: tmux attach-session -t $SLUG"
+      else
+        # New batch (or stale lock) → new window with the first pane.
+        wt.exe -w "$WT_WINDOW" new-tab --title "$BATCH_NAME" -p "$WT_PROFILE" wsl.exe -d "$WSL_DISTRO" bash --login -c "tmux attach-session -t $SLUG" 2>/dev/null || \
+          echo "Windows Terminal launch failed. Attach manually: tmux attach-session -t $SLUG"
+        touch "$BATCH_LOCK"
+      fi
+    else
+      # `-w 0` targets the focused Windows Terminal window so new-tab
+      # actually creates a tab in the existing wt window instead of
+      # spawning a fresh wt window each dispatch.
+      wt.exe -w 0 new-tab --title "$SLUG" -p "$WT_PROFILE" wsl.exe -d "$WSL_DISTRO" bash --login -c "tmux attach-session -t $SLUG" 2>/dev/null || \
+        echo "Windows Terminal launch failed. Attach manually: tmux attach-session -t $SLUG"
+    fi
     auto_kickstart_tmux "$SLUG"
     ;;
   *)

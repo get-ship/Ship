@@ -30,6 +30,7 @@ bash .ship/skills/spawn-agent/scripts/dispatch.sh \
 | `--no-open` | Print launch command instead of opening terminal |
 | `--dry-run` | Show what would happen |
 | `--confirm` | Show spec and ask y/n before launching |
+| `--batch <name>` | Group this dispatch into a shared wt window `ship-batch-<name>`. First call opens the window; each subsequent call with the same name adds a split-pane. Lets you monitor 4-5 parallel agents in ONE wt window instead of N tabs. Lock expires after 24h. Currently honored on the `wt` terminal path. |
 
 ### Environment variables
 
@@ -43,6 +44,7 @@ These are personal configuration — set in your shell profile, not in project f
 | `SHIP_AGENT_MODEL` | Default model for spawned agents |
 | `SHIP_DISPATCH_CONFIRM` | Set to `1` to always prompt before dispatch |
 | `SHIP_PROVIDER_CLI` | Override provider binary: `claude`, `codex`, `gemini`, `opencode` |
+| `WT_PROFILE` | Windows Terminal profile name to launch panes under (default: `$WSL_DISTRO_NAME`). Set to your preferred profile (e.g. `Ubuntu`) so panes inherit your font/colors instead of wt's default. |
 
 ## Workflow
 
