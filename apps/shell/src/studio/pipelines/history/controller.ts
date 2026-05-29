@@ -5,6 +5,25 @@ import { ship } from '../../../ops'
 import type { LiveSource } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
+const MINUTE = 60_000
+const HOUR = 3_600_000
+const DAY = 86_400_000
+
+function formatRelative(iso: string, now = Date.now()): string {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return iso
+  const diff = now - t
+  const abs = Math.abs(diff)
+  const suffix = diff >= 0 ? 'ago' : 'from now'
+  if (abs < MINUTE) return 'just now'
+  if (abs < HOUR) return `${Math.floor(abs / MINUTE)}m ${suffix}`
+  if (abs < DAY) return `${Math.floor(abs / HOUR)}h ${suffix}`
+  const days = Math.floor(abs / DAY)
+  if (days < 30) return `${days}d ${suffix}`
+  if (days < 365) return `${Math.floor(days / 30)}mo ${suffix}`
+  return `${Math.floor(days / 365)}y ${suffix}`
+}
+
 type HistoryRow = {
   slug: string; pipeline?: string; state: string; tone: string;
   agent?: string; duration: string; updated_at: string;
@@ -47,7 +66,7 @@ export default controller({
     // The view-host doesn't inject `navigate` into ctx; route through the
     // runtime chrome bridge (matches views/home).
     const navigate = (path: string): void => chrome.navigate(path)
-    return { historyData, q, pipelineFilter, offset, limit, rows, total, hasPrev, hasNext, pipelines, qInput, pipelineInput, navigate }
+    return { historyData, q, pipelineFilter, offset, limit, rows, total, hasPrev, hasNext, pipelines, qInput, pipelineInput, navigate, formatRelative }
   },
   on: {
     applyFilter: ({ navigate, qInput, pipelineInput }: any) => {

@@ -60,7 +60,7 @@
             <td><sui-badge attr:tone={row.tone} size="sm">{row.state}</sui-badge></td>
             <td><span class="ship-hist-agent">{row.agent ?? '—'}</span></td>
             <td><span class="ship-hist-duration">{row.duration}</span></td>
-            <td><sui-timestamp attr:value={row.updated_at} relative></sui-timestamp></td>
+            <td><time datetime={row.updated_at}>{formatRelative(row.updated_at)}</time></td>
           </tr>
           {/for}
         </tbody>

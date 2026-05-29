@@ -59,7 +59,7 @@
       <div class="ship-focus-stack">
         {#for run of activeForPipeline() key={run.slug}}
           <sui-pipeline-run class="ship-live-run" attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent} on:ship-log-tick={(e) => pulseRun(e.currentTarget)}>
-            <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
+            <time slot="actions" datetime={run.updated_at}>{formatRelative(run.updated_at)}</time>
             <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/studio/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
             </sui-button>
@@ -100,7 +100,7 @@
           <span class="ship-focus-stat-label">Last run</span>
           <span class="ship-focus-stat-value-row">
             {#if def().last_run_at}
-              <sui-timestamp attr:value={def().last_run_at} relative></sui-timestamp>
+              <time datetime={def().last_run_at}>{formatRelative(def().last_run_at)}</time>
               {#if def().last_run_status}<sui-badge size="sm" attr:tone={def().last_run_tone_safe}>{def().last_run_status}</sui-badge>{/if}
             {:else}—{/if}
           </span>
@@ -164,7 +164,7 @@
         {#for run of runs() key={run.slug}}
           {#if !opsMode() || (run.state !== 'dispatched' && run.state !== 'pending' && run.state !== 'gate-pending')}
           <sui-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
-            <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
+            <time slot="actions" datetime={run.updated_at}>{formatRelative(run.updated_at)}</time>
             <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/studio/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
             </sui-button>

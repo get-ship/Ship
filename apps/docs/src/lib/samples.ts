@@ -316,10 +316,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
 </sui-table>`,
     },
   ],
-  'sui-timestamp': [
-    { label: 'ISO',     attrs: { value: new Date(Date.now() - 1000 * 60 * 17).toISOString() } },
-    { label: 'Format',  attrs: { value: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), format: 'date' } },
-  ],
   'sui-tree-view': [
     {
       label: 'File tree',

@@ -480,10 +480,6 @@
       "interactive": { "type": "bool", "default": "false" },
       "tone": { "type": "string", "default": "default" }
     },
-    "sui-timestamp": {
-      "format": { "values": ["relative", "absolute", "both"], "default": "relative" },
-      "value": { "type": "string", "default": "" }
-    },
     "sui-toast": {
       "closing": { "type": "bool", "default": "false" },
       "dismissible": { "type": "bool", "default": "true" },

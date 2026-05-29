@@ -4,6 +4,25 @@ import { ship, ops } from '../../../../ops'
 import type { LiveSource } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
+const MINUTE = 60_000
+const HOUR = 3_600_000
+const DAY = 86_400_000
+
+function formatRelative(iso: string, now = Date.now()): string {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return iso
+  const diff = now - t
+  const abs = Math.abs(diff)
+  const suffix = diff >= 0 ? 'ago' : 'from now'
+  if (abs < MINUTE) return 'just now'
+  if (abs < HOUR) return `${Math.floor(abs / MINUTE)}m ${suffix}`
+  if (abs < DAY) return `${Math.floor(abs / HOUR)}h ${suffix}`
+  const days = Math.floor(abs / DAY)
+  if (days < 30) return `${days}d ${suffix}`
+  if (days < 365) return `${Math.floor(days / 30)}mo ${suffix}`
+  return `${Math.floor(days / 365)}y ${suffix}`
+}
+
 type StepRun = { id: string; state: string; step_type: string; agent?: string }
 type StepRunWithFlag = StepRun & { isLast: boolean }
 type ObsRow = { step_name: string; trigger: string; duration_secs: number; exit_code?: number; commits: number; done_declared: boolean; succeeded: boolean; verdict: string; log_tail?: string }
@@ -48,7 +67,7 @@ export default controller({
       return nl >= 0 ? err.slice(0, nl) : err
     })
     const errorMultiline = derived(() => (read(runCtx()).run.error ?? '').includes('\n'))
-    return { runCtx, run, observations, timeline, steps, errorFirstLine, errorMultiline }
+    return { runCtx, run, observations, timeline, steps, errorFirstLine, errorMultiline, formatRelative }
   },
   on: {
     stopRun: async (_s, jobId: string) => {
