@@ -1,0 +1,30 @@
+{
+  "name": "@sui/canvas",
+  "version": "0.1.0",
+  "description": "Ship Canvas pack — <sui-canvas> drawing surface wrapping @excalidraw/excalidraw via a thin custom-element-to-React bridge. Heavy: Excalidraw adds ~1 MB minified (plus a React 19 tree) to any bundle that imports this pack. Per-tag tree-shake from '@sui/canvas/sui-canvas' — consumers only pay this cost when they actually import the tag.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts",
+    "./bundle": "./dist/sui-canvas.js"
+  },
+  "scripts": {
+    "build": "sui-build",
+    "pretest": "sui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@excalidraw/excalidraw": "0.18.1",
+    "@ship/sui-build": "workspace:*",
+    "@ship/sui-dom": "workspace:*",
+    "@ship/sui-runtime": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.5"
+  }
+}
