@@ -11,17 +11,19 @@ const arrow = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" strok
 <Window app="welcome" title="Welcome to Ship" markImg="/ship-logo.svg" accent="overview" open={open}>
   <div class="welcome">
     <sui-brand-mark class="big-logo" label="Ship"></sui-brand-mark>
-    <div class="ver">Personal AI runtime · public beta</div>
+    <div class="ver">Personal agentic runtime · public beta</div>
     {/* The period rides with the rotating word — `data-rotate` swaps the
-        whole span's text on each tick, so "anything." → "an ops dashboard."
+        whole span's text on each tick, so "them." → "an ops dashboard."
         without a gap between word and punctuation, and without reserving
-        a separate line for the dot. */}
-    <h1 class="wm">Build <span class="any" data-rotate data-lines="anything.|a project tracker.|a dev workspace.|a release pipeline.|a family calendar.|an ops dashboard.">anything.</span></h1>
-    <p class="tag">Stop requesting features. <b>Build them.</b></p>
+        a separate line for the dot. Anchored on "them." so the resting line
+        reads "Stop requesting features. Build them." */}
+    <h1 class="wm">
+      <span class="wm-lead">Stop requesting features.</span>
+      <span class="wm-cta">Build <span class="any" data-rotate data-lines="them.|a project tracker.|a dev workspace.|a release pipeline.|a family calendar.|an ops dashboard.">them.</span></span>
+    </h1>
     <p class="what">
-      Ship is a personal AI runtime. Compose agents, tools, and your own
-      approval into workflows the SaaS you use will never ship — and
-      run them on your machine.
+      Compose agents, tools, and your own approval into workflows the
+      SaaS you use will never ship — and run them on your machine.
     </p>
     <div class="actions">
       <sui-button size="lg">
@@ -56,18 +58,21 @@ const arrow = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" strok
   @media (prefers-reduced-motion: reduce) { .big-logo { animation: none; } }
   .wm {
     font-family: var(--font-display);
-    font-weight: 800;
-    font-size: 38px;
-    letter-spacing: -0.03em;
-    line-height: 1.04;
-    margin: 6px 0 0;
+    margin: 10px 0 0;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    line-height: 1.05;
     color: var(--foreground);
-    /* One line of reserved space — long rotating words wrap inline rather
-       than reflow the column. Tighter than the two-line reserve so the
-       hero sits taller. */
-    min-height: 1.2em;
-    display: grid;
-    place-items: center;
+  }
+  .wm-lead {
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -0.018em;
+    color: color-mix(in oklch, var(--foreground) 72%, var(--background));
+  }
+  .wm-cta {
+    font-weight: 800;
+    font-size: 42px;
+    letter-spacing: -0.032em;
   }
   .wm .any {
     background: linear-gradient(100deg, var(--primary) 0%, var(--accent) 80%);

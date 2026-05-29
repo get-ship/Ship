@@ -22,7 +22,7 @@ const dl = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="
         <rect x="13" y="13" width="8" height="8" rx="1.5"/>
       </svg>
     </button>
-    <sui-theme-picker class="theme-picker" placement="bottom-end"></sui-theme-picker>
+    <sui-theme-picker class="theme-picker" placement="bottom-end" surface="marketing"></sui-theme-picker>
     <a class="dl-pill" href="/download" data-open-window="download"><span set:html={dl} />Download</a>
   </div>
 </header>
@@ -88,7 +88,17 @@ const dl = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="
      icon). Match the rest of the right-rail rhythm by aligning baseline
      and giving the host a tight rest size. The picker handles hover,
      focus and the popover itself. */
+  /* Bump the palette icon a few px and ease the accent saturation —
+     at default `size="sm"` (~14px) the tinted dot was too small to
+     read as a color. Larger icon + slight desaturation lets the
+     theme accent register without screaming. */
   .theme-picker { display: inline-flex; align-items: center; }
+  .theme-picker::part(trigger) { padding: 4px 6px; }
+  .theme-picker::part(dot) {
+    width: 20px; height: 20px;
+    filter: saturate(0.85);
+  }
+  .theme-picker:hover::part(dot) { filter: saturate(1); }
   .clock {
     font-variant-numeric: tabular-nums;
     color: var(--foreground);

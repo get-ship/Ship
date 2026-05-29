@@ -23,7 +23,6 @@ const I = {
   orchestration: img('orchestration.svg'),
   pricing:       img('pricing.svg'),
   docs:          img('docs.svg'),
-  faq:           img('faq.svg'),
   arcade:        img('arcade.svg'),
   download:      img('download.svg'),
 };
@@ -71,9 +70,6 @@ const features: Tile[] = [
   </button>
   <button class="dock-item" type="button" data-app-target="docs" aria-label="Open Docs">
     <span class="dock-tile" set:html={I.docs} /><span class="running"></span><span class="tip">Docs</span>
-  </button>
-  <button class="dock-item" type="button" data-app-target="faq" aria-label="Open FAQ">
-    <span class="dock-tile" set:html={I.faq} /><span class="running"></span><span class="tip">FAQ</span>
   </button>
   <button class="dock-item dock-arcade" type="button" data-app-target="arcade" aria-label="Open Arcade">
     <span class="dock-tile" set:html={I.arcade} /><span class="running"></span><span class="tip">Arcade</span>

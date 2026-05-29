@@ -19,9 +19,12 @@
     "@fontsource-variable/syne": "^5.2.7",
     "@ship/arcade": "workspace:*",
     "@ship/arcade-engine": "workspace:*",
+    "@ship/sui-compiler-wasm": "workspace:*",
+    "@ship/sui-lsp-browser": "workspace:*",
     "@ship/sui-runtime": "workspace:*",
     "astro": "^6.1.1",
-    "better-auth": "^1.6.11"
+    "better-auth": "^1.6.11",
+    "shiki": "^4.0.0"
   },
   "devDependencies": {
     "@astrojs/sitemap": "^3.7.2",

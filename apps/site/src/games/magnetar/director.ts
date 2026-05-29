@@ -1,43 +1,43 @@
-// Magnetar director — gravity-slingshot puzzle orchestration.
+// Magnetar director — gravity-puzzle orchestration.
 //
-// Loads a level (planets, target, walls), exposes aim + fire over the stage
-// host API, runs the projectile flight through the same integrator the
-// trajectory ghost uses, scores target hits with per-shot accuracy bonuses,
-// and steps through the level list.
+// Owns the game clock, aim + thrust, the live trajectory predictor, the flight
+// integration, rescue collection, scoring, the landing celebration, and the
+// level list. Pixels live in scene.ts (persistent) and level-view.ts (per
+// level); body motion lives in bodies.ts; this file is logic.
 
-import { effect, signal, type Signal } from '@ship/sui-runtime'
-import type { Entity, Stage } from '@ship/arcade-engine'
+import { signal, type Signal } from '@ship/sui-runtime'
+import type { Stage } from '@ship/arcade-engine'
 import { LEVELS, type LevelSpec } from './levels.ts'
-import { hitsPlanet, hitsTarget, hitsWall, integrate, LAUNCH_SPEED, predictPath, PROJECTILE_R } from './physics.ts'
+import { earthAt, isDynamic, planetsAt } from './bodies.ts'
+import { hitsPlanet, hitsTarget, hitsWall, integrate, MAX_SPEED, MIN_SPEED, predictPath, PROJECTILE_R } from './physics.ts'
+import { createScene, GHOST_POOL } from './scene.ts'
+import { createLevelView, type LevelView } from './level-view.ts'
+import { shipParts, type Pal } from './visuals.ts'
+import { loadProgress, recordStars, totalStars, type Progress } from './progress.ts'
 
 const STAGE_W = 480
 const STAGE_H = 540
-// Predictor budget: with the slow projectile + strong gravity, paths
-// can swing back on themselves over 3+ seconds. We need enough lookahead
-// for the player to see the curve before they commit.
-const PREDICT_STEPS = 180
-const PREDICT_DT = 1 / 60
-const FLIGHT_DT = 1 / 60
-const GHOST_POOL = 80
-const STARS_PER_LAYER = 32
-// Per-shot accuracy scoring: clear on first shot pays max, third shot
-// still passes but cheap. No tokens — replay value comes from "can I
-// thread this on one shot?" not "did I miss an impossible pickup?"
-const SCORE_BY_SHOTS_USED = [3000, 2000, 1000] // shots used 1, 2, 3
+const PREDICT_STEPS = 240
+const DT = 1 / 60
+const MAX_FLIGHT_STEPS = 720 // ~12s — an orbit that never lands is a miss.
+const LAND_TIME = 0.75 // seconds of touchdown animation
+const TOKEN_SCORE = 250
+const MAX_STARS = LEVELS.length * 3
+// Stars come from landing ACCURACY — Earth is a target, and how close to its
+// centre you touch down is the score. accuracy ∈ [0,1]: 1 = dead centre, 0 =
+// grazing the edge. 3★ = inner third (bullseye), 2★ = inner two-thirds, 1★ =
+// landed anywhere on Earth. (Not attempts — replay to nail a cleaner landing.)
+function starsForAccuracy(acc: number): number { return acc >= 0.66 ? 3 : acc >= 0.33 ? 2 : 1 }
+
+type State = 'idle' | 'aiming' | 'flying' | 'landing' | 'cleared' | 'failed' | 'won'
 
 interface StageHostApi extends HTMLElement {
   bind?(name: string, sig: Signal<unknown>): void
-  set?(name: string, value: unknown): void
   stage?: Stage
-  setAim?(angleRad: number): void
+  setAim?(angleRad: number, speed?: number): void
   fire?(): void
   restart?(): void
   next?(): void
-}
-
-interface MagnetarOptions {
-  stage: Stage
-  stageHost: StageHostApi
 }
 
 export interface MagnetarHandle {
@@ -50,420 +50,315 @@ export interface MagnetarHandle {
   levelName: Signal<string>
   shotsLeft: Signal<number>
   lastShotsUsed: Signal<number>
-  state: Signal<'idle' | 'aiming' | 'flying' | 'cleared' | 'failed' | 'won'>
+  lastStars: Signal<number>
+  lastAccuracy: Signal<number>
+  lastPoints: Signal<number>
+  thrust: Signal<number>
+  state: Signal<State>
   hint: Signal<string>
-  setAimAngle(rad: number): void
+  /** Best stars earned per level (0 = not cleared). */
+  levelStars(): number[]
+  /** Levels the player may enter (1-based count). */
+  unlockedCount(): number
+  levelCount: number
+  loadLevel(i: number): void
+  setAimAngle(rad: number, speed?: number): void
   fire(): void
   restartLevel(): void
   nextLevel(): void
 }
 
-interface LevelEntities {
-  planets: Entity[]
-  target: Entity
-  targetGlow: Entity
-  walls: Entity[]
-}
+function clampSpeed(v: number): number { return Math.max(MIN_SPEED, Math.min(MAX_SPEED, v)) }
+function power(speed: number): number { return (clampSpeed(speed) - MIN_SPEED) / (MAX_SPEED - MIN_SPEED) }
+function flameLen(speed: number): number { return 6 + power(speed) * 24 }
 
-const HIGH_KEY = 'magnetar.high'
-
-function readHigh(): number {
-  try {
-    const v = Number(globalThis.localStorage?.getItem(HIGH_KEY))
-    return Number.isFinite(v) && v >= 0 ? v : 0
-  } catch { return 0 }
-}
-function writeHigh(v: number): void {
-  try { globalThis.localStorage?.setItem(HIGH_KEY, String(v)) } catch { /* private */ }
-}
-
-export function createMagnetarDirector(opts: MagnetarOptions): MagnetarHandle {
+export function createMagnetarDirector(opts: { stage: Stage; stageHost: StageHostApi }): MagnetarHandle {
   const { stage, stageHost } = opts
   const score = signal(0)
   const levelIndex = signal(0)
   const levelName = signal(LEVELS[0]!.name)
   const shotsLeft = signal(LEVELS[0]!.shots)
-  const gameState = signal<'idle' | 'aiming' | 'flying' | 'cleared' | 'failed' | 'won'>('idle')
+  const gameState = signal<State>('idle')
   const hint = signal(LEVELS[0]!.hint)
-  const high = signal(readHigh())
-  // Per-level shot accounting — used to compute the accuracy bonus
-  // when the target is cleared.
+  const thrust = signal(Math.round(power(LEVELS[0]!.initialThrust) * 100))
+  const crew = signal('')
   let shotsUsedThisLevel = 0
   const lastShotsUsed = signal(0)
+  const lastStars = signal(0)
+  const lastAccuracy = signal(0)
+  const lastPoints = signal(0)
+  let progress: Progress = loadProgress(LEVELS.length)
+  const starsText = signal(`${totalStars(progress)}/${MAX_STARS}`)
 
-  stageHost.bind?.('score', score as unknown as Signal<unknown>)
-  stageHost.bind?.('level', levelName as unknown as Signal<unknown>)
-  stageHost.bind?.('shots', shotsLeft as unknown as Signal<unknown>)
-  stageHost.bind?.('hint', hint as unknown as Signal<unknown>)
-  stageHost.bind?.('high', high as unknown as Signal<unknown>)
+  for (const [name, sig] of [['score', score], ['level', levelName], ['shots', shotsLeft], ['hint', hint], ['stars', starsText], ['thrust', thrust], ['crew', crew]] as const) {
+    stageHost.bind?.(name, sig as unknown as Signal<unknown>)
+  }
 
-  function pal() {
+  function pal(): Pal {
     return {
-      primary: stage.palette.resolve('primary'),
-      warning: stage.palette.resolve('warning'),
-      destructive: stage.palette.resolve('destructive'),
-      accent: stage.palette.resolve('accent'),
-      info: stage.palette.resolve('info'),
-      foreground: stage.palette.resolve('foreground'),
-      background: stage.palette.resolve('background'),
+      primary: stage.palette.resolve('primary'), warning: stage.palette.resolve('warning'),
+      destructive: stage.palette.resolve('destructive'), accent: stage.palette.resolve('accent'),
+      info: stage.palette.resolve('info'), foreground: stage.palette.resolve('foreground'),
+      background: stage.palette.resolve('background'), success: stage.palette.resolve('success'),
     }
   }
   let p = pal()
+  const scene = createScene(stage, p, STAGE_W, STAGE_H)
+  const { ship, ghost, impactEmitter, trailEmitter } = scene
 
-  // Ambient starfield.
-  const stars: Array<{ entity: Entity; speed: number; radius: number }> = []
-  for (let layer = 0; layer < 3; layer++) {
-    const speed = 8 + layer * 6
-    const r = 0.6 + layer * 0.4
-    const a = 0.35 + layer * 0.22
-    for (let i = 0; i < STARS_PER_LAYER; i++) {
-      const entity = stage.world.spawn({
-        tag: 'star', z: -10,
-        x: Math.random() * STAGE_W,
-        y: Math.random() * STAGE_H,
-        visual: { kind: 'shape', shape: 'circle', radius: r, fill: p.foreground },
-        alpha: a,
-      })
-      stars.push({ entity, speed, radius: r })
-    }
-  }
-
-  // Launch pad entity — a triangular chevron at the launch site.
-  const launchPad = stage.world.spawn({
-    tag: 'launch-pad', z: 4,
-    x: LEVELS[0]!.launch.x, y: LEVELS[0]!.launch.y,
-    visual: { kind: 'composite', parts: [
-      { shape: 'circle', radius: 14, fill: p.primary, alpha: 0.18 },
-      { shape: 'polygon', points: [0, -12, 10, 8, -10, 8], fill: p.primary },
-    ] },
-  })
-
-  // Aim indicator — a short line projecting from the pad.
-  const aimIndicator = stage.world.spawn({
-    tag: 'aim', z: 4,
-    x: LEVELS[0]!.launch.x, y: LEVELS[0]!.launch.y,
-    visual: { kind: 'shape', shape: 'rect', width: 4, height: 22, fill: p.warning },
-    alpha: 0.85,
-  })
-
-  // Ghost trajectory pool — pre-spawned tiny circles we reposition each aim update.
-  const ghost: Entity[] = []
-  for (let i = 0; i < GHOST_POOL; i++) {
-    const entity = stage.world.spawn({
-      tag: 'ghost', z: 2,
-      x: -1000, y: -1000,
-      visual: { kind: 'shape', shape: 'circle', radius: 1.6, fill: p.warning },
-      alpha: 0,
-    })
-    ghost.push(entity)
-  }
-
-  // Projectile entity (one, reused). Sits off-stage when not in flight.
-  const projectile = stage.world.spawn({
-    tag: 'projectile', z: 5,
-    x: -1000, y: -1000,
-    visual: { kind: 'composite', parts: [
-      { shape: 'circle', radius: 5, fill: p.warning, alpha: 0.35 },
-      { shape: 'circle', radius: 3, fill: p.warning },
-    ] },
-    alpha: 0,
-  })
-
-  // Particle emitter for impact bursts.
-  const impactEmitter = stage.particles.add(stage.world, {
-    kind: 'radial',
-    rate: 0, burstCount: 22, lifetime: 540, spread: 360,
-    direction: 0, speed: 180, speedJitter: 0.6, gravity: 0,
-    color: p.warning, sizeStart: 3, sizeEnd: 0, max: 120,
-  }, 0, 0)
-
-  // Engine trail emitter — follows the projectile.
-  const trailEmitter = stage.particles.add(stage.world, {
-    kind: 'cone', rate: 90, burstCount: 0, lifetime: 360,
-    spread: 30, direction: 0, speed: 60, speedJitter: 0.5, gravity: 0,
-    color: p.warning, sizeStart: 1.8, sizeEnd: 0, max: 80,
-  }, -1000, -1000)
-
-  let entities: LevelEntities | null = null
+  let view: LevelView | null = null
+  let dynamic = false
+  let clock = 0
   let aimAngle = LEVELS[0]!.initialAim
+  let aimSpeed = LEVELS[0]!.initialThrust
   let flightPos = { x: 0, y: 0 }
   let flightVel = { x: 0, y: 0 }
+  let flightSteps = 0
+  let landT = 0
+  let landFrom = { x: 0, y: 0 }
+  let landTo = { x: 0, y: 0 }
+  let landAccuracy = 0
 
-  function spawnLevel(spec: LevelSpec) {
+  function spec(): LevelSpec { return LEVELS[levelIndex()]! }
+
+  function spawnLevel(s: LevelSpec) {
     p = pal()
-    teardownLevel()
-    launchPad.x = spec.launch.x
-    launchPad.y = spec.launch.y
-    aimAngle = spec.initialAim
+    view?.destroy()
+    view = createLevelView(stage, s, p)
+    dynamic = isDynamic(s.planets, s.target)
+    clock = 0
+    aimAngle = s.initialAim
+    aimSpeed = clampSpeed(s.initialThrust)
     shotsUsedThisLevel = 0
-    const planets = spec.planets.map((pl) => {
-      const isPush = pl.mass < 0
-      return stage.world.spawn({
-        tag: 'planet', z: 1,
-        x: pl.x, y: pl.y,
-        visual: { kind: 'composite', parts: [
-          { shape: 'circle', radius: pl.radius + 12, fill: isPush ? p.destructive : p.info, alpha: 0.12 },
-          { shape: 'circle', radius: pl.radius + 6, fill: isPush ? p.destructive : p.info, alpha: 0.18 },
-          { shape: 'circle', radius: pl.radius, fill: isPush ? p.destructive : p.info },
-        ] },
-      })
-    })
-    const targetGlow = stage.world.spawn({
-      tag: 'target-glow', z: 1,
-      x: spec.target.x, y: spec.target.y,
-      visual: { kind: 'shape', shape: 'circle', radius: spec.target.radius + 16, fill: p.primary, stroke: p.primary, strokeWidth: 1 },
-      alpha: 0.14,
-    })
-    const target = stage.world.spawn({
-      tag: 'target', z: 2,
-      x: spec.target.x, y: spec.target.y,
-      visual: { kind: 'composite', parts: [
-        { shape: 'circle', radius: spec.target.radius, fill: p.primary, alpha: 0.22 },
-        { shape: 'circle', radius: spec.target.radius - 6, fill: p.primary },
-      ] },
-    })
-    const walls = spec.walls.map((w) => stage.world.spawn({
-      tag: 'wall', z: 1,
-      x: w.x + w.width / 2, y: w.y + w.height / 2,
-      visual: { kind: 'shape', shape: 'rect', width: w.width, height: w.height, fill: p.destructive },
-      alpha: 0.55,
-    }))
-    entities = { planets, target, targetGlow, walls }
-    levelName.set(spec.name)
-    hint.set(spec.hint)
-    shotsLeft.set(spec.shots)
+    flightSteps = 0
+    levelName.set(s.name)
+    hint.set(s.hint)
+    shotsLeft.set(s.shots)
+    remaining = s.rescues?.length ?? 0
+    updateCrew()
     gameState.set('aiming')
+    view.sync(0)
     refreshAim()
   }
 
-  function teardownLevel() {
-    if (!entities) return
-    for (const e of entities.planets) e.destroy()
-    entities.target.destroy()
-    entities.targetGlow.destroy()
-    for (const e of entities.walls) e.destroy()
-    entities = null
+  // Crew HUD: "collected/total", blank when a level has no rescues.
+  let remaining = 0
+  function updateCrew() {
+    const total = spec().rescues?.length ?? 0
+    crew.set(total === 0 ? '' : `${total - remaining}/${total}`)
+  }
+
+  function placeShip() {
+    const s = spec()
+    ship.x = s.launch.x
+    ship.y = s.launch.y
+    ship.rotation = aimAngle + Math.PI / 2
+    ship.alpha = 1
+    stage.world.repaintComposite(ship, shipParts(p, flameLen(aimSpeed)))
   }
 
   function refreshAim() {
-    const spec = LEVELS[levelIndex()]!
-    const start = { x: spec.launch.x, y: spec.launch.y }
-    const vx = Math.cos(aimAngle) * LAUNCH_SPEED
-    const vy = Math.sin(aimAngle) * LAUNCH_SPEED
-    const planets = spec.planets
-    const walls = spec.walls
-    const path = predictPath(start, { x: vx, y: vy },
-      planets,
-      walls,
-      { minX: 0, minY: 0, maxX: STAGE_W, maxY: STAGE_H },
-      PREDICT_STEPS, PREDICT_DT)
+    // Aim/thrust only mean something while aiming — ignore stray input during
+    // flight or the landing animation so the ship isn't yanked back to the pad.
+    if (gameState() !== 'aiming') return
+    const s = spec()
+    const start = { x: s.launch.x, y: s.launch.y }
+    const vx = Math.cos(aimAngle) * aimSpeed
+    const vy = Math.sin(aimAngle) * aimSpeed
+    const path = predictPath(start, { x: vx, y: vy }, (t) => planetsAt(s.planets, clock + t),
+      s.walls, { minX: 0, minY: 0, maxX: STAGE_W, maxY: STAGE_H }, PREDICT_STEPS, DT)
     for (let i = 0; i < GHOST_POOL; i++) {
       const g = ghost[i]!
-      const sampleEvery = 2
-      const idx = i * sampleEvery
-      const pt = path[idx]
-      if (!pt) {
-        g.alpha = 0
-        g.x = -1000
-        continue
-      }
-      g.x = pt.x
-      g.y = pt.y
-      g.alpha = (1 - i / GHOST_POOL) * 0.75
+      const pt = path[i * 2]
+      if (!pt) { g.alpha = 0; g.x = -1000; continue }
+      g.x = pt.x; g.y = pt.y
+      g.alpha = (1 - i / GHOST_POOL) * 0.7
     }
-    aimIndicator.x = spec.launch.x + Math.cos(aimAngle) * 22
-    aimIndicator.y = spec.launch.y + Math.sin(aimAngle) * 22
-    aimIndicator.rotation = aimAngle + Math.PI / 2
+    placeShip()
+    thrust.set(Math.round(power(aimSpeed) * 100))
   }
 
-  function clearGhost() {
-    for (const g of ghost) { g.alpha = 0; g.x = -1000 }
-  }
+  function clearGhost() { for (const g of ghost) { g.alpha = 0; g.x = -1000 } }
 
   function fire() {
-    if (gameState() !== 'aiming' || !entities) return
-    const spec = LEVELS[levelIndex()]!
-    flightPos = { x: spec.launch.x, y: spec.launch.y }
-    flightVel = { x: Math.cos(aimAngle) * LAUNCH_SPEED, y: Math.sin(aimAngle) * LAUNCH_SPEED }
-    projectile.x = flightPos.x
-    projectile.y = flightPos.y
-    projectile.alpha = 1
+    if (gameState() !== 'aiming' || !view) return
+    const s = spec()
+    flightPos = { x: s.launch.x, y: s.launch.y }
+    flightVel = { x: Math.cos(aimAngle) * aimSpeed, y: Math.sin(aimAngle) * aimSpeed }
+    flightSteps = 0
+    view.resetRescues()
+    view.resetTokens()
+    remaining = s.rescues?.length ?? 0
+    updateCrew()
+    ship.x = flightPos.x; ship.y = flightPos.y
+    ship.rotation = Math.atan2(flightVel.y, flightVel.x) + Math.PI / 2
+    stage.world.repaintComposite(ship, shipParts(p, 16))
     clearGhost()
-    aimIndicator.alpha = 0
     shotsUsedThisLevel += 1
     gameState.set('flying')
-    trailEmitter.x = flightPos.x
-    trailEmitter.y = flightPos.y
+    trailEmitter.x = flightPos.x; trailEmitter.y = flightPos.y
   }
 
-  function endShot(reason: 'hit-target' | 'crash' | 'out-of-bounds') {
-    projectile.alpha = 0
-    trailEmitter.x = -1000
-    trailEmitter.y = -1000
-    aimIndicator.alpha = 0.85
-    if (reason === 'hit-target') {
-      // Per-shot accuracy bonus. shotsUsedThisLevel was incremented at
-      // fire time, so it's 1-based: 1 = first-shot clear.
-      const idx = Math.min(shotsUsedThisLevel - 1, SCORE_BY_SHOTS_USED.length - 1)
-      const bonus = SCORE_BY_SHOTS_USED[Math.max(0, idx)]!
-      score.set(score() + bonus)
-      lastShotsUsed.set(shotsUsedThisLevel)
-      gameState.set('cleared')
-      impactEmitter.x = entities!.target.x
-      impactEmitter.y = entities!.target.y
-      impactEmitter.setColor(p.primary)
-      impactEmitter.burst()
-      return
-    }
-    impactEmitter.x = projectile.x
-    impactEmitter.y = projectile.y
+  function endShot(reason: 'crash' | 'out-of-bounds' | 'incomplete') {
+    ship.alpha = 0
+    trailEmitter.x = -1000; trailEmitter.y = -1000
+    impactEmitter.x = ship.x; impactEmitter.y = ship.y
     impactEmitter.setColor(reason === 'crash' ? p.destructive : p.foreground)
     impactEmitter.burst(reason === 'crash' ? 18 : 8)
     const left = shotsLeft() - 1
     shotsLeft.set(left)
-    if (left <= 0) {
-      gameState.set('failed')
-    } else {
-      gameState.set('aiming')
-      refreshAim()
-    }
+    if (left <= 0) { gameState.set('failed') }
+    else { gameState.set('aiming'); ship.alpha = 1; refreshAim() }
   }
 
-  function advanceFlight(dt: number) {
-    if (!entities) return
-    const spec = LEVELS[levelIndex()]!
-    const step = integrate(flightPos, flightVel, spec.planets, dt)
-    flightPos = step.pos
-    flightVel = step.vel
-    projectile.x = flightPos.x
-    projectile.y = flightPos.y
-    trailEmitter.x = flightPos.x
-    trailEmitter.y = flightPos.y
-    if (hitsTarget(flightPos, spec.target)) { endShot('hit-target'); return }
-    if (hitsPlanet(flightPos, spec.planets) || hitsWall(flightPos, spec.walls)) { endShot('crash'); return }
-    if (flightPos.x < -PROJECTILE_R || flightPos.x > STAGE_W + PROJECTILE_R || flightPos.y < -PROJECTILE_R || flightPos.y > STAGE_H + PROJECTILE_R) {
-      endShot('out-of-bounds')
-    }
+  function beginLanding() {
+    landT = 0
+    landFrom = { x: flightPos.x, y: flightPos.y }
+    landTo = view!.earthPos()
+    stage.world.repaintComposite(ship, shipParts(p, 0))
+    trailEmitter.x = -1000; trailEmitter.y = -1000
+    impactEmitter.x = landTo.x; impactEmitter.y = landTo.y
+    impactEmitter.setColor(p.success)
+    impactEmitter.burst(28)
+    gameState.set('landing')
   }
 
-  // Cursor-rotation actions for keyboard aim.
+  function finalizeWin() {
+    ship.alpha = 0
+    const stars = starsForAccuracy(landAccuracy)
+    // Points scale with accuracy and with the level — later levels pay more.
+    const points = Math.round(landAccuracy * (700 + levelIndex() * 130))
+    score.set(score() + points)
+    lastShotsUsed.set(shotsUsedThisLevel)
+    lastStars.set(stars)
+    lastAccuracy.set(landAccuracy)
+    lastPoints.set(points)
+    progress = recordStars(progress, levelIndex(), stars)
+    starsText.set(`${totalStars(progress)}/${MAX_STARS}`)
+    impactEmitter.x = landTo.x; impactEmitter.y = landTo.y
+    impactEmitter.setColor(p.primary)
+    impactEmitter.burst(20)
+    gameState.set('cleared')
+  }
+
+  function advanceFlight() {
+    const s = spec()
+    const planets = planetsAt(s.planets, clock)
+    const step = integrate(flightPos, flightVel, planets, DT)
+    flightPos = step.pos; flightVel = step.vel
+    flightSteps += 1
+    ship.x = flightPos.x; ship.y = flightPos.y
+    ship.rotation = Math.atan2(flightVel.y, flightVel.x) + Math.PI / 2
+    trailEmitter.x = flightPos.x; trailEmitter.y = flightPos.y
+    if (view) {
+      const grabbed = view.collect(flightPos.x, flightPos.y)
+      if (grabbed.length) {
+        remaining = Math.max(0, remaining - grabbed.length)
+        updateCrew()
+        for (const g of grabbed) { impactEmitter.x = g.x; impactEmitter.y = g.y; impactEmitter.setColor(p.success); impactEmitter.burst(10) }
+      }
+      for (const tk of view.collectTokens(flightPos.x, flightPos.y)) {
+        score.set(score() + TOKEN_SCORE)
+        impactEmitter.x = tk.x; impactEmitter.y = tk.y; impactEmitter.setColor(p.accent); impactEmitter.burst(8)
+      }
+    }
+    if (hitsTarget(flightPos, earthAt(s.target, clock))) {
+      if (view?.allRescued()) {
+        const e = earthAt(s.target, clock)
+        const d = Math.hypot(flightPos.x - e.x, flightPos.y - e.y)
+        landAccuracy = Math.max(0, 1 - d / (s.target.radius + PROJECTILE_R))
+        beginLanding()
+      } else endShot('incomplete')
+      return
+    }
+    if (hitsPlanet(flightPos, planets) || hitsWall(flightPos, s.walls)) { endShot('crash'); return }
+    const out = flightPos.x < -PROJECTILE_R || flightPos.x > STAGE_W + PROJECTILE_R || flightPos.y < -PROJECTILE_R || flightPos.y > STAGE_H + PROJECTILE_R
+    if (out || flightSteps > MAX_FLIGHT_STEPS) endShot('out-of-bounds')
+  }
+
   const unsubs: Array<() => void> = []
-  unsubs.push(stage.input.on('aim-left', (phase) => { if (phase === 'start') { aimAngle -= 0.08; refreshAim() } }))
-  unsubs.push(stage.input.on('aim-right', (phase) => { if (phase === 'start') { aimAngle += 0.08; refreshAim() } }))
-  unsubs.push(stage.input.on('fire', (phase) => { if (phase === 'start') fire() }))
+  unsubs.push(stage.input.on('aim-left', (ph) => { if (ph === 'start') { aimAngle -= 0.06; refreshAim() } }))
+  unsubs.push(stage.input.on('aim-right', (ph) => { if (ph === 'start') { aimAngle += 0.06; refreshAim() } }))
+  unsubs.push(stage.input.on('thrust-up', (ph) => { if (ph === 'start') { aimSpeed = clampSpeed(aimSpeed + 4); refreshAim() } }))
+  unsubs.push(stage.input.on('thrust-down', (ph) => { if (ph === 'start') { aimSpeed = clampSpeed(aimSpeed - 4); refreshAim() } }))
+  unsubs.push(stage.input.on('fire', (ph) => { if (ph === 'start') fire() }))
 
   unsubs.push(stage.palette.onChange(() => {
     p = pal()
-    stage.world.repaintComposite(launchPad, [
-      { shape: 'circle', radius: 14, fill: p.primary, alpha: 0.18 },
-      { shape: 'polygon', points: [0, -12, 10, 8, -10, 8], fill: p.primary },
-    ])
-    stage.world.repaintShape(aimIndicator, { kind: 'shape', shape: 'rect', width: 4, height: 22, fill: p.warning })
-    for (const g of ghost) stage.world.repaintShape(g, { kind: 'shape', shape: 'circle', radius: 1.6, fill: p.warning })
-    stage.world.repaintComposite(projectile, [
-      { shape: 'circle', radius: 5, fill: p.warning, alpha: 0.35 },
-      { shape: 'circle', radius: 3, fill: p.warning },
-    ])
-    for (const s of stars) stage.world.repaintShape(s.entity, { kind: 'shape', shape: 'circle', radius: s.radius, fill: p.foreground })
-    trailEmitter.setColor(p.warning)
-    impactEmitter.setColor(p.warning)
-    if (entities) {
-      const spec = LEVELS[levelIndex()]!
-      for (let i = 0; i < entities.planets.length; i++) {
-        const pl = spec.planets[i]!
-        const isPush = pl.mass < 0
-        stage.world.repaintComposite(entities.planets[i]!, [
-          { shape: 'circle', radius: pl.radius + 12, fill: isPush ? p.destructive : p.info, alpha: 0.12 },
-          { shape: 'circle', radius: pl.radius + 6, fill: isPush ? p.destructive : p.info, alpha: 0.18 },
-          { shape: 'circle', radius: pl.radius, fill: isPush ? p.destructive : p.info },
-        ])
-      }
-      stage.world.repaintShape(entities.targetGlow, { kind: 'shape', shape: 'circle', radius: spec.target.radius + 16, fill: p.primary, stroke: p.primary, strokeWidth: 1 })
-      stage.world.repaintComposite(entities.target, [
-        { shape: 'circle', radius: spec.target.radius, fill: p.primary, alpha: 0.22 },
-        { shape: 'circle', radius: spec.target.radius - 6, fill: p.primary },
-      ])
-      for (const w of entities.walls) stage.world.repaintShape(w, { kind: 'shape', shape: 'rect', width: w.display.width || 1, height: w.display.height || 1, fill: p.destructive })
-    }
+    scene.repaintStatic(p)
+    view?.repaint(p)
+    if (gameState() === 'aiming') refreshAim()
   }))
 
   unsubs.push(stage.onTick((dt) => {
-    // Starfield ticks always (looks alive on idle).
-    for (const s of stars) {
+    for (const s of scene.stars) {
       s.entity.y += s.speed * dt
       if (s.entity.y > STAGE_H + 2) { s.entity.y = -2; s.entity.x = Math.random() * STAGE_W }
     }
-    // Subtle target pulse.
-    if (entities) {
-      const t = (performance.now() / 460) % (Math.PI * 2)
-      entities.targetGlow.scale = 1 + Math.sin(t) * 0.06
-    }
-    if (gameState() === 'flying') advanceFlight(dt)
-  }))
-
-  const api = stageHost
-  api.setAim = (rad: number) => { aimAngle = rad; refreshAim() }
-  api.fire = fire
-  api.restart = () => { spawnLevel(LEVELS[levelIndex()]!) }
-  api.next = () => {
-    const next = levelIndex() + 1
-    if (next >= LEVELS.length) {
-      const final = score()
-      if (final > high()) { high.set(final); writeHigh(final) }
-      gameState.set('won')
+    const st = gameState()
+    if (st === 'landing') {
+      landT += dt
+      const k = Math.min(1, landT / LAND_TIME)
+      const e = k * (2 - k)
+      ship.x = landFrom.x + (landTo.x - landFrom.x) * e
+      ship.y = landFrom.y + (landTo.y - landFrom.y) * e
+      ship.scale = 1 - 0.72 * e
+      ship.rotation += dt * 6
+      if (k >= 1) finalizeWin()
       return
     }
-    levelIndex.set(next)
-    spawnLevel(LEVELS[next]!)
-  }
-
-  // Initial scene paint so the idle overlay sits over a populated field.
-  spawnLevel(LEVELS[0]!)
-  gameState.set('idle')
-  globalThis.requestAnimationFrame?.(() => {
-    stage.world.flush()
-    stage.world.app.render()
-  })
-
-  // Track loss/win transitions through an effect; the page binds it.
-  unsubs.push(effect(() => {
-    const s = gameState()
-    if (s === 'won') {
-      const final = score()
-      if (final > high()) { high.set(final); writeHigh(final) }
+    if (st === 'idle' || st === 'aiming' || st === 'flying') {
+      clock += dt
+      view?.sync(clock)
+      if (st === 'aiming' && dynamic) refreshAim()
+      if (st === 'flying') advanceFlight()
     }
   }))
+
+  function loadLevel(i: number) {
+    if (i < 0 || i >= LEVELS.length || i >= progress.unlocked) return
+    ship.scale = 1
+    levelIndex.set(i)
+    spawnLevel(LEVELS[i]!)
+  }
+
+  const api = stageHost
+  api.setAim = (rad, speed) => { aimAngle = rad; if (speed !== undefined) aimSpeed = clampSpeed(speed); refreshAim() }
+  api.fire = fire
+  api.restart = () => { ship.scale = 1; spawnLevel(spec()) }
+  api.next = () => {
+    const nxt = levelIndex() + 1
+    // Completing a level unlocks the next; if there's none left, back to select.
+    if (nxt < LEVELS.length && nxt < progress.unlocked) loadLevel(nxt)
+    else { ship.scale = 1; gameState.set('idle') }
+  }
+
+  spawnLevel(LEVELS[0]!)
+  gameState.set('idle')
+  globalThis.requestAnimationFrame?.(() => { stage.world.flush(); stage.world.app.render() })
 
   return {
     destroy() {
       for (const off of unsubs) off()
       unsubs.length = 0
-      teardownLevel()
-      launchPad.destroy()
-      aimIndicator.destroy()
-      for (const g of ghost) g.destroy()
-      projectile.destroy()
-      for (const s of stars) s.entity.destroy()
-      impactEmitter.destroy()
-      trailEmitter.destroy()
+      view?.destroy()
+      scene.destroy()
       delete (api as StageHostApi).setAim
       delete (api as StageHostApi).fire
       delete (api as StageHostApi).restart
       delete (api as StageHostApi).next
     },
-    start() {
-      score.set(0)
-      levelIndex.set(0)
-      gameState.set('aiming')
-      spawnLevel(LEVELS[0]!)
-      stage.start()
-    },
+    start() { ship.scale = 1; gameState.set('idle'); stage.start() },
     pause() { stage.pause() },
     resume() { stage.resume() },
-    score, levelIndex, levelName, shotsLeft, lastShotsUsed, state: gameState, hint,
-    setAimAngle(rad: number) { aimAngle = rad; refreshAim() },
+    score, levelIndex, levelName, shotsLeft, lastShotsUsed, lastStars, lastAccuracy, lastPoints, thrust, state: gameState, hint,
+    levelStars: () => progress.stars.slice(),
+    unlockedCount: () => progress.unlocked,
+    levelCount: LEVELS.length,
+    loadLevel,
+    setAimAngle(rad, speed) { aimAngle = rad; if (speed !== undefined) aimSpeed = clampSpeed(speed); refreshAim() },
     fire,
-    restartLevel() { spawnLevel(LEVELS[levelIndex()]!) },
+    restartLevel() { ship.scale = 1; spawnLevel(spec()) },
     nextLevel() { api.next?.() },
   }
 }

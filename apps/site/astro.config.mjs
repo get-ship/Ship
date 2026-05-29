@@ -4,6 +4,10 @@ import sitemap from '@astrojs/sitemap';
 export default defineConfig({
   site: 'https://getship.dev',
   output: 'static',
+  // (Left CSS handling at Astro's 'auto' default: small sheets inline, the big
+  //  shared Desktop sheet stays a cacheable <link>. Forcing 'always' inlined
+  //  ~30KB into every page's HTML and killed cross-page CSS caching — a net
+  //  loss for multi-surface browsing, and unmeasurable on this box.)
   // One nav: the desktop is the whole site. /features no longer exists
   // (its content lives in windows); auth bounces to the login window.
   redirects: {

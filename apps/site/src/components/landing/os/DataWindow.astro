@@ -18,9 +18,10 @@
  * naming names.
  */
 import Window from './Window.astro';
+import DownloadCTA from './DownloadCTA.astro';
 const { open = false } = Astro.props;
 ---
-<Window app="data" title="Data" meta="collections + artifacts" mark="C" accent="collections" open={open}>
+<Window app="data" title="Data" meta="collections + artifacts" mark="C" accent="collections" open={open} defer>
   <div class="win-scroll dt">
     {/* ── Hero ─────────────────────────────────────────────────────────── */}
     <section class="hero">
@@ -164,6 +165,10 @@ const { open = false } = Astro.props;
         <h3 class="sync-h">Optional cloud sync.</h3>
         <p class="sync-p">Stay local. Or flip a switch and your collections and artifacts sync across machines. Your data, your call.</p>
       </div>
+    </section>
+
+    <section class="dt-cta">
+      <DownloadCTA message="Stop renting your data. Own it locally." />
     </section>
   </div>
 </Window>

@@ -14,6 +14,7 @@
  *                 vendored bits — visualised as chip rows.
  */
 import Window from './Window.astro';
+import DownloadCTA from './DownloadCTA.astro';
 const { open = false } = Astro.props;
 
 interface Pin { id: string; label: string; x: number; y: number; tone: 'primary' | 'warning' | 'destructive' }
@@ -42,17 +43,17 @@ const packs: Pack[] = [
   },
 ];
 ---
-<Window app="custom-views" title="Custom Views" meta="built with SUI" mark="V" accent="dashboard" open={open}>
+<Window app="custom-views" title="Custom Views" meta="built with SUI" mark="V" accent="dashboard" open={open} defer>
   <div class="win-scroll cv">
     {/* ── Hero ─────────────────────────────────────────────────────────── */}
     <section class="hero">
       <div class="hero-inner">
         <div class="eyebrow" data-reveal>Views · built with SUI</div>
         <h2 class="hl" data-reveal>
-          The surface Ship shows you.
+          Not a transcript. <span class="hl-accent">A real interface.</span>
         </h2>
         <p class="hero-sub" data-reveal>
-          Every view is built with SUI — Ship's framework, optimised for agent authoring. Hot reload. Annotate. Pair.
+          Every view is a real surface built with SUI — Ship's component framework, made for agents to author. Point at any element, leave a note, and the agent rewrites the code. It hot-reloads live.
         </p>
       </div>
     </section>
@@ -164,6 +165,10 @@ const packs: Pack[] = [
           </article>
         ))}
       </div>
+    </section>
+
+    <section class="cv-cta">
+      <DownloadCTA message="Stop describing your view. Render it." />
     </section>
   </div>
 </Window>

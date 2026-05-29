@@ -1,51 +1,609 @@
 ---
+// FILE_CAP_OVERRIDE: 3-pane docs surface — TOC + article + meta rail —
+// sits together because they share the active-slug state machine.
 /*
- * DocsWindow — links to the live Ship documentation. Marketing surface
- * only; the real docs are hosted separately. Each link opens out-of-band.
+ * DocsWindow — curated guide reader.
+ *
+ *   Left rail  · Sections + articles. Active slug highlights; sections
+ *                collapse. Search input filters the visible tree.
+ *   Center    · Breadcrumb, article header (tags, title, kicker,
+ *                read time + updated date), rendered body, prev/next.
+ *   Right rail · On this page (auto from h2/h3), Related links,
+ *                Edit on GitHub, Try this in Ship CTA.
+ *
+ * Data: every article is a content collection entry, sorted by
+ * section + order. We render the full set server-side, hide all but
+ * the active article, and a tiny script flips visibility on TOC
+ * click + URL change.
  */
 import Window from './Window.astro';
-const { open = false } = Astro.props;
+import { getCollection, render } from 'astro:content';
 
-const sections = [
-  { k: 'Getting started',  v: 'Install Ship, point it at a workspace, run your first agent.', href: 'https://ship.com/docs/start' },
-  { k: 'Agents',           v: 'Profiles, skills, permissions, MCP — and how `ship use` compiles them.', href: 'https://ship.com/docs/agents' },
-  { k: 'Pipelines',        v: 'Declarative DAGs, gates, triggers, restart semantics.', href: 'https://ship.com/docs/pipelines' },
-  { k: 'Views & SUI',      v: 'Author UI in `.sui` files — primitives, signals, hot-reload.', href: 'https://ship.com/docs/sui' },
-  { k: 'Collections',      v: 'Schemaful data with auto-events and reactive subscriptions.', href: 'https://ship.com/docs/collections' },
-  { k: 'CLI reference',    v: '`ship daemon`, `ship dispatch`, `ship use`, `ship mcp serve`.', href: 'https://ship.com/docs/cli' },
+const { open = false, slug = '' } = Astro.props;
+
+// Deterministic section order for the rail — not alphabetical. Sections
+// not listed here fall to the end (alphabetical among themselves).
+const SECTION_ORDER = [
+  'Getting started', 'Concepts', 'Building views', 'Agents',
+  'Data', 'Automation', 'Spaces', 'Security', 'Cloud', 'FAQ',
 ];
----
-<Window app="docs" title="Docs" meta="how Ship works" mark="D" accent="dashboard" open={open}>
-  <div class="win-scroll docs">
-    <div class="stage">
-      <div class="eyebrow">Docs · how Ship works</div>
-      <h2 class="hl">Build with Ship.</h2>
-      <p class="prompt">Start with the install, then dig into agents, pipelines, and SUI views.</p>
+const sectionRank = (s: string) => {
+  const i = SECTION_ORDER.indexOf(s);
+  return i === -1 ? 999 : i;
+};
 
-      <div class="grid">
-        {sections.map((s) => (
-          <a href={s.href} class="row" target="_blank" rel="noopener noreferrer">
-            <sui-list-tile interactive>
-              <span class="k">{s.k}</span>
-              <span slot="meta" class="v">{s.v}</span>
-              <span slot="trailing" class="ext">↗</span>
-            </sui-list-tile>
-          </a>
-        ))}
+// Draft pages (status: 'draft') are scaffolds — visible in dev, hidden in
+// production until their content is real. Toggle with the page's frontmatter.
+const all = (await getCollection('docs')).filter(
+  (e) => import.meta.env.DEV || e.data.status !== 'draft',
+);
+all.sort((a, b) =>
+  sectionRank(a.data.section) - sectionRank(b.data.section) ||
+  a.data.section.localeCompare(b.data.section) ||
+  (a.data.order ?? 100) - (b.data.order ?? 100),
+);
+
+const sectionsMap: Record<string, typeof all> = {};
+for (const a of all) {
+  (sectionsMap[a.data.section] ??= [] as unknown as typeof all).push(a);
+}
+const sections = Object.keys(sectionsMap).sort(
+  (a, b) => sectionRank(a) - sectionRank(b) || a.localeCompare(b),
+);
+const initialSlug = slug || all[0]?.id || '';
+// Rail accordion: only the section holding the active doc opens by default —
+// not every section at once.
+const activeSection = all.find((a) => a.id === initialSlug)?.data.section ?? sections[0] ?? '';
+
+interface ArticleBundle {
+  slug: string;
+  title: string;
+  description: string;
+  section: string;
+  kicker?: string;
+  readTime: number;
+  updated: string;
+  tags: string[];
+  related: string[];
+  Content: Awaited<ReturnType<typeof render>>['Content'];
+  headings: Awaited<ReturnType<typeof render>>['headings'];
+  rawBody: string;
+}
+
+const articles: ArticleBundle[] = await Promise.all(
+  all.map(async (entry) => {
+    const { Content, headings } = await render(entry);
+    const words = entry.body?.split(/\s+/).length ?? 0;
+    return {
+      slug: entry.id,
+      title: entry.data.title,
+      description: entry.data.description,
+      section: entry.data.section,
+      kicker: entry.data.kicker,
+      readTime: entry.data.readTime ?? Math.max(1, Math.round(words / 220)),
+      updated: entry.data.updated ?? '',
+      tags: entry.data.tags ?? [],
+      related: entry.data.related ?? [],
+      Content,
+      headings,
+      rawBody: entry.body,
+    };
+  }),
+);
+
+function neighbours(slug: string) {
+  const idx = articles.findIndex((a) => a.slug === slug);
+  return {
+    prev: idx > 0 ? articles[idx - 1] : null,
+    next: idx >= 0 && idx < articles.length - 1 ? articles[idx + 1] : null,
+  };
+}
+---
+<Window app="docs" title="Docs" meta="curated guides" mark="D" accent="dashboard" open={open}>
+  <div class="docs-shell" data-docs-shell data-active={initialSlug}>
+
+    {/* ── Left rail · TOC ──────────────────────────────────────────── */}
+    <aside class="rail rail-left">
+      <header class="rail-h">
+        <span class="rail-title">Docs</span>
+        <span class="rail-count">{articles.length}</span>
+      </header>
+      <div class="search">
+        <input type="search" placeholder="Filter…" data-docs-search aria-label="Filter docs" />
       </div>
-    </div>
+      <nav class="toc" aria-label="Documentation">
+        {sections.map((section) => (
+          <details class="sec" open={section === activeSection} data-sec={section}>
+            <summary class="sec-h">
+              <span class="sec-glyph" aria-hidden="true">▾</span>
+              <span class="sec-name">{section}</span>
+              <span class="sec-n">{sectionsMap[section].length}</span>
+            </summary>
+            <ul class="sec-list">
+              {sectionsMap[section].map((a) => (
+                <li>
+                  <a
+                    class="toc-a"
+                    href={`/docs/${a.id}`}
+                    data-toc-slug={a.id}
+                    data-search={`${a.data.title} ${a.data.description} ${(a.data.tags ?? []).join(' ')}`.toLowerCase()}
+                  >
+                    <span class="toc-title">{a.data.title}</span>
+                    <span class="toc-desc">{a.data.description}</span>
+                  </a>
+                </li>
+              ))}
+              {/* The interactive SUI tutorial is a full editor surface at
+                  its own nested route — this link navigates (no
+                  data-toc-slug = not an in-window swap). */}
+              {section === 'Building views' && (
+                <li>
+                  <a class="toc-a" href="/docs/ship-ui/tutorial/">
+                    <span class="toc-title">SUI tutorial</span>
+                    <span class="toc-desc">Edit real code, watch it render — 25 steps.</span>
+                  </a>
+                </li>
+              )}
+            </ul>
+          </details>
+        ))}
+      </nav>
+      <footer class="rail-foot">
+        <a class="rail-ref" href="https://docs.getship.dev" target="_blank" rel="noreferrer">
+          Reference <span aria-hidden="true">↗</span>
+        </a>
+      </footer>
+    </aside>
+
+    {/* ── Center · articles ────────────────────────────────────────── */}
+    <main class="article-host">
+      {articles.map((a) => {
+        const { Content, headings, rawBody } = a;
+        const { prev, next } = neighbours(a.slug);
+        return (
+          <article class="article" data-article-slug={a.slug} hidden={a.slug !== initialSlug}>
+            <nav class="crumb" aria-label="Breadcrumb">
+              <a href="/docs">Docs</a>
+              <span class="crumb-sep">›</span>
+              <span>{a.section}</span>
+              <span class="crumb-sep">›</span>
+              <span>{a.title}</span>
+            </nav>
+
+            <header class="art-h">
+              {a.tags?.length > 0 && (
+                <ul class="tags">
+                  {a.tags.map((t) => <li class="tag">{t}</li>)}
+                </ul>
+              )}
+              <h1 class="art-title">{a.title}</h1>
+              {a.kicker && <p class="art-kicker">{a.kicker}</p>}
+              <div class="art-meta">
+                <span><b>{a.readTime}</b> min read</span>
+                {a.updated && <span class="art-meta-sep">·</span>}
+                {a.updated && <span>updated <time datetime={a.updated}>{a.updated}</time></span>}
+              </div>
+            </header>
+
+            <div class="art-body" data-doc-body>
+              <Content />
+              <script
+                type="application/json"
+                data-doc-headings
+                set:html={JSON.stringify(headings)}
+              />
+              <script
+                type="application/json"
+                data-doc-body-raw
+                set:html={JSON.stringify(rawBody)}
+              />
+            </div>
+
+            <footer class="art-pn">
+              {prev ? (
+                <a class="pn pn-prev" href={`/docs/${prev.slug}`} data-toc-link={prev.slug}>
+                  <span class="pn-dir">‹ Previous</span>
+                  <span class="pn-name">{prev.title}</span>
+                </a>
+              ) : <div />}
+              {next ? (
+                <a class="pn pn-next" href={`/docs/${next.slug}`} data-toc-link={next.slug}>
+                  <span class="pn-dir">Next ›</span>
+                  <span class="pn-name">{next.title}</span>
+                </a>
+              ) : <div />}
+            </footer>
+          </article>
+        );
+      })}
+    </main>
+
+    {/* ── Right rail · On-this-page + related ──────────────────────── */}
+    <aside class="rail rail-right">
+      <section class="onpage">
+        <header class="rail-h"><span>On this page</span></header>
+        <ol class="onpage-list" data-onpage-list>
+          <li><a href="#top">Top</a></li>
+        </ol>
+      </section>
+
+      <section class="related">
+        <header class="rail-h"><span>Related</span></header>
+        <ul class="related-list" data-related-list>
+          <li class="related-empty">—</li>
+        </ul>
+      </section>
+
+      <section class="meta">
+        <header class="rail-h"><span>Meta</span></header>
+        <ul class="meta-list">
+          <li>
+            <a class="meta-link" data-mdoc-link href="" target="_blank" rel="noreferrer">
+              Raw markdown <span aria-hidden="true">↗</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+    </aside>
   </div>
 </Window>
 
 <style>
-  .docs { display: flex; }
-  .stage { margin: auto; width: 100%; max-width: 640px; padding: 26px 28px; }
-  .eyebrow { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--w-accent); }
-  .hl { font-family: var(--font-display); font-size: clamp(26px, 3.4vw, 34px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.04; margin: 6px 0 4px; color: var(--foreground); }
-  .prompt { font-size: 13.5px; line-height: 1.5; color: color-mix(in oklch, var(--foreground) 66%, var(--background)); margin: 0 0 14px; }
-  .grid { display: flex; flex-direction: column; gap: 4px; }
-  .row { text-decoration: none; color: inherit; display: block; }
-  .k { font-weight: 700; font-size: 13.5px; color: var(--foreground); }
-  .v { font-size: 12px; color: color-mix(in oklch, var(--foreground) 64%, var(--background)); }
-  .ext { font-family: var(--font-mono); font-size: 14px; color: color-mix(in oklch, var(--w-accent) 70%, var(--foreground)); }
+  .docs-shell {
+    width: 100%; height: 100%;
+    display: grid;
+    grid-template-columns: 240px 1fr 240px;
+    overflow: hidden;
+  }
+
+  .rail {
+    display: flex; flex-direction: column;
+    min-height: 0; min-width: 0;
+    background: color-mix(in oklch, var(--card) 86%, transparent);
+    border-right: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+    overflow-y: auto;
+  }
+  .rail-right { border-right: 0; border-left: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent); }
+  .rail-h {
+    padding: 12px 16px 6px;
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 56%, var(--background));
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .rail-title { color: var(--foreground); }
+  .rail-count {
+    font-size: 9.5px;
+    color: color-mix(in oklch, var(--foreground) 50%, var(--background));
+  }
+  .rail-foot {
+    margin-top: auto;
+    padding: 12px 16px;
+    border-top: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+  }
+  .rail-ref {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    color: var(--w-accent); text-decoration: none;
+  }
+
+  .search { padding: 6px 12px 10px; border-bottom: 1px solid color-mix(in oklch, var(--foreground) 6%, transparent); }
+  .search input {
+    width: 100%; box-sizing: border-box;
+    padding: 7px 10px;
+    background: color-mix(in oklch, var(--background) 70%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
+    border-radius: 7px;
+    font: inherit; font-size: 12px;
+    color: var(--foreground);
+  }
+  .toc { padding: 6px 0; }
+  details[open] .sec-glyph { transform: rotate(0deg); }
+  details:not([open]) .sec-glyph { transform: rotate(-90deg); }
+  .sec-glyph { display: inline-block; transition: transform 160ms ease; font-size: 9px; opacity: 0.6; width: 10px; }
+  .sec-h {
+    list-style: none; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px;
+    font-family: var(--font-display); font-weight: 700; font-size: 12px;
+    color: var(--foreground);
+  }
+  .sec-h::-webkit-details-marker { display: none; }
+  .sec-h:hover { background: color-mix(in oklch, var(--w-accent) 6%, transparent); }
+  .sec-name { flex: 1; }
+  .sec-n { font-family: var(--font-mono); font-size: 9.5px; color: color-mix(in oklch, var(--foreground) 50%, var(--background)); }
+  .sec-list { list-style: none; margin: 0; padding: 0 6px 6px; }
+  .toc-a {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    text-decoration: none; color: var(--foreground);
+    border-left: 2px solid transparent;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+  .toc-a:hover { background: color-mix(in oklch, var(--w-accent) 8%, transparent); }
+  .toc-a.on {
+    background: color-mix(in oklch, var(--w-accent) 14%, transparent);
+    border-left-color: var(--w-accent);
+  }
+  .toc-title { font-size: 12.5px; font-weight: 600; }
+  .toc-desc { font-size: 10.5px; color: color-mix(in oklch, var(--foreground) 56%, var(--background)); line-height: 1.4; }
+
+  /* ── Article center ── */
+  .article-host { min-width: 0; min-height: 0; overflow-y: auto; padding: 0; }
+  .article { padding: 28px 36px 56px; max-width: 760px; margin: 0 auto; }
+  .article[hidden] { display: none; }
+
+  .crumb { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 11px; color: color-mix(in oklch, var(--foreground) 58%, var(--background)); }
+  .crumb a { color: inherit; text-decoration: none; }
+  .crumb a:hover { color: var(--foreground); }
+  .crumb-sep { opacity: 0.5; }
+
+  .art-h { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 22px; }
+  .tags { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 5px; }
+  .tag {
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 999px;
+    color: var(--w-accent);
+    background: color-mix(in oklch, var(--w-accent) 12%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 26%, transparent);
+  }
+  .art-title { font-family: var(--font-display); font-weight: 800; font-size: clamp(28px, 3.4vw, 40px); letter-spacing: -0.03em; line-height: 1.04; margin: 4px 0 0; color: var(--foreground); }
+  .art-kicker { font-family: var(--font-display); font-weight: 500; font-size: 17px; line-height: 1.45; color: color-mix(in oklch, var(--foreground) 72%, var(--background)); margin: 0; }
+  .art-meta { display: flex; gap: 6px; align-items: baseline; font-family: var(--font-mono); font-size: 10.5px; color: color-mix(in oklch, var(--foreground) 55%, var(--background)); }
+  .art-meta b { color: var(--foreground); }
+  .art-meta-sep { opacity: 0.5; }
+
+  /* ── Body ── */
+  .art-body { font-family: var(--font-body); font-size: 15px; line-height: 1.65; color: color-mix(in oklch, var(--foreground) 86%, var(--background)); }
+  .art-body :global(h2) { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: -0.018em; color: var(--foreground); margin: 38px 0 10px; scroll-margin-top: 24px; }
+  .art-body :global(h3) { font-family: var(--font-display); font-weight: 700; font-size: 16.5px; letter-spacing: -0.012em; color: var(--foreground); margin: 26px 0 8px; scroll-margin-top: 24px; }
+  .art-body :global(p) { margin: 12px 0; }
+  .art-body :global(a) { color: var(--w-accent); text-underline-offset: 3px; }
+  .art-body :global(ul), .art-body :global(ol) { padding-left: 22px; margin: 12px 0; }
+  .art-body :global(li) { margin: 6px 0; }
+  .art-body :global(code) {
+    font-family: var(--font-mono); font-size: 13px;
+    padding: 1.5px 6px; border-radius: 5px;
+    background: color-mix(in oklch, var(--foreground) 7%, transparent);
+    color: var(--foreground);
+  }
+  .art-body :global(pre) {
+    background: #0d1117; color: #c9d1d9;
+    padding: 16px 18px; border-radius: 12px;
+    overflow-x: auto;
+    border: 1px solid color-mix(in oklch, var(--w-accent) 22%, transparent);
+    margin: 18px 0;
+    font-size: 13px; line-height: 1.55;
+    position: relative;
+  }
+  .art-body :global(pre) :global(code) {
+    background: transparent; padding: 0; font-size: inherit; color: inherit;
+  }
+  /* Callout blockquotes — `> **TYPE** — …` */
+  .art-body :global(blockquote) {
+    margin: 18px 0; padding: 14px 16px;
+    border-radius: 10px;
+    background: color-mix(in oklch, var(--w-accent) 7%, transparent);
+    border-left: 3px solid var(--w-accent);
+    color: color-mix(in oklch, var(--foreground) 84%, var(--background));
+    font-size: 14px; line-height: 1.55;
+  }
+  .art-body :global(blockquote) :global(p) { margin: 0; }
+  .art-body :global(blockquote) :global(strong):first-child {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 800;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--w-accent);
+  }
+
+  /* ── Prev/next ── */
+  .art-pn {
+    margin-top: 44px; padding-top: 22px;
+    border-top: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .pn {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 12px 14px; border-radius: 10px;
+    text-decoration: none; color: var(--foreground);
+    border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
+    background: color-mix(in oklch, var(--card) 86%, transparent);
+    transition: border-color 140ms ease, transform 140ms ease;
+  }
+  .pn:hover { border-color: var(--w-accent); transform: translateY(-1px); }
+  .pn-next { text-align: right; }
+  .pn-dir { font-family: var(--font-mono); font-size: 10px; color: color-mix(in oklch, var(--foreground) 56%, var(--background)); letter-spacing: 0.08em; text-transform: uppercase; }
+  .pn-name { font-family: var(--font-display); font-weight: 700; font-size: 14px; }
+
+  /* ── Right rail ── */
+  .onpage, .related, .meta { padding-bottom: 12px; }
+  .onpage, .related { border-bottom: 1px solid color-mix(in oklch, var(--foreground) 6%, transparent); }
+  .onpage-list, .related-list, .meta-list { list-style: none; padding: 0 16px 8px; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+  .onpage-list :global(a),
+  .related-list :global(a) {
+    display: block; padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 12.5px; text-decoration: none;
+    color: color-mix(in oklch, var(--foreground) 70%, var(--background));
+    border-left: 2px solid transparent;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+  .onpage-list :global(a):hover,
+  .related-list :global(a):hover { background: color-mix(in oklch, var(--w-accent) 8%, transparent); color: var(--foreground); }
+  .onpage-list :global(a.on) {
+    background: color-mix(in oklch, var(--w-accent) 14%, transparent);
+    color: var(--foreground);
+    border-left-color: var(--w-accent);
+  }
+  .onpage-list :global(a)[data-level="3"] { padding-left: 22px; font-size: 11.5px; }
+  .related-empty { font-style: italic; font-size: 11.5px; color: color-mix(in oklch, var(--foreground) 50%, var(--background)); padding: 5px 9px; }
+  .meta-link {
+    display: block; padding: 7px 9px; border-radius: 6px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    color: color-mix(in oklch, var(--foreground) 70%, var(--background));
+    text-decoration: none;
+    transition: color 120ms ease, background 120ms ease;
+  }
+  .meta-link:hover { color: var(--foreground); background: color-mix(in oklch, var(--w-accent) 8%, transparent); }
+
+  /* ── Mobile ── */
+  @media (max-width: 900px) {
+    .docs-shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .rail { border-right: 0; }
+    .rail-right { display: none; }
+    .article { padding: 22px 18px 36px; }
+  }
 </style>
+
+<script>
+  const shell = document.querySelector<HTMLElement>('[data-docs-shell]');
+  if (shell) {
+    const articles = Array.from(shell.querySelectorAll<HTMLElement>('[data-article-slug]'));
+    const tocLinks = Array.from(shell.querySelectorAll<HTMLAnchorElement>('[data-toc-slug]'));
+    const onpage = shell.querySelector<HTMLElement>('[data-onpage-list]');
+    const related = shell.querySelector<HTMLElement>('[data-related-list]');
+    const mdocLink = shell.querySelector<HTMLAnchorElement>('[data-mdoc-link]');
+    const search = shell.querySelector<HTMLInputElement>('[data-docs-search]');
+
+    type Heading = { depth: number; text: string; slug: string };
+    const bundles: Record<string, { headings: Heading[]; title: string }> = {};
+    for (const art of articles) {
+      const slug = art.dataset.articleSlug!;
+      const headingsScript = art.querySelector<HTMLScriptElement>('[data-doc-headings]');
+      const headings: Heading[] = headingsScript ? JSON.parse(headingsScript.textContent || '[]') : [];
+      bundles[slug] = {
+        headings,
+        title: art.querySelector('.art-title')?.textContent?.trim() || slug,
+      };
+    }
+    const allTocSlugs: Record<string, { title: string; desc: string }> = {};
+    for (const tl of tocLinks) {
+      allTocSlugs[tl.dataset.tocSlug!] = {
+        title: tl.querySelector('.toc-title')?.textContent?.trim() || '',
+        desc: tl.querySelector('.toc-desc')?.textContent?.trim() || '',
+      };
+    }
+
+    const setActive = (slug: string, push = false) => {
+      shell.dataset.active = slug;
+      for (const art of articles) art.hidden = art.dataset.articleSlug !== slug;
+      for (const tl of tocLinks) tl.classList.toggle('on', tl.dataset.tocSlug === slug);
+      const bundle = bundles[slug];
+      if (!bundle) return;
+
+      if (onpage) {
+        onpage.innerHTML = '';
+        const top = document.createElement('li');
+        const topA = document.createElement('a');
+        topA.href = '#top';
+        topA.textContent = bundle.title;
+        topA.dataset.headingSlug = '__top';
+        top.append(topA);
+        onpage.append(top);
+        for (const h of bundle.headings) {
+          if (h.depth > 3) continue;
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = `#${h.slug}`;
+          a.textContent = h.text;
+          a.dataset.headingSlug = h.slug;
+          a.setAttribute('data-level', String(h.depth));
+          li.append(a);
+          onpage.append(li);
+        }
+      }
+
+      if (related) {
+        related.innerHTML = '';
+        const seen = new Set<string>();
+        const fromBody = Array.from(articles.find((a) => a.dataset.articleSlug === slug)?.querySelectorAll<HTMLAnchorElement>('.art-body a[href^="/docs/"]') ?? [])
+          .map((a) => a.getAttribute('href')!.replace(/^\/docs\//, '').replace(/\/$/, ''))
+          .filter(Boolean);
+        for (const r of fromBody) {
+          if (r === slug || seen.has(r)) continue;
+          const meta = allTocSlugs[r];
+          if (!meta) continue;
+          seen.add(r);
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = `/docs/${r}`;
+          a.dataset.tocLink = r;
+          const t = document.createElement('div');
+          t.style.fontWeight = '700';
+          t.style.fontSize = '12.5px';
+          t.textContent = meta.title;
+          const d = document.createElement('div');
+          d.style.fontSize = '10.5px';
+          d.style.opacity = '0.65';
+          d.textContent = meta.desc;
+          a.append(t, d);
+          a.addEventListener('click', (e) => { e.preventDefault(); setActive(r, true); });
+          li.append(a);
+          related.append(li);
+        }
+        if (seen.size === 0) {
+          const li = document.createElement('li');
+          li.className = 'related-empty';
+          li.textContent = '—';
+          related.append(li);
+        }
+      }
+
+      if (mdocLink) mdocLink.href = `/docs/${slug}.md`;
+
+      if (push) history.replaceState({}, '', `/docs/${slug}`);
+
+      const host = shell.querySelector<HTMLElement>('.article-host');
+      if (host) host.scrollTop = 0;
+    };
+
+    for (const tl of tocLinks) {
+      tl.addEventListener('click', (e) => {
+        e.preventDefault();
+        setActive(tl.dataset.tocSlug!, true);
+      });
+    }
+    for (const a of Array.from(shell.querySelectorAll<HTMLAnchorElement>('a[data-toc-link]'))) {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        setActive(a.dataset.tocLink!, true);
+      });
+    }
+    for (const art of articles) {
+      const links = Array.from(art.querySelectorAll<HTMLAnchorElement>('.art-body a[href^="/docs/"]'));
+      for (const link of links) {
+        link.addEventListener('click', (e) => {
+          const href = link.getAttribute('href') || '';
+          const slug = href.replace(/^\/docs\//, '').replace(/\/$/, '');
+          if (!bundles[slug]) return;
+          e.preventDefault();
+          setActive(slug, true);
+        });
+      }
+    }
+    search?.addEventListener('input', () => {
+      const q = (search.value || '').trim().toLowerCase();
+      for (const tl of tocLinks) {
+        const hay = tl.dataset.search || '';
+        const li = tl.closest('li')!;
+        li.style.display = !q || hay.includes(q) ? '' : 'none';
+      }
+    });
+
+    setActive(shell.dataset.active || articles[0]?.dataset.articleSlug || '');
+
+    const host = shell.querySelector<HTMLElement>('.article-host');
+    host?.addEventListener('scroll', () => {
+      const visible = articles.find((a) => !a.hidden);
+      if (!visible) return;
+      const headings = Array.from(visible.querySelectorAll<HTMLElement>('h2[id], h3[id]'));
+      let activeId = '__top';
+      for (const h of headings) {
+        if (h.getBoundingClientRect().top - host.getBoundingClientRect().top < 80) activeId = h.id;
+        else break;
+      }
+      const onpageLinks = Array.from(onpage?.querySelectorAll<HTMLAnchorElement>('a[data-heading-slug]') ?? []);
+      for (const a of onpageLinks) a.classList.toggle('on', a.dataset.headingSlug === activeId);
+    });
+  }
+</script>

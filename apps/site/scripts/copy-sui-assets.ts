@@ -22,6 +22,7 @@ const SITE_STYLES = join(SCRIPT_DIR, '../src/styles');
 //     the project's `.deck/` (deck's `.next`-equivalent).
 const SUI_ASSETS_DIR = join(REPO_ROOT, 'crates/deck/deck-core/assets');
 const DECK_OUT_DIR = join(REPO_ROOT, '.deck');
+const DECK_CHUNKS_DIR = join(DECK_OUT_DIR, 'sui-components');
 const SHIPD_ASSETS_DIR = join(REPO_ROOT, 'apps/shipd/assets');
 
 const SUI_BUNDLES: ReadonlyArray<{ name: string; from: string }> = [
@@ -54,17 +55,31 @@ for (const { name, from } of SUI_BUNDLES) {
   copied++;
 }
 
-// <sui-icon> fetches /_sui/lucide-icons.json on first mount. The daemon
-// serves it; on a static host we have to copy it ourselves. Without this
-// every <sui-icon name="…"> renders empty — which is what was breaking
-// <sui-theme-picker>'s palette trigger here.
+// <sui-icon> fetches ONE icon at a time from `/_sui/icons/<name>.svg`
+// (deck-core::serve_sui_icon). The daemon serves those; on a static host
+// there is no daemon, so we pre-generate each icon as a standalone SVG using
+// the SAME wrapper the daemon emits (viewBox 0 0 24 24, stroke=currentColor).
+// Without this every <sui-icon name="…"> renders empty — which is what was
+// breaking <sui-theme-picker>'s palette trigger. (The old monolithic
+// lucide-icons.json copy is dead — nothing fetches it — so we drop it.)
 {
-  const dst = join(PUBLIC_DIR, '_sui/lucide-icons.json');
   const src = join(SUI_ASSETS_DIR, 'lucide-icons.json');
   if (existsSync(src)) {
-    mkdirSync(dirname(dst), { recursive: true });
-    copyFileSync(src, dst);
+    const catalog = JSON.parse(readFileSync(src, 'utf8')) as Record<string, string>;
+    const iconsDir = join(PUBLIC_DIR, '_sui/icons');
+    mkdirSync(iconsDir, { recursive: true });
+    let n = 0;
+    for (const [name, inner] of Object.entries(catalog)) {
+      if (!/^[a-z0-9-]+$/.test(name)) continue;
+      const svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" ' +
+        'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        inner + '</svg>';
+      writeFileSync(join(iconsDir, `${name}.svg`), svg);
+      n++;
+    }
     copied++;
+    console.log(`[copy-sui-assets] wrote ${n} per-icon SVGs to public/_sui/icons/`);
   } else {
     console.log(`[copy-sui-assets] ${src} not found; <sui-icon> will render empty.`);
   }
@@ -94,6 +109,72 @@ for (const { name, from } of SUI_BUNDLES) {
     const bundled = parts.map((p) => readFileSync(p, 'utf8')).join('\n');
     writeFileSync(dst, bundled);
     copied++;
+  }
+}
+
+// ── Tutorial playground editor ───────────────────────────────────────
+// The SUI tutorial (getship.dev/tutorial) is a live editor + sandboxed
+// preview. The editor element — `sui-code-editor.js` — is a CodeMirror-
+// based lazy chunk in deck's build output (`.deck/sui-components/`), NOT
+// in the lean marketing bundle. The tutorial side-loads it on first use,
+// so we mirror it into public/ here.
+//
+// The sandbox host itself (public/tutorial/{host.html,sw.js,scenarios})
+// is committed static source under this app — not copied here.
+{
+  const editorSrc = join(DECK_CHUNKS_DIR, 'sui-code-editor.js');
+  if (existsSync(editorSrc)) {
+    const editorDstDir = join(PUBLIC_DIR, 'sui-components');
+    mkdirSync(editorDstDir, { recursive: true });
+    copyFileSync(editorSrc, join(editorDstDir, 'sui-code-editor.js'));
+    copied++;
+  } else {
+    console.log(
+      `[copy-sui-assets] ${editorSrc} not found; tutorial editor will not load. ` +
+      `Build the deck sui-components chunks first.`,
+    );
+  }
+}
+
+// ── Editor syntax-highlight tokens ───────────────────────────────────
+// <sui-code-editor> colours tokens via `--syntax-*` CSS custom properties
+// (keyword/string/comment/tag/…), per theme. They're defined in the
+// canonical SUI token sheets but NOT in the site's curated tokens — so
+// without them the editor parses tokens but renders every one in the
+// foreground colour (no visible highlighting). Extract just the
+// `--syntax-*` rules (per theme) and emit a small sheet the tutorial
+// loads. Sourced from canonical so it can't drift.
+{
+  const CANON = join(REPO_ROOT, 'packages/components/ui-components/src/tokens');
+  const blocks: string[] = [];
+  for (const name of ['tokens.css', 'themes.css']) {
+    const src = join(CANON, name);
+    if (!existsSync(src)) continue;
+    // Strip comments first — a comment between `{` and a declaration
+    // otherwise swallows that declaration (e.g. --syntax-keyword) and
+    // leaks into the captured selector.
+    const css = readFileSync(src, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    // Flat `selector { decls }` blocks — token rules aren't nested.
+    const re = /([^{}]+)\{([^{}]*)\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(css)) !== null) {
+      const selector = m[1].trim();
+      const decls = m[2].split(';').map((d) => d.trim()).filter((d) => d.startsWith('--syntax-'));
+      if (decls.length) blocks.push(`${selector} {\n  ${decls.join(';\n  ')};\n}`);
+    }
+  }
+  if (blocks.length) {
+    const dst = join(PUBLIC_DIR, '_sui/syntax-tokens.css');
+    mkdirSync(dirname(dst), { recursive: true });
+    writeFileSync(
+      dst,
+      '/* Generated by copy-sui-assets.ts — `--syntax-*` tokens for <sui-code-editor>.\n' +
+      ' * Source of truth: packages/components/ui-components/src/tokens/. Do not edit by hand. */\n' +
+      blocks.join('\n\n') + '\n',
+    );
+    copied++;
+  } else {
+    console.log('[copy-sui-assets] no --syntax-* tokens in canonical sheets; editor highlighting will be monochrome.');
   }
 }
 

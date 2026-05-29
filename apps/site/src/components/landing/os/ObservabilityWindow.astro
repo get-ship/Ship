@@ -15,6 +15,7 @@
  *                 itself is the substrate.
  */
 import Window from './Window.astro';
+import DownloadCTA from './DownloadCTA.astro';
 const { open = false } = Astro.props;
 
 interface BusEvent {
@@ -59,7 +60,7 @@ const toneLabel: Record<BusEvent['tone'], string> = {
   agent: 'AGENT', tool: 'TOOL', token: 'TOKENS', pipeline: 'PIPELINE', gate: 'GATE', view: 'VIEW',
 };
 ---
-<Window app="observability" title="Observability" meta="event capture" mark="M" accent="mesh" open={open}>
+<Window app="observability" title="Observability" meta="event capture" mark="M" accent="mesh" open={open} defer>
   <div class="win-scroll obs">
     {/* ── Hero ─────────────────────────────────────────────────────────── */}
     <section class="hero">
@@ -159,6 +160,10 @@ const toneLabel: Record<BusEvent['tone'], string> = {
           <li class="pill pill-soon">Improvement loops · soon</li>
         </ul>
       </div>
+    </section>
+
+    <section class="obs-cta">
+      <DownloadCTA message="Stop guessing what your agents did. Watch them." />
     </section>
   </div>
 </Window>

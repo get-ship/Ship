@@ -12,6 +12,7 @@
 
 import { mountGrainient, type Grainient } from './grainient';
 import { initSettings } from './settings';
+import { hydrateWindowBody } from './window-lazy';
 
 const MOBILE = '(max-width: 760px)';
 
@@ -33,7 +34,7 @@ const PATHS: Record<string, string> = {
   welcome: '/', agents: '/agents', observability: '/observability',
   'custom-views': '/custom-views', security: '/security', pricing: '/pricing',
   data: '/data', orchestration: '/orchestration', spaces: '/spaces',
-  docs: '/docs', faq: '/faq', arcade: '/arcade', download: '/download',
+  docs: '/docs', arcade: '/arcade', download: '/download',
 };
 const APP_BY_PATH: Record<string, string> = Object.fromEntries(
   Object.entries(PATHS).map(([app, path]) => [path, app]),
@@ -88,6 +89,19 @@ function updateHint(): void {
  * WeakSet so we never bind twice. */
 const inited = new WeakSet<HTMLElement>();
 
+/* Closed windows ship their body inert in a <template data-window-body>.
+ * On first open we clone it into place and run the window's deferred init
+ * (whenWindowBody callbacks) before any wiring touches the content. */
+function ensureWindowBody(w: HTMLElement): void {
+  const tpl = w.querySelector<HTMLTemplateElement>('template[data-window-body]');
+  if (!tpl) return;
+  const content = w.querySelector('.content');
+  if (content) content.insertBefore(tpl.content.cloneNode(true), tpl);
+  tpl.remove();
+  const app = w.dataset.appWindow;
+  if (app) hydrateWindowBody(app);
+}
+
 function ensureWindowInit(w: HTMLElement): void {
   if (inited.has(w)) return;
   inited.add(w);
@@ -115,6 +129,7 @@ function openWindow(app: string, isDefault = false): void {
     stopRichWindow(other);
     inited.delete(other);
   }
+  ensureWindowBody(w);
   ensureWindowInit(w);
   const dock = dockItem(app);
   if (dock && !isDefault && !isMobile()) {

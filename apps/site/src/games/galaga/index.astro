@@ -246,7 +246,8 @@
 </style>
 
 <script>
-  import '@ship/arcade/bundle'
+  // '@ship/arcade/bundle' (pixi, ~800KB) is lazy-imported by ArcadeWindow on
+  // first open — not statically here, so the homepage never downloads it.
   import type { Stage } from '@ship/arcade-engine'
   import { effect } from '@ship/sui-runtime'
   import { createGalagaDirector } from './director.ts'
@@ -338,9 +339,11 @@
     next.start()
   }
 
-  stageEl?.addEventListener('sui-stage:ready', () => {
-    showStart()
-  })
+  function onReady() { showStart() }
+  stageEl?.addEventListener('sui-stage:ready', onReady)
+  // Multiple games can share the page (arcade window mounts all three);
+  // the ready event may have already fired before this script attached.
+  if (stageEl?.stage) onReady()
 
   root?.addEventListener('click', (ev) => {
     const target = (ev.target as HTMLElement | null)?.closest<HTMLElement>('[data-action]')

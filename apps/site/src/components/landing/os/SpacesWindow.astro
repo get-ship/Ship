@@ -10,6 +10,7 @@
  * views, agent roster, team strip. No more orphan "SHIP" CTA.
  */
 import Window from './Window.astro';
+import DownloadCTA from './DownloadCTA.astro';
 const { open = false } = Astro.props;
 
 interface Space {
@@ -180,6 +181,8 @@ const VIEW_GLYPH: Record<Space['views'][number]['kind'], string> = {
       <p class="foot">
         Switch spaces → the whole Ship reskins around the new context. Same binary, separate worlds.
       </p>
+
+      <DownloadCTA message="One binary. Separate worlds." />
     </div>
   </div>
 </Window>

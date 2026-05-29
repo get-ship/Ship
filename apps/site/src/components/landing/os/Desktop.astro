@@ -18,13 +18,19 @@ import SecurityWindow from './SecurityWindow.astro';
 import SpacesWindow from './SpacesWindow.astro';
 import PricingWindow from './PricingWindow.astro';
 import DocsWindow from './DocsWindow.astro';
-import FaqWindow from './FaqWindow.astro';
 import DownloadWindow from './DownloadWindow.astro';
 import ArcadeWindow from './ArcadeWindow.astro';
 
-interface Props { initialWindow?: string }
-const { initialWindow = 'welcome' } = Astro.props;
-const is = (id: string) => initialWindow === id;
+interface Props {
+  initialWindow?: string;
+  /* Compatibility alias used by /docs and /docs/[...slug]. */
+  initial?: string;
+  /* When the initial window is `docs`, the slug to land on. */
+  docSlug?: string;
+}
+const { initialWindow, initial, docSlug = '' } = Astro.props;
+const opened = initial ?? initialWindow ?? 'welcome';
+const is = (id: string) => opened === id;
 ---
 <Menubar />
 <main class="os-desktop" id="main">
@@ -38,8 +44,7 @@ const is = (id: string) => initialWindow === id;
   <SecurityWindow open={is('security')} />
   <SpacesWindow open={is('spaces')} />
   <PricingWindow open={is('pricing')} />
-  <DocsWindow open={is('docs')} />
-  <FaqWindow open={is('faq')} />
+  <DocsWindow open={is('docs')} slug={docSlug} />
   <ArcadeWindow open={is('arcade')} />
   <DownloadWindow open={is('download')} />
   <div class="os-hint">click a dock icon to open a window</div>
@@ -66,7 +71,6 @@ const is = (id: string) => initialWindow === id;
       { app: 'spaces',        label: 'Spaces',        icon: '/app-icons/spaces.svg' },
       { app: 'pricing',       label: 'Pricing',       icon: '/app-icons/pricing.svg' },
       { app: 'docs',          label: 'Docs',          icon: '/app-icons/docs.svg' },
-      { app: 'faq',           label: 'FAQ',           icon: '/app-icons/faq.svg' },
       { app: 'arcade',        label: 'Arcade',        icon: '/app-icons/arcade.svg', desktopOnly: true },
       { app: 'download',      label: 'Download',      icon: '/app-icons/download.svg' },
     ].map((t) => (

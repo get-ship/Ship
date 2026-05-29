@@ -82,10 +82,14 @@
 .os-room {
   position: relative;
   min-height: 100vh;
+  /* `safe` keeps the card centered when it fits, but anchors to start
+     when it overflows so tall content (e.g. waitlist + expanded survey)
+     never crops past the bottom edge. */
   display: flex;
-  align-items: center;
+  align-items: safe center;
   justify-content: center;
   padding: calc(var(--os-menubar-h, 28px) + 32px) 20px 48px;
+  overflow-y: auto;
 }
 .room-card {
   position: relative;
@@ -95,14 +99,19 @@
   background: color-mix(in oklch, var(--card) 90%, transparent);
   border: 1px solid color-mix(in oklch, var(--foreground) 14%, transparent);
   border-radius: 16px;
-  padding: clamp(26px, 4vw, 38px);
+  padding: clamp(22px, 3.4vw, 34px);
   box-shadow: 0 30px 80px -24px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(20px) saturate(1.4);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   text-align: center;
+}
+/* On short viewports (laptops at 720p, etc.) tighten the title so the
+   form + 3-question survey fit without forcing a scroll. */
+@media (max-height: 820px) {
+  .room-card { gap: 10px; padding: 22px 24px; }
 }
 .room-card.wide { max-width: 560px; }
 .room-card .room-brand { display: inline-flex; align-items: center; justify-content: center; gap: 9px; align-self: center; }

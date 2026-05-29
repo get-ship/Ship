@@ -11,6 +11,7 @@
  *   3) Layers: four kinds of isolation, calibrated copy.
  */
 import Window from './Window.astro';
+import DownloadCTA from './DownloadCTA.astro';
 const { open = false } = Astro.props;
 
 interface Layer { name: string; lede: string; body: string }
@@ -159,6 +160,10 @@ const layers: Layer[] = [
           </article>
         ))}
       </div>
+    </section>
+
+    <section class="sec-cta">
+      <DownloadCTA message="Stop wiring guard rails by hand. Run it sandboxed." />
     </section>
   </div>
 </Window>

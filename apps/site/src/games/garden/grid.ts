@@ -35,8 +35,13 @@ export const COLS = 22
 export const ROWS = 24
 export const CELL = 19
 export const GUTTER = 2
-export const ORIGIN_X = 24
-export const ORIGIN_Y = 80
+/* Grid is 22 cols × 19px cells + 21 gutters × 2px = 460px wide.
+ * Stage is 480 wide; centred origin = (480 - 460)/2 = 10. The old
+ * ORIGIN_X=24 pushed the right column 4px past the stage edge, which
+ * read as a wide-left / clipped-right asymmetry. */
+export const ORIGIN_X = 10
+/* 24 rows × 19 + 23 gutters × 2 = 502px tall. (540 - 502)/2 ≈ 19. */
+export const ORIGIN_Y = 19
 export const PULSE_MS = 420
 
 export interface GridPalette {

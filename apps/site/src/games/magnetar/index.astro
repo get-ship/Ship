@@ -1,26 +1,37 @@
 ---
 // Magnetar — gravity-slingshot puzzle.
 //
-// Drag-to-aim, release-to-fire. Each level is a discrete puzzle: planets curve
-// the projectile, tokens score, walls bite, the portal ends the level. Six
-// progressive levels. The director loads one at a time.
+// Launch a ship and land it back home on Earth. You set the launch angle (drag
+// direction) and the thrust (drag distance); planets curve the flight, walls
+// bite. Ten levels that build from a clean liftoff to a many-body finale. The
+// director loads one at a time.
 ---
 
 <div class="magnetar-mount" data-magnetar>
   <sui-stage width="480" height="540" tick-rate="60" fps="60" background="card">
     <sui-input map="ArrowLeft,A" action="aim-left"></sui-input>
     <sui-input map="ArrowRight,D" action="aim-right"></sui-input>
+    <sui-input map="ArrowUp,W" action="thrust-up" repeat="true"></sui-input>
+    <sui-input map="ArrowDown,S" action="thrust-down" repeat="true"></sui-input>
     <sui-input map="Space,Enter" action="fire" repeat="false"></sui-input>
 
     <sui-hud align="corner-tl">
       <div class="mag-stack">
-        <div class="mag-chip">
+        <div class="mag-chip mag-chip-level">
           <span class="mag-chip-label">Level</span>
-          <span class="mag-chip-value" data-bind="level">First Light</span>
+          <span class="mag-chip-value" data-bind="level">Liftoff</span>
         </div>
         <div class="mag-chip">
           <span class="mag-chip-label">Score</span>
           <span class="mag-chip-value" data-bind="score">0</span>
+        </div>
+        <div class="mag-chip mag-chip-stars">
+          <span class="mag-chip-label">Stars</span>
+          <span class="mag-chip-value" data-bind="stars">0/33</span>
+        </div>
+        <div class="mag-chip mag-chip-crew">
+          <span class="mag-chip-label">Crew</span>
+          <span class="mag-chip-value" data-bind="crew"></span>
         </div>
       </div>
     </sui-hud>
@@ -31,11 +42,15 @@
           <span class="mag-chip-label">Shots</span>
           <span class="mag-chip-value" data-bind="shots">3</span>
         </div>
+        <div class="mag-chip mag-chip-thrust">
+          <span class="mag-chip-label">Thrust</span>
+          <span class="mag-chip-value"><span data-bind="thrust">50</span>%</span>
+        </div>
       </div>
     </sui-hud>
 
     <sui-hud align="bottom">
-      <div class="mag-hint" data-bind="hint">Drag from the launch pad to aim. Release to fire.</div>
+      <div class="mag-hint" data-bind="hint">Drag to aim, pull farther for more thrust. Release to launch the ship home to Earth.</div>
     </sui-hud>
 
     <sui-hud align="center" pointer-events="auto">
@@ -88,6 +103,13 @@
   }
   .mag-right .mag-chip { align-items: flex-end; }
   .mag-chip-shots  { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warning) 34%, transparent); }
+  .mag-chip-thrust { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--info) 34%, transparent); }
+  .mag-chip-crew   { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--success) 38%, transparent); }
+  /* Hide the crew chip on levels with no rescues (empty bound value). */
+  .mag-chip-crew:has(.mag-chip-value:empty) { display: none; }
+  /* Keep long level names from blowing out the chip width. */
+  .mag-chip-level { max-width: 150px; }
+  .mag-chip-level .mag-chip-value { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
   .mag-chip-label {
     font-size: 9.5px;
@@ -103,6 +125,8 @@
     letter-spacing: 0.01em;
   }
   .mag-chip-shots  .mag-chip-value { color: var(--warning); }
+  .mag-chip-thrust .mag-chip-value { color: var(--info); }
+  .mag-chip-crew   .mag-chip-value { color: var(--success); }
 
   .mag-hint {
     display: inline-block;
@@ -215,14 +239,50 @@
     background: color-mix(in oklch, var(--foreground, #fff) 10%, transparent);
     filter: none;
   }
+
+  /* ── Level select ── */
+  .mag-overlay-wide { min-width: 340px; max-width: 420px; padding: 22px 26px 20px; }
+  .mag-levels {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    width: 100%; margin-top: 6px;
+  }
+  .mag-level {
+    appearance: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 9px 4px 7px; border-radius: 9px;
+    background: color-mix(in oklch, var(--foreground, #fff) 7%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground, #fff) 16%, transparent);
+    color: var(--foreground, #fff); font: inherit;
+    transition: transform 90ms ease-out, border-color 90ms ease-out, background 90ms ease-out;
+  }
+  .mag-level:hover:not(.locked) {
+    transform: translateY(-2px);
+    border-color: var(--warning);
+    background: color-mix(in oklch, var(--warning) 14%, transparent);
+  }
+  .mag-level:focus-visible { outline: 2px solid var(--ring, var(--warning)); outline-offset: 2px; }
+  .mag-level.locked { opacity: 0.4; cursor: not-allowed; }
+  .mag-level-num { font-size: 15px; font-weight: 800; line-height: 1; font-family: var(--font-display, var(--font-body, system-ui)); }
+  .mag-level-name {
+    font-size: 7.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    opacity: 0.6; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mag-stars { display: flex; gap: 1px; }
+  .mag-star { font-size: 9px; line-height: 1; color: color-mix(in oklch, var(--foreground, #fff) 22%, transparent); }
+  .mag-star.on { color: var(--warning); }
+  .mag-stars-big { gap: 8px; margin: 2px 0 2px; }
+  .mag-stars-big .mag-star { font-size: 30px; }
 </style>
 
 <script>
-  import '@ship/arcade/bundle'
+  // '@ship/arcade/bundle' (pixi + custom elements, ~800KB) is NOT imported here.
+  // ArcadeWindow lazy-imports it on first open; sui-stage upgrades then and our
+  // `sui-stage:ready` listener below fires. Keeps the homepage off the hook.
   import type { Stage } from '@ship/arcade-engine'
   import { effect } from '@ship/sui-runtime'
   import { createMagnetarDirector } from './director.ts'
   import { LEVELS } from './levels.ts'
+  import { MAX_SPEED, MIN_SPEED } from './physics.ts'
 
   const root = document.querySelector<HTMLElement>('[data-magnetar]')
   const stageEl = root?.querySelector('sui-stage') as (HTMLElement & {
@@ -230,7 +290,7 @@
     start?(): void
     pause?(): void
     resume?(): void
-    setAim?(rad: number): void
+    setAim?(rad: number, speed?: number): void
     fire?(): void
     restart?(): void
     next?(): void
@@ -246,83 +306,91 @@
     if (text !== undefined) node.textContent = text
     return node
   }
-  function key(label: string): HTMLElement { return el('span', 'mag-key', label) }
+  function starsRow(n: number, big = false): HTMLElement {
+    const row = el('div', big ? 'mag-stars mag-stars-big' : 'mag-stars')
+    for (let i = 0; i < 3; i++) row.append(el('span', i < n ? 'mag-star on' : 'mag-star', '★'))
+    return row
+  }
 
-  function showStart() {
-    if (!overlay) return
+  function showLevelSelect() {
+    if (!overlay || !game) return
     overlay.replaceChildren()
     overlay.dataset.state = 'idle'
-    const eyebrow = el('div', 'mag-overlay-eyebrow', 'SHIP Arcade')
-    const title = el('div', 'mag-overlay-title', 'Magnetar')
-    const meta = el('div', 'mag-overlay-meta', 'Slingshot through gravity. Curve around planets to thread the portal.')
-    const keys = el('div', 'mag-overlay-keys')
-    keys.append(key('Drag'), key('Release'), key('R'), key('Space'))
-    const cta = el('button', 'mag-cta', 'Launch') as HTMLButtonElement
-    cta.type = 'button'
-    cta.dataset.action = 'start'
-    overlay.append(eyebrow, title, meta, keys, cta)
-    cta.focus({ preventScroll: true })
+    overlay.classList.add('mag-overlay-wide')
+    const got = game.levelStars()
+    const unlocked = game.unlockedCount()
+    const total = got.reduce((a, b) => a + b, 0)
+    overlay.append(
+      el('div', 'mag-overlay-eyebrow', 'SHIP Arcade · Magnetar'),
+      el('div', 'mag-overlay-title', 'Choose a level'),
+      el('div', 'mag-overlay-meta', `Earth is the target — land near its centre. Bullseye = ★★★.  ★ ${total}/${game.levelCount * 3}`),
+    )
+    const grid = el('div', 'mag-levels')
+    for (let i = 0; i < game.levelCount; i++) {
+      const locked = i >= unlocked
+      const tile = el('button', 'mag-level' + (locked ? ' locked' : '')) as HTMLButtonElement
+      tile.type = 'button'
+      tile.disabled = locked
+      if (!locked) tile.dataset.action = `level-${i}`
+      tile.append(el('span', 'mag-level-num', locked ? '🔒' : String(i + 1)))
+      tile.append(starsRow(got[i] ?? 0))
+      tile.append(el('span', 'mag-level-name', LEVELS[i]?.name ?? ''))
+      grid.append(tile)
+    }
+    overlay.append(grid)
   }
-  function showCleared(score: number, shotsUsed: number, bonus: number) {
+
+  function showCleared(stars: number, accuracy: number, points: number, level: string, isLast: boolean) {
     if (!overlay) return
     overlay.replaceChildren()
+    overlay.classList.remove('mag-overlay-wide')
     overlay.dataset.state = 'cleared'
-    const eyebrow = el('div', 'mag-overlay-eyebrow', shotsUsed === 1 ? 'First Shot' : shotsUsed === 2 ? 'Second Shot' : 'Last Shot')
-    const title = el('div', 'mag-overlay-title', 'Threaded')
-    const detail = shotsUsed === 1
-      ? `Clean run · +${bonus}`
-      : shotsUsed === 2
-        ? `Two shots · +${bonus}`
-        : `Got there · +${bonus}`
-    const meta = el('div', 'mag-overlay-meta', `${detail} · total ${score}`)
-    // Two CTAs: Replay (same level, fresh shots) and Next.
-    const ctaRow = el('div', 'mag-cta-row')
+    const pct = Math.round(accuracy * 100)
+    overlay.append(
+      el('div', 'mag-overlay-eyebrow', stars === 3 ? 'Bullseye landing' : stars === 2 ? 'Solid landing' : 'Touchdown'),
+      el('div', 'mag-overlay-title', isLast ? 'All ships home' : 'Home'),
+      starsRow(stars, true),
+      el('div', 'mag-overlay-meta', `${level} · ${pct}% on centre · +${points}`),
+    )
+    const row = el('div', 'mag-cta-row')
     const replay = el('button', 'mag-cta mag-cta-ghost', 'Replay') as HTMLButtonElement
-    replay.type = 'button'
-    replay.dataset.action = 'replay'
-    const next = el('button', 'mag-cta', 'Next') as HTMLButtonElement
-    next.type = 'button'
-    next.dataset.action = 'next'
-    ctaRow.append(replay, next)
-    overlay.append(eyebrow, title, meta, ctaRow)
-    next.focus({ preventScroll: true })
+    replay.type = 'button'; replay.dataset.action = 'replay'
+    const levels = el('button', 'mag-cta mag-cta-ghost', 'Levels') as HTMLButtonElement
+    levels.type = 'button'; levels.dataset.action = 'levels'
+    row.append(replay, levels)
+    if (!isLast) {
+      const next = el('button', 'mag-cta', 'Next') as HTMLButtonElement
+      next.type = 'button'; next.dataset.action = 'next'
+      row.append(next)
+    }
+    overlay.append(row)
+    overlay.querySelector<HTMLButtonElement>(isLast ? '[data-action="levels"]' : '[data-action="next"]')?.focus({ preventScroll: true })
   }
-  function showFailed(score: number, level: string) {
+
+  function showFailed(level: string) {
     if (!overlay) return
     overlay.replaceChildren()
+    overlay.classList.remove('mag-overlay-wide')
     overlay.dataset.state = 'failed'
-    const eyebrow = el('div', 'mag-overlay-eyebrow', 'Lost contact')
-    const title = el('div', 'mag-overlay-title', 'Drift')
-    const meta = el('div', 'mag-overlay-meta', `${level} · score ${score}`)
-    // Retry the same level OR skip to the next. Skip exists so a hard
-    // level is never an actual dead-end.
-    const ctaRow = el('div', 'mag-cta-row')
-    const skip = el('button', 'mag-cta mag-cta-ghost', 'Skip') as HTMLButtonElement
-    skip.type = 'button'
-    skip.dataset.action = 'skip'
+    overlay.append(
+      el('div', 'mag-overlay-eyebrow', 'Out of fuel'),
+      el('div', 'mag-overlay-title', 'Adrift'),
+      el('div', 'mag-overlay-meta', level),
+    )
+    const row = el('div', 'mag-cta-row')
+    const levels = el('button', 'mag-cta mag-cta-ghost', 'Levels') as HTMLButtonElement
+    levels.type = 'button'; levels.dataset.action = 'levels'
     const retry = el('button', 'mag-cta', 'Retry') as HTMLButtonElement
-    retry.type = 'button'
-    retry.dataset.action = 'retry'
-    ctaRow.append(skip, retry)
-    overlay.append(eyebrow, title, meta, ctaRow)
+    retry.type = 'button'; retry.dataset.action = 'retry'
+    row.append(levels, retry)
+    overlay.append(row)
     retry.focus({ preventScroll: true })
   }
-  function showWon(score: number, high: number) {
-    if (!overlay) return
-    overlay.replaceChildren()
-    overlay.dataset.state = 'won'
-    const eyebrow = el('div', 'mag-overlay-eyebrow', 'Eclipse')
-    const title = el('div', 'mag-overlay-title', 'Mission complete')
-    const meta = el('div', 'mag-overlay-meta', `Score ${score} · Best ${high}`)
-    const cta = el('button', 'mag-cta', 'Run Again') as HTMLButtonElement
-    cta.type = 'button'
-    cta.dataset.action = 'start'
-    overlay.append(eyebrow, title, meta, cta)
-    cta.focus({ preventScroll: true })
-  }
+
   function clearOverlay() {
     if (!overlay) return
     delete overlay.dataset.state
+    overlay.classList.remove('mag-overlay-wide')
     overlay.replaceChildren()
   }
 
@@ -337,66 +405,45 @@
       const g = game
       if (!g) return
       const s = g.state()
-      if (s === 'cleared') {
-        const used = g.lastShotsUsed()
-        const bonus = [3000, 2000, 1000][Math.max(0, Math.min(2, used - 1))]!
-        showCleared(g.score(), used, bonus)
-      } else if (s === 'failed') showFailed(g.score(), g.levelName())
-      else if (s === 'won') showWon(g.score(), 0)
+      if (s === 'idle') showLevelSelect()
+      else if (s === 'cleared') showCleared(g.lastStars(), g.lastAccuracy(), g.lastPoints(), g.levelName(), g.levelIndex() >= g.levelCount - 1)
+      else if (s === 'failed') showFailed(g.levelName())
+      else clearOverlay() // aiming / flying / landing — board is clear
     })
   }
 
-  function startGame() {
+  function onReady() {
     ensureGame()
-    if (!game) return
-    clearOverlay()
-    game.start()
+    if (game) showLevelSelect()
+    // Run the loop on idle so starfield + Earth pulse animate.
+    stageEl?.start?.()
   }
-
-  stageEl?.addEventListener('sui-stage:ready', () => {
-    ensureGame()
-    showStart()
-    // Run the loop on idle so starfield + target pulse animate.
-    stageEl.start?.()
-  })
+  stageEl?.addEventListener('sui-stage:ready', onReady)
+  // Catch-up: when multiple games share a page (the arcade window mounts
+  // all three), `sui-stage:ready` can have already fired before THIS
+  // script's listener attached. Synthesise the call.
+  if (stageEl?.stage) onReady()
 
   root?.addEventListener('click', (ev) => {
     const target = (ev.target as HTMLElement | null)?.closest<HTMLElement>('[data-action]')
     if (!target) return
-    const action = target.dataset.action
-    if (action === 'start') startGame()
-    else if (action === 'next' || action === 'skip') {
-      clearOverlay()
-      stageEl?.next?.()
-    } else if (action === 'retry' || action === 'replay') {
-      // Retry — failed run; Replay — cleared run, player wants better score.
-      // Both restart the same level fresh. Replay also rolls back the
-      // bonus from this attempt so the player isn't paying for tries.
-      if (action === 'replay') {
-        // Subtract the bonus this level just awarded so a replay is
-        // a genuine "best of" rather than a stacking exploit.
-        const g = game
-        if (g) {
-          const used = g.lastShotsUsed()
-          const bonus = [3000, 2000, 1000][Math.max(0, Math.min(2, used - 1))]!
-          ;(g.score as unknown as { set: (v: number) => void }).set(g.score() - bonus)
-        }
-      }
-      clearOverlay()
-      stageEl?.restart?.()
-    }
+    const action = target.dataset.action ?? ''
+    if (action.startsWith('level-')) game?.loadLevel(Number(action.slice(6)))
+    else if (action === 'next') stageEl?.next?.()
+    else if (action === 'levels') game?.start() // back to level-select
+    else if (action === 'retry' || action === 'replay') stageEl?.restart?.()
   })
 
   document.addEventListener('keydown', (ev) => {
-    if (overlay?.dataset.state && (ev.key === 'Enter' || ev.key === ' ')) {
+    const state = overlay?.dataset.state
+    if (state === 'cleared' && (ev.key === 'Enter' || ev.key === ' ')) {
       ev.preventDefault()
-      const action = overlay.querySelector<HTMLElement>('[data-action]')?.dataset.action
-      if (action === 'start') startGame()
-      else if (action === 'next' || action === 'skip') { clearOverlay(); stageEl?.next?.() }
-      else if (action === 'retry' || action === 'replay') { clearOverlay(); stageEl?.restart?.() }
+      if (overlay?.querySelector('[data-action="next"]')) stageEl?.next?.()
+      else game?.start()
       return
     }
-    if (ev.key === 'r' || ev.key === 'R') { stageEl?.restart?.() }
+    if (state === 'failed' && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); stageEl?.restart?.(); return }
+    if ((ev.key === 'r' || ev.key === 'R') && !state) stageEl?.restart?.()
   })
 
   // Pointer-drag aim: pointerdown anywhere → start aiming relative to the
@@ -430,11 +477,20 @@
   })
   stageEl?.addEventListener('pointercancel', () => { aiming = false })
 
+  // Drag from the pad: direction sets the angle, distance sets the thrust.
+  // ~24px of drag = minimum power, ~180px = full power, clamped between.
+  const DRAG_MIN = 24
+  const DRAG_MAX = 180
   function updateAimFromPoint(px: number, py: number) {
     if (!game || !stageEl) return
     const idx = game.levelIndex()
     const pad = LEVELS[idx]?.launch ?? { x: 240, y: 470 }
-    const angle = Math.atan2(py - pad.y, px - pad.x)
-    stageEl.setAim?.(angle)
+    const dx = px - pad.x
+    const dy = py - pad.y
+    const angle = Math.atan2(dy, dx)
+    const dist = Math.hypot(dx, dy)
+    const t = Math.max(0, Math.min(1, (dist - DRAG_MIN) / (DRAG_MAX - DRAG_MIN)))
+    const speed = MIN_SPEED + t * (MAX_SPEED - MIN_SPEED)
+    stageEl.setAim?.(angle, speed)
   }
 </script>

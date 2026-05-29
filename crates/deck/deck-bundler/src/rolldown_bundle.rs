@@ -98,18 +98,37 @@ impl Plugin for SuiPlugin {
                 ..Default::default()
             }));
         }
-        // `./X.compiled.js` sibling → virtual id; `load` compiles the `.sui`.
-        if (spec.starts_with("./") || spec.starts_with("../")) && spec.ends_with(".compiled.js") {
-            if let Some(importer) = args.importer {
+        // `*.compiled.js` → virtual id; `load` compiles the sibling `.sui`. The
+        // `.compiled.js` is synthetic (never on disk), so we must redirect here
+        // rather than fall through to Rolldown's native resolver, which would
+        // fail to resolve a nonexistent file. Two shapes reach here: relative
+        // `./X.compiled.js` siblings (umbrella `index.ts` imports), and the
+        // ABSOLUTE paths the virtual-aggregate entry emits (sui-marketing &
+        // separate-bundle islands) — both must become a virtual id.
+        if spec.ends_with(".compiled.js") {
+            if Path::new(spec).is_absolute() {
+                return Ok(Some(HookResolveIdOutput::from_id(
+                    normalize(Path::new(spec)).to_string_lossy().to_string(),
+                )));
+            }
+            if (spec.starts_with("./") || spec.starts_with("../"))
+                && let Some(importer) = args.importer
+            {
                 let dir = Path::new(importer).parent().unwrap_or(&self.repo_root);
                 let abs = normalize(&dir.join(spec));
                 return Ok(Some(HookResolveIdOutput::from_id(abs.to_string_lossy().to_string())));
             }
         }
-        // `@ship/<non-singleton>` → workspace package `src/index.ts` (source,
-        // not prebuilt dist) so its components compile from source too.
+        // `@ship/<non-singleton>` → workspace package source (not prebuilt
+        // dist) so its components compile from source too. A bare specifier
+        // (`@ship/ui-components`) resolves to `src/index.ts`; a subpath
+        // (`@ship/ui-components/tokens/themes`) resolves to the matching file
+        // under `src/` — honoring the package's `exports` subpath map. Without
+        // this the subpath collapsed to `src/index.ts`, surfacing as a
+        // `MissingExport` for the named imports that live in the subpath file.
         if let Some(rest) = spec.strip_prefix("@ship/") {
             let name = rest.split('/').next().unwrap_or(rest);
+            let subpath = rest.strip_prefix(name).map(|s| s.trim_start_matches('/'));
             let cands = if let Some(s) = name.strip_prefix("sui-") {
                 vec![s.to_string(), name.to_string()]
             } else {
@@ -122,10 +141,30 @@ impl Plugin for SuiPlugin {
                     } else {
                         self.repo_root.join("packages").join(umbrella).join(d)
                     };
-                    let idx = pkg.join("src/index.ts");
-                    if idx.exists() {
+                    if !pkg.join("src/index.ts").exists() {
+                        continue
+                    }
+                    let src = pkg.join("src");
+                    let target = match subpath {
+                        None | Some("") => src.join("index.ts"),
+                        Some(sub) => {
+                            // `tokens/themes` → tokens/themes.ts, or its index.ts.
+                            let direct = src.join(sub);
+                            if direct.extension().is_some() && direct.exists() {
+                                direct
+                            } else {
+                                let with_ext = src.join(format!("{sub}.ts"));
+                                if with_ext.exists() {
+                                    with_ext
+                                } else {
+                                    src.join(sub).join("index.ts")
+                                }
+                            }
+                        }
+                    };
+                    if target.exists() {
                         return Ok(Some(HookResolveIdOutput::from_id(
-                            idx.to_string_lossy().to_string(),
+                            target.to_string_lossy().to_string(),
                         )));
                     }
                 }

@@ -251,7 +251,8 @@
 </style>
 
 <script>
-  import '@ship/arcade/bundle'
+  // '@ship/arcade/bundle' (pixi, ~800KB) is lazy-imported by ArcadeWindow on
+  // first open — not statically here, so the homepage never downloads it.
   import type { Stage } from '@ship/arcade-engine'
   import { effect } from '@ship/sui-runtime'
   import { createGardenDirector } from './director.ts'
@@ -365,13 +366,18 @@
     game.start()
   }
 
-  stageEl?.addEventListener('sui-stage:ready', () => {
+  function onReady() {
     // Create the director on ready so the empty grid is visible on the idle
     // overlay. The director spawns + paints the grid in its constructor;
     // start() resets state and runs the loop on user input.
     ensureGame()
     showStart()
-  })
+  }
+  stageEl?.addEventListener('sui-stage:ready', onReady)
+  // Stage may have fired ready BEFORE this script ran (Astro bundles
+  // multiple game scripts independently; all 3 stages can mount before
+  // the second/third script attaches its listener). Catch up.
+  if (stageEl?.stage) onReady()
 
   root?.addEventListener('click', (ev) => {
     const target = (ev.target as HTMLElement | null)?.closest<HTMLElement>('[data-action]')

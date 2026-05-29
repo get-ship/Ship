@@ -25,7 +25,7 @@ const platforms = [
       <div class="parallax" data-parallax="0.4"></div>
       <div class="win-eyebrow">Download · public beta</div>
       <h2 class="win-headline">Get Ship.</h2>
-      <p class="win-lede">Runs on your machine, bring your own model, free for personal use. Installers are landing now — pick your platform and we'll email you the moment yours is ready.</p>
+      <p class="win-lede">Runs on your machine, bring your own model, free for personal use. Installers ship with the public beta — pick your platform and we'll email you the moment yours is ready.</p>
     </header>
 
     <section class="win-section" data-reveal>
@@ -34,10 +34,10 @@ const platforms = [
           <div class="plat" data-platform={p.id}>
             <span class="pi" set:html={icons[p.id]} />
             <div class="pmeta">
-              <div class="pn">{p.label}<sui-badge tone="primary" variant="soft" size="sm" class="rec">{p.rec}</sui-badge></div>
+              <div class="pn">{p.label}<span class="rec">{p.rec}</span></div>
               <div class="pmin">{p.min}</div>
             </div>
-            <sui-button variant="outline" size="sm"><a href="/download/coming-soon" class="cta-a">Join waitlist</a></sui-button>
+            <a class="plat-cta" href="/download/coming-soon">Join waitlist</a>
           </div>
         ))}
       </div>
@@ -65,13 +65,43 @@ const platforms = [
   .pmeta { min-width: 0; }
   .pn { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13.5px; }
   .pmin { font-family: var(--font-mono); font-size: 10.5px; color: color-mix(in oklch, var(--foreground) 55%, var(--background)); margin-top: 2px; }
-  /* Hide all recommend badges; the detected platform reveals its own. */
+  /* Recommendation chip — plain span styled in-house. sui-badge was
+     rendering a phantom empty pill next to its label here (slot
+     leakage in the shadow tree); a flat span keeps it predictable. */
   .rec { display: none; }
-  .plat[data-recommended] .rec { display: inline-flex; }
-  .cta-a { color: inherit; text-decoration: none; }
-  /* Mobile: the icon/meta/CTA row gets cramped on narrow widths — the
-     "For your PC" recommend badge + waitlist button collide. Stack the
-     CTA below the meta block so each column has room to breathe. */
+  .plat[data-recommended] .rec {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px; border-radius: 999px;
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--w-accent);
+    background: color-mix(in oklch, var(--w-accent) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 28%, transparent);
+  }
+  /* Plain anchor styled as outline-button. sui-button's slot-detection
+     heuristic flipped to icon-only mode for the detected platform when
+     its only child was an <a>text</a> — collapsing the button to 56px.
+     Direct CSS sidesteps the heuristic. */
+  .plat-cta {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 6px 14px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid color-mix(in oklch, var(--w-accent) 36%, var(--border));
+    color: var(--foreground); text-decoration: none;
+    font-family: var(--font-body); font-size: 12.5px; font-weight: 600;
+    line-height: 1.2; white-space: nowrap;
+    transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+  }
+  .plat-cta:hover { background: color-mix(in oklch, var(--w-accent) 14%, transparent); border-color: var(--w-accent); transform: translateY(-1px); }
+  .plat[data-recommended] .plat-cta {
+    background: var(--w-accent);
+    border-color: var(--w-accent);
+    color: var(--background);
+  }
+  .plat[data-recommended] .plat-cta:hover { filter: brightness(1.06); }
+  /* Mobile: the icon/meta/CTA row gets cramped on narrow widths — stack
+     the CTA below the meta block so each column has room to breathe. */
   @media (max-width: 480px) {
     .plat {
       grid-template-columns: 24px 1fr;
@@ -80,22 +110,32 @@ const platforms = [
     }
     .plat .pi { grid-area: ico; }
     .plat .pmeta { grid-area: meta; }
-    .plat sui-button { grid-area: cta; justify-self: stretch; }
+    .plat .plat-cta { grid-area: cta; justify-self: stretch; }
     .plat .pn { flex-wrap: wrap; }
   }
   .facts { display: grid; gap: 9px; }
   .fact { display: flex; flex-direction: column; gap: 1px; }
   .fact b { font-size: 12.5px; font-weight: 600; }
   .fact span { font-family: var(--font-mono); font-size: 10.5px; color: color-mix(in oklch, var(--foreground) 58%, var(--background)); }
+
 </style>
 
 <script>
+  const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+  const blob = `${(nav.userAgentData?.platform || '').toLowerCase()} ${navigator.userAgent.toLowerCase()} ${(navigator.platform || '').toLowerCase()}`;
+  const detectedOs = /mac|iphone|ipad/.test(blob)
+    ? 'macos'
+    : /win/.test(blob)
+      ? 'windows'
+      : /linux|x11|ubuntu|fedora|debian/.test(blob)
+        ? 'linux'
+        : '';
+
+  // ── Recommend the detected platform card. ─────────────────────────
   const host = document.querySelector('[data-platform-detect]');
-  if (host) {
-    const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
-    const blob = `${(nav.userAgentData?.platform || '').toLowerCase()} ${navigator.userAgent.toLowerCase()} ${(navigator.platform || '').toLowerCase()}`;
-    const os = /mac|iphone|ipad/.test(blob) ? 'macos' : /win/.test(blob) ? 'windows' : /linux|x11|ubuntu|fedora|debian/.test(blob) ? 'linux' : '';
-    const card = os && host.querySelector(`[data-platform="${os}"]`);
+  if (host && detectedOs) {
+    const card = host.querySelector(`[data-platform="${detectedOs}"]`);
     if (card) { card.setAttribute('data-recommended', ''); host.prepend(card); }
   }
+
 </script>

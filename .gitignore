@@ -262,3 +262,14 @@ views/*/*.d.ts
 
 # Local daemon runtime state created when shipd runs with cwd=repo
 /machine/
+
+# Chrome Lighthouse profile dumps — WSL receives Windows paths as literal
+# directory names with backslashes when astro/lighthouse runs from Windows.
+apps/site/C:*
+apps/*/C:*
+
+# Site generated assets (produced by apps/site/scripts/copy-sui-assets.ts).
+# Source of truth is the SUI build; the site only re-publishes them.
+apps/site/public/_sui/icons/
+apps/site/public/_sui/syntax-tokens.css
+apps/site/public/sui-components/

@@ -31,10 +31,14 @@ interface Props {
    *  opted into by feature windows whose demos are designed to fit and
    *  whose copy lives in the drawer (Agents, future feature windows). */
   popout?: boolean;
+  /** Defer the body into an inert <template> while closed (perf). Opt-in per
+   *  window — only set on windows whose script runs via whenWindowBody() or
+   *  that have no own script (wired by wireRichWindow on open). */
+  defer?: boolean;
 }
 const {
   app, title, meta, mark, markImg, theme, dark = false,
-  accent, open = false, popout = false,
+  accent, open = false, popout = false, defer = false,
 } = Astro.props;
 
 const accentVar = accent ? `--w-accent: var(--app-accent-${accent});` : '';
@@ -46,10 +50,11 @@ const dl = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="
 /* Every window has two modes — fullscreen (full viewport, menubar
  * hidden, titlebar absorbs the right cluster) and mini (floating
  * window, dock-safe at the bottom, menubar-OVERLAPPABLE at the top).
- * Feature windows default fullscreen; welcome / download / arcade
- * default mini. The green traffic light toggles between the two on
- * any window. */
-const MINI_DEFAULT = new Set(['welcome', 'download', 'arcade']);
+ * Feature windows default fullscreen; welcome / download default mini.
+ * Arcade went fullscreen when it became a 3-cabinet picker — its inner
+ * game frames re-center their own stages. The green traffic light flips
+ * the mode on any window. */
+const MINI_DEFAULT = new Set(['welcome', 'download']);
 const defaultSize: 'mini' | 'fullscreen' = MINI_DEFAULT.has(app) ? 'mini' : 'fullscreen';
 ---
 <section
@@ -94,12 +99,16 @@ const defaultSize: 'mini' | 'fullscreen' = MINI_DEFAULT.has(app) ? 'mini' : 'ful
           <rect x="13" y="13" width="8" height="8" rx="1.5"/>
         </svg>
       </button>
-      <sui-theme-picker class="fs-theme" placement="bottom-end"></sui-theme-picker>
+      <sui-theme-picker class="fs-theme" placement="bottom-end" surface="marketing"></sui-theme-picker>
       <a class="fs-dl" href="/download" data-open-window="download"><span set:html={dl} />Download</a>
     </div>
   </header>
   <div class="content">
-    <slot />
+    {/* Closed windows ship their body inert inside a <template>: no DOM, no
+        <sui-*> hydration, no per-window script work until first open. The open
+        window renders live so first paint isn't gated on JS. desktop.ts clones
+        the template + runs the window's deferred init on open. */}
+    {(open || !defer) ? <slot /> : <template data-window-body><slot /></template>}
     {popout && (
       <Fragment>
         {/* Scroll nudge — invites the gesture that opens the popout drawer.
@@ -524,17 +533,17 @@ const defaultSize: 'mini' | 'fullscreen' = MINI_DEFAULT.has(app) ? 'mini' : 'ful
     top:   max(calc(var(--os-menubar-h, 32px) + 4px),
               calc((100vh + var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px)) / 2 - 235px));
   }
-  /* Arcade in mini: the game stage is 480×540 + 32 titlebar = 572px
-     minimum. Don't shrink below that — at small viewports we shift up
-     toward the menubar instead of cropping the game canvas. */
+  /* Arcade in mini: hosts the picker + (when playing) stat rails. Wide
+     enough for 3 cards or rail-stage-rail. Game stage core is 480×540
+     so we floor height ≥ 600 to leave room for the chrome + strip. */
   .w-arcade[data-size='mini'] {
-    width:  480px;
-    height: 572px;
-    left:   max(12px, calc(50vw - 240px));
+    width:  820px;
+    height: 640px;
+    left:   max(12px, calc(50vw - 410px));
     top:    max(calc(var(--os-menubar-h, 32px) + 4px),
                min(
-                 calc(100vh - var(--os-dock-visible-h, 112px) - 572px - 4px),
-                 calc((100vh + var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px)) / 2 - 286px)
+                 calc(100vh - var(--os-dock-visible-h, 112px) - 640px - 4px),
+                 calc((100vh + var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px)) / 2 - 320px)
                ));
   }
   /* Feature windows in mini mode. Same titlebar-reachable rule. */
@@ -544,7 +553,6 @@ const defaultSize: 'mini' | 'fullscreen' = MINI_DEFAULT.has(app) ? 'mini' : 'ful
   .w-observability[data-size='mini'],
   .w-custom-views[data-size='mini'],
   .w-security[data-size='mini'],
-  .w-spaces[data-size='mini'],
   .w-pricing[data-size='mini'],
   .w-docs[data-size='mini'],
   .w-faq[data-size='mini'] {
@@ -553,6 +561,17 @@ const defaultSize: 'mini' | 'fullscreen' = MINI_DEFAULT.has(app) ? 'mini' : 'ful
     left:   max(12px, calc(50vw - min(480px, 46vw)));
     top:    max(calc(var(--os-menubar-h, 32px) + 4px),
                calc((100vh + var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px)) / 2 - 320px));
+  }
+  /* Spaces in mini: needs more horizontal room for the 3-tab switcher
+     + 3-col panel (views / agents / team). The shared mini above
+     squeezed the team column down to ~120px and the agent rows
+     truncated. Give it a wider footprint. */
+  .w-spaces[data-size='mini'] {
+    width:  min(1080px, 94vw);
+    height: min(680px, calc(100vh - var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px) - 24px));
+    left:   max(12px, calc(50vw - min(540px, 47vw)));
+    top:    max(calc(var(--os-menubar-h, 32px) + 4px),
+               calc((100vh + var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px)) / 2 - 340px));
   }
 
   /* ── Mobile: stack every window as a static, always-open card. ── */

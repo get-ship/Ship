@@ -26,7 +26,14 @@ const DECK_OWN_BUNDLES: [&str; 4] = ["sui-runtime", "sui-dom", "sui-sdk-client",
 
 /// Marketing-essentials aggregate — exactly the `<sui-*>` tags apps/site mounts.
 /// Keep in sync with apps/site when adding tags. Repo-relative.
-const MARKETING_SOURCES: [&str; 12] = [
+///
+/// `sui-icon` is registered explicitly: the bundler only defines the custom
+/// elements whose `.sui` sources are listed here, and a `<sui-icon>` referenced
+/// inside another template (e.g. the theme-picker trigger) is NOT transitively
+/// pulled in. Without this entry `<sui-icon>` stays an inert HTMLUnknownElement
+/// — no controller, no `/_sui/icons/<name>.svg` fetch, no glyph.
+const MARKETING_SOURCES: [&str; 13] = [
+    "packages/components/primitives/src/sui-icon/sui-icon.sui",
     "packages/components/primitives/src/sui-badge/sui-badge.sui",
     "packages/components/primitives/src/sui-button/sui-button.sui",
     "packages/components/primitives/src/sui-progress/sui-progress.sui",

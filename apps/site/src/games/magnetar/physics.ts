@@ -27,13 +27,6 @@ export interface Wall {
   height: number
 }
 
-export interface Token {
-  x: number
-  y: number
-  /** Collected this attempt — stays collected across the projectile's flight. */
-  taken: boolean
-}
-
 export interface Target {
   x: number
   y: number
@@ -58,9 +51,15 @@ export interface Target {
 // slingshot speeds tractable for the symplectic integrator.
 export const G = 80000
 export const MIN_DIST = 22
-export const LAUNCH_SPEED = 140
+// Launch thrust is now player-controlled: drag distance from the pad maps to
+// speed in [MIN_SPEED, MAX_SPEED]. DEFAULT_SPEED is the mid-power a level opens
+// at and matches the old fixed launch speed, so existing geometry stays
+// solvable. Thrust matters because speed changes how hard gravity bends the
+// ship — high power flies straighter, low power lets a planet curve you in.
+export const MIN_SPEED = 55
+export const MAX_SPEED = 160
+export const DEFAULT_SPEED = 90
 export const PROJECTILE_R = 4
-export const TOKEN_R = 8
 
 export function gravityForceAt(p: Vec2, planets: Planet[]): Vec2 {
   let ax = 0
@@ -105,11 +104,16 @@ export interface PredictBounds {
  * Walk forward `steps` integration steps and return the visited positions.
  * Stops early if the path leaves the bounds or hits a planet/wall — gives a
  * predictor that bottoms out where the actual flight would.
+ *
+ * `planetsAt(t)` returns the planet snapshot at prediction time t (seconds
+ * since launch). For static levels it returns a constant array; for moving /
+ * pulsing bodies it advances them, so the ghost stays truthful with the field
+ * it's actually going to fly through.
  */
 export function predictPath(
   start: Vec2,
   vel: Vec2,
-  planets: Planet[],
+  planetsAt: (t: number) => Planet[],
   walls: Wall[],
   bounds: PredictBounds,
   steps: number,
@@ -119,6 +123,7 @@ export function predictPath(
   let p = { ...start }
   let v = { ...vel }
   for (let i = 0; i < steps; i++) {
+    const planets = planetsAt(i * dt)
     const next = integrate(p, v, planets, dt)
     p = next.pos
     v = next.vel
@@ -150,11 +155,4 @@ export function hitsTarget(p: Vec2, target: Target): boolean {
   const dx = target.x - p.x
   const dy = target.y - p.y
   return dx * dx + dy * dy < (target.radius + PROJECTILE_R) * (target.radius + PROJECTILE_R)
-}
-
-export function hitsToken(p: Vec2, token: Token): boolean {
-  if (token.taken) return false
-  const dx = token.x - p.x
-  const dy = token.y - p.y
-  return dx * dx + dy * dy < (TOKEN_R + PROJECTILE_R) * (TOKEN_R + PROJECTILE_R)
 }

@@ -42,11 +42,8 @@
         "@astrojs/starlight": "^0.38.2",
         "@fontsource-variable/dm-sans": "^5.2.8",
         "@fontsource-variable/syne": "^5.2.7",
-        "@ship/sui-compiler-wasm": "workspace:*",
-        "@ship/sui-lsp-browser": "workspace:*",
         "astro": "^6.1.1",
         "sharp": "^0.33.0",
-        "shiki": "^4.0.0",
         "starlight-openapi": "^0.24.0",
         "starlight-sidebar-topics": "^0.7.1",
       },
@@ -146,9 +143,12 @@
         "@fontsource-variable/syne": "^5.2.7",
         "@ship/arcade": "workspace:*",
         "@ship/arcade-engine": "workspace:*",
+        "@ship/sui-compiler-wasm": "workspace:*",
+        "@ship/sui-lsp-browser": "workspace:*",
         "@ship/sui-runtime": "workspace:*",
         "astro": "^6.1.1",
         "better-auth": "^1.6.11",
+        "shiki": "^4.0.0",
       },
       "devDependencies": {
         "@astrojs/sitemap": "^3.7.2",
@@ -378,13 +378,6 @@
     "packages/deck/test-harness": {
       "name": "@ship/deck-test-harness",
       "version": "0.0.0",
-    },
-    "packages/eval-harness": {
-      "name": "@ship/eval-harness",
-      "version": "0.0.0",
-      "devDependencies": {
-        "typescript": "~5.8.3",
-      },
     },
     "packages/sui/compiler-wasm": {
       "name": "@ship/sui-compiler-wasm",
@@ -1015,8 +1008,6 @@
     "@ship/deck-test-harness": ["@ship/deck-test-harness@workspace:packages/deck/test-harness"],
 
     "@ship/docs": ["@ship/docs@workspace:apps/docs"],
-
-    "@ship/eval-harness": ["@ship/eval-harness@workspace:packages/eval-harness"],
 
     "@ship/pipelines": ["@ship/pipelines@workspace:packages/components/pipelines"],
 

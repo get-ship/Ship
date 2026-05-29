@@ -35,6 +35,12 @@
 <prop name="placement" values="top|top-end|bottom|bottom-end|left|left-end|right|right-end" default="bottom-end" reflect />
 <prop name="label-style" values="text|compact" default="compact" reflect />
 <prop name="persist" type="bool" default="true" reflect />
+<!-- `app` (default) is the shell: trigger shows the active theme's accent
+     swatch and the footer routes to /theme-studio. `marketing` is the static
+     site: the trigger inherits surrounding text color (legible on the
+     translucent menubar) and the Customize footer is hidden because the static
+     site has no /theme-studio route. -->
+<prop name="surface" values="app|marketing" default="app" reflect />
 
 <style>
   :host {
@@ -362,7 +368,7 @@
   aria-haspopup="dialog"
   aria-expanded={panelOpen() ? 'true' : 'false'}
   on:click={() => togglePanel()}>
-  <sui-icon class="tp-icon" part="dot" name="palette" size="sm" style:color={dotColor()} aria-hidden="true"></sui-icon>
+  <sui-icon class="tp-icon" part="dot" name="palette" size="lg" style:color={triggerIconColor()} aria-hidden="true"></sui-icon>
   <span class="label" part="label">{triggerLabel()}</span>
   <svg class="caret" viewBox="0 0 10 6" aria-hidden="true">
     <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -410,13 +416,15 @@
         </div>
       </section>
     {/for}
-    <button class="customize" type="button" data-theme-customize
-      on:click={openCustomize}>
-      <span>Customize…</span>
-      <span class="customize-meta">Per-token editor</span>
-      <svg class="customize-chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-        <path d="M3 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-    </button>
+    {#if showCustomize()}
+      <button class="customize" type="button" data-theme-customize
+        on:click={openCustomize}>
+        <span>Customize…</span>
+        <span class="customize-meta">Per-token editor</span>
+        <svg class="customize-chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+          <path d="M3 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    {/if}
   </div>
 </div>

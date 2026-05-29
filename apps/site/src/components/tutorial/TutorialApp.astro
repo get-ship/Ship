@@ -4,10 +4,15 @@
   SUI components: <sui-tabs> / <sui-tab> / <sui-tab-panel> for pane
   switching, <sui-button> for actions, <sui-status-dot> for the live
   status, <sui-code-editor> for editing, <sui-diff> for the "what
-  changed vs. solution" view, <sui-alert> for compile errors. The
-  base component set is registered globally by the layout's
-  <script type="module" src="/sui-components.js">; the editor + diff
-  chunks lazy-load on first reference.
+  changed vs. solution" view. The base set ships in the marketing
+  bundle (sui-marketing.js, loaded by BaseLayout); <sui-code-editor>
+  is a lazy chunk loaded by the tutorial route's head. Compile errors
+  render in a plain box (the destructive variant of <sui-alert> isn't
+  in the marketing bundle, so we don't pull it in for one element).
+
+  Relocated from apps/docs — the live playground is a conversion
+  surface, so it lives on the consumer hub (getship.dev) rather than
+  the reference site.
 
   Author flow on every edit:
     sui-change (debounced 150ms inside sui-code-editor)
@@ -40,7 +45,7 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
           <span class="tut-tab-icon" aria-hidden="true">⟨/⟩</span> template.sui
         </sui-tab>
         <sui-tab name="controller">
-          <span class="tut-tab-icon" aria-hidden="true">{}</span> controller.ts
+          <span class="tut-tab-icon" aria-hidden="true">{'{}'}</span> controller.ts
         </sui-tab>
         <sui-tab name="diff">
           <span class="tut-tab-icon" aria-hidden="true">±</span> diff
@@ -96,10 +101,10 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
         ↻ Run
       </sui-button>
     </div>
-    <sui-alert class="tut-error" tone="destructive" hidden>
-      <span slot="title">Compile error</span>
+    <div class="tut-error" hidden>
+      <div class="tut-error-title">Compile error</div>
       <pre class="tut-error-msg"></pre>
-    </sui-alert>
+    </div>
     <div class="tut-preview-host">
       <iframe
         class="tut-preview"
@@ -135,22 +140,28 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     return lspClient
   }
 
-  // sui-components.js + sui-components/sui-code-editor.js are loaded
-  // globally by the docs layout's <head>. We just wait for the
+  // sui-code-editor is loaded by the tutorial route's head as a lazy
+  // chunk (/sui-components/sui-code-editor.js). Wait for the
   // custom-element definition to land before booting.
   function ensureEditorCE(): Promise<unknown> {
     if (typeof customElements === 'undefined') return Promise.resolve()
     return customElements.whenDefined('sui-code-editor')
   }
 
-  // Wait for the base set (sui-button, sui-tabs, sui-status-dot,
-  // sui-diff, sui-alert, sui-card) to be defined too — they ship in
-  // sui-components.js which is loaded asynchronously by the layout.
+  // Wait for the base set bootApp actually queries to be defined.
+  // NOTE: the standalone `sui-tab` is intentionally NOT in this list.
+  // The site loads the lean marketing bundle (+ the editor chunk),
+  // which registers `sui-tabs`/`sui-tab-panel` but not the individual
+  // `sui-tab` wrapper. bootApp never queries `sui-tab` directly — it
+  // wires switching off `sui-tabs`'s `sui-tab-change` event — and
+  // `sui-tabs` reads its light-DOM children's `name`/content to build
+  // the strip, so the tabs work without `sui-tab` upgrading. Waiting
+  // on it would hang boot forever.
   function ensureBaseCE(): Promise<unknown> {
     if (typeof customElements === 'undefined') return Promise.resolve()
     return Promise.all([
-      'sui-button', 'sui-tabs', 'sui-tab', 'sui-tab-panel',
-      'sui-status-dot', 'sui-diff', 'sui-alert', 'sui-card',
+      'sui-button', 'sui-tabs', 'sui-tab-panel',
+      'sui-status-dot', 'sui-diff', 'sui-card',
     ].map((tag) => customElements.whenDefined(tag)))
   }
 
@@ -436,19 +447,16 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     min-height: 0;
     flex: 1;
   }
-  /* Starlight's article/prose CSS slaps a top margin on every
-     sibling div after the first. Our two panes are siblings;
-     kill it so the flex gap is the only spacing between them. */
-  .tut-app-root > * { margin: 0 !important; }
+  .tut-app-root > * { margin: 0; }
 
   .tut-pane {
     display: flex;
     flex-direction: column;
     flex: 1 1 0;
     min-height: 0;
-    background: var(--card, var(--sl-color-bg-sidebar));
-    border: 1px solid var(--border, var(--sl-color-hairline-shade));
-    border-radius: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
     overflow: hidden;
   }
   .tut-pane--editor { flex: 1 1 0; min-height: 0; }
@@ -463,20 +471,10 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     justify-content: space-between;
     gap: 0.5rem;
     padding: 4px 8px;
-    border-bottom: 1px solid var(--border, var(--sl-color-hairline-shade));
+    border-bottom: 1px solid var(--border);
     flex-shrink: 0;
     height: 36px;
     box-sizing: border-box;
-  }
-  /* Starlight's content reset gives every direct child of <article>
-     a margin-top — when sui-tabs renders inside it, the first sui-tab
-     inherits that, pushing the tablist down. Force-reset all chrome
-     descendants. */
-  .tut-pane-bar > *,
-  .tut-pane-bar *:first-child {
-    margin: 0 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
   }
   .tut-pane-bar sui-tabs,
   .tut-pane-bar sui-tab,
@@ -496,11 +494,11 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
   .tut-tabs::part(strip) {
     padding: 2px;
     background: transparent;
-    border-bottom: 0 !important;
+    border-bottom: 0;
     align-items: center;
   }
   .tut-tab-icon {
-    font-family: var(--font-mono, var(--sl-font-system-mono));
+    font-family: var(--font-mono);
     color: var(--muted-foreground);
     font-size: 0.7rem;
     margin-right: 4px;
@@ -568,7 +566,7 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     gap: 4px;
   }
   .tut-diff-label {
-    font-family: var(--font-mono, var(--sl-font-system-mono));
+    font-family: var(--font-mono);
     font-size: 0.7rem;
     color: var(--muted-foreground);
     text-transform: uppercase;
@@ -588,20 +586,37 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     flex: 1;
     width: 100%;
     border: none;
-    background: var(--background, var(--sl-color-bg));
+    background: var(--background);
   }
 
+  /* Compile-error box — plain element styled off Ship's destructive
+     token (the <sui-alert> destructive variant isn't in the lean
+     marketing bundle, so we don't pull the whole element in for this). */
   .tut-error {
     margin: 8px 10px 0;
     flex-shrink: 0;
+    padding: 8px 10px;
+    border-radius: var(--radius-md, 6px);
+    background: color-mix(in oklch, var(--destructive) 12%, transparent);
+    border-left: 3px solid var(--destructive);
+  }
+  .tut-error[hidden] { display: none; }
+  .tut-error-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--destructive);
+    margin-bottom: 4px;
   }
   .tut-error-msg {
     margin: 0;
-    font-family: var(--font-mono, var(--sl-font-system-mono));
+    font-family: var(--font-mono);
     font-size: 0.75rem;
     white-space: pre-wrap;
     word-break: break-word;
     max-height: 120px;
     overflow-y: auto;
+    color: var(--destructive);
   }
 </style>
