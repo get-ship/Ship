@@ -66,10 +66,10 @@ pub fn run() {
                     }
                     None => "/hub".to_string(),
                 };
-                if let Some(port) = crate::daemon::daemon_status().port
-                    && let Ok(url) = format!("http://127.0.0.1:{port}{target}").parse()
-                {
-                    let _ = window.navigate(url);
+                if let Some(port) = crate::daemon::daemon_status().port {
+                    if let Ok(url) = format!("http://127.0.0.1:{port}{target}").parse() {
+                        let _ = window.navigate(url);
+                    }
                 }
                 // Plant the launched app id for the frontend to route on (spaces
                 // also read it server-side from the scaffold; this is a belt-and-
