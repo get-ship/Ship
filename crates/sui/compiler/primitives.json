@@ -296,10 +296,6 @@
       "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
       "variant": { "values": ["default", "underline", "subtle"], "default": "default" }
     },
-    "sui-loading": {
-      "compact": { "type": "bool", "default": "false" },
-      "messages": { "type": "string", "default": "" }
-    },
     "sui-log-stream": {
       "active": { "type": "bool", "default": "false" },
       "autoscroll": { "type": "bool", "default": "false" },
@@ -433,10 +429,6 @@
       "size": { "values": ["sm", "md"], "default": "md" },
       "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" }
     },
-    "sui-step-segments": {
-      "size": { "values": ["sm", "md", "lg"], "default": "md" },
-      "values": { "type": "string", "default": "" }
-    },
     "sui-stepper": {
       "current": { "type": "number", "default": "1" },
       "label": { "type": "string", "default": "" },
@@ -508,9 +500,6 @@
       "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
       "value": { "type": "string", "default": "" },
       "variant": { "values": ["default", "code"], "default": "default" }
-    },
-    "sui-theme-toggle": {
-      "theme": { "values": ["light", "dark", "auto"], "default": "auto" }
     },
     "sui-timeline-item": {
       "at": { "type": "string", "default": "" },

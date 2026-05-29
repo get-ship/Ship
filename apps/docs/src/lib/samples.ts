@@ -271,9 +271,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Avatar', attrs: { shape: 'circle', size: 'lg' } },
     { label: 'Block',  raw: '<div style="width:240px;"><sui-skeleton shape="block" size="md"></sui-skeleton></div>' },
   ],
-  'sui-step-segments': [
-    { label: 'Progress', attrs: { values: 'completed,completed,running,pending,pending', size: 'md' } },
-  ],
   'sui-meter': [
     {
       label: 'Split',
@@ -480,10 +477,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   ],
   'sui-pagination': [
     { label: 'Default', attrs: { page: '3', 'page-count': '12' } },
-  ],
-  'sui-loading': [
-    { label: 'Default', attrs: { label: 'Loading…' } },
-    { label: 'With spinner', attrs: { variant: 'spinner', label: 'Fetching agents…' } },
   ],
   'sui-error-state': [
     {
