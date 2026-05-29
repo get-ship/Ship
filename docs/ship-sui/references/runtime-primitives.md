@@ -199,7 +199,6 @@ Worked exemplars: `sui-dialog`, `sui-popover`, `sui-toast-container`.
 ## Template hooks — `<use-*>`
 
 ```html
-<use-shell as="shell" />
 <use-kbd><on key="/" action="search" /></use-kbd>
 <use-click-outside bind:target={dialogEl} bind:action={close} />
 <use-focus-trap bind:target={dialogEl} />

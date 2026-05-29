@@ -106,13 +106,12 @@ What this avoids: a `live:` section in the controller, calling `live()` from JS.
 
 ## Tier 3 — agents with hooks
 
-The same view, scaled with the v1 hooks (`useFilteredList`, `useSelection`, `<use-shell>`, `<use-kbd>`) — all shipped, see [status.md](status.md).
+The same view, scaled with the v1 hooks (`useFilteredList`, `useSelection`, `<use-kbd>`) — all shipped, see [status.md](status.md).
 
 ```html
 <!-- views/agents/page.sui -->
 <data name="agents" source="ship.agents.summaries()" live />
 
-<use-shell as="shell" />
 <use-kbd>
   <on key="/"        action="toggleSearch" />
   <on key="cmd+n"    action="newAgent" />
@@ -170,7 +169,7 @@ export default controller({
 
 What this exercises beyond tier 2:
 
-- Template hooks (`<use-shell>`, `<use-kbd>`) for host context and document keybindings
+- Template hooks (`<use-kbd>` for document keybindings
 - Controller hooks (`useFilteredList`, `useSelection`) for UI pattern bundles
 - Per-section scope destructure (`use: ({ agents }) => ...`)
 - Hook namespacing in templates (`filter.filtered`, `sel.selected`)

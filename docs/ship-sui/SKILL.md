@@ -124,7 +124,6 @@ Full surface (control flow, transitions, slots, refs, `<data live>`): `reference
 <!-- top-level directives (declare scope) -->
 <data name="agents" source="ship.agents.summaries()" live />
 <prop name="tone" values="default|primary" default="default" reflect />
-<use-shell as="shell" />
 
 <!-- dynamic routes — read params from the shared route signal -->
 <!-- (host must pre-register the pattern via defineRoutes([{pattern:'/x/:id'}])) -->

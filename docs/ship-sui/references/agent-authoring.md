@@ -99,7 +99,7 @@ Surface in compact form (full grammar in
 | `class:x={fn}` / `style:prop={fn}` / `attr:name={fn}` | Reactive class / style / attribute toggle. |
 | `prop:rows={rowsSignal}` | Structured prop into a child component (skips attr serialization). |
 | `<slot name="leading"></slot>` | Slot (components only). |
-| `<use-shell as="shell" />` / `<use-kbd>…</use-kbd>` | Template hooks; side-effect import emitted by compiler. |
+| `<use-kbd>…</use-kbd>` / `<use-click-outside>` | Template hooks; side-effect import emitted by compiler. |
 
 **Scoped CSS.** A view's `style.css` is page-scoped (auto-linked). A
 component's CSS goes in a `<style>` block inside the `.sui`, or for

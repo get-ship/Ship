@@ -11,7 +11,7 @@ SUI has **two** categories of hook with different jobs and different syntax. The
 
 | Category | Job | Where it lives | hooks |
 |---|---|---|---|
-| **Template hook** | Element-scoped lifecycle / side effect, may contribute read-only scope identifiers | Template, as `<use-*>` element | `<use-kbd>`, `<use-click-outside>`, `<use-shell>`, `<use-focus-trap>`, `<use-clipboard>`, `<use-title>`, `<use-scroll-anchor>`, `<use-intersection>` |
+| **Template hook** | Element-scoped lifecycle / side effect, may contribute read-only scope identifiers | Template, as `<use-*>` element | `<use-kbd>`, `<use-click-outside>`, `<use-focus-trap>`, `<use-clipboard>`, `<use-title>`, `<use-scroll-anchor>`, `<use-intersection>` |
 | **Controller hook** | Bundle of state + derived + handlers as a reusable UI pattern slice | Controller, in the `use:` section | `useFilteredList`, `useSelection`, `useForm` |
 
 ## When to reach for which
@@ -41,7 +41,6 @@ A template hook is registered as a custom element of the form `<use-<name>>`. Th
 **Pattern 1 — contribute a scope identifier:**
 
 ```html
-<use-shell as="shell" />
 
 <!-- shell is now readable in template and any controller section -->
 <header class="theme-{shell.theme}">

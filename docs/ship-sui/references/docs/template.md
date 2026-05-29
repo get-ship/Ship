@@ -224,7 +224,6 @@ Empty / `null` / `undefined` / `false` auto-omit the attribute. `true` is presen
 Element-shaped registrations for host-side side effects and platform context. Live in the template alongside the structure they augment. See [hooks.md](hooks.md) for the full contract.
 
 ```html
-<use-shell as="shell" />
 <use-kbd>
   <on key="/" action="search" />
   <on key="cmd+n" action="newAgent" />
