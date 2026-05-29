@@ -108,7 +108,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-accordion-item': 'data',
   'sui-collapsible': 'data',
   'sui-empty-state': 'data',
-  'sui-list-tile': 'data',
   'sui-pagination': 'data',
   'sui-tabs': 'data',
   'sui-tab': 'data',
@@ -142,7 +141,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-breadcrumb-item': 'utility',
   'sui-chip': 'utility',
   'sui-icon': 'utility',
-  'sui-kbd': 'utility',
   'sui-link': 'utility',
   'sui-metachip': 'utility',
   'sui-skeleton': 'utility',
@@ -158,7 +156,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-sparkline': 'charts',
   'sui-donut': 'charts',
   'sui-gauge': 'charts',
-  'sui-meter': 'charts',
   'sui-heatmap': 'charts',
 
   // Observability

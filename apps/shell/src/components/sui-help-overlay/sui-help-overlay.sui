@@ -10,7 +10,7 @@
   - Native <dialog> for top-layer modal semantics, ::backdrop, Esc-close
     and inert background — same approach as <sui-command-palette>.
   - Header ("Keyboard shortcuts") + a scrollable body of grouped rows.
-  - Each row: one or more <sui-kbd> keys (joined by +) on the left, a
+  - Each row: one or more <kbd> keys (joined by +) on the left, a
     plain-language description on the right.
 
   Content lives in the controller's `groups` signal. Every shortcut here
@@ -134,6 +134,10 @@
     gap: 3px;
   }
   .keys .plus { color: var(--muted-foreground); font-size: var(--text-xs, 10px); }
+  .kbd {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--text-sm, 13.5px);
+  }
   .desc {
     margin: 0;
     font-size: var(--text-sm, 13.5px);
@@ -165,7 +169,7 @@
               <dt class="keys">
                 {#for (k, i) of r.keys key={k}}
                   {#if i > 0}<span class="plus" aria-hidden="true">+</span>{/if}
-                  <sui-kbd size="sm">{k}</sui-kbd>
+                  <kbd class="kbd">{k}</kbd>
                 {/for}
               </dt>
               <dd class="desc">{r.desc}</dd>

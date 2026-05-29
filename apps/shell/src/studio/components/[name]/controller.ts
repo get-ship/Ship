@@ -237,7 +237,7 @@ export default controller({
     }
 
     // Components with intrinsic size < 64px are scaled up for legibility.
-    const ZOOM_TAGS = new Set(['sui-status-dot', 'sui-kbd', 'sui-badge', 'sui-chip', 'sui-spinner'])
+    const ZOOM_TAGS = new Set(['sui-status-dot', 'sui-badge', 'sui-chip', 'sui-spinner'])
     if (ZOOM_TAGS.has(entry.tag)) {
       node.style.transform = 'scale(3)'
       node.style.transformOrigin = 'center'
