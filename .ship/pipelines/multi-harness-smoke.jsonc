@@ -25,8 +25,8 @@
     }
   ],
   "step_specs": [
-    "# Implementer — step 1 of 3\n\nMake one trivial doc-comment improvement in any file under `crates/core/runtime/src/`. A typo fix, a clearer sentence, an added context line — pick whatever you see and fix it. Keep the diff tiny (ideally one file, one or two lines).\n\nWhen the change is committed and `cargo check -p runtime` passes, run `ship step-done` with a one-line summary. Do not run broader verification — the verify step (next) runs cargo check for the whole workspace.\n",
+    "# Implementer — step 1 of 3\n\nMake one trivial doc-comment improvement in any file under `crates/core/runtime/src/`. A typo fix, a clearer sentence, an added context line — pick whatever you see and fix it. Keep the diff tiny (ideally one file, one or two lines).\n\nWhen the change is committed and `cargo check -p runtime` passes, run `ship ops call pipelines.step_done --json '{\"slug\":\"'\"'$SHIP_ACTOR_ID'\"'\",\"summary\":\"one-line summary\"}'` to signal completion. Do not run broader verification — the verify step (next) runs cargo check for the whole workspace.\n",
     "# Verify — step 2 of 3 (shell only, no agent)\n\nRuns `cargo check --workspace` in the shared worktree. Exits non-zero on any compilation error — pipeline halts before review.\n",
-    "# Reviewer — step 3 of 3\n\nGrade the implementer's change against one rule: is it a minimal, harmless doc-comment edit? The gate rules already require a .rs file change and forbid .artifacts/ edits; your job is just to sanity-check the diff size and intent.\n\nVerdict: `ship step-done` with pass/fail + one-line evidence (e.g. \"pass — 1 file, 2 insertions in envelope.rs\").\n"
+    "# Reviewer — step 3 of 3\n\nGrade the implementer's change against one rule: is it a minimal, harmless doc-comment edit? The gate rules already require a .rs file change and forbid .artifacts/ edits; your job is just to sanity-check the diff size and intent.\n\nVerdict: `ship ops call pipelines.step_done --json '{\"slug\":\"'\"'$SHIP_ACTOR_ID'\"'\",\"summary\":\"pass/fail + one-line evidence\"}'` to signal completion (e.g. summary: \"pass — 1 file, 2 insertions in envelope.rs\").\n"
   ]
 }

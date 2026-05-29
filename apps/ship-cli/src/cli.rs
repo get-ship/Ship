@@ -333,14 +333,6 @@ pub enum Commands {
         action: SuiCommands,
     },
 
-    /// Declare the current pipeline step complete (job slug from SHIP_ACTOR_ID).
-    /// The agent's completion signal — advances the step monitor.
-    StepDone {
-        /// One-line summary of what the step accomplished.
-        #[arg(long)]
-        summary: String,
-    },
-
     /// Manage the Ship daemon (shipd) background process
     Daemon {
         #[command(subcommand)]

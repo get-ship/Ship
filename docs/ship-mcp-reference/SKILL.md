@@ -1,7 +1,7 @@
 ---
 name: ship-mcp-reference
 stable-id: ship-mcp-reference
-description: RETIRED. The 47-tool MCP surface was removed in the MCP cull (#142–#144). For coordination, use `ship-coordination`. For ops, use `ship ops call <op-name> --json '…'`. For step-done, use `ship step-done`.
+description: RETIRED. The 47-tool MCP surface was removed in the MCP cull (#142–#144). For coordination, use `ship-coordination`. For ops, use `ship ops call <op-name> --json '…'`.
 tags: [ship, mcp, retired]
 authors: [ship]
 ---
@@ -14,7 +14,7 @@ authors: [ship]
 >
 > **For ops** (anything previously called via MCP like `start_session`, `create_adr`, `set_agent`): use `ship ops call <op-name> --json '{…}'`. List available ops with `ship ops list`. The CLI absorbs the transport choice (host unix socket vs TCP + token).
 >
-> **For step completion** (previously `end_session` / `report_step_done`): use `ship step-done` directly.
+> **For step completion** (previously `end_session` / `report_step_done`): use `ship ops call pipelines.step_done --json '{"slug":"<slug>","summary":"<summary>"}'`.
 >
 > The body below is preserved for historical reference only — every `ship mcp` invocation and every tool name listed below is broken.
 
