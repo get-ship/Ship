@@ -1,0 +1,92 @@
+<!--
+  <ship-agent-card> — pre-bound single-agent summary card.
+
+  Subscribes to ship.agents.detail({ id }) via live() inside the
+  controller; the consumer just drops
+    <ship-agent-card prop:id={agentId}></ship-agent-card>
+  with no SDK call of its own.
+
+  Tag prefix `ship-*` (vs `sui-*`) marks this component as depending on
+  the Ship runtime: mounting it without a host that has called
+  setShipClient() will throw on the first SDK access.
+
+  Composition: <sui-card> surface; <sui-skeleton> while loading;
+  <sui-error-state> on error; <sui-chip> for the source label + tags.
+  A `trailing` slot lets callers inject action buttons (edit, delete,
+  dispatch, …) into the card's header — the card itself emits nothing.
+-->
+
+<prop name="id" type="string" default="" />
+
+<style>
+  :host { display: block; }
+
+  .head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3, 12px);
+  }
+  .name {
+    margin: 0;
+    font-size: var(--text-lg, 1.125rem);
+    font-weight: var(--font-weight-semibold, 600);
+    line-height: var(--leading-tight, 1.2);
+    color: var(--card-foreground, var(--foreground));
+  }
+  .trailing { display: flex; align-items: center; gap: var(--space-2, 8px); }
+
+  .meta { margin-top: var(--space-2, 8px); }
+
+  .desc {
+    margin: var(--space-3, 12px) 0 0;
+    font-size: var(--text-sm, 0.875rem);
+    line-height: var(--leading-normal, 1.5);
+    color: var(--muted-foreground, var(--foreground));
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2, 8px);
+    margin-top: var(--space-3, 12px);
+  }
+
+  .sk-lines { display: flex; flex-direction: column; gap: var(--space-2, 8px); }
+</style>
+
+<sui-card variant="default" padding="md">
+{#while-loading of agent}
+  <div class="head">
+    <sui-skeleton shape="line" size="lg"></sui-skeleton>
+  </div>
+  <div class="sk-lines meta">
+    <sui-skeleton shape="line" size="sm"></sui-skeleton>
+    <sui-skeleton shape="line" size="sm"></sui-skeleton>
+  </div>
+{/while-loading}
+{#while-error err of agent}
+  <sui-error-state title="Couldn't load agent" variant="inline">{err.message}</sui-error-state>
+{/while-error}
+{#if agent().kind === 'ok'}
+  <div class="head">
+    <h3 class="name" data-test="agent-name">{name()}</h3>
+    <div class="trailing"><slot name="trailing"></slot></div>
+  </div>
+  {#if source()}
+    <div class="meta">
+      <sui-chip tone="muted" variant="soft" size="sm" data-test="agent-source">{source()}</sui-chip>
+    </div>
+  {/if}
+  {#if description()}
+    <p class="desc" data-test="agent-description">{description()}</p>
+  {/if}
+  {#if tags().length > 0}
+    <div class="tags" data-test="agent-tags">
+      {#for tag of tags() key={tag}}
+        <sui-chip tone="default" variant="outline" size="sm">{tag}</sui-chip>
+      {/for}
+    </div>
+  {/if}
+{/if}
+</sui-card>
