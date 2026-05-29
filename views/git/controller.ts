@@ -209,21 +209,21 @@ export default controller({
     showBranches: (s) => { s.tab = 'branches' },
     refresh: (s) => {
       const cur = (s.refreshNonce as unknown as number)
-      s.refreshNonce = (cur + 1) as never
+      s.refreshNonce = (cur + 1)
     },
     selectFile: (s, file: GitFileEntry) => {
-      s.selectedFile = file.path as never
-      s.selectedCommit = 'WORKING' as never
+      s.selectedFile = file.path
+      s.selectedCommit = 'WORKING'
       s.tab = 'changes'
     },
     selectCommit: (s, sha: string) => {
-      s.selectedCommit = sha as never
-      s.selectedFile = '' as never
+      s.selectedCommit = sha
+      s.selectedFile = ''
       s.tab = 'changes'
     },
-    setDiffMode: (s, mode: DiffMode) => { s.diffMode = mode as never },
-    selectBranch: (s, name: string) => { s.activeBranchName = name as never },
-    dismissError: (s) => { s.opError = '' as never; s.opInfo = '' as never },
+    setDiffMode: (s, mode: DiffMode) => { s.diffMode = mode },
+    selectBranch: (s, name: string) => { s.activeBranchName = name },
+    dismissError: (s) => { s.opError = ''; s.opInfo = '' },
 
     // ── stage / unstage ───────────────────────────────────────────────
     stageFile: async (s, file: GitFileEntry) => {
@@ -247,24 +247,24 @@ export default controller({
 
     // ── commit dialog ─────────────────────────────────────────────────
     openCommit: (s) => {
-      s.commitOpen = true as never
-      s.commitSubject = '' as never
-      s.commitBody = '' as never
-      s.commitError = '' as never
+      s.commitOpen = true
+      s.commitSubject = ''
+      s.commitBody = ''
+      s.commitError = ''
     },
-    closeCommit: (s) => { s.commitOpen = false as never },
+    closeCommit: (s) => { s.commitOpen = false },
     submitCommit: async (s) => {
       const subject = String(s.commitSubject).trim()
-      if (!subject) { s.commitError = 'Subject is required.' as never; return }
+      if (!subject) { s.commitError = 'Subject is required.'; return }
       const bodyText = String(s.commitBody).trim()
       const message = bodyText ? `${subject}\n\n${bodyText}` : subject
-      s.commitError = '' as never
+      s.commitError = ''
       const ok = await runOp(s, 'commit', () => callFn(s, 'commitNow', message))
       if (ok) {
-        s.commitOpen = false as never
-        s.opInfo = `Committed “${subject}”.` as never
+        s.commitOpen = false
+        s.opInfo = `Committed “${subject}”.`
       } else {
-        s.commitError = String(s.opError) as never
+        s.commitError = String(s.opError)
       }
     },
 
@@ -272,19 +272,19 @@ export default controller({
     pushCurrent: async (s) => {
       await runOp(s, 'push', async () => {
         const r = await callFn<{ remote: string }>(s, 'pushNow')
-        s.opInfo = `Pushed to ${r.remote}.` as never
+        s.opInfo = `Pushed to ${r.remote}.`
       })
     },
     pullCurrent: async (s) => {
       await runOp(s, 'pull', async () => {
         const r = await callFn<{ head: string }>(s, 'pullNow')
-        s.opInfo = `Pulled. HEAD is now ${r.head.slice(0, 7)}.` as never
+        s.opInfo = `Pulled. HEAD is now ${r.head.slice(0, 7)}.`
       })
     },
     fetchOrigin: async (s) => {
       await runOp(s, 'fetch', async () => {
         const r = await callFn<{ remote: string }>(s, 'fetchNow')
-        s.opInfo = `Fetched from ${r.remote}.` as never
+        s.opInfo = `Fetched from ${r.remote}.`
       })
     },
 
@@ -292,46 +292,46 @@ export default controller({
     checkoutBranch: async (s, name: string) => {
       await runOp(s, 'checkout', async () => {
         await callFn(s, 'checkoutRef', name)
-        s.opInfo = `Switched to ${name}.` as never
+        s.opInfo = `Switched to ${name}.`
       })
     },
     openBranchCreate: (s) => {
-      s.branchCreateOpen = true as never
-      s.branchCreateName = '' as never
-      s.branchCreateError = '' as never
+      s.branchCreateOpen = true
+      s.branchCreateName = ''
+      s.branchCreateError = ''
     },
-    closeBranchCreate: (s) => { s.branchCreateOpen = false as never },
+    closeBranchCreate: (s) => { s.branchCreateOpen = false },
     submitBranchCreate: async (s) => {
       const name = String(s.branchCreateName).trim()
       if (!/^[a-zA-Z0-9._/-]+$/.test(name)) {
-        s.branchCreateError = 'Branch name must be alphanumeric with -_./.' as never
+        s.branchCreateError = 'Branch name must be alphanumeric with -_./.'
         return
       }
       const checkout = !!s.branchCreateCheckout
       const ok = await runOp(s, 'branch create', () => callFn(s, 'createBranch', name, checkout))
       if (ok) {
-        s.branchCreateOpen = false as never
-        s.opInfo = `Branch ${name} created${checkout ? ' and checked out' : ''}.` as never
+        s.branchCreateOpen = false
+        s.opInfo = `Branch ${name} created${checkout ? ' and checked out' : ''}.`
       } else {
-        s.branchCreateError = String(s.opError) as never
+        s.branchCreateError = String(s.opError)
       }
     },
     openBranchDelete: (s, name: string) => {
-      s.branchDeleteTarget = name as never
-      s.branchDeleteForce = false as never
-      s.branchDeleteError = '' as never
-      s.branchDeleteOpen = true as never
+      s.branchDeleteTarget = name
+      s.branchDeleteForce = false
+      s.branchDeleteError = ''
+      s.branchDeleteOpen = true
     },
-    closeBranchDelete: (s) => { s.branchDeleteOpen = false as never },
+    closeBranchDelete: (s) => { s.branchDeleteOpen = false },
     submitBranchDelete: async (s) => {
       const name = String(s.branchDeleteTarget)
       const force = !!s.branchDeleteForce
       const ok = await runOp(s, 'branch delete', () => callFn(s, 'deleteBranch', name, force))
       if (ok) {
-        s.branchDeleteOpen = false as never
-        s.opInfo = `Branch ${name} deleted.` as never
+        s.branchDeleteOpen = false
+        s.opInfo = `Branch ${name} deleted.`
       } else {
-        s.branchDeleteError = String(s.opError) as never
+        s.branchDeleteError = String(s.opError)
       }
     },
 
@@ -339,7 +339,7 @@ export default controller({
     initRepo: async (s) => {
       await runOp(s, 'init', async () => {
         await callFn(s, 'initNow')
-        s.opInfo = 'Initialized git repository.' as never
+        s.opInfo = 'Initialized git repository.'
       })
     },
   },
@@ -352,19 +352,19 @@ async function runOp(
   label: string,
   fn: () => Promise<unknown>,
 ): Promise<boolean> {
-  s.busy = label as never
-  s.opError = '' as never
-  s.opInfo = '' as never
+  s.busy = label
+  s.opError = ''
+  s.opInfo = ''
   try {
     await fn()
     const cur = s.refreshNonce as number
-    s.refreshNonce = (cur + 1) as never
+    s.refreshNonce = (cur + 1)
     return true
   } catch (err) {
-    s.opError = `${label}: ${errMessage(err)}` as never
+    s.opError = `${label}: ${errMessage(err)}`
     return false
   } finally {
-    s.busy = '' as never
+    s.busy = ''
   }
 }
 
