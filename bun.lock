@@ -370,6 +370,20 @@
       "name": "@ship/deck-test-harness",
       "version": "0.0.0",
     },
+    "packages/sui/chat-elements": {
+      "name": "@sui/chat-elements",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/primitives": "workspace:*",
+        "@ship/sui-build": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "@ship/test-setup": "workspace:*",
+        "vitest": "^4.1.5",
+      },
+    },
     "packages/sui/compiler-wasm": {
       "name": "@ship/sui-compiler-wasm",
       "version": "0.1.0",
@@ -1031,6 +1045,8 @@
     "@speed-highlight/core": ["@speed-highlight/core@1.2.15", "", {}, "sha512-BMq1K3DsElxDWawkX6eLg9+CKJrTVGCBAWVuHXVUV2u0s2711qiChLSId6ikYPfxhdYocLNt3wWwSvDiTvFabw=="],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
+
+    "@sui/chat-elements": ["@sui/chat-elements@workspace:packages/sui/chat-elements"],
 
     "@tanstack/query-core": ["@tanstack/query-core@5.100.10", "", {}, "sha512-8UR0yJR+GiQ40m3lPhUr0xbfAupe6GSQiksSBSa9SM2NjezFyxXCIA69/lz8cSoNKZLrw1/PktIyQBJcVeMi3w=="],
 
