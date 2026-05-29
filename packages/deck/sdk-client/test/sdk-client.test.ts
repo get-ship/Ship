@@ -446,4 +446,8 @@ describe('createClient', () => {
     captured!()
     expect(FakeEventSource.instances[0]!.closed).toBe(true)
   })
+
+  // Multi-subscriber fanout coverage (#198) lives in shared-source.test.ts —
+  // exercises the dedup helper directly with a synthetic LiveSource so it
+  // doesn't depend on FakeEventSource (which is upstream-broken — #214).
 })

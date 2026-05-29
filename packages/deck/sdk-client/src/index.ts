@@ -23,6 +23,7 @@ import type { ArtifactRecord, ShipSDK } from './ship-sdk'
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { makeSseSource } from './sse'
 import { liveStream } from './live-stream'
+import { sharedSource } from './shared-source'
 import { createShipConnectClient } from '@ship/sdk/connect'
 
 // Bind the SUI runtime's host-agnostic `ShipHost` slot to the concrete
@@ -38,6 +39,7 @@ declare module '@ship/sui-runtime' {
 
 export { makeSseSource } from './sse'
 export { liveStream } from './live-stream'
+export { sharedSource } from './shared-source'
 export {
   displayName as accountDisplayName,
   initials as accountInitials,
@@ -182,17 +184,23 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     return v
   }
   const sse = <T>(domain: string, op: string, args?: unknown): LiveSource<T> => {
-    const method = op.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()) + 'Live'
-    const svc = (connect as unknown as Record<string, Record<string, LiveMethod>>)[domain]
-    const fn = svc?.[method]
-    // mesh + canvas have no per-domain Connect service yet (operational / canvas
-    // #99 in-flux) — those alone fall back to the legacy expr-SSE channel.
-    if (typeof fn !== 'function') {
-      const argsLit = args === undefined ? '' : JSON.stringify(args)
-      const expr = `ship.${domain}.${op}(${argsLit})`
-      return makeSseSource<T>(`${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`, ESCtor)
-    }
-    return liveStream<T>((signal) => fn(camelKeys(args ?? {}), { signal }))
+    // Dedup key: identical (domain, op, args) reuse one upstream subscription
+    // (#198). Multiple `live(() => ship.<d>.<o>(a))` callers fan out from a
+    // single stream, with refcounted teardown when the last subscriber leaves.
+    const key = `${domain}|${op}|${args === undefined ? '' : JSON.stringify(args)}`
+    return sharedSource<T>(key, () => {
+      const method = op.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()) + 'Live'
+      const svc = (connect as unknown as Record<string, Record<string, LiveMethod>>)[domain]
+      const fn = svc?.[method]
+      // mesh + canvas have no per-domain Connect service yet (operational / canvas
+      // #99 in-flux) — those alone fall back to the legacy expr-SSE channel.
+      if (typeof fn !== 'function') {
+        const argsLit = args === undefined ? '' : JSON.stringify(args)
+        const expr = `ship.${domain}.${op}(${argsLit})`
+        return makeSseSource<T>(`${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`, ESCtor)
+      }
+      return liveStream<T>((signal) => fn(camelKeys(args ?? {}), { signal }))
+    })
   }
 
   // Curried HTTP helpers — bind baseUrl once so the per-op factories
