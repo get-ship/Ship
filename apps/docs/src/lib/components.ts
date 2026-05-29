@@ -91,8 +91,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-textarea': 'forms',
   'sui-toggle-group': 'forms',
   'sui-toggle': 'forms',
-  'sui-segmented': 'forms',
-  'sui-segmented-option': 'forms',
 
   // Status
   'sui-alert': 'status',
@@ -265,7 +263,6 @@ const HIDDEN_TAGS = new Set([
   // specific parent — keep them documented inside the parent's preview
   // rather than as standalone pages where they'd render an empty
   // husk or duplicate the parent's example verbatim.
-  'sui-segmented-option',
   'sui-tab',
   'sui-tab-panel',
   'sui-tree-item',

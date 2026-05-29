@@ -58,11 +58,11 @@
       </div>
 
       <div class="detail-actions">
-        <sui-segmented value="overview" size="sm" on:sui-change={(e) => goTab(e.detail.value)}>
-          <sui-segmented-option value="overview">Overview</sui-segmented-option>
-          <sui-segmented-option value="wire">Wire</sui-segmented-option>
-          <sui-segmented-option value="settings">Settings</sui-segmented-option>
-        </sui-segmented>
+        <sui-toggle-group variant="segmented" type="single" value="overview" size="sm" on:sui-change={(e) => goTab(e.detail.value)}>
+          <sui-toggle value="overview">Overview</sui-toggle>
+          <sui-toggle value="wire">Wire</sui-toggle>
+          <sui-toggle value="settings">Settings</sui-toggle>
+        </sui-toggle-group>
         {#if isActive()}
           <sui-button tone="success" variant="outline" size="sm" data-test="deactivate-btn"
             prop:disabled={activating()}

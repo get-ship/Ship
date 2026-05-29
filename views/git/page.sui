@@ -234,10 +234,10 @@
                   <span class="git-mono git-diff-path" data-test="diff-path">{diffFiles()[0].path}</span>
                   <span slot="spacer"></span>
                   <span class="git-mono"><span class="git-add">+{diffFiles()[0].additions}</span> <span class="git-del">−{diffFiles()[0].deletions}</span></span>
-                  <sui-segmented value={diffMode()} size="sm" on:sui-change={(e) => setDiffMode(e.detail.value)}>
-                    <sui-segmented-option value="unified">Unified</sui-segmented-option>
-                    <sui-segmented-option value="split">Split</sui-segmented-option>
-                  </sui-segmented>
+                  <sui-toggle-group variant="segmented" type="single" value={diffMode()} size="sm" on:sui-change={(e) => setDiffMode(e.detail.value)}>
+                    <sui-toggle value="unified">Unified</sui-toggle>
+                    <sui-toggle value="split">Split</sui-toggle>
+                  </sui-toggle-group>
                 </sui-toolbar>
                 {#if diffIsWorking()}
                   <sui-alert tone="muted" class="git-diff-banner"><sui-icon slot="icon" name="git-commit" size="xs"></sui-icon>Viewing working tree changes vs HEAD.</sui-alert>

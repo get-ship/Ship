@@ -27,12 +27,12 @@
               </button>
             {/if}
           </div>
-          <sui-segmented value={filter()} size="sm" aria-label="Filter by mode"
+          <sui-toggle-group variant="segmented" type="single" value={filter()} size="sm" aria-label="Filter by mode"
             on:sui-change={(e) => setFilter(e.detail.value)}>
             {#for f of filters() key={f.id}}
-              <sui-segmented-option attr:value={f.id} data-test="filter">{f.label}</sui-segmented-option>
+              <sui-toggle attr:value={f.id} data-test="filter">{f.label}</sui-toggle>
             {/for}
-          </sui-segmented>
+          </sui-toggle-group>
         </div>
 
         {#if themes().length === 0}

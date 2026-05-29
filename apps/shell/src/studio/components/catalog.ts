@@ -46,7 +46,7 @@ export interface PropEntry {
 // "Other" so a newly-added primitive is still visible (never dropped).
 const CATEGORY_BY_TAG: Record<string, string> = {
   // Actions
-  'sui-button': 'Actions', 'sui-toolbar': 'Actions', 'sui-segmented': 'Actions',
+  'sui-button': 'Actions', 'sui-toolbar': 'Actions',
   'sui-toggle-group': 'Actions', 'sui-button-group': 'Actions', 'sui-icon-button': 'Actions',
   // Inputs
   'sui-input': 'Inputs', 'sui-textarea': 'Inputs', 'sui-select': 'Inputs',
