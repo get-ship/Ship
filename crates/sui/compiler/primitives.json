@@ -140,11 +140,6 @@
     "sui-context-menu": {
       "open": { "type": "bool", "default": "false" }
     },
-    "sui-copy-button": {
-      "copied": { "type": "bool", "default": "false" },
-      "label": { "type": "string", "default": "Copy" },
-      "value": { "type": "string", "default": "" }
-    },
     "sui-date-picker": {
       "disabled": { "type": "bool", "default": "false" },
       "max": { "type": "string", "default": "" },

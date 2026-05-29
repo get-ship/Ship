@@ -616,9 +616,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   'sui-code': [
     { label: 'Inline', raw: `<sui-code language="ts">const ship = createApp({ persist: true });</sui-code>` },
   ],
-  'sui-copy-button': [
-    { label: 'Default', attrs: { value: 'echo "ship!"' }, innerHTML: 'Copy command' },
-  ],
 
   /* Composite children — render them inside their parent ------------ */
   'sui-tab': [
