@@ -334,7 +334,15 @@ if [[ -n "${SHIP_AGENT_MODEL:-}" ]]; then
   MODEL_FLAG="--model ${SHIP_AGENT_MODEL}"
 fi
 if [[ "$PROVIDER_CLI" == "claude" ]]; then
-  LAUNCH_FLAGS="--dangerously-skip-permissions --dangerously-load-development-channels server:ship ${MODEL_FLAG}"
+  # `--permission-mode auto` is the safer default: auto-approves benign tool
+  # use (file reads/edits, builds, tests, local git) but still gates
+  # destructive/external operations (`git push`, mass deletes, etc.).
+  # `--dangerously-skip-permissions` was the prior default; it bypasses
+  # everything and that's how subagents were able to push to remote
+  # without consent. Override with SHIP_PERMISSION_MODE=bypassPermissions
+  # if a legitimate job needs the old behavior.
+  PERMISSION_MODE="${SHIP_PERMISSION_MODE:-auto}"
+  LAUNCH_FLAGS="--permission-mode ${PERMISSION_MODE} --dangerously-load-development-channels server:ship ${MODEL_FLAG}"
 elif [[ "$PROVIDER_CLI" == "codex" ]]; then
   LAUNCH_FLAGS="${MODEL_FLAG}"
 fi
