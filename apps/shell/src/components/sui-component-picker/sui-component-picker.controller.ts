@@ -16,7 +16,6 @@ const DEFAULT_ATTRS: Record<string, Record<string, string>> = {
   'sui-stat':      { label: 'Stat', value: '42' },
   'sui-progress':  { value: '60' },
   'sui-spinner':   {},
-  'sui-kbd':       {},
   'sui-tag':       {},
   'sui-chip':      {},
   'sui-divider':   {},
@@ -28,7 +27,6 @@ const DEFAULT_TEXT: Record<string, string> = {
   'sui-button': 'Click me',
   'sui-tag': 'tag',
   'sui-chip': 'chip',
-  'sui-kbd': '⌘K',
   'sui-link': 'link',
   'sui-alert': 'Heads up — this is an alert.',
   'sui-error-state': 'Something went wrong',
@@ -120,7 +118,7 @@ const CATEGORY_ICON: Record<string, string> = {
 function categoryOf(tag: string): string {
   if (/(card|stack|grid|panel|section|divider|separator|toolbar|page)/.test(tag)) return 'layout'
   if (/(input|textarea|checkbox|radio|select|slider|switch|toggle|field|label|form|file|button)/.test(tag)) return 'form'
-  if (/(table|list|tile|tree|json|stat|metachip|kbd|code|markdown|diff|history)/.test(tag)) return 'data'
+  if (/(table|list|tree|json|stat|metachip|code|markdown|diff|history)/.test(tag)) return 'data'
   if (/(alert|toast|notif|empty|loading|skeleton|progress|spinner|status)/.test(tag)) return 'feedback'
   if (/(nav|rail|breadcrumb|menu|tabs|tab|stepper|launcher|dock)/.test(tag)) return 'navigation'
   if (/(dialog|drawer|popover|tooltip|hover|context-menu|dropdown|portal)/.test(tag)) return 'overlay'

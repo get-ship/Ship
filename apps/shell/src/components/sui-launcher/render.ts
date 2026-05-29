@@ -61,8 +61,9 @@ export function renderFoot(el: HTMLElement): void {
   const spacer = Object.assign(document.createElement('span'), { style: 'flex:1' })
   el.append(add, spacer)
   for (const k of ['⌘', '⇧', 'P']) {
-    const kbd = document.createElement('sui-kbd')
+    const kbd = document.createElement('kbd')
     kbd.textContent = k
+    kbd.style.cssText = 'font-family:var(--font-mono,monospace);font-size:12px;'
     el.appendChild(kbd)
   }
 }

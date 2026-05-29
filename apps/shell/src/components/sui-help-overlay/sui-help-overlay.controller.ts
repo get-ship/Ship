@@ -3,7 +3,7 @@ import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-help-overlay.sui'
 
 /** One shortcut line: the keys to press and what they do. `keys` is the
- *  ordered list of caps rendered as <sui-kbd> joined by +. */
+ *  ordered list of caps rendered as <kbd> joined by +. */
 interface Shortcut {
   keys: string[]
   desc: string

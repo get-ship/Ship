@@ -158,12 +158,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
       `,
     },
   ],
-  'sui-list-tile': [
-    { label: 'Default', innerHTML: 'Pick a workspace' },
-    { label: 'Selected', attrs: { selected: '' }, innerHTML: 'Selected row' },
-    { label: 'Interactive', attrs: { interactive: '' }, innerHTML: 'Click me' },
-    { label: 'Card', attrs: { variant: 'card' }, innerHTML: 'Card tile' },
-  ],
   'sui-avatar': [
     { label: 'Initials', attrs: { name: 'Priya Nair' } },
     { label: 'Small',    attrs: { name: 'Sam',        size: 'sm', tone: 'accent' } },
@@ -172,10 +166,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Default',    attrs: {}, innerHTML: 'launch' },
     { label: 'Selected',   attrs: { selected: '', tone: 'accent' }, innerHTML: 'priority' },
     { label: 'Removable',  attrs: { removable: '', tone: 'info' }, innerHTML: 'mcp' },
-  ],
-  'sui-kbd': [
-    { label: '⌘K',       attrs: { keys: '⌘ K' } },
-    { label: 'Shift + /',  attrs: { keys: 'Shift ?' } },
   ],
   'sui-sparkline': [
     { label: 'Accent', raw: '<div style="width:220px;"><sui-sparkline data="3,7,5,11,8,14,10" tone="accent" height="36"></sui-sparkline></div>' },
@@ -270,12 +260,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Line',   raw: '<div style="width:240px;"><sui-skeleton shape="line" size="lg"></sui-skeleton></div>' },
     { label: 'Avatar', attrs: { shape: 'circle', size: 'lg' } },
     { label: 'Block',  raw: '<div style="width:240px;"><sui-skeleton shape="block" size="md"></sui-skeleton></div>' },
-  ],
-  'sui-meter': [
-    {
-      label: 'Split',
-      raw: `<div style="width:280px;"><sui-meter segments='[{"count":42,"tone":"success","label":"allowed"},{"count":28,"tone":"warning","label":"throttled"},{"count":12,"tone":"destructive","label":"denied"}]' total="100"></sui-meter></div>`,
-    },
   ],
   'sui-heatmap': [
     {
