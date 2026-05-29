@@ -1,26 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { signal, derived, effect } from '../src/signal'
-import { state, debounce } from '../src/state'
-
-describe('state', () => {
-  it('is the same engine as signal', () => {
-    const s = state(0)
-    expect(typeof s).toBe('function')
-    expect(s()).toBe(0)
-    s.set(1)
-    expect(s()).toBe(1)
-  })
-
-  it('participates in reactive scopes', () => {
-    const s = state('a')
-    const seen: string[] = []
-    effect(() => {
-      seen.push(s())
-    })
-    s.set('b')
-    expect(seen).toEqual(['a', 'b'])
-  })
-})
+import { signal, derived, effect, debounce } from '../src/signal'
 
 describe('debounce', () => {
   beforeEach(() => {

@@ -158,8 +158,7 @@ deck scaffold view settings --component settings-toolbar
 <!-- pass complex objects (signals, arrays, structured data) to a child component -->
 <sui-grid prop:rows={rows} prop:columns={columns()} prop:total={count()}></sui-grid>
 
-<!-- template hooks -->
-<use-shell as="shell" />
+<!-- template hooks (browser-platform bridges) -->
 <use-kbd><on key="/" action="search" /></use-kbd>
 <use-click-outside bind:target={dialogEl} bind:action={close} />
 <use-focus-trap bind:target={dialogEl} />

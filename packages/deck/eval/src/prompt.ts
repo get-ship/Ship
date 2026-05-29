@@ -61,8 +61,7 @@ Available controller hooks (compose via \`use:\`):
   useSelection(source, (item) => key)                — { state.selectedId, derived.selected, on.select, on.clear, on.toggle }
   useForm({ initial, validate?, submit? })           — per-field signals + { derived.errors/valid/dirty/values, on.submit, on.reset }
 
-Available template hooks (use as elements):
-  <use-shell as="shell" />                           — exposes host context (theme, currentUser, app)
+Available template hooks (browser-platform bridges; use as elements):
   <use-kbd> <on key="..." action="onName" /> ... </use-kbd>   — document keyboard shortcuts → controller on.* names
   <use-click-outside bind:target={ref} bind:action={onName} /> — fires action on click outside target
 

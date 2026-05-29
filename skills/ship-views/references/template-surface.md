@@ -60,8 +60,7 @@ Reference views: `views/counter/` (no controller), `views/agents/` (object-liter
   {count() === 1 ? '1 item' : count() + ' items'}
 </div>
 
-<!-- template hooks -->
-<use-shell as="shell" />
+<!-- template hooks (browser-platform bridges) -->
 <use-kbd><on key="/" action="search" /></use-kbd>
 <use-click-outside bind:target={dialogEl} bind:action={close} />
 <use-focus-trap bind:target={dialogEl} />

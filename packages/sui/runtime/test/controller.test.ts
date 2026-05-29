@@ -218,16 +218,16 @@ describe('discipline — types enforce mutation rules', () => {
 })
 
 describe('TemplateHook — authoring contract', () => {
-  it('compiles for an attrs-only hook (e.g. <use-shell as="shell" />)', () => {
-    const useShell: TemplateHook<{ as: string }, { theme: string }> = {
-      name: 'shell',
+  it('compiles for an attrs-only hook (e.g. <use-context as="ctx" />)', () => {
+    const useContext: TemplateHook<{ as: string }, { theme: string }> = {
+      name: 'context',
       attrs: { as: 'identifier' },
       factory: (ctx) => {
         ctx.cleanup(() => {})
         return { theme: 'dark' }
       },
     }
-    expect(useShell.name).toBe('shell')
+    expect(useContext.name).toBe('context')
   })
 
   it('compiles for a children-accepting hook (e.g. <use-title>{x}</use-title>)', () => {

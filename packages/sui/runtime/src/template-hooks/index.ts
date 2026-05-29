@@ -1,25 +1,19 @@
-// Template hooks — `<use-*>` elements ship-set ships built-in.
+// Template hooks — `<use-*>` elements the runtime ships built-in.
 //
 // The runtime registers each hook by name at module load. Authors
-// don't import these directly — they appear in `.html.set` templates
+// don't import these directly — they appear in `.sui` templates
 // as `<use-name>` elements and the dom hydrate flow looks them up
 // in the registry.
 //
-// Eight hooks ship: `<use-kbd>`, `<use-click-outside>`, `<use-shell>`,
-// `<use-focus-trap>`, `<use-clipboard>`, `<use-title>`,
-// `<use-scroll-anchor>`, `<use-intersection>`.
-// See docs/ship-ui/references/docs/hooks.md.
+// Seven hooks ship — all browser-platform bridges, host-agnostic:
+// `<use-kbd>`, `<use-click-outside>`, `<use-focus-trap>`,
+// `<use-clipboard>`, `<use-title>`, `<use-scroll-anchor>`,
+// `<use-intersection>`. Host-specific hooks (e.g. shell context)
+// belong with the host, not the framework.
 
-// Hook registration shares the runtime's registry singleton. Importing
-// `registerTemplateHook` via the package's own bare specifier keeps the
-// import external in view-side bundles (which externalize
-// `@ship/sui-runtime`) so views write into the same registry that
-// `getTemplateHook` reads from in the dom hydrate flow — instead of
-// inlining a separate registry instance.
 import { registerTemplateHook } from '@ship/sui-runtime'
 import { useKbdHook } from './kbd'
 import { useClickOutsideHook } from './click-outside'
-import { useShellHook } from './shell'
 import { useFocusTrapHook } from './focus-trap'
 import { useClipboardHook } from './clipboard'
 import { useTitleHook } from './title'
@@ -34,12 +28,10 @@ export {
 } from './registry'
 
 export type { KbdShortcut } from './kbd'
-export type { ShellContext } from './shell'
 
 // Built-in hooks — registered eagerly at module load.
 registerTemplateHook(useKbdHook)
 registerTemplateHook(useClickOutsideHook)
-registerTemplateHook(useShellHook)
 registerTemplateHook(useFocusTrapHook)
 registerTemplateHook(useClipboardHook)
 registerTemplateHook(useTitleHook)
