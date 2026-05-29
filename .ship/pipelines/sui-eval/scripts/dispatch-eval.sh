@@ -71,35 +71,29 @@ for label in "${MODELS[@]}"; do
     SLUGS+=("$slug")
     model="$(model_id "$label")"
     echo "── dispatching $label ($model) → $slug"
+    # SHIP_DEFAULT_TERMINAL=wt forces dispatch.sh's wt branch even when
+    # invoked from a non-wt shell (e.g. a Claude Code bash session
+    # where WT_SESSION isn't propagated). That branch creates a tmux
+    # session AND opens a wt tab attached to it via `wt.exe -w 0
+    # new-tab` — targeting the focused wt window so all lanes land
+    # as tabs in the same window, no copy/paste required.
+    SHIP_DEFAULT_TERMINAL=wt \
     SHIP_AGENT_MODEL="$model" \
         bash "$REPO_ROOT/.ship/skills/spawn-agent/scripts/dispatch.sh" \
             --slug "$slug" \
             --agent ship-designer \
-            --spec "$SPEC" \
-            --no-open
+            --spec "$SPEC"
     echo
 done
 
-# Print one combined block of attach + grade commands the operator can
-# paste. dispatch.sh with --no-open just prints the launch line; we
-# extend the tmux+wt incantation here so all lanes land in tabs of the
-# SAME wt window.
 echo "════════════════════════════════════════════════════════════════"
 echo "RUN_ID:    $RUN_ID"
 echo "lanes:     ${#SLUGS[@]}  (${SLUGS[*]})"
-echo
-echo "Launch the agents (one wt tab per lane in the focused window):"
-for slug in "${SLUGS[@]}"; do
-    worktree="$HOME/.ship/worktrees/$slug"
-    cat <<EOF
-  tmux new-session -d -s "$slug" -c "$worktree" 'claude --dangerously-skip-permissions --dangerously-load-development-channels server:ship'
-  wt.exe -w 0 new-tab --title "$slug" -- wsl.exe bash --login -c "tmux attach -t $slug"
-EOF
-done
+echo "wt tabs:   should now be open in your focused wt window"
 echo
 echo "Score (after both finish) — grade per worktree, then record:"
 for slug in "${SLUGS[@]}"; do
-    echo "  SHIP_PIPELINE_RUN_ID='$RUN_ID' bun .ship/pipelines/sui-eval/scripts/grade.ts # in $HOME/.ship/worktrees/$slug"
+    echo "  (cd $HOME/.ship/worktrees/$slug && SHIP_PIPELINE_RUN_ID='$RUN_ID' bun $REPO_ROOT/.ship/pipelines/sui-eval/scripts/grade.ts)"
 done
-echo "  SHIP_PIPELINE_RUN_ID='$RUN_ID' bun .ship/pipelines/sui-eval/scripts/record.ts"
+echo "  SHIP_PIPELINE_RUN_ID='$RUN_ID' bun $REPO_ROOT/.ship/pipelines/sui-eval/scripts/record.ts"
 echo "════════════════════════════════════════════════════════════════"
