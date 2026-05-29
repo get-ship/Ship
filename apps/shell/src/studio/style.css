@@ -60,3 +60,35 @@ sui-studio-rail { grid-area: rail; min-height: 0; }
   font-weight: var(--font-weight-semibold);
 }
 .studio-landing-link:hover { background: color-mix(in oklch, var(--primary) 88%, black); }
+
+/* Toolbar replacement — inlined from sui-toolbar primitive */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toolbar[hidden] { display: none; }
+.toolbar[gap='sm'] { gap: 4px; }
+.toolbar[gap='lg'] { gap: 12px; }
+.toolbar[justify='center'] { justify-content: center; }
+.toolbar[justify='end'] { justify-content: flex-end; }
+.toolbar[justify='between'] { justify-content: space-between; }
+.toolbar[justify='split'] { justify-content: flex-start; }
+.toolbar[justify='split'] > :first-child { margin-right: auto; }
+.toolbar[align='start'] { align-items: flex-start; }
+.toolbar[align='end'] { align-items: flex-end; }
+.toolbar[align='baseline'] { align-items: baseline; }
+.toolbar[variant='bordered'] {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+.toolbar--justify-between { justify-content: space-between; }
+.toolbar--bordered {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+.toolbar--footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

@@ -202,12 +202,12 @@
       </sui-select>
     </sui-field>
     <sui-field><sui-checkbox bind:checked={dispatchHeadless}>Headless (run without tmux)</sui-checkbox></sui-field>
-    <sui-toolbar slot="footer">
+    <div class="toolbar toolbar--footer" slot="footer">
       <sui-button variant="outline" on:click={closeDispatch}>Cancel</sui-button>
       <sui-button tone="primary" variant="solid" on:click={dispatchRun}>
         <sui-icon slot="leading" name="play" size="sm"></sui-icon>Dispatch
       </sui-button>
-    </sui-toolbar>
+    </div>
   </sui-dialog>
 
   {#if workspaceId()}

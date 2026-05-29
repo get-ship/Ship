@@ -514,12 +514,6 @@
       "value": { "type": "string", "default": "" },
       "variant": { "values": ["outline", "ghost", "segmented"], "default": "outline" }
     },
-    "sui-toolbar": {
-      "align": { "values": ["center", "start", "end", "baseline"], "default": "center" },
-      "gap": { "values": ["sm", "md", "lg"], "default": "md" },
-      "justify": { "values": ["start", "center", "end", "between", "split"], "default": "start" },
-      "variant": { "values": ["default", "bordered"], "default": "default" }
-    },
     "sui-tooltip": {
       "placement": { "values": ["top", "bottom", "left", "right"], "default": "top" }
     },

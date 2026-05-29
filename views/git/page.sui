@@ -158,12 +158,12 @@
         {:else}
           <div class="git-split">
             <aside class="git-left" aria-label="Changed files">
-              <sui-toolbar variant="bordered" class="git-left-head">
+              <div class="toolbar toolbar--bordered git-left-head">
                 <sui-icon name="git-branch" size="xs"></sui-icon>
                 <strong class="git-left-title">Changes</strong>
-                <span slot="spacer"></span>
+                <span style="flex: 1;"></span>
                 <span class="git-mono">{totalChanged()} files</span>
-              </sui-toolbar>
+              </div>
               <div class="git-bulk-row">
                 <sui-button size="xs" variant="outline" data-test="git-stage-all"
                   prop:disabled={unstagedCount() === 0 || busy()}
@@ -229,16 +229,16 @@
                   <span slot="title">No changes in this diff</span>
                 </sui-empty-state>
               {:else}
-                <sui-toolbar variant="bordered" class="git-diff-toolbar">
+                <div class="toolbar toolbar--bordered git-diff-toolbar">
                   <sui-badge tone="info" variant="soft" size="sm">diff</sui-badge>
                   <span class="git-mono git-diff-path" data-test="diff-path">{diffFiles()[0].path}</span>
-                  <span slot="spacer"></span>
+                  <span style="flex: 1;"></span>
                   <span class="git-mono"><span class="git-add">+{diffFiles()[0].additions}</span> <span class="git-del">−{diffFiles()[0].deletions}</span></span>
                   <sui-toggle-group variant="segmented" type="single" value={diffMode()} size="sm" on:sui-change={(e) => setDiffMode(e.detail.value)}>
                     <sui-toggle value="unified">Unified</sui-toggle>
                     <sui-toggle value="split">Split</sui-toggle>
                   </sui-toggle-group>
-                </sui-toolbar>
+                </div>
                 {#if diffIsWorking()}
                   <sui-alert tone="muted" class="git-diff-banner"><sui-icon slot="icon" name="git-commit" size="xs"></sui-icon>Viewing working tree changes vs HEAD.</sui-alert>
                 {/if}
@@ -364,14 +364,14 @@
             <section class="git-bright" aria-label="Branch detail">
               {#if activeBranch()}
                 <div class="git-branch-detail" data-test="git-branch-detail">
-                  <sui-toolbar justify="between" class="git-branch-head">
+                  <div class="toolbar toolbar--justify-between git-branch-head">
                     <div>
                       <div class="git-mono git-branch-detail-name">{activeBranch().name}</div>
                       <div class="git-branch-detail-sub">
                         {activeBranch().upstream ? 'tracking ' + activeBranch().upstream : 'no upstream'}
                       </div>
                     </div>
-                    <sui-toolbar>
+                    <div class="toolbar">
                       {#if !activeBranch().active}
                         <sui-button size="sm" variant="solid" tone="primary" data-test="git-checkout"
                           prop:loading={busy() === 'checkout'}
@@ -385,8 +385,8 @@
                           <sui-icon slot="leading" name="trash" size="xs"></sui-icon>Delete
                         </sui-button>
                       {/if}
-                    </sui-toolbar>
-                  </sui-toolbar>
+                    </div>
+                  </div>
                   <div class="git-branch-grid">
                     <sui-card>
                       <div slot="header" class="git-card-head">Status</div>
@@ -434,7 +434,7 @@
         <sui-textarea bind:value={commitBody} rows="6" placeholder="Optional description…"></sui-textarea>
       </sui-field>
       {#if commitError()}<sui-alert tone="destructive" compact>{commitError()}</sui-alert>{/if}
-      <sui-toolbar slot="footer">
+      <div class="toolbar toolbar--footer" slot="footer">
         <sui-button variant="outline" on:click={closeCommit}>Cancel</sui-button>
         <sui-button tone="primary" variant="solid" data-test="git-commit-submit"
           prop:loading={busy() === 'commit'}
@@ -442,7 +442,7 @@
           on:click={submitCommit}>
           <sui-icon slot="leading" name="git-commit" size="sm"></sui-icon>Commit
         </sui-button>
-      </sui-toolbar>
+      </div>
     </sui-dialog>
 
     <!-- Branch create dialog -->
@@ -455,13 +455,13 @@
         <sui-checkbox bind:checked={branchCreateCheckout}>Switch to this branch after creating</sui-checkbox>
       </sui-field>
       {#if branchCreateError()}<sui-alert tone="destructive" compact>{branchCreateError()}</sui-alert>{/if}
-      <sui-toolbar slot="footer">
+      <div class="toolbar toolbar--footer" slot="footer">
         <sui-button variant="outline" on:click={closeBranchCreate}>Cancel</sui-button>
         <sui-button tone="primary" variant="solid" data-test="git-branch-create-submit"
           prop:loading={busy() === 'branch create'}
           prop:disabled={busy() === 'branch create'}
           on:click={submitBranchCreate}>Create</sui-button>
-      </sui-toolbar>
+      </div>
     </sui-dialog>
 
     <!-- Branch delete confirm dialog -->
@@ -472,13 +472,13 @@
         <sui-checkbox bind:checked={branchDeleteForce}>Force-delete even if unmerged</sui-checkbox>
       </sui-field>
       {#if branchDeleteError()}<sui-alert tone="destructive" compact>{branchDeleteError()}</sui-alert>{/if}
-      <sui-toolbar slot="footer">
+      <div class="toolbar toolbar--footer" slot="footer">
         <sui-button variant="outline" on:click={closeBranchDelete}>Cancel</sui-button>
         <sui-button tone="destructive" variant="solid" data-test="git-branch-delete-submit"
           prop:loading={busy() === 'branch delete'}
           prop:disabled={busy() === 'branch delete'}
           on:click={submitBranchDelete}>Delete</sui-button>
-      </sui-toolbar>
+      </div>
     </sui-dialog>
   
   {/async}

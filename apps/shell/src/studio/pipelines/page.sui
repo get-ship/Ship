@@ -136,12 +136,12 @@
       </sui-select>
     </sui-field>
     <sui-field><sui-checkbox bind:checked={dispatchHeadless}>Headless (run without tmux)</sui-checkbox></sui-field>
-    <sui-toolbar slot="footer">
+    <div class="toolbar toolbar--footer" slot="footer">
       <sui-button variant="outline" on:click={closeDispatch}>Cancel</sui-button>
       <sui-button tone="primary" variant="solid" on:click={dispatchRun}>
         <sui-icon slot="leading" name="play" size="sm"></sui-icon>Dispatch
       </sui-button>
-    </sui-toolbar>
+    </div>
   </sui-dialog>
 
   {#if workspaceId()}
@@ -151,12 +151,12 @@
       <sui-input bind:value={newPipeName} placeholder="my-pipeline" autofocus></sui-input>
     </sui-field>
     {#if newPipeError()}<sui-alert tone="destructive" compact>{newPipeError()}</sui-alert>{/if}
-    <sui-toolbar slot="footer">
+    <div class="toolbar toolbar--footer" slot="footer">
       <sui-button variant="outline" on:click={closeNewPipe}>Cancel</sui-button>
       <sui-button tone="primary" variant="solid" prop:loading={newPipeCreating()} prop:disabled={newPipeCreating()} on:click={createPipeline}>
         <sui-icon slot="leading" name="plus" size="sm"></sui-icon>Create
       </sui-button>
-    </sui-toolbar>
+    </div>
   </sui-dialog>
   {/if}
 </div>
