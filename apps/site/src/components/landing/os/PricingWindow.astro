@@ -1,0 +1,101 @@
+---
+/*
+ * PricingWindow — honest pre-launch surface. Local stays free; paid
+ * cloud-side shapes are still being calibrated, so we say so directly
+ * rather than commit to a number we'll have to revise. No invented
+ * monthly price, no "popular" tag on something that doesn't exist yet.
+ */
+import Window from './Window.astro';
+import DownloadCTA from './DownloadCTA.astro';
+const { open = false } = Astro.props;
+const local = [
+  'Local-first storage — your data, your machine',
+  'Bring your own model',
+  'Every app, agent, view + skill',
+  'Unlimited skills',
+];
+const proSoon = [
+  'Sync your install across devices',
+  'Hosted spaces · share with a team',
+  'Cloud compute · optional',
+  'Pay only for what you actually use',
+];
+---
+<Window app="pricing" title="Pricing" meta="plans" mark="$" accent="pipelines" open={open} defer>
+  <div class="win-scroll pricing">
+    <header class="win-hero">
+      <div class="parallax grid" data-parallax="0.4"></div>
+      <div class="win-eyebrow">Pricing</div>
+      <h2 class="win-headline">Free locally.<br />Paid for what we host.</h2>
+      <p class="win-lede">Ship runs free on your machine forever. Anything cloud-side — sync, hosted spaces, compute — will be priced separately. Plans are still landing; we'd rather wait than guess.</p>
+    </header>
+
+    <section class="win-section tiers" data-reveal>
+      <div class="tier">
+        <div class="th"><span class="tn">Local</span><sui-badge variant="soft" size="sm">today</sui-badge></div>
+        <div class="price"><span class="amt">Free</span></div>
+        <ul>{local.map((f) => <li>{f}</li>)}</ul>
+        <a class="tier-cta tier-cta-solid" href="/download" data-open-window="download">Download</a>
+      </div>
+      <div class="tier soon">
+        <div class="ribbon">Coming soon</div>
+        <div class="th"><span class="tn">Pro · cloud-side</span><sui-badge variant="soft" size="sm">tbd</sui-badge></div>
+        <div class="price"><span class="amt">—</span><span class="cad">pricing TBD</span></div>
+        <ul>{proSoon.map((f) => <li>{f}</li>)}</ul>
+        <a class="tier-cta tier-cta-outline" href="/waitlist?reason=general">Tell us you'd want it</a>
+      </div>
+    </section>
+
+    <section class="win-section" data-reveal>
+      <p class="win-stext">No commitment to start. The cloud side is opt-in, priced once we lock it down — and your local Ship keeps working either way.</p>
+    </section>
+
+    <section class="win-section">
+      <DownloadCTA message="Start free. Cloud is optional." />
+    </section>
+  </div>
+</Window>
+
+<style>
+  .tiers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tier { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: 12px; background: var(--card); border: 1px solid color-mix(in oklch, var(--border) 78%, transparent); }
+  .tier.soon {
+    background: color-mix(in oklch, var(--card) 90%, transparent);
+    border-style: dashed;
+    border-color: color-mix(in oklch, var(--w-accent) 36%, var(--border));
+  }
+  .ribbon { position: absolute; top: -9px; right: 14px; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: white; background: color-mix(in oklch, var(--w-accent) 78%, transparent); padding: 3px 8px; border-radius: 999px; }
+  .th { display: flex; align-items: center; justify-content: space-between; }
+  .tn { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+  .price { display: flex; align-items: baseline; gap: 6px; }
+  .amt { font-family: var(--font-display); font-size: 30px; font-weight: 800; letter-spacing: -0.03em; }
+  .cad { font-family: var(--font-mono); font-size: 11px; color: color-mix(in oklch, var(--foreground) 55%, var(--background)); }
+  ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; flex: 1; }
+  li { font-size: 12px; line-height: 1.45; padding-left: 18px; position: relative; color: color-mix(in oklch, var(--foreground) 80%, var(--background)); }
+  li::before { content: "✓"; position: absolute; left: 0; color: var(--w-accent); font-weight: 700; }
+  .tier.soon li::before { content: "·"; }
+
+  .tier-cta {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 10px 16px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-family: var(--font-body); font-size: 13px; font-weight: 700;
+    line-height: 1.2; white-space: nowrap;
+    transition: background 140ms ease, border-color 140ms ease, transform 140ms ease, filter 140ms ease;
+  }
+  .tier-cta-solid {
+    background: var(--w-accent); color: var(--background);
+    border: 1px solid var(--w-accent);
+    box-shadow: 0 8px 22px -10px color-mix(in oklch, var(--w-accent) 70%, transparent);
+  }
+  .tier-cta-solid:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .tier-cta-outline {
+    background: transparent;
+    color: var(--foreground);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 36%, var(--border));
+  }
+  .tier-cta-outline:hover { background: color-mix(in oklch, var(--w-accent) 12%, transparent); border-color: var(--w-accent); }
+
+  @media (max-width: 760px) { .tiers { grid-template-columns: 1fr; } }
+</style>

@@ -20,6 +20,20 @@ const {
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? 'https://getship.dev').toString();
 const ogImageUrl = new URL(ogImage, Astro.site ?? 'https://getship.dev').toString();
 
+/* Markdown mirror — every `/<surface>` route has a sibling `/<surface>.md`
+ * that serves chrome-free markdown for crawlers + agents. We surface it
+ * via `<link rel="alternate" type="text/markdown">` per the Cloudflare
+ * markdown-for-agents pattern. Only emit it for routes the mirror
+ * actually covers (the [surface].md.ts static paths). */
+const MARKDOWN_MIRROR_SLUGS = new Set([
+  'agents', 'orchestration', 'data', 'observability', 'spaces',
+  'custom-views', 'security', 'pricing', 'docs', 'arcade', 'download',
+]);
+const slug = Astro.url.pathname.replace(/^\/+|\/+$/g, '');
+const markdownAlternate = MARKDOWN_MIRROR_SLUGS.has(slug)
+  ? new URL(`/${slug}.md`, Astro.site ?? 'https://getship.dev').toString()
+  : null;
+
 // Serialize the local theme catalog into the FOUC-prevention inline
 // script. Single source of truth — if THEMES changes, this updates.
 const themePreloadPayload = JSON.stringify({
@@ -38,6 +52,9 @@ const themePreloadPayload = JSON.stringify({
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalUrl} />
+    {markdownAlternate && (
+      <link rel="alternate" type="text/markdown" href={markdownAlternate} />
+    )}
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
@@ -70,6 +87,15 @@ const themePreloadPayload = JSON.stringify({
         // can hide themselves pre-animation. Without this, noscript
         // users see a blank section.
         root.classList.add('js');
+        // Dock position, pre-paint — same anti-FOUC pattern as the theme.
+        // settings.ts applies this after hydration; doing it here too means
+        // a saved left/right dock doesn't flash at the bottom first and reflow.
+        try {
+          const s = JSON.parse(localStorage.getItem('ship-site-settings') || '{}');
+          if (s && (s.dockPos === 'left' || s.dockPos === 'right' || s.dockPos === 'bottom')) {
+            root.setAttribute('data-dock-pos', s.dockPos);
+          }
+        } catch (_) {}
       })();
     </script>
 
@@ -103,7 +129,6 @@ const themePreloadPayload = JSON.stringify({
     -->
     <link rel="modulepreload" href="/sui-runtime.js" fetchpriority="high" />
     <link rel="modulepreload" href="/sui-dom.js" fetchpriority="high" />
-    <link rel="modulepreload" href="/sui-sdk-client.js" />
     <link rel="modulepreload" href="/sui-marketing.js" />
     <script is:inline type="module" src="/sui-marketing.js"></script>
   </head>

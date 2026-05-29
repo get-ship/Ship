@@ -1,0 +1,182 @@
+---
+/*
+ * Desktop.astro — the whole marketing site is this one desktop. Every
+ * surface is a window; the URL just says which one is open (see
+ * scripts/desktop.ts). `initialWindow` is the server-rendered open window
+ * so deep links + no-JS resolve; the client router takes over after load.
+ */
+import Menubar from './Menubar.astro';
+import Dock from './Dock.astro';
+import Wallpaper from './Wallpaper.astro';
+import WelcomeWindow from './WelcomeWindow.astro';
+import AgentsWindow from './AgentsWindow.astro';
+import OrchestrationWindow from './OrchestrationWindow.astro';
+import DataWindow from './DataWindow.astro';
+import ObservabilityWindow from './ObservabilityWindow.astro';
+import CustomViewsWindow from './CustomViewsWindow.astro';
+import SecurityWindow from './SecurityWindow.astro';
+import SpacesWindow from './SpacesWindow.astro';
+import PricingWindow from './PricingWindow.astro';
+import DocsWindow from './DocsWindow.astro';
+import DownloadWindow from './DownloadWindow.astro';
+import ArcadeWindow from './ArcadeWindow.astro';
+
+interface Props {
+  initialWindow?: string;
+  /* Compatibility alias used by /docs and /docs/[...slug]. */
+  initial?: string;
+  /* When the initial window is `docs`, the slug to land on. */
+  docSlug?: string;
+}
+const { initialWindow, initial, docSlug = '' } = Astro.props;
+const opened = initial ?? initialWindow ?? 'welcome';
+const is = (id: string) => opened === id;
+---
+<Menubar />
+<main class="os-desktop" id="main">
+  <Wallpaper />
+  <WelcomeWindow open={is('welcome')} />
+  <AgentsWindow open={is('agents')} />
+  <OrchestrationWindow open={is('orchestration')} />
+  <DataWindow open={is('data')} />
+  <ObservabilityWindow open={is('observability')} />
+  <CustomViewsWindow open={is('custom-views')} />
+  <SecurityWindow open={is('security')} />
+  <SpacesWindow open={is('spaces')} />
+  <PricingWindow open={is('pricing')} />
+  <DocsWindow open={is('docs')} slug={docSlug} />
+  <ArcadeWindow open={is('arcade')} />
+  <DownloadWindow open={is('download')} />
+  <div class="os-hint">click a dock icon to open a window</div>
+</main>
+<Dock />
+
+{/* Switcher / "open apps" gallery — full-screen overlay on mobile. */}
+<aside class="os-switcher" data-switcher hidden aria-label="All apps">
+  <header class="os-switcher-bar">
+    <span class="os-switcher-title">All apps</span>
+    <button class="os-switcher-close" type="button" data-switcher-close aria-label="Close">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </header>
+  <div class="os-switcher-grid">
+    {[
+      { app: 'welcome',       label: 'Welcome',       icon: '/ship-logo.svg' },
+      { app: 'agents',        label: 'Agents',        icon: '/app-icons/agents.svg' },
+      { app: 'orchestration', label: 'Orchestration', icon: '/app-icons/orchestration.svg' },
+      { app: 'data',          label: 'Data',          icon: '/app-icons/data.svg' },
+      { app: 'observability', label: 'Observability', icon: '/app-icons/observability.svg' },
+      { app: 'custom-views',  label: 'Custom Views',  icon: '/app-icons/custom-views.svg' },
+      { app: 'security',      label: 'Security',      icon: '/app-icons/security.svg' },
+      { app: 'spaces',        label: 'Spaces',        icon: '/app-icons/spaces.svg' },
+      { app: 'pricing',       label: 'Pricing',       icon: '/app-icons/pricing.svg' },
+      { app: 'docs',          label: 'Docs',          icon: '/app-icons/docs.svg' },
+      { app: 'arcade',        label: 'Arcade',        icon: '/app-icons/arcade.svg', desktopOnly: true },
+      { app: 'download',      label: 'Download',      icon: '/app-icons/download.svg' },
+    ].map((t) => (
+      <button class:list={['os-switcher-tile', { 'desktop-only': (t as any).desktopOnly }]} type="button" data-app-target={t.app}>
+        {/* Icon sits inside a rounded squircle backdrop with breathing
+            room — without this padding the rocket's pointy tip gets
+            clipped at the corner radius. */}
+        <span class="os-switcher-glyph"><img src={t.icon} alt="" /></span>
+        <span>{t.label}</span>
+      </button>
+    ))}
+  </div>
+  <p class="os-switcher-foot">Ship is a desktop app — macOS, Windows, and Linux. This site previews what you'll run locally.</p>
+</aside>
+
+<script>
+  import '../../../scripts/desktop';
+</script>
+
+<style>
+  .os-switcher {
+    position: fixed; inset: 0; z-index: 200;
+    background: color-mix(in oklch, var(--background) 88%, transparent);
+    backdrop-filter: blur(28px) saturate(1.5);
+    -webkit-backdrop-filter: blur(28px) saturate(1.5);
+    display: flex; flex-direction: column;
+    padding: 56px 0 calc(80px + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    animation: switcher-in 240ms cubic-bezier(.32, .72, 0, 1);
+  }
+  .os-switcher[hidden] { display: none; }
+  @keyframes switcher-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .os-switcher-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px 16px;
+  }
+  .os-switcher-title {
+    font-family: var(--font-display);
+    font-size: 18px; font-weight: 700; color: var(--foreground);
+  }
+  .os-switcher-close {
+    appearance: none; border: 0;
+    width: 36px; height: 36px; border-radius: 18px;
+    background: color-mix(in oklch, var(--foreground) 10%, transparent);
+    color: var(--foreground);
+    display: grid; place-items: center;
+    cursor: pointer;
+  }
+  .os-switcher-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px 12px;
+    padding: 8px 20px 24px;
+  }
+  .os-switcher-tile {
+    appearance: none; border: 0; background: transparent;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 10px 4px;
+    border-radius: 16px;
+    cursor: pointer;
+    color: var(--foreground);
+    transition: transform 160ms ease, background 160ms ease;
+  }
+  .os-switcher-tile:active { transform: scale(0.96); }
+  /* Squircle backdrop — owns the rounded corners and the drop-shadow,
+     so the icon SVG sits inset and never gets corner-clipped. */
+  .os-switcher-glyph {
+    display: grid; place-items: center;
+    width: 68px; height: 68px;
+    border-radius: 16px;
+    background: color-mix(in oklch, var(--card) 92%, var(--foreground));
+    box-shadow:
+      0 4px 14px -2px rgba(0, 0, 0, 0.18),
+      inset 0 0 0 0.5px color-mix(in oklch, var(--foreground) 14%, transparent);
+  }
+  .os-switcher-tile img {
+    /* The icon fills most of the squircle — 4px breathing room on each
+       side keeps the pointiest glyphs (rocket tip, arrow head) clear of
+       the rounded corners. */
+    width: 60px; height: 60px;
+    object-fit: contain;
+    display: block;
+  }
+  .os-switcher-tile span {
+    font-size: 12px; font-weight: 600;
+    color: color-mix(in oklch, var(--foreground) 80%, var(--background));
+    text-align: center;
+  }
+  .os-switcher-foot {
+    margin: 16px 24px 0;
+    font-size: 12px; line-height: 1.5; text-align: center;
+    color: color-mix(in oklch, var(--foreground) 56%, var(--background));
+  }
+  /* The switcher is mobile-first but the menubar button shows on small
+     screens only; if desktop user hits it (via JS test), the gallery
+     still works. */
+  @media (min-width: 761px) {
+    .os-switcher-grid { grid-template-columns: repeat(5, 1fr); padding: 8px 40px 24px; }
+    .os-switcher-glyph { width: 72px; height: 72px; border-radius: 17px; }
+    .os-switcher-tile img { width: 64px; height: 64px; }
+  }
+  /* Hide desktop-only tiles in the mobile gallery (Arcade today). */
+  @media (max-width: 760px) {
+    .os-switcher-tile.desktop-only { display: none; }
+  }
+</style>

@@ -1,0 +1,611 @@
+---
+/*
+ * Window.astro — a draggable macOS-style window on the Ship desktop.
+ *
+ * The frame (titlebar, traffic lights, focus shadow, the floating
+ * marketing callout) lives here and is token-driven. Each window carries
+ * its own `data-theme-preview` so its interior renders in a real Ship
+ * theme — the desktop shows several Ship personalities side by side.
+ *
+ * Geometry is keyed off the `app` id. The desktop runtime
+ * (`scripts/desktop.ts`) wires open/close/focus/drag/maximise by reading
+ * `data-app-window` and the traffic-light buttons.
+ */
+interface Props {
+  app: string;
+  title: string;
+  meta?: string;
+  /** Single-glyph mark shown left of the title. */
+  mark?: string;
+  /** Optional image mark (used by the Welcome window's logo). */
+  markImg?: string;
+  /** Real Ship theme id applied to the interior via data-theme-preview. */
+  theme?: string;
+  /** Carry the `.dark` class so elevation/shadow tokens flip. */
+  dark?: boolean;
+  /** app-accent token name, e.g. "agents" → var(--app-accent-agents). */
+  accent?: string;
+  /** Open on load (and re-open via the "open them all" tour). */
+  open?: boolean;
+  /** Render the scroll-nudge + popout-drawer CTA pattern. Off by default;
+   *  opted into by feature windows whose demos are designed to fit and
+   *  whose copy lives in the drawer (Agents, future feature windows). */
+  popout?: boolean;
+  /** Defer the body into an inert <template> while closed (perf). Opt-in per
+   *  window — only set on windows whose script runs via whenWindowBody() or
+   *  that have no own script (wired by wireRichWindow on open). */
+  defer?: boolean;
+}
+const {
+  app, title, meta, mark, markImg, theme, dark = false,
+  accent, open = false, popout = false, defer = false,
+} = Astro.props;
+
+const accentVar = accent ? `--w-accent: var(--app-accent-${accent});` : '';
+const close = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 3l6 6M9 3l-6 6"/></svg>`;
+const min = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 6h6"/></svg>`;
+const max = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 3h6v6h-6z"/></svg>`;
+const dl = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 4v12m0 0l-5-5m5 5l5-5M4 20h16"/></svg>`;
+
+/* Every window has two modes — fullscreen (full viewport, menubar
+ * hidden, titlebar absorbs the right cluster) and mini (floating
+ * window, dock-safe at the bottom, menubar-OVERLAPPABLE at the top).
+ * Feature windows default fullscreen; welcome / download default mini.
+ * Arcade went fullscreen when it became a 3-cabinet picker — its inner
+ * game frames re-center their own stages. The green traffic light flips
+ * the mode on any window. */
+const MINI_DEFAULT = new Set(['welcome', 'download']);
+const defaultSize: 'mini' | 'fullscreen' = MINI_DEFAULT.has(app) ? 'mini' : 'fullscreen';
+---
+<section
+  class:list={['os-window', `w-${app}`, { dark, open, focused: open, 'has-popout': popout }]}
+  data-app-window={app}
+  data-default={open ? 'true' : undefined}
+  data-size={defaultSize}
+  data-theme-preview={theme}
+  style={accentVar}
+>
+  <header class="titlebar">
+    <div class="tl">
+      <button class="tl-close" type="button" aria-label="Close window" set:html={close} />
+      <button class="tl-min" type="button" aria-label="Minimise window" set:html={min} />
+      <button class="tl-max" type="button" aria-label="Maximise window" set:html={max} />
+    </div>
+    {/* Fullscreen-only HEAD: SHIP brand link. When this window is
+        fullscreen the standalone menubar is hidden, so the brand link
+        lives here too — there must always be a path home. */}
+    <a class="fs-brand" href="/" aria-label="SHIP home">
+      <img src="/ship-logo.svg" alt="" />
+      <span>SHIP</span>
+    </a>
+    <div class="title">
+      {markImg
+        ? <span class="title-mk"><img src={markImg} alt="" /></span>
+        : mark && <span class="title-mk" style={accentVar}>{mark}</span>}
+      {title}
+    </div>
+    <div class="meta">{meta}</div>
+    {/* Fullscreen-only TAIL: gallery toggle + theme picker + Download.
+        Same reason — the standalone menubar is hidden in fullscreen, so
+        every nav entry-point it carried lives here too. There is
+        always a path home, always a path to the gallery, always a
+        path to another window. The state machine has no escape. */}
+    <div class="fs-tail">
+      <button class="fs-switcher" type="button" data-switcher-toggle title="Show all windows" aria-label="Show all windows">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="8" height="8" rx="1.5"/>
+          <rect x="13" y="3" width="8" height="8" rx="1.5"/>
+          <rect x="3" y="13" width="8" height="8" rx="1.5"/>
+          <rect x="13" y="13" width="8" height="8" rx="1.5"/>
+        </svg>
+      </button>
+      <sui-theme-picker class="fs-theme" placement="bottom-end" surface="marketing"></sui-theme-picker>
+      <a class="fs-dl" href="/download" data-open-window="download"><span set:html={dl} />Download</a>
+    </div>
+  </header>
+  <div class="content">
+    {/* Closed windows ship their body inert inside a <template>: no DOM, no
+        <sui-*> hydration, no per-window script work until first open. The open
+        window renders live so first paint isn't gated on JS. desktop.ts clones
+        the template + runs the window's deferred init on open. */}
+    {(open || !defer) ? <slot /> : <template data-window-body><slot /></template>}
+    {popout && (
+      <Fragment>
+        {/* Scroll nudge — invites the gesture that opens the popout drawer.
+            Hidden once the popout has opened. */}
+        <button class="nudge" type="button" data-popout-open aria-label="Show more">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 12V4M4 8l4-4 4 4"/>
+          </svg>
+          <span>more</span>
+        </button>
+        {/* Popout drawer — slides up on scroll/wheel on desktop, sits as an
+            always-visible end-of-content block on mobile (CSS handles the
+            mode switch). */}
+        <div class="popout" data-popout hidden>
+          <div class="popout-copy">
+            <strong>Ship runs on your machine.</strong>
+            <span>Free for personal use. Bring your own model.</span>
+          </div>
+          <sui-button tone="primary" variant="solid" size="lg" class="popout-cta">
+            <a href="/download" class="popout-link" data-open-window="download">
+              Try SHIP <span class="popout-arrow">→</span>
+            </a>
+          </sui-button>
+          <button class="popout-close" type="button" data-popout-close aria-label="Close">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </button>
+        </div>
+      </Fragment>
+    )}
+  </div>
+</section>
+
+<style>
+  .os-window {
+    /* `position: fixed` so the window's `top` is viewport-relative.
+       Was `absolute` inside .os-desktop (which is itself inset by the
+       menubar) — that turned every `top: 0` into "menubar-bottom", so
+       mini dialogs could never sit flush against the viewport top and
+       drag-to-top was clamped 32px low. Fixed positioning gives us a
+       single coordinate space the drag math + CSS clamps can share. */
+    position: fixed;
+    border-radius: 11px;
+    background: var(--background);
+    color: var(--foreground);
+    border: 0.5px solid color-mix(in oklch, var(--foreground) 18%, transparent);
+    box-shadow:
+      0 0 0 0.5px color-mix(in oklch, var(--foreground) 12%, transparent),
+      0 22px 80px -16px rgba(0, 0, 0, 0.45),
+      0 4px 16px -2px rgba(0, 0, 0, 0.12);
+    display: none;
+    flex-direction: column;
+    z-index: 1;
+    opacity: 0;
+    transform: scale(0.2) translateY(220px);
+    transform-origin: 50% 110%;
+    transition:
+      opacity 240ms var(--ease-spring, cubic-bezier(.32, .72, 0, 1)),
+      transform 320ms var(--ease-spring, cubic-bezier(.32, .72, 0, 1));
+  }
+  .os-window.open {
+    display: flex;
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  .os-window:not(.focused) {
+    box-shadow:
+      0 0 0 0.5px color-mix(in oklch, var(--foreground) 10%, transparent),
+      0 14px 42px -16px rgba(0, 0, 0, 0.32),
+      0 2px 8px -2px rgba(0, 0, 0, 0.08);
+    /* Was `filter: saturate(0.94)` — Firefox creates a new compositing
+       layer per filtered element, and we have up to 11 windows in the
+       DOM. Opacity is composited natively at zero cost. */
+    opacity: 0.92;
+  }
+  .os-window.focused { z-index: 50; }
+
+  .titlebar {
+    height: var(--os-menubar-h, 32px);
+    flex-shrink: 0;
+    /* Flex, not grid. The titlebar can have 3 children (mini: tl,
+       title, meta) or 5 children (fullscreen: tl, fs-brand, title,
+       meta, fs-tail). Grid auto-placement put hidden items into wrong
+       tracks — the fs-brand <a href="/"> was spanning the title's
+       1fr track, so clicking the middle of the titlebar navigated to /.
+       Flex handles show/hide cleanly: hidden items collapse to 0 and
+       don't take space. */
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 14px;
+    background: color-mix(in oklch, var(--w-accent, var(--accent)) 10%, color-mix(in oklch, var(--background) 76%, var(--card)));
+    border-bottom: 0.5px solid color-mix(in oklch, var(--w-accent, var(--accent)) 18%, transparent);
+    border-radius: 11px 11px 0 0;
+    cursor: grab;
+  }
+  .titlebar > .title { flex: 1 1 auto; min-width: 0; text-align: left; }
+  .titlebar > .meta  { flex: 0 0 auto; }
+  .titlebar > .tl,
+  .titlebar > .fs-brand,
+  .titlebar > .fs-tail { flex: 0 0 auto; }
+  /* Fullscreen-only HEAD — SHIP brand. Hidden default; CSS shows it
+     when `[data-size='fullscreen']`. */
+  .fs-brand {
+    display: none;
+    align-items: center;
+    gap: 7px;
+    text-decoration: none;
+    color: inherit;
+    padding: 3px 8px;
+    border-radius: 6px;
+    transition: background 80ms;
+  }
+  .fs-brand:hover { background: color-mix(in oklch, var(--foreground) 12%, transparent); }
+  .fs-brand img { width: 18px; height: 18px; }
+  .fs-brand span {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    color: var(--foreground);
+  }
+  /* Fullscreen-only TAIL — gallery + palette + Download. Same gating. */
+  .fs-tail {
+    display: none;
+    align-items: center;
+    gap: 13px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    justify-self: end;
+  }
+  .fs-switcher {
+    appearance: none; background: transparent; border: 0; padding: 2px;
+    border-radius: 5px; cursor: pointer;
+    display: inline-flex; align-items: center;
+    color: color-mix(in oklch, var(--foreground) 70%, var(--background));
+  }
+  .fs-switcher:hover { background: color-mix(in oklch, var(--foreground) 12%, transparent); }
+  .fs-theme { display: inline-flex; align-items: center; }
+  .fs-dl {
+    padding: 3px 10px;
+    border-radius: 6px;
+    background: var(--foreground);
+    color: var(--background);
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 11.5px;
+    display: inline-flex; align-items: center; gap: 6px;
+    text-decoration: none;
+  }
+  .fs-dl:hover { background: color-mix(in oklch, var(--foreground) 85%, var(--accent)); }
+  .titlebar:active { cursor: grabbing; }
+
+  .tl { display: flex; gap: 8px; align-items: center; }
+  .tl button {
+    appearance: none;
+    border: 0.5px solid rgba(0, 0, 0, 0.18);
+    padding: 0;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: rgba(0, 0, 0, 0.55);
+  }
+  .tl button :global(svg) { width: 8px; height: 8px; opacity: 0; transition: opacity 80ms; }
+  .tl button:hover :global(svg) { opacity: 1; }
+  .tl-close { background: #ff5f57; }
+  .tl-min { background: #febc2e; }
+  .tl-max { background: #28c840; }
+  .os-window:not(.focused) .tl button {
+    background: color-mix(in oklch, var(--foreground) 22%, var(--background)) !important;
+    border-color: transparent;
+  }
+
+  .title {
+    justify-self: center;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: color-mix(in oklch, var(--foreground) 82%, var(--background));
+  }
+  .os-window:not(.focused) .title { color: color-mix(in oklch, var(--foreground) 52%, var(--background)); }
+  .title-mk {
+    width: 15px; height: 15px;
+    display: grid;
+    place-items: center;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 8.5px;
+    color: white;
+    background: var(--w-accent, var(--accent));
+  }
+  .title-mk img { width: 15px; height: 15px; }
+
+  .meta {
+    justify-self: end;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: color-mix(in oklch, var(--foreground) 50%, var(--background));
+  }
+
+  .content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 0 0 11px 11px;
+    position: relative;
+    /* Personality: the window is on a vivid grainient — it should be tinted
+       by its own accent, not a flat box. We layer:
+       1) a strong top halo behind the headline,
+       2) an off-canvas glow at the upper-right corner,
+       3) a low ground wash so the CTA sits in soft accent light. */
+    background:
+      /* Top halo behind the headline */
+      radial-gradient(ellipse 80% 58% at 50% -6%,
+        color-mix(in oklch, var(--w-accent, var(--accent)) 42%, transparent),
+        transparent 72%),
+      /* Off-canvas glow upper-right */
+      radial-gradient(circle 420px at 108% -8%,
+        color-mix(in oklch, var(--w-accent, var(--accent)) 38%, transparent),
+        transparent 72%),
+      /* Off-canvas glow upper-left — balances right glow */
+      radial-gradient(circle 360px at -8% 8%,
+        color-mix(in oklch, var(--w-accent, var(--accent)) 30%, transparent),
+        transparent 72%),
+      /* Broad mid-body wash so the centre isn't a white void */
+      radial-gradient(ellipse 130% 90% at 50% 50%,
+        color-mix(in oklch, var(--w-accent, var(--accent)) 14%, transparent),
+        transparent 78%),
+      /* Ground wash so the CTA sits in soft accent light */
+      radial-gradient(ellipse 130% 52% at 50% 112%,
+        color-mix(in oklch, var(--w-accent, var(--accent)) 26%, transparent),
+        transparent 70%),
+      /* Flat base tint — a gentle accent floor under everything else */
+      color-mix(in oklch, var(--w-accent, var(--accent)) 6%, var(--background));
+  }
+  /* Scroll-nudge — sits in-flow at the end of the demo (NOT absolutely
+     positioned at the bottom of .content). That way its placement is
+     always a consistent distance below the demo content, regardless of
+     how tall .content actually is. The popout drawer still lives at
+     the bottom of .content as an absolute slide-up; the two don't
+     compete because the popout overlays everything when open. */
+  .nudge {
+    display: inline-flex; align-items: center; gap: 4px;
+    align-self: center;
+    margin: 8px 0 22px;
+    appearance: none; border: 0; background: transparent;
+    padding: 4px 10px; border-radius: 999px;
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 56%, var(--background));
+    cursor: pointer; z-index: 1;
+    animation: nudge-bob 1.6s ease-in-out infinite;
+    transition: opacity 200ms ease;
+  }
+  .nudge svg { width: 11px; height: 11px; }
+  .nudge:hover { color: var(--w-accent); }
+  .content[data-popout-shown] .nudge { opacity: 0; pointer-events: none; }
+  @keyframes nudge-bob {
+    0%, 100% { transform: translate(-50%, 0); }
+    50%      { transform: translate(-50%, -3px); }
+  }
+  @media (prefers-reduced-motion: reduce) { .nudge { animation: none; } }
+  /* Closed windows are already `display: none` — the browser suspends
+     CSS keyframes on those for free. We DON'T do a wildcard
+     `[data-paused] :global(*) { animation-play-state: paused }` because
+     that universal selector forces the style engine to compute the
+     property on every descendant of every paused window on every style
+     recalc — was the perf cliff. SMIL is paused separately in JS via
+     `svg.pauseAnimations()` (targeted, one call per SVG). */
+
+  /* Popout drawer — slides up from the bottom of the window content. */
+  .popout {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 20px;
+    background: color-mix(in oklch, var(--card) 92%, var(--w-accent));
+    border-top: 1px solid color-mix(in oklch, var(--w-accent) 30%, transparent);
+    box-shadow: 0 -10px 30px -8px color-mix(in oklch, var(--w-accent) 40%, transparent);
+    transform: translateY(100%);
+    transition: transform 320ms cubic-bezier(.32, .72, 0, 1);
+    z-index: 8;
+  }
+  .popout[hidden] { display: none; }
+  .popout[data-open] { transform: translateY(0); }
+  .popout-copy { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .popout-copy strong { font-weight: 700; font-size: 14px; color: var(--foreground); }
+  .popout-copy span { font-size: 12px; color: color-mix(in oklch, var(--foreground) 64%, var(--background)); }
+  .popout-cta { flex-shrink: 0; }
+  .popout-link {
+    color: inherit; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .popout-arrow { transition: transform 180ms ease; }
+  .popout-link:hover .popout-arrow { transform: translateX(3px); }
+  .popout-close {
+    appearance: none; border: 0; background: transparent;
+    width: 24px; height: 24px; border-radius: 4px;
+    display: grid; place-items: center; cursor: pointer; flex-shrink: 0;
+    color: color-mix(in oklch, var(--foreground) 56%, var(--background));
+    transition: background 140ms ease, color 140ms ease;
+  }
+  .popout-close:hover {
+    background: color-mix(in oklch, var(--foreground) 8%, transparent);
+    color: var(--foreground);
+  }
+  .popout-close svg { width: 14px; height: 14px; }
+
+  /* A 1px accent rule under the titlebar — the window's own colour
+     announcing itself before any content. */
+  .content::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent,
+      color-mix(in oklch, var(--w-accent, var(--accent)) 70%, transparent) 18%,
+      color-mix(in oklch, var(--w-accent, var(--accent)) 70%, transparent) 82%,
+      transparent);
+    pointer-events: none;
+    z-index: 1;
+  }
+  :global(.dark) .content {
+    background:
+      radial-gradient(ellipse 80% 58% at 50% -6%,
+        color-mix(in oklch, var(--w-accent, var(--accent)) 30%, transparent),
+        transparent 72%),
+      radial-gradient(circle 420px at 108% -8%,
+        color-mix(in oklch, var(--w-accent, var(--accent)) 26%, transparent),
+        transparent 72%),
+      radial-gradient(circle 360px at -8% 8%,
+        color-mix(in oklch, var(--w-accent, var(--accent)) 22%, transparent),
+        transparent 72%),
+      radial-gradient(ellipse 130% 90% at 50% 50%,
+        color-mix(in oklch, var(--w-accent, var(--accent)) 10%, transparent),
+        transparent 78%),
+      radial-gradient(ellipse 130% 52% at 50% 112%,
+        color-mix(in oklch, var(--w-accent, var(--accent)) 18%, transparent),
+        transparent 70%),
+      color-mix(in oklch, var(--w-accent, var(--accent)) 8%, var(--background));
+  }
+
+  /* ── Per-app geometry ──────────────────────────────────────────────
+   *
+   * Default model: feature windows are TRULY fullscreen — they fill
+   * the viewport from menubar bottom to viewport bottom. The dock
+   * auto-hides and doesn't claim viewport space. The window's own
+   * titlebar is hidden because the menubar IS the titlebar (it carries
+   * the traffic lights on the left when a window is focused).
+   *
+   * Compact dialogs (.w-welcome, .w-download, .w-arcade) keep their
+   * intrinsic centred sizes and their own internal titlebar.
+   */
+  /* ── Two modes, one source of truth: data-size ──────────────────────
+   *
+   * `data-size='fullscreen'`  — fills the .os-desktop parent (which
+   *                              starts at viewport top:0 in this mode
+   *                              because body[data-fullscreen] hides
+   *                              the standalone menubar). The window's
+   *                              own titlebar IS the top bar — it
+   *                              absorbs the menubar's right cluster
+   *                              (palette + Download) via .fs-tail.
+   *                              No border, no shadow, no radius.
+   *
+   * `data-size='mini'`        — floating window. Dock IS a safe area
+   *                              (the window's bottom never overlaps
+   *                              the dock). The menubar is NOT a safe
+   *                              area — the window can extend up to
+   *                              top:0 if its content needs the space.
+   *                              Full window chrome (border, shadow,
+   *                              radius, titlebar with dots).
+   *
+   * Defaults — feature windows → fullscreen, welcome/download/arcade →
+   * mini. The green traffic-light flips the mode.
+   * ──────────────────────────────────────────────────────────────────── */
+
+  /* ── Fullscreen ── */
+  .os-window[data-size='fullscreen'] {
+    inset: 0;
+    width: auto; height: auto;
+    border-radius: 0; border: 0; box-shadow: none;
+  }
+  .os-window[data-size='fullscreen'] .content,
+  .os-window[data-size='fullscreen'] .titlebar { border-radius: 0; }
+  .os-window[data-size='fullscreen'] .fs-brand,
+  .os-window[data-size='fullscreen'] .fs-tail   { display: inline-flex; }
+  /* In fullscreen the title text + meta get muted — the SHIP brand
+     and the URL communicate the surface; the window title is redundant
+     noise on the only top bar. The traffic lights still show. */
+  .os-window[data-size='fullscreen'] .title { opacity: 0.6; font-size: 11.5px; }
+  .os-window[data-size='fullscreen'] .meta  { display: none; }
+
+  /* ── Mini ──
+     Top floor is `--os-menubar-h + 4px` — the window's titlebar must
+     remain reachable below the menubar (not hidden under it). Bottom
+     is dock-safe via the height clamps. */
+  .os-window[data-size='mini'] {
+    width: 524px;
+    height: min(560px, calc(100vh - var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px) - 16px));
+    left:  max(12px, calc(50vw - 262px));
+    top:   max(calc(var(--os-menubar-h, 32px) + 4px),
+              calc((100vh + var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px)) / 2 - 280px));
+  }
+  .w-welcome[data-size='mini'] {
+    width: 524px;
+    height: min(600px, calc(100vh - var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px) - 16px));
+    left:  max(12px, calc(50vw - 262px));
+    top:   max(calc(var(--os-menubar-h, 32px) + 4px),
+              calc((100vh + var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px)) / 2 - 300px));
+  }
+  .w-download[data-size='mini'] {
+    width: 452px;
+    height: min(470px, calc(100vh - var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px) - 16px));
+    left:  max(12px, calc(50vw - 226px));
+    top:   max(calc(var(--os-menubar-h, 32px) + 4px),
+              calc((100vh + var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px)) / 2 - 235px));
+  }
+  /* Arcade in mini: hosts the picker + (when playing) stat rails. Wide
+     enough for 3 cards or rail-stage-rail. Game stage core is 480×540
+     so we floor height ≥ 600 to leave room for the chrome + strip. */
+  .w-arcade[data-size='mini'] {
+    width:  820px;
+    height: 640px;
+    left:   max(12px, calc(50vw - 410px));
+    top:    max(calc(var(--os-menubar-h, 32px) + 4px),
+               min(
+                 calc(100vh - var(--os-dock-visible-h, 112px) - 640px - 4px),
+                 calc((100vh + var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px)) / 2 - 320px)
+               ));
+  }
+  /* Feature windows in mini mode. Same titlebar-reachable rule. */
+  .w-agents[data-size='mini'],
+  .w-orchestration[data-size='mini'],
+  .w-data[data-size='mini'],
+  .w-observability[data-size='mini'],
+  .w-custom-views[data-size='mini'],
+  .w-security[data-size='mini'],
+  .w-pricing[data-size='mini'],
+  .w-docs[data-size='mini'],
+  .w-faq[data-size='mini'] {
+    width:  min(960px, 92vw);
+    height: min(640px, calc(100vh - var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px) - 24px));
+    left:   max(12px, calc(50vw - min(480px, 46vw)));
+    top:    max(calc(var(--os-menubar-h, 32px) + 4px),
+               calc((100vh + var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px)) / 2 - 320px));
+  }
+  /* Spaces in mini: needs more horizontal room for the 3-tab switcher
+     + 3-col panel (views / agents / team). The shared mini above
+     squeezed the team column down to ~120px and the agent rows
+     truncated. Give it a wider footprint. */
+  .w-spaces[data-size='mini'] {
+    width:  min(1080px, 94vw);
+    height: min(680px, calc(100vh - var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px) - 24px));
+    left:   max(12px, calc(50vw - min(540px, 47vw)));
+    top:    max(calc(var(--os-menubar-h, 32px) + 4px),
+               calc((100vh + var(--os-menubar-h, 32px) - var(--os-dock-visible-h, 112px)) / 2 - 340px));
+  }
+
+  /* ── Mobile: stack every window as a static, always-open card. ── */
+  /* ── Mobile: each window is a full-screen page. The menubar is the
+     ONLY top bar — the window's own titlebar is hidden so we don't
+     stack two bars. Only the open window renders. ── */
+  @media (max-width: 760px) {
+    .os-window {
+      position: fixed !important;
+      /* Bottom 0: there's no dock on mobile, so the window owns the
+         full area below the menubar. */
+      inset: var(--os-menubar-h, 44px) 0 0 0 !important;
+      width: 100% !important;
+      /* Stretch to fill (was `auto` — the auto-height collapsed to
+         content size and clipped, breaking scroll). */
+      height: calc(100vh - var(--os-menubar-h, 44px)) !important;
+      border-radius: 0;
+      border-left: 0; border-right: 0;
+      box-shadow: none;
+      transform: none;
+      opacity: 1;
+      transition: opacity 240ms ease;
+    }
+    .os-window.open { opacity: 1; transform: none; }
+    .os-window:not(.open) { display: none; }
+    /* Window titlebar hidden on mobile — menubar is the single top bar. */
+    .titlebar { display: none; }
+    /* The content panel scrolls on mobile. The base rule used
+       `overflow: hidden` to keep the popout drawer inside the desktop
+       window, but on mobile that just clipped everything. */
+    .content {
+      border-radius: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+</style>

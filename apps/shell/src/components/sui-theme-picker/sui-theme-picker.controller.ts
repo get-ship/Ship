@@ -1,5 +1,5 @@
 import { controller, signal, derived, effect, ref, chrome } from '@ship/sui-runtime'
-import type { Signal, ViewScope } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import {
   THEMES,
   applyTheme,
@@ -58,6 +58,15 @@ export default controller({
     const dotColor = derived(() =>
       THEMES_BY_ID.get(activeTheme())?.swatches[2] ?? 'var(--primary, #3b82f6)',
     )
+    // The shell shows the active theme's accent swatch on the trigger; the
+    // marketing surface treats the trigger as text so it stays legible on the
+    // translucent menubar (the amber swatch is low-contrast there).
+    const triggerIconColor = derived(() =>
+      init.surface() === 'marketing' ? 'currentColor' : dotColor(),
+    )
+    // The Customize footer routes to /theme-studio, which only exists in the
+    // shell. Hide it on the static marketing site.
+    const showCustomize = derived(() => init.surface() !== 'marketing')
     const triggerLabel = derived(() =>
       THEMES_BY_ID.get(activeTheme())?.label ?? 'Theme',
     )
@@ -104,6 +113,8 @@ export default controller({
       panelOpen,
       groups,
       dotColor,
+      triggerIconColor,
+      showCustomize,
       triggerLabel,
       togglePanel,
       selectTheme,
@@ -115,15 +126,14 @@ export default controller({
   },
 
   mount(state, host) {
-    const scope = state as unknown as {
-      activeTheme: Signal<ThemeId>
-      panelOpen: Signal<boolean>
-      panelEl: () => PopoverEl | null
-      triggerBtn: () => HTMLElement | null
-      _internals: { host: HTMLElement | null; panel: PopoverEl | null }
-    }
+    // `mount`'s `state` is the unwrapped writable proxy: reading a signal
+    // key yields its value, refs yield the element (or null), writes route
+    // through `.set`. The raw signals — needed for reactive subscription
+    // inside `effect` — live on `state.$signals`.
+    const { panelEl: panelSignal, triggerBtn: triggerSignal,
+      activeTheme: activeThemeSignal, panelOpen: panelOpenSignal } = state.$signals
 
-    scope._internals.host = host
+    state._internals.host = host
     ensureThemesCssInShadow(host)
 
     // Apply stored theme on first mount. Idempotent if the boot script
@@ -133,13 +143,13 @@ export default controller({
     // Sync panel ref into internals + listen for native open/close so
     // panelOpen mirrors the popover state (drives aria-expanded).
     const stopPanelSync = effect(() => {
-      const panel = scope.panelEl()
-      scope._internals.panel = panel
+      const panel = panelSignal()
+      state._internals.panel = panel
       if (!panel) return
       const onToggle = (e: Event) => {
         const newState = (e as ToggleEvent).newState
         const open = newState === 'open'
-        if (scope.panelOpen() !== open) scope.panelOpen.set(open)
+        if (panelOpenSignal() !== open) panelOpenSignal.set(open)
         if (open) anchorPanel()
       }
       panel.addEventListener('toggle', onToggle)
@@ -147,8 +157,8 @@ export default controller({
     })
 
     function anchorPanel(): void {
-      const panel = scope.panelEl()
-      const trigger = scope.triggerBtn()
+      const panel = panelSignal()
+      const trigger = triggerSignal()
       if (!panel || !trigger) return
       const r = trigger.getBoundingClientRect()
       panel.style.top = `${r.bottom + 4}px`
@@ -160,13 +170,13 @@ export default controller({
     function onExternalChange(e: Event) {
       const id = (e as CustomEvent<{ id?: string }>).detail?.id
       if (!isValidTheme(id)) return
-      if (scope.activeTheme() !== id) scope.activeTheme.set(id)
+      if (activeThemeSignal() !== id) activeThemeSignal.set(id)
     }
     document.addEventListener('ship:theme:change', onExternalChange)
 
     // Arrow-key nav across cards while the panel is open.
     function onPanelKeydown(e: KeyboardEvent) {
-      const panel = scope.panelEl()
+      const panel = panelSignal()
       if (!panel) return
       const cards = Array.from(panel.querySelectorAll<HTMLButtonElement>('.card'))
       if (!cards.length) return
@@ -197,7 +207,7 @@ export default controller({
     }
 
     const stopKeyBind = effect(() => {
-      const panel = scope.panelEl()
+      const panel = panelSignal()
       if (!panel) return
       panel.addEventListener('keydown', onPanelKeydown)
       return () => panel.removeEventListener('keydown', onPanelKeydown)
@@ -206,9 +216,9 @@ export default controller({
     // Focus the selected card when the panel opens — keyboard users
     // expect a starting position.
     const stopFocusOnOpen = effect(() => {
-      if (!scope.panelOpen()) return
+      if (!panelOpenSignal()) return
       requestAnimationFrame(() => {
-        const panel = scope.panelEl()
+        const panel = panelSignal()
         if (!panel) return
         const cards = Array.from(panel.querySelectorAll<HTMLButtonElement>('.card'))
         const current = cards.find((c) => c.getAttribute('aria-selected') === 'true')

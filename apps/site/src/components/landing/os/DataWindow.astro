@@ -1,0 +1,443 @@
+---
+// FILE_CAP_OVERRIDE: a feature window whose data, layout, runtime, and
+// styles move together. Splitting the schema mocks from the layout
+// duplicates the names; splitting CSS away from the composition
+// diagram requires syncing class names twice.
+/*
+ * DataWindow — collections + artifacts.
+ *
+ *   Hero        : the framing — "your data, reactive."
+ *   Primitives  : Collections (schema'd rows + query language) side by
+ *                 side with Artifacts (content-addressed blobs, typed).
+ *   Composition : Skills query collections, skills declare artifact
+ *                 types, pipelines write to both, views subscribe.
+ *   Sync soon   : honest "optional cloud sync" callout.
+ *
+ * No mention of any other-vendor brand — the "personal firestore"
+ * framing is conveyed by "reactive" + "subscribe" + "live" without
+ * naming names.
+ */
+import Window from './Window.astro';
+import DownloadCTA from './DownloadCTA.astro';
+const { open = false } = Astro.props;
+---
+<Window app="data" title="Data" meta="collections + artifacts" mark="C" accent="collections" open={open} defer>
+  <div class="win-scroll dt">
+    {/* ── Hero ─────────────────────────────────────────────────────────── */}
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="eyebrow" data-reveal>Data · collections + artifacts</div>
+        <h2 class="hl" data-reveal>
+          Your data.<br/><span class="hl-accent">Reactive.</span>
+        </h2>
+        <p class="hero-sub" data-reveal>
+          Two primitives. Both live on your machine. Schema'd rows you can query, or content-addressed blobs you can name. Skills read from them. Pipelines write to them. Your views update live.
+        </p>
+      </div>
+    </section>
+
+    {/* ── Two primitives ───────────────────────────────────────────────── */}
+    <section class="primitives">
+      <div class="prim-grid">
+        {/* Collections */}
+        <article class="prim" data-reveal>
+          <header class="prim-head">
+            <span class="prim-tag">Collections</span>
+            <h3 class="prim-lede">Schema'd. Queryable. Live.</h3>
+            <p class="prim-blurb">Rows with types, indexed for query. Subscribe and your view updates the moment anything changes.</p>
+          </header>
+
+          <div class="frame">
+            <div class="frame-bar">schema · <em>emails</em></div>
+            <pre class="src"><code><span class="k">collection</span> <span class="n">emails</span> {`{`}
+  <span class="f">from</span>:        <span class="t">text</span>
+  <span class="f">subject</span>:     <span class="t">text</span>
+  <span class="f">body</span>:        <span class="t">text</span>
+  <span class="f">received_at</span>: <span class="t">datetime</span>
+  <span class="f">importance</span>:  <span class="t">enum</span>(<span class="s">low | med | high</span>)
+{`}`}</code></pre>
+          </div>
+
+          <div class="frame">
+            <div class="frame-bar">query</div>
+            <pre class="src"><code><span class="k">from</span> emails
+<span class="k">where</span> importance == <span class="s">"high"</span>
+<span class="k">and</span>   received_at > <span class="s">"24h"</span>
+<span class="k">sort</span>  received_at <span class="k">desc</span></code></pre>
+          </div>
+
+          <footer class="prim-foot">
+            <span class="foot-chip"><span class="dot dot-ok"></span>12 rows · live</span>
+            <span class="foot-meta">subscribed by 3 views</span>
+          </footer>
+        </article>
+
+        {/* Artifacts */}
+        <article class="prim" data-reveal>
+          <header class="prim-head">
+            <span class="prim-tag">Artifacts</span>
+            <h3 class="prim-lede">Content-addressed blobs.</h3>
+            <p class="prim-blurb">Files keyed by their content's hash, typed by your declarations. Same hash always means the same bytes.</p>
+          </header>
+
+          <div class="frame">
+            <div class="frame-bar">artifact</div>
+            <ul class="kv">
+              <li><span class="kv-k">type</span><code class="kv-v">meeting.transcript</code></li>
+              <li><span class="kv-k">hash</span><code class="kv-v kv-hash">sha256:7af9e2c…b1d4</code></li>
+              <li><span class="kv-k">size</span><code class="kv-v">24.6 KB</code></li>
+              <li><span class="kv-k">created</span><code class="kv-v">by inbox-triage</code></li>
+            </ul>
+          </div>
+
+          <div class="frame">
+            <div class="frame-bar">type · <em>meeting.transcript</em></div>
+            <pre class="src"><code><span class="k">artifact</span> <span class="n">meeting.transcript</span> <span class="k">extends</span> <span class="n">audio.transcript</span> {`{`}
+  <span class="f">speakers</span>:  [<span class="t">text</span>]
+  <span class="f">topics</span>:    [<span class="t">text</span>]
+  <span class="f">summary</span>:   <span class="t">text</span>
+  <span class="f">sentiment</span>: <span class="t">enum</span>(<span class="s">neg | neu | pos</span>)
+{`}`}</code></pre>
+          </div>
+
+          <footer class="prim-foot">
+            <span class="foot-chip"><span class="dot dot-accent"></span>1,284 artifacts</span>
+            <span class="foot-meta">14 types declared</span>
+          </footer>
+        </article>
+      </div>
+    </section>
+
+    {/* ── Composition ──────────────────────────────────────────────────── */}
+    <section class="compose">
+      <header class="band-h" data-reveal>
+        <span class="band-tag">Composition</span>
+        <h3 class="band-title">How agents work with your data.</h3>
+        <p class="band-sub">Skills name a collection, declare an artifact type, or both. Pipelines read inputs from them and write outputs back. Your views subscribe — no fetch, no polling.</p>
+      </header>
+
+      <div class="cmp-grid">
+        <article class="cmp-card" data-reveal>
+          <span class="cmp-tag tag-skill">SKILL</span>
+          <h4 class="cmp-name">queries a collection</h4>
+          <pre class="src"><code><span class="k">skill</span> <span class="n">summarize-week</span> {`{`}
+  <span class="f">reads</span>: emails <span class="k">where</span> received_at &gt; <span class="s">"7d"</span>
+{`}`}</code></pre>
+        </article>
+
+        <article class="cmp-card" data-reveal>
+          <span class="cmp-tag tag-skill">SKILL</span>
+          <h4 class="cmp-name">declares an artifact type</h4>
+          <pre class="src"><code><span class="k">skill</span> <span class="n">brand-pack</span> {`{`}
+  <span class="f">artifact</span>: brand.colors {`{`} <span class="f">palette</span>: [<span class="t">color</span>] {`}`}
+  <span class="f">teaches</span>: how to apply <span class="n">brand.colors</span> to a view
+{`}`}</code></pre>
+        </article>
+
+        <article class="cmp-card" data-reveal>
+          <span class="cmp-tag tag-pipe">PIPELINE</span>
+          <h4 class="cmp-name">writes outputs back</h4>
+          <pre class="src"><code><span class="k">step</span> draft-recap {`{`}
+  <span class="f">input</span>:  <span class="n">emails</span>.summary
+  <span class="f">output</span>: <span class="n">artifacts.weekly-recap</span>
+{`}`}</code></pre>
+        </article>
+
+        <article class="cmp-card" data-reveal>
+          <span class="cmp-tag tag-view">VIEW</span>
+          <h4 class="cmp-name">subscribes; updates live</h4>
+          <div class="view-mock">
+            <div class="vm-row">
+              <span class="vm-name">artifacts.weekly-recap</span>
+              <sui-status-dot tone="success" pulse size="sm"></sui-status-dot>
+            </div>
+            <div class="vm-bar"><span class="vm-fill"></span></div>
+            <div class="vm-meta">streaming · 1.2 KB so far</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    {/* ── Sync coming soon ─────────────────────────────────────────────── */}
+    <section class="sync">
+      <div class="sync-card" data-reveal>
+        <span class="sync-tag">Coming soon</span>
+        <h3 class="sync-h">Optional cloud sync.</h3>
+        <p class="sync-p">Stay local. Or flip a switch and your collections and artifacts sync across machines. Your data, your call.</p>
+      </div>
+    </section>
+
+    <section class="dt-cta">
+      <DownloadCTA message="Stop renting your data. Own it locally." />
+    </section>
+  </div>
+</Window>
+
+<style>
+  .dt { display: block; }
+
+  [data-reveal] {
+    opacity: 0; transform: translateY(28px);
+    transition: opacity 700ms var(--ease-out, ease), transform 700ms var(--ease-spring, cubic-bezier(.32,.72,0,1));
+  }
+  [data-reveal].in { opacity: 1; transform: none; }
+
+  /* ── Hero ── */
+  .hero {
+    min-height: calc(70vh - var(--os-menubar-h, 32px));
+    display: grid; place-items: center;
+    overflow: hidden;
+    isolation: isolate;
+    padding: 0 24px;
+    background:
+      radial-gradient(ellipse 60% 50% at 30% 20%, color-mix(in oklch, var(--w-accent) 26%, transparent), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 80% 60%, color-mix(in oklch, var(--accent) 16%, transparent), transparent 72%);
+  }
+  .hero-inner { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 980px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--w-accent); }
+  .hl { font-family: var(--font-display); font-weight: 800; font-size: clamp(40px, 6.4vw, 80px); letter-spacing: -0.035em; line-height: 0.96; margin: 0; color: var(--foreground); }
+  .hl-accent {
+    background: linear-gradient(100deg, var(--w-accent), color-mix(in oklch, var(--w-accent) 50%, var(--accent)));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero-sub { margin: 18px 0 0; max-width: 64ch; font-size: 15px; line-height: 1.55; color: color-mix(in oklch, var(--foreground) 72%, var(--background)); }
+
+  /* ── Primitives ── */
+  .primitives { padding: 60px 0 70px; }
+  .prim-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+    max-width: 1200px; margin: 0 auto; padding: 0 32px;
+  }
+  .prim {
+    background: color-mix(in oklch, var(--card) 96%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 30%, transparent);
+    border-radius: 18px;
+    padding: 24px 24px 18px;
+    display: flex; flex-direction: column; gap: 14px;
+    box-shadow: 0 20px 52px -22px color-mix(in oklch, var(--w-accent) 50%, transparent);
+  }
+  .prim-head { display: flex; flex-direction: column; gap: 6px; }
+  .prim-tag {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--w-accent);
+    padding: 4px 10px; border-radius: 999px;
+    background: color-mix(in oklch, var(--w-accent) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 28%, transparent);
+    align-self: flex-start;
+  }
+  .prim-lede {
+    margin: 0;
+    font-family: var(--font-display); font-size: 24px; font-weight: 800;
+    letter-spacing: -0.015em; line-height: 1.1;
+    color: var(--foreground);
+  }
+  .prim-blurb {
+    margin: 0;
+    font-size: 13.5px; line-height: 1.5;
+    color: color-mix(in oklch, var(--foreground) 70%, var(--background));
+  }
+
+  /* Frame — source/data panel */
+  .frame {
+    border-radius: 10px;
+    background: color-mix(in oklch, var(--foreground) 5%, var(--card));
+    border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
+    overflow: hidden;
+  }
+  .frame-bar {
+    padding: 7px 12px;
+    border-bottom: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent);
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 55%, var(--background));
+  }
+  .frame-bar em { font-style: normal; color: var(--w-accent); font-weight: 700; text-transform: none; letter-spacing: 0.02em; }
+  .src {
+    margin: 0;
+    padding: 12px 14px;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.7;
+    color: color-mix(in oklch, var(--foreground) 84%, var(--background));
+    overflow: auto;
+  }
+  .src .k { color: var(--w-accent); font-weight: 600; }
+  .src .n { color: var(--foreground); font-weight: 700; }
+  .src .f { color: color-mix(in oklch, var(--foreground) 80%, var(--background)); }
+  .src .t { color: oklch(0.68 0.14 152); }
+  .src .s { color: oklch(0.7 0.16 50); }
+
+  /* KV list inside an artifact frame */
+  .kv {
+    list-style: none; padding: 10px 14px; margin: 0;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .kv-k {
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 56%, var(--background));
+    display: inline-block; width: 72px;
+  }
+  .kv-v {
+    font-family: var(--font-mono); font-size: 12px;
+    color: var(--foreground);
+    padding: 1px 5px; border-radius: 4px;
+    background: color-mix(in oklch, var(--foreground) 6%, transparent);
+  }
+  .kv-hash {
+    background: color-mix(in oklch, oklch(0.62 0.18 280) 14%, transparent);
+    color: oklch(0.62 0.18 280);
+  }
+
+  .prim-foot {
+    display: flex; align-items: center; gap: 12px;
+    padding-top: 4px; margin-top: auto;
+  }
+  .foot-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    padding: 4px 9px; border-radius: 999px;
+    background: color-mix(in oklch, var(--w-accent) 10%, transparent);
+    color: var(--foreground);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot-ok     { background: oklch(0.7 0.16 150); box-shadow: 0 0 0 3px color-mix(in oklch, oklch(0.7 0.16 150) 22%, transparent); }
+  .dot-accent { background: var(--w-accent); box-shadow: 0 0 0 3px color-mix(in oklch, var(--w-accent) 22%, transparent); }
+  .foot-meta {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: color-mix(in oklch, var(--foreground) 56%, var(--background));
+  }
+
+  /* ── Band header ── */
+  .band-h {
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 0 32px;
+    margin: 0 auto 28px; max-width: 1200px;
+  }
+  .band-tag {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 999px; align-self: flex-start;
+    color: var(--w-accent);
+    background: color-mix(in oklch, var(--w-accent) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 28%, transparent);
+  }
+  .band-title {
+    margin: 0;
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(26px, 3.6vw, 44px);
+    letter-spacing: -0.025em; line-height: 1.05;
+    color: var(--foreground);
+  }
+  .band-sub {
+    margin: 8px 0 0; max-width: 68ch;
+    font-size: 13.5px; line-height: 1.5;
+    color: color-mix(in oklch, var(--foreground) 70%, var(--background));
+  }
+
+  /* ── Composition ── */
+  .compose { padding: 30px 0 80px; }
+  .cmp-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    max-width: 1200px; margin: 0 auto; padding: 0 32px;
+  }
+  .cmp-card {
+    background: color-mix(in oklch, var(--card) 94%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .cmp-tag {
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px;
+    align-self: flex-start;
+  }
+  .tag-skill {
+    color: var(--w-accent);
+    background: color-mix(in oklch, var(--w-accent) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 30%, transparent);
+  }
+  .tag-pipe {
+    color: oklch(0.65 0.18 60);
+    background: color-mix(in oklch, oklch(0.65 0.18 60) 14%, transparent);
+    border: 1px solid color-mix(in oklch, oklch(0.65 0.18 60) 32%, transparent);
+  }
+  .tag-view {
+    color: oklch(0.62 0.18 280);
+    background: color-mix(in oklch, oklch(0.62 0.22 280) 12%, transparent);
+    border: 1px solid color-mix(in oklch, oklch(0.62 0.22 280) 32%, transparent);
+  }
+  .cmp-name {
+    margin: 0;
+    font-family: var(--font-display); font-size: 17px; font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+  }
+  .cmp-card .src {
+    font-size: 11.5px;
+    background: color-mix(in oklch, var(--foreground) 5%, var(--card));
+    border: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent);
+    border-radius: 8px;
+  }
+
+  .view-mock {
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 14px;
+    background: color-mix(in oklch, var(--background) 60%, var(--card));
+    border-radius: 8px;
+    border: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent);
+  }
+  .view-mock .vm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .vm-name { font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; color: var(--foreground); }
+  .vm-bar { height: 6px; border-radius: 3px; background: color-mix(in oklch, var(--foreground) 10%, transparent); overflow: hidden; }
+  .vm-fill {
+    display: block; height: 100%; width: 36%;
+    background: linear-gradient(90deg, color-mix(in oklch, var(--w-accent) 70%, transparent), var(--w-accent));
+    border-radius: 3px;
+    animation: vm-stream 2.4s ease-in-out infinite;
+  }
+  @keyframes vm-stream { 0%, 100% { width: 36%; } 50% { width: 86%; } }
+  @media (prefers-reduced-motion: reduce) { .vm-fill { animation: none; } }
+  .vm-meta { font-family: var(--font-mono); font-size: 10px; color: color-mix(in oklch, var(--foreground) 58%, var(--background)); }
+
+  /* ── Sync card ── */
+  .sync { padding: 0 32px 90px; display: grid; place-items: center; }
+  .sync-card {
+    max-width: 720px;
+    padding: 26px 32px;
+    background: color-mix(in oklch, var(--w-accent) 10%, var(--card));
+    border: 1px solid color-mix(in oklch, var(--w-accent) 32%, transparent);
+    border-radius: 16px;
+    box-shadow: 0 18px 44px -20px color-mix(in oklch, var(--w-accent) 50%, transparent);
+    text-align: center;
+  }
+  .sync-tag {
+    display: inline-flex; align-items: center;
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 800;
+    letter-spacing: 0.18em; color: var(--w-accent);
+    padding: 4px 12px; border-radius: 999px;
+    background: color-mix(in oklch, var(--w-accent) 20%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 40%, transparent);
+    margin-bottom: 10px;
+  }
+  .sync-h {
+    margin: 0;
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(22px, 3vw, 32px); letter-spacing: -0.02em;
+    color: var(--foreground);
+  }
+  .sync-p {
+    margin: 10px 0 0;
+    font-size: 14px; line-height: 1.5;
+    color: color-mix(in oklch, var(--foreground) 72%, var(--background));
+  }
+
+  /* ── Mobile ── */
+  @media (max-width: 760px) {
+    .hl { font-size: clamp(32px, 9vw, 48px); }
+    .prim-grid, .cmp-grid { grid-template-columns: 1fr; padding: 0 14px; }
+    .prim-lede { font-size: 20px; }
+    .sync-card { padding: 22px 20px; }
+  }
+</style>

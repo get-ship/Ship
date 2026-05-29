@@ -1,60 +1,20 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import Navbar from '../../components/Navbar.astro';
-import Footer from '../../components/Footer.astro';
+import RoomLayout from '../../layouts/RoomLayout.astro';
 import WaitlistForm from '../../components/WaitlistForm.astro';
 ---
-
-<BaseLayout title="SHIP installers — coming soon">
-  <Navbar />
-  <main class="soon-page">
-    <div class="site-container soon-inner">
-      <sui-badge tone="accent" variant="soft" size="md">
-        Installers landing soon
-      </sui-badge>
-      <h1>Almost there.</h1>
-      <p class="site-muted">
-        SHIP installers are being packaged for release. Leave your
-        email and we&rsquo;ll let you know the moment they&rsquo;re
-        live.
-      </p>
-
-      <WaitlistForm
-        list="general"
-        source="download/coming-soon"
-        placeholder="you@company.com"
-        thanks="You're on the list. We'll email you as soon as installers land."
-      />
-
-      <sui-toolbar justify="center" class="soon-actions">
-        <sui-button variant="ghost" size="sm" onclick="location.href='/'">
-          &larr; Back to the homepage
-        </sui-button>
-        <sui-button variant="ghost" size="sm" onclick="location.href='https://docs.getship.dev'">
-          Read the docs &rarr;
-        </sui-button>
-      </sui-toolbar>
-    </div>
-  </main>
-  <Footer />
-</BaseLayout>
-
-<style>
-  .soon-page {
-    padding: 96px 0;
-    min-height: 70vh;
-  }
-  .soon-inner {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 18px;
-    text-align: center;
-  }
-  .soon-inner h1 {
-    font-size: clamp(36px, 5vw, 56px);
-  }
-  .soon-actions {
-    margin-top: 16px;
-  }
-</style>
+<RoomLayout title="SHIP installers — coming soon">
+  <div class="room-card">
+    <div class="room-eyebrow">Installers landing soon</div>
+    <h1 class="room-title">Almost <span class="accent">there.</span></h1>
+    <p class="room-lede">This installer is being packaged for release. Leave your email and we'll let you know the moment it's live.</p>
+    <WaitlistForm
+      list="general"
+      source="download/coming-soon"
+      placeholder="you@company.com"
+      cta="Notify me"
+      thanks="You're on the list. We'll email you as soon as installers land."
+      size="lg"
+    />
+    <div class="room-switch"><a href="/download">← Other platforms</a> · <a href="/">Desktop</a></div>
+  </div>
+</RoomLayout>

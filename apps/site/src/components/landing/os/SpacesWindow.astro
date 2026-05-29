@@ -1,0 +1,386 @@
+---
+/*
+ * SpacesWindow — isolation + collaboration.
+ * A space holds its own views, agents, and data. Switch spaces → the whole
+ * Ship reskins around the new context (accent, views, agents, team). Same
+ * binary, separate worlds. Sync keeps a shared space in step across people.
+ *
+ * Design intent: the SWITCH is the demo. Tabs across the top, one large
+ * accent-tinted panel below that morphs on switch — preview tiles for
+ * views, agent roster, team strip. No more orphan "SHIP" CTA.
+ */
+import Window from './Window.astro';
+import DownloadCTA from './DownloadCTA.astro';
+const { open = false } = Astro.props;
+
+interface Space {
+  id: string;
+  name: string;
+  accent: string;          // var(--app-accent-<accent>)
+  tag: string;             // shown beside name (just you / 4 people / shared)
+  shared: boolean;
+  brief: string;           // one-line about what this space is for
+  views: Array<{ name: string; kind: 'overview' | 'agents' | 'pipelines' | 'data' | 'media' }>;
+  agents: Array<{ name: string; status: 'active' | 'idle' | 'asleep' }>;
+  team: string[];          // initials
+}
+
+const spaces: Space[] = [
+  {
+    id: 'personal',
+    name: 'Personal',
+    accent: 'overview',
+    tag: 'just you',
+    shared: false,
+    brief: 'Your stuff. Inbox, journal, weekend project. Stays on your machine.',
+    views: [
+      { name: 'Journal',      kind: 'overview' },
+      { name: 'Reading list', kind: 'data' },
+      { name: 'Budget',       kind: 'data' },
+      { name: 'Photos',       kind: 'media' },
+    ],
+    agents: [
+      { name: 'inbox-triage', status: 'active' },
+      { name: 'research',     status: 'idle' },
+    ],
+    team: ['ME'],
+  },
+  {
+    id: 'acme',
+    name: 'Acme Team',
+    accent: 'agents',
+    tag: '4 people',
+    shared: true,
+    brief: 'Day-job space. Roadmap, support inbox, on-call. Synced with the team.',
+    views: [
+      { name: 'Roadmap',       kind: 'overview' },
+      { name: 'Support inbox', kind: 'agents' },
+      { name: 'Analytics',     kind: 'data' },
+      { name: 'Docs',          kind: 'overview' },
+      { name: 'Releases',      kind: 'pipelines' },
+    ],
+    agents: [
+      { name: 'support-triage', status: 'active' },
+      { name: 'release-notes',  status: 'active' },
+      { name: 'on-call-watch',  status: 'idle' },
+      { name: 'docs-keeper',    status: 'asleep' },
+    ],
+    team: ['ME', 'JD', 'SK', 'AR'],
+  },
+  {
+    id: 'launch',
+    name: 'Launch',
+    accent: 'pipelines',
+    tag: 'shared · 2',
+    shared: true,
+    brief: 'A tight space for the launch. Drafts, waitlist, mailer. Wraps up after Friday.',
+    views: [
+      { name: 'Landing copy', kind: 'overview' },
+      { name: 'Waitlist',     kind: 'data' },
+      { name: 'Mailer',       kind: 'pipelines' },
+    ],
+    agents: [
+      { name: 'copy-writer', status: 'active' },
+      { name: 'mailer',      status: 'idle' },
+    ],
+    team: ['ME', 'AB'],
+  },
+];
+
+const VIEW_GLYPH: Record<Space['views'][number]['kind'], string> = {
+  overview:  '<rect x="2" y="2" width="12" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/>',
+  agents:    '<circle cx="8" cy="6" r="2.6"/><path d="M3 14c0-2.5 2.2-4.4 5-4.4s5 1.9 5 4.4"/>',
+  pipelines: '<circle cx="3.5" cy="8" r="1.6"/><circle cx="8" cy="8" r="1.6"/><circle cx="12.5" cy="8" r="1.6"/><path d="M5 8h1.4M9.6 8H11"/>',
+  data:      '<ellipse cx="8" cy="4" rx="5" ry="1.6"/><path d="M3 4v8c0 0.9 2.2 1.6 5 1.6s5-0.7 5-1.6V4"/><path d="M3 8c0 0.9 2.2 1.6 5 1.6s5-0.7 5-1.6"/>',
+  media:     '<rect x="2" y="3" width="12" height="10" rx="1.4"/><circle cx="6" cy="7" r="1.2"/><path d="M2 12l3.5-3.5 4 4 1.5-1.5 3 3"/>',
+};
+---
+<Window app="spaces" title="Spaces" meta="isolation + collaboration" mark="□" accent="theme" open={open}>
+  <div class="win-scroll spaces">
+    <div class="stage">
+      <header class="head">
+        <div class="eyebrow">Spaces · isolation + collaboration</div>
+        <h2 class="hl">A world for every <span class="hl-accent">context.</span></h2>
+        <p class="prompt">A space holds its own views, agents, and data — isolated and yours to shape. Share one with your team; every window is scoped to the space you're in.</p>
+      </header>
+
+      <div class="board" data-board>
+        {/* ── Switcher: 3 fat tabs, each one a real space identity. ── */}
+        <div class="switch" role="tablist" aria-label="Spaces">
+          {spaces.map((s, i) => (
+            <button
+              class:list={['sp', { on: i === 0 }]}
+              type="button" role="tab"
+              data-space={s.id}
+              style={`--sp-accent: var(--app-accent-${s.accent})`}
+            >
+              <span class="sp-dot" aria-hidden="true"></span>
+              <span class="sp-name">{s.name}</span>
+              <span class="sp-tag">{s.tag}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ── One panel per space; accent bleeds through chrome on switch. ── */}
+        {spaces.map((s, i) => (
+          <div
+            class="panel"
+            data-space-panel={s.id}
+            hidden={i !== 0}
+            style={`--sp-accent: var(--app-accent-${s.accent})`}
+          >
+            <header class="p-head">
+              <div class="p-id">
+                <span class="p-id-name">{s.name}</span>
+                <span class="p-id-meta">{s.shared ? 'shared space · synced' : 'private · on this Mac'}</span>
+              </div>
+              <p class="p-brief">{s.brief}</p>
+            </header>
+
+            <div class="p-grid">
+              <section class="col col-views">
+                <header class="col-h"><span class="col-h-k">Views</span><span class="col-h-n">{s.views.length}</span></header>
+                <ul class="view-tiles">
+                  {s.views.map((v) => (
+                    <li class="view-tile">
+                      <span class="view-tile-ico" set:html={`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${VIEW_GLYPH[v.kind]}</svg>`} />
+                      <span class="view-tile-name">{v.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <section class="col col-agents">
+                <header class="col-h"><span class="col-h-k">Agents</span><span class="col-h-n">{s.agents.length}</span></header>
+                <ul class="agent-list">
+                  {s.agents.map((a) => (
+                    <li class:list={['agent-row', `is-${a.status}`]}>
+                      <span class="agent-dot" aria-hidden="true"></span>
+                      <span class="agent-name">{a.name}</span>
+                      <span class="agent-status">{a.status}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <section class="col col-team">
+                <header class="col-h"><span class="col-h-k">Team</span><span class="col-h-n">{s.team.length}</span></header>
+                <div class="avatars">
+                  {s.team.map((m, idx) => <span class:list={['av', { me: m === 'ME' }]} style={`--av-i: ${idx}`}>{m}</span>)}
+                  {s.shared && <span class="av av-add" aria-label="invite">+</span>}
+                </div>
+                <p class="team-note">{s.shared
+                  ? 'Sync keeps everyone aligned on the same views, agents, and data.'
+                  : 'Add a teammate to share this space — sync turns on automatically.'}</p>
+              </section>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p class="foot">
+        Switch spaces → the whole Ship reskins around the new context. Same binary, separate worlds.
+      </p>
+
+      <DownloadCTA message="One binary. Separate worlds." />
+    </div>
+  </div>
+</Window>
+
+<style>
+  .spaces { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .stage {
+    flex: 1; min-height: 0;
+    width: 100%;
+    padding: 18px 26px 16px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+
+  /* ── Header ── */
+  .head { text-align: center; }
+  .eyebrow { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--w-accent); }
+  .hl { font-family: var(--font-display); font-weight: 800; font-size: clamp(24px, 3vw, 34px); letter-spacing: -0.03em; line-height: 1.04; margin: 4px 0 0; color: var(--foreground); }
+  .hl-accent {
+    background: linear-gradient(100deg, var(--w-accent), color-mix(in oklch, var(--w-accent) 50%, var(--accent)));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .prompt { margin: 6px auto 0; max-width: 60ch; font-size: 13px; line-height: 1.5; color: color-mix(in oklch, var(--foreground) 68%, var(--background)); }
+
+  /* ── Board: tabs over a single morphing panel. ── */
+  .board { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+
+  .switch {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    padding: 0;
+  }
+  .sp {
+    appearance: none; cursor: pointer;
+    display: grid; grid-template-columns: 12px 1fr auto;
+    align-items: center; gap: 10px;
+    padding: 11px 14px;
+    border-radius: 10px;
+    border: 1px solid color-mix(in oklch, var(--foreground) 14%, transparent);
+    background: color-mix(in oklch, var(--card) 84%, transparent);
+    color: color-mix(in oklch, var(--foreground) 70%, var(--background));
+    font-family: var(--font-body); text-align: left;
+    transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  }
+  .sp:hover { transform: translateY(-1px); border-color: color-mix(in oklch, var(--sp-accent) 40%, transparent); }
+  .sp-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--sp-accent); box-shadow: 0 0 0 3px color-mix(in oklch, var(--sp-accent) 18%, transparent); }
+  .sp-name { font-weight: 700; font-size: 14px; color: var(--foreground); letter-spacing: -0.01em; }
+  .sp-tag { font-family: var(--font-mono); font-size: 10px; color: color-mix(in oklch, var(--foreground) 50%, var(--background)); letter-spacing: 0.02em; }
+  .sp.on {
+    background: color-mix(in oklch, var(--sp-accent) 14%, var(--card));
+    border-color: var(--sp-accent);
+    color: var(--foreground);
+    box-shadow: 0 8px 22px -10px color-mix(in oklch, var(--sp-accent) 70%, transparent);
+  }
+  .sp.on .sp-dot { box-shadow: 0 0 0 4px color-mix(in oklch, var(--sp-accent) 28%, transparent); }
+
+  /* ── Panel: accent-tinted card with 3-column body. ── */
+  .panel {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column; gap: 14px;
+    padding: 18px 20px 16px;
+    border-radius: 14px;
+    background: color-mix(in oklch, var(--sp-accent) 6%, var(--card));
+    border: 1px solid color-mix(in oklch, var(--sp-accent) 26%, transparent);
+    box-shadow: 0 14px 36px -22px color-mix(in oklch, var(--sp-accent) 70%, transparent);
+    animation: sp-enter 240ms cubic-bezier(.32,.72,0,1);
+  }
+  .panel[hidden] { display: none; }
+  @keyframes sp-enter {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .p-head { display: flex; flex-direction: column; gap: 4px; }
+  .p-id { display: inline-flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .p-id-name { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--foreground); letter-spacing: -0.01em; }
+  .p-id-meta {
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--sp-accent) 70%, var(--foreground));
+    padding: 2px 7px; border-radius: 999px;
+    background: color-mix(in oklch, var(--sp-accent) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--sp-accent) 28%, transparent);
+  }
+  .p-brief { margin: 0; font-size: 12.5px; line-height: 1.45; color: color-mix(in oklch, var(--foreground) 70%, var(--background)); max-width: 64ch; }
+
+  .p-grid {
+    flex: 1; min-height: 0;
+    display: grid; grid-template-columns: 1.3fr 1fr 0.85fr; gap: 16px;
+    align-items: stretch;
+  }
+  .col {
+    min-width: 0;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .col-h { display: flex; align-items: baseline; gap: 8px; }
+  .col-h-k { font-family: var(--font-display); font-size: 12px; font-weight: 700; color: var(--foreground); }
+  .col-h-n { font-family: var(--font-mono); font-size: 10px; color: color-mix(in oklch, var(--foreground) 50%, var(--background)); }
+
+  /* Views as tiles — 2-up grid, hint of OS-app tile. */
+  .view-tiles { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .view-tile {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: 8px;
+    background: color-mix(in oklch, var(--sp-accent) 8%, var(--background));
+    border: 1px solid color-mix(in oklch, var(--sp-accent) 22%, transparent);
+  }
+  .view-tile-ico { width: 18px; height: 18px; display: inline-grid; place-items: center; color: color-mix(in oklch, var(--sp-accent) 78%, var(--foreground)); flex: none; }
+  .view-tile-ico :global(svg) { width: 16px; height: 16px; }
+  .view-tile-name { font-size: 11.5px; font-weight: 600; color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Agent list — name + status pill. */
+  .agent-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+  .agent-row {
+    display: grid; grid-template-columns: 10px 1fr auto;
+    align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px;
+    background: color-mix(in oklch, var(--background) 62%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+  }
+  .agent-dot { width: 8px; height: 8px; border-radius: 50%; background: color-mix(in oklch, var(--foreground) 26%, transparent); }
+  .is-active .agent-dot { background: oklch(0.72 0.18 150); box-shadow: 0 0 0 3px color-mix(in oklch, oklch(0.72 0.18 150) 22%, transparent); }
+  .is-idle .agent-dot   { background: color-mix(in oklch, var(--foreground) 30%, transparent); }
+  .is-asleep .agent-dot { background: color-mix(in oklch, var(--foreground) 18%, transparent); }
+  .agent-name { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agent-status {
+    font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 52%, var(--background));
+  }
+  .is-active .agent-status { color: oklch(0.6 0.16 150); }
+
+  /* Team — avatar strip + invite + note. */
+  .avatars { display: flex; flex-wrap: wrap; gap: 6px; }
+  .av {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 800;
+    color: white;
+    background: color-mix(in oklch, var(--sp-accent) calc(60% + var(--av-i, 0) * 8%), black);
+    box-shadow: 0 2px 6px -1px color-mix(in oklch, var(--sp-accent) 40%, transparent);
+  }
+  .av.me {
+    background: var(--foreground); color: var(--background);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--sp-accent) 50%, transparent);
+  }
+  .av-add {
+    background: transparent;
+    color: color-mix(in oklch, var(--foreground) 60%, var(--background));
+    border: 1.5px dashed color-mix(in oklch, var(--foreground) 30%, transparent);
+    font-size: 16px; font-weight: 400; box-shadow: none;
+  }
+  .team-note { margin: 6px 0 0; font-size: 11.5px; line-height: 1.45; color: color-mix(in oklch, var(--foreground) 62%, var(--background)); }
+
+  /* ── Foot ── */
+  .foot {
+    margin: 0; padding: 0;
+    text-align: center; font-size: 12.5px; line-height: 1.5;
+    color: color-mix(in oklch, var(--foreground) 64%, var(--background));
+  }
+
+  /* ── Mobile ── */
+  @media (max-width: 760px) {
+    .stage { padding: 14px 14px; }
+    .switch { grid-template-columns: 1fr; gap: 6px; }
+    .p-grid { grid-template-columns: 1fr; gap: 14px; }
+    .view-tiles { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+
+<script>
+  const stage = document.querySelector<HTMLElement>('[data-app-window="spaces"] .stage');
+  if (stage) {
+    const tabs = Array.from(stage.querySelectorAll<HTMLElement>('.sp[data-space]'));
+    const panels = Array.from(stage.querySelectorAll<HTMLElement>('[data-space-panel]'));
+    const order = tabs.map((t) => t.dataset.space!);
+    let timer = 0;
+    const pick = (id: string) => {
+      for (const t of tabs) t.classList.toggle('on', t.dataset.space === id);
+      for (const p of panels) p.hidden = p.dataset.spacePanel !== id;
+    };
+    const cycle = () => {
+      const cur = tabs.find((t) => t.classList.contains('on'))?.dataset.space || order[0];
+      pick(order[(order.indexOf(cur) + 1) % order.length]);
+    };
+    for (const t of tabs) {
+      t.addEventListener('click', () => {
+        if (timer) { clearInterval(timer); timer = 0; }
+        pick(t.dataset.space!);
+      });
+    }
+    const win = stage.closest<HTMLElement>('.os-window');
+    if (win) {
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && !timer) timer = window.setInterval(cycle, 3600);
+          else if (!e.isIntersecting && timer) { clearInterval(timer); timer = 0; }
+        }
+      }, { threshold: 0.4 });
+      io.observe(win);
+    }
+  }
+</script>

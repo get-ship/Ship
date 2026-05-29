@@ -72,6 +72,7 @@ export const esbuildAdapter: SuiBundler = {
           write: true,
           ...(isProd ? {} : { conditions: ['development'] }),
           ...(config.loaders ? { loader: config.loaders as Record<string, esbuild.Loader> } : {}),
+          ...(config.external ? { external: config.external } : {}),
         })
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)

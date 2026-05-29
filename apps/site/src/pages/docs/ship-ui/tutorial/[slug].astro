@@ -1,0 +1,423 @@
+---
+/*
+  Per-step tutorial page (getship.dev/docs/ship-ui/tutorial/<slug>).
+
+  Relocated from apps/docs: the live playground is a conversion
+  surface, so it lives on the consumer hub rather than the Starlight
+  reference site. Prose stays the single source of truth in the SUI
+  doc-skill at docs/ship-sui/references/docs/ship-ui/tutorial/<slug>/index.md;
+  starter/solved code lives beside this app in apps/site/tutorial-examples/.
+
+  Layout: prose on the left, TutorialApp (editor + sandboxed preview)
+  on the right — a full-height canvas under the site's own chrome.
+*/
+import BaseLayout from '../../../../layouts/BaseLayout.astro'
+import TutorialApp from '../../../../components/tutorial/TutorialApp.astro'
+import { readFileSync, readdirSync, existsSync } from 'node:fs'
+import { resolve, join } from 'node:path'
+import { createHighlighter } from 'shiki'
+
+// Anchor on the Astro process cwd (apps/site) — stable in dev AND build.
+// import.meta.url depth is unreliable at build time (resolves to a chunk
+// location, not the source path).
+const repoRoot = resolve(process.cwd(), '../..')
+const tutorialDir = join(repoRoot, 'docs/ship-sui/references/tutorial')
+const codeDir = join(repoRoot, 'apps/site/tutorial-examples')
+
+interface FM {
+  title: string
+  description: string | null
+  order: number
+  slug: string
+  prev: string | null
+  next: string | null
+  chapter: string | null
+}
+
+function parseFm(text: string): FM {
+  const m = text.match(/^---\n([\s\S]*?)\n---/)
+  const fm: Record<string, string | null> = {}
+  if (m) {
+    for (const line of m[1].split('\n')) {
+      const kv = line.match(/^(\w+):\s*(.+)$/)
+      if (!kv) continue
+      let v = kv[2].trim()
+      if (v === 'null') { fm[kv[1]] = null; continue }
+      v = v.replace(/^["']|["']$/g, '')
+      fm[kv[1]] = v
+    }
+  }
+  return {
+    title: fm.title ?? '',
+    description: fm.description ?? null,
+    order: Number(fm.order ?? 999),
+    slug: fm.slug ?? '',
+    prev: fm.prev ?? null,
+    next: fm.next ?? null,
+    chapter: fm.chapter ?? null,
+  }
+}
+
+const CHAPTER_LABELS: Record<string, string> = {
+  reactivity: 'Reactivity', templating: 'Templating', components: 'Components',
+  agents: 'Agents', composition: 'Composition', lifecycle: 'Lifecycle', views: 'Views',
+}
+function chapterLabel(fm: FM): string {
+  return (fm.chapter && CHAPTER_LABELS[fm.chapter]) || 'Tutorial'
+}
+
+function stripFm(text: string): string {
+  return text.replace(/^---\n[\s\S]*?\n---\n*/, '')
+}
+
+export async function getStaticPaths() {
+  const root = resolve(process.cwd(), '../..')
+  const dir = join(root, 'docs/ship-sui/references/tutorial')
+  const slugOf = (text: string): string => {
+    const m = text.match(/^---\n([\s\S]*?)\n---/)
+    if (!m) return ''
+    for (const line of m[1].split('\n')) {
+      const kv = line.match(/^slug:\s*(.+)$/)
+      if (kv) return kv[1].trim().replace(/^["']|["']$/g, '')
+    }
+    return ''
+  }
+  const dirs = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory())
+  return dirs.map((d) => {
+    const fm = slugOf(readFileSync(join(dir, d.name, 'index.md'), 'utf8'))
+    return { params: { slug: fm || d.name }, props: { dirname: d.name } }
+  })
+}
+
+const { slug } = Astro.params
+const { dirname: stepDir } = Astro.props as { dirname: string }
+const indexPath = join(tutorialDir, stepDir, 'index.md')
+const text = readFileSync(indexPath, 'utf8')
+const fm = parseFm(text)
+const body = stripFm(text)
+
+const codeStepDir = join(codeDir, stepDir)
+function loadCode(variant: 'starter' | 'solved') {
+  const tplPath = join(codeStepDir, variant, 'template.sui')
+  const ctrlPath = join(codeStepDir, variant, 'controller.ts')
+  if (!existsSync(tplPath) || !existsSync(ctrlPath)) return null
+  return {
+    template: readFileSync(tplPath, 'utf8'),
+    controller: readFileSync(ctrlPath, 'utf8'),
+  }
+}
+const starter = loadCode('starter')
+const solved = loadCode('solved')
+if (!starter || !solved) {
+  throw new Error(`tutorial step "${stepDir}": missing starter/ or solved/ code under ${codeStepDir}`)
+}
+
+// Shiki highlighter — created once at module load. Two themes; the
+// renderer emits one <pre> per theme and CSS shows the right one for
+// the active site theme. `sui` has no Shiki grammar — alias to tsx.
+const SHIKI_LANGS = ['typescript', 'tsx', 'html', 'json', 'bash', 'css']
+const LANG_MAP: Record<string, string> = {
+  sui: 'tsx', ts: 'typescript', js: 'typescript',
+  html: 'html', json: 'json', bash: 'bash', sh: 'bash', css: 'css',
+}
+const highlighter = await createHighlighter({
+  themes: ['github-light', 'night-owl'],
+  langs: SHIKI_LANGS,
+})
+
+function renderCode(lang: string, code: string): string {
+  const grammar = LANG_MAP[lang] || 'typescript'
+  const light = highlighter.codeToHtml(code, { lang: grammar, theme: 'github-light' })
+  const dark = highlighter.codeToHtml(code, { lang: grammar, theme: 'night-owl' })
+  return `<div class="tut-code"><div class="tut-code-light">${light}</div><div class="tut-code-dark">${dark}</div></div>`
+}
+
+function renderMarkdown(md: string): string {
+  let out = md
+  out = out.replace(/```([\w-]*)\n([\s\S]*?)\n```/g, (_m, lang, code) =>
+    renderCode((lang as string) || 'ts', code as string))
+  out = out.replace(/^(#{1,4})\s+(.+)$/gm, (_m, hashes, title) => {
+    const level = (hashes as string).length
+    return `<h${level}>${title}</h${level}>`
+  })
+  out = out.replace(/`([^`]+)`/g, (_m, inner: string) => {
+    const escaped = inner.replace(/[<>&]/g, (c: string) =>
+      ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]!)
+    return `<code>${escaped}</code>`
+  })
+  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  out = out.replace(/(?<![\*\w])\*([^*]+)\*(?!\w)/g, '<em>$1</em>')
+  out = out.replace(/(^\d+\.\s+.+(\n\s+.+)*\n?)+/gm, (m) => {
+    const items = m.split(/\n(?=\d+\.\s)/).map((l) => l.replace(/^\d+\.\s+/, '').trim()).filter(Boolean)
+    return '<ol>' + items.map((i) => `<li>${i}</li>`).join('') + '</ol>'
+  })
+  const blocks: string[] = []
+  for (const para of out.split(/\n{2,}/)) {
+    const trimmed = para.trim()
+    if (!trimmed) continue
+    if (/^<(pre|h\d|ol|ul|blockquote|div class="tut-code)/.test(trimmed)) blocks.push(trimmed)
+    else blocks.push(`<p>${trimmed.replace(/\n/g, ' ')}</p>`)
+  }
+  return blocks.join('\n')
+}
+
+const proseHtml = renderMarkdown(body)
+const pageTitle = `${fm.title} · SUI tutorial`
+---
+
+<BaseLayout title={pageTitle} description={fm.description ?? ''} bodyClass="tut-page">
+  <div class="tut-root">
+    <header class="tut-topbar">
+      <a href="/docs/" class="tut-back" aria-label="Back to docs">
+        <span class="tut-back-arrow" aria-hidden="true">←</span> Docs
+      </a>
+      <a href="/docs/ship-ui/tutorial/" class="tut-allsteps" aria-label="All tutorial steps">All steps</a>
+      <div class="tut-crumb">
+        <span class="tut-num">{String(fm.order).padStart(2, '0')}</span>
+        <span class="tut-chapter">{chapterLabel(fm)}</span>
+      </div>
+      <sui-theme-picker class="tut-theme" surface="marketing"></sui-theme-picker>
+    </header>
+
+    <div class="tut-split">
+      <article class="tut-prose">
+        <div class="tut-prose-head">
+          <h1>{fm.title}</h1>
+          {fm.description && <p class="tut-prose-desc">{fm.description}</p>}
+        </div>
+        <div class="tut-prose-body" set:html={proseHtml} />
+        <footer class="tut-prose-nav">
+          {fm.prev
+            ? <a href={`/docs/ship-ui/tutorial/${fm.prev}/`} class="tut-nav-link tut-nav-prev">← prev</a>
+            : <span />}
+          {fm.next
+            ? <a href={`/docs/ship-ui/tutorial/${fm.next}/`} class="tut-nav-link tut-nav-next">next →</a>
+            : <span />}
+        </footer>
+      </article>
+
+      <div class="tut-app">
+        <TutorialApp
+          slug={slug ?? stepDir}
+          starterTemplate={starter.template}
+          starterController={starter.controller}
+          solvedTemplate={solved.template}
+          solvedController={solved.controller}
+        />
+      </div>
+    </div>
+  </div>
+
+  {/* sui-code-editor is a lazy chunk, not in the marketing bundle.
+      Load it here so <sui-code-editor> upgrades on this route only.
+      The syntax-tokens sheet defines the --syntax-* custom properties
+      the editor colours tokens with (absent from the site's curated
+      tokens; without it highlighting is monochrome). */}
+  <link rel="stylesheet" href="/_sui/syntax-tokens.css" />
+  <script is:inline type="module" src="/sui-components/sui-code-editor.js"></script>
+</BaseLayout>
+
+<style>
+  :global(body.tut-page) {
+    margin: 0;
+    height: 100dvh;
+    overflow: hidden;
+    background: var(--background);
+    color: var(--foreground);
+  }
+  .tut-root {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding: 8px 12px 12px;
+    box-sizing: border-box;
+    gap: 8px;
+  }
+
+  .tut-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    min-height: 42px;
+  }
+  /* Big, obvious escape back to the docs surface — the tutorial is a
+     fullscreen view, so without this it reads as a dead-end island. */
+  .tut-back {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--font-sans);
+    font-size: 14px; font-weight: 600;
+    color: var(--foreground);
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 9px;
+    background: color-mix(in oklch, var(--foreground) 6%, transparent);
+    border: 1px solid var(--border);
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  }
+  .tut-back:hover {
+    background: color-mix(in oklch, var(--primary) 12%, transparent);
+    border-color: var(--primary);
+    transform: translateX(-1px);
+  }
+  .tut-back-arrow { font-size: 17px; line-height: 1; }
+  .tut-allsteps {
+    font-family: var(--font-mono); font-size: 12px;
+    color: var(--muted-foreground); text-decoration: none;
+    padding: 4px 8px; border-radius: 6px;
+    transition: color 120ms ease;
+  }
+  .tut-allsteps:hover { color: var(--foreground); }
+  .tut-crumb { display: flex; align-items: center; gap: 8px; }
+  .tut-num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+  .tut-chapter {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+  .tut-theme { margin-left: auto; }
+
+  .tut-split {
+    display: grid;
+    grid-template-columns: minmax(0, 30rem) minmax(0, 1fr);
+    gap: 12px;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  @media (min-width: 1600px) {
+    .tut-split { grid-template-columns: minmax(0, 34rem) minmax(0, 1fr); }
+  }
+  @media (max-width: 900px) {
+    .tut-split { grid-template-columns: 1fr; }
+    .tut-root { height: auto; overflow: visible; }
+    :global(body.tut-page) { height: auto; overflow: auto; }
+  }
+
+  /* Prose pane: fixed head, scrollable body, fixed nav. */
+  .tut-prose {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .tut-prose-head {
+    flex-shrink: 0;
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tut-prose-head h1 {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .tut-prose-desc {
+    margin: 6px 0 0;
+    font-size: 0.85rem;
+    color: var(--muted-foreground);
+    line-height: 1.45;
+  }
+  .tut-prose-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 12px 18px 4px;
+    overflow-y: auto;
+    line-height: 1.6;
+    font-size: 0.9rem;
+  }
+  .tut-prose-body::-webkit-scrollbar { width: 7px; }
+  .tut-prose-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+
+  .tut-prose-nav {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 18px;
+    border-top: 1px solid var(--border);
+  }
+  .tut-nav-link {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    text-decoration: none;
+    color: var(--muted-foreground);
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    transition: color 120ms ease, border-color 120ms ease;
+  }
+  .tut-nav-link:hover { color: var(--foreground); border-color: var(--primary); }
+  .tut-nav-next { color: var(--primary); }
+
+  /* Prose typography */
+  .tut-prose-body :global(h1),
+  .tut-prose-body :global(h2) {
+    margin: 1.1rem 0 0.5rem;
+    font-weight: 700;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-foreground);
+  }
+  .tut-prose-body :global(p),
+  .tut-prose-body :global(li) { margin: 0.5rem 0; }
+  .tut-prose-body :global(ol),
+  .tut-prose-body :global(ul) { padding-left: 1.4rem; }
+  .tut-prose-body :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    background: color-mix(in oklch, var(--foreground) 8%, transparent);
+    color: var(--primary);
+    padding: 1px 5px;
+    border-radius: 4px;
+    word-break: break-word;
+  }
+  .tut-prose-body :global(strong) { font-weight: 700; }
+
+  /* Shiki code blocks — dual <pre>, CSS shows one per theme. */
+  .tut-prose-body :global(.tut-code) { margin: 0.6rem 0; }
+  .tut-prose-body :global(.tut-code pre) {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+  }
+  .tut-prose-body :global(.tut-code pre code) { background: transparent; padding: 0; border: 0; }
+  .tut-prose-body :global(.tut-code-dark) { display: none; }
+  :global(html.dark) .tut-prose-body :global(.tut-code-light),
+  :global([data-theme="ship-dark"]) .tut-prose-body :global(.tut-code-light),
+  :global([data-theme="console"]) .tut-prose-body :global(.tut-code-light),
+  :global([data-theme="contrast"]) .tut-prose-body :global(.tut-code-light) { display: none; }
+  :global(html.dark) .tut-prose-body :global(.tut-code-dark),
+  :global([data-theme="ship-dark"]) .tut-prose-body :global(.tut-code-dark),
+  :global([data-theme="console"]) .tut-prose-body :global(.tut-code-dark),
+  :global([data-theme="contrast"]) .tut-prose-body :global(.tut-code-dark) { display: block; }
+
+  .tut-app {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+  }
+  @media (max-width: 900px) {
+    .tut-app { min-height: 70vh; }
+  }
+</style>
