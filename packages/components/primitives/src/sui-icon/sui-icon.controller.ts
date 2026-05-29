@@ -4,6 +4,35 @@ import type { Scope } from './sui-icon.sui'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
+type AppName =
+  | 'dashboard' | 'pipelines' | 'agents' | 'skills' | 'git'
+  | 'collections' | 'canvas' | 'settings' | 'chat' | 'events'
+  | 'specs' | 'theme' | 'setup' | 'overview' | 'mesh'
+
+const APP_GLYPH: Record<AppName, string> = {
+  dashboard: 'layout-dashboard',
+  pipelines: 'workflow',
+  agents: 'bot',
+  skills: 'sparkles',
+  git: 'git-branch',
+  collections: 'database',
+  canvas: 'frame',
+  settings: 'settings',
+  chat: 'messages-square',
+  events: 'radio',
+  specs: 'file-text',
+  theme: 'palette',
+  setup: 'rocket',
+  overview: 'compass',
+  mesh: 'network',
+}
+
+const APP_ALIASES: Record<string, AppName> = {
+  'theme-studio': 'theme',
+}
+
+const APP_NAMES = new Set([...Object.keys(APP_GLYPH), ...Object.keys(APP_ALIASES)])
+
 // Bumped after each successful fetch so the render effect re-runs when an
 // icon lands. Tests prime the cache synchronously and never observe a bump.
 const fetchTick = signal(0)
@@ -60,9 +89,19 @@ export default controller<Scope>({
       // Subscribe to the fetch tick so this effect re-runs when an icon lands.
       fetchTick()
       const src = state.$signals.src()
-      const name = state.$signals.name()
+      const rawName = state.$signals.name()
+      const set = state.$signals.set()
       const label = state.$signals.label()
-      const key = src ? `src:${src}` : name ? `name:${name}` : ''
+
+      // For app set, resolve app name to glyph icon
+      let resolvedName = rawName
+      if (set === 'app') {
+        const resolved = (APP_ALIASES[rawName] ?? rawName) as AppName
+        const known = APP_NAMES.has(rawName)
+        resolvedName = known ? APP_GLYPH[resolved] : 'dot'
+      }
+
+      const key = src ? `src:${src}` : resolvedName ? `name:${resolvedName}` : ''
       if (!key) {
         if (svgEl) {
           svgEl.remove()
@@ -81,9 +120,9 @@ export default controller<Scope>({
           return
         }
       } else {
-        markup = getCachedIcon(name)
+        markup = getCachedIcon(resolvedName)
         if (markup === undefined) {
-          fetchIcon(name).then(() => fetchTick.set(fetchTick() + 1))
+          fetchIcon(resolvedName).then(() => fetchTick.set(fetchTick() + 1))
           return
         }
       }
@@ -103,9 +142,14 @@ export default controller<Scope>({
         // through; preserve the parsed attributes verbatim.
         parsed.setAttribute('part', 'svg')
         parsed.setAttribute('class', 'sui-icon-svg')
-        if (svgEl) svgEl.replaceWith(parsed)
-        else root.insertBefore(parsed, root.firstChild)
-        svgEl = parsed
+
+        // For app set, insert into the frame
+        const insertParent = set === 'app' ? root.querySelector('.frame') : root
+        if (insertParent) {
+          if (svgEl) svgEl.replaceWith(parsed)
+          else insertParent.insertBefore(parsed, insertParent.firstChild)
+          svgEl = parsed
+        }
         lastKey = key
       }
       if (svgEl) {
