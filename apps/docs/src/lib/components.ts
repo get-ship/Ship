@@ -173,7 +173,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-table': 'observability',
   'sui-timeline': 'observability',
   'sui-timeline-item': 'observability',
-  'sui-timestamp': 'observability',
   'sui-tree-view': 'observability',
   'sui-annotation-layer': 'observability',
   'sui-annotation-marker': 'observability',
