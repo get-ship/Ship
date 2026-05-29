@@ -147,7 +147,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-icon': 'utility',
   'sui-kbd': 'utility',
   'sui-link': 'utility',
-  'sui-mark': 'utility',
   'sui-metachip': 'utility',
   'sui-skeleton': 'utility',
   'sui-step-segments': 'utility',

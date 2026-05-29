@@ -552,10 +552,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   ],
 
   /* Status / utility primitives without per-variant samples ---------- */
-  'sui-mark': [
-    { label: 'Highlight', innerHTML: 'highlighted text' },
-    { label: 'Accent', attrs: { tone: 'accent' }, innerHTML: 'accent run' },
-  ],
   'sui-metachip': [
     { label: 'Pair', attrs: { label: 'env', value: 'prod' } },
     { label: 'Tone', attrs: { label: 'role', value: 'reviewer', tone: 'accent' } },
