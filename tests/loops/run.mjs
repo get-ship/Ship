@@ -33,13 +33,31 @@ const filter = args.find((a) => !a.startsWith("--"));
 
 // Per-worktree daemon discovery — matches scripts/dev/_lib.sh::daemon_dir
 // and tests/agents/_helpers.ts. SHA-256 the realpath of the git toplevel,
-// take the first 8 hex chars, look under ~/.ship/machine/daemons/<hash>/.
+// take the first 8 hex chars, look under <SHIP_HOME>/machine/daemons/<hash>/.
 // The old ~/.ship/daemon.token path was retired during auth hardening.
+//
+// Safety guard (#185): loops mutate daemon kernel state — they POST hook events,
+// start sessions, drive pipelines. Running them against the operator's prod
+// daemon (~/.ship/) pollutes day-to-day state. Refuse to run unless SHIP_HOME
+// is explicitly set to something other than ~/.ship, OR the caller opts in
+// with SHIP_LOOPS_ALLOW_PROD=1. The dispatched/test-daemon path sets
+// SHIP_HOME=<tmpdir> before invoking us.
 function daemonDir() {
   const r = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" });
   const root = realpathSync(r.status === 0 && r.stdout ? r.stdout.trim() : process.cwd());
   const hash = createHash("sha256").update(root).digest("hex").slice(0, 8);
   const home = process.env.SHIP_HOME ?? join(homedir(), ".ship");
+  const prodHome = join(homedir(), ".ship");
+  if (home === prodHome && process.env.SHIP_LOOPS_ALLOW_PROD !== "1") {
+    console.error(
+      `\n  ✖ tests/loops would mutate your prod daemon db at ${prodHome}.\n` +
+      `    Either:\n` +
+      `      SHIP_HOME=<tmpdir> node tests/loops/run.mjs\n` +
+      `    or, if you really mean to run against prod:\n` +
+      `      SHIP_LOOPS_ALLOW_PROD=1 node tests/loops/run.mjs\n`,
+    );
+    process.exit(2);
+  }
   return join(home, "machine/daemons", hash);
 }
 
