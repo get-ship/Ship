@@ -131,12 +131,14 @@ function deriveComponentName(suiPath: string): string | undefined {
 }
 
 function lintView(worktree: string): LaneScore['lint'] {
-  // sui-lint exits with the count of errors; we parse both errors + warnings
-  // from its output.
-  const r = spawnSync('cargo', ['run', '-p', 'sui-lint', '--', VIEW_PATH], {
-    cwd: worktree,
-    encoding: 'utf8',
-  })
+  // sui-lint is a [lib] crate with no [[bin]] target — it runs as a library
+  // inside `sui-compiler build`'s check phase. The compile step IS the lint
+  // step; parse errors + warnings from the compiler's output.
+  const r = spawnSync(
+    'cargo',
+    ['run', '-p', 'sui-compiler', '--', 'build', `${VIEW_PATH}/page.sui`],
+    { cwd: worktree, encoding: 'utf8' },
+  )
   const text = (r.stdout ?? '') + (r.stderr ?? '')
   const errors = (text.match(/\berror:/g) ?? []).length
   const warnings = (text.match(/\bwarning:/g) ?? []).length

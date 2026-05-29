@@ -77,9 +77,11 @@ cargo run -p sui-compiler -- build views/create-space/page.sui
 cargo run -p sui-compiler -- build views/create-space/_components/<tag>/<tag>.sui --component-name <tag>
 ```
 
-Both must exit 0. There should be zero `error:` lines on `cargo run -p sui-lint
-views/create-space/`.
+Both must exit 0. sui-lint runs as a library inside `sui-compiler build` —
+the compile step IS the lint step. There is no `sui-lint` binary.
 
 When the view is registered, the structure is in place, and both verifications
-are green, signal completion via `ship step-done` with a one-line summary
-("created views/create-space/ — 4 screens, 12 elements wired, lint clean").
+are green, commit cleanly and push the branch. (If you're a pipeline-step
+agent with `SHIP_ACTOR_ID` set, `ship ops call pipelines.step_done --json
+'{"slug":"'$SHIP_ACTOR_ID'","summary":"<one-liner>"}'` advances the step
+monitor.)
