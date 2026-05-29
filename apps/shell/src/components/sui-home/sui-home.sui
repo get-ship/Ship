@@ -38,7 +38,9 @@
   .hw-link { margin-left: auto; font-family: var(--font-body); text-transform: none; letter-spacing: 0; font-size: var(--text-xs); color: var(--primary); text-decoration: none; cursor: pointer; }
   .hw-link:hover { text-decoration: underline; }
   .hw-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); flex: 1; align-content: center; }
-  /* Workspace stats now render via <sui-stat>; row layout only below. */
+  .hw-stat { display: flex; flex-direction: column; gap: 4px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; font-family: var(--font-body); }
+  .hw-stat-label { font-size: var(--text-xs); font-weight: var(--font-weight-medium); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--muted-foreground); }
+  .hw-stat-value { font-family: var(--heading-font); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; font-size: var(--text-xl, 20px); }
   .hw-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); flex: 1; min-height: 0; overflow-y: auto; }
   .hw-list-wide { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-1) var(--space-5); align-content: start; }
   .hw-row { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); min-width: 0; }
@@ -96,10 +98,10 @@
       <article class="hw" style="grid-column: 9 / span 4; grid-row: 1 / span 2;">
         <h2 class="hw-h">Workspace</h2>
         <div class="hw-stat-row">
-          <sui-stat size="sm"><span slot="label">jobs</span>{totalJobs()}</sui-stat>
-          <sui-stat size="sm"><span slot="label">agents</span>{agentCount()}</sui-stat>
-          <sui-stat size="sm"><span slot="label">events</span>{totalEvents()}</sui-stat>
-          <sui-stat size="sm"><span slot="label">colls</span>{collectionsCount()}</sui-stat>
+          <div class="hw-stat"><span class="hw-stat-label">jobs</span><span class="hw-stat-value">{totalJobs()}</span></div>
+          <div class="hw-stat"><span class="hw-stat-label">agents</span><span class="hw-stat-value">{agentCount()}</span></div>
+          <div class="hw-stat"><span class="hw-stat-label">events</span><span class="hw-stat-value">{totalEvents()}</span></div>
+          <div class="hw-stat"><span class="hw-stat-label">colls</span><span class="hw-stat-value">{collectionsCount()}</span></div>
         </div>
       </article>
 

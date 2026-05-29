@@ -42,7 +42,6 @@ const ports: PortCase[] = [
   { tag: 'sui-link',       attr: 'tone',  value: 'primary', shadowPart: 'a' },
   { tag: 'sui-divider',    attr: 'orientation', value: 'vertical', shadowPart: '.line' },
   { tag: 'sui-skeleton',   attr: 'shape', value: 'circle',  shadowPart: '.sk' },
-  { tag: 'sui-stat',       attr: 'size',  value: 'lg',      shadowPart: '.value-row' },
   { tag: 'sui-mark',       attr: 'tone',  value: 'success', shadowPart: 'mark' },
   { tag: 'sui-kbd',        attr: 'size',  value: 'sm',      shadowPart: 'kbd' },
   { tag: 'sui-avatar',     attr: 'size',  value: 'lg',      shadowPart: '.root' },
