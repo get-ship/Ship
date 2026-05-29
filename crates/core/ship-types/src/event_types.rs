@@ -29,6 +29,7 @@ pub const SKILL_CHANGED: &str = "skill.changed";
 pub const VIEW_CHANGED: &str = "view.changed";
 pub const PIPELINE_CHANGED: &str = "pipeline.changed";
 pub const RULE_CHANGED: &str = "rule.changed";
+pub const COLLECTION_CHANGED: &str = "collection.changed";
 pub const PROJECT_CHANGED: &str = "project.changed";
 pub const PROJECT_LOG: &str = "project.log";
 pub const SKILL_STARTED: &str = "skill.started";
