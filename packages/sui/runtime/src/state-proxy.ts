@@ -61,8 +61,8 @@ export function createMountState(
         // signal.set treats a function arg as an updater; a `state.foo = () =>
         // {…}` assignment means STORE the function, so wrap it as a constant
         // updater.
-        if (typeof value === 'function') sig.set(() => value as never)
-        else sig.set(value as never)
+        if (typeof value === 'function') sig.set(() => value)
+        else sig.set(value)
         return true
       }
       console.warn(

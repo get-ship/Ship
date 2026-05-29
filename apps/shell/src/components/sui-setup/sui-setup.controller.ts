@@ -125,12 +125,12 @@ export default controller({
     goNext: (s) => {
       const next = Math.min(TOTAL_STEPS, s.step + 1)
       s.step = next
-      persistFromState(s as unknown as Record<string, unknown>)
+      persistFromState(s)
     },
     goBack: (s) => {
       const prev = Math.max(1, s.step - 1)
       s.step = prev
-      persistFromState(s as unknown as Record<string, unknown>)
+      persistFromState(s)
     },
     submitIdentity: (s) => {
       const name = String(s.identityName ?? '').trim()
@@ -140,7 +140,7 @@ export default controller({
       }
       s.identityError = ''
       s.step = 3
-      persistFromState(s as unknown as Record<string, unknown>)
+      persistFromState(s)
     },
     selectProvider: (s, id: string) => {
       s.provider = id
@@ -160,7 +160,7 @@ export default controller({
           s.providerTestOk = false
           s.providerError = `${id} CLI not found on PATH. Install it, then retry — or pick another provider.`
         }
-        persistFromState(s as unknown as Record<string, unknown>)
+        persistFromState(s)
       })()
     },
     validateProvider: (s) => {
@@ -179,14 +179,14 @@ export default controller({
         } else {
           s.providerError = `${id} CLI not found on PATH. Install it, then retry — or pick another provider.`
         }
-        persistFromState(s as unknown as Record<string, unknown>)
+        persistFromState(s)
       })()
     },
     submitProvider: (s) => {
       // Provider may be unvalidated (CLI missing) but user can still continue;
       // the wizard captures the choice and Settings can finish credentials.
       s.step = 4
-      persistFromState(s as unknown as Record<string, unknown>)
+      persistFromState(s)
     },
     submitProject: (s) => {
       const name = String(s.projectName ?? '').trim()
@@ -201,7 +201,7 @@ export default controller({
         s.projectSubmitting = false
         if (result.ok) {
           s.step = 5
-          persistFromState(s as unknown as Record<string, unknown>)
+          persistFromState(s)
           return
         }
         if (result.warning) {
@@ -211,15 +211,15 @@ export default controller({
         }
         // Advance anyway — capture-now, fix-in-settings.
         s.step = 5
-        persistFromState(s as unknown as Record<string, unknown>)
+        persistFromState(s)
       })()
     },
     submitSample: (s) => {
       s.step = 6
-      persistFromState(s as unknown as Record<string, unknown>)
+      persistFromState(s)
     },
     finish: (s) => {
-      persistFromState(s as unknown as Record<string, unknown>, true)
+      persistFromState(s, true)
       try { localStorage.setItem('ship-setup-completed', '1') } catch { /* best-effort */ }
       window.location.href = '/'
     },
@@ -227,7 +227,7 @@ export default controller({
     cancelExit: (s) => { s.confirmingExit = false },
     confirmExit: (s) => {
       s.confirmingExit = false
-      persistFromState(s as unknown as Record<string, unknown>, true)
+      persistFromState(s, true)
       try { localStorage.setItem('ship-setup-completed', '1') } catch { /* best-effort */ }
       window.location.href = '/'
     },
@@ -241,8 +241,8 @@ export default controller({
       if (e.key === 'Enter') {
         e.preventDefault()
         const step = s.step
-        if (step === 2) (s as unknown as Record<string, () => void>).submitIdentity?.()
-        else if (step === 4) (s as unknown as Record<string, () => void>).submitProject?.()
+        if (step === 2) (s).submitIdentity?.()
+        else if (step === 4) (s).submitProject?.()
       }
     },
   },
@@ -257,9 +257,9 @@ export default controller({
       // Top-level Enter advances the welcome / sample / done steps.
       if (e.key === 'Enter' && !(e.target instanceof HTMLInputElement)) {
         const step = state.step
-        if (step === 1) (state as unknown as Record<string, () => void>).goNext?.()
-        else if (step === 5) (state as unknown as Record<string, () => void>).submitSample?.()
-        else if (step === 6) (state as unknown as Record<string, () => void>).finish?.()
+        if (step === 1) (state).goNext?.()
+        else if (step === 5) (state).submitSample?.()
+        else if (step === 6) (state).finish?.()
       }
     }
     window.addEventListener('keydown', onKey, true)
