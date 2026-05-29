@@ -88,6 +88,10 @@ pub struct ShipRuntime {
     session_registry: SessionRegistry,
     /// Health registry for supervised background tasks.
     health_registry: HealthRegistry,
+    /// Diagnostic registry — aggregates per-subsystem `DiagnosticSnapshot`
+    /// impls. Built lazily via `diag_registry()` / `set_diag_registry()`
+    /// after the dispatch handle is set (supervisor snapshot depends on it).
+    diag_registry: std::sync::OnceLock<ship_substrate::diagnostics::DiagnosticRegistry>,
     /// Shared data service for collections and extensions. Arc-wrapped
     /// so trait-bound service impls (`CollectionsService`,
     /// `ArtifactsService`) can hold a clone of the same handle and see
@@ -406,6 +410,7 @@ impl ShipRuntime {
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
+            diag_registry: std::sync::OnceLock::new(),
             data_service: Arc::new(tokio::sync::Mutex::new(None)),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
@@ -530,6 +535,14 @@ impl ShipRuntime {
         &*self.pipelines
     }
 
+    /// `PipelinesService` as a cloned `Arc` — for diagnostic snapshot providers
+    /// that need to hold the handle independently of the runtime borrow.
+    pub fn pipelines_arc(
+        &self,
+    ) -> Arc<dyn ship_platform::services::pipelines::service::PipelinesService> {
+        self.pipelines.clone()
+    }
+
     /// `GitService` accessor — every git op except SSE goes through this.
     pub fn git(&self) -> &dyn ship_platform::services::git::service::GitService {
         &*self.git
@@ -614,6 +627,19 @@ impl ShipRuntime {
 
     pub fn health_registry(&self) -> &HealthRegistry {
         &self.health_registry
+    }
+
+    /// Store a pre-built diagnostic registry. Called once after the dispatch
+    /// handle is set so the supervisor snapshot has a live process registry.
+    /// Idempotent — a second call is a no-op.
+    pub fn set_diag_registry(&self, reg: ship_substrate::diagnostics::DiagnosticRegistry) {
+        let _ = self.diag_registry.set(reg);
+    }
+
+    /// Return the diagnostic registry. Returns `None` before
+    /// `set_diag_registry` is called (i.e., before full startup).
+    pub fn diag_registry(&self) -> Option<&ship_substrate::diagnostics::DiagnosticRegistry> {
+        self.diag_registry.get()
     }
 
     pub fn view_sessions(&self) -> &crate::views::session::SharedViewSessionRegistry {
@@ -934,6 +960,7 @@ impl ShipRuntime {
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
+            diag_registry: std::sync::OnceLock::new(),
             data_service,
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
@@ -1012,6 +1039,7 @@ impl ShipRuntime {
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
+            diag_registry: std::sync::OnceLock::new(),
             data_service,
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),

@@ -8,6 +8,7 @@
 pub mod access;
 pub mod data;
 pub mod db;
+pub mod diagnostics;
 pub mod env;
 pub mod errors;
 pub mod events;
