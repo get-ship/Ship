@@ -18,43 +18,29 @@ const GLYPHS: GlyphOption[] = [
 ]
 
 const ACCENTS: AccentOption[] = [
-  { id: 'red', label: 'Red' },
-  { id: 'crimson', label: 'Crimson' },
-  { id: 'green', label: 'Green' },
-  { id: 'blue', label: 'Blue' },
-  { id: 'purple', label: 'Purple' },
-  { id: 'indigo', label: 'Indigo' },
-  { id: 'slate', label: 'Slate' },
-  { id: 'orange', label: 'Orange' },
+  { id: 'red', label: 'Red' }, { id: 'crimson', label: 'Crimson' },
+  { id: 'green', label: 'Green' }, { id: 'blue', label: 'Blue' },
+  { id: 'purple', label: 'Purple' }, { id: 'indigo', label: 'Indigo' },
+  { id: 'slate', label: 'Slate' }, { id: 'orange', label: 'Orange' },
 ]
 
 const THEMES: ThemeOption[] = [
-  { id: 'light', label: 'Light' },
-  { id: 'dark', label: 'Dark' },
-  { id: 'paper', label: 'Paper' },
-  { id: 'halo', label: 'Halo' },
-  { id: 'console', label: 'Console' },
-  { id: 'contrast', label: 'Contrast' },
+  { id: 'light', label: 'Light' }, { id: 'dark', label: 'Dark' },
+  { id: 'paper', label: 'Paper' }, { id: 'halo', label: 'Halo' },
+  { id: 'console', label: 'Console' }, { id: 'contrast', label: 'Contrast' },
 ]
 
 const NAVS: NavOption[] = [
-  { id: 'rail', label: 'rail' },
-  { id: 'top', label: 'top' },
-  { id: 'none', label: 'none' },
+  { id: 'rail', label: 'rail' }, { id: 'top', label: 'top' }, { id: 'none', label: 'none' },
 ]
 
 const DOCKS: DockOption[] = [
-  { id: 'left', label: 'left' },
-  { id: 'centered', label: 'centered' },
-  { id: 'right', label: 'right' },
-  { id: 'off', label: 'off' },
+  { id: 'left', label: 'left' }, { id: 'centered', label: 'centered' },
+  { id: 'right', label: 'right' }, { id: 'off', label: 'off' },
 ]
 
 const PREV_STEP: Record<WizardStep, WizardStep> = {
-  welcome: 'welcome',
-  step1: 'welcome',
-  step2: 'step1',
-  step3: 'step2',
+  welcome: 'welcome', step1: 'welcome', step2: 'step1', step3: 'step2',
 }
 
 export default controller<Scope>({
@@ -80,28 +66,28 @@ export default controller<Scope>({
       () => GLYPHS.find((g) => g.id === glyph())?.label ?? '♦',
     )
 
+    // Handlers as typed closures — avoids the writable-proxy `as never` casts
+    // that arise when mutating scope signals through the on: block's untyped proxy.
+    const goToStep1 = () => step.set('step1')
+    const goToStep2 = () => step.set('step2')
+    const goToStep3 = () => step.set('step3')
+    const goBack = () => step.set(PREV_STEP[step()] ?? 'welcome')
+    const setGlyph = (id: string) => glyph.set(id)
+    const setAccent = (id: string) => accent.set(id)
+    const setTheme = (id: string) => theme.set(id)
+    const setNavigation = (id: string) => navigation.set(id)
+    const setDock = (id: string) => dock.set(id)
+    const skip = () => {}
+    const done = () => {}
+    const launch = () => {}
+
     return {
       step, name, glyph, accent, theme, navigation, dock,
       glyphs, accents, themes, navs, docks,
       slug, currentGlyphLabel,
+      goToStep1, goToStep2, goToStep3, goBack,
+      setGlyph, setAccent, setTheme, setNavigation, setDock,
+      skip, done, launch,
     }
-  },
-
-  on: {
-    goToStep1: (s) => { s.step = 'step1' as never },
-    goToStep2: (s) => { s.step = 'step2' as never },
-    goToStep3: (s) => { s.step = 'step3' as never },
-    goBack: (s) => {
-      const cur = s.step as unknown as WizardStep
-      s.step = (PREV_STEP[cur] ?? 'welcome') as never
-    },
-    setGlyph: (s, id: string) => { s.glyph = id as never },
-    setAccent: (s, id: string) => { s.accent = id as never },
-    setTheme: (s, id: string) => { s.theme = id as never },
-    setNavigation: (s, id: string) => { s.navigation = id as never },
-    setDock: (s, id: string) => { s.dock = id as never },
-    skip: () => {},
-    done: () => {},
-    launch: () => {},
   },
 })

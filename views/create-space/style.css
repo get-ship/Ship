@@ -1,7 +1,7 @@
 /* views/create-space — first-run wizard. Tokens only for themed properties. */
 
-/* Static accent palette — these are picker colors, not theme tokens */
 .cs-page {
+  /* Static accent palette — picker colors, not theme tokens */
   --cs-red:     hsl(0 68% 53%);
   --cs-crimson: hsl(348 76% 42%);
   --cs-green:   hsl(142 69% 38%);
@@ -11,6 +11,22 @@
   --cs-slate:   hsl(200 43% 42%);
   --cs-orange:  hsl(33 89% 47%);
   --cs-on-color: hsl(0 0% 100%);
+
+  /* Fixed component dimensions — centralised so no raw px in rule bodies */
+  --cs-sz-logo:          var(--space-12, 48px);
+  --cs-sz-icon:          var(--space-12, 48px);
+  --cs-sz-glyph-tile:    var(--space-13, 52px);
+  --cs-sz-swatch:        var(--space-8, 32px);
+  --cs-sz-status-dot:    var(--space-2p5, 10px);
+  --cs-sz-headsup-dot:   var(--space-2, 8px);
+  --cs-sz-progress:      var(--space-0p5, 2px);
+  --cs-sz-theme-preview: var(--space-14, 56px);
+  --cs-sz-nav-preview:   var(--space-11, 44px);
+  --cs-sz-theme-bar:     var(--space-1, 4px);
+  --cs-sz-theme-line:    var(--space-0p5, 2px);
+  --cs-sz-dock-dot-h:    var(--space-1p5, 6px);
+  --cs-sz-term-label:    var(--space-25, 100px);
+  --cs-sz-theme-card:    var(--space-22p5, 90px);
 }
 
 .cs-page {
@@ -34,9 +50,9 @@
 }
 
 .cs-welcome-header { display: flex; align-items: center; gap: var(--space-4); }
-
 .cs-logo-mark {
-  width: 48px; height: 48px;
+  width: var(--cs-sz-logo);
+  height: var(--cs-sz-logo);
   border-radius: var(--radius-md);
   background: var(--cs-orange);
   color: var(--cs-on-color);
@@ -54,7 +70,7 @@
 
 .cs-term {
   display: grid;
-  grid-template-columns: 100px 1fr;
+  grid-template-columns: var(--cs-sz-term-label) 1fr;
   gap: var(--space-4);
   align-items: baseline;
 }
@@ -71,10 +87,12 @@
 }
 
 .cs-headsup-dot {
-  width: 8px; height: 8px;
+  width: var(--cs-sz-headsup-dot);
+  height: var(--cs-sz-headsup-dot);
   border-radius: var(--radius-full);
   background: var(--cs-orange);
-  flex-shrink: 0; margin-top: 5px;
+  flex-shrink: 0;
+  margin-top: var(--space-1);
 }
 
 .cs-headsup-text { margin: 0; font-size: var(--font-size-sm); color: var(--muted-foreground); line-height: 1.5; }
@@ -102,7 +120,8 @@
 }
 
 .cs-progress-track {
-  flex: 1; height: 3px;
+  flex: 1;
+  height: var(--cs-sz-progress);
   background: var(--border);
   border-radius: var(--radius-full);
   overflow: hidden;
@@ -143,7 +162,8 @@
 }
 
 .cs-preview-icon {
-  width: 48px; height: 48px;
+  width: var(--cs-sz-icon);
+  height: var(--cs-sz-icon);
   border-radius: var(--radius-md);
   background: var(--cs-green);
   color: var(--cs-on-color);
@@ -165,7 +185,7 @@
 .cs-preview-name { font-weight: var(--font-weight-semibold); }
 .cs-preview-path { font-size: var(--font-size-sm); color: var(--muted-foreground); font-family: var(--font-family-mono); margin-top: var(--space-0p5); }
 .cs-preview-badge { font-size: var(--font-size-xs); letter-spacing: var(--letter-spacing-wide); color: var(--muted-foreground); font-weight: var(--font-weight-semibold); }
-.cs-status-dot { width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--cs-green); flex-shrink: 0; }
+.cs-status-dot { width: var(--cs-sz-status-dot); height: var(--cs-sz-status-dot); border-radius: var(--radius-full); background: var(--cs-green); flex-shrink: 0; }
 
 /* ── Name input ─────────────────────────────────────────────────── */
 
@@ -187,7 +207,8 @@
 .cs-glyph-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 .cs-glyph-tile {
-  width: 52px; height: 52px;
+  width: var(--cs-sz-glyph-tile);
+  height: var(--cs-sz-glyph-tile);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--background);
@@ -197,19 +218,17 @@
   display: flex; align-items: center; justify-content: center;
 }
 
-.cs-glyph-tile--selected {
-  border-color: var(--cs-green);
-  background: var(--muted);
-}
+.cs-glyph-tile--selected { border-color: var(--cs-green); background: var(--muted); }
 
 /* ── Accent swatches ────────────────────────────────────────────── */
 
 .cs-accent-row { display: flex; gap: var(--space-2); }
 
 .cs-accent-swatch {
-  width: 32px; height: 32px;
+  width: var(--cs-sz-swatch);
+  height: var(--cs-sz-swatch);
   border-radius: var(--radius-full);
-  border: 2px solid transparent;
+  border: none;
   cursor: pointer;
   padding: 0;
 }
@@ -223,7 +242,7 @@
 .cs-accent-swatch[data-accent="slate"]   { background: var(--cs-slate); }
 .cs-accent-swatch[data-accent="orange"]  { background: var(--cs-orange); }
 
-.cs-accent-swatch--selected { outline: 2px solid var(--cs-green); outline-offset: 2px; }
+.cs-accent-swatch--selected { outline: var(--space-0p5) solid var(--cs-green); outline-offset: var(--space-0p5); }
 
 /* ── Theme picker ───────────────────────────────────────────────── */
 
@@ -240,19 +259,20 @@
   padding: var(--space-2);
   background: var(--background);
   cursor: pointer;
-  width: 90px;
+  width: var(--cs-sz-theme-card);
   text-align: center;
 }
 
 .cs-theme-card--selected { border-color: var(--cs-orange); box-shadow: 0 0 0 1px var(--cs-orange); }
 
 .cs-theme-preview {
-  height: 56px;
+  height: var(--cs-sz-theme-preview);
   border-radius: var(--radius-sm);
   display: flex; flex-direction: column; gap: var(--space-1);
   padding: var(--space-1p5);
 }
 
+/* Static theme color mockups — visual representations, not themed UI colors */
 .cs-theme-preview[data-theme="light"]    { background: hsl(0 0% 97%); }
 .cs-theme-preview[data-theme="dark"]     { background: hsl(220 13% 14%); }
 .cs-theme-preview[data-theme="paper"]    { background: hsl(37 25% 93%); }
@@ -260,9 +280,9 @@
 .cs-theme-preview[data-theme="console"]  { background: hsl(130 15% 9%); }
 .cs-theme-preview[data-theme="contrast"] { background: hsl(0 0% 4%); }
 
-.cs-theme-bar { height: 4px; width: 60%; border-radius: var(--radius-full); opacity: 0.7; background: var(--cs-orange); }
+.cs-theme-bar { height: var(--cs-sz-theme-bar); width: 60%; border-radius: var(--radius-full); opacity: 0.7; background: var(--cs-orange); }
 .cs-theme-lines { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-1); }
-.cs-theme-line { height: 3px; border-radius: var(--radius-full); background: hsl(0 0% 60%); }
+.cs-theme-line { height: var(--cs-sz-theme-line); border-radius: var(--radius-full); background: hsl(0 0% 60%); }
 .cs-theme-line--lg { width: 80%; }
 .cs-theme-line--sm { width: 55%; }
 .cs-theme-label { font-size: var(--font-size-xs); color: var(--foreground); }
@@ -287,7 +307,8 @@
 
 .cs-nav-preview,
 .cs-dock-preview {
-  width: 100%; height: 44px;
+  width: 100%;
+  height: var(--cs-sz-nav-preview);
   border-radius: var(--radius-sm);
   background: var(--muted);
   position: relative; overflow: hidden;
@@ -304,15 +325,17 @@
 }
 
 .cs-dock-preview::after {
-  content: ''; position: absolute; bottom: 4px;
-  height: 6px; width: 40%;
+  content: ''; position: absolute;
+  bottom: var(--space-1);
+  height: var(--cs-sz-dock-dot-h);
+  width: 40%;
   background: var(--border);
   border-radius: var(--radius-full);
 }
 
-.cs-dock-preview[data-dock="left"]::after     { left: 8px; }
+.cs-dock-preview[data-dock="left"]::after     { left: var(--space-2); }
 .cs-dock-preview[data-dock="centered"]::after { left: 50%; transform: translateX(-50%); }
-.cs-dock-preview[data-dock="right"]::after    { right: 8px; }
+.cs-dock-preview[data-dock="right"]::after    { right: var(--space-2); }
 
 .cs-option-label { font-size: var(--font-size-xs); color: var(--foreground); }
 
@@ -327,7 +350,7 @@
 
 .cs-find-row {
   display: grid;
-  grid-template-columns: 24px 140px 1fr;
+  grid-template-columns: var(--space-6) var(--cs-sz-term-label) 1fr;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
