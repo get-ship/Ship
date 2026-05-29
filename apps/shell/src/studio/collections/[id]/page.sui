@@ -45,11 +45,11 @@
           </span>
         </div>
         <sui-cluster gap="3" align="center" justify="between">
-          <sui-segmented size="sm" attr:value={tab()} on:sui-change={(e) => tab.set(e.detail.value)}>
-            <sui-segmented-option value="schema" icon="columns">Schema</sui-segmented-option>
-            <sui-segmented-option value="rows" icon="list-check">Rows</sui-segmented-option>
-            <sui-segmented-option value="jsonc" icon="file">JSONC</sui-segmented-option>
-          </sui-segmented>
+          <sui-toggle-group variant="segmented" type="single" size="sm" attr:value={tab()} on:sui-change={(e) => tab.set(e.detail.value)}>
+            <sui-toggle value="schema"><sui-icon name="columns" size="sm"></sui-icon>Schema</sui-toggle>
+            <sui-toggle value="rows"><sui-icon name="list-check" size="sm"></sui-icon>Rows</sui-toggle>
+            <sui-toggle value="jsonc"><sui-icon name="file" size="sm"></sui-icon>JSONC</sui-toggle>
+          </sui-toggle-group>
           <sui-button size="sm" tone="primary" variant="solid" on:click={openNewRow}>
             <sui-icon slot="leading" name="plus"></sui-icon>New row
           </sui-button>

@@ -46,14 +46,14 @@
           </button>
         {/if}
       </div>
-      <sui-segmented value={kind()} size="sm" aria-label="Filter by source"
+      <sui-toggle-group variant="segmented" type="single" value={kind()} size="sm" aria-label="Filter by source"
         on:sui-change={(e) => kind.set(e.detail.value)}>
         {#for f of kindFilters() key={f.id}}
-          <sui-segmented-option attr:value={f.id} data-test="filter" attr:data-filter={f.id}>
+          <sui-toggle attr:value={f.id} data-test="filter" attr:data-filter={f.id}>
             {f.label}
-          </sui-segmented-option>
+          </sui-toggle>
         {/for}
-      </sui-segmented>
+      </sui-toggle-group>
     </div>
 
     {#async agents}

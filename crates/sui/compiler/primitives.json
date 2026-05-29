@@ -371,17 +371,6 @@
       "orientation": { "values": ["vertical", "horizontal", "both"], "default": "vertical" },
       "size": { "values": ["sm", "md", "lg"], "default": "md" }
     },
-    "sui-segmented": {
-      "disabled": { "type": "bool", "default": "false" },
-      "name": { "type": "string", "default": "" },
-      "size": { "values": ["sm", "md", "lg"], "default": "md" },
-      "value": { "type": "string", "default": "" }
-    },
-    "sui-segmented-option": {
-      "disabled": { "type": "bool", "default": "false" },
-      "icon": { "type": "string", "default": "" },
-      "value": { "type": "string", "default": "" }
-    },
     "sui-select": {
       "described-by": { "type": "string", "default": "" },
       "disabled": { "type": "bool", "default": "false" },
@@ -530,7 +519,7 @@
       "pressed": { "type": "bool", "default": "false" },
       "size": { "values": ["sm", "md", "lg"], "default": "md" },
       "value": { "type": "string", "default": "" },
-      "variant": { "values": ["outline", "ghost"], "default": "outline" }
+      "variant": { "values": ["outline", "ghost", "segmented"], "default": "outline" }
     },
     "sui-toggle-group": {
       "name": { "type": "string", "default": "" },
@@ -538,7 +527,7 @@
       "size": { "values": ["sm", "md", "lg"], "default": "md" },
       "type": { "values": ["single", "multiple"], "default": "single" },
       "value": { "type": "string", "default": "" },
-      "variant": { "values": ["outline", "ghost"], "default": "outline" }
+      "variant": { "values": ["outline", "ghost", "segmented"], "default": "outline" }
     },
     "sui-toolbar": {
       "align": { "values": ["center", "start", "end", "baseline"], "default": "center" },

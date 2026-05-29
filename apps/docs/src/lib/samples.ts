@@ -400,26 +400,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
 </sui-radio-group>`,
     },
   ],
-  'sui-segmented': [
-    {
-      label: 'Tabs',
-      raw: `<sui-segmented value="week">
-  <sui-segmented-option value="day">Day</sui-segmented-option>
-  <sui-segmented-option value="week">Week</sui-segmented-option>
-  <sui-segmented-option value="month">Month</sui-segmented-option>
-</sui-segmented>`,
-    },
-  ],
-  'sui-segmented-option': [
-    {
-      label: 'Inside sui-segmented',
-      raw: `<sui-segmented value="week">
-  <sui-segmented-option value="day">Day</sui-segmented-option>
-  <sui-segmented-option value="week">Week</sui-segmented-option>
-  <sui-segmented-option value="month">Month</sui-segmented-option>
-</sui-segmented>`,
-    },
-  ],
   'sui-slider': [
     { label: 'Default', raw: '<div style="width:240px;"><sui-slider value="42" min="0" max="100"></sui-slider></div>' },
     { label: 'Range',   raw: '<div style="width:240px;"><sui-slider value="20,80" min="0" max="100" range></sui-slider></div>' },
