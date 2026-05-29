@@ -184,12 +184,11 @@ oxc-based controller lint in `crates/sui/lint`, e.g. `sui-controller-purity`,
 sui-compiler build packages/components/ui-components/src/sui-X/sui-X.sui
 ```
 
-## Agent surfaces (MCP — transitional, being retired)
+## Agent surfaces (CLI)
 
-> The `mcp__ship__*` tools below are being **removed** in favour of generated
-> skills + CLI. They wrap the **same** analyser as `sui-compiler build`, so they
-> add nothing the gate above doesn't already cover — use them for structured
-> output only if present, and **do not build new reliance on them**.
+> The MCP tools below have been **removed** in favour of generated
+> skills + CLI. They wrapped the **same** analyser as `sui-compiler build`, so they
+> added nothing the gate above doesn't already cover — use the CLI equivalents listed here.
 
 The view-authoring tools all apply to components since components
 are just `<sui-*>` views with shadow DOM. Full catalog:
@@ -198,26 +197,26 @@ The component-specific essentials:
 
 | Tool | When |
 |---|---|
-| `mcp__ship__sui_diagnostics({ file })` | Structured parse + analyse. Catches parse errors, missing `<prop>` / `<state>` attrs, unbound identifiers, invalid template expressions. |
-| `mcp__ship__sui_hover({ file, line, col })` | Declaration source + setup return type at a cursor. |
-| `mcp__ship__sui_dependencies({ file })` | What sibling `<sui-*>` tags + signals this component reaches into. |
-| `mcp__ship__view_compile_check({ file })` | Full lowering pipeline. Use after `sui_diagnostics` is clean to catch lowering-only issues. |
-| `mcp__ship__view_theme_tokens({})` | Active theme tokens (`--border`, `--card`, `--ring`, `--tone-*-bg`, …). Read before authoring component CSS so you stay token-locked. |
+| `ship sui diagnostics <file>` | Structured parse + analyse. Catches parse errors, missing `<prop>` / `<state>` attrs, unbound identifiers, invalid template expressions. |
+| `ship sui hover <file> <line> <col>` | Declaration source + setup return type at a cursor. |
+| `ship sui dependencies <file>` | What sibling `<sui-*>` tags + signals this component reaches into. |
+| `TODO(#207-followup): verify replacement for mcp__ship__view_compile_check` | Full lowering pipeline. Use after `sui_diagnostics` is clean to catch lowering-only issues. |
+| `TODO(#207-followup): verify replacement for mcp__ship__view_theme_tokens` | Active theme tokens (`--border`, `--card`, `--ring`, `--tone-*-bg`, …). Read before authoring component CSS so you stay token-locked. |
 
 ### Visual + behavioural verification
 
 | Surface | Use it for |
 |---|---|
 | `ship-ui-studio` at `/sui/ship-ui-studio/<tag>` | Single-page visual sweep — prop panel + variant matrix + source view. Fastest after-edit eyeball. |
-| `mcp__ship__view_preview_snapshot({ session_id })` | PNG + DOM dump for evals / before-after diffs / regression baselines. |
+| `TODO(#207-followup): verify replacement for mcp__ship__view_preview_snapshot` | PNG + DOM dump for evals / before-after diffs / regression baselines. |
 | `@ship/sui-eval` `runEval({ description, spec, catalog })` | Programmatic behavioural scoring. Sub-scores: `compile / scope / behaviour`. See `docs/ship-sui/references/docs/agent-surfaces.md` § 3. |
 
 ```ts
 // Pseudocode of the verify loop:
 // 1. write template + (optional) controller
-// 2. mcp__ship__sui_diagnostics({ file: "packages/components/ui-components/src/sui-X/sui-X.sui" })
+// 2. ship sui diagnostics packages/components/ui-components/src/sui-X/sui-X.sui
 //    → fix until []
-// 3. mcp__ship__view_compile_check({ file: "…/sui-X.sui" })
+// 3. TODO(#207-followup): verify replacement for mcp__ship__view_compile_check
 //    → fix lowering-only issues
 // 4. Open ship-ui-studio for visual sweep across the variant matrix
 // 5. (optional) runEval against a behavioural spec for regression gating
@@ -230,7 +229,7 @@ standalone language server.
 
 | Surface | How |
 |---|---|
-| **MCP** (agents) | `mcp__ship__sui_diagnostics` / `_hover` / `_dependencies`. See above. |
+| **CLI** (agents) | `ship sui diagnostics` / `hover` / `dependencies`. See above. |
 | **VS Code** | `apps/vscode/` auto-launches the `sui-lsp` binary on `.sui` open. |
 | **Any editor / Claude Code / opencode** | Point the LSP client at the `sui-lsp` binary (`crates/sui/lsp/`, on PATH via `just install-dev`) over stdio. Claude Code uses the repo `.lsp.json`. |
 | **Browser** | `@ship/sui-lsp-browser` runs the WASM `analyze` (same Rust grammar) for diagnostics in the docs playground; hover/completion are static-dictionary for now. |
