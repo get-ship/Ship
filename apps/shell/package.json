@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "cargo run -q -p deck-cli -- build --shell-root . --out ../../.deck/hub-scaffold",
-    "pretest": "sui-build",
+    "build": "cargo run -q -p deck-cli -- build --shell-root . --out ../../.deck/hub-scaffold --bundle-framework",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview --port 3200",
@@ -36,7 +35,6 @@
     "@ship/sui-primitives": "workspace:*",
     "@ship/sdk": "workspace:*",
     "@ship/sdk-client": "workspace:*",
-    "@ship/sui-build": "workspace:*",
     "@ship/sui-dom": "workspace:*",
     "@ship/ui-components": "workspace:*",
     "@ship/sui-lsp-browser": "workspace:*",

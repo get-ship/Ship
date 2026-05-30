@@ -4,7 +4,7 @@
 //! built *with* deck via `deck build`, just as `next build` builds a Next app.
 //! This is why the command lives here and not in the `ship` app CLI. Backed by
 //! `deck-bundler` (Rolldown). `.sui` sources must be compiled first
-//! (`sui-build`); `deck dev` / `deck serve` are future commands.
+//! by the deck bundler; `deck dev` / `deck serve` are future commands.
 
 mod scaffold;
 

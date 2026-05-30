@@ -231,7 +231,7 @@ export default controller<Scope>({
     // ── Browser LSP integration ───────────────────────────────────
     // For `.sui` content, run sui-lsp-browser's pure analyser on the
     // main thread (no worker — the `?worker` Vite suffix isn't supported
-    // by sui-build, our chrome bundler). Diagnostics stream into
+    // by the deck bundler, our chrome bundler). Diagnostics stream into
     // setDiagnostics on every debounced doc change; completions are
     // seeded once from allSources. Hover deferred to a follow-up; if
     // the parse cost ever shows in the input loop, switch to a worker

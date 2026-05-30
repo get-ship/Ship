@@ -22,9 +22,9 @@ jobs:
           bun-version: latest
       - name: Install JS deps
         run: bun install --frozen-lockfile
-      # Build sui-compiler upfront so the asset bundle + the `sui-build`
-      # pretest hook find target/debug/sui-compiler instead of paying
-      # `cargo run` per `.sui` file.
+      # Build sui-compiler upfront so the deck asset bake + the vitest
+      # on-demand `.sui` compile find target/debug/sui-compiler instead of
+      # paying `cargo run` per `.sui` file.
       - name: Build sui-compiler
         run: cargo build -p sui-compiler
       - name: Build daemon asset bundles
@@ -93,12 +93,12 @@ jobs:
       # See `tests/integration/resource-symmetry.test.ts`.
       - name: Integration test (resource symmetry)
         run: bunx vitest run --config tests/integration/vitest.config.ts
-      # Runs `pretest` first (the package's `sui-build` hook), which exercises
-      # every framework check baked into the sui-compiler pipeline:
-      # controller-purity, css-token, bind-this-ref, on-callable, and
-      # the rest of the type-strengthening passes. The earlier
+      # The vitest factory compiles each `.sui` on demand through the
+      # sui-compiler, exercising every framework check baked into the
+      # pipeline: controller-purity, css-token, bind-this-ref, on-callable,
+      # and the rest of the type-strengthening passes. The earlier
       # `bun run build:bundles` step covers the same checks for views/*.
-      - name: JS tests (precompiles SUI via pretest hook)
+      - name: JS tests (compiles SUI on demand via the vitest factory)
         run: bun run --filter '@ship/ui-components' test
       - name: Bundle sui-runtime
         run: bun run --filter '@ship/sui-runtime' bundle

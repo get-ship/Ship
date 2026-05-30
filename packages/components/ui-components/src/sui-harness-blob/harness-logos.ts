@@ -1,4 +1,4 @@
-// Inlined brand SVGs for <sui-harness-blob>. Self-contained — sui-build
+// Inlined brand SVGs for <sui-harness-blob>. Self-contained — the bundler
 // doesn't currently resolve `?raw` imports across workspace packages.
 
 export const CLAUDE_SVG =

@@ -477,5 +477,5 @@ shell-routing bugs vs view-content bugs.
 | Runtime symbol I'm using doesn't exist | `references/runtime-primitives.md` |
 | Component vs view; what `<prop>` accepts | `references/authoring-patterns.md` |
 | Where the compiler lives, what `view-host` serves | `references/4-layer-overview.md` |
-| `sui-build` / LSP / per-edit lint loop | `references/tooling.md` |
+| deck bundler / LSP / per-edit lint loop | `references/tooling.md` |
 | Copy-paste-and-modify worked examples | `references/cookbook.md` |

@@ -180,9 +180,9 @@ Mutations are HTTP POST/DELETE through the same client (e.g. `ship.sessions.star
 
 | Tool | What it does | Entry |
 |---|---|---|
-| `sui-compiler` (bin) | One-shot compile of a `.sui` file; runs the full lint pass and exits non-zero on errors. Used by `sui-build` and editor extensions. | `crates/sui/compiler/src/bin/sui-compiler.rs` (`cargo run -p sui-compiler -- build <file>`) |
+| `sui-compiler` (bin) | One-shot compile of a `.sui` file; runs the full lint pass and exits non-zero on errors. Used by the deck bundler and editor extensions. | `crates/sui/compiler/src/bin/sui-compiler.rs` (`cargo run -p sui-compiler -- build <file>`) |
 | `sui-lint` (example bin) | Lint one file from the CLI — the fast per-edit check now that MCP is gone. Exits 1 on findings. | `cargo run -p sui-lint --example check -- <file>` |
-| `@ship/sui-build` | CI / package-build bundler (NOT the daemon path) — discovers `.sui` sources, calls the compiler, runs Bun/esbuild adapter, optional `--watch`. The daemon + framework bake use the in-process Rolldown bundler (`cargo xtask build-assets`, #163). | `packages/deck/build/bin/sui-build.mjs` |
+| deck bundler | The ONLY bundler (#163, #220) — in-process Rolldown. A Rust plugin compiles `.sui` via `sui-compiler` in its `load` hook; the daemon serves traced chunks per `DaemonMode`, and `cargo xtask build-assets` bakes the framework singletons + `sui-components` umbrella + islands + views + marketing/arcade. | `crates/deck/deck-bundler/` |
 | `@ship/sui-lsp` | LSP server — diagnostics + hover for `.sui`. TS server `packages/deck/lsp/`; Rust core `crates/sui/lsp/`. | `packages/deck/lsp/src/` |
 | Devtools panes | In-page panels: template source, components tree, signals, lint, schema. | `packages/components/ui-components/src/sui-devtools/` |
 | `dispatch.sh` | Worktree + job-spec + agent compile + terminal-open script. | `.ship/skills/spawn-agent/scripts/dispatch.sh` |
@@ -234,7 +234,7 @@ Two tiers. The `references/*.md` files are concise agent-facing overviews; the `
 | Compiler API, runtime exports, daemon routes, where each piece lives | `references/4-layer-overview.md` |
 | Component vs view, controller shape, `<prop>`, scope typing, `bindHtml`, `bind:this` refs | `references/authoring-patterns.md` |
 | Reactive primitives, control flow, `<data live>` end-to-end, transitions, morph, error-boundary, portal, route signals | `references/runtime-primitives.md` |
-| sui-lsp, sui-build, devtools, `dispatch.sh`, scaffolds, the `sui-lint`/`sui-compiler` CLI loop | `references/tooling.md` |
+| sui-lsp, the deck bundler, devtools, `dispatch.sh`, scaffolds, the `sui-lint`/`sui-compiler` CLI loop | `references/tooling.md` |
 
 ### Docs-site deep dives (`references/docs/`)
 

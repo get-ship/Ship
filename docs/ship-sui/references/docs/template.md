@@ -72,7 +72,7 @@ The `source` expression is plain JS that runs inside `live()`'s tracked reactive
 <button disabled={disabled() || loading()}>{label()}</button>
 ```
 
-The file IS the component. `<prop>` appears at the top of a component `.sui` file alongside `<data>` — no wrapper element needed. There is no per-component config file: the compiler takes the tag name and shadow flag via `CompileOpts.component_meta` (driven by `sui-build` from the directory name / build config). Convention is the contract — directory name is the tag name. Views (top-level page surfaces) do not use `<prop>`.
+The file IS the component. `<prop>` appears at the top of a component `.sui` file alongside `<data>` — no wrapper element needed. There is no per-component config file: the compiler takes the tag name and shadow flag via `CompileOpts.component_meta` (driven by the deck bundler from the directory name). Convention is the contract — directory name is the tag name. Views (top-level page surfaces) do not use `<prop>`.
 
 Prop kinds: `string` (default), `bool`, `number`, `values="a|b|c"` (union). `reflect` mirrors the prop to the host element's attributes.
 

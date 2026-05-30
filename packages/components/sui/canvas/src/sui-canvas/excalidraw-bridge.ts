@@ -25,7 +25,7 @@ import { Excalidraw, getSceneVersion } from '@excalidraw/excalidraw'
 // Excalidraw's stylesheet, inlined as text (sui.config maps `.css` → the
 // `text` loader). We reach the file by a RELATIVE path into node_modules
 // on purpose: the package's `./index.css` export entry only declares
-// `development`/`production` conditions with no `default`, and sui-build
+// `development`/`production` conditions with no `default`, and the bundler
 // (Bun) doesn't pass an explicit export condition — so the bare specifier
 // is unresolvable. A relative path bypasses package-exports encapsulation
 // and resolves the prod stylesheet directly. @excalidraw/excalidraw is a

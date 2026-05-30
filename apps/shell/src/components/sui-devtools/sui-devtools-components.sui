@@ -99,7 +99,7 @@
       <sui-icon slot="icon" name="package"></sui-icon>
       <span slot="title">Loading sui-* components…</span>
       Fetching the SUI inventory from /api/sui/catalog/workspace.
-      Empty after load means sui-build hasn't emitted a CEM yet — run `just build`.
+      Empty after load means the component CEMs haven't been baked yet — run `just build`.
     </sui-empty-state>
   {:else if shown().length === 0}
     <sui-empty-state>

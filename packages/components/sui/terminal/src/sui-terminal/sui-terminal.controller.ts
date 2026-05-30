@@ -25,7 +25,7 @@ import { controller, effect } from '@ship/sui-runtime'
 import type { Signal } from '@ship/sui-runtime'
 
 // Import Scope from the compiler-emitted .d.ts (produced alongside the .sui).
-// This module resolves after `sui-build` compiles the template; typecheck
+// This module resolves after the deck bundler compiles the template; typecheck
 // fails before first build — that is expected.
 import type { Scope } from './sui-terminal.sui'
 

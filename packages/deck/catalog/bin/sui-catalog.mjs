@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// Tiny shim — invokes src/cli.ts. Mirrors @ship/sui-build's bin shape so
+// Tiny shim — invokes src/cli.ts. Standard bin-shim shape so
 // `bun run --filter @ship/sui-catalog ...` and shell-wrapper invocations
 // both work without rebuilding.
 import { spawn } from 'node:child_process'

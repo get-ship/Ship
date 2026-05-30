@@ -1,25 +1,22 @@
 {
   "name": "@ship/sui-terminal",
   "version": "0.1.0",
-  "description": "SUI Terminal pack — <sui-terminal> PTY rendering primitive wrapping xterm.js. Generic: code editors, hosted shells, devops UIs. No Ship SDK dep.",
+  "description": "SUI Terminal pack \u2014 <sui-terminal> PTY rendering primitive wrapping xterm.js. Generic: code editors, hosted shells, devops UIs. No Ship SDK dep.",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "customElements": "dist/custom-elements.json",
   "exports": {
     ".": "./src/index.ts",
-    "./sui-terminal": "./src/sui-terminal/sui-terminal.sui",
-    "./bundle": "./dist/sui-terminal.js"
+    "./sui-terminal": "./src/sui-terminal/sui-terminal.sui"
   },
   "scripts": {
-    "build": "sui-build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@ship/sui-runtime": "workspace:*",
     "@ship/sui-dom": "workspace:*",
-    "@ship/sui-build": "workspace:*",
     "@ship/sui-primitives": "workspace:*",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-web-links": "^0.12.0",

@@ -1,7 +1,7 @@
 // Canonical catalog entry — one per `<sui-*>` custom-element declaration.
 //
 // The aggregator walks per-component `.custom-elements.json` files emitted
-// by sui-build for every component in the workspace. Each entry carries
+// by the SUI compiler for every component in the workspace. Each entry carries
 // the standard CEM declaration fields PLUS Ship-specific routing metadata
 // (`package`, `private`, `sourcePath`, `bundleUrl`, `manifestUrl`) so the
 // picker / MCP / future library-consumer UIs can resolve "where does this

@@ -31,7 +31,7 @@ import { ops } from './ops'
 // Imported from SOURCE (`src/index.ts`), not a prebuilt `/bundle` artifact:
 // the app build (deck-cli) compiles the pack's `.sui` → `.compiled.js`
 // in-process via the shared SuiPlugin (the same hooks the view/component
-// build uses), so no `sui-build` pre-step is needed. The package main
+// build uses), so no separate pre-compile step is needed. The package main
 // side-effect-registers every `<sui-*-chart>`, `<sui-sparkline>`,
 // `<sui-donut>`, `<sui-gauge>`, `<sui-meter>`, `<sui-heatmap>` before the
 // first view mounts. See ADR one-bundler-entry-traced (Slice 4a).

@@ -43,9 +43,10 @@ bootstrap:
     # component bundles against.
     bun run wasm
     cargo build -p ship-cli
-    bun run --filter @ship/sui-primitives build
-    bun run --filter @ship/sui-charts build
-    bun run --filter @ship/ui-components build
+    # Deck is the only bundler: bake the framework singletons + sui-components
+    # umbrella + islands + marketing/arcade in-process (rolldown). No per-pack
+    # pre-compile step — components compile from source on demand.
+    cargo run -p xtask --quiet -- build-assets
     bun run --filter @ship/sui-catalog build
     bun packages/deck/catalog/src/cli.ts
     just dev-runtime-install
@@ -70,19 +71,12 @@ shell-dev:
 gen-routes:
     @cargo run -q -p deck-cli -- routes --shell-root apps/shell
 
-# Build the standalone SUI component packs (primitives/charts/pipelines/
-# ui-components) → each package's `dist/`, served by the daemon at
-# `/_sui/packs/<id>/`. These are gitignored build outputs that the deck
-# bundler does NOT produce, so without this they go stale (and a stale pack
-# that inlines its own @ship/sui-runtime causes split-brain signals → blank
-# shell). Part of dev-build-all so the JS build is actually complete.
-build-packs: _sui-compiler-lib
-    @bun run --filter './packages/components/*' build
-
-# Bakes the framework bundles via the in-process Rolldown bundler (#163) — the
-# same engine shipd runs. No bun; spawns the `sui-compiler` binary built above.
+# Bakes every bundle via the in-process Rolldown bundler (#163) — the same
+# engine shipd runs, and the ONLY bundler. Framework singletons + the
+# sui-components umbrella + islands + views + marketing/arcade, all traced from
+# source. No per-pack build step: components compile from `.sui` on demand.
 [group('daily')]
-dev-build-all: _sui-compiler-lib gen-routes build-packs
+dev-build-all: _sui-compiler-lib gen-routes
     @cargo xtask build-assets
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
@@ -266,12 +260,12 @@ coverage:
 lint-imports:
     cargo run -p xtask --quiet -- lint-imports
 
-# Regenerate the aggregated SUI Custom Elements Manifest from per-component
-# CEMs under packages/components/ui-components/src/. Writes
-# crates/deck/deck-core/assets/sui-custom-elements.json which apps/shipd embeds.
+# Recompile every `<sui-*>` component via deck (the only bundler) so the
+# per-component CEMs the catalog + studio read are regenerated. Deck compiles
+# the `.sui` sources in-process; there is no per-pack pre-compile step.
 [group('occasional')]
 cem:
-    bun run --filter @ship/ui-components build
+    cargo run -p xtask --quiet -- build-assets
 
 # Build docs site (Astro static).
 [group('occasional')]
@@ -303,7 +297,7 @@ docs-regen:
 docs-check-drift:
     cd apps/docs && bun run docs:check-drift
 
-# The sui-compiler cdylib that sui-build/the bundler dlopen for FFI compilation.
+# The sui-compiler cdylib that the deck bundler dlopens for FFI compilation.
 # A real build-graph dependency, not a remembered step — so a compiler/lint
 # source change always reaches every consumer (build, dev-build-all). cargo
 # no-ops in ~2s when fresh, so it's effectively free.
@@ -318,28 +312,22 @@ build: _sui-compiler-lib
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun >/dev/null || { echo "build: bun not on PATH" >&2; exit 1; }
-    echo "[1/9] gen-types"
+    echo "[1/6] gen-types"
     cargo run -p xtask --quiet -- gen-types
-    echo "[2/9] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bun builds load)"
+    echo "[2/6] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bundler loads)"
     # Steps 3-6 drive the SUI compiler over Bun FFI against this .so. Nothing
     # in cargo's graph forces it to rebuild (the JS bundler consumes it
     # out-of-band), so without this step it silently goes stale and bundles
     # compile against an old token registry / lint set. Cheap no-op when fresh.
     cargo build -p sui-compiler
-    echo "[3/9] primitives build (@ship/sui-primitives → packages/components/primitives/dist/)"
-    bun run --filter @ship/sui-primitives build
-    echo "[4/9] charts build (@ship/sui-charts → packages/components/charts/dist/)"
-    bun run --filter @ship/sui-charts build
-    echo "[5/9] ui-components build (sui-build → crates/deck/deck-core/assets/)"
-    bun run --filter @ship/ui-components build
-    echo "[6/9] view bundles + sui-* bundles (cargo xtask build-assets — in-process Rolldown)"
+    echo "[3/6] framework + sui-* bundles + islands + views (cargo xtask build-assets — in-process Rolldown, the only bundler)"
     cargo xtask build-assets
-    echo "[7/9] sui-catalog walk (→ .deck/catalogs/{workspace,published}.json)"
+    echo "[4/6] sui-catalog walk (→ .deck/catalogs/{workspace,published}.json)"
     bun run --filter @ship/sui-catalog build
     bun packages/deck/catalog/src/cli.ts
-    echo "[8/9] cargo build --release (ship-cli + shipd)"
+    echo "[5/6] cargo build --release (ship-cli + shipd)"
     cargo build --release -p ship-cli -p shipd
-    echo "[9/9] verify outputs"
+    echo "[6/6] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
     for bin in ship shipd; do
@@ -350,7 +338,7 @@ build: _sui-compiler-lib
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in crates/deck/deck-core/assets/sui-runtime.js crates/deck/deck-core/assets/sui-components.js packages/components/primitives/dist/sui-primitives.js packages/components/charts/dist/sui-charts.js .deck/catalogs/workspace.json .deck/catalogs/published.json; do
+    for asset in crates/deck/deck-core/assets/sui-runtime.js crates/deck/deck-core/assets/sui-components.js .deck/sui-marketing.js .deck/sui-arcade.js .deck/catalogs/workspace.json .deck/catalogs/published.json; do
         if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1

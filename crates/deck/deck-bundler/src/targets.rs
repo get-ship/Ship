@@ -14,9 +14,16 @@ use std::path::{Path, PathBuf};
 const BUNDLE_SEPARATE_NEEDLE: &str = "<bundle separate";
 
 /// Roots scanned for `<tag>/` dirs that may opt into separate bundles.
-const SEPARATE_BUNDLE_ROOTS: [&str; 2] = [
+///
+/// `sui/terminal/src` is here because `<sui-terminal>` is a real island: it
+/// carries `<bundle separate />` (its xterm graph is too heavy for any umbrella)
+/// and is mounted live by the shell's `<sui-agent-attach>`. The daemon serves it
+/// at `/_sui/sui-components/sui-terminal.js`; without this root deck would never
+/// build it and the daemon would 404 the island.
+const SEPARATE_BUNDLE_ROOTS: [&str; 3] = [
     "packages/components/ui-components/src",
     "apps/shell/src/components",
+    "packages/components/sui/terminal/src",
 ];
 
 /// Deck's OWN runtime bundles — baked into the deck-core crate (like Next
@@ -145,6 +152,20 @@ impl BundleLayout {
                 entry: TargetEntry::Real(r("apps/site/src/marketing/marketing-bundle.ts")),
                 externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
                 out_file: "sui-marketing.js".into(),
+            },
+            BundleTarget {
+                // The arcade pack — the heavy lazy chunk for the marketing
+                // site's `<sui-stage>` games. The pack's `index.ts`
+                // side-effect-registers every `<sui-*>` arcade tag (stage,
+                // sprite, shape, collider, emitter, input, sfx, hud) and pulls
+                // the pixi + arcade-engine graph. Unlike the framework
+                // singletons, pixi + arcade-engine get BUNDLED here (this is the
+                // ~800 KB lazy chunk); only the runtime singletons stay external
+                // (forced by `SINGLETONS` in rolldown_bundle.rs — one instance).
+                name: "sui-arcade".into(),
+                entry: TargetEntry::Real(r("packages/components/ship/arcade/src/index.ts")),
+                externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
+                out_file: "sui-arcade.js".into(),
             },
         ]
     }

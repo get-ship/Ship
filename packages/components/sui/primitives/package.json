@@ -1,22 +1,19 @@
 {
   "name": "@ship/sui-primitives",
   "version": "0.1.0",
-  "description": "Ship Primitives pack — generic `<sui-*>` UI elements (button, input, dialog, popover, etc.).",
+  "description": "Ship Primitives pack \u2014 generic `<sui-*>` UI elements (button, input, dialog, popover, etc.).",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "customElements": "dist/custom-elements.json",
   "exports": {
-    ".": "./src/index.ts",
-    "./bundle": "./dist/sui-primitives.js"
+    ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "sui-build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ship/sui-build": "workspace:*",
     "@ship/sui-dom": "workspace:*",
     "@ship/sui-runtime": "workspace:*"
   },

@@ -7,17 +7,14 @@
   "types": "src/index.ts",
   "customElements": "dist/custom-elements.json",
   "exports": {
-    ".": "./src/index.ts",
-    "./bundle": "./dist/sui-canvas.js"
+    ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "sui-build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@excalidraw/excalidraw": "0.18.1",
-    "@ship/sui-build": "workspace:*",
     "@ship/sui-dom": "workspace:*",
     "@ship/sui-runtime": "workspace:*",
     "react": "^19.0.0",

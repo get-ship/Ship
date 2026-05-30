@@ -27,15 +27,38 @@ fn asset_dev_mode_no_etag() {
     assert!(resp.etag.is_none(), "dev asset must not have ETag");
 }
 
+// `sui-terminal` is a real deck-built island: its `.sui` carries
+// `<bundle separate />` and `packages/components/sui/terminal/src` is a
+// SEPARATE_BUNDLE_ROOT, so `cargo xtask build-assets` writes
+// `.deck/sui-components/sui-terminal.js`. These tests resolve the project root
+// to the repo (same as the view-template tests below) so `serve_sui_island`
+// reads that built bundle — cache-header coverage on a tag deck actually
+// produces, never an orphan stale artifact.
 #[test]
 fn island_prod_mode_immutable() {
+    let _lock = crate::test_lock::lock();
+    let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
+    unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", repo_root()); }
     let resp = crate::assets::serve_sui_island(DaemonMode::Production, "sui-terminal");
+    match prev {
+        Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
+        None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
+    }
+    assert_eq!(resp.status, 200, "deck-built sui-terminal island must be served (run `cargo xtask build-assets`)");
     assert!(resp.cache_control.contains("immutable"), "prod island must be immutable; got: {}", resp.cache_control);
 }
 
 #[test]
 fn island_dev_mode_no_cache() {
+    let _lock = crate::test_lock::lock();
+    let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
+    unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", repo_root()); }
     let resp = crate::assets::serve_sui_island(DaemonMode::Development, "sui-terminal");
+    match prev {
+        Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
+        None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
+    }
+    assert_eq!(resp.status, 200, "deck-built sui-terminal island must be served (run `cargo xtask build-assets`)");
     assert_eq!(resp.cache_control, "no-cache");
 }
 

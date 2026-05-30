@@ -33,26 +33,19 @@ Flags (from `crates/sui/compiler/src/bin/sui-compiler.rs`):
 | `--styles <file>` | Prepend a CSS file as a `<style>` block. Component sources only. |
 | `--component-name <tag>` | Set the custom element tag name; implies component mode. |
 
-The binary is also exposed as a `cdylib` (`crate-type = ["lib", "cdylib"]` in `Cargo.toml`) so editor extensions and `@ship/sui-build` can call it without spawning a subprocess. The Rust release build is what the daemon ships at `~/.ship/runtime/sui-compiler` (see `docs/ship-architecture/references/docs/toolchain.md`).
+The binary is also exposed as a `cdylib` (`crate-type = ["lib", "cdylib"]` in `Cargo.toml`) so editor extensions and the deck bundler can call it without spawning a subprocess. The Rust release build is what the daemon ships at `~/.ship/runtime/sui-compiler` (see `docs/ship-architecture/references/docs/toolchain.md`).
 
-## `@ship/sui-build` — the package-level CI bundler
+## The deck bundler — the ONLY bundler
 
-The Node/Bun-driven build pipeline that wraps `sui-compiler` for one package at a time. Source: `packages/deck/build/`.
+There is one bundler: the in-process Rust Rolldown bundler in `crates/deck/deck-bundler/` (#163, #167, #220). The retired `@ship/sui-build` (esbuild, one package at a time) and the old `packages/deck/bundler/index.ts` Bun worker are both gone — components are no longer pre-compiled to on-disk `dist/` bundles per package.
 
-```sh
-sui-build                          # one-shot production build (cwd's sui.config.ts)
-sui-build --watch                  # rebuild on source changes
-sui-build --bundler bun            # force the Bun adapter
-sui-build --bundler esbuild        # force the esbuild adapter
-sui-build --config path/to/sui.config.ts
-sui-build --mode development       # passes through to compile flags + bundler env
-```
+**How it works.** A Rust Rolldown plugin (`SuiPlugin`) compiles each `.sui` via `sui-compiler` in its `load` hook — no bun worker, no subprocess, no `.compiled.js` pre-step. Membership is **traced**, not declared: each entry (a view, an app, a marketing/arcade page) is bundled by following its imports and template tags.
 
-Entry: `packages/deck/build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The runner (`src/runner.ts`) walks the configured source globs, invokes `sui-compiler` (preferring the in-repo FFI build of `libsui_compiler`, falling back to `target/debug/sui-compiler` or `cargo run --quiet -p sui-compiler`), and feeds the emitted JS / CSS / CEM through the chosen bundler adapter (`adapters/bun.ts`, `adapters/esbuild.ts`).
+**Two modes**, wired to `DaemonMode`:
+- **Development** — the daemon serves compiled `.sui` as un-bundled native ESM; HMR re-compiles only the edited component.
+- **Production** — Rolldown emits per-entry traced chunks with `sui-runtime`/`sui-dom` as the shared external, immutable-cached.
 
-Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/components/primitives/`, `packages/components/ui-components/`, `packages/components/charts/`, `packages/components/pipelines/` (all write to their own `dist/`; the daemon umbrella `sui-components.js` is baked into `crates/deck/deck-core/assets/` by `cargo xtask build-assets`).
-
-**Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. **The daemon bundles IN-PROCESS via Rolldown** (`crates/deck/deck-bundler/` — deck owns bundling per #167; a Rust Rolldown plugin compiles `.sui` via `sui-compiler` in its `load` hook; no bun worker, no subprocess). The former `packages/deck/bundler/index.ts` Bun worker the daemon spawned is retired. Both pipelines still target the same on-disk asset trees the release binary `include_str!`s. See `docs/ship-architecture/references/docs/toolchain.md`.
+**Baking.** `cargo xtask build-assets` (aliased `bun run build:bundles`) bakes the framework singletons + the `sui-components` umbrella + per-component islands (`<bundle separate />`) + per-view bundles + the site's `sui-marketing.js` / `sui-arcade.js` into `crates/deck/deck-core/assets/` and `.deck/` — the same on-disk asset trees the release binary `include_str!`s. It's what `smoke-deploy.sh` runs and what `just cem` invokes.
 
 ## `sui-lsp` — the language server
 

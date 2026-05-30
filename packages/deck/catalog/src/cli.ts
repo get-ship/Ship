@@ -8,7 +8,7 @@
 //   sui-catalog --out <dir>        # output dir (default: <root>/.deck/catalogs)
 //
 // No watch mode — this is a one-shot post-build step that the bundler
-// invokes after every full sui-build pass.
+// invokes after every full asset bake.
 
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'

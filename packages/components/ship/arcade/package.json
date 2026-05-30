@@ -1,23 +1,20 @@
 {
   "name": "@ship/arcade",
   "version": "0.1.0",
-  "description": "Ship Arcade pack — `<sui-stage>` + sprite / shape / collider / emitter / input / sfx / hud custom elements. Declarative 2D arcade games over @ship/arcade-engine.",
+  "description": "Ship Arcade pack \u2014 `<sui-stage>` + sprite / shape / collider / emitter / input / sfx / hud custom elements. Declarative 2D arcade games over @ship/arcade-engine.",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "customElements": "dist/custom-elements.json",
   "exports": {
-    ".": "./src/index.ts",
-    "./bundle": "./dist/sui-arcade.js"
+    ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "sui-build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@ship/arcade-engine": "workspace:*",
-    "@ship/sui-build": "workspace:*",
     "@ship/sui-dom": "workspace:*",
     "@ship/sui-runtime": "workspace:*"
   },

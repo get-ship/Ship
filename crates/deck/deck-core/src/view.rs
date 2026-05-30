@@ -55,7 +55,7 @@ fn compile_view_js(name: &str, resolved: &ResolvedView, mode: DaemonMode) -> Dec
 
     // emit_dts is held off here on purpose: this path serves JS per
     // HTTP request and never persists outputs. dts lives next to the
-    // source and is the build-step's job (sui-build runner + FFI).
+    // source and is the build-step's job (the deck bundler + FFI).
     let opts = CompileOpts {
         source_path: resolved.source_path.clone(),
         emit_dts: false,

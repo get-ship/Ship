@@ -6,7 +6,7 @@
 //! apps. Driven by `deck build` (`crates/deck/deck-cli`). The app graph
 //! compiles its own `.sui` in-process via the shared `SuiPlugin`
 //! (`rolldown_bundle.rs`) — the exact resolve/load hooks the view/component
-//! build uses — so no on-disk `.compiled.js` pre-step (`sui-build`) is needed.
+//! build uses — so no on-disk `.compiled.js` pre-step is needed.
 //! `AppPlugin` runs alongside it to externalize the framework singletons
 //! (which resolve to `/_sui/*` via the document's importmap); it runs FIRST so
 //! importmap specifiers (incl. `@ship/sui-runtime/*` subpaths) stay external
@@ -235,7 +235,7 @@ pub async fn bundle_app(
         }
         // Build the chrome aggregate + island bundles into `.deck/sui-components/`
         // via deck-bundler's own target machinery — the deck-native replacement
-        // for the retired `sui-build` pre-step. `bundle_target`'s SuiPlugin
+        // for the retired on-disk pre-compile step. `bundle_target`'s SuiPlugin
         // compiles each `.compiled.js`→sibling `.sui` in its load hook, so no
         // on-disk pre-compile is needed. A failed target fails the build: no
         // silent fallback to a stale island (the regression Slice 4a first shipped).
@@ -333,7 +333,7 @@ mod tests {
     /// The app build compiles a `.sui` referenced by the entry IN-PROCESS (via
     /// the shared SuiPlugin) — no on-disk `.compiled.js` pre-step — while the
     /// runtime stays external (single-runtime guarantee). This is the core of
-    /// Slice 4a: the shell no longer needs `sui-build` to pre-compile its packs.
+    /// Slice 4a: the shell no longer needs an on-disk pre-compile of its packs.
     #[tokio::test(flavor = "multi_thread")]
     async fn app_build_compiles_sui_entry_in_process() {
         let compiler = match ship_substrate::locate::walk_for_target_binary("sui-compiler") {
