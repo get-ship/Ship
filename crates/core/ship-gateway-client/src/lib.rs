@@ -18,7 +18,7 @@
 //!         ..Default::default()
 //!     })
 //!     .await?;
-//! println!("got key: {}", resp.message().key);
+//! println!("got key: {}", resp.view().key);
 //! # Ok(())
 //! # }
 //! ```

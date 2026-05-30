@@ -201,7 +201,7 @@ mod tests {
     use super::*;
 
     fn theme_responses() -> serde_json::Map<String, Value> {
-        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let theme: Value =
             serde_json::from_slice(&std::fs::read(root.join("proto/fixtures/theme.json")).unwrap())
                 .unwrap();

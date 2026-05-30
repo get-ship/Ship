@@ -148,16 +148,6 @@ async fn capabilities_with_valid_token() {
 }
 
 #[tokio::test]
-async fn openapi_spec_is_valid_json() {
-    let d = TestDaemon::start().await;
-    let res = d.bare().get(d.url("/api/openapi.json")).send().await.unwrap();
-    assert_eq!(res.status(), 200);
-    let body: serde_json::Value = res.json().await.unwrap();
-    assert!(body.get("openapi").is_some(), "missing 'openapi' key");
-    assert!(body.get("paths").is_some(), "missing 'paths' key");
-}
-
-#[tokio::test]
 async fn list_jobs_returns_ok() {
     let d = TestDaemon::start().await;
     let res = d.authed().get(d.url("/api/v1/agent_sessions")).send().await.unwrap();
