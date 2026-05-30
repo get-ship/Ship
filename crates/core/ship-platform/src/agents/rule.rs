@@ -2,8 +2,8 @@ use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
-use ship_types::event_types::{RULE_CREATED, RULE_DELETED, RULE_UPDATED};
-use ship_types::payload::{RuleCreated, RuleDeleted, RuleUpdated};
+use ship_types::event_types::{RULE_CHANGED, RULE_CREATED, RULE_DELETED, RULE_UPDATED};
+use ship_types::payload::{RuleChanged, RuleCreated, RuleDeleted, RuleUpdated};
 use specta::Type;
 use std::fs;
 use std::path::PathBuf;
@@ -181,6 +181,14 @@ pub fn update_rule(ship_dir: PathBuf, file_name: &str, content: &str) -> Result<
         &rule_id_from_file(&file_name),
         &RuleUpdated {
             file_name: file_name.clone(),
+            content_hash: content_hash_hex(content),
+        },
+    );
+    emit_rule_event(
+        RULE_CHANGED,
+        &rule_id_from_file(&file_name),
+        &RuleChanged {
+            path: path.to_string_lossy().to_string(),
             content_hash: content_hash_hex(content),
         },
     );

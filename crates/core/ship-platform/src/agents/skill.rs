@@ -23,8 +23,8 @@ use storage::{
 
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
-use ship_types::event_types::{SKILL_CREATED, SKILL_DELETED, SKILL_UPDATED};
-use ship_types::payload::{SkillCreated, SkillDeleted, SkillUpdated};
+use ship_types::event_types::{SKILL_CHANGED, SKILL_CREATED, SKILL_DELETED, SKILL_UPDATED};
+use ship_types::payload::{SkillChanged, SkillCreated, SkillDeleted, SkillUpdated};
 
 fn content_hash_hex(content: &str) -> String {
     use sha2::{Digest, Sha256};
@@ -218,6 +218,14 @@ pub fn update_skill(
             content_hash: content_hash_hex(&skill.content),
         },
     );
+    emit_skill_event(
+        SKILL_CHANGED,
+        id,
+        &SkillChanged {
+            path: dir.to_string_lossy().to_string(),
+            content_hash: content_hash_hex(&skill.content),
+        },
+    );
     Ok(skill)
 }
 
@@ -240,6 +248,14 @@ pub fn update_user_skill(id: &str, name: Option<&str>, content: Option<&str>) ->
         id,
         &SkillUpdated {
             scope: "user".to_string(),
+            content_hash: content_hash_hex(&skill.content),
+        },
+    );
+    emit_skill_event(
+        SKILL_CHANGED,
+        id,
+        &SkillChanged {
+            path: dir.to_string_lossy().to_string(),
             content_hash: content_hash_hex(&skill.content),
         },
     );
