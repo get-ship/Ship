@@ -12,6 +12,103 @@
 
 use serde_json::{Map, Value, json};
 
+/// Strip JSONC comments and trailing commas, returning valid JSON.
+///
+/// Handles:
+/// - `// line comments`
+/// - `/* block comments */`
+/// - Trailing commas before `]` or `}`
+/// - Strings (comments inside strings are preserved)
+fn strip_jsonc_comments(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut chars = input.char_indices().peekable();
+
+    while let Some(&(_, ch)) = chars.peek() {
+        match ch {
+            // String literal — copy verbatim, handling escapes
+            '"' => {
+                out.push('"');
+                chars.next();
+                while let Some(&(_, c)) = chars.peek() {
+                    if c == '\\' {
+                        chars.next();
+                        out.push(c);
+                        if let Some((_, esc)) = chars.next() {
+                            out.push(esc);
+                        }
+                    } else if c == '"' {
+                        out.push('"');
+                        chars.next();
+                        break;
+                    } else {
+                        out.push(c);
+                        chars.next();
+                    }
+                }
+            }
+            // Possible comment start
+            '/' => {
+                chars.next();
+                match chars.peek().map(|&(_, c)| c) {
+                    Some('/') => {
+                        // Line comment — skip to end of line
+                        chars.next();
+                        while let Some(&(_, c)) = chars.peek() {
+                            if c == '\n' {
+                                break;
+                            }
+                            chars.next();
+                        }
+                    }
+                    Some('*') => {
+                        // Block comment — skip to */
+                        chars.next();
+                        let mut prev = '\0';
+                        for (_, c) in chars.by_ref() {
+                            if prev == '*' && c == '/' {
+                                break;
+                            }
+                            prev = c;
+                        }
+                    }
+                    _ => {
+                        out.push('/');
+                    }
+                }
+            }
+            _ => {
+                out.push(ch);
+                chars.next();
+            }
+        }
+    }
+
+    // Strip trailing commas before ] or }
+    let mut result = String::with_capacity(out.len());
+    let chars: Vec<char> = out.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        if chars[i] == ',' {
+            let mut j = i + 1;
+            while j < len
+                && (chars[j] == ' ' || chars[j] == '\t' || chars[j] == '\n' || chars[j] == '\r')
+            {
+                j += 1;
+            }
+            if j < len && (chars[j] == ']' || chars[j] == '}') {
+                i += 1;
+                continue;
+            }
+        }
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
+}
+
 /// Pipeline-level metadata extracted from the pipeline file.
 #[derive(Debug, Clone, Default)]
 pub struct PipelineMeta {
@@ -33,7 +130,7 @@ pub struct PipelineMeta {
 /// Parse a pipeline definition and normalize it into a JSON `{ steps: [...] }`
 /// shape the runtime can deserialize via `PipelineStep`.
 pub fn normalize_pipeline(input: &str) -> Result<(Value, PipelineMeta), String> {
-    let json_str = compiler::jsonc::strip_jsonc_comments(input);
+    let json_str = strip_jsonc_comments(input);
     let val: Value = serde_json::from_str(&json_str)
         .map_err(|e| format!("invalid pipeline JSONC: {e}"))?;
 
