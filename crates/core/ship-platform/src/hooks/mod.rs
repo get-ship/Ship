@@ -11,6 +11,8 @@ pub mod tool_gate;
 
 #[cfg(test)]
 mod hooks_tests;
+#[cfg(test)]
+mod tests;
 
 /// Extracts skill_id from a ship MCP tool name.
 /// "mcp__ship__commit" -> Some("commit")
