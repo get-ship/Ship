@@ -57,10 +57,6 @@ impl TestDaemon {
 
         let api_routes = Router::new()
             .route(
-                "/mesh/register",
-                axum::routing::post(crate::routes::rest_api::mesh_register),
-            )
-            .route(
                 "/mesh/send",
                 axum::routing::post(crate::routes::rest_api::mesh_send),
             )
@@ -320,12 +316,22 @@ impl TestDaemon {
         self.router.clone().oneshot(req).await.unwrap()
     }
 
-    /// Register an agent via POST /api/v1/mesh/register.
+    /// Register an agent via POST /api/v1/actor/spawn — the canonical
+    /// actor-registration surface (register-or-refine). Spawns the actor in
+    /// the kernel with the standard mesh namespaces and stashes its mailbox,
+    /// matching what the retired `mesh/register` shim did.
     pub async fn register_agent(&self, agent_id: &str, caps: &[&str]) -> TestResponse {
         self.post(
-            "/api/v1/mesh/register",
+            "/api/v1/actor/spawn",
             &serde_json::json!({
-                "agent_id": agent_id,
+                "actor_id": agent_id,
+                "config": {
+                    "namespace": agent_id,
+                    "write_namespaces": ["mesh."],
+                    "read_namespaces": ["mesh."],
+                    "subscribe_namespaces": ["mesh."],
+                    "see_directed_events": false,
+                },
                 "capabilities": caps,
             }),
         )

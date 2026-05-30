@@ -19,12 +19,6 @@ pub type SharedKernel = crate::ship_runtime::SharedKernel;
 // ---- Request / Response types ----
 
 #[derive(Deserialize)]
-pub struct MeshRegisterReq {
-    pub agent_id: String,
-    pub capabilities: Vec<String>,
-}
-
-#[derive(Deserialize)]
 pub struct MeshSendReq {
     pub from: String,
     pub to: String,
@@ -55,85 +49,6 @@ pub struct MeshStatusReq {
 pub use crate::wire::MeshResponse;
 
 // ---- Handlers ----
-
-pub async fn mesh_register(
-    State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
-    Json(req): Json<MeshRegisterReq>,
-) -> impl IntoResponse {
-    // MCP callers must register as their authenticated identity — no impersonation.
-    if auth.caller_kind == CallerKind::Mcp
-        && let Some(ref bound_id) = auth.agent_id
-        && bound_id != &req.agent_id
-    {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(format!(
-                    "identity mismatch: authenticated as '{}', cannot register as '{}'",
-                    bound_id, req.agent_id
-                )),
-            }),
-        );
-    }
-
-    // Spawn (or re-spawn) an actor in the kernel for this remote agent
-    // so messages with target_actor_id can be delivered to its mailbox.
-    let mailbox = {
-        let mut kernel = state.kernel().lock().await;
-        // Stop existing actor so we get a fresh mailbox for the SSE endpoint.
-        let _ = kernel.stop_actor(&req.agent_id);
-        let config = ship_substrate::events::ActorConfig {
-            namespace: req.agent_id.clone(),
-            write_namespaces: vec!["mesh.".to_string()],
-            read_namespaces: vec!["mesh.".to_string()],
-            subscribe_namespaces: vec!["mesh.".to_string()],
-            see_directed_events: false,
-        };
-        match kernel.spawn_actor(&req.agent_id, config) {
-            Ok((_store, mailbox)) => Some(mailbox),
-            Err(ship_substrate::errors::KernelError::ActorAlreadyExists { .. }) => {
-                tracing::warn!(agent_id = %req.agent_id, "actor already exists after stop");
-                None
-            }
-            Err(e) => {
-                tracing::warn!(agent_id = %req.agent_id, "actor spawn failed: {e}");
-                None
-            }
-        }
-    }; // kernel lock drops here
-
-    if let Some(mailbox) = mailbox {
-        state.agent_mailboxes().lock().await
-            .insert(req.agent_id.clone(), mailbox);
-    } else {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(format!("actor spawn failed for '{}'", req.agent_id)),
-            }),
-        );
-    }
-
-    let envelope = match EventEnvelope::new(
-        "mesh.register",
-        &req.agent_id,
-        &serde_json::json!({ "agent_id": &req.agent_id, "capabilities": req.capabilities }),
-    )
-    .map(|e| e.with_actor_id(&req.agent_id))
-    {
-        Ok(e) => e,
-        Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
-    };
-
-    let ctx = auth.to_daemon_emit_context();
-    match state.kernel().lock().await.emit(envelope, &ctx).await {
-        Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!(format!("registered: {}", req.agent_id)) })),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
-    }
-}
 
 pub async fn mesh_send(
     State(state): State<ApiState>,

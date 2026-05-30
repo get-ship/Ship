@@ -1,33 +1,19 @@
 //! Actor registration lifecycle tests.
 //!
-//! Directly exercise KernelRouter and mesh_register to isolate failure modes:
-//! re-registration after disconnect, concurrent registration of the same
-//! agent, and idempotent double-registration.
+//! Directly exercise KernelRouter to isolate failure modes: re-registration
+//! after disconnect, idempotent respawn, and subscription cleanup on stop.
+//! (The HTTP-level registration path is `POST /api/v1/actor/spawn`; its
+//! concurrency / idempotency is covered in `integration_tests`.)
 
-use axum::extract::{Json, State};
-use axum::response::IntoResponse;
-use axum::Extension;
-use std::sync::Arc;
 use tempfile::TempDir;
-use tokio::sync::Mutex;
 
 use ship_substrate::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope, KernelRouter};
-use crate::routes::rest_api::{ApiState, MeshRegisterReq, mesh_register};
-use crate::test_harness::TestDaemon;
 
 fn make_kernel(dir: &TempDir) -> KernelRouter {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     KernelRouter::new(ship_dir).unwrap()
-}
-
-fn make_api_state(dir: &TempDir) -> ApiState {
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
-    let kernel = Arc::new(Mutex::new(KernelRouter::new(ship_dir.clone()).unwrap()));
-    Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
 }
 
 fn actor_config(id: &str) -> ActorConfig {
@@ -85,121 +71,6 @@ async fn stop_removes_from_subscriptions() {
     assert!(
         mailbox.try_recv().is_err(),
         "stopped actor must not receive events after stop — subscription leak"
-    );
-}
-
-// ── mesh_register failure modes ─────────────────────────────────────────────
-
-#[tokio::test(flavor = "multi_thread")]
-async fn mesh_register_idempotent() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-    for _ in 0..2 {
-        mesh_register(
-            State(state.clone()),
-            Extension(TestDaemon::cli_auth()),
-            Json(MeshRegisterReq { agent_id: "agent.idem".into(), capabilities: vec![] }),
-        )
-        .await;
-    }
-    assert!(
-        state.kernel().lock().await.has_actor("agent.idem"),
-        "actor must be registered after double mesh_register — idempotent re-register must succeed"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn mesh_register_after_stop_actor() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-    mesh_register(
-        State(state.clone()),
-        Extension(TestDaemon::cli_auth()),
-        Json(MeshRegisterReq { agent_id: "agent.reconnect".into(), capabilities: vec![] }),
-    )
-    .await;
-    state.kernel().lock().await.stop_actor("agent.reconnect").unwrap();
-    mesh_register(
-        State(state.clone()),
-        Extension(TestDaemon::cli_auth()),
-        Json(MeshRegisterReq { agent_id: "agent.reconnect".into(), capabilities: vec![] }),
-    )
-    .await;
-    assert!(
-        state.kernel().lock().await.has_actor("agent.reconnect"),
-        "actor must be re-registered after external stop — reconnect must succeed"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mesh_register_concurrent_same_agent() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-    let s1 = state.clone();
-    let s2 = state.clone();
-    let result = tokio::time::timeout(
-        std::time::Duration::from_secs(2),
-        async {
-            let h1 = tokio::spawn(async move {
-                mesh_register(
-                    State(s1),
-                    Extension(TestDaemon::cli_auth()),
-                    Json(MeshRegisterReq { agent_id: "agent.race".into(), capabilities: vec!["v1".into()] }),
-                )
-                .await;
-            });
-            let h2 = tokio::spawn(async move {
-                mesh_register(
-                    State(s2),
-                    Extension(TestDaemon::cli_auth()),
-                    Json(MeshRegisterReq { agent_id: "agent.race".into(), capabilities: vec!["v2".into()] }),
-                )
-                .await;
-            });
-            h1.await.unwrap();
-            h2.await.unwrap();
-        },
-    )
-    .await;
-    assert!(result.is_ok(), "concurrent registration must not deadlock — must complete within 2s");
-    assert!(
-        state.kernel().lock().await.has_actor("agent.race"),
-        "actor must exist after concurrent registration — one registration must win"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn spawn_actor_error_is_not_silent() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-    let s1 = state.clone();
-    let s2 = state.clone();
-    let (resp1, resp2) = tokio::join!(
-        async move {
-            mesh_register(
-                State(s1),
-                Extension(TestDaemon::cli_auth()),
-                Json(MeshRegisterReq { agent_id: "agent.silent".into(), capabilities: vec![] }),
-            )
-            .await
-            .into_response()
-        },
-        async move {
-            mesh_register(
-                State(s2),
-                Extension(TestDaemon::cli_auth()),
-                Json(MeshRegisterReq { agent_id: "agent.silent".into(), capabilities: vec![] }),
-            )
-            .await
-            .into_response()
-        },
-    );
-    let has = state.kernel().lock().await.has_actor("agent.silent");
-    // Invariant: 200 OK is only valid when the actor is registered.
-    // Silent failure: spawn_actor Err is swallowed, response is 200 but actor absent.
-    assert!(
-        has || !resp1.status().is_success() || !resp2.status().is_success(),
-        "both calls returned 2xx but actor is not registered — spawn_actor error is swallowed silently"
     );
 }
 

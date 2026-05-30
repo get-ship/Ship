@@ -7,9 +7,31 @@ use axum::response::IntoResponse;
 use axum::Extension;
 use tempfile::TempDir;
 
-use crate::auth::AuthContext;
+use crate::routes::actor_api::{actor_spawn, ActorSpawnReq};
 use crate::routes::rest_api::*;
 use crate::test_harness::TestDaemon;
+
+/// Register an agent through the canonical actor/spawn handler with the
+/// standard mesh namespaces — replaces the retired `mesh_register` shim in
+/// tests that only need an actor registered + its mailbox stashed.
+async fn spawn_mesh_actor(state: &ApiState, id: &str) {
+    actor_spawn(
+        State(state.clone()),
+        Extension(TestDaemon::cli_auth()),
+        Json(ActorSpawnReq {
+            actor_id: Some(id.into()),
+            config: ship_substrate::events::ActorConfig {
+                namespace: id.into(),
+                write_namespaces: vec!["mesh.".into()],
+                read_namespaces: vec!["mesh.".into()],
+                subscribe_namespaces: vec!["mesh.".into()],
+                see_directed_events: false,
+            },
+            capabilities: Some(vec![]),
+        }),
+    )
+    .await;
+}
 
 fn make_api_state(dir: &TempDir) -> ApiState {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
@@ -24,93 +46,10 @@ fn make_api_state(dir: &TempDir) -> ApiState {
     std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
 }
 
-// ── mesh_register ───────────────────────────────────────────────────────────
-
-#[tokio::test(flavor = "multi_thread")]
-async fn register_returns_ok() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-
-    let resp = mesh_register(
-        State(state),
-        Extension(TestDaemon::cli_auth()),
-        Json(MeshRegisterReq {
-            agent_id: "agent.test".into(),
-            capabilities: vec!["rust".into()],
-        }),
-    )
-    .await
-    .into_response();
-
-    assert_eq!(resp.status(), StatusCode::OK);
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn register_spawns_actor_in_kernel() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-
-    mesh_register(
-        State(state.clone()),
-        Extension(TestDaemon::cli_auth()),
-        Json(MeshRegisterReq {
-            agent_id: "agent.spawned".into(),
-            capabilities: vec![],
-        }),
-    )
-    .await;
-
-    let kernel = state.kernel().lock().await;
-    assert!(kernel.has_actor("agent.spawned"));
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn register_stashes_mailbox() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-
-    mesh_register(
-        State(state.clone()),
-        Extension(TestDaemon::cli_auth()),
-        Json(MeshRegisterReq {
-            agent_id: "agent.mailbox".into(),
-            capabilities: vec![],
-        }),
-    )
-    .await;
-
-    let mailboxes = state.agent_mailboxes().lock().await;
-    assert!(mailboxes.contains_key("agent.mailbox"));
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn register_twice_replaces_actor() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-
-    mesh_register(
-        State(state.clone()),
-        Extension(TestDaemon::cli_auth()),
-        Json(MeshRegisterReq {
-            agent_id: "agent.twice".into(),
-            capabilities: vec!["v1".into()],
-        }),
-    )
-    .await;
-
-    mesh_register(
-        State(state.clone()),
-        Extension(TestDaemon::cli_auth()),
-        Json(MeshRegisterReq {
-            agent_id: "agent.twice".into(),
-            capabilities: vec!["v2".into()],
-        }),
-    )
-    .await;
-
-    let kernel = state.kernel().lock().await;
-    assert!(kernel.has_actor("agent.twice"));
-}
+// mesh_register removed — actor registration moved to `POST /api/v1/actor/spawn`
+// (register-or-refine). Its spawn / mailbox-stash / idempotency behavior is
+// covered by the actor_spawn path and the kernel-level tests in
+// `supervisor::tests_actor_registration`.
 
 // ── mesh_send ───────────────────────────────────────────────────────────────
 
@@ -281,15 +220,7 @@ async fn mesh_events_registered_agent_has_mailbox() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
 
-    mesh_register(
-        State(state.clone()),
-        Extension(TestDaemon::cli_auth()),
-        Json(MeshRegisterReq {
-            agent_id: "agent.sse-test".into(),
-            capabilities: vec![],
-        }),
-    )
-    .await;
+    spawn_mesh_actor(&state, "agent.sse-test").await;
 
     let has = state.agent_mailboxes().lock().await.contains_key("agent.sse-test");
     assert!(has, "registered agent must have stashed mailbox");
@@ -300,15 +231,7 @@ async fn mesh_events_takes_mailbox_from_stash() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
 
-    mesh_register(
-        State(state.clone()),
-        Extension(TestDaemon::cli_auth()),
-        Json(MeshRegisterReq {
-            agent_id: "agent.take".into(),
-            capabilities: vec![],
-        }),
-    )
-    .await;
+    spawn_mesh_actor(&state, "agent.take").await;
 
     // Remove mailbox as the SSE endpoint would.
     let removed = state.agent_mailboxes().lock().await.remove("agent.take");
@@ -319,68 +242,9 @@ async fn mesh_events_takes_mailbox_from_stash() {
     assert!(gone.is_none(), "mailbox should only be takeable once");
 }
 
-// ── identity binding (S4: agent cannot impersonate) ────────────────────────
-
-#[tokio::test(flavor = "multi_thread")]
-async fn mcp_agent_cannot_register_as_different_id() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-
-    // MCP caller authenticated as "claude-v020" tries to register as "codex-main".
-    let auth = TestDaemon::mcp_auth("claude-v020");
-    let resp = mesh_register(
-        State(state),
-        Extension(auth),
-        Json(MeshRegisterReq {
-            agent_id: "codex-main".into(),
-            capabilities: vec![],
-        }),
-    )
-    .await
-    .into_response();
-
-    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn mcp_agent_can_register_as_own_id() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-
-    let auth = TestDaemon::mcp_auth("claude-v020");
-    let resp = mesh_register(
-        State(state),
-        Extension(auth),
-        Json(MeshRegisterReq {
-            agent_id: "claude-v020".into(),
-            capabilities: vec!["rust".into()],
-        }),
-    )
-    .await
-    .into_response();
-
-    assert_eq!(resp.status(), StatusCode::OK);
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn cli_caller_can_register_any_agent() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-
-    // CLI callers are trusted — no identity binding restriction.
-    let resp = mesh_register(
-        State(state),
-        Extension(TestDaemon::cli_auth()),
-        Json(MeshRegisterReq {
-            agent_id: "any-agent-id".into(),
-            capabilities: vec![],
-        }),
-    )
-    .await
-    .into_response();
-
-    assert_eq!(resp.status(), StatusCode::OK);
-}
+// Identity-binding tests removed with the `mesh_register` REST shim — the
+// `mcp_agent_cannot_send_as_other_agent` / `..._broadcast` / `..._status`
+// tests below still cover MCP identity enforcement on the remaining surface.
 
 // ── capabilities endpoint ──────────────────────────────────────────────────
 
@@ -615,31 +479,5 @@ async fn cli_caller_can_drain_any_mailbox() {
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn mcp_agent_without_agent_id_can_register() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-
-    // MCP caller with no agent_id in auth (e.g. Studio) — allowed.
-    let auth = AuthContext {
-        caller_kind: ship_substrate::events::CallerKind::Mcp,
-        agent_id: None,
-        workspace_id: None,
-        space_id: None,
-        session_id: None,
-        scopes: vec![crate::auth::Scope::Full],
-        grants: vec![],
-    };
-    let resp = mesh_register(
-        State(state),
-        Extension(auth),
-        Json(MeshRegisterReq {
-            agent_id: "studio-agent".into(),
-            capabilities: vec![],
-        }),
-    )
-    .await
-    .into_response();
-
-    assert_eq!(resp.status(), StatusCode::OK);
-}
+// `mcp_agent_without_agent_id_can_register` removed with the `mesh_register`
+// shim — actor/spawn does not gate on a bound MCP agent_id the same way.

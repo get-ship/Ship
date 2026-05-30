@@ -4,6 +4,18 @@
 use crate::test_harness::TestDaemon;
 use ship_substrate::events::{ActorConfig, EventEnvelope};
 
+/// Standard mesh actor config used by actor/spawn registrations in tests —
+/// mirrors the namespaces the retired `mesh/register` shim applied.
+fn mesh_actor_config(id: &str) -> ActorConfig {
+    ActorConfig {
+        namespace: id.into(),
+        write_namespaces: vec!["mesh.".into()],
+        read_namespaces: vec!["mesh.".into()],
+        subscribe_namespaces: vec!["mesh.".into()],
+        see_directed_events: false,
+    }
+}
+
 // ── TestDaemon harness ──────────────────────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -168,11 +180,13 @@ async fn multiple_agents_connect_concurrently() {
     for i in 0..5 {
         let state = daemon.state.clone();
         handles.push(tokio::spawn(async move {
-            let req = crate::routes::rest_api::MeshRegisterReq {
-                agent_id: format!("agent.concurrent-{i}"),
-                capabilities: vec!["test".into()],
+            let id = format!("agent.concurrent-{i}");
+            let req = crate::routes::actor_api::ActorSpawnReq {
+                actor_id: Some(id.clone()),
+                config: mesh_actor_config(&id),
+                capabilities: Some(vec!["test".into()]),
             };
-            crate::routes::rest_api::mesh_register(
+            crate::routes::actor_api::actor_spawn(
                 axum::extract::State(state),
                 axum::Extension(crate::test_harness::TestDaemon::cli_auth()),
                 axum::extract::Json(req),
@@ -296,31 +310,35 @@ async fn mailbox_overflow_evicts_oldest() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn concurrent_mesh_register_same_agent() {
+async fn concurrent_actor_spawn_same_agent() {
     let daemon = TestDaemon::new().await;
 
-    // Two concurrent registrations for the same agent.
+    // Two concurrent registrations for the same agent via actor/spawn
+    // (register-or-refine). One spawns, the other refines — neither panics
+    // and the actor ends up registered.
     let state1 = daemon.state.clone();
     let state2 = daemon.state.clone();
 
     let h1 = tokio::spawn(async move {
-        crate::routes::rest_api::mesh_register(
+        crate::routes::actor_api::actor_spawn(
             axum::extract::State(state1),
             axum::Extension(crate::test_harness::TestDaemon::cli_auth()),
-            axum::extract::Json(crate::routes::rest_api::MeshRegisterReq {
-                agent_id: "agent.race".into(),
-                capabilities: vec!["v1".into()],
+            axum::extract::Json(crate::routes::actor_api::ActorSpawnReq {
+                actor_id: Some("agent.race".into()),
+                config: mesh_actor_config("agent.race"),
+                capabilities: Some(vec!["v1".into()]),
             }),
         )
         .await;
     });
     let h2 = tokio::spawn(async move {
-        crate::routes::rest_api::mesh_register(
+        crate::routes::actor_api::actor_spawn(
             axum::extract::State(state2),
             axum::Extension(crate::test_harness::TestDaemon::cli_auth()),
-            axum::extract::Json(crate::routes::rest_api::MeshRegisterReq {
-                agent_id: "agent.race".into(),
-                capabilities: vec!["v2".into()],
+            axum::extract::Json(crate::routes::actor_api::ActorSpawnReq {
+                actor_id: Some("agent.race".into()),
+                config: mesh_actor_config("agent.race"),
+                capabilities: Some(vec!["v2".into()]),
             }),
         )
         .await;

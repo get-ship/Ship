@@ -507,10 +507,9 @@ pub enum Route {
     // Use the unified /api/artifacts/* surface instead.
 
     // ── Mesh / actors ────────────────────────────────────────────────────
-
-    /// @route POST "/api/v1/mesh/register"
-    /// @auth scope MeshSend
-    MeshRegister,
+    // `mesh/register` removed — the canonical actor-registration surface is
+    // `POST /api/v1/actor/spawn` (register-or-refine). The old REST shim was
+    // dead leftover the #137 cull missed.
 
     /// @route POST "/api/v1/mesh/send"
     /// @auth scope MeshSend

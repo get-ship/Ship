@@ -261,88 +261,9 @@ async fn fresh_daemon_writes_canonical_home_layout() {
     }
 }
 
-#[tokio::test]
-async fn mesh_register_and_discover() {
-    let d = TestDaemon::start().await;
-    let client = d.authed();
-
-    let register = client
-        .post(d.url("/api/v1/mesh/register"))
-        .json(&serde_json::json!({
-            "agent_id": "smoke-agent",
-            "capabilities": ["test"]
-        }))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(register.status(), 200);
-
-    let discover = client.get(d.url("/api/v1/mesh/discover")).send().await.unwrap();
-    assert_eq!(discover.status(), 200);
-    let body: serde_json::Value = discover.json().await.unwrap();
-    let agents = &body["data"]["agents"];
-    assert!(
-        agents.as_array().unwrap().iter().any(|a| a["agent_id"] == "smoke-agent"),
-        "registered agent not found in discover: {body}"
-    );
-}
-
-/// Library-skill invoke happy path. Creates a skill via the public API,
-/// invokes it, then checks the response carries the documented shape
-/// (`run_id`, `session_id`, `mode`, `reused_session`).
-#[tokio::test]
-async fn invoke_library_skill_returns_run_and_session() {
-    let d = TestDaemon::start().await;
-    let client = d.authed();
-
-    // Create a real skill in the user scope (project scope requires a
-    // workspace; the test daemon launches without one).
-    let create = client
-        .post(d.url("/api/v1/skills?scope=user"))
-        .json(&serde_json::json!({
-            "id": "smoke-invoke",
-            "scope": "user",
-            "frontmatter": {
-                "name": "smoke-invoke",
-                "description": "smoke test skill",
-            },
-            "body": "# smoke-invoke\n\nattach me.",
-        }))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(create.status(), 201, "create: {:?}", create.text().await);
-
-    let res = client
-        .post(d.url("/api/v1/skills/smoke-invoke/invoke?scope=user"))
-        .json(&serde_json::json!({}))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(res.status(), 200);
-    let body: serde_json::Value = res.json().await.unwrap();
-    assert_eq!(body["ok"], true);
-    assert_eq!(body["skill_id"], "smoke-invoke");
-    assert_eq!(body["mode"], "library");
-    // No active agent session => fall back to run_id as session_id.
-    assert_eq!(body["reused_session"], false);
-    let run_id = body["run_id"].as_str().expect("run_id string");
-    let session_id = body["session_id"].as_str().expect("session_id string");
-    assert!(!run_id.is_empty(), "run_id must be non-empty");
-    assert_eq!(session_id, run_id, "fallback session_id should mirror run_id");
-}
-
-/// 404 path — invoking a skill that doesn't exist must not emit any
-/// lifecycle events.
-#[tokio::test]
-async fn invoke_unknown_skill_404s() {
-    let d = TestDaemon::start().await;
-    let res = d
-        .authed()
-        .post(d.url("/api/v1/skills/nope-not-real/invoke?scope=user"))
-        .json(&serde_json::json!({}))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(res.status(), 404);
-}
+// `mesh_register_and_discover`, `invoke_library_skill_returns_run_and_session`,
+// and `invoke_unknown_skill_404s` removed — they exercised dead REST surface.
+// `POST /api/v1/mesh/register` and `POST /api/v1/skills[/:id/invoke]` no longer
+// exist; the canonical surfaces are `POST /api/v1/actor/spawn` and the Connect
+// `ship.skills.*` ops (covered by the contract tests). `mesh_discover_requires_auth`
+// above still guards the read-side `GET /api/v1/mesh/discover` auth gate.

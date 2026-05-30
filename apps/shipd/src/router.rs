@@ -366,7 +366,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     Router::new()
         // Mesh / actors
-        .ship_route(Route::MeshRegister, rest_api::mesh_register)
         .ship_route(Route::MeshSend, rest_api::mesh_send)
         .ship_route(Route::MeshBroadcast, rest_api::mesh_broadcast)
         .ship_route(Route::MeshDiscover, rest_api::mesh_discover)
