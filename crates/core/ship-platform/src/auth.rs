@@ -13,3 +13,6 @@ pub mod peer_identity;
 pub mod scopes;
 pub mod session;
 pub mod sweeper;
+
+#[cfg(test)]
+mod tests;
