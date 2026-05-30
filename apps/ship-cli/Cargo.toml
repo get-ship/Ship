@@ -46,9 +46,13 @@ tracing-appender = { workspace = true }
 regex = { workspace = true }
 ratatui = "0.29"
 crossterm = "0.28"
+dhat = { version = "0.3", optional = true }
 
 [features]
 unstable = ["ship-platform/unstable", "shipd/unstable"]
+# Heap profiling for the daemon-run process (#193 leak hunt). Off by default;
+# build with `--features dhat-heap` to capture a dhat profile on graceful exit.
+dhat-heap = ["dep:dhat"]
 
 # ── cargo-deb (Linux .deb) ────────────────────────────────────────────────────
 # Invoked by CI on tag push: `cargo deb -p ship-cli --no-build`.

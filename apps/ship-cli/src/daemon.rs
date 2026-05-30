@@ -580,6 +580,17 @@ extern "C" fn signal_handler(_sig: libc::c_int) {
 }
 
 fn daemon_run(host: String, port: u16, dev: bool) -> Result<()> {
+    // #193 leak hunt: start the heap profiler for the daemon-run process only
+    // (CLI invocations stay clean). Held across `run_network`; flushes a dhat
+    // profile to DHAT_HEAP_FILE when run_network returns on graceful shutdown.
+    // Build with `--features dhat-heap`.
+    #[cfg(feature = "dhat-heap")]
+    let _dhat = {
+        let file = std::env::var("DHAT_HEAP_FILE")
+            .unwrap_or_else(|_| "/tmp/dhat-shipd-heap.json".to_string());
+        dhat::Profiler::builder().file_name(file).build()
+    };
+
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
