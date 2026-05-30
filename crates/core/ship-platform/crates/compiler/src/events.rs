@@ -7,7 +7,7 @@
 use serde_json::{Map, Value, json};
 
 /// Ship built-in event definitions, embedded at compile time.
-const SHIP_EVENTS_RAW: &str = include_str!("../../../../schemas/ship-events.json");
+const SHIP_EVENTS_RAW: &str = include_str!("../../../../../../schemas/ship-events.json");
 
 /// Resolve a list of Ship built-in event names into their full definitions.
 ///

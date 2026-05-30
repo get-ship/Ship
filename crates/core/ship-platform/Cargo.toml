@@ -8,13 +8,13 @@ description = "L1 platform primitives — agents, collections, artifacts, trigge
 
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
-ship-host = { path = "../ship-host" }
-ship-analytics = { path = "../ship-analytics" }
-ship-kernel = { path = "../ship-kernel" }
-ship-types = { path = "../ship-types" }
-ship-pipelines = { path = "../ship-pipelines", features = ["specta"] }
-ship-gateway-client = { path = "../ship-gateway-client" }
-compiler = { path = "../compiler", features = ["specta"] }
+ship-host = { path = "../ship-substrate/crates/ship-host" }
+ship-analytics = { path = "crates/ship-analytics" }
+ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
+ship-types = { path = "../ship-substrate/crates/ship-types" }
+ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines", features = ["specta"] }
+ship-gateway-client = { path = "crates/ship-gateway-client" }
+compiler = { path = "crates/compiler", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde_yaml = { workspace = true }

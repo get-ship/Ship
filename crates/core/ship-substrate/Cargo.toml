@@ -9,11 +9,11 @@ publish = false
 unstable = []
 
 [dependencies]
-ship-kernel = { path = "../ship-kernel" }
-ship-host = { path = "../ship-host" }
-ship-types = { path = "../ship-types" }
-ship-events-macro = { path = "../ship-events-macro" }
-ship-pipelines = { path = "../ship-pipelines", features = ["specta"] }
+ship-kernel = { path = "crates/ship-kernel" }
+ship-host = { path = "crates/ship-host" }
+ship-types = { path = "crates/ship-types" }
+ship-events-macro = { path = "crates/ship-events-macro" }
+ship-pipelines = { path = "crates/ship-pipelines", features = ["specta"] }
 inventory = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

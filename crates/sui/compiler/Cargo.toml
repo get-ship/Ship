@@ -12,7 +12,7 @@ crate-type = ["lib", "cdylib"]
 path = "src/lib.rs"
 
 [build-dependencies]
-build-info = { path = "../../core/build-info" }
+build-info = { path = "../../build-info" }
 
 [[bin]]
 name = "sui-compiler"
@@ -54,7 +54,7 @@ optional = true
 path = "../lint"
 
 [dependencies.build-info]
-path = "../../core/build-info"
+path = "../../build-info"
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -7,7 +7,7 @@
 // the bundled binary.
 fn main() {
     let proto_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../proto");
+        .join("../../../../../proto");
 
     // SAFETY: build script runs single-threaded before any user code; setting
     // process env here is safe and only affects this build script's spawn of

@@ -18,7 +18,7 @@ use ship_gateway_client::{
     TokenExchangeResponse,
 };
 
-const FIXTURES_JSON: &str = include_str!("../../../../proto/fixtures/auth_service.json");
+const FIXTURES_JSON: &str = include_str!("../../../../../../proto/fixtures/auth_service.json");
 
 fn fixture_response_ok(method: &str) -> String {
     let v: serde_json::Value = serde_json::from_str(FIXTURES_JSON).expect("fixtures parse");

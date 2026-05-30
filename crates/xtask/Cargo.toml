@@ -10,15 +10,15 @@ name = "xtask"
 path = "src/main.rs"
 
 [dependencies]
-compiler = { path = "../core/compiler", features = ["specta"] }
+compiler = { path = "../core/ship-platform/crates/compiler", features = ["specta"] }
 ship-substrate = { path = "../core/ship-substrate" }
 ship-platform = { path = "../core/ship-platform", features = ["specta"] }
-ship-types = { path = "../core/ship-types", features = ["specta"] }
+ship-types = { path = "../core/ship-substrate/crates/ship-types", features = ["specta"] }
 deck = { path = "../deck/deck", features = ["specta"] }
 shipd = { path = "../../apps/shipd", features = ["specta"] }
 # Proto response types — gen-fixtures decodes the themed corpus into these to
 # validate fixtures against the wire SSOT.
-ship-ops-rpc = { path = "../core/ship-ops-rpc" }
+ship-ops-rpc = { path = "../core/ship-platform/crates/ship-ops-rpc" }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 specta-typescript = "0.0.9"
 serde = { workspace = true }

@@ -7,7 +7,7 @@ build = "build.rs"
 
 [build-dependencies]
 syn = { version = "2", features = ["full", "extra-traits"] }
-build-info = { path = "../../crates/core/build-info" }
+build-info = { path = "../../crates/build-info" }
 
 [lib]
 name = "shipd"
@@ -20,14 +20,14 @@ path = "src/main.rs"
 [dependencies]
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
-ship-host = { path = "../../crates/core/ship-host" }
-ship-pipelines = { path = "../../crates/core/ship-pipelines" }
-ship-supervisor = { path = "../../crates/core/ship-supervisor" }
-ship-types = { path = "../../crates/core/ship-types" }
-ship-analytics = { path = "../../crates/core/ship-analytics" }
-compiler = { path = "../../crates/core/compiler" }
-build-info = { path = "../../crates/core/build-info" }
-ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
+ship-host = { path = "../../crates/core/ship-substrate/crates/ship-host" }
+ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }
+ship-supervisor = { path = "../../crates/core/ship-substrate/crates/ship-supervisor" }
+ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
+ship-analytics = { path = "../../crates/core/ship-platform/crates/ship-analytics" }
+compiler = { path = "../../crates/core/ship-platform/crates/compiler" }
+build-info = { path = "../../crates/build-info" }
+ship-ops-rpc = { path = "../../crates/core/ship-platform/crates/ship-ops-rpc" }
 connectrpc = { version = "0.4", features = ["axum", "client"] }
 # Descriptor decode for the op-policy gate (reads proto custom options).
 buffa = "0.5"

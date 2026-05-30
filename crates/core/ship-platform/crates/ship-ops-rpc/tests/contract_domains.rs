@@ -12,19 +12,19 @@ use ship_ops_rpc::{
     SpecDetail, SpecGetResponse, SpecsListResponse, ToolPatternsResponse, WorkspaceActiveResponse,
 };
 
-const ARTIFACTS: &str = include_str!("../../../../proto/fixtures/artifacts_service.json");
-const CHAT: &str = include_str!("../../../../proto/fixtures/chat_service.json");
-const COLLECTIONS: &str = include_str!("../../../../proto/fixtures/collections_service.json");
-const EVENTS: &str = include_str!("../../../../proto/fixtures/events_service.json");
-const MCP: &str = include_str!("../../../../proto/fixtures/mcp_service.json");
-const PERMISSIONS: &str = include_str!("../../../../proto/fixtures/permissions_service.json");
-const PIPELINES: &str = include_str!("../../../../proto/fixtures/pipelines_service.json");
-const SPACE: &str = include_str!("../../../../proto/fixtures/space_service.json");
-const RUNTIME: &str = include_str!("../../../../proto/fixtures/runtime_service.json");
-const SESSIONS: &str = include_str!("../../../../proto/fixtures/sessions_service.json");
-const SETTINGS: &str = include_str!("../../../../proto/fixtures/settings_service.json");
-const SKILLS: &str = include_str!("../../../../proto/fixtures/skills_service.json");
-const SPECS: &str = include_str!("../../../../proto/fixtures/specs_service.json");
+const ARTIFACTS: &str = include_str!("../../../../../../proto/fixtures/artifacts_service.json");
+const CHAT: &str = include_str!("../../../../../../proto/fixtures/chat_service.json");
+const COLLECTIONS: &str = include_str!("../../../../../../proto/fixtures/collections_service.json");
+const EVENTS: &str = include_str!("../../../../../../proto/fixtures/events_service.json");
+const MCP: &str = include_str!("../../../../../../proto/fixtures/mcp_service.json");
+const PERMISSIONS: &str = include_str!("../../../../../../proto/fixtures/permissions_service.json");
+const PIPELINES: &str = include_str!("../../../../../../proto/fixtures/pipelines_service.json");
+const SPACE: &str = include_str!("../../../../../../proto/fixtures/space_service.json");
+const RUNTIME: &str = include_str!("../../../../../../proto/fixtures/runtime_service.json");
+const SESSIONS: &str = include_str!("../../../../../../proto/fixtures/sessions_service.json");
+const SETTINGS: &str = include_str!("../../../../../../proto/fixtures/settings_service.json");
+const SKILLS: &str = include_str!("../../../../../../proto/fixtures/skills_service.json");
+const SPECS: &str = include_str!("../../../../../../proto/fixtures/specs_service.json");
 
 fn response_ok(fixtures_json: &str, method: &str) -> String {
     let v: Value = serde_json::from_str(fixtures_json).expect("fixtures parse");

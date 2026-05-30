@@ -17,10 +17,10 @@ use ship_ops_rpc::{
     GitOverviewResponse, RuleGetResponse, RulesIndexResponse, StatusBuckets,
 };
 
-const AGENTS: &str = include_str!("../../../../proto/fixtures/agents_service.json");
-const ANALYTICS: &str = include_str!("../../../../proto/fixtures/analytics_service.json");
-const GIT: &str = include_str!("../../../../proto/fixtures/git_service.json");
-const RULES: &str = include_str!("../../../../proto/fixtures/rules_service.json");
+const AGENTS: &str = include_str!("../../../../../../proto/fixtures/agents_service.json");
+const ANALYTICS: &str = include_str!("../../../../../../proto/fixtures/analytics_service.json");
+const GIT: &str = include_str!("../../../../../../proto/fixtures/git_service.json");
+const RULES: &str = include_str!("../../../../../../proto/fixtures/rules_service.json");
 
 /// The `response_ok` body for a method, as a `Value` ready to decode via
 /// `from_value`. Returns the parsed node directly rather than re-serializing to
