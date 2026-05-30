@@ -260,3 +260,26 @@ fn test_property_event_ordering() -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn registry_actor_created_is_device_ephemeral() {
+    let def = ship_types::event_registry::lookup("actor.created")
+        .expect("actor.created must be in registry");
+    assert_eq!(def.scope, ship_types::event_registry::EventScope::Device);
+    assert_eq!(def.retention, ship_types::event_registry::Retention::Ephemeral);
+}
+
+#[test]
+fn registry_names_are_unique() {
+    let names = ship_types::event_registry::all_names();
+    let mut set = std::collections::HashSet::new();
+    for name in &names {
+        assert!(set.insert(*name), "duplicate event name in registry: {name}");
+    }
+}
+
+#[test]
+fn registry_has_entries() {
+    let count = ship_types::event_registry::all_names().len();
+    assert!(count >= 100, "registry must have at least 100 events; got {count}");
+}

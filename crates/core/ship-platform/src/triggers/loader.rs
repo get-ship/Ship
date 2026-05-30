@@ -2,7 +2,10 @@
 
 use std::path::Path;
 
-use ship_types::event_types::ALL as KNOWN_EVENT_TYPES;
+// event_types::ALL is a static-slice shim kept for backward compat.
+// Trigger validation uses the live inventory registry so new events are
+// accepted immediately without a manual list update.
+use ship_types::event_registry;
 
 use super::def::{HookAction, HookActionType, HookDef, TriggerSourceDef};
 
@@ -193,7 +196,7 @@ fn validate_action(action: &HookAction, idx: usize, ship_dir: &Path) -> Result<(
 }
 
 fn is_known_event(event: &str) -> bool {
-    KNOWN_EVENT_TYPES.contains(&event)
+    event_registry::lookup(event).is_some()
 }
 
 fn log_errors(report: &LoadReport) {

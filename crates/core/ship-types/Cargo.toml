@@ -10,6 +10,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 ulid = { workspace = true }
+inventory = { workspace = true }
+ship-events-macro = { path = "../ship-events-macro" }
 specta = { workspace = true, features = ["chrono"], optional = true }
 
 [features]

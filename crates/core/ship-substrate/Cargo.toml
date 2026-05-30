@@ -12,7 +12,9 @@ unstable = []
 ship-kernel = { path = "../ship-kernel" }
 ship-host = { path = "../ship-host" }
 ship-types = { path = "../ship-types" }
+ship-events-macro = { path = "../ship-events-macro" }
 ship-pipelines = { path = "../ship-pipelines", features = ["specta"] }
+inventory = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 anyhow = { workspace = true }
