@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "actor.stopped",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "ActorStopped",
+    "needs_author": false
+  },
+  "payload": {
+    "reason": "natural-exit"
+  }
+}

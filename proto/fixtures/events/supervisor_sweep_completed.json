@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "supervisor.sweep_completed",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "SweepCompletedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "checked": 10,
+    "anomalies": 0
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "supervisor.coherence_restored",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "CoherenceRestoredPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "actor_id": "test-actor"
+  }
+}

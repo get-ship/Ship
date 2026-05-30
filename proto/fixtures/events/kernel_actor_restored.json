@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "kernel.actor.restored",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "KernelActorRestored",
+    "needs_author": false
+  },
+  "payload": {
+    "actor_id": "test-actor",
+    "event_count": 42
+  }
+}

@@ -2,6 +2,44 @@
   "Active": {
     "response_ok": {
       "id": "harbor"
+    },
+    "request": {}
+  },
+  "Info": {
+    "response_ok": {
+      "spaceId": "harbor-space-id",
+      "root": "/home/harbor/projects/harbor",
+      "name": "harbor"
+    },
+    "request": {}
+  },
+  "WindowIntent": {
+    "response_ok": {
+      "decision": "allow",
+      "actorId": "harbor-actor-id"
+    },
+    "request": {
+      "space_id": "test-space-id"
+    }
+  },
+  "WindowList": {
+    "response_ok": {
+      "windows": [
+        {
+          "actorId": "harbor-actor-id",
+          "spaceId": "harbor-space-id",
+          "live": true
+        }
+      ]
+    },
+    "request": {}
+  },
+  "CloseWindow": {
+    "response_ok": {
+      "closed": true
+    },
+    "request": {
+      "actor_id": "test-actor_id"
     }
   },
   "Add": {
@@ -11,39 +49,20 @@
       "name": "Harbor",
       "created_at": "2026-01-01T00:00:00Z",
       "last_seen_at": "2026-05-24T18:30:00Z"
-    }
-  },
-  "Info": {
-    "response_ok": {
-      "space_id": "harbor",
-      "root": "/home/dev/harbor",
-      "name": "Harbor",
-      "settings_json": "{\"theme\":\"dark\"}"
+    },
+    "request": {
+      "path": "test/path.md",
+      "name": "test-name"
     }
   },
   "SetSetting": {
     "response_ok": {
       "key": "theme",
       "value_json": "\"dark\""
-    }
-  },
-  "WindowIntent": {
-    "response_ok": {
-      "decision": "focus",
-      "actor_id": "window-harbor-01"
-    }
-  },
-  "WindowList": {
-    "response_ok": {
-      "windows": [
-        { "actor_id": "window-harbor-01", "space_id": "harbor", "pid": 4242, "live": true }
-      ]
-    }
-  },
-  "CloseWindow": {
-    "response_ok": {
-      "closed": true,
-      "token_revoked": true
+    },
+    "request": {
+      "key": "test-key",
+      "value_json": "test-value_json"
     }
   }
 }

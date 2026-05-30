@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "pipeline.step.done_declared",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "PipelineStepDoneDeclaredPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id",
+    "step_id": "step-1",
+    "slug": "test-slug"
+  }
+}

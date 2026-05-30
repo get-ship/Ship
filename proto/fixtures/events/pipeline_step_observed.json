@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "pipeline.step.observed",
+    "scope": "space",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "PipelineStepObservedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id",
+    "step_id": "step-1"
+  }
+}

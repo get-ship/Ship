@@ -27,6 +27,7 @@ members = [
     "apps/shipd",
     "apps/ship-cli",
     "apps/shell/src-tauri",
+    "tests/contract",
 ]
 # Throwaway spikes / build scratch under .artifacts declare their own
 # [workspace] and must not be pulled into this one.

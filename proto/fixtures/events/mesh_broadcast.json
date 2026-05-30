@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "mesh.broadcast",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "MeshBroadcast",
+    "needs_author": false
+  },
+  "payload": {
+    "message_type": "test.broadcast"
+  }
+}

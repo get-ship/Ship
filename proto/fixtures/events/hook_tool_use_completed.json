@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "hook.tool_use_completed",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "HookToolUseCompletedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "tool": "Read",
+    "session_id": "test-session"
+  }
+}

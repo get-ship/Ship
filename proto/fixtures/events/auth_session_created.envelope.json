@@ -1,0 +1,25 @@
+{
+  "_meta": {
+    "event": "auth.session.created",
+    "scope": "account",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "AuthSessionCreated",
+    "needs_author": false
+  },
+  "envelope": {
+    "id": "01JTEST000000000000000EVENT",
+    "event_type": "auth.session.created",
+    "entity_id": "test-entity-id",
+    "actor_id": "test-actor-id",
+    "space_id": "",
+    "occurred_at": "2026-01-01T00:00:00Z",
+    "payload": {
+      "agent_id": "test-agent",
+      "scopes_json": "[\"ship.git.read\"]",
+      "created_at_unix": 1717200000,
+      "expires_at_unix": 1717286400,
+      "source": "operator"
+    }
+  }
+}

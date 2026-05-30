@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "agent.task.complete",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "AgentTaskComplete",
+    "needs_author": false
+  },
+  "payload": {
+    "task_id": "test-task",
+    "task_type": "code-review"
+  }
+}

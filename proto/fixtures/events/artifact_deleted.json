@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "artifact.deleted",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "ArtifactDeleted",
+    "needs_author": false
+  },
+  "payload": {
+    "id": "test-artifact-id",
+    "scope": "space"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "_meta": {
+    "event": "pipeline.run.blocked",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "PipelineRunBlockedPayload",
+    "needs_author": false
+  },
+  "envelope": {
+    "id": "01JTEST000000000000000EVENT",
+    "event_type": "pipeline.run.blocked",
+    "entity_id": "test-entity-id",
+    "actor_id": "test-actor-id",
+    "space_id": "test-space-id",
+    "occurred_at": "2026-01-01T00:00:00Z",
+    "payload": {
+      "pipeline_run_id": "test-run-id",
+      "blocker": "waiting for review",
+      "needs_human": true
+    }
+  }
+}

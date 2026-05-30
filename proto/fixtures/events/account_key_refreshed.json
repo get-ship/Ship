@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "event": "account.key_refreshed",
+    "scope": "account",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "AccountKeyRefreshed",
+    "needs_author": false
+  },
+  "payload": {}
+}

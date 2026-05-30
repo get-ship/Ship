@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "event": "pipeline.step.retry",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "PipelineStepRetry",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id",
+    "step_id": "step-1",
+    "retry_count": 1,
+    "reason": "transient error"
+  }
+}

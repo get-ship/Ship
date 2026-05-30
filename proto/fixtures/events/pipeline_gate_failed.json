@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "pipeline.gate.failed",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "PipelineGateFailedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id",
+    "reason": "tests failed"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "mesh.status",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "MeshStatus",
+    "needs_author": false
+  },
+  "payload": {
+    "actor_id": "test-actor",
+    "status": "running"
+  }
+}

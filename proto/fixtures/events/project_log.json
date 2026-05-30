@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "project.log",
+    "scope": "space",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "ProjectLog",
+    "needs_author": false
+  },
+  "payload": {
+    "action": "test-action",
+    "details": "test details"
+  }
+}

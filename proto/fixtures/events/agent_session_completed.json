@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "agent.session.completed",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "AgentSessionCompletedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "session_id": "test-session-id",
+    "slug": "test-agent-session-completed",
+    "exit_code": 0
+  }
+}

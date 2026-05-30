@@ -17,6 +17,7 @@
           "harness_session_id": "sess-rust-lane-1"
         }
       ]
-    }
+    },
+    "request": {}
   }
 }

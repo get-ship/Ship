@@ -30,7 +30,8 @@
           "label": "untracked"
         }
       ]
-    }
+    },
+    "request": {}
   },
   "Log": {
     "response_ok": {
@@ -54,6 +55,9 @@
           "deletions": 0
         }
       ]
+    },
+    "request": {
+      "limit": 0
     }
   },
   "Branches": {
@@ -76,7 +80,8 @@
       ],
       "ahead": 2,
       "behind": 0
-    }
+    },
+    "request": {}
   },
   "Overview": {
     "response_ok": {
@@ -134,6 +139,10 @@
       ],
       "ahead": 2,
       "behind": 0
+    },
+    "request": {
+      "workspace_id": "test-workspace_id",
+      "limit": 0
     }
   },
   "Diff": {
@@ -175,6 +184,10 @@
         "total_additions": 3,
         "total_deletions": 0
       }
+    },
+    "request": {
+      "commit": "test-commit",
+      "workspace_id": "test-workspace_id"
     }
   }
 }

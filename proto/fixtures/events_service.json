@@ -49,6 +49,13 @@
         "rust-lane",
         "code-reviewer"
       ]
+    },
+    "request": {
+      "limit": 0,
+      "event_type": "test-event_type",
+      "actor": "test-actor",
+      "entity": "test-entity",
+      "q": "test-q"
     }
   }
 }

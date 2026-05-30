@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "artifact.moved",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "ArtifactMoved",
+    "needs_author": false
+  },
+  "payload": {
+    "id": "test-artifact-id",
+    "from_scope": "space",
+    "to_scope": "account"
+  }
+}

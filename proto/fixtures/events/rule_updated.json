@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "rule.updated",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "RuleUpdated",
+    "needs_author": false
+  },
+  "payload": {
+    "file_name": "test-rule.md",
+    "content_hash": "sha256-test"
+  }
+}

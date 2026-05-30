@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "event": "workspace.activated",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "deprecated",
+    "payload_type": "WorkspaceActivated",
+    "needs_author": true
+  },
+  "envelope": {
+    "id": "01JTEST000000000000000EVENT",
+    "event_type": "workspace.activated",
+    "entity_id": "test-entity-id",
+    "actor_id": "test-actor-id",
+    "space_id": "",
+    "occurred_at": "2026-01-01T00:00:00Z",
+    "payload": {
+      "_note": "NEEDS_AUTHOR: WorkspaceActivated — auto-stub not possible; hand-author this fixture",
+      "_payload_type": "WorkspaceActivated"
+    }
+  }
+}

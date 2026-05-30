@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "supervisor.drift_detected",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "DriftDetectedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "actor_id": "test-actor",
+    "expected": "running",
+    "actual": "stopped"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "pipeline.run.blocked",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "PipelineRunBlockedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id",
+    "blocker": "waiting for review",
+    "needs_human": true
+  }
+}

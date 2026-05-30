@@ -1,0 +1,17 @@
+{
+  "_meta": {
+    "event": "process.spawned",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "ProcessSpawnedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pid": 12345,
+    "cmd": "claude",
+    "args": [
+      "--dangerously-skip-permissions"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "pipeline.run.updated",
+    "scope": "space",
+    "retention": "ephemeral",
+    "stability": "deprecated",
+    "payload_type": "PipelineRunUpdatedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id",
+    "message": "continue with approach B",
+    "sender": "human"
+  }
+}

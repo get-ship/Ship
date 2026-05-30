@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "mesh.message",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "MeshMessage",
+    "needs_author": false
+  },
+  "payload": {
+    "from": "actor-a",
+    "to": "actor-b",
+    "message_type": "test.msg"
+  }
+}

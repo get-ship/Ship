@@ -7471,6 +7471,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-contract-tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde_json",
+ "ship-ops-rpc",
+ "ship-substrate",
+ "ship-types",
+]
+
+[[package]]
 name = "ship-events-macro"
 version = "0.1.0"
 dependencies = [

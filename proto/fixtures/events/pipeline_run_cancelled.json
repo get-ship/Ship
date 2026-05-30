@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "event": "pipeline.run.cancelled",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "PipelineRunCancelledPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id",
+    "slug": "test-slug",
+    "reason": "operator-stop",
+    "requested_by": "operator"
+  }
+}

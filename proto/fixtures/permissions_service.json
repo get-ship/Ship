@@ -15,7 +15,8 @@
           "scope": "project"
         }
       ]
-    }
+    },
+    "request": {}
   },
   "ToolPatterns": {
     "response_ok": {
@@ -41,30 +42,50 @@
           "source": "builtin"
         }
       ]
-    }
+    },
+    "request": {}
   },
   "Create": {
     "response_ok": {
       "id": "allow-bash-read",
       "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "preset_json": "test-preset_json",
+      "scope": "test-scope"
     }
   },
   "Put": {
     "response_ok": {
       "id": "allow-bash-read",
       "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "preset_json": "test-preset_json",
+      "scope": "test-scope"
     }
   },
   "Patch": {
     "response_ok": {
       "id": "allow-bash-read",
       "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "patch_json": "test-patch_json",
+      "scope": "test-scope"
     }
   },
   "Delete": {
     "response_ok": {
       "id": "deny-rm-rf",
       "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "scope": "test-scope"
     }
   }
 }

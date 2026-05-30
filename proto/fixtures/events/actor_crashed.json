@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "actor.crashed",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "ActorCrashed",
+    "needs_author": false
+  },
+  "payload": {
+    "error": "test-crash-error",
+    "restart_count": 0
+  }
+}

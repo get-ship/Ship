@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "session.drain_completed",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "SessionDrainCompleted",
+    "needs_author": false
+  },
+  "payload": {
+    "ended_at": "2026-01-01T00:00:00Z"
+  }
+}

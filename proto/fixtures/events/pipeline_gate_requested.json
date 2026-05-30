@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "pipeline.gate.requested",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "PipelineGateRequestedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id",
+    "gate_agent": "code-reviewer"
+  }
+}

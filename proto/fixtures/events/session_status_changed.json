@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "session.status_changed",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "SessionStatusChanged",
+    "needs_author": false
+  },
+  "payload": {
+    "from": "running",
+    "to": "idle"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "daemon.shutdown_completed",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "DaemonShutdownCompleted",
+    "needs_author": false
+  },
+  "payload": {
+    "pid": 12345,
+    "uptime_secs": 3600
+  }
+}

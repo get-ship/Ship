@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "daemon.owner.bound",
+    "scope": "account",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "DaemonOwnerBound",
+    "needs_author": false
+  },
+  "payload": {
+    "source": "cli-login",
+    "bound_at_unix": 1717200000
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "_meta": {
+    "event": "skill.attached_to_session",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "deprecated",
+    "payload_type": "SkillAttachedToSession",
+    "needs_author": false
+  },
+  "envelope": {
+    "id": "01JTEST000000000000000EVENT",
+    "event_type": "skill.attached_to_session",
+    "entity_id": "test-entity-id",
+    "actor_id": "test-actor-id",
+    "space_id": "",
+    "occurred_at": "2026-01-01T00:00:00Z",
+    "payload": {
+      "skill_id": "test-skill",
+      "run_id": "test-run",
+      "session_id": "test-session",
+      "mode": "library",
+      "reused": false
+    }
+  }
+}

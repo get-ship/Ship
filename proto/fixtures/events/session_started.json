@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "session.started",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "SessionStarted",
+    "needs_author": false
+  },
+  "payload": {
+    "workspace_id": "test-workspace",
+    "branch": "main"
+  }
+}

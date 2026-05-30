@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "human.response",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "HumanResponse",
+    "needs_author": false
+  },
+  "payload": {
+    "conversation_id": "test-conversation",
+    "text": "proceed with option A"
+  }
+}

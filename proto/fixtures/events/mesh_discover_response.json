@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "event": "mesh.discover.response",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "MeshDiscoverResponse",
+    "needs_author": false
+  },
+  "payload": {
+    "peers": [
+      "peer-1",
+      "peer-2"
+    ]
+  }
+}

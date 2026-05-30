@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "session.drain_aborted",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "SessionDrainAborted",
+    "needs_author": false
+  },
+  "payload": {
+    "resumed_at": "2026-01-01T00:00:00Z"
+  }
+}

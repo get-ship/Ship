@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "event": "process.orphaned",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "deprecated",
+    "payload_type": "ProcessOrphaned",
+    "needs_author": false
+  },
+  "payload": {
+    "pid": 99999,
+    "cmd": "claude",
+    "last_known_slug": null,
+    "detected_by": "sweep"
+  }
+}

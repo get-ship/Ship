@@ -70,7 +70,8 @@ pub fn dispatch(cmd: &str, args: &[String]) {
             }
         }
         "gen-fixtures" => {
-            if let Err(e) = gen_fixtures::run() {
+            let trailing: Vec<&str> = args.iter().map(String::as_str).collect();
+            if let Err(e) = gen_fixtures::run_with_args(&trailing) {
                 eprintln!("gen-fixtures failed: {e:#}");
                 std::process::exit(1);
             }

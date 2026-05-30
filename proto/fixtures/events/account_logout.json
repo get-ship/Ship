@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "account.logout",
+    "scope": "account",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "AccountLogout",
+    "needs_author": false
+  },
+  "payload": {
+    "had_token": true,
+    "key_revoked": false
+  }
+}

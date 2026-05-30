@@ -17,6 +17,17 @@
       ],
       "count": 1,
       "scope": "project"
+    },
+    "request": {
+      "scope": "test-scope",
+      "mime": "test-mime",
+      "collection_id": "test-collection_id",
+      "item_id": "test-item_id",
+      "owner_actor": "test-owner_actor",
+      "content_hash": "test-content_hash",
+      "sort": "test-sort",
+      "limit": 0,
+      "offset": 0
     }
   },
   "Patch": {
@@ -31,6 +42,12 @@
       "run_id": "job-checkout-flow-a1b2c3d",
       "owner_actor": "actor-rust-lane-harbor",
       "created_at": "2026-05-24T18:30:00Z"
+    },
+    "request": {
+      "id": "test-id",
+      "name": "test-name",
+      "owner_actor": "test-owner_actor",
+      "expires_at": "test-expires_at"
     }
   },
   "Promote": {
@@ -45,12 +62,21 @@
       "run_id": "job-checkout-flow-a1b2c3d",
       "owner_actor": "actor-rust-lane-harbor",
       "created_at": "2026-05-24T18:30:00Z"
+    },
+    "request": {
+      "id": "test-id",
+      "target_scope": "test-target_scope",
+      "run_id": "test-run_id",
+      "user_id": "test-user_id"
     }
   },
   "Delete": {
     "response_ok": {
       "id": "artifact-checkout-audit",
       "deleted": true
+    },
+    "request": {
+      "id": "test-id"
     }
   }
 }

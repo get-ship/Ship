@@ -16,6 +16,11 @@
           "status": "exited"
         }
       ]
+    },
+    "request": {
+      "slug": "test-slug",
+      "kind": "test-kind",
+      "limit": 0
     }
   }
 }

@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "collection.item_updated",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "CollectionItemUpdated",
+    "needs_author": false
+  },
+  "payload": {
+    "collection_id": "test-collection",
+    "item_id": "test-item"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "event": "actor.created",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "ActorCreated",
+    "needs_author": false
+  },
+  "payload": {
+    "kind": "agent-session",
+    "environment_type": "worktree",
+    "workspace_id": "test-workspace",
+    "restart_count": 0
+  }
+}
