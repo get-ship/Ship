@@ -18,6 +18,7 @@ members = [
     "crates/sui/lsp",
     "crates/sui/signals",
     "crates/deck/deck-host",
+    "crates/deck/deck-bundler",
     "crates/deck/deck-core",
     "crates/deck/deck-axum",
     "crates/deck/deck",
@@ -27,6 +28,9 @@ members = [
     "apps/ship-cli",
     "apps/shell/src-tauri",
 ]
+# Throwaway spikes / build scratch under .artifacts declare their own
+# [workspace] and must not be pulled into this one.
+exclude = [".artifacts"]
 resolver = "2"
 
 # Hoisted dependency versions. Member crates inherit via `{ workspace = true, features = [...] }`.

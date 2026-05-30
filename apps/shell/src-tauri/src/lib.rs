@@ -49,15 +49,24 @@ pub fn run() {
             daemon::daemon_start,
             auth::request_escalation,
             launcher::install_app_launcher,
+            launcher::open_space,
         ])
         .setup(move |app| {
             if let Some(window) = app.get_webview_window("main") {
                 if let Some(id) = &app_id {
                     let _ = window.set_title(&format!("Ship — {id}"));
+                    // A space window loads the THIN scaffold the DAEMON serves at
+                    // /space/<id> — same-origin, so /_sui + Connect resolve to the
+                    // daemon (no proxy, no vite, dev == prod). The default window
+                    // (no --app) keeps the bundled hub. Discover the daemon port.
+                    if let Some(port) = crate::daemon::daemon_status().port {
+                        if let Ok(url) = format!("http://127.0.0.1:{port}/space/{id}").parse() {
+                            let _ = window.navigate(url);
+                        }
+                    }
                 }
-                // Plant the launched app id for the frontend to route on. Robust
-                // pre-load injection wants an init script (programmatic window
-                // build) — a follow-up; eval proves the seam for the spike.
+                // Plant the launched app id for the frontend to route on (the hub
+                // case + a belt-and-suspenders for the space case).
                 let id_js = app_id.clone().unwrap_or_default();
                 let _ = window.eval(format!("window.__SHIP_APP_ID__ = {id_js:?};"));
             }

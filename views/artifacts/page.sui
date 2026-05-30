@@ -20,13 +20,14 @@
       </sui-cluster>
     </header>
 
-    {#if loadError()}
+    {#while-error err of artifacts}
       <sui-error-state title="Couldn't load artifacts" data-test="error" role="alert" aria-live="assertive">
-        {loadError()}
+        {err.message}
         <sui-button slot="action" tone="primary" variant="solid"
           on:click={() => refresh()}>Retry</sui-button>
       </sui-error-state>
-    {:else if loading()}
+    {/while-error}
+    {#while-loading of artifacts}
       <ul class="art-list" data-test="loading" role="status" aria-live="polite" aria-busy="true" aria-label="Loading artifacts">
         {#for n of [0,1,2] key={n}}
           <li class="art-skel-row" aria-hidden="true">
@@ -38,7 +39,9 @@
           </li>
         {/for}
       </ul>
-    {:else if totalCount() === 0}
+    {/while-loading}
+    {#if artifacts().kind === 'ok'}
+    {#if totalCount() === 0}
       <sui-empty-state variant="default" size="sm" data-test="empty" role="status">
         <sui-icon slot="icon" name="file"></sui-icon>
         <span slot="title">No artifacts yet</span>
@@ -162,6 +165,7 @@
           {/for}
         </sui-table>
       {/if}
+    {/if}
     {/if}
 
     {#if dragActive()}

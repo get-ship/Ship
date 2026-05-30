@@ -5,7 +5,7 @@
 //! `sui-controller-no-ambient-authority` lint is the static first line; this is
 //! the runtime backstop.
 
-export { lockdownRealm, isRealmLocked, confineController } from './confine.ts'
-export { lowerFrameworkImports, lowerModuleToExpression } from './lower-imports.ts'
-export { buildViewEndowments, confineViewModule } from './view-runner.ts'
-export type { ViewEndowmentInput, CompiledViewModule } from './view-runner.ts'
+export { lockdownRealm, isRealmLocked, confineController } from './confine'
+export { lowerFrameworkImports, lowerModuleToExpression } from './lower-imports'
+export { buildViewEndowments, confineViewModule } from './view-runner'
+export type { ViewEndowmentInput, CompiledViewModule } from './view-runner'

@@ -99,7 +99,7 @@ describe('Platform EventRepository', () => {
 
         const event = makeEvent({
           causation_id: 'cause-1',
-          project_id: 'ws-1',
+          space_id: 'ws-1',
           session_id: 'sess-1',
           actor_id: 'actor-1',
           parent_actor_id: 'parent-1',
@@ -119,7 +119,7 @@ describe('Platform EventRepository', () => {
         expect(stored.version).toBe(1);
         expect(stored.causation_id).toBe('cause-1');
         expect(stored.target_actor_id).toBe('target-1');
-        expect(stored.project_id).toBe('ws-1');
+        expect(stored.space_id).toBe('ws-1');
         expect(stored.session_id).toBe('sess-1');
         expect(stored.actor_id).toBe('actor-1');
         expect(stored.parent_actor_id).toBe('parent-1');
@@ -463,7 +463,7 @@ describe('Platform SyncFacade integration', () => {
       const jobId = crypto.randomUUID();
       const events = [
         makeEvent({ event_type: 'workspace.created', entity_id: wsId, payload_json: JSON.stringify({ name: 'ws-1' }) }),
-        makeEvent({ event_type: 'job.created', entity_id: jobId, project_id: wsId }),
+        makeEvent({ event_type: 'job.created', entity_id: jobId, space_id: wsId }),
       ];
 
       const pushResult = await eventRepo.push(events);

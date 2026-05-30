@@ -153,6 +153,21 @@ pub fn install_app_launcher(app_id: String, name: String, icon: String) -> Resul
         .map_err(|e| e.to_string())
 }
 
+/// Launch a space as its OWN process+window from the running shell: spawn the
+/// same binary with `--app=<id>` (own PID → own webview, branded + routed for
+/// the space; see `lib.rs::parse_app_id`). This is the process-per-space model's
+/// core move — the hub opens spaces; each is an isolated process, so only the
+/// hub window holds elevation. No per-app build: it's the same runtime + data.
+#[tauri::command]
+pub fn open_space(app_id: String) -> Result<u32, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let child = std::process::Command::new(exe)
+        .arg(format!("--app={app_id}"))
+        .spawn()
+        .map_err(|e| format!("failed to spawn space '{app_id}': {e}"))?;
+    Ok(child.id())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

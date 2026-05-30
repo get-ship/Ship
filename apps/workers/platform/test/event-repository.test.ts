@@ -53,7 +53,7 @@ describe('Platform EventRepository', () => {
         const repo = new EventRepository(drizzle(state.storage, { schema: platform_schema }));
         const event = makeEvent({
           causation_id: 'cause-1',
-          project_id: 'ws-1', session_id: 'sess-1',
+          space_id: 'ws-1', session_id: 'sess-1',
           actor_id: 'actor-1', parent_actor_id: 'parent-1',
           target_actor_id: 'target-1', elevated: true,
         });
@@ -63,7 +63,7 @@ describe('Platform EventRepository', () => {
         expect(stored.id).toBe(event.id);
         expect(stored.causation_id).toBe('cause-1');
         expect(stored.target_actor_id).toBe('target-1');
-        expect(stored.project_id).toBe('ws-1');
+        expect(stored.space_id).toBe('ws-1');
         expect(stored.session_id).toBe('sess-1');
         expect(stored.actor_id).toBe('actor-1');
         expect(stored.parent_actor_id).toBe('parent-1');

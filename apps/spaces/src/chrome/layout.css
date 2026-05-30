@@ -1,0 +1,36 @@
+/* Space scaffold base layout — intentionally minimal. A space is (toward) a
+   user-owned canvas; the scaffold paints only the host frame. Uses design
+   tokens (var(--*)) like every Ship surface. */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--background, #fff);
+  color: var(--foreground, #111);
+  font-family: var(--font-body, system-ui, sans-serif);
+}
+
+.space-content {
+  display: block;
+  height: 100vh;
+  width: 100%;
+  overflow: auto;
+}
+
+.space-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--space-2, 0.5rem);
+  color: var(--muted-foreground, #666);
+  text-align: center;
+}
+
+.space-empty h1 {
+  font-family: var(--font-display, var(--font-body, system-ui));
+  font-size: var(--text-xl, 1.5rem);
+  margin: 0;
+}

@@ -1,9 +1,9 @@
 use crate::{DaemonMode, DeckResponse};
 
 // Per-tag island bundles are served by file existence under
-// `assets/sui-components/`. The bundler (packages/deck/bundler/index.ts +
-// packages/deck/build via the umbrella's sui.config.ts `lazyOutSubdir`)
-// is the source of truth for what lands there. The previous
+// `assets/sui-components/`. The in-process Rolldown bundler
+// (`crates/deck/deck-bundler/src/`, baked via `cargo xtask
+// build-assets`) is the source of truth for what lands there. The previous
 // hand-maintained `is_known_island` allowlist was retired alongside
 // the workspace-catalog cut-over — origin metadata in
 // `.deck/catalogs/workspace.json` makes per-tag gating
@@ -42,6 +42,37 @@ const LIVE_RELOAD_JS: &str = include_str!("../assets/live-reload.js");
 
 pub fn resolve_view_js(name: &str) -> Option<String> {
     read_deck_asset(&format!("views/{name}/view.js"))
+}
+
+// ── Space scaffold (apps/spaces → .deck/space-scaffold) ───────────────────────
+//
+// A Tauri `--app=<id>` window navigates to `/space/<id>`; the daemon serves the
+// thin scaffold from here, SAME-ORIGIN — so the scaffold's `/_sui` + Connect
+// resolve to this daemon with no proxy/origin-injection (the spaces serving
+// model; the hub is bundled, spaces are daemon-served). The launched id is
+// planted before any module script; the scaffold's hashed asset refs are
+// rewritten to `/space/_assets/` (served by `serve_space_asset`).
+
+pub fn serve_space(mode: DaemonMode, id: &str) -> DeckResponse {
+    let Some(html) = read_deck_asset("space-scaffold/index.html") else {
+        return DeckResponse::not_found("space scaffold not built (run apps/spaces build)");
+    };
+    // JSON-encode the id so it is a safe string literal in the injected script.
+    let id_js = serde_json::to_string(id).unwrap_or_else(|_| "\"\"".to_string());
+    let inject = format!("<script>window.__SHIP_APP_ID__ = {id_js};</script>");
+    let html = html
+        .replacen("<head>", &format!("<head>{inject}"), 1)
+        .replace("\"/assets/", "\"/space/_assets/");
+    let html = crate::mode_html::inject_mode_meta(&html, mode);
+    DeckResponse::html_view(html, mode)
+}
+
+pub fn serve_space_asset(mode: DaemonMode, file: &str) -> DeckResponse {
+    match read_deck_asset(&format!("space-scaffold/assets/{file}")) {
+        Some(body) if file.ends_with(".css") => DeckResponse::css_view(body, mode),
+        Some(body) => DeckResponse::js_asset(body, mode),
+        None => DeckResponse::not_found(format!("space asset not found: {file}")),
+    }
 }
 
 // Framework bundle handlers
@@ -97,7 +128,7 @@ pub fn serve_sui_island(mode: DaemonMode, file: &str) -> DeckResponse {
     let rel = format!("sui-components/{bundle}.js");
     match read_deck_asset(&rel) {
         Some(js) => DeckResponse::js_asset(js, mode),
-        None => DeckResponse::not_found("island bundle missing — run `bun run packages/deck/bundler/index.ts --all`"),
+        None => DeckResponse::not_found("island bundle missing — run `cargo xtask build-assets`"),
     }
 }
 

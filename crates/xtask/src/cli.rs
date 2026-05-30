@@ -6,7 +6,7 @@ use specta::TypeCollection;
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
 use crate::{
-    gen_audit_readme, gen_contract, gen_events, gen_fixtures, gen_indexes, gen_ops,
+    build_assets, gen_audit_readme, gen_contract, gen_events, gen_fixtures, gen_indexes, gen_ops,
     gen_skills, gen_sdk, lint_imports, lint_layers, port_descriptions, types,
 };
 
@@ -20,6 +20,12 @@ pub fn repo_root() -> PathBuf {
 
 pub fn dispatch(cmd: &str, args: &[String]) {
     match cmd {
+        "build-assets" => {
+            if let Err(e) = build_assets::run(&repo_root()) {
+                eprintln!("build-assets failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "gen-types" => {
             let check = args.iter().any(|a| a == "--check");
             gen_types(check);
@@ -128,6 +134,7 @@ fn print_help() {
     eprintln!("Usage: cargo xtask <command>");
     eprintln!();
     eprintln!("Commands:");
+    eprintln!("  build-assets          Bake framework bundles via in-process Rolldown (replaces bun bundler/index.ts --all)");
     eprintln!("  gen-types             Regenerate packages/deck/sdk/src/generated.ts");
     eprintln!("  gen-types --check     Verify generated file is up-to-date (CI)");
     eprintln!("  gen-sdk               Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");

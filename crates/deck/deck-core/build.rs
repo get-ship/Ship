@@ -4,15 +4,15 @@
 //! framework binary at compile time. Every asset under `assets/` is
 //! gitignored — the build emits them on demand and `dispatch.sh`
 //! bootstraps fresh worktrees by copying from the launching repo (or
-//! rebuilding when that's empty). All assets are produced by a single
-//! command: `bun packages/deck/bundler/index.ts --all` (which fans out to
-//! sui-runtime, sui-dom, sui-sdk-client, sui-components + per-tag
-//! islands, views/*/view.js, and the lucide icon registry). The
-//! aggregated CEM was retired in favour of `@ship/sui-catalog`, which
-//! emits `.deck/catalogs/{workspace,published}.json` and is
-//! read at runtime by `src/packs.rs`. The in-daemon Bun worker at
-//! `~/.ship/runtime/bundler.ts` refreshes the same set on demand
-//! while shipd runs in dev mode.
+//! rebuilding when that's empty). The framework bundles (sui-runtime,
+//! sui-dom, sui-sdk-client, sui-components + per-tag islands,
+//! views/*/view.js) are produced by `cargo xtask build-assets` — the
+//! in-process Rolldown bundler (#163), the same engine shipd runs in dev
+//! mode (no bun, no spawned worker). The lucide icon registry is a separate
+//! gen step (`scripts/codegen/generate-lucide-registry.mjs`). The aggregated
+//! CEM was retired in favour of `@ship/sui-catalog`, which emits
+//! `.deck/catalogs/{workspace,published}.json` and is read at runtime by
+//! `src/packs.rs`.
 //!
 //! What this build script DOES is verify the assets are populated.
 //! Pre-existing failure mode: `cargo build` on a fresh clone wrote
@@ -21,8 +21,8 @@
 //! now panic with a clear message so the failure is immediate and
 //! actionable.
 //!
-//! On a fresh clone without dispatch.sh, run
-//! `bun packages/deck/bundler/index.ts --all` before `cargo build`.
+//! On a fresh clone without dispatch.sh, run `cargo xtask build-assets`
+//! (plus the lucide gen step) before `cargo build`.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -44,7 +44,6 @@ const COARSE_SOURCE_ROOTS: &[&str] = &[
     "packages/components/ui-components/src",
     "apps/shell/src/components",
     "packages/deck/sdk-client/src",
-    "packages/deck/bundler/index.ts",
     "scripts/codegen/generate-lucide-registry.mjs",
 ];
 
@@ -87,8 +86,9 @@ fn main() {
              Every asset under crates/deck/deck-core/assets/ is gitignored.\n\
              On fresh worktrees, dispatch.sh bootstraps them automatically.\n\
              For a standalone cargo build, regenerate by running (in order):\n\n  \
-             bun install --frozen-lockfile\n  \
-             bun packages/deck/bundler/index.ts --all\n\n\
+             cargo build -p sui-compiler   # the binary the bundler spawns\n  \
+             bun scripts/codegen/generate-lucide-registry.mjs   # lucide-icons.json\n  \
+             cargo xtask build-assets   # framework bundles via in-process Rolldown\n\n\
              then re-run `cargo build`."
         );
     }

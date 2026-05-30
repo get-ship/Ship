@@ -23,7 +23,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/annotation.proto.
  */
 export const file_ship_ops_v1_annotation: GenFile = /*@__PURE__*/
-  fileDesc("ChxzaGlwL29wcy92MS9hbm5vdGF0aW9uLnByb3RvEgtzaGlwLm9wcy52MSIrChVQb3N0QW5ub3RhdGlvblJlcXVlc3QSEgoKZXZlbnRfanNvbhgBIAEoCTJ6ChFBbm5vdGF0aW9uU2VydmljZRJlCgRQb3N0EiIuc2hpcC5vcHMudjEuUG9zdEFubm90YXRpb25SZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIh6KtRgWc2hpcC5hbm5vdGF0aW9ucy53cml0ZZC1GAJiBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
+  fileDesc("ChxzaGlwL29wcy92MS9hbm5vdGF0aW9uLnByb3RvEgtzaGlwLm9wcy52MSIrChVQb3N0QW5ub3RhdGlvblJlcXVlc3QSEgoKZXZlbnRfanNvbhgBIAEoCTKnAQoRQW5ub3RhdGlvblNlcnZpY2USkQEKBFBvc3QSIi5zaGlwLm9wcy52MS5Qb3N0QW5ub3RhdGlvblJlcXVlc3QaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiSoq1GBZzaGlwLmFubm90YXRpb25zLndyaXRlkLUYAqK1GChQb3N0IGFuIGFubm90YXRpb24gKGNhbnZhcy9vYnNlcnZhdGlvbikuYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
 
 /**
  * @generated from message ship.ops.v1.PostAnnotationRequest

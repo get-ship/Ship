@@ -16,9 +16,46 @@
 //! Undefined variables render as empty string. Template syntax errors
 //! fall back to the original content with a warning to stderr.
 
-use minijinja::{Environment, UndefinedBehavior};
+use minijinja::{Environment, UndefinedBehavior, Value as MjValue};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+
+/// Convert a `serde_json::Value` into a `minijinja::Value` WITHOUT routing
+/// numbers through serde_json's `Serialize` impl.
+///
+/// `serde_json`'s `Number::serialize` is feature-sensitive: when ANY crate
+/// in the build graph enables `serde_json/arbitrary_precision` (the
+/// in-process bundler's `rolldown_common` does), a `Number` serializes as
+/// the tagged struct `{"$serde_json::private::Number": "42"}` instead of a
+/// bare scalar — and MiniJinja faithfully renders that map, so `{{ count }}`
+/// printed `{"$serde_json::private::Number": "42"}` instead of `42`. Cargo
+/// unifies features workspace-wide, so the shipped daemon (which links
+/// rolldown) hit this in production, not just tests. Mapping numbers to
+/// MiniJinja's own int/float here sidesteps the quirk entirely.
+fn to_minijinja(value: &Value) -> MjValue {
+    match value {
+        Value::Null => MjValue::from(()),
+        Value::Bool(b) => MjValue::from(*b),
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                MjValue::from(i)
+            } else if let Some(u) = n.as_u64() {
+                MjValue::from(u)
+            } else {
+                MjValue::from(n.as_f64().unwrap_or(0.0))
+            }
+        }
+        Value::String(s) => MjValue::from(s.as_str()),
+        Value::Array(arr) => MjValue::from(arr.iter().map(to_minijinja).collect::<Vec<_>>()),
+        Value::Object(map) => {
+            let converted: BTreeMap<String, MjValue> = map
+                .iter()
+                .map(|(k, v)| (k.clone(), to_minijinja(v)))
+                .collect();
+            MjValue::from_serialize(&converted)
+        }
+    }
+}
 
 /// Resolve template variables in skill markdown content.
 ///
@@ -35,7 +72,15 @@ pub fn resolve_template(content: &str, vars: &HashMap<String, Value>) -> String 
     env.set_undefined_behavior(UndefinedBehavior::Chainable);
     // No source/loader set — disables {% include %} and {% extends %}.
 
-    match env.render_str(content, vars) {
+    // Build the context from MiniJinja-native values so number rendering is
+    // immune to serde_json's arbitrary_precision serialization (see
+    // to_minijinja).
+    let ctx: BTreeMap<String, MjValue> = vars
+        .iter()
+        .map(|(k, v)| (k.clone(), to_minijinja(v)))
+        .collect();
+
+    match env.render_str(content, ctx) {
         Ok(result) => result,
         Err(e) => {
             // compiler crate stays leaf-ish; using eprintln avoids pulling in

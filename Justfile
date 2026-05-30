@@ -69,7 +69,7 @@ shell-dev:
 # Regenerate the typed dynamic-route table from the view file tree (SSOT).
 [group('daily')]
 gen-routes:
-    @node scripts/gen-routes.mjs
+    @bun scripts/gen-routes.ts
 
 # Build the standalone SUI component packs (primitives/charts/pipelines/
 # ui-components) → each package's `dist/`, served by the daemon at
@@ -80,10 +80,11 @@ gen-routes:
 build-packs: _sui-compiler-lib
     @bun run --filter './packages/components/*' build
 
-# Runs `packages/deck/bundler/index.ts --all` against the installed bun toolchain.
+# Bakes the framework bundles via the in-process Rolldown bundler (#163) — the
+# same engine shipd runs. No bun; spawns the `sui-compiler` binary built above.
 [group('daily')]
 dev-build-all: _sui-compiler-lib gen-routes build-packs
-    @bun packages/deck/bundler/index.ts --all
+    @cargo xtask build-assets
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
@@ -141,7 +142,10 @@ dev-runtime-update:
 # Run all tests (Rust + loops). For a faster inner loop use test-fast.
 [group('daily')]
 test:
-    cargo test --workspace --features unstable
+    # ship-shell (apps/shell/src-tauri) is the desktop shell — needs webkit2gtk/
+    # libsoup; excluded from the framework test sweep. Build it via the Tauri
+    # toolchain (release.yml / `cargo build -p ship-shell` on a desktop box).
+    cargo test --workspace --exclude ship-shell --features unstable
 
 # Visual baselines — Playwright screenshots vs committed PNGs.
 # Daemon must be running (`just dev`). Pass --update-snapshots to refresh
@@ -153,7 +157,7 @@ visual *ARGS:
 # Library tests only — skips integration suites for fast inner-loop feedback.
 [group('daily')]
 test-fast:
-    cargo test --workspace --lib --features unstable
+    cargo test --workspace --exclude ship-shell --lib --features unstable
 
 # Run tests for a single crate. Usage: just test-pkg runtime
 [group('daily')]
@@ -163,13 +167,13 @@ test-pkg pkg:
 # cargo check across the workspace — fastest sanity gate.
 [group('daily')]
 check:
-    cargo check --workspace --all-targets --features unstable
+    cargo check --workspace --exclude ship-shell --all-targets --features unstable
 
 # Rust clippy + home-layout grep guards. Hard-fail on raw .ship/ joins
 # (devx-06 Tier 6).
 [group('daily')]
 lint:
-    cargo clippy --workspace --features unstable -- -D warnings
+    cargo clippy --workspace --exclude ship-shell --features unstable -- -D warnings
     @just check-raw
 
 # Visual QA against the daemon serving cwd. Discovers port automatically.
@@ -321,8 +325,8 @@ build: _sui-compiler-lib
     bun run --filter @ship/charts build
     echo "[5/9] ui-components build (sui-build → crates/deck/deck-core/assets/)"
     bun run --filter @ship/ui-components build
-    echo "[6/9] view bundles + sui-* bundles (packages/deck/bundler/index.ts --all)"
-    bun packages/deck/bundler/index.ts --all
+    echo "[6/9] view bundles + sui-* bundles (cargo xtask build-assets — in-process Rolldown)"
+    cargo xtask build-assets
     echo "[7/9] sui-catalog walk (→ .deck/catalogs/{workspace,published}.json)"
     bun run --filter @ship/sui-catalog build
     bun packages/deck/catalog/src/cli.ts

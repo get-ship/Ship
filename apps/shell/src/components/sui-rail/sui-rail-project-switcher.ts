@@ -199,7 +199,7 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
       return
     }
     const row = target.closest('[data-project-id]') as HTMLElement | null
-    if (row?.dataset.projectId) void switchProject(row.dataset.projectId)
+    if (row?.dataset.spaceId) void switchProject(row.dataset.spaceId)
   }
 
   const onBadgeClick = (): void => open.set(!open())

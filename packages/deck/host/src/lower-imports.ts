@@ -22,8 +22,12 @@ export function lowerFrameworkImports(source: string): string {
   //   import '@ship/sui-runtime/template-hooks'   (side-effect)
   // The optional `(?:…\s+from\s+)?` clause covers the binding part (which never
   // contains a quote), so side-effect imports (no `from`) also match.
+  // `import\s*` (not `\s+`): the compiler emits side-effect imports with no
+  // space — `import"@ship/sui-runtime/template-hooks";`. The optional binding
+  // clause ends at `\bfrom\s*` so `}from"…"` (minified, no spaces) also matches;
+  // a bare side-effect import skips the clause entirely.
   const FRAMEWORK_IMPORT =
-    /^[ \t]*import\s+(?:[^'"]*?\s+from\s+)?['"]@ship\/(?:sui-runtime(?:\/[\w-]+)?|sui-dom|sdk-client)['"][ \t]*;?[ \t]*\r?\n?/gm
+    /^[ \t]*import\s*(?:[^'"]*?\bfrom\s*)?['"]@ship\/(?:sui-runtime(?:\/[\w-]+)?|sui-dom|sdk-client)['"][ \t]*;?[ \t]*\r?\n?/gm
   return source.replace(FRAMEWORK_IMPORT, '')
 }
 
@@ -47,13 +51,32 @@ export function lowerFrameworkImports(source: string): string {
  */
 export function lowerModuleToExpression(source: string): string {
   let s = lowerFrameworkImports(source)
-  let hasDefault = false
+
+  // The trailing expression the confined evaluate() must return — the module's
+  // default. Two source forms produce it:
+  let defaultExpr: string | null = null
+
+  // (a) `export default EXPR` → bind it to a local we can trail.
   s = s.replace(/^([ \t]*)export\s+default\s+/m, (_m, indent: string) => {
-    hasDefault = true
+    defaultExpr = '__sui_default__'
     return `${indent}const __sui_default__ = `
   })
+
+  // (b) `export { foo as default }` — the form the SUI compiler actually emits
+  // (`export { page_default as default }`, often multi-line). Capture the local
+  // bound to `default` BEFORE the export block is stripped below. Only when an
+  // `export default` form wasn't already found.
+  if (defaultExpr === null) {
+    const named = s.match(/export\s*\{[^}]*?\b([A-Za-z_$][\w$]*)\s+as\s+default\b[^}]*\}/)
+    if (named) defaultExpr = named[1]!
+  }
+
+  // Strip the `export ` keyword from declarations (binding stays module-local).
   s = s.replace(/^([ \t]*)export\s+(?=(?:const|let|var|function|class|async)\b)/gm, '$1')
+  // Remove `export { … } [from '…']` lists (multi-line tolerant — `[^}]` spans
+  // newlines).
   s = s.replace(/^[ \t]*export\s*\{[^}]*\}\s*(?:from\s*['"][^'"]*['"])?[ \t]*;?[ \t]*\r?\n?/gm, '')
-  if (hasDefault) s += '\n;__sui_default__;\n'
+
+  if (defaultExpr !== null) s += `\n;${defaultExpr};\n`
   return s
 }

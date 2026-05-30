@@ -11,13 +11,13 @@ describe('HostContext seam', () => {
   })
 
   it('reads back what the host registered', () => {
-    setHostContext({ projectId: 'proj-1', sessionId: 'sess-1' })
-    expect(hostContext()).toEqual({ projectId: 'proj-1', sessionId: 'sess-1' })
+    setHostContext({ spaceId: 'proj-1', sessionId: 'sess-1' })
+    expect(hostContext()).toEqual({ spaceId: 'proj-1', sessionId: 'sess-1' })
   })
 
   it('merges over previous values (later set wins per key)', () => {
-    setHostContext({ projectId: 'proj-1', sessionId: 'sess-1' })
-    setHostContext({ projectId: 'proj-2' })
-    expect(hostContext()).toEqual({ projectId: 'proj-2', sessionId: 'sess-1' })
+    setHostContext({ spaceId: 'proj-1', sessionId: 'sess-1' })
+    setHostContext({ spaceId: 'proj-2' })
+    expect(hostContext()).toEqual({ spaceId: 'proj-2', sessionId: 'sess-1' })
   })
 })

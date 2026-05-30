@@ -2,14 +2,9 @@
   "name": "@ship/deck-bundler",
   "version": "0.1.0",
   "private": true,
-  "description": "Bun worker that owns the daemon's asset bundle pipeline. Installed to ~/.ship/runtime/index.ts; receives JSON-line build / watch / shutdown messages from shipd.",
+  "description": "Build-time host for shell-app.ts (the apps/shell prod bundle). The daemon's SUI asset pipeline moved in-process to the Rust Rolldown bundler (crates/deck/deck-bundler/src, #163); the framework-asset bake is `cargo xtask build-assets`.",
   "type": "module",
-  "main": "index.ts",
-  "exports": {
-    ".": "./index.ts"
-  },
   "scripts": {
-    "build:all": "bun index.ts --all",
     "test": "bun test test/"
   },
   "devDependencies": {

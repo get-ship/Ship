@@ -22,7 +22,7 @@ import type { KernelBridge } from './kernel-bridge'
 
 interface CrossSession {
   id: string
-  project_id?: string | null
+  space_id?: string | null
   project_name?: string | null
   goal?: string | null
 }
@@ -51,7 +51,7 @@ export function initProjectSwitch(
     host.remount()
     void host.refreshStatus()
     void updateCrossProjectIndicator(host.statusBar)
-    const detail = (event.payload as { project_id?: string } | null) ?? {}
+    const detail = (event.payload as { space_id?: string } | null) ?? {}
     // Two names because there are two listener camps in shell main:
     // the project breadcrumb listens for `project.switched` (kernel name),
     // newer chrome wants the namespaced `ship:project:switched`.
@@ -83,7 +83,7 @@ async function updateCrossProjectIndicator(statusBar: HTMLElement | null): Promi
     sessions = body.data?.sessions ?? []
   } catch { return }
 
-  const others = sessions.filter((s) => s.project_id && s.project_id !== activeId)
+  const others = sessions.filter((s) => s.space_id && s.space_id !== activeId)
   renderCrossIndicator(statusBar, others)
 }
 
@@ -95,7 +95,7 @@ function renderCrossIndicator(statusBar: HTMLElement, others: CrossSession[]): v
   }
   const byProject = new Map<string, { name: string; count: number }>()
   for (const s of others) {
-    const id = s.project_id ?? '_'
+    const id = s.space_id ?? '_'
     const entry = byProject.get(id) ?? { name: s.project_name ?? id, count: 0 }
     entry.count++
     byProject.set(id, entry)

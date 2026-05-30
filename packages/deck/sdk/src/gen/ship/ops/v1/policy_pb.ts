@@ -16,7 +16,7 @@ import { file_google_protobuf_descriptor } from "@bufbuild/protobuf/wkt";
  * Describes the file ship/ops/v1/policy.proto.
  */
 export const file_ship_ops_v1_policy: GenFile = /*@__PURE__*/
-  fileDesc("ChhzaGlwL29wcy92MS9wb2xpY3kucHJvdG8SC3NoaXAub3BzLnYxKoIBCgtCbGFzdFJhZGl1cxIcChhCTEFTVF9SQURJVVNfVU5TUEVDSUZJRUQQABIYChRCTEFTVF9SQURJVVNfQzBfU0FGRRABEh0KGUJMQVNUX1JBRElVU19DMV9XT1JLU1BBQ0UQAhIcChhCTEFTVF9SQURJVVNfQzJfRUxFVkFURUQQAzpACgpjYXBhYmlsaXR5Eh4uZ29vZ2xlLnByb3RvYnVmLk1ldGhvZE9wdGlvbnMY0YYDIAEoCVIKY2FwYWJpbGl0eTpdCgxibGFzdF9yYWRpdXMSHi5nb29nbGUucHJvdG9idWYuTWV0aG9kT3B0aW9ucxjShgMgASgOMhguc2hpcC5vcHMudjEuQmxhc3RSYWRpdXNSC2JsYXN0UmFkaXVzOkMKDG9wX3NlbnNpdGl2ZRIeLmdvb2dsZS5wcm90b2J1Zi5NZXRob2RPcHRpb25zGNOGAyABKAhSC29wU2Vuc2l0aXZlYgZwcm90bzM", [file_google_protobuf_descriptor]);
+  fileDesc("ChhzaGlwL29wcy92MS9wb2xpY3kucHJvdG8SC3NoaXAub3BzLnYxKqABCgtCbGFzdFJhZGl1cxIcChhCTEFTVF9SQURJVVNfVU5TUEVDSUZJRUQQABIYChRCTEFTVF9SQURJVVNfQzBfU0FGRRABEh0KGUJMQVNUX1JBRElVU19DMV9XT1JLU1BBQ0UQAhIcChhCTEFTVF9SQURJVVNfQzJfRUxFVkFURUQQAxIcChhCTEFTVF9SQURJVVNfQzNfQ1JJVElDQUwQBDpACgpjYXBhYmlsaXR5Eh4uZ29vZ2xlLnByb3RvYnVmLk1ldGhvZE9wdGlvbnMY0YYDIAEoCVIKY2FwYWJpbGl0eTpdCgxibGFzdF9yYWRpdXMSHi5nb29nbGUucHJvdG9idWYuTWV0aG9kT3B0aW9ucxjShgMgASgOMhguc2hpcC5vcHMudjEuQmxhc3RSYWRpdXNSC2JsYXN0UmFkaXVzOkMKDG9wX3NlbnNpdGl2ZRIeLmdvb2dsZS5wcm90b2J1Zi5NZXRob2RPcHRpb25zGNOGAyABKAhSC29wU2Vuc2l0aXZlOkIKC2Rlc2NyaXB0aW9uEh4uZ29vZ2xlLnByb3RvYnVmLk1ldGhvZE9wdGlvbnMY1IYDIAEoCVILZGVzY3JpcHRpb25iBnByb3RvMw", [file_google_protobuf_descriptor]);
 
 /**
  * Blast-radius class — see .artifacts/op-blast-radius-audit.md.
@@ -44,12 +44,21 @@ export enum BlastRadius {
   C1_WORKSPACE = 2,
 
   /**
-   * Ship/cloud-dangerous (credentials, billing, capability-defining writes).
-   * Auth gate: off the agent surface; human-session credential only.
+   * Elevated — dispatch/control agents, settings, mcp, authoring. Off the
+   * default agent surface; granted to trusted agents (e.g. commander) via a
+   * raised per-service ceiling. Not human-only.
    *
    * @generated from enum value: BLAST_RADIUS_C2_ELEVATED = 3;
    */
   C2_ELEVATED = 3,
+
+  /**
+   * Critical — cloud/credential/billing/permissions. Operator (human, GUI/2FA)
+   * only; never granted to an agent regardless of ceiling.
+   *
+   * @generated from enum value: BLAST_RADIUS_C3_CRITICAL = 4;
+   */
+  C3_CRITICAL = 4,
 }
 
 /**
@@ -82,4 +91,14 @@ export const blast_radius: GenExtension<MethodOptions, BlastRadius> = /*@__PURE_
  */
 export const op_sensitive: GenExtension<MethodOptions, boolean> = /*@__PURE__*/
   extDesc(file_ship_ops_v1_policy, 2);
+
+/**
+ * One-line human description of the op — the SSOT for sdk-skill + `ship --help`
+ * doc text. Moves the last prose that lived in the Rust registry into proto,
+ * so the registry's descriptor tables lose their final reader.
+ *
+ * @generated from extension: string description = 50004;
+ */
+export const description: GenExtension<MethodOptions, string> = /*@__PURE__*/
+  extDesc(file_ship_ops_v1_policy, 3);
 

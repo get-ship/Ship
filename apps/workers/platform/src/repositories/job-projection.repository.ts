@@ -23,7 +23,7 @@ export class JobProjectionRepository {
           await this.db.insert(jobs).values({
             id: event.entity_id,
             status: 'created',
-            workspace_id: event.project_id ?? null,
+            workspace_id: event.space_id ?? null,
             created_at: event.created_at,
             updated_at: event.created_at,
           }).onConflictDoNothing();

@@ -5,6 +5,7 @@
     "packages": [
       "apps/docs",
       "apps/shell",
+      "apps/spaces",
       "apps/site",
       "apps/gateway",
       "packages/*",
@@ -34,7 +35,7 @@
     "workerd"
   ],
   "scripts": {
-    "build:bundles": "bun run packages/deck/bundler/index.ts --all",
+    "build:bundles": "cargo xtask build-assets",
     "test:rust": "cargo test",
     "wasm": "wasm-pack build crates/sui/compiler --target web --out-dir ../../../packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm",
     "lint": "vp lint",

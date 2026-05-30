@@ -166,7 +166,7 @@ Mutations are HTTP POST/DELETE through the same client (e.g. `ship.sessions.star
 |---|---|---|
 | `sui-compiler` (bin) | One-shot compile of a `.sui` file; runs the full lint pass and exits non-zero on errors. Used by `sui-build` and editor extensions. | `crates/sui/compiler/src/bin/sui-compiler.rs` (`cargo run -p sui-compiler -- build <file>`) |
 | `sui-lint` (example bin) | Lint one file from the CLI — the fast per-edit check now that MCP is gone. Exits 1 on findings. | `cargo run -p sui-lint --example check -- <file>` |
-| `@ship/sui-build` | Project bundler — discovers `.sui` sources, calls the compiler, runs Bun/esbuild adapter, optional `--watch`. | `packages/deck/build/bin/sui-build.mjs` |
+| `@ship/sui-build` | CI / package-build bundler (NOT the daemon path) — discovers `.sui` sources, calls the compiler, runs Bun/esbuild adapter, optional `--watch`. The daemon + framework bake use the in-process Rolldown bundler (`cargo xtask build-assets`, #163). | `packages/deck/build/bin/sui-build.mjs` |
 | `@ship/sui-lsp` | LSP server — diagnostics + hover for `.sui`. TS server `packages/deck/lsp/`; Rust core `crates/sui/lsp/`. | `packages/deck/lsp/src/` |
 | Devtools panes | In-page panels: template source, components tree, signals, lint, schema. | `packages/components/ui-components/src/sui-devtools/` |
 | `dispatch.sh` | Worktree + job-spec + agent compile + terminal-open script. | `.ship/skills/spawn-agent/scripts/dispatch.sh` |

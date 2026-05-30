@@ -23,7 +23,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/feedback.proto.
  */
 export const file_ship_ops_v1_feedback: GenFile = /*@__PURE__*/
-  fileDesc("ChpzaGlwL29wcy92MS9mZWVkYmFjay5wcm90bxILc2hpcC5vcHMudjEiKQoTUG9zdEZlZWRiYWNrUmVxdWVzdBISCgpldmVudF9qc29uGAEgASgJMnMKD0ZlZWRiYWNrU2VydmljZRJgCgRQb3N0EiAuc2hpcC5vcHMudjEuUG9zdEZlZWRiYWNrUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIbirUYE3NoaXAuZmVlZGJhY2sud3JpdGWQtRgCYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
+  fileDesc("ChpzaGlwL29wcy92MS9mZWVkYmFjay5wcm90bxILc2hpcC5vcHMudjEiKQoTUG9zdEZlZWRiYWNrUmVxdWVzdBISCgpldmVudF9qc29uGAEgASgJMqkBCg9GZWVkYmFja1NlcnZpY2USlQEKBFBvc3QSIC5zaGlwLm9wcy52MS5Qb3N0RmVlZGJhY2tSZXF1ZXN0Ghkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIlCKtRgTc2hpcC5mZWVkYmFjay53cml0ZZC1GAKitRgxUG9zdCBmZWVkYmFjayAoY2FudmFzL29ic2VydmF0aW9uOyByYXRlLWxpbWl0ZWQpLmIGcHJvdG8z", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
 
 /**
  * @generated from message ship.ops.v1.PostFeedbackRequest

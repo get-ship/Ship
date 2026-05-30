@@ -101,6 +101,7 @@
         "@codemirror/view": "^6",
         "@lezer/highlight": "^1",
         "@ship/charts": "workspace:*",
+        "@ship/deck-host": "workspace:*",
         "@ship/pipelines": "workspace:*",
         "@ship/primitives": "workspace:*",
         "@ship/sdk": "workspace:*",
@@ -149,6 +150,20 @@
         "@astrojs/sitemap": "^3.7.2",
         "typescript": "~5.8.3",
         "wrangler": "^4.66.0",
+      },
+    },
+    "apps/spaces": {
+      "name": "spaces",
+      "version": "0.0.0",
+      "dependencies": {
+        "@ship/deck-host": "workspace:*",
+        "@ship/sdk-client": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "typescript": "~5.8.3",
+        "vite": "^7",
       },
     },
     "apps/workers/drizzle": {
@@ -341,6 +356,10 @@
         "typescript": "^5.5.0",
         "vitest": "^4.1.5",
       },
+    },
+    "packages/deck/test-harness": {
+      "name": "@ship/deck-test-harness",
+      "version": "0.0.0",
     },
     "packages/sui/compiler-wasm": {
       "name": "@ship/sui-compiler-wasm",
@@ -958,6 +977,8 @@
     "@ship/deck-bundler": ["@ship/deck-bundler@workspace:packages/deck/bundler"],
 
     "@ship/deck-host": ["@ship/deck-host@workspace:packages/deck/host"],
+
+    "@ship/deck-test-harness": ["@ship/deck-test-harness@workspace:packages/deck/test-harness"],
 
     "@ship/docs": ["@ship/docs@workspace:apps/docs"],
 
@@ -1954,6 +1975,8 @@
     "source-map-support": ["source-map-support@0.5.21", "", { "dependencies": { "buffer-from": "^1.0.0", "source-map": "^0.6.0" } }, "sha512-uBHU3L3czsIyYXKX88fdrGovxdSCoTGDRZ6SYXtSRxLZUzHg5P/66Ht6uoUlHu9EZod+inXhKo3qQgwXUT/y1w=="],
 
     "space-separated-tokens": ["space-separated-tokens@2.0.2", "", {}, "sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q=="],
+
+    "spaces": ["spaces@workspace:apps/spaces"],
 
     "stackback": ["stackback@0.0.2", "", {}, "sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw=="],
 

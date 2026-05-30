@@ -1,5 +1,5 @@
 import { controller, derived, live, signal, unwrap } from '@ship/sui-runtime'
-import type { ViewScope } from '@ship/sui-runtime'
+import type { LiveSource, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { AGE_BUCKETS, bucketFor, decorate, previewKindFor, type ArtifactRow } from './decorate'
 
@@ -13,9 +13,24 @@ export default controller({
     // pushState; the shell's wrapper also triggers mountRoute.
     const navigate = (ctx as { navigate?: (p: string) => void }).navigate
       ?? ((p: string) => { if (typeof window !== 'undefined') window.location.href = p })
-    const items = signal<ArtifactRow[]>([])
-    const loading = signal<boolean>(true)
-    const loadError = signal<string>('')
+    // Artifacts list via the ship SDK (ship.artifacts.list), not raw fetch — the
+    // sanctioned, policy-gated path the SES Compartment enforces at runtime.
+    // `reloadNonce` re-triggers the live source for the Retry button / post-upload
+    // refresh (reading it inside live()'s source makes the effect re-subscribe).
+    // Exposed to the template, which owns the loading/error/ok flow via
+    // {#while-loading of artifacts} / {#while-error err of artifacts} / {#if
+    // artifacts().kind === 'ok'}. The controller only derives DATA (via unwrap),
+    // never branches on `.kind` — that's the template's job (sui-controller-no-
+    // load-state). `reloadNonce` re-subscribes for Retry / post-upload refresh.
+    const reloadNonce = signal(0)
+    const artifacts = live<ArtifactsListResponse>(() => {
+      reloadNonce()
+      return ship.artifacts.list({ limit: 200 }) as unknown as LiveSource<ArtifactsListResponse>
+    })
+    const items = derived<ArtifactRow[]>(() => {
+      const r = unwrap(artifacts)
+      return r && Array.isArray(r.data) ? decorate(r.data) : []
+    })
 
     const mimeFilter = signal<string>('')
     const collectionFilter = signal<string>('')
@@ -84,21 +99,9 @@ export default controller({
     const detailUrl = derived(() => detailItem() ? `/api/v1/artifacts/${detailItem()!.id}` : '')
     const previewKind = derived(() => detailItem() ? previewKindFor(detailItem()!.mime) : 'binary')
 
-    async function refresh(): Promise<void> {
-      loading.set(true)
-      loadError.set('')
-      try {
-        const resp = await fetch('/api/v1/artifacts?limit=200', { credentials: 'same-origin' })
-        if (!resp.ok) { loadError.set(`HTTP ${resp.status}`); items.set([]); return }
-        const body = (await resp.json()) as ArtifactsListResponse
-        const rows = Array.isArray(body.data) ? body.data : []
-        items.set(decorate(rows))
-      } catch (e) {
-        loadError.set((e as Error).message)
-        items.set([])
-      } finally {
-        loading.set(false)
-      }
+    // Re-subscribe the live source: bumps the nonce read inside live()'s source.
+    function refresh(): void {
+      reloadNonce.set(reloadNonce() + 1)
     }
 
     async function loadPreview(item: ArtifactRow): Promise<void> {
@@ -117,7 +120,7 @@ export default controller({
       }
     }
 
-    void refresh()
+    // No explicit initial load — the live source loads on subscribe at mount.
 
     const uploadArtifact = (args: { file: File; collection_id?: string }) =>
       ship.artifacts.upload(args)
@@ -141,7 +144,7 @@ export default controller({
       uploadError.set('')
       try {
         await uploadArtifact({ file })
-        await refresh()
+        refresh()
       } catch (e) {
         uploadError.set((e as Error).message)
         uploadOpen.set(true)
@@ -151,7 +154,7 @@ export default controller({
     }
 
     return {
-      items, loading, loadError,
+      artifacts, items,
       mimeFilter, collectionFilter, actorFilter, ageFilter, searchQuery,
       detailItem, detailOpen, previewText, previewLoading, previewError,
       uploadOpen, uploadFiles, uploadCollection, uploadError, uploading, dragActive,

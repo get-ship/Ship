@@ -131,7 +131,7 @@ describe('Platform SyncFacade integration', () => {
       const [wsId, jobId] = [crypto.randomUUID(), crypto.randomUUID()];
       const events = [
         makeEvent({ event_type: 'workspace.created', entity_id: wsId, payload_json: JSON.stringify({ name: 'ws-1' }) }),
-        makeEvent({ event_type: 'job.created', entity_id: jobId, project_id: wsId }),
+        makeEvent({ event_type: 'job.created', entity_id: jobId, space_id: wsId }),
       ];
 
       expect((await eventRepo.push(events)).value).toBe(2);
