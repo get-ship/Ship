@@ -22,7 +22,7 @@ pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, Resol
                 });
             }
         };
-        if let Some(ship_dir) = ship_substrate::project::resolve_project_ship_dir(&cwd) {
+        if let Some(ship_dir) = ship_substrate::project::resolve_project_ship_dir(&cwd) { // LAYER_EXCEPTION: deck-core requires project-root resolution to locate user views on disk; no higher-layer indirection is available without a circular dep
             let project_root = ship_dir.parent().unwrap_or(&ship_dir).to_path_buf();
             deck_host::resolver::resolve(&project_root, fp.as_deref(), name, sub_path)
         } else {
@@ -59,7 +59,7 @@ fn resolve_project_root() -> Option<PathBuf> {
 
 fn workspace_from_daemon_file() -> Option<PathBuf> {
     let cwd = std::env::current_dir().ok()?;
-    let daemon_dir = ship_substrate::home::daemon::daemon_dir_for(&cwd);
+    let daemon_dir = ship_substrate::home::daemon::daemon_dir_for(&cwd); // LAYER_EXCEPTION: deck-core reads the daemon workspace file to resolve the project root; see Open Call #1 in shared/deck.md
     let workspace_path = daemon_dir.join("workspace");
     let raw = std::fs::read_to_string(&workspace_path).ok()?;
     let trimmed = raw.trim();

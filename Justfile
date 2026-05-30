@@ -250,6 +250,11 @@ lint-views:
 lint-layers:
     cargo run -p xtask --quiet -- lint-layers
 
+# Enforce layer-direction rules at the use-statement level (complements lint-layers).
+[group('occasional')]
+lint-imports:
+    cargo run -p xtask --quiet -- lint-imports
+
 # Regenerate the aggregated SUI Custom Elements Manifest from per-component
 # CEMs under packages/components/ui-components/src/. Writes
 # crates/deck/deck-core/assets/sui-custom-elements.json which apps/shipd embeds.

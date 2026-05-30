@@ -3,6 +3,10 @@
 //! Usage:
 //!   cargo xtask gen-types          # regenerate packages/deck/sdk/src/generated.ts
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
+//!
+// FILE_CAP_OVERRIDE: dispatch-only; every arm is a one-liner that calls into
+// a dedicated module. Splitting would require a second file with just a fn
+// signature, adding indirection without reducing complexity.
 
 mod gen_audit_readme;
 mod gen_contract;
@@ -13,6 +17,7 @@ mod gen_indexes_substrate;
 mod gen_ops;
 mod gen_skills;
 mod gen_sdk;
+mod lint_imports;
 mod lint_layers;
 mod port_descriptions;
 
@@ -279,6 +284,33 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        "lint-imports" => {
+            match lint_imports::run(&repo_root()) {
+                Err(e) => {
+                    eprintln!("lint-imports failed: {e}");
+                    std::process::exit(1);
+                }
+                Ok(report) => {
+                    let count = report.violations.len() / 2; // each violation is 2 lines
+                    if report.violations.is_empty() {
+                        println!("import layer boundaries clean");
+                    } else {
+                        for line in &report.violations {
+                            eprintln!("{line}");
+                        }
+                        if report.warn_only {
+                            eprintln!(
+                                "lint-imports: {count} violation(s) — WARN mode (>= 10 violations; \
+                                fix violations then set warn_only threshold to enforce)"
+                            );
+                        } else {
+                            eprintln!("lint-imports: {count} violation(s)");
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        }
         "gen-fixtures" => {
             if let Err(e) = gen_fixtures::run() {
                 eprintln!("gen-fixtures failed: {e:#}");
@@ -338,7 +370,8 @@ fn main() {
             eprintln!("  gen-types --check     Verify generated file is up-to-date (CI)");
             eprintln!("  gen-sdk               Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
             eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/theme.json");
-            eprintln!("  lint-layers           Verify substrate/platform/application boundaries");
+            eprintln!("  lint-layers           Verify substrate/platform/application boundaries (Cargo dep level)");
+            eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");
             eprintln!("  gen-events            Generate tier-filtered proto + TS from the event registry");
             eprintln!("  gen-events --check    Verify generated files are up-to-date (CI)");
             eprintln!("  gen-ops               Generate the read-op Connect surface from schema::OPS");
