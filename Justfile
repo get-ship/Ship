@@ -144,7 +144,10 @@ test:
     # ship-shell (apps/shell/src-tauri) is the desktop shell — needs webkit2gtk/
     # libsoup; excluded from the framework test sweep. Build it via the Tauri
     # toolchain (release.yml / `cargo build -p ship-shell` on a desktop box).
-    cargo test --workspace --exclude ship-shell --features unstable
+    # --no-fail-fast: run EVERY test binary. cargo's default stops at the first
+    # failing bin and masks the rest — the gate then lies green while later
+    # suites are red. Never drop this flag.
+    cargo test --workspace --exclude ship-shell --features unstable --no-fail-fast
 
 # Visual baselines — Playwright screenshots vs committed PNGs.
 # Daemon must be running (`just dev`). Pass --update-snapshots to refresh
@@ -156,7 +159,7 @@ visual *ARGS:
 # Library tests only — skips integration suites for fast inner-loop feedback.
 [group('daily')]
 test-fast:
-    cargo test --workspace --exclude ship-shell --lib --features unstable
+    cargo test --workspace --exclude ship-shell --lib --features unstable --no-fail-fast
 
 # Run tests for a single crate. Usage: just test-pkg runtime
 [group('daily')]
