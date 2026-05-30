@@ -28,19 +28,17 @@ import { ops } from './ops'
 // pack via standard workspace deps, exactly the same shape any future
 // first- or third-party pack will use.
 //
-// The `/bundle` subpath points at sui-build's pre-built artifact
-// (`dist/sui-charts.js`) — the same shape the daemon uses to serve
-// `<script src="/_sui/components.js">` for the umbrella. Importing
-// `@ship/sui-charts` directly would route through the source tree's
-// `.compiled.js` virtual imports, which only the sui-build / vitest
-// resolvers understand. The bundle path is a real on-disk module
-// Vite can ship as-is. Requires `bun run --filter @ship/sui-charts build`
-// to have produced `dist/sui-charts.js`.
-import '@ship/sui-charts/bundle'
+// Imported from SOURCE (`src/index.ts`), not a prebuilt `/bundle` artifact:
+// the app build (deck-cli) compiles the pack's `.sui` → `.compiled.js`
+// in-process via the shared SuiPlugin (the same hooks the view/component
+// build uses), so no `sui-build` pre-step is needed. The package main
+// side-effect-registers every `<sui-*-chart>`, `<sui-sparkline>`,
+// `<sui-donut>`, `<sui-gauge>`, `<sui-meter>`, `<sui-heatmap>` before the
+// first view mounts. See ADR one-bundler-entry-traced (Slice 4a).
+import '@ship/sui-charts'
 // Pipelines pack — sui-pipeline-* primitives (card/dag/step/run/history/
-// trigger/output/definition). Same prebuilt-bundle path as charts; requires
-// `bun run --filter @ship/pipelines build` to have produced dist/sui-pipelines.js.
-import '@ship/pipelines/bundle'
+// trigger/output/definition). Same source import + in-process compile path.
+import '@ship/pipelines'
 // Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
 // popover, tooltip, tabs, etc.) — is registered by the eager
 // `/_sui/components.js` umbrella loaded in index.html (its `@ship/ui-components`

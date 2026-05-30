@@ -3,11 +3,14 @@
 //!
 //! This is the deck-owned replacement for the retired `shell-app.ts`
 //! (`Bun.build`) — one bundler engine (Rolldown) for framework + views +
-//! apps. Driven by `deck build` (`crates/deck/deck-cli`). The app's `.sui`
-//! sources are
-//! pre-compiled to `.compiled.js` on disk by `sui-build` before this runs, so
-//! the graph is plain JS/TS; we only bundle + externalize the framework
-//! singletons (which resolve to `/_sui/*` via the document's importmap).
+//! apps. Driven by `deck build` (`crates/deck/deck-cli`). The app graph
+//! compiles its own `.sui` in-process via the shared `SuiPlugin`
+//! (`rolldown_bundle.rs`) — the exact resolve/load hooks the view/component
+//! build uses — so no on-disk `.compiled.js` pre-step (`sui-build`) is needed.
+//! `AppPlugin` runs alongside it to externalize the framework singletons
+//! (which resolve to `/_sui/*` via the document's importmap); it runs FIRST so
+//! importmap specifiers (incl. `@ship/sui-runtime/*` subpaths) stay external
+//! rather than being re-anchored to source by `SuiPlugin`.
 //!
 //! Steps mirror `buildShellApp`: bundle `src/main.ts` (split, hashed),
 //! copy + hash the chrome stylesheet (plain CSS — no bundler needed), copy
@@ -48,8 +51,8 @@ pub struct AppBuild {
 
 /// Externalizes exactly the document's importmap specifiers, so the bundle
 /// leaves `@ship/sui-runtime` (etc.) as bare imports the browser resolves to
-/// `/_sui/*` — the single-runtime guarantee. No `.sui` compilation here (the
-/// app graph is pre-compiled by `sui-build`).
+/// `/_sui/*` — the single-runtime guarantee. `.sui` compilation is handled by
+/// the sibling `SuiPlugin` in the same bundle pass.
 #[derive(Debug)]
 struct AppPlugin {
     externals: HashSet<String>,
@@ -122,6 +125,7 @@ pub async fn bundle_app(
     bundle_framework: bool,
     framework_assets_dir: &Path,
     deck_out_dir: &Path,
+    compiler: &Path,
 ) -> Result<AppBuild> {
     // Typed route table first (#168): main.ts imports routes.gen.ts, so it must
     // be current before Rolldown reads the graph. No-op for apps with no studio.
@@ -166,10 +170,18 @@ pub async fn bundle_app(
         )),
         ..Default::default()
     };
-    let plugin = AppPlugin { externals };
+    // AppPlugin FIRST so importmap specifiers (incl. `@ship/sui-runtime/*`
+    // subpaths) win as externals; SuiPlugin then compiles `.sui` siblings and
+    // re-anchors the remaining `@ship/<pkg>` (e.g. sui-charts, pipelines) to
+    // workspace source so the app graph compiles them in-process.
+    let app_plugin = AppPlugin { externals };
+    let sui_plugin = crate::rolldown_bundle::SuiPlugin {
+        repo_root: repo_root.to_path_buf(),
+        compiler: compiler.to_path_buf(),
+    };
     let mut bundler = BundlerBuilder::default()
         .with_options(options)
-        .with_plugins(vec![Arc::new(plugin)])
+        .with_plugins(vec![Arc::new(app_plugin), Arc::new(sui_plugin)])
         .build()
         .map_err(|e| anyhow!("rolldown build(app): {e:?}"))?;
     bundler
@@ -273,7 +285,11 @@ mod tests {
         write(&r.join("src/chrome/layout.css"), ".a{color:red}\n");
 
         let out = r.join("dist");
-        let build = bundle_app(r, r, &out, false, false, r, r).await.expect("bundle_app");
+        // No `.sui` in this graph, so the compiler is never invoked — a bogus
+        // path is fine; the SuiPlugin only spawns it on a `.sui`/`.compiled.js` load.
+        let build = bundle_app(r, r, &out, false, false, r, r, Path::new("/nonexistent-sui-compiler"))
+            .await
+            .expect("bundle_app");
 
         // 1. Entry chunk emitted + HTML rewritten to its hashed href.
         assert!(build.js_href.starts_with("/assets/main-") && build.js_href.ends_with(".js"));
@@ -293,5 +309,56 @@ mod tests {
         // 3. CSS copied verbatim under a hashed name.
         let css = std::fs::read_to_string(out.join(build.css_href.trim_start_matches('/'))).unwrap();
         assert_eq!(css, ".a{color:red}\n");
+    }
+
+    /// The app build compiles a `.sui` referenced by the entry IN-PROCESS (via
+    /// the shared SuiPlugin) — no on-disk `.compiled.js` pre-step — while the
+    /// runtime stays external (single-runtime guarantee). This is the core of
+    /// Slice 4a: the shell no longer needs `sui-build` to pre-compile its packs.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn app_build_compiles_sui_entry_in_process() {
+        let compiler = match ship_substrate::locate::walk_for_target_binary("sui-compiler") {
+            Ok(c) => c,
+            Err(_) => return, // sui-compiler not built — skip (matches other compile tests).
+        };
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path();
+        write(
+            &r.join("index.html"),
+            "<!doctype html><html><head>\
+             <script type=\"importmap\">{\"imports\":{\"@ship/sui-runtime\":\"/_sui/runtime.js\"}}</script>\
+             <link rel=\"stylesheet\" href=\"/src/chrome/layout.css\">\
+             <script type=\"module\" src=\"/src/main.ts\"></script>\
+             </head><body></body></html>",
+        );
+        // main.ts side-effect-imports a `.compiled.js` sibling — exactly the
+        // shape a pack's `src/index.ts` uses. No `.compiled.js` exists on disk;
+        // SuiPlugin must synthesize + compile the sibling `widget.sui`.
+        write(&r.join("src/main.ts"), "import './widget.compiled.js'\nexport const x = 1\n");
+        write(&r.join("src/widget.sui"), "<div class=\"w\">hi {1 + 1}</div>\n");
+        write(&r.join("src/chrome/layout.css"), ".a{color:red}\n");
+
+        let out = r.join("dist");
+        let build = bundle_app(r, r, &out, false, false, r, r, &compiler)
+            .await
+            .expect("bundle_app should compile the .sui entry in-process");
+
+        let entry = out.join(build.js_href.trim_start_matches('/'));
+        let js = std::fs::read_to_string(&entry).unwrap();
+        // The synthetic `.compiled.js` specifier was resolved + inlined, not
+        // left as a live import (no on-disk module backs it). Rolldown's dev
+        // banners mention the source path in comments, so check for a real
+        // import/from statement rather than any substring occurrence.
+        assert!(
+            !js.contains("import './widget.compiled.js'")
+                && !js.contains("from './widget.compiled.js'"),
+            "synthetic .compiled.js inlined, not left as a bare import"
+        );
+        // The compiled view's body is present (proves the .sui was compiled in,
+        // not stubbed) — the `w` class from `<div class=\"w\">` survives.
+        assert!(js.contains("\"w\"") || js.contains("'w'"), "compiled .sui body inlined");
+        // The compiled view pulls the runtime — it must stay EXTERNAL (resolved
+        // to /_sui/runtime.js at runtime), never a second inlined copy.
+        assert!(js.contains("@ship/sui-runtime"), "runtime kept external, single instance");
     }
 }

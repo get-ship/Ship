@@ -61,10 +61,15 @@ fn normalize(p: &Path) -> PathBuf {
     out
 }
 
+/// SUI compile plugin — `resolve_id` redirects `*.compiled.js` siblings to a
+/// virtual id and re-anchors `@ship/<pkg>` to workspace `src/`; `load` compiles
+/// the sibling `.sui` via sui-compiler. Reused by the app build (`app.rs`) so
+/// the SPA graph compiles its own `.sui` in-process — one compile path, no
+/// on-disk `.compiled.js` pre-step.
 #[derive(Debug)]
-struct SuiPlugin {
-    repo_root: PathBuf,
-    compiler: PathBuf,
+pub(crate) struct SuiPlugin {
+    pub(crate) repo_root: PathBuf,
+    pub(crate) compiler: PathBuf,
 }
 
 impl SuiPlugin {
