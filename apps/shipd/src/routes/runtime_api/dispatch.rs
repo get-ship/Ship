@@ -499,7 +499,7 @@ fn load_and_validate_session_file(
     }
 
     // Verify the adapter actually supports resume before promising the
-    // caller it'll work. Gemini/Cursor will fail here; the dispatch path
+    // caller it'll work. Cursor will fail here; the dispatch path
     // then never hands off to the executor.
     let adapter = ship_platform::services::harness_adapter::adapter_for(&session_file.harness)
         .map_err(|e| ResumeResolveError::Status {

@@ -52,7 +52,7 @@ pub struct HookSessionStartedPayload {
     /// because not every harness surfaces it on session-start.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
-    /// Harness identifier — "claude", "codex", "cursor", "gemini",
+    /// Harness identifier — "claude", "codex", "cursor",
     /// "opencode". Populated from `ShipHookEvent.harness` when set;
     /// `None` for legacy emitters.
     #[serde(default, skip_serializing_if = "Option::is_none")]

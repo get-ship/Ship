@@ -1,5 +1,5 @@
-//! Import harness-managed skills (Claude `~/.claude/skills`, Gemini
-//! `~/.gemini/skills`, Codex `~/.agents/skills`) into the project's
+//! Import harness-managed skills (Claude `~/.claude/skills`,
+//! Codex `~/.agents/skills`) into the project's
 //! `skills/<id>/SKILL.md`. Frontmatter is YAML; we tolerate either a
 //! top-level `name:` or a `metadata.display_name:` entry. Skills that
 //! already exist by id are skipped (no overwrite).
@@ -99,7 +99,6 @@ fn harness_skill_import_paths(
 fn harness_skills_relative_path(desc: &HarnessDescriptor) -> Option<&'static str> {
     match desc.skills_output {
         SkillsOutput::ClaudeSkills => Some(".claude/skills"),
-        SkillsOutput::AgentSkills => Some(".gemini/skills"),
         SkillsOutput::CodexSkills => Some(".agents/skills"),
         SkillsOutput::None => None,
     }

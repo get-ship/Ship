@@ -61,7 +61,7 @@ pub struct ShipHookEvent {
     pub workspace: Option<String>,
     #[serde(default)]
     pub session_id: Option<String>,
-    /// Harness identifier (claude/codex/cursor/gemini/opencode) the
+    /// Harness identifier (claude/codex/cursor/opencode) the
     /// hook originates from. `ship hook` CLI populates this via
     /// `detect_harness()`; direct HTTP callers can pass it explicitly.
     #[serde(default)]

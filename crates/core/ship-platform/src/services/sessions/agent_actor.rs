@@ -13,7 +13,7 @@
 //! 3. Updates the sidecar `SessionMeta` (status, last_activity).
 //! 4. Emits `actor.stopped` when the byte stream closes.
 //!
-//! Per-turn harnesses (codex, opencode, cursor, gemini) keep their
+//! Per-turn harnesses (codex, opencode, cursor) keep their
 //! parent metadata on the legacy `SessionRegistry` (no persistent
 //! child between turns), but `run_headless_turn` spawns the per-turn
 //! child through the supervisor's Headless transport — same primitive,
@@ -197,7 +197,7 @@ fn spawn_reader_middleware(
                                     }
                                     // Studio.reply parity: long-lived
                                     // non-Claude harnesses (codex,
-                                    // opencode, cursor, gemini via stdin
+                                    // opencode, cursor via stdin
                                     // push) emit Message events here.
                                     // Claude has its own chat_reply
                                     // path; emitting again would be a
@@ -337,7 +337,7 @@ pub fn run_headless_turn(
                             }
                             // Studio.reply parity: emit a kernel event on
                             // every Message HarnessEvent so the chat
-                            // thread sees codex/opencode/cursor/gemini
+                            // thread sees codex/opencode/cursor
                             // replies on the same rail Claude uses via
                             // chat_reply. Best-effort; in-memory event_tx
                             // broadcast still fires below for SSE

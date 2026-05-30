@@ -121,7 +121,7 @@ ship_ops! {
     },
     {
         name: "agents.harnesses",
-        desc: "Enumerate known harnesses (claude, openai, gemini, ...).",
+        desc: "Enumerate known harnesses (claude, codex, cursor, opencode).",
         perm: "ship.agents.read",
         args: &[],
         ret: HarnessesResponse,

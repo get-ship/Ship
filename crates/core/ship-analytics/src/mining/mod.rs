@@ -20,7 +20,6 @@
 //! | claude   | `~/.claude/todos/`                    | task state |
 //! | codex    | `~/.codex/sessions/`                  | similar transcripts |
 //! | codex    | `~/.codex/history.jsonl`              | running command history |
-//! | gemini   | `~/.gemini/`                          | settings + (less rich) history |
 //! | cursor   | mostly cloud-stored                   | hard target |
 //! | opencode | `~/.opencode/` (TBD)                  | plugin model — different shape |
 //!

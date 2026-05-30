@@ -64,6 +64,8 @@ jobs:
           cargo run -p xtask --quiet -- gen-fixtures
           git diff --exit-code proto/fixtures/ \
             || { echo "proto/fixtures is stale — run 'cargo run -p xtask -- gen-fixtures' and commit"; exit 1; }
+      - name: Lint layer boundaries
+        run: cargo run -p xtask --quiet -- lint-layers
       # Shape-conformance integration test runs as part of
       # `cargo test --workspace` (it's a normal integration test under
       # `crates/sui/compiler/tests/shape_conformance.rs`). The tsc gate
