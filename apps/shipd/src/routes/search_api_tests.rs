@@ -60,16 +60,22 @@ mod tests {
                 }
             }"#,
         );
-        let create = daemon
-            .post(
-                "/api/v1/collections/note/items",
-                &json!({ "id": "n1", "data": { "title": "Hello searchable world", "body": "..." } }),
-            )
-            .await;
-        assert!(
-            create.status == 200 || create.status == 201,
-            "create response: {} {:?}", create.status, create.body
-        );
+        // Create the item through the canonical collections service. There is
+        // no `/api/v1/collections/:id/items` REST route (the surface is
+        // Connect `ship.collections.*`); search visibility — not the HTTP
+        // create shim — is what this test exercises.
+        use ship_platform::services::collections::service::CreateItemArgs;
+        daemon
+            .state
+            .collections()
+            .create_item(CreateItemArgs {
+                collection: "note".into(),
+                id: "n1".into(),
+                data: json!({ "title": "Hello searchable world", "body": "..." }),
+                created_by: None,
+            })
+            .await
+            .expect("create note item via collections service");
 
         let resp = daemon.get("/api/v1/search?q=searchable").await;
         assert_eq!(resp.status, 200);

@@ -106,10 +106,23 @@ pub fn load_schemas(ship_dir: &Path) -> anyhow::Result<Vec<CollectionSchema>> {
         let entry = entry?;
         let path = entry.path();
         if path.extension().is_some_and(|e| e == "jsonc" || e == "json") {
-            let content = std::fs::read_to_string(&path)?;
-            let schema = parse_schema(&content)
-                .map_err(|e| anyhow::anyhow!("invalid schema {}: {e}", path.display()))?;
-            schemas.push(schema);
+            // One malformed schema file must not blank the entire collections
+            // surface. Skip-and-warn per file: a single unparseable schema in a
+            // user's `.ship/collections/` should drop only that collection, not
+            // take down search / listing for every other (valid) schema.
+            let content = match std::fs::read_to_string(&path) {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::warn!("skipping unreadable schema {}: {e}", path.display());
+                    continue;
+                }
+            };
+            match parse_schema(&content) {
+                Ok(schema) => schemas.push(schema),
+                Err(e) => {
+                    tracing::warn!("skipping invalid schema {}: {e}", path.display());
+                }
+            }
         }
     }
     Ok(schemas)
