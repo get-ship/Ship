@@ -12,8 +12,8 @@ exercise SUI views or components. Three planes:
 
 | Plane | Use it for | Lives in |
 |---|---|---|
-| **MCP tools** | Live operations against an active project (scaffold, edit, mount, snapshot) | `apps/mcp/src/server/mod.rs`, `apps/mcp/src/tools/*.rs` |
-| **CLI lint + compile loop** | Fast per-edit verification now that MCP SUI tools are removed. | `cargo run -p sui-lint --example check -- <file>` (lint); `cargo run -p sui-compiler -- build <file>` (full compile) |
+| **`ship ops call`** | Live operations against an active project. Per-domain ConnectRPC ops (the post-#143 surface — `apps/mcp/` no longer exists). List with `ship ops list`. | `ship ops call <op-name> --json '{…}'` |
+| **CLI lint + compile loop** | Fast per-edit verification — the primary authoring path. | `cargo run -p sui-lint --example check -- <file>` (lint); `cargo run -p sui-compiler -- build <file>` (full compile) |
 | **`sui-lsp` binary** | Native Rust LSP over stdio for editors + Claude Code (`.lsp.json`). Same grammar as the build. | `crates/sui/lsp/` |
 | **`@ship/sui-lsp-browser`** | Browser-only structural analyser + completion sources. Web worker, no Node deps, no `typescript` package. Used by the docs playground; the shell editor can adopt it too. | `packages/deck/lsp-browser/src/` |
 | **`@ship/sui-eval`** | Regression-quality scoring of agent-produced SUI against a behavioural spec | `packages/deck/eval/src/index.ts` |
@@ -35,7 +35,7 @@ artifacts, dispatch) are platform-level and documented in
 
 | Tool | Signature | Use |
 |---|---|---|
-| `mcp__ship__scaffold_view` | `{ name, path?, layout? }` | Emit a fresh `views/<name>/` skeleton (`page.sui`, `controller.ts`, `manifest.jsonc`). Mirrors `node scripts/scaffold-view.mjs`. |
+| `mcp__ship__scaffold_view` | `{ name, path?, layout? }` | Emit a fresh `views/<name>/` skeleton (`page.sui`, `controller.ts`, `manifest.jsonc`). Mirrors `deck scaffold view`. |
 | ~~`mcp__ship__sui_diagnostics`~~ | removed | Use `cargo run -p sui-lint --example check -- <file>` instead. |
 | ~~`mcp__ship__sui_hover`~~ | removed | Use the `sui-lsp` binary via `.lsp.json` or `crates/sui/lsp/` for hover. |
 | ~~`mcp__ship__sui_dependencies`~~ | removed | Use `cargo run -p sui-compiler -- build <file>` for dependency analysis. |

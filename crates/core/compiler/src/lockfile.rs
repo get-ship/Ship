@@ -2,7 +2,9 @@
 //!
 //! `ship.lock` is the registry dependency lockfile (`.ship/ship.lock`).
 //! It records direct resolved dependencies — path, version, commit, and content hash.
-//! On disk, the file is JSON (with deterministic key ordering for stable diffs).
+//! On disk, the file is JSONC (matches every other `.ship/` config: agents,
+//! skills, views, pipelines, collections). The writer emits pure JSON for
+//! deterministic diffs; the reader accepts comments and trailing commas.
 //!
 //! NOTE: `.ship/ship.state` (formerly `.ship/ship.lock`) stores workspace state
 //! (active_profile, compiled_at). These are completely separate files.
@@ -59,13 +61,20 @@ impl ShipLock {
     pub fn from_file(path: &Path) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("Cannot read {}", path.display()))?;
-        Self::from_json_str(&content)
+        Self::from_jsonc_str(&content)
             .with_context(|| format!("Failed to parse {}", path.display()))
     }
 
-    /// Parse a `ship.lock` JSON string.
+    /// Parse a `ship.lock` JSONC string. Accepts `//` line comments,
+    /// `/* */` block comments, and trailing commas — pure JSON also parses.
+    pub fn from_jsonc_str(s: &str) -> anyhow::Result<Self> {
+        serde_json::from_str(&strip_jsonc(s)).map_err(Into::into)
+    }
+
+    /// Backward-compatible alias; new callers should use `from_jsonc_str`.
+    #[doc(hidden)]
     pub fn from_json_str(s: &str) -> anyhow::Result<Self> {
-        serde_json::from_str(s).map_err(Into::into)
+        Self::from_jsonc_str(s)
     }
 
     /// Serialize to a deterministic JSON string.
@@ -112,6 +121,86 @@ impl ShipLock {
             .collect();
         (added, removed)
     }
+}
+
+// ── JSONC helper ──────────────────────────────────────────────────────────────
+//
+// Strip `//` line comments, `/* */` block comments, and trailing commas so
+// the result parses as plain JSON. Respects string contents so `//` inside
+// `"http://x"` is preserved. Kept local — the compiler crate is WASM-safe
+// and `ship-substrate::fs_util` is not in scope.
+
+fn strip_jsonc(input: &str) -> String {
+    // Phase 1: strip comments while respecting string literals.
+    let mut stage = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+    let mut in_string = false;
+    let mut escape = false;
+    while let Some(c) = chars.next() {
+        if in_string {
+            stage.push(c);
+            if escape { escape = false; }
+            else if c == '\\' { escape = true; }
+            else if c == '"' { in_string = false; }
+            continue;
+        }
+        if c == '"' { in_string = true; stage.push(c); continue; }
+        if c == '/' {
+            match chars.peek() {
+                Some('/') => {
+                    while let Some(&nc) = chars.peek() {
+                        chars.next();
+                        if nc == '\n' { stage.push('\n'); break; }
+                    }
+                    continue;
+                }
+                Some('*') => {
+                    chars.next();
+                    while let Some(nc) = chars.next() {
+                        if nc == '*' && chars.peek() == Some(&'/') {
+                            chars.next();
+                            break;
+                        }
+                    }
+                    continue;
+                }
+                _ => {}
+            }
+        }
+        stage.push(c);
+    }
+    // Phase 2: strip trailing commas before `]` / `}`. Walks bytes for
+    // cheap lookahead; non-ASCII passes through as-is.
+    let src = stage.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(src.len());
+    let mut i = 0;
+    let mut in_str = false;
+    let mut esc = false;
+    while i < src.len() {
+        let b = src[i];
+        if in_str {
+            out.push(b);
+            if esc { esc = false; }
+            else if b == b'\\' { esc = true; }
+            else if b == b'"' { in_str = false; }
+            i += 1;
+            continue;
+        }
+        if b == b'"' { in_str = true; out.push(b); i += 1; continue; }
+        if b == b',' {
+            let mut j = i + 1;
+            while j < src.len() && (src[j] as char).is_whitespace() { j += 1; }
+            if j < src.len() && (src[j] == b']' || src[j] == b'}') {
+                i = j;
+                continue;
+            }
+        }
+        out.push(b);
+        i += 1;
+    }
+    // Safety: input was valid UTF-8; we only removed ASCII bytes outside
+    // string contexts, never split a multi-byte sequence.
+    String::from_utf8(out).unwrap_or(stage)
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
@@ -241,5 +330,36 @@ mod tests {
         let s = ShipLock::default().to_json_string().unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v.get("version").and_then(|x| x.as_u64()), Some(1));
+    }
+
+    #[test]
+    fn jsonc_comments_and_trailing_commas_parse() {
+        let src = r#"{
+            // top-level comment
+            "version": 1,
+            "packages": [
+                {
+                    "path": "github.com/owner/repo",
+                    "version": "main",
+                    "commit": "abcdef0123456789abcdef0123456789abcdef01",
+                    "hash": "sha256:deadbeef", /* trailing comma below is JSONC-only */
+                },
+            ],
+        }"#;
+        let lock = ShipLock::from_jsonc_str(src).expect("JSONC must parse");
+        assert_eq!(lock.version, 1);
+        assert_eq!(lock.packages.len(), 1);
+        assert_eq!(lock.packages[0].path, "github.com/owner/repo");
+    }
+
+    #[test]
+    fn comment_inside_string_value_preserved() {
+        // The `//` inside the URL must not be treated as a comment.
+        let src = r#"{
+            "version": 1,
+            "packages": [{"path": "github.com/a/b", "version": "https://example.com/x", "commit": "0123456789abcdef0123456789abcdef01234567", "hash": "sha256:x"}]
+        }"#;
+        let lock = ShipLock::from_jsonc_str(src).expect("URL-with-slashes must parse");
+        assert_eq!(lock.packages[0].version, "https://example.com/x");
     }
 }

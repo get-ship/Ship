@@ -74,7 +74,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
 
   // Actions
   'sui-button': 'actions',
-  'sui-toolbar': 'actions',
   'sui-theme-toggle': 'actions',
   'sui-theme-picker': 'actions',
 
@@ -91,14 +90,10 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-textarea': 'forms',
   'sui-toggle-group': 'forms',
   'sui-toggle': 'forms',
-  'sui-segmented': 'forms',
-  'sui-segmented-option': 'forms',
 
   // Status
   'sui-alert': 'status',
   'sui-badge': 'status',
-  'sui-progress': 'status',
-  'sui-progress-ring': 'status',
   'sui-spinner': 'status',
   'sui-stat': 'status',
   'sui-status-dot': 'status',
@@ -111,12 +106,9 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-accordion-item': 'data',
   'sui-collapsible': 'data',
   'sui-empty-state': 'data',
-  'sui-list-tile': 'data',
-  'sui-pagination': 'data',
   'sui-tabs': 'data',
   'sui-tab': 'data',
   'sui-tab-panel': 'data',
-  'sui-stepper': 'data',
 
   // Layout
   'sui-card': 'layout',
@@ -141,13 +133,9 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
 
   // Utility
   'sui-avatar': 'utility',
-  'sui-breadcrumb': 'utility',
-  'sui-breadcrumb-item': 'utility',
   'sui-chip': 'utility',
   'sui-icon': 'utility',
-  'sui-kbd': 'utility',
   'sui-link': 'utility',
-  'sui-mark': 'utility',
   'sui-metachip': 'utility',
   'sui-skeleton': 'utility',
   'sui-step-segments': 'utility',
@@ -162,7 +150,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-sparkline': 'charts',
   'sui-donut': 'charts',
   'sui-gauge': 'charts',
-  'sui-meter': 'charts',
   'sui-heatmap': 'charts',
 
   // Observability
@@ -177,14 +164,12 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-table': 'observability',
   'sui-timeline': 'observability',
   'sui-timeline-item': 'observability',
-  'sui-timestamp': 'observability',
   'sui-tree-view': 'observability',
   'sui-annotation-layer': 'observability',
   'sui-annotation-marker': 'observability',
   'sui-annotation-list': 'observability',
 
   // Domain
-  'sui-app-icon': 'domain',
   'sui-auth-dialog': 'domain',
   'sui-pipeline-dag': 'domain',
   'sui-pipeline-step': 'domain',
@@ -267,12 +252,10 @@ const HIDDEN_TAGS = new Set([
   // specific parent — keep them documented inside the parent's preview
   // rather than as standalone pages where they'd render an empty
   // husk or duplicate the parent's example verbatim.
-  'sui-segmented-option',
   'sui-tab',
   'sui-tab-panel',
   'sui-tree-item',
   'sui-accordion-item',
-  'sui-breadcrumb-item',
   'sui-navigation-item',
   'sui-pipeline-step-def',
   'sui-timeline-item',
@@ -295,7 +278,6 @@ const HIDDEN_TAGS = new Set([
   'sui-rail-section',
   'sui-view-chrome',
   'sui-view-picker',
-  'sui-app-icon',
   'sui-brand-mark',
   'sui-devtools-components',
   'sui-devtools-schema',

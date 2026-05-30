@@ -29,7 +29,7 @@ const config: SuiBuildConfig = {
   },
   lazyBundles: {
     'sui-agent-attach':     'src/components/sui-agent-attach/index.ts',
-    'sui-terminal':         'src/components/sui-terminal/index.ts',
+    'sui-terminal':         '../../packages/sui/terminal/src/index.ts',
     'sui-code-editor':      'src/components/sui-code-editor/index.ts',
     'sui-markdown-editor':  'src/components/sui-markdown-editor/index.ts',
     'sui-command-bar':      'src/components/sui-command-bar/index.ts',

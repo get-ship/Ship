@@ -31,12 +31,12 @@ Values injected by the daemon into spawned agent processes so each child inherit
 
 | Var | Set by | Consumed by |
 |---|---|---|
-| `SHIP_ACTOR_ID` | Orchestrator + harness adapters when dispatching a job/lane (`dispatch.rs`, `pipeline.rs`, `fanout.rs`, every `harnesses/<provider>.rs`). | Hook helpers (`apps/ship-cli/src/hook.rs`), MCP gate (`apps/mcp/src/server/tool_gate.rs`), tests. |
+| `SHIP_ACTOR_ID` | Orchestrator + harness adapters when dispatching a job/lane (`dispatch.rs`, `pipeline.rs`, `fanout.rs`, every `harnesses/<provider>.rs`). | Hook helpers (`apps/ship-cli/src/hook.rs`), tests. (The legacy MCP gate consumer at `apps/mcp/src/server/tool_gate.rs` no longer exists post-#143.) |
 | `SHIP_AGENT_ID` | Supervisor transport when launching an agent process (`ship-substrate/src/supervisor/transport.rs`). | Hook helpers in CLI. |
 | `SHIP_WORKSPACE_ID` | Supervisor transport. | Hook helpers in CLI. |
 | `SHIP_SESSION_ID` | Reserved for session-scoped subprocesses. | Reserved. |
 | `SHIP_WORKTREE_DIR` | Daemon when launching processes pinned to a worktree. | Project-local config resolution (`ship-platform/src/config/local.rs:90`). |
-| `SHIP_REPO_DIR` | Supervisor + bundler subprocess launches. | MCP `sui_lsp` to locate the repo (`apps/mcp/src/tools/sui_lsp.rs:23`), ship-supervisor helpers. |
+| `SHIP_REPO_DIR` | Supervisor + bundler subprocess launches. | `ship-supervisor` helpers. (The legacy MCP `sui_lsp` consumer at `apps/mcp/src/tools/sui_lsp.rs` no longer exists post-#143; the standalone `sui-lsp` binary in `crates/sui/lsp/` is the current entry.) |
 | `SHIP_MESH_ID` | Reserved for cross-mesh identity propagation. | Reserved (declared in `Var`, no production read yet). |
 
 ## Dev / debug

@@ -90,7 +90,7 @@ This is enforced by convention, not by the compiler — `<tag>` in `_components/
 
 ### 4. Migration
 
-Existing first-party views (`views/agents/`, `views/counter/`, `views/git/`) keep their current `view.sui` shape until separately migrated. The Rust resolver (`crates/ship-ui-framework/src/resolver.rs`) will gain awareness of the new convention in a follow-on job — this ADR locks in the shape that follow-on aims at. One proof-of-concept view (`views/home/`) ships in the new shape alongside this ADR; the router (`packages/ship-set/src/router/`) walks it and resolves routes against its `manifest.jsonc`.
+Existing first-party views (`views/agents/`, `views/counter/`, `views/git/`) keep their current `view.sui` shape until separately migrated. The Rust resolver (`crates/ship-ui-framework/src/resolver.rs`) will gain awareness of the new convention in a follow-on job — this ADR locks in the shape that follow-on aims at. One proof-of-concept view (`views/home/`) ships in the new shape alongside this ADR; the router (`@ship/sui-runtime/route + defineRoutes() in apps/shell/src/main.ts`) walks it and resolves routes against its `manifest.jsonc`.
 
 Mass migration of the existing three views is its own job once the convention is validated end-to-end (router → daemon → shell mount). Not in scope here.
 
@@ -129,8 +129,8 @@ Existing skill docs suggested YAML. Rejected for v1: the codebase has converged 
 
 ## How to Measure Success
 
-- `views/home/` ships in the new convention and the router (`packages/ship-set/src/router/`) resolves `/` → `views/home/page.sui`.
+- `views/home/` ships in the new convention and the router (`@ship/sui-runtime/route + defineRoutes() in apps/shell/src/main.ts`) resolves `/` → `views/home/page.sui`.
 - The router's happy-path test (vitest) loads a manifest fixture and resolves a URL.
-- `scripts/scaffold-view.mjs` produces a working stub matching the convention.
+- `deck scaffold view` produces a working stub matching the convention.
 - The `ship-views` skill documents the convention with the migrated example.
 - A follow-on job migrates the remaining first-party views (`agents`, `counter`, `git`) and updates the daemon resolver. This ADR is the contract that job aims at.

@@ -8,8 +8,10 @@
 //! sui-dom, sui-sdk-client, sui-components + per-tag islands,
 //! views/*/view.js) are produced by `cargo xtask build-assets` — the
 //! in-process Rolldown bundler (#163), the same engine shipd runs in dev
-//! mode (no bun, no spawned worker). The lucide icon registry is a separate
-//! gen step (`scripts/codegen/generate-lucide-registry.mjs`). The aggregated
+//! mode (no bun, no spawned worker). The lucide icon set is committed
+//! source (`assets/lucide-icons.json`) — the daemon embeds it and serves
+//! per-icon at `/_sui/icons/{name}.svg`; regenerate after a lucide-static
+//! version bump via `cargo run -p xtask -- gen-icons`. The aggregated
 //! CEM was retired in favour of `@ship/sui-catalog`, which emits
 //! `.deck/catalogs/{workspace,published}.json` and is read at runtime by
 //! `src/packs.rs`.
@@ -22,7 +24,8 @@
 //! actionable.
 //!
 //! On a fresh clone without dispatch.sh, run `cargo xtask build-assets`
-//! (plus the lucide gen step) before `cargo build`.
+//! before `cargo build`. `lucide-icons.json` is committed source — it is
+//! already present in a fresh clone.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -44,7 +47,6 @@ const COARSE_SOURCE_ROOTS: &[&str] = &[
     "packages/components/ui-components/src",
     "apps/shell/src/components",
     "packages/deck/sdk-client/src",
-    "scripts/codegen/generate-lucide-registry.mjs",
 ];
 
 fn main() {
@@ -83,11 +85,11 @@ fn main() {
             .join("\n");
         panic!(
             "build.rs: SUI bundle assets are missing or empty.\n{lines}\n\n\
-             Every asset under crates/deck/deck-core/assets/ is gitignored.\n\
-             On fresh worktrees, dispatch.sh bootstraps them automatically.\n\
-             For a standalone cargo build, regenerate by running (in order):\n\n  \
+             Most assets under crates/deck/deck-core/assets/ are gitignored\n\
+             (lucide-icons.json is committed source — present in a fresh clone).\n\
+             On fresh worktrees, dispatch.sh bootstraps the gitignored set;\n\
+             for a standalone cargo build, regenerate by running (in order):\n\n  \
              cargo build -p sui-compiler   # the binary the bundler spawns\n  \
-             bun scripts/codegen/generate-lucide-registry.mjs   # lucide-icons.json\n  \
              cargo xtask build-assets   # framework bundles via in-process Rolldown\n\n\
              then re-run `cargo build`."
         );

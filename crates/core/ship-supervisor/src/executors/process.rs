@@ -209,21 +209,20 @@ impl SessionExecutor for ProcessExecutor {
         let synth_actor_id = ctx.slug.clone();
         let synth_harness = harness_for_session.clone();
         tokio::spawn(async move {
-            let mut line_buf = String::new();
+            // Bounded line buffer: a real PTY keeps claude/codex in
+            // structured-output mode, but an interactive harness instead
+            // renders a newline-less TUI on the alternate screen. An
+            // unbounded accumulator would grow at the full PTY output rate
+            // (shipd-leak-193). The accumulator drops un-terminated overflow.
+            let mut acc = ship_platform::services::line_accumulator::LineAccumulator::new();
             let mut session_written = false;
             let mut hooks_session_synthed = false;
             loop {
                 match rx.recv().await {
                     Ok(chunk) => {
                         if let Some(ref adapter) = adapter_for_session {
-                            line_buf.push_str(&String::from_utf8_lossy(&chunk));
-                            while let Some(nl) = line_buf.find('\n') {
-                                let line: String = line_buf.drain(..=nl).collect();
-                                let trimmed = line.trim_end_matches(['\n', '\r']);
-                                if trimmed.is_empty() {
-                                    continue;
-                                }
-                                let Some(ev) = adapter.parse_output(trimmed) else {
+                            for line in acc.push(&String::from_utf8_lossy(&chunk)) {
+                                let Some(ev) = adapter.parse_output(&line) else {
                                     continue;
                                 };
                                 use ship_platform::services::harness_adapter::HarnessEvent;

@@ -30,7 +30,7 @@ export default controller({
   mount(state, host) {
     // `state.entries` reads/writes the value (assignment forwards to .set);
     // `state.$signals.entries` is the raw Signal for reactive reads;
-    // `state.view()` calls the non-state scope signal. No casts needed —
+    // `state.view` calls the non-state scope signal. No casts needed —
     // MutableState<Scope> types all three.
     let counter = 0
 
@@ -45,7 +45,7 @@ export default controller({
     }
 
     function matchesView(detailView: string | undefined): boolean {
-      const v = state.view()
+      const v = state.view
       if (!v) return true
       if (!detailView) return true
       return detailView === v

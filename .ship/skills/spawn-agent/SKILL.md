@@ -10,6 +10,10 @@ authors: [ship]
 
 Launch a specialist agent in a git worktree to execute a job. One command does everything.
 
+## Hard rule for dispatched agents
+
+**NEVER push to a remote.** Agents commit locally to their branch. The orchestrator gates by reading the local worktree state. `git push` is a side-effect on a shared remote that requires explicit human authorization — never assume it. If a job spec ever says "push", treat it as a typo and stop at commit.
+
 ## Usage
 
 ```bash
@@ -30,6 +34,7 @@ bash .ship/skills/spawn-agent/scripts/dispatch.sh \
 | `--no-open` | Print launch command instead of opening terminal |
 | `--dry-run` | Show what would happen |
 | `--confirm` | Show spec and ask y/n before launching |
+| `--batch <name>` | Group this dispatch into a shared wt window `ship-batch-<name>`. First call opens the window; each subsequent call with the same name adds a split-pane. Lets you monitor 4-5 parallel agents in ONE wt window instead of N tabs. Lock expires after 24h. Currently honored on the `wt` terminal path. |
 
 ### Environment variables
 
@@ -43,6 +48,7 @@ These are personal configuration — set in your shell profile, not in project f
 | `SHIP_AGENT_MODEL` | Default model for spawned agents |
 | `SHIP_DISPATCH_CONFIRM` | Set to `1` to always prompt before dispatch |
 | `SHIP_PROVIDER_CLI` | Override provider binary: `claude`, `codex`, `gemini`, `opencode` |
+| `WT_PROFILE` | Windows Terminal profile name to launch panes under (default: `$WSL_DISTRO_NAME`). Set to your preferred profile (e.g. `Ubuntu`) so panes inherit your font/colors instead of wt's default. |
 
 ## Workflow
 
@@ -84,13 +90,15 @@ These are personal configuration — set in your shell profile, not in project f
 ---
 > Execute this job yourself. Do not delegate the implementation to a subagent — subagents are only for read-only parallel research, never for writing the code this job asks for.
 >
-> If you notice a bug or problem outside your file scope, log it via
-> `mcp__ship__log_progress` and continue your work.
+> If you notice a bug or problem outside your file scope, jot it as a one-line note in the commit body (`note(out-of-scope): ...`) and continue your work — don't widen scope to fix it.
 >
-> **When all acceptance criteria are met:**
-> 1. Call `mcp__ship__complete_workspace` with a one-paragraph summary of what changed.
-> 2. Call `mcp__ship__mesh_broadcast` with `{ "topic": "job.completed", "workspace_id": "<id>", "summary": "<same summary>" }`.
->    This notifies commander. If shipd is not running, skip step 2 — step 1 is sufficient.
+> **When all acceptance criteria are met:** commit cleanly. **DO NOT push the branch.** Pushing to remote is forbidden without the human's explicit say-so. The gate-side process reads the local worktree to discover your work — remote is irrelevant.
+>
+> (If you're invoked as a pipeline step — `SHIP_ACTOR_ID` is set, you're inside `ship run` — then ALSO call `pipelines.step_done` over the daemon RPC surface to advance the step monitor:
+> ```
+> ship ops call pipelines.step_done --json '{"slug":"'$SHIP_ACTOR_ID'","summary":"<one-liner>"}'
+> ```
+> The CLI is a thin transport; everything flows through `ship ops call`. There is no special completion CLI.)
 ```
 
 ## Test/Impl Split

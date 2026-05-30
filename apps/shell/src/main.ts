@@ -18,7 +18,7 @@
 //      ⌘. navigates to /studio; ⌃` toggles the terminal panel;
 //      ⌘? opens help.
 
-import { createClient, type ShipSDK } from '@ship/sdk-client'
+import { createClient, setShipClient, type ShipSDK } from '@ship/sdk-client'
 import { ops } from './ops'
 // Charts pack — single workspace import registers every <sui-*-chart>,
 // <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
@@ -59,6 +59,8 @@ import { initProjectSwitch } from './project-switch'
 import { initChromeRegistry } from './chrome/registry'
 import { initEditModeChrome, setEditModeView, toggleEditMode, toggleAnnotationMode } from './chrome/edit-mode'
 import { bridgeDockTerminal, disposeDockTerminal } from './chrome/terminal-bridge'
+import { registerKeymap } from './chrome/keymap'
+import type { Route } from './chrome/routing-types'
 
 interface MountFn {
   (
@@ -102,6 +104,10 @@ injectTokenStyles()
 
 // Single SDK client instance, shared across every mounted view.
 const shipClient: ShipSDK = createClient({ baseUrl: daemonBase() })
+// Expose the client to `ship-*` packs (e.g. @ship/agents) that import
+// the lazy `ship` Proxy from `@ship/sdk-client`. Pure `sui-*` packs do
+// not reach for the SDK and are unaffected.
+setShipClient(shipClient)
 
 // Host loader injected into every mount() — the `/_sui/` URL scheme lives
 // here at the app boundary, not inside the (host-agnostic) SUI runtime.
@@ -250,13 +256,9 @@ function escapeHtml(s: string): string {
 }
 
 // ── Routing ─────────────────────────────────────────────────────────
-
-interface Route {
-  /** First path segment, e.g. "ship-ui-studio". */
-  view: string
-  /** Remaining path segments joined by "/", e.g. "sui-button". */
-  sub?: string
-}
+//
+// `Route` lives in `chrome/routing-types.ts` so chrome modules (keymap, etc.)
+// can type-import without a circular dep on this file.
 
 // Empty path → agents. Launch priorities (Agents · Skills · Collections ·
 // Artifacts · Workspaces · Settings) put Agents first on the rail, so
@@ -769,16 +771,9 @@ function getDock(): PanelDock | null {
   return document.getElementById('ship-panel-dock') as PanelDock | null
 }
 
-// ── Keyboard map ────────────────────────────────────────────────────
-//
-// ⌘K/Ctrl+K  → command-bar toggle (find mode)
-// ⌘P/Ctrl+P  → command-bar search (find mode)
-// ⌘J/Ctrl+J  → panel-dock toggle
-// Alt+E → per-view edit-mode toggle (was ⌘⇧E; collided with browser
-//   tab-search / devtools shortcuts on multiple platforms).
-// ⌘B/Ctrl+B  → rail toggle (via sui:rail:toggle)
-// Esc        → close open sui-dialog / sui-drawer (backstop)
-
+// `getCommandBar` is also used by `chrome/keymap.ts` (which has its own
+// local copy for isolation); the rail "+" / status-bar code paths below
+// call this one to open the bar in non-keymap-triggered modes.
 interface CommandBar extends HTMLElement {
   show(mode?: string, query?: string): void
   hide(): void
@@ -789,128 +784,23 @@ function getCommandBar(): CommandBar | null {
   return document.getElementById('ship-command-bar') as CommandBar | null
 }
 
-document.addEventListener('keydown', (e: KeyboardEvent) => {
-  const mod = e.metaKey || e.ctrlKey
-  // `e.key` reports the produced character: Chromium yields lowercase
-  // 'b' for Ctrl+B without Shift, but some automation drivers (and a few
-  // platform keyboard layouts) emit uppercase. Normalize so the
-  // shortcuts trigger regardless of caller.
-  const key = e.key.toLowerCase()
-
-  if (mod && key === 'j') {
-    e.preventDefault()
-    getDock()?.toggle()
-    return
-  }
-
-  if (mod && key === 'k') {
-    e.preventDefault()
-    // ⌘K is the command palette — the shell's primary action surface. It
-    // and the blank-canvas hint emit the bare `sui-open-command-palette`
-    // intent, which the shell routes to the one `<sui-command-bar>` (see
-    // its listener near init). ⌘P opens the same bar in `find` mode.
-    document.dispatchEvent(new CustomEvent('sui-open-command-palette', { bubbles: true }))
-    return
-  }
-
-  if (mod && key === 'p') {
-    e.preventDefault()
-    getCommandBar()?.show('find')
-    return
-  }
-
-  // ⌘. / Ctrl+. — open Studio (the views/studio deck view).
-  if (mod && e.key === '.') {
-    e.preventDefault()
-    navigate('/studio')
-    return
-  }
-
-  // ⌘? / Ctrl+? — open help (stub event; help surface is a future job).
-  if (mod && (e.key === '?' || (e.shiftKey && key === '/'))) {
-    e.preventDefault()
-    document.dispatchEvent(new CustomEvent('sui-open-help', { bubbles: true }))
-    return
-  }
-
-  // ⌃` — toggle terminal panel. Uses ctrlKey explicitly (not Meta) per
-  // the spec: ⌃ is the macOS Control key, not Command.
-  if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key === '`') {
-    e.preventDefault()
-    document.dispatchEvent(new CustomEvent('sui-toggle-terminal', { bubbles: true }))
-    return
-  }
-
-  if (e.altKey && !mod && !e.shiftKey && key === 'e') {
-    e.preventDefault()
-    // Per-view edit mode: flip the persisted signal for the current
-    // view. The edit-mode chrome (see chrome/edit-mode.ts) reacts and
-    // swaps the dock tabs + projects the view-authoring surfaces.
-    // Alt+E replaced the prior ⌘⇧E/Ctrl+Shift+E binding because of
-    // browser collisions (Firefox tab search, Chrome devtools toggle).
-    if (currentRoute) toggleEditMode(currentRoute.view)
-    return
-  }
-
-  if (e.altKey && e.shiftKey && !mod && key === 'e') {
-    e.preventDefault()
-    // Annotation mode (sub-toggle inside edit mode). No-op when edit
-    // mode is off — the runtime guards this; the keyboard binding
-    // just relays.
-    if (currentRoute) toggleAnnotationMode(currentRoute.view)
-    return
-  }
-
-  if (mod && key === 'b') {
-    e.preventDefault()
-    document.dispatchEvent(new CustomEvent('sui:rail:toggle', { bubbles: true }))
-    return
-  }
-
-  if (mod && key === 'n') {
-    e.preventDefault()
-    document.dispatchEvent(new CustomEvent('ship:create:open', { bubbles: true }))
-    return
-  }
-
-  if (e.key === 'Escape') {
-    // Native <dialog> handles Esc already. Backstop: close any open
-    // sui-dialog or sui-drawer that may not be using the native dialog element.
-    let closedAny = false
-    for (const el of document.querySelectorAll<HTMLElement & { close(): void }>(
-      'sui-dialog[open], sui-drawer[open]',
-    )) {
-      try { el.close(); closedAny = true } catch { /* ignore — native handles it */ }
-    }
-    // If nothing dismissable was open and a view is currently mounted,
-    // return to the blank canvas. The spec calls for Esc to clear the
-    // active view's content from the canvas slot when no other modal
-    // surface is consuming the key.
-    if (!closedAny && currentRoute) {
-      e.preventDefault()
-      history.pushState({}, '', '/')
-      const slot = document.getElementById('ship-content')
-      if (slot) {
-        disposeCurrentMount()
-        publishScope(null)
-        showLanding(slot)
-      }
-    }
-  }
+// ── Keyboard map ────────────────────────────────────────────────────
+//
+// The global keymap + the chrome-event bridges that pair with it
+// (sui-toggle-terminal, sui:dock:close) live in `chrome/keymap.ts` —
+// they're state-free relative to the shell's mount lifecycle, so they
+// take a context bag and stay isolated from this file. See bindings
+// table in chrome/keymap.ts.
+registerKeymap({
+  navigate: (path) => navigate(path),
+  currentRoute: () => currentRoute,
+  toggleEditMode,
+  toggleAnnotationMode,
+  disposeCurrentMount,
+  publishScope,
+  showLanding,
+  getDock,
 })
-
-// Bridge `sui-toggle-terminal` → panel-dock toggle. The terminal lives
-// inside the dock; the canonical "terminal" UX is the dock with its
-// terminal tab activated. activate() is idempotent.
-document.addEventListener('sui-toggle-terminal', () => {
-  const dock = getDock()
-  if (!dock) return
-  dock.activate('terminal')
-  dock.toggle()
-})
-
-// Wire close event from dock.
-document.addEventListener('sui:dock:close', () => getDock()?.hide(), true)
 
 // ── Chrome event wiring ─────────────────────────────────────────────
 //

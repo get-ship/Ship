@@ -77,9 +77,15 @@ Every `ship_platform::toolchain` error carries a recovery hint in `Display`:
 ## bun, today
 
 bun is **dev/build-time tooling only**, never shipped:
-- `apps/shell` prod build (`sui-build && bun shell-app.ts`) and dev server (vite).
-- the `@ship/sui-build` CLI (`packages/deck/build`) and the lucide icon-registry
-  gen (`scripts/codegen/generate-lucide-registry.mjs`).
+- the `@ship/sui-build` CLI (`packages/deck/build`) — compiles `.sui` ahead of
+  an app build. The `apps/shell` dev server is vite (dev-only). The lucide
+  icon set is committed source at `crates/deck/deck-core/assets/lucide-icons.json`
+  and regenerated only on a lucide-static version bump via
+  `cargo run -p xtask -- gen-icons` (#172).
+
+The `apps/shell` / `apps/spaces` SPA prod build is **not** bun: `deck build`
+(`crates/deck/deck-cli`, #170) bundles the app via Rolldown — `sui-build && deck
+build`. One engine for framework + views + apps.
 
 The framework-asset bake is **not** bun: `cargo xtask build-assets` drives the
 same in-process Rolldown `Bundler::build_all`, writing the framework bundles to

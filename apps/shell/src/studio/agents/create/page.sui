@@ -107,7 +107,7 @@
       <p class="create-sub">Which AI providers this agent compiles to, and what permission preset applies.</p>
       <div class="field">
         <label>Providers</label>
-        <sui-grid style:grid-template-columns={`repeat(${createCtx().value.available_providers.length}, 1fr)`}>
+        <div class="prov-grid" style:grid-template-columns={`repeat(${createCtx().value.available_providers.length}, 1fr)`}>
           {#for p of createCtx().value.available_providers key={p}}
             <sui-card padding="sm" class="tpl-card prov-card"
               attr:data-selected={providers().includes(p) ? 'true' : null}
@@ -116,7 +116,7 @@
               <span style="font-size:var(--text-xs); text-transform:capitalize">{p}</span>
             </sui-card>
           {/for}
-        </sui-grid>
+        </div>
       </div>
       <div class="field" style="margin-top: var(--space-5)">
         <label>Permission preset</label>

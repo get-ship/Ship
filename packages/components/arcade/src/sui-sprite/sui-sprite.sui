@@ -1,0 +1,33 @@
+<!--
+  <sui-sprite> — declarative image entity.
+
+  The stage spawns one engine Entity per sui-sprite child it finds at init.
+  Sprite-sheet animation: set `frames="<cols>x<rows>"` and `frame-rate` to
+  cycle frames per second; `frame` overrides the current cell when
+  frame-rate is 0.
+
+  Most gameplay sprites are spawned by the director directly via
+  stage.world.spawn(); markup sprites are for level scenery / static
+  decorations.
+-->
+
+<prop name="src" type="string" default="" reflect />
+<prop name="x" type="number" default="0" />
+<prop name="y" type="number" default="0" />
+<prop name="z" type="number" default="0" />
+<prop name="vx" type="number" default="0" />
+<prop name="vy" type="number" default="0" />
+<prop name="scale" type="number" default="1" />
+<prop name="rotation" type="number" default="0" />
+<prop name="anchor" type="string" default="center" />
+<prop name="tint" type="string" default="" />
+<prop name="alpha" type="number" default="1" />
+<prop name="frames" type="string" default="" />
+<prop name="frame-rate" type="number" default="0" />
+<prop name="frame" type="number" default="0" />
+<prop name="group" type="string" default="" reflect />
+<prop name="tag" type="string" default="" reflect />
+
+<style>:host { display: none; }</style>
+
+<slot></slot>

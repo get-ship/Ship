@@ -26,7 +26,7 @@ The stack exists to separate concerns that move at different speeds. A bug in th
 | Supervisor    | `apps/shipd/supervisor/`          | [Runtime](/runtime/)                 |
 | Mesh          | `crates/core/ship-substrate/src/services/mesh.rs` | [Runtime](/runtime/)     |
 | CLI transport | `apps/ship-cli/`                  | [CLI](/cli/)                         |
-| MCP transport | `apps/mcp/`                       | [MCP Tools](/mcp-tools/)             |
+| Op surface    | `proto/ship.ops.v1/` + `apps/shipd/src/ops_*` | [MCP Tools — retired](/mcp-tools/), `ship ops call` |
 
 ### L2 — Platform SDK
 

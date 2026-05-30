@@ -1,0 +1,21 @@
+---
+/*
+ * Wallpaper.astro — the desktop/room background: a WebGL grainient
+ * (reactbits shader, ported in scripts/grainient.ts), coloured from the
+ * live theme tokens so it recolours with the theme. Sits behind every
+ * window; never interactive.
+ */
+---
+<canvas class="os-grainient" data-grainient aria-hidden="true"></canvas>
+
+<style>
+  .os-grainient {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none;
+  }
+</style>

@@ -13,8 +13,8 @@ against `bun run --filter @ship/sui-runtime test`.
 ## 1. The 30-second scaffold
 
 ```sh
-node scripts/scaffold-view.mjs <name>          # e.g. tasks
-node scripts/scaffold-view.mjs <name> --path /tasks
+deck scaffold view <name>          # e.g. tasks
+deck scaffold view <name> --path /tasks
 ```
 
 Output (`views/<name>/`):
@@ -99,7 +99,7 @@ Surface in compact form (full grammar in
 | `class:x={fn}` / `style:prop={fn}` / `attr:name={fn}` | Reactive class / style / attribute toggle. |
 | `prop:rows={rowsSignal}` | Structured prop into a child component (skips attr serialization). |
 | `<slot name="leading"></slot>` | Slot (components only). |
-| `<use-shell as="shell" />` / `<use-kbd>…</use-kbd>` | Template hooks; side-effect import emitted by compiler. |
+| `<use-kbd>…</use-kbd>` / `<use-click-outside>` | Template hooks; side-effect import emitted by compiler. |
 
 **Scoped CSS.** A view's `style.css` is page-scoped (auto-linked). A
 component's CSS goes in a `<style>` block inside the `.sui`, or for
@@ -350,9 +350,10 @@ Two places, both required:
    probe failure (see `.artifacts/sui-arc/shell-probe-evidence.md` § Rail
    inventory bugs).
 
-`icon` is a lucide-icons name. The full table is fetched on demand by
-`<sui-icon>` from `/_sui/lucide-icons.json` — don't bundle, don't
-hard-code.
+`icon` is a lucide-icons name. `<sui-icon>` fetches one icon at a time from
+`/_sui/icons/<name>.svg` (the daemon embeds the set + serves per-icon;
+browser HTTP-caches each one). Don't bundle the registry, don't hard-code SVG.
+For non-lucide art, use `<sui-icon src="…">` (CDN escape hatch).
 
 ---
 

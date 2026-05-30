@@ -488,3 +488,42 @@ export function untrack<T>(fn: () => T): T {
     CURRENT_OBSERVER = prev
   }
 }
+
+/**
+ * A signal that lags `input` by `ms` milliseconds. Each write to
+ * `input` restarts the timer; the returned signal only updates after
+ * `ms` have elapsed without further writes.
+ *
+ * Useful for search-as-you-type, where you want to debounce the input
+ * before firing a query (`live(() => ship.search(query()))` reading
+ * the debounced signal will only re-run once the user stops typing).
+ *
+ * @example
+ * ```ts
+ * const query = signal('')
+ * const debounced = debounce(query, 250)
+ * effect(() => console.log('search:', debounced()))
+ * query.set('h'); query.set('he'); query.set('hel') // only 'hel' fires
+ * ```
+ */
+export function debounce<T>(input: Signal<T>, ms: number): Signal<T> {
+  const out = signal(untrack(() => input()))
+  let timer: ReturnType<typeof setTimeout> | null = null
+
+  effect(() => {
+    const value = input()
+    if (timer !== null) clearTimeout(timer)
+    timer = setTimeout(() => {
+      timer = null
+      out.set(value)
+    }, ms)
+    return () => {
+      if (timer !== null) {
+        clearTimeout(timer)
+        timer = null
+      }
+    }
+  })
+
+  return out
+}

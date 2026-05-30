@@ -1,6 +1,6 @@
-//! Declarative-tier config watcher — registers the five built-in `.ship/`
-//! domains (agents, skills, views, pipelines, rules) against the generic
-//! [`crate::services::watcher::WatcherService`].
+//! Declarative-tier config watcher — registers the six built-in `.ship/`
+//! domains (agents, skills, views, pipelines, rules, collections) against
+//! the generic [`crate::services::watcher::WatcherService`].
 //!
 //! Both user-scope (`~/.ship/library/`) and project-scope
 //! (`<workspace>/.ship/`) dirs are watched when present. Each domain has its
@@ -56,9 +56,22 @@ const DOMAINS: &[DomainCfg] = &[
         event_type: event_types::RULE_CHANGED,
         recursive: RecursiveMode::NonRecursive,
     },
+    // Collections — `.ship/collections/<id>.jsonc` defines a queryable
+    // bucket schema. The collection schema is lazy-loaded on every
+    // read/write (collections.create_item calls ensure_collection_table
+    // before insert), so a freshly-dropped jsonc file ALREADY works at
+    // the data layer. What the watcher buys is UI invalidation: Studio's
+    // collections list / detail can subscribe to collection.changed and
+    // refresh without an operator-driven reload. Surfaced by #184 when
+    // adding sui-eval-runs.jsonc didn't repaint the Studio view.
+    DomainCfg {
+        dir_name: "collections",
+        event_type: event_types::COLLECTION_CHANGED,
+        recursive: RecursiveMode::NonRecursive,
+    },
 ];
 
-/// Spawn watchers for the five declarative config domains, both at
+/// Spawn watchers for the six declarative config domains, both at
 /// user-scope and (when present) project-scope.
 pub fn spawn_config_watcher(
     kernel: Arc<Mutex<KernelRouter>>,

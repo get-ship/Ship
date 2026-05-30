@@ -167,9 +167,9 @@ pub enum Route {
     /// @auth public
     SuiComponentsJs,
 
-    /// @route GET "/_sui/lucide-icons.json"
+    /// @route GET "/_sui/icons/{file}"
     /// @auth public
-    SuiLucideIconsJson,
+    SuiIcon { file: String },
 
     /// @route GET "/_sui/live-reload.js"
     /// @auth public

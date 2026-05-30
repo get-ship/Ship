@@ -99,6 +99,7 @@ pub struct AgentSession {
     pub model: Option<String>,
     pub workspace: String,
     pub branch: String,
+    pub space_id: Option<String>,
     pub open_tab: bool,
     pub invocation: InvocationMode,
     pub keepalive: bool,
@@ -148,6 +149,7 @@ fn record_from_started(event: &EventEnvelope) -> Option<AgentSession> {
         model: p.model,
         workspace: p.workspace,
         branch: p.branch,
+        space_id: event.space_id.clone(),
         open_tab: p.open_tab,
         invocation: p.invocation,
         keepalive: p.keepalive,
@@ -296,25 +298,25 @@ impl Projection for AgentSessionProjection {
 // ── Row I/O ─────────────────────────────────────────────────────────
 
 const ROW_COLS: &str = "session_id, slug, status, agent, harness, model, workspace, branch, \
-    open_tab, invocation, keepalive, resume, resume_session_id, depends_on_json, vars_json, \
+    space_id, open_tab, invocation, keepalive, resume, resume_session_id, depends_on_json, vars_json, \
     baseline_sha, parent_pipeline_run_id, worktree, pid, source_spec_path, prompt, error, \
     created_at, updated_at, completed_at";
 
 fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<AgentSession> {
     let status: String = row.get(2);
-    let invocation: String = row.get(9);
-    let depends_on_json: Option<String> = row.try_get(13).ok().flatten();
+    let invocation: String = row.get(10);
+    let depends_on_json: Option<String> = row.try_get(14).ok().flatten();
     let depends_on = depends_on_json
         .as_deref()
         .and_then(|s| serde_json::from_str::<Vec<String>>(s).ok());
-    let vars_json: Option<String> = row.try_get(14).ok().flatten();
+    let vars_json: Option<String> = row.try_get(15).ok().flatten();
     let vars = vars_json
         .as_deref()
         .and_then(|s| serde_json::from_str::<HashMap<String, String>>(s).ok());
-    let pid: Option<i64> = row.try_get(18).ok().flatten();
-    let created_at: String = row.get(22);
-    let updated_at: String = row.get(23);
-    let completed_at: Option<String> = row.try_get(24).ok().flatten();
+    let pid: Option<i64> = row.try_get(19).ok().flatten();
+    let created_at: String = row.get(23);
+    let updated_at: String = row.get(24);
+    let completed_at: Option<String> = row.try_get(25).ok().flatten();
 
     let parse_ts = |s: &str, label: &str| -> Result<DateTime<Utc>> {
         s.parse::<DateTime<Utc>>()
@@ -333,20 +335,21 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<AgentSession> {
         model: row.try_get(5).ok().flatten(),
         workspace: row.get(6),
         branch: row.get(7),
-        open_tab: row.get::<i64, _>(8) != 0,
+        space_id: row.try_get(8).ok().flatten(),
+        open_tab: row.get::<i64, _>(9) != 0,
         invocation: InvocationMode::from_db_str(&invocation),
-        keepalive: row.get::<i64, _>(10) != 0,
-        resume: row.get::<i64, _>(11) != 0,
-        resume_session_id: row.try_get(12).ok().flatten(),
+        keepalive: row.get::<i64, _>(11) != 0,
+        resume: row.get::<i64, _>(12) != 0,
+        resume_session_id: row.try_get(13).ok().flatten(),
         depends_on,
         vars,
-        baseline_sha: row.try_get(15).ok().flatten(),
-        parent_pipeline_run_id: row.try_get(16).ok().flatten(),
-        worktree: row.try_get(17).ok().flatten(),
+        baseline_sha: row.try_get(16).ok().flatten(),
+        parent_pipeline_run_id: row.try_get(17).ok().flatten(),
+        worktree: row.try_get(18).ok().flatten(),
         pid: pid.map(|v| v as u32),
-        source_spec_path: row.try_get(19).ok().flatten(),
-        prompt: row.try_get(20).ok().flatten(),
-        error: row.try_get(21).ok().flatten(),
+        source_spec_path: row.try_get(20).ok().flatten(),
+        prompt: row.try_get(21).ok().flatten(),
+        error: row.try_get(22).ok().flatten(),
         created_at: parse_ts(&created_at, "created_at")?,
         updated_at: parse_ts(&updated_at, "updated_at")?,
         completed_at: completed_at.as_deref().map(|s| parse_ts(s, "completed_at")).transpose()?,
@@ -366,17 +369,17 @@ fn upsert_record(record: &AgentSession, conn: &mut SqliteConnection) -> Result<(
     block_on(async {
         sqlx::query(
             "INSERT INTO agent_sessions (\
-              session_id, slug, status, agent, harness, model, workspace, branch, \
+              session_id, slug, status, agent, harness, model, workspace, branch, space_id, \
               open_tab, invocation, keepalive, resume, resume_session_id, \
               depends_on_json, vars_json, baseline_sha, parent_pipeline_run_id, \
               worktree, pid, source_spec_path, prompt, error, \
               created_at, updated_at, completed_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(session_id) DO UPDATE SET \
               slug=excluded.slug, status=excluded.status, agent=excluded.agent, \
               harness=excluded.harness, model=excluded.model, workspace=excluded.workspace, \
-              branch=excluded.branch, open_tab=excluded.open_tab, invocation=excluded.invocation, \
-              keepalive=excluded.keepalive, resume=excluded.resume, \
+              branch=excluded.branch, space_id=excluded.space_id, open_tab=excluded.open_tab, \
+              invocation=excluded.invocation, keepalive=excluded.keepalive, resume=excluded.resume, \
               resume_session_id=excluded.resume_session_id, \
               depends_on_json=excluded.depends_on_json, vars_json=excluded.vars_json, \
               baseline_sha=excluded.baseline_sha, \
@@ -394,6 +397,7 @@ fn upsert_record(record: &AgentSession, conn: &mut SqliteConnection) -> Result<(
         .bind(&record.model)
         .bind(&record.workspace)
         .bind(&record.branch)
+        .bind(&record.space_id)
         .bind(if record.open_tab { 1i64 } else { 0 })
         .bind(record.invocation.as_str())
         .bind(if record.keepalive { 1i64 } else { 0 })

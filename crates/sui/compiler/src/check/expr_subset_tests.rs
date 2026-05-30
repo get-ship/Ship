@@ -81,6 +81,11 @@ fn allowlisted_method_calls() {
     ok("xs.includes(3)");
     ok("v.toString()");
     ok("'hello'.length");
+    // `.toFixed(n)` is the natural shape for number formatting in
+    // templates. Agents reach for it unprompted because it's standard
+    // JS. Used to reject; now admitted.
+    ok("count.toFixed(2)");
+    ok("price.toFixed(0)");
 }
 
 #[test]

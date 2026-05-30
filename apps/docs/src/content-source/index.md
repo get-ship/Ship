@@ -13,7 +13,7 @@ description: Ship is the runtime for agent workflows. Agents write code, run pip
       reactive HTML surface they can author in one shot. One config tree, every harness.
     </p>
     <div class="idx-cta-row">
-      <a class="idx-cta idx-cta-primary" href="/tutorial/01-hello-signal/">Try the SUI tutorial →</a>
+      <a class="idx-cta idx-cta-primary" href="https://getship.dev/docs/ship-ui/tutorial/01-hello-signal/">Try the SUI tutorial →</a>
       <a class="idx-cta idx-cta-secondary" href="/getting-started/">60-second install</a>
       <a class="idx-cta idx-cta-ghost" href="/components/">Browse components →</a>
     </div>
@@ -36,7 +36,7 @@ description: Ship is the runtime for agent workflows. Agents write code, run pip
     <div class="idx-three-title">Run pipelines</div>
     <p class="idx-three-body">JSONC DAGs of agent steps with gates, retries, and worktree isolation. Resumable across kernel restarts.</p>
   </a>
-  <a class="idx-three-card idx-card-success" href="/tutorial/01-hello-signal/">
+  <a class="idx-three-card idx-card-success" href="https://getship.dev/docs/ship-ui/tutorial/01-hello-signal/">
     <div class="idx-three-icon" aria-hidden="true">◈</div>
     <div class="idx-three-title">Build live views</div>
     <p class="idx-three-body"><code>.sui</code> templates with optional controllers. Signal-driven, AOT-compiled, hydration-free. The deepest surface — agent-authored end to end.</p>
@@ -67,7 +67,7 @@ export default controller<Scope>({
 
 That's the whole surface. The compiler emits a single ESM, the daemon SSRs it, the client
 attaches reactivity. Compose 100+ `<sui-*>` primitives.
-[Try this in the browser →](/tutorial/01-hello-signal/)
+[Try this in the browser →](https://getship.dev/docs/ship-ui/tutorial/01-hello-signal/)
 
 ## SUI, live
 

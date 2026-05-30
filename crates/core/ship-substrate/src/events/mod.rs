@@ -84,6 +84,8 @@ pub use feedback::{
 pub mod permissions;
 #[cfg(feature = "unstable")]
 pub mod kernel_security;
+#[cfg(feature = "unstable")]
+pub(crate) mod replay_log;
 
 pub use filter::EventFilter;
 pub use kernel_router::KernelRouter;

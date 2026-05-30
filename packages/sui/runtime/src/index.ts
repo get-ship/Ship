@@ -63,8 +63,9 @@ export type { Signal, Derived } from './signal'
 
 // The one MutableState proxy builder. `componentMountState` is emitted by the
 // compiler for component-mount; `createMountState` backs both mount paths.
+// One read shape: `state.x` is the value (signal keys unwrapped); writes route
+// through signal.set via the proxy's set trap.
 export { createMountState, componentMountState, pickSignals, SIGNALS_KEY } from './state-proxy'
-export type { MountStateOptions } from './state-proxy'
 
 export {
   createScope,
@@ -174,8 +175,7 @@ export type { Decoder } from './decode'
 export { data } from './data'
 export type { DataOpts, DataHandle } from './data'
 
-export { state, debounce } from './state'
-export type { State } from './state'
+export { debounce } from './signal'
 
 export { live, unwrap, unwrapOr } from './live'
 export type { LiveState, LiveSignal, LiveSource, LiveOpts } from './live'
@@ -234,7 +234,6 @@ export {
   listRegisteredHooks,
 } from './template-hooks/registry'
 export type { KbdShortcut } from './template-hooks/kbd'
-export type { ShellContext } from './template-hooks/shell'
 // Built-in hook factories are loaded on demand via the
 // `@ship/sui-runtime/template-hooks` subpath: the SUI compiler emits a
 // side-effect import of that subpath into compiled views that contain

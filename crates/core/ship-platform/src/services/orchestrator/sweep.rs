@@ -10,7 +10,8 @@ use ship_substrate::events::supervisor::{
 use ship_substrate::events::EventEnvelope;
 use crate::projections::agent_session::{load_sessions, AgentSession};
 use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRun, PipelineRunStatus};
-use std::collections::HashMap;
+use ship_substrate::projections::actor::active_actor_ids;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -19,22 +20,31 @@ use super::emit::persist_and_route;
 use super::OrchestratorContext;
 
 /// Is this slug owned by ANY known intentional dispatch? Source of
-/// truth combines two projections:
+/// truth combines three read models:
 ///   - `jobs` (pipeline composition runs)
 ///   - `agent_sessions` (the dispatch primitive — bare ship use,
 ///     ship dispatch, MCP dispatch_agent, future pipeline steps)
+///   - `actor_state` (the actor read model — every spawned actor,
+///     including fanout lanes, chat actors, and shell sessions)
 ///
-/// True orphan processes — registered with no record in either
-/// projection — are the only legitimate stray-kill targets. Phase 6
-/// of the agent-primitive inversion: previously this check only
-/// looked at jobs.status=Dispatched|GatePending, which false-flagged
-/// every bare agent session that travels through agent_sessions.
+/// True orphan processes — registered with no record in ANY of these —
+/// are the only legitimate stray-kill targets. Phase 6 of the
+/// agent-primitive inversion added `agent_sessions`; this check also
+/// consults `actor_state` because fanout LANES never travel through
+/// either `jobs` (the pipeline-run row carries the PARENT slug, not the
+/// `<parent>-<step>-<lane>` lane slug) or `agent_sessions` (lanes are
+/// spawned directly by the fanout dispatcher, which emits `process.spawned`
+/// + `actor.created`, not `agent.session.started`). Without the
+/// actor_state arm, every live lane was flagged as a stray orphan and
+/// killed ~one sweep after spawn — before it could read its job spec.
 fn is_known_dispatch(
     jobs: &HashMap<String, PipelineRun>,
     sessions: &HashMap<String, AgentSession>,
+    actors: &HashSet<String>,
     slug: &str,
 ) -> bool {
-    jobs.values().any(|j| j.slug == slug)
+    actors.contains(slug)
+        || jobs.values().any(|j| j.slug == slug)
         || sessions.values().any(|s| s.slug == slug)
 }
 
@@ -65,6 +75,11 @@ pub async fn run_sweep(
     // stray-process kills for bare ship use / dispatch flows. See
     // is_known_dispatch above for the rule.
     let sessions = load_sessions().unwrap_or_default();
+    // The actor_state read model names every spawned actor — including
+    // fanout lanes, which have no jobs/agent_sessions row. Without this
+    // the orphan check (Check B) murders live lanes one sweep after
+    // spawn. Read fresh each cycle so a stale snapshot can't mis-flag.
+    let active_actors = active_actor_ids().unwrap_or_default();
 
     // Evict dead handles from the registry before reading live_slugs. The
     // registry tracks "what was registered"; this drains anything the
@@ -73,8 +88,31 @@ pub async fn run_sweep(
     // previously the job of `liveness::sweep_registered` in shipd, folded
     // here so a single sweep owns the coherence story.
     let dead_drained = octx.registry.drain_dead(&*octx.executor).await;
+    let mut drift_count: usize = 0;
+    let mut actions_taken: usize = 0;
     for slug in &dead_drained {
-        if let Some(job) = jobs.values().find(|j| &j.slug == slug) {
+        // A registered handle the executor reports dead IS drift: in-memory
+        // state said "alive", the process is gone. This is the real
+        // orphan-detection signal — e.g. an actor whose PID was killed
+        // externally. Emit it for every drained slug, job-backed or bare,
+        // so a dead lane/actor is flagged within one cadence.
+        drift_count += 1;
+        let job = jobs.values().find(|j| &j.slug == slug);
+        emit_event(
+            kernel,
+            sup_events::SUPERVISOR_DRIFT_DETECTED,
+            slug,
+            &DriftDetectedPayload {
+                slug: slug.clone(),
+                pipeline_run_id: job.map(|j| j.pipeline_run_id.clone()).unwrap_or_default(),
+                expected_status: "registered".to_string(),
+                actual_state: "process_died".to_string(),
+                detail: "registered handle reported dead by executor".to_string(),
+            },
+        )
+        .await;
+
+        if let Some(job) = job {
             let fail_payload = PipelineRunFailedPayload {
                 pipeline_run_id: job.pipeline_run_id.clone(),
                 error: "coherence sweep: process died without completing".to_string(),
@@ -85,13 +123,37 @@ pub async fn run_sweep(
                 let env = env.with_actor_id("service.coherence-sweep");
                 persist_and_route(kernel, env, &job.slug, None).await;
             }
-        } else {
-            tracing::warn!(
+            emit_event(
+                kernel,
+                sup_events::SUPERVISOR_COHERENCE_RESTORED,
                 slug,
-                "coherence sweep: drained dead handle has no matching job"
-            );
+                &CoherenceRestoredPayload {
+                    slug: slug.clone(),
+                    action: "marked_failed".to_string(),
+                    detail: "emitted job.failed for dead-handle drift".to_string(),
+                },
+            )
+            .await;
+        } else {
+            // Bare actor (e.g. a fanout lane) whose process died. The handle
+            // is already drained from the registry; the step monitor's
+            // exit handler owns the lane's step.failed. The sweep's job here
+            // is just the coherence audit record.
+            emit_event(
+                kernel,
+                sup_events::SUPERVISOR_COHERENCE_RESTORED,
+                slug,
+                &CoherenceRestoredPayload {
+                    slug: slug.clone(),
+                    action: "reaped_dead_handle".to_string(),
+                    detail: "drained dead handle with no pipeline-run record".to_string(),
+                },
+            )
+            .await;
         }
+        actions_taken += 1;
     }
+    let drained_set: HashSet<&String> = dead_drained.iter().collect();
 
     let live_slugs = octx.registry.live_slugs().await;
 
@@ -112,11 +174,15 @@ pub async fn run_sweep(
     )
     .await;
 
-    let mut drift_count: usize = 0;
-    let mut actions_taken: usize = 0;
-
     // Check A: Dispatched/GatePending jobs with no live process
     for job in &in_scope {
+        // Already handled above: the drain pass evicted this job's dead
+        // handle and emitted its drift + job.failed. Re-flagging here off
+        // the pre-drain `jobs` snapshot would double-emit.
+        if drained_set.contains(&job.slug) {
+            continue;
+        }
+
         // Run steps run synchronously inside `execute_run_step` and never
         // register a handle; they self-emit step.completed / step.failed.
         // The live-process check would false-flag any Run step that outlives
@@ -204,7 +270,7 @@ pub async fn run_sweep(
     // Failed, etc.) but whose process was still cleaning up — the
     // ship-use-auto false-positive bug.
     for slug in &live_slugs {
-        if is_known_dispatch(&jobs, &sessions, slug) {
+        if is_known_dispatch(&jobs, &sessions, &active_actors, slug) {
             // Lifecycle owns this process. Don't interfere.
             continue;
         }

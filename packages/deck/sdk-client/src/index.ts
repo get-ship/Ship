@@ -23,6 +23,7 @@ import type { ArtifactRecord, ShipSDK } from './ship-sdk'
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { makeSseSource } from './sse'
 import { liveStream } from './live-stream'
+import { sharedSource } from './shared-source'
 import { createShipConnectClient } from '@ship/sdk/connect'
 
 // Bind the SUI runtime's host-agnostic `ShipHost` slot to the concrete
@@ -38,6 +39,7 @@ declare module '@ship/sui-runtime' {
 
 export { makeSseSource } from './sse'
 export { liveStream } from './live-stream'
+export { sharedSource } from './shared-source'
 export {
   displayName as accountDisplayName,
   initials as accountInitials,
@@ -84,6 +86,11 @@ export interface CreateClientOpts {
    * `globalThis.EventSource`. Tests pass a fake.
    */
   EventSource?: typeof globalThis.EventSource
+  /**
+   * Connect client injection for tests — defaults to real client.
+   * Tests pass a fake to control RPC responses and live streams.
+   */
+  connectClient?: unknown
 }
 
 /**
@@ -98,6 +105,52 @@ export interface CreateClientOpts {
  * await ship.agents.create({ id: 'foo', doc: { ... } })
  * ```
  */
+// ── Shared singleton (pre-bound packs) ────────────────────────────────────
+//
+// `ship-*` packs (e.g. @ship/agents, @ship/sessions) reach for the SDK
+// from inside a web component — below the view tier where ViewScope
+// supplies `ship`. The host (shell `main.ts`) calls `setShipClient`
+// once at startup; pack components `import { ship }` and use it
+// directly. The Proxy is lazy — importing it does not require the
+// shell to have initialized; only first use does.
+//
+// This mirrors the `setHostContext` / `hostContext()` seam: the
+// runtime/SDK names no host concept, the host plugs one in. Pure
+// `sui-*` packs do not reach for `ship` and do not see this singleton.
+
+let _shipClient: ShipSDK | null = null
+
+/** Register the SDK client for `ship-*` pack components. Call once at
+ *  host startup, before any pack mounts. */
+export function setShipClient(client: ShipSDK): void {
+  _shipClient = client
+}
+
+/** Read the registered client (rarely needed directly — prefer `ship`). */
+export function getShipClient(): ShipSDK {
+  if (!_shipClient) {
+    throw new Error(
+      '[@ship/sdk-client] ship client not initialized. Host must call setShipClient() at startup.',
+    )
+  }
+  return _shipClient
+}
+
+/** The lazy SDK singleton for `ship-*` packs.
+ *
+ * ```ts
+ * import { ship } from '@ship/sdk-client'
+ * const agents = live(() => ship.agents.summaries())
+ * ```
+ *
+ * Throws if read before the host calls `setShipClient`. Safe to import
+ * at any time — the trap only fires on access. */
+export const ship: ShipSDK = new Proxy({} as ShipSDK, {
+  get(_target, prop, _receiver) {
+    return Reflect.get(getShipClient() as object, prop)
+  },
+})
+
 export function createClient(opts?: CreateClientOpts): ShipSDK {
   const baseUrl = (opts?.baseUrl ?? '').replace(/\/$/, '')
   const ESCtor = opts?.EventSource ?? globalThis.EventSource
@@ -106,7 +159,7 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
   // auth middleware reads the session cookie (same-origin transport), so no
   // token plumbing. Opaque `JsonResponse` ops decode back to the existing
   // ShipSDK shape via `okJson` — a pure transport swap, callers unchanged.
-  const connect = createShipConnectClient({ baseUrl })
+  const connect = (opts?.connectClient ?? createShipConnectClient({ baseUrl })) as any
   const okJson = async <T>(p: Promise<{ json: string }>): Promise<T> =>
     JSON.parse((await p).json) as T
   // Typed mutations (ScopedMutation / CollectionItem) carry the id directly;
@@ -136,17 +189,23 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     return v
   }
   const sse = <T>(domain: string, op: string, args?: unknown): LiveSource<T> => {
-    const method = op.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()) + 'Live'
-    const svc = (connect as unknown as Record<string, Record<string, LiveMethod>>)[domain]
-    const fn = svc?.[method]
-    // mesh + canvas have no per-domain Connect service yet (operational / canvas
-    // #99 in-flux) — those alone fall back to the legacy expr-SSE channel.
-    if (typeof fn !== 'function') {
-      const argsLit = args === undefined ? '' : JSON.stringify(args)
-      const expr = `ship.${domain}.${op}(${argsLit})`
-      return makeSseSource<T>(`${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`, ESCtor)
-    }
-    return liveStream<T>((signal) => fn(camelKeys(args ?? {}), { signal }))
+    // Dedup key: identical (domain, op, args) reuse one upstream subscription
+    // (#198). Multiple `live(() => ship.<d>.<o>(a))` callers fan out from a
+    // single stream, with refcounted teardown when the last subscriber leaves.
+    const key = `${domain}|${op}|${args === undefined ? '' : JSON.stringify(args)}`
+    return sharedSource<T>(key, () => {
+      const method = op.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()) + 'Live'
+      const svc = (connect as unknown as Record<string, Record<string, LiveMethod>>)[domain]
+      const fn = svc?.[method]
+      // mesh + canvas have no per-domain Connect service yet (operational / canvas
+      // #99 in-flux) — those alone fall back to the legacy expr-SSE channel.
+      if (typeof fn !== 'function') {
+        const argsLit = args === undefined ? '' : JSON.stringify(args)
+        const expr = `ship.${domain}.${op}(${argsLit})`
+        return makeSseSource<T>(`${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`, ESCtor)
+      }
+      return liveStream<T>((signal) => fn(camelKeys(args ?? {}), { signal }))
+    })
   }
 
   // Curried HTTP helpers — bind baseUrl once so the per-op factories

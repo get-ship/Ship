@@ -31,6 +31,8 @@ use crate::events::validator::{EmitContext, EventValidator};
 
 #[cfg(feature = "unstable")]
 use crate::events::kernel_security::ActorMeta;
+#[cfg(feature = "unstable")]
+use crate::events::replay_log::ReplayLog;
 
 #[cfg(feature = "unstable")]
 pub use ship_kernel::router::MAILBOX_CAPACITY;
@@ -99,7 +101,7 @@ pub struct KernelRouter {
     #[cfg(feature = "unstable")]
     pub(crate) actor_meta: HashMap<String, ActorMeta>,
     #[cfg(feature = "unstable")]
-    pub(crate) event_log: Mutex<Vec<EventEnvelope>>,
+    pub(crate) event_log: Mutex<ReplayLog>,
     #[cfg(feature = "unstable")]
     pub(crate) actor_cursors: HashMap<String, usize>,
     /// Sender channels for actors spawned via spawn_actor_with_permissions.
@@ -133,7 +135,7 @@ impl KernelRouter {
             #[cfg(feature = "unstable")]
             actor_meta: HashMap::new(),
             #[cfg(feature = "unstable")]
-            event_log: Mutex::new(Vec::new()),
+            event_log: Mutex::new(ReplayLog::default()),
             #[cfg(feature = "unstable")]
             actor_cursors: HashMap::new(),
             #[cfg(feature = "unstable")]
@@ -233,7 +235,7 @@ impl KernelRouter {
             // skip that because unstable owns scope-filtered delivery
             // via deliver_with_scope.
             self.inner.persist(&event)?;
-            self.event_log.lock().unwrap_or_else(|e| e.into_inner()).push(event.clone());
+            self.event_log.lock().unwrap_or_else(|e| e.into_inner()).append(event.clone());
             return self.deliver_with_scope(&event).await;
         }
 
@@ -258,7 +260,7 @@ impl KernelRouter {
     pub fn stop_actor(&mut self, actor_id: &str) -> Result<(), KernelError> {
         #[cfg(feature = "unstable")]
         {
-            let log_len = self.event_log.lock().unwrap_or_else(|e| e.into_inner()).len();
+            let log_len = self.event_log.lock().unwrap_or_else(|e| e.into_inner()).logical_len();
             self.actor_cursors.insert(actor_id.to_string(), log_len);
             self.actor_meta.remove(actor_id);
             self.unstable_senders.remove(actor_id);
@@ -291,6 +293,42 @@ impl KernelRouter {
 
     pub fn list_actors(&self) -> Vec<(String, ActorConfig)> {
         self.inner.list_actors()
+    }
+
+    /// leak-193 diagnostics — one-line snapshot of every in-router container
+    /// whose unbounded growth could drive shipd RSS. Cheap (lock + len());
+    /// called by the daemon's diag logger when `SHIP_LEAK_DIAG=1`.
+    pub fn diag_line(&self) -> String {
+        let actors = self.inner.actor_count();
+        let subs: usize = self
+            .inner
+            .subscriptions()
+            .values()
+            .map(|v| v.len())
+            .sum();
+        let rate_counters = self
+            .rate_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .len();
+        #[cfg(feature = "unstable")]
+        {
+            let log = self.event_log.lock().unwrap_or_else(|e| e.into_inner());
+            format!(
+                "kernel: actors={actors} sub_edges={subs} rate_counters={rate_counters} \
+                 event_log_phys={} event_log_bytes={} event_log_logical={} actor_meta={} actor_cursors={} unstable_senders={}",
+                log.len(),
+                log.retained_bytes(),
+                log.logical_len(),
+                self.actor_meta.len(),
+                self.actor_cursors.len(),
+                self.unstable_senders.len(),
+            )
+        }
+        #[cfg(not(feature = "unstable"))]
+        {
+            format!("kernel: actors={actors} sub_edges={subs} rate_counters={rate_counters}")
+        }
     }
 
     pub fn kernel_store_path(&self) -> &Path {

@@ -27,12 +27,12 @@
               </button>
             {/if}
           </div>
-          <sui-segmented value={kind()} size="sm" aria-label="Filter by kind"
+          <sui-toggle-group variant="segmented" type="single" value={kind()} size="sm" aria-label="Filter by kind"
             on:sui-change={(e) => setKind(e.detail.value)}>
-            <sui-segmented-option value="all">All</sui-segmented-option>
-            <sui-segmented-option value="smart">Smart</sui-segmented-option>
-            <sui-segmented-option value="docs">Docs</sui-segmented-option>
-          </sui-segmented>
+            <sui-toggle value="all">All</sui-toggle>
+            <sui-toggle value="smart">Smart</sui-toggle>
+            <sui-toggle value="docs">Docs</sui-toggle>
+          </sui-toggle-group>
         </div>
 
         {#if loading()}

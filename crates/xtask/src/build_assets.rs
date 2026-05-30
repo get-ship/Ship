@@ -6,8 +6,8 @@
 //! `Bundler::build_all` writes the framework singletons + component umbrella +
 //! catalog to `crates/deck/deck-core/assets` (`assets_dir_for`) and views /
 //! islands to `.deck/`. `deck-core/build.rs` validates the framework set at
-//! cargo-build time. `lucide-icons.json` is a separate icon-registry artifact
-//! (not bundling) and is not produced here.
+//! cargo-build time. `lucide-icons.json` is committed source (not bundling)
+//! and is regenerated separately via `cargo xtask gen-icons`.
 
 use std::path::Path;
 
@@ -48,7 +48,23 @@ pub fn run(repo_root: &Path) -> Result<()> {
         println!("  {name}: {len} bytes");
     }
 
+    // The lean `sui-marketing.js` (apps/site's mounted `<sui-*>` subset) is a
+    // Virtual aggregate that lands in `.deck/`, not deck-core/assets. It has no
+    // build.rs guard, so a swallowed per-target failure (build_all only logs)
+    // would silently ship a stale bundle to the site. Guard it here, same as the
+    // framework set — non-empty after bake, or fail loud.
+    let marketing = repo_root.join(".deck/sui-marketing.js");
+    let marketing_len = std::fs::metadata(&marketing).map(|m| m.len()).unwrap_or(0);
+    if marketing_len == 0 {
+        bail!(
+            "sui-marketing bundle missing or empty after bake: {} \
+             (the sui-marketing Virtual target failed — check `bundler: target failed` logs)",
+            marketing.display()
+        );
+    }
+    println!("  sui-marketing.js: {marketing_len} bytes");
+
     println!("build-assets: framework bundles + catalog baked via in-process Rolldown");
-    println!("note: lucide-icons.json is a separate icon-registry artifact (not produced here)");
+    println!("note: lucide-icons.json is committed source; regen via `cargo xtask gen-icons`");
     Ok(())
 }

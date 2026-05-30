@@ -50,7 +50,7 @@ sui-build --mode development       # passes through to compile flags + bundler e
 
 Entry: `packages/deck/build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The runner (`src/runner.ts`) walks the configured source globs, invokes `sui-compiler` (preferring the in-repo FFI build of `libsui_compiler`, falling back to `target/debug/sui-compiler` or `cargo run --quiet -p sui-compiler`), and feeds the emitted JS / CSS / CEM through the chosen bundler adapter (`adapters/bun.ts`, `adapters/esbuild.ts`).
 
-Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/components/ui-components/` (writes `crates/deck/deck-core/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
+Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/components/primitives/`, `packages/components/ui-components/`, `packages/components/charts/`, `packages/components/pipelines/` (all write to their own `dist/`; the daemon umbrella `sui-components.js` is baked into `crates/deck/deck-core/assets/` by `cargo xtask build-assets`).
 
 **Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. **The daemon bundles IN-PROCESS via Rolldown** (`crates/deck/deck-bundler/` — deck owns bundling per #167; a Rust Rolldown plugin compiles `.sui` via `sui-compiler` in its `load` hook; no bun worker, no subprocess). The former `packages/deck/bundler/index.ts` Bun worker the daemon spawned is retired. Both pipelines still target the same on-disk asset trees the release binary `include_str!`s. See `docs/ship-architecture/references/docs/toolchain.md`.
 
@@ -161,13 +161,13 @@ The script honours `SHIP_DISPATCH_CONFIRM` for non-interactive confirmation prom
 
 ```sh
 # Drop a fresh view directory:
-node scripts/scaffold-view.mjs settings
-node scripts/scaffold-view.mjs settings --path /settings
-node scripts/scaffold-view.mjs settings --component settings-toolbar
+deck scaffold view settings
+deck scaffold view settings --path /settings
+deck scaffold view settings --component settings-toolbar
 
 # Drop a fresh component directory:
-node scripts/scaffold-sui-component.mjs my-widget
-node scripts/scaffold-sui-component.mjs my-widget --controller
+deck scaffold component my-widget
+deck scaffold component my-widget --controller
 ```
 
 Both scaffolds emit the manifest / template / controller / style files documented in `references/authoring-patterns.md` § Scaffolds. Run them from the repo root.
@@ -213,8 +213,9 @@ The mode is exposed to the browser via `<meta name="ship-mode">` in the shell HT
 Producing a deployable artifact set:
 
 ```sh
-just build       # one-shot: gen-types → ship-set icons → ship-set build →
-                 # ui-components build → cargo build --release → verify outputs
+just build       # one-shot: gen-types → component packs (primitives, ui-components,
+                 # charts, pipelines) → cargo xtask build-assets → cargo build
+                 # --release → verify outputs
 ship build       # equivalent CLI wrapper for users without `just` installed
 ```
 

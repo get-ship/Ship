@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 # Ship dispatch — create a worktree, write a job spec, compile the agent, open a terminal.
 # Usage: bash scripts/dispatch.sh --slug <name> --agent <agent> --spec <file> [options]
+#   --batch <name>   batch this dispatch into a shared wt window named
+#                    "ship-batch-<name>"; first call opens the window, each
+#                    subsequent call with the same name adds a split-pane.
+#                    Lets you monitor N parallel agents in one wt window
+#                    instead of N tabs. Lock expires after 24h.
+# Env:
+#   WT_PROFILE       Windows Terminal profile name (default: $WSL_DISTRO_NAME).
+#                    Set to your preferred profile (e.g. "Ubuntu") so panes
+#                    inherit your font/colors instead of wt's default profile.
 set -euo pipefail
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
@@ -28,6 +37,7 @@ AGENT=""
 SPEC_FILE=""
 SHIP_AGENT_MODEL="${SHIP_AGENT_MODEL:-}"
 EXTRA_SKILLS=()
+BATCH_NAME=""
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -42,6 +52,7 @@ while [[ $# -gt 0 ]]; do
     --no-open)  NO_OPEN=true; shift ;;
     --dry-run)  DRY_RUN=true; shift ;;
     --confirm)  CONFIRM=1; shift ;;
+    --batch)    BATCH_NAME="$2"; shift 2 ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
@@ -119,6 +130,47 @@ if [[ -d "$WORKTREE_PATH" ]]; then
 else
   echo "Creating worktree: $WORKTREE_PATH (branch: $BRANCH_NAME from $BASE_BRANCH)"
   git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" "$BASE_BRANCH"
+fi
+
+# ── Install shared pre-push hook (blocks job/* branches) ──────────────────────
+# Dispatched agents run with bypassPermissions so they don't pause for
+# routine work — that means the only thing standing between them and a
+# remote push is git itself.
+#
+# Git's default for worktrees is to use the MAIN repo's hooks dir
+# (git-common-dir/hooks), not the per-worktree one. So we install one
+# shared hook at <main>/.git/hooks/pre-push that gates by ref name:
+# any push of refs/heads/job/* is refused. Operator pushes from main /
+# feature branches are unaffected.
+#
+# Bypass with SHIP_ALLOW_PUSH=1 git push ... (deliberate, one-shot).
+COMMON_GITDIR="$(git -C "$WORKTREE_PATH" rev-parse --git-common-dir)"
+HOOK_DIR="$COMMON_GITDIR/hooks"
+mkdir -p "$HOOK_DIR"
+HOOK_FILE="$HOOK_DIR/pre-push"
+HOOK_MARK="# ship-dispatch:pre-push v1"
+if [[ ! -f "$HOOK_FILE" ]] || ! grep -q "$HOOK_MARK" "$HOOK_FILE" 2>/dev/null; then
+  cat > "$HOOK_FILE" <<'PREPUSH'
+#!/usr/bin/env bash
+# ship-dispatch:pre-push v1
+# Blocks pushes of refs/heads/job/* — those are dispatched agent branches
+# the operator gates locally. Operator bypass: SHIP_ALLOW_PUSH=1 git push ...
+if [[ -n "${SHIP_ALLOW_PUSH:-}" ]]; then exit 0; fi
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/job/*)
+      echo "" >&2
+      echo "  ✖ git push blocked — $remote_ref is a dispatched agent branch." >&2
+      echo "    Operator gates locally and merges from the main repo." >&2
+      echo "    Intentional push: SHIP_ALLOW_PUSH=1 git push ..." >&2
+      echo "" >&2
+      exit 1 ;;
+  esac
+done
+exit 0
+PREPUSH
+  chmod +x "$HOOK_FILE"
+  echo "Installed shared pre-push hook: $HOOK_FILE"
 fi
 
 # ── Write job spec ────────────────────────────────────────────────────────────
@@ -292,6 +344,13 @@ auto_kickstart_tmux() {
     sleep 1
     tmux send-keys -t "$session" Enter
   ) &
+  # Detach from the parent's job table so the background poller survives
+  # dispatch.sh exiting. Without disown, when the script returns its parent
+  # (e.g. a script-launcher) can deliver SIGHUP to backgrounded children and
+  # kill the kickstart before claude's menu finishes rendering — observed on
+  # the 3rd agent in a batch where the parent exits faster than the kickstart
+  # has had time to detect the prompt.
+  disown
 }
 
 # ── Open terminal ─────────────────────────────────────────────────────────────
@@ -316,7 +375,16 @@ if [[ -n "${SHIP_AGENT_MODEL:-}" ]]; then
   MODEL_FLAG="--model ${SHIP_AGENT_MODEL}"
 fi
 if [[ "$PROVIDER_CLI" == "claude" ]]; then
-  LAUNCH_FLAGS="--dangerously-skip-permissions --dangerously-load-development-channels server:ship ${MODEL_FLAG}"
+  # bypassPermissions: agent never pauses to ask the operator (they're not
+  # at the keyboard). Network/remote operations are gated at the git layer
+  # by the per-worktree pre-push hook installed above — bypassPermissions
+  # at the claude level + pre-push at the git level layer correctly:
+  # routine work runs unattended, push is refused without operator intent.
+  #
+  # Tried --permission-mode auto first; too cautious — agents paused on
+  # routine actions the operator couldn't approve, and the work stalled.
+  PERMISSION_MODE="${SHIP_PERMISSION_MODE:-bypassPermissions}"
+  LAUNCH_FLAGS="--permission-mode ${PERMISSION_MODE} --dangerously-load-development-channels server:ship ${MODEL_FLAG}"
 elif [[ "$PROVIDER_CLI" == "codex" ]]; then
   LAUNCH_FLAGS="${MODEL_FLAG}"
 fi
@@ -354,16 +422,43 @@ case "$TERMINAL" in
     ;;
   wt)
     # From WSL: create a named tmux session so auto_kickstart_tmux can interact
-    # with it via send-keys, then open a wt tab that attaches to it.
+    # with it via send-keys, then open a wt tab/pane that attaches to it.
     # bash --login ensures ~/.bash_profile is sourced (PATH includes ~/.local/bin).
     WSL_DISTRO="${WSL_DISTRO_NAME:-Ubuntu}"
+    # `-p <profile>` selects the user's preferred Windows Terminal profile
+    # (font/colors/etc.) instead of wt's default. Defaults to the distro
+    # name (matches the convention `WT_PROFILE=Ubuntu` for an Ubuntu WSL
+    # profile). Override with WT_PROFILE=<name> in the environment.
+    WT_PROFILE="${WT_PROFILE:-$WSL_DISTRO}"
     tmux new-session -d -s "$SLUG" -c "$WORKTREE_PATH" 2>/dev/null || true
     tmux send-keys -t "$SLUG" "$PROVIDER_CLI $LAUNCH_FLAGS" Enter
-    # `-w 0` targets the focused Windows Terminal window so new-tab
-    # actually creates a tab in the existing wt window instead of
-    # spawning a fresh wt window each dispatch.
-    wt.exe -w 0 new-tab --title "$SLUG" -- wsl.exe -d "$WSL_DISTRO" bash --login -c "tmux attach-session -t $SLUG" 2>/dev/null || \
-      echo "Windows Terminal launch failed. Attach manually: tmux attach-session -t $SLUG"
+
+    if [[ -n "$BATCH_NAME" ]]; then
+      # Batching: every dispatch with the same --batch NAME lands in one
+      # wt window (so a single tab logically holds N agent panes — easier
+      # to monitor 4-5 parallel agents at once). First call opens the
+      # window + first pane; subsequent calls split-pane into it via
+      # `-w ship-batch-<NAME>` window targeting. Marker file in /tmp
+      # decides first-vs-subsequent.
+      WT_WINDOW="ship-batch-${BATCH_NAME}"
+      BATCH_LOCK="/tmp/.ship-dispatch-batch-${BATCH_NAME}.lock"
+      if [[ -f "$BATCH_LOCK" ]] && (( $(date -r "$BATCH_LOCK" +%s 2>/dev/null || echo 0) > $(($(date +%s) - 86400)) )); then
+        # Same batch within 24h → split-pane in the batch window.
+        wt.exe -w "$WT_WINDOW" split-pane -V -p "$WT_PROFILE" wsl.exe -d "$WSL_DISTRO" bash --login -c "tmux attach-session -t $SLUG" 2>/dev/null || \
+          echo "Windows Terminal split-pane failed. Attach manually: tmux attach-session -t $SLUG"
+      else
+        # New batch (or stale lock) → new window with the first pane.
+        wt.exe -w "$WT_WINDOW" new-tab --title "$BATCH_NAME" -p "$WT_PROFILE" wsl.exe -d "$WSL_DISTRO" bash --login -c "tmux attach-session -t $SLUG" 2>/dev/null || \
+          echo "Windows Terminal launch failed. Attach manually: tmux attach-session -t $SLUG"
+        touch "$BATCH_LOCK"
+      fi
+    else
+      # `-w 0` targets the focused Windows Terminal window so new-tab
+      # actually creates a tab in the existing wt window instead of
+      # spawning a fresh wt window each dispatch.
+      wt.exe -w 0 new-tab --title "$SLUG" -p "$WT_PROFILE" wsl.exe -d "$WSL_DISTRO" bash --login -c "tmux attach-session -t $SLUG" 2>/dev/null || \
+        echo "Windows Terminal launch failed. Attach manually: tmux attach-session -t $SLUG"
+    fi
     auto_kickstart_tmux "$SLUG"
     ;;
   *)

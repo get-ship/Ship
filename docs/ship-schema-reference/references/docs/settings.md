@@ -40,7 +40,7 @@ Not every setting uses every tier. The "scope" column below records which tiers 
 | Surface | Read | Write |
 |---|---|---|
 | CLI | `ship config get <key>` | `ship config set <key> <value>` |
-| HTTP API | `GET /api/v1/settings/{key}` and `GET /api/v1/settings` | `POST /api/v1/settings` with `{ "key": …, "value": … }` |
+| Connect RPC | `SettingsService.get` | `SettingsService.set` (see [HTTP API](/http-api) for Connect operations) |
 | Rust code | `ship_platform::config::get_setting(key)` | `ship_platform::config::set_setting` (silent) or `set_setting_and_emit` (broadcasts `config.changed`) |
 | Studio | `views/settings/` page | Same page, hand-built per section. New keys do **not** auto-surface — adding a UI control is a separate step. |
 
@@ -54,7 +54,7 @@ The canonical list lives in `setting_default()` and `get_all_settings()` in `cra
 | `daemon.port` | string (u16) | `"9315"` | CLI > worktree-derived > default | `apps/shipd/src/lib.rs:194-197` — `--port` CLI flag wins, otherwise the daemon derives a worktree-specific port from `worktree_port_for`; falls back to 9315. | Stored as a string for symmetry with the other settings; coerced where used. |
 | `cmdk.send_key` | string | `"enter"` | KV > default | Studio command bar | `enter` sends on Enter (Shift+Enter for newline); `cmd+enter` inverts the binding. |
 | `watcher.debounce_ms` | u64 (ms) | `200` | KV > default | `crates/core/ship-platform/src/config/watcher.rs:71` via `config::resolve_watcher_debounce()` | Debounce window for the declarative `.ship/` watcher (agents, skills, views, pipelines, rules). Read once at daemon startup; changes require a daemon restart. |
-| `git.log_limit` | usize | `50` | request param > KV > default | `apps/shipd/src/routes/git_api.rs:224` and `apps/shipd/src/services/registry/git.rs:45` via `config::resolve_git_log_limit()` | Default value for the `limit` field on `GET /api/v1/git/log` and the `git.overview` registry op when the caller omits it. |
+| `git.log_limit` | usize | `50` | request param > KV > default | `apps/shipd/src/routes/git_api.rs:224` and `apps/shipd/src/services/registry/git.rs:45` via `config::resolve_git_log_limit()` | Default value for the `git.overview` registry op when the caller omits the `limit` param. |
 | `hooks.max_depth` | u32 | `3` | KV > default | `crates/core/ship-platform/src/hooks/engine.rs` via `config::resolve_hooks_max_depth()` | Maximum hook chain depth. Events that arrive carrying a `_hook_depth` at or above this value are dropped without dispatch. Read on every event, so changes take effect immediately. |
 
 ### Forthcoming keys (job/launch-defaults)
@@ -72,7 +72,7 @@ Once `job/launch-defaults` merges, this section will move into the main table.
 ## Adding a new setting
 
 1. Add a row to `setting_default(key)` in `crates/core/ship-platform/src/config/runtime_settings.rs`. Document the type in a sibling comment. If the value is identity-shaped (i.e. would silently pick a third-party service for the user), return `None` and document why.
-2. Add the same `(key, default-string)` pair to `get_all_settings()` so the settings UI and `GET /api/v1/settings` list include it.
+2. Add the same `(key, default-string)` pair to `get_all_settings()` so the settings UI and the `SettingsService.list` Connect RPC include it.
 3. Read the value via `get_setting(key)` (or one of the `resolve_*` helpers) — never read a constant directly at the call site.
 4. Add a row to this page in the "Known setting keys" table.
 5. Add a test (alongside `resolver_tests` in `runtime_settings.rs`) asserting the resolver returns the historical default with nothing stored and the override when stored.

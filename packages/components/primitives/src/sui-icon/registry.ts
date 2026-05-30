@@ -1,87 +1,70 @@
-// Lucide icon registry helpers for `<sui-icon>`.
+// Per-icon lucide loader for `<sui-icon>`.
 //
-// The lucide table is emitted as a JSON asset
-// (`crates/deck/deck-core/assets/lucide-icons.json`) served at
-// `/_sui/lucide-icons.json`. R4 of the components-bundle audit moved
-// the SVG paths out of `sui-components.js` to drop ~13 KB raw / ~2 KB
-// gz off the every-page bundle.
+// The daemon owns the icon set: it embeds `lucide-icons.json` and serves one
+// icon at a time from `/_sui/icons/<name>.svg` (deck-core::serve_sui_icon). A
+// `<sui-icon name="search">` mount triggers a single tiny GET — typically
+// <1KB, browser-HTTP-cached on subsequent mounts. The retired model fetched
+// the whole ~410KB registry up-front on first mount, then resolved client-side
+// against the loaded map.
 //
-// Loading model:
-//   - Production (browser): the registry loads on first mount of any
-//     `<sui-icon>` via `loadIconRegistry()`. Subsequent mounts share
-//     the in-flight promise; once resolved, lookups are synchronous.
-//     The shell adds a `<link rel="prefetch">` hint so the JSON sits
-//     in HTTP cache by the time the first icon mounts.
-//   - Tests / SSR: callers prime the cache synchronously via
-//     `setIconRegistry(map)`. The package's vitest setup primes from
-//     the generated `.ts` so tests render synchronously.
+// Aliases (`git` → `git-branch`, etc.) are resolved SERVER-side now (see
+// `ICON_ALIASES` in deck-core/src/assets.rs) so the client stays alias-unaware
+// and the wire URL is stable across alias renames.
+//
+// Tests prime the cache up-front from the committed JSON so the controller
+// reaches its render path synchronously — no jsdom fetch needed.
 
-const ALIASES: Record<string, string> = {
-  git: 'git-branch',
-  refresh: 'refresh-cw',
-  stop: 'stop-circle',
-  warning: 'triangle-alert',
+const ICON_URL_PREFIX = '/_sui/icons/'
+
+// Per-name cache keyed on the URL-bound name (after alias resolution if the
+// caller did it; aliases are also handled by the daemon, so an aliased miss
+// resolves transparently). A `null` value means "fetched and confirmed
+// missing" — second lookups should NOT re-fetch.
+type Entry = string | null
+type CacheState = {
+  resolved: Map<string, Entry>
+  inflight: Map<string, Promise<Entry>>
 }
-
-const ICON_REGISTRY_URL = '/_sui/lucide-icons.json'
-
-// Pin state to globalThis so the singleton survives vitest's per-file
-// module transforms: the controller is loaded via the mirror-tree
-// `.compiled.js` (which transforms it through one path), while the
-// test setup primes the registry via a direct relative import — under
-// jsdom these can end up as separate module instances unless we stash
-// state on a shared global. Production browsers see a single module
-// regardless; this is purely a test-safety belt.
-type RegistryState = {
-  map: Record<string, string> | null
-  pending: Promise<Record<string, string>> | null
-}
-const GLOBAL_KEY = '__shipIconRegistry__'
-const g = globalThis as unknown as { [GLOBAL_KEY]?: RegistryState }
-function state(): RegistryState {
-  if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = { map: null, pending: null }
+const GLOBAL_KEY = '__shipIconCache__'
+const g = globalThis as unknown as { [GLOBAL_KEY]?: CacheState }
+function state(): CacheState {
+  if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = { resolved: new Map(), inflight: new Map() }
   return g[GLOBAL_KEY]
 }
 
-export function setIconRegistry(map: Record<string, string>): void {
+/** Test-only: seed the cache so jsdom renders synchronously without fetch. */
+export function primeIconCache(name: string, svg: string | null): void {
+  state().resolved.set(name, svg)
+}
+
+/** Looked-up icon SVG (full `<svg>…</svg>`), or `null` if confirmed missing. */
+export function getCachedIcon(name: string): Entry | undefined {
+  return state().resolved.get(name)
+}
+
+/** Single-flight fetch of one icon. Resolves to the standalone SVG markup the
+ *  daemon returns, or `null` for a 404 / network error (the caller renders
+ *  the slot fallback in that case). */
+export function fetchIcon(name: string): Promise<Entry> {
   const s = state()
-  s.map = map
-  s.pending = null
-}
-
-export function getIconRegistry(): Record<string, string> | null {
-  return state().map
-}
-
-export function loadIconRegistry(): Promise<Record<string, string>> {
-  const s = state()
-  if (s.map) return Promise.resolve(s.map)
-  if (s.pending) return s.pending
-  s.pending = fetch(ICON_REGISTRY_URL)
-    .then((r) => {
-      if (!r.ok) throw new Error(`lucide registry fetch ${r.status}`)
-      return r.json() as Promise<Record<string, string>>
+  if (s.resolved.has(name)) return Promise.resolve(s.resolved.get(name) ?? null)
+  const pending = s.inflight.get(name)
+  if (pending) return pending
+  const p: Promise<Entry> = fetch(ICON_URL_PREFIX + encodeURIComponent(name) + '.svg')
+    .then((r) => (r.ok ? r.text() : null))
+    .catch(() => null)
+    .then((svg) => {
+      s.resolved.set(name, svg)
+      s.inflight.delete(name)
+      return svg
     })
-    .then((map) => {
-      s.map = map
-      return map
-    })
-    .catch((err) => {
-      s.pending = null
-      throw err
-    })
-  return s.pending
+  s.inflight.set(name, p)
+  return p
 }
 
-export function resolveIconName(name: string): string | undefined {
-  const map = state().map
-  if (!name || !map) return undefined
-  if (map[name]) return name
-  const aliased = ALIASES[name]
-  if (aliased && map[aliased]) return aliased
-  return undefined
-}
-
-export function getIconSvg(resolved: string): string | undefined {
-  return state().map?.[resolved]
+/** The URL the daemon serves a given icon from. Exported for callers that
+ *  want a `<link rel="prefetch">` hint, or want to use the URL as `<img src>`
+ *  (note: `currentColor` won't follow through `<img>` — use the SVG inline). */
+export function iconUrl(name: string): string {
+  return ICON_URL_PREFIX + encodeURIComponent(name) + '.svg'
 }

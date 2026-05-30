@@ -1,6 +1,6 @@
 <!--
   <sui-separator> — SUI port of <ship-separator>.
-  Horizontal or vertical visual divider.
+  Horizontal or vertical visual separator.
 
   Prop parity vs <ship-separator>
   ─────────────────────────────────────────────────────────────────────────────
@@ -25,17 +25,27 @@
   parts: (none)                part="sep"               SUI adds part for
                                                         targeted styling
   ─────────────────────────────────────────────────────────────────────────────
+  (none)                       tone (union, reflect)    SUI extension — tints
+                                                        border color with
+                                                        semantic tone; default
+                                                        is baseline border
+  ─────────────────────────────────────────────────────────────────────────────
 -->
 
 <prop name="orientation" values="horizontal|vertical" default="horizontal" reflect />
 <prop name="variant" values="solid|dashed" default="solid" reflect />
 <prop name="decorative" type="bool" default="false" reflect />
+<prop name="tone" values="default|muted|primary|info|success|warning|destructive|accent" default="default" reflect />
 
 <style>
   :host {
     display: block;
+    --tone-bg: var(--border);
   }
   :host([hidden]) { display: none; }
+  :host([tone='muted'])       { --tone-bg: color-mix(in oklch, var(--border) 50%, transparent); }
+  :host([tone='primary'])     { --tone-bg: color-mix(in oklch, var(--primary) 50%, var(--border)); }
+  :host([tone='destructive']) { --tone-bg: color-mix(in oklch, var(--destructive) 50%, var(--border)); }
 
   .sep {
     border: 0;
@@ -50,11 +60,11 @@
     width: 100%;
     height: 1px;
     margin: 8px 0;
-    background: var(--border);
+    background: var(--tone-bg);
   }
   :host(:not([orientation='vertical'])[variant='dashed']) .sep {
     background: transparent;
-    border-top: 1px dashed var(--border);
+    border-top: 1px dashed var(--tone-bg);
     height: 0;
   }
 
@@ -68,11 +78,11 @@
     width: 1px;
     min-height: 100%;
     margin: 0 8px;
-    background: var(--border);
+    background: var(--tone-bg);
   }
   :host([orientation='vertical'][variant='dashed']) .sep {
     background: transparent;
-    border-left: 1px dashed var(--border);
+    border-left: 1px dashed var(--tone-bg);
     width: 0;
   }
 </style>

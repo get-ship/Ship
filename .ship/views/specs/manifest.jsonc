@@ -1,8 +1,0 @@
-{
-  "name": "specs",
-  "path": "/specs",
-  "title": "Specs",
-  "layout": "default",
-  "auth": "user",
-  "rail": { "label": "Specs", "icon": "file-text" }
-}

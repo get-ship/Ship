@@ -211,11 +211,11 @@ Commander does not retry the land; human decides next action.
 
 After every verdict (PASS+land or FAIL), notify commander so it can act without human relay:
 
-1. Call `mcp__ship__mesh_broadcast` with:
+1. Call `ship ops call mesh.broadcast --json '{"topic":"gate.result","verdict":"LANDED|GATE FAIL","slug":"<slug>","detail":"<one line>"}'` with:
    ```json
    { "topic": "gate.result", "verdict": "LANDED|GATE FAIL", "slug": "<slug>", "detail": "<one line>" }
    ```
-2. If the job spec includes a `commander_workspace_id` field, also call `mcp__ship__emit_studio_event` with:
+2. If the job spec includes a `commander_workspace_id` field, also notify commander — `TODO(#207-followup): verify replacement for mcp__ship__emit_studio_event` — with:
    ```json
    {
      "event_type": "studio.gate.result",

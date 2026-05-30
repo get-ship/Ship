@@ -55,9 +55,7 @@ test.describe('shell settings view', () => {
         for (const inp of form.querySelectorAll('sui-input, sui-select')) {
           const hasAria =
             inp.hasAttribute('aria-label') || inp.hasAttribute('aria-labelledby')
-          const tile = form.closest('sui-list-tile')
-          const rowLabel = tile?.querySelector('.s-row-label')?.textContent?.trim() ?? ''
-          if (!hasAria && !rowLabel) out.push(inp.tagName)
+          if (!hasAria) out.push(inp.tagName)
         }
       }
       return out

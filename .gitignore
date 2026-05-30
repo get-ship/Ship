@@ -142,8 +142,8 @@ test-results/
 .ship/views/datastar.min.js
 .ship/views/*.min.js
 
-# Shell build output — populated by `bun run --filter shell build`.
-apps/shell/dist/
+# Shell build output now lives at .deck/hub-scaffold/ (daemon-served like
+# spaces); apps/shell/dist/ is retired. The `.deck/` rule below covers it.
 apps/shell/qa-evidence/
 
 # Lit `<ship-*>` web-component bundles — built by `bun run --filter @ship/set build`
@@ -170,7 +170,9 @@ apps/docs/public/ship-*.js
 # tracked — they're `include_str!`'d into the crate, not bundler output.
 crates/deck/deck-core/assets/*.js
 !crates/deck/deck-core/assets/live-reload.js
-crates/deck/deck-core/assets/lucide-icons.json
+# lucide-icons.json IS committed source — it's the embedded set the daemon
+# serves per-icon via `/_sui/icons/{name}.svg`. Regenerate after a
+# lucide-static version bump: `cargo run -p xtask -- gen-icons`.
 crates/deck/deck-core/assets/sui-custom-elements.json
 
 # deck build output — app/user view + chrome bundles (deck's `.next/`-equivalent).
@@ -260,3 +262,14 @@ views/*/*.d.ts
 
 # Local daemon runtime state created when shipd runs with cwd=repo
 /machine/
+
+# Chrome Lighthouse profile dumps — WSL receives Windows paths as literal
+# directory names with backslashes when astro/lighthouse runs from Windows.
+apps/site/C:*
+apps/*/C:*
+
+# Site generated assets (produced by apps/site/scripts/copy-sui-assets.ts).
+# Source of truth is the SUI build; the site only re-publishes them.
+apps/site/public/_sui/icons/
+apps/site/public/_sui/syntax-tokens.css
+apps/site/public/sui-components/

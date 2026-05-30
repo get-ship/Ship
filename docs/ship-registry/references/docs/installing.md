@@ -69,16 +69,20 @@ ship install --frozen  # Fail if ship.lock would change (CI mode)
 
 ## The lock file
 
-`ship.lock` is a TOML file that pins every dependency to an exact commit and content hash:
+`ship.lock` is a JSONC file (same as every other `.ship/` config) that pins every dependency to an exact commit and content hash:
 
-```toml
-version = 1
-
-[[package]]
-path = "github.com/better-auth/skills"
-version = "main"
-commit = "6a1636950a1d7fc53602639ce7505a4a5d39c797"
-hash = "sha256:83fb025b015f9472ea8504cbdf8c8e042eff86f87cb0f69757bb00fbacd5acb9"
+```jsonc
+{
+  "version": 1,
+  "packages": [
+    {
+      "path": "github.com/better-auth/skills",
+      "version": "main",
+      "commit": "6a1636950a1d7fc53602639ce7505a4a5d39c797",
+      "hash": "sha256:83fb025b015f9472ea8504cbdf8c8e042eff86f87cb0f69757bb00fbacd5acb9"
+    }
+  ]
+}
 ```
 
 | Field | Description |

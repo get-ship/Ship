@@ -11,11 +11,11 @@
   {:ok}
 {#if agent()}
   <sui-view-chrome title={agent().name}>
-    <sui-segmented slot="actions" value="settings" size="sm" on:sui-change={(e) => goTab(e.detail.value)}>
-      <sui-segmented-option value="overview">Overview</sui-segmented-option>
-      <sui-segmented-option value="wire">Wire</sui-segmented-option>
-      <sui-segmented-option value="settings">Settings</sui-segmented-option>
-    </sui-segmented>
+    <sui-toggle-group variant="segmented" type="single" slot="actions" value="settings" size="sm" on:sui-change={(e) => goTab(e.detail.value)}>
+      <sui-toggle value="overview">Overview</sui-toggle>
+      <sui-toggle value="wire">Wire</sui-toggle>
+      <sui-toggle value="settings">Settings</sui-toggle>
+    </sui-toggle-group>
     <sui-button slot="actions" variant="ghost" size="sm" on:click={goBack}>
       <sui-icon slot="leading" name="chevron-left" size="xs"></sui-icon>
       Agents
@@ -37,10 +37,11 @@
             {:else}
               <sui-cluster>
                 {#for s of (agent().skills ?? []) key={s}}
-                  <sui-list-tile variant="card" density="compact">
-                    <span slot="leading" class="ad-chip-icon ad-chip-icon--skill">{s.slice(0,2)}</span>
-                    <span class="ad-chip-name">{s}</span><span slot="meta" class="ad-chip-meta">project</span>
-                  </sui-list-tile>
+                  <div class="list-tile list-tile--compact" style="display:flex;flex-direction:row">
+                    <span class="ad-chip-icon ad-chip-icon--skill">{s.slice(0,2)}</span>
+                    <span class="list-tile-primary ad-chip-name">{s}</span>
+                    <span class="ad-chip-meta">project</span>
+                  </div>
                 {/for}
               </sui-cluster>
             {/if}
@@ -61,10 +62,11 @@
             {:else}
               <sui-cluster>
                 {#for m of (agent().mcp_servers ?? []) key={m}}
-                  <sui-list-tile variant="card" density="compact">
-                    <span slot="leading" class="ad-chip-icon ad-chip-icon--mcp">{m.slice(0,2)}</span>
-                    <span class="ad-chip-name">{m}</span><span slot="meta" class="ad-chip-meta">server</span>
-                  </sui-list-tile>
+                  <div class="list-tile list-tile--compact" style="display:flex;flex-direction:row">
+                    <span class="ad-chip-icon ad-chip-icon--mcp">{m.slice(0,2)}</span>
+                    <span class="list-tile-primary ad-chip-name">{m}</span>
+                    <span class="ad-chip-meta">server</span>
+                  </div>
                 {/for}
               </sui-cluster>
             {/if}
@@ -143,10 +145,12 @@
               <div class="ad-empty">No rules configured. This agent uses project defaults.</div>
             {:else}
               {#for r of (agent().rules ?? []) key={r}}
-                <sui-list-tile density="compact">
-                  <span slot="leading" class="ad-rule-name">{r}</span>
-                  <span class="ad-rule-preview">Project rule</span>
-                </sui-list-tile>
+                <div class="list-tile list-tile--compact">
+                  <div class="list-tile-row">
+                    <span class="list-tile-primary ad-rule-name">{r}</span>
+                    <span class="ad-rule-preview">Project rule</span>
+                  </div>
+                </div>
               {/for}
             {/if}
           </div>
@@ -165,13 +169,15 @@
             {:else}
               <div class="ad-provider-grid">
                 {#for p of providers() key={p.id}}
-                  <sui-list-tile variant="card" density="compact" interactive>
-                    <span slot="leading" class="ad-provider-logo">{p.id.slice(0,2)}</span>
-                    <span class="ad-provider-name">{p.label}
-                      {#if p.isDefault}<sui-badge tone="accent" variant="soft" size="sm">default</sui-badge>{/if}
-                    </span>
-                    <span slot="meta" class="ad-provider-sub"><sui-status-dot tone="success" size="sm"></sui-status-dot>defaults</span>
-                  </sui-list-tile>
+                  <div class="list-tile list-tile--compact" style="cursor:pointer;background:var(--card);border-color:var(--border-subtle);box-shadow:var(--shadow-card-rest);display:flex;flex-direction:column">
+                    <div class="list-tile-row">
+                      <span class="ad-provider-logo">{p.id.slice(0,2)}</span>
+                      <span class="list-tile-primary ad-provider-name">{p.label}
+                        {#if p.isDefault}<sui-badge tone="accent" variant="soft" size="sm">default</sui-badge>{/if}
+                      </span>
+                    </div>
+                    <div class="ad-provider-sub"><sui-status-dot tone="success" size="sm"></sui-status-dot>defaults</div>
+                  </div>
                 {/for}
               </div>
             {/if}
@@ -204,11 +210,11 @@
         </sui-stack>
       {/if}
     </div>
-    <sui-toolbar slot="footer">
+    <div class="toolbar toolbar--footer" slot="footer">
       <span style="flex:1; font-size:var(--text-xs); color:var(--muted-foreground)">{pickerSelected().length} selected</span>
       <sui-button variant="ghost" size="sm" on:click={closePicker}>Cancel</sui-button>
       <sui-button tone="primary" variant="solid" size="sm" prop:disabled={pickerSelected().length === 0} on:click={savePicker}>Add</sui-button>
-    </sui-toolbar>
+    </div>
   </sui-dialog>
 {/if}
 {/async}

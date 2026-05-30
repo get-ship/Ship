@@ -30,7 +30,6 @@ Three patterns:
 
 | Pattern | Example | What it does |
 |---|---|---|
-| **Contribute scope identifier** | `<use-shell as="shell" />` | `shell` becomes readable in template + controller. |
 | **Receive controller ref** | `<use-click-outside bind:target={ref} />` | Hook gets a handle to a controller-side element / value. |
 | **Template-fragment children** | `<use-kbd><on key="…" /></use-kbd>` | The hook walks its children for declarative configuration. |
 
@@ -44,7 +43,6 @@ hook names are a compile error, not a silent no-op. Today's hooks:
 - `<use-clipboard>` — copy / paste plumbing
 - `<use-scroll-anchor>` — preserve scroll position across re-renders
 - `<use-intersection>` — IntersectionObserver wrapper
-- `<use-shell>` — read host shell context (theme, user, route)
 
 ## Try it
 
@@ -56,6 +54,6 @@ The example uses `<use-title>` to bind the browser tab's title and
 2. **Press the shortcuts**: `j`/`k` to move the count, `r` to reset.
    The bindings live in the template, not in a `useEffect` /
    `addEventListener` you wrote by hand.
-3. **Add `<use-shell as="shell" />`** at the top and read
-   `{shell.theme}` somewhere in the body. The hook contributes
-   `shell` to scope without any controller wiring.
+3. **Add `<use-clipboard />`** somewhere and try the copy hook —
+   another platform-bridge hook that contributes a controller-callable
+   helper without manual setup.

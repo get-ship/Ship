@@ -1,0 +1,58 @@
+{
+  // sui-eval — dogfood pipeline that A/B-tests SUI authoring across models.
+  //
+  // The `build` step is a fanout: two lanes spawn ship-designer agents
+  // (one haiku, one sonnet) against the SAME job spec — the create-space
+  // wizard mocked up under .ship/pipelines/sui-eval/mockups/. Each lane
+  // runs in its own worktree, writes views/create-space/, and reports
+  // step-done.
+  //
+  // The `grade` step is a shell scorer (bun) that compiles + lints each
+  // lane's view via sui-compiler / sui-lint, scores against a structural
+  // rubric (controls present? tokens used? rules obeyed?), and writes
+  // a per-lane row to .artifacts/sui-eval-runs/<run-id>.jsonl.
+  //
+  // The `record` step posts those rows into the `sui-eval-runs`
+  // collection (event-sourced; queryable later from views/eval).
+  //
+  // min_successful_lanes:1 — one passing lane is enough to advance to
+  // grading; the scorer's job is to rank, not to gate.
+  "name": "sui-eval",
+  "description": "SUI authoring eval — fanout across models, grade outputs, record per-variant scores.",
+  "auto_merge": false,
+  "steps": [
+    {
+      "id": "build",
+      "agent": "ship-designer",
+      "fanout": {
+        "lanes": [
+          { "id": "haiku",  "agent": "ship-designer", "model": "claude-haiku-4-5-20251001" },
+          { "id": "sonnet", "agent": "ship-designer", "model": "claude-sonnet-4-6" }
+        ],
+        "judge": { "step": "grade" },
+        "min_successful_lanes": 1
+      }
+    },
+    {
+      "id": "grade",
+      "after": ["build"],
+      "run": "bun .ship/pipelines/sui-eval/scripts/grade.ts\n"
+    },
+    {
+      "id": "record",
+      "after": ["grade"],
+      "run": "bun .ship/pipelines/sui-eval/scripts/record.ts\n"
+    }
+  ],
+  "step_specs": [
+    // step_specs[0] — build (fanout). Both lanes see the same spec.
+    // We reference the on-disk task-spec.md so the agent reads it from
+    // its own worktree; keeps this file readable and lets the spec
+    // grow without ballooning the pipeline jsonc.
+    "Read `.ship/pipelines/sui-eval/task-spec.md` from your worktree root and execute it. The mockups it references are under `.ship/pipelines/sui-eval/mockups/0-welcome.png` … `3-registered.png`. Open each one. When the four screens are wired, the manifest is registered, and the verification commands at the bottom of the spec pass, call `ship ops call pipelines.step_done --json '{\"slug\":\"'\"'$SHIP_ACTOR_ID'\"'\",\"summary\":\"one-line summary\"}'` to signal completion.\n",
+    // step_specs[1] — grade (run). No agent text; shell exits.
+    "",
+    // step_specs[2] — record (run). No agent text; shell exits.
+    ""
+  ]
+}

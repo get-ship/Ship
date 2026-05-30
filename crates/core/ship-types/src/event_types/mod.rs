@@ -24,6 +24,7 @@ pub const CONFIG_FILE_CHANGED: &str = "config.file_changed";
 pub const AGENT_CHANGED: &str = "agent.changed";
 pub const VIEW_CHANGED: &str = "view.changed";
 pub const RULE_CHANGED: &str = "rule.changed";
+pub const COLLECTION_CHANGED: &str = "collection.changed";
 pub const PROJECT_CHANGED: &str = "project.changed";
 pub const PROJECT_LOG: &str = "project.log";
 

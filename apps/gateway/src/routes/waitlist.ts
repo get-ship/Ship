@@ -18,6 +18,24 @@ const waitlist = new Hono<{ Bindings: Env }>()
 
 const ALLOWED_LISTS = new Set(['general', 'pro', 'changelog', 'blog'])
 
+const ALLOWED_OS = new Set(['macos', 'windows', 'linux', 'wsl', 'other'])
+const ALLOWED_HARNESSES = new Set(['claude-code', 'codex', 'cursor', 'opencode', 'pi', 'none'])
+const ALLOWED_CHANNELS = new Set(['x', 'hn', 'podcast', 'friend', 'docs-or-repo', 'search', 'other'])
+const ALLOWED_SECURITY = new Set(['none', 'containers', 'vms', 'sandbox', 'not-sure'])
+
+function pick<T>(value: unknown, allowed: Set<T>): T | null {
+  return typeof value === 'string' && (allowed as Set<unknown>).has(value) ? (value as T) : null
+}
+function pickMany<T>(value: unknown, allowed: Set<T>, cap = 8): T[] {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<T>()
+  for (const v of value) {
+    if (typeof v === 'string' && (allowed as Set<unknown>).has(v)) seen.add(v as T)
+    if (seen.size >= cap) break
+  }
+  return Array.from(seen)
+}
+
 async function hashEmail(email: string): Promise<string> {
   const bytes = new TextEncoder().encode(email.trim().toLowerCase())
   const hash = await crypto.subtle.digest('SHA-256', bytes)
@@ -47,12 +65,24 @@ waitlist.post('/v1/waitlist', async (c) => {
   const list = typeof b.list === 'string' && ALLOWED_LISTS.has(b.list) ? (b.list as string) : 'general'
   const source = typeof b.source === 'string' ? b.source.slice(0, 64) : null
 
+  // Survey fields — strict enum allow-lists so we don't end up with free-form
+  // analytics. harness / channel / security are REQUIRED: we only want
+  // signups with the questions captured, so an incomplete payload is rejected
+  // before it can reach KV. (os is auto-detected client-side; left optional.)
+  const os = pick(b.os, ALLOWED_OS)
+  const harnesses = pickMany(b.harnesses, ALLOWED_HARNESSES, 8)
+  const channel = pick(b.channel, ALLOWED_CHANNELS)
+  const security = pick(b.security, ALLOWED_SECURITY)
+  if (harnesses.length === 0 || !channel || !security) {
+    return c.json({ error: 'survey_required' }, 400)
+  }
+
   const key = `waitlist:${list}:${await hashEmail(email)}`
   const existing = await kv.get(key, 'json')
   if (!existing) {
     await kv.put(
       key,
-      JSON.stringify({ email, list, source, createdAt: Date.now() }),
+      JSON.stringify({ email, list, source, os, harnesses, channel, security, createdAt: Date.now() }),
     )
   }
 

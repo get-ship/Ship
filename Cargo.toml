@@ -19,6 +19,7 @@ members = [
     "crates/sui/signals",
     "crates/deck/deck-host",
     "crates/deck/deck-bundler",
+    "crates/deck/deck-cli",
     "crates/deck/deck-core",
     "crates/deck/deck-axum",
     "crates/deck/deck",

@@ -11,6 +11,7 @@ mod gen_audit_readme;
 mod gen_contract;
 mod gen_events;
 mod gen_fixtures;
+mod gen_icons;
 mod gen_indexes;
 mod gen_indexes_substrate;
 mod gen_ops;

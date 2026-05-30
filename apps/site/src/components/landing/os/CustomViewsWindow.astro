@@ -1,0 +1,437 @@
+---
+// FILE_CAP_OVERRIDE: a feature window whose data, layout, runtime, and
+// styles move together. The mock view + studio share enough markup,
+// IDs, and CSS to make splitting more harmful than helpful.
+/*
+ * CustomViewsWindow — Views are how Ship surfaces look.
+ *
+ *   Hero        : framing — every Ship view is built with SUI.
+ *   Edit mode   : two mock windows side by side. The View carries
+ *                 annotation pins; the Studio shows the SUI source.
+ *                 The story: annotate the surface, the agent edits the
+ *                 code, hot-reload lands the change.
+ *   Composition : three pack categories — SUI primitives, domain packs,
+ *                 vendored bits — visualised as chip rows.
+ */
+import Window from './Window.astro';
+import DownloadCTA from './DownloadCTA.astro';
+const { open = false } = Astro.props;
+
+interface Pin { id: string; label: string; x: number; y: number; tone: 'primary' | 'warning' | 'destructive' }
+const pins: Pin[] = [
+  { id: 'p1', label: 'make this the hero', x: 18, y: 26, tone: 'primary' },
+  { id: 'p2', label: 'wrong tone',          x: 70, y: 24, tone: 'warning' },
+  { id: 'p3', label: 'add sparkline here',  x: 24, y: 70, tone: 'primary' },
+];
+
+interface Pack { name: string; kind: string; items: string[] }
+const packs: Pack[] = [
+  {
+    name: 'SUI primitives',
+    kind: 'building blocks',
+    items: ['sui-card', 'sui-stat', 'sui-bar-chart', 'sui-button', 'sui-list-tile', 'sui-status-dot', 'sui-badge', 'sui-sparkline', 'sui-toolbar', 'sui-tabs'],
+  },
+  {
+    name: 'Domain packs',
+    kind: 'Ship features as components',
+    items: ['ship-agent-card', 'ship-pipeline-stepper', 'ship-run-log', 'ship-space-switcher', 'ship-event-feed', 'ship-collection-grid', 'ship-secret-input'],
+  },
+  {
+    name: 'Vendored',
+    kind: 'common, ready-to-use',
+    items: ['markdown editor', 'code editor', 'terminal', 'table', 'rich text', 'tree view', 'date picker', 'kanban'],
+  },
+];
+---
+<Window app="custom-views" title="Custom Views" meta="built with SUI" mark="V" accent="dashboard" open={open} defer>
+  <div class="win-scroll cv">
+    {/* ── Hero ─────────────────────────────────────────────────────────── */}
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="eyebrow" data-reveal>Views · built with SUI</div>
+        <h2 class="hl" data-reveal>
+          Not a transcript. <span class="hl-accent">A real interface.</span>
+        </h2>
+        <p class="hero-sub" data-reveal>
+          Every view is a real surface built with SUI — Ship's component framework, made for agents to author. Point at any element, leave a note, and the agent rewrites the code. It hot-reloads live.
+        </p>
+      </div>
+    </section>
+
+    {/* ── Edit mode — View + Studio side by side ───────────────────────── */}
+    <section class="edit">
+      <header class="band-h" data-reveal>
+        <span class="band-tag">Edit mode</span>
+        <h3 class="band-title">Annotate the surface. The agent edits the code.</h3>
+        <p class="band-sub">Two windows, side by side. Pin a note on the view; the studio shows the line the agent is touching. Hot reload lands the change live.</p>
+      </header>
+
+      <div class="windows" data-reveal>
+        {/* The view window */}
+        <article class="mock view-mock">
+          <header class="mock-bar">
+            <span class="tl-dots"><i></i><i></i><i></i></span>
+            <span class="mock-title">overview · <em>work</em> space</span>
+            <span class="mock-edit"><span class="edit-dot"></span>edit mode</span>
+          </header>
+          <div class="view-stage">
+            <sui-card class="vm-card" variant="outline" padding="md">
+              <sui-toolbar justify="split" class="vm-bar">
+                <span class="vm-title">Q3 overview</span>
+                <sui-badge variant="soft" size="sm">live</sui-badge>
+              </sui-toolbar>
+              <div class="vm-row">
+                <sui-stat size="md" tone="success">
+                  <span slot="label">ARR</span>
+                  $1.24M
+                  <span slot="trend">+18%</span>
+                </sui-stat>
+                <sui-stat size="md" tone="primary">
+                  <span slot="label">NPS</span>
+                  72
+                  <span slot="trend">+9</span>
+                </sui-stat>
+              </div>
+              <sui-bar-chart class="vm-chart" data="22,28,34,42,48,52,58,62,68,74,82,88" tone="primary" height="56" label="throughput"></sui-bar-chart>
+              <div class="vm-events">
+                <sui-list-tile density="compact">
+                  <sui-status-dot slot="leading" tone="success" size="sm"></sui-status-dot>
+                  Inbox · drafted 5 replies
+                  <span slot="trailing" class="vm-ago">2s</span>
+                </sui-list-tile>
+                <sui-list-tile density="compact">
+                  <sui-status-dot slot="leading" tone="success" size="sm"></sui-status-dot>
+                  Repo · ran the test suite
+                  <span slot="trailing" class="vm-ago">40s</span>
+                </sui-list-tile>
+              </div>
+            </sui-card>
+            {pins.map((pin) => (
+              <span class={`pin pin-${pin.tone}`} style={`left: ${pin.x}%; top: ${pin.y}%;`} data-pin={pin.id}>
+                <i class="pin-num">{pins.indexOf(pin) + 1}</i>
+                <span class="pin-label">{pin.label}</span>
+              </span>
+            ))}
+          </div>
+        </article>
+
+        {/* The studio window */}
+        <article class="mock studio-mock">
+          <header class="mock-bar">
+            <span class="tl-dots"><i></i><i></i><i></i></span>
+            <span class="mock-title">studio · <em>overview.sui</em></span>
+            <span class="mock-reload"><span class="reload-pulse"></span>hot reload</span>
+          </header>
+          <pre class="code"><code><span class="ln">1</span><span class="tg">&lt;sui-card</span> <span class="at">variant</span>=<span class="st">"outline"</span> <span class="at">padding</span>=<span class="st">"md"</span><span class="tg">&gt;</span>
+<span class="ln">2</span>  <span class="tg">&lt;sui-toolbar&gt;</span>
+<span class="ln">3</span>    <span class="tg">&lt;span&gt;</span><span class="hit hit-1">Q3 overview</span><span class="tg">&lt;/span&gt;</span>
+<span class="ln">4</span>  <span class="tg">&lt;/sui-toolbar&gt;</span>
+<span class="ln">5</span>  <span class="tg">&lt;sui-stat</span> <span class="at">tone</span>=<span class="st">"<span class="hit hit-2">success</span>"</span><span class="tg">&gt;</span>
+<span class="ln">6</span>    <span class="tg">&lt;span</span> <span class="at">slot</span>=<span class="st">"label"</span><span class="tg">&gt;</span>ARR<span class="tg">&lt;/span&gt;</span>
+<span class="ln">7</span>    $1.24M
+<span class="ln">8</span>  <span class="tg">&lt;/sui-stat&gt;</span>
+<span class="ln">9</span>  <span class="hit hit-3"><span class="tg">&lt;sui-bar-chart</span> <span class="at">data</span>=<span class="st">"…"</span> <span class="tg">/&gt;</span></span>
+<span class="ln">10</span> <span class="tg">&lt;/sui-card&gt;</span></code></pre>
+          <footer class="studio-foot">
+            <span class="foot-k">paired with</span>
+            <span class="foot-v">inbox-triage</span>
+            <sui-status-dot tone="success" pulse size="sm"></sui-status-dot>
+          </footer>
+        </article>
+      </div>
+      <!-- SCREENSHOT TODO: real Ship shell view being edited in studio — deferred until SUI ready -->
+    </section>
+
+    {/* ── Composition — what views are built from ──────────────────────── */}
+    <section class="compose">
+      <header class="band-h" data-reveal>
+        <span class="band-tag">Composition</span>
+        <h3 class="band-title">Primitives, domain, vendored. Everything ships with Ship.</h3>
+      </header>
+      <div class="pack-stack">
+        {packs.map((p, i) => (
+          <article class="pack" data-reveal style={`--i: ${i};`}>
+            <div class="pack-head">
+              <span class="pack-num">{String(i + 1).padStart(2, '0')}</span>
+              <div class="pack-h">
+                <h4 class="pack-name">{p.name}</h4>
+                <p class="pack-kind">{p.kind}</p>
+              </div>
+            </div>
+            <ul class="pack-items">
+              {p.items.map((it) => (
+                <li><code>{it}</code></li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="cv-cta">
+      <DownloadCTA message="Stop describing your view. Render it." />
+    </section>
+  </div>
+</Window>
+
+<style>
+  .cv { display: block; }
+
+  [data-reveal] {
+    opacity: 0; transform: translateY(28px);
+    transition: opacity 700ms var(--ease-out, ease), transform 700ms var(--ease-spring, cubic-bezier(.32,.72,0,1));
+  }
+  [data-reveal].in { opacity: 1; transform: none; }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative;
+    min-height: calc(80vh - var(--os-menubar-h, 32px));
+    display: grid; place-items: center;
+    overflow: hidden;
+    isolation: isolate;
+    padding: 0 24px;
+    background:
+      radial-gradient(ellipse 60% 50% at 30% 20%, color-mix(in oklch, var(--w-accent) 28%, transparent), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 80% 60%, color-mix(in oklch, var(--accent) 18%, transparent), transparent 72%);
+  }
+  .hero-inner { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 980px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--w-accent); }
+  .hl { font-family: var(--font-display); font-weight: 800; font-size: clamp(40px, 6vw, 76px); letter-spacing: -0.035em; line-height: 0.98; margin: 0; color: var(--foreground); }
+  .hero-sub {
+    margin: 18px 0 0; max-width: 64ch;
+    font-size: 15px; line-height: 1.55;
+    color: color-mix(in oklch, var(--foreground) 72%, var(--background));
+  }
+
+  /* ── Band header (shared) ── */
+  .band-h {
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 0 32px;
+    margin: 0 auto 28px; max-width: 1200px;
+  }
+  .band-tag {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 999px; align-self: flex-start;
+    color: var(--w-accent);
+    background: color-mix(in oklch, var(--w-accent) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 28%, transparent);
+  }
+  .band-title {
+    margin: 0;
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(26px, 3.6vw, 44px);
+    letter-spacing: -0.025em; line-height: 1.05;
+    color: var(--foreground);
+  }
+  .band-sub {
+    margin: 8px 0 0; max-width: 64ch;
+    font-size: 13.5px; line-height: 1.5;
+    color: color-mix(in oklch, var(--foreground) 68%, var(--background));
+  }
+
+  /* ── Edit mode — two mock windows ── */
+  .edit { padding: 48px 0 70px; }
+  .windows {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: 18px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+  .mock {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid color-mix(in oklch, var(--foreground) 14%, transparent);
+    background: color-mix(in oklch, var(--card) 96%, transparent);
+    box-shadow: 0 24px 56px -22px rgba(0,0,0,0.45);
+    display: flex; flex-direction: column;
+  }
+  .mock-bar {
+    display: grid; grid-template-columns: auto 1fr auto;
+    align-items: center; gap: 14px;
+    padding: 9px 14px;
+    border-bottom: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent);
+    background: color-mix(in oklch, var(--w-accent) 6%, color-mix(in oklch, var(--card) 80%, var(--background)));
+  }
+  .tl-dots { display: inline-flex; gap: 7px; }
+  .tl-dots i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.18); }
+  .tl-dots i:nth-child(2) { background: #febc2e; }
+  .tl-dots i:nth-child(3) { background: #28c840; }
+  .mock-title {
+    font-family: var(--font-body); font-size: 12px; font-weight: 600;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklch, var(--foreground) 76%, var(--background));
+    text-align: center;
+  }
+  .mock-title em { font-style: normal; color: var(--w-accent); font-weight: 700; }
+  .mock-edit, .mock-reload {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--w-accent);
+    padding: 3px 8px; border-radius: 999px;
+    background: color-mix(in oklch, var(--w-accent) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 28%, transparent);
+  }
+  .edit-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--w-accent);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--w-accent) 24%, transparent);
+  }
+  .reload-pulse {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: oklch(0.7 0.16 150);
+    animation: reload-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes reload-pulse { 50% { box-shadow: 0 0 0 5px color-mix(in oklch, oklch(0.7 0.16 150) 24%, transparent); } }
+
+  /* ── View mock interior ── */
+  .view-stage {
+    position: relative;
+    padding: 22px 24px;
+    flex: 1;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, color-mix(in oklch, var(--w-accent) 8%, transparent), transparent 70%),
+      color-mix(in oklch, var(--background) 60%, var(--card));
+    isolation: isolate;
+  }
+  .vm-card { display: block; }
+  .vm-bar { margin-bottom: 10px; }
+  .vm-title { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--foreground); }
+  .vm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 6px 0 14px; }
+  .vm-chart { width: 100%; display: block; margin: 6px 0 12px; }
+  .vm-events { display: flex; flex-direction: column; gap: 2px; }
+  .vm-ago { font-family: var(--font-mono); font-size: 10.5px; color: color-mix(in oklch, var(--foreground) 50%, var(--background)); }
+
+  /* Annotation pins */
+  .pin {
+    position: absolute;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 9px 4px 4px;
+    border-radius: 6px 12px 12px 6px;
+    color: white;
+    font-family: var(--font-body); font-size: 11.5px; font-weight: 600;
+    box-shadow: 0 6px 14px -4px rgba(0,0,0,0.25);
+    z-index: 4;
+    transform: translateY(-50%);
+    pointer-events: none;
+    animation: pin-bob 4s ease-in-out infinite;
+  }
+  .pin :where(.pin-num) {
+    font-style: normal;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: color-mix(in oklch, white 24%, transparent);
+    font-family: var(--font-mono); font-size: 10px; font-weight: 800;
+    display: grid; place-items: center;
+  }
+  .pin-primary     { background: var(--w-accent); }
+  .pin-warning     { background: oklch(0.78 0.16 70); }
+  .pin-destructive { background: oklch(0.62 0.22 25); }
+  .pin:nth-child(odd)  { animation-delay: -1.2s; }
+  .pin:nth-child(even) { animation-delay: -2.4s; }
+  @keyframes pin-bob {
+    0%, 100% { transform: translateY(-50%); }
+    50%      { transform: translateY(calc(-50% - 3px)); }
+  }
+  @media (prefers-reduced-motion: reduce) { .pin { animation: none; } }
+
+  /* ── Studio mock interior ── */
+  .studio-mock { background: color-mix(in oklch, var(--foreground) 4%, var(--card)); }
+  .code {
+    margin: 0;
+    flex: 1;
+    padding: 16px 16px;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.95;
+    color: color-mix(in oklch, var(--foreground) 84%, var(--background));
+    overflow: auto;
+  }
+  .ln {
+    display: inline-block;
+    width: 24px;
+    padding-right: 12px;
+    text-align: right;
+    color: color-mix(in oklch, var(--foreground) 30%, var(--background));
+    user-select: none;
+  }
+  .tg { color: color-mix(in oklch, var(--foreground) 55%, var(--background)); }
+  .at { color: var(--w-accent); }
+  .st { color: oklch(0.68 0.14 152); }
+  .hit {
+    padding: 1px 4px; border-radius: 4px;
+    background: color-mix(in oklch, var(--w-accent) 16%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--w-accent) 36%, transparent);
+  }
+  .hit-2 { background: color-mix(in oklch, oklch(0.78 0.16 70) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, oklch(0.78 0.16 70) 36%, transparent); }
+  .hit-3 { background: color-mix(in oklch, var(--w-accent) 12%, transparent); }
+  .studio-foot {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    border-top: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent);
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: color-mix(in oklch, var(--foreground) 60%, var(--background));
+  }
+  .foot-k { letter-spacing: 0.12em; text-transform: uppercase; }
+  .foot-v { color: var(--foreground); font-weight: 700; }
+
+  /* ── Composition ── */
+  .compose {
+    padding: 40px 0 100px;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 100%, color-mix(in oklch, var(--w-accent) 14%, transparent), transparent 70%);
+  }
+  .pack-stack {
+    display: flex; flex-direction: column; gap: 14px;
+    max-width: 1100px; margin: 0 auto;
+    padding: 0 32px;
+  }
+  .pack {
+    background: color-mix(in oklch, var(--card) 96%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 28%, transparent);
+    border-radius: 16px;
+    padding: 20px 22px;
+    box-shadow: 0 16px 40px -18px color-mix(in oklch, var(--w-accent) 50%, transparent);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .pack[data-reveal] { transform: translateY(calc(36px + var(--i, 0) * 6px)); opacity: 0; }
+  .pack[data-reveal].in { transform: translateY(0); opacity: 1; }
+  .pack-head { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+  .pack-num {
+    font-family: var(--font-mono); font-size: 28px; font-weight: 800;
+    color: var(--w-accent); line-height: 1;
+  }
+  .pack-h { display: flex; flex-direction: column; gap: 2px; }
+  .pack-name {
+    margin: 0;
+    font-family: var(--font-display); font-size: 22px; font-weight: 800;
+    letter-spacing: -0.015em;
+    color: var(--foreground);
+  }
+  .pack-kind {
+    margin: 0;
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 60%, var(--background));
+  }
+  .pack-items {
+    list-style: none; padding: 0; margin: 0;
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .pack-items li code {
+    font-family: var(--font-mono); font-size: 12px;
+    padding: 4px 9px; border-radius: 6px;
+    background: color-mix(in oklch, var(--foreground) 6%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent);
+    color: var(--foreground);
+  }
+
+  /* ── Mobile ── */
+  @media (max-width: 760px) {
+    .hl { font-size: clamp(32px, 9vw, 48px); }
+    .windows { grid-template-columns: 1fr; gap: 14px; padding: 0 14px; }
+    .pack-stack { padding: 0 14px; }
+    .pack-name { font-size: 18px; }
+  }
+</style>

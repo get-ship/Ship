@@ -11,7 +11,7 @@ use crate::DaemonMode;
 /// revalidate. Picked per-response so the adapter needs no mode awareness.
 #[derive(Clone, Copy, Debug)]
 pub enum CachePolicy {
-    /// Framework bundles (runtime/dom/components/islands, lucide).
+    /// Framework bundles (runtime/dom/components/islands) + per-icon lucide SVGs.
     Asset,
     /// View artifacts (template/setup/css/payload/host).
     View,

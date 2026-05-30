@@ -148,6 +148,18 @@ pub async fn dispatch_pipeline_run_internal(
         return dispatch_first_run_step(kernel, payload, octx, &first.id, &command).await;
     }
 
+    // Check if the first step declares fanout — dispatch all lanes in parallel
+    // instead of treating the step's outer `agent:` field as a single-agent
+    // spawn. Mirrors `pipeline.rs:dispatch_unblocked_steps` for steps 2+; the
+    // initial-dispatch path used to skip this branch and silently degrade a
+    // fanout to a single agent.
+    if let Some(ref steps) = payload.steps
+        && let Some(first) = steps.root_steps().first()
+        && first.fanout.is_some()
+    {
+        return dispatch_first_fanout_step(kernel, payload, octx, (*first).clone()).await;
+    }
+
     let agent = if let Some(ref steps) = payload.steps {
         steps.root_steps().first()
             .and_then(|s| s.agent.as_deref())
@@ -829,6 +841,64 @@ async fn emit_agent_session_failed(
     ) {
         let env = env.with_actor_id("service.agent-session-dispatch");
         persist_and_route(kernel, env, slug, None).await;
+    }
+}
+
+/// First-step is a fanout — dispatch every lane in parallel.
+///
+/// Mirrors the fanout branch of `pipeline.rs:dispatch_unblocked_steps` so the
+/// initial-dispatch path and the advance-dispatch path can't drift. The outer
+/// `agent:` on the fanout step is metadata; the lanes own their own
+/// `agent`/`model`/`harness`.
+async fn dispatch_first_fanout_step(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    payload: &PipelineRunStartedPayload,
+    octx: &OrchestratorContext,
+    step: ship_substrate::events::pipeline::PipelineStep,
+) {
+    let Some(fanout) = step.fanout.clone() else { return };
+    let job = pipeline_run_from_payload(payload);
+    let _spawned = super::fanout::dispatch_fanout_step(
+        kernel, &job, &step, &fanout, 0, None, octx,
+    ).await;
+}
+
+/// Build a transient `PipelineRun` view from `PipelineRunStartedPayload` for
+/// callers that take `&PipelineRun` but only need the dispatch-time fields
+/// (slug, branch, spec_path, run_id, harness, model, steps, vars, headless).
+/// Status / timestamps / projection bookkeeping are set to defaults — the
+/// real projection is owned by the kernel and updated independently.
+fn pipeline_run_from_payload(
+    payload: &PipelineRunStartedPayload,
+) -> crate::projections::pipeline_run::PipelineRun {
+    use crate::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
+    let now = chrono::Utc::now();
+    PipelineRun {
+        pipeline_run_id: payload.pipeline_run_id.clone(),
+        slug: payload.slug.clone(),
+        agent: payload.agent.clone(),
+        branch: payload.branch.clone(),
+        spec_path: payload.spec_path.clone(),
+        source_spec_path: payload.source_spec_path.clone(),
+        depends_on: payload.depends_on.clone(),
+        status: PipelineRunStatus::Dispatched,
+        worktree: None,
+        blocker: None,
+        error: None,
+        model: payload.model.clone(),
+        harness: payload.harness.clone(),
+        created_at: now,
+        updated_at: now,
+        harness_meta: None,
+        pipeline: payload.pipeline.clone(),
+        steps: payload.steps.clone(),
+        current_phase: None,
+        completed_steps: vec![],
+        current_step: None,
+        vars: payload.vars.clone(),
+        step_retries: Default::default(),
+        headless: payload.headless,
+        baseline_sha: None,
     }
 }
 

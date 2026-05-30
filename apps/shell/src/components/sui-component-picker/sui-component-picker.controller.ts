@@ -8,16 +8,13 @@ import { SLOT_COMPOSITIONS } from '../picker-slot-compositions'
 // accept arbitrary text or needs specific attrs.
 const DEFAULT_ATTRS: Record<string, Record<string, string>> = {
   'sui-icon':      { name: 'package',  size: 'md' },
-  'sui-app-icon':  { name: 'dashboard', size: 'md' },
   'sui-avatar':    { initials: 'AB' },
   'sui-badge':     {},
   'sui-button':    {},
   'sui-status-dot':{ tone: 'success' },
   'sui-skeleton':  { width: '60px', height: '12px' },
   'sui-stat':      { label: 'Stat', value: '42' },
-  'sui-progress':  { value: '60' },
   'sui-spinner':   {},
-  'sui-kbd':       {},
   'sui-tag':       {},
   'sui-chip':      {},
   'sui-divider':   {},
@@ -29,7 +26,6 @@ const DEFAULT_TEXT: Record<string, string> = {
   'sui-button': 'Click me',
   'sui-tag': 'tag',
   'sui-chip': 'chip',
-  'sui-kbd': '⌘K',
   'sui-link': 'link',
   'sui-alert': 'Heads up — this is an alert.',
   'sui-error-state': 'Something went wrong',
@@ -121,7 +117,7 @@ const CATEGORY_ICON: Record<string, string> = {
 function categoryOf(tag: string): string {
   if (/(card|stack|grid|panel|section|divider|separator|toolbar|page)/.test(tag)) return 'layout'
   if (/(input|textarea|checkbox|radio|select|slider|switch|toggle|field|label|form|file|button)/.test(tag)) return 'form'
-  if (/(table|list|tile|tree|json|stat|metachip|kbd|code|markdown|diff|history)/.test(tag)) return 'data'
+  if (/(table|list|tree|json|stat|metachip|code|markdown|diff|history)/.test(tag)) return 'data'
   if (/(alert|toast|notif|empty|loading|skeleton|progress|spinner|status)/.test(tag)) return 'feedback'
   if (/(nav|rail|breadcrumb|menu|tabs|tab|stepper|launcher|dock)/.test(tag)) return 'navigation'
   if (/(dialog|drawer|popover|tooltip|hover|context-menu|dropdown|portal)/.test(tag)) return 'overlay'
@@ -188,7 +184,7 @@ export default controller({
     const shown = derived(() => {
       const all = entries()
       const needle = filter().trim()
-      const cat = state.categoryFilter().trim().toLowerCase()
+      const cat = state.categoryFilter.trim().toLowerCase()
       const pubOnly = publishedOnly()
       return all.filter((e) => {
         if (pubOnly && e.private) return false
@@ -249,14 +245,14 @@ export default controller({
     }
 
     function onTileClick(tag: string): void {
-      if (state.selectMode() === 'multi') {
+      if (state.selectMode === 'multi') {
         const q = queue()
         if (q.includes(tag)) queue.set(q.filter((t) => t !== tag))
         else queue.set([...q, tag])
         return
       }
       emitPicked([tag])
-      if (state.mode() === 'modal') { h.open = false }
+      if (state.mode === 'modal') { h.open = false }
     }
 
     function commit(): void {
@@ -264,7 +260,7 @@ export default controller({
       if (tags.length === 0) return
       emitPicked([...tags])
       queue.set([])
-      if (state.mode() === 'modal') h.open = false
+      if (state.mode === 'modal') h.open = false
     }
 
     function onDialogClose(): void { h.open = false }
@@ -287,7 +283,7 @@ export default controller({
     //     signal itself; WRITE proxies through to signal.set.
     //   • bridged props (catalogUrl, …): READ returns the signal getter
     //     (callable). Invoke with () to read its current string value.
-    // Prior `state.entries.set(...)` form worked for entries (`.set` on
+    // Prior `state.entries = ...` form worked for entries (`.set` on
     // signal) but failed an earlier refactor when entries was misread as
     // the value. Plain assignment via the proxy is the canonical write
     // path and is unambiguous: `state.entries = next` becomes

@@ -158,12 +158,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
       `,
     },
   ],
-  'sui-list-tile': [
-    { label: 'Default', innerHTML: 'Pick a workspace' },
-    { label: 'Selected', attrs: { selected: '' }, innerHTML: 'Selected row' },
-    { label: 'Interactive', attrs: { interactive: '' }, innerHTML: 'Click me' },
-    { label: 'Card', attrs: { variant: 'card' }, innerHTML: 'Card tile' },
-  ],
   'sui-avatar': [
     { label: 'Initials', attrs: { name: 'Priya Nair' } },
     { label: 'Small',    attrs: { name: 'Sam',        size: 'sm', tone: 'accent' } },
@@ -172,10 +166,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Default',    attrs: {}, innerHTML: 'launch' },
     { label: 'Selected',   attrs: { selected: '', tone: 'accent' }, innerHTML: 'priority' },
     { label: 'Removable',  attrs: { removable: '', tone: 'info' }, innerHTML: 'mcp' },
-  ],
-  'sui-kbd': [
-    { label: '⌘K',       attrs: { keys: '⌘ K' } },
-    { label: 'Shift + /',  attrs: { keys: 'Shift ?' } },
   ],
   'sui-sparkline': [
     { label: 'Accent', raw: '<div style="width:220px;"><sui-sparkline data="3,7,5,11,8,14,10" tone="accent" height="36"></sui-sparkline></div>' },
@@ -233,28 +223,10 @@ export const SHOTS: Record<string, ComponentShot[]> = {
 </sui-field>`,
     },
   ],
-  'sui-progress': [
-    { label: '40%',         raw: '<div style="width:220px;"><sui-progress value="40"  max="100" label="40%"></sui-progress></div>' },
-    { label: 'Success 78%', raw: '<div style="width:220px;"><sui-progress value="78"  max="100" tone="success" label="78%"></sui-progress></div>' },
-  ],
   'sui-separator': [
     { label: 'Horizontal', raw: '<div style="width:240px;"><sui-separator></sui-separator></div>' },
     { label: 'Dashed',     raw: '<div style="width:240px;"><sui-separator variant="dashed"></sui-separator></div>' },
     { label: 'Vertical',   raw: '<div style="display:inline-flex;align-items:center;gap:8px;height:24px;">Left<sui-separator orientation="vertical"></sui-separator>Right</div>' },
-  ],
-  'sui-breadcrumb': [
-    {
-      label: 'Default',
-      raw: `<sui-breadcrumb>
-  <sui-breadcrumb-item href="/">Home</sui-breadcrumb-item>
-  <sui-breadcrumb-item href="/components">Components</sui-breadcrumb-item>
-  <sui-breadcrumb-item active>sui-button</sui-breadcrumb-item>
-</sui-breadcrumb>`,
-    },
-  ],
-  'sui-breadcrumb-item': [
-    { label: 'Link',   attrs: { href: '/components' }, innerHTML: 'Components' },
-    { label: 'Active', attrs: { active: '' },          innerHTML: 'Active page' },
   ],
   'sui-icon': [
     { label: 'settings', attrs: { name: 'settings', size: 'md' } },
@@ -270,15 +242,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Line',   raw: '<div style="width:240px;"><sui-skeleton shape="line" size="lg"></sui-skeleton></div>' },
     { label: 'Avatar', attrs: { shape: 'circle', size: 'lg' } },
     { label: 'Block',  raw: '<div style="width:240px;"><sui-skeleton shape="block" size="md"></sui-skeleton></div>' },
-  ],
-  'sui-step-segments': [
-    { label: 'Progress', attrs: { values: 'completed,completed,running,pending,pending', size: 'md' } },
-  ],
-  'sui-meter': [
-    {
-      label: 'Split',
-      raw: `<div style="width:280px;"><sui-meter segments='[{"count":42,"tone":"success","label":"allowed"},{"count":28,"tone":"warning","label":"throttled"},{"count":12,"tone":"destructive","label":"denied"}]' total="100"></sui-meter></div>`,
-    },
   ],
   'sui-heatmap': [
     {
@@ -318,10 +281,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   </tbody>
 </sui-table>`,
     },
-  ],
-  'sui-timestamp': [
-    { label: 'ISO',     attrs: { value: new Date(Date.now() - 1000 * 60 * 17).toISOString() } },
-    { label: 'Format',  attrs: { value: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), format: 'date' } },
   ],
   'sui-tree-view': [
     {
@@ -363,16 +322,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   'sui-timeline-item': [
     { label: 'Default', attrs: { at: '09:14', tone: 'success' }, innerHTML: 'Weekly digest sent' },
   ],
-  'sui-toolbar': [
-    {
-      label: 'Default',
-      raw: `<sui-toolbar>
-  <sui-button size="sm" variant="ghost">Cancel</sui-button>
-  <span slot="spacer"></span>
-  <sui-button size="sm" tone="primary" variant="solid">Save</sui-button>
-</sui-toolbar>`,
-    },
-  ],
   'sui-toggle': [
     { label: 'On', attrs: { pressed: '' }, innerHTML: 'Pressed' },
     { label: 'Off', innerHTML: 'Idle' },
@@ -401,26 +350,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   <sui-radio value="pro">Pro</sui-radio>
   <sui-radio value="team">Team</sui-radio>
 </sui-radio-group>`,
-    },
-  ],
-  'sui-segmented': [
-    {
-      label: 'Tabs',
-      raw: `<sui-segmented value="week">
-  <sui-segmented-option value="day">Day</sui-segmented-option>
-  <sui-segmented-option value="week">Week</sui-segmented-option>
-  <sui-segmented-option value="month">Month</sui-segmented-option>
-</sui-segmented>`,
-    },
-  ],
-  'sui-segmented-option': [
-    {
-      label: 'Inside sui-segmented',
-      raw: `<sui-segmented value="week">
-  <sui-segmented-option value="day">Day</sui-segmented-option>
-  <sui-segmented-option value="week">Week</sui-segmented-option>
-  <sui-segmented-option value="month">Month</sui-segmented-option>
-</sui-segmented>`,
     },
   ],
   'sui-slider': [
@@ -474,17 +403,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
 </sui-collapsible></div>`,
     },
   ],
-  'sui-stepper': [
-    { label: 'Step 2 of 4', attrs: { current: '2', total: '4' } },
-    { label: 'Step 3 of 5', attrs: { current: '3', total: '5', size: 'lg', tone: 'accent' } },
-  ],
-  'sui-pagination': [
-    { label: 'Default', attrs: { page: '3', 'page-count': '12' } },
-  ],
-  'sui-loading': [
-    { label: 'Default', attrs: { label: 'Loading…' } },
-    { label: 'With spinner', attrs: { variant: 'spinner', label: 'Fetching agents…' } },
-  ],
   'sui-error-state': [
     {
       label: 'Generic',
@@ -502,10 +420,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   <span slot="value">12 steps · 1m 04s</span>
 </sui-status-bar>`,
     },
-  ],
-  'sui-divider': [
-    { label: 'Horizontal', raw: '<div style="width:280px;"><sui-divider></sui-divider></div>' },
-    { label: 'With label', raw: '<div style="width:280px;"><sui-divider label="or"></sui-divider></div>' },
   ],
   'sui-navigation-menu': [
     {
@@ -562,19 +476,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Canvas', overlay: true, caption: 'Force-directed graph canvas. Needs JS-driven node/edge data.' },
   ],
 
-  /* Status / utility primitives without per-variant samples ---------- */
-  'sui-mark': [
-    { label: 'Highlight', innerHTML: 'highlighted text' },
-    { label: 'Accent', attrs: { tone: 'accent' }, innerHTML: 'accent run' },
-  ],
-  'sui-metachip': [
-    { label: 'Pair', attrs: { label: 'env', value: 'prod' } },
-    { label: 'Tone', attrs: { label: 'role', value: 'reviewer', tone: 'accent' } },
-  ],
-  'sui-app-icon': [
-    { label: 'Default', attrs: { name: 'studio', size: '40' } },
-  ],
-
   /* Pipeline composites --------------------------------------------- */
   'sui-pipeline-step-def': [
     {
@@ -611,12 +512,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   ],
 
   /* Observability primitives missing per-variant samples ------------ */
-  'sui-history-row': [
-    {
-      label: 'Commit row',
-      raw: `<div style="width:320px;text-align:left;"><sui-history-row hash="58e50eb8" subject="chore: revert .artifacts exception" author="micah" at="2026-05-15T18:30:00Z"></sui-history-row></div>`,
-    },
-  ],
   'sui-log-stream': [
     {
       label: 'Tail',
@@ -625,9 +520,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   ],
   'sui-code': [
     { label: 'Inline', raw: `<sui-code language="ts">const ship = createApp({ persist: true });</sui-code>` },
-  ],
-  'sui-copy-button': [
-    { label: 'Default', attrs: { value: 'echo "ship!"' }, innerHTML: 'Copy command' },
   ],
 
   /* Composite children — render them inside their parent ------------ */

@@ -74,9 +74,10 @@ binary.
 - **bun leaves the deployment bundle.** The shipped daemon + runtime dir are
   bun-free. The CI asset bake also moved off bun: `cargo xtask build-assets`
   drives the same in-process Rolldown bundler, so `bundler/index.ts` is deleted.
-  bun remains **dev/build-time only** for the `apps/shell` SPA build (via
-  `shell-app.ts`), the `@ship/sui-build` package builds, and the lucide
-  icon-registry gen. vite is dev-only (shell HMR) and never ships.
+  The `apps/shell`/`apps/spaces` SPA build also moved off bun → `deck build`
+  (Rolldown, #170). bun remains **dev/build-time only** for the `@ship/sui-build`
+  compile step and the lucide icon-registry gen. vite is dev-only (shell HMR)
+  and never ships.
 - **HMR** for daemon-served surfaces is all-Rust: in-process notify watch →
   `BundlerEvent` → `sui_hmr` SSE (`/_sui/dev/hmr`) → `live-reload.js`.
 - **No subprocess / protocol / supervisor** — a build is an async call.

@@ -1,8 +1,0 @@
-{
-  "name": "mesh",
-  "path": "/mesh",
-  "title": "Mesh",
-  "layout": "default",
-  "auth": "user",
-  "rail": { "label": "Mesh", "icon": "network" }
-}

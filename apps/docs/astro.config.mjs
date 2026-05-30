@@ -2,7 +2,6 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import markdoc from "@astrojs/markdoc";
 import starlightSidebarTopics from "starlight-sidebar-topics";
-import starlightOpenAPI, { openAPISidebarGroups } from "starlight-openapi";
 
 // Internals visibility:
 //   - dev (bun run dev): always on — contributors want access locally.
@@ -131,83 +130,16 @@ function buildTopics(isInternal) {
     ],
   },
   {
+    // The interactive SUI tutorial moved to the consumer hub
+    // (getship.dev/tutorial) — it's a live editor + sandboxed preview,
+    // a conversion surface that belongs where we sell the product and
+    // own the chrome. This reference site links out to it; the prose
+    // source of truth stays in the SUI doc-skill either way.
     id: "tutorial",
     label: "Tutorial",
     icon: "open-book",
-    link: "/tutorial/",
-    items: [
-      // Each tutorial step is an Astro page (not a doc collection
-      // entry), so the sidebar entries are hand-listed here. Group
-      // by chapter; order within each chapter is ascending step
-      // number. Keep in sync with the `chapter` frontmatter in
-      // docs/ship-sui/references/tutorial/<NN-slug>/index.md.
-      { label: "Overview", link: "/tutorial/" },
-      {
-        label: "Reactivity",
-        items: [
-          { label: "01 · Signals", link: "/tutorial/01-hello-signal/" },
-          { label: "02 · Derived", link: "/tutorial/02-derived/" },
-          { label: "03 · Lists", link: "/tutorial/03-bindfor/" },
-          { label: "04 · Effects", link: "/tutorial/04-effect/" },
-        ],
-      },
-      {
-        label: "Templating",
-        items: [
-          { label: "05 · Conditional rendering", link: "/tutorial/05-bind-if/" },
-          { label: "06 · Two-way binding", link: "/tutorial/06-bind-value/" },
-          { label: "07 · Event modifiers", link: "/tutorial/07-event-modifiers/" },
-        ],
-      },
-      {
-        label: "Components",
-        items: [
-          { label: "08 · UI primitives", link: "/tutorial/08-sui-primitives/" },
-        ],
-      },
-      {
-        label: "Agents",
-        items: [
-          { label: "09 · Authoring loop", link: "/tutorial/09-agent-loop/" },
-          { label: "10 · LSP CLI", link: "/tutorial/10-lsp-cli/" },
-          { label: "11 · sui-eval", link: "/tutorial/11-sui-eval/" },
-        ],
-      },
-      {
-        label: "Composition",
-        items: [
-          { label: "12 · Slots", link: "/tutorial/12-slots/" },
-          { label: "13 · Refs (bind:this)", link: "/tutorial/13-refs/" },
-          { label: "14 · class: / style:", link: "/tutorial/14-class-style/" },
-          { label: "19 · Template hooks", link: "/tutorial/19-template-hooks/" },
-          { label: "20 · Controller hooks", link: "/tutorial/20-controller-hooks/" },
-          { label: "21 · Forms", link: "/tutorial/21-forms/" },
-        ],
-      },
-      {
-        label: "Lifecycle",
-        items: [
-          { label: "15 · onMount / onCleanup", link: "/tutorial/15-onmount-oncleanup/" },
-          { label: "16 · Effect cleanup", link: "/tutorial/16-effect-cleanup/" },
-        ],
-      },
-      {
-        label: "Reactivity (advanced)",
-        items: [
-          { label: "17 · selector", link: "/tutorial/17-selector/" },
-          { label: "18 · untrack / batch", link: "/tutorial/18-untrack-batch/" },
-        ],
-      },
-      {
-        label: "Views",
-        items: [
-          { label: "22 · <data live>", link: "/tutorial/22-data-live/" },
-          { label: "23 · while-loading / while-error", link: "/tutorial/23-while-loading/" },
-          { label: "24 · Mutations + server push", link: "/tutorial/24-morphs/" },
-          { label: "25 · Going further", link: "/tutorial/25-going-further/" },
-        ],
-      },
-    ],
+    link: "https://getship.dev/docs/ship-ui/tutorial/",
+    badge: { text: "live", variant: "tip" },
   },
   {
     id: "reference",
@@ -282,9 +214,6 @@ function buildTopics(isInternal) {
               label: "Contributing",
               autogenerate: { directory: "contributing" },
             },
-            // openAPISidebarGroups is a placeholder — starlight-openapi replaces
-            // it with the generated per-endpoint sidebar entries at build time.
-            ...openAPISidebarGroups,
           ],
         },
       ]
@@ -390,14 +319,6 @@ export default defineConfig({
           tag: "script",
           attrs: { type: "module", src: "/sui-components.js" },
         },
-        // sui-code-editor is a lazy chunk under /sui-components/; nothing
-        // in the main bundle imports it. Load it here so the tutorial
-        // (and any other page that uses <sui-code-editor>) doesn't have
-        // to side-load it itself.
-        {
-          tag: "script",
-          attrs: { type: "module", src: "/sui-components/sui-code-editor.js" },
-        },
         // Ship theme ownership.
         //
         // Starlight ships its own theme init that fights over `data-theme` and
@@ -458,7 +379,6 @@ export default defineConfig({
             // renders with a named label on "/" instead of numeric fallbacks.
             start: ["/"],
             components: ["/components/**", "/components"],
-            tutorial: ["/tutorial/**", "/tutorial"],
             ...(isInternal
               ? {
                   internals: [
@@ -473,23 +393,22 @@ export default defineConfig({
           // In public builds, Internals-only pages render without a topic bar.
           exclude: excludedPatterns,
         }),
-        ...(isInternal
-          ? [
-              starlightOpenAPI([
-                {
-                  // `api-reference`, not `http-api`: the ship-http-api skill
-                  // owns the hand-written /http-api/ guide pages. The generated
-                  // per-endpoint reference lives alongside it at /api-reference/.
-                  base: "api-reference",
-                  schema: "./openapi.json",
-                  sidebar: {
-                    label: "HTTP API Reference",
-                    collapsed: false,
-                  },
-                },
-              ]),
-            ]
-          : []),
+        // starlight-openapi removed: openapi.json was a stale artifact from
+        // the pre-Connect REST cull. Endpoints now documented via Connect ops.
+        // ...(isInternal
+        //   ? [
+        //       starlightOpenAPI([
+        //         {
+        //           base: "api-reference",
+        //           schema: "./openapi.json",
+        //           sidebar: {
+        //             label: "HTTP API Reference",
+        //             collapsed: false,
+        //           },
+        //         },
+        //       ]),
+        //     ]
+        //   : []),
       ],
       // All URLs are preserved — no content was moved, only sidebar topology
       // changed. No redirects needed.

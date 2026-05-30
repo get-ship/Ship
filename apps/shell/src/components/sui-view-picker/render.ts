@@ -193,9 +193,9 @@ function buildRow(v: ApiView, idx: number, isPinned: boolean, args: RenderArgs):
   row.setAttribute('draggable', 'true')
   row.setAttribute('tabindex', '-1')
 
-  const icon = document.createElement(known ? 'sui-app-icon' : 'sui-icon')
+  const icon = document.createElement('sui-icon')
   if (known) {
-    icon.setAttribute('name', v.name); icon.setAttribute('variant', 'glyph'); icon.setAttribute('size', 'md')
+    icon.setAttribute('set', 'app'); icon.setAttribute('name', v.name); icon.setAttribute('variant', 'glyph'); icon.setAttribute('size', 'md')
   } else {
     icon.setAttribute('name', fallbackIcon); icon.setAttribute('size', 'md')
   }

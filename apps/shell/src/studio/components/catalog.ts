@@ -46,40 +46,37 @@ export interface PropEntry {
 // "Other" so a newly-added primitive is still visible (never dropped).
 const CATEGORY_BY_TAG: Record<string, string> = {
   // Actions
-  'sui-button': 'Actions', 'sui-toolbar': 'Actions', 'sui-segmented': 'Actions',
+  'sui-button': 'Actions',
   'sui-toggle-group': 'Actions', 'sui-button-group': 'Actions', 'sui-icon-button': 'Actions',
   // Inputs
   'sui-input': 'Inputs', 'sui-textarea': 'Inputs', 'sui-select': 'Inputs',
   'sui-checkbox': 'Inputs', 'sui-radio-group': 'Inputs', 'sui-switch': 'Inputs',
   'sui-slider': 'Inputs', 'sui-file-upload': 'Inputs', 'sui-field': 'Inputs',
   'sui-form': 'Inputs', 'sui-combobox': 'Inputs', 'sui-color-picker': 'Inputs',
-  'sui-date-picker': 'Inputs', 'sui-tag-input': 'Inputs', 'sui-search': 'Inputs',
+  'sui-date-picker': 'Inputs', 'sui-search': 'Inputs',
   // Layout
   'sui-card': 'Layout', 'sui-divider': 'Layout', 'sui-separator': 'Layout',
   'sui-tabs': 'Layout', 'sui-accordion': 'Layout', 'sui-collapsible': 'Layout',
   'sui-scroll-area': 'Layout', 'sui-grid': 'Layout', 'sui-stack': 'Layout',
-  'sui-resizable': 'Layout', 'sui-aspect-ratio': 'Layout', 'sui-split': 'Layout',
   // Feedback
-  'sui-alert': 'Feedback', 'sui-toast': 'Feedback', 'sui-progress': 'Feedback',
+  'sui-alert': 'Feedback', 'sui-toast': 'Feedback',
   'sui-spinner': 'Feedback', 'sui-skeleton': 'Feedback', 'sui-empty-state': 'Feedback',
-  'sui-error-state': 'Feedback', 'sui-banner': 'Feedback', 'sui-callout': 'Feedback',
+  'sui-error-state': 'Feedback',
   // Indicators
   'sui-badge': 'Indicators', 'sui-chip': 'Indicators', 'sui-status-dot': 'Indicators',
-  'sui-stat': 'Indicators', 'sui-avatar': 'Indicators', 'sui-app-icon': 'Indicators',
-  'sui-icon': 'Indicators', 'sui-kbd': 'Indicators', 'sui-tag': 'Indicators',
-  'sui-meter': 'Indicators',
+  'sui-stat': 'Indicators', 'sui-avatar': 'Indicators',
+  'sui-icon': 'Indicators', 'sui-tag': 'Indicators',
   // Overlays
   'sui-dialog': 'Overlays', 'sui-alert-dialog': 'Overlays', 'sui-drawer': 'Overlays',
   'sui-popover': 'Overlays', 'sui-tooltip': 'Overlays', 'sui-hover-card': 'Overlays',
   'sui-dropdown-menu': 'Overlays', 'sui-context-menu': 'Overlays', 'sui-menu': 'Overlays',
   'sui-command-palette': 'Overlays', 'sui-sheet': 'Overlays',
   // Data
-  'sui-table': 'Data', 'sui-list-tile': 'Data', 'sui-tree-view': 'Data',
+  'sui-table': 'Data', 'sui-tree-view': 'Data',
   'sui-json-view': 'Data', 'sui-diff': 'Data', 'sui-timeline': 'Data',
   'sui-history-row': 'Data', 'sui-list': 'Data', 'sui-data-grid': 'Data',
   'sui-code-editor': 'Data', 'sui-markdown-editor': 'Data', 'sui-code-block': 'Data',
-  'sui-breadcrumb': 'Navigation', 'sui-pagination': 'Navigation',
-  'sui-nav': 'Navigation', 'sui-stepper': 'Navigation',
+  'sui-nav': 'Navigation',
 }
 
 // Order the index sections render in. Package-derived groups (Charts,

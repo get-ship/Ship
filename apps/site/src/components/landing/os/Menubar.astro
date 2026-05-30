@@ -1,0 +1,134 @@
+---
+/*
+ * Menubar.astro — the site's persistent top bar. SHIP logo, gallery,
+ * settings cog, theme picker, Download. NEVER changes based on window
+ * state. The focused window's chrome (titlebar, traffic lights) lives
+ * on the window itself, not in here.
+ */
+const dl = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 4v12m0 0l-5-5m5 5l5-5M4 20h16"/></svg>`;
+---
+<header class="os-menubar">
+  <a class="brand" href="/" aria-label="SHIP home">
+    <img src="/ship-logo.svg" alt="" class="brand-mark" />
+    <span class="brand-name">SHIP</span>
+  </a>
+  <span class="spacer"></span>
+  <div class="right">
+    <button class="glyph gbtn switcher-btn" type="button" data-switcher-toggle title="Show all windows" aria-label="Show all windows">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="8" height="8" rx="1.5"/>
+        <rect x="13" y="3" width="8" height="8" rx="1.5"/>
+        <rect x="3" y="13" width="8" height="8" rx="1.5"/>
+        <rect x="13" y="13" width="8" height="8" rx="1.5"/>
+      </svg>
+    </button>
+    <sui-theme-picker class="theme-picker" placement="bottom-end" surface="marketing"></sui-theme-picker>
+    <a class="dl-pill" href="/download" data-open-window="download"><span set:html={dl} />Download</a>
+  </div>
+</header>
+
+<style>
+  .os-menubar {
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: var(--os-menubar-h, 32px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 14px 0 14px;
+    background: color-mix(in oklch, var(--background) 62%, transparent);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    border-bottom: 0.5px solid color-mix(in oklch, var(--foreground) 14%, transparent);
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--foreground);
+  }
+  .brand {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 3px 8px;
+    margin: 0 -4px 0 -6px;
+    border-radius: 6px;
+    transition: background 80ms;
+  }
+  .brand-mark { width: 18px; height: 18px; }
+  .brand-name {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    color: var(--foreground);
+  }
+  .menu-item {
+    padding: 2px 8px;
+    border-radius: 5px;
+    color: color-mix(in oklch, var(--foreground) 88%, var(--background));
+    transition: background 80ms;
+  }
+  .brand:hover, .menu-item:hover {
+    background: color-mix(in oklch, var(--foreground) 12%, transparent);
+  }
+  a { text-decoration: none; color: inherit; }
+  .spacer { flex: 1; }
+  .right {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+  }
+  .glyph {
+    display: inline-flex;
+    align-items: center;
+    color: color-mix(in oklch, var(--foreground) 70%, var(--background));
+  }
+  /* Theme picker — the trigger is the picker's own button (palette
+     icon). Match the rest of the right-rail rhythm by aligning baseline
+     and giving the host a tight rest size. The picker handles hover,
+     focus and the popover itself. */
+  /* Bump the palette icon a few px and ease the accent saturation —
+     at default `size="sm"` (~14px) the tinted dot was too small to
+     read as a color. Larger icon + slight desaturation lets the
+     theme accent register without screaming. */
+  .theme-picker { display: inline-flex; align-items: center; }
+  .theme-picker::part(trigger) { padding: 4px 6px; }
+  .theme-picker::part(dot) {
+    width: 20px; height: 20px;
+    filter: saturate(0.85);
+  }
+  .theme-picker:hover::part(dot) { filter: saturate(1); }
+  .clock {
+    font-variant-numeric: tabular-nums;
+    color: var(--foreground);
+  }
+  .gbtn { appearance: none; background: transparent; border: 0; padding: 2px; border-radius: 5px; cursor: pointer; }
+  .gbtn:hover { background: color-mix(in oklch, var(--foreground) 12%, transparent); }
+  .dl-pill {
+    padding: 3px 10px;
+    border-radius: 6px;
+    background: var(--foreground);
+    color: var(--background);
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 11.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dl-pill:hover { background: color-mix(in oklch, var(--foreground) 85%, var(--accent)); }
+
+  /* Switcher button shows on mobile only (where the dock is hidden).
+     Download pill shows on desktop only (mobile uses the gallery + the
+     Download tile inside it). */
+  .switcher-btn { display: none; }
+  @media (max-width: 760px) {
+    .os-menubar { height: 44px; padding: 0 14px; gap: 12px; }
+    .right { gap: 10px; }
+    .brand-mark { width: 22px; height: 22px; }
+    .brand-name { font-size: 16px; }
+    .switcher-btn { display: inline-flex; }
+    .dl-pill { display: none; }
+  }
+</style>

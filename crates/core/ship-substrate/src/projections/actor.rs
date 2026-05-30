@@ -568,3 +568,43 @@ pub fn actor_status(actor_id: &str) -> Result<Option<(String, Option<String>)>> 
         Ok(row)
     })
 }
+
+/// Actor IDs that are NOT in a terminal state (`stopped` / `crashed`).
+///
+/// This is the actor-state read model's answer to "which slugs name an
+/// intentional, still-tracked actor?" The coherence sweep consults it so
+/// actor-backed dispatches that have no `jobs` or `agent_sessions` row —
+/// fanout lanes, chat actors, shell sessions — are recognized as known
+/// dispatches and not stray-killed. A fanout lane gets its row here via
+/// the `actor.created` (`persist_actor_created_simple`) emitted at spawn
+/// and the `process.spawned` pid backfill, so a freshly-spawned lane is
+/// present well before the first sweep tick reaches it.
+///
+/// Terminal rows are excluded: once an actor is `stopped`/`crashed` it is
+/// no longer a reason to spare a live registered process from the orphan
+/// check — that process genuinely outlived its actor record.
+pub fn active_actor_ids() -> Result<std::collections::HashSet<String>> {
+    let mut conn = crate::db::open_db()?;
+    active_actor_ids_on(&mut conn)
+}
+
+/// Test/explicit-path variant of [`active_actor_ids`]. Mirrors the
+/// `load_*_at` shape used by the pipeline-run and agent-session
+/// projections so callers can point at a specific platform db.
+pub fn active_actor_ids_at(ship_dir: &std::path::Path) -> Result<std::collections::HashSet<String>> {
+    let mut conn = crate::db::open_db_at(&crate::db::platform_db_path(ship_dir))?;
+    active_actor_ids_on(&mut conn)
+}
+
+fn active_actor_ids_on(conn: &mut SqliteConnection) -> Result<std::collections::HashSet<String>> {
+    use sqlx::Row;
+    block_on(async {
+        let rows = sqlx::query("SELECT id FROM actors WHERE status NOT IN ('stopped', 'crashed')")
+            .fetch_all(conn)
+            .await?;
+        Ok(rows
+            .iter()
+            .map(|r| r.get::<String, _>("id"))
+            .collect())
+    })
+}

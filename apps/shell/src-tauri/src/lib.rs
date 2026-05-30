@@ -53,20 +53,27 @@ pub fn run() {
         ])
         .setup(move |app| {
             if let Some(window) = app.get_webview_window("main") {
-                if let Some(id) = &app_id {
-                    let _ = window.set_title(&format!("Ship — {id}"));
-                    // A space window loads the THIN scaffold the DAEMON serves at
-                    // /space/<id> — same-origin, so /_sui + Connect resolve to the
-                    // daemon (no proxy, no vite, dev == prod). The default window
-                    // (no --app) keeps the bundled hub. Discover the daemon port.
-                    if let Some(port) = crate::daemon::daemon_status().port {
-                        if let Ok(url) = format!("http://127.0.0.1:{port}/space/{id}").parse() {
-                            let _ = window.navigate(url);
-                        }
+                // Both hub + space windows load DAEMON-served scaffolds —
+                // same-origin so `/_sui` + Connect resolve to the daemon with no
+                // proxy, dev == prod. The bundled `frontendDist` (apps/shell/src-tauri/
+                // bootstrap/) is a one-page "Connecting…" placeholder; this navigate
+                // fires before paint and replaces it. Discover the daemon port via the
+                // native command (lifecycle is Tauri's, not the webview's).
+                let target = match &app_id {
+                    Some(id) => {
+                        let _ = window.set_title(&format!("Ship — {id}"));
+                        format!("/space/{id}")
+                    }
+                    None => "/hub".to_string(),
+                };
+                if let Some(port) = crate::daemon::daemon_status().port {
+                    if let Ok(url) = format!("http://127.0.0.1:{port}{target}").parse() {
+                        let _ = window.navigate(url);
                     }
                 }
-                // Plant the launched app id for the frontend to route on (the hub
-                // case + a belt-and-suspenders for the space case).
+                // Plant the launched app id for the frontend to route on (spaces
+                // also read it server-side from the scaffold; this is a belt-and-
+                // suspenders for any pre-navigate code paths).
                 let id_js = app_id.clone().unwrap_or_default();
                 let _ = window.eval(format!("window.__SHIP_APP_ID__ = {id_js:?};"));
             }

@@ -27,6 +27,7 @@ pub(super) fn dispatch(
         "keys" if args.is_empty() => keys(obj),
         "values" if args.is_empty() => values(obj),
         "entries" if args.is_empty() => entries(obj),
+        "toFixed" if args.len() == 1 => to_fixed(obj, &execute(&args[0], scope)?),
         "map" | "filter" => Err(EvalError::NonEvaluable(format!(
             ".{prop}() callback is not evaluable"
         ))),
@@ -127,4 +128,28 @@ fn entries(obj: &Value) -> Result<Value, EvalError> {
             ".entries() on unsupported type".into(),
         )),
     }
+}
+
+/// `n.toFixed(digits)` — matches JS semantics: digits clamped to 0..=100,
+/// non-finite operand → `"NaN"` / `"Infinity"` etc. (so the SSR output matches
+/// what the client would render if it fell through to JS).
+fn to_fixed(obj: &Value, digits: &Value) -> Result<Value, EvalError> {
+    let n = to_number(obj);
+    let d = to_number(digits);
+    if !d.is_finite() {
+        return Err(EvalError::NonEvaluable(
+            ".toFixed() digits must be finite".into(),
+        ));
+    }
+    let d = d.max(0.0).min(100.0) as usize;
+    if !n.is_finite() {
+        return Ok(Value::String(if n.is_nan() {
+            "NaN".into()
+        } else if n.is_sign_negative() {
+            "-Infinity".into()
+        } else {
+            "Infinity".into()
+        }));
+    }
+    Ok(Value::String(format!("{n:.*}", d)))
 }

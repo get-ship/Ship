@@ -22,7 +22,7 @@
 <prop name="type" values="single|multiple" default="single" reflect />
 <prop name="value" type="string" default="" reflect />
 <prop name="size" values="sm|md|lg" default="md" reflect />
-<prop name="variant" values="outline|ghost" default="outline" reflect />
+<prop name="variant" values="outline|ghost|segmented" default="outline" reflect />
 <prop name="name" type="string" default="" />
 <prop name="orientation" values="horizontal|vertical" default="horizontal" reflect />
 
@@ -43,6 +43,18 @@
   :host([orientation='vertical']) ::slotted(sui-toggle:first-child) { border-radius: var(--radius, 6px) var(--radius, 6px) 0 0; }
   :host([orientation='vertical']) ::slotted(sui-toggle:last-child) { border-radius: 0 0 var(--radius, 6px) var(--radius, 6px); }
   :host([orientation='vertical']) ::slotted(sui-toggle:not(:first-child):not(:last-child)) { border-radius: 0; }
+
+  :host([variant='segmented']) {
+    padding: 2px;
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 6px);
+    gap: 1px;
+  }
+  :host([variant='segmented']) ::slotted(sui-toggle:not(:first-child)) { margin-inline-start: 0; }
+  :host([variant='segmented']) ::slotted(sui-toggle:first-child) { border-radius: var(--radius-sm, 4px); }
+  :host([variant='segmented']) ::slotted(sui-toggle:last-child) { border-radius: var(--radius-sm, 4px); }
+  :host([variant='segmented']) ::slotted(sui-toggle:not(:first-child):not(:last-child)) { border-radius: var(--radius-sm, 4px); }
 </style>
 
 <slot bind:this={defaultSlotEl}></slot>

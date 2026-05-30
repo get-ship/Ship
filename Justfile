@@ -16,10 +16,12 @@ default:
 # ── Daily ────────────────────────────────────────────────────────────────────
 
 # One-shot fresh-clone setup. Order matters and is dependency-driven: the
-# gitignored generated assets (lucide registry, sdk-*.json, the FFI cdylib,
-# the wasm pkg) must exist before the cargo + bun builds that consume them,
-# or a cold clone fails at compile/bundle time. On dispatched worktrees these
-# are copied from the launch repo by dispatch.sh; this recipe generates them.
+# gitignored generated assets (sdk-*.json, the FFI cdylib, the wasm pkg) must
+# exist before the cargo + bun builds that consume them, or a cold clone
+# fails at compile/bundle time. On dispatched worktrees these are copied from
+# the launch repo by dispatch.sh; this recipe generates them.
+# (lucide-icons.json is committed source — regenerate via
+# `cargo run -p xtask -- gen-icons` after a lucide-static version bump.)
 [group('daily')]
 bootstrap:
     #!/usr/bin/env bash
@@ -27,9 +29,6 @@ bootstrap:
     command -v bun  >/dev/null || { echo "bun not on PATH — install via 'curl -fsSL https://bun.sh/install | bash'" >&2; exit 1; }
     bun install
     cargo run -p xtask --quiet -- gen-types
-    # lucide-icons.json — deck-server's build.rs panics without it, so it must
-    # land before any cargo build that compiles deck-server (incl. gen-sdk).
-    bun scripts/codegen/generate-lucide-registry.mjs
     # sdk-*.json bootstrap cycle: shipd include_str!s these, and gen-sdk runs
     # *through* shipd (via xtask). Seed empty placeholders so shipd compiles,
     # then gen-sdk overwrites them with real content.
@@ -69,7 +68,7 @@ shell-dev:
 # Regenerate the typed dynamic-route table from the view file tree (SSOT).
 [group('daily')]
 gen-routes:
-    @bun scripts/gen-routes.ts
+    @cargo run -q -p deck-cli -- routes --shell-root apps/shell
 
 # Build the standalone SUI component packs (primitives/charts/pipelines/
 # ui-components) → each package's `dist/`, served by the daemon at
@@ -516,13 +515,6 @@ check-no-set-var-global-dir:
     fi
     @echo "No set_var(SHIP_GLOBAL_DIR) found ✓"
 
-# Populate the local daemon with one agent + skill + collection + artifact
-# so first-run dev doesn't look like a dead app. Targets the daemon serving
-# the current worktree (discovers port + token from its daemon_dir).
-# Requires `just dev` to be running.
-[group('daily')]
-seed:
-    @scripts/dev/seed.sh
 
 # Seed the local *registry* (not the daemon) with @unofficial packages.
 # Separate from `just seed`; targets registry-site dev server on :3000.

@@ -80,11 +80,12 @@ export function resolveController(
   Object.assign(baseScope, scopeAdds)
 
   const stateSignals = pickStateSignals(baseScope, ctx.stateKeys, scopeAdds)
-  // The one mount-state builder. View-mount + on-handlers read signal keys
-  // unwrapped (state.count++); the raw signal is reached via state.$signals.x.
-  const writableProxy = createMountState(baseScope, stateSignals, {
-    unwrap: true,
-  }) as MutableState<Record<string, Signal<unknown>>>
+  // The one mount-state builder. Reads return unwrapped values
+  // (state.count++); the raw signal is reached via state.$signals.x.
+  const writableProxy = createMountState(
+    baseScope,
+    stateSignals,
+  ) as MutableState<Record<string, Signal<unknown>>>
 
   const declScope: Record<string, unknown> = { ...baseScope }
 

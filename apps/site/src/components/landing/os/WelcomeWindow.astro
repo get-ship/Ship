@@ -1,0 +1,153 @@
+---
+/*
+ * WelcomeWindow — the hero. The only job is to sell the download. It
+ * inherits the site theme (no preview) so it reads as the brand's own
+ * "About" window. Pitch + primary CTA + a nudge to explore the rest.
+ */
+import Window from './Window.astro';
+const { open = false } = Astro.props;
+const arrow = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 4v12m0 0l-5-5m5 5l5-5M4 20h16"/></svg>`;
+---
+<Window app="welcome" title="Welcome to Ship" markImg="/ship-logo.svg" accent="overview" open={open}>
+  <div class="welcome">
+    <sui-brand-mark class="big-logo" label="Ship"></sui-brand-mark>
+    <div class="ver">Personal agentic runtime · public beta</div>
+    {/* The period rides with the rotating word — `data-rotate` swaps the
+        whole span's text on each tick, so "them." → "an ops dashboard."
+        without a gap between word and punctuation, and without reserving
+        a separate line for the dot. Anchored on "them." so the resting line
+        reads "Stop requesting features. Build them." */}
+    <!-- SCREENSHOT TODO: real Ship shell with two views open — deferred until SUI ready -->
+    <h1 class="wm">
+      <span class="wm-lead">Stop requesting features.</span>
+      <span class="wm-cta">Build <span class="any" data-rotate data-lines="them.|a project tracker.|a dev workspace.|a release pipeline.|a family calendar.|an ops dashboard.">them.</span></span>
+    </h1>
+    <p class="tag">A personal desktop runtime for agents — yours, on your machine.</p>
+    <p class="what">
+      Compose agents, tools, and your own approval into workflows the
+      SaaS you use will never ship — and run them on your machine.
+    </p>
+    <div class="actions">
+      <sui-button size="lg">
+        <a href="/download" class="cta-inner" data-open-window="download">Get Ship<span set:html={arrow} /></a>
+      </sui-button>
+    </div>
+    <div class="foot-row">
+      <span>macOS · Windows · Linux</span>
+      <span class="sep">·</span>
+      <span>free for personal use</span>
+      <span class="sep">·</span>
+      <a href="/legal">Legal &amp; privacy</a>
+    </div>
+  </div>
+</Window>
+
+<style>
+  .welcome {
+    flex: 1;
+    padding: 26px 34px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background:
+      radial-gradient(ellipse 80% 56% at 50% 8%,
+        color-mix(in oklch, var(--accent) 9%, transparent), transparent 70%),
+      var(--background);
+  }
+  .big-logo { --ship-mark-size: 84px; width: 84px; height: 84px; margin-bottom: 10px; animation: hero-bob 6s ease-in-out infinite; }
+  @keyframes hero-bob { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-6px) rotate(1.5deg); } }
+  @media (prefers-reduced-motion: reduce) { .big-logo { animation: none; } }
+  .wm {
+    font-family: var(--font-display);
+    margin: 10px 0 0;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    line-height: 1.05;
+    color: var(--foreground);
+  }
+  .wm-lead {
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -0.018em;
+    color: color-mix(in oklch, var(--foreground) 72%, var(--background));
+  }
+  .wm-cta {
+    font-weight: 800;
+    font-size: 42px;
+    letter-spacing: -0.032em;
+  }
+  .wm .any {
+    background: linear-gradient(100deg, var(--primary) 0%, var(--accent) 80%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    transition: opacity 280ms var(--ease-out, ease);
+  }
+  .ver {
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: color-mix(in oklch, var(--foreground) 55%, var(--background));
+    letter-spacing: 0.06em;
+  }
+  .tag {
+    margin: 14px 0 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    color: color-mix(in oklch, var(--foreground) 82%, var(--background));
+  }
+  .tag b {
+    background: linear-gradient(100deg, var(--primary), var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-weight: 800;
+  }
+  .what {
+    margin: 10px 0 0;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: color-mix(in oklch, var(--foreground) 70%, var(--background));
+    max-width: 380px;
+  }
+  .what b { color: var(--foreground); font-weight: 600; }
+  .actions {
+    margin-top: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .cta-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: inherit;
+    text-decoration: none;
+    line-height: 1;
+  }
+  .ghost {
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: color-mix(in oklch, var(--foreground) 64%, var(--background));
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklch, var(--foreground) 25%, transparent);
+    text-underline-offset: 4px;
+  }
+  .ghost:hover { color: var(--foreground); text-decoration-color: var(--foreground); }
+  .foot-row {
+    margin-top: auto;
+    padding-top: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 9px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    color: color-mix(in oklch, var(--foreground) 50%, var(--background));
+  }
+  .foot-row .sep { opacity: 0.4; }
+  .foot-row a { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in oklch, var(--foreground) 30%, transparent); }
+  .foot-row a:hover { color: var(--foreground); }
+</style>

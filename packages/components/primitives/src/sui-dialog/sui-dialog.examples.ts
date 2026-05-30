@@ -16,10 +16,10 @@ export const examples: ComponentExample[] = [
           <option>claude-sonnet-4-6</option>
         </sui-select>
       </sui-field>
-      <sui-toolbar slot="footer">
+      <div class="toolbar toolbar--footer" slot="footer">
         <sui-button variant="outline">Cancel</sui-button>
         <sui-button tone="primary" variant="solid">Dispatch</sui-button>
-      </sui-toolbar>
+      </div>
     `,
   },
   {
@@ -29,10 +29,10 @@ export const examples: ComponentExample[] = [
     slots: `
       <span slot="header">gatekeeper went quiet</span>
       <p>The session for <code>job/sui-framework</code> ended after 41 minutes with no <code>step_done</code>. Re-dispatch from the last snapshot?</p>
-      <sui-toolbar slot="footer">
+      <div class="toolbar toolbar--footer" slot="footer">
         <sui-button variant="ghost">Dismiss</sui-button>
         <sui-button tone="primary" variant="solid">Re-dispatch</sui-button>
-      </sui-toolbar>
+      </div>
     `,
   },
 ]

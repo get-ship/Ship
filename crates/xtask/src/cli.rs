@@ -6,8 +6,8 @@ use specta::TypeCollection;
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
 use crate::{
-    build_assets, coverage, gen_audit_readme, gen_contract, gen_events, gen_fixtures, gen_indexes,
-    gen_ops, gen_skills, gen_sdk, lint_imports, lint_layers, port_descriptions, types,
+    build_assets, coverage, gen_audit_readme, gen_contract, gen_events, gen_fixtures, gen_icons,
+    gen_indexes, gen_ops, gen_skills, gen_sdk, lint_imports, lint_layers, port_descriptions, types,
 };
 
 pub fn repo_root() -> PathBuf {
@@ -83,6 +83,12 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
+        "gen-icons" => {
+            if let Err(e) = gen_icons::run(&repo_root()) {
+                eprintln!("gen-icons failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "gen-ops" => {
             if let Err(e) = gen_ops::run() {
                 eprintln!("gen-ops failed: {e:#}");
@@ -147,6 +153,7 @@ fn print_help() {
     eprintln!("  gen-types --check     Verify generated file is up-to-date (CI)");
     eprintln!("  gen-sdk               Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
     eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/theme.json");
+    eprintln!("  gen-icons             Bake lucide-icons.json from node_modules/lucide-static");
     eprintln!("  lint-layers           Verify substrate/platform/application boundaries (Cargo dep level)");
     eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");
     eprintln!("  gen-events            Generate tier-filtered proto + TS from the event registry");

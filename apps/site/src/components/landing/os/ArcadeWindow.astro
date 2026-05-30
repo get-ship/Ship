@@ -1,0 +1,613 @@
+---
+/*
+ * ArcadeWindow — pick a game, play it, see stats next to it.
+ *
+ * Picker view shows three game cards. Clicking one swaps to a play view
+ * where the canvas centers in the window with a left rail showing the
+ * current run's stat readouts (varies per game) and a right rail
+ * tracking local high scores out of localStorage. Back arrow returns to
+ * the picker.
+ *
+ * Stat bindings come from a known set of HUD `data-bind` keys the games
+ * already emit (`score`, `level`, `wave`, `self`, `opp`, `time`,
+ * `shots`, `hint`). We observe the values via MutationObserver on the
+ * sui-hud elements — keeps this file decoupled from each game's
+ * internals.
+ */
+import Window from './Window.astro';
+import Galaga from '../../../games/galaga/index.astro';
+import Garden from '../../../games/garden/index.astro';
+import Magnetar from '../../../games/magnetar/index.astro';
+const { open = false } = Astro.props;
+
+interface GameEntry {
+  slug: 'galaga' | 'garden' | 'magnetar';
+  name: string;
+  tag: string;
+  accent: string;
+  desc: string;
+  /* Left-rail readouts to surface alongside the canvas. Each entry maps
+   * to a `data-bind` key in the game's HUD. The label is what the
+   * sidebar shows. */
+  stats: Array<{ key: string; label: string }>;
+  /* Which value to record in local high-scores. Picked per-game so the
+   * meaning matches (Galaga: score; Garden: best % held; Magnetar:
+   * score). null = no high score (sliding-time games etc). */
+  hiscore: { key: string; label: string; better: 'high' | 'low' } | null;
+}
+
+const games: GameEntry[] = [
+  {
+    slug: 'galaga',
+    name: 'Galaga',
+    tag: 'Shooter',
+    accent: 'var(--warning)',
+    desc: 'Defend the formation. Three waves of bees, butterflies, and bosses.',
+    stats: [
+      { key: 'score', label: 'Score' },
+      { key: 'wave',  label: 'Wave' },
+      { key: 'lives', label: 'Lives' },
+    ],
+    hiscore: { key: 'score', label: 'High score', better: 'high' },
+  },
+  {
+    slug: 'garden',
+    name: 'Particle Garden',
+    tag: 'Strategy',
+    accent: 'var(--primary)',
+    desc: 'Drop seeds, watch tendrils spread. Hold more ground than your rival.',
+    stats: [
+      { key: 'self', label: 'You · %' },
+      { key: 'opp',  label: 'Rival · %' },
+      { key: 'time', label: 'Time · s' },
+    ],
+    hiscore: { key: 'self', label: 'Best %', better: 'high' },
+  },
+  {
+    slug: 'magnetar',
+    name: 'Magnetar',
+    tag: 'Puzzle',
+    accent: 'var(--info)',
+    desc: 'Land the ship home. Bend its path around planets, pulsars, and a drifting Earth.',
+    stats: [
+      { key: 'level', label: 'Level' },
+      { key: 'stars', label: 'Stars' },
+      { key: 'thrust', label: 'Thrust' },
+    ],
+    // Magnetar tracks progress as per-level stars (its own level-select UI),
+    // not a numeric leaderboard — so it opts out of the shared hi-score rail.
+    hiscore: null,
+  },
+];
+---
+<Window app="arcade" title="Arcade" meta="three games" mark="A" accent="arcade" open={open}>
+  <div class="arcade-shell" data-stage="picker">
+    {/* ── Picker: 3 game cards ── */}
+    <div class="picker" data-screen="picker">
+      <header class="picker-head">
+        <div class="marquee">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="m-text">SHIP Arcade</span>
+          <span class="dot" aria-hidden="true"></span>
+        </div>
+        <h2 class="title">Pick a game.</h2>
+        <p class="sub">Three short games built on <code>@ship/arcade</code> — open primitives, one tiny engine, real custom elements.</p>
+      </header>
+
+      <div class="cards">
+        {games.map((g) => (
+          <button class="card" type="button" data-pick={g.slug} style={`--card-accent: ${g.accent}`}>
+            <div class="card-screen" data-glyph={g.slug}>
+              <span class="card-tag">{g.tag.toUpperCase()}</span>
+              {g.slug === 'galaga' && (
+                <svg class="g-galaga" viewBox="0 0 120 80" aria-hidden="true">
+                  {Array.from({ length: 3 }, (_, i) => Array.from({ length: 7 }, (_, j) => (
+                    <circle class={`enemy enemy-${i}`} cx={18 + j * 14} cy={13 + i * 12} r={3} />
+                  )))}
+                  <rect class="pbullet" x={59.2} y={42} width={1.6} height={12} />
+                  <g class="ship">
+                    <polygon class="hull" points="60,44 64,58 64,70 56,70 56,58" />
+                    <polygon class="wing" points="56,60 47,71 56,68" />
+                    <polygon class="wing" points="64,60 73,71 64,68" />
+                    <rect class="cockpit" x={58.5} y={58} width={3} height={6} />
+                  </g>
+                </svg>
+              )}
+              {g.slug === 'garden' && (
+                <svg class="g-garden" viewBox="0 0 120 80" aria-hidden="true">
+                  {Array.from({ length: 5 }, (_, i) => Array.from({ length: 8 }, (_, j) => {
+                    const own = j < 3 ? 's' : j > 5 ? 'o' : (i + j) % 3 === 0 ? 's' : (i + j) % 3 === 1 ? 'o' : 'e';
+                    return <rect x={8 + j * 13} y={6 + i * 13} width={11} height={11} rx={2} class={`cell c-${own}`} />;
+                  }))}
+                </svg>
+              )}
+              {g.slug === 'magnetar' && (
+                <svg class="g-magnetar" viewBox="0 0 120 80" aria-hidden="true">
+                  <circle cx={48} cy={48} r={17} class="m-aura" />
+                  <circle cx={48} cy={48} r={11} class="m-planet" />
+                  <path d="M 14 68 Q 30 60 42 46 Q 56 28 76 26 Q 90 25 100 32" class="m-path" />
+                  <circle cx={100} cy={31} r={9} class="m-earth" />
+                  <circle cx={97} cy={28} r={3.2} class="m-land" />
+                  <polygon points="11,72 19,66 14,76" class="m-ship" />
+                </svg>
+              )}
+            </div>
+            <div class="card-body">
+              <span class="card-name">{g.name}</span>
+              <span class="card-desc">{g.desc}</span>
+              <span class="card-cta">PLAY ▸</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <footer class="picker-foot">
+        Source under <code>packages/arcade-engine</code> · <code>packages/components/arcade</code> · <code>apps/site/src/games</code>
+      </footer>
+    </div>
+
+    {/* ── Game screens: rail + stage + hi-scores ── */}
+    {games.map((g) => (
+      <div class:list={["game-screen", { "no-hi": !g.hiscore }]} data-screen={g.slug} data-game={g.slug} hidden style={`--g-accent: ${g.accent}`}>
+        <div class="game-strip">
+          <button class="back" type="button" data-back>◂ Games</button>
+          <span class="game-title">{g.name}</span>
+          <span class="game-tag">{g.tag}</span>
+          {g.hiscore && <button class="reset-hi" type="button" data-clear-hi={g.slug} title="Clear local high scores">clear</button>}
+        </div>
+        <div class="game-body">
+          <aside class="rail rail-left">
+            <header class="rail-head">Run</header>
+            <ul class="stat-list">
+              {g.stats.map((s) => (
+                <li class="stat-row">
+                  <span class="stat-label">{s.label}</span>
+                  <span class="stat-value" data-stat={s.key}>—</span>
+                </li>
+              ))}
+            </ul>
+          </aside>
+          <div class="game-mount">
+            {g.slug === 'galaga' && <Galaga />}
+            {g.slug === 'garden' && <Garden />}
+            {g.slug === 'magnetar' && <Magnetar />}
+          </div>
+          {g.hiscore && (
+            <aside class="rail rail-right">
+              <header class="rail-head">Top 5 · {g.hiscore.label}</header>
+              <ol class="hi-list" data-hi-list={g.slug}>
+                <li class="hi-empty">no runs yet</li>
+              </ol>
+              <footer class="rail-foot">Saved on this device · {g.hiscore.label.toLowerCase()}</footer>
+            </aside>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+</Window>
+
+<style>
+  .arcade-shell { width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Picker ── */
+  .picker { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 20px 24px; gap: 16px; overflow: auto; }
+  .picker[hidden] { display: none; }
+  .picker-head { text-align: center; }
+  .marquee {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 4px 12px; border-radius: 999px;
+    background: color-mix(in oklch, var(--w-accent) 12%, transparent);
+    border: 1px solid color-mix(in oklch, var(--w-accent) 28%, transparent);
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.16em;
+    color: var(--w-accent); text-transform: uppercase;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--w-accent); animation: blink 1.8s infinite; }
+  @keyframes blink { 50% { opacity: 0.35; } }
+  .title { font-family: var(--font-display); font-weight: 800; font-size: clamp(24px, 2.8vw, 32px); letter-spacing: -0.03em; margin: 6px 0 0; color: var(--foreground); }
+  .sub { margin: 4px auto 0; max-width: 56ch; font-size: 12.5px; line-height: 1.45; color: color-mix(in oklch, var(--foreground) 66%, var(--background)); }
+  .sub code, .picker-foot code { font-family: var(--font-mono); font-size: 11px; padding: 1px 5px; border-radius: 4px; background: color-mix(in oklch, var(--foreground) 8%, transparent); }
+
+  /* Cards size to their content (equal-height via the grid row), pinned to the
+     top — no stretching to fill the window, which was leaving a big dead gap
+     below each card's PLAY button. */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-content: start; }
+  .card {
+    appearance: none; cursor: pointer; text-align: left;
+    display: flex; flex-direction: column;
+    background: color-mix(in oklch, var(--card) 88%, transparent);
+    border: 1px solid color-mix(in oklch, var(--card-accent) 36%, transparent);
+    border-radius: 14px;
+    padding: 0; color: inherit;
+    overflow: hidden;
+    transition: transform 180ms cubic-bezier(.32,.72,0,1), box-shadow 180ms ease, border-color 180ms ease;
+    box-shadow: 0 12px 36px -24px color-mix(in oklch, var(--card-accent) 70%, transparent);
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    border-color: var(--card-accent);
+    box-shadow: 0 22px 52px -22px color-mix(in oklch, var(--card-accent) 75%, transparent);
+  }
+  .card-screen {
+    position: relative;
+    aspect-ratio: 3 / 2;
+    background: radial-gradient(ellipse at 50% 40%, color-mix(in oklch, var(--card-accent) 12%, #0d1018), #06080d);
+    overflow: hidden;
+    display: grid; place-items: center;
+  }
+  .card-tag {
+    position: absolute; top: 10px; right: 12px;
+    font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.16em;
+    padding: 3px 8px; border-radius: 999px;
+    background: color-mix(in oklch, var(--card-accent) 24%, transparent);
+    color: color-mix(in oklch, var(--card-accent) 78%, white);
+    border: 1px solid color-mix(in oklch, var(--card-accent) 36%, transparent);
+  }
+  .card-screen svg { width: 80%; height: 80%; }
+  .g-galaga .enemy-0 { fill: oklch(0.78 0.18 70); }
+  .g-galaga .enemy-1 { fill: oklch(0.7 0.2 30); }
+  .g-galaga .enemy-2 { fill: oklch(0.75 0.18 320); }
+  .g-galaga .ship .hull { fill: oklch(0.95 0.03 250); }
+  .g-galaga .ship .wing { fill: oklch(0.68 0.2 25); }
+  .g-galaga .ship .cockpit { fill: oklch(0.8 0.15 220); }
+  .g-galaga .pbullet { fill: oklch(0.9 0.18 90); }
+  .g-garden .cell.c-s { fill: oklch(0.7 0.18 30); opacity: 0.92; }
+  .g-garden .cell.c-o { fill: oklch(0.68 0.15 250); opacity: 0.9; }
+  .g-garden .cell.c-e { fill: color-mix(in oklch, var(--card-accent) 8%, transparent); opacity: 0.5; }
+  .g-magnetar .m-planet { fill: oklch(0.74 0.15 70); }
+  .g-magnetar .m-aura { fill: color-mix(in oklch, oklch(0.74 0.15 70) 22%, transparent); }
+  .g-magnetar .m-path { fill: none; stroke: oklch(0.85 0.16 80); stroke-width: 1; stroke-dasharray: 2.5 2.5; opacity: 0.85; }
+  .g-magnetar .m-earth { fill: oklch(0.62 0.15 250); }
+  .g-magnetar .m-land { fill: oklch(0.74 0.16 150); opacity: 0.9; }
+  .g-magnetar .m-ship { fill: oklch(0.95 0.05 80); }
+
+  .card-body { flex: 1; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .card-name { font-family: var(--font-display); font-weight: 800; font-size: 16px; letter-spacing: -0.01em; color: var(--foreground); }
+  .card-desc { font-size: 12px; line-height: 1.45; color: color-mix(in oklch, var(--foreground) 64%, var(--background)); }
+  .card-cta {
+    margin-top: auto;
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 800; letter-spacing: 0.18em;
+    align-self: flex-start;
+    padding: 6px 10px; border-radius: 6px;
+    background: color-mix(in oklch, var(--card-accent) 16%, transparent);
+    color: color-mix(in oklch, var(--card-accent) 80%, var(--foreground));
+    border: 1px solid color-mix(in oklch, var(--card-accent) 36%, transparent);
+  }
+  .card:hover .card-cta { background: var(--card-accent); color: white; border-color: var(--card-accent); }
+
+  .picker-foot {
+    text-align: center; font-family: var(--font-mono); font-size: 10.5px;
+    color: color-mix(in oklch, var(--foreground) 50%, var(--background));
+  }
+
+  /* ── Game screens ── */
+  .game-screen {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+  }
+  .game-screen[hidden] { display: none; }
+  .game-strip {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent);
+    background: color-mix(in oklch, var(--card) 78%, transparent);
+  }
+  .back, .reset-hi {
+    appearance: none; cursor: pointer;
+    background: color-mix(in oklch, var(--foreground) 7%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 14%, transparent);
+    border-radius: 8px; padding: 6px 12px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    color: var(--foreground);
+    transition: background 140ms ease, border-color 140ms ease;
+  }
+  .back:hover { background: color-mix(in oklch, var(--w-accent) 14%, transparent); border-color: color-mix(in oklch, var(--w-accent) 40%, transparent); }
+  .reset-hi { margin-left: auto; font-size: 10px; padding: 4px 10px; opacity: 0.7; }
+  .reset-hi:hover { opacity: 1; }
+  .game-title { font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--foreground); }
+  .game-tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: color-mix(in oklch, var(--foreground) 55%, var(--background)); }
+
+  .game-body {
+    flex: 1; min-height: 0;
+    display: grid; grid-template-columns: 200px 1fr 220px; gap: 18px;
+    padding: 16px 18px;
+    align-items: stretch;
+  }
+  /* Games without a leaderboard (Magnetar — it owns its level-select UI) drop
+     the right rail and give the stage the reclaimed width. */
+  .game-screen.no-hi .game-body { grid-template-columns: 200px 1fr; }
+  .game-mount {
+    min-width: 0; min-height: 0;
+    display: grid; place-items: center;
+    overflow: hidden;
+  }
+  /* Force the inner game wrapper to inline-block so place-items:center
+     actually centers it horizontally. Some game wrappers (garden) get
+     hot-overridden to block by global rules, leaving the stage flush
+     against the rail. */
+  .game-mount :global(.galaga-mount),
+  .game-mount :global(.garden-mount),
+  .game-mount :global(.magnetar-mount) {
+    display: inline-block;
+    margin: 0 auto;
+  }
+
+  /* In-game HUDs (score / wave / timer corners) duplicate what the
+     rails already show AND obscure the canvas. Hide every HUD except
+     the center one (which carries the start / win overlay). */
+  .game-mount :global(sui-hud:not([align="center"])) { display: none !important; }
+
+  /* Side rails — match the games' card chrome so they read as one unit. */
+  .rail {
+    display: flex; flex-direction: column; gap: 10px;
+    background: color-mix(in oklch, var(--card) 86%, transparent);
+    border: 1px solid color-mix(in oklch, var(--g-accent) 26%, transparent);
+    border-radius: 14px;
+    padding: 14px 14px;
+    box-shadow: 0 14px 36px -22px color-mix(in oklch, var(--g-accent) 60%, transparent);
+  }
+  .rail-head {
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--g-accent) 70%, var(--foreground));
+    padding-bottom: 8px;
+    border-bottom: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+  }
+  .stat-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  .stat-row {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 8px 10px; border-radius: 8px;
+    background: color-mix(in oklch, var(--g-accent) 6%, transparent);
+    border: 1px solid color-mix(in oklch, var(--g-accent) 14%, transparent);
+  }
+  .stat-label {
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 55%, var(--background));
+  }
+  .stat-value {
+    font-family: var(--font-display); font-size: 20px; font-weight: 800;
+    color: var(--foreground); letter-spacing: -0.02em;
+    line-height: 1.1; min-width: 0; overflow-wrap: anywhere;
+  }
+
+  .hi-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  /* Rows are created in the client script (createElement), so they don't carry
+     Astro's scoped-style attribute — these must be :global() to apply at all.
+     (This is why the score/date had no spacing before: the grid never matched.) */
+  .hi-list :global(li) {
+    display: grid; grid-template-columns: 16px 1fr auto; gap: 12px;
+    align-items: center;
+    padding: 7px 12px; border-radius: 7px;
+    background: color-mix(in oklch, var(--background) 60%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 6%, transparent);
+    font-family: var(--font-mono);
+  }
+  .hi-list :global(li.hi-empty) {
+    display: block; text-align: center;
+    color: color-mix(in oklch, var(--foreground) 50%, var(--background));
+    font-style: italic; font-size: 11px; padding: 12px 10px;
+    background: transparent; border: 1px dashed color-mix(in oklch, var(--foreground) 14%, transparent);
+  }
+  .hi-list :global(.hi-rank) { font-size: 9.5px; font-weight: 700; text-align: center; color: color-mix(in oklch, var(--g-accent) 78%, var(--foreground)); }
+  .hi-list :global(.hi-rank.gold)   { color: oklch(0.78 0.16 80); }
+  .hi-list :global(.hi-rank.silver) { color: oklch(0.76 0.05 250); }
+  .hi-list :global(.hi-rank.bronze) { color: oklch(0.62 0.12 50); }
+  .hi-list :global(.hi-value) { font-size: 12.5px; font-weight: 700; color: var(--foreground); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+  .hi-list :global(.hi-when) { font-size: 10px; white-space: nowrap; text-align: right; color: color-mix(in oklch, var(--foreground) 52%, var(--background)); }
+  .hi-list :global(li.hi-fresh) { box-shadow: 0 0 0 1.5px var(--g-accent); animation: hi-pop 360ms cubic-bezier(.32,.72,0,1); }
+  @keyframes hi-pop { from { transform: scale(0.94); } to { transform: scale(1); } }
+  .rail-foot {
+    margin-top: auto; padding-top: 8px;
+    border-top: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+    font-family: var(--font-mono); font-size: 9.5px;
+    color: color-mix(in oklch, var(--foreground) 50%, var(--background));
+  }
+
+  /* Mobile: stack everything, scale games to fit. */
+  @media (max-width: 760px) {
+    .cards { grid-template-columns: 1fr; }
+    .picker { padding: 16px 14px; }
+    .game-body { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
+    .rail { padding: 10px 12px; }
+    .stat-list { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+    .stat-row { flex: 1 1 30%; }
+    .game-mount :global(sui-stage) {
+      transform: scale(min(1, min(calc((100vw - 32px) / 480), calc((100vh - 280px) / 580))));
+      transform-origin: center top;
+    }
+  }
+</style>
+
+<script>
+  /*
+   * Stage switcher + stat surfacing + local high-scores.
+   *
+   * Picker ↔ game swap is just a hidden toggle. While a game is hidden
+   * its sui-stage pauses, so the canvas isn't churning in the background.
+   *
+   * Stats: each game's HUD elements carry `data-bind="<key>"`. We watch
+   * the text content of those elements and mirror it into the sidebar
+   * `[data-stat="<key>"]` cell. Same source of truth, no duplicated
+   * formatting logic.
+   *
+   * High scores: on game state transition to a terminal value, we read
+   * the hi-score key out of the HUD and persist top 5 in localStorage
+   * under `arcade.hi.<slug>` ({ value, when } records).
+   */
+  // ── Lazy-load the arcade engine (pixi, ~800KB) ──────────────────────
+  // The games no longer statically import '@ship/arcade/bundle', so it stays
+  // off every marketing page. We pull it the first time the Arcade window
+  // opens; sui-stage upgrades on import and each game's `sui-stage:ready`
+  // listener fires. Covers both the dock-click open and the /arcade deep-link.
+  {
+    const arcadeWin = document.querySelector<HTMLElement>('[data-app-window="arcade"]');
+    let loaded = false;
+    const loadEngine = () => {
+      if (loaded) return;
+      loaded = true;
+      import('@ship/arcade/bundle');
+    };
+    if (arcadeWin?.classList.contains('open')) loadEngine();
+    else if (arcadeWin) {
+      const mo = new MutationObserver(() => {
+        if (arcadeWin.classList.contains('open')) { loadEngine(); mo.disconnect(); }
+      });
+      mo.observe(arcadeWin, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
+
+  type Game = 'galaga' | 'garden' | 'magnetar';
+  // Only games with a numeric leaderboard. Magnetar is absent — it tracks
+  // per-level stars in its own UI, not a top-5 score table.
+  const HI_KEYS: Partial<Record<Game, { key: string; better: 'high' | 'low' }>> = {
+    galaga:   { key: 'score', better: 'high' },
+    garden:   { key: 'self',  better: 'high' },
+  };
+  interface HiRow { value: number; when: number }
+  const LS_KEY = (slug: Game) => `arcade.hi.${slug}`;
+  const loadHi = (slug: Game): HiRow[] => {
+    try {
+      const raw = localStorage.getItem(LS_KEY(slug));
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.filter((r) => typeof r?.value === 'number' && typeof r?.when === 'number') : [];
+    } catch { return []; }
+  };
+  const saveHi = (slug: Game, rows: HiRow[]) => {
+    try { localStorage.setItem(LS_KEY(slug), JSON.stringify(rows.slice(0, 5))); } catch {}
+  };
+  const fmt = (n: number) => {
+    if (!Number.isFinite(n)) return '—';
+    if (Math.abs(n) >= 1000) return n.toLocaleString();
+    return String(Math.round(n * 100) / 100);
+  };
+  const since = (ms: number) => {
+    const s = Math.max(1, Math.round((Date.now() - ms) / 1000));
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.round(s / 60)}m`;
+    if (s < 86400) return `${Math.round(s / 3600)}h`;
+    return `${Math.round(s / 86400)}d`;
+  };
+  const renderHi = (slug: Game, freshValue?: number) => {
+    const list = document.querySelector<HTMLElement>(`[data-hi-list="${slug}"]`);
+    if (!list) return;
+    const rows = loadHi(slug);
+    if (rows.length === 0) {
+      list.innerHTML = '<li class="hi-empty">no runs yet</li>';
+      return;
+    }
+    list.innerHTML = '';
+    rows.forEach((r, i) => {
+      const li = document.createElement('li');
+      const rank = document.createElement('span');
+      rank.className = 'hi-rank';
+      if (i === 0) rank.classList.add('gold');
+      else if (i === 1) rank.classList.add('silver');
+      else if (i === 2) rank.classList.add('bronze');
+      rank.textContent = `${i + 1}`;
+      const val = document.createElement('span');
+      val.className = 'hi-value';
+      val.textContent = fmt(r.value);
+      const when = document.createElement('span');
+      when.className = 'hi-when';
+      when.textContent = since(r.when) + ' ago';
+      if (typeof freshValue === 'number' && Math.abs(r.value - freshValue) < 0.01 && r.when > Date.now() - 4000) {
+        li.classList.add('hi-fresh');
+      }
+      li.append(rank, val, when);
+      list.append(li);
+    });
+  };
+  const recordHi = (slug: Game, raw: string) => {
+    const value = parseFloat(raw);
+    if (!Number.isFinite(value)) return;
+    const meta = HI_KEYS[slug];
+    if (!meta) return;
+    const rows = loadHi(slug);
+    rows.push({ value, when: Date.now() });
+    rows.sort((a, b) => meta.better === 'high' ? b.value - a.value : a.value - b.value);
+    saveHi(slug, rows);
+    renderHi(slug, value);
+  };
+
+  const root = document.querySelector<HTMLElement>('[data-app-window="arcade"] .arcade-shell');
+  if (root) {
+    const picker = root.querySelector<HTMLElement>('[data-screen="picker"]')!;
+    const screens = Array.from(root.querySelectorAll<HTMLElement>('.game-screen[data-game]'));
+
+    // Initial render of hi-score panels.
+    for (const s of screens) renderHi(s.dataset.game as Game);
+
+    // Stat mirroring: watch each [data-bind] in the game and copy text
+    // into the matching [data-stat="<key>"] on the rail.
+    for (const s of screens) {
+      const slug = s.dataset.game as Game;
+      const binds = Array.from(s.querySelectorAll<HTMLElement>('[data-bind]'));
+      const reflect = (b: HTMLElement) => {
+        const key = b.dataset.bind;
+        const cell = s.querySelector<HTMLElement>(`[data-stat="${key}"]`);
+        if (!cell) return;
+        cell.textContent = b.textContent?.trim() || '—';
+      };
+      for (const b of binds) {
+        reflect(b);
+        const mo = new MutationObserver(() => reflect(b));
+        mo.observe(b, { childList: true, characterData: true, subtree: true });
+      }
+
+      // Persist hi-scores on state transitions. Each game emits its end
+      // state via the overlay's `data-state` attr (won / lost / draw /
+      // gameover etc). Watch the overlay; on transition to a terminal
+      // state, record the hi-score key's value.
+      const overlay = s.querySelector<HTMLElement>('[data-overlay]');
+      const meta = HI_KEYS[slug];
+      if (overlay && meta) {
+        const hiKey = meta.key;
+        // Per-level events ('cleared'/'levelend') are NOT terminal — recording
+        // on them logged a score every level (the nonsensical multi-entry bug).
+        const isTerminal = (state?: string | null): boolean =>
+          state === 'won' || state === 'lost' || state === 'draw' || state === 'gameover';
+        let lastTerminal = false;
+        const mo = new MutationObserver(() => {
+          const state = overlay.dataset.state;
+          const terminal = isTerminal(state);
+          if (terminal && !lastTerminal) {
+            const cell = s.querySelector<HTMLElement>(`[data-bind="${hiKey}"]`);
+            const raw = cell?.textContent?.trim() || '';
+            if (raw) recordHi(slug, raw);
+          }
+          lastTerminal = terminal;
+        });
+        mo.observe(overlay, { attributes: true, attributeFilter: ['data-state'] });
+      }
+
+      // Clear hi-scores from rail button.
+      const clearBtn = s.querySelector<HTMLElement>(`[data-clear-hi="${slug}"]`);
+      clearBtn?.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        try { localStorage.removeItem(LS_KEY(slug)); } catch {}
+        renderHi(slug);
+      });
+    }
+
+    // Screen swap.
+    const show = (slug: Game | null) => {
+      const isPicker = slug === null;
+      picker.hidden = !isPicker;
+      for (const s of screens) {
+        const match = !isPicker && (s.dataset.game === slug);
+        s.hidden = !match;
+        const stage = s.querySelector<HTMLElement & { pause?: () => void; resume?: () => void }>('sui-stage');
+        if (match) stage?.resume?.();
+        else stage?.pause?.();
+      }
+      root.dataset.stage = slug || 'picker';
+    };
+    for (const cab of Array.from(root.querySelectorAll<HTMLElement>('.card[data-pick]'))) {
+      cab.addEventListener('click', () => show(cab.dataset.pick as Game));
+    }
+    for (const back of Array.from(root.querySelectorAll<HTMLElement>('[data-back]'))) {
+      back.addEventListener('click', () => show(null));
+    }
+  }
+</script>

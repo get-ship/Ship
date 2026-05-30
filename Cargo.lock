@@ -1653,6 +1653,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "deck-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "deck-bundler",
+ "ship-substrate",
+ "tokio",
+]
+
+[[package]]
 name = "deck-core"
 version = "0.1.0"
 dependencies = [
