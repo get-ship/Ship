@@ -45,8 +45,6 @@ pub enum DaemonCommand {
     UninstallService,
 }
 
-const SHIPD_PORT: u16 = 9315;
-
 fn ship_dir() -> Result<PathBuf> {
     Ok(ship_substrate::ShipHome::from_env().root().to_path_buf())
 }
@@ -197,6 +195,12 @@ pub(super) fn daemon_start_inner(host: &str, dev: bool) -> Result<()> {
     // Dev mode forces localhost bind regardless of --host.
     let host = if dev { "127.0.0.1".to_string() } else { host.to_string() };
 
+    // Per-worktree port (see daemon_supervise). The supervisor we spawn below
+    // inherits this cwd and binds the same port, so reporting it here is accurate.
+    let port = ship_substrate::home::worktree_port_for(
+        &std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+    );
+
     // Check if already running. The pidfile lock is the source of truth;
     // a held lock means a live supervisor exists. Falling back to the legacy
     // pid file keeps callers honest if the lock-based pidfile is missing.
@@ -210,7 +214,7 @@ pub(super) fn daemon_start_inner(host: &str, dev: bool) -> Result<()> {
     if let Some(pid) = read_pid(&pid_path)?
         && is_process_alive(pid)
     {
-        println!("shipd already running (pid {}, port {})", pid, SHIPD_PORT);
+        println!("shipd already running (pid {}, port {})", pid, port);
         return Ok(());
     }
     // Stale legacy pid file — remove it before spawning.
@@ -256,7 +260,7 @@ pub(super) fn daemon_start_inner(host: &str, dev: bool) -> Result<()> {
     }
     println!(
         "shipd supervisor started (pid {}, http://{}:{}, log {})",
-        supervisor_pid, host, SHIPD_PORT, log_path.display()
+        supervisor_pid, host, port, log_path.display()
     );
     Ok(())
 }
@@ -278,11 +282,21 @@ fn daemon_supervise(host: String, dev: bool) -> Result<()> {
     // Dev mode forces localhost bind.
     let host = if dev { "127.0.0.1".to_string() } else { host };
 
+    // Bind a PER-WORKTREE port (matching the per-worktree daemon dir above)
+    // instead of the hardcoded 9315. Without this, every worktree's daemon
+    // collided on 9315 → 401 token mismatch against the leftover holder +
+    // duplicate supervisors + respawn races. `worktree_port_for` honors a
+    // `local.jsonc:worktrees.ports[<branch>]` pin if set, else derives a
+    // stable port in the 9315-9414 window from the project-root hash.
+    let port = ship_substrate::home::worktree_port_for(
+        &std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+    );
+
     // Acquire the OS-enforced singleton lock. Another live supervisor
     // holding the lock means we exit cleanly with its identity.
     let record = PidfileRecord {
         pid: std::process::id(),
-        port: SHIPD_PORT,
+        port,
         version: env!("CARGO_PKG_VERSION").to_string(),
         commit_sha: build_info::build_info!().git_sha.to_string(),
         started_at: chrono::Utc::now().to_rfc3339(),
@@ -374,8 +388,8 @@ fn daemon_supervise(host: String, dev: bool) -> Result<()> {
             break;
         }
 
-        // Spawn the daemon child.
-        let port_str = SHIPD_PORT.to_string();
+        // Spawn the daemon child on the per-worktree port computed above.
+        let port_str = port.to_string();
         let mut child_args: Vec<&str> = vec!["daemon", "run", "--host", &host, "--port", &port_str];
         if dev {
             child_args.push("--dev");
@@ -979,8 +993,8 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
 /// The daemon binds to a per-worktree port written into
 /// `~/.ship/machine/daemons/<hash>/port` *after* the supervisor has spawned
 /// shipd and shipd has bound its socket. We poll the discover-daemon helper
-/// for up to ~5s so the URL is the actual bound port, not the legacy
-/// `SHIPD_PORT` constant. Token is deliberately omitted — pairing is the
+/// for up to ~5s so the URL is the actual bound port, not a hardcoded
+/// default. Token is deliberately omitted — pairing is the
 /// canonical auth path; tokens on stdout would leak into shell history.
 fn announce_daemon_url() {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
