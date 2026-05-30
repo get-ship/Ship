@@ -64,6 +64,21 @@ pub fn run(repo_root: &Path) -> Result<()> {
     }
     println!("  sui-marketing.js: {marketing_len} bytes");
 
+    // `sui-arcade.js` is the marketing site's heavy lazy chunk (pixi +
+    // arcade-engine). Like `sui-marketing.js` it's a `.deck/` target with no
+    // build.rs guard — a swallowed per-target failure would ship a stale bundle
+    // to the site and the games would silently break. Guard it here too.
+    let arcade = repo_root.join(".deck/sui-arcade.js");
+    let arcade_len = std::fs::metadata(&arcade).map(|m| m.len()).unwrap_or(0);
+    if arcade_len == 0 {
+        bail!(
+            "sui-arcade bundle missing or empty after bake: {} \
+             (the sui-arcade target failed — check `bundler: target failed` logs)",
+            arcade.display()
+        );
+    }
+    println!("  sui-arcade.js: {arcade_len} bytes");
+
     println!("build-assets: framework bundles + catalog baked via in-process Rolldown");
     println!("note: lucide-icons.json is committed source; regen via `cargo xtask gen-icons`");
     Ok(())

@@ -372,4 +372,41 @@ mod tests {
             "umbrella full set must not leak into the focused marketing bundle"
         );
     }
+
+    /// The `sui-arcade` bundle is the heavy lazy chunk for the marketing site's
+    /// games. Its `index.ts` registers every arcade tag and pulls the
+    /// pixi + arcade-engine graph. pixi + arcade-engine must be BUNDLED (it's the
+    /// big chunk), while the runtime singleton stays EXTERNAL — exactly one
+    /// `@ship/sui-runtime` instance across the page.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn rolldown_bundles_arcade_pixi_inline_runtime_external() {
+        let repo = repo_root();
+        let scratch = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        let layout =
+            BundleLayout::new(repo, None).with_out_root(scratch.path().to_path_buf());
+        let comp = compiler();
+
+        let targets = layout.all_targets();
+        let arcade = targets.iter().find(|t| t.name == "sui-arcade").unwrap();
+        let m = bundle_target(&layout, arcade, &comp, staging.path(), true)
+            .await
+            .expect("arcade should bundle");
+        // The heavy lazy chunk: pixi (~800 KB) is bundled in.
+        assert!(m.bytes > 200_000, "arcade bundles pixi, got {} bytes", m.bytes);
+        let body = std::fs::read_to_string(&m.out_path).unwrap();
+        // Runtime stays external (one instance) — an import of the bare
+        // specifier survives, not an inlined second copy.
+        assert!(
+            body.contains("@ship/sui-runtime"),
+            "arcade keeps the runtime singleton external"
+        );
+        // Each arcade tag registers via its `component(\`<tag>\`, …)` call.
+        for tag in ["sui-stage", "sui-sprite", "sui-emitter", "sui-input", "sui-hud"] {
+            assert!(
+                body.contains(&format!("`{tag}`")),
+                "arcade bundle must register {tag}"
+            );
+        }
+    }
 }

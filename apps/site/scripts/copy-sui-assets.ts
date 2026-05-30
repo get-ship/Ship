@@ -37,6 +37,12 @@ const SUI_BUNDLES: ReadonlyArray<{ name: string; from: string }> = [
   // the traced entry `apps/site/src/marketing/marketing-bundle.ts` —
   // rolldown follows that import graph. It builds to `.deck/`.
   { name: 'sui-marketing.js', from: DECK_OUT_DIR },
+  // `sui-arcade.js` is the heavy lazy chunk (pixi + arcade-engine, ~800 KB)
+  // for the landing page's `<sui-stage>` games. ArcadeWindow.astro dynamic-
+  // imports `/sui-arcade.js` the first time the Arcade window opens; the
+  // runtime singletons stay external (page importmap). Deck builds it to
+  // `.deck/` as the `sui-arcade` target.
+  { name: 'sui-arcade.js', from: DECK_OUT_DIR },
 ] as const;
 
 mkdirSync(PUBLIC_DIR, { recursive: true });
