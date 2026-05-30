@@ -1,4 +1,9 @@
+pub mod daemon;
 pub mod mesh;
+pub mod pipeline;
+pub mod session;
+pub mod skill;
+pub mod supervisor;
 pub use mesh::*;
 
 // All lines are constant definitions; no logic present. The `ALL` slice is kept for
@@ -7,49 +12,21 @@ pub use mesh::*;
 pub const WORKSPACE_CREATED: &str = "workspace.created";
 pub const WORKSPACE_ACTIVATED: &str = "workspace.activated";
 pub const WORKSPACE_ARCHIVED: &str = "workspace.archived";
-pub const SESSION_STARTED: &str = "session.started";
-pub const SESSION_PROGRESS: &str = "session.progress";
-pub const SESSION_ENDED: &str = "session.ended";
-pub const SESSION_DRAIN_STARTED: &str = "session.drain_started";
-pub const SESSION_DRAIN_COMPLETED: &str = "session.drain_completed";
-pub const SESSION_DRAIN_ABORTED: &str = "session.drain_aborted";
-pub const SESSION_TOOL_COUNT_INCREMENTED: &str = "session.tool_count_incremented";
-pub const SESSION_ATTACHED: &str = "session.attached";
-pub const SESSION_HEARTBEAT: &str = "session.heartbeat";
 pub const ACTOR_CREATED: &str = "actor.created";
 pub const ACTOR_WOKE: &str = "actor.woke";
 pub const ACTOR_SLEPT: &str = "actor.slept";
 pub const ACTOR_STOPPED: &str = "actor.stopped";
 pub const ACTOR_CRASHED: &str = "actor.crashed";
-pub const PIPELINE_RUN_STARTED: &str = "pipeline.run.started";
-pub const PIPELINE_RUN_COMPLETED: &str = "pipeline.run.completed";
-pub const PIPELINE_RUN_FAILED: &str = "pipeline.run.failed";
-pub const PIPELINE_RUN_DISPATCHED: &str = "pipeline.run.dispatched";
-pub const PIPELINE_RUN_UPDATED: &str = "pipeline.run.updated";
 pub const CONFIG_CHANGED: &str = "config.changed";
 /// Fine-grained per-file config change (path + content_hash) — see
 /// `ConfigFileChanged`. Emitted by the watcher alongside the coarse `*.changed`.
 pub const CONFIG_FILE_CHANGED: &str = "config.file_changed";
 pub const AGENT_CHANGED: &str = "agent.changed";
-pub const SKILL_CHANGED: &str = "skill.changed";
 pub const VIEW_CHANGED: &str = "view.changed";
-pub const PIPELINE_CHANGED: &str = "pipeline.changed";
 pub const RULE_CHANGED: &str = "rule.changed";
 pub const PROJECT_CHANGED: &str = "project.changed";
 pub const PROJECT_LOG: &str = "project.log";
-pub const SKILL_STARTED: &str = "skill.started";
-pub const SKILL_COMPLETED: &str = "skill.completed";
-pub const SKILL_FAILED: &str = "skill.failed";
-/// Emitted after `skill.started` for library-mode invokes. Records the
-/// session_id (existing chat session or the synthetic invoke run id)
-/// that the skill's reference content is attached to. `entity_id` is the
-/// skill id. Payload: `SkillAttachedToSession`.
-pub const SKILL_ATTACHED_TO_SESSION: &str = "skill.attached_to_session";
-pub const SUPERVISOR_SHUTTING_DOWN: &str = "supervisor.shutting_down";
-pub const SUPERVISOR_SWEEP_STARTED: &str = "supervisor.sweep_started";
-pub const SUPERVISOR_SWEEP_COMPLETED: &str = "supervisor.sweep_completed";
-pub const SUPERVISOR_DRIFT_DETECTED: &str = "supervisor.drift_detected";
-pub const SUPERVISOR_COHERENCE_RESTORED: &str = "supervisor.coherence_restored";
+
 pub const PROCESS_SPAWNED: &str = "process.spawned";
 pub const PROCESS_EXITED: &str = "process.exited";
 pub const PROCESS_SIGNAL_SENT: &str = "process.signal_sent";
@@ -57,17 +34,6 @@ pub const PROCESS_ORPHANED: &str = "process.orphaned";
 pub const PROCESS_KILLED: &str = "process.killed";
 pub const EXECUTOR_SESSION_DESTROYED: &str = "executor.session_destroyed";
 pub const EXECUTOR_WINDOW_DESTROYED: &str = "executor.window_destroyed";
-pub const DAEMON_STARTUP_COMPLETED: &str = "daemon.startup_completed";
-pub const DAEMON_SHUTDOWN_COMPLETED: &str = "daemon.shutdown_completed";
-pub const DAEMON_CRASHED: &str = "daemon.crashed";
-pub const DAEMON_PORT_BIND_FAILED: &str = "daemon.port_bind_failed";
-pub const DAEMON_PIDFILE_ACQUIRED: &str = "daemon.pidfile_acquired";
-pub const DAEMON_PIDFILE_STALE_TAKEN: &str = "daemon.pidfile_stale_taken";
-pub const PIPELINE_STEP_COMPLETED: &str = "pipeline.step.completed";
-pub const PIPELINE_STEP_FAILED: &str = "pipeline.step.failed";
-pub const PIPELINE_RUN_CANCELLED: &str = "pipeline.run.cancelled";
-pub const PIPELINE_RUN_MERGED: &str = "pipeline.run.merged";
-pub const PIPELINE_STEP_SPAWN_FAILED: &str = "pipeline.step.spawn_failed";
 pub const ARTIFACT_CREATED: &str = "artifact.created";
 pub const ARTIFACT_UPDATED: &str = "artifact.updated";
 pub const ARTIFACT_MOVED: &str = "artifact.moved";
@@ -112,12 +78,6 @@ pub const AUTH_SESSION_REVOKED: &str = "auth.session.revoked";
 /// Auth — a session passed its `expires_at_unix`.
 pub const AUTH_SESSION_EXPIRED: &str = "auth.session.expired";
 
-/// Daemon-owner binding — a user paired with this daemon. `entity_id`
-/// is the user_id. The daemon_owner projection materializes the latest.
-pub const DAEMON_OWNER_BOUND: &str = "daemon.owner.bound";
-/// Daemon-owner binding — the user unpaired (`ship logout`).
-pub const DAEMON_OWNER_UNBOUND: &str = "daemon.owner.unbound";
-
 /// Account — PKCE login flow opened. `entity_id` is the opaque state_id
 /// returned to the CLI; payload carries the redirect_uri the CLI bound.
 /// No credential material is emitted.
@@ -131,16 +91,6 @@ pub const ACCOUNT_LOGOUT: &str = "account.logout";
 /// Account — `/me` refreshed against the gateway with the stored bearer.
 /// `entity_id` is the user_id.
 pub const ACCOUNT_KEY_REFRESHED: &str = "account.key_refreshed";
-
-/// Skill CRUD — a skill SKILL.md (project- or user-scoped) was written
-/// for the first time. `entity_id` is the skill id.
-pub const SKILL_CREATED: &str = "skill.created";
-/// Skill CRUD — content or front-matter of an existing skill changed.
-/// `entity_id` is the skill id.
-pub const SKILL_UPDATED: &str = "skill.updated";
-/// Skill CRUD — a skill was removed from disk. `entity_id` is the
-/// skill id.
-pub const SKILL_DELETED: &str = "skill.deleted";
 
 /// Rule CRUD — a `.ship/rules/<file>.md` was created. `entity_id` is
 /// the canonical rule id (file name minus the optional `NNNN-` prefix
@@ -162,14 +112,6 @@ pub const PERMISSIONS_UPDATED: &str = "permissions.updated";
 /// operator approval (source="operator"). The mint path reads this baseline;
 /// `requires:`/`grants:` in skills are intent, never authority.
 pub const AGENT_GRANTS_PROVISIONED: &str = "agent.grants.provisioned";
-
-/// Session status transition (e.g. Idle → Thinking). `entity_id` is
-/// the session id. Useful for "what's the agent doing right now?" UIs.
-pub const SESSION_STATUS_CHANGED: &str = "session.status_changed";
-/// A turn failed to spawn or run end-to-end. `entity_id` is the session
-/// id. Distinct from `session.ended` — the session stays alive, the
-/// individual turn is the unit of failure.
-pub const SESSION_TURN_FAILED: &str = "session.turn_failed";
 
 /// Per-space settings override — a single (space, key) value was set. The
 /// space scope rides the envelope (`space_id`, stamped via `with_context`),
@@ -207,11 +149,6 @@ pub const KERNEL_ACTOR_SNAPSHOT: &str = "kernel.actor.snapshot";
 /// A1: device, durable.
 pub const KERNEL_ACTOR_SUSPENDED: &str = "kernel.actor.suspended";
 
-/// Pipeline — a step was retried after a transient failure.
-/// `entity_id` is the pipeline run id.
-/// A1: space, durable.
-pub const PIPELINE_STEP_RETRY: &str = "pipeline.step.retry";
-
 /// Studio — a user annotation was created on a session or artifact.
 /// `entity_id` is the annotation id.
 /// A1: space, durable.
@@ -238,6 +175,52 @@ pub const SYNC_STARTED: &str = "sync.started";
 /// Sync — the sync process stopped (clean shutdown or error).
 /// A1: device, durable.
 pub const SYNC_STOPPED: &str = "sync.stopped";
+
+// Aliases for backward compatibility (moved constants now come via pub use)
+pub const SESSION_STARTED: &str = session::STARTED;
+pub const SESSION_PROGRESS: &str = session::PROGRESS;
+pub const SESSION_ENDED: &str = session::ENDED;
+pub const SESSION_DRAIN_STARTED: &str = session::DRAIN_STARTED;
+pub const SESSION_DRAIN_COMPLETED: &str = session::DRAIN_COMPLETED;
+pub const SESSION_DRAIN_ABORTED: &str = session::DRAIN_ABORTED;
+pub const SESSION_TOOL_COUNT_INCREMENTED: &str = session::TOOL_COUNT_INCREMENTED;
+pub const SESSION_ATTACHED: &str = session::ATTACHED;
+pub const SESSION_HEARTBEAT: &str = session::HEARTBEAT;
+pub const SESSION_STATUS_CHANGED: &str = session::STATUS_CHANGED;
+pub const SESSION_TURN_FAILED: &str = session::TURN_FAILED;
+pub const PIPELINE_RUN_STARTED: &str = pipeline::RUN_STARTED;
+pub const PIPELINE_RUN_COMPLETED: &str = pipeline::RUN_COMPLETED;
+pub const PIPELINE_RUN_FAILED: &str = pipeline::RUN_FAILED;
+pub const PIPELINE_RUN_DISPATCHED: &str = pipeline::RUN_DISPATCHED;
+pub const PIPELINE_RUN_UPDATED: &str = pipeline::RUN_UPDATED;
+pub const PIPELINE_CHANGED: &str = pipeline::CHANGED;
+pub const PIPELINE_STEP_COMPLETED: &str = pipeline::STEP_COMPLETED;
+pub const PIPELINE_STEP_FAILED: &str = pipeline::STEP_FAILED;
+pub const PIPELINE_RUN_CANCELLED: &str = pipeline::RUN_CANCELLED;
+pub const PIPELINE_RUN_MERGED: &str = pipeline::RUN_MERGED;
+pub const PIPELINE_STEP_SPAWN_FAILED: &str = pipeline::STEP_SPAWN_FAILED;
+pub const PIPELINE_STEP_RETRY: &str = pipeline::STEP_RETRY;
+pub const SKILL_CHANGED: &str = skill::CHANGED;
+pub const SKILL_STARTED: &str = skill::STARTED;
+pub const SKILL_COMPLETED: &str = skill::COMPLETED;
+pub const SKILL_FAILED: &str = skill::FAILED;
+pub const SKILL_ATTACHED_TO_SESSION: &str = skill::ATTACHED_TO_SESSION;
+pub const SKILL_CREATED: &str = skill::CREATED;
+pub const SKILL_UPDATED: &str = skill::UPDATED;
+pub const SKILL_DELETED: &str = skill::DELETED;
+pub const DAEMON_STARTUP_COMPLETED: &str = daemon::STARTUP_COMPLETED;
+pub const DAEMON_SHUTDOWN_COMPLETED: &str = daemon::SHUTDOWN_COMPLETED;
+pub const DAEMON_CRASHED: &str = daemon::CRASHED;
+pub const DAEMON_PORT_BIND_FAILED: &str = daemon::PORT_BIND_FAILED;
+pub const DAEMON_PIDFILE_ACQUIRED: &str = daemon::PIDFILE_ACQUIRED;
+pub const DAEMON_PIDFILE_STALE_TAKEN: &str = daemon::PIDFILE_STALE_TAKEN;
+pub const DAEMON_OWNER_BOUND: &str = daemon::OWNER_BOUND;
+pub const DAEMON_OWNER_UNBOUND: &str = daemon::OWNER_UNBOUND;
+pub const SUPERVISOR_SHUTTING_DOWN: &str = supervisor::SHUTTING_DOWN;
+pub const SUPERVISOR_SWEEP_STARTED: &str = supervisor::SWEEP_STARTED;
+pub const SUPERVISOR_SWEEP_COMPLETED: &str = supervisor::SWEEP_COMPLETED;
+pub const SUPERVISOR_DRIFT_DETECTED: &str = supervisor::DRIFT_DETECTED;
+pub const SUPERVISOR_COHERENCE_RESTORED: &str = supervisor::COHERENCE_RESTORED;
 
 /// `ALL` — the canonical set of known event type strings.
 ///
