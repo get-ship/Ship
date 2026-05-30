@@ -18,6 +18,14 @@ impl SyncClient {
         }
     }
 
+    /// Return the normalised base URL. Test-only — surfaces the private field
+    /// so integration tests outside this file can assert URL shaping without
+    /// making live HTTP calls.
+    #[cfg(test)]
+    pub(crate) fn base_url(&self) -> &str {
+        &self.base_url
+    }
+
     /// Push platform events (workspace.*, job.*, session.*, gate.*) to cloud.
     pub fn push_platform_events(
         &self,

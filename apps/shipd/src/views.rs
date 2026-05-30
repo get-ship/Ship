@@ -45,7 +45,6 @@ pub mod sanitize;
 
 pub mod assets;
 pub mod discovery;
-pub mod error_overlay;
 pub mod handlers;
 pub mod resolve;
 

@@ -8,3 +8,6 @@ pub mod types;
 
 pub use client::SyncClient;
 pub use types::{PullResponse, PushRequest, PushResponse};
+
+#[cfg(test)]
+mod tests;
