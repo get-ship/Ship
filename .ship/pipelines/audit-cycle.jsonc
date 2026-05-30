@@ -57,13 +57,23 @@
       "run": "set -euo pipefail\nOUT=\".artifacts/audit-cycle-target.txt\"\n\n# 1. Index drift check.\ncargo xtask gen-indexes --check\necho \"verify: indexes up-to-date\"\n\n# 2. Parse the audit target to find the expected doc path.\nif [ ! -f \"$OUT\" ]; then\n  echo \"ERROR: $OUT missing — pick-target step did not run?\" >&2\n  exit 1\nfi\ntarget=$(cat \"$OUT\")\nlayer=$(echo \"$target\" | cut -d'|' -f1)\nmodule=$(echo \"$target\" | cut -d'|' -f2)\n\n# Derive doc path from module name (strip trailing slash, collapse to basename).\nmod_slug=$(echo \"$module\" | sed 's|/$||' | tr '/' '-' | xargs basename 2>/dev/null || echo \"$module\" | sed 's|[/.]|-|g')\ndoc_path=\".artifacts/specs/module-audits/${layer}/${mod_slug}.md\"\n\nif [ ! -f \"$doc_path\" ]; then\n  # Fallback: look for any .md file newer than 5 minutes in the layer dir.\n  recent=$(find \".artifacts/specs/module-audits/${layer}\" -name '*.md' -newer .artifacts/audit-cycle-target.txt 2>/dev/null | head -1)\n  if [ -z \"$recent\" ]; then\n    echo \"ERROR: audit doc not found at $doc_path and no recent .md in layer dir\" >&2\n    exit 1\n  fi\n  doc_path=\"$recent\"\nfi\n\n# Verify the doc has the required header blockquote.\nif ! grep -q 'Pass date:' \"$doc_path\"; then\n  echo \"ERROR: audit doc at $doc_path is missing the required 'Pass date:' header\" >&2\n  exit 1\nfi\necho \"verify: audit doc present and parses — $doc_path\"\n\n# 3. Verify new rows were appended to the JSONL collection.\nJSONL=\".ship/collections/architecture-observations.rows.jsonl\"\nif [ ! -f \"$JSONL\" ]; then\n  echo \"ERROR: $JSONL not found\" >&2\n  exit 1\nfi\nnew_rows=$(git diff HEAD -- \"$JSONL\" 2>/dev/null | grep -c '^+{' || true)\nif [ \"$new_rows\" -lt 1 ]; then\n  echo \"WARN: no new rows detected in $JSONL (git diff shows 0 additions)\" >&2\n  echo \"      This is acceptable if the module had zero observations; review manually.\"\nelse\n  echo \"verify: $new_rows new observation rows added to JSONL\"\nfi\n\necho \"verify: all checks passed\"\n"
     },
     {
+      // Step 5b — integration-test gate.
+      // For L1-platform modules, require an integration-test suite under
+      // src/<module>/tests/integration_*.rs. Pattern set by the agents module
+      // (see .artifacts/specs/module-audits/L1-platform/agents.md "Integration
+      // tests" section). Skips silently for non-L1 layers.
+      "id": "check-integration-tests",
+      "after": ["verify"],
+      "run": "set -euo pipefail\nOUT=\".artifacts/audit-cycle-target.txt\"\nif [ ! -f \"$OUT\" ]; then echo \"check-integration-tests: $OUT missing — pick-target did not run\" >&2; exit 1; fi\ntarget=$(cat \"$OUT\")\nlayer=$(echo \"$target\" | cut -d'|' -f1)\npath=$(echo \"$target\" | cut -d'|' -f3)\nif [ \"$layer\" != \"L1-platform\" ]; then\n  echo \"check-integration-tests: skipping — layer=$layer (gate is L1-platform only)\"\n  exit 0\nfi\nmod=$(echo \"$path\" | sed 's|/$||')\ntests_dir=\"crates/core/ship-platform/src/${mod}/tests\"\nif [ ! -d \"$tests_dir\" ]; then\n  echo \"ERROR: no integration tests for L1 module '$mod' — expected $tests_dir/integration_*.rs\" >&2\n  echo \"       Land integration tests before sign-off. See agents/ for the pattern.\" >&2\n  exit 1\nfi\ncount=$(find \"$tests_dir\" -name 'integration_*.rs' -type f 2>/dev/null | wc -l)\nif [ \"$count\" -lt 1 ]; then\n  echo \"ERROR: $tests_dir exists but contains no integration_*.rs files\" >&2\n  exit 1\nfi\necho \"check-integration-tests: found $count integration test file(s) under $tests_dir\"\n"
+    },
+    {
       // Step 6 — operator sign-off gate.
       // Agent reads the new audit doc and new JSONL rows, presents a summary,
       // and asks the operator for accept/reject. On accept it flips the README
       // row to `signed-off` and commits. On reject it holds at `draft` or
       // moves to `user-review` and surfaces reasons.
       "id": "sign-off",
-      "after": ["verify"],
+      "after": ["check-integration-tests"],
       "agent": "commander",
       "provider": "claude",
       "gate": {
