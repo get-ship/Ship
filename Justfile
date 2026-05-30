@@ -43,8 +43,8 @@ bootstrap:
     # component bundles against.
     bun run wasm
     cargo build -p ship-cli
-    bun run --filter @ship/primitives build
-    bun run --filter @ship/charts build
+    bun run --filter @ship/sui-primitives build
+    bun run --filter @ship/sui-charts build
     bun run --filter @ship/ui-components build
     bun run --filter @ship/sui-catalog build
     bun packages/deck/catalog/src/cli.ts
@@ -326,10 +326,10 @@ build: _sui-compiler-lib
     # out-of-band), so without this step it silently goes stale and bundles
     # compile against an old token registry / lint set. Cheap no-op when fresh.
     cargo build -p sui-compiler
-    echo "[3/9] primitives build (@ship/primitives → packages/components/primitives/dist/)"
-    bun run --filter @ship/primitives build
-    echo "[4/9] charts build (@ship/charts → packages/components/charts/dist/)"
-    bun run --filter @ship/charts build
+    echo "[3/9] primitives build (@ship/sui-primitives → packages/components/primitives/dist/)"
+    bun run --filter @ship/sui-primitives build
+    echo "[4/9] charts build (@ship/sui-charts → packages/components/charts/dist/)"
+    bun run --filter @ship/sui-charts build
     echo "[5/9] ui-components build (sui-build → crates/deck/deck-core/assets/)"
     bun run --filter @ship/ui-components build
     echo "[6/9] view bundles + sui-* bundles (cargo xtask build-assets — in-process Rolldown)"
