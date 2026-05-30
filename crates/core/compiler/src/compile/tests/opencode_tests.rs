@@ -80,28 +80,14 @@ fn opencode_mcp_uses_mcp_key_not_mcpservers() {
 }
 
 #[test]
-fn opencode_mcp_ship_server_first() {
+fn opencode_mcp_no_ship_injection() {
+    // Ship-internal MCP removed (#236): opencode must not auto-inject a ship entry.
     let r = resolved(vec![make_server("github")]);
     let patch = opencode_patch(&r);
     let mcp = patch["mcp"].as_object().unwrap();
-    let keys: Vec<&String> = mcp.keys().collect();
-    assert_eq!(keys[0], "ship", "ship server must be first");
-}
-
-#[test]
-fn opencode_mcp_ship_server_command_includes_serve() {
-    // Regression: ship use was generating ["ship", "mcp"] — missing "serve".
-    // The correct command is `ship mcp serve`.
-    let r = resolved(vec![]);
-    let patch = opencode_patch(&r);
-    let cmd = patch["mcp"]["ship"]["command"]
-        .as_array()
-        .expect("ship server must have command array");
-    let cmd_strs: Vec<&str> = cmd.iter().map(|v| v.as_str().unwrap()).collect();
-    assert_eq!(
-        cmd_strs,
-        vec!["ship", "mcp", "serve"],
-        "opencode ship server command must be [\"ship\", \"mcp\", \"serve\"]"
+    assert!(
+        !mcp.contains_key("ship"),
+        "opencode must not inject a 'ship' MCP entry"
     );
 }
 

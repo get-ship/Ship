@@ -189,9 +189,11 @@ fn codex_output_has_agents_md_and_config_patch() {
     );
 }
 
-/// MCP servers object always contains the built-in `ship` server key.
+/// MCP servers object must NOT contain a built-in `ship` entry — ship-internal
+/// MCP was retired in #236 (`ship mcp serve` deleted, daemon has no /mcp route).
+/// This invariant guards against re-introduction of the broken injection.
 #[test]
-fn mcp_servers_always_includes_ship_entry() {
+fn mcp_servers_never_includes_ship_injection() {
     let harnesses = ["claude", "codex", "cursor"];
     let library = ProjectLibrary::default();
     let resolved = resolve_library(&library, None, None);
@@ -203,8 +205,8 @@ fn mcp_servers_always_includes_ship_entry() {
             .as_object()
             .expect("mcp_servers must be a JSON object");
         assert!(
-            servers.contains_key("ship"),
-            "harness {harness} mcp_servers must include built-in 'ship' key"
+            !servers.contains_key("ship"),
+            "harness {harness} must not inject a 'ship' MCP entry (#236)"
         );
     }
 }

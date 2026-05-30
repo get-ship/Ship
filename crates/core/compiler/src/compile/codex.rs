@@ -49,20 +49,8 @@ pub(super) fn build_codex_config_patch(resolved: &ResolvedConfig) -> Option<Stri
 
     let mut mcp = toml::Table::new();
 
-    // Ship server always first.
-    let mut ship_entry = toml::Table::new();
-    ship_entry.insert("command".into(), toml::Value::String("ship".into()));
-    ship_entry.insert(
-        "args".into(),
-        toml::Value::Array(vec![
-            toml::Value::String("mcp".into()),
-            toml::Value::String("serve".into()),
-        ]),
-    );
-    mcp.insert("ship".into(), toml::Value::Table(ship_entry));
-
     for s in servers {
-        if s.disabled || s.id == "ship" {
+        if s.disabled {
             continue;
         }
         let mut entry = toml::Table::new();
@@ -190,7 +178,7 @@ pub(super) fn build_codex_config_patch(resolved: &ResolvedConfig) -> Option<Stri
         root.insert("agents".into(), toml::Value::Table(agents));
     }
 
-    // MCP servers table (always present — ship server).
+    // MCP servers table.
     root.insert("mcp_servers".into(), toml::Value::Table(mcp));
 
     // settings_extra: merge verbatim after typed fields.

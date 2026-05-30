@@ -20,16 +20,16 @@ fn codex_produces_toml_patch_not_json() {
 }
 
 #[test]
-fn codex_toml_ship_server_first() {
+fn codex_toml_no_ship_injection() {
+    // Ship-internal MCP removed (#236): codex must not auto-inject a ship entry.
     let r = resolved(vec![make_server("github")]);
     let out = compile(&r, "codex").unwrap();
     let toml_str = out.codex_config_patch.unwrap();
     let parsed: toml::Table = toml::from_str(&toml_str).unwrap();
     let mcp = parsed["mcp_servers"].as_table().unwrap();
-    let keys: Vec<&str> = mcp.keys().map(|k| k.as_str()).collect();
-    assert_eq!(
-        keys[0], "ship",
-        "ship server must be first in Codex TOML output"
+    assert!(
+        !mcp.contains_key("ship"),
+        "codex must not inject a 'ship' MCP entry"
     );
 }
 
@@ -59,33 +59,22 @@ fn codex_toml_disabled_server_excluded() {
     assert!(!mcp.contains_key("disabled"));
 }
 
-/// A user-defined server named "ship" must not overwrite the injected ship entry.
 #[test]
-fn codex_user_ship_server_cannot_overwrite_injected() {
+fn codex_user_defined_ship_server_passes_through() {
+    // A user who defines their own "ship"-named external MCP gets it compiled
+    // like any other server — no special-casing, no silent drop.
     let s = make_server("ship");
     let r = resolved(vec![s]);
     let out = compile(&r, "codex").unwrap();
     let toml_str = out.codex_config_patch.unwrap();
     let parsed: toml::Table = toml::from_str(&toml_str).unwrap();
     let mcp = parsed["mcp_servers"].as_table().unwrap();
-    // The ship entry must still be the injected one (command = "ship").
+    // The user's entry must be present with their command (npx, not ship-internal).
     let ship = mcp["ship"].as_table().unwrap();
     assert_eq!(
         ship["command"].as_str().unwrap(),
-        "ship",
-        "injected ship server must not be overwritten by user-defined entry"
-    );
-    // args must be ["mcp", "serve"], not the user-defined ["npx", "@mcp/ship"].
-    let args: Vec<&str> = ship["args"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|v| v.as_str().unwrap())
-        .collect();
-    assert_eq!(
-        args,
-        vec!["mcp", "serve"],
-        "injected ship args must not be overwritten"
+        "npx",
+        "user-defined ship server command must be preserved"
     );
 }
 
@@ -194,7 +183,7 @@ fn codex_sandbox_none_omitted() {
     let patch = out
         .codex_config_patch
         .as_ref()
-        .expect("ship MCP always triggers patch");
+        .expect("codex always emits a config patch");
     assert!(
         !patch.contains("sandbox_mode"),
         "codex TOML should not contain sandbox_mode when None: {}",

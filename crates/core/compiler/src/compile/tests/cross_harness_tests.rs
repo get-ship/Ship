@@ -180,40 +180,24 @@ fn conformance_patch_outputs_are_owner_exclusive() {
     }
 }
 
-/// A scoped (daemon-spawned) launch emits the authed-HTTP `ship` MCP entry
-/// (Bearer `${SHIP_TOKEN}`, no on-disk secret) exactly for harnesses that
-/// declare `supports_authed_http_mcp`; every other harness keeps the stdio
-/// shim with no auth header. Registry-driven, so flipping a harness's
-/// capability flag is a deliberate, tested change — and a flip made without
-/// the harness actually expanding `${ENV}` headers is caught the moment its
-/// emit shape is asserted here.
+/// No harness injects a "ship" MCP entry — ship-internal MCP was retired (#236).
+/// External servers pass through unchanged regardless of scoped_launch state.
 #[test]
-fn conformance_scoped_launch_authed_http_matches_capability() {
+fn conformance_no_ship_injection_any_harness() {
     let r = ResolvedConfig {
         scoped_launch: true,
         ..conformance_config()
     };
     for desc in list_harnesses() {
-        let out = compile(&r, desc.id).unwrap();
-        let ship = &out.mcp_servers["ship"];
-        let bearer = ship
-            .get("headers")
-            .and_then(|h| h.get("Authorization"))
-            .and_then(|v| v.as_str());
-        if desc.supports_authed_http_mcp {
-            assert_eq!(
-                bearer,
-                Some("Bearer ${SHIP_TOKEN}"),
-                "{}: scoped + authed-HTTP-capable must emit the env-reference bearer header",
-                desc.id
-            );
-        } else {
-            assert!(
-                bearer.is_none(),
-                "{}: not authed-HTTP-capable → must fall back to stdio with no auth header",
-                desc.id
-            );
+        if !desc.features.supports_mcp {
+            continue;
         }
+        let out = compile(&r, desc.id).unwrap();
+        assert!(
+            out.mcp_servers.get("ship").is_none(),
+            "{}: must not inject a 'ship' MCP entry (ship-internal MCP retired #236)",
+            desc.id
+        );
     }
 }
 

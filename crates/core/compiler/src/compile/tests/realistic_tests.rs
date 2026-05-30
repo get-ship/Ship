@@ -142,10 +142,11 @@ fn realistic_agent_settings_has_ask_and_limits() {
 }
 
 #[test]
-fn realistic_agent_mcp_has_both_servers_plus_ship() {
+fn realistic_agent_mcp_has_both_external_servers() {
+    // Ship-internal MCP removed (#236): only user-defined servers appear.
     let mcp = compile(&full_agent(), "claude").unwrap().mcp_servers;
     let obj = mcp.as_object().unwrap();
-    assert!(obj.contains_key("ship"), "ship server always injected");
+    assert!(obj.get("ship").is_none(), "no ship injection");
     assert!(obj.contains_key("github"));
     assert!(obj.contains_key("postgres"));
     assert_eq!(obj["github"]["command"], "npx");
@@ -197,11 +198,12 @@ fn realistic_agent_all_harnesses_have_skill_files() {
 
 #[test]
 fn realistic_agent_all_harnesses_have_mcp_servers() {
+    // Ship-internal MCP removed (#236): only user-defined servers appear.
     let r = full_agent();
     for harness in &["claude", "codex", "cursor"] {
         let obj = compile(&r, harness).unwrap().mcp_servers;
         let mcp = obj.as_object().unwrap();
-        assert!(mcp.contains_key("ship"), "{harness}: ship");
+        assert!(mcp.get("ship").is_none(), "{harness}: no ship injection");
         assert!(mcp.contains_key("github"), "{harness}: github");
         assert!(mcp.contains_key("postgres"), "{harness}: postgres");
     }
@@ -283,8 +285,8 @@ fn empty_agent_compiles_for_all_harnesses() {
     for harness in &["claude", "codex", "cursor"] {
         let out = compile(&r, harness).unwrap();
         assert!(
-            out.mcp_servers.as_object().unwrap().contains_key("ship"),
-            "{harness}: ship always"
+            out.mcp_servers.get("ship").is_none(),
+            "{harness}: no ship injection"
         );
         assert!(out.skill_files.is_empty(), "{harness}: no skill files");
     }

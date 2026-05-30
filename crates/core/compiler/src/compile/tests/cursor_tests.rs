@@ -22,26 +22,16 @@ fn cursor_harness_exists() {
 
 #[test]
 fn cursor_mcp_matches_claude_format() {
+    // Both harnesses compile external servers without a type field (stdio inferred).
+    // Neither injects a ship entry (#236).
     let r = resolved(vec![make_server("github")]);
     let claude = compile(&r, "claude").unwrap();
     let cursor = compile(&r, "cursor").unwrap();
 
-    let claude_keys: Vec<&str> = claude
-        .mcp_servers
-        .as_object()
-        .unwrap()
-        .keys()
-        .map(|k| k.as_str())
-        .collect();
-    let cursor_keys: Vec<&str> = cursor
-        .mcp_servers
-        .as_object()
-        .unwrap()
-        .keys()
-        .map(|k| k.as_str())
-        .collect();
-    assert_eq!(claude_keys[0], "ship");
-    assert_eq!(cursor_keys[0], "ship");
+    assert!(claude.mcp_servers.as_object().unwrap().contains_key("github"));
+    assert!(cursor.mcp_servers.as_object().unwrap().contains_key("github"));
+    assert!(claude.mcp_servers.get("ship").is_none());
+    assert!(cursor.mcp_servers.get("ship").is_none());
 
     assert!(cursor.mcp_servers["github"].get("type").is_none());
     assert!(claude.mcp_servers["github"].get("type").is_none());
