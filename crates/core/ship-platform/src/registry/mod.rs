@@ -39,3 +39,6 @@ pub use types::{Dependency, ShipManifest, SyncStatus, diff_manifest_against_lock
 // Canonical lockfile types live in `compiler::lockfile`; re-export the names
 // callers expect at this crate path.
 pub use compiler::lockfile::{LockPackage, ShipLock};
+
+#[cfg(test)]
+mod tests;
