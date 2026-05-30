@@ -6,7 +6,7 @@ use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::dispatch::dispatch_job_internal;
+use super::dispatch::dispatch_pipeline_run_internal;
 use super::pipeline_loader::ensure_pipeline;
 use super::OrchestratorContext;
 
@@ -94,6 +94,6 @@ pub async fn dispatch_ready_pending_jobs(
                 continue;
             }
         };
-        dispatch_job_internal(kernel, &payload, octx).await;
+        dispatch_pipeline_run_internal(kernel, &payload, octx).await;
     }
 }

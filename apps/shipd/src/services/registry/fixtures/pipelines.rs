@@ -119,7 +119,7 @@ impl RunDetailCtx {
             timeline: vec![TimelineRow {
                 event_type: "pipeline.run.merged".to_string(),
                 at: "2026-01-01T09:04:12Z".to_string(),
-                summary: "job merged".to_string(),
+                summary: "pipeline run merged".to_string(),
             }],
         }
     }

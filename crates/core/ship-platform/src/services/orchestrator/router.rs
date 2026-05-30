@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 
 use super::dispatch::handle_pipeline_run_started;
 use super::emit::emit_step_failed;
-use super::review_retry::{emit_job_failed_for_review, try_review_retry};
+use super::review_retry::{emit_pipeline_run_failed_for_review, try_review_retry};
 use super::handlers::{
     finalize_pipeline_if_done, handle_cancelled, handle_cleanup, handle_pipeline_run_updated,
 };
@@ -319,7 +319,7 @@ pub async fn handle_orchestrator_event(
                         octx.registry.unregister(slug).await;
                     }
                     if !try_review_retry(kernel, octx, &payload).await {
-                        emit_job_failed_for_review(kernel, &payload).await;
+                        emit_pipeline_run_failed_for_review(kernel, &payload).await;
                     }
                 }
             }

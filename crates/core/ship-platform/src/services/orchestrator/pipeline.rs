@@ -11,15 +11,15 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::emit::{
-    emit_job_dispatched_with_meta, emit_process_spawned, emit_step_dispatched_event,
+    emit_pipeline_run_dispatched_with_meta, emit_process_spawned, emit_step_dispatched_event,
     emit_step_failed,
 };
 use super::step_io::resolve_consumes;
 use super::step_monitor::{StepMonitor, start_step_monitor};
 use super::OrchestratorContext;
 
-// Re-export for callers that import emit_job_dispatched from this module.
-pub use super::emit::emit_job_dispatched;
+// Re-export for callers that import emit_pipeline_run_dispatched from this module.
+pub use super::emit::emit_pipeline_run_dispatched;
 
 /// Advance the pipeline after a step completes. Returns true if a next step was dispatched.
 pub async fn advance_pipeline(
@@ -208,7 +208,7 @@ async fn advance_pipeline_inner(
                 kernel, &job, step, fanout, step_idx, ship_dir_override, octx,
             ).await;
             if spawned > 0 {
-                emit_job_dispatched_with_meta(kernel, &job.pipeline_run_id, &worktree_path, slug, None, ship_dir_override).await;
+                emit_pipeline_run_dispatched_with_meta(kernel, &job.pipeline_run_id, &worktree_path, slug, None, ship_dir_override).await;
                 dispatched_any = true;
             }
             continue;
@@ -371,7 +371,7 @@ async fn advance_pipeline_inner(
                     }
                 }
 
-                emit_job_dispatched_with_meta(kernel, &job.pipeline_run_id, &worktree_path, slug, None, ship_dir_override).await;
+                emit_pipeline_run_dispatched_with_meta(kernel, &job.pipeline_run_id, &worktree_path, slug, None, ship_dir_override).await;
                 emit_step_dispatched_event(kernel, &job.pipeline_run_id, &step.id, "agent", slug, ship_dir_override).await;
                 dispatched_any = true;
             }

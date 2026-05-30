@@ -1,4 +1,4 @@
-//! Helpers for emitting job dispatch events to the store and kernel.
+//! Helpers for emitting pipeline-run dispatch events to the store and kernel.
 //!
 //! Every emit function follows the same envelope-build → log-on-failure →
 //! persist-and-route pattern. Three private helpers consolidate that
@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 /// Build + persist an event under the `service.orchestrator` actor.
 /// Logs failures at WARN; failures don't propagate (most orchestrator
 /// callers can't recover from an emit failure).
-async fn emit_job_dispatch_event<P: serde::Serialize>(
+async fn emit_pipeline_run_dispatch_event<P: serde::Serialize>(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     event_type: &str,
     pipeline_run_id: &str,
@@ -26,7 +26,7 @@ async fn emit_job_dispatch_event<P: serde::Serialize>(
         Err(e) => {
             tracing::warn!(
                 slug, event_type,
-                "job-dispatch: failed to build envelope: {e}"
+                "pipeline-run-dispatch: failed to build envelope: {e}"
             );
             return;
         }
@@ -68,21 +68,21 @@ async fn emit_executor_event<P: serde::Serialize>(
     persist_and_route(kernel, envelope, slug, None).await;
 }
 
-// ── Public job-lifecycle emitters ─────────────────────────────────────────────
+// ── Public pipeline-run-lifecycle emitters ────────────────────────────────────
 
-/// Emit a `job.dispatched` event using the default store path.
-pub async fn emit_job_dispatched(
+/// Emit a `pipeline.run.dispatched` event using the default store path.
+pub async fn emit_pipeline_run_dispatched(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     pipeline_run_id: &str,
     worktree_path: &std::path::Path,
     slug: &str,
 ) {
-    emit_job_dispatched_with_meta(kernel, pipeline_run_id, worktree_path, slug, None, None).await;
+    emit_pipeline_run_dispatched_with_meta(kernel, pipeline_run_id, worktree_path, slug, None, None).await;
 }
 
-/// Emit a `job.dispatched` event with optional harness metadata.
+/// Emit a `pipeline.run.dispatched` event with optional harness metadata.
 /// `ship_dir` overrides the default store path (used in tests).
-pub async fn emit_job_dispatched_with_meta(
+pub async fn emit_pipeline_run_dispatched_with_meta(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     pipeline_run_id: &str,
     worktree_path: &std::path::Path,
@@ -97,7 +97,7 @@ pub async fn emit_job_dispatched_with_meta(
         pid: None,
         harness_meta,
     };
-    emit_job_dispatch_event(
+    emit_pipeline_run_dispatch_event(
         kernel,
         ship_substrate::events::pipeline::event_types::PIPELINE_RUN_DISPATCHED,
         pipeline_run_id,
@@ -106,14 +106,14 @@ pub async fn emit_job_dispatched_with_meta(
         ship_dir,
     )
     .await;
-    tracing::info!(slug, "pipeline: job dispatched successfully");
+    tracing::info!(slug, "pipeline run dispatched");
 }
 
-/// Emit a `job.spawn_failed` event for a dispatch failure.
+/// Emit a `pipeline.step.spawn_failed` event for a dispatch failure.
 ///
 /// `stage` identifies which phase of dispatch failed:
 /// `"isolation_prepare"`, `"agent_compile"`, or `"executor_spawn"`.
-/// Distinct from `job.failed` (agent ran and produced a failure).
+/// Distinct from `pipeline.run.failed` (agent ran and produced a failure).
 pub async fn emit_spawn_failed(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     pipeline_run_id: &str,
@@ -127,7 +127,7 @@ pub async fn emit_spawn_failed(
         stage: stage.to_string(),
         error: format!("{err:#}"),
     };
-    emit_job_dispatch_event(
+    emit_pipeline_run_dispatch_event(
         kernel,
         ship_substrate::events::pipeline::event_types::PIPELINE_STEP_SPAWN_FAILED,
         pipeline_run_id,
@@ -138,7 +138,7 @@ pub async fn emit_spawn_failed(
     .await;
 }
 
-/// Emit a `job.step_dispatched` event for a specific pipeline step.
+/// Emit a `pipeline.step.dispatched` event for a specific pipeline step.
 pub async fn emit_step_dispatched_event(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     pipeline_run_id: &str,
@@ -151,7 +151,7 @@ pub async fn emit_step_dispatched_event(
         "pipeline_run_id": pipeline_run_id, "slug": slug,
         "step_id": step_id, "step_type": step_type,
     });
-    emit_job_dispatch_event(
+    emit_pipeline_run_dispatch_event(
         kernel,
         ship_substrate::events::pipeline::event_types::PIPELINE_STEP_STARTED,
         pipeline_run_id,
@@ -162,7 +162,7 @@ pub async fn emit_step_dispatched_event(
     .await;
 }
 
-/// Emit `job.step_failed` + `job.failed` for a pipeline step error.
+/// Emit `pipeline.step.failed` + `pipeline.run.failed` for a pipeline step error.
 pub async fn emit_step_failed(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     pipeline_run_id: &str,
@@ -177,16 +177,16 @@ pub async fn emit_step_failed(
         step_id: step_id.to_string(),
         error: reason.to_string(),
     };
-    emit_job_dispatch_event(kernel, event_types::PIPELINE_STEP_FAILED, pipeline_run_id, slug, &step_fail, None).await;
+    emit_pipeline_run_dispatch_event(kernel, event_types::PIPELINE_STEP_FAILED, pipeline_run_id, slug, &step_fail, None).await;
     let run_fail = PipelineRunFailedPayload {
         pipeline_run_id: pipeline_run_id.to_string(),
         error: format!("step `{step_id}` failed: {reason}"),
     };
-    emit_job_dispatch_event(kernel, event_types::PIPELINE_RUN_FAILED, pipeline_run_id, slug, &run_fail, None).await;
+    emit_pipeline_run_dispatch_event(kernel, event_types::PIPELINE_RUN_FAILED, pipeline_run_id, slug, &run_fail, None).await;
 }
 
-/// Emit a `job.failed` event when a job cannot be dispatched or encounters a fatal error.
-pub async fn emit_job_failed(
+/// Emit a `pipeline.run.failed` event when a pipeline run cannot be dispatched or encounters a fatal error.
+pub async fn emit_pipeline_run_failed(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     pipeline_run_id: &str,
     slug: &str,
@@ -196,7 +196,7 @@ pub async fn emit_job_failed(
         pipeline_run_id: pipeline_run_id.to_string(),
         error: error.to_string(),
     };
-    emit_job_dispatch_event(
+    emit_pipeline_run_dispatch_event(
         kernel,
         ship_substrate::events::pipeline::event_types::PIPELINE_RUN_FAILED,
         pipeline_run_id,
@@ -205,7 +205,7 @@ pub async fn emit_job_failed(
         None,
     )
     .await;
-    tracing::error!(slug, error, "job failed");
+    tracing::error!(slug, error, "pipeline run failed");
 }
 
 // ── Process lifecycle event emitters ──────────────────────────────────────────
@@ -286,7 +286,7 @@ pub async fn emit_process_signal_sent(
 
 /// Emit `executor.session_destroyed` when a tmux session (or equivalent
 /// executor substrate) is torn down. Used by the liveness handler to record
-/// the why before emitting `job.failed`.
+/// the why before emitting `pipeline.run.failed`.
 pub async fn emit_executor_session_destroyed(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     slug: &str,

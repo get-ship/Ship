@@ -261,7 +261,7 @@ mod tests {
         assert!(!val["data"]["recent_events"].as_array().unwrap().is_empty());
     }
 
-    async fn emit_job_created(state: &ApiState, slug: &str) -> String {
+    async fn emit_pipeline_run_started(state: &ApiState, slug: &str) -> String {
         let pipeline_run_id = ship_substrate::gen_ulid();
         let payload = ship_substrate::events::pipeline::PipelineRunStartedPayload {
             pipeline_run_id: pipeline_run_id.clone(),
@@ -290,7 +290,7 @@ mod tests {
     async fn cancel_job_emits_job_cancelled_for_pending_job() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let pipeline_run_id = emit_job_created(&state, "cancel-ok").await;
+        let pipeline_run_id = emit_pipeline_run_started(&state, "cancel-ok").await;
 
         let req = CancelJobRequest { reason: "smoke".into() };
         let response = cancel_job(
@@ -323,7 +323,7 @@ mod tests {
     async fn cancel_job_returns_409_for_already_terminal_job() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let pipeline_run_id = emit_job_created(&state, "cancel-term").await;
+        let pipeline_run_id = emit_pipeline_run_started(&state, "cancel-term").await;
 
         // Seed a terminal state first.
         let fail_payload = ship_substrate::events::pipeline::PipelineRunFailedPayload {
@@ -390,7 +390,7 @@ mod tests {
     async fn emit_process_spawned(state: &ApiState, slug: &str, pid: u32) {
         let payload = ship_substrate::events::process::ProcessSpawnedPayload {
             slug: slug.to_string(),
-            pipeline_run_id: format!("job-{slug}"),
+            pipeline_run_id: format!("pipeline-run-{slug}"),
             pid: Some(pid),
             cmd: "claude".to_string(),
             argv: vec![],
@@ -412,7 +412,7 @@ mod tests {
     async fn emit_drift_detected(state: &ApiState, slug: &str) {
         let payload = ship_substrate::events::supervisor::DriftDetectedPayload {
             slug: slug.into(),
-            pipeline_run_id: format!("job-{slug}"),
+            pipeline_run_id: format!("pipeline-run-{slug}"),
             expected_status: "Dispatched".into(),
             actual_state: "no_process".into(),
             detail: "test".into(),
@@ -447,7 +447,7 @@ mod tests {
     async fn list_jobs_annotates_terminal_jobs_as_terminal() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let pipeline_run_id = emit_job_created(&state, "term-anno").await;
+        let pipeline_run_id = emit_pipeline_run_started(&state, "term-anno").await;
 
         // Drive into Failed.
         let env = EventEnvelope::new(
@@ -474,7 +474,7 @@ mod tests {
     async fn list_jobs_marks_drift_as_missing_when_unresolved() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let _job_id = emit_job_created(&state, "drift-job").await;
+        let _job_id = emit_pipeline_run_started(&state, "drift-job").await;
         emit_drift_detected(&state, "drift-job").await;
 
         let response = list_jobs(State(state)).await.into_response();
@@ -488,7 +488,7 @@ mod tests {
     async fn list_jobs_marks_alive_for_running_process() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let _job_id = emit_job_created(&state, "alive-job").await;
+        let _job_id = emit_pipeline_run_started(&state, "alive-job").await;
         emit_process_spawned(&state, "alive-job", 1234).await;
 
         let response = list_jobs(State(state)).await.into_response();
@@ -503,7 +503,7 @@ mod tests {
     async fn daemon_status_returns_pid_and_uptime() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let _ = emit_job_created(&state, "status-job").await;
+        let _ = emit_pipeline_run_started(&state, "status-job").await;
         emit_sweep_completed(&state, 0).await;
 
         let response = daemon_status(State(state)).await.into_response();

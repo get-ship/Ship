@@ -132,7 +132,7 @@ pub fn emit_lane_step_done(
     );
 }
 
-pub fn seed_job_created(ship_dir: &std::path::Path, pipeline_run_id: &str, pipeline: &Pipeline) {
+pub fn seed_pipeline_run_started(ship_dir: &std::path::Path, pipeline_run_id: &str, pipeline: &Pipeline) {
     emit_event(
         ship_dir, "pipeline.run.started", pipeline_run_id,
         serde_json::json!({
