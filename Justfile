@@ -245,6 +245,11 @@ fmt-check:
 lint-views:
     cargo run --features unstable -p ship-cli --quiet -- lint views --format json
 
+# Enforce layer-direction rules: substrate must not import platform; etc.
+[group('occasional')]
+lint-layers:
+    cargo run -p xtask --quiet -- lint-layers
+
 # Regenerate the aggregated SUI Custom Elements Manifest from per-component
 # CEMs under packages/components/ui-components/src/. Writes
 # crates/deck/deck-core/assets/sui-custom-elements.json which apps/shipd embeds.
@@ -391,6 +396,41 @@ gen-types:
 [group('occasional')]
 gen-sdk:
     cargo run -p xtask -- gen-sdk
+
+# Generate per-domain consumer contract guides under docs/contract/.
+[group('occasional')]
+gen-contract:
+    cargo run -p xtask -- gen-contract
+
+# Verify generated contract docs are up-to-date (CI gate — exits 1 on drift).
+[group('occasional')]
+gen-contract-check:
+    cargo run -p xtask -- gen-contract --check
+
+# Regenerate audit coverage README from per-module audit docs.
+[group('occasional')]
+gen-audit-readme:
+    cargo run -p xtask -- gen-audit-readme
+
+# Regenerate tier-filtered event proto + TS from the event registry.
+[group('occasional')]
+gen-events:
+    cargo run -p xtask -- gen-events
+
+# Verify generated event artifacts are up-to-date (CI gate — exits 1 on drift).
+[group('occasional')]
+gen-events-check:
+    cargo run -p xtask -- gen-events --check
+
+# Regenerate emit-sites.md + substrate-fns.md citation indexes.
+[group('occasional')]
+gen-indexes:
+    cargo run -p xtask -- gen-indexes
+
+# Verify citation indexes are up-to-date (CI gate — exits 1 on drift).
+[group('occasional')]
+gen-indexes-check:
+    cargo run -p xtask -- gen-indexes --check
 
 # Compile the active agent for the current project.
 [group('occasional')]

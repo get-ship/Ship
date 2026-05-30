@@ -4,7 +4,12 @@
 //!   cargo xtask gen-types          # regenerate packages/deck/sdk/src/generated.ts
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
 
+mod gen_audit_readme;
+mod gen_contract;
+mod gen_events;
 mod gen_fixtures;
+mod gen_indexes;
+mod gen_indexes_substrate;
 mod gen_ops;
 mod gen_skills;
 mod gen_sdk;
@@ -280,6 +285,13 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        "gen-events" => {
+            let check = args.iter().any(|a| a == "--check");
+            if let Err(e) = gen_events::run(check) {
+                eprintln!("gen-events failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "gen-ops" => {
             if let Err(e) = gen_ops::run() {
                 eprintln!("gen-ops failed: {e:#}");
@@ -289,6 +301,26 @@ fn main() {
         "gen-skills" => {
             if let Err(e) = gen_skills::run() {
                 eprintln!("gen-skills failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        "gen-contract" => {
+            let check = args.iter().any(|a| a == "--check");
+            if let Err(e) = gen_contract::run(&repo_root(), check) {
+                eprintln!("gen-contract failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        "gen-audit-readme" => {
+            if let Err(e) = gen_audit_readme::run(&repo_root()) {
+                eprintln!("gen-audit-readme failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        "gen-indexes" => {
+            let check = args.iter().any(|a| a == "--check");
+            if let Err(e) = gen_indexes::run(&repo_root(), check) {
+                eprintln!("gen-indexes failed: {e:#}");
                 std::process::exit(1);
             }
         }
@@ -302,12 +334,19 @@ fn main() {
             eprintln!("Usage: cargo xtask <command>");
             eprintln!();
             eprintln!("Commands:");
-            eprintln!("  gen-types          Regenerate packages/deck/sdk/src/generated.ts");
-            eprintln!("  gen-types --check  Verify generated file is up-to-date (CI)");
-            eprintln!("  gen-sdk            Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
-            eprintln!("  gen-fixtures       Emit proto contract fixtures from proto/fixtures/theme.json");
-            eprintln!("  lint-layers        Verify substrate/platform/application boundaries");
-            eprintln!("  gen-ops            Generate the read-op Connect surface from schema::OPS");
+            eprintln!("  gen-types             Regenerate packages/deck/sdk/src/generated.ts");
+            eprintln!("  gen-types --check     Verify generated file is up-to-date (CI)");
+            eprintln!("  gen-sdk               Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
+            eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/theme.json");
+            eprintln!("  lint-layers           Verify substrate/platform/application boundaries");
+            eprintln!("  gen-events            Generate tier-filtered proto + TS from the event registry");
+            eprintln!("  gen-events --check    Verify generated files are up-to-date (CI)");
+            eprintln!("  gen-ops               Generate the read-op Connect surface from schema::OPS");
+            eprintln!("  gen-contract          Generate docs/contract/<domain>.md consumer guides");
+            eprintln!("  gen-contract --check  Verify generated contract docs are up-to-date (CI)");
+            eprintln!("  gen-audit-readme      Regenerate .artifacts/specs/module-audits/README.md");
+            eprintln!("  gen-indexes           Regenerate emit-sites.md + substrate-fns.md indexes");
+            eprintln!("  gen-indexes --check   Verify indexes are up-to-date (CI)");
         }
         other => {
             eprintln!("Unknown command: {other}");
