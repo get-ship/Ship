@@ -1,8 +1,7 @@
-//! `pipelines.*` fixtures (list / get / summaries / focus / run / history).
+//! `pipelines.*` fixtures (list / get / summaries / run / history).
 
 use serde_json::{json, Value};
 
-use crate::services::pipelines::focus::FocusCtx;
 use crate::services::pipelines::history::{HistoryCtx, HistoryRow};
 use crate::services::pipelines::run_detail::{RunDetailCtx, StepObservationRow, TimelineRow};
 use crate::services::pipelines::shape::{RunView, Stats, StatusPill, StepView};
@@ -171,7 +170,6 @@ pub fn examples() -> Vec<(&'static str, Value)> {
         ("pipelines.list", v(index)),
         ("pipelines.get", v(get)),
         ("pipelines.summaries", v(SummariesCtx::example())),
-        ("pipelines.focus", v(FocusCtx::example())),
         ("pipelines.run", v(RunDetailCtx::example())),
         ("pipelines.history", v(HistoryCtx::example())),
     ]

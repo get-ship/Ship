@@ -3,7 +3,6 @@
 use super::wire::{PipelineGetResponse, PipelinesIndexResponse};
 use super::{optional_usize, parse_scope, required_str, RegistryError};
 use crate::services::schema::{ArgDescriptor, PROJECT_SCOPE};
-use crate::services::pipelines::focus::FocusCtx as PipelineFocusCtx;
 use crate::services::pipelines::history::HistoryCtx;
 use crate::services::pipelines::run_detail::RunDetailCtx;
 use crate::services::pipelines::summaries::SummariesCtx as PipelinesSummariesCtx;
@@ -57,18 +56,6 @@ ship_ops! {
             };
             let tab = args.get("tab").and_then(|v| v.as_str()).map(String::from);
             Ok(crate::services::pipelines::summaries::build(state.ship_dir(), filter, tab))
-        },
-    },
-    {
-        name: "pipelines.focus",
-        desc: "Per-pipeline detail with active + other runs precomputed.",
-        perm: "ship.pipelines.read",
-        args: &[ArgDescriptor { name: "name", kind: "string", required: true }],
-        ret: PipelineFocusCtx,
-        run: |args, state, _files| {
-            let n = required_str(args, "name")?;
-            crate::services::pipelines::focus::build(n, state.ship_dir())
-                .ok_or_else(|| RegistryError::not_found(format!("pipeline `{n}`")))
         },
     },
     {

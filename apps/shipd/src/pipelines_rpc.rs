@@ -4,7 +4,7 @@
 //!
 //! ONE service covers two prefixes: pipeline.update_status / pipeline.step_done
 //! (runtime writes, C1, ship.runtime.write) and pipelines.put / .patch /
-//! .delete / .list / .get / .summaries / .focus / .run / .history (config CRUD,
+//! .delete / .list / .get / .summaries / .run / .history (config CRUD,
 //! C0 reads + C1 writes). All writes route through `services::command::call`
 //! (the one gate). Reads call the sync read registry directly.
 
@@ -66,15 +66,6 @@ impl PipelinesService for OpsImpl {
         _request: ship_ops_rpc::OwnedGetPipelinesSummariesRequestView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
         self.live_read("pipelines.summaries", serde_json::json!({})).await
-    }
-
-    #[allow(refining_impl_trait)]
-    async fn focus_live(
-        &self,
-        _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedFocusPipelineRequestView,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        self.live_read("pipelines.focus", json!({ "name": request.name })).await
     }
 
     #[allow(refining_impl_trait)]
@@ -153,18 +144,6 @@ impl PipelinesService for OpsImpl {
         .into_response();
         let value =
             command::response_to_value(resp).await.map_err(command_error_to_connect)?;
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
-    }
-
-    async fn focus(
-        &self,
-        _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedFocusPipelineRequestView,
-    ) -> ServiceResult<JsonResponse> {
-        let args = json!({ "name": request.name });
-        let value =
-            crate::services::registry::call("pipelines.focus", &args, self.state())
-                .map_err(|e| ConnectError::internal(format!("pipelines.focus: {e}")))?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
 

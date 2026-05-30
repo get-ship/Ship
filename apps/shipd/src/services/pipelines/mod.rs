@@ -10,7 +10,6 @@
 //! `ship_platform::services::pipelines`. HTTP handlers are in
 //! `apps/shipd/src/routes/pipelines_api.rs`.
 
-pub mod focus;
 pub mod history;
 pub mod run_detail;
 pub mod shape;
