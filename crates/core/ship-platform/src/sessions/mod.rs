@@ -18,6 +18,8 @@ mod tests_session;
 mod tests_session_events;
 #[cfg(test)]
 mod tests_session_lifecycle;
+#[cfg(test)]
+mod tests;
 
 pub use types_session::{
     EndSessionRequest, ProviderMatrix, ProviderMatrixRepairReport, Session, SessionStatus,
