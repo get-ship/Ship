@@ -35,7 +35,6 @@ fn main() {
         .arg("ship/ops/v1/stream.proto")
         .arg("ship/ops/v1/analytics.proto")
         .arg("ship/ops/v1/runtime.proto")
-        .arg("ship/ops/v1/view_errors.proto")
         .arg("ship/ops/v1/rules.proto")
         .arg("ship/ops/v1/artifacts.proto")
         .arg("ship/ops/v1/collections.proto")
@@ -48,16 +47,11 @@ fn main() {
         .arg("ship/ops/v1/agent.proto")
         .arg("ship/ops/v1/space.proto")
         .arg("ship/ops/v1/settings.proto")
-        .arg("ship/ops/v1/annotation.proto")
-        .arg("ship/ops/v1/feedback.proto")
         .arg("ship/ops/v1/sessions.proto")
         .arg("ship/ops/v1/account.proto")
         .arg("ship/ops/v1/chat.proto")
         .arg("ship/ops/v1/events.proto")
         .arg("ship/ops/v1/view.proto")
-        .arg("ship/ops/v1/create.proto")
-        .arg("ship/ops/v1/discovery.proto")
-        .arg("ship/ops/v1/registry.proto")
         .arg("ship/ops/v1/sui.proto")
         .status()
         .expect("failed to spawn protoc");
@@ -76,7 +70,6 @@ fn main() {
             "ship/ops/v1/stream.proto",
             "ship/ops/v1/analytics.proto",
             "ship/ops/v1/runtime.proto",
-            "ship/ops/v1/view_errors.proto",
             "ship/ops/v1/rules.proto",
             "ship/ops/v1/artifacts.proto",
             "ship/ops/v1/collections.proto",
@@ -89,16 +82,11 @@ fn main() {
             "ship/ops/v1/agent.proto",
             "ship/ops/v1/space.proto",
             "ship/ops/v1/settings.proto",
-            "ship/ops/v1/annotation.proto",
-            "ship/ops/v1/feedback.proto",
             "ship/ops/v1/sessions.proto",
             "ship/ops/v1/account.proto",
             "ship/ops/v1/chat.proto",
             "ship/ops/v1/events.proto",
             "ship/ops/v1/view.proto",
-            "ship/ops/v1/create.proto",
-            "ship/ops/v1/discovery.proto",
-            "ship/ops/v1/registry.proto",
             "ship/ops/v1/sui.proto",
         ])
         .compile()

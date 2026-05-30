@@ -46,8 +46,6 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(RulesIndexResponse), v!(RuleGetResponse),
         v!(ListProcsResponse), v!(SessionsListResponse), v!(SettingValue),
         v!(SkillsIndexResponse), v!(SkillFileResponse),
-        v!(SpecsListResponse), v!(SpecGetResponse), v!(SpecDetail),
-        v!(PostViewErrorResponse), v!(ListViewErrorsResponse), v!(ClearViewErrorsResponse),
         v!(SpaceInfoResponse), v!(SpaceWindowIntentResponse), v!(SpaceWindowListResponse),
         v!(CloseWindowResponse),
     ]
