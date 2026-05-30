@@ -1,4 +1,4 @@
-import type { EventEnvelope } from './events.js';
+import type { EventEnvelope } from './generated.js';
 
 /** Push events request */
 export interface SyncPushRequest {
