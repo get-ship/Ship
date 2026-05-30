@@ -12,7 +12,6 @@
   },
   "scripts": {
     "build": "sui-build",
-    "pretest": "sui-build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
