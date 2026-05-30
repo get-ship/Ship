@@ -1,0 +1,55 @@
+// Unified entity search surface. The service fans out across views,
+// collections, collection items, agents, skills, sessions, and artifacts,
+// merges + ranks by score, and returns a paginated mixed-kind result.
+// C0 read — no side effects; capability gates access to indexed data.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+
+// Entity kind discriminator. CollectionItem carries a collection_id so
+// the client can build a path without a second lookup.
+enum EntityKind {
+  ENTITY_KIND_UNSPECIFIED = 0;
+  ENTITY_KIND_VIEW = 1;
+  ENTITY_KIND_COLLECTION = 2;
+  ENTITY_KIND_COLLECTION_ITEM = 3;
+  ENTITY_KIND_AGENT = 4;
+  ENTITY_KIND_SKILL = 5;
+  ENTITY_KIND_SESSION = 6;
+  ENTITY_KIND_ARTIFACT = 7;
+}
+
+message SearchRequest {
+  string q = 1;
+  repeated EntityKind kinds = 2;
+  uint32 limit = 3;
+  string cursor = 4;
+}
+
+// A single ranked hit. collection_id is populated only when kind =
+// ENTITY_KIND_COLLECTION_ITEM; empty string otherwise.
+message SearchHit {
+  EntityKind kind = 1;
+  string id = 2;
+  string label = 3;
+  string path = 4;
+  string icon = 5;
+  string snippet = 6;
+  double score = 7;
+  string collection_id = 8;
+}
+
+message SearchResponse {
+  repeated SearchHit hits = 1;
+  string next_cursor = 2;
+}
+
+service SearchService {
+  rpc Search(SearchRequest) returns (SearchResponse) {
+    option (ship.ops.v1.description) = "Fan-out entity search across views, collections, agents, skills, sessions, and artifacts.";
+    option (ship.ops.v1.capability) = "ship.search.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+}

@@ -7626,10 +7626,13 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
+ "buffa",
  "chrono",
+ "connectrpc",
  "futures-util",
  "serde",
  "serde_json",
+ "ship-ops-rpc",
  "tokio",
 ]
 
@@ -7765,6 +7768,7 @@ dependencies = [
  "ship-ops-rpc",
  "ship-pipelines",
  "ship-platform",
+ "ship-search",
  "ship-substrate",
  "ship-supervisor",
  "ship-types",

@@ -25,6 +25,7 @@ ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipeline
 ship-supervisor = { path = "../../crates/core/ship-substrate/crates/ship-supervisor" }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-platform/crates/ship-analytics" }
+ship-search = { path = "../../crates/core/ship-platform/crates/ship-search" }
 compiler = { path = "../../crates/core/ship-platform/crates/compiler" }
 build-info = { path = "../../crates/build-info" }
 ship-ops-rpc = { path = "../../crates/core/ship-platform/crates/ship-ops-rpc" }

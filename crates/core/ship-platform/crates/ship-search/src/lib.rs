@@ -18,8 +18,10 @@ pub mod aggregator;
 pub mod ranking;
 pub mod service;
 pub mod types;
+pub mod wire;
 
 pub use adapter::{AdapterResult, EntitySearchAdapter};
 pub use aggregator::{SearchResponse, run_search};
 pub use service::{sanitize_query, SearchContext, SearchService};
 pub use types::{Cursor, EntityKind, EntityKindFilter, SearchHit, SearchOpts};
+pub use wire::SearchWire;
