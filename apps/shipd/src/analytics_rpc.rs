@@ -9,10 +9,8 @@
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 
-use ship_analytics::queries::{
-    self, SessionSummary, ToolUsage as ToolUsageRow, TurnObservation,
-};
-use ship_substrate::db::open_db;
+use ship_analytics::queries::{SessionSummary, ToolUsage as ToolUsageRow, TurnObservation};
+use ship_analytics::service;
 
 use ship_ops_rpc::{
     AnalyticsService, AnalyticsGetSessionRequest, AnalyticsListSessionsRequest, AnalyticsSession,
@@ -84,8 +82,7 @@ impl AnalyticsService for OpsImpl {
     ) -> ServiceResult<AnalyticsSessionsResponse> {
         // Server caps at 500 regardless of the request; default 100.
         let limit = request.limit.unwrap_or(100).clamp(1, 500);
-        let mut conn = open_db().map_err(db_err)?;
-        let rows = queries::list_recent_sessions(&mut conn, limit).map_err(db_err)?;
+        let rows = service::list_recent_sessions(limit).map_err(db_err)?;
         Ok(Response::new(AnalyticsSessionsResponse {
             sessions: rows.into_iter().map(session_to_proto).collect(),
             ..Default::default()
@@ -97,8 +94,7 @@ impl AnalyticsService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedAnalyticsGetSessionRequestView,
     ) -> ServiceResult<AnalyticsSessionResponse> {
-        let mut conn = open_db().map_err(db_err)?;
-        let found = queries::get_session(&mut conn, request.session_key).map_err(db_err)?;
+        let found = service::get_session(request.session_key).map_err(db_err)?;
         Ok(Response::new(AnalyticsSessionResponse {
             session: found.map(session_to_proto).into(),
             ..Default::default()
@@ -110,9 +106,8 @@ impl AnalyticsService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedAnalyticsToolUsageRequestView,
     ) -> ServiceResult<AnalyticsToolUsageResponse> {
-        let mut conn = open_db().map_err(db_err)?;
         // `until` has no proto field yet — `since`-only filter (all-time upper bound).
-        let rows = queries::tool_usage(&mut conn, request.since, None).map_err(db_err)?;
+        let rows = service::tool_usage(request.since, None).map_err(db_err)?;
         Ok(Response::new(AnalyticsToolUsageResponse {
             tools: rows.into_iter().map(tool_to_proto).collect(),
             ..Default::default()
@@ -124,8 +119,7 @@ impl AnalyticsService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedAnalyticsSessionTurnsRequestView,
     ) -> ServiceResult<AnalyticsSessionTurnsResponse> {
-        let mut conn = open_db().map_err(db_err)?;
-        let rows = queries::list_session_turns(&mut conn, request.session_key).map_err(db_err)?;
+        let rows = service::list_session_turns(request.session_key).map_err(db_err)?;
         Ok(Response::new(AnalyticsSessionTurnsResponse {
             turns: rows.into_iter().map(turn_to_proto).collect(),
             ..Default::default()
