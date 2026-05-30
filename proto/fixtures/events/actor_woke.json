@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "event": "actor.woke",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "ActorWoke",
+    "needs_author": false
+  },
+  "payload": {}
+}

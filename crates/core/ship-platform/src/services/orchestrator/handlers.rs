@@ -278,6 +278,23 @@ pub async fn execute_merge_step(
         }
         Ok(false) => {
             tracing::error!(slug, branch, "pipeline: merge failed");
+            let fail_payload = ship_substrate::events::pipeline::PipelineRunFailedPayload {
+                pipeline_run_id: pipeline_run_id.to_string(),
+                error: format!("merge declined: branch `{branch}` could not be merged"),
+            };
+            let fail_envelope = EventEnvelope::new(
+                event_types::PIPELINE_RUN_FAILED,
+                pipeline_run_id,
+                &fail_payload,
+            );
+            match fail_envelope {
+                Ok(envelope) => {
+                    persist_and_route(kernel, envelope, slug, None).await;
+                }
+                Err(e) => {
+                    tracing::error!(slug, "pipeline: failed to build pipeline.run.failed envelope: {e}");
+                }
+            }
             false
         }
         Err(e) => {

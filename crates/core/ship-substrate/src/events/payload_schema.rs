@@ -77,6 +77,7 @@ fn schema_for_event_type(
         // config + declarative-tier domain events (Phase 4)
         "config.changed" => Some(check::<ConfigChanged>),
         "config.file_changed" => Some(check::<ConfigFileChanged>),
+        "space.setting.changed" => Some(check::<SpaceSettingChanged>),
         "agent.changed" => Some(check::<ConfigChanged>),
         "skill.changed" => Some(check::<ConfigChanged>),
         "view.changed" => Some(check::<ConfigChanged>),
@@ -123,10 +124,9 @@ fn schema_for_event_type(
         "artifact.updated" => Some(check::<ArtifactUpdated>),
         "artifact.moved" => Some(check::<ArtifactMoved>),
         "artifact.deleted" => Some(check::<ArtifactDeleted>),
-        // studio / feedback (agent-designed feedback payload from Studio views)
-        "studio.feedback.created" => Some(check::<crate::events::feedback::FeedbackEvent>),
-        // studio / annotation (Phase 1 pin for the Phase 2 overlay wire format)
-        "studio.annotation.created" => Some(check::<crate::events::annotation::AnnotationEvent>),
+        // studio / feedback and annotation — typed payloads in ship_types::payload
+        "studio.feedback.created" => Some(check::<StudioFeedbackCreated>),
+        "studio.annotation.created" => Some(check::<StudioAnnotationCreated>),
         // compile
         "compile.completed" => Some(check::<CompileCompleted>),
         // project registry
@@ -155,9 +155,37 @@ fn schema_for_event_type(
         "permissions.updated" => Some(check::<PermissionsUpdated>),
         // capability provisioning
         "agent.grants.provisioned" => Some(check::<AgentGrantsProvisioned>),
-        // session lifecycle additions (event-coverage/02)
+        // session lifecycle additions (event-coverage/02 + Spec 7a)
         "session.status_changed" => Some(check::<SessionStatusChanged>),
         "session.turn_failed" => Some(check::<SessionTurnFailed>),
+        "session.attached" => Some(check::<SessionAttached>),
+        // studio typed payloads (Spec 7a)
+        "studio.chat_turn" => Some(check::<StudioChatTurn>),
+        "studio.reply" => Some(check::<StudioReply>),
+        // process
+        "process.killed" => Some(check::<crate::events::process::ProcessKilledPayload>),
+        // Spec-6 / Spec-7a additions — all 23 classified events now have typed payloads
+        "actor.mailbox_full" => Some(check::<ActorMailboxFull>),
+        "agent.task.complete" => Some(check::<AgentTaskComplete>),
+        "human.response" => Some(check::<HumanResponse>),
+        "kernel.actor.restored" => Some(check::<KernelActorRestored>),
+        "kernel.actor.snapshot" => Some(check::<KernelActorSnapshot>),
+        "kernel.actor.suspended" => Some(check::<KernelActorSuspended>),
+        "mesh.broadcast" => Some(check::<MeshBroadcast>),
+        "mesh.deregister" => Some(check::<MeshDeregister>),
+        "mesh.deregistered" => Some(check::<MeshDeregistered>),
+        "mesh.discover.response" => Some(check::<MeshDiscoverResponse>),
+        "mesh.message" => Some(check::<MeshMessage>),
+        "mesh.register" => Some(check::<MeshRegister>),
+        "mesh.registered" => Some(check::<MeshRegistered>),
+        "mesh.send" => Some(check::<MeshSend>),
+        "mesh.send.failed" => Some(check::<MeshSendFailed>),
+        "mesh.status" => Some(check::<MeshStatus>),
+        "pipeline.step.retry" => Some(check::<PipelineStepRetry>),
+        "studio.message" => Some(check::<StudioMessage>),
+        "sync.push.failed" => Some(check::<SyncPushFailed>),
+        "sync.started" => Some(check::<SyncStarted>),
+        "sync.stopped" => Some(check::<SyncStopped>),
         _ => None,
     }
 }
@@ -219,17 +247,11 @@ mod tests {
     #[test]
     fn all_known_event_types_have_schemas() {
         use crate::events::types::event_types::ALL;
-        // job.update has no dedicated payload struct — it's a generic update.
-        // process.killed is declared but not yet emitted; deferred to a
-        // follow-on slice where we wire the plumbing through the executor
-        // signal-send sites. studio.chat_turn carries an ad-hoc {actor_id,
-        // text} payload; not yet a typed struct.
+        // pipeline.run.updated is deprecated; uses PipelineRunUpdatedPayload which is not
+        // re-exported through types::* (it's in the pipeline submodule). Schema validation
+        // is not enforced for deprecated events that have no new callers.
         let exceptions = &[
             "pipeline.run.updated",
-            "session.attached",
-            "process.killed",
-            "studio.chat_turn",
-            "studio.reply",
         ];
         for &et in ALL {
             if exceptions.contains(&et) {

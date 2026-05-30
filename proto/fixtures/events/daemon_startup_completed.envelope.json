@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "event": "daemon.startup_completed",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "DaemonStartupCompleted",
+    "needs_author": false
+  },
+  "envelope": {
+    "id": "01JTEST000000000000000EVENT",
+    "event_type": "daemon.startup_completed",
+    "entity_id": "test-entity-id",
+    "actor_id": "test-actor-id",
+    "space_id": "",
+    "occurred_at": "2026-01-01T00:00:00Z",
+    "payload": {
+      "pid": 12345,
+      "version": "0.1.0"
+    }
+  }
+}

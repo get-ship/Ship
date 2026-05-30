@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "event": "pipeline.step.output",
+    "scope": "space",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "PipelineStepOutputPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id",
+    "step_id": "step-1",
+    "output_key": "result",
+    "output_value": "ok"
+  }
+}

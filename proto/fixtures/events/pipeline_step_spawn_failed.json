@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "event": "pipeline.step.spawn_failed",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "PipelineStepSpawnFailedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id",
+    "slug": "test-slug",
+    "stage": "executor_spawn",
+    "error": "binary not found"
+  }
+}

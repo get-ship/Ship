@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "supervisor.shutting_down",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "SupervisorShuttingDown",
+    "needs_author": false
+  },
+  "payload": {
+    "reason": "graceful-shutdown"
+  }
+}

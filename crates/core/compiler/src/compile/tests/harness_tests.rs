@@ -94,8 +94,13 @@ fn feature_flags_govern_mcp_emission() {
             assert!(
                 out.mcp_servers
                     .as_object()
-                    .is_some_and(|o| o.contains_key("ship")),
-                "harness {} (supports_mcp=true) must include ship server",
+                    .is_some_and(|o| o.contains_key("github")),
+                "harness {} (supports_mcp=true) must include user-provided github server",
+                desc.id
+            );
+            assert!(
+                out.mcp_servers.get("ship").is_none(),
+                "harness {} must not inject a ship entry (#236)",
                 desc.id
             );
         } else {

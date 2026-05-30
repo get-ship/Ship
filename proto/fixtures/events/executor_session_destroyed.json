@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "executor.session_destroyed",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "ExecutorSessionDestroyedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "session_id": "test-session",
+    "reason": "timeout"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "_meta": {
+    "event": "agent.grants.provisioned",
+    "scope": "account",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "AgentGrantsProvisioned",
+    "needs_author": false
+  },
+  "payload": {
+    "grants": [
+      "ship.git.read",
+      "ship.rules.write"
+    ],
+    "source": "operator-granted"
+  }
+}

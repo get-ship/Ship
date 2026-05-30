@@ -18,7 +18,7 @@ use crate::services::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
-use crate::services::orchestrator::dispatch::dispatch_job_internal;
+use crate::services::orchestrator::dispatch::dispatch_pipeline_run_internal;
 use crate::services::orchestrator::OrchestratorContext;
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -196,7 +196,7 @@ async fn isolation_prepare_failure_emits_spawn_failed() {
     )
     .await;
 
-    dispatch_job_internal(&kernel, &payload, &ctx).await;
+    dispatch_pipeline_run_internal(&kernel, &payload, &ctx).await;
 
     let emitted = find_spawn_failed(&payload.pipeline_run_id).expect("job.spawn_failed emitted");
     assert_eq!(emitted.stage, "isolation_prepare");
@@ -247,7 +247,7 @@ async fn executor_spawn_failure_emits_spawn_failed() {
     )
     .await;
 
-    dispatch_job_internal(&kernel, &payload, &ctx).await;
+    dispatch_pipeline_run_internal(&kernel, &payload, &ctx).await;
 
     let emitted = find_spawn_failed(&payload.pipeline_run_id).expect("job.spawn_failed emitted");
     assert_eq!(emitted.stage, "executor_spawn");

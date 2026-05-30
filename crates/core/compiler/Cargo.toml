@@ -3,18 +3,12 @@ name = "compiler"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "WASM-safe agent config compiler — types, resolution, and output generation"
-
-# Compiles to both native (for runtime/CLI use) and WASM (for web utility).
-[lib]
-crate-type = ["cdylib", "rlib"]
+description = "Agent config compiler — types, resolution, and output generation"
 
 [features]
 default = []
 # Derive specta::Type on all public types — used by the Tauri bridge.
 specta = ["dep:specta"]
-# Enable wasm-bindgen JS bindings (set automatically via wasm-pack)
-wasm = ["wasm-bindgen", "serde-wasm-bindgen"]
 
 [dependencies]
 serde = { workspace = true }
@@ -26,11 +20,6 @@ nanoid = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 semver = { workspace = true }
 specta = { workspace = true, features = ["serde_json"], optional = true }
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = { version = "0.2", optional = true }
-serde-wasm-bindgen = { version = "0.6", optional = true }
-getrandom = { workspace = true, features = ["js"] }
 
 [dev-dependencies]
 serde_json = { workspace = true, features = ["preserve_order"] }

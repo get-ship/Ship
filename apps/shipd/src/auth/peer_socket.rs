@@ -48,6 +48,26 @@ impl Connected<IncomingStream<'_, UnixListener>> for PeerCredInfo {
     }
 }
 
+/// Kernel-verified peer pid of the connection, threaded into request extensions
+/// so `auth_middleware`'s token branch can bind a session to its process
+/// ([`ship_platform::auth::scopes::DaemonSession::pid_authorizes`]). `None` when
+/// the transport can't attest a pid (TCP, where this middleware doesn't run) —
+/// a pid-bound session then fails closed.
+#[derive(Clone, Copy, Debug)]
+pub struct PeerPid(pub Option<u32>);
+
+/// True if the request presents a session token (`ship_sess_`) as its bearer.
+/// Such a token carries its own capped privilege, so peer-cred must NOT promote
+/// the connection to operator and shadow it — see the precedence note below.
+fn presents_session_token(req: &axum::extract::Request<Body>) -> bool {
+    req.headers()
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .map(ship_platform::auth::scopes::is_session_token)
+        .unwrap_or(false)
+}
+
 /// Resolve the connection's kernel peer identity into an [`AuthContext`] and
 /// insert it before `auth_middleware` (which then short-circuits). Reject when
 /// the peer can't be attributed — never default an unknown peer to operator.
@@ -56,6 +76,19 @@ pub async fn peer_cred_auth_middleware(
     mut req: axum::extract::Request<Body>,
     next: Next,
 ) -> Response {
+    // Always expose the kernel pid so the token branch can enforce pid-binding
+    // (a space window token is bound to its registering process).
+    req.extensions_mut().insert(PeerPid(info.pid));
+
+    // Precedence: a presented session token (`ship_sess_`) defines its own
+    // C2-capped privilege. Don't let peer-cred promote this connection to
+    // Operator and shadow it — defer to `auth_middleware`'s token branch, which
+    // enforces the pid binding via the `PeerPid` inserted above. The daemon
+    // token and tokenless agent connections keep the peer-identity path below.
+    if presents_session_token(&req) {
+        return next.run(req).await;
+    }
+
     let identity = match (info.pid, info.uid) {
         (Some(pid), Some(uid)) => peer_identity::resolve(pid, uid),
         // No peer credentials → can't attribute the caller at all. Fail closed.

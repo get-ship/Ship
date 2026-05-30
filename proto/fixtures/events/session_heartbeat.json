@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "session.heartbeat",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "SessionHeartbeat",
+    "needs_author": false
+  },
+  "payload": {
+    "last_activity_at": "2026-01-01T00:00:00Z"
+  }
+}

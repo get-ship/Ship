@@ -220,12 +220,11 @@ pub fn router(state: ApiState) -> axum::Router {
     // beside the generated ReadOps/CommandOps until the GUI flip (#72).
     let router = ship_ops_rpc::AgentsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::AgentServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::ProjectServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::SpaceServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::SettingsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::AnnotationServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::FeedbackServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::SessionsServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::WorkspacesServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::AccountServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::ChatServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::DashboardServiceExt::register(svc.clone(), router);
@@ -331,6 +330,7 @@ mod tests {
             caller_kind: kind,
             agent_id: agent.map(str::to_string),
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec![],

@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "pipeline.gate.passed",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "PipelineGatePassedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id"
+  }
+}

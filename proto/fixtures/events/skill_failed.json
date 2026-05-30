@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "skill.failed",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "deprecated",
+    "payload_type": "SkillFailed",
+    "needs_author": false
+  },
+  "payload": {
+    "skill_id": "test-skill",
+    "error": "test failure"
+  }
+}

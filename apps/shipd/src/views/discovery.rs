@@ -40,8 +40,15 @@ pub fn view_search_dirs() -> Vec<ViewSearchDir> {
             path: workspace.join("views"),
             source: "workspace",
         });
+        // The project tier reads from the composed overlay (local + dep-exported
+        // views, namespaced) when the space has deps; the raw `.ship/` otherwise
+        // (depless = identical). Backs both the listing endpoint and the
+        // resolver, so dep views are discoverable AND servable. Authoring
+        // surfaces (source/files/write_api) stay on local `.ship/` — you edit
+        // local views, never the composed cache.
+        let project_ship = ship_substrate::ShipHome::project_ship_dir(&workspace);
         out.push(ViewSearchDir {
-            path: ship_substrate::ShipHome::project_ship_dir(&workspace).join("views"),
+            path: ship_platform::registry::compose::composed_root_for(&project_ship).join("views"),
             source: "project",
         });
     }

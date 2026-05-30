@@ -72,6 +72,15 @@ jobs:
           cargo run -p xtask --quiet -- gen-fixtures
           git diff --exit-code proto/fixtures/ \
             || { echo "proto/fixtures is stale — run 'cargo run -p xtask -- gen-fixtures' and commit"; exit 1; }
+      - name: Lint layer boundaries
+        run: cargo run -p xtask --quiet -- lint-layers
+      - name: Lint import-level layer direction
+        run: cargo run -p xtask --quiet -- lint-imports
+      # Contract conformance: every event fixture roundtrips Rust↔JSON and matches
+      # the registry's metadata (scope/retention/stability). Fixtures themselves
+      # are gated by the "Check proto fixtures drift" step above.
+      - name: Contract conformance
+        run: cargo test -p ship-contract-tests
       # Shape-conformance integration test runs as part of
       # `cargo test --workspace` (it's a normal integration test under
       # `crates/sui/compiler/tests/shape_conformance.rs`). The tsc gate

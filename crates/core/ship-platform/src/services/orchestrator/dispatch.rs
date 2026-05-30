@@ -64,7 +64,7 @@ fn agent_role(cfg: &crate::config::ProjectConfig, agent: &str) -> Option<String>
 }
 
 use super::emit::{
-    emit_job_dispatched, emit_job_dispatched_with_meta, emit_job_failed, emit_process_spawned,
+    emit_pipeline_run_dispatched, emit_pipeline_run_dispatched_with_meta, emit_pipeline_run_failed, emit_process_spawned,
     emit_spawn_failed, persist_and_route,
 };
 use super::pipeline_loader::ensure_pipeline;
@@ -98,7 +98,7 @@ pub async fn handle_pipeline_run_started(
     let payload: PipelineRunStartedPayload = match serde_json::from_str(&envelope.payload_json) {
         Ok(p) => p,
         Err(e) => {
-            tracing::warn!("job-dispatch: malformed job.created payload: {e}");
+            tracing::warn!("pipeline-run-dispatch: malformed job.created payload: {e}");
             return;
         }
     };
@@ -108,7 +108,7 @@ pub async fn handle_pipeline_run_started(
     {
         tracing::info!(
             slug = payload.slug, deps = ?deps,
-            "job-dispatch: deferring job until dependencies complete"
+            "pipeline-run-dispatch: deferring job until dependencies complete"
         );
         return;
     }
@@ -121,10 +121,10 @@ pub async fn handle_pipeline_run_started(
             return;
         }
     };
-    dispatch_job_internal(kernel, &payload, octx).await;
+    dispatch_pipeline_run_internal(kernel, &payload, octx).await;
 }
 
-pub async fn dispatch_job_internal(
+pub async fn dispatch_pipeline_run_internal(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &PipelineRunStartedPayload,
     octx: &OrchestratorContext,
@@ -140,8 +140,8 @@ pub async fn dispatch_job_internal(
         let command = match &first.command {
             Some(c) => c.clone(),
             None => {
-                tracing::error!(slug, step_id = first.id, "job-dispatch: run step missing command");
-                emit_job_failed(kernel, &payload.pipeline_run_id, slug, "run step missing command").await;
+                tracing::error!(slug, step_id = first.id, "pipeline-run-dispatch: run step missing command");
+                emit_pipeline_run_failed(kernel, &payload.pipeline_run_id, slug, "run step missing command").await;
                 return;
             }
         };
@@ -168,7 +168,7 @@ pub async fn dispatch_job_internal(
         payload.agent.as_str()
     };
 
-    tracing::info!(slug, branch, agent, "job-dispatch: dispatching job");
+    tracing::info!(slug, branch, agent, "pipeline-run-dispatch: dispatching job");
 
     let first_step_info = payload.steps.as_ref().and_then(|p| {
         p.root_steps().first().map(|s| crate::services::dispatch_ports::StepInfo {
@@ -223,7 +223,7 @@ pub async fn dispatch_job_internal(
     let worktree_path = match octx.isolation.prepare(&session_ctx).await {
         Ok(p) => p,
         Err(e) => {
-            tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
+            tracing::error!(slug, "pipeline-run-dispatch: isolation prepare failed: {e}");
             emit_spawn_failed(kernel, &payload.pipeline_run_id, slug, "isolation_prepare", &e).await;
             return;
         }
@@ -243,7 +243,7 @@ pub async fn dispatch_job_internal(
             &body,
             payload.step_specs.as_deref(),
         ) {
-            tracing::error!(slug, "job-dispatch: failed to write pipeline specs: {e}");
+            tracing::error!(slug, "pipeline-run-dispatch: failed to write pipeline specs: {e}");
         }
         match super::pipeline_specs::write_dispatch_prompt(
             &worktree_path,
@@ -255,10 +255,10 @@ pub async fn dispatch_job_internal(
         ) {
             Ok(path) => tracing::info!(
                 slug, step_id = root.id,
-                "job-dispatch: wrote dispatch prompt to {}", path.display()
+                "pipeline-run-dispatch: wrote dispatch prompt to {}", path.display()
             ),
             Err(e) => tracing::error!(
-                slug, "job-dispatch: failed to write dispatch prompt: {e}"
+                slug, "pipeline-run-dispatch: failed to write dispatch prompt: {e}"
             ),
         }
     }
@@ -266,7 +266,7 @@ pub async fn dispatch_job_internal(
     // A cancel processed before this dispatch ran tombstoned the slug — bail
     // before spawning. The projection has already marked the run cancelled.
     if octx.registry.take_if_cancelled(slug).await {
-        tracing::info!(slug, "job-dispatch: run already cancelled — skipping spawn");
+        tracing::info!(slug, "pipeline-run-dispatch: run already cancelled — skipping spawn");
         return;
     }
 
@@ -279,7 +279,7 @@ pub async fn dispatch_job_internal(
     let handle = match octx.executor.spawn(&session_ctx_with_dir).await {
         Ok(h) => h,
         Err(e) => {
-            tracing::error!(slug, "job-dispatch: executor spawn failed: {e}");
+            tracing::error!(slug, "pipeline-run-dispatch: executor spawn failed: {e}");
             emit_spawn_failed(kernel, &payload.pipeline_run_id, slug, "executor_spawn", &e).await;
             return;
         }
@@ -301,9 +301,9 @@ pub async fn dispatch_job_internal(
     // register-then-check is race-free via the registry mutex.
     if octx.registry.take_if_cancelled(slug).await {
         if let Some(h) = octx.registry.take(slug).await {
-            tracing::info!(slug, "job-dispatch: cancel raced the spawn — stopping just-spawned child");
+            tracing::info!(slug, "pipeline-run-dispatch: cancel raced the spawn — stopping just-spawned child");
             if let Err(e) = octx.executor.stop(&h).await {
-                tracing::warn!(slug, "job-dispatch: post-spawn cancel stop failed: {e}");
+                tracing::warn!(slug, "pipeline-run-dispatch: post-spawn cancel stop failed: {e}");
             }
         }
         return;
@@ -363,14 +363,14 @@ pub async fn dispatch_job_internal(
         super::exit_handler::start(kernel.clone(), octx.registry.clone(), exit_rx);
     }
 
-    emit_job_dispatched(kernel, &payload.pipeline_run_id, &worktree_path, slug).await;
+    emit_pipeline_run_dispatched(kernel, &payload.pipeline_run_id, &worktree_path, slug).await;
 }
 
 // ── Agent-session primitive ─────────────────────────────────────────
 //
 // New in the agent-primitive inversion. Owns dispatch for bare agent
 // sessions (and, when phase 5 lands, every pipeline step too). Parallel
-// to `dispatch_job_internal` above; the two will reconverge once the
+// to `dispatch_pipeline_run_internal` above; the two will reconverge once the
 // pipeline runner emits agent.session.started per step.
 
 /// Entry point for `agent.session.started` events. Resolves
@@ -935,7 +935,7 @@ async fn dispatch_first_run_step_inner(
     let slug = &payload.slug;
     let branch = &payload.branch;
 
-    tracing::info!(slug, branch, step_id, %command, "job-dispatch: first step is run — executing directly");
+    tracing::info!(slug, branch, step_id, %command, "pipeline-run-dispatch: first step is run — executing directly");
 
     let session_ctx = SessionContext {
         pipeline_run_id: payload.pipeline_run_id.clone(),
@@ -967,13 +967,13 @@ async fn dispatch_first_run_step_inner(
     let worktree_path = match octx.isolation.prepare(&session_ctx).await {
         Ok(p) => p,
         Err(e) => {
-            tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
+            tracing::error!(slug, "pipeline-run-dispatch: isolation prepare failed: {e}");
             emit_spawn_failed(kernel, &payload.pipeline_run_id, slug, "isolation_prepare", &e).await;
             return;
         }
     };
 
-    emit_job_dispatched_with_meta(kernel, &payload.pipeline_run_id, &worktree_path, slug, None, ship_dir).await;
+    emit_pipeline_run_dispatched_with_meta(kernel, &payload.pipeline_run_id, &worktree_path, slug, None, ship_dir).await;
 
     super::run_step::execute_run_step(
         &payload.pipeline_run_id, slug, step_id, command,

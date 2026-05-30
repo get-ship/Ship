@@ -1,0 +1,21 @@
+[package]
+name = "ship-contract-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "R1 contract conformance: roundtrip + registry-metadata assertions for all fixtures"
+
+[lib]
+name = "ship_contract_tests"
+path = "src/lib.rs"
+
+[[test]]
+name = "roundtrip"
+path = "src/roundtrip.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
+ship-types = { path = "../../crates/core/ship-types" }
+ship-substrate = { path = "../../crates/core/ship-substrate" }

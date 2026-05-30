@@ -66,7 +66,7 @@ describe('Project ActorProjection', () => {
   it('should ignore unrelated event types', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new ActorProjectionRepository(drizzle(state.storage, { schema: project_schema }));
-      await proj.applyEvent(makeEvent({ event_type: 'session.started', entity_id: crypto.randomUUID() }));
+      await proj.applyEvent(makeEvent({ event_type: 'agent.session.started', entity_id: crypto.randomUUID() }));
       expect((await proj.list()).value).toHaveLength(0);
     });
   });
@@ -80,7 +80,7 @@ describe('Project SessionProjection', () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new SessionProjectionRepository(drizzle(state.storage, { schema: project_schema }));
       const sessionId = crypto.randomUUID();
-      await proj.applyEvent(makeEvent({ event_type: 'session.started', entity_id: sessionId, actor_id: 'actor-1' }));
+      await proj.applyEvent(makeEvent({ event_type: 'agent.session.started', entity_id: sessionId, actor_id: 'actor-1' }));
       const result = await proj.list();
       expect(result.value).toHaveLength(1);
       expect(result.value[0]!.id).toBe(sessionId);
@@ -89,13 +89,33 @@ describe('Project SessionProjection', () => {
     });
   });
 
-  it('should transition: started -> ended', async () => {
+  it('should transition: started -> completed', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new SessionProjectionRepository(drizzle(state.storage, { schema: project_schema }));
       const sessionId = crypto.randomUUID();
-      await proj.applyEvent(makeEvent({ event_type: 'session.started', entity_id: sessionId, actor_id: 'a1' }));
-      await proj.applyEvent(makeEvent({ event_type: 'session.ended', entity_id: sessionId }));
-      expect((await proj.list()).value[0]!.status).toBe('ended');
+      await proj.applyEvent(makeEvent({ event_type: 'agent.session.started', entity_id: sessionId, actor_id: 'a1' }));
+      await proj.applyEvent(makeEvent({ event_type: 'agent.session.completed', entity_id: sessionId }));
+      expect((await proj.list()).value[0]!.status).toBe('completed');
+    });
+  });
+
+  it('should transition: started -> failed', async () => {
+    await runInDurableObject(stub, async (_: any, state: any) => {
+      const proj = new SessionProjectionRepository(drizzle(state.storage, { schema: project_schema }));
+      const sessionId = crypto.randomUUID();
+      await proj.applyEvent(makeEvent({ event_type: 'agent.session.started', entity_id: sessionId, actor_id: 'a1' }));
+      await proj.applyEvent(makeEvent({ event_type: 'agent.session.failed', entity_id: sessionId }));
+      expect((await proj.list()).value[0]!.status).toBe('failed');
+    });
+  });
+
+  it('should transition: started -> cancelled', async () => {
+    await runInDurableObject(stub, async (_: any, state: any) => {
+      const proj = new SessionProjectionRepository(drizzle(state.storage, { schema: project_schema }));
+      const sessionId = crypto.randomUUID();
+      await proj.applyEvent(makeEvent({ event_type: 'agent.session.started', entity_id: sessionId, actor_id: 'a1' }));
+      await proj.applyEvent(makeEvent({ event_type: 'agent.session.cancelled', entity_id: sessionId }));
+      expect((await proj.list()).value[0]!.status).toBe('cancelled');
     });
   });
 });
@@ -114,7 +134,7 @@ describe('Project SyncFacade integration', () => {
       const [actorId, sessionId] = [crypto.randomUUID(), crypto.randomUUID()];
       const events = [
         makeEvent({ event_type: 'actor.created', entity_id: actorId, payload_json: JSON.stringify({ name: 'agent-1' }) }),
-        makeEvent({ event_type: 'session.started', entity_id: sessionId, actor_id: actorId }),
+        makeEvent({ event_type: 'agent.session.started', entity_id: sessionId, actor_id: actorId }),
       ];
 
       expect((await eventRepo.push(events)).value).toBe(2);

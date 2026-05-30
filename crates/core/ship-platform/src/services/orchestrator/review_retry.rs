@@ -108,8 +108,8 @@ pub async fn try_review_retry(
     advance_pipeline(kernel, &synthetic, octx).await
 }
 
-/// Emit `job.failed` when a review fails with no retries remaining.
-pub async fn emit_job_failed_for_review(
+/// Emit `pipeline.run.failed` when a review fails with no retries remaining.
+pub async fn emit_pipeline_run_failed_for_review(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &PipelineStepObservedPayload,
 ) {

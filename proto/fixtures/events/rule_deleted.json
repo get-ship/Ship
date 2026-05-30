@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "rule.deleted",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "RuleDeleted",
+    "needs_author": false
+  },
+  "payload": {
+    "file_name": "test-rule.md"
+  }
+}

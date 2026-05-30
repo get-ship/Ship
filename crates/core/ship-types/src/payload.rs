@@ -1,3 +1,10 @@
+// FILE_CAP_OVERRIDE: flat payload module holds all canonical event payload structs.
+// These 70+ structs are alphabetically organized and all logically co-located
+// (they share one re-export surface, one serde dependency, and one registry
+// identity in `ship_substrate::events::payload_registry`). Splitting into
+// sub-modules would require consumers to import from sub-paths and fragment the
+// re-export in ship-substrate's events::types. Split deferred to Spec 7b when a
+// second major payload family (e.g. typed MCP tool payloads) warrants it.
 use serde::{Deserialize, Serialize};
 
 // -- Workspace aggregate -------------------------------------------------------
@@ -112,6 +119,18 @@ pub struct SessionAttached {
     pub branch: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionStatusChanged {
+    pub from: String,
+    pub to: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionTurnFailed {
+    /// Free-text error message from the spawn / run path.
+    pub error: String,
+}
+
 // -- Skill aggregate -----------------------------------------------------------
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -131,6 +150,7 @@ pub struct SkillFailed {
     pub error: String,
 }
 
+/// Payload for `skill.attached_to_session`.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SkillAttachedToSession {
     pub skill_id: String,
@@ -157,39 +177,24 @@ pub struct ActorCreated {
     pub parent_actor_id: Option<String>,
     #[serde(default)]
     pub restart_count: u32,
-    /// Agent profile id this actor implements (e.g. "shipwright", "rust-runtime").
-    /// None for service actors (mesh, user-inbox, supervisor).
     #[serde(default)]
     pub agent_id: Option<String>,
-    /// Harness backing this actor (claude / codex / opencode / gemini / cursor).
-    /// None for non-agent actors.
     #[serde(default)]
     pub harness: Option<String>,
-    /// Harness model identifier when known at spawn time.
     #[serde(default)]
     pub model: Option<String>,
-    /// Transport profile — `pty` for attached/interactive, `headless` for stream-json.
     #[serde(default)]
     pub transport: Option<String>,
-    /// Lifecycle profile — `long-lived` for chat/services, `one-shot` for pipeline steps.
     #[serde(default)]
     pub persistence: Option<String>,
-    /// SHA-256 of the system prompt or rules concatenation used at spawn.
-    /// Lets the dashboard detect prompt drift across restarts.
     #[serde(default)]
     pub system_prompt_hash: Option<String>,
-    /// OS pid of the held process. `0` or `None` for in-process services.
     #[serde(default)]
     pub pid: Option<u32>,
-    /// Capability ids (skill ids the actor advertises).
     #[serde(default)]
     pub capabilities: Vec<String>,
-    /// Project id this actor belongs to. Looked up from `runtime::projects`
-    /// when None and `cwd` is registered. Daemon services may have neither.
     #[serde(default)]
     pub space_id: Option<String>,
-    /// Filesystem cwd the actor runs in. Set explicitly at spawn; falls back
-    /// to project root or supervisor cwd when omitted (legacy callers).
     #[serde(default)]
     pub cwd: Option<String>,
 }
@@ -215,6 +220,14 @@ pub struct ActorStopped {
 pub struct ActorCrashed {
     pub error: String,
     pub restart_count: u32,
+}
+
+/// Payload for `actor.mailbox_full`. `entity_id` is the actor_id.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ActorMailboxFull {
+    pub actor_id: String,
+    pub dropped_event_type: String,
+    pub dropped_event_id: String,
 }
 
 // Job event payloads (job.created, job.completed, job.failed, job.dispatched,
@@ -273,16 +286,19 @@ pub struct ConfigChanged {
     pub detail: Option<String>,
 }
 
-/// Fine-grained, per-file config change (Format-2 reactivity). Emitted by the
-/// watcher alongside the coarse `<domain>.changed`. The space scope rides on the
-/// envelope (`space_id`); the file is identified by `path` (relative to the
-/// watched domain dir) + its `content_hash` (empty string when the file was
-/// removed).
+/// Fine-grained, per-file config change (Format-2 reactivity).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfigFileChanged {
     pub domain: String,
     pub path: String,
     pub content_hash: String,
+}
+
+/// Per-space settings override (`space.setting.changed`).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SpaceSettingChanged {
+    pub key: String,
+    pub value_json: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -301,53 +317,37 @@ pub struct SupervisorShuttingDown {
 
 // -- Auth aggregate ----------------------------------------------------------
 
-/// Payload for `auth.session.created`. `entity_id` is the session token.
-/// Token lookup on every authed request reads the projection by token.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthSessionCreated {
     pub agent_id: String,
-    /// Granted scopes serialized as JSON (Vec<Scope>). Stored opaquely on the
-    /// envelope so ship-types doesn't depend on shipd's Scope enum.
     pub scopes_json: String,
-    /// Project scope, if the session is project-bound.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub space_id: Option<String>,
     pub created_at_unix: i64,
     pub expires_at_unix: i64,
-    /// How the session was issued: "pair", "attest", "dev", "pairing_code".
     pub source: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthSessionRevoked {
-    /// Free-text reason for audit ("user", "rotated", "force-revoke").
     pub reason: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthSessionExpired {}
 
-/// Payload for `agent.grants.provisioned`. `entity_id` is the agent_id.
-/// The per-agent approved grant baseline the mint path reads. Latest write
-/// wins in the `provisioned_grants` projection.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentGrantsProvisioned {
-    /// The approved restricted-capability grants (e.g. `["ship-orchestration"]`).
     pub grants: Vec<String>,
-    /// How the baseline was set: "install" (seeded from resolved skill grants)
-    /// or "operator" (explicit operator approval).
     pub source: String,
-    /// Operator/user id that approved an "operator"-source write, if known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approved_by: Option<String>,
 }
 
 // -- Daemon owner ------------------------------------------------------------
 
-/// `entity_id` on the envelope is the user_id.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DaemonOwnerBound {
-    /// How the binding was established: "pair", "attest", "dev".
     pub source: String,
     pub bound_at_unix: i64,
 }
@@ -357,191 +357,406 @@ pub struct DaemonOwnerUnbound {}
 
 // -- Account lifecycle ------------------------------------------------------
 
-/// `entity_id` on the envelope is the opaque PKCE state id. Payload
-/// records the callback URL the CLI bound. No credential material here.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccountLoginStarted {
     pub redirect_uri: String,
 }
 
-/// `entity_id` on the envelope is the user_id. Logged once the API key
-/// has been written to the daemon's token store and the daemon-owner
-/// binding has been emitted.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccountLoginCompleted {}
 
-/// `entity_id` on the envelope is the user_id of the previously-bound
-/// owner, or `"none"` when logout was a no-op.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccountLogout {
-    /// True when a stored token was actually cleared, false on idempotent
-    /// logout. Useful for distinguishing "user explicitly logged out" from
-    /// "CLI ran ship logout while already signed out."
     pub had_token: bool,
-    /// True when the gateway acknowledged revoking the server-side API
-    /// key as part of this logout. False when no token existed, or when
-    /// the revoke call failed (network down / gateway error) and we fell
-    /// back to clearing the local file only. Lets audit distinguish
-    /// "logged out + revoked" from "logged out (local only)".
     #[serde(default)]
     pub key_revoked: bool,
 }
 
-/// `entity_id` on the envelope is the user_id. Emitted on a successful
-/// `/me` refresh against the gateway. No bearer material in the payload.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccountKeyRefreshed {}
 
 // -- Project registry --------------------------------------------------------
 
-/// Payload for `project.registered`. `entity_id` is the space_id (stable
-/// hash of the canonical path).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectRegistered {
-    /// Canonical filesystem path to the project root.
     pub path: String,
-    /// Display name (defaults to the directory basename when not provided).
     pub name: String,
-    /// Optional human-friendly label distinct from `name`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
-    /// First-seen timestamp as RFC 3339 UTC.
     pub created_at: String,
 }
 
-/// Payload for `project.seen` — `last_seen_at` bump on re-open / switch.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectSeen {
-    /// RFC 3339 UTC time the project was re-opened.
     pub seen_at: String,
 }
 
-/// Payload for `project.archived` — user removed the project from registry.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectArchived {
-    /// RFC 3339 UTC time the project was archived.
     pub archived_at: String,
 }
 
-/// Payload for `project.switched`. `entity_id` on the envelope is the
-/// newly-active space_id; `previous` is the id this switch supersedes
-/// (`None` when nothing was previously active, e.g. cold boot).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectSwitched {
-    /// Newly-active project id.
     pub space_id: String,
-    /// Display name of the new active project.
     pub name: String,
-    /// Canonical filesystem path.
     pub path: String,
-    /// Previously-active project id, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub previous: Option<String>,
-    /// RFC 3339 UTC time of the switch.
     pub at: String,
 }
 
 // -- Compile aggregate --------------------------------------------------------
 
-/// Payload for `compile.completed`. Records what was compiled for the
-/// `project_compile_state` projection. `entity_id` on the envelope is the
-/// space_id; this payload carries the compile-run details.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CompileCompleted {
-    /// Active agent id at compile time, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_agent: Option<String>,
-    /// Compile time as RFC 3339 UTC.
     pub compiled_at: String,
-    /// Ship version that produced this compile.
     pub ship_version: String,
-    /// Primary harness compiled for (e.g. "claude").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub harness: Option<String>,
-    /// Plugin IDs the active agent declared and that this compile installed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins_installed: Vec<String>,
 }
 
 // -- Skill / Rule / Permission CRUD -----------------------------------------
 
-/// Payload for `skill.created`. `entity_id` is the skill id.
-/// `scope` is "project" | "user" — same vocabulary as
-/// `ship-platform::SkillInstallScope`.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SkillCreated {
     pub scope: String,
     pub name: String,
-    /// SHA-256 hash of the SKILL.md body, hex-encoded. Lets sync detect
-    /// whether the same id refers to the same content across devices.
     pub content_hash: String,
 }
 
-/// Payload for `skill.updated`. `entity_id` is the skill id.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SkillUpdated {
     pub scope: String,
     pub content_hash: String,
 }
 
-/// Payload for `skill.deleted`. `entity_id` is the skill id.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SkillDeleted {
     pub scope: String,
 }
 
-/// Payload for `rule.created`. `entity_id` is the canonical rule id
-/// (the file name minus the optional `NNNN-` prefix and `.md` suffix).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RuleCreated {
-    /// The actual filename written, including the `NNNN-` prefix
-    /// when present.
     pub file_name: String,
     pub content_hash: String,
 }
 
-/// Payload for `rule.updated`. `entity_id` is the canonical rule id.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RuleUpdated {
     pub file_name: String,
     pub content_hash: String,
 }
 
-/// Payload for `rule.deleted`. `entity_id` is the canonical rule id.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RuleDeleted {
     pub file_name: String,
 }
 
-/// Payload for `permissions.updated`. `entity_id` is the space_id
-/// (or `"global"` for user-scope writes). The full normalized permissions
-/// JSON travels in `permissions_json` so subscribers / sync can replay
-/// without reading the file.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PermissionsUpdated {
-    /// "project" | "global" — matches the `entity_id` ("global" or a
-    /// space_id).
     pub scope: String,
-    /// Stable hash so consumers can dedupe identical writes.
     pub content_hash: String,
-    /// Serialized permissions document at the time of the write.
     pub permissions_json: String,
 }
 
-/// Payload for `session.status_changed`. `entity_id` is the session id.
-/// Status names match the `SessionStatus` enum's serialized form
-/// ("idle" | "thinking"). Self-transitions (from == to) are not emitted.
+// -- Watcher change events (space, ephemeral) --------------------------------
+
+/// `agent.changed` — watcher ping when agent profile shape changes.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SessionStatusChanged {
+pub struct AgentChanged {
+    pub path: String,
+    pub content_hash: String,
+}
+
+/// `skill.changed` — watcher ping when skill shape changes.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SkillChanged {
+    pub path: String,
+    pub content_hash: String,
+}
+
+/// `view.changed` — watcher ping when view shape changes.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ViewChanged {
+    pub path: String,
+    pub content_hash: String,
+}
+
+/// `pipeline.changed` — watcher ping when pipeline definition changes.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PipelineChanged {
+    pub path: String,
+    pub content_hash: String,
+}
+
+/// `rule.changed` — watcher ping when rule shape changes.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RuleChanged {
+    pub path: String,
+    pub content_hash: String,
+}
+
+/// `project.changed` — legacy; kept for backward compat.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProjectChanged {
+    pub path: String,
+    pub content_hash: String,
+}
+
+// -- Daemon lifecycle --------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DaemonStartupCompleted {
+    pub pid: u32,
+    #[serde(default)]
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DaemonShutdownCompleted {
+    pub pid: u32,
+    #[serde(default)]
+    pub uptime_secs: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DaemonPortBindFailed {
+    pub port: u16,
+    pub error: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DaemonCrashed {
+    pub error: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DaemonPidfileAcquired {
+    pub pid: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DaemonPidfileStaleTaken {
+    pub stale_pid: u32,
+    pub new_pid: u32,
+}
+
+// -- Mesh events (all device) ------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MeshBroadcast {
+    pub message_type: String,
+    #[serde(default)]
+    pub sender: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MeshDeregister {
+    pub actor_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MeshDeregistered {
+    pub actor_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MeshDiscoverResponse {
+    pub peers: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MeshMessage {
+    pub from: String,
+    pub to: String,
+    pub message_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MeshRegister {
+    pub actor_id: String,
+    pub namespace: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MeshRegistered {
+    pub actor_id: String,
+    pub namespace: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MeshSend {
     pub from: String,
     pub to: String,
 }
 
-/// Payload for `session.turn_failed`. `entity_id` is the session id.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SessionTurnFailed {
-    /// Free-text error message from the spawn / run path.
+pub struct MeshSendFailed {
+    pub from: String,
+    pub to: String,
     pub error: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MeshStatus {
+    pub actor_id: String,
+    pub status: String,
+}
+
+// -- Spec-6 new events -------------------------------------------------------
+
+/// `agent.task.complete` — task-creation completion in space history.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AgentTaskComplete {
+    pub task_id: String,
+    pub task_type: String,
+    #[serde(default)]
+    pub space_id: Option<String>,
+}
+
+/// `human.response` — inbound human reply (telegram webhook) tied to space conversation.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HumanResponse {
+    pub conversation_id: String,
+    pub text: String,
+    #[serde(default)]
+    pub sender: Option<String>,
+}
+
+// -- Kernel actor events -----------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct KernelActorRestored {
+    pub actor_id: String,
+    pub event_count: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct KernelActorSnapshot {
+    pub actor_id: String,
+    pub event_count: u64,
+    pub last_event_id: Option<String>,
+    pub size_bytes: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct KernelActorSuspended {
+    pub actor_id: String,
+    pub reason: String,
+}
+
+// -- Pipeline step events added in Spec 6 ------------------------------------
+
+/// `pipeline.step.retry` — a step was retried after a transient failure.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PipelineStepRetry {
+    pub pipeline_run_id: String,
+    pub step_id: String,
+    pub retry_count: u32,
+    pub reason: String,
+}
+
+// -- Studio events added in Spec 6 -------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StudioAnnotationCreated {
+    pub annotation_id: String,
+    pub session_id: String,
+    pub text: String,
+    #[serde(default)]
+    pub artifact_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StudioFeedbackCreated {
+    pub feedback_id: String,
+    pub rating: Option<i32>,
+    pub comment: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StudioMessage {
+    pub session_id: String,
+    pub text: String,
+    #[serde(default)]
+    pub role: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StudioChatTurn {
+    pub session_id: String,
+    pub text: String,
+    #[serde(default)]
+    pub agent_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StudioReply {
+    pub actor_id: String,
+    pub text: String,
+}
+
+// -- Sync events added in Spec 6 ---------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncPushFailed {
+    pub error: String,
+    pub target: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncStarted {
+    pub target: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncStopped {
+    pub target: String,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncPushCompleted {
+    pub events_pushed: u64,
+    pub duration_ms: u64,
+}
+
+// -- Process events ----------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProcessOrphaned {
+    pub pid: u32,
+    pub cmd: String,
+    pub last_known_slug: Option<String>,
+    pub detected_by: String,
+}
+
+// -- Collection events -------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CollectionItemCreated {
+    pub collection_id: String,
+    pub item_id: String,
+    #[serde(default)]
+    pub item_type: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CollectionItemUpdated {
+    pub collection_id: String,
+    pub item_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CollectionItemDeleted {
+    pub collection_id: String,
+    pub item_id: String,
 }
 
 #[cfg(test)]

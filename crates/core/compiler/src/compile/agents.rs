@@ -2,7 +2,6 @@
 //!
 //! Each harness has its own agent definition format:
 //! - **Claude**: `.claude/agents/<id>.md` — YAML frontmatter + Markdown body
-//! - **Gemini**: `.gemini/agents/<id>.md` — YAML frontmatter + Markdown body
 //! - **Cursor**: `.cursor/agents/<id>.md` — YAML frontmatter + Markdown body
 //! - **Codex**: `.codex/agents/<id>.toml` — TOML agent config
 //! - **OpenCode**: `.opencode/agents/<id>.md` — YAML frontmatter + Markdown body

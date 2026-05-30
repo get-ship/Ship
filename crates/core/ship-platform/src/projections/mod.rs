@@ -13,6 +13,7 @@ pub mod pipeline_run;
 pub mod pipeline_run_transitions;
 pub mod projects;
 pub mod provisioned_grants;
+pub mod space_settings;
 
 pub use agent_session::{
     AgentSession, AgentSessionProjection, AgentSessionStatus,
@@ -32,3 +33,4 @@ pub use projects::{ProjectRow, ProjectsProjection};
 pub use provisioned_grants::{
     ProvisionedGrantsProjection, ProvisionedGrantsRow, provisioned_grants_for, provisioned_row,
 };
+pub use space_settings::SpaceSettingsProjection;

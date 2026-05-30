@@ -89,6 +89,7 @@ mod tests {
             agent_id: Some("agent.test".into()),
             // A branch slug that must NOT leak into space_id anymore.
             workspace_id: Some("ws-1".into()),
+            space_id: None,
             session_id: Some("sess-1".into()),
             scopes: vec![Scope::Full],
             grants: vec![],
@@ -109,6 +110,7 @@ mod tests {
             caller_kind: CallerKind::Mcp,
             agent_id: None,
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![Scope::ReadWorkspace, Scope::LogProgress],
             grants: vec![],

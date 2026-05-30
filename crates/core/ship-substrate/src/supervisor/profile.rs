@@ -3,7 +3,7 @@
 //! # Isolation
 //!
 //! No explicit isolation axis on `ActorProfile` today — we trust each harness's
-//! own sandboxing (Claude Code's permission system, Codex/Gemini equivalents).
+//! own sandboxing (Claude Code's permission system, Codex/Cursor equivalents).
 //! When explicit isolation lands (bubblewrap, seatbelt, docker, future VMs),
 //! it will be an orthogonal axis on this struct alongside `transport` and the
 //! kernel-scope fields, not folded into either. Networking + IPC back to shipd
@@ -66,6 +66,12 @@ pub enum ActorKind {
     Agent,
     PipelineStep,
     Shell,
+    /// A Tauri shell window hosting a space (process-per-app). Self-registers
+    /// with the daemon on launch; the launcher consults the actor registry for
+    /// single-instance and the supervisor pid-checks for liveness. A *lifecycle*
+    /// actor — identity/pid/lifecycle only, no mailbox (the webview gets events
+    /// over its Connect stream, not an actor mailbox).
+    Window,
 }
 
 impl ActorKind {
@@ -74,6 +80,7 @@ impl ActorKind {
             ActorKind::Agent => "agent",
             ActorKind::PipelineStep => "pipeline-step",
             ActorKind::Shell => "shell",
+            ActorKind::Window => "window",
         }
     }
 }
@@ -89,7 +96,7 @@ pub enum Transport {
     /// raw bytes; input writes through the master fd.
     Pty,
     /// Headless one-shot — child with piped stdout/stderr, no PTY.
-    /// Used by per-turn agent runs (codex, opencode, cursor, gemini)
+    /// Used by per-turn agent runs (codex, opencode, cursor)
     /// and pipeline jobs. Output broadcasts merged stdout+stderr;
     /// input is not supported (caller writes via stdin pipe at spawn
     /// time via `ActorProfile.stdin`). Terminates when the child

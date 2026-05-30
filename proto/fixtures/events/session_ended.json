@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "session.ended",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "SessionEnded",
+    "needs_author": false
+  },
+  "payload": {
+    "summary": "completed task"
+  }
+}

@@ -11,7 +11,8 @@
           "scope": "project"
         }
       ]
-    }
+    },
+    "request": {}
   },
   "Summaries": {
     "response_ok": {
@@ -46,7 +47,8 @@
           "active": false
         }
       ]
-    }
+    },
+    "request": {}
   },
   "Detail": {
     "response_ok": {
@@ -87,6 +89,9 @@
         ]
       },
       "source": "project"
+    },
+    "request": {
+      "id": "test-id"
     }
   },
   "Templates": {
@@ -116,7 +121,8 @@
           "permission_preset": "readonly"
         }
       ]
-    }
+    },
+    "request": {}
   },
   "PermissionPresets": {
     "response_ok": {
@@ -137,7 +143,8 @@
           "description": "Includes network and system calls."
         }
       ]
-    }
+    },
+    "request": {}
   },
   "Harnesses": {
     "response_ok": {
@@ -146,48 +153,84 @@
         "claude-code",
         "shell"
       ]
-    }
+    },
+    "request": {}
   },
   "Create": {
     "response_ok": {
       "id": "rust-lane",
       "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "doc_json": "test-doc_json",
+      "scope": "test-scope"
     }
   },
   "Put": {
     "response_ok": {
       "id": "rust-lane",
       "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "doc_json": "test-doc_json",
+      "scope": "test-scope"
     }
   },
   "Patch": {
     "response_ok": {
       "id": "rust-lane",
       "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "patch_json": "test-patch_json",
+      "scope": "test-scope"
     }
   },
   "Delete": {
     "response_ok": {
       "id": "code-reviewer",
       "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "scope": "test-scope"
     }
   },
   "Rename": {
     "response_ok": {
       "id": "rust-lane-v2",
       "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "new_id": "test-new_id",
+      "scope": "test-scope"
     }
   },
   "Duplicate": {
     "response_ok": {
       "id": "rust-lane-copy",
       "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "new_id": "test-new_id",
+      "scope": "test-scope",
+      "to": "test-to"
     }
   },
   "MoveScope": {
     "response_ok": {
       "id": "rust-lane",
       "scope": "user"
+    },
+    "request": {
+      "id": "test-id",
+      "from": "test-from",
+      "to": "test-to"
     }
   }
 }

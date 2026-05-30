@@ -32,6 +32,7 @@ mod skills;
 mod pipeline;
 mod project;
 mod rules;
+mod space;
 mod surfaces;
 mod views;
 
@@ -150,6 +151,9 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
     if let Some(value) = project::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
+    if let Some(value) = space::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
     if let Some(value) = rules::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
@@ -258,6 +262,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: None,
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec![],
@@ -286,6 +291,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some("worker-1".to_string()),
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: ship_platform::auth::scopes::scopes_for_role(Some("worker")),
             grants: vec![],
@@ -308,6 +314,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some("commander-1".to_string()),
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: ship_platform::auth::scopes::grants_for_role(Some("commander")),
@@ -341,6 +348,8 @@ mod tests {
                     scopes: vec![],
                     grants: vec![],
                     workspace_id: None,
+                    space_id: None,
+                    pid: None,
                     created_at: std::time::Instant::now(),
                     expires_at_unix: None,
                     ephemeral: true,
@@ -354,6 +363,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: None,
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec![],
@@ -379,6 +389,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some("x".to_string()),
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec!["ship-orchestration".to_string()],
@@ -398,6 +409,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some("worker-1".to_string()),
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec![],
@@ -435,6 +447,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some("worker-1".to_string()),
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec![],
@@ -450,6 +463,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: None,
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec![],
@@ -476,6 +490,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some("designer-1".to_string()),
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec!["ship-authoring".to_string()],
@@ -491,6 +506,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: None,
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec![],
@@ -562,6 +578,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some("worker-1".to_string()),
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec![],
@@ -576,6 +593,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some("designer-1".to_string()),
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec!["skills".to_string()],
@@ -604,6 +622,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some("commander-1".to_string()),
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec!["ship-orchestration".to_string()],
@@ -619,6 +638,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some("designer-1".to_string()),
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![],
             grants: vec!["agents".to_string()],

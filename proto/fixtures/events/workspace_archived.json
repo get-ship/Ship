@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "event": "workspace.archived",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "deprecated",
+    "payload_type": "WorkspaceArchived",
+    "needs_author": false
+  },
+  "payload": {}
+}

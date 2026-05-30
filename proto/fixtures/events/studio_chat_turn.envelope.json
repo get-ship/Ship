@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "event": "studio.chat_turn",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "StudioChatTurn",
+    "needs_author": false
+  },
+  "envelope": {
+    "id": "01JTEST000000000000000EVENT",
+    "event_type": "studio.chat_turn",
+    "entity_id": "test-entity-id",
+    "actor_id": "test-actor-id",
+    "space_id": "test-space-id",
+    "occurred_at": "2026-01-01T00:00:00Z",
+    "payload": {
+      "session_id": "test-session",
+      "text": "tell me about this code"
+    }
+  }
+}

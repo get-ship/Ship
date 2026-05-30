@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "sync.started",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "SyncStarted",
+    "needs_author": false
+  },
+  "payload": {
+    "target": "cloud.ship.example"
+  }
+}

@@ -71,7 +71,7 @@ impl HarnessAdapter for OpenCodeAdapter {
         // which parse_output below consumes for session-id capture +
         // tool-use observability synthesis. --dangerously-skip-permissions
         // auto-approves to match claude --dangerously-skip-permissions /
-        // codex --full-auto / gemini --yolo.
+        // codex --full-auto.
         let mut args = vec![
             "run".to_string(),
             "--format".to_string(),

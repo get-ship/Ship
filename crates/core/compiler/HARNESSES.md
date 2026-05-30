@@ -11,21 +11,21 @@ Add a `<!-- verified: YYYY-MM-DD source: <url> -->` comment when re-verifying a 
 
 <!-- Last updated: 2026-03-19 -->
 
-| Feature | Claude Code | Gemini CLI | Codex CLI | Cursor |
-|---|:---:|:---:|:---:|:---:|
-| MCP servers | ✅ | ✅ per-server `trust`, `includeTools`, `excludeTools`, `timeout` | ✅ TOML `codex_config_patch` + per-server `enabled_tools`, `disabled_tools` | ✅ per-server `envFile` |
-| Rules / context file | ✅ `CLAUDE.md` | ✅ `GEMINI.md` | ✅ `AGENTS.md` | ✅ `rule_files` per-file `.mdc` |
-| Skills | ✅ `.claude/skills/` | ✅ `.gemini/skills/` | ✅ `.agents/skills/` | ✅ `.cursor/skills/` |
-| Permissions allow/deny | ✅ | ✅ `gemini_policy_patch` → `.gemini/policies/ship.toml` | — no compatible model | ✅ `cursor_cli_permissions` |
-| Permissions ask tier | ✅ `permissions.ask` | — | — | — |
-| defaultMode | ✅ `permissions.defaultMode` | — | — | — |
-| additionalDirectories | ✅ `permissions.additionalDirectories` | — | — | — |
-| Hooks | ✅ `claude_settings_patch` | ✅ `gemini_settings_patch` + raw `gemini_event` bypass | — | ✅ `cursor_hooks_patch` + raw `cursor_event` bypass |
-| Agent limits (cost/turns) | ✅ | — | — | — |
-| Model override | ✅ `model` in settings patch | ✅ `model.name` in settings patch | ✅ `model` in TOML config | — |
-| MCP config path | ✅ `.mcp.json` | ✅ `.gemini/settings.json` | ✅ `.codex/config.toml` | ✅ `.cursor/mcp.json` |
-| Harness-specific settings | ✅ `theme`, `autoUpdates`, `includeCoAuthoredBy`, `claude_settings_extra` | ✅ `defaultApprovalMode`, `maxSessionTurns`, `disableYoloMode`, `disableAlwaysAllow`, `tools.sandbox`, `gemini_settings_extra` | ✅ `approval_policy`, `model_reasoning_effort`, `[agents]` table, `shell_environment_policy`, `notify`, `codex_settings_extra` | ✅ `cursor_environment`, `cursor_settings_extra` |
-| Subagent profiles | ✅ `.claude/agents/<id>.md` | ✅ `.gemini/agents/<id>.md` | ✅ `.codex/agents/<id>.toml` | ✅ `.cursor/agents/<id>.md` |
+| Feature | Claude Code | Codex CLI | Cursor |
+|---|:---:|:---:|:---:|
+| MCP servers | ✅ | ✅ TOML `codex_config_patch` + per-server `enabled_tools`, `disabled_tools` | ✅ per-server `envFile` |
+| Rules / context file | ✅ `CLAUDE.md` | ✅ `AGENTS.md` | ✅ `rule_files` per-file `.mdc` |
+| Skills | ✅ `.claude/skills/` | ✅ `.agents/skills/` | ✅ `.cursor/skills/` |
+| Permissions allow/deny | ✅ | — no compatible model | ✅ `cursor_cli_permissions` |
+| Permissions ask tier | ✅ `permissions.ask` | — | — |
+| defaultMode | ✅ `permissions.defaultMode` | — | — |
+| additionalDirectories | ✅ `permissions.additionalDirectories` | — | — |
+| Hooks | ✅ `claude_settings_patch` | — | ✅ `cursor_hooks_patch` + raw `cursor_event` bypass |
+| Agent limits (cost/turns) | ✅ | — | — |
+| Model override | ✅ `model` in settings patch | ✅ `model` in TOML config | — |
+| MCP config path | ✅ `.mcp.json` | ✅ `.codex/config.toml` | ✅ `.cursor/mcp.json` |
+| Harness-specific settings | ✅ `theme`, `autoUpdates`, `includeCoAuthoredBy`, `claude_settings_extra` | ✅ `approval_policy`, `model_reasoning_effort`, `[agents]` table, `shell_environment_policy`, `notify`, `codex_settings_extra` | ✅ `cursor_environment`, `cursor_settings_extra` |
+| Subagent profiles | ✅ `.claude/agents/<id>.md` | ✅ `.codex/agents/<id>.toml` | ✅ `.cursor/agents/<id>.md` |
 
 **Key:** ✅ implemented · ⚠️ partial/not compiled · — not implemented / out of scope
 
@@ -68,42 +68,6 @@ Note: `maxCostPerSession` / `maxTurns` are compiled from `AgentLimits` but are n
 "server-id": { "command": "npx", "args": [...], "env": {} }
 ```
 HTTP/SSE: `"url"` field. No `type` field — transport inferred from field presence.
-
----
-
-## Gemini CLI
-
-<!-- verified: 2026-03-14 source: https://geminicli.com/docs/tools/mcp-server/ -->
-<!-- verified: 2026-03-14 source: https://geminicli.com/docs/cli/skills -->
-<!-- verified: 2026-03-14 source: https://geminicli.com/docs/hooks -->
-<!-- verified: 2026-03-14 source: https://geminicli.com/docs/cli/settings -->
-
-| Asset | Path | Format |
-|---|---|---|
-| Rules / context | `GEMINI.md` | Markdown |
-| Skills | `.gemini/skills/<id>/SKILL.md` | Markdown + YAML frontmatter. `.agents/skills/` alias takes precedence within same tier |
-| Agents dir | `.gemini/agents/<id>.md` | Markdown + YAML frontmatter |
-| MCP config | `.gemini/settings.json` → `mcpServers` key | JSON nested in project settings file |
-| Settings / hooks | `.gemini/settings.json` | JSON. Global: `~/.gemini/settings.json` |
-| Permissions | `.gemini/policies/ship.toml` | TOML `[[tool_policies]]` array. ✅ compiled to `gemini_policy_patch` |
-
-**MCP entry — transport inferred from field presence (no `type` field):**
-```json
-"server-id": { "command": "npx", "args": [...] }        // stdio
-"server-id": { "url": "https://..." }                    // SSE      ← "url"
-"server-id": { "httpUrl": "https://..." }                // HTTP     ← "httpUrl" (different from SSE!)
-```
-
-**Hooks schema (trigger names differ from Claude):**
-```json
-{
-  "hooks": {
-    "BeforeTool": [{ "matcher": "regex", "hooks": [{ "type": "command", "command": "..." }] }]
-  }
-}
-```
-Triggers: `SessionStart`, `SessionEnd`, `BeforeAgent`, `AfterAgent`, `BeforeModel`, `AfterModel`,
-`BeforeToolSelection`, `BeforeTool`, `AfterTool`, `PreCompress`, `Notification`
 
 ---
 
@@ -193,7 +157,7 @@ Keep rules under 500 lines. Cursor ignores rules in Inline Edit (Cmd+K) — Agen
 
 **Context file behavior:** Cursor uses `rule_files` (individual `.mdc`) instead of a single
 `AGENTS.md`. `context_content` is always `None` for Cursor. Other harnesses concatenate all
-rules into one file (`CLAUDE.md`, `GEMINI.md`, `AGENTS.md`) — keep individual rules concise
+rules into one file (`CLAUDE.md`, `AGENTS.md`) — keep individual rules concise
 to avoid bloating those files.
 
 ---
@@ -227,33 +191,6 @@ Each harness uses a fundamentally different model. Claude's is the primary compi
 
 Already in `.claude/settings.json`. See Claude Code section above.
 Translation is lossless — Claude Code uses the same pattern format as Ship's internal model.
-
-### Gemini CLI — policy engine (TOML files)
-
-<!-- verified: 2026-03-14 source: https://geminicli.com/docs/reference/policy-engine/ -->
-
-Gemini's policy engine uses TOML files, **not** `settings.json`. Two locations:
-- Global: `~/.gemini/policies/*.toml`
-- Project: `.gemini/policies/*.toml` (project files take precedence)
-
-**Policy file format:**
-```toml
-[[tool_policies]]
-tool = "shell"       # or "mcp", "file_read", "file_write", "web_fetch"
-pattern = "rm -rf"   # regex; omit for any-match
-decision = "deny"    # "allow", "deny", "ask_user"
-
-[[tool_policies]]
-tool = "mcp"
-pattern = ".*delete.*"
-decision = "ask_user"
-```
-
-**Decisions:** `allow` · `deny` · `ask_user`
-**Tool names:** `shell`, `mcp`, `file_read`, `file_write`, `web_fetch`, `code_execution`
-
-Compiled to `gemini_policy_patch` → write to `.gemini/policies/ship.toml`.
-Translation: Claude `Bash(cmd)` → `tool="shell" pattern="cmd"` (glob converted to regex), `mcp__s__t` → `tool="mcp" pattern="s/t"`.
 
 ### Codex CLI — no Ship-compatible permission model
 
@@ -320,7 +257,6 @@ Ship compiles `.ship/agents/profiles/*.toml` into harness-native subagent defini
 Each profile is emitted for every harness listed in its `harnesses` field (or all harnesses if empty).
 
 <!-- verified: 2026-03-17 source: https://code.claude.com/docs/en/sub-agents -->
-<!-- verified: 2026-03-17 source: https://geminicli.com/docs/core/subagents/ -->
 <!-- verified: 2026-03-17 source: https://cursor.com/docs/context/subagents -->
 <!-- verified: 2026-03-17 source: https://developers.openai.com/codex/subagents -->
 
@@ -328,11 +264,6 @@ Each profile is emitted for every harness listed in its `harnesses` field (or al
 
 YAML frontmatter + Markdown body. Key fields: `name`, `description`, `model` (alias: sonnet/opus/haiku),
 `permissionMode`, `disallowedTools`, `mcpServers`, `skills`.
-
-### Gemini CLI — `.gemini/agents/<id>.md`
-
-YAML frontmatter + Markdown body. Key fields: `name`, `description`, `kind` (always `local`),
-`model`, `tools` (list or `*`), `max_turns`, `max_time`.
 
 ### Cursor — `.cursor/agents/<id>.md`
 
@@ -349,29 +280,7 @@ Referenced from `[agents.<name>]` in `.codex/config.toml`.
 
 These settings affect **how the agent runs** (model, sandbox, approval policy, telemetry) rather than what it can do — orthogonal to workspace modes. They require a `harness_config: HashMap<String, Value>` concept in `ProjectLibrary` (not yet implemented).
 
-<!-- verified: 2026-03-14 source: https://geminicli.com/docs/cli/settings -->
 <!-- verified: 2026-03-14 source: https://developers.openai.com/codex/config-advanced -->
-
-### Gemini CLI (`~/.gemini/settings.json` or `.gemini/settings.json`)
-
-Key settings relevant to Ship:
-```json
-{
-  "model": "gemini-2.5-pro",
-  "general": {
-    "defaultApprovalMode": "auto-edit",  // "suggest" | "auto-edit" | "yolo"
-    "autoAcceptedEdits": true
-  },
-  "security": {
-    "hideSensitiveEnvVars": true,
-    "sandbox": "none"                    // "none" | "docker" | "...
-  },
-  "telemetry": {
-    "enabled": false
-  }
-}
-```
-`defaultApprovalMode` maps closest to our workspace mode concept.
 
 ### OpenAI Codex (`.codex/config.toml`)
 

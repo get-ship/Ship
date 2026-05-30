@@ -5,7 +5,6 @@ edition = "2024"
 publish = false
 
 [dependencies]
-compiler = { path = "../compiler" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 globset = "0.4"

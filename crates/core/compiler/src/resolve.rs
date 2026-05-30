@@ -67,9 +67,9 @@ pub struct ResolvedConfig {
     pub unmet_capability_requirements: Vec<String>,
     /// Absolute path to the ship home (e.g. `/home/alice/.ship`). Injected
     /// by callers (CLI/daemon) that resolve via `ship_substrate::ShipHome`. The
-    /// compiler is WASM-safe and does not read environment variables —
-    /// when this is `None` (e.g. WASM frontends), the compiler emits an
-    /// MCP entry without the `SHIP_HOME` env injection.
+    /// compiler is a pure transform and does not read environment variables —
+    /// when this is `None`, the compiler emits an MCP entry without the
+    /// `SHIP_HOME` env injection.
     pub ship_home_dir: Option<String>,
     /// Whether this config is compiled for a daemon-spawned, scoped launch
     /// (dispatch / command-bar / sandbox) rather than a manual `ship use`.
@@ -143,7 +143,7 @@ pub struct ProjectLibrary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex_sandbox: Option<String>,
     // ── Model ─────────────────────────────────────────────────────────────────
-    /// Shared model override used by Gemini + Codex when no feature override present.
+    /// Shared model override used by Claude, Codex, and OpenCode when no feature override present.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     // ── Codex harness settings ────────────────────────────────────────────────

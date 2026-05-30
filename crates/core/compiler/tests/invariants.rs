@@ -1,5 +1,5 @@
 /// Compiler invariant tests — determinism, harness round-trips, empty input,
-/// and WASM purity (structural).
+/// and pure-transform purity (structural).
 ///
 /// No `proptest`/`quickcheck` in Cargo.toml, so these are deterministic
 /// parameterised tests as permitted by the job spec.
@@ -189,9 +189,11 @@ fn codex_output_has_agents_md_and_config_patch() {
     );
 }
 
-/// MCP servers object always contains the built-in `ship` server key.
+/// MCP servers object must NOT contain a built-in `ship` entry — ship-internal
+/// MCP was retired in #236 (`ship mcp serve` deleted, daemon has no /mcp route).
+/// This invariant guards against re-introduction of the broken injection.
 #[test]
-fn mcp_servers_always_includes_ship_entry() {
+fn mcp_servers_never_includes_ship_injection() {
     let harnesses = ["claude", "codex", "cursor"];
     let library = ProjectLibrary::default();
     let resolved = resolve_library(&library, None, None);
@@ -203,8 +205,8 @@ fn mcp_servers_always_includes_ship_entry() {
             .as_object()
             .expect("mcp_servers must be a JSON object");
         assert!(
-            servers.contains_key("ship"),
-            "harness {harness} mcp_servers must include built-in 'ship' key"
+            !servers.contains_key("ship"),
+            "harness {harness} must not inject a 'ship' MCP entry (#236)"
         );
     }
 }
@@ -248,7 +250,7 @@ fn empty_library_resolves_to_claude_default() {
     );
 }
 
-// ─── WASM purity (structural) ─────────────────────────────────────────────────
+// ─── Pure-transform purity (structural) ───────────────────────────────────────
 
 /// The compiler's public entry points accept only in-memory values and return
 /// only in-memory values — no `Path`, `File`, or `Command` types in the API.
@@ -256,8 +258,8 @@ fn empty_library_resolves_to_claude_default() {
 /// This test verifies purity by exercising compile + resolve_library entirely
 /// from in-memory inputs and confirming completion without any I/O side effects.
 /// A pure function cannot open files or spawn processes; if it could, these
-/// calls would fail in a sandboxed environment (e.g., WASM) — making this a
-/// meaningful runtime purity guard.
+/// calls would fail in a sandboxed environment — making this a meaningful
+/// runtime purity guard.
 #[test]
 fn compile_and_resolve_are_pure_no_io() {
     // Construct inputs purely from in-memory values — no file paths required.
@@ -268,7 +270,7 @@ fn compile_and_resolve_are_pure_no_io() {
 
     // compile takes a ResolvedConfig (in-memory) and a harness string.
     // If this function accessed the filesystem or spawned a process it would
-    // either fail (WASM/sandboxed) or require Path/Command arguments it doesn't have.
+    // either fail (sandboxed) or require Path/Command arguments it doesn't have.
     for desc in list_harnesses() {
         let out = compile(&resolved, desc.id);
         assert!(

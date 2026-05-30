@@ -146,6 +146,36 @@ mod tests {
     }
 
     #[test]
+    fn space_window_session_gets_c2_never_c3() {
+        // THE invariant: a space window token can operate at C2 (the operator's
+        // own elevated set) but is structurally incapable of C3. Build the
+        // AuthContext exactly as the bearer middleware does from the minted
+        // session, then run it through the real gate.
+        let session = ship_platform::auth::scopes::space_window_session(
+            "acme-space",
+            4242,
+            "ship_sess_win".to_string(),
+        );
+        let auth = AuthContext {
+            caller_kind: CallerKind::Mcp,
+            agent_id: Some(session.agent_id.clone()),
+            workspace_id: session.workspace_id.clone(),
+            space_id: None,
+            session_id: None,
+            scopes: session.scopes.clone(),
+            grants: session.grants.clone(),
+        };
+        let caller = caller_from_auth(&auth);
+        assert!(!caller.is_operator, "a space window is never the operator");
+        // C2 in an elevated service (e.g. `agent`) is allowed — the space
+        // operates at C2.
+        assert_eq!(decide(BlastRadius::C2Elevated, "agent", &caller), Decision::Allow);
+        // C3 is denied no matter the service — the space can never touch it.
+        assert!(matches!(decide(BlastRadius::C3Critical, "account", &caller), Decision::Deny(_)));
+        assert!(matches!(decide(BlastRadius::C3Critical, "agent", &caller), Decision::Deny(_)));
+    }
+
+    #[test]
     fn c2_allowed_only_in_elevated_services() {
         // A commander elevated in `pipelines` can run that service's C2 ops
         // (dispatch) but not C2 elsewhere — per-service scoping.

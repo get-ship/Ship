@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "session.turn_failed",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "SessionTurnFailed",
+    "needs_author": false
+  },
+  "payload": {
+    "error": "api error: rate limit exceeded"
+  }
+}

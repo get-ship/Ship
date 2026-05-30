@@ -6,7 +6,7 @@ use serde::Serialize;
 #[derive(Serialize, Clone)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ProviderRow {
-    /// Stable id (e.g. "claude", "openai", "gemini").
+    /// Stable id (e.g. "claude", "codex", "cursor").
     pub id: String,
     /// Human label.
     pub label: String,

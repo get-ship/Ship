@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "mesh.deregister",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "MeshDeregister",
+    "needs_author": false
+  },
+  "payload": {
+    "actor_id": "test-actor"
+  }
+}

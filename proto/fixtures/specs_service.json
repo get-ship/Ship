@@ -24,7 +24,8 @@
           "updated_at": "2026-05-24T18:00:00Z"
         }
       ]
-    }
+    },
+    "request": {}
   },
   "Get": {
     "response_ok": {
@@ -50,6 +51,9 @@
         "updated_at": "2026-05-24T18:00:00Z"
       },
       "body": "# Checkout service end-to-end\n\nScaffold the checkout service with a happy-path contract test.\n"
+    },
+    "request": {
+      "id": "test-id"
     }
   },
   "Detail": {
@@ -85,6 +89,9 @@
       "title_js": "Checkout service end-to-end",
       "body_js": "# Checkout service end-to-end",
       "pipeline_js": "ship-feature"
+    },
+    "request": {
+      "id": "test-id"
     }
   }
 }

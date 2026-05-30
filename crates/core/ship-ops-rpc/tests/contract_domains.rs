@@ -1,6 +1,6 @@
 //! Contract tests for the domain-service fixture files: artifacts, chat,
-//! collections, events, mcp, permissions, pipelines, project, runtime,
-//! sessions, settings, skills, specs, workspaces. One test per distinct
+//! collections, events, mcp, permissions, pipelines, space, runtime,
+//! sessions, settings, skills, specs. One test per distinct
 //! read shape; a single representative ScopedMutation/Deletion test each.
 
 use serde_json::Value;
@@ -8,6 +8,7 @@ use ship_ops_rpc::{
     ArtifactsListResponse, ChatStateResponse, CollectionItem, Deletion, EventsListResponse,
     ListProcsResponse, McpIndexResponse, PermissionsIndexResponse, PipelinesIndexResponse,
     ProjectRecord, SessionsListResponse, SettingValue, SkillFileResponse, SkillsIndexResponse,
+    CloseWindowResponse, SpaceInfoResponse, SpaceWindowIntentResponse, SpaceWindowListResponse,
     SpecDetail, SpecGetResponse, SpecsListResponse, ToolPatternsResponse, WorkspaceActiveResponse,
 };
 
@@ -18,13 +19,12 @@ const EVENTS: &str = include_str!("../../../../proto/fixtures/events_service.jso
 const MCP: &str = include_str!("../../../../proto/fixtures/mcp_service.json");
 const PERMISSIONS: &str = include_str!("../../../../proto/fixtures/permissions_service.json");
 const PIPELINES: &str = include_str!("../../../../proto/fixtures/pipelines_service.json");
-const PROJECT: &str = include_str!("../../../../proto/fixtures/project_service.json");
+const SPACE: &str = include_str!("../../../../proto/fixtures/space_service.json");
 const RUNTIME: &str = include_str!("../../../../proto/fixtures/runtime_service.json");
 const SESSIONS: &str = include_str!("../../../../proto/fixtures/sessions_service.json");
 const SETTINGS: &str = include_str!("../../../../proto/fixtures/settings_service.json");
 const SKILLS: &str = include_str!("../../../../proto/fixtures/skills_service.json");
 const SPECS: &str = include_str!("../../../../proto/fixtures/specs_service.json");
-const WORKSPACES: &str = include_str!("../../../../proto/fixtures/workspaces_service.json");
 
 fn response_ok(fixtures_json: &str, method: &str) -> String {
     let v: Value = serde_json::from_str(fixtures_json).expect("fixtures parse");
@@ -105,9 +105,9 @@ fn pipelines_list_parses_index() {
 }
 
 #[test]
-fn project_add_parses_record() {
+fn space_add_parses_record() {
     let r: ProjectRecord =
-        serde_json::from_str(&response_ok(PROJECT, "Add")).expect("parse ProjectRecord");
+        serde_json::from_str(&response_ok(SPACE, "Add")).expect("parse ProjectRecord");
     assert_eq!(r.id, "harbor");
     assert_eq!(r.path, "/home/dev/harbor");
 }
@@ -182,8 +182,53 @@ fn specs_detail_parses_acceptance() {
 }
 
 #[test]
-fn workspaces_active_parses_id() {
+fn space_info_parses_identity_and_settings() {
+    let r: SpaceInfoResponse =
+        serde_json::from_str(&response_ok(SPACE, "Info")).expect("parse SpaceInfoResponse");
+    assert_eq!(r.space_id.as_deref(), Some("harbor"));
+    assert_eq!(r.root.as_deref(), Some("/home/dev/harbor"));
+    assert!(r.settings_json.contains("theme"));
+}
+
+#[test]
+fn space_set_setting_parses_key_and_value() {
+    // Per-space override write (#129) returns the typed SettingValue — the same
+    // shape as settings.set; the typed return needs a fixture sample.
+    let r: SettingValue =
+        serde_json::from_str(&response_ok(SPACE, "SetSetting")).expect("parse SettingValue");
+    assert_eq!(r.key, "theme");
+    assert_eq!(r.value_json, "\"dark\"");
+}
+
+#[test]
+fn space_window_list_parses_windows() {
+    let r: SpaceWindowListResponse = serde_json::from_str(&response_ok(SPACE, "WindowList"))
+        .expect("parse SpaceWindowListResponse");
+    assert_eq!(r.windows.len(), 1);
+    assert_eq!(r.windows[0].actor_id, "window-harbor-01");
+    assert_eq!(r.windows[0].pid, Some(4242));
+    assert!(r.windows[0].live);
+}
+
+#[test]
+fn space_close_window_parses_revocation() {
+    let r: CloseWindowResponse = serde_json::from_str(&response_ok(SPACE, "CloseWindow"))
+        .expect("parse CloseWindowResponse");
+    assert!(r.closed);
+    assert!(r.token_revoked);
+}
+
+#[test]
+fn space_window_intent_parses_decision() {
+    let r: SpaceWindowIntentResponse = serde_json::from_str(&response_ok(SPACE, "WindowIntent"))
+        .expect("parse SpaceWindowIntentResponse");
+    assert_eq!(r.decision, "focus");
+    assert_eq!(r.actor_id.as_deref(), Some("window-harbor-01"));
+}
+
+#[test]
+fn space_active_parses_id() {
     let r: WorkspaceActiveResponse =
-        serde_json::from_str(&response_ok(WORKSPACES, "Active")).expect("parse WorkspaceActiveResponse");
+        serde_json::from_str(&response_ok(SPACE, "Active")).expect("parse WorkspaceActiveResponse");
     assert_eq!(r.id.as_deref(), Some("harbor"));
 }

@@ -1,0 +1,98 @@
+{
+  // One audit cycle: refresh indexes → pick next pending module → run audit
+  // skill → regenerate README → verify → operator sign-off gate.
+  //
+  // Trigger: `ship pipelines run audit-cycle`
+  // Prerequisite: `.artifacts/specs/module-audits/README.md` must exist and
+  // contain at least one row with status `pending`. If no pending rows exist,
+  // step 2 exits non-zero with "no pending audits — corpus is current" and the
+  // pipeline halts cleanly.
+  //
+  // Steps that write artifacts use the shared worktree; shell steps pass state
+  // via `.artifacts/audit-cycle-target.txt` (written by step 2, read by step 3
+  // and step 6).
+  "name": "audit-cycle",
+  "description": "One audit cycle: regenerate indexes → pick next pending module → audit skill → regen README → verify → operator sign-off.",
+  "auto_merge": false,
+  "steps": [
+    {
+      // Step 1 — refresh citation indexes before the audit agent reads them.
+      // Ensures emit-sites.md and substrate-fns.md are current with HEAD.
+      "id": "regen-indexes",
+      "run": "set -euo pipefail\ncargo xtask gen-indexes\necho \"regen-indexes: indexes refreshed\"\n"
+    },
+    {
+      // Step 2 — scan the README for the next pending module.
+      // Priority order: L0-substrate first, then L1-platform, then shared, then apps.
+      // Writes .artifacts/audit-cycle-target.txt with format: <layer>|<module>|<path>
+      // Exits 2 if no pending rows found (all done — not a pipeline error).
+      "id": "pick-target",
+      "after": ["regen-indexes"],
+      "run": "set -euo pipefail\nREADME=\".artifacts/specs/module-audits/README.md\"\nOUT=\".artifacts/audit-cycle-target.txt\"\n\nif [ ! -f \"$README\" ]; then\n  echo \"ERROR: $README not found — run cargo xtask gen-audit-readme first\" >&2\n  exit 1\nfi\n\n# Extract (layer, module, path) tuples from each gen-audit-readme fenced section.\n# Layer priority: L0-substrate > L1-platform > shared > apps\npick_first_pending() {\n  local layer=\"$1\"\n  local in_block=0\n  while IFS= read -r line; do\n    if echo \"$line\" | grep -q \"<!-- gen-audit-readme: ${layer} -->\"; then\n      in_block=1\n      continue\n    fi\n    if [ $in_block -eq 1 ] && echo \"$line\" | grep -q \"<!-- /gen-audit-readme -->\"; then\n      break\n    fi\n    if [ $in_block -eq 1 ]; then\n      # Table row: | Module | `path/` | status | ... |\n      # Status is the third pipe-delimited field.\n      status=$(echo \"$line\" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, \"\", $4); print $4}')\n      if [ \"$status\" = \"pending\" ]; then\n        module=$(echo \"$line\" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, \"\", $2); print $2}')\n        path=$(echo \"$line\" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+\\`/, \"\"); gsub(/\\`[[:space:]]*$/, \"\"); gsub(/^[[:space:]]*\\`/, \"\"); gsub(/\\`[[:space:]]*$/, \"\"); split($3, a, \"`\"); gsub(/[[:space:]]+/, \"\", a[2]); print a[2]}')\n        echo \"${layer}|${module}|${path}\"\n        return 0\n      fi\n    fi\n  done < \"$README\"\n  return 1\n}\n\n# awk-based extraction: more robust than bash line-by-line for markdown tables.\nextract_pending_from_layer() {\n  local layer=\"$1\"\n  awk -v layer=\"$layer\" '\n    /<!-- gen-audit-readme: / { if ($0 ~ layer) { in_block=1 } next }\n    /<!-- \\/gen-audit-readme -->/ { in_block=0; next }\n    in_block && /^\\|/ {\n      # Split on | and trim fields\n      n = split($0, fields, \"|\")\n      if (n >= 5) {\n        module = fields[2]; gsub(/^[[:space:]]+|[[:space:]]+$/, \"\", module)\n        rawpath = fields[3]; gsub(/^[[:space:]]+|[[:space:]]+$/, \"\", rawpath)\n        gsub(/`/, \"\", rawpath)\n        status = fields[4]; gsub(/^[[:space:]]+|[[:space:]]+$/, \"\", status)\n        if (status == \"pending\" && module != \"Module\" && module !~ /^_/) {\n          print layer \"|\" module \"|\" rawpath\n          exit 0\n        }\n      }\n    }\n  ' \"$README\"\n}\n\nresult=\"\"\nfor layer in L0-substrate L1-platform shared apps; do\n  result=$(extract_pending_from_layer \"$layer\")\n  if [ -n \"$result\" ]; then\n    break\n  fi\ndone\n\nif [ -z \"$result\" ]; then\n  echo \"no pending audits — corpus is current\" >&2\n  exit 2\nfi\n\nmkdir -p .artifacts\necho \"$result\" > \"$OUT\"\necho \"pick-target: selected → $result\"\n"
+    },
+    {
+      // Step 3 — invoke the audit skill on the picked module.
+      // Reads .artifacts/audit-cycle-target.txt for layer|module|path.
+      // Produces: per-module doc, _observations.md entry, JSONL rows.
+      "id": "audit",
+      "after": ["pick-target"],
+      "agent": "commander",
+      "provider": "claude"
+    },
+    {
+      // Step 4 — regenerate the README coverage table now that the audit doc
+      // has been written. Picks up the new draft row from the audit doc's
+      // Module status field. Also regenerates consumer contract guides so
+      // docs/contract/ stays current with the new audit data.
+      "id": "regen-readme",
+      "after": ["audit"],
+      "run": "set -euo pipefail\ncargo xtask gen-audit-readme\ncargo xtask gen-contract\necho \"regen-readme: README and contract guides regenerated\"\n"
+    },
+    {
+      // Step 5 — verify: check that indexes are still current (no drift from
+      // the audit agent writing new source), that the new audit doc parses
+      // (has required header block), and that new rows were added to the JSONL.
+      "id": "verify",
+      "after": ["regen-readme"],
+      "run": "set -euo pipefail\nOUT=\".artifacts/audit-cycle-target.txt\"\n\n# 1. Index drift check.\ncargo xtask gen-indexes --check\necho \"verify: indexes up-to-date\"\n\n# 2. Parse the audit target to find the expected doc path.\nif [ ! -f \"$OUT\" ]; then\n  echo \"ERROR: $OUT missing — pick-target step did not run?\" >&2\n  exit 1\nfi\ntarget=$(cat \"$OUT\")\nlayer=$(echo \"$target\" | cut -d'|' -f1)\nmodule=$(echo \"$target\" | cut -d'|' -f2)\n\n# Derive doc path from module name (strip trailing slash, collapse to basename).\nmod_slug=$(echo \"$module\" | sed 's|/$||' | tr '/' '-' | xargs basename 2>/dev/null || echo \"$module\" | sed 's|[/.]|-|g')\ndoc_path=\".artifacts/specs/module-audits/${layer}/${mod_slug}.md\"\n\nif [ ! -f \"$doc_path\" ]; then\n  # Fallback: look for any .md file newer than 5 minutes in the layer dir.\n  recent=$(find \".artifacts/specs/module-audits/${layer}\" -name '*.md' -newer .artifacts/audit-cycle-target.txt 2>/dev/null | head -1)\n  if [ -z \"$recent\" ]; then\n    echo \"ERROR: audit doc not found at $doc_path and no recent .md in layer dir\" >&2\n    exit 1\n  fi\n  doc_path=\"$recent\"\nfi\n\n# Verify the doc has the required header blockquote.\nif ! grep -q 'Pass date:' \"$doc_path\"; then\n  echo \"ERROR: audit doc at $doc_path is missing the required 'Pass date:' header\" >&2\n  exit 1\nfi\necho \"verify: audit doc present and parses — $doc_path\"\n\n# 3. Verify new rows were appended to the JSONL collection.\nJSONL=\".ship/collections/architecture-observations.rows.jsonl\"\nif [ ! -f \"$JSONL\" ]; then\n  echo \"ERROR: $JSONL not found\" >&2\n  exit 1\nfi\nnew_rows=$(git diff HEAD -- \"$JSONL\" 2>/dev/null | grep -c '^+{' || true)\nif [ \"$new_rows\" -lt 1 ]; then\n  echo \"WARN: no new rows detected in $JSONL (git diff shows 0 additions)\" >&2\n  echo \"      This is acceptable if the module had zero observations; review manually.\"\nelse\n  echo \"verify: $new_rows new observation rows added to JSONL\"\nfi\n\necho \"verify: all checks passed\"\n"
+    },
+    {
+      // Step 5b — integration-test gate.
+      // For L1-platform modules, require an integration-test suite under
+      // src/<module>/tests/integration_*.rs. Pattern set by the agents module
+      // (see .artifacts/specs/module-audits/L1-platform/agents.md "Integration
+      // tests" section). Skips silently for non-L1 layers.
+      "id": "check-integration-tests",
+      "after": ["verify"],
+      "run": "set -euo pipefail\nOUT=\".artifacts/audit-cycle-target.txt\"\nif [ ! -f \"$OUT\" ]; then echo \"check-integration-tests: $OUT missing — pick-target did not run\" >&2; exit 1; fi\ntarget=$(cat \"$OUT\")\nlayer=$(echo \"$target\" | cut -d'|' -f1)\npath=$(echo \"$target\" | cut -d'|' -f3)\nif [ \"$layer\" != \"L1-platform\" ]; then\n  echo \"check-integration-tests: skipping — layer=$layer (gate is L1-platform only)\"\n  exit 0\nfi\nmod=$(echo \"$path\" | sed 's|/$||')\ntests_dir=\"crates/core/ship-platform/src/${mod}/tests\"\nif [ ! -d \"$tests_dir\" ]; then\n  echo \"ERROR: no integration tests for L1 module '$mod' — expected $tests_dir/integration_*.rs\" >&2\n  echo \"       Land integration tests before sign-off. See agents/ for the pattern.\" >&2\n  exit 1\nfi\ncount=$(find \"$tests_dir\" -name 'integration_*.rs' -type f 2>/dev/null | wc -l)\nif [ \"$count\" -lt 1 ]; then\n  echo \"ERROR: $tests_dir exists but contains no integration_*.rs files\" >&2\n  exit 1\nfi\necho \"check-integration-tests: found $count integration test file(s) under $tests_dir\"\n"
+    },
+    {
+      // Step 6 — operator sign-off gate.
+      // Agent reads the new audit doc and new JSONL rows, presents a summary,
+      // and asks the operator for accept/reject. On accept it flips the README
+      // row to `signed-off` and commits. On reject it holds at `draft` or
+      // moves to `user-review` and surfaces reasons.
+      "id": "sign-off",
+      "after": ["check-integration-tests"],
+      "agent": "commander",
+      "provider": "claude",
+      "gate": {
+        "require_changed": [{ "match": [".artifacts/specs/module-audits/**/*.md"], "min": 1 }]
+      }
+    }
+  ],
+  "step_specs": [
+    // step_specs[0] → step "regen-indexes" (shell, no spec needed — included for index alignment)
+    null,
+    // step_specs[1] → step "pick-target" (shell, no spec needed)
+    null,
+    // step_specs[2] → step "audit"
+    "# Audit agent — step 3 of 6\n\nYou are an audit specialist running inside a Ship pipeline. Your only job in this step is to perform one module audit using the `audit` skill.\n\n## Inputs\n\nRead `.artifacts/audit-cycle-target.txt`. It contains a single line with format:\n\n```\n<layer>|<module>|<path>\n```\n\nExample: `L0-substrate|crates/core/ship-kernel/|ship-kernel/`\n\n- `layer` — one of `L0-substrate`, `L1-platform`, `shared`, `apps`\n- `module` — the human-readable module path as it appears in the README\n- `path` — the short path slug used in the README table\n\n## What to do\n\n1. Read `.artifacts/audit-cycle-target.txt` to get the target.\n2. Use the `audit` skill. The skill's `SKILL.md` is at `.ship/skills/audit/SKILL.md`. Read it fully before starting — it defines the methodology, citation contract, no-hallucination guardrail, and write-back instructions.\n3. Pass the module path and layer indicator as the skill's required inputs:\n   - **Module path**: the `module` field from the target file (e.g. `crates/core/ship-kernel/`)\n   - **Layer indicator**: map the layer prefix — `L0-substrate` → `L0`, `L1-platform` → `L1`, `shared` → `shared`, `apps` → `apps`\n4. The skill requires you to read the citation indexes first:\n   - `.artifacts/specs/op-surface-audit/_indexes/emit-sites.md`\n   - `.artifacts/specs/op-surface-audit/_indexes/substrate-fns.md`\n5. Produce all three write-back artifacts the skill specifies:\n   - Per-module audit doc at `.artifacts/specs/module-audits/<layer>/<module-slug>.md`\n   - Append entry to `.artifacts/specs/module-audits/_observations.md`\n   - Add rows to `.ship/collections/architecture-observations.rows.jsonl`\n6. Update the module's row in `.artifacts/specs/module-audits/README.md` — set status to `draft` and fill in the pass date (today's date, `YYYY-MM-DD`).\n7. Commit all changes with message: `audit: <module-slug> — draft pass`\n8. Run `ship step-done` with a one-line summary: `audited <module>, <N> pub items, <M> observations, status=draft`.\n\n## Constraints\n\n- Every row in your audit output must have a `file:line` citation. No citation → omit the row.\n- Do not speculate. Extract first, judge second (two-pass discipline from the skill).\n- File cap: 300 lines soft / 400 hard for the audit doc. Split if needed.\n- Do not touch `crates/sui/*`, `apps/site/`, `apps/docs/`, Cloudflare configs.\n",
+    // step_specs[3] → step "regen-readme" (shell, no spec needed)
+    null,
+    // step_specs[4] → step "verify" (shell, no spec needed)
+    null,
+    // step_specs[5] → step "sign-off"
+    "# Sign-off agent — step 6 of 6\n\nYou are the operator's proxy in a Ship audit pipeline. Your job is to present the new audit doc to the operator, gather their decision, and act on it.\n\n## Inputs\n\nRead `.artifacts/audit-cycle-target.txt` for `<layer>|<module>|<path>`. Derive the audit doc path:\n`.artifacts/specs/module-audits/<layer>/<module-slug>.md`\n\n## What to do\n\n### 1. Read the artifacts\n\n- Read the full audit doc.\n- Run `git diff HEAD -- .ship/collections/architecture-observations.rows.jsonl` to see only the rows added by this cycle. Count them.\n- Note the module's current row in `.artifacts/specs/module-audits/README.md`.\n\n### 2. Build and present a summary\n\nPresent the following to the operator (via the active channel / commander chat):\n\n```\nAudit ready for sign-off: <module>\n\n  Layer:            <layer>\n  Pass date:        <date from audit doc header>\n  Pub items audited: <count of rows in the Public API table>\n  Security findings: <count of rows tagged [security:*]>\n  Open calls:        <count of ⚠ or open-call markers>\n  New observations:  <N rows added to JSONL>\n\n  Top-3 findings:\n    1. <tag + one-line description + citation>\n    2. <tag + one-line description + citation>\n    3. <tag + one-line description + citation>\n\n  Audit doc: .artifacts/specs/module-audits/<layer>/<module-slug>.md\n\nAccept or reject? (respond with ACCEPT or REJECT [reason])\n```\n\n### 3. Wait for operator response\n\nWait for the operator to respond in the channel. The response must be one of:\n- `ACCEPT` — proceed with sign-off\n- `REJECT <reason>` — hold the row\n\n### 4a. On ACCEPT\n\n1. In `.artifacts/specs/module-audits/README.md`, find the module's row and change its status from `draft` (or `pending`) to `signed-off`.\n2. In the audit doc itself, update `**Module status**:` to `signed-off`.\n3. Commit both files with message: `audit: sign off <module-slug>`\n4. Run `ship step-done` with summary: `signed off <module-slug> — <N> observations committed`.\n\n### 4b. On REJECT\n\n1. In `.artifacts/specs/module-audits/README.md`, set the module's row status to `under-review`.\n2. In the audit doc, update `**Module status**:` to `under-review`.\n3. Append a `### Rejection note — <date>` block to the audit doc with the operator's reason.\n4. Commit with message: `audit: hold <module-slug> for review — <short-reason>`\n5. Run `ship step-done` with summary: `rejected — <module-slug> held at under-review: <reason>`.\n\n## Constraints\n\n- Do not alter any citation rows, observation counts, or audit findings — only the status fields.\n- Do not touch `crates/sui/*`, `apps/site/`, `apps/docs/`, Cloudflare configs.\n- The commit must be clean (only status-field edits + rejection note if applicable).\n"
+  ]
+}

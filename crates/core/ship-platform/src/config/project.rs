@@ -50,7 +50,7 @@ pub struct AgentProfile {
     /// Permission overrides for this mode
     #[serde(default)]
     pub permissions: PermissionConfig,
-    /// Which agent targets to sync to (e.g. ["claude", "gemini"])
+    /// Which agent targets to sync to (e.g. ["claude", "codex"])
     #[serde(default)]
     pub target_agents: Vec<String>,
 }
@@ -146,7 +146,7 @@ pub struct ProjectConfig {
     #[serde(default, skip_serializing_if = "is_agent_layer_empty")]
     pub agent: AgentLayerConfig,
     /// Which agent harnesses to generate config for on branch checkout.
-    /// Alpha: "claude" | "gemini" | "codex". Defaults to ["claude"].
+    /// Alpha:  "claude" | "codex" | "cursor". Defaults to ["claude"].
     #[serde(default = "default_harnesses", skip_serializing_if = "Vec::is_empty")]
     pub harnesses: Vec<String>,
     /// Project-level overrides for the user-KV launch defaults

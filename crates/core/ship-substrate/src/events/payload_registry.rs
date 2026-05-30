@@ -1,0 +1,241 @@
+// FILE_CAP_OVERRIDE: 122-event registry — all registrations must be co-located in one
+// compilation unit so inventory::collect! sees them. No logic present; only static
+// EventRegistration submissions. Split deferred until a second major event family lands.
+
+//! Compile-time event registry population.
+//!
+//! Each `inventory::submit!` call below registers one `EventDef` in the global
+//! `EVENT_REGISTRY`, collected by `ship_types::event_registry::registry()`.
+//!
+//! Two sources are registered here:
+//! 1. Payload structs from `ship_types::payload` (the canonical typed payloads).
+//! 2. Payload structs from `ship_substrate::events::*` sub-modules (hooks, agent_session,
+//!    pipeline, process, supervisor, executor) which depend on `ship-pipelines` types
+//!    and therefore cannot live in the leaf `ship-types` crate.
+//!
+//! After this module compiles, `ship_types::event_registry::registry()` returns all
+//! 122 classified entries. `event_types::ALL` is derived from this registry.
+//!
+//! A1 classification ground truth: `.artifacts/specs/space/event-classification.md`
+//! Fail-closed default (undetermined): device, durable.
+
+use ship_types::event_registry::{EventDef, EventRegistration, EventScope, Retention, Stability};
+
+// ── Macro-free registration helper ──────────────────────────────────────────
+// We don't use #[derive(EventPayload)] here because the generated code references
+// `::ship_types::event_registry::*` via absolute path, which works fine in ship-substrate
+// (a downstream crate). We use inventory::submit! directly for clarity and to avoid
+// adding the proc-macro as a compile-time dependency on every struct.
+
+macro_rules! register_event {
+    ($name:expr, $scope:expr, $retention:expr, $stability:expr, $type_name:expr) => {
+        inventory::submit! {
+            EventRegistration {
+                def: || {
+                    static DEF: EventDef = EventDef {
+                        name: $name,
+                        scope: $scope,
+                        retention: $retention,
+                        stability: $stability,
+                        since_version: None,
+                        payload_type_name: $type_name,
+                    };
+                    &DEF
+                },
+            }
+        }
+    };
+}
+
+// ── account.* ───────────────────────────────────────────────────────────────
+register_event!("account.key_refreshed", EventScope::Account, Retention::Ephemeral, Stability::Stable, "AccountKeyRefreshed");
+register_event!("account.login_completed", EventScope::Account, Retention::Durable, Stability::Stable, "AccountLoginCompleted");
+register_event!("account.login_started", EventScope::Account, Retention::Durable, Stability::Stable, "AccountLoginStarted");
+register_event!("account.logout", EventScope::Account, Retention::Durable, Stability::Stable, "AccountLogout");
+
+// ── actor.* ─────────────────────────────────────────────────────────────────
+register_event!("actor.crashed", EventScope::Device, Retention::Durable, Stability::Stable, "ActorCrashed");
+register_event!("actor.created", EventScope::Device, Retention::Ephemeral, Stability::Stable, "ActorCreated");
+register_event!("actor.mailbox_full", EventScope::Device, Retention::Durable, Stability::Stable, "ActorMailboxFull");
+register_event!("actor.slept", EventScope::Device, Retention::Ephemeral, Stability::Stable, "ActorSlept");
+register_event!("actor.stopped", EventScope::Device, Retention::Ephemeral, Stability::Stable, "ActorStopped");
+register_event!("actor.woke", EventScope::Device, Retention::Ephemeral, Stability::Stable, "ActorWoke");
+
+// ── agent.* ─────────────────────────────────────────────────────────────────
+register_event!("agent.changed", EventScope::Space, Retention::Ephemeral, Stability::Stable, "AgentChanged");
+register_event!("agent.grants.provisioned", EventScope::Account, Retention::Durable, Stability::Stable, "AgentGrantsProvisioned");
+register_event!("agent.task.complete", EventScope::Space, Retention::Durable, Stability::Stable, "AgentTaskComplete");
+
+// ── agent.session.* ─────────────────────────────────────────────────────────
+register_event!("agent.session.cancelled", EventScope::Space, Retention::Durable, Stability::Stable, "AgentSessionCancelledPayload");
+register_event!("agent.session.completed", EventScope::Space, Retention::Durable, Stability::Stable, "AgentSessionCompletedPayload");
+register_event!("agent.session.dispatched", EventScope::Space, Retention::Durable, Stability::Stable, "AgentSessionDispatchedPayload");
+register_event!("agent.session.failed", EventScope::Space, Retention::Durable, Stability::Stable, "AgentSessionFailedPayload");
+register_event!("agent.session.started", EventScope::Space, Retention::Durable, Stability::Stable, "AgentSessionStartedPayload");
+
+// ── artifact.* ──────────────────────────────────────────────────────────────
+register_event!("artifact.created", EventScope::Space, Retention::Durable, Stability::Stable, "ArtifactCreated");
+register_event!("artifact.deleted", EventScope::Space, Retention::Durable, Stability::Stable, "ArtifactDeleted");
+register_event!("artifact.moved", EventScope::Space, Retention::Durable, Stability::Stable, "ArtifactMoved");
+register_event!("artifact.updated", EventScope::Space, Retention::Durable, Stability::Stable, "ArtifactUpdated");
+
+// ── auth.session.* ──────────────────────────────────────────────────────────
+register_event!("auth.session.created", EventScope::Account, Retention::Durable, Stability::Stable, "AuthSessionCreated");
+register_event!("auth.session.expired", EventScope::Account, Retention::Durable, Stability::Stable, "AuthSessionExpired");
+register_event!("auth.session.revoked", EventScope::Account, Retention::Durable, Stability::Stable, "AuthSessionRevoked");
+
+// ── collection.* ────────────────────────────────────────────────────────────
+register_event!("collection.item_created", EventScope::Space, Retention::Durable, Stability::Stable, "CollectionItemCreated");
+register_event!("collection.item_deleted", EventScope::Space, Retention::Durable, Stability::Stable, "CollectionItemDeleted");
+register_event!("collection.item_updated", EventScope::Space, Retention::Durable, Stability::Stable, "CollectionItemUpdated");
+
+// ── compile.* ───────────────────────────────────────────────────────────────
+register_event!("compile.completed", EventScope::Space, Retention::Durable, Stability::Stable, "CompileCompleted");
+
+// ── config.* ────────────────────────────────────────────────────────────────
+register_event!("config.changed", EventScope::Space, Retention::Ephemeral, Stability::Stable, "ConfigChanged");
+register_event!("config.file_changed", EventScope::Space, Retention::Ephemeral, Stability::Stable, "ConfigFileChanged");
+
+// ── daemon.* ────────────────────────────────────────────────────────────────
+register_event!("daemon.port_bind_failed", EventScope::Device, Retention::Durable, Stability::Stable, "DaemonPortBindFailed");
+register_event!("daemon.shutdown_completed", EventScope::Device, Retention::Durable, Stability::Stable, "DaemonShutdownCompleted");
+register_event!("daemon.startup_completed", EventScope::Device, Retention::Durable, Stability::Stable, "DaemonStartupCompleted");
+
+// ── daemon.owner.* ──────────────────────────────────────────────────────────
+register_event!("daemon.owner.bound", EventScope::Account, Retention::Durable, Stability::Stable, "DaemonOwnerBound");
+register_event!("daemon.owner.unbound", EventScope::Account, Retention::Durable, Stability::Stable, "DaemonOwnerUnbound");
+
+// ── executor.* ──────────────────────────────────────────────────────────────
+register_event!("executor.session_destroyed", EventScope::Device, Retention::Ephemeral, Stability::Stable, "ExecutorSessionDestroyedPayload");
+register_event!("executor.window_destroyed", EventScope::Device, Retention::Ephemeral, Stability::Stable, "ExecutorWindowDestroyedPayload");
+
+// ── hook.* ──────────────────────────────────────────────────────────────────
+register_event!("hook.permission_denied", EventScope::Device, Retention::Durable, Stability::Stable, "HookPermissionDeniedPayload");
+register_event!("hook.session_ended", EventScope::Device, Retention::Ephemeral, Stability::Stable, "HookSessionEndedPayload");
+register_event!("hook.session_started", EventScope::Device, Retention::Ephemeral, Stability::Stable, "HookSessionStartedPayload");
+register_event!("hook.tool_use_completed", EventScope::Device, Retention::Ephemeral, Stability::Stable, "HookToolUseCompletedPayload");
+register_event!("hook.tool_use_started", EventScope::Device, Retention::Ephemeral, Stability::Stable, "HookToolUseStartedPayload");
+register_event!("hook.turn_observed", EventScope::Device, Retention::Ephemeral, Stability::Stable, "HookTurnObservedPayload");
+
+// ── human.* ─────────────────────────────────────────────────────────────────
+register_event!("human.response", EventScope::Space, Retention::Durable, Stability::Stable, "HumanResponse");
+
+// ── kernel.actor.* ──────────────────────────────────────────────────────────
+register_event!("kernel.actor.restored", EventScope::Device, Retention::Durable, Stability::Stable, "KernelActorRestored");
+register_event!("kernel.actor.snapshot", EventScope::Device, Retention::Durable, Stability::Stable, "KernelActorSnapshot");
+register_event!("kernel.actor.suspended", EventScope::Device, Retention::Durable, Stability::Stable, "KernelActorSuspended");
+
+// ── mesh.* ──────────────────────────────────────────────────────────────────
+register_event!("mesh.broadcast", EventScope::Device, Retention::Ephemeral, Stability::Stable, "MeshBroadcast");
+register_event!("mesh.deregister", EventScope::Device, Retention::Ephemeral, Stability::Stable, "MeshDeregister");
+register_event!("mesh.deregistered", EventScope::Device, Retention::Durable, Stability::Stable, "MeshDeregistered");
+register_event!("mesh.discover.response", EventScope::Device, Retention::Ephemeral, Stability::Stable, "MeshDiscoverResponse");
+register_event!("mesh.message", EventScope::Device, Retention::Ephemeral, Stability::Stable, "MeshMessage");
+register_event!("mesh.register", EventScope::Device, Retention::Ephemeral, Stability::Stable, "MeshRegister");
+register_event!("mesh.registered", EventScope::Device, Retention::Durable, Stability::Stable, "MeshRegistered");
+register_event!("mesh.send", EventScope::Device, Retention::Ephemeral, Stability::Stable, "MeshSend");
+register_event!("mesh.send.failed", EventScope::Device, Retention::Durable, Stability::Stable, "MeshSendFailed");
+register_event!("mesh.status", EventScope::Device, Retention::Ephemeral, Stability::Stable, "MeshStatus");
+
+// ── permissions.* ───────────────────────────────────────────────────────────
+register_event!("permissions.updated", EventScope::Space, Retention::Durable, Stability::Stable, "PermissionsUpdated");
+
+// ── pipeline.* ──────────────────────────────────────────────────────────────
+register_event!("pipeline.changed", EventScope::Space, Retention::Ephemeral, Stability::Stable, "PipelineChanged");
+register_event!("pipeline.gate.failed", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineGateFailedPayload");
+register_event!("pipeline.gate.passed", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineGatePassedPayload");
+register_event!("pipeline.gate.requested", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineGateRequestedPayload");
+register_event!("pipeline.run.blocked", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineRunBlockedPayload");
+register_event!("pipeline.run.cancelled", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineRunCancelledPayload");
+register_event!("pipeline.run.completed", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineRunCompletedPayload");
+register_event!("pipeline.run.dispatched", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineRunDispatchedPayload");
+register_event!("pipeline.run.failed", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineRunFailedPayload");
+register_event!("pipeline.run.merged", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineRunMergedPayload");
+register_event!("pipeline.run.started", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineRunStartedPayload");
+register_event!("pipeline.step.completed", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineStepCompletedPayload");
+register_event!("pipeline.step.done_declared", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineStepDoneDeclaredPayload");
+register_event!("pipeline.step.failed", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineStepFailedPayload");
+register_event!("pipeline.step.observed", EventScope::Space, Retention::Ephemeral, Stability::Stable, "PipelineStepObservedPayload");
+register_event!("pipeline.step.output", EventScope::Space, Retention::Ephemeral, Stability::Stable, "PipelineStepOutputPayload");
+register_event!("pipeline.step.retry", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineStepRetry");
+register_event!("pipeline.step.spawn_failed", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineStepSpawnFailedPayload");
+register_event!("pipeline.step.started", EventScope::Space, Retention::Durable, Stability::Stable, "PipelineStepStartedPayload");
+
+// ── process.* ───────────────────────────────────────────────────────────────
+register_event!("process.exited", EventScope::Device, Retention::Durable, Stability::Stable, "ProcessExitedPayload");
+register_event!("process.killed", EventScope::Device, Retention::Durable, Stability::Stable, "ProcessKilledPayload");
+register_event!("process.signal_sent", EventScope::Device, Retention::Ephemeral, Stability::Stable, "ProcessSignalSentPayload");
+register_event!("process.spawned", EventScope::Device, Retention::Ephemeral, Stability::Stable, "ProcessSpawnedPayload");
+
+// ── project.* ───────────────────────────────────────────────────────────────
+register_event!("project.archived", EventScope::Space, Retention::Durable, Stability::Stable, "ProjectArchived");
+register_event!("project.log", EventScope::Space, Retention::Ephemeral, Stability::Stable, "ProjectLog");
+register_event!("project.registered", EventScope::Space, Retention::Durable, Stability::Stable, "ProjectRegistered");
+register_event!("project.seen", EventScope::Space, Retention::Ephemeral, Stability::Stable, "ProjectSeen");
+register_event!("project.switched", EventScope::Space, Retention::Durable, Stability::Stable, "ProjectSwitched");
+
+// ── rule.* ──────────────────────────────────────────────────────────────────
+register_event!("rule.changed", EventScope::Space, Retention::Ephemeral, Stability::Stable, "RuleChanged");
+register_event!("rule.created", EventScope::Space, Retention::Durable, Stability::Stable, "RuleCreated");
+register_event!("rule.deleted", EventScope::Space, Retention::Durable, Stability::Stable, "RuleDeleted");
+register_event!("rule.updated", EventScope::Space, Retention::Durable, Stability::Stable, "RuleUpdated");
+
+// ── session.* ───────────────────────────────────────────────────────────────
+register_event!("session.attached", EventScope::Device, Retention::Ephemeral, Stability::Stable, "SessionAttached");
+register_event!("session.drain_aborted", EventScope::Device, Retention::Durable, Stability::Stable, "SessionDrainAborted");
+register_event!("session.drain_completed", EventScope::Device, Retention::Durable, Stability::Stable, "SessionDrainCompleted");
+register_event!("session.drain_started", EventScope::Device, Retention::Durable, Stability::Stable, "SessionDrainStarted");
+register_event!("session.ended", EventScope::Device, Retention::Durable, Stability::Stable, "SessionEnded");
+register_event!("session.heartbeat", EventScope::Device, Retention::Ephemeral, Stability::Stable, "SessionHeartbeat");
+register_event!("session.progress", EventScope::Device, Retention::Ephemeral, Stability::Stable, "SessionProgress");
+register_event!("session.started", EventScope::Device, Retention::Durable, Stability::Stable, "SessionStarted");
+register_event!("session.status_changed", EventScope::Device, Retention::Ephemeral, Stability::Stable, "SessionStatusChanged");
+register_event!("session.tool_count_incremented", EventScope::Device, Retention::Ephemeral, Stability::Stable, "SessionToolCountIncremented");
+register_event!("session.turn_failed", EventScope::Device, Retention::Durable, Stability::Stable, "SessionTurnFailed");
+
+// ── skill.* ─────────────────────────────────────────────────────────────────
+register_event!("skill.changed", EventScope::Space, Retention::Ephemeral, Stability::Stable, "SkillChanged");
+register_event!("skill.created", EventScope::Space, Retention::Durable, Stability::Stable, "SkillCreated");
+register_event!("skill.deleted", EventScope::Space, Retention::Durable, Stability::Stable, "SkillDeleted");
+register_event!("skill.updated", EventScope::Space, Retention::Durable, Stability::Stable, "SkillUpdated");
+
+// ── space.setting.* ─────────────────────────────────────────────────────────
+register_event!("space.setting.changed", EventScope::Space, Retention::Durable, Stability::Stable, "SpaceSettingChanged");
+
+// ── studio.* ────────────────────────────────────────────────────────────────
+register_event!("studio.annotation.created", EventScope::Space, Retention::Durable, Stability::Stable, "StudioAnnotationCreated");
+register_event!("studio.chat_turn", EventScope::Space, Retention::Durable, Stability::Stable, "StudioChatTurn");
+register_event!("studio.feedback.created", EventScope::Space, Retention::Durable, Stability::Stable, "StudioFeedbackCreated");
+register_event!("studio.message", EventScope::Space, Retention::Durable, Stability::Stable, "StudioMessage");
+register_event!("studio.reply", EventScope::Space, Retention::Durable, Stability::Stable, "StudioReply");
+
+// ── supervisor.* ────────────────────────────────────────────────────────────
+register_event!("supervisor.coherence_restored", EventScope::Device, Retention::Durable, Stability::Stable, "CoherenceRestoredPayload");
+register_event!("supervisor.drift_detected", EventScope::Device, Retention::Durable, Stability::Stable, "DriftDetectedPayload");
+register_event!("supervisor.shutting_down", EventScope::Device, Retention::Durable, Stability::Stable, "SupervisorShuttingDown");
+register_event!("supervisor.sweep_completed", EventScope::Device, Retention::Ephemeral, Stability::Stable, "SweepCompletedPayload");
+register_event!("supervisor.sweep_started", EventScope::Device, Retention::Ephemeral, Stability::Stable, "SweepStartedPayload");
+
+// ── sync.* ──────────────────────────────────────────────────────────────────
+register_event!("sync.push.completed", EventScope::Device, Retention::Ephemeral, Stability::Stable, "SyncPushCompleted");
+register_event!("sync.push.failed", EventScope::Device, Retention::Durable, Stability::Stable, "SyncPushFailed");
+register_event!("sync.started", EventScope::Device, Retention::Durable, Stability::Stable, "SyncStarted");
+register_event!("sync.stopped", EventScope::Device, Retention::Durable, Stability::Stable, "SyncStopped");
+
+// ── view.* ──────────────────────────────────────────────────────────────────
+register_event!("view.changed", EventScope::Space, Retention::Ephemeral, Stability::Stable, "ViewChanged");
+
+// ── legacy/deprecated (kept for backward compat, fail-closed classification) ─
+register_event!("workspace.created", EventScope::Device, Retention::Durable, Stability::Deprecated, "WorkspaceCreated");
+register_event!("workspace.activated", EventScope::Device, Retention::Durable, Stability::Deprecated, "WorkspaceActivated");
+register_event!("workspace.archived", EventScope::Device, Retention::Durable, Stability::Deprecated, "WorkspaceArchived");
+register_event!("project.changed", EventScope::Device, Retention::Durable, Stability::Deprecated, "ProjectChanged");
+register_event!("daemon.crashed", EventScope::Device, Retention::Durable, Stability::Deprecated, "DaemonCrashed");
+register_event!("daemon.pidfile_acquired", EventScope::Device, Retention::Durable, Stability::Deprecated, "DaemonPidfileAcquired");
+register_event!("daemon.pidfile_stale_taken", EventScope::Device, Retention::Durable, Stability::Deprecated, "DaemonPidfileStaleTaken");
+register_event!("pipeline.run.updated", EventScope::Space, Retention::Ephemeral, Stability::Deprecated, "PipelineRunUpdatedPayload");
+register_event!("process.orphaned", EventScope::Device, Retention::Durable, Stability::Deprecated, "ProcessOrphaned");
+register_event!("skill.started", EventScope::Device, Retention::Ephemeral, Stability::Deprecated, "SkillStarted");
+register_event!("skill.completed", EventScope::Device, Retention::Ephemeral, Stability::Deprecated, "SkillCompleted");
+register_event!("skill.failed", EventScope::Device, Retention::Durable, Stability::Deprecated, "SkillFailed");
+register_event!("skill.attached_to_session", EventScope::Device, Retention::Ephemeral, Stability::Deprecated, "SkillAttachedToSession");

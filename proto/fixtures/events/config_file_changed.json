@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "config.file_changed",
+    "scope": "space",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "ConfigFileChanged",
+    "needs_author": false
+  },
+  "payload": {
+    "domain": "agents",
+    "path": ".ship/agents/test.jsonc",
+    "content_hash": "sha256-test"
+  }
+}

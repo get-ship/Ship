@@ -1,5 +1,5 @@
 //! Import MCP server entries from a harness's config file (Claude / Cursor /
-//! Codex / Gemini). The project-scope file wins if it exists; the
+//! Codex). The project-scope file wins if it exists; the
 //! global-scope fallback runs when no project file is present. Imported
 //! servers are normalized (id trimmed, "ship" reserved, stdio vs http
 //! split on `type`) and merged into the project's MCP config, skipping
@@ -127,7 +127,7 @@ pub(super) fn harness_import_paths(
     Ok(candidates)
 }
 
-/// Read a harness's MCP config (JSON for Claude/Cursor, TOML for Codex/Gemini)
+/// Read a harness's MCP config (JSON for Claude/Cursor, TOML for Codex)
 /// and return its server entries normalised into [`McpServerConfig`].
 ///
 /// TOML harness files are converted to `serde_json::Value` at the boundary so

@@ -238,7 +238,10 @@ pub fn current_project_workspace_id() -> Option<String> {
 pub fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
     let mut walker = std::env::current_dir().ok()?;
     loop {
-        let dir = ship_substrate::ShipHome::project_ship_dir(&walker).join("pipelines");
+        let ship = ship_substrate::ShipHome::project_ship_dir(&walker);
+        // Composed overlay (local + dep pipelines) when the space has deps; raw
+        // `.ship/` otherwise — parity with pipeline_loader's load path.
+        let dir = ship_platform::registry::compose::composed_root_for(&ship).join("pipelines");
         if dir.is_dir() {
             for ext in ["yaml", "yml", "jsonc", "json"] {
                 let cand = dir.join(format!("{name}.{ext}"));

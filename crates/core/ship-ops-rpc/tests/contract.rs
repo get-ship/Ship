@@ -22,16 +22,22 @@ const ANALYTICS: &str = include_str!("../../../../proto/fixtures/analytics_servi
 const GIT: &str = include_str!("../../../../proto/fixtures/git_service.json");
 const RULES: &str = include_str!("../../../../proto/fixtures/rules_service.json");
 
-/// The `response_ok` body for a method, as a JSON string ready to decode.
-fn response_ok(fixtures_json: &str, method: &str) -> String {
+/// The `response_ok` body for a method, as a `Value` ready to decode via
+/// `from_value`. Returns the parsed node directly rather than re-serializing to
+/// a string: under workspace feature-unification `serde_json/arbitrary_precision`
+/// is enabled (pulled in via `schemars`), and round-tripping a `Value` back
+/// through `to_string` emits the internal Number magic-map token, which then
+/// fails to decode into `f64` fields ("invalid type: map, expected a double").
+/// `from_value` converts arbitrary-precision numbers to `f64` correctly.
+fn response_ok(fixtures_json: &str, method: &str) -> Value {
     let v: Value = serde_json::from_str(fixtures_json).expect("fixtures parse");
-    serde_json::to_string(&v[method]["response_ok"]).expect("response_ok serialize")
+    v[method]["response_ok"].clone()
 }
 
 #[test]
 fn rules_list_parses_and_carries_the_theme() {
     let r: RulesIndexResponse =
-        serde_json::from_str(&response_ok(RULES, "List")).expect("parse RulesIndexResponse");
+        serde_json::from_value(response_ok(RULES, "List")).expect("parse RulesIndexResponse");
     assert_eq!(r.items.len(), 3);
     assert_eq!(r.items[0].id, "no-placeholders");
     assert_eq!(r.items[0].scope, "project");
@@ -40,7 +46,7 @@ fn rules_list_parses_and_carries_the_theme() {
 #[test]
 fn rules_get_parses() {
     let r: RuleGetResponse =
-        serde_json::from_str(&response_ok(RULES, "Get")).expect("parse RuleGetResponse");
+        serde_json::from_value(response_ok(RULES, "Get")).expect("parse RuleGetResponse");
     assert_eq!(r.id, "no-placeholders");
     assert!(r.body.starts_with("# No placeholders"));
 }
@@ -48,7 +54,7 @@ fn rules_get_parses() {
 #[test]
 fn git_status_parses_nested_files() {
     let s: StatusBuckets =
-        serde_json::from_str(&response_ok(GIT, "Status")).expect("parse StatusBuckets");
+        serde_json::from_value(response_ok(GIT, "Status")).expect("parse StatusBuckets");
     assert!(!s.clean);
     assert_eq!(s.total, 3);
     assert_eq!(s.staged.len(), 1);
@@ -58,7 +64,7 @@ fn git_status_parses_nested_files() {
 #[test]
 fn git_log_parses_commits() {
     let l: GitLogResponse =
-        serde_json::from_str(&response_ok(GIT, "Log")).expect("parse GitLogResponse");
+        serde_json::from_value(response_ok(GIT, "Log")).expect("parse GitLogResponse");
     assert_eq!(l.commits.len(), 2);
     assert_eq!(l.commits[0].author, "rust-lane");
     assert_eq!(l.commits[0].additions, 142);
@@ -67,7 +73,7 @@ fn git_log_parses_commits() {
 #[test]
 fn git_branches_parses_upstream_and_counts() {
     let b: GitBranchesResponse =
-        serde_json::from_str(&response_ok(GIT, "Branches")).expect("parse GitBranchesResponse");
+        serde_json::from_value(response_ok(GIT, "Branches")).expect("parse GitBranchesResponse");
     assert_eq!(b.branches.len(), 2);
     assert!(b.branches[0].active);
     assert_eq!(b.branches[0].upstream.as_deref(), Some("origin/feat/checkout-flow"));
@@ -77,7 +83,7 @@ fn git_branches_parses_upstream_and_counts() {
 #[test]
 fn git_overview_parses_the_aggregate() {
     let o: GitOverviewResponse =
-        serde_json::from_str(&response_ok(GIT, "Overview")).expect("parse GitOverviewResponse");
+        serde_json::from_value(response_ok(GIT, "Overview")).expect("parse GitOverviewResponse");
     assert_eq!(o.branch.as_deref(), Some("feat/checkout-flow"));
     assert_eq!(o.total_changed, 3);
     assert_eq!(o.commits.len(), 1);
@@ -86,7 +92,7 @@ fn git_overview_parses_the_aggregate() {
 #[test]
 fn git_diff_parses_parsed_diff() {
     let d: GitDiffResponse =
-        serde_json::from_str(&response_ok(GIT, "Diff")).expect("parse GitDiffResponse");
+        serde_json::from_value(response_ok(GIT, "Diff")).expect("parse GitDiffResponse");
     assert_eq!(d.short_sha, "a1b2c3d");
     assert!(!d.is_working);
     assert_eq!(d.parsed.total_additions, 3);
@@ -97,7 +103,7 @@ fn git_diff_parses_parsed_diff() {
 #[test]
 fn agents_list_parses_index() {
     let r: ship_ops_rpc::AgentIndexResponse =
-        serde_json::from_str(&response_ok(AGENTS, "List")).expect("parse AgentIndexResponse");
+        serde_json::from_value(response_ok(AGENTS, "List")).expect("parse AgentIndexResponse");
     assert_eq!(r.items.len(), 2);
     assert_eq!(r.items[0].id, "rust-lane");
 }
@@ -105,7 +111,7 @@ fn agents_list_parses_index() {
 #[test]
 fn agents_summaries_parses_active_flag() {
     let r: AgentsSummariesResponse =
-        serde_json::from_str(&response_ok(AGENTS, "Summaries")).expect("parse AgentsSummariesResponse");
+        serde_json::from_value(response_ok(AGENTS, "Summaries")).expect("parse AgentsSummariesResponse");
     assert_eq!(r.items.len(), 2);
     assert!(r.items[0].active);
     assert_eq!(r.items[0].skills_count, 2);
@@ -114,7 +120,7 @@ fn agents_summaries_parses_active_flag() {
 #[test]
 fn agents_detail_parses_permissions() {
     let d: AgentDetail =
-        serde_json::from_str(&response_ok(AGENTS, "Detail")).expect("parse AgentDetail");
+        serde_json::from_value(response_ok(AGENTS, "Detail")).expect("parse AgentDetail");
     assert_eq!(d.id, "rust-lane");
     assert_eq!(d.skills.len(), 2);
     assert_eq!(d.permissions.preset, "standard");
@@ -124,7 +130,7 @@ fn agents_detail_parses_permissions() {
 #[test]
 fn analytics_list_sessions_parses_tool_counts() {
     let r: AnalyticsSessionsResponse =
-        serde_json::from_str(&response_ok(ANALYTICS, "ListSessions")).expect("parse AnalyticsSessionsResponse");
+        serde_json::from_value(response_ok(ANALYTICS, "ListSessions")).expect("parse AnalyticsSessionsResponse");
     assert_eq!(r.sessions.len(), 2);
     assert_eq!(r.sessions[0].session_key, "sess-rust-lane-1");
     assert_eq!(r.sessions[0].tool_use_count, 42);
@@ -133,7 +139,7 @@ fn analytics_list_sessions_parses_tool_counts() {
 #[test]
 fn analytics_tool_usage_parses_per_tool() {
     let r: AnalyticsToolUsageResponse =
-        serde_json::from_str(&response_ok(ANALYTICS, "ToolUsage")).expect("parse AnalyticsToolUsageResponse");
+        serde_json::from_value(response_ok(ANALYTICS, "ToolUsage")).expect("parse AnalyticsToolUsageResponse");
     assert_eq!(r.tools[0].tool, "Bash");
     assert_eq!(r.tools[0].calls, 28);
 }
@@ -141,7 +147,7 @@ fn analytics_tool_usage_parses_per_tool() {
 #[test]
 fn analytics_session_turns_parses_cache_tokens() {
     let r: AnalyticsSessionTurnsResponse =
-        serde_json::from_str(&response_ok(ANALYTICS, "SessionTurns")).expect("parse AnalyticsSessionTurnsResponse");
+        serde_json::from_value(response_ok(ANALYTICS, "SessionTurns")).expect("parse AnalyticsSessionTurnsResponse");
     assert_eq!(r.turns.len(), 2);
     assert_eq!(r.turns[0].cache_creation_tokens, 3800);
     assert_eq!(r.turns[1].cache_read_tokens, 3800);

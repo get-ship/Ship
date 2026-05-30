@@ -2,14 +2,14 @@
 //! into the project's `.ship/` tree.
 //!
 //! Each importer is keyed by `harness_id` and reads the corresponding
-//! harness's on-disk format (Claude's JSON, Codex/Gemini's TOML, etc.).
+//! harness's on-disk format (Claude's JSON, Codex/Cursor's TOML, etc.).
 //! Project-scope files win over user-scope ones; ids that already exist
 //! in the project are skipped (no overwrite). Wired up by
 //! `cli-framework::core_primitives` as part of the `ship init` /
 //! `ship pull` flows.
 //!
 //! Split (P26 follow-up): one submodule per concern. The dispatcher
-//! `import_permissions_from_harness` lives with the claude/gemini/codex
+//! `import_permissions_from_harness` lives with the claude/codex/cursor
 //! variants in `permissions.rs` so all three share their helpers locally.
 
 use anyhow::{Result, anyhow};

@@ -60,7 +60,7 @@ fn emit_event(ship_dir: &std::path::Path, event_type: &str, entity: &str, payloa
     store.persist(&env).expect("persist");
 }
 
-fn emit_job_created(ship_dir: &std::path::Path, pipeline_run_id: &str, pipeline: &Pipeline) {
+fn emit_pipeline_run_started(ship_dir: &std::path::Path, pipeline_run_id: &str, pipeline: &Pipeline) {
     emit_event(ship_dir, "pipeline.run.started", pipeline_run_id, serde_json::json!({
         "pipeline_run_id": pipeline_run_id,
         "slug": "test-slug",
@@ -170,7 +170,7 @@ async fn three_step_flow_resolves_consumes_and_promotes_patch() {
         ],
         auto_merge: false,
     };
-    emit_job_created(&ship_dir, pipeline_run_id, &pipeline);
+    emit_pipeline_run_started(&ship_dir, pipeline_run_id, &pipeline);
 
     run_step_promotes(&kernel, pipeline_run_id, &gate_step).await;
 

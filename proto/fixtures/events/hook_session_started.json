@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "hook.session_started",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "HookSessionStartedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "session_id": "test-session"
+  }
+}

@@ -72,6 +72,8 @@ mod tests_fanout_integration;
 mod tests_fanout_cancel;
 #[cfg(test)]
 mod tests_fanout_recover;
+#[cfg(test)]
+mod tests_merge_step;
 
 use crate::services::dispatch_ports::{
     AgentPlatform, IsolationStrategy, SessionExecutor, ProcessRegistryPort, ProcessTreeProbe,

@@ -57,8 +57,9 @@ fn normalize_harness_ids(ids: &[String]) -> Vec<String> {
         if id.is_empty() {
             continue;
         }
-        // Keep harness IDs aligned with registered harness descriptors.
-        if !matches!(id.as_str(), "claude" | "codex" | "cursor" | "opencode") {
+        // Validate against the adapter REGISTRY — the single source of truth.
+        // Unknown IDs are silently dropped so stale configs don't hard-error.
+        if crate::services::harness_adapter::adapter_for(&id).is_err() {
             continue;
         }
         if seen.insert(id.clone()) {
@@ -225,6 +226,32 @@ mod tests {
     use crate::skill::create_skill;
     use std::collections::HashMap;
     use tempfile::tempdir;
+
+    /// Regression gate: normalize_harness_ids must accept exactly the 5
+    /// registered harnesses (claude, codex, cursor, opencode, pi) and reject
+    /// unknown IDs. Both lists derive from harness_adapter::REGISTRY — this
+    /// test pins that they agree, so drift between any two lists surfaces here.
+    #[test]
+    fn normalize_harness_ids_accepts_all_registered_harnesses() {
+        // All 5 harnesses documented in HARNESSES.md + the adapter REGISTRY.
+        let all_five: Vec<String> = vec![
+            "claude".to_string(),
+            "codex".to_string(),
+            "cursor".to_string(),
+            "opencode".to_string(),
+            "pi".to_string(),
+        ];
+        let normalized = normalize_harness_ids(&all_five);
+        assert_eq!(
+            normalized, all_five,
+            "normalize_harness_ids dropped a registered harness — REGISTRY and validator drifted"
+        );
+        assert_eq!(normalized.len(), 5, "expected exactly 5 registered harnesses");
+        // Unknown IDs must be rejected.
+        let with_unknown: Vec<String> = vec!["claude".to_string(), "gemini".to_string()];
+        let filtered = normalize_harness_ids(&with_unknown);
+        assert_eq!(filtered, vec!["claude".to_string()]);
+    }
 
     fn stdio_server(id: &str, command: &str) -> McpServerConfig {
         McpServerConfig {

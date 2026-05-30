@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Defines a specialist agent that the compiler emits as a
 /// harness-native subagent definition (`.claude/agents/`,
-/// `.gemini/agents/`, `.cursor/agents/`, `.codex/agents/`). The
+/// `.cursor/agents/`, `.codex/agents/`, `.opencode/agents/`). The
 /// canonical schema lives in `schemas/agent.schema.json` — every
 /// JSONC field declared there should have a matching Rust field
 /// here. The top-level key is `agent`.
@@ -170,7 +170,7 @@ mod tests {
     }
 
     // Local strip wrapper — compiler is leaf-ish and can't pull substrate
-    // (WASM constraint). Tests run native, so we mimic the canonical
+    // (pure-transform constraint). Tests run native, so we mimic the canonical
     // stripper's behaviour with a tiny inline copy via crate::jsonc.
     fn ship_substrate_strip(src: &str) -> String {
         crate::jsonc::strip_jsonc_comments(src)

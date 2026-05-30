@@ -1,15 +1,14 @@
 [workspace]
 members = [
     "crates/core/build-info",
-    "crates/core/cli-framework",
     "crates/core/compiler",
-    "crates/core/mcp-framework",
     "crates/core/ship-host",
     "crates/core/ship-substrate",
     "crates/core/ship-platform",
     "crates/core/ship-kernel",
     "crates/core/ship-pipelines",
     "crates/core/ship-types",
+    "crates/core/ship-events-macro",
     "crates/core/ship-gateway-client",
     "crates/core/ship-ops-rpc",
     "crates/core/ship-analytics",
@@ -29,6 +28,7 @@ members = [
     "apps/shipd",
     "apps/ship-cli",
     "apps/shell/src-tauri",
+    "tests/contract",
 ]
 # Throwaway spikes / build scratch under .artifacts declare their own
 # [workspace] and must not be pulled into this one.
@@ -96,6 +96,14 @@ regex = "1"
 
 # Type-bridging (RC pin shared by every consumer)
 specta = { version = "=2.0.0-rc.22", features = ["derive"] }
+
+# Cross-crate distributed registry (event registry assembly)
+inventory = "0.3"
+
+# Proc-macro support
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
 
 # Templating (members add features as needed)
 minijinja = "2"

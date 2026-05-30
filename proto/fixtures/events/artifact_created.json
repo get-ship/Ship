@@ -1,0 +1,17 @@
+{
+  "_meta": {
+    "event": "artifact.created",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "ArtifactCreated",
+    "needs_author": false
+  },
+  "payload": {
+    "id": "test-artifact-id",
+    "scope": "space",
+    "name": "test-artifact.md",
+    "mime": "text/markdown",
+    "size": 1024
+  }
+}

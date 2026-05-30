@@ -51,9 +51,9 @@ fn event_summary(env: &ship_substrate::events::EventEnvelope) -> String {
             .and_then(|x| x.as_str())
             .map(|s| format!("pipeline: {s}"))
             .unwrap_or_default(),
-        "pipeline.run.dispatched" => "job dispatched".to_string(),
-        "pipeline.run.completed" => "job completed".to_string(),
-        "pipeline.run.merged" => "job merged".to_string(),
+        "pipeline.run.dispatched" => "pipeline run dispatched".to_string(),
+        "pipeline.run.completed" => "pipeline run completed".to_string(),
+        "pipeline.run.merged" => "pipeline run merged".to_string(),
         "pipeline.run.failed" => v
             .get("error")
             .and_then(|x| x.as_str())

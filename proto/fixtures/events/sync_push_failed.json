@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "sync.push.failed",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "SyncPushFailed",
+    "needs_author": false
+  },
+  "payload": {
+    "error": "connection refused",
+    "target": "cloud.ship.example"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "event": "daemon.pidfile_stale_taken",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "deprecated",
+    "payload_type": "DaemonPidfileStaleTaken",
+    "needs_author": false
+  },
+  "envelope": {
+    "id": "01JTEST000000000000000EVENT",
+    "event_type": "daemon.pidfile_stale_taken",
+    "entity_id": "test-entity-id",
+    "actor_id": "test-actor-id",
+    "space_id": "",
+    "occurred_at": "2026-01-01T00:00:00Z",
+    "payload": {
+      "stale_pid": 11111,
+      "new_pid": 12345
+    }
+  }
+}

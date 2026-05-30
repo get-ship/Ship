@@ -1,5 +1,6 @@
 pub mod caller;
 pub mod envelope;
+pub mod event_registry;
 pub mod event_types;
 pub mod identity;
 pub mod payload;

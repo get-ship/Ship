@@ -22,20 +22,27 @@ pub mod types {
 
         #[test]
         fn all_constants_have_expected_count() {
-            // F1 (substrate-cleanup slice 01) deleted 12 unused constants
-            // (9 workspace.*, job.claimed, executor.session_created,
-            // executor.window_created). event-coverage/01 added 7
-            // (skill.{created,updated,deleted}, rule.{created,updated,
-            // deleted}, permissions.updated). event-coverage/02 added 2 (session.status_changed, session.turn_failed) for 82 total.
-            // project-switch-wiring added project.switched for 84 total.
-            // Drift to 88: 4 new constants since this counter was last
-            // updated (verify via grep before bumping further).
-            // 89: #85a added agent.grants.provisioned (per-agent grant baseline).
-            // 87: #116 removed the stale gate.passed/gate.failed shadows of
-            // pipeline.gate.* (no emitter/consumer).
-            // 88: #116 added config.file_changed (fine-grained per-file watcher event).
-            // Adjust this when adding/removing event types.
-            assert_eq!(ALL.len(), 88, "exactly 88 event type constants required");
+            // Spec 7a bumped from 88 → 111 by adding the 23 Spec-6 events to ALL.
+            // The hard count is enforced here to catch accidental removals.
+            // When adding events: update ALL in event_types.rs AND payload_registry.rs.
+            assert_eq!(ALL.len(), 112, "exactly 112 event type constants required (Spec 7a)");
+        }
+
+        #[test]
+        fn all_entries_have_registry_entries() {
+            use ship_types::event_registry;
+            let registry_names: std::collections::HashSet<&str> =
+                event_registry::registry().map(|d| d.name).collect();
+            let missing: Vec<&str> = ALL
+                .iter()
+                .copied()
+                .filter(|name| !registry_names.contains(name))
+                .collect();
+            assert!(
+                missing.is_empty(),
+                "event types in ALL not registered in event_registry: {missing:?}\n\
+                 Add entries to ship_substrate::events::payload_registry"
+            );
         }
     }
 }
@@ -60,6 +67,7 @@ pub mod hooks;
 pub mod feedback;
 pub mod filter;
 pub mod global_kernel_router;
+pub mod payload_registry;
 pub mod pipeline;
 pub mod process;
 pub mod supervisor;

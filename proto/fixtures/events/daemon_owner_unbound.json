@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "event": "daemon.owner.unbound",
+    "scope": "account",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "DaemonOwnerUnbound",
+    "needs_author": false
+  },
+  "payload": {}
+}

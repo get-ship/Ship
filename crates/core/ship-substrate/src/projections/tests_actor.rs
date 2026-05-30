@@ -142,6 +142,103 @@ mod actor_tests {
     // ── Tests ──────────────────────────────────────────────────────────
 
     #[test]
+    fn find_live_window_for_space_returns_only_the_live_window() {
+        let (_ship_dir, mut conn) = setup();
+        let bus = bus();
+        let space = "sp-window-find-test";
+        let win = EventEnvelope::new(
+            event_types::ACTOR_CREATED,
+            "win-find-test",
+            &serde_json::json!({
+                "kind": "window",
+                "environment_type": "local",
+                "space_id": space,
+                "restart_count": 0
+            }),
+        )
+        .unwrap()
+        .with_context(Some(space), None)
+        .with_actor_id("win-find-test")
+        .elevate();
+        bus.dispatch(&win, &mut conn);
+        // process.spawned with our own (live) pid makes the row `live`.
+        bus.dispatch(
+            &process_spawned_event("win-find-test", std::process::id()),
+            &mut conn,
+        );
+
+        let found = crate::projections::actor::find_live_window_for_space(space).unwrap();
+        assert_eq!(found.map(|r| r.id).as_deref(), Some("win-find-test"), "live window found for its space");
+        assert!(
+            crate::projections::actor::find_live_window_for_space("sp-no-window-here")
+                .unwrap()
+                .is_none(),
+            "no window for an unrelated space"
+        );
+    }
+
+    #[test]
+    fn register_window_emits_window_actor_created_with_pid() {
+        let (_ship_dir, mut conn) = setup();
+        crate::db::actor_events::register_window("win-reg-test", "sp-reg-test", 4242).unwrap();
+
+        let payload_json: String = block_on(async {
+            sqlx::query_scalar(
+                "SELECT payload_json FROM events \
+                 WHERE event_type = 'actor.created' AND entity_id = 'win-reg-test'",
+            )
+            .fetch_one(&mut conn)
+            .await
+        })
+        .unwrap();
+        let p: ship_types::payload::ActorCreated = serde_json::from_str(&payload_json).unwrap();
+        assert_eq!(p.kind, "window", "kind is window");
+        assert_eq!(p.space_id.as_deref(), Some("sp-reg-test"), "space_id in payload");
+        assert_eq!(p.pid, Some(4242), "self-reported pid carried");
+    }
+
+    #[test]
+    fn reap_dead_windows_closes_dead_window_lifecycle_and_spares_live() {
+        let (_ship_dir, mut conn) = setup();
+        // A window that vanished without deregistering: pid that cannot be
+        // alive (well past any real pid). Its row stays non-terminal with a
+        // dead pid — exactly the state the reaper exists to close.
+        crate::db::actor_events::register_window("win-reap-dead", "sp-reap-a", 2_000_000_000)
+            .unwrap();
+        // A window whose process is genuinely alive (our own pid).
+        crate::db::actor_events::register_window("win-reap-live", "sp-reap-b", std::process::id())
+            .unwrap();
+
+        let reaped = crate::db::actor_events::reap_dead_windows().unwrap();
+        assert!(
+            reaped.iter().any(|id| id == "win-reap-dead"),
+            "dead window must be reaped"
+        );
+        assert!(
+            !reaped.iter().any(|id| id == "win-reap-live"),
+            "live window must NOT be reaped"
+        );
+        assert_eq!(
+            query_actor_status(&mut conn, "win-reap-dead").as_deref(),
+            Some("stopped"),
+            "reaper emits actor.stopped, closing the lifecycle in the log"
+        );
+        assert_ne!(
+            query_actor_status(&mut conn, "win-reap-live").as_deref(),
+            Some("stopped"),
+            "live window stays open"
+        );
+
+        // Idempotent: a second sweep sees the now-terminal row and skips it,
+        // so it never double-emits stopped for an already-closed window.
+        let again = crate::db::actor_events::reap_dead_windows().unwrap();
+        assert!(
+            !again.iter().any(|id| id == "win-reap-dead"),
+            "already-stopped window is not reaped twice"
+        );
+    }
+
+    #[test]
     fn dispatch_created_inserts_actor_row() {
         let (_ship_dir, mut conn) = setup();
         let bus = bus();

@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "process.signal_sent",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "ProcessSignalSentPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pid": 12345,
+    "signal": 15
+  }
+}

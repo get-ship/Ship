@@ -144,17 +144,8 @@ fn build_opencode_permissions(permissions: &Permissions) -> Option<Json> {
 fn build_opencode_mcp(resolved: &ResolvedConfig) -> Json {
     let mut mcp = serde_json::Map::new();
 
-    // Ship server always first.
-    mcp.insert(
-        "ship".to_string(),
-        serde_json::json!({
-            "type": "local",
-            "command": ["ship", "mcp", "serve"]
-        }),
-    );
-
     for s in &resolved.mcp_servers {
-        if s.disabled || s.id == "ship" {
+        if s.disabled {
             continue;
         }
         let entry = match s.server_type {
@@ -206,7 +197,7 @@ fn build_opencode_mcp(resolved: &ResolvedConfig) -> Json {
 /// Ship manages: `model`, `mcp` (servers), `permission`.
 /// Everything else passes through via `opencode_settings_extra`.
 ///
-/// Always returns `Some` — the mcp block is unconditionally populated with at least the ship server.
+/// Returns `Some` when there is content to write (model, MCP servers, permissions, or extras).
 pub(super) fn build_opencode_config_patch(resolved: &ResolvedConfig) -> Option<Json> {
     let model = resolved.model.as_deref();
     let _has_extra = resolved
@@ -216,9 +207,6 @@ pub(super) fn build_opencode_config_patch(resolved: &ResolvedConfig) -> Option<J
         .is_some_and(|v| !v.is_null());
 
     let permissions_patch = build_opencode_permissions(&resolved.permissions);
-
-    // build_opencode_mcp always emits at least the ship server, so there is
-    // always content to write. No early-exit guard is needed.
 
     let mut root = serde_json::json!({});
 

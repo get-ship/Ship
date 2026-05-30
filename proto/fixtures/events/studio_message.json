@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "studio.message",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "StudioMessage",
+    "needs_author": false
+  },
+  "payload": {
+    "session_id": "test-session",
+    "text": "hello world"
+  }
+}

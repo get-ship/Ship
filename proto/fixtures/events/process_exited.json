@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "process.exited",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "ProcessExitedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pid": 12345,
+    "exit_code": 0,
+    "cmd": "claude"
+  }
+}

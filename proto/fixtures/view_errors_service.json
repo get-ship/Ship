@@ -3,6 +3,19 @@
     "response_ok": {
       "id": 1,
       "accepted": true
+    },
+    "request": {
+      "view": "test-view",
+      "url": "test-url",
+      "kind": "test-kind",
+      "message": "test-message",
+      "stack": "test-stack",
+      "filename": "test-filename",
+      "line": 0,
+      "column": 0,
+      "detail_json": "test-detail_json",
+      "user_agent": "test-user_agent",
+      "timestamp_client": "test-timestamp_client"
     }
   },
   "List": {
@@ -22,11 +35,17 @@
         }
       ],
       "total": 1
+    },
+    "request": {
+      "since": 0,
+      "view": "test-view",
+      "limit": 0
     }
   },
   "Clear": {
     "response_ok": {
       "cleared": 1
-    }
+    },
+    "request": {}
   }
 }

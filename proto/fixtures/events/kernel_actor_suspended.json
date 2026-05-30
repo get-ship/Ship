@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "kernel.actor.suspended",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "KernelActorSuspended",
+    "needs_author": false
+  },
+  "payload": {
+    "actor_id": "test-actor",
+    "reason": "idle-timeout"
+  }
+}

@@ -67,6 +67,7 @@ async fn spawn_server() -> (TempDir, std::net::SocketAddr, Arc<Mutex<ProcessRegi
         caller_kind: ship_substrate::events::CallerKind::Cli,
         agent_id: None,
         workspace_id: None,
+        space_id: None,
         session_id: None,
         scopes: vec![Scope::Full],
         grants: vec![],

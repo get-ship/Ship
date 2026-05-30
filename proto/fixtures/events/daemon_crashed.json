@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "daemon.crashed",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "deprecated",
+    "payload_type": "DaemonCrashed",
+    "needs_author": false
+  },
+  "payload": {
+    "error": "signal 11"
+  }
+}

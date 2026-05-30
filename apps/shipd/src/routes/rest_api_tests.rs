@@ -625,6 +625,7 @@ async fn mcp_agent_without_agent_id_can_register() {
         caller_kind: ship_substrate::events::CallerKind::Mcp,
         agent_id: None,
         workspace_id: None,
+        space_id: None,
         session_id: None,
         scopes: vec![crate::auth::Scope::Full],
         grants: vec![],

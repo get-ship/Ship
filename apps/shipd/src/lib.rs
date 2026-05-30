@@ -27,6 +27,7 @@ pub mod project_api;
 pub mod routes;
 pub mod router;
 pub mod ops_rpc;
+pub mod diag_rpc;
 pub mod analytics_rpc;
 pub mod runtime_rpc;
 pub mod view_errors_rpc;
@@ -40,12 +41,11 @@ pub mod pipelines_rpc;
 pub mod git_rpc;
 pub mod agents_rpc;
 pub mod agent_rpc;
-pub mod project_rpc;
+pub mod space_rpc;
 pub mod settings_rpc;
 pub mod annotation_rpc;
 pub mod feedback_rpc;
 pub mod sessions_rpc;
-pub mod workspaces_rpc;
 pub mod account_rpc;
 pub mod chat_rpc;
 pub mod dashboard_rpc;
@@ -263,10 +263,16 @@ pub async fn run_network(
     if let Some(dh) = run_mgr.dispatch_handle {
         rt.set_dispatch_handle(dh);
     }
+    // Build the diagnostic registry now that the dispatch handle (supervisor
+    // process registry) is populated. All subsystem Arcs are cloned cheaply.
+    rt.set_diag_registry(diag_rpc::build_registry(&rt));
     // Start the abandoned session scanner.
     rt.session_scanner().await;
     // Start the artifact GC loop (runs now then every hour).
     rt.start_artifact_gc();
+    // Start the window-reaper loop (closes the log lifecycle of crashed
+    // shell windows that never deregistered; every 30s).
+    rt.start_window_reaper();
     daemon::human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
     rt.start_hook_engine().await;
     rt.start_config_watcher();

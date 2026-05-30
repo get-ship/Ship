@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 fn mk(slug: &str, agent: &str, status: PipelineRunStatus, ts_secs: i64) -> PipelineRun {
     PipelineRun {
-        pipeline_run_id: format!("job-{slug}"),
+        pipeline_run_id: format!("pipeline-run-{slug}"),
         slug: slug.into(),
         agent: agent.into(),
         branch: "main".into(),

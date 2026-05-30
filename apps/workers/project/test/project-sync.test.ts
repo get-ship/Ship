@@ -244,7 +244,7 @@ describe('Project ActorProjection', () => {
       const projection = new ActorProjectionRepository(db);
 
       await projection.applyEvent(makeEvent({
-        event_type: 'session.started',
+        event_type: 'agent.session.started',
         entity_id: crypto.randomUUID(),
       }));
 
@@ -274,7 +274,7 @@ describe('Project SessionProjection', () => {
 
       const sessionId = crypto.randomUUID();
       await projection.applyEvent(makeEvent({
-        event_type: 'session.started',
+        event_type: 'agent.session.started',
         entity_id: sessionId,
         actor_id: 'actor-1',
       }));
@@ -288,7 +288,7 @@ describe('Project SessionProjection', () => {
     });
   });
 
-  it('should transition: started -> ended', async () => {
+  it('should transition: started -> completed', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
       const db = drizzle(state.storage, { schema: project_schema });
       const projection = new SessionProjectionRepository(db);
@@ -296,13 +296,13 @@ describe('Project SessionProjection', () => {
       const sessionId = crypto.randomUUID();
 
       await projection.applyEvent(makeEvent({
-        event_type: 'session.started', entity_id: sessionId, actor_id: 'a1',
+        event_type: 'agent.session.started', entity_id: sessionId, actor_id: 'a1',
       }));
       await projection.applyEvent(makeEvent({
-        event_type: 'session.ended', entity_id: sessionId,
+        event_type: 'agent.session.completed', entity_id: sessionId,
       }));
 
-      expect((await projection.list()).value[0]!.status).toBe('ended');
+      expect((await projection.list()).value[0]!.status).toBe('completed');
     });
   });
 });
@@ -331,7 +331,7 @@ describe('Project SyncFacade integration', () => {
       const sessionId = crypto.randomUUID();
       const events = [
         makeEvent({ event_type: 'actor.created', entity_id: actorId, payload_json: JSON.stringify({ name: 'agent-1' }) }),
-        makeEvent({ event_type: 'session.started', entity_id: sessionId, actor_id: actorId }),
+        makeEvent({ event_type: 'agent.session.started', entity_id: sessionId, actor_id: actorId }),
       ];
 
       const pushResult = await eventRepo.push(events);

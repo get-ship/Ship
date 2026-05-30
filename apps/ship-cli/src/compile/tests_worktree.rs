@@ -53,21 +53,17 @@ fn compile_worktree_output_root_separates_from_project_root() {
     assert!(output.path().join("CLAUDE.md").exists(), "CLAUDE.md must be written to output_root");
     assert!(!project.path().join("CLAUDE.md").exists(), "CLAUDE.md must NOT be written to project_root");
 
-    // Verify .mcp.json content: ship server with correct args and env.
+    // Verify .mcp.json content: the ship-internal MCP server is NOT injected
+    // (ripped in #236 — MCP was culled). User-provided external servers
+    // (github, from setup_minimal_project) must still compile through.
     let content = std::fs::read_to_string(output.path().join(".mcp.json")).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-    let ship = &parsed["mcpServers"]["ship"];
-    assert!(ship.is_object(), "ship server must be present in .mcp.json");
-    assert_eq!(ship["command"].as_str(), Some("ship"), "ship server command must be 'ship'");
-    let args: Vec<&str> = ship["args"]
-        .as_array()
-        .expect("args must be present")
-        .iter()
-        .map(|v| v.as_str().unwrap())
-        .collect();
-    assert_eq!(args, vec!["mcp", "serve"], "ship args must be [mcp, serve]");
-    assert!(ship["env"].is_object(), "env section must be present in ship server entry");
-    let global_dir = ship["env"]["SHIP_HOME"].as_str()
-        .expect("SHIP_HOME must be set in ship server env");
-    assert!(global_dir.ends_with("/.ship"), "SHIP_HOME must end with /.ship, got: {global_dir}");
+    assert!(
+        parsed["mcpServers"]["ship"].is_null(),
+        "ship server must NOT be in .mcp.json after the MCP rip (#236)"
+    );
+    assert!(
+        parsed["mcpServers"]["github"].is_object(),
+        "external user MCP servers must still compile through"
+    );
 }

@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "mesh.register",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "MeshRegister",
+    "needs_author": false
+  },
+  "payload": {
+    "actor_id": "test-actor",
+    "namespace": "test-ns"
+  }
+}

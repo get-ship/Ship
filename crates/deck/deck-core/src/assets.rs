@@ -109,7 +109,9 @@ pub fn serve_space_asset(mode: DaemonMode, file: &str) -> DeckResponse {
 /// path; dev/prod parity through the daemon.
 pub fn serve_hub(mode: DaemonMode) -> DeckResponse {
     let Some(html) = read_deck_asset("hub-scaffold/index.html") else {
-        return DeckResponse::not_found("hub scaffold not built (run apps/shell build)");
+        return DeckResponse::not_found(
+            "hub scaffold not built (missing hub-scaffold/index.html asset)",
+        );
     };
     let html = html.replace("\"/assets/", "\"/hub/_assets/");
     let html = crate::mode_html::inject_mode_meta(&html, mode);

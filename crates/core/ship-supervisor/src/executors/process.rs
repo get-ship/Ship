@@ -203,7 +203,7 @@ impl SessionExecutor for ProcessExecutor {
         // Harnesses without a hook config (opencode is plugins-only; the
         // plugin bridge isn't wired) need hook.* synthesis from their
         // structured output stream. Today: opencode only. Others
-        // (claude/codex/gemini) fire hook.* via their own hook config
+        // (claude/codex/cursor) fire hook.* via their own hook config
         // — synthesizing here would double-count.
         let synth_hooks_from_stream = harness_for_session == "opencode";
         let synth_actor_id = ctx.slug.clone();

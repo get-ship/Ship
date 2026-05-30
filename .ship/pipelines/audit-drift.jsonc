@@ -1,0 +1,17 @@
+{
+  // CI-suitable drift check — no agent steps, no sign-off, no LLM cost.
+  // Exits 1 if the citation indexes have drifted from HEAD.
+  // Wire into CI with: `ship pipelines run audit-drift` or invoke xtask directly.
+  //
+  // This is the mechanical companion to audit-cycle.jsonc. Run it on every push
+  // to confirm that nobody edited source files without regenerating the indexes.
+  "name": "audit-drift",
+  "description": "CI drift check — runs cargo xtask gen-indexes --check only. Exits 1 if indexes are stale. No agent steps.",
+  "auto_merge": false,
+  "steps": [
+    {
+      "id": "check-indexes",
+      "run": "set -euo pipefail\ncargo xtask gen-indexes --check\necho \"audit-drift: indexes are up-to-date — no drift detected\"\n"
+    }
+  ]
+}

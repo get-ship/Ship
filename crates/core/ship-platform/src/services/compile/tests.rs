@@ -422,26 +422,19 @@ fn compile_writes_mcp_json() {
     compile_project(&opts_for(&tmp, "claude")).unwrap();
     let content = std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-    assert!(parsed["mcpServers"]["ship"].is_object(), "ship server must be in .mcp.json");
+    assert!(parsed["mcpServers"]["ship"].is_null(), "ship server must not be in .mcp.json after rip");
     assert!(parsed["mcpServers"]["github"].is_object());
 }
 
 #[test]
-fn mcp_json_ship_server_args_exact() {
+fn mcp_json_does_not_include_ship_server() {
     let tmp = TempDir::new().unwrap();
     setup_minimal_project(&tmp);
     compile_project(&opts_for(&tmp, "claude")).unwrap();
     let content = std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
     let ship = &parsed["mcpServers"]["ship"];
-    assert_eq!(ship["command"].as_str(), Some("ship"));
-    let args: Vec<&str> = ship["args"]
-        .as_array()
-        .expect("args must be present")
-        .iter()
-        .map(|v| v.as_str().unwrap())
-        .collect();
-    assert_eq!(args, vec!["mcp", "serve"]);
+    assert!(ship.is_null(), "ship server entry must not exist after rip");
 }
 
 #[test]

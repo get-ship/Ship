@@ -80,7 +80,11 @@ impl HookEngine {
     /// Replace the registered hook set by rescanning the triggers directory.
     /// Also notifies all source adapters of the updated definitions.
     pub async fn reload(&self) {
-        let report = super::loader::load_triggers_dir(&self.ship_dir);
+        // Load triggers from the composed overlay (local + dep exports) when the
+        // space has deps; raw `.ship/` otherwise. The watcher still watches the
+        // local dir for hot-reload — dep triggers are static (from the cache).
+        let root = crate::registry::compose::composed_root_for(&self.ship_dir);
+        let report = super::loader::load_triggers_dir(&root);
         let mut map = HashMap::with_capacity(report.hooks.len());
         for hook in report.hooks {
             map.insert(hook.name.clone(), hook);

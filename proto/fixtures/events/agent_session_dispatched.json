@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "event": "agent.session.dispatched",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "AgentSessionDispatchedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "session_id": "test-session-id",
+    "slug": "test-agent-session-dispatched",
+    "worktree": "/home/user/.ship/worktrees/test",
+    "harness": "claude"
+  }
+}

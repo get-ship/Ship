@@ -46,6 +46,7 @@ fn mcp_auth(agent: &str) -> AuthContext {
         caller_kind: ship_substrate::events::CallerKind::Mcp,
         agent_id: Some(agent.into()),
         workspace_id: None,
+        space_id: None,
         session_id: None,
         scopes: vec![crate::auth::Scope::Full],
         grants: vec![],

@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "hook.permission_denied",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "HookPermissionDeniedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "tool": "Bash",
+    "pattern": "rm -rf",
+    "session_id": "test-session"
+  }
+}

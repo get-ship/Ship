@@ -82,7 +82,11 @@ pub async fn run_pipeline(
         let mut dir = std::env::current_dir().ok();
         let mut found = None;
         while let Some(d) = dir.as_ref() {
-            let pipelines_dir = ship_substrate::ShipHome::project_ship_dir(d).join("pipelines");
+            let ship = ship_substrate::ShipHome::project_ship_dir(d);
+            // Composed overlay (local + dep pipelines) when the space has deps;
+            // raw `.ship/` otherwise — dispatch can run a dep-shipped pipeline.
+            let pipelines_dir =
+                ship_platform::registry::compose::composed_root_for(&ship).join("pipelines");
             if pipelines_dir.is_dir() {
                 let candidate = pipelines_dir.join(format!("{}.jsonc", req.pipeline));
                 if candidate.exists() {
@@ -220,6 +224,7 @@ mod tests {
             caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: None,
             workspace_id: None,
+            space_id: None,
             session_id: None,
             scopes: vec![Scope::Full],
             grants: vec![],

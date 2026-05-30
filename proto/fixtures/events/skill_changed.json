@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "skill.changed",
+    "scope": "space",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "SkillChanged",
+    "needs_author": false
+  },
+  "payload": {
+    "path": ".ship/skills/test.md",
+    "content_hash": "sha256-test"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "actor.slept",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "ActorSlept",
+    "needs_author": false
+  },
+  "payload": {
+    "idle_secs": 30
+  }
+}

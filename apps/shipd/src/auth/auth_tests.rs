@@ -44,6 +44,74 @@ async fn send(router: Router, req: Request<Body>) -> (StatusCode, String) {
 // 64-char lowercase hex — a well-formed daemon token (`is_daemon_token`).
 const TEST_TOKEN: &str = "a01b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6abc";
 
+// ── Pid-bound session token enforcement (space window) ───────────────────
+
+use crate::auth::peer_socket::PeerPid;
+use ship_platform::auth::scopes::space_window_session;
+
+/// Router whose auth layer sees a session registry pre-seeded with `session`,
+/// and whose outer layer injects `peer_pid` into request extensions (modelling
+/// the UDS peer-cred layer). `peer_pid = None` models TCP (no attested pid).
+async fn router_with_pid_bound_session(
+    session: ship_platform::auth::scopes::DaemonSession,
+    peer_pid: Option<u32>,
+) -> Router {
+    let token = Arc::new(TEST_TOKEN.to_string());
+    let registry: SessionRegistry =
+        Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+    registry.lock().await.insert(session.token.clone(), session);
+    Router::new()
+        .route("/test", axum::routing::get(ok_handler))
+        .layer(middleware::from_fn(move |req, next| {
+            auth::auth_middleware(token.clone(), registry.clone(), req, next)
+        }))
+        // Outermost: runs first, inserts the kernel pid like the peer-cred layer.
+        .layer(middleware::from_fn(move |mut req: Request<Body>, next: middleware::Next| async move {
+            req.extensions_mut().insert(PeerPid(peer_pid));
+            next.run(req).await
+        }))
+}
+
+#[tokio::test]
+async fn pid_bound_session_allows_matching_process() {
+    let session = space_window_session("sp-a", 4242, "ship_sess_winA".to_string());
+    let router = router_with_pid_bound_session(session, Some(4242)).await;
+    let req = Request::builder()
+        .uri("/test")
+        .header("authorization", "Bearer ship_sess_winA")
+        .body(Body::empty())
+        .unwrap();
+    let (status, _) = send(router, req).await;
+    assert_eq!(status, StatusCode::OK, "matching pid is authorized");
+}
+
+#[tokio::test]
+async fn pid_bound_session_rejects_mismatched_process() {
+    let session = space_window_session("sp-a", 4242, "ship_sess_winA".to_string());
+    let router = router_with_pid_bound_session(session, Some(9999)).await;
+    let req = Request::builder()
+        .uri("/test")
+        .header("authorization", "Bearer ship_sess_winA")
+        .body(Body::empty())
+        .unwrap();
+    let (status, _) = send(router, req).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "a different process is rejected (stolen token)");
+}
+
+#[tokio::test]
+async fn pid_bound_session_fails_closed_without_peer_pid() {
+    // Models TCP: no peer-cred layer ran, so no PeerPid was injected.
+    let session = space_window_session("sp-a", 4242, "ship_sess_winA".to_string());
+    let router = router_with_pid_bound_session(session, None).await;
+    let req = Request::builder()
+        .uri("/test")
+        .header("authorization", "Bearer ship_sess_winA")
+        .body(Body::empty())
+        .unwrap();
+    let (status, _) = send(router, req).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "a bound token over an unattested transport fails closed");
+}
+
 // ── Localhost exemption must be dead ─────────────────────────────────────
 
 #[tokio::test]
@@ -322,4 +390,48 @@ async fn anomalous_token_format_fails_closed() {
         .unwrap();
     let (status, _) = send(router, req).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "anomalous credential format must fail closed");
+}
+
+// ── Per-connection space on the emit path (Arc 2 / #128) ──────────────────
+
+/// A space-window session carries its OWN space onto the emit context, not the
+/// daemon's process-global home space. This is the multi-space invariant: one
+/// shipd serves many spaces, and a window's emits land in that window's space.
+#[test]
+fn space_window_auth_emits_into_its_own_space() {
+    let session = space_window_session("sp-OTHER", 4242, "ship_sess_x".to_string());
+    let auth = AuthContext {
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
+        agent_id: Some(session.agent_id.clone()),
+        workspace_id: session.workspace_id.clone(),
+        space_id: session.space_id.clone(),
+        session_id: None,
+        scopes: session.scopes.clone(),
+        grants: session.grants.clone(),
+    };
+    assert_eq!(
+        auth.to_emit_context().space_id.as_deref(),
+        Some("sp-OTHER"),
+        "window emit space must be the session's space, not daemon_space_id()"
+    );
+}
+
+/// An operator/daemon-token AuthContext carries no session space, so its emit
+/// space falls back to the daemon's home space (`daemon_space_id()`).
+#[test]
+fn operator_auth_falls_back_to_daemon_home_space() {
+    let auth = AuthContext {
+        caller_kind: ship_substrate::events::CallerKind::Cli,
+        agent_id: None,
+        workspace_id: None,
+        space_id: None,
+        session_id: None,
+        scopes: vec![],
+        grants: vec![],
+    };
+    assert_eq!(
+        auth.to_emit_context().space_id,
+        ship_substrate::project::daemon_space_id(),
+        "operator emit space must fall back to the daemon home space"
+    );
 }

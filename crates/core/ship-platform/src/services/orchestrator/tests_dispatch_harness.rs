@@ -1,6 +1,6 @@
-//! Tests for first-step harness plumbing in the job-dispatch path.
+//! Tests for first-step harness plumbing in the pipeline-run-dispatch path.
 //!
-//! `dispatch_job_internal` must build the `LaunchProfile` from the
+//! `dispatch_pipeline_run_internal` must build the `LaunchProfile` from the
 //! first pipeline step's `harness` when present, not only from the
 //! job-level `payload.harness`. This mirrors how `advance_pipeline`
 //! resolves harness for steps 2+, so the two dispatch paths agree.
@@ -19,7 +19,7 @@ use crate::services::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
-use crate::services::orchestrator::dispatch::dispatch_job_internal;
+use crate::services::orchestrator::dispatch::dispatch_pipeline_run_internal;
 use crate::services::orchestrator::OrchestratorContext;
 
 struct OkIsolation(PathBuf);
@@ -180,7 +180,7 @@ async fn run_dispatch(
         &kernel, created, &payload.slug, None,
     ).await;
 
-    dispatch_job_internal(&kernel, payload, &ctx).await;
+    dispatch_pipeline_run_internal(&kernel, payload, &ctx).await;
     captured.lock().unwrap().clone()
 }
 

@@ -25,7 +25,7 @@ use crate::services::orchestrator::fanout_aggregate::{
 use crate::services::orchestrator::step_io::{parse_lane_scoped_ref, resolve_consumes};
 use crate::services::orchestrator::tests_fanout_harness::{
     fresh_ship_dir, make_octx, mk_lane, mk_lane_ref, mk_observed, mk_pipeline_with_three_lanes,
-    mk_step, seed_job_created, seed_lane_success,
+    mk_step, seed_pipeline_run_started, seed_lane_success,
 };
 use crate::services::orchestrator::LaneOutcome;
 
@@ -45,7 +45,7 @@ async fn fanout_all_lanes_succeed_judge_sees_every_lane_output() {
     ));
 
     let pipeline = mk_pipeline_with_three_lanes();
-    seed_job_created(&ship_dir, pipeline_run_id, &pipeline);
+    seed_pipeline_run_started(&ship_dir, pipeline_run_id, &pipeline);
 
     let a_id = seed_lane_success(&ship_dir, &kernel, pipeline_run_id, &run_scope, "lane-a", b"A").await;
     let b_id = seed_lane_success(&ship_dir, &kernel, pipeline_run_id, &run_scope, "lane-b", b"BB").await;
@@ -135,7 +135,7 @@ async fn fanout_one_lane_fails_judge_sees_survivors_plus_failed_marker() {
         steps: vec![fanout_step, judge],
         auto_merge: false,
     };
-    seed_job_created(&ship_dir, pipeline_run_id, &pipeline);
+    seed_pipeline_run_started(&ship_dir, pipeline_run_id, &pipeline);
 
     let _a_id = seed_lane_success(&ship_dir, &kernel, pipeline_run_id, &run_scope, "lane-a", b"A").await;
     let _b_id = seed_lane_success(&ship_dir, &kernel, pipeline_run_id, &run_scope, "lane-b", b"BB").await;
@@ -222,7 +222,7 @@ async fn fanout_all_lanes_fail_aggregator_fails_fanout_judge_skipped() {
     ));
 
     let pipeline = mk_pipeline_with_three_lanes();
-    seed_job_created(&ship_dir, pipeline_run_id, &pipeline);
+    seed_pipeline_run_started(&ship_dir, pipeline_run_id, &pipeline);
 
     // Drive all three lanes through the failure path.
     let octx = make_octx();

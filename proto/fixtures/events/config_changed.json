@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "config.changed",
+    "scope": "space",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "ConfigChanged",
+    "needs_author": false
+  },
+  "payload": {
+    "subject": "test-config",
+    "detail": null
+  }
+}

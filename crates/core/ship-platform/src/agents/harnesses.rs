@@ -16,9 +16,24 @@ pub struct ModelInfo {
     pub recommended: bool,
 }
 
-/// Static list of harness IDs that Ship can compile configs for.
-/// Mirrors the HARNESSES table in the compiler crate; kept in sync manually.
-pub const SUPPORTED_HARNESS_IDS: &[&str] = &["claude", "codex", "cursor", "opencode"];
+/// Returns the IDs of all harnesses Ship can compile configs for.
+///
+/// Derived from `services::harness_adapter::REGISTRY` — the single source of
+/// truth. Adding a harness to the REGISTRY propagates here automatically; no
+/// manual list to keep in sync.
+pub fn supported_harness_ids() -> impl Iterator<Item = &'static str> {
+    crate::services::harness_adapter::capabilities()
+        .into_iter()
+        .map(|(id, _)| id)
+}
+
+/// `true` if `id` names a registered harness (case-sensitive, trimmed).
+///
+/// Backed by the REGISTRY — same gate as `normalize_harness_ids`.
+#[allow(dead_code)]
+pub fn is_supported_harness(id: &str) -> bool {
+    crate::services::harness_adapter::adapter_for(id).is_ok()
+}
 
 // ─── Harness registry ────────────────────────────────────────────────────────
 
@@ -52,9 +67,7 @@ pub enum PromptOutput {
 pub enum SkillsOutput {
     /// `.claude/skills/<id>/SKILL.md` — Claude Code native skills (.claude/commands/ is deprecated)
     ClaudeSkills,
-    /// `.gemini/skills/<id>/SKILL.md` — Gemini CLI
-    AgentSkills,
-    /// `.agents/skills/<id>/SKILL.md` — OpenAI Codex
+    /// `.agents/skills/<id>/SKILL.md` — Codex
     CodexSkills,
     None,
 }
@@ -246,7 +259,6 @@ fn harness_info(d: &HarnessDescriptor, enabled: bool, project_dir: Option<&Path>
         },
         skills_output: match d.skills_output {
             SkillsOutput::ClaudeSkills => "claude-skills".to_string(),
-            SkillsOutput::AgentSkills => "agent-skills".to_string(),
             SkillsOutput::CodexSkills => "codex-skills".to_string(),
             SkillsOutput::None => "none".to_string(),
         },
@@ -459,7 +471,7 @@ fn collect_json_models(
         }
     }
 
-    // Gemini model configs.
+    // Model configs in harness JSON.
     if let Some(model_configs) = root.get("modelConfigs").and_then(|v| v.as_object()) {
         for (name, entry) in model_configs {
             push_model(models, seen, harness_id, name, false);

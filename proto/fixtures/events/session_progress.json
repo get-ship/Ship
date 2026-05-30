@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "session.progress",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "SessionProgress",
+    "needs_author": false
+  },
+  "payload": {
+    "message": "processing..."
+  }
+}

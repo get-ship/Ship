@@ -5,7 +5,7 @@
   "name": "log-failed-jobs",
   "description": "Emit a derived trigger.job_failed_notice when a job ends in failure.",
   "trigger": {
-    "event": "job.failed"
+    "event": "pipeline.run.failed"
   },
   "actions": [
     {

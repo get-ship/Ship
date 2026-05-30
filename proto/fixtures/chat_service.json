@@ -21,6 +21,9 @@
         }
       ],
       "total": 2
+    },
+    "request": {
+      "workspace_id": "test-workspace_id"
     }
   }
 }

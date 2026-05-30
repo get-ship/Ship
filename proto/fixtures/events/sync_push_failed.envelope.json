@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "event": "sync.push.failed",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "SyncPushFailed",
+    "needs_author": false
+  },
+  "envelope": {
+    "id": "01JTEST000000000000000EVENT",
+    "event_type": "sync.push.failed",
+    "entity_id": "test-entity-id",
+    "actor_id": "test-actor-id",
+    "space_id": "",
+    "occurred_at": "2026-01-01T00:00:00Z",
+    "payload": {
+      "error": "connection refused",
+      "target": "cloud.ship.example"
+    }
+  }
+}

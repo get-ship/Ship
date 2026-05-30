@@ -167,7 +167,7 @@ pub fn send_agent_message(
     // `api::spawn_session` to `agent_actor::spawn_or_attach` and their
     // chat turns flow over the channel event from the HTTP layer.
     // Anything reaching this function is a per-turn harness (codex,
-    // opencode, gemini, cursor) and gets a fresh headless child below.
+    // opencode, cursor) and gets a fresh headless child below.
     tracing::info!(session = %slug, harness = %harness, "send_agent_message: per-turn headless");
 
     let agent_id_opt = session.0.meta.lock().unwrap().agent_id.clone();

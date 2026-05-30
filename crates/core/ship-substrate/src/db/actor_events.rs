@@ -91,6 +91,86 @@ pub fn emit_actor_created_simple(
     )
 }
 
+/// Register a Tauri shell window as a lifecycle actor (process-per-app).
+///
+/// Unlike agent actors (daemon-spawned → pid arrives later via `process.spawned`),
+/// a window self-spawns and reports its own pid here — so the row is `live`
+/// immediately and `find_live_window_for_space` can serve single-instance. A
+/// *lifecycle* actor: identity + pid + lifecycle, no mailbox (the webview gets
+/// events over its Connect stream). `space_id` goes in the payload (what the
+/// actor projection reads), not just the envelope.
+pub fn register_window(actor_id: &str, space_id: &str, pid: u32) -> Result<()> {
+    let payload = ActorCreated {
+        kind: "window".to_string(), // ActorKind::Window — projection treats kind as a string
+        environment_type: "local".to_string(),
+        space_id: Some(space_id.to_string()),
+        pid: Some(pid),
+        persistence: Some("long-lived".to_string()),
+        ..Default::default()
+    };
+    emit_actor_created(actor_id, &payload, Some(space_id), None)
+}
+
+/// Deregister a window on close — emits `actor.stopped` so it leaves the live
+/// set and `find_live_window_for_space` stops matching it.
+pub fn deregister_window(actor_id: &str, space_id: &str) -> Result<()> {
+    let payload = ActorStopped {
+        reason: "window closed".to_string(),
+        ..Default::default()
+    };
+    emit_actor_stopped(actor_id, &payload, Some(space_id), None)
+}
+
+/// Sweep window-kind actors and close the lifecycle of any whose recorded pid
+/// is no longer alive.
+///
+/// A clean window close calls `deregister_window`; a *crash* (SIGKILL, an OS
+/// close that never reached the daemon) leaves the row stuck non-terminal with
+/// a dead pid. The projection's derived `live` field already reads false (it
+/// pid-probes), so the launcher's single-instance query is honest — but the
+/// event log never recorded the death, so `status` stays `created` forever.
+/// This reaper emits `actor.stopped` for each such row so the lifecycle is
+/// closed in the log, not merely masked by the derived flag.
+///
+/// CLEANUP ONLY — never respawns. The launcher owns (re)spawn; this only
+/// reconciles the log with process reality. Returns the ids it reaped.
+///
+/// MUST run on a thread with no ambient Tokio runtime (the emit path's durable
+/// append uses `block_on`); daemon callers offload via `spawn_blocking`.
+pub fn reap_dead_windows() -> Result<Vec<String>> {
+    use crate::projections::actor::{list_actors, pid_alive, ListActorsFilter};
+
+    // "window" == ActorKind::Window.as_str(); the projection treats kind as a
+    // string throughout, so we filter on the string (no supervisor dep here).
+    let windows = list_actors(&ListActorsFilter {
+        kind: Some("window".to_string()),
+        limit: 256,
+        ..Default::default()
+    })?;
+
+    let mut reaped = Vec::new();
+    for w in windows {
+        // Already closed in the log — nothing to reconcile (keeps the sweep
+        // idempotent: a dead row is stopped exactly once).
+        if w.status == "stopped" || w.status == "crashed" {
+            continue;
+        }
+        // A window always records its pid at registration, so a row whose pid
+        // is gone is a window that vanished without deregistering.
+        let pid_dead = w.pid.map(|p| !pid_alive(p)).unwrap_or(false);
+        if !pid_dead {
+            continue;
+        }
+        let payload = ActorStopped {
+            reason: "reaped: window process not found".to_string(),
+            ..Default::default()
+        };
+        emit_actor_stopped(&w.id, &payload, w.space_id.as_deref(), None)?;
+        reaped.push(w.id);
+    }
+    Ok(reaped)
+}
+
 /// Persist `actor.created` (event row + projection) and deliver the live
 /// mailbox notification, all synchronously and without building a throwaway
 /// async runtime.

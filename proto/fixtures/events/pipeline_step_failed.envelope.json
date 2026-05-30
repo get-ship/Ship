@@ -1,0 +1,24 @@
+{
+  "_meta": {
+    "event": "pipeline.step.failed",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "PipelineStepFailedPayload",
+    "needs_author": false
+  },
+  "envelope": {
+    "id": "01JTEST000000000000000EVENT",
+    "event_type": "pipeline.step.failed",
+    "entity_id": "test-entity-id",
+    "actor_id": "test-actor-id",
+    "space_id": "test-space-id",
+    "occurred_at": "2026-01-01T00:00:00Z",
+    "payload": {
+      "pipeline_run_id": "test-run-id",
+      "step_id": "step-1",
+      "slug": "test-slug",
+      "error": "test failure"
+    }
+  }
+}

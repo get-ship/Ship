@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "agent.session.cancelled",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "AgentSessionCancelledPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "session_id": "test-session-id",
+    "slug": "test-agent-session-cancelled",
+    "reason": "operator-requested"
+  }
+}

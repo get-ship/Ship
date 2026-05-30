@@ -83,7 +83,7 @@ pub fn resolve_template(content: &str, vars: &HashMap<String, Value>) -> String 
     match env.render_str(content, ctx) {
         Ok(result) => result,
         Err(e) => {
-            // compiler crate is WASM-safe; using eprintln avoids pulling in
+            // compiler crate stays leaf-ish; using eprintln avoids pulling in
             // tracing (which is the canonical logger elsewhere). Falling
             // back to raw content keeps the build moving on template bugs.
             eprintln!("warning: template error: {e}");

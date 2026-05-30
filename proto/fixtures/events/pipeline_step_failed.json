@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "event": "pipeline.step.failed",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "PipelineStepFailedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id",
+    "step_id": "step-1",
+    "slug": "test-slug",
+    "error": "test failure"
+  }
+}

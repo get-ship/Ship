@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "process.killed",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "ProcessKilledPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pid": 12345,
+    "signal": 15,
+    "cmd": "claude"
+  }
+}

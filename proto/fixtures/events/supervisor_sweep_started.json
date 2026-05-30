@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "supervisor.sweep_started",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "SweepStartedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "actor_count": 10
+  }
+}

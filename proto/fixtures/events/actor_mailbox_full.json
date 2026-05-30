@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "actor.mailbox_full",
+    "scope": "device",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "ActorMailboxFull",
+    "needs_author": false
+  },
+  "payload": {
+    "actor_id": "test-actor",
+    "dropped_event_type": "session.progress",
+    "dropped_event_id": "test-event-id"
+  }
+}

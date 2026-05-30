@@ -22,7 +22,6 @@ Each harness section lists the **full upstream config surface**, then marks each
 | Harness | Total Config Surfaces | Ship Compiles | Coverage | Critical Gaps |
 |---|---|---|---|---|
 | Claude Code | ~90 fields + 24 hook events + sandbox ACLs | ~20 fields + 6 triggers | ~22% | sandbox (fs+net ACLs), 18 hook events, 3 hook types, env, worktree config, glob-scoped rules |
-| Gemini CLI | ~120 fields + 11 hook triggers | ~15 fields + 5 triggers | ~12% | model, approval mode, sandbox, browser agent, extensions, env |
 | Codex CLI | ~90 fields + 50 feature flags + Starlark rules | ~5 fields (MCP + context only) | ~6% | model, approval/sandbox, Starlark rules, permission profiles (fs+net ACLs), granular approval, multi-agent, per-MCP auth/tools |
 | Cursor | ~30 fields (file-based) + SQLite | ~15 fields | ~50% | model (SQLite), YOLO mode, environment.json, .cursorignore |
 
@@ -228,176 +227,7 @@ Fields: `statusLine`, `fileSuggestion`, `spinnerVerbs`, `spinnerTipsEnabled`, `t
 
 ---
 
-## 2. Gemini CLI
-
-### Upstream Schema
-`https://raw.githubusercontent.com/google-gemini/gemini-cli/main/schemas/settings.schema.json`
-
-### File Tree (full)
-
-```
-/etc/gemini-cli/system-defaults.json    # system defaults (lowest precedence)
-/etc/gemini-cli/settings.json           # system overrides (highest precedence)
-
-~/.gemini/
-├── settings.json                       # user settings
-├── GEMINI.md                           # global instructions
-├── policies/*.toml                     # global permission policies
-├── extensions/<name>/
-│   ├── gemini-extension.json           # extension manifest
-│   ├── GEMINI.md                       # extension context
-│   ├── commands/*.toml                 # extension slash commands
-│   └── hooks/hooks.json               # extension hooks
-└── .env                                # global env vars
-
-<project>/
-├── GEMINI.md                           # project instructions
-├── <subdir>/GEMINI.md                  # directory-scoped instructions
-├── .gemini/
-│   ├── settings.json                   # project settings
-│   ├── .env                            # project env vars
-│   ├── policies/*.toml                 # project policies (higher precedence)
-│   ├── sandbox.Dockerfile              # custom Docker sandbox
-│   └── sandbox-macos-*.sb             # macOS sandbox profiles
-├── .geminiignore                       # AI context filtering
-└── .env                                # environment variables (walk up to git root)
-```
-
-### settings.json — Full Field Map
-
-#### Core Agent Config
-| Field | Type | Ship Status | Notes |
-|---|---|---|---|
-| `model.name` | string | 🔴 Gap | Model selection |
-| `model.maxSessionTurns` | number | 🔴 Gap | Turn limit |
-| `model.compressionThreshold` | number (0-1) | 🔧 harness_config | Context compaction |
-| `model.disableLoopDetection` | boolean | 🔧 harness_config | |
-| `model.summarizeToolOutput` | object | 🔧 harness_config | Output summarization |
-| `general.defaultApprovalMode` | "default"/"auto_edit"/"plan" | 🔴 Gap | Agent approval mode |
-| `general.maxAttempts` | number | 🔧 harness_config | Retry limit |
-| `general.checkpointing.enabled` | boolean | 🔧 harness_config | |
-| `general.sessionRetention.*` | object | 🔧 harness_config | Session cleanup |
-
-#### Hooks
-| Trigger | Ship Equivalent | Ship Status | Notes |
-|---|---|---|---|
-| `BeforeTool` | `PreToolUse` | ✅ Compiled | |
-| `AfterTool` | `PostToolUse` | ✅ Compiled | |
-| `Notification` | `Notification` | ✅ Compiled | |
-| `SessionEnd` | `Stop` | ✅ Compiled | |
-| `PreCompress` | `PreCompact` | ✅ Compiled | |
-| `SessionStart` | — | 🔴 Gap | |
-| `BeforeAgent` | — | 🔴 Gap | Sub-agent lifecycle |
-| `AfterAgent` | — | 🔴 Gap | Per-turn post-model |
-| `BeforeModel` | — | 🔴 Gap | Pre-LLM-request |
-| `AfterModel` | — | 🔴 Gap | Per-chunk post-LLM |
-| `BeforeToolSelection` | — | 🔴 Gap | Tool routing gate |
-
-Hook fields: `matcher` (tool name pattern), `command` (script), `timeout` (default 60s).
-Communication: JSON on stdin/stdout. Env vars: `GEMINI_PROJECT_DIR`, `GEMINI_SESSION_ID`, `GEMINI_CWD`.
-
-#### MCP Servers
-| Feature | Ship Status | Notes |
-|---|---|---|
-| `mcpServers` (stdio) | ✅ Compiled | command/args/env |
-| `mcpServers` (SSE) | ✅ Compiled | `url` field |
-| `mcpServers` (HTTP) | ✅ Compiled | `httpUrl` field |
-| `timeout` per server | 🔴 Gap | Connection timeout (ms) |
-| `cwd` per server | 🔴 Gap | Working directory |
-| `trust` per server | 🔧 harness_config | Trust level |
-| `includeTools` per server | 🔴 Gap | Tool allowlist per MCP server |
-| `excludeTools` per server | 🔴 Gap | Tool blocklist per MCP server |
-| `headers` (HTTP/SSE) | 🔴 Gap | Auth headers |
-| Global `mcp.allowed` | 🔧 harness_config | Server-level allowlist |
-| Global `mcp.excluded` | 🔧 harness_config | Server-level blocklist |
-
-#### Permissions / Policies
-| Feature | Ship Status | Notes |
-|---|---|---|
-| `[[tool_policies]]` TOML | ✅ Compiled | To `.gemini/policies/ship.toml` (tool, pattern, decision) |
-| `mcpName` field in policies | 🔴 Gap | Target specific MCP server in policy rules |
-| `argsPattern` field in policies | 🔴 Gap | Regex against JSON-serialized tool args |
-| `priority` field in policies | 🔴 Gap | 0-999 priority within tier (3-tier system) |
-| `commandPrefix` field in policies | 🔴 Gap | Shell command prefix matching |
-| `policyPaths` | 🔧 harness_config | Extra policy directories |
-| `adminPolicyPaths` | ⬜ Managed only | |
-
-#### Tool Controls
-| Field | Ship Status | Notes |
-|---|---|---|
-| `tools.core` | 🔧 harness_config | Built-in tool allowlist |
-| `tools.allowed` | 🗺️ Maps to permissions | Tools bypassing confirmation e.g. `"run_shell_command(git)"` |
-| `tools.exclude` | 🗺️ Maps to permissions | Tools to disable |
-| `tools.discoveryCommand` | 🔧 harness_config | Custom tool discovery |
-| `tools.callCommand` | 🔧 harness_config | Custom tool call command (JSON stdin/stdout) |
-| `tools.truncateToolOutputThreshold` | 🔧 harness_config | Default 40000 |
-| `tools.shell.*` | 🔧 harness_config | Shell behavior (interactive, pager, timeout) |
-
-#### Context / Discovery
-| Field | Ship Status | Notes |
-|---|---|---|
-| `context.fileName` | ⬜ | Custom context filename (default "GEMINI.md") |
-| `context.discoveryMaxDirs` | ⬜ | Directory scan limit (default 200) |
-| `context.includeDirectories` | 🔧 harness_config | Multi-repo context |
-| `context.loadMemoryFromIncludeDirectories` | 🔧 harness_config | |
-| `context.fileFiltering.*` | ⬜ | Gitignore/geminiignore behavior |
-| `@path/to/file.md` imports in GEMINI.md | ⬜ | Context file imports |
-
-#### Security / Enterprise
-| Field | Ship Status | Notes |
-|---|---|---|
-| `security.disableYoloMode` | 🔧 harness_config | Enterprise lockdown |
-| `security.disableAlwaysAllow` | 🔧 harness_config | |
-| `security.enablePermanentToolApproval` | 🔧 harness_config | |
-| `security.folderTrust.enabled` | 🔧 harness_config | |
-| `security.environmentVariableRedaction.*` | 🔧 harness_config | Sensitive var masking |
-| `security.blockGitExtensions` | 🔧 harness_config | |
-| `security.allowedExtensions` | 🔧 harness_config | Regex patterns |
-
-#### Browser Agent
-| Field | Ship Status | Notes |
-|---|---|---|
-| `agents.browser.sessionMode` | 🔧 harness_config | "persistent"/"isolated"/"existing" |
-| `agents.browser.headless` | 🔧 harness_config | |
-| `agents.browser.allowedDomains` | 🔧 harness_config | Default: github, google, localhost |
-| `agents.browser.visualModel` | 🔧 harness_config | |
-
-#### Extensions
-| Feature | Ship Status | Notes |
-|---|---|---|
-| Extension manifests | 🔴 Gap | `gemini-extension.json` |
-| Extension context | 🔴 Gap | Per-extension GEMINI.md |
-| Extension slash commands | 🔴 Gap | `.toml` command definitions |
-| Extension hooks | 🔴 Gap | `hooks/hooks.json` |
-| Extension policies | 🔴 Gap | Per-extension `policies/*.toml` |
-
-#### Custom Slash Commands
-| Feature | Ship Status | Notes |
-|---|---|---|
-| `.gemini/commands/*.toml` | 🗺️ Maps to skills | Project commands |
-| `~/.gemini/commands/*.toml` | 🗺️ Maps to skills | User commands |
-| Template: `@{path}`, `!{cmd}`, `{{args}}` | 🔴 Gap | Template syntax not in Ship skills |
-
-#### Environment
-| Feature | Ship Status | Notes |
-|---|---|---|
-| `.gemini/.env` | 🔴 Gap | Project env vars |
-| `~/.gemini/.env` | 🔴 Gap | Global env vars |
-| `.env` walk-up | 🔴 Gap | Directory-scoped env |
-
-#### Sandbox
-| Field | Ship Status | Notes |
-|---|---|---|
-| `tools.sandbox` | 🔧 harness_config | true/"docker"/"podman"/path/object |
-| `.gemini/sandbox.Dockerfile` | 🔧 harness_config | Custom sandbox image |
-| `.gemini/sandbox-macos-*.sb` | 🔧 harness_config | macOS sandbox profiles |
-
-#### UI/Telemetry (out of scope)
-Fields: `ui.*` (theme, footer, spinner, accessibility ~30 fields), `privacy.*`, `telemetry.*`, `billing.*`, `ide.*`, `output.format`, `model.summarizeToolOutput`, `model.compressionThreshold`, `model.disableLoopDetection`
-
----
-
-## 3. OpenAI Codex CLI
+## 2. OpenAI Codex CLI
 
 ### Upstream Schema
 `https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/config.schema.json`
@@ -560,7 +390,7 @@ Fields: `tui.*` (theme, animations, tooltips, alt_screen), `audio.*`, `realtime.
 
 ---
 
-## 4. Cursor
+## 3. Cursor
 
 ### No Upstream Schema
 Cursor does not publish JSON schemas for any config file.
@@ -680,33 +510,31 @@ Scoping: project (`.cursor/hooks.json`) + global (`~/.cursor/hooks.json`). Both 
 | Gap | Harnesses Affected | Ship Concept Mapping | Priority |
 |---|---|---|---|
 | **`harness_config` passthrough** | ALL | Free-form per-harness settings blob | **P0** |
-| **Environment variables** | Claude (`env`), Gemini (`.env`), Codex (shell policy) | Ship `[env]` section in preset? | **P0** |
-| **Model selection** | Gemini, Codex, Cursor | Already in preset `[profile]` but only compiled for Claude | **P1** |
-| **Approval mode** | Gemini (`defaultApprovalMode`), Codex (`approval_policy`) | Maps to Ship workspace modes | **P1** |
-| **Sandbox mode** | Claude (full sandbox: fs read/write ACLs + network domain allowlist), Codex (`sandbox_mode` + `sandbox_workspace_write`), Gemini (`tools.sandbox` + Dockerfile) | Ship concept TBD — all 3 CLI harnesses now have sandbox | **P1** |
+| **Environment variables** | Claude (`env`), Codex (shell policy) | Ship `[env]` section in preset? | **P0** |
+| **Model selection** | Codex, Cursor | Already in preset `[profile]` but only compiled for Claude | **P1** |
+| **Approval mode** | Codex (`approval_policy`) | Maps to Ship workspace modes | **P1** |
+| **Sandbox mode** | Claude (full sandbox: fs read/write ACLs + network domain allowlist), Codex (`sandbox_mode` + `sandbox_workspace_write`) | Ship concept TBD — both CLI harnesses have sandbox | **P1** |
 | **Codex permission profiles** | Codex (filesystem + network ACLs per profile, Starlark `.rules` files) | Partially maps to Ship permissions but much richer (per-path fs access, domain-level network ACLs) | **P2** |
 | **Codex granular approval** | Codex (`approval_policy.granular` — per-category: sandbox, rules, MCP, permissions, skills) | No Ship equivalent | **P2** |
-| **MCP per-server config** | Codex (timeouts, enabled), Gemini (timeout, cwd, includeTools, excludeTools, headers, trust), Claude (enable/disable lists) | Extend Ship MCP server TOML | **P2** |
-| **Hook triggers (18+ new)** | Claude (18 new including PostCompact, Elicitation, ElicitationResult), Gemini (6 new), Cursor (3 new) | Expand Ship hook trigger enum | **P2** |
+| **MCP per-server config** | Codex (timeouts, enabled), Claude (enable/disable lists) | Extend Ship MCP server TOML | **P2** |
+| **Hook triggers (18+ new)** | Claude (18 new including PostCompact, Elicitation, ElicitationResult), Cursor (3 new) | Expand Ship hook trigger enum | **P2** |
 | **Hook types (3 new)** | Claude (`prompt`, `agent`, `http`) | Ship hook type enum | **P2** |
 | **Multi-agent roles** | Codex (`agents`, `*.toml`), Claude (`.claude/agents/`) | Ship team/agent concept | **P2** |
 | **Plugins** | Claude (`enabledPlugins`), Codex (`plugins`) | Ship plugins manifest (partial) | **P2** |
-| **Slash commands** | Gemini (`.toml` commands with templates), Cursor (`.md` commands) | Maps to Ship skills; Gemini template syntax (`@{}`, `!{}`, `{{args}}`) not supported | **P2** |
-| **Tool filtering per MCP** | Gemini (`includeTools`/`excludeTools`), Codex (per-server `enabled`) | Ship MCP server config | **P2** |
-| **Extensions** | Gemini (extension system) | No Ship equivalent | **P3** |
+| **Slash commands** | Cursor (`.md` commands) | Maps to Ship skills | **P2** |
+| **Tool filtering per MCP** | Codex (per-server `enabled`) | Ship MCP server config | **P2** |
 | **.cursorignore** | Cursor | Ship ignore concept TBD | **P3** |
 
 ### What Ship Does Well (no gaps)
 
 | Feature | Ship Approach | Notes |
 |---|---|---|
-| MCP servers (basic) | Unified TOML → per-harness format | All 4 harnesses |
-| Rules/context files | `.ship/agents/rules/` → concatenated or per-file | All 4 harnesses |
-| Skills | `.ship/agents/skills/` → harness skill dirs | All 4 harnesses |
+| MCP servers (basic) | Unified TOML → per-harness format | All harnesses |
+| Rules/context files | `.ship/agents/rules/` → concatenated or per-file | All harnesses |
+| Skills | `.ship/agents/skills/` → harness skill dirs | All harnesses |
 | Permissions (Claude) | Lossless translation | Best coverage |
-| Permissions (Gemini) | Policy engine TOML | Good coverage |
 | Permissions (Cursor) | Typed CLI patterns | Good coverage |
-| Hooks (basic triggers) | 6 triggers compiled | Claude, Gemini, Cursor |
+| Hooks (basic triggers) | 6 triggers compiled | Claude, Cursor |
 | Agent limits | `maxCostPerSession`, `maxTurns` | Claude only |
 | Multi-harness compilation | Single source → 4 outputs | Core value prop |
 
@@ -720,7 +548,7 @@ Scoping: project (`.cursor/hooks.json`) + global (`~/.cursor/hooks.json`). Both 
 1. **P0: `harness_config` passthrough** — Let users put arbitrary harness-specific settings in their preset. Ship passes them through unmodified. This closes the "long tail" gap immediately.
 2. **P1: First-class model + approval mode** — These are universal concepts. Every harness has them. Compile `[profile] model` to all harnesses, not just Claude. Map Ship workspace modes to harness approval modes.
 3. **P2: Incremental coverage** — Hook triggers, MCP timeouts, env vars, multi-agent. Add as demand appears.
-4. **P3: Harness-specific features** — Extensions (Gemini), cloud agents (Cursor). Only if users ask.
+4. **P3: Harness-specific features** — Cloud agents (Cursor). Only if users ask.
 
 ---
 
@@ -729,6 +557,5 @@ Scoping: project (`.cursor/hooks.json`) + global (`~/.cursor/hooks.json`). Both 
 | Harness | Schema | URL |
 |---|---|---|
 | Claude Code | settings.json | `https://json.schemastore.org/claude-code-settings.json` |
-| Gemini CLI | settings.json | `https://raw.githubusercontent.com/google-gemini/gemini-cli/main/schemas/settings.schema.json` |
 | Codex CLI | config.toml | `https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/config.schema.json` |
 | Cursor | — | No published schemas |

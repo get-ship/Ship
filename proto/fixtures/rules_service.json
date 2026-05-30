@@ -15,31 +15,50 @@
           "scope": "user"
         }
       ]
-    }
+    },
+    "request": {}
   },
   "Get": {
     "response_ok": {
       "id": "no-placeholders",
       "scope": "project",
       "body": "# No placeholders\n\nNo TODOs, no fake data. If it's not finished, remove it. The next agent treats your scaffold as architecture.\n"
+    },
+    "request": {
+      "id": "test-id",
+      "scope": "test-scope"
     }
   },
   "Create": {
     "response_ok": {
       "id": "no-placeholders",
       "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "content": "test content",
+      "scope": "test-scope"
     }
   },
   "Put": {
     "response_ok": {
       "id": "test-first",
       "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "content": "test content",
+      "scope": "test-scope"
     }
   },
   "Delete": {
     "response_ok": {
       "id": "commit-style",
       "scope": "user"
+    },
+    "request": {
+      "id": "test-id",
+      "scope": "test-scope"
     }
   }
 }

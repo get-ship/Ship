@@ -20,7 +20,10 @@ fn main() {
     }
 
     connectrpc_build::Config::new()
-        .files(&[proto_root.join("ship/gateway/v1/auth.proto")])
+        .files(&[
+            proto_root.join("ship/gateway/v1/auth.proto"),
+            proto_root.join("ship/gateway/v1/registry.proto"),
+        ])
         .includes(std::slice::from_ref(&proto_root))
         .compile()
         .expect("connectrpc-build codegen failed");

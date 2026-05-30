@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "skill.started",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "deprecated",
+    "payload_type": "SkillStarted",
+    "needs_author": false
+  },
+  "payload": {
+    "skill_id": "test-skill"
+  }
+}

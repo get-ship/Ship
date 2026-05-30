@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "pipeline.run.completed",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "PipelineRunCompletedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "pipeline_run_id": "test-run-id",
+    "slug": "test-slug"
+  }
+}

@@ -112,7 +112,11 @@ pub(crate) fn load_pipeline_file(name: &str) -> Result<Option<(Pipeline, Pipelin
     loop {
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(&dir);
         if ship_dir.is_dir() {
-            let path = ship_dir.join("pipelines").join(format!("{name}.jsonc"));
+            // Read pipelines from the composed overlay (local base + dep exports)
+            // when the space has deps; the raw `.ship/` otherwise (depless spaces
+            // resolve to `ship_dir` unchanged — behavior-preserving).
+            let root = crate::registry::compose::composed_root_for(&ship_dir);
+            let path = root.join("pipelines").join(format!("{name}.jsonc"));
             if !path.exists() {
                 return Ok(None);
             }

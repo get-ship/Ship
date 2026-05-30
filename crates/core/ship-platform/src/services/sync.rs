@@ -13,6 +13,7 @@ use anyhow::Result;
 
 use ship_substrate::db::cursors;
 use ship_substrate::events::{ActorStore, EventEnvelope, query_events_since};
+use ship_types::payload::SyncPushCompleted;
 use crate::services::ServiceHandler;
 use crate::sync::{PushResponse, SyncClient};
 
@@ -86,6 +87,7 @@ impl SyncServiceHandler {
     }
 
     fn push_cycle(&mut self, store: &ActorStore) -> Result<()> {
+        let push_start = std::time::Instant::now();
         let scope = self.push_scope();
         let cursor = cursors::get(&scope)?;
         let events = query_events_since(cursor.as_deref(), true)?;
@@ -95,11 +97,15 @@ impl SyncServiceHandler {
         let resp = self.client.push_platform_events(&self.config.space_id, &events)?;
         cursors::set(&scope, &resp.cursor)?;
         self.elevated_since_push = 0;
-        let payload = serde_json::json!({
-            "event_count": resp.accepted,
-            "cursor": resp.cursor,
-        });
-        store.append(&EventEnvelope::new("sync.push.completed", "sync", &payload)?)?;
+        let payload = SyncPushCompleted {
+            events_pushed: resp.accepted as u64,
+            duration_ms: push_start.elapsed().as_millis() as u64,
+        };
+        store.append(&EventEnvelope::new(
+            "sync.push.completed",
+            "sync",
+            &serde_json::to_value(&payload)?,
+        )?)?;
         Ok(())
     }
 }

@@ -94,6 +94,7 @@ pub fn compute_file_hash(path: &Path) -> anyhow::Result<String> {
     Ok(format!("sha256:{}", hex::encode_sha256(&content)))
 }
 
+
 /// Per-export content hashes and a combined top-level hash.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExportHashes {

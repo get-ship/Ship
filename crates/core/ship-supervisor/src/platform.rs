@@ -105,6 +105,11 @@ impl AgentPlatform for ShipdPlatform {
             scopes: scopes_for_role(role),
             grants: ship_platform::auth::scopes::resolve_grants(agent_id, role),
             workspace_id: None,
+            // Agent sessions run in the daemon's home space — None here falls
+            // back to `daemon_space_id()` at emit. See spec 128-multi-space-emit.
+            space_id: None,
+            // Agent sessions are peer-identity authenticated, not pid-bound.
+            pid: None,
             created_at: std::time::Instant::now(),
             // Ephemeral, in-memory: lives for the daemon's run. A daemon restart
             // re-spawns the agent (which re-mints), so no persistence needed.

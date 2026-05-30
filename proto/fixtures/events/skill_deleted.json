@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "skill.deleted",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "SkillDeleted",
+    "needs_author": false
+  },
+  "payload": {
+    "scope": "space"
+  }
+}

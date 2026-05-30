@@ -424,8 +424,8 @@
     "pipelines.put": { "id": "ship-feature", "scope": "project" },
     "pipelines.patch": { "id": "ship-feature", "scope": "project" },
     "pipelines.delete": { "id": "ship-feature", "scope": "project" },
-    "project.active_project": { "id": "harbor" },
-    "project.add": {
+    "space.active": { "id": "harbor" },
+    "space.add": {
       "id": "harbor",
       "path": "/home/dev/harbor",
       "name": "Harbor",
@@ -594,6 +594,11 @@
     "view_errors.clear": {
       "cleared": 1
     },
-    "workspaces.active": { "id": "harbor" }
+    "workspaces.active": { "id": "harbor" },
+    "space.info": { "spaceId": "harbor-space-id", "root": "/home/harbor/projects/harbor", "name": "harbor" },
+    "space.window_intent": { "decision": "allow", "actorId": "harbor-actor-id" },
+    "space.window_list": { "windows": [{ "actorId": "harbor-actor-id", "spaceId": "harbor-space-id", "live": true }] },
+    "space.close_window": { "closed": true },
+    "space.set_setting": { "key": "theme", "value_json": "\"dark\"" }
   }
 }

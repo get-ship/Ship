@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "collection.item_deleted",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "CollectionItemDeleted",
+    "needs_author": false
+  },
+  "payload": {
+    "collection_id": "test-collection",
+    "item_id": "test-item"
+  }
+}

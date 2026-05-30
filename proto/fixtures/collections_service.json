@@ -7,6 +7,11 @@
       "created_by": "rust-lane",
       "created_at": "2026-05-24T18:35:00Z",
       "updated_at": "2026-05-24T18:35:00Z"
+    },
+    "request": {
+      "collection": "test-collection",
+      "data_json": "test-data_json",
+      "id": "test-id"
     }
   },
   "UpdateItem": {
@@ -17,12 +22,21 @@
       "created_by": "rust-lane",
       "created_at": "2026-05-24T18:35:00Z",
       "updated_at": "2026-05-24T19:00:00Z"
+    },
+    "request": {
+      "collection": "test-collection",
+      "id": "test-id",
+      "data_json": "test-data_json"
     }
   },
   "DeleteItem": {
     "response_ok": {
       "id": "note-checkout-notes",
       "deleted": true
+    },
+    "request": {
+      "collection": "test-collection",
+      "id": "test-id"
     }
   }
 }

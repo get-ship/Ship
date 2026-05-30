@@ -7,46 +7,28 @@ use super::fixtures::*;
 // ── MCP server output correctness ─────────────────────────────────────────────
 
 #[test]
-fn ship_server_args_include_serve_subcommand() {
-    // Regression: ship use was generating args: ["mcp"] — missing "serve".
-    // The correct command is `ship mcp serve`. Only stdio-fallback harnesses
-    // emit a command — claude now compiles to a daemon-hosted authed-HTTP
-    // entry (covered in compile::mcp tests), so it's excluded here.
+fn no_ship_entry_in_mcp_output() {
+    // Ship's internal MCP server injection was removed (#236): `ship mcp serve`
+    // was deleted from the CLI in commit 22fb0cd49 and the daemon has no /mcp
+    // route. Harnesses must not auto-inject a "ship" entry.
     let r = resolved(vec![]);
-    for harness_id in &["codex", "cursor"] {
+    for harness_id in &["claude", "codex", "cursor", "opencode"] {
         let out = compile(&r, harness_id).unwrap();
-        let ship = &out.mcp_servers["ship"];
-        assert_eq!(
-            ship["command"].as_str(),
-            Some("ship"),
-            "{harness_id}: ship server command must be 'ship'"
-        );
-        let args: Vec<&str> = ship["args"]
-            .as_array()
-            .expect("args must be present")
-            .iter()
-            .map(|v| v.as_str().unwrap())
-            .collect();
-        assert_eq!(
-            args,
-            vec!["mcp", "serve"],
-            "{harness_id}: ship server args must be [\"mcp\", \"serve\"]"
+        assert!(
+            out.mcp_servers.get("ship").is_none(),
+            "{harness_id}: must not inject a 'ship' MCP entry"
         );
     }
 }
 
 #[test]
-fn ship_server_always_first() {
+fn external_server_appears_in_output() {
     let r = resolved(vec![make_server("github"), make_server("linear")]);
     let out = compile(&r, "claude").unwrap();
-    let keys: Vec<&str> = out
-        .mcp_servers
-        .as_object()
-        .unwrap()
-        .keys()
-        .map(|k| k.as_str())
-        .collect();
-    assert_eq!(keys[0], "ship", "ship server must be first in MCP output");
+    let obj = out.mcp_servers.as_object().unwrap();
+    assert!(obj.contains_key("github"));
+    assert!(obj.contains_key("linear"));
+    assert!(!obj.contains_key("ship"), "no ship injection");
 }
 
 #[test]
@@ -70,8 +52,9 @@ fn codex_uses_mcp_servers_key() {
     assert_eq!(desc.mcp_key.as_str(), "mcp_servers");
 }
 
-/// Source: https://geminicli.com/docs/tools/mcp-server
-/// Gemini has NO "type" field — transport is inferred from which property is present.
+/// All registered JSON-shaped harnesses infer transport from field presence
+/// (command → stdio, url → SSE/HTTP) and must not emit a `"type"` field for
+/// stdio servers. (OpenCode opts in to a typed shape and is excluded.)
 #[test]
 fn no_harness_emits_type_field_for_stdio() {
     let r = resolved(vec![make_server("github")]);
@@ -117,7 +100,7 @@ fn claude_mcp_config_path_in_output() {
     assert_eq!(out.mcp_config_path.as_deref(), Some(".mcp.json"));
 }
 
-// ── Context file (CLAUDE.md / AGENTS.md / GEMINI.md) ─────────────────────────
+// ── Context file (CLAUDE.md / AGENTS.md) ─────────────────────────────────────
 
 #[test]
 fn harness_context_file_names() {

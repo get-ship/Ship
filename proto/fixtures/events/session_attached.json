@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "event": "session.attached",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "SessionAttached",
+    "needs_author": false
+  },
+  "payload": {
+    "existing_session_id": "old-id",
+    "workspace_id": "test-workspace",
+    "branch": "main"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "executor.window_destroyed",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "ExecutorWindowDestroyedPayload",
+    "needs_author": false
+  },
+  "payload": {
+    "window_id": "test-window",
+    "session_id": "test-session"
+  }
+}

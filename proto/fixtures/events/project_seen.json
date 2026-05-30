@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "event": "project.seen",
+    "scope": "space",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "ProjectSeen",
+    "needs_author": false
+  },
+  "payload": {
+    "seen_at": "2026-01-01T00:00:00Z"
+  }
+}

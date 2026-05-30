@@ -91,7 +91,7 @@ fn shutdown_all_is_bounded() {
 /// shutdown() must emit a supervisor.shutting_down event before cleanup.
 #[test]
 fn shutdown_emits_supervisor_shutting_down_event() {
-    let src = include_str!("../ship_runtime.rs");
+    let src = include_str!("../ship_runtime/init.rs");
     assert!(
         src.contains("supervisor.shutting_down") || src.contains("shutting_down"),
         "ShipRuntime::shutdown must emit a supervisor.shutting_down event"
@@ -101,7 +101,7 @@ fn shutdown_emits_supervisor_shutting_down_event() {
 /// shutdown() must clean up daemon files after drain completes.
 #[test]
 fn shutdown_cleans_files_after_drain() {
-    let src = include_str!("../ship_runtime.rs");
+    let src = include_str!("../ship_runtime/init.rs");
     // Token is preserved across restarts; only port and pid are cleaned up.
     // The actual removal is delegated to crate::daemon::remove_liveness_files
     // so paths route through the typed ShipHome::daemon_file accessor.

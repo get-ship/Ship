@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "event": "session.tool_count_incremented",
+    "scope": "device",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "SessionToolCountIncremented",
+    "needs_author": false
+  },
+  "payload": {}
+}
