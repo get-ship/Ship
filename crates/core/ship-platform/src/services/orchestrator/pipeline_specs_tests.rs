@@ -1,5 +1,6 @@
 use super::*;
 use ship_substrate::events::pipeline::{Pipeline, PipelineStep, StepType};
+use crate::services::orchestrator::step_io::ResolvedInput;
 
 fn step(id: &str, agent: &str) -> PipelineStep {
     PipelineStep {
@@ -110,4 +111,131 @@ fn dispatch_prompt_points_at_own_and_sibling_specs() {
     assert!(out.contains(".artifacts/pipeline/03-step-3.md"));
     assert!(out.contains("downstream"));
     assert!(out.contains("Runtime contract"));
+}
+
+fn plain_input(name: &str, artifact_id: &str) -> ResolvedInput {
+    ResolvedInput {
+        name: name.into(),
+        artifact_id: artifact_id.into(),
+        worktree_path: format!(".artifacts/input/{name}"),
+        size: 512,
+        mime: "text/plain".into(),
+        failure_reason: None,
+    }
+}
+
+fn lane_input(lane_id: &str, output: &str, artifact_id: &str) -> ResolvedInput {
+    ResolvedInput {
+        name: format!("{lane_id}.{output}"),
+        artifact_id: artifact_id.into(),
+        worktree_path: format!(".artifacts/input/{lane_id}.{output}"),
+        size: 1024,
+        mime: "text/markdown".into(),
+        failure_reason: None,
+    }
+}
+
+fn failed_lane_input(lane_id: &str, reason: &str) -> ResolvedInput {
+    ResolvedInput {
+        name: format!("{lane_id}.failed"),
+        artifact_id: "marker-id".into(),
+        worktree_path: format!(".artifacts/input/{lane_id}.failed"),
+        size: 64,
+        mime: "text/plain".into(),
+        failure_reason: Some(reason.into()),
+    }
+}
+
+/// Plain (non-lane) inputs render in the "Inputs available" section.
+#[test]
+fn orchestrator_pipeline_specs_plain_inputs_section() {
+    let pipeline = tdd_pipeline();
+    let inputs = vec![
+        plain_input("patch", "art-abc"),
+        plain_input("failing_tests", "art-def"),
+    ];
+    let out = render_dispatch_prompt(Some("tdd"), &pipeline, &pipeline.steps[2], &inputs);
+    assert!(out.contains("## Inputs available"), "must have inputs section");
+    assert!(out.contains("patch"), "must list patch input");
+    assert!(out.contains("art-abc"), "must include artifact id");
+    assert!(out.contains("failing_tests"), "must list failing_tests input");
+    assert!(
+        !out.contains("## Inputs from fanout"),
+        "plain inputs must not produce a fanout section"
+    );
+}
+
+/// Lane-scoped successful inputs render grouped by lane under the fanout section.
+#[test]
+fn orchestrator_pipeline_specs_fanout_inputs_section_groups_by_lane() {
+    let mut fanout_step = step("draft", "implementer");
+    fanout_step.fanout = Some(ship_substrate::events::pipeline::FanoutSpec {
+        lanes: vec![
+            ship_substrate::events::pipeline::FanoutLane {
+                id: "lane-a".into(),
+                agent: "impl".into(),
+                model: None,
+                harness: None,
+            },
+            ship_substrate::events::pipeline::FanoutLane {
+                id: "lane-b".into(),
+                agent: "impl".into(),
+                model: None,
+                harness: None,
+            },
+        ],
+        judge: ship_substrate::events::pipeline::FanoutJudge { step: "choose".into() },
+        min_successful_lanes: 1,
+    });
+    let judge = step("choose", "judge");
+    let pipeline = Pipeline {
+        steps: vec![fanout_step, judge.clone()],
+        auto_merge: false,
+    };
+
+    let inputs = vec![
+        lane_input("lane-a", "draft", "art-a"),
+        lane_input("lane-b", "draft", "art-b"),
+    ];
+    let out = render_dispatch_prompt(Some("tdd"), &pipeline, &judge, &inputs);
+    assert!(
+        out.contains("## Inputs from fanout"),
+        "must have fanout inputs section"
+    );
+    assert!(out.contains("lane-a"), "must mention lane-a");
+    assert!(out.contains("lane-b"), "must mention lane-b");
+    assert!(out.contains("art-a"), "must include lane-a artifact id");
+    assert!(out.contains("art-b"), "must include lane-b artifact id");
+    assert!(
+        !out.contains("FAILED"),
+        "successful lanes must not show FAILED marker"
+    );
+}
+
+/// Failed lanes render with "FAILED — <reason>" instead of their output.
+#[test]
+fn orchestrator_pipeline_specs_fanout_failed_lane_rendered_with_reason() {
+    let judge = step("choose", "judge");
+    let pipeline = Pipeline {
+        steps: vec![step("draft", "impl"), judge.clone()],
+        auto_merge: false,
+    };
+
+    let inputs = vec![
+        lane_input("lane-a", "draft", "art-a"),
+        failed_lane_input("lane-c", "agent crashed after 30s"),
+    ];
+    let out = render_dispatch_prompt(Some("tdd"), &pipeline, &judge, &inputs);
+    assert!(
+        out.contains("lane-c: FAILED"),
+        "failed lane must render with FAILED label: {out}"
+    );
+    assert!(
+        out.contains("agent crashed after 30s"),
+        "failure reason must appear in output: {out}"
+    );
+    assert!(
+        out.contains("lane-a"),
+        "successful lane must still appear alongside failed lane"
+    );
 }

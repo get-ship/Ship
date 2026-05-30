@@ -912,6 +912,68 @@ async fn dispatch_first_run_step_inner(
 }
 
 #[cfg(test)]
+mod invocation_tests {
+    use super::resolve_step_invocation;
+    use ship_substrate::events::agent_session::InvocationMode;
+
+    #[test]
+    fn orchestrator_dispatch_invocation_explicit_print() {
+        assert_eq!(
+            resolve_step_invocation(Some("print"), false),
+            InvocationMode::Print,
+        );
+    }
+
+    #[test]
+    fn orchestrator_dispatch_invocation_explicit_stream() {
+        assert_eq!(
+            resolve_step_invocation(Some("stream"), false),
+            InvocationMode::Stream,
+        );
+    }
+
+    #[test]
+    fn orchestrator_dispatch_invocation_explicit_pty() {
+        // Explicit "pty" wins even when run_headless is true.
+        assert_eq!(
+            resolve_step_invocation(Some("pty"), true),
+            InvocationMode::Pty,
+        );
+    }
+
+    #[test]
+    fn orchestrator_dispatch_invocation_headless_fallback() {
+        // No per-step override, run is headless → Print (the historical mapping).
+        assert_eq!(
+            resolve_step_invocation(None, true),
+            InvocationMode::Print,
+        );
+    }
+
+    #[test]
+    fn orchestrator_dispatch_invocation_interactive_default() {
+        // No per-step override, not headless → Pty (interactive).
+        assert_eq!(
+            resolve_step_invocation(None, false),
+            InvocationMode::Pty,
+        );
+    }
+
+    #[test]
+    fn orchestrator_dispatch_invocation_unknown_value_defers_to_headless() {
+        // Unrecognised step invocation string falls through to the headless branch.
+        assert_eq!(
+            resolve_step_invocation(Some("unknown-future-mode"), true),
+            InvocationMode::Print,
+        );
+        assert_eq!(
+            resolve_step_invocation(Some("unknown-future-mode"), false),
+            InvocationMode::Pty,
+        );
+    }
+}
+
+#[cfg(test)]
 mod role_tests {
     use super::agent_role;
     use crate::auth::scopes::{scopes_for_role, Scope};
