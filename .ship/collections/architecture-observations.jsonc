@@ -1,0 +1,28 @@
+// Architecture observations collection.
+// Promoted from .artifacts/specs/module-audits/_observations.md (2026-05-29).
+// Each row is one citation-backed finding from a per-module audit pass.
+// Row data: .ship/collections/architecture-observations.rows.jsonl
+// (JSONL chosen over a data/ subdir because this is a static corpus seeded
+//  from the markdown migration; dynamic collection items live in data.db.
+//  The JSONL format keeps the data human-readable and diff-friendly alongside
+//  the schema JSONC without requiring a running daemon.)
+{
+  "id": "architecture-observations",
+  "name": "Architecture Observations",
+  "fields": {
+    "id":            { "type": "string",   "required": true,  "filterable": true },
+    "module":        { "type": "string",   "required": true,  "filterable": true },
+    "layer":         { "type": "enum",     "values": ["L0", "L1", "L2", "shared", "apps"], "filterable": true },
+    "tag":           { "type": "string",   "required": true,  "filterable": true },
+    "tag_status":    { "type": "enum",     "values": ["candidate", "confirmed", "promoted"], "filterable": true },
+    "severity":      { "type": "enum",     "values": ["info", "low", "medium", "high", "critical"], "filterable": true, "sortable": true },
+    "citation_file": { "type": "string" },
+    "citation_line": { "type": "string" },
+    "description":   { "type": "markdown", "required": true },
+    "status":        { "type": "enum",     "values": ["pending", "under-review", "signed-off", "superseded", "closed"], "filterable": true, "default": "pending" },
+    "audit_doc":     { "type": "string" },
+    "task_id":       { "type": "string" },
+    "pass_date":     { "type": "string" },
+    "notes":         { "type": "markdown" }
+  }
+}

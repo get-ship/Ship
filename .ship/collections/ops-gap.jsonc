@@ -1,0 +1,24 @@
+// Ops catalog gap collection.
+// Surfaced by Spec 8 (2026-05-29) from the L1 audit corpus.
+// Each row is one substrate fn the audit corpus flagged as "should-be-wire"
+// but not yet exposed through ship_ops_rpc / proto.
+// Row data: .ship/collections/ops-gap.rows.jsonl
+// DO NOT modify ship_ops_rpc or proto files based on this collection —
+// this is a catalog-only artifact; implementation is downstream (Spec 9+).
+{
+  "id": "ops-gap",
+  "name": "Ops Catalog Gap",
+  "fields": {
+    "service":         { "type": "string",   "required": true, "filterable": true },
+    "op_name":         { "type": "string",   "required": true, "filterable": true },
+    "substrate_fn":    { "type": "string",   "required": true },
+    "audience":        { "type": "enum",     "values": ["operator", "agent", "both"], "filterable": true },
+    "capability":      { "type": "enum",     "values": ["C0", "C1", "C2", "C2_ELEVATED", "C3"], "filterable": true },
+    "priority":        { "type": "enum",     "values": ["P0", "P1", "P2", "deferred"], "filterable": true, "sortable": true },
+    "status":          { "type": "enum",     "values": ["missing", "scaffolded", "implemented", "rejected-no-wire", "in-flight"], "filterable": true, "default": "missing" },
+    "rationale":       { "type": "markdown" },
+    "audit_source":    { "type": "string" },
+    "consumer_demand": { "type": "markdown" },
+    "dependencies":    { "type": "string" }
+  }
+}
