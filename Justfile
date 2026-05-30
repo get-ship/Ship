@@ -64,7 +64,7 @@ shell-dev:
     @bun run --filter shell dev
 
 # Force a one-shot rebuild of every asset bundle served by the daemon
-# (sui-runtime, sui-dom, sui-components, islands, ship-elements, views/*).
+# (sui-runtime, sui-dom, sui-components, islands, views/*).
 # Regenerate the typed dynamic-route table from the view file tree (SSOT).
 [group('daily')]
 gen-routes:

@@ -1,4 +1,4 @@
-//! Shared test daemon for the ship-set render integration suites.
+//! Shared test daemon for the shipd smoke/integration suites.
 //!
 //! Spawns a real `shipd` process in a fresh tempdir. The endpoints under
 //! `/_sui/*` are unauthenticated, so we use a bare `reqwest::Client`.
