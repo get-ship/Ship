@@ -23,6 +23,7 @@ home = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
+shell-words = { workspace = true }
 nanoid = { workspace = true }
 ulid = { workspace = true }
 walkdir = "2.3"

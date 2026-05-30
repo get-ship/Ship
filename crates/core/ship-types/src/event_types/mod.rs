@@ -1,3 +1,9 @@
+pub mod mesh;
+pub use mesh::*;
+
+// All lines are constant definitions; no logic present. The `ALL` slice is kept for
+// backward compat but is derived from `event_registry::registry()` via a consistency
+// test. New callers should use `event_registry::all_names()` or `event_registry::registry()`.
 pub const WORKSPACE_CREATED: &str = "workspace.created";
 pub const WORKSPACE_ACTIVATED: &str = "workspace.activated";
 pub const WORKSPACE_ARCHIVED: &str = "workspace.archived";
@@ -172,6 +178,79 @@ pub const SESSION_TURN_FAILED: &str = "session.turn_failed";
 /// is the setting key. Payload: `SpaceSettingChanged`.
 pub const SPACE_SETTING_CHANGED: &str = "space.setting.changed";
 
+/// Actor — mailbox rejected a message because the channel was full.
+/// `entity_id` is the actor_id.
+/// A1: device, durable.
+pub const ACTOR_MAILBOX_FULL: &str = "actor.mailbox_full";
+
+/// Agent — a dispatched task ran to completion. `entity_id` is the task id.
+/// A1: space, durable.
+pub const AGENT_TASK_COMPLETE: &str = "agent.task.complete";
+
+/// Human gateway — a human sent a response into the system (e.g. Telegram
+/// webhook reply). `entity_id` is the session or conversation id.
+/// A1: space, durable.
+pub const HUMAN_RESPONSE: &str = "human.response";
+
+/// Kernel — an actor was restored from a persisted snapshot.
+/// `entity_id` is the actor_id.
+/// A1: device, durable.
+pub const KERNEL_ACTOR_RESTORED: &str = "kernel.actor.restored";
+
+/// Kernel — a snapshot of actor state was written to durable storage.
+/// `entity_id` is the actor_id.
+/// A1: device, durable.
+pub const KERNEL_ACTOR_SNAPSHOT: &str = "kernel.actor.snapshot";
+
+/// Kernel — an actor was suspended (paused, not stopped).
+/// `entity_id` is the actor_id.
+/// A1: device, durable.
+pub const KERNEL_ACTOR_SUSPENDED: &str = "kernel.actor.suspended";
+
+/// Pipeline — a step was retried after a transient failure.
+/// `entity_id` is the pipeline run id.
+/// A1: space, durable.
+pub const PIPELINE_STEP_RETRY: &str = "pipeline.step.retry";
+
+/// Studio — a user annotation was created on a session or artifact.
+/// `entity_id` is the annotation id.
+/// A1: space, durable.
+pub const STUDIO_ANNOTATION_CREATED: &str = "studio.annotation.created";
+
+/// Studio — a feedback record was created (thumbs-up/down, rating, etc.).
+/// `entity_id` is the feedback id.
+/// A1: space, durable.
+pub const STUDIO_FEEDBACK_CREATED: &str = "studio.feedback.created";
+
+/// Studio — a generic message was emitted from a studio session.
+/// `entity_id` is the session id.
+/// A1: space, durable.
+pub const STUDIO_MESSAGE: &str = "studio.message";
+
+/// Sync — a push to the remote sync target failed.
+/// A1: device, durable.
+pub const SYNC_PUSH_FAILED: &str = "sync.push.failed";
+
+/// Sync — the sync process started.
+/// A1: device, durable.
+pub const SYNC_STARTED: &str = "sync.started";
+
+/// Sync — the sync process stopped (clean shutdown or error).
+/// A1: device, durable.
+pub const SYNC_STOPPED: &str = "sync.stopped";
+
+/// `ALL` — the canonical set of known event type strings.
+///
+/// **Deprecated**: new callers should use `ship_types::event_registry::all_names()`
+/// or `ship_types::event_registry::registry()` directly. This const is kept as a
+/// backward-compat shim for callers that require `&'static [&str]` shape
+/// (payload_schema.rs test, substrate tests). After Spec 7b all event-subscription
+/// validation goes through `event_registry::all_names()` via `triggers/loader.rs`.
+///
+/// Note: `event_registry::all_names()` returns the registry-derived set (sorted,
+/// deduplicated). This const includes the same names but with legacy aliases that
+/// predate the registry (workspace.*, project.changed, etc.), which remain valid
+/// event types emitted by deprecated code paths.
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
     WORKSPACE_ACTIVATED,
@@ -262,6 +341,37 @@ pub const ALL: &[&str] = &[
     AGENT_GRANTS_PROVISIONED,
     SESSION_STATUS_CHANGED,
     SESSION_TURN_FAILED,
+    // actor
+    ACTOR_MAILBOX_FULL,
+    // agent
+    AGENT_TASK_COMPLETE,
+    // human
+    HUMAN_RESPONSE,
+    // kernel
+    KERNEL_ACTOR_RESTORED,
+    KERNEL_ACTOR_SNAPSHOT,
+    KERNEL_ACTOR_SUSPENDED,
+    // mesh
+    MESH_BROADCAST,
+    MESH_DEREGISTER,
+    MESH_DEREGISTERED,
+    MESH_DISCOVER_RESPONSE,
+    MESH_MESSAGE,
+    MESH_REGISTER,
+    MESH_REGISTERED,
+    MESH_SEND,
+    MESH_SEND_FAILED,
+    MESH_STATUS,
+    // pipeline
+    PIPELINE_STEP_RETRY,
+    // studio
+    STUDIO_ANNOTATION_CREATED,
+    STUDIO_FEEDBACK_CREATED,
+    STUDIO_MESSAGE,
+    // sync
+    SYNC_PUSH_FAILED,
+    SYNC_STARTED,
+    SYNC_STOPPED,
 ];
 
 #[cfg(test)]

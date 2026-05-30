@@ -33,7 +33,7 @@ struct ProviderHook {
 
 /// Parses harness hook stdin JSON and emits skill.started.
 /// Returns Ok(None) for non-ship tools (ignore silently).
-/// Supports Claude PreToolUse, Gemini BeforeTool, Cursor beforeMCPExecution schemas.
+/// Supports Claude PreToolUse and Cursor beforeMCPExecution schemas.
 ///
 /// Also performs soft-delete: copies files to trash before destructive tool calls.
 pub fn handle_before_tool(
