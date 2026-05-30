@@ -11,3 +11,5 @@ pub mod store;
 
 #[cfg(test)]
 mod tests_integration;
+#[cfg(test)]
+mod tests;
