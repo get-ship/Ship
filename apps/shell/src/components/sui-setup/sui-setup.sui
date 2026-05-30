@@ -150,10 +150,10 @@
     <div class="setup-wizard" data-test="setup-wizard" attr:data-step={step()}>
 
       <header class="setup-head">
-        <ol class="setup-progress" role="progressbar" aria-label="Setup progress" attr:aria-valuenow={step()} attr:aria-valuemin="1" attr:aria-valuemax="6">
-          {#each [1, 2, 3, 4, 5, 6] as stepNum}
+        <ol class="setup-progress" role="progressbar" aria-label="Setup progress" attr:aria-valuenow={step()} aria-valuemin="1" aria-valuemax="6">
+          {#for stepNum of [1, 2, 3, 4, 5, 6] key={stepNum}}
             <li class="setup-progress-dot" class:current={step() === stepNum} class:done={step() > stepNum}></li>
-          {/each}
+          {/for}
         </ol>
         <sui-button variant="ghost" size="sm" data-test="setup-skip"
           on:click={requestExit}>

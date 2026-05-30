@@ -233,10 +233,29 @@ pub async fn bundle_app(
             std::fs::copy(&from, out_dir.join(dist_rel))?;
             framework_assets += 1;
         }
+        // Build the chrome aggregate + island bundles into `.deck/sui-components/`
+        // via deck-bundler's own target machinery — the deck-native replacement
+        // for the retired `sui-build` pre-step. `bundle_target`'s SuiPlugin
+        // compiles each `.compiled.js`→sibling `.sui` in its load hook, so no
+        // on-disk pre-compile is needed. A failed target fails the build: no
+        // silent fallback to a stale island (the regression Slice 4a first shipped).
+        {
+            let layout = crate::targets::BundleLayout::new(repo_root.to_path_buf(), None);
+            let staging =
+                std::env::temp_dir().join(format!("deck-app-islands-{}", std::process::id()));
+            for t in layout.all_targets() {
+                if t.out_file.starts_with("sui-components/") {
+                    crate::rolldown_bundle::bundle_target(&layout, &t, compiler, &staging, minify)
+                        .await
+                        .with_context(|| format!("app build: island/chrome target {}", t.name))?;
+                }
+            }
+        }
+
         let islands = deck_out_dir.join("sui-components");
         if !islands.exists() {
             bail!(
-                "app build: bundle_framework: no {} (run the bundler / sui-build first)",
+                "app build: bundle_framework: no {} (deck island build produced nothing)",
                 islands.display()
             );
         }
