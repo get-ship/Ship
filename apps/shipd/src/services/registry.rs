@@ -113,7 +113,6 @@ pub mod rules;
 pub mod mcp;
 pub mod permissions;
 pub mod pipelines;
-pub mod events;
 pub mod specs;
 pub mod settings;
 pub mod collections;
@@ -122,7 +121,6 @@ pub mod sessions;
 pub mod actors;
 pub mod mesh;
 pub mod chat;
-pub mod dashboard;
 pub mod git;
 pub mod workspaces;
 pub mod account;
@@ -157,9 +155,6 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
     if let Some(value) = pipelines::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
-    if let Some(value) = events::try_dispatch(name, args, state, &files)? {
-        return Ok(value);
-    }
     if let Some(value) = specs::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
@@ -182,9 +177,6 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
         return Ok(value);
     }
     if let Some(value) = chat::try_dispatch(name, args, state, &files)? {
-        return Ok(value);
-    }
-    if let Some(value) = dashboard::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
     if let Some(value) = git::try_dispatch(name, args, state, &files)? {

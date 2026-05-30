@@ -19,15 +19,6 @@ message SpecsGetReq {
   string id = 1;
 }
 
-message SpecsSummariesReq {
-  string q = 1;
-  string selected = 2;
-}
-
-message SpecsDetailReq {
-  string id = 1;
-}
-
 // Specs read surface. All reads are C0 (edge-authenticated).
 service SpecsService {
   rpc List(SpecsListReq) returns (SpecsListResponse) {
@@ -37,16 +28,6 @@ service SpecsService {
   }
   rpc Get(SpecsGetReq) returns (SpecGetResponse) {
     option (ship.ops.v1.description) = "Full spec record + body.";
-    option (ship.ops.v1.capability) = "ship.specs.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc Summaries(SpecsSummariesReq) returns (JsonResponse) {
-    option (ship.ops.v1.description) = "Rail shape: grouped + counts + pipelines.";
-    option (ship.ops.v1.capability) = "ship.specs.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc Detail(SpecsDetailReq) returns (SpecDetail) {
-    option (ship.ops.v1.description) = "Full view-shaped spec detail: parsed sections, launch ctx.";
     option (ship.ops.v1.capability) = "ship.specs.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

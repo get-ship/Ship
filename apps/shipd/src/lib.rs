@@ -48,7 +48,6 @@ pub mod feedback_rpc;
 pub mod sessions_rpc;
 pub mod account_rpc;
 pub mod chat_rpc;
-pub mod dashboard_rpc;
 pub mod events_rpc;
 pub mod specs_rpc;
 pub mod view_rpc;

@@ -13,10 +13,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::views::chat_state::ChatMessage;
-use crate::views::events_state::{EntityGroup, EventRow};
 use ship_platform::artifacts::ArtifactRecord;
-use ship_platform::projections::pipeline_run::PipelineRun;
-use ship_platform::services::agents::view_state::AgentSummary;
 use ship_platform::services::git::diff::ParsedDiff;
 use ship_platform::services::git::state::{BranchSummary, CommitSummary, StatusFile};
 use ship_platform::services::pipelines::state as pipelines_state;
@@ -41,15 +38,6 @@ pub struct ChatStateResponse {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SessionsListResponse {
     pub items: Vec<SessionMeta>,
-}
-
-/// Wire shape of `ship.events.list()`.
-#[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct EventsListResponse {
-    pub groups: Vec<EntityGroup>,
-    pub types: Vec<String>,
-    pub actors: Vec<String>,
 }
 
 /// Wire shape of `ship.artifacts.list()`.
@@ -176,19 +164,6 @@ pub struct GitDiffResponse {
     pub is_working: bool,
     pub diff_text: String,
     pub parsed: ParsedDiff,
-}
-
-// ── dashboard ─────────────────────────────────────────────────────────
-
-/// Wire shape of `ship.dashboard.state()`.
-#[derive(Serialize)]
-pub struct DashboardStateResponse {
-    pub stats: Value,
-    pub recent_runs: Vec<PipelineRun>,
-    pub events: Vec<EventRow>,
-    pub total_events: usize,
-    pub agents: Vec<AgentSummary>,
-    pub collections: Vec<Value>,
 }
 
 // ── workspaces ────────────────────────────────────────────────────────

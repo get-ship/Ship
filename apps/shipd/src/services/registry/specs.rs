@@ -1,14 +1,12 @@
 //! Single-source `specs.*` ops — descriptors + dispatch via `ship_ops!`.
 //!
 //! Specs are a first-party collection (`SPECS_ID`); reads go through
-//! `ship_platform::collections::store`, then pipe through `specs::shape` /
-//! `specs::view_state` for the wire shapes the Studio specs view consumes.
+//! `ship_platform::collections::store`.
 
 use super::wire::{SpecGetResponse, SpecsListResponse};
 use super::{required_str, RegistryError};
 use crate::services::schema::ArgDescriptor;
 use crate::services::specs::shape::{load_body, spec_from_item, Spec};
-use crate::services::specs::view_state::{self, SpecDetail, SummariesCtx as SpecsSummariesCtx};
 
 use ship_platform::collections::builtin::{specs_schema, SPECS_ID};
 use ship_platform::collections::query::QueryRequest;
@@ -34,40 +32,6 @@ ship_ops! {
             let id = required_str(args, "id")?;
             let (spec, body) = get_spec_with_body(state, id)?;
             Ok(SpecGetResponse { spec, body })
-        },
-    },
-    {
-        name: "specs.summaries",
-        desc: "Rail shape: grouped + counts + pipelines.",
-        perm: "ship.specs.read",
-        args: &[
-            ArgDescriptor { name: "q", kind: "string?", required: false },
-            ArgDescriptor { name: "selected", kind: "string?", required: false },
-        ],
-        ret: SpecsSummariesCtx,
-        run: |args, state, _files| {
-            let q = args.get("q").and_then(|v| v.as_str()).unwrap_or("");
-            let selected = args.get("selected").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
-            let specs = list_specs(state)?;
-            Ok(view_state::build_summaries(&specs, q, selected))
-        },
-    },
-    {
-        name: "specs.detail",
-        desc: "Full view-shaped spec detail: parsed sections, launch ctx.",
-        perm: "ship.specs.read",
-        args: &[ArgDescriptor { name: "id", kind: "string", required: true }],
-        ret: SpecDetail,
-        run: |args, state, _files| {
-            let id = required_str(args, "id")?;
-            let (spec, body) = match get_spec_with_body(state, id) {
-                Ok(pair) => pair,
-                Err(e) if e.code == "not_found" => {
-                    return Err(RegistryError::not_found(format!("spec `{id}`")));
-                }
-                Err(e) => return Err(e),
-            };
-            Ok(view_state::build_detail(&spec, &body))
         },
     },
 }

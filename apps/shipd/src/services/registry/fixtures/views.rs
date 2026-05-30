@@ -1,17 +1,16 @@
-//! Fixtures for the small daemon-assembled domains: chat, sessions, events,
+//! Fixtures for the small daemon-assembled domains: chat, sessions,
 //! artifacts, workspaces, settings.
 
 use serde_json::{json, Value};
 
 use crate::services::registry::wire::{
-    ArtifactsListResponse, ChatStateResponse, EventsListResponse, SessionsListResponse,
+    ArtifactsListResponse, ChatStateResponse, SessionsListResponse,
     WorkspaceActiveResponse, WorkspaceRow, WorkspacesListResponse,
 };
 use crate::services::settings::view_state::{
     AboutInfo, FeatureFlag, ProviderRow, SelectOption, SettingsCtx, TerminalConfig,
 };
 use crate::views::chat_state::{ChatMessage, Sender};
-use crate::views::events_state::{EntityGroup, EventRow};
 use ship_platform::artifacts::ArtifactRecord;
 use ship_platform::services::sessions::types::{SessionKind, SessionMeta, SessionStatus};
 
@@ -51,33 +50,6 @@ fn sessions() -> SessionsListResponse {
             exit_code: None,
             harness_session_id: Some("conv-abc".to_string()),
         }],
-    }
-}
-
-/// Shared `EventRow` builder — reused by the dashboard fixture's events feed.
-pub(super) fn event_row() -> EventRow {
-    EventRow {
-        id: "evt-1".to_string(),
-        event_type: "pipeline.run.merged".to_string(),
-        entity_id: "typed-ops-a1b2c3d".to_string(),
-        actor: "rust-lane".to_string(),
-        workspace_id: "ws-default".to_string(),
-        session_id: "sess-1".to_string(),
-        timestamp: "2026-01-01T09:04:12Z".to_string(),
-        payload_pretty: "{\n  \"slug\": \"typed-ops-a1b2c3d\"\n}".to_string(),
-    }
-}
-
-fn events() -> EventsListResponse {
-    EventsListResponse {
-        groups: vec![EntityGroup {
-            entity_id: "typed-ops-a1b2c3d".to_string(),
-            count: 1,
-            collapsed: false,
-            rows: vec![event_row()],
-        }],
-        types: vec!["pipeline.run.merged".to_string()],
-        actors: vec!["rust-lane".to_string()],
     }
 }
 
@@ -172,7 +144,6 @@ pub fn examples() -> Vec<(&'static str, Value)> {
     vec![
         ("chat.state", v(chat())),
         ("sessions.list", v(sessions())),
-        ("events.list", v(events())),
         ("artifacts.list", v(artifacts())),
         ("workspaces.list", v(workspaces())),
         ("workspaces.active", v(WorkspaceActiveResponse { id: Some("ws-default".to_string()) })),

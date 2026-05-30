@@ -1,15 +1,13 @@
-//! `SpecsService` handler — proto-as-SSOT migration of `specs.*` (#89), mounted
-//! additively beside the generated ReadOps until the GUI flip (#72).
+//! `SpecsService` handler — proto-as-SSOT migration of `specs.*` (#89).
 //!
 //! All specs reads are C0 and route through the sync read registry
-//! (`registry::call`) with no gate. Typed reads decode onto their proto
-//! message via `read_specs_typed`; the `summaries` read returns opaque JSON.
+//! (`registry::call`) with no gate.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use serde::de::DeserializeOwned;
 use serde_json::json;
 
-use ship_ops_rpc::{JsonResponse, SpecDetail, SpecGetResponse, SpecsListResponse, SpecsService};
+use ship_ops_rpc::{SpecGetResponse, SpecsListResponse, SpecsService};
 
 use crate::ops_rpc::OpsImpl;
 
@@ -29,35 +27,6 @@ impl SpecsService for OpsImpl {
         request: ship_ops_rpc::OwnedSpecsGetReqView,
     ) -> ServiceResult<SpecGetResponse> {
         self.read_specs_typed("specs.get", json!({ "id": request.id }))
-    }
-
-    async fn summaries(
-        &self,
-        _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedSpecsSummariesReqView,
-    ) -> ServiceResult<JsonResponse> {
-        let mut args = serde_json::Map::new();
-        if !request.q.is_empty() {
-            args.insert("q".to_string(), json!(request.q));
-        }
-        if !request.selected.is_empty() {
-            args.insert("selected".to_string(), json!(request.selected));
-        }
-        let value = crate::services::registry::call(
-            "specs.summaries",
-            &serde_json::Value::Object(args),
-            self.state(),
-        )
-        .map_err(|e| ConnectError::internal(format!("specs.summaries: {e}")))?;
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
-    }
-
-    async fn detail(
-        &self,
-        _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedSpecsDetailReqView,
-    ) -> ServiceResult<SpecDetail> {
-        self.read_specs_typed("specs.detail", json!({ "id": request.id }))
     }
 }
 
@@ -84,8 +53,6 @@ mod tests {
         for path in [
             "ship.ops.v1.SpecsService/List",
             "ship.ops.v1.SpecsService/Get",
-            "ship.ops.v1.SpecsService/Summaries",
-            "ship.ops.v1.SpecsService/Detail",
         ] {
             let p =
                 policy_for(path).unwrap_or_else(|| panic!("{path} missing from policy map"));

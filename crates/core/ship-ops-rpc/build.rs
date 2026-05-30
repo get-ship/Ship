@@ -53,7 +53,6 @@ fn main() {
         .arg("ship/ops/v1/sessions.proto")
         .arg("ship/ops/v1/account.proto")
         .arg("ship/ops/v1/chat.proto")
-        .arg("ship/ops/v1/dashboard.proto")
         .arg("ship/ops/v1/events.proto")
         .arg("ship/ops/v1/specs.proto")
         .arg("ship/ops/v1/view.proto")
@@ -96,7 +95,6 @@ fn main() {
             "ship/ops/v1/sessions.proto",
             "ship/ops/v1/account.proto",
             "ship/ops/v1/chat.proto",
-            "ship/ops/v1/dashboard.proto",
             "ship/ops/v1/events.proto",
             "ship/ops/v1/specs.proto",
             "ship/ops/v1/view.proto",
