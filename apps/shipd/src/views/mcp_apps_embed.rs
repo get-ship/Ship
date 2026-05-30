@@ -20,9 +20,8 @@ use serde_json::{Value, json};
 pub const RESOURCE_URI_PREFIX: &str = "ui://ship/view-session/";
 
 /// Content-Security-Policy applied to iframe shell responses. Script-src is
-/// limited to `self` so only daemon-served assets (datastar.js,
-/// ship-elements.js) can execute. Matches the `_meta.ui.csp` shape returned
-/// to MCP Apps hosts.
+/// limited to `self` so only daemon-served assets (datastar.js) can execute.
+/// Matches the `_meta.ui.csp` shape returned to MCP Apps hosts.
 pub const IFRAME_CSP: &str =
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
      connect-src 'self'; img-src 'self' data:";
