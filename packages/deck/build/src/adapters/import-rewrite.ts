@@ -31,7 +31,7 @@ export function mirrorResolverPlugin(packageRoot: string): any {
   const mirrorRoot = join(repoRoot, '.ship/sui-out')
   const packagesRoot = join(repoRoot, 'packages')
   // Workspace package dirs are nested one or two levels under packages/
-  // (e.g. packages/sui/runtime, packages/deck/build, packages/components/primitives,
+  // (e.g. packages/sui/runtime, packages/deck/build, packages/components/sui/primitives,
   // packages/assets). The original importer can't see these via node_modules
   // walk when bundling from the mirror tree, so resolve @ship/<name> by
   // probing the known umbrella dirs in order.

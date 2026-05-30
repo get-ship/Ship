@@ -20,7 +20,7 @@
     "@ship/sui-runtime": "workspace:*",
     "@ship/sui-dom": "workspace:*",
     "@ship/sui-build": "workspace:*",
-    "@ship/primitives": "workspace:*"
+    "@ship/sui-primitives": "workspace:*"
   },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",

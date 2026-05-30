@@ -97,15 +97,15 @@
         "@codemirror/state": "^6",
         "@codemirror/view": "^6",
         "@lezer/highlight": "^1",
-        "@ship/charts": "workspace:*",
         "@ship/deck-host": "workspace:*",
         "@ship/pipelines": "workspace:*",
-        "@ship/primitives": "workspace:*",
         "@ship/sdk": "workspace:*",
         "@ship/sdk-client": "workspace:*",
         "@ship/sui-build": "workspace:*",
+        "@ship/sui-charts": "workspace:*",
         "@ship/sui-dom": "workspace:*",
         "@ship/sui-lsp-browser": "workspace:*",
+        "@ship/sui-primitives": "workspace:*",
         "@ship/sui-runtime": "workspace:*",
         "@ship/sui-terminal": "workspace:*",
         "@ship/ui-components": "workspace:*",
@@ -208,15 +208,15 @@
       "name": "@ship/compiler",
       "version": "0.1.0",
     },
-    "packages/components/agents": {
+    "packages/components/ship/agents": {
       "name": "@ship/agents",
       "version": "0.1.0",
       "dependencies": {
-        "@ship/primitives": "workspace:*",
         "@ship/sdk-client": "workspace:*",
         "@ship/sui-build": "workspace:*",
         "@ship/sui-chat-elements": "workspace:*",
         "@ship/sui-dom": "workspace:*",
+        "@ship/sui-primitives": "workspace:*",
         "@ship/sui-runtime": "workspace:*",
       },
       "devDependencies": {
@@ -224,7 +224,7 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/components/arcade": {
+    "packages/components/ship/arcade": {
       "name": "@ship/arcade",
       "version": "0.1.0",
       "dependencies": {
@@ -237,20 +237,7 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/components/charts": {
-      "name": "@ship/charts",
-      "version": "0.1.0",
-      "dependencies": {
-        "@ship/sui-build": "workspace:*",
-        "@ship/sui-dom": "workspace:*",
-        "@ship/sui-runtime": "workspace:*",
-      },
-      "devDependencies": {
-        "@ship/test-setup": "workspace:*",
-        "vitest": "^4.1.5",
-      },
-    },
-    "packages/components/pipelines": {
+    "packages/components/ship/pipelines": {
       "name": "@ship/pipelines",
       "version": "0.1.0",
       "dependencies": {
@@ -259,19 +246,6 @@
         "@ship/sui-runtime": "workspace:*",
       },
       "devDependencies": {
-        "vitest": "^4.1.5",
-      },
-    },
-    "packages/components/primitives": {
-      "name": "@ship/primitives",
-      "version": "0.1.0",
-      "dependencies": {
-        "@ship/sui-build": "workspace:*",
-        "@ship/sui-dom": "workspace:*",
-        "@ship/sui-runtime": "workspace:*",
-      },
-      "devDependencies": {
-        "@ship/test-setup": "workspace:*",
         "vitest": "^4.1.5",
       },
     },
@@ -291,11 +265,37 @@
         "vitest": "^4.1.5",
       },
     },
+    "packages/components/sui/charts": {
+      "name": "@ship/sui-charts",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/sui-build": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "@ship/test-setup": "workspace:*",
+        "vitest": "^4.1.5",
+      },
+    },
     "packages/components/sui/chat-elements": {
       "name": "@ship/sui-chat-elements",
       "version": "0.1.0",
       "dependencies": {
-        "@ship/primitives": "workspace:*",
+        "@ship/sui-build": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-primitives": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "@ship/test-setup": "workspace:*",
+        "vitest": "^4.1.5",
+      },
+    },
+    "packages/components/sui/primitives": {
+      "name": "@ship/sui-primitives",
+      "version": "0.1.0",
+      "dependencies": {
         "@ship/sui-build": "workspace:*",
         "@ship/sui-dom": "workspace:*",
         "@ship/sui-runtime": "workspace:*",
@@ -309,9 +309,9 @@
       "name": "@ship/sui-terminal",
       "version": "0.1.0",
       "dependencies": {
-        "@ship/primitives": "workspace:*",
         "@ship/sui-build": "workspace:*",
         "@ship/sui-dom": "workspace:*",
+        "@ship/sui-primitives": "workspace:*",
         "@ship/sui-runtime": "workspace:*",
         "@xterm/addon-fit": "^0.11.0",
         "@xterm/addon-web-links": "^0.12.0",
@@ -327,9 +327,9 @@
       "name": "@ship/ui-components",
       "version": "0.1.0",
       "dependencies": {
-        "@ship/primitives": "workspace:*",
         "@ship/sui-build": "workspace:*",
         "@ship/sui-dom": "workspace:*",
+        "@ship/sui-primitives": "workspace:*",
         "@ship/sui-runtime": "workspace:*",
       },
       "devDependencies": {
@@ -1145,15 +1145,13 @@
 
     "@ship-cloud/types": ["@ship-cloud/types@workspace:packages/cloud-types"],
 
-    "@ship/agents": ["@ship/agents@workspace:packages/components/agents"],
+    "@ship/agents": ["@ship/agents@workspace:packages/components/ship/agents"],
 
-    "@ship/arcade": ["@ship/arcade@workspace:packages/components/arcade"],
+    "@ship/arcade": ["@ship/arcade@workspace:packages/components/ship/arcade"],
 
     "@ship/arcade-engine": ["@ship/arcade-engine@workspace:packages/arcade-engine"],
 
     "@ship/assets": ["@ship/assets@workspace:packages/assets"],
-
-    "@ship/charts": ["@ship/charts@workspace:packages/components/charts"],
 
     "@ship/compiler": ["@ship/compiler@workspace:packages/compiler"],
 
@@ -1163,9 +1161,7 @@
 
     "@ship/docs": ["@ship/docs@workspace:apps/docs"],
 
-    "@ship/pipelines": ["@ship/pipelines@workspace:packages/components/pipelines"],
-
-    "@ship/primitives": ["@ship/primitives@workspace:packages/components/primitives"],
+    "@ship/pipelines": ["@ship/pipelines@workspace:packages/components/ship/pipelines"],
 
     "@ship/sdk": ["@ship/sdk@workspace:packages/deck/sdk"],
 
@@ -1179,6 +1175,8 @@
 
     "@ship/sui-catalog": ["@ship/sui-catalog@workspace:packages/deck/catalog"],
 
+    "@ship/sui-charts": ["@ship/sui-charts@workspace:packages/components/sui/charts"],
+
     "@ship/sui-chat-elements": ["@ship/sui-chat-elements@workspace:packages/components/sui/chat-elements"],
 
     "@ship/sui-compiler-wasm": ["@ship/sui-compiler-wasm@workspace:packages/sui/compiler-wasm"],
@@ -1188,6 +1186,8 @@
     "@ship/sui-eval": ["@ship/sui-eval@workspace:packages/deck/eval"],
 
     "@ship/sui-lsp-browser": ["@ship/sui-lsp-browser@workspace:packages/deck/lsp-browser"],
+
+    "@ship/sui-primitives": ["@ship/sui-primitives@workspace:packages/components/sui/primitives"],
 
     "@ship/sui-runtime": ["@ship/sui-runtime@workspace:packages/sui/runtime"],
 

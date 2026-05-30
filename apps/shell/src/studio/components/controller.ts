@@ -17,8 +17,8 @@ import { loadCatalog, categoryRank, type CatalogEntry } from './catalog'
 type Filter = 'all' | 'primitives' | 'charts' | 'pipelines'
 
 const PKG_OF: Record<Exclude<Filter, 'all'>, string> = {
-  primitives: '@ship/primitives',
-  charts: '@ship/charts',
+  primitives: '@ship/sui-primitives',
+  charts: '@ship/sui-charts',
   pipelines: '@ship/pipelines',
 }
 
@@ -109,8 +109,8 @@ export default controller({
       const by = (pkg: string) => roots.filter((e) => e.pkg === pkg).length
       return {
         all: roots.length,
-        primitives: by('@ship/primitives'),
-        charts: by('@ship/charts'),
+        primitives: by('@ship/sui-primitives'),
+        charts: by('@ship/sui-charts'),
         pipelines: by('@ship/pipelines'),
       }
     })

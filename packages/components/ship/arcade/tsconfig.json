@@ -19,7 +19,7 @@
     "noEmit": false,
     "rootDirs": [
       "src",
-      "../../../.ship/sui-out/packages/components/arcade/src"
+      "../../../../.ship/sui-out/packages/components/ship/arcade/src"
     ]
   },
   "include": ["src/**/*"],

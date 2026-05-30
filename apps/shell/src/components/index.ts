@@ -8,7 +8,7 @@
 // via `<bundle separate />` in its `.sui` source — those load on demand
 // from `/_sui/sui-components/<tag>.js` and shouldn't be aggregated here.
 //
-// Primitives register globally via the shell's `@ship/primitives/bundle`
+// Primitives register globally via the shell's `@ship/sui-primitives/bundle`
 // import; chrome components instantiate primitive `<sui-*>` tags freely
 // without explicit per-component imports.
 

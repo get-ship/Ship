@@ -7,8 +7,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import '../../src/components/sui-shell-bottom/sui-shell-bottom.compiled.js'
 import '../../src/components/sui-blank-canvas/sui-blank-canvas.compiled.js'
 // sui-icon + sui-spinner are referenced by sui-blank-canvas's template.
-import '../../../../packages/components/primitives/src/sui-icon/sui-icon.compiled.js'
-import '../../../../packages/components/primitives/src/sui-spinner/sui-spinner.compiled.js'
+import '../../../../packages/components/sui/primitives/src/sui-icon/sui-icon.compiled.js'
+import '../../../../packages/components/sui/primitives/src/sui-spinner/sui-spinner.compiled.js'
 import { createContainerRegistry, flush, mount } from '../test-utils'
 
 const reg = createContainerRegistry()

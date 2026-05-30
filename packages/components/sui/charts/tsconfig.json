@@ -24,7 +24,7 @@
     // relative module resolution.
     "rootDirs": [
       "src",
-      "../../../.ship/sui-out/packages/components/primitives/src"
+      "../../../../.ship/sui-out/packages/components/sui/charts/src"
     ]
   },
   "include": ["src/**/*"],

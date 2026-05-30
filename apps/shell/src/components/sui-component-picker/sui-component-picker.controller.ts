@@ -92,7 +92,7 @@ export interface PickerEntry {
    *  the same heuristic so the picker UI stays consistent with it. */
   icon: string
   category: string
-  /** Origin package — `@ship/charts`, `@ship/ui-components`,
+  /** Origin package — `@ship/sui-charts`, `@ship/ui-components`,
    *  `app:shell`, `view:<name>`, etc. Used directly for pack grouping;
    *  the regex-based `categoryOf` heuristic stays only for the icon. */
   pack: string
@@ -195,7 +195,7 @@ export default controller({
     })
 
     // Group by origin package (`package` field from the workspace
-    // catalog). One bucket per pack — `@ship/charts`, `@ship/ui-components`,
+    // catalog). One bucket per pack — `@ship/sui-charts`, `@ship/ui-components`,
     // `app:shell`, `view:<name>`, etc. Order: published packs first
     // (alphabetical), then private packages, then shell + view origins.
     function packLabel(id: string): string {

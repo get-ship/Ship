@@ -1,6 +1,6 @@
 // Vitest setup for `@ship/ui-components` — JSDOM polyfills + per-icon cache
 // priming. Shared helpers live in `@ship/test-setup`; the registry primer
-// comes from `@ship/primitives` (where `<sui-icon>` actually lives).
+// comes from `@ship/sui-primitives` (where `<sui-icon>` actually lives).
 
 import { resolve } from 'node:path'
 import { initJsdomPolyfills, primeLucideIcons } from '@ship/test-setup'

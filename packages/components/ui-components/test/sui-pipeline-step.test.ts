@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import '../src/sui-pipeline-step/sui-pipeline-step.compiled.js'
-// sui-spinner lives in @ship/primitives.
-import '@ship/primitives'
+// sui-spinner lives in @ship/sui-primitives.
+import '@ship/sui-primitives'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

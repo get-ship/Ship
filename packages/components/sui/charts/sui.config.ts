@@ -1,10 +1,10 @@
 import type { SuiBuildConfig } from '@ship/sui-build'
 
-// `@ship/charts` — first-party SUI components pack for chart primitives.
+// `@ship/sui-charts` — first-party SUI components pack for chart primitives.
 //
 // One umbrella entry (`sui-charts`) that side-effect-imports every chart
-// `.compiled.js`; consumers do a single `import '@ship/charts'` (or
-// `import '@ship/charts/dist/sui-charts.js'`) and all eight tags
+// `.compiled.js`; consumers do a single `import '@ship/sui-charts'` (or
+// `import '@ship/sui-charts/dist/sui-charts.js'`) and all eight tags
 // register globally before any view template instantiates them.
 //
 // CEM aggregation lands inside this pack's own `dist/` —

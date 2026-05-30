@@ -289,7 +289,7 @@ Three games built on \`@ship/arcade\`. Open primitives, one tiny engine, real cu
 
 ## Source
 - \`packages/arcade-engine\` — engine + vendored pixi
-- \`packages/components/arcade\` — sui-stage, sui-sprite, sui-emitter, sui-input, sui-hud
+- \`packages/components/ship/arcade\` — sui-stage, sui-sprite, sui-emitter, sui-input, sui-hud
 - \`apps/site/src/games\` — the games themselves
 `,
   },

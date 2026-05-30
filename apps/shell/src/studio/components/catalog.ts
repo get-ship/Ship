@@ -14,7 +14,7 @@ export interface CatalogEntry {
   /** Declared default/named slots, read from the component's CEM declaration. */
   slots?: SlotEntry[]
   /** Origin package — drives the top-level filter pills (Primitives / Charts /
-   *  Pipelines). One of `@ship/primitives`, `@ship/charts`, `@ship/pipelines`. */
+   *  Pipelines). One of `@ship/sui-primitives`, `@ship/sui-charts`, `@ship/pipelines`. */
   pkg?: string
   /** Repo-relative authoring source, for the "Source" section link. */
   sourcePath?: string
@@ -87,7 +87,7 @@ const CATEGORY_ORDER = [
 ]
 
 const PKG_CATEGORY: Record<string, string> = {
-  '@ship/charts': 'Charts',
+  '@ship/sui-charts': 'Charts',
   '@ship/pipelines': 'Pipelines',
 }
 

@@ -1,11 +1,11 @@
 import type { SuiBuildConfig } from '@ship/sui-build'
 
-// `@ship/primitives` — first-party SUI components pack for the generic
+// `@ship/sui-primitives` — first-party SUI components pack for the generic
 // UI primitives (button, input, dialog, popover, tooltip, tabs, etc.).
 //
 // One umbrella entry (`sui-primitives`) side-effect-imports every
 // primitive `.compiled.js`; consumers do a single
-// `import '@ship/primitives'` (or `import '@ship/primitives/bundle'`)
+// `import '@ship/sui-primitives'` (or `import '@ship/sui-primitives/bundle'`)
 // and every primitive tag registers globally before any view template
 // instantiates them.
 //

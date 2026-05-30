@@ -38,7 +38,7 @@ const LIVE_RELOAD_JS: &str = include_str!("../assets/live-reload.js");
 
 // Aliases the runtime used to resolve client-side. Promoted to the daemon so a
 // `<sui-icon name="git">` request finds `git-branch` server-side with no client
-// indirection. Keep in lockstep with `packages/components/primitives/src/sui-icon/registry.ts`.
+// indirection. Keep in lockstep with `packages/components/sui/primitives/src/sui-icon/registry.ts`.
 const ICON_ALIASES: &[(&str, &str)] = &[
     ("git", "git-branch"),
     ("refresh", "refresh-cw"),

@@ -7,14 +7,14 @@
 // to `apps/shell/src/components/`. This package now holds the
 // feature/domain components only: git-diff, pipeline-*, log-stream,
 // harness-blob, auth-dialog, graph-canvas. Generic primitives live
-// in `@ship/primitives` (packages/components/primitives/).
+// in `@ship/sui-primitives` (packages/components/sui/primitives/).
 //
 // Every domain component uses primitive `<sui-*>` tags in its
 // templates — they resolve at runtime because we side-effect-import
 // the primitives pack at the top of this file, which triggers every
 // primitive `customElements.define()`.
 
-import '@ship/primitives'
+import '@ship/sui-primitives'
 import './sui-graph-canvas/sui-graph-canvas.compiled.js'
 // sui-pipeline-* live in the dedicated @ship/pipelines pack (loaded via
 // '@ship/pipelines/bundle'); the umbrella must NOT also define them or they

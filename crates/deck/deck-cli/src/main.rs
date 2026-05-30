@@ -66,7 +66,7 @@ enum Scaffold {
         component: Option<String>,
     },
 
-    /// New SUI primitive under `packages/components/primitives/src/<tag>/`.
+    /// New SUI primitive under `packages/components/sui/primitives/src/<tag>/`.
     Component {
         /// Tag name (must start with `sui-`).
         tag: String,

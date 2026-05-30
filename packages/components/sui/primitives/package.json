@@ -1,5 +1,5 @@
 {
-  "name": "@ship/primitives",
+  "name": "@ship/sui-primitives",
   "version": "0.1.0",
   "description": "Ship Primitives pack — generic `<sui-*>` UI elements (button, input, dialog, popover, etc.).",
   "type": "module",

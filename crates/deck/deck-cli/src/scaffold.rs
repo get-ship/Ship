@@ -6,7 +6,7 @@
 //! shape (manifest fields, paired-controller convention, the `.sui` +
 //! `.controller.ts` stem pair). The retired .mjs called into `node` and
 //! pointed at since-renamed paths (`packages/ui-components/src/`); the
-//! port writes to the current layout (`packages/components/primitives/`)
+//! port writes to the current layout (`packages/components/sui/primitives/`)
 //! and the next-steps text reflects today's toolchain.
 
 use std::fs;
@@ -155,9 +155,9 @@ pub fn run_view(name: String, route_path: Option<String>, component_tag: Option<
 pub fn run_component(tag: String, want_controller: bool) -> Result<()> {
     validate_component_tag(&tag)?;
     let repo_root = find_repo_root(&std::env::current_dir().context("cwd")?)?;
-    // Primitives live under packages/components/primitives/src/ today — the
+    // Primitives live under packages/components/sui/primitives/src/ today — the
     // retired .mjs wrote to packages/ui-components/src/ which no longer exists.
-    let base = repo_root.join("packages/components/primitives/src").join(&tag);
+    let base = repo_root.join("packages/components/sui/primitives/src").join(&tag);
     if base.exists() {
         bail!("directory already exists: {}", base.display());
     }
@@ -198,10 +198,10 @@ pub fn run_component(tag: String, want_controller: bool) -> Result<()> {
         fs::write(base.join(format!("{tag}.controller.ts")), ts)?;
     }
 
-    println!("[scaffold] created packages/components/primitives/src/{tag}/");
+    println!("[scaffold] created packages/components/sui/primitives/src/{tag}/");
     println!("[scaffold] next steps:");
     println!("  1. Edit {tag}.sui — props, styles, template body, parity comment");
-    println!("  2. Run: bun run --filter @ship/primitives build");
+    println!("  2. Run: bun run --filter @ship/sui-primitives build");
     println!("     (compiles the .sui via sui-build; emits dist/sui-primitives.js)");
     println!("  3. Run: cargo run -p xtask -- build-assets");
     println!("     (rebakes deck-core/assets/sui-components.js so the daemon serves it)");

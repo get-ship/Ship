@@ -1,14 +1,14 @@
 {
-  "name": "@ship/agents",
+  "name": "@ship/sui-charts",
   "version": "0.1.0",
-  "description": "Ship Agents pack — ship-* components pre-bound to the agents SDK domain (table, card, etc.). Requires a host that has called setShipClient at startup.",
+  "description": "Ship Charts pack \u2014 `<sui-*-chart>` + sparkline / donut / gauge / meter / heatmap custom elements.",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "customElements": "dist/custom-elements.json",
   "exports": {
     ".": "./src/index.ts",
-    "./bundle": "./dist/ship-agents.js"
+    "./bundle": "./dist/sui-charts.js"
   },
   "scripts": {
     "build": "sui-build",
@@ -17,12 +17,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ship/sdk-client": "workspace:*",
     "@ship/sui-build": "workspace:*",
     "@ship/sui-dom": "workspace:*",
-    "@ship/sui-runtime": "workspace:*",
-    "@ship/primitives": "workspace:*",
-    "@ship/sui-chat-elements": "workspace:*"
+    "@ship/sui-runtime": "workspace:*"
   },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",

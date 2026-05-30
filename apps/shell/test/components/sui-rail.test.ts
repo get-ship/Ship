@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../../src/components/sui-rail/sui-rail.compiled.js'
 import '../../src/components/sui-rail/sui-rail-item.compiled.js'
 import '../../src/components/sui-rail/sui-rail-section.compiled.js'
-// sui-portal / sui-icon live in @ship/primitives.
-import '@ship/primitives'
+// sui-portal / sui-icon live in @ship/sui-primitives.
+import '@ship/sui-primitives'
 import { createContainerRegistry, flush, mount } from '../test-utils'
 
 const reg = createContainerRegistry()

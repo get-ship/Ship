@@ -23,7 +23,7 @@ import { ops } from './ops'
 // Charts pack — single workspace import registers every <sui-*-chart>,
 // <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
 // before the first view mounts. Charts moved out of @ship/ui-components
-// into @ship/charts (packages/components/charts/) as the first pack
+// into @ship/sui-charts (packages/components/sui/charts/) as the first pack
 // extracted under the multi-pack architecture; consumers depend on the
 // pack via standard workspace deps, exactly the same shape any future
 // first- or third-party pack will use.
@@ -31,12 +31,12 @@ import { ops } from './ops'
 // The `/bundle` subpath points at sui-build's pre-built artifact
 // (`dist/sui-charts.js`) — the same shape the daemon uses to serve
 // `<script src="/_sui/components.js">` for the umbrella. Importing
-// `@ship/charts` directly would route through the source tree's
+// `@ship/sui-charts` directly would route through the source tree's
 // `.compiled.js` virtual imports, which only the sui-build / vitest
 // resolvers understand. The bundle path is a real on-disk module
-// Vite can ship as-is. Requires `bun run --filter @ship/charts build`
+// Vite can ship as-is. Requires `bun run --filter @ship/sui-charts build`
 // to have produced `dist/sui-charts.js`.
-import '@ship/charts/bundle'
+import '@ship/sui-charts/bundle'
 // Pipelines pack — sui-pipeline-* primitives (card/dag/step/run/history/
 // trigger/output/definition). Same prebuilt-bundle path as charts; requires
 // `bun run --filter @ship/pipelines build` to have produced dist/sui-pipelines.js.
@@ -44,8 +44,8 @@ import '@ship/pipelines/bundle'
 // Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
 // popover, tooltip, tabs, etc.) — is registered by the eager
 // `/_sui/components.js` umbrella loaded in index.html (its `@ship/ui-components`
-// entry side-effect-imports `@ship/primitives`). That bundle loads in <head>
-// before this module mounts, so a second `import '@ship/primitives/bundle'`
+// entry side-effect-imports `@ship/sui-primitives`). That bundle loads in <head>
+// before this module mounts, so a second `import '@ship/sui-primitives/bundle'`
 // here only re-ran every `customElements.define()` as a no-op — the source of
 // ~90 "called twice" warnings. Custom elements upgrade lazily, so there's no
 // need to register them a second time from the shell entry.

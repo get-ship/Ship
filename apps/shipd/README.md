@@ -13,7 +13,7 @@ The daemon embeds four JS bundles via `include_str!`:
 - `assets/ship-terminal.js`
 
 These are **not committed** — they are built from source in
-`packages/components/primitives/src/` by the top-level script:
+`packages/components/sui/primitives/src/` by the top-level script:
 
 ```bash
 bun run build:bundles           # build all (idempotent; skips unchanged)

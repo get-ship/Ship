@@ -97,8 +97,8 @@ describe('<sui-devtools-components>', () => {
       schemaVersion: '1',
       count: 2,
       entries: [
-        { tagName: 'sui-button', package: '@ship/primitives', private: false, sourcePath: '', bundleUrl: '', manifestUrl: '', description: '', firstDesc: '', attributes: [], slots: [] },
-        { tagName: 'sui-input',  package: '@ship/primitives', private: false, sourcePath: '', bundleUrl: '', manifestUrl: '', description: '', firstDesc: '', attributes: [], slots: [] },
+        { tagName: 'sui-button', package: '@ship/sui-primitives', private: false, sourcePath: '', bundleUrl: '', manifestUrl: '', description: '', firstDesc: '', attributes: [], slots: [] },
+        { tagName: 'sui-input',  package: '@ship/sui-primitives', private: false, sourcePath: '', bundleUrl: '', manifestUrl: '', description: '', firstDesc: '', attributes: [], slots: [] },
       ],
     }
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(catalog) })
