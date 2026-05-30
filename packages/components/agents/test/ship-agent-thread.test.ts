@@ -1,13 +1,13 @@
 // <ship-agent-thread> — composition + submit-handler coverage.
 //
-// The thread composes two `@sui/chat-elements` primitives
+// The thread composes two `@ship/sui-chat-elements` primitives
 // (<sui-message-list> + <sui-composer>) and binds them to a local
 // message array. We mount it, fire `sui-composer-submit`, and assert the
 // handler appends the user turn (plus the mock assistant ack) so the
 // rendered list grows. When the SDK chat stream lands, only the
 // controller body changes — this interaction contract stays put.
 import { afterEach, describe, expect, it } from 'vitest'
-import '@sui/chat-elements'
+import '@ship/sui-chat-elements'
 import '../src/ship-agent-thread/ship-agent-thread.compiled.js'
 
 const containers: HTMLElement[] = []

@@ -32,7 +32,7 @@ const TAGS = [
   'sui-citation',
 ] as const
 
-describe('@sui/chat-elements registration', () => {
+describe('@ship/sui-chat-elements registration', () => {
   for (const tag of TAGS) {
     it(`registers <${tag}> with the global registry`, () => {
       expect(customElements.get(tag)).toBeDefined()

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "description": "SUI bundling pipeline — sui-compiler runner + bun/esbuild adapters",
+  "description": "SUI bundling pipeline \u2014 sui-compiler runner + bun/esbuild adapters",
   "bin": {
     "sui-build": "./bin/sui-build.mjs"
   },
@@ -22,6 +22,7 @@
     "esbuild": "^0.25.0"
   },
   "devDependencies": {
+    "@ship/test-setup": "workspace:*",
     "@types/node": "^22.0.0",
     "typescript": "~5.8.3",
     "vitest": "^4.1.5"

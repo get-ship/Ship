@@ -17,7 +17,6 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "noEmit": false,
-    "jsx": "react-jsx",
     // Controllers do `import type { Scope } from './<stem>.sui'`. The
     // sui-compiler emits `<stem>.sui.d.ts` into the project mirror tree
     // at `<repo-root>/.ship/sui-out/<src-rel>/`. `rootDirs` lets tsc
@@ -25,7 +24,7 @@
     // relative module resolution.
     "rootDirs": [
       "src",
-      "../../../.ship/sui-out/packages/sui/canvas/src"
+      "../../../../.ship/sui-out/packages/components/sui/terminal/src"
     ]
   },
   "include": ["src/**/*"],

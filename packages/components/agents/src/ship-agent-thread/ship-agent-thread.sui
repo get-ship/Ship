@@ -1,7 +1,7 @@
 <!--
   <ship-agent-thread> — a complete chat surface bound to a Ship session.
 
-  Composes two `@sui/chat-elements` primitives:
+  Composes two `@ship/sui-chat-elements` primitives:
     • <sui-message-list>  keyed, auto-scrolling column of message bubbles
     • <sui-composer>       text input that emits `sui-composer-submit`
 
@@ -12,7 +12,7 @@
 
   Tag prefix `ship-*` marks Ship-runtime dependence. The two composed
   primitives must be registered before this mounts — the host imports
-  `@sui/chat-elements` (declared as a dependency of this pack).
+  `@ship/sui-chat-elements` (declared as a dependency of this pack).
 
   Props
   ─────────────────────────────────────────────────────────────────────

@@ -1,13 +1,13 @@
 import type { SuiBuildConfig } from '@ship/sui-build'
 
-// `@sui/canvas` — the drawing-surface pack. One umbrella entry
+// `@ship/sui-canvas` — the drawing-surface pack. One umbrella entry
 // (`sui-canvas`) side-effect-imports the compiled tag; a single
-// `import '@sui/canvas'` registers `<sui-canvas>` globally. Per-pack
+// `import '@ship/sui-canvas'` registers `<sui-canvas>` globally. Per-pack
 // CEM aggregation lands in dist/.
 //
 // Bundle note: this pack pulls in @excalidraw/excalidraw + a React 19
 // tree (~1 MB minified). Consumers only pay that cost when they import
-// the pack — it tree-shakes per-tag from '@sui/canvas/sui-canvas'.
+// the pack — it tree-shakes per-tag from '@ship/sui-canvas/sui-canvas'.
 const config: SuiBuildConfig = {
   entries: {
     'sui-canvas': 'src/index.ts',

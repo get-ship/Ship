@@ -10,6 +10,8 @@
       "apps/gateway",
       "packages/*",
       "packages/components/*",
+      "packages/components/sui/*",
+      "packages/components/ship/*",
       "packages/deck/*",
       "packages/sui/*",
       "apps/workers/*"
