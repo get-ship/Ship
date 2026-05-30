@@ -24,9 +24,11 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-# Default model set. Add/remove freely — each becomes one lane with
-# its own dispatched worktree.
-MODELS_CSV="haiku,sonnet"
+# Default model set. Test/smoke runs default to haiku ONLY — sonnet (and opus)
+# are reserved for live graded runs to keep iteration cheap. Pass
+# `--models haiku,sonnet[,opus]` explicitly for a live run. Each model becomes
+# one lane with its own dispatched worktree.
+MODELS_CSV="haiku"
 SPEC=".ship/pipelines/sui-eval/task-spec.md"
 
 while [[ $# -gt 0 ]]; do

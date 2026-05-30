@@ -1,0 +1,37 @@
+{
+  // sui-eval-smoke — haiku-only single-lane variant of `sui-eval` for cheap
+  // end-to-end validation of the harness (daemon fanout → grade → record),
+  // especially after the #193 watcher-leak fix unblocked the daemon path.
+  // Live graded A/B runs use `sui-eval` (haiku + sonnet). Test runs use THIS.
+  "name": "sui-eval-smoke",
+  "description": "SUI authoring eval — single haiku lane, smoke-test the grade/record chain.",
+  "auto_merge": false,
+  "steps": [
+    {
+      "id": "build",
+      "agent": "ship-designer",
+      "fanout": {
+        "lanes": [
+          { "id": "haiku", "agent": "ship-designer", "model": "claude-haiku-4-5-20251001" }
+        ],
+        "judge": { "step": "grade" },
+        "min_successful_lanes": 1
+      }
+    },
+    {
+      "id": "grade",
+      "after": ["build"],
+      "run": "bun .ship/pipelines/sui-eval/scripts/grade.ts\n"
+    },
+    {
+      "id": "record",
+      "after": ["grade"],
+      "run": "bun .ship/pipelines/sui-eval/scripts/record.ts\n"
+    }
+  ],
+  "step_specs": [
+    "SMOKE TASK (intentionally tiny — this validates the harness/fanout plumbing, not authoring quality; do NOT gold-plate). Create `views/smoke-counter/`: page.sui (an <h1>, a count read from a signal, and a + button with on:click that increments it), controller.ts (scope: { count: signal(0) }), and manifest.jsonc ({ name, path: \"/smoke-counter\", title, layout: \"default\", auth: \"public\" }). Keep it under ~40 lines total. Verify it compiles: `cargo run -q -p sui-compiler -- build views/smoke-counter/page.sui --component-name smoke-counter --out /tmp/smoke`. Then call `ship ops call pipelines.step_done --json '{\"slug\":\"'\"'$SHIP_ACTOR_ID'\"'\",\"summary\":\"smoke-counter built + compiles\"}'`. Stop there.\n",
+    "",
+    ""
+  ]
+}
