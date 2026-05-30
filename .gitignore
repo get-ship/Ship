@@ -258,3 +258,9 @@ apps/*/C:*
 apps/site/public/_sui/icons/
 apps/site/public/_sui/syntax-tokens.css
 apps/site/public/sui-components/
+
+# sui-eval is a local dogfood harness. Its scripts are acceptable pipeline
+# machinery (tracked), but the per-job task spec + reference mockups are job
+# artifacts and must never be committed (CLAUDE.md: artifacts → .artifacts/).
+.ship/pipelines/sui-eval/task-spec.md
+.ship/pipelines/sui-eval/mockups/
