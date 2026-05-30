@@ -49,7 +49,6 @@ pub mod sessions_rpc;
 pub mod account_rpc;
 pub mod chat_rpc;
 pub mod events_rpc;
-pub mod specs_rpc;
 pub mod view_rpc;
 pub mod create_rpc;
 pub mod discovery_rpc;

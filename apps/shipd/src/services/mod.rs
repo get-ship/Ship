@@ -12,12 +12,10 @@
 pub mod actor_control;
 pub mod command;
 pub mod gate;
-pub mod launcher;
 pub mod op_policy;
 pub mod registry;
 pub mod schema;
 pub mod ship_ns;
 pub mod pipelines;
-pub mod specs;
 pub mod settings;
 pub mod chat;

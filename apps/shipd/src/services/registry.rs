@@ -113,7 +113,6 @@ pub mod rules;
 pub mod mcp;
 pub mod permissions;
 pub mod pipelines;
-pub mod specs;
 pub mod settings;
 pub mod collections;
 pub mod artifacts;
@@ -153,9 +152,6 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
         return Ok(value);
     }
     if let Some(value) = pipelines::try_dispatch(name, args, state, &files)? {
-        return Ok(value);
-    }
-    if let Some(value) = specs::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
     if let Some(value) = settings::try_dispatch(name, args, state, &files)? {

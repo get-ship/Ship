@@ -9,7 +9,6 @@ mod collections;
 mod git;
 mod pipelines;
 mod skills;
-mod specs;
 mod views;
 
 use serde_json::Value;
@@ -21,7 +20,6 @@ pub fn examples() -> Vec<(&'static str, Value)> {
     out.extend(skills::examples());
     out.extend(git::examples());
     out.extend(pipelines::examples());
-    out.extend(specs::examples());
     out.extend(collections::examples());
     out
 }

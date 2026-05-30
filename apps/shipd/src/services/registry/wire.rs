@@ -102,23 +102,6 @@ pub struct PipelineGetResponse {
     pub doc: Value,
 }
 
-// ── specs ─────────────────────────────────────────────────────────────
-
-/// Wire shape of `ship.specs.list()`.
-#[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct SpecsListResponse {
-    pub items: Vec<crate::services::specs::shape::Spec>,
-}
-
-/// Wire shape of `ship.specs.get()`.
-#[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct SpecGetResponse {
-    pub spec: crate::services::specs::shape::Spec,
-    pub body: String,
-}
-
 // ── git ───────────────────────────────────────────────────────────────
 
 /// Wire shape of `ship.git.log()`.
