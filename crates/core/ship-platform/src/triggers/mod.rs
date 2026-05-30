@@ -23,6 +23,7 @@ pub use engine::{HookEngine, HookExecutionCtx};
 pub use loader::{LoadError, LoadReport, load_triggers_dir};
 
 #[cfg(test)]
+#[path = "tests/mod.rs"]
 mod tests;
 #[cfg(test)]
 mod schema_tests;
