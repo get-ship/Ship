@@ -47,6 +47,7 @@ pub mod account_rpc;
 pub mod chat_rpc;
 pub mod events_rpc;
 pub mod view_rpc;
+pub mod registry_rpc;
 pub mod sui_rpc;
 pub mod live_read;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)

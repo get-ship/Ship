@@ -52,6 +52,7 @@ fn main() {
         .arg("ship/ops/v1/chat.proto")
         .arg("ship/ops/v1/events.proto")
         .arg("ship/ops/v1/view.proto")
+        .arg("ship/ops/v1/registry.proto")
         .arg("ship/ops/v1/sui.proto")
         .status()
         .expect("failed to spawn protoc");
@@ -87,6 +88,7 @@ fn main() {
             "ship/ops/v1/chat.proto",
             "ship/ops/v1/events.proto",
             "ship/ops/v1/view.proto",
+            "ship/ops/v1/registry.proto",
             "ship/ops/v1/sui.proto",
         ])
         .compile()
