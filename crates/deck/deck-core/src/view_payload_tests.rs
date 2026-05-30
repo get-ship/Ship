@@ -382,10 +382,19 @@ fn compile_error_returns_500_with_position() {
     assert!(!body["message"].as_str().unwrap().is_empty());
 }
 
+/// Helper: write a `.deck/islands.json` fixture into the project dir so the
+/// view-payload path resolves islands from the marker-derived manifest.
+fn write_islands_manifest(root: &std::path::Path, json: &str) {
+    let deck = root.join(".deck");
+    fs::create_dir_all(&deck).unwrap();
+    fs::write(deck.join("islands.json"), json).unwrap();
+}
+
 #[test]
 fn island_tags_listed() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
+    write_islands_manifest(tmp.path(), r#"{"sui-terminal":"sui-terminal"}"#);
     let view_dir = tmp.path().join(".ship/views/term-view");
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(view_dir.join("index.sui"),
@@ -397,6 +406,44 @@ fn island_tags_listed() {
     let islands = v["islands"].as_array().unwrap();
     assert_eq!(islands.len(), 1);
     assert_eq!(islands[0], "sui-terminal");
+}
+
+/// The canvas fix: a view embedding `<sui-canvas>` resolves it as an island
+/// when the marker-derived manifest flags it. Under the old hardcoded
+/// `SUI_ISLANDS` table `sui-canvas` was missing, so it never lazy-loaded.
+#[test]
+fn canvas_resolves_as_island_from_manifest() {
+    let tmp = tempfile::tempdir().unwrap();
+    let _g = lock_with_dir(tmp.path());
+    write_islands_manifest(tmp.path(), r#"{"sui-canvas":"sui-canvas"}"#);
+    let view_dir = tmp.path().join(".ship/views/canvas-view");
+    fs::create_dir_all(&view_dir).unwrap();
+    fs::write(view_dir.join("index.sui"),
+        r#"<div><sui-canvas></sui-canvas></div>"#).unwrap();
+
+    let resp = serve_view_payload(DaemonMode::Development, "canvas-view");
+    assert_eq!(resp.status, 200);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
+    let islands = v["islands"].as_array().unwrap();
+    assert_eq!(islands.len(), 1);
+    assert_eq!(islands[0], "sui-canvas");
+}
+
+/// A used tag absent from the manifest is NOT an island (no separate bundle).
+#[test]
+fn unflagged_tag_is_not_an_island() {
+    let tmp = tempfile::tempdir().unwrap();
+    let _g = lock_with_dir(tmp.path());
+    write_islands_manifest(tmp.path(), r#"{"sui-terminal":"sui-terminal"}"#);
+    let view_dir = tmp.path().join(".ship/views/plain-view");
+    fs::create_dir_all(&view_dir).unwrap();
+    fs::write(view_dir.join("index.sui"),
+        r#"<div><sui-button></sui-button></div>"#).unwrap();
+
+    let resp = serve_view_payload(DaemonMode::Development, "plain-view");
+    assert_eq!(resp.status, 200);
+    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
+    assert!(v["islands"].as_array().unwrap().is_empty());
 }
 
 #[test]

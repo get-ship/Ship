@@ -29,6 +29,14 @@ fn read_deck_asset(rel: &str) -> Option<String> {
     std::fs::read_to_string(root.join(rel)).ok()
 }
 
+/// The generated islands manifest (`.deck/islands.json`), a tag→bundle map the
+/// bundler writes from its `<bundle separate />` scan. Returns the raw JSON;
+/// `view_payload` parses + intersects it with a view's used tags. Absent file
+/// (no project root, or never built) → None → no islands.
+pub(crate) fn read_islands_manifest() -> Option<String> {
+    read_deck_asset("islands.json")
+}
+
 const SUI_RUNTIME_JS: &str = include_str!("../assets/sui-runtime.js");
 const SUI_DOM_JS: &str = include_str!("../assets/sui-dom.js");
 const SUI_SDK_CLIENT_JS: &str = include_str!("../assets/sui-sdk-client.js");

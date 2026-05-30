@@ -104,7 +104,26 @@ impl Bundler {
             }
         }
         self.refresh_catalog(&layout);
+        self.emit_islands_manifest(&layout);
         Ok(())
+    }
+
+    /// Write `.deck/islands.json` — the marker-derived tag→bundle map deck-core
+    /// reads to decide which of a view's used tags are lazy islands. Generated
+    /// output (`.deck/` is gitignored); the `<bundle separate />` scan is the
+    /// single source of truth.
+    fn emit_islands_manifest(&self, layout: &BundleLayout) {
+        let manifest = layout.island_manifest();
+        let dir = layout.repo_root.join(".deck");
+        let _ = std::fs::create_dir_all(&dir);
+        match serde_json::to_string_pretty(&manifest) {
+            Ok(json) => {
+                if std::fs::write(dir.join("islands.json"), json).is_ok() {
+                    info!(islands = manifest.len(), "bundler: islands manifest written");
+                }
+            }
+            Err(e) => warn!(error = %e, "bundler: islands manifest serialize failed"),
+        }
     }
 
     fn refresh_catalog(&self, layout: &BundleLayout) {

@@ -2,62 +2,25 @@ use std::collections::BTreeSet;
 
 use crate::ir::Instr;
 
-/// Compile-time map of `<sui-*>` separate-bundle tags to their bundle name
-/// — each bundle ships as a separate `/_sui/sui-components/<bundle>.js`
-/// file rather than inlined into `sui-components.js`.
+/// Walk `instrs` recursively and return every distinct custom-element tag
+/// the template uses — i.e. every tag containing a `-` (`sui-*` / `ship-*`).
 ///
-/// Most tags are their own bundle (`tag == bundle`). Family bundles
-/// pack multiple tags that share controllers/styles into a single
-/// asset (e.g. the command-bar family); the tag→bundle column lets the
-/// daemon serve one file regardless of which family member appears in
-/// a template.
-///
-/// Adding a new separate-bundle component: drop the source under
-/// `packages/components/ui-components/src/<bundle>/`, mark its `.sui` source with a
-/// top-of-file `<bundle separate />` directive, list its tag here, and
-/// rebuild. The daemon route handler and build pipeline pick it up
-/// automatically.
-pub const SUI_ISLANDS: &[(&str, &str)] = &[
-    ("sui-terminal", "sui-terminal"),
-    ("sui-command-bar", "sui-command-bar"),
-    ("sui-command-palette", "sui-command-bar"),
-    ("sui-command-chat", "sui-command-bar"),
-    ("sui-devtools-source", "sui-devtools"),
-    ("sui-devtools-components", "sui-devtools"),
-    ("sui-devtools-lint", "sui-devtools"),
-    ("sui-devtools-schema", "sui-devtools"),
-    ("sui-devtools-signals", "sui-devtools"),
-    ("sui-launcher", "sui-launcher"),
-    ("sui-panel-dock", "sui-panel-dock"),
-    ("sui-nav-top", "sui-nav-top"),
-    ("sui-markdown-editor", "sui-markdown-editor"),
-    ("sui-code-editor", "sui-code-editor"),
-];
-
-pub fn island_bundle(tag: &str) -> Option<&'static str> {
-    SUI_ISLANDS.iter().find(|(t, _)| *t == tag).map(|(_, b)| *b)
-}
-
-pub fn is_island_bundle(name: &str) -> bool {
-    SUI_ISLANDS.iter().any(|(_, b)| *b == name)
-}
-
-/// Walk `instrs` recursively and return every distinct island BUNDLE
-/// the template needs (deduped — multiple tags from the same family
-/// resolve to one entry). Used by the JS emitter and the SSR fragment
-/// handler so the host can fetch each bundle exactly once.
-pub fn collect_islands(instrs: &[Instr]) -> BTreeSet<&'static str> {
+/// The compiler deliberately knows NOTHING about islands. Which of these
+/// tags are lazy separate bundles is derived downstream from the bundler's
+/// `<bundle separate />` scan (surfaced as `.deck/islands.json`); deck-core
+/// intersects this used-tag set with that manifest to build `payload.islands`.
+pub fn collect_used_tags(instrs: &[Instr]) -> BTreeSet<String> {
     let mut found = BTreeSet::new();
     visit(instrs, &mut found);
     found
 }
 
-fn visit(instrs: &[Instr], found: &mut BTreeSet<&'static str>) {
+fn visit(instrs: &[Instr], found: &mut BTreeSet<String>) {
     for instr in instrs {
         match instr {
             Instr::Element(el) => {
-                if let Some(bundle) = island_bundle(el.tag.as_str()) {
-                    found.insert(bundle);
+                if el.tag.contains('-') {
+                    found.insert(el.tag.clone());
                 }
                 visit(&el.children, found);
             }
@@ -87,6 +50,41 @@ fn visit(instrs: &[Instr], found: &mut BTreeSet<&'static str>) {
             Instr::WhileError(we) => visit(&we.body, found),
             Instr::Let(l) => visit(&l.body, found),
             Instr::StaticText { .. } | Instr::DynamicText { .. } | Instr::Comment { .. } => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn used_tags(src: &str) -> BTreeSet<String> {
+        let program = crate::parse::parse(src).expect("source should parse");
+        collect_used_tags(&program.template)
+    }
+
+    #[test]
+    fn collects_custom_element_tags_only() {
+        let tags = used_tags("<div><sui-terminal></sui-terminal><span>hi</span><ship-foo /></div>");
+        assert!(tags.contains("sui-terminal"));
+        assert!(tags.contains("ship-foo"));
+        assert!(!tags.contains("div"), "plain HTML tags excluded");
+        assert!(!tags.contains("span"), "plain HTML tags excluded");
+    }
+
+    #[test]
+    fn finds_tags_nested_in_control_flow() {
+        // if / for / match / while-loading / while-error each carry a distinct tag.
+        let src = r#"<div>
+            {#if cond()}<sui-a></sui-a>{:else}<sui-b></sui-b>{/if}
+            {#for x of items()}<sui-c></sui-c>{/for}
+            {#match m()}{:case 1}<sui-d></sui-d>{:default}<sui-e></sui-e>{/match}
+            {#while-loading of data}<sui-f></sui-f>{/while-loading}
+            {#while-error err of data}<sui-g></sui-g>{/while-error}
+        </div>"#;
+        let tags = used_tags(src);
+        for t in ["sui-a", "sui-b", "sui-c", "sui-d", "sui-e", "sui-f", "sui-g"] {
+            assert!(tags.contains(t), "missing nested tag {t}; got {tags:?}");
         }
     }
 }

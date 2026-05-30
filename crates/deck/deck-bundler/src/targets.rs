@@ -6,7 +6,7 @@
 //! build (`rolldown_bundle.rs`) iterates these; nothing here touches the
 //! filesystem beyond discovery reads.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 
 /// `<bundle separate />` top-of-file directive opts a component dir into its own
@@ -170,6 +170,33 @@ impl BundleLayout {
         ]
     }
 
+    /// The islands manifest: every separate-bundle component tag mapped to its
+    /// bundle name. Derived from the SAME `<bundle separate />` scan that drives
+    /// `discover_separate_bundles` — this is the one source of truth for island
+    /// membership, surfaced to deck-core as `.deck/islands.json`.
+    ///
+    /// Each separate-bundle dir is one bundle (named after the dir). Every `.sui`
+    /// file inside contributes its file-stem as a tag pointing at that bundle, so
+    /// a family dir (e.g. `sui-command-bar/` holding `sui-command-bar.sui` +
+    /// `sui-command-palette.sui`) maps each member tag to the one shared bundle.
+    pub fn island_manifest(&self) -> BTreeMap<String, String> {
+        let mut map = BTreeMap::new();
+        for target in self.discover_separate_bundles() {
+            // `name` is `sui-components/<dir>`; the bundle is `<dir>`.
+            let Some(bundle) = target.name.strip_prefix("sui-components/") else {
+                continue;
+            };
+            if let TargetEntry::Virtual { sources } = &target.entry {
+                for src in sources {
+                    if let Some(tag) = src.file_stem().and_then(|s| s.to_str()) {
+                        map.insert(tag.to_string(), bundle.to_string());
+                    }
+                }
+            }
+        }
+        map
+    }
+
     /// Walk each separate-bundle root for `sui-*/` dirs whose `.sui` files carry
     /// `<bundle separate />`; each becomes a virtual aggregate of its `.sui`s.
     fn discover_separate_bundles(&self) -> Vec<BundleTarget> {
@@ -325,5 +352,25 @@ mod tests {
             !names.contains(&"sui-components/sui-plain"),
             "non-separate component must NOT get its own bundle"
         );
+    }
+
+    #[test]
+    fn island_manifest_maps_family_tags_to_one_bundle() {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path().to_path_buf();
+        let dir = "packages/components/ui-components/src";
+        // A family bundle: two member tags share one dir/bundle.
+        write(&root.join(format!("{dir}/sui-command-bar/sui-command-bar.sui")), "<bundle separate />\n");
+        write(&root.join(format!("{dir}/sui-command-bar/sui-command-palette.sui")), "<div/>\n");
+        // A solo island.
+        write(&root.join(format!("{dir}/sui-canvas/sui-canvas.sui")), "<bundle separate />\n");
+        // A non-separate component must not appear.
+        write(&root.join(format!("{dir}/sui-plain/sui-plain.sui")), "<div/>\n");
+
+        let m = BundleLayout::new(root, None).island_manifest();
+        assert_eq!(m.get("sui-command-bar").map(String::as_str), Some("sui-command-bar"));
+        assert_eq!(m.get("sui-command-palette").map(String::as_str), Some("sui-command-bar"));
+        assert_eq!(m.get("sui-canvas").map(String::as_str), Some("sui-canvas"));
+        assert!(!m.contains_key("sui-plain"), "non-separate tag must not be an island");
     }
 }
