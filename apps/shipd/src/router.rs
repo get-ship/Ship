@@ -18,7 +18,7 @@ use crate::routes::{
     artifacts_api, commands_api, create_api, feedback_api, git_api,
     hooks_api, human_webhook, logs_api,
     registry_api, rest_api, runtime_api,
-    sdk_manifest, search_api, settings_api, themes_api,
+    sdk_manifest, settings_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
 };
@@ -508,8 +508,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
         // Command bar registry
         .ship_route(Route::ListCommands, commands_api::list_commands)
-        // Unified search — cmdk find mode consumer.
-        .ship_route(Route::SearchAll, search_api::search)
         // SDK manifest (read-side)
         .ship_route(Route::ViewMeta_template(), sdk_manifest::get_view_meta)
         .ship_route(Route::SdkRoot, sdk_manifest::get_sdk_root)

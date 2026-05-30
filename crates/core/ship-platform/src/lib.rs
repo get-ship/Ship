@@ -12,7 +12,6 @@ pub mod kv;
 pub mod projections;
 pub mod projects;
 pub mod registry;
-pub mod search;
 pub mod services;
 pub mod sessions;
 pub mod toolchain;

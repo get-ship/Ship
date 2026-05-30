@@ -4,9 +4,9 @@
 
 use async_trait::async_trait;
 
-use crate::search::adapter::{AdapterResult, EntitySearchAdapter};
-use crate::search::ranking::score_text;
-use crate::search::types::{EntityKind, EntityKindFilter, SearchHit, SearchOpts};
+use crate::adapter::{AdapterResult, EntitySearchAdapter};
+use crate::ranking::score_text;
+use crate::types::{EntityKind, EntityKindFilter, SearchHit, SearchOpts};
 
 #[derive(Clone, Debug)]
 pub struct SkillSnapshot {

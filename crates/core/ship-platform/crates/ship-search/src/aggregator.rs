@@ -81,8 +81,8 @@ fn adapter_enabled(kind: EntityKindFilter, allow: Option<&[EntityKindFilter]>) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::search::adapter::AdapterResult;
-    use crate::search::types::EntityKind;
+    use crate::adapter::AdapterResult;
+    use crate::types::EntityKind;
     use async_trait::async_trait;
 
     struct StaticAdapter {
