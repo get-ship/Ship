@@ -187,12 +187,34 @@ impl Bundler {
                 return;
             }
         };
-        for dir in &watch_dirs {
-            if let Err(e) = watcher.watch(dir, RecursiveMode::Recursive) {
-                warn!(dir = %dir.display(), error = %e, "bundler: watch failed");
+        // #193: a `RecursiveMode::Recursive` watch over `packages/` pulled in
+        // every per-package `node_modules` — notify retains a PathBuf per
+        // watched dir, so during a fanout the daemon's RSS climbed to multiple
+        // GB (509k+ retained paths, confirmed by dhat). Walk the roots with an
+        // explicit stack, PRUNE vendored/build trees, and attach NON-recursive
+        // watches per surviving source directory so notify never descends into
+        // (or retains) node_modules et al.
+        const PRUNE: &[&str] = &["node_modules", ".git", "target", "dist", ".deck", "sui-out"];
+        let mut stack: Vec<PathBuf> = watch_dirs.clone();
+        let mut watched = 0usize;
+        while let Some(dir) = stack.pop() {
+            if watcher.watch(&dir, RecursiveMode::NonRecursive).is_err() {
+                warn!(dir = %dir.display(), "bundler: watch failed");
+            } else {
+                watched += 1;
+            }
+            let Ok(rd) = std::fs::read_dir(&dir) else { continue };
+            for entry in rd.flatten() {
+                // `file_type()` does not follow symlinks, so symlinked dirs are
+                // skipped here (no cycles) and only real subdirectories recurse.
+                if matches!(entry.file_type(), Ok(ft) if ft.is_dir())
+                    && !PRUNE.contains(&entry.file_name().to_string_lossy().as_ref())
+                {
+                    stack.push(entry.path());
+                }
             }
         }
-        info!(dirs = watch_dirs.len(), "bundler: watching (in-process rolldown)");
+        info!(dirs = watched, "bundler: watching (in-process rolldown, vendored dirs pruned)");
 
         let layout = self.layout();
         loop {
