@@ -187,7 +187,7 @@ impl StreamService for OpsImpl {
 /// once per surface. Reads are C0 (authenticated at the edge). This is the "one
 /// gate" of `.artifacts/auth-gate-synthesis.md`.
 pub fn router(state: ApiState) -> axum::Router {
-    let svc = Arc::new(OpsImpl { state });
+    let svc = Arc::new(OpsImpl { state: state.clone() });
     let router = OpsServiceExt::register(svc.clone(), connectrpc::Router::new());
     let router = ReadOpsServiceExt::register(svc.clone(), router);
     let router = CommandOpsServiceExt::register(svc.clone(), router);
@@ -227,7 +227,16 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::EventsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::ViewServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::RegistryServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::SuiServiceExt::register(svc, router);
+    let router = ship_ops_rpc::SuiServiceExt::register(svc.clone(), router);
+    // search — trait impl in ship-search/src/wire.rs via SearchWire<F>;
+    // ShipdSearchContext is the per-request adapter in search_context.rs.
+    let search_state = state.clone();
+    let search_wire = std::sync::Arc::new(ship_search::SearchWire::new(
+        move |_ctx: &connectrpc::RequestContext| {
+            crate::search_context::ShipdSearchContext::new(search_state.clone())
+        },
+    ));
+    let router = ship_ops_rpc::SearchServiceExt::register(search_wire, router);
     router.into_axum_router()
 }
 
