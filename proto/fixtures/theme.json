@@ -595,10 +595,10 @@
       "cleared": 1
     },
     "workspaces.active": { "id": "harbor" },
-    "space.info": { "spaceId": "harbor-space-id", "root": "/home/harbor/projects/harbor", "name": "harbor" },
-    "space.window_intent": { "decision": "allow", "actorId": "harbor-actor-id" },
-    "space.window_list": { "windows": [{ "actorId": "harbor-actor-id", "spaceId": "harbor-space-id", "live": true }] },
-    "space.close_window": { "closed": true },
+    "space.info": { "spaceId": "harbor", "root": "/home/dev/harbor", "name": "harbor", "settingsJson": "{\"theme\":\"ship-dark\"}" },
+    "space.window_intent": { "decision": "focus", "actorId": "window-harbor-01" },
+    "space.window_list": { "windows": [{ "actorId": "window-harbor-01", "spaceId": "harbor-space-id", "pid": 4242, "live": true }] },
+    "space.close_window": { "closed": true, "tokenRevoked": true },
     "space.set_setting": { "key": "theme", "value_json": "\"dark\"" }
   }
 }
