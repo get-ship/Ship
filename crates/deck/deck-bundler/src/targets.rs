@@ -24,30 +24,6 @@ const SEPARATE_BUNDLE_ROOTS: [&str; 2] = [
 /// content and goes to `.deck/`.
 const DECK_OWN_BUNDLES: [&str; 4] = ["sui-runtime", "sui-dom", "sui-sdk-client", "sui-components"];
 
-/// Marketing-essentials aggregate — exactly the `<sui-*>` tags apps/site mounts.
-/// Keep in sync with apps/site when adding tags. Repo-relative.
-///
-/// `sui-icon` is registered explicitly: the bundler only defines the custom
-/// elements whose `.sui` sources are listed here, and a `<sui-icon>` referenced
-/// inside another template (e.g. the theme-picker trigger) is NOT transitively
-/// pulled in. Without this entry `<sui-icon>` stays an inert HTMLUnknownElement
-/// — no controller, no `/_sui/icons/<name>.svg` fetch, no glyph.
-const MARKETING_SOURCES: [&str; 13] = [
-    "packages/components/sui/primitives/src/sui-icon/sui-icon.sui",
-    "packages/components/sui/primitives/src/sui-badge/sui-badge.sui",
-    "packages/components/sui/primitives/src/sui-button/sui-button.sui",
-    "packages/components/sui/primitives/src/sui-progress/sui-progress.sui",
-    "packages/components/sui/primitives/src/sui-separator/sui-separator.sui",
-    "packages/components/sui/primitives/src/sui-stat/sui-stat.sui",
-    "packages/components/sui/primitives/src/sui-status-dot/sui-status-dot.sui",
-    "packages/components/sui/primitives/src/sui-table/sui-table.sui",
-    "packages/components/sui/primitives/src/sui-toolbar/sui-toolbar.sui",
-    "packages/components/sui/charts/src/sui-bar-chart/sui-bar-chart.sui",
-    "packages/components/sui/charts/src/sui-sparkline/sui-sparkline.sui",
-    "apps/shell/src/components/sui-brand-mark/sui-brand-mark.sui",
-    "apps/shell/src/components/sui-theme-picker/sui-theme-picker.sui",
-];
-
 /// A target's entry: a real on-disk module, or a synthetic aggregate that
 /// imports each `source` by absolute path (the build phase generates the entry).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,7 +105,6 @@ impl BundleLayout {
 
     fn static_targets(&self) -> Vec<BundleTarget> {
         let r = |rel: &str| self.repo_root.join(rel);
-        let marketing_sources = MARKETING_SOURCES.iter().map(|p| r(p)).collect();
         vec![
             BundleTarget {
                 name: "sui-runtime".into(),
@@ -163,7 +138,11 @@ impl BundleLayout {
             },
             BundleTarget {
                 name: "sui-marketing".into(),
-                entry: TargetEntry::Virtual { sources: marketing_sources },
+                // Membership is TRACED, not declared here: the site-owned entry
+                // `apps/site/src/marketing/marketing-bundle.ts` side-effect-imports
+                // each marketing tag, and rolldown follows that import graph. Add
+                // or remove a tag THERE — never in this Rust file.
+                entry: TargetEntry::Real(r("apps/site/src/marketing/marketing-bundle.ts")),
                 externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
                 out_file: "sui-marketing.js".into(),
             },

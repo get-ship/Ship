@@ -33,9 +33,9 @@ const SUI_BUNDLES: ReadonlyArray<{ name: string; from: string }> = [
   // only the ~12 `<sui-*>` tags marketing actually mounts (~140 KB).
   // The full `sui-components.js` umbrella (~740 KB) was 5× larger and
   // contained 80+ tags the marketing pages never instantiate. If a new
-  // tag is added to apps/site/src, append it to the `sui-marketing`
-  // bundle target's MARKETING_SOURCES in
-  // `crates/deck/deck-bundler/src/targets.rs`. It builds to `.deck/`.
+  // tag is added to apps/site/src, add a side-effect import for it to
+  // the traced entry `apps/site/src/marketing/marketing-bundle.ts` —
+  // rolldown follows that import graph. It builds to `.deck/`.
   { name: 'sui-marketing.js', from: DECK_OUT_DIR },
 ] as const;
 

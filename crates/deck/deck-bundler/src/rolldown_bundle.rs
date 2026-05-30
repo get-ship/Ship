@@ -321,4 +321,55 @@ mod tests {
         let body = std::fs::read_to_string(&m.out_path).unwrap();
         assert!(body.contains("@ship/sui-runtime"), "runtime kept external");
     }
+
+    /// The `sui-marketing` bundle is now TRACED from the site-owned entry
+    /// `apps/site/src/marketing/marketing-bundle.ts` (no hardcoded source list).
+    /// Rolldown must follow that import graph and register exactly the marketing
+    /// tag set — no tag dropped, and the full umbrella must NOT leak in.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn rolldown_bundles_marketing_traced() {
+        let repo = repo_root();
+        let scratch = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        let layout =
+            BundleLayout::new(repo, None).with_out_root(scratch.path().to_path_buf());
+        let comp = compiler();
+
+        let targets = layout.all_targets();
+        let marketing = targets.iter().find(|t| t.name == "sui-marketing").unwrap();
+        // Traced entry: a real on-disk site module, not a synthetic aggregate.
+        assert!(
+            matches!(&marketing.entry, TargetEntry::Real(p)
+                if p.ends_with("apps/site/src/marketing/marketing-bundle.ts")),
+            "sui-marketing must be a Real (traced) entry, got {:?}",
+            marketing.entry
+        );
+
+        let m = bundle_target(&layout, marketing, &comp, staging.path(), true)
+            .await
+            .expect("marketing should bundle");
+        let body = std::fs::read_to_string(&m.out_path).unwrap();
+        assert!(body.contains("@ship/sui-runtime"), "runtime kept external");
+
+        // The 10 traceable marketing components (sui-stat / sui-toolbar /
+        // sui-progress from the retired const have no `.sui` source and are not
+        // members — see marketing-bundle.ts). Each registers via its
+        // `component(\`<tag>\`, …)` call; the tag literal survives minification.
+        for tag in [
+            "sui-icon", "sui-badge", "sui-button", "sui-separator",
+            "sui-status-dot", "sui-table", "sui-bar-chart",
+            "sui-sparkline", "sui-brand-mark", "sui-theme-picker",
+        ] {
+            assert!(
+                body.contains(&format!("`{tag}`")),
+                "marketing bundle must register {tag}"
+            );
+        }
+        // Umbrella-only tags must NOT leak in (entry imports specific components,
+        // not a package index). `sui-git-diff` lives only in the umbrella.
+        assert!(
+            !body.contains("`sui-git-diff`"),
+            "umbrella full set must not leak into the focused marketing bundle"
+        );
+    }
 }
