@@ -64,7 +64,7 @@ struct EmitSite {
 
 pub fn run(repo_root: &Path, check: bool) -> Result<()> {
     let event_types_src = repo_root
-        .join("crates/core/ship-types/src/event_types.rs");
+        .join("crates/core/ship-types/src/event_types/mod.rs");
     let (const_map, all_set) = load_event_types(&event_types_src)?;
 
     let emit_sites = collect_emit_sites(repo_root, &const_map, &all_set)?;

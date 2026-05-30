@@ -16,7 +16,10 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::services::dispatch_ports::{ExitCause, ExitSignal, ProcessRegistryPort};
 
-use super::emit::{emit_executor_session_destroyed, emit_process_exited, persist_and_route};
+use super::emit::{
+    emit_executor_session_destroyed, emit_executor_window_destroyed, emit_process_exited,
+    persist_and_route,
+};
 
 /// Spawn a task that waits for an exit signal from a process monitor thread.
 ///
@@ -59,7 +62,7 @@ pub fn start(
                             let payload = serde_json::json!({
                                 "pipeline_run_id": signal.pipeline_run_id, "slug": signal.slug,
                             });
-                            emit_job_event(
+                            emit_pipeline_run_event(
                                 &kernel,
                                 event_types::PIPELINE_RUN_COMPLETED,
                                 &signal.pipeline_run_id,
@@ -73,7 +76,7 @@ pub fn start(
                                 "pipeline_run_id": signal.pipeline_run_id,
                                 "error": format!("process exited with code {code}"),
                             });
-                            emit_job_event(
+                            emit_pipeline_run_event(
                                 &kernel,
                                 event_types::PIPELINE_RUN_FAILED,
                                 &signal.pipeline_run_id,
@@ -90,7 +93,7 @@ pub fn start(
                                 "pipeline_run_id": signal.pipeline_run_id,
                                 "error": "agent process exited with no captured exit code",
                             });
-                            emit_job_event(
+                            emit_pipeline_run_event(
                                 &kernel,
                                 event_types::PIPELINE_RUN_FAILED,
                                 &signal.pipeline_run_id,
@@ -102,6 +105,16 @@ pub fn start(
                     }
                 }
                 ExitCause::SessionDestroyed => {
+                    emit_executor_window_destroyed(
+                        &kernel,
+                        &signal.slug,
+                        "tmux_window",
+                        &signal.slug,
+                        &signal.slug,
+                        None,
+                        DestructionCause::External,
+                    )
+                    .await;
                     emit_executor_session_destroyed(
                         &kernel,
                         &signal.slug,
@@ -114,7 +127,7 @@ pub fn start(
                         "pipeline_run_id": signal.pipeline_run_id,
                         "error": "executor session destroyed externally (operator kill or substrate failure)",
                     });
-                    emit_job_event(
+                    emit_pipeline_run_event(
                         &kernel,
                         event_types::PIPELINE_RUN_FAILED,
                         &signal.pipeline_run_id,
@@ -128,7 +141,7 @@ pub fn start(
     });
 }
 
-async fn emit_job_event(
+async fn emit_pipeline_run_event(
     kernel: &Arc<Mutex<KernelRouter>>,
     event_type: &str,
     pipeline_run_id: &str,
