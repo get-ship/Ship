@@ -254,6 +254,11 @@ lint-views:
 lint-layers:
     cargo run -p xtask --quiet -- lint-layers
 
+# Static coverage report: which ops/events have passing tests? Writes to .artifacts/coverage/report.md.
+[group('occasional')]
+coverage:
+    cargo run -p xtask --quiet -- coverage
+
 # Enforce layer-direction rules at the use-statement level (complements lint-layers).
 [group('occasional')]
 lint-imports:

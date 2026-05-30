@@ -6,8 +6,8 @@ use specta::TypeCollection;
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
 use crate::{
-    build_assets, gen_audit_readme, gen_contract, gen_events, gen_fixtures, gen_indexes, gen_ops,
-    gen_skills, gen_sdk, lint_imports, lint_layers, port_descriptions, types,
+    build_assets, coverage, gen_audit_readme, gen_contract, gen_events, gen_fixtures, gen_indexes,
+    gen_ops, gen_skills, gen_sdk, lint_imports, lint_layers, port_descriptions, types,
 };
 
 pub fn repo_root() -> PathBuf {
@@ -121,6 +121,13 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
+        "coverage" => {
+            let trailing: Vec<&str> = args.iter().map(String::as_str).collect();
+            if let Err(e) = coverage::run(&trailing) {
+                eprintln!("coverage failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "help" | "--help" | "-h" => {
             print_help();
         }
@@ -150,6 +157,11 @@ fn print_help() {
     eprintln!("  gen-audit-readme      Regenerate .artifacts/specs/module-audits/README.md");
     eprintln!("  gen-indexes           Regenerate emit-sites.md + substrate-fns.md indexes");
     eprintln!("  gen-indexes --check   Verify indexes are up-to-date (CI)");
+    eprintln!("  coverage              Run workspace tests; emit .artifacts/coverage/report.md");
+    eprintln!("  coverage --stdout     Print coverage report to stdout");
+    eprintln!("  coverage --report-only  Skip test run; read test JSON from stdin");
+    eprintln!("  coverage --format json  JSON output instead of markdown");
+    eprintln!("  coverage --filter <svc>  Scope to one service/namespace prefix");
 }
 
 

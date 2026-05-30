@@ -6,6 +6,7 @@
 
 mod build_assets;
 mod cli;
+mod coverage;
 mod gen_audit_readme;
 mod gen_contract;
 mod gen_events;
