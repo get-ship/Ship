@@ -26,7 +26,7 @@
       },
       "steps": [
         { "see": "Authority" },
-        { "see": "Awaiting your decision" },
+        { "see": "role:heading name:Awaiting your decision" },
         { "see": "Editor" },
         { "see": "Paperback" },
         { "see": "git push --force-with-lease origin main" },
@@ -79,7 +79,7 @@
       "given": { "url": "/authority", "ship": { "authority.pending": [] } },
       "steps": [
         { "see": "Authority" },
-        { "notSee": "Awaiting your decision" },
+        { "notSee": "role:heading name:Awaiting your decision" },
         { "see": "caught up" }
       ]
     }
