@@ -85,9 +85,11 @@ register_event!("auth.session.expired", EventScope::Account, Retention::Durable,
 register_event!("auth.session.revoked", EventScope::Account, Retention::Durable, Stability::Stable, "AuthSessionRevoked");
 
 // ── collection.* ────────────────────────────────────────────────────────────
+register_event!("collection.created", EventScope::Space, Retention::Durable, Stability::Stable, "CollectionCreated");
 register_event!("collection.item_created", EventScope::Space, Retention::Durable, Stability::Stable, "CollectionItemCreated");
 register_event!("collection.item_deleted", EventScope::Space, Retention::Durable, Stability::Stable, "CollectionItemDeleted");
 register_event!("collection.item_updated", EventScope::Space, Retention::Durable, Stability::Stable, "CollectionItemUpdated");
+register_event!("collection.schema.changed", EventScope::Space, Retention::Durable, Stability::Stable, "CollectionSchemaChanged");
 
 // ── compile.* ───────────────────────────────────────────────────────────────
 register_event!("compile.completed", EventScope::Space, Retention::Durable, Stability::Stable, "CompileCompleted");

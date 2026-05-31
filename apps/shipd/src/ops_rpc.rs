@@ -239,6 +239,15 @@ pub fn router(state: ApiState) -> axum::Router {
         },
     ));
     let router = ship_ops_rpc::SearchServiceExt::register(search_wire, router);
+    // collection.* v2 — CollectionService (collection.proto), additive beside
+    // old CollectionsService (collections.proto) until migration completes.
+    let collection_ctx = crate::collection_context::make_collection_space_context(&state);
+    let collection_kernel = collection_ctx.kernel.clone();
+    let collection_wire = std::sync::Arc::new(ship_collection::CollectionWire::new(
+        collection_kernel,
+        move |_ctx: &connectrpc::RequestContext| collection_ctx.clone(),
+    ));
+    let router = ship_ops_rpc::CollectionServiceExt::register(collection_wire, router);
     router.into_axum_router()
 }
 
