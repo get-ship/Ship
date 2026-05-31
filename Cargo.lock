@@ -7569,6 +7569,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-collection"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "buffa",
+ "chrono",
+ "connectrpc",
+ "futures-util",
+ "indexmap 2.14.0",
+ "serde",
+ "serde_json",
+ "ship-ops-rpc",
+ "ship-reactive",
+ "ship-substrate",
+ "ship-types",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "ulid",
+]
+
+[[package]]
 name = "ship-contract-tests"
 version = "0.1.0"
 dependencies = [
@@ -7932,6 +7956,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "ship-analytics",
+ "ship-collection",
  "ship-host",
  "ship-isolation",
  "ship-ops-rpc",

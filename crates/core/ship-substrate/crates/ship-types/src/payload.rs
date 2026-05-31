@@ -759,6 +759,18 @@ pub struct CollectionItemDeleted {
     pub item_id: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CollectionCreated {
+    pub collection_id: String,
+    pub schema_json: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CollectionSchemaChanged {
+    pub collection_id: String,
+    pub schema_json: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
