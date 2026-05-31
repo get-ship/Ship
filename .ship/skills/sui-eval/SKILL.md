@@ -1,7 +1,7 @@
 ---
 name: sui-eval
 stable-id: sui-eval
-description: Run the SUI authoring eval. Dispatch lane agents to build a view from a spec, poll until they finish, grade compile + lint + structure, record scores to the sui-eval-runs collection. Off-daemon — uses dispatch.sh, not pipelines.
+description: Run the SUI authoring eval. Dispatch lane agents to build a view from a spec, watch their tmux panes for idle (not commits), grade compile + lint + structure, record scores to the sui-eval-runs collection. Off-daemon — uses dispatch.sh, not pipelines.
 tags: [eval, sui, dispatch, grading]
 authors: [ship]
 ---
@@ -20,6 +20,7 @@ survive daemon hiccups and are fully observable in a real PTY.
 ## Files
 
 - `scripts/dispatch-eval.sh` — fork N lanes (one per model) from the current branch
+- `scripts/lane-watch.sh` — peer into each lane's tmux pane, detect idle, auto-grade
 - `scripts/grade.ts` — compile + lint + structural rubric → `.artifacts/sui-eval-runs/<run-id>.jsonl`
 - `scripts/record.ts` — jsonl → `collections.create_item` into `sui-eval-runs`
 - `task-spec.md` + `mockups/` — the authoring task the lanes build
@@ -33,28 +34,31 @@ bash .ship/skills/sui-eval/scripts/dispatch-eval.sh                       # haik
 bash .ship/skills/sui-eval/scripts/dispatch-eval.sh --models haiku,sonnet # live A/B
 ```
 
-Note the printed `RUN_ID` and lane slugs. Lanes open as wt tabs and work
-autonomously off `task-spec.md`.
+Note the printed `RUN_ID`. Lanes open as wt tabs, each in a tmux session named
+after its slug (`eval-<model>-<RUN_ID>`), and work autonomously off `task-spec.md`.
 
-**2. Loop until lanes finish.** Each lane is done when it has committed past the
-base branch. Poll — don't babysit. Use the `loop` skill:
-
-```
-/loop 5m check eval RUN_ID=<id>: for each ~/.ship/worktrees/eval-*-<id>,
-  `git -C <wt> rev-list HEAD ^<base> --count` > 0 means that lane committed.
-  When ALL lanes have committed (or after 40m), stop looping and run step 3.
-```
-
-A lane that committed but doesn't compile still gets graded — grade is a
-measurement, not a gate. Premature commits score low; that's signal, not error.
-
-**3. Grade + record.** dispatch-eval.sh prints the exact commands for the run.
-Per lane, then once:
+**2. Watch + grade — one command, no commit race.** Completion is detected by
+peering into the tmux pane, NOT by waiting for a commit. Agents routinely finish
+the work and never commit; a commit-based watcher reads that as "no work" and the
+cohort gets cleaned up. The pane is ground truth — when Claude Code stops printing
+and its "esc to interrupt" indicator is gone, the lane is done:
 
 ```bash
-(cd ~/.ship/worktrees/eval-haiku-<id> && SHIP_PIPELINE_RUN_ID=<id> bun <repo>/.ship/skills/sui-eval/scripts/grade.ts)
-SHIP_PIPELINE_RUN_ID=<id> bun <repo>/.ship/skills/sui-eval/scripts/record.ts
+bash .ship/skills/sui-eval/scripts/lane-watch.sh <RUN_ID>
 ```
+
+It blocks until every lane is idle (60s quiet + no spinner) or the 40m timeout,
+then grades each worktree and records — no `/loop`, no `git` dependency. Run it in
+a tmux pane of your own (or background it) so it survives. Pass `--no-grade` to
+only signal (writes `.artifacts/sui-eval-runs/.watch/<RUN_ID>/<slug>.done`).
+
+A lane that's idle but doesn't compile still gets graded — grade is a measurement,
+not a gate. Low score is signal, not error.
+
+**3. Read results** in `views/eval` (grouped by run_id) or the raw jsonl under
+`.artifacts/sui-eval-runs/`.
+
+### Manual grade (override the task)
 
 `grade.ts` discovers lanes by `-haiku`/`-sonnet` suffix under `SHIP_WORKTREE_DIR`
 (default `~/.ship/worktrees`). Override the target view + rubric for a different
@@ -63,9 +67,6 @@ task:
 ```bash
 SUI_EVAL_VIEW_PATH=views/smoke-counter SUI_EVAL_REQUIRED_FRAGMENTS='on:click' bun .../grade.ts
 ```
-
-**4. Read results** in `views/eval` (grouped by run_id) or the raw jsonl under
-`.artifacts/sui-eval-runs/`.
 
 ## Cleanup
 
