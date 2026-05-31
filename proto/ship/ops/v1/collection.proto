@@ -1,0 +1,260 @@
+// New-generation collections wire contract — strongly-typed messages and a
+// unified Watch stream replace the JsonResponse surface in collections.proto.
+// CollectionService is the incoming single entry-point; collections.proto
+// remains for backward-compat while clients migrate (#89 retirement track).
+//
+// Patch mirrors packages/sui/runtime/src/patch.ts (lines 31-48) 1:1.
+// Item.data_json is the typed row as JSON; proto cannot statically type N
+// user-defined collection schemas, so JSON-bytes is the open-payload convention
+// already used for open payloads elsewhere in ship.ops.v1.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/types.proto";
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+// Wire-protocol op tag — mirrors PatchOp in patch.ts exactly.
+enum PatchOp {
+  PATCH_OP_UNSPECIFIED = 0;
+  PATCH_OP_SET = 1;
+  PATCH_OP_MERGE = 2;
+  PATCH_OP_APPEND = 3;
+  PATCH_OP_PREPEND = 4;
+  PATCH_OP_INSERT = 5;
+  PATCH_OP_REMOVE = 6;
+  PATCH_OP_MOVE = 7;
+  PATCH_OP_SPLICE = 8;
+  PATCH_OP_INC = 9;
+}
+
+// ── Shared ────────────────────────────────────────────────────────────────────
+
+// Typesafe empty — used as the List request and as the `collections` (all)
+// watch-scope variant. No shared google.protobuf.Empty is imported in this
+// package, so a local sentinel is defined here.
+message Empty {}
+
+// ── Collection reads ──────────────────────────────────────────────────────────
+
+// One entry in the collection index. system=true marks built-in collections
+// (feedback/annotations) — they are returned here; the FE filters.
+message CollectionSummary {
+  string id = 1;
+  string title = 2;
+  uint32 item_count = 3;
+  bool system = 4;
+}
+
+message CollectionList {
+  repeated CollectionSummary collections = 1;
+}
+
+// Collection schema + item count. schema_json is the normalized collection
+// schema as JSON bytes.
+message CollectionDetail {
+  string id = 1;
+  bytes schema_json = 2;
+  uint32 item_count = 3;
+}
+
+// One collection item. data_json is the typed row serialized as JSON for
+// transport; the client re-types it against the collection schema client-side.
+message Item {
+  string id = 1;
+  string collection = 2;
+  bytes data_json = 3;
+  string created_at = 4;
+  string updated_at = 5;
+}
+
+// Cursor-paginated result. next_cursor is empty when there are no more pages.
+message ItemPage {
+  repeated Item items = 1;
+  string next_cursor = 2;
+}
+
+// ── Request messages ──────────────────────────────────────────────────────────
+
+message GetReq {
+  string id = 1;
+}
+
+message GetItemReq {
+  string collection = 1;
+  string id = 2;
+}
+
+// Cursor-paginated item query. Exactly one of named_query or inline_ast must
+// be set. inline_ast carries a Kysely OperationNode AST as JSON bytes.
+message QueryReq {
+  oneof query {
+    string named_query = 1;
+    bytes inline_ast = 2;
+  }
+  bytes params_json = 3;
+  string cursor = 4;
+  uint32 limit = 5;
+}
+
+message CreateItemReq {
+  string collection = 1;
+  bytes data_json = 2;
+}
+
+message UpdateItemReq {
+  string collection = 1;
+  string id = 2;
+  bytes data_json = 3;
+}
+
+message DeleteItemReq {
+  string collection = 1;
+  string id = 2;
+}
+
+message CreateSchemaReq {
+  string id = 1;
+  bytes schema_json = 2;
+}
+
+message UpdateSchemaReq {
+  string id = 1;
+  bytes schema_json = 2;
+}
+
+// Reference to a single collection item — used as the `item` watch scope.
+message ItemRef {
+  string collection = 1;
+  string id = 2;
+}
+
+// Watch scope:
+//   collections (Empty) — all collections + their items
+//   collection  (string id) — one collection + its items; query_json filters
+//   item        (ItemRef)   — one specific item
+message WatchReq {
+  oneof scope {
+    Empty collections = 1;
+    string collection = 2;
+    ItemRef item = 3;
+  }
+  bytes query_json = 4;
+}
+
+// ── Watch stream ──────────────────────────────────────────────────────────────
+
+// One patch envelope. Mirrors the Patch interface in
+// packages/sui/runtime/src/patch.ts (lines 31-48) field-for-field.
+// path: JSON path within the signal value; empty = root.
+// value: JSON-serialized operand (set/merge/append/prepend/insert/splice).
+// index: insert/splice target index.
+// from/to: move source and destination indices.
+// count: splice remove count.
+// by: inc increment amount.
+// v: wire version (defaults to 1).
+message Patch {
+  PatchOp op = 1;
+  string path = 2;
+  optional bytes value = 3;
+  int32 index = 4;
+  int32 from = 5;
+  int32 to = 6;
+  int32 count = 7;
+  double by = 8;
+  uint32 v = 9;
+}
+
+message PatchFrame {
+  repeated Patch patches = 1;
+}
+
+message StreamError {
+  string message = 1;
+}
+
+message Heartbeat {
+  string ts = 1;
+}
+
+// One event on a Watch stream: a batch of patches, a stream error, or a
+// keepalive heartbeat.
+message WatchEvent {
+  oneof body {
+    PatchFrame patches = 1;
+    StreamError err = 2;
+    Heartbeat hb = 3;
+  }
+}
+
+// ── Service ───────────────────────────────────────────────────────────────────
+
+service CollectionService {
+  // reads
+
+  rpc List(Empty) returns (CollectionList) {
+    option (ship.ops.v1.description) = "All collections, including system ones (flagged system=true).";
+    option (ship.ops.v1.capability) = "ship.collection.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+
+  rpc Get(GetReq) returns (CollectionDetail) {
+    option (ship.ops.v1.description) = "Collection schema and item count.";
+    option (ship.ops.v1.capability) = "ship.collection.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+
+  rpc QueryItems(QueryReq) returns (ItemPage) {
+    option (ship.ops.v1.description) = "Cursor-paginated item query — named-query ref or inline Kysely AST.";
+    option (ship.ops.v1.capability) = "ship.collection.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+
+  rpc GetItem(GetItemReq) returns (Item) {
+    option (ship.ops.v1.description) = "Single collection item by id.";
+    option (ship.ops.v1.capability) = "ship.collection.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+
+  // writes
+
+  rpc CreateItem(CreateItemReq) returns (Item) {
+    option (ship.ops.v1.description) = "Create an item in a collection.";
+    option (ship.ops.v1.capability) = "ship.collection.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+
+  rpc UpdateItem(UpdateItemReq) returns (Item) {
+    option (ship.ops.v1.description) = "Replace a collection item's data.";
+    option (ship.ops.v1.capability) = "ship.collection.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+
+  rpc DeleteItem(DeleteItemReq) returns (Deletion) {
+    option (ship.ops.v1.description) = "Delete a collection item by id.";
+    option (ship.ops.v1.capability) = "ship.collection.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+
+  rpc CreateSchema(CreateSchemaReq) returns (CollectionDetail) {
+    option (ship.ops.v1.description) = "Define a new collection schema.";
+    option (ship.ops.v1.capability) = "ship.collection.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+
+  rpc UpdateSchema(UpdateSchemaReq) returns (CollectionDetail) {
+    option (ship.ops.v1.description) = "Replace a collection schema.";
+    option (ship.ops.v1.capability) = "ship.collection.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+
+  // live
+
+  rpc Watch(WatchReq) returns (stream WatchEvent) {
+    option (ship.ops.v1.description) = "Live watch — all collections, one collection (filterable), or one item.";
+    option (ship.ops.v1.capability) = "ship.collection.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+}

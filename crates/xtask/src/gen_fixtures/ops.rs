@@ -30,6 +30,8 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
     }
     [
         v!(ScopedMutation), v!(Deletion),
+        v!(CollectionList), v!(CollectionDetail), v!(ItemPage), v!(Item), v!(WatchEvent),
+        v!(SearchResponse),
         v!(AgentIndexResponse), v!(AgentsSummariesResponse), v!(AgentDetail),
         v!(AgentTemplatesResponse), v!(PermissionPresetsResponse), v!(HarnessesResponse),
         v!(AnalyticsSessionsResponse), v!(AnalyticsSessionResponse),
@@ -199,7 +201,7 @@ mod tests {
     use super::*;
 
     fn theme_responses() -> serde_json::Map<String, Value> {
-        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let theme: Value =
             serde_json::from_slice(&std::fs::read(root.join("proto/fixtures/theme.json")).unwrap())
                 .unwrap();

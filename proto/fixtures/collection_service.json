@@ -1,0 +1,165 @@
+{
+  "List": {
+    "response_ok": {
+      "collections": [
+        {
+          "id": "notes",
+          "title": "Notes",
+          "item_count": 3
+        },
+        {
+          "id": "feedback",
+          "title": "Feedback",
+          "system": true
+        }
+      ]
+    },
+    "request": {}
+  },
+  "Get": {
+    "response_ok": {
+      "id": "notes",
+      "schema_json": "eyJ0aXRsZSI6Ik5vdGVzIiwiZmllbGRzIjpbeyJuYW1lIjoidGl0bGUiLCJ0eXBlIjoic3RyaW5nIn1dfQ==",
+      "item_count": 3
+    },
+    "request": {
+      "id": "test-id"
+    }
+  },
+  "QueryItems": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "note-checkout-notes",
+          "collection": "notes",
+          "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
+          "created_at": "2026-05-24T18:35:00Z",
+          "updated_at": "2026-05-24T18:35:00Z"
+        }
+      ],
+      "next_cursor": "dGVzdC1jdXJzb3I="
+    },
+    "request": {
+      "named_query": "test-named_query",
+      "inline_ast": "test-inline_ast",
+      "params_json": "test-params_json",
+      "cursor": "test-cursor",
+      "limit": 0
+    }
+  },
+  "GetItem": {
+    "response_ok": {
+      "id": "note-checkout-notes",
+      "collection": "notes",
+      "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
+      "created_at": "2026-05-24T18:35:00Z",
+      "updated_at": "2026-05-24T18:35:00Z"
+    },
+    "request": {
+      "collection": "test-collection",
+      "id": "test-id"
+    }
+  },
+  "CreateItem": {
+    "response_ok": {
+      "id": "note-checkout-notes",
+      "collection": "notes",
+      "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
+      "created_at": "2026-05-24T18:35:00Z",
+      "updated_at": "2026-05-24T18:35:00Z"
+    },
+    "request": {
+      "collection": "test-collection",
+      "data_json": "test-data_json"
+    }
+  },
+  "UpdateItem": {
+    "response_ok": {
+      "id": "note-checkout-notes",
+      "collection": "notes",
+      "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
+      "created_at": "2026-05-24T18:35:00Z",
+      "updated_at": "2026-05-24T19:00:00Z"
+    },
+    "request": {
+      "collection": "test-collection",
+      "id": "test-id",
+      "data_json": "test-data_json"
+    }
+  },
+  "DeleteItem": {
+    "response_ok": {
+      "id": "note-checkout-notes",
+      "deleted": true
+    },
+    "request": {
+      "collection": "test-collection",
+      "id": "test-id"
+    }
+  },
+  "CreateSchema": {
+    "response_ok": {
+      "id": "notes",
+      "schema_json": "eyJ0aXRsZSI6Ik5vdGVzIiwiZmllbGRzIjpbeyJuYW1lIjoidGl0bGUiLCJ0eXBlIjoic3RyaW5nIn1dfQ==",
+      "item_count": 0
+    },
+    "request": {
+      "id": "test-id",
+      "schema_json": "test-schema_json"
+    }
+  },
+  "UpdateSchema": {
+    "response_ok": {
+      "id": "notes",
+      "schema_json": "eyJ0aXRsZSI6Ik5vdGVzIiwiZmllbGRzIjpbeyJuYW1lIjoidGl0bGUiLCJ0eXBlIjoic3RyaW5nIn1dfQ==",
+      "item_count": 3
+    },
+    "request": {
+      "id": "test-id",
+      "schema_json": "test-schema_json"
+    }
+  },
+  "Watch": {
+    "response_ok": {
+      "patches": {
+        "patches": [
+          {
+            "op": "PATCH_OP_SET",
+            "value": "eyJpdGVtcyI6W119"
+          }
+        ]
+      }
+    },
+    "stream_example": [
+      {
+        "_note": "frame 1 — set-at-root snapshot (full state on subscribe)",
+        "patches": {
+          "patches": [
+            {
+              "op": "PATCH_OP_SET",
+              "value": "eyJpdGVtcyI6W119"
+            }
+          ]
+        }
+      },
+      {
+        "_note": "frame 2 — incremental patch after a new item is created",
+        "patches": {
+          "patches": [
+            {
+              "op": "PATCH_OP_APPEND",
+              "path": "items",
+              "value": "eyJpZCI6Im5vdGUteHl6IiwiY29sbGVjdGlvbiI6Im5vdGVzIiwiZGF0YV9qc29uIjoiZTMwPSIsImNyZWF0ZWRfYXQiOiIyMDI2LTA1LTMxVDEyOjAwOjAwWiIsInVwZGF0ZWRfYXQiOiIyMDI2LTA1LTMxVDEyOjAwOjAwWiJ9"
+            }
+          ]
+        }
+      }
+    ],
+    "request": {
+      "collections": {},
+      "collection": "test-collection",
+      "item": {},
+      "query_json": "test-query_json"
+    }
+  }
+}

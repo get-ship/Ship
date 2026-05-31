@@ -1,0 +1,34 @@
+{
+  "Search": {
+    "response_ok": {
+      "hits": [
+        {
+          "kind": "ENTITY_KIND_COLLECTION_ITEM",
+          "id": "note-checkout-notes",
+          "label": "Checkout service notes",
+          "path": "/collections/notes/note-checkout-notes",
+          "icon": "file-text",
+          "snippet": "Auth via JWT; idempotency key on POST /checkout.",
+          "score": 0.95,
+          "collection_id": "notes"
+        },
+        {
+          "kind": "ENTITY_KIND_SKILL",
+          "id": "run",
+          "label": "run",
+          "path": "/.ship/skills/run.md",
+          "icon": "play",
+          "snippet": "Launch and drive this project's app.",
+          "score": 0.72
+        }
+      ],
+      "next_cursor": ""
+    },
+    "request": {
+      "q": "test-q",
+      "kinds": [],
+      "limit": 0,
+      "cursor": "test-cursor"
+    }
+  }
+}

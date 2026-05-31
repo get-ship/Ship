@@ -7,17 +7,16 @@
   },
   "Info": {
     "response_ok": {
-      "spaceId": "harbor",
-      "root": "/home/dev/harbor",
-      "name": "harbor",
-      "settingsJson": "{\"theme\":\"ship-dark\"}"
+      "spaceId": "harbor-space-id",
+      "root": "/home/harbor/projects/harbor",
+      "name": "harbor"
     },
     "request": {}
   },
   "WindowIntent": {
     "response_ok": {
-      "decision": "focus",
-      "actorId": "window-harbor-01"
+      "decision": "allow",
+      "actorId": "harbor-actor-id"
     },
     "request": {
       "space_id": "test-space-id"
@@ -27,9 +26,8 @@
     "response_ok": {
       "windows": [
         {
-          "actorId": "window-harbor-01",
+          "actorId": "harbor-actor-id",
           "spaceId": "harbor-space-id",
-          "pid": 4242,
           "live": true
         }
       ]
@@ -38,8 +36,7 @@
   },
   "CloseWindow": {
     "response_ok": {
-      "closed": true,
-      "tokenRevoked": true
+      "closed": true
     },
     "request": {
       "actor_id": "test-actor_id"

@@ -599,6 +599,92 @@
     "space.window_intent": { "decision": "allow", "actorId": "harbor-actor-id" },
     "space.window_list": { "windows": [{ "actorId": "harbor-actor-id", "spaceId": "harbor-space-id", "live": true }] },
     "space.close_window": { "closed": true },
-    "space.set_setting": { "key": "theme", "value_json": "\"dark\"" }
+    "space.set_setting": { "key": "theme", "value_json": "\"dark\"" },
+    "search.search": {
+      "hits": [
+        {
+          "kind": "ENTITY_KIND_COLLECTION_ITEM",
+          "id": "note-checkout-notes",
+          "label": "Checkout service notes",
+          "path": "/collections/notes/note-checkout-notes",
+          "icon": "file-text",
+          "snippet": "Auth via JWT; idempotency key on POST /checkout.",
+          "score": 0.95,
+          "collection_id": "notes"
+        },
+        {
+          "kind": "ENTITY_KIND_SKILL",
+          "id": "run",
+          "label": "run",
+          "path": "/.ship/skills/run.md",
+          "icon": "play",
+          "snippet": "Launch and drive this project's app.",
+          "score": 0.72
+        }
+      ],
+      "next_cursor": ""
+    },
+    "collection.list": {
+      "collections": [
+        { "id": "notes", "title": "Notes", "item_count": 3 },
+        { "id": "feedback", "title": "Feedback", "system": true }
+      ]
+    },
+    "collection.get": {
+      "id": "notes",
+      "schema_json": "eyJ0aXRsZSI6Ik5vdGVzIiwiZmllbGRzIjpbeyJuYW1lIjoidGl0bGUiLCJ0eXBlIjoic3RyaW5nIn1dfQ==",
+      "item_count": 3
+    },
+    "collection.query_items": {
+      "items": [
+        {
+          "id": "note-checkout-notes",
+          "collection": "notes",
+          "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
+          "created_at": "2026-05-24T18:35:00Z",
+          "updated_at": "2026-05-24T18:35:00Z"
+        }
+      ],
+      "next_cursor": "dGVzdC1jdXJzb3I="
+    },
+    "collection.get_item": {
+      "id": "note-checkout-notes",
+      "collection": "notes",
+      "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
+      "created_at": "2026-05-24T18:35:00Z",
+      "updated_at": "2026-05-24T18:35:00Z"
+    },
+    "collection.create_item": {
+      "id": "note-checkout-notes",
+      "collection": "notes",
+      "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
+      "created_at": "2026-05-24T18:35:00Z",
+      "updated_at": "2026-05-24T18:35:00Z"
+    },
+    "collection.update_item": {
+      "id": "note-checkout-notes",
+      "collection": "notes",
+      "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
+      "created_at": "2026-05-24T18:35:00Z",
+      "updated_at": "2026-05-24T19:00:00Z"
+    },
+    "collection.delete_item": { "id": "note-checkout-notes", "deleted": true },
+    "collection.create_schema": {
+      "id": "notes",
+      "schema_json": "eyJ0aXRsZSI6Ik5vdGVzIiwiZmllbGRzIjpbeyJuYW1lIjoidGl0bGUiLCJ0eXBlIjoic3RyaW5nIn1dfQ==",
+      "item_count": 0
+    },
+    "collection.update_schema": {
+      "id": "notes",
+      "schema_json": "eyJ0aXRsZSI6Ik5vdGVzIiwiZmllbGRzIjpbeyJuYW1lIjoidGl0bGUiLCJ0eXBlIjoic3RyaW5nIn1dfQ==",
+      "item_count": 3
+    },
+    "collection.watch": {
+      "patches": {
+        "patches": [
+          { "op": "PATCH_OP_SET", "value": "eyJpdGVtcyI6W119" }
+        ]
+      }
+    }
   }
 }
