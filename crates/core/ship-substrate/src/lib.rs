@@ -7,6 +7,7 @@
 
 pub mod access;
 pub mod data;
+pub mod ports;
 pub mod db;
 pub mod diagnostics;
 pub mod env;
@@ -28,6 +29,12 @@ pub mod supervisor;
 pub mod trash;
 
 pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
+
+pub use ports::{
+    ColumnKind, ColumnSpec, CountQuery, Cursor, DataStore, DataStoreError, KernelLog,
+    PrimaryKey, Query, QueryResult, Row, SingleBackendDataStore, SpaceContext, SpaceId,
+    TableSchema,
+};
 
 pub use events::{
     EventEnvelope, list_events_since, query_events_since, read_events, read_recent_events,

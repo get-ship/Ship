@@ -365,6 +365,26 @@ fn cleanup_active_sessions_on_startup() {
     }
 }
 
+/// Construct a `SpaceContext` from existing runtime handles.
+///
+/// Proof-of-wiring: takes the kernel and data dir already owned by `ShipRuntime`
+/// and returns a fully-formed `SpaceContext`. Domain crates adopt this in later
+/// passes; the context is not yet threaded through any handlers here.
+pub fn build_space_context(
+    kernel: super::SharedKernel,
+    ship_dir: &Path,
+    space_id: &str,
+) -> ship_substrate::SpaceContext {
+    use std::sync::Arc;
+    use ship_substrate::data::DataService;
+    use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+
+    let data_svc = DataService::open(ship_dir).expect("data service for SpaceContext");
+    let data_store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
+    let kernel_log = Arc::new(KernelLog::new(kernel));
+    SpaceContext::new(SpaceId::new(space_id), data_store, kernel_log)
+}
+
 /// Emit a single INFO line with event-log health at startup. Gives operators
 /// an immediate signal: how many events persisted, the newest id. If the
 /// count ever drops between restarts without a reset, that's the first
