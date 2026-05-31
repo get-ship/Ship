@@ -8,3 +8,10 @@ export {
   type ControllerInput,
   type RenderComponentOpts,
 } from './render'
+export {
+  runScenarios,
+  type BehaviorSpec,
+  type Scenario,
+  type Step,
+  type ScenarioResult,
+} from './scenario-runner'
