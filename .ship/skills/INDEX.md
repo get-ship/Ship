@@ -42,6 +42,7 @@ gated.
 | [`configure-agent`](configure-agent/SKILL.md) | Pick the agent profile, permission preset, scope, and worktree path when standing up a workspace. |
 | [`setup-workspace`](setup-workspace/SKILL.md) | Configure a multi-agent terminal pod from `.artifacts/pod.md` — one tab per agent in its worktree. |
 | [`gate`](gate/SKILL.md) | Review a completed job branch against acceptance criteria — pass/fail with evidence. Now blocks on missing `web-qa` artifacts for any branch touching UI surfaces. |
+| [`sui-eval`](sui-eval/SKILL.md) | Run the SUI authoring eval — dispatch lane agents to build a view, poll until they commit, grade compile + lint + structure, record to `sui-eval-runs`. Off-daemon (dispatch.sh, not pipelines). |
 
 ## Review
 

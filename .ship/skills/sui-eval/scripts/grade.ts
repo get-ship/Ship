@@ -1,34 +1,40 @@
 #!/usr/bin/env bun
 // grade.ts — score each lane's views/create-space/ output.
 //
-// Runs as the `grade` step in .ship/pipelines/sui-eval.jsonc. The orchestrator
-// records lane outputs under {fanout_step_id}.{lane_id} step IDs — we resolve
-// them via the daemon's pipeline-run status, then for each lane:
+// Run by the `sui-eval` skill after `dispatch-eval.sh` lanes finish. We
+// discover lane worktrees by `-haiku`/`-sonnet` suffix (no daemon, no
+// orchestrator), then for each lane:
 //
-//   1. compile every .sui file under views/create-space/ via sui-compiler
+//   1. compile every .sui file under the view dir via sui-compiler
 //   2. lint via sui-lint
 //   3. structural pass: required signals + control-flow + token-only CSS
 //   4. emit one JSON row per lane → .artifacts/sui-eval-runs/<run-id>.jsonl
 //
 // Discovery is best-effort and fail-loud — if a lane's worktree isn't
-// reachable from the grade step's worktree the row records the discovery
-// gap rather than silently passing. That gap becomes the next orchestrator
-// fix.
+// reachable the row records the discovery gap rather than silently passing.
 
 import { execSync, spawnSync } from 'node:child_process'
 import { readdirSync, statSync, existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const RUN_ID = process.env.SHIP_PIPELINE_RUN_ID ?? `local-${process.env.SHIP_ACTOR_ID ?? 'unknown'}`
-const VIEW_PATH = 'views/create-space'
-const REQUIRED_TEMPLATE_FRAGMENTS = [
-  // Step 0 / welcome
-  '{#if', '{#match', '{:case',
-  // Form / input
-  'bind:value',
-  // Composition
-  'on:click',
-]
+
+// The view the lanes were asked to build + the structural rubric to score it
+// against. Both are env-overridable so the cheap smoke pipeline (haiku →
+// views/smoke-counter) can drive the SAME grade → record → view chain as the
+// live create-space eval without rewriting the scorer. Defaults preserve the
+// create-space rubric.
+const VIEW_PATH = process.env.SUI_EVAL_VIEW_PATH ?? 'views/create-space'
+const REQUIRED_TEMPLATE_FRAGMENTS = process.env.SUI_EVAL_REQUIRED_FRAGMENTS
+  ? process.env.SUI_EVAL_REQUIRED_FRAGMENTS.split(',').map((s) => s.trim()).filter(Boolean)
+  : [
+      // Step 0 / welcome
+      '{#if', '{#match', '{:case',
+      // Form / input
+      'bind:value',
+      // Composition
+      'on:click',
+    ]
 const REQUIRED_MANIFEST_FIELDS = ['name', 'path', 'title', 'auth']
 const FORBIDDEN_IN_CSS = /#[0-9a-fA-F]{3,8}|rgb\(|\b\d+px\b/g
 

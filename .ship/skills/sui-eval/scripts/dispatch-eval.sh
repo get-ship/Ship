@@ -16,8 +16,8 @@
 # record.ts against each).
 #
 # Usage:
-#   bash .ship/pipelines/sui-eval/scripts/dispatch-eval.sh
-#   bash .ship/pipelines/sui-eval/scripts/dispatch-eval.sh --models haiku,sonnet,opus
+#   bash .ship/skills/sui-eval/scripts/dispatch-eval.sh
+#   bash .ship/skills/sui-eval/scripts/dispatch-eval.sh --models haiku,sonnet,opus
 
 set -euo pipefail
 
@@ -29,7 +29,7 @@ cd "$REPO_ROOT"
 # `--models haiku,sonnet[,opus]` explicitly for a live run. Each model becomes
 # one lane with its own dispatched worktree.
 MODELS_CSV="haiku"
-SPEC=".ship/pipelines/sui-eval/task-spec.md"
+SPEC=".ship/skills/sui-eval/task-spec.md"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -95,7 +95,7 @@ echo "wt tabs:   should now be open in your focused wt window"
 echo
 echo "Score (after both finish) — grade per worktree, then record:"
 for slug in "${SLUGS[@]}"; do
-    echo "  (cd $HOME/.ship/worktrees/$slug && SHIP_PIPELINE_RUN_ID='$RUN_ID' bun $REPO_ROOT/.ship/pipelines/sui-eval/scripts/grade.ts)"
+    echo "  (cd $HOME/.ship/worktrees/$slug && SHIP_PIPELINE_RUN_ID='$RUN_ID' bun $REPO_ROOT/.ship/skills/sui-eval/scripts/grade.ts)"
 done
-echo "  SHIP_PIPELINE_RUN_ID='$RUN_ID' bun $REPO_ROOT/.ship/pipelines/sui-eval/scripts/record.ts"
+echo "  SHIP_PIPELINE_RUN_ID='$RUN_ID' bun $REPO_ROOT/.ship/skills/sui-eval/scripts/record.ts"
 echo "════════════════════════════════════════════════════════════════"
