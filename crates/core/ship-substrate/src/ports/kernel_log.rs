@@ -79,7 +79,11 @@ impl KernelLog {
                 match src.recv().await {
                     Ok(env) => {
                         if matches_filter(&env, &filter) {
-                            let _ = ftx.send(env);
+                            if ftx.send(env).is_err() {
+                                break;
+                            }
+                        } else if ftx.receiver_count() == 0 {
+                            break;
                         }
                     }
                     Err(broadcast::error::RecvError::Lagged(_)) => continue,
@@ -88,6 +92,10 @@ impl KernelLog {
             }
         });
         frx
+    }
+
+    pub fn source_receiver_count(&self) -> usize {
+        self.tx.receiver_count()
     }
 
     /// Return the cursor at the current tail of this log (the id of the last

@@ -102,6 +102,8 @@ impl QueryResult {
 pub enum DataStoreError {
     #[error("storage error: {0}")]
     Storage(String),
+    #[error("unsafe identifier: {0:?}")]
+    UnsafeIdent(String),
 }
 
 impl From<anyhow::Error> for DataStoreError {
