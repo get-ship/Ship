@@ -26,10 +26,17 @@ DO_GRADE=1
 [[ "${1:-}" == "--no-grade" ]] && DO_GRADE=0
 
 WORKTREE_DIR="${SHIP_WORKTREE_DIR:-$HOME/.ship/worktrees}"
-POLL_SECS=10          # how often to sample each pane
-QUIET_POLLS=6         # consecutive unchanged + no-spinner samples → idle (60s)
+POLL_SECS=30          # how often to sample each pane
+QUIET_POLLS=4         # consecutive unchanged + no-spinner samples → idle (120s)
+MAX_PRODS=2           # times to nudge an idle-but-uncommitted lane to commit
 TIMEOUT_SECS=2400     # global cap (40m) — never block forever
 ACTIVE_MARKER='esc to interrupt'  # Claude Code's working indicator
+
+# Nudge sent to an idle lane that has uncommitted work — the exact case that
+# burns us downstream (idle agent, real work on disk, no commit → cleanup
+# assumes nothing happened). send-keys it into the pane and give it another
+# round to comply before we grade the dirty tree anyway.
+PROD_MSG='Your work looks complete but is not committed. Stage and commit it now: git add -A && git commit. Then stop.'
 
 # Find this run's lane sessions. dispatch-eval.sh sessions are `eval-*-<RUN_ID>`.
 mapfile -t SESSIONS < <(tmux list-sessions -F '#{session_name}' 2>/dev/null \
@@ -43,11 +50,17 @@ fi
 
 echo "lane-watch: RUN_ID=$RUN_ID watching ${#SESSIONS[@]} lane(s): ${SESSIONS[*]}"
 
-declare -A STABLE PREV DONE
-for s in "${SESSIONS[@]}"; do STABLE[$s]=0; PREV[$s]=""; DONE[$s]=0; done
+declare -A STABLE PREV DONE PRODS
+for s in "${SESSIONS[@]}"; do STABLE[$s]=0; PREV[$s]=""; DONE[$s]=0; PRODS[$s]=0; done
 
 SENTINEL_DIR="$REPO_ROOT/.artifacts/sui-eval-runs/.watch/$RUN_ID"
 mkdir -p "$SENTINEL_DIR"
+
+# A lane worktree has uncommitted work if `git status --porcelain` is non-empty.
+has_uncommitted() {
+  local wt="$WORKTREE_DIR/$1"
+  [[ -d "$wt" ]] && [[ -n "$(git -C "$wt" status --porcelain 2>/dev/null)" ]]
+}
 
 start=$SECONDS
 while :; do
@@ -73,12 +86,24 @@ while :; do
     fi
     PREV[$s]="$hash"
 
-    if [[ ${STABLE[$s]} -ge $QUIET_POLLS ]]; then
-      echo "lane-watch: $s — idle (${QUIET_POLLS}×${POLL_SECS}s quiet, no spinner)"
-      DONE[$s]=1; touch "$SENTINEL_DIR/$s.done"
-    else
-      all_done=0
+    if [[ ${STABLE[$s]} -lt $QUIET_POLLS ]]; then
+      all_done=0; continue
     fi
+
+    # Idle. If there's uncommitted work, prod it to commit and give it another
+    # round — don't let a finished-but-uncommitted lane look like "did nothing".
+    if has_uncommitted "$s"; then
+      if [[ ${PRODS[$s]} -lt $MAX_PRODS ]]; then
+        PRODS[$s]=$(( PRODS[$s] + 1 ))
+        echo "lane-watch: $s — idle with uncommitted work, prodding to commit (${PRODS[$s]}/$MAX_PRODS)"
+        tmux send-keys -t "$s" "$PROD_MSG" && tmux send-keys -t "$s" Enter
+        STABLE[$s]=0; all_done=0; continue
+      fi
+      echo "lane-watch: $s — still uncommitted after $MAX_PRODS prods; grading dirty tree" >&2
+    fi
+
+    echo "lane-watch: $s — idle (${QUIET_POLLS}×${POLL_SECS}s quiet, no spinner)"
+    DONE[$s]=1; touch "$SENTINEL_DIR/$s.done"
   done
 
   [[ $all_done -eq 1 ]] && break

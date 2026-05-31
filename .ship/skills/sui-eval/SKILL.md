@@ -47,10 +47,17 @@ and its "esc to interrupt" indicator is gone, the lane is done:
 bash .ship/skills/sui-eval/scripts/lane-watch.sh <RUN_ID>
 ```
 
-It blocks until every lane is idle (60s quiet + no spinner) or the 40m timeout,
-then grades each worktree and records — no `/loop`, no `git` dependency. Run it in
-a tmux pane of your own (or background it) so it survives. Pass `--no-grade` to
-only signal (writes `.artifacts/sui-eval-runs/.watch/<RUN_ID>/<slug>.done`).
+It blocks until every lane is idle (120s quiet + no spinner) or the 40m timeout,
+then grades each worktree and records — no external `/loop`, no `git` dependency.
+Run it in a tmux pane of your own (or background it) so it survives. Pass
+`--no-grade` to only signal (writes `.artifacts/sui-eval-runs/.watch/<RUN_ID>/<slug>.done`).
+
+If a lane goes idle with **uncommitted work** on disk — the case that burns you
+downstream (idle agent, real work, no commit → cleanup assumes nothing happened) —
+the watcher `send-keys` a nudge to commit and gives it another round (up to 2
+prods) before grading the dirty tree anyway. Grading reads files from disk, so an
+uncommitted lane still scores; the prod is about leaving a clean artifact, not
+about the score.
 
 A lane that's idle but doesn't compile still gets graded — grade is a measurement,
 not a gate. Low score is signal, not error.
