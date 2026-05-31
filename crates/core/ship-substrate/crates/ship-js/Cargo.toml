@@ -1,0 +1,14 @@
+[package]
+name = "ship-js"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L0: QuickJS-backed JS eval — eval(bundle) → serde_json::Value. Single workspace owner of rquickjs."
+
+[lints]
+workspace = true
+
+[dependencies]
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+rquickjs = { version = "0.9", features = ["loader", "macro"] }
