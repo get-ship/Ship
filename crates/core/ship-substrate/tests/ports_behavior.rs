@@ -4,8 +4,8 @@
 
 use std::sync::Arc;
 use ship_substrate::ports::{
-    ColumnKind, ColumnSpec, CountQuery, DataStore, KernelLog, PrimaryKey, Query, Row,
-    SingleBackendDataStore, SpaceContext, SpaceId, TableSchema,
+    ColumnKind, ColumnSpec, CountQuery, DataStore, DataStoreError, KernelLog, PrimaryKey, Query,
+    Row, SingleBackendDataStore, SpaceContext, SpaceId, TableSchema,
 };
 use ship_substrate::events::{new_isolated_for_test, EventFilter};
 use ship_substrate::data::DataService;
@@ -215,7 +215,110 @@ async fn kernel_log_subscribe_filtered_excludes_nonmatching() {
     assert!(rx.try_recv().is_err(), "noise must have been filtered out");
 }
 
-// ── 9. single_backend_data_store_filters_by_space_id ─────────────────────────
+// ── 9. data_store_rejects_unsafe_table_name ──────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn data_store_rejects_unsafe_table_name() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = test_store(&tmp, "space-9a");
+
+    let schema = TableSchema {
+        name: "notes; DROP TABLE notes".to_string(),
+        columns: vec![],
+    };
+    let err = store.ensure_table(&schema).await.unwrap_err();
+    assert!(
+        matches!(err, DataStoreError::UnsafeIdent(_)),
+        "expected UnsafeIdent, got {err:?}"
+    );
+
+    let err = store.insert("notes; DROP TABLE notes", Row::new("x")).await.unwrap_err();
+    assert!(matches!(err, DataStoreError::UnsafeIdent(_)));
+}
+
+// ── 10. data_store_rejects_unsafe_column_key ─────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn data_store_rejects_unsafe_column_key() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = test_store(&tmp, "space-10");
+    store.ensure_table(&simple_schema("items")).await.unwrap();
+
+    let row = Row::new("r1").with("bad-key!", serde_json::json!("x"));
+    let err = store.insert("items", row).await.unwrap_err();
+    assert!(
+        matches!(err, DataStoreError::UnsafeIdent(_)),
+        "expected UnsafeIdent, got {err:?}"
+    );
+
+    let mut q = Query::new("items");
+    q.filter.insert("bad-key!".to_string(), serde_json::json!("x"));
+    let err = store.query(q).await.unwrap_err();
+    assert!(matches!(err, DataStoreError::UnsafeIdent(_)));
+}
+
+// ── 11. data_store_accepts_valid_idents ───────────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn data_store_accepts_valid_idents() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = test_store(&tmp, "space-11");
+
+    let schema = TableSchema {
+        name: "_my_table_123".to_string(),
+        columns: vec![
+            ColumnSpec { name: "col_one".to_string(), kind: ColumnKind::Text, required: false },
+            ColumnSpec { name: "_col2".to_string(), kind: ColumnKind::Integer, required: false },
+        ],
+    };
+    store.ensure_table(&schema).await.unwrap();
+
+    let row = Row::new("r1")
+        .with("col_one", serde_json::json!("hello"))
+        .with("_col2", serde_json::json!(42));
+    store.insert("_my_table_123", row).await.unwrap();
+
+    let mut q = Query::new("_my_table_123");
+    q.sort_asc = Some("col_one".to_string());
+    let result = store.query(q).await.unwrap();
+    assert_eq!(result.rows.len(), 1);
+
+    let count = store.count(CountQuery::new("_my_table_123")).await.unwrap();
+    assert_eq!(count, 1);
+}
+
+// ── 12. subscribe_filtered_relay_exits_when_receiver_dropped ─────────────────
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn subscribe_filtered_relay_exits_when_receiver_dropped() {
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel_arc = new_isolated_for_test(
+        ShipHome::project_ship_dir(tmp.path())
+    ).unwrap();
+    let log = KernelLog::new(kernel_arc);
+
+    let baseline = log.source_receiver_count();
+
+    let filter = EventFilter { event_type: Some("test.target".to_string()), ..Default::default() };
+    let frx = log.subscribe_filtered(filter);
+    assert_eq!(log.source_receiver_count(), baseline + 1, "relay task should hold one source subscription");
+
+    drop(frx);
+
+    // Emit an event (non-matching) to wake the relay task so it detects receiver_count == 0.
+    let env = EventEnvelope::new("test.other", "e1", &serde_json::json!({})).unwrap();
+    log.emit(env, &runtime_ctx()).await.unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+    assert_eq!(
+        log.source_receiver_count(),
+        baseline,
+        "relay task should have exited and released its source subscription"
+    );
+}
+
+// ── 13. single_backend_data_store_filters_by_space_id ────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn single_backend_data_store_filters_by_space_id() {

@@ -35,6 +35,10 @@ impl SingleBackendDataStore {
 #[async_trait]
 impl DataStore for SingleBackendDataStore {
     async fn ensure_table(&self, schema: &TableSchema) -> Result<(), DataStoreError> {
+        check_ident(&schema.name)?;
+        for c in &schema.columns {
+            check_ident(&c.name)?;
+        }
         let mut svc = self.inner.lock().await;
         let cols: String = schema
             .columns
@@ -61,6 +65,10 @@ impl DataStore for SingleBackendDataStore {
     }
 
     async fn insert(&self, table: &str, row: Row) -> Result<(), DataStoreError> {
+        check_ident(table)?;
+        for k in row.fields.keys() {
+            check_ident(k)?;
+        }
         let mut svc = self.inner.lock().await;
         let mut cols = vec!["id".to_string(), "space_id".to_string()];
         let mut placeholders = vec!["?".to_string(), "?".to_string()];
@@ -83,6 +91,10 @@ impl DataStore for SingleBackendDataStore {
     }
 
     async fn update(&self, table: &str, row: Row) -> Result<(), DataStoreError> {
+        check_ident(table)?;
+        for k in row.fields.keys() {
+            check_ident(k)?;
+        }
         let mut svc = self.inner.lock().await;
         if row.fields.is_empty() {
             return Ok(());
@@ -100,6 +112,7 @@ impl DataStore for SingleBackendDataStore {
     }
 
     async fn delete(&self, table: &str, key: PrimaryKey) -> Result<bool, DataStoreError> {
+        check_ident(table)?;
         let mut svc = self.inner.lock().await;
         let sql = format!("DELETE FROM `{table}` WHERE id = ? AND space_id = ?");
         let params = [SqlParam::from(key.0.as_str()), SqlParam::from(self.space_id.as_str())];
@@ -108,6 +121,13 @@ impl DataStore for SingleBackendDataStore {
     }
 
     async fn query(&self, q: Query) -> Result<QueryResult, DataStoreError> {
+        check_ident(&q.table)?;
+        for k in q.filter.keys() {
+            check_ident(k)?;
+        }
+        if let Some(ref col) = q.sort_asc {
+            check_ident(col)?;
+        }
         let mut svc = self.inner.lock().await;
         let mut conditions = vec!["space_id = ?".to_string()];
         let mut params: Vec<SqlParam> = vec![SqlParam::from(self.space_id.as_str())];
@@ -140,6 +160,10 @@ impl DataStore for SingleBackendDataStore {
     }
 
     async fn count(&self, q: CountQuery) -> Result<usize, DataStoreError> {
+        check_ident(&q.table)?;
+        for k in q.filter.keys() {
+            check_ident(k)?;
+        }
         let mut svc = self.inner.lock().await;
         let mut conditions = vec!["space_id = ?".to_string()];
         let mut params: Vec<SqlParam> = vec![SqlParam::from(self.space_id.as_str())];
@@ -165,6 +189,24 @@ impl DataStore for SingleBackendDataStore {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+fn is_safe_ident(s: &str) -> bool {
+    if s.is_empty() || s.len() > 128 {
+        return false;
+    }
+    let mut chars = s.chars();
+    let first = chars.next().unwrap();
+    (first.is_ascii_alphabetic() || first == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn check_ident(s: &str) -> Result<(), DataStoreError> {
+    if is_safe_ident(s) {
+        Ok(())
+    } else {
+        Err(DataStoreError::UnsafeIdent(s.to_string()))
+    }
+}
 
 fn json_to_param(v: &serde_json::Value) -> SqlParam {
     match v {
