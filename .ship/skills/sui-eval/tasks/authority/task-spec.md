@@ -5,7 +5,7 @@ capability requests and command approvals that running spaces (agents) raise.
 This is real, shippable work: the hub's authority queue + the capability-request
 modal.
 
-The design source is `reference.md` in this directory (read it). It is
+The design source is `.ship/skills/sui-eval/tasks/authority/reference.md` (read it). It is
 behavioral, not pixel-exact — re-express it in SUI idioms. There is NO mockup
 image; the reference text is the spec.
 
@@ -60,7 +60,7 @@ NOT need a real daemon op — author as if it exists, read it through `<data liv
 
 ## Acceptance
 
-The behavioral acceptance is `authority.behavior.jsonc` in this directory — your
+The behavioral acceptance is `.ship/skills/sui-eval/tasks/authority/authority.behavior.jsonc` — your
 view must satisfy those scenarios (queue shows pending, deciding removes a card,
 modal shows SCOPE/WHY/FOR HOW LONG, empty state). Build to make them pass.
 
