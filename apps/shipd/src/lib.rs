@@ -29,6 +29,7 @@ pub mod router;
 pub mod ops_rpc;
 pub mod diag_rpc;
 pub mod analytics_rpc;
+pub mod isolation_rpc;
 pub mod runtime_rpc;
 pub mod rules_rpc;
 pub mod artifacts_rpc;
@@ -267,6 +268,10 @@ pub async fn run_network(
     // Start the window-reaper loop (closes the log lifecycle of crashed
     // shell windows that never deregistered; every 30s).
     rt.start_window_reaper();
+    // Sandbox reaper: idle-past-timeout sandboxes get marked Stopped.
+    // Per-sandbox backend teardown folds in once SandboxOwner moves
+    // from per-actor to per-sandbox.
+    rt.start_sandbox_reaper();
     daemon::human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
     rt.start_hook_engine().await;
     rt.start_config_watcher();
@@ -437,6 +442,15 @@ pub async fn run_network(
     tokio::spawn(async move { daemon::shutdown_signal().await; ct2.cancel(); });
 
     let session_registry = rt.session_registry().clone();
+    // Install the process-wide registry handle so the host-side spawn path
+    // (supervisor) can mint per-process tokens for sandboxed actors without
+    // threading a registry through the event→orchestrator→executor chain.
+    ship_platform::auth::scopes::set_session_registry(session_registry.clone());
+    // Install the daemon's reachable origin so the spawn path can inject
+    // SHIP_DAEMON_URL into sandboxed actors (rewritten to a
+    // container-reachable host for Tier 2+). Same boot-install pattern as
+    // the session registry above.
+    ship_platform::isolation::set_daemon_origin(rt.daemon_origin());
     // Hydrate any persisted paired sessions from a previous daemon lifetime.
     // Dev mode starts fresh — don't carry prior sessions across dev restarts.
     if !dev {
@@ -582,6 +596,15 @@ pub async fn run_network(
     } else {
         0
     };
+
+    // Reap all sandboxes so a clean restart doesn't orphan backend
+    // containers. Each reap fires the SandboxOwner shutdown
+    // (docker rm / youki delete). Best-effort — a reap failure here
+    // shouldn't block shutdown.
+    let sandboxes_reaped = ship_platform::sandbox::dispatcher().reap_all().await;
+    if sandboxes_reaped > 0 {
+        tracing::info!(sandboxes_reaped, "reaped sandboxes on shutdown");
+    }
     let uptime_secs = rt.uptime().as_secs();
     rt.shutdown().await;
     emit_daemon_event(

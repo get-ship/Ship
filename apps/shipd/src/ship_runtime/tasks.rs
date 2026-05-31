@@ -153,6 +153,40 @@ impl ShipRuntime {
         );
     }
 
+    /// Start the sandbox reaper: periodically scans the dispatcher
+    /// for sandboxes idle past their timeout and tears them down.
+    ///
+    /// Reap = registry state transition only (Idle → Reaping →
+    /// Stopped). Per-sandbox backend teardown (Docker rm, youki
+    /// delete) folds in once SandboxOwner moves from per-actor to
+    /// per-sandbox (separate chunk). Today the registry's "idle
+    /// past timeout" decision is the load-bearing bit; the actual
+    /// container lifetime tracking happens in the existing
+    /// per-actor SandboxOwner.Drop path.
+    pub fn start_sandbox_reaper(&self) {
+        ship_substrate::task_health::spawn_supervised(
+            &self.health_registry,
+            "sandbox-reaper",
+            move || async move {
+                loop {
+                    let dispatcher = ship_platform::sandbox::dispatcher();
+                    let now = chrono::Utc::now();
+                    let candidates = dispatcher.reap_candidates(now).await;
+                    for id in candidates {
+                        match dispatcher.reap(&id).await {
+                            Ok(_) => tracing::info!(sandbox_id = %id.0, "sandbox reaped (idle)"),
+                            Err(e) => tracing::warn!(
+                                sandbox_id = %id.0,
+                                "sandbox reap failed: {e}"
+                            ),
+                        }
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                }
+            },
+        );
+    }
+
     /// Start the hook engine: spawns external source adapters (webhook, file, cron)
     /// and the hot-reload watcher. Idempotent — subsequent calls are no-ops.
     pub async fn start_hook_engine(&self) {

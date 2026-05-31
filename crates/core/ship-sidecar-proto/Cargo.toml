@@ -1,0 +1,20 @@
+[package]
+name = "ship-sidecar-proto"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Generated ConnectRPC bindings for the ship.sidecar.v1 protocol. Source of truth at proto/ship/sidecar/v1/sidecar.proto. Consumed by ship-isolation (host driver), bin/ship-sidecar (in-sandbox handler), and the upcoming substrate transport (so substrate can speak the boundary protocol without depending on ship-isolation)."
+
+[dependencies]
+connectrpc = { version = "0.4", features = ["client"] }
+buffa = { version = "0.5", features = ["json"] }
+serde = { workspace = true }
+http-body = "1"
+http = "1"
+
+[build-dependencies]
+connectrpc-build = "0.4"
+protoc-bin-vendored = "3"
+
+[lints]
+workspace = true

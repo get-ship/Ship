@@ -232,11 +232,11 @@ mod tests {
             spec_content: None,
             step_specs: None,
             headless: false,
-            keepalive: false,
             prompt: None,
             resume: false,
             resume_session_id: None,
             baseline_sha: None,
+            keepalive: false,
         };
         let envelope = ship_substrate::events::EventEnvelope::new(
             ship_substrate::events::pipeline::event_types::PIPELINE_RUN_STARTED,

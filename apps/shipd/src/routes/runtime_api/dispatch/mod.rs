@@ -42,9 +42,26 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
 /// `pipeline` field (those belong at `POST /api/v1/pipelines/run`).
 pub async fn dispatch_agent_session(
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<DispatchRequest>,
 ) -> impl IntoResponse {
+    // Per-project enforcement teeth: an MCP session bound to project A
+    // cannot dispatch work into project B. Trusted (CLI/SDK) callers and
+    // unbound sessions pass through. See auth::identity. This guard lives in
+    // the REST handler because it needs the request's AuthContext; the
+    // transport-neutral core below is shared with the ConnectRPC path.
+    if let Some(message) =
+        crate::auth::identity::mcp_workspace_violation(&auth, req.workspace.as_deref())
+    {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(message),
+            }),
+        );
+    }
+
     dispatch_agent_session_core(&state, req).await
 }
 

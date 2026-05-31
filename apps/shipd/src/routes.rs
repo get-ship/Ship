@@ -54,6 +54,9 @@ pub mod feedback_api;
 pub mod git_api;
 pub mod hooks_api;
 pub mod human_webhook;
+pub mod sandbox_api;
+#[cfg(test)]
+mod sandbox_api_tests;
 pub mod logs_api;
 pub mod registry_api;
 pub mod rest_api;
@@ -596,6 +599,17 @@ pub enum Route {
     /// @route GET "/api/v1/capabilities"
     /// @auth scope ReadWorkspace
     Capabilities,
+
+    // Isolation reads moved to the proto IsolationService (ship.ops.v1);
+    // the REST routes were removed to avoid a parallel path.
+
+    /// @route GET "/api/v1/sandboxes"
+    /// @auth scope ReadWorkspace
+    SandboxList,
+
+    /// @route GET "/api/v1/sandboxes/{id}"
+    /// @auth scope ReadWorkspace
+    SandboxGet { id: String },
 
     // ── Command bar registry ─────────────────────────────────────────────
 

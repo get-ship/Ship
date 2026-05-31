@@ -38,6 +38,7 @@ fn main() {
         .arg("ship/ops/v1/rules.proto")
         .arg("ship/ops/v1/artifacts.proto")
         .arg("ship/ops/v1/collections.proto")
+        .arg("ship/ops/v1/isolation.proto")
         .arg("ship/ops/v1/permissions.proto")
         .arg("ship/ops/v1/mcp.proto")
         .arg("ship/ops/v1/skills.proto")
@@ -75,6 +76,7 @@ fn main() {
             "ship/ops/v1/rules.proto",
             "ship/ops/v1/artifacts.proto",
             "ship/ops/v1/collections.proto",
+            "ship/ops/v1/isolation.proto",
             "ship/ops/v1/permissions.proto",
             "ship/ops/v1/mcp.proto",
             "ship/ops/v1/skills.proto",

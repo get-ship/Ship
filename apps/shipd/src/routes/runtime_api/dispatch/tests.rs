@@ -27,6 +27,31 @@ fn full_auth() -> Extension<AuthContext> {
     })
 }
 
+fn mcp_auth(workspace: &str) -> Extension<AuthContext> {
+    Extension(AuthContext {
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
+        agent_id: Some("rust-lane".into()),
+        workspace_id: Some(workspace.into()),
+        space_id: None,
+        session_id: None,
+        scopes: vec![Scope::Full],
+        grants: vec![],
+    })
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mcp_cross_project_dispatch_rejected() {
+    use axum::response::IntoResponse;
+    let dir = TempDir::new().unwrap();
+    let state = make_state(&dir);
+    // Session bound to proj-a; request dispatches into proj-b.
+    let req = bare_req("rust-lane", "proj-b");
+    let resp = dispatch_agent_session(State(state), mcp_auth("proj-a"), Json(req))
+        .await
+        .into_response();
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+}
+
 async fn body_json(response: axum::response::Response) -> serde_json::Value {
     use http_body_util::BodyExt;
     let bytes = response.into_body().collect().await.unwrap().to_bytes();

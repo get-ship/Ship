@@ -157,11 +157,13 @@ pub fn build_claude_settings_patch(
     Some(patch)
 }
 
+use super::ship_hook_command;
+
 /// Inject Ship lifecycle hooks for the daemon into Claude's hooks patch.
 ///
-/// Always emits command hooks via `ship hook <phase>`. The CLI authenticates
-/// to the daemon using the local `~/.ship/daemon.token`, so harness settings
-/// stay stable across daemon restarts.
+/// Emits hybrid command hooks (see `ship_hook_command`) that POST to the
+/// daemon over HTTP inside a sandbox and fall back to the `ship hook` CLI
+/// on the host — one config, stable across daemon restarts and tiers.
 pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
     let Some(obj) = patch.as_object_mut() else {
         return;
@@ -188,12 +190,13 @@ pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
     //   in hooks_api.rs::hook_session_end. A future job will split
     //   turn-end from session-end into separate Ship signals.
     let lifecycle = [
-        ("PreToolUse", "ship hook before-tool"),
-        ("PostToolUse", "ship hook after-tool"),
-        ("Stop", "ship hook session-end"),
+        ("PreToolUse", "before-tool"),
+        ("PostToolUse", "after-tool"),
+        ("Stop", "session-end"),
     ];
 
-    for (trigger, command) in lifecycle {
+    for (trigger, endpoint) in lifecycle {
+        let command = ship_hook_command(endpoint);
         let hook_obj = serde_json::json!({ "type": "command", "command": command });
         let entry = serde_json::json!({ "hooks": [hook_obj] });
         if let Some(arr) = hooks_obj.get_mut(trigger).and_then(|v| v.as_array_mut()) {
@@ -204,13 +207,14 @@ pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
     }
 
     // SessionStart needs one entry per source matcher to register.
+    let session_start_cmd = ship_hook_command("session-start");
     let session_start_sources = ["startup", "resume", "clear", "compact"];
     let session_start_entries: Vec<Json> = session_start_sources
         .iter()
         .map(|src| {
             serde_json::json!({
                 "matcher": src,
-                "hooks": [{ "type": "command", "command": "ship hook session-start" }],
+                "hooks": [{ "type": "command", "command": session_start_cmd }],
             })
         })
         .collect();

@@ -53,6 +53,17 @@ pub struct AgentProfile {
     /// Which agent targets to sync to (e.g. ["claude", "codex"])
     #[serde(default)]
     pub target_agents: Vec<String>,
+    /// Optional per-agent isolation override. Schema mirrors
+    /// `ship_isolation::tier::IsolationProfile`:
+    /// `{ tier?: "none"|"process"|"container"|"vm"|"cloud",
+    ///    strategy?: "noop"|"harness"|"docker"|"youki"|"wsl2"|"lima"|"fly",
+    ///    policy?: SandboxPolicy }`.
+    /// Stored as a raw JSON value here so the file-canonical schema
+    /// can evolve without churning specta-derived TS types every time
+    /// `ship-isolation` adds a field. Parsed via
+    /// `crate::isolation::parse_agent_override(profile)` at run time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub isolation: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Type, PartialEq, Default)]

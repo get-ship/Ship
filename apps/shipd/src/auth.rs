@@ -57,6 +57,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 pub use crate::auth::identity::enforce_mcp_identity;
+pub use crate::auth::identity::enforce_mcp_workspace;
 
 // Re-export scope model from the split-out module.
 pub use crate::auth::scopes::{

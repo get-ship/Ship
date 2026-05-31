@@ -21,6 +21,7 @@ mod hook;
 mod http;
 mod init;
 mod install;
+mod isolation_cmd;
 mod procs;
 mod runtime_cmd;
 mod tail;
@@ -155,6 +156,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             } => run_compile_cmd(harness.as_deref(), dry_run, path),
             Commands::Workspace { action } => dispatch_workspace(action),
             Commands::Mcp { action } => dispatch_mcp(action),
+            Commands::Isolation { action } => isolation_cmd::run(action),
             Commands::Convert { source } => convert::run_convert(&source),
             Commands::Docs { topic } => help_topics::run(topic.as_deref()),
             Commands::Publish {

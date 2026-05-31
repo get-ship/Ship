@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-pub use crate::commands::{EventsCommands, HookCommands, McpCommands, SuiCommands, WorkspaceCommands};
+pub use crate::commands::{
+    EventsCommands, HookCommands, IsolationCommands, McpCommands, SuiCommands, WorkspaceCommands,
+};
 
 const AFTER_HELP: &str = "\x1b[1mDaily Workflow:\x1b[0m
   ship init              Start here — scaffold .ship/
@@ -196,6 +198,13 @@ pub enum Commands {
     Mcp {
         #[command(subcommand)]
         action: McpCommands,
+    },
+
+    /// Inspect agent isolation: detected host capabilities + recommended
+    /// strategy + per-OS defaults. See `crates/core/ship-isolation/docs/`.
+    Isolation {
+        #[command(subcommand)]
+        action: IsolationCommands,
     },
 
     // ── Publishing ───────────────────────────────────────────────────────────

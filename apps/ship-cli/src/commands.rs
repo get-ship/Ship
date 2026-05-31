@@ -57,6 +57,66 @@ pub enum WorkspaceCommands {
 }
 
 #[derive(Subcommand, Debug)]
+pub enum IsolationCommands {
+    /// Show detected host capabilities + which strategy ship would pick
+    /// for an agent run today.
+    Status {
+        /// Emit JSON instead of human-readable output
+        #[arg(long)]
+        json: bool,
+    },
+    /// Force a re-probe of host capabilities (clears the cache).
+    Rescan {
+        /// Emit JSON instead of human-readable output
+        #[arg(long)]
+        json: bool,
+    },
+    /// Verify the current isolation configuration is sound (decision
+    /// resolves, backend implemented, no silent downgrade).
+    Verify {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Per-tier availability + previews for the UI picker (also useful
+    /// for scripting). Returns what would happen if each tier were
+    /// pinned.
+    Recommendations {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show what would happen if a hypothetical tier / strategy were
+    /// chosen, without persisting anything.
+    Preview {
+        /// Tier id: none / process / container / vm / cloud / auto
+        #[arg(long)]
+        tier: Option<String>,
+        /// Strategy id: noop / harness / docker / youki / wsl2 / lima / fly
+        #[arg(long)]
+        strategy: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Apply isolation settings atomically. When `--enforce` is set,
+    /// verify must pass before settings persist.
+    Init {
+        #[arg(long)]
+        tier: Option<String>,
+        #[arg(long)]
+        strategy: Option<String>,
+        #[arg(long)]
+        enforce: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// List sandboxes the daemon is currently tracking (per
+    /// project, including which actors are inside each).
+    Sandboxes {
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
 pub enum McpCommands {
     /// Register an MCP server (HTTP/SSE transport)
     Add {

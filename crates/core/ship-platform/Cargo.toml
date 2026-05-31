@@ -14,6 +14,9 @@ ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines", features = ["specta"] }
 ship-gateway-client = { path = "crates/ship-gateway-client" }
+# Isolation types + recommender. Default-features off — youki and
+# sidecar backends stay opt-in (the daemon's feature flags layer them in).
+ship-isolation = { path = "../ship-isolation", default-features = false }
 compiler = { path = "crates/compiler", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

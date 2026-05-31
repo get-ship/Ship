@@ -64,3 +64,7 @@ pub fn pty_executor_handle_for_test(
 #[cfg(test)]
 #[path = "tests_server.rs"]
 mod tests_server;
+
+#[cfg(test)]
+#[path = "mint_token_tests.rs"]
+mod mint_token_tests;

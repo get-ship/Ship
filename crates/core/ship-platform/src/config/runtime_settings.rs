@@ -36,6 +36,31 @@ pub fn setting_default(key: &str) -> Option<&'static str> {
         "git.log_limit" => Some("50"),
         // u32 — maximum hook recursion depth before the engine drops further events.
         "hooks.max_depth" => Some("3"),
+        // ─── Isolation (see crates/core/ship-isolation/docs/strategy.md) ───
+        // Preferred tier when no agent / per-run override applies.
+        // "auto" means: derive per-OS from the strategy spec §4 table.
+        "isolation.default_tier" => Some("auto"),
+        // Optional pin within tier. "auto" means: let the recommender pick.
+        "isolation.default_strategy" => Some("auto"),
+        // If "false", the recommender refuses to fall back to Tier 0 and
+        // an agent run fails instead of silently running unsandboxed.
+        "isolation.allow_tier_0" => Some("true"),
+        // Master switch. When "false" (the default), the supervisor
+        // computes the isolation decision, exposes it via the API + env
+        // vars, but DOES NOT wrap the launch — the agent still runs on
+        // the host. Flip to "true" once strategies are validated on
+        // your machine. Per-strategy enforcement coverage is partial;
+        // strategies not yet wired downgrade to Noop with a warning.
+        "isolation.enforce" => Some("false"),
+        // Lazy-fetch heavy assets (rootfs, VM images) on first use.
+        "isolation.lazy_fetch" => Some("true"),
+        // Default network policy when an agent doesn't specify one.
+        "isolation.network_default" => Some("allowlist"),
+        // Comma-separated default egress hostnames. Augments per-agent
+        // allowlists.
+        "isolation.allowlist_default" => {
+            Some("api.anthropic.com,console.anthropic.com,*.github.com")
+        }
         _ => None,
     }
 }
@@ -93,6 +118,16 @@ pub fn get_all_settings() -> Result<HashMap<String, serde_json::Value>> {
         ("watcher.debounce_ms", "200"),
         ("git.log_limit", "50"),
         ("hooks.max_depth", "3"),
+        ("isolation.default_tier", "auto"),
+        ("isolation.default_strategy", "auto"),
+        ("isolation.allow_tier_0", "true"),
+        ("isolation.enforce", "false"),
+        ("isolation.lazy_fetch", "true"),
+        ("isolation.network_default", "allowlist"),
+        (
+            "isolation.allowlist_default",
+            "api.anthropic.com,console.anthropic.com,*.github.com",
+        ),
     ] {
         map.insert(
             (*key).to_string(),

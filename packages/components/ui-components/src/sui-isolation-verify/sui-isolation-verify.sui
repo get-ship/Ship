@@ -1,0 +1,111 @@
+<!--
+  <sui-isolation-verify> — per-check probe result list.
+
+  Calls POST /api/v1/isolation/verify on mount and renders each step
+  the daemon reports as pass/fail with detail. Used in the
+  settings/isolation page and the init wizard to surface the same
+  data shipd's `init` endpoint runs through before accepting an
+  enforce flip.
+
+  Props
+  ─────────────────────────────────────────────────────────────────────
+  auto-fetch (true|false, 'true')
+    When true (default), fires POST /api/v1/isolation/verify on
+    mount. Set to 'false' for views that already hold a verify
+    payload — pass it via the `steps` prop instead.
+  ok (true|false, 'false')
+    Aggregate result. Reflected as a host attribute so a parent
+    view can style based on it.
+-->
+
+<prop name="auto-fetch" values="true|false" default="true" />
+<prop name="ok" values="false|true" default="false" reflect />
+
+<style>
+  :host {
+    display: block;
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    background: var(--background);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  :host([ok="true"]) {
+    border-color: var(--tone-success-border);
+  }
+  :host([ok="false"]) {
+    border-color: var(--tone-warning-border);
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--muted);
+    font-size: 11px;
+    color: var(--muted-foreground);
+  }
+  :host([ok="true"]) .header {
+    background: var(--tone-success-bg);
+    color: var(--success);
+  }
+  :host([ok="false"]) .header {
+    background: var(--tone-warning-bg);
+    color: var(--warning);
+  }
+  .summary {
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  li {
+    display: flex;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  li:last-child { border-bottom: 0; }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+  .dot.pass { background: var(--success); }
+  .dot.fail { background: var(--warning); }
+  .check {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .name {
+    font-weight: 500;
+    color: var(--foreground);
+  }
+  .detail {
+    font-size: 11px;
+    color: var(--muted-foreground);
+  }
+  .loading {
+    padding: 12px;
+    text-align: center;
+    color: var(--muted-foreground);
+    font-style: italic;
+  }
+</style>
+
+<div class="header" data-testid="verify-header">
+  <span class="summary">Verification</span>
+  <span data-testid="verify-summary">{ok() === 'true' ? 'All checks passed' : 'Issues found'}</span>
+</div>
+<div id="body" data-testid="verify-body"></div>

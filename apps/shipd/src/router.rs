@@ -18,7 +18,7 @@ use crate::routes::{
     artifacts_api, commands_api, create_api, feedback_api, git_api,
     hooks_api, human_webhook, logs_api,
     registry_api, rest_api, runtime_api,
-    sdk_manifest, settings_api, themes_api,
+    sandbox_api, sdk_manifest, settings_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
 };
@@ -384,6 +384,12 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::KillTree_template(), actors_api::kill_tree_handler)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
+        // Isolation reads are served by the proto IsolationService
+        // (ship.ops.v1) — the one op-surface path. The former
+        // /api/v1/isolation/* REST routes were removed to avoid a parallel
+        // path; init's gated-op migration lands at the connect cutover.
+        .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
+        .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
         // Runtime
         .ship_route(Route::StopAgent_template(), runtime_api::stop_agent)
         .ship_route(Route::SteerAgent_template(), runtime_api::steer_agent)

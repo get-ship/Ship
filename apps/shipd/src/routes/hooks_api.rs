@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
 use serde_json::json;
 
-use crate::auth::{AuthContext, Scope, enforce_mcp_identity, require_scope};
+use crate::auth::{AuthContext, Scope, enforce_mcp_identity, enforce_mcp_workspace, require_scope};
 use crate::routes::rest_api::ApiState;
 
 /// Truncate a JSON value to a printable preview ≤400 chars. Legacy
@@ -49,11 +49,16 @@ fn now_iso8601() -> String {
 /// Normalized hook event sent by Claude HTTP hooks or the `ship hook` adapter.
 #[derive(Debug, Deserialize)]
 pub struct ShipHookEvent {
-    #[serde(default)]
+    // Aliases let a RAW harness hook payload deserialize directly — so a
+    // sandboxed agent can `curl` its harness's native payload at the daemon
+    // with no `ship hook` CLI in the container to normalize it first. Claude
+    // is already snake_case; codex/gemini/opencode use the camelCase / short
+    // variants. Mirrors the field-aliasing the CLI's normalize_stdin did.
+    #[serde(default, alias = "toolName", alias = "name")]
     pub tool_name: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "toolInput", alias = "input")]
     pub tool_input: Option<serde_json::Value>,
-    #[serde(default)]
+    #[serde(default, alias = "toolResponse", alias = "output")]
     pub tool_response: Option<serde_json::Value>,
     #[serde(default)]
     pub actor_id: Option<String>,
@@ -108,8 +113,18 @@ impl HookResponse {
 /// the body's `actor_id` is bound to `auth.agent_id` — workers can't
 /// claim another agent's identity. Daemon-token callers keep their
 /// trusted preference for the body value.
+///
+/// Also enforces cross-project scope: a workspace-bound scoped token
+/// (e.g. a sandboxed agent's `ship_sess_*`) cannot post a hook tagged
+/// for a different project — the same `enforce_mcp_workspace` guard
+/// dispatch + MCP use. Latent until sandbox tokens carry a workspace id
+/// (mints with `None` today → passes), but closes the forge here so it's
+/// covered the moment workspace-binding lands. Bites only on a definite
+/// cross-project mismatch.
+#[allow(clippy::result_large_err)] // axum Response is the contract here
 fn resolve_actor(event: &ShipHookEvent, auth: &AuthContext) -> Result<String, Response> {
     enforce_mcp_identity(auth, event.actor_id.as_deref())?;
+    enforce_mcp_workspace(auth, event.workspace.as_deref())?;
     Ok(event
         .actor_id
         .clone()
@@ -432,6 +447,24 @@ mod tests {
         let event: ShipHookEvent = serde_json::from_str(json).unwrap();
         assert!(event.tool_name.is_none());
         assert!(event.actor_id.is_none());
+    }
+
+    #[test]
+    fn hook_event_deserializes_raw_harness_payloads_via_aliases() {
+        // A sandboxed agent curls its harness-native payload straight at the
+        // daemon (no `ship hook` CLI to normalize first). Claude is already
+        // snake_case; the camelCase / short variants from codex/gemini/
+        // opencode must deserialize via the field aliases.
+        let camel = r#"{ "toolName": "Bash", "toolInput": {"command": "ls"} }"#;
+        let e: ShipHookEvent = serde_json::from_str(camel).unwrap();
+        assert_eq!(e.tool_name.as_deref(), Some("Bash"));
+        assert_eq!(e.tool_input.as_ref().unwrap()["command"], "ls");
+
+        let short = r#"{ "name": "Edit", "input": {"path": "/x"}, "output": {"ok": true} }"#;
+        let e: ShipHookEvent = serde_json::from_str(short).unwrap();
+        assert_eq!(e.tool_name.as_deref(), Some("Edit"));
+        assert_eq!(e.tool_input.as_ref().unwrap()["path"], "/x");
+        assert_eq!(e.tool_response.as_ref().unwrap()["ok"], true);
     }
 
     #[test]

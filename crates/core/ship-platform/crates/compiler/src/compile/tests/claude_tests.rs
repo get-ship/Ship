@@ -35,6 +35,25 @@ fn default_permissions_emit_memory_only_patch() {
     assert_memory_and_lifecycle_only(&out.claude_settings_patch);
 }
 
+/// Lifecycle hook commands are hybrid: a sandboxed agent curls the daemon
+/// over `$SHIP_DAEMON_URL` with its scoped `$SHIP_TOKEN`; on the host the
+/// command falls back to the `ship hook` CLI. One compiled config serves
+/// both tiers (the isolation tier is only known per-spawn).
+#[test]
+fn lifecycle_hooks_are_pod_and_host_hybrid() {
+    let out = compile(&resolved(vec![]), "claude").unwrap();
+    let patch = out.claude_settings_patch.expect("patch");
+    let cmd = patch["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+        .as_str()
+        .expect("PreToolUse command string");
+    // Pod branch: curl the daemon's hook endpoint with the scoped bearer.
+    assert!(cmd.contains("$SHIP_DAEMON_URL/api/v1/hooks/before-tool"), "got: {cmd}");
+    assert!(cmd.contains("Authorization: Bearer $SHIP_TOKEN"), "got: {cmd}");
+    assert!(cmd.contains("--data-binary @-"), "raw stdin forwarded: {cmd}");
+    // Host fallback: the CLI when $SHIP_DAEMON_URL is unset.
+    assert!(cmd.contains("ship hook before-tool"), "host fallback: {cmd}");
+}
+
 /// Explicit deny-only is safe: it only restricts what the user asked to restrict.
 #[test]
 fn deny_only_emits_patch_with_no_allow_field() {
