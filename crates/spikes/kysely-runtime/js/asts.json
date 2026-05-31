@@ -1,0 +1,314 @@
+[
+  {
+    "label": "select_all",
+    "operationNode": {
+      "kind": "SelectQueryNode",
+      "from": {
+        "kind": "FromNode",
+        "froms": [
+          {
+            "kind": "TableNode",
+            "table": {
+              "kind": "SchemableIdentifierNode",
+              "identifier": {
+                "kind": "IdentifierNode",
+                "name": "notes"
+              }
+            }
+          }
+        ]
+      },
+      "selections": [
+        {
+          "kind": "SelectionNode",
+          "selection": {
+            "kind": "SelectAllNode"
+          }
+        }
+      ]
+    },
+    "expectedSql": "select * from \"notes\"",
+    "expectedParameters": []
+  },
+  {
+    "label": "select_with_where_gte",
+    "operationNode": {
+      "kind": "SelectQueryNode",
+      "from": {
+        "kind": "FromNode",
+        "froms": [
+          {
+            "kind": "TableNode",
+            "table": {
+              "kind": "SchemableIdentifierNode",
+              "identifier": {
+                "kind": "IdentifierNode",
+                "name": "notes"
+              }
+            }
+          }
+        ]
+      },
+      "selections": [
+        {
+          "kind": "SelectionNode",
+          "selection": {
+            "kind": "ReferenceNode",
+            "column": {
+              "kind": "ColumnNode",
+              "column": {
+                "kind": "IdentifierNode",
+                "name": "id"
+              }
+            }
+          }
+        },
+        {
+          "kind": "SelectionNode",
+          "selection": {
+            "kind": "ReferenceNode",
+            "column": {
+              "kind": "ColumnNode",
+              "column": {
+                "kind": "IdentifierNode",
+                "name": "title"
+              }
+            }
+          }
+        }
+      ],
+      "where": {
+        "kind": "WhereNode",
+        "where": {
+          "kind": "BinaryOperationNode",
+          "leftOperand": {
+            "kind": "ReferenceNode",
+            "column": {
+              "kind": "ColumnNode",
+              "column": {
+                "kind": "IdentifierNode",
+                "name": "priority"
+              }
+            }
+          },
+          "operator": {
+            "kind": "OperatorNode",
+            "operator": ">="
+          },
+          "rightOperand": {
+            "kind": "ValueNode",
+            "value": 3
+          }
+        }
+      }
+    },
+    "expectedSql": "select \"id\", \"title\" from \"notes\" where \"priority\" >= ?",
+    "expectedParameters": [
+      3
+    ]
+  },
+  {
+    "label": "select_with_and_filter",
+    "operationNode": {
+      "kind": "SelectQueryNode",
+      "from": {
+        "kind": "FromNode",
+        "froms": [
+          {
+            "kind": "TableNode",
+            "table": {
+              "kind": "SchemableIdentifierNode",
+              "identifier": {
+                "kind": "IdentifierNode",
+                "name": "notes"
+              }
+            }
+          }
+        ]
+      },
+      "selections": [
+        {
+          "kind": "SelectionNode",
+          "selection": {
+            "kind": "SelectAllNode"
+          }
+        }
+      ],
+      "where": {
+        "kind": "WhereNode",
+        "where": {
+          "kind": "AndNode",
+          "left": {
+            "kind": "BinaryOperationNode",
+            "leftOperand": {
+              "kind": "ReferenceNode",
+              "column": {
+                "kind": "ColumnNode",
+                "column": {
+                  "kind": "IdentifierNode",
+                  "name": "pinned"
+                }
+              }
+            },
+            "operator": {
+              "kind": "OperatorNode",
+              "operator": "="
+            },
+            "rightOperand": {
+              "kind": "ValueNode",
+              "value": 1
+            }
+          },
+          "right": {
+            "kind": "BinaryOperationNode",
+            "leftOperand": {
+              "kind": "ReferenceNode",
+              "column": {
+                "kind": "ColumnNode",
+                "column": {
+                  "kind": "IdentifierNode",
+                  "name": "priority"
+                }
+              }
+            },
+            "operator": {
+              "kind": "OperatorNode",
+              "operator": ">="
+            },
+            "rightOperand": {
+              "kind": "ValueNode",
+              "value": 3
+            }
+          }
+        }
+      }
+    },
+    "expectedSql": "select * from \"notes\" where \"pinned\" = ? and \"priority\" >= ?",
+    "expectedParameters": [
+      1,
+      3
+    ]
+  },
+  {
+    "label": "select_with_order_limit",
+    "operationNode": {
+      "kind": "SelectQueryNode",
+      "from": {
+        "kind": "FromNode",
+        "froms": [
+          {
+            "kind": "TableNode",
+            "table": {
+              "kind": "SchemableIdentifierNode",
+              "identifier": {
+                "kind": "IdentifierNode",
+                "name": "notes"
+              }
+            }
+          }
+        ]
+      },
+      "selections": [
+        {
+          "kind": "SelectionNode",
+          "selection": {
+            "kind": "SelectAllNode"
+          }
+        }
+      ],
+      "orderBy": {
+        "kind": "OrderByNode",
+        "items": [
+          {
+            "kind": "OrderByItemNode",
+            "orderBy": {
+              "kind": "ReferenceNode",
+              "column": {
+                "kind": "ColumnNode",
+                "column": {
+                  "kind": "IdentifierNode",
+                  "name": "priority"
+                }
+              }
+            },
+            "direction": {
+              "kind": "RawNode",
+              "sqlFragments": [
+                "desc"
+              ],
+              "parameters": []
+            }
+          }
+        ]
+      },
+      "limit": {
+        "kind": "LimitNode",
+        "limit": {
+          "kind": "ValueNode",
+          "value": 5
+        }
+      }
+    },
+    "expectedSql": "select * from \"notes\" order by \"priority\" desc limit ?",
+    "expectedParameters": [
+      5
+    ]
+  },
+  {
+    "label": "select_with_like",
+    "operationNode": {
+      "kind": "SelectQueryNode",
+      "from": {
+        "kind": "FromNode",
+        "froms": [
+          {
+            "kind": "TableNode",
+            "table": {
+              "kind": "SchemableIdentifierNode",
+              "identifier": {
+                "kind": "IdentifierNode",
+                "name": "notes"
+              }
+            }
+          }
+        ]
+      },
+      "selections": [
+        {
+          "kind": "SelectionNode",
+          "selection": {
+            "kind": "SelectAllNode"
+          }
+        }
+      ],
+      "where": {
+        "kind": "WhereNode",
+        "where": {
+          "kind": "BinaryOperationNode",
+          "leftOperand": {
+            "kind": "ReferenceNode",
+            "column": {
+              "kind": "ColumnNode",
+              "column": {
+                "kind": "IdentifierNode",
+                "name": "title"
+              }
+            }
+          },
+          "operator": {
+            "kind": "OperatorNode",
+            "operator": "like"
+          },
+          "rightOperand": {
+            "kind": "ValueNode",
+            "value": "%spike%"
+          }
+        }
+      }
+    },
+    "expectedSql": "select * from \"notes\" where \"title\" like ?",
+    "expectedParameters": [
+      "%spike%"
+    ]
+  }
+]

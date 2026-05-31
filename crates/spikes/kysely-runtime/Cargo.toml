@@ -1,0 +1,16 @@
+[package]
+name = "kysely-runtime-spike"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Spike: Kysely OperationNode JSON → Rust AST executor → sqlite. NOT a workspace member; build via `cd crates/spikes/kysely-runtime && cargo test`."
+
+[workspace]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+thiserror = "2"
+rquickjs = { version = "0.9", features = ["loader", "macro"] }
+
