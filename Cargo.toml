@@ -15,6 +15,7 @@ members = [
     "crates/core/ship-platform/crates/ship-gateway-client",
     "crates/core/ship-platform/crates/ship-ops-rpc",
     "crates/core/ship-platform/crates/compiler",
+    "crates/core/ship-platform/crates/ship-reactive",
     "crates/core/ship-isolation",
     "crates/core/ship-isolation/bin/ship-sidecar",
     "crates/core/ship-sidecar-proto",
