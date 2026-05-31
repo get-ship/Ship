@@ -26,6 +26,7 @@ interface LaneRow {
 }
 
 const RUN_ID = process.env.SHIP_PIPELINE_RUN_ID ?? `local-${process.env.SHIP_ACTOR_ID ?? 'unknown'}`
+// cwd-relative — must match where grade.ts writes. Run from the repo root.
 const RUNS_DIR = resolve('.artifacts/sui-eval-runs')
 
 if (!existsSync(RUNS_DIR)) {

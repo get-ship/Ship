@@ -127,15 +127,10 @@ if [[ $DO_GRADE -eq 0 ]]; then
   exit 0
 fi
 
-# Grade every lane worktree for this run, then record once.
+# grade.ts discovers every lane worktree itself (via git worktree list) and
+# writes one jsonl to the main worktree's .artifacts — so run it ONCE from the
+# main repo, not per-lane. Then record once.
 echo "lane-watch: grading…"
-for s in "${SESSIONS[@]}"; do
-  wt="$(wt_path "$s")"
-  if [[ -n "$wt" && -d "$wt" ]]; then
-    ( cd "$wt" && SHIP_PIPELINE_RUN_ID="$RUN_ID" bun "$REPO_ROOT/.ship/skills/sui-eval/scripts/grade.ts" )
-  else
-    echo "lane-watch: $s — worktree not found via git worktree list" >&2
-  fi
-done
-SHIP_PIPELINE_RUN_ID="$RUN_ID" bun "$REPO_ROOT/.ship/skills/sui-eval/scripts/record.ts"
+( cd "$REPO_ROOT" && SHIP_PIPELINE_RUN_ID="$RUN_ID" bun "$REPO_ROOT/.ship/skills/sui-eval/scripts/grade.ts" )
+( cd "$REPO_ROOT" && SHIP_PIPELINE_RUN_ID="$RUN_ID" bun "$REPO_ROOT/.ship/skills/sui-eval/scripts/record.ts" )
 echo "lane-watch: done — scores in views/eval + .artifacts/sui-eval-runs/$RUN_ID.jsonl"

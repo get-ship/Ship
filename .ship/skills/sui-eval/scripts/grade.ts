@@ -65,10 +65,16 @@ function findLaneWorktrees(): { laneId: string; path: string }[] {
   } catch {
     console.warn('grade: `git worktree list` failed')
   }
+  // Lane worktrees are named `eval-<model>-<runId>`. Scope to THIS run when we
+  // have a real run id (env-set) so we don't grade stale lanes from past runs;
+  // fall back to a model-only match for ad-hoc manual grading.
+  const scoped = /^\d{6,}/.test(RUN_ID)
+    ? new RegExp(`-(haiku|sonnet|opus)-${RUN_ID}$`)
+    : /-(haiku|sonnet|opus)$/
   for (const line of listing.split('\n')) {
     if (!line.startsWith('worktree ')) continue
     const p = line.slice('worktree '.length).trim()
-    const m = p.match(/-(haiku|sonnet)$/)
+    const m = p.match(scoped)
     if (!m) continue
     if (existsSync(join(p, VIEW_PATH))) lanes.push({ laneId: m[1]!, path: p })
   }
@@ -200,6 +206,9 @@ const lanes = findLaneWorktrees()
 console.log(`grade: scoring ${lanes.length} lane(s) for run ${RUN_ID}`)
 const results = lanes.map(({ laneId, path }) => scoreLane(laneId, path))
 
+// Written cwd-relative — the watcher runs grade from the orchestrating repo
+// (this worktree), which is where views/eval reads .artifacts from. Run grade
+// from the repo root, not from inside a lane worktree.
 const outDir = resolve('.artifacts/sui-eval-runs')
 mkdirSync(outDir, { recursive: true })
 const outFile = join(outDir, `${RUN_ID}.jsonl`)
