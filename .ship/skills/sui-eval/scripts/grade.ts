@@ -53,28 +53,28 @@ interface LaneScore {
 }
 
 function findLaneWorktrees(): { laneId: string; path: string }[] {
-  // The orchestrator names lane worktrees after `{parent_slug}-{lane_id}` under
-  // SHIP_WORKTREE_DIR (~/.ship/worktrees by default). We scan siblings of our
-  // own worktree.
+  // Discover lane worktrees from git itself — robust against whatever base dir
+  // dispatch.sh used (~/dev/ship-worktrees vs ~/.ship/worktrees differ per
+  // machine). git knows every worktree; we match the eval-lane shape by its
+  // `-haiku` / `-sonnet` suffix.
   const cwd = process.cwd()
-  const base = process.env.SHIP_WORKTREE_DIR
-    ?? join(process.env.HOME ?? '', '.ship', 'worktrees')
   const lanes: { laneId: string; path: string }[] = []
-  if (!existsSync(base)) {
-    console.warn(`grade: no worktrees dir at ${base}`)
-    return lanes
+  let listing = ''
+  try {
+    listing = execSync('git worktree list --porcelain', { encoding: 'utf8' })
+  } catch {
+    console.warn('grade: `git worktree list` failed')
   }
-  for (const entry of readdirSync(base)) {
-    const p = join(base, entry)
-    if (!statSync(p).isDirectory()) continue
-    // Match `sui-eval-<runId>-<laneId>` or `*-haiku` / `*-sonnet` shape.
-    const m = entry.match(/-(haiku|sonnet)$/)
+  for (const line of listing.split('\n')) {
+    if (!line.startsWith('worktree ')) continue
+    const p = line.slice('worktree '.length).trim()
+    const m = p.match(/-(haiku|sonnet)$/)
     if (!m) continue
     if (existsSync(join(p, VIEW_PATH))) lanes.push({ laneId: m[1]!, path: p })
   }
   if (lanes.length === 0) {
-    console.warn(`grade: discovered 0 lane worktrees under ${base}`)
-    console.warn(`grade: falling back to current cwd as a single anonymous lane`)
+    console.warn('grade: discovered 0 lane worktrees via `git worktree list`')
+    console.warn('grade: falling back to current cwd as a single anonymous lane')
     if (existsSync(join(cwd, VIEW_PATH))) lanes.push({ laneId: 'cwd', path: cwd })
   }
   return lanes

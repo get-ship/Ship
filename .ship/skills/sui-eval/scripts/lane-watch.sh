@@ -25,7 +25,14 @@ shift || true
 DO_GRADE=1
 [[ "${1:-}" == "--no-grade" ]] && DO_GRADE=0
 
-WORKTREE_DIR="${SHIP_WORKTREE_DIR:-$HOME/.ship/worktrees}"
+# Resolve a lane's worktree path from git itself — robust against whatever base
+# dir dispatch.sh used (~/dev/ship-worktrees vs ~/.ship/worktrees differ per
+# machine). git knows where every worktree lives; we just match by slug.
+wt_path() {
+  git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null \
+    | awk '/^worktree /{print $2}' | grep -E "/$1$" | head -1
+}
+
 POLL_SECS=30          # how often to sample each pane
 QUIET_POLLS=4         # consecutive unchanged + no-spinner samples → idle (120s)
 MAX_PRODS=2           # times to nudge an idle-but-uncommitted lane to commit
@@ -58,8 +65,8 @@ mkdir -p "$SENTINEL_DIR"
 
 # A lane worktree has uncommitted work if `git status --porcelain` is non-empty.
 has_uncommitted() {
-  local wt="$WORKTREE_DIR/$1"
-  [[ -d "$wt" ]] && [[ -n "$(git -C "$wt" status --porcelain 2>/dev/null)" ]]
+  local wt; wt="$(wt_path "$1")"
+  [[ -n "$wt" && -d "$wt" ]] && [[ -n "$(git -C "$wt" status --porcelain 2>/dev/null)" ]]
 }
 
 start=$SECONDS
@@ -123,11 +130,11 @@ fi
 # Grade every lane worktree for this run, then record once.
 echo "lane-watch: grading…"
 for s in "${SESSIONS[@]}"; do
-  wt="$WORKTREE_DIR/$s"
-  if [[ -d "$wt" ]]; then
+  wt="$(wt_path "$s")"
+  if [[ -n "$wt" && -d "$wt" ]]; then
     ( cd "$wt" && SHIP_PIPELINE_RUN_ID="$RUN_ID" bun "$REPO_ROOT/.ship/skills/sui-eval/scripts/grade.ts" )
   else
-    echo "lane-watch: $s — worktree missing at $wt" >&2
+    echo "lane-watch: $s — worktree not found via git worktree list" >&2
   fi
 done
 SHIP_PIPELINE_RUN_ID="$RUN_ID" bun "$REPO_ROOT/.ship/skills/sui-eval/scripts/record.ts"
