@@ -12,14 +12,10 @@ use anyhow::{Result, anyhow};
 use sqlx::QueryBuilder;
 use std::path::{Path, PathBuf};
 
-use crate::db::envelope::envelope_from_row;
+use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row};
 use crate::db::{block_on, open_db_at};
 use ship_types::envelope::EventEnvelope;
 use crate::events::EventFilter;
-
-const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-    causation_id, scope, scope_key, session_id, \
-    actor_id, parent_actor_id, elevated, created_at, target_actor_id";
 
 /// A scoped event handle bound to a single actor's SQLite DB.
 ///

@@ -197,11 +197,7 @@ fn load_processes_from_conn(
     slug: Option<&str>,
 ) -> Result<Vec<ProcessRecord>> {
     use crate::db::block_on;
-    use crate::db::envelope::envelope_from_row;
-
-    const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-        causation_id, scope, scope_key, session_id, \
-        actor_id, parent_actor_id, elevated, created_at";
+    use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row};
 
     let rows = block_on(async {
         sqlx::query(&format!(
@@ -213,7 +209,7 @@ fn load_processes_from_conn(
 
     let events: Vec<EventEnvelope> = rows
         .iter()
-        .map(|r| envelope_from_row(r, false))
+        .map(|r| envelope_from_row(r, true))
         .collect::<Result<Vec<_>>>()?;
 
     let mut records = project(&events);
