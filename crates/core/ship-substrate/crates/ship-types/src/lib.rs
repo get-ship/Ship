@@ -2,6 +2,7 @@ pub mod caller;
 pub mod envelope;
 pub mod event_registry;
 pub mod event_types;
+pub mod hash;
 pub mod identity;
 pub mod payload;
 pub mod scope;
@@ -9,6 +10,7 @@ pub mod vector;
 
 pub use caller::{ActorConfig, CallerKind, EmitContext};
 pub use envelope::EventEnvelope;
+pub use hash::sha256_hex;
 pub use identity::{ActorIdentity, ActorType};
 pub use scope::Scope;
 pub use vector::Vector;

@@ -154,13 +154,6 @@ impl ArtifactBackend for LocalFsBackend {
     }
 }
 
-/// Compute SHA-256 of bytes, returning lowercase hex string.
-pub fn sha256_hex(bytes: &[u8]) -> String {
-    use sha2::{Digest, Sha256};
-    let hash = Sha256::digest(bytes);
-    format!("{hash:x}")
-}
-
 /// Build the path stored in the metadata row for a given scope + id
 /// (relative to `global_dir/artifacts/`).
 pub fn relative_blob_path(_scope: &ArtifactScope, id: &str, _backend: &LocalFsBackend) -> String {

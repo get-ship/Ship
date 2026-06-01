@@ -23,7 +23,6 @@ futures-util = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt"] }
 chrono = { workspace = true }
 ulid = { workspace = true }
-sha2 = { workspace = true }
 anyhow = { workspace = true }
 
 [dev-dependencies]

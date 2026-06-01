@@ -18,7 +18,8 @@ use ship_types::payload::{
 
 use crate::backend::{BlobBackend, LocalFsBackend};
 use crate::error::ArtifactError;
-use crate::helpers::{emit_ctx, new_ulid, now_rfc3339, sha256_hex};
+use crate::helpers::{emit_ctx, new_ulid, now_rfc3339};
+use ship_types::sha256_hex;
 use crate::projection::{
     TABLE, ensure_artifacts_table, find_by_hash, count_path_refs,
     get_by_id, query_artifacts, record_to_row, record_to_scope,
