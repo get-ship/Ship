@@ -1,88 +1,82 @@
-import { controller, effect, signal } from '@ship/sui-runtime'
-import type { ViewScope } from '@ship/sui-runtime'
+import { controller, derived } from '@ship/sui-runtime'
+import { createChartData } from '../engine/create-chart-data'
+import { normalizeSeries } from '../engine/normalize'
+import { cellGeometry } from '../engine/geometry-grid'
+import { parseLabels } from '../chart-util'
+import type { ChartSeries, ChartValue, ChartPoint } from '../engine/types'
 import type { Scope } from './sui-heatmap.sui'
-import { parseJson, parseLabels, parseNums, toneColor } from '../chart-util'
 
-interface Cell {
-  id: string
-  x: number
-  y: number
-  w: number
-  h: number
-  fill: string
+// `error` arrives via `prop:error={…}` identity (no decodable <prop> for
+// `unknown`); read off the host in `mount` and patch the engine.
+interface HeatmapHost extends Element {
+  error?: unknown
+}
+
+/** Read the y of a flat value or an explicit point. */
+function yOf(entry: ChartValue | ChartPoint): ChartValue {
+  return typeof entry === 'object' && entry !== null ? entry.y : entry
+}
+
+/**
+ * Resolve the canonical row-series for the grid. `normalizeSeries` already
+ * yields one series per row for 2D JSON; a 1D comma string yields ONE flat
+ * series, which is reshaped here into `ceil(n / cols)` rows by the cols label
+ * count (preserving null gaps positionally).
+ */
+function toGrid(raw: string, rowLabels: string[], colLabels: string[]): ChartSeries[] {
+  const series = normalizeSeries(raw)
+  if (series.length === 0) return []
+  // 2D JSON (or already multi-row) — one series per row, kept as-is.
+  if (series.length > 1) return series
+
+  // 1D flat series → reshape into rows by the col count.
+  const flat = (series[0]!.data as Array<ChartValue | ChartPoint>).map(yOf)
+  const nc = colLabels.length || 1
+  const nr = rowLabels.length || (flat.length > 0 ? Math.ceil(flat.length / nc) : 0)
+  const rows: ChartSeries[] = []
+  for (let r = 0; r < nr; r++) {
+    rows.push({ name: rowLabels[r] ?? `row-${r}`, data: flat.slice(r * nc, (r + 1) * nc) })
+  }
+  return rows
 }
 
 export default controller({
-  scope: (_ctx: ViewScope<Scope>) => ({
-    cells: signal<Cell[]>([]),
-    svgW: signal(0),
-    svgH: signal(0),
-  }),
+  scope: ({ data, rows, cols, tone, cellSize, gap, label, loading }: Scope) => {
+    const grid = derived<ChartSeries[]>(() =>
+      toGrid(data(), parseLabels(rows()), parseLabels(cols())),
+    )
+    const chart = createChartData({ series: grid, isLoading: loading })
 
-  mount(state, _host) {
-    const stop = effect(() => {
-      const rowLabels = parseLabels(state.rows)
-      const colLabels = parseLabels(state.cols)
-      const cs = state.cellSize
-      const gp = state.gap
-      const rawData = state.data
-
-      // Resolve grid: prefer JSON 2D array, fall back to 1D comma-separated numbers.
-      const jsonResult = parseJson<number[][]>(rawData, [])
-      const is2d =
-        Array.isArray(jsonResult) &&
-        jsonResult.length > 0 &&
-        Array.isArray(jsonResult[0])
-      let grid: number[][]
-      if (is2d) {
-        grid = jsonResult
-      } else {
-        const flat = parseNums(rawData)
-        const nc = colLabels.length || 1
-        const nr = rowLabels.length || (flat.length > 0 ? Math.ceil(flat.length / nc) : 0)
-        grid = Array.from({ length: nr }, (_, r) => flat.slice(r * nc, (r + 1) * nc))
+    // Grid dimensions are cell-size driven (not the responsive viewport): the
+    // box fed to cellGeometry is sized so each cell renders at exactly cell-size.
+    const dims = derived(() => {
+      const norm = chart.normalized()
+      const nRows = norm.length
+      const nCols = nRows > 0 ? Math.max(...norm.map((s) => s.data.length), 0) : 0
+      const cs = cellSize()
+      const gp = gap()
+      return {
+        nCols,
+        nRows,
+        w: nCols > 0 ? nCols * cs + (nCols - 1) * gp : 0,
+        h: nRows > 0 ? nRows * cs + (nRows - 1) * gp : 0,
       }
-
-      const nrows = grid.length
-      const ncols = nrows > 0 ? Math.max(...grid.map((r) => r.length)) : 0
-
-      // Normalize values across all cells for color mixing.
-      const allVals = grid.flatMap((r) => r.filter((v) => typeof v === 'number'))
-      const vMin = allVals.length ? Math.min(...allVals) : 0
-      const vMax = allVals.length ? Math.max(...allVals) : 1
-      const vRange = vMax - vMin
-
-      const toneVar = toneColor(state.tone)
-      const step = cs + gp
-
-      state.svgW = ncols > 0 ? ncols * cs + (ncols - 1) * gp : 0
-      state.svgH = nrows > 0 ? nrows * cs + (nrows - 1) * gp : 0
-
-      const result: Cell[] = []
-      for (let ri = 0; ri < nrows; ri++) {
-        const row = grid[ri] ?? []
-        for (let ci = 0; ci < ncols; ci++) {
-          const v = row[ci] ?? 0
-          // When all values are equal, show full saturation if non-zero, none if zero.
-          const normalized = vRange === 0 ? (vMin > 0 ? 1 : 0) : (v - vMin) / vRange
-          const pct = (normalized * 100).toFixed(1)
-          const fill =
-            normalized > 0
-              ? `fill:color-mix(in oklch,${toneVar} ${pct}%,transparent)`
-              : ''
-          result.push({
-            id: `c${ri}-${ci}`,
-            x: ci * step,
-            y: ri * step,
-            w: cs,
-            h: cs,
-            fill,
-          })
-        }
-      }
-      state.cells = result
     })
+    const svgW = derived(() => dims().w)
+    const svgH = derived(() => dims().h)
 
-    return () => stop()
+    // GEOMETRY IS A PURE DERIVED — intensity from the normalized value over the
+    // tone role token (no color-mix). A null/zero cell renders empty (opacity 0).
+    const cells = derived(() => {
+      const d = dims()
+      return cellGeometry(chart.normalized(), { w: d.w, h: d.h }, { tone: tone(), gap: gap() })
+    })
+    const ariaLabel = derived(() => `${label()}: ${chart.ariaSummary()}`)
+
+    return { chart, cells, svgW, svgH, ariaLabel }
+  },
+  mount(_state, host) {
+    const err = (host as HeatmapHost).error
+    if (err !== undefined) _state.chart.setOptions({ error: err })
   },
 })

@@ -1,24 +1,26 @@
 <!--
-  <sui-sparkline> — SUI port of <ship-sparkline>.
-  Compact inline trend line. No axes or labels. SVG-rendered.
+  <sui-sparkline> — compact inline trend line, SVG-rendered.
 
-  Prop parity vs <ship-sparkline>
+  MIGRATED onto the createChartData engine + createChartViewport adapter: the
+  comma-string `data` decodes through `normalizeSeries`, geometry is a pure
+  `derived` (present at first paint), and a null comma slot splits the stroke per
+  the gap contract. Sparkline is the ONE lightweight presentation exception —
+  loading composes `sui-spinner` (skeleton is too heavy inline) and empty stays
+  the `aria-hidden` empty SVG (no full-size `sui-empty-state`).
+
+  Props
   ─────────────────────────────────────────────────────────────────────────────
-  Lit               SUI               Notes
-  ─────────────────────────────────────────────────────────────────────────────
-  data (string)     data (string,     ✓ comma-separated numbers
-                      reflect)
-  tone (string)     tone (union,      ✓ renamed to use values=
-                      reflect)
-  width (number)    width (number)    ✓ default 80
-  height (number)   height (number)   ✓ default 20
-  fill (bool)       fill (bool,       ✓ fill area under line at 18% alpha
-                      reflect)
-  label (string)    label (string)    ✓ aria-label on SVG when data present
+  data     string  reflect   comma-separated numbers (normalizeSeries); prop:series
+                             identity supersedes (normalizeSeries handles both).
+  tone     union   reflect   line color (toneColor role-token map).
+  width    number  80        initial estimate — measured box drives the render.
+  height   number  20        same.
+  fill     bool    reflect   fill the area under the line at 18% alpha.
+  label    string  "sparkline"  aria-label kind (prefixes the data summary).
+  loading  bool    reflect   loading branch (engine isLoading) → sui-spinner.
   ─────────────────────────────────────────────────────────────────────────────
   Slots: none
-  Parts: none
-  ─────────────────────────────────────────────────────────────────────────────
+  Parts: series
 -->
 
 <prop name="data" type="string" default="" reflect />
@@ -27,6 +29,7 @@
 <prop name="height" type="number" default="20" />
 <prop name="fill" type="bool" default="false" reflect />
 <prop name="label" type="string" default="sparkline" />
+<prop name="loading" type="bool" default="false" reflect />
 
 <style>
   :host {
@@ -46,30 +49,36 @@
   }
 </style>
 
-{#if hasData()}
+{#if loading()}
+  <sui-spinner part="loading"></sui-spinner>
+{:else if chart.isEmpty()}
   <svg
-    viewBox={'0 0 ' + width() + ' ' + height()}
-    width={width()}
-    height={height()}
-    role="img"
-    aria-label={label()}>
-    {#if fill()}
-      <path d={areaPath()} fill={lineColor()} fill-opacity="0.18" stroke="none"></path>
-    {/if}
-    <path
-      d={strokePath()}
-      fill="none"
-      stroke={lineColor()}
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round">
-    </path>
+    viewBox={'0 0 ' + viewport.width() + ' ' + viewport.height()}
+    width={viewport.width()}
+    height={viewport.height()}
+    aria-hidden="true">
   </svg>
 {:else}
   <svg
-    viewBox={'0 0 ' + width() + ' ' + height()}
-    width={width()}
-    height={height()}
-    aria-hidden="true">
+    viewBox={'0 0 ' + viewport.width() + ' ' + viewport.height()}
+    width={viewport.width()}
+    height={viewport.height()}
+    role="img"
+    aria-label={ariaLabel()}
+    bind:this={svgEl}>
+    {#for s of seriesPaths() key={s.name}}
+      {#if fill()}
+        <path d={s.fillD} fill={s.color} fill-opacity="0.18" stroke="none"></path>
+      {/if}
+      <path
+        part="series"
+        d={s.strokeD}
+        fill="none"
+        stroke={s.color}
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round">
+      </path>
+    {/for}
   </svg>
 {/if}

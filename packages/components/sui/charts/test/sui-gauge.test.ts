@@ -23,20 +23,23 @@ describe('<sui-gauge>', () => {
     expect(shadow(el).querySelector('svg')?.getAttribute('role')).toBe('img')
   })
 
-  it('aria-label set from label prop', async () => {
+  it('aria-label leads with the label prop (kind + data summary)', async () => {
+    // MIGRATED: aria-label is now "kind: summary" (engine ariaSummary), not bare.
     const { el } = mount(reg, 'sui-gauge', { value: '50', label: 'CPU load' })
     await flush()
-    expect(shadow(el).querySelector('svg')?.getAttribute('aria-label')).toBe('CPU load')
+    const aria = shadow(el).querySelector('svg')?.getAttribute('aria-label') ?? ''
+    expect(aria.startsWith('CPU load')).toBe(true)
   })
 
-  it('default aria-label is "gauge"', async () => {
+  it('default aria-label leads with "gauge"', async () => {
     const { el } = mount(reg, 'sui-gauge', { value: '50' })
     await flush()
-    expect(shadow(el).querySelector('svg')?.getAttribute('aria-label')).toBe('gauge')
+    const aria = shadow(el).querySelector('svg')?.getAttribute('aria-label') ?? ''
+    expect(aria.startsWith('gauge')).toBe(true)
   })
 
   it('track path always rendered', async () => {
-    const { el } = mount(reg, 'sui-gauge')
+    const { el } = mount(reg, 'sui-gauge', { value: '50' })
     await flush()
     expect(shadow(el).querySelector('path[part="track"]')).not.toBeNull()
   })
@@ -117,9 +120,32 @@ describe('<sui-gauge>', () => {
     expect(fill?.getAttribute('stroke')).toBe('var(--success)')
   })
 
+  it('loading attr composes a sui-skeleton (full-size loading profile)', async () => {
+    // MIGRATED: gauge is full-size despite being compact — loading composes
+    // sui-skeleton via the engine isLoading discriminator.
+    const { el } = mount(reg, 'sui-gauge', { value: '50', loading: true })
+    await flush()
+    expect(shadow(el).querySelector('sui-skeleton')).not.toBeNull()
+    expect(shadow(el).querySelector('svg[role="img"]')).toBeNull()
+  })
+
+  it('loading reflects to host attribute', () => {
+    const { el } = mount(reg, 'sui-gauge', { loading: true })
+    expect(el.hasAttribute('loading')).toBe(true)
+  })
+
   it('shadow styles include prefers-reduced-motion rule', () => {
     const { el } = mount(reg, 'sui-gauge')
     const styleEl = shadow(el).querySelector('style')
     expect(styleEl?.textContent).toContain('prefers-reduced-motion')
+  })
+
+  it('shadow <style> carries no color literal (token-clean)', () => {
+    const { el } = mount(reg, 'sui-gauge')
+    const css = shadow(el).querySelector('style')?.textContent ?? ''
+    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+    expect(css).not.toMatch(/\brgba?\(/)
+    expect(css).not.toMatch(/\boklch\(/)
+    expect(css).not.toContain('color-mix')
   })
 })

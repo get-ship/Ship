@@ -1,45 +1,47 @@
-import { controller, effect, signal } from '@ship/sui-runtime'
-import type { ViewScope } from '@ship/sui-runtime'
+import { controller, derived, ref } from '@ship/sui-runtime'
+import { createChartData } from '../engine/create-chart-data'
+import { createChartViewport } from '../engine/create-chart-viewport'
+import { normalizeSeries } from '../engine/normalize'
+import { areaGeometry } from '../engine/geometry-cartesian'
+import { toneColor } from '../chart-util'
 import type { Scope } from './sui-sparkline.sui'
-import { linePath, parseNums, toneColor } from '../chart-util'
+
+// `error` arrives via `prop:error={…}` identity (no decodable <prop> for
+// `unknown`); read off the host in `mount` and patch the engine.
+interface SparkHost extends Element {
+  error?: unknown
+}
 
 export default controller({
-  scope: (_ctx: ViewScope<Scope>) => {
-    const hasData = signal(false)
-    const strokePath = signal('')
-    const areaPath = signal('')
-    const lineColor = signal('var(--primary)')
-    return { hasData, strokePath, areaPath, lineColor }
-  },
-
-  mount(state, _host) {
-    const stop = effect(() => {
-      const nums = parseNums(state.data)
-      const w = state.width
-      const h = state.height
-      const color = toneColor(state.tone)
-      state.lineColor = color
-
-      if (nums.length < 2) {
-        state.hasData = false
-        state.strokePath = ''
-        state.areaPath = ''
-        return
-      }
-
-      const { d, points } = linePath(nums, w, h, 2)
-      state.strokePath = d
-
-      if (state.fill) {
-        const first = points[0]!
-        const last = points[points.length - 1]!
-        state.areaPath = `${d} L${last[0].toFixed(2)},${h} L${first[0].toFixed(2)},${h} Z`
-      } else {
-        state.areaPath = ''
-      }
-      state.hasData = true
+  scope: ({ data, tone, width, height, label, loading }: Scope) => {
+    const svgEl = ref<SVGSVGElement>(null) // bind:this target → viewport observe
+    const viewport = createChartViewport({
+      initialWidth: width(),
+      initialHeight: height(),
+    })
+    const chart = createChartData({
+      series: derived(() => normalizeSeries(data())),
+      isLoading: loading,
     })
 
-    return () => stop()
+    // GEOMETRY IS A PURE DERIVED — areaGeometry yields both fillD + strokeD so
+    // one derivation serves the fill-on and fill-off template branches. The
+    // single series' tone overrides the comma-string default (toneColor map).
+    const seriesPaths = derived(() => {
+      const t = tone()
+      return areaGeometry(chart.normalized(), {
+        w: viewport.width(),
+        h: viewport.height(),
+      }).map((p) => ({ ...p, color: toneColor(t) }))
+    })
+    const ariaLabel = derived(() => `${label()}: ${chart.ariaSummary()}`)
+
+    return { chart, viewport, svgEl, seriesPaths, ariaLabel }
+  },
+  mount(state, host) {
+    if (state.svgEl) state.viewport.observe(state.svgEl)
+    const err = (host as SparkHost).error
+    if (err !== undefined) state.chart.setOptions({ error: err })
+    return () => state.viewport.dispose()
   },
 })

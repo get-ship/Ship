@@ -13,12 +13,12 @@
 //
 // Pure: imports only `chart-util` parse helpers + `types`. No DOM, no ship.*.
 
-import { parseNums, parseJson } from '../chart-util'
+import { parseJson } from '../chart-util'
 import type { ChartSeries, ChartTone, ChartValue, ChartPoint } from './types'
 
 interface DonutSlice {
   label: string
-  value: number
+  value: number | null
   tone?: ChartTone
 }
 
@@ -39,13 +39,31 @@ const isChartSeries = (v: unknown): v is ChartSeries =>
   isObject(v) && typeof v.name === 'string' && Array.isArray(v.data)
 
 const isDonutSlice = (v: unknown): v is DonutSlice =>
-  isObject(v) && typeof v.label === 'string' && typeof v.value === 'number'
+  isObject(v) &&
+  typeof v.label === 'string' &&
+  (typeof v.value === 'number' || v.value === null)
 
 /** A `null`/non-finite value stays a gap; everything else coerces to number. */
 function toChartValue(v: unknown): ChartValue {
   if (v === null) return null
   const n = typeof v === 'number' ? v : Number(v)
   return Number.isFinite(n) ? n : null
+}
+
+/**
+ * Parse a comma-number string into `ChartValue[]`, PRESERVING each slot: an
+ * empty / non-numeric slot becomes a `null` gap (not dropped). This differs
+ * from `chart-util.parseNums` (which filters gaps out) because the canonical
+ * series shape carries gaps positionally — `"1,2,,4"` is four points with a
+ * gap at index 2, per the null-gap contract.
+ */
+function parseGappyNums(s: string): ChartValue[] {
+  return s.split(',').map((p) => {
+    const t = p.trim()
+    if (t === '') return null
+    const n = Number.parseFloat(t)
+    return Number.isFinite(n) ? n : null
+  })
 }
 
 function fromArray(input: unknown[]): ChartSeries[] {
@@ -100,8 +118,9 @@ export function normalizeSeries(input: NormalizableInput): ChartSeries[] {
       if (Array.isArray(parsed)) return fromArray(parsed)
       return []
     }
-    const nums = parseNums(trimmed)
-    return nums.length ? [{ name: 'series', data: nums }] : []
+    const nums = parseGappyNums(trimmed)
+    // All-gap (or no finite point) → empty; otherwise one series preserving gaps.
+    return nums.some((n) => n != null) ? [{ name: 'series', data: nums }] : []
   }
 
   if (Array.isArray(input)) return fromArray(input)

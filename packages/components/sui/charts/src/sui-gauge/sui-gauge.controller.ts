@@ -1,50 +1,51 @@
-import { controller, effect, signal } from '@ship/sui-runtime'
-import type { ViewScope } from '@ship/sui-runtime'
+import { controller, derived } from '@ship/sui-runtime'
+import { createChartData } from '../engine/create-chart-data'
+import { gaugeGeometry } from '../engine/geometry-radial'
+import type { ChartSeries } from '../engine/types'
 import type { Scope } from './sui-gauge.sui'
-import { arcPath, toneColor } from '../chart-util'
 
-const DEG = Math.PI / 180
-// 270° arc: start at 135°, end at 405° (= 45° + 360°, clockwise past bottom gap).
-const START_ANGLE = 135 * DEG
-const END_ANGLE = 405 * DEG
+// `error` arrives via `prop:error={…}` identity (no decodable <prop> for
+// `unknown`); read off the host in `mount` and patch the engine.
+interface GaugeHost extends Element {
+  error?: unknown
+}
 
 export default controller({
-  scope: (_ctx: ViewScope<Scope>) => ({
-    trackD: signal(''),
-    valueD: signal(''),
-    arcColor: signal('var(--primary)'),
-  }),
+  scope: ({
+    value,
+    min,
+    max,
+    tone,
+    lowThreshold,
+    highThreshold,
+    size,
+    thickness,
+    label,
+    loading,
+  }: Scope) => {
+    // The single value is lifted to a one-point series so the engine supplies
+    // the same isLoading/error discriminators + ariaSummary as every chart.
+    const series = derived<ChartSeries[]>(() => [{ name: 'value', data: [value()] }])
+    const chart = createChartData({ series, isLoading: loading })
 
-  mount(state, _host) {
-    const stop = effect(() => {
-      const sz = state.size
-      const t = state.thickness
-      const r = (sz - t) / 2 - 2
-      const cx = sz / 2
-      const cy = sz / 2
+    // GEOMETRY IS A PURE DERIVED — track + clamped value arc + threshold color.
+    const arc = derived(() =>
+      gaugeGeometry(value(), {
+        size: size(),
+        thickness: thickness(),
+        min: min(),
+        max: max(),
+        tone: tone(),
+        lowThreshold: lowThreshold(),
+        highThreshold: highThreshold(),
+      }),
+    )
+    const ariaLabel = derived(() => `${label()}: ${chart.ariaSummary()}`)
 
-      state.trackD = arcPath(cx, cy, r, START_ANGLE, END_ANGLE)
-
-      const val = state.value
-      const min = state.min
-      const max = state.max
-      const ratio = Math.max(0, Math.min(1, (val - min) / (max - min || 1)))
-      const valueEndAngle = START_ANGLE + (END_ANGLE - START_ANGLE) * ratio
-      state.valueD = ratio > 0 ? arcPath(cx, cy, r, START_ANGLE, valueEndAngle) : ''
-
-      const explicitTone = state.tone
-      const low = state.lowThreshold
-      const high = state.highThreshold
-      let resolved: string = explicitTone
-      if (!resolved) {
-        if (low > 0 && val < low) resolved = 'destructive'
-        else if (high > 0 && val < high) resolved = 'warning'
-        else if (low > 0 || high > 0) resolved = 'success'
-        else resolved = 'primary'
-      }
-      state.arcColor = toneColor(resolved)
-    })
-
-    return () => stop()
+    return { chart, arc, ariaLabel }
+  },
+  mount(_state, host) {
+    const err = (host as GaugeHost).error
+    if (err !== undefined) _state.chart.setOptions({ error: err })
   },
 })

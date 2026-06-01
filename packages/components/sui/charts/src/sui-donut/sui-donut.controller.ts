@@ -1,56 +1,36 @@
-import { controller, effect, signal } from '@ship/sui-runtime'
-import type { ViewScope } from '@ship/sui-runtime'
+import { controller, derived } from '@ship/sui-runtime'
+import { createChartData } from '../engine/create-chart-data'
+import { normalizeSeries } from '../engine/normalize'
+import { arcGeometry } from '../engine/geometry-radial'
 import type { Scope } from './sui-donut.sui'
-import { arcPath, parseJson, toneColor } from '../chart-util'
 
-interface Segment {
-  id: string
-  d: string
-  color: string
-  title: string
+// `error` arrives via `prop:error={…}` identity (no decodable <prop> for
+// `unknown`); read off the host in `mount` and patch the engine.
+interface DonutHost extends Element {
+  error?: unknown
 }
 
 export default controller({
-  scope: (_ctx: ViewScope<Scope>) => ({
-    segments: signal<Segment[]>([]),
-  }),
-
-  mount(state, _host) {
-    const stop = effect(() => {
-      const raw = parseJson<Array<{ label: string; value: number; tone?: string }>>(
-        state.data,
-        [],
-      )
-      const total = raw.reduce((acc, s) => acc + Math.max(0, s.value), 0)
-      if (total <= 0) {
-        state.segments = []
-        return
-      }
-      const sz = state.size
-      const t = state.thickness
-      const r = (sz - t) / 2
-      const cx = sz / 2
-      const cy = sz / 2
-      const TWO_PI = 2 * Math.PI
-      let angle = -Math.PI / 2
-
-      state.segments = raw
-          .filter((seg) => seg.value > 0)
-          .map((seg, i) => {
-            const rawSweep = (seg.value / total) * TWO_PI
-            // Cap just below full circle to avoid coincident-endpoint arc degeneracy.
-            const sweep = rawSweep >= TWO_PI - 0.001 ? TWO_PI - 0.001 : rawSweep
-            const d = arcPath(cx, cy, r, angle, angle + sweep)
-            angle += rawSweep
-            return {
-              id: `s${i}`,
-              d,
-              color: toneColor(seg.tone),
-              title: `${seg.label}: ${seg.value}`,
-            }
-          })
+  scope: ({ data, size, thickness, label, loading }: Scope) => {
+    const chart = createChartData({
+      // normalizeSeries accepts string | ChartSeries[] — ONE scope key handles
+      // both the SSR JSON string AND a live prop:series identity, no cast.
+      series: derived(() => normalizeSeries(data())),
+      isLoading: loading,
     })
 
-    return () => stop()
+    // GEOMETRY IS A PURE DERIVED — donut arcs are proportion-of-total, so the
+    // helper reads raw series values (not the 0..1 extent normalization). A
+    // null/non-positive slice is skipped per the gap contract.
+    const segments = derived(() =>
+      arcGeometry(chart.series(), { size: size(), thickness: thickness() }),
+    )
+    const ariaLabel = derived(() => `${label()}: ${chart.ariaSummary()}`)
+
+    return { chart, segments, ariaLabel }
+  },
+  mount(_state, host) {
+    const err = (host as DonutHost).error
+    if (err !== undefined) _state.chart.setOptions({ error: err })
   },
 })

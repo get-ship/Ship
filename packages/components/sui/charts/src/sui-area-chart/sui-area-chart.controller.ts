@@ -1,76 +1,49 @@
-import { controller, effect, signal } from '@ship/sui-runtime'
-import type { ViewScope } from '@ship/sui-runtime'
+import { controller, derived, ref } from '@ship/sui-runtime'
+import { createChartData } from '../engine/create-chart-data'
+import { createChartViewport } from '../engine/create-chart-viewport'
+import { normalizeSeries } from '../engine/normalize'
+import { areaGeometry } from '../engine/geometry-cartesian'
+import { gridGeometry } from '../engine/geometry-grid'
 import type { Scope } from './sui-area-chart.sui'
-import { linePath, parseJson, toneColor } from '../chart-util'
 
-interface Series {
-  name: string
-  data: number[]
-  tone?: string
-}
-
-interface Pt {
-  id: string
-  cx: number
-  cy: number
-}
-
-interface SeriesPath {
-  name: string
-  areaD: string
-  strokeD: string
-  color: string
-  pts: Pt[]
-}
-
-interface GridLine {
-  id: string
-  y: number
+// `error` is injected via `prop:error={…}` identity — `unknown` has no decodable
+// `<prop>` type, so it is not in the compiler-emitted `Scope`. The controller
+// reads it off the host in `mount` and patches the engine.
+interface AreaHost extends Element {
+  error?: unknown
 }
 
 export default controller({
-  scope: (_ctx: ViewScope<Scope>) => {
-    const seriesPaths = signal<SeriesPath[]>([])
-    const gridLines = signal<GridLine[]>([])
-    return { seriesPaths, gridLines }
-  },
-
-  mount(state, _host) {
-    const stop = effect(() => {
-      const allSeries = parseJson<Series[]>(state.series, [])
-      const w = state.width
-      const h = state.height
-      const flat = allSeries.flatMap((s) => s.data)
-      const min = flat.length ? Math.min(...flat) : 0
-      const max = flat.length ? Math.max(...flat) : 1
-      const range = max - min || 1
-      const innerH = h - 4
-
-      state.gridLines = state.grid
-          ? [0.25, 0.5, 0.75].map((f, i) => ({ id: `g${i}`, y: 2 + innerH * f }))
-          : []
-
-      const paths: SeriesPath[] = []
-      for (const s of allSeries) {
-        if (s.data.length < 2) continue
-        const normalized = s.data.map((v) => ((v - min) / range) * 100)
-        const { d, points } = linePath(normalized, w, h, 2)
-        if (!d) continue
-        const color = toneColor(s.tone)
-        const first = points[0]!
-        const last = points[points.length - 1]!
-        const areaD = `${d} L${last[0].toFixed(2)},${h} L${first[0].toFixed(2)},${h} Z`
-        paths.push({
-          name: s.name,
-          areaD,
-          strokeD: d,
-          color,
-          pts: points.map(([cx, cy], i) => ({ id: `${s.name}-${i}`, cx, cy })),
-        })
-      }
-      state.seriesPaths = paths
+  scope: ({ series, width, height, grid, label, loading }: Scope) => {
+    const svgEl = ref<SVGSVGElement>(null) // bind:this target → viewport observe
+    const viewport = createChartViewport({
+      initialWidth: width(),
+      initialHeight: height(),
+    })
+    const chart = createChartData({
+      // normalizeSeries accepts string | ChartSeries[] — ONE scope key handles
+      // both the SSR JSON string AND a live prop:series identity, no cast.
+      series: derived(() => normalizeSeries(series())),
+      isLoading: loading, // engine reflects the consumer flag
     })
 
-    return () => stop()
+    // GEOMETRY IS A PURE DERIVED — present at first paint, no effect-into-signal.
+    const seriesPaths = derived(() =>
+      areaGeometry(chart.normalized(), { w: viewport.width(), h: viewport.height() }),
+    )
+    const gridLines = derived(() =>
+      grid()
+        ? gridGeometry(chart.extent(), { w: viewport.width(), h: viewport.height() })
+        : [],
+    )
+    const ariaLabel = derived(() => `${label()}: ${chart.ariaSummary()}`)
+
+    return { chart, viewport, svgEl, seriesPaths, gridLines, ariaLabel }
+  },
+  mount(state, host) {
+    if (state.svgEl) state.viewport.observe(state.svgEl)
+    const err = (host as AreaHost).error
+    if (err !== undefined) state.chart.setOptions({ error: err })
+    return () => state.viewport.dispose()
   },
 })

@@ -29,3 +29,11 @@ export type { Box, SeriesPath, AreaPath, Bar, BarOptions, LinePoint } from './ge
 
 export { gridGeometry, cellGeometry } from './geometry-grid'
 export type { GridLine, Cell, CellOptions } from './geometry-grid'
+
+export { arcGeometry, gaugeGeometry } from './geometry-radial'
+export type {
+  DonutOptions,
+  DonutSegment,
+  GaugeOptions,
+  GaugeArc,
+} from './geometry-radial'
