@@ -7525,6 +7525,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-artifacts"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "buffa",
+ "chrono",
+ "connectrpc",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "sha2",
+ "ship-ops-rpc",
+ "ship-reactive",
+ "ship-substrate",
+ "ship-types",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "ulid",
+]
+
+[[package]]
 name = "ship-cli"
 version = "0.2.0"
 dependencies = [
@@ -7956,6 +7981,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "ship-analytics",
+ "ship-artifacts",
  "ship-collection",
  "ship-host",
  "ship-isolation",

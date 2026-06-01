@@ -28,6 +28,7 @@ ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-platform/crates/ship-analytics" }
 ship-search = { path = "../../crates/core/ship-platform/crates/ship-search" }
 ship-collection = { path = "../../crates/core/ship-platform/crates/ship-collection" }
+ship-artifacts = { path = "../../crates/core/ship-platform/crates/ship-artifacts" }
 compiler = { path = "../../crates/core/ship-platform/crates/compiler" }
 build-info = { path = "../../crates/build-info" }
 ship-ops-rpc = { path = "../../crates/core/ship-platform/crates/ship-ops-rpc" }

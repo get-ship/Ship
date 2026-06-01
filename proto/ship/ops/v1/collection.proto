@@ -13,22 +13,7 @@ package ship.ops.v1;
 
 import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/types.proto";
-
-// ── Enums ─────────────────────────────────────────────────────────────────────
-
-// Wire-protocol op tag — mirrors PatchOp in patch.ts exactly.
-enum PatchOp {
-  PATCH_OP_UNSPECIFIED = 0;
-  PATCH_OP_SET = 1;
-  PATCH_OP_MERGE = 2;
-  PATCH_OP_APPEND = 3;
-  PATCH_OP_PREPEND = 4;
-  PATCH_OP_INSERT = 5;
-  PATCH_OP_REMOVE = 6;
-  PATCH_OP_MOVE = 7;
-  PATCH_OP_SPLICE = 8;
-  PATCH_OP_INC = 9;
-}
+import "ship/ops/v1/reactive.proto";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -142,51 +127,6 @@ message WatchReq {
     ItemRef item = 3;
   }
   bytes query_json = 4;
-}
-
-// ── Watch stream ──────────────────────────────────────────────────────────────
-
-// One patch envelope. Mirrors the Patch interface in
-// packages/sui/runtime/src/patch.ts (lines 31-48) field-for-field.
-// path: JSON path within the signal value; empty = root.
-// value: JSON-serialized operand (set/merge/append/prepend/insert/splice).
-// index: insert/splice target index.
-// from/to: move source and destination indices.
-// count: splice remove count.
-// by: inc increment amount.
-// v: wire version (defaults to 1).
-message Patch {
-  PatchOp op = 1;
-  string path = 2;
-  optional bytes value = 3;
-  int32 index = 4;
-  int32 from = 5;
-  int32 to = 6;
-  int32 count = 7;
-  double by = 8;
-  uint32 v = 9;
-}
-
-message PatchFrame {
-  repeated Patch patches = 1;
-}
-
-message StreamError {
-  string message = 1;
-}
-
-message Heartbeat {
-  string ts = 1;
-}
-
-// One event on a Watch stream: a batch of patches, a stream error, or a
-// keepalive heartbeat.
-message WatchEvent {
-  oneof body {
-    PatchFrame patches = 1;
-    StreamError err = 2;
-    Heartbeat hb = 3;
-  }
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────

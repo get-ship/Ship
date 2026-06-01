@@ -52,6 +52,7 @@ pub mod registry_rpc;
 pub mod sui_rpc;
 pub mod search_context;
 pub mod collection_context;
+pub mod artifact_context;
 pub mod live_read;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
