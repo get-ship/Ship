@@ -205,6 +205,16 @@ impl KernelRouter {
         Ok(())
     }
 
+    /// Persist an event via the sink (firing the projection bus) WITHOUT
+    /// delivering to mailboxes. For lifecycle events (crash/suspend/restore)
+    /// emitted while an actor is being torn down: its mailbox is gone, so
+    /// delivery would fail or race — the durable, projected write is what
+    /// these events need.
+    pub fn persist(&self, event: &EventEnvelope) -> anyhow::Result<()> {
+        self.sink.persist(event)?;
+        Ok(())
+    }
+
     /// Deliver an event to subscribers without persistence or validation.
     ///
     /// Delivery rules:
