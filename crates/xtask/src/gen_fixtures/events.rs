@@ -296,11 +296,7 @@ fn collect_all_events() -> Vec<EventEntry> {
 }
 
 fn scope_str(scope: &EventScope) -> &'static str {
-    match scope {
-        EventScope::Space => "space",
-        EventScope::Account => "account",
-        EventScope::Device => "device",
-    }
+    scope.as_str()
 }
 
 fn retention_str(retention: &Retention) -> &'static str {

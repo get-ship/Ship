@@ -247,11 +247,7 @@ fn render_proto(
 // ── TS generation ─────────────────────────────────────────────────────────────
 
 fn scope_str(scope: &EventScope) -> &'static str {
-    match scope {
-        EventScope::Space => "space",
-        EventScope::Account => "account",
-        EventScope::Device => "device",
-    }
+    scope.as_str()
 }
 
 fn retention_str(retention: &Retention) -> &'static str {
@@ -326,7 +322,7 @@ fn render_ts(events: &[WireEvent]) -> String {
 
 fn load_structs(root: &PathBuf) -> Result<BTreeMap<String, Vec<StructField>>> {
     let sources = &[
-        "crates/core/ship-types/src/payload.rs",
+        "crates/core/ship-substrate/crates/ship-types/src/payload.rs",
         "crates/core/ship-substrate/src/events/agent_session.rs",
         "crates/core/ship-substrate/src/events/pipeline.rs",
     ];

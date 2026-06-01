@@ -13,7 +13,7 @@ pub mod envelope;
 pub mod events;
 pub mod integrity;
 mod migrate;
-pub mod space_id_reconcile;
+pub mod events_scope_reconcile;
 pub mod repair;
 #[cfg(test)]
 mod events_tests;
@@ -195,15 +195,15 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
 
-    // Pre-migration column reconcile. `events.workspace_id` was renamed to
-    // `events.space_id` in commit 0b52fa28 by patching the 0001 baseline
-    // in place rather than introducing a new migration. DBs created before
-    // that patch still carry the old column name and silently break event
-    // writes. Detect and rename here, before sqlx_migrate inspects schema,
-    // so the canonical insert path (`INSERT INTO events (... space_id ...)`)
-    // succeeds on existing installs without touching user data.
-    space_id_reconcile::reconcile_events_space_id_column(&mut conn).with_context(|| {
-        format!("events.space_id reconcile failed on {}", path.display())
+    // Pre-migration column reconcile. The `events` partition column lives in
+    // the living 0001 baseline (edited in place, not a forward migration), so
+    // existing DBs carry a legacy single key column (`space_id`, or the older
+    // `project_id`/`workspace_id`). Add + backfill the `(scope, scope_key)`
+    // tuple here, before sqlx_migrate inspects schema, so the canonical insert
+    // path (`INSERT INTO events (... scope, scope_key ...)`) succeeds on
+    // existing installs without touching user data.
+    events_scope_reconcile::reconcile_events_scope_columns(&mut conn).with_context(|| {
+        format!("events scope/scope_key reconcile failed on {}", path.display())
     })?;
 
     // Tolerant migration pass — see `db::migrate`. It relaxes exactly one

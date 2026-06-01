@@ -23,9 +23,11 @@ export type WireEvent =
   | { type: "auth.session.created"; scope: "account"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "auth.session.expired"; scope: "account"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "auth.session.revoked"; scope: "account"; retention: "durable"; payload: Record<string, unknown> }
+  | { type: "collection.created"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "collection.item_created"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "collection.item_deleted"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "collection.item_updated"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
+  | { type: "collection.schema.changed"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "compile.completed"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "config.changed"; scope: "space"; retention: "ephemeral"; payload: Record<string, unknown> }
   | { type: "config.file_changed"; scope: "space"; retention: "ephemeral"; payload: Record<string, unknown> }
@@ -95,9 +97,11 @@ export const WIRE_EVENT_TYPES = [
   "auth.session.created",
   "auth.session.expired",
   "auth.session.revoked",
+  "collection.created",
   "collection.item_created",
   "collection.item_deleted",
   "collection.item_updated",
+  "collection.schema.changed",
   "compile.completed",
   "config.changed",
   "config.file_changed",
@@ -162,9 +166,11 @@ export const SPACE_EVENT_TYPES = [
   "artifact.deleted",
   "artifact.moved",
   "artifact.updated",
+  "collection.created",
   "collection.item_created",
   "collection.item_deleted",
   "collection.item_updated",
+  "collection.schema.changed",
   "compile.completed",
   "config.changed",
   "config.file_changed",

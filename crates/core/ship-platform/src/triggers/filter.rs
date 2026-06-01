@@ -29,7 +29,11 @@ pub fn build_event_context(envelope: &ship_substrate::events::EventEnvelope) -> 
         "entity_id": envelope.entity_id,
         "actor": envelope.actor,
         "actor_id": envelope.actor_id,
-        "space_id": envelope.space_id,
+        "scope": envelope.scope.as_str(),
+        "scope_key": envelope.scope_key,
+        // Legacy accessor: the space id when space-scoped, else null. Kept so
+        // existing `event.space_id` hook expressions keep resolving.
+        "space_id": envelope.space_id(),
         "session_id": envelope.session_id,
         "causation_id": envelope.causation_id,
         "payload": payload,

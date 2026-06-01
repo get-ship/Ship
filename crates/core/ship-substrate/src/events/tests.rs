@@ -34,7 +34,8 @@ fn test_round_trip() -> anyhow::Result<()> {
     assert_eq!(got.actor, ev.actor);
     assert_eq!(got.payload_json, ev.payload_json);
     assert_eq!(got.version, ev.version);
-    assert_eq!(got.space_id, ev.space_id);
+    assert_eq!(got.scope, ev.scope);
+    assert_eq!(got.scope_key, ev.scope_key);
     assert_eq!(got.session_id, ev.session_id);
     Ok(())
 }
@@ -96,9 +97,9 @@ fn test_filter_by_workspace_id() -> anyhow::Result<()> {
     store.append(&ev)?;
     store.append(&EventEnvelope::new(event_types::SESSION_STARTED, "e2", &SessionStarted { goal: None, ..Default::default() })?)?;
 
-    let results = store.query(&EventFilter { space_id: Some("ws-scoped".into()), ..Default::default() })?;
+    let results = store.query(&EventFilter { scope_key: Some("ws-scoped".into()), ..Default::default() })?;
     assert_eq!(results.len(), 1);
-    assert_eq!(results[0].space_id.as_deref(), Some("ws-scoped"));
+    assert_eq!(results[0].space_id(), Some("ws-scoped"));
     Ok(())
 }
 

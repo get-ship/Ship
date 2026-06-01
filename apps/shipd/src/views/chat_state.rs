@@ -40,7 +40,7 @@ fn payload_str(env: &EventEnvelope, key: &str) -> Option<String> {
 
 fn to_message(env: &EventEnvelope) -> Option<ChatMessage> {
     let ts = env.created_at.format("%H:%M").to_string();
-    let workspace_id = env.space_id.clone().unwrap_or_default();
+    let workspace_id = env.space_id().unwrap_or_default().to_string();
     let base = |sender, content: String, detail: Option<String>| ChatMessage {
         id: env.id.clone(),
         sender,
@@ -97,7 +97,7 @@ pub fn list_messages(
             Vec::new()
         });
     envs.iter()
-        .filter(|e| match (workspace_id, e.space_id.as_deref()) {
+        .filter(|e| match (workspace_id, e.space_id()) {
             (Some(w), Some(ew)) => w == ew,
             (Some(_), None) => false,
             (None, _) => true,
@@ -120,7 +120,12 @@ mod tests {
             payload_json: payload.to_string(),
             version: 1,
             causation_id: None,
-            space_id: ws.map(String::from),
+            scope: if ws.is_some() {
+                ship_substrate::events::EventScope::Space
+            } else {
+                ship_substrate::events::EventScope::Device
+            },
+            scope_key: ws.map(String::from),
             session_id: None,
             actor_id: None,
             parent_actor_id: None,

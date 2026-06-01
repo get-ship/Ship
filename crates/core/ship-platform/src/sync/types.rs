@@ -40,7 +40,8 @@ mod tests {
             payload_json: "{}".to_string(),
             version: 1,
             causation_id: None,
-            space_id: Some("ws-1".to_string()),
+            scope: ship_substrate::events::EventScope::Space,
+            scope_key: Some("ws-1".to_string()),
             session_id: None,
             actor_id: None,
             parent_actor_id: None,
@@ -57,10 +58,11 @@ mod tests {
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("workspace.created"));
-        // space_id is in the envelope body (post-workspace_id→space_id
-        // rename). Sync wire-format reviewers: this is the canonical
-        // attribution field, not a duplicate of any header.
-        assert!(json.contains("space_id"));
+        // The partition tuple rides the envelope body (`scope` + `scope_key`).
+        // Sync wire-format reviewers: this is the canonical attribution, not a
+        // duplicate of any header.
+        assert!(json.contains("scope_key"));
+        assert!(json.contains("\"scope\""));
     }
 
     #[test]
@@ -82,7 +84,8 @@ mod tests {
                 "payload_json": "{}",
                 "version": 1,
                 "causation_id": null,
-                "space_id": "ws-1",
+                "scope": "space",
+                "scope_key": "ws-1",
                 "session_id": null,
                 "actor_id": null,
                 "parent_actor_id": null,

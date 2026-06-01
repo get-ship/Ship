@@ -1,5 +1,6 @@
 // Re-exports from ship-types
 pub use ship_types::envelope::EventEnvelope;
+pub use ship_types::event_registry::EventScope;
 pub use ship_types::payload::*;
 pub use ship_types::{CallerKind, EmitContext, ActorConfig};
 pub mod types {

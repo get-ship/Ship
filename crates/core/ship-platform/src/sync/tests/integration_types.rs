@@ -23,7 +23,8 @@ fn sample_envelope(id: &str, event_type: &str, space_id: &str) -> EventEnvelope 
         payload_json: r#"{"key":"val"}"#.to_string(),
         version: 1,
         causation_id: None,
-        space_id: Some(space_id.to_string()),
+        scope: ship_substrate::events::EventScope::Space,
+        scope_key: Some(space_id.to_string()),
         session_id: None,
         actor_id: None,
         parent_actor_id: None,
@@ -135,7 +136,8 @@ fn sync_types_pull_response_deserializes_events_and_cursor() {
             "payload_json": "{}",
             "version": 1,
             "causation_id": null,
-            "space_id": "sp-1",
+            "scope": "space",
+            "scope_key": "sp-1",
             "session_id": null,
             "actor_id": null,
             "parent_actor_id": null,
@@ -172,7 +174,8 @@ fn sync_types_pull_response_space_id_preserved_in_envelope() {
             "payload_json": "{}",
             "version": 1,
             "causation_id": null,
-            "space_id": "sp-preserved",
+            "scope": "space",
+            "scope_key": "sp-preserved",
             "session_id": null,
             "actor_id": null,
             "parent_actor_id": null,
@@ -184,8 +187,8 @@ fn sync_types_pull_response_space_id_preserved_in_envelope() {
     }"#;
     let resp: PullResponse = serde_json::from_str(json).unwrap();
     assert_eq!(
-        resp.events[0].space_id.as_deref(),
+        resp.events[0].space_id(),
         Some("sp-preserved"),
-        "space_id in envelope must be preserved through pull response"
+        "scope_key in envelope must be preserved through pull response"
     );
 }

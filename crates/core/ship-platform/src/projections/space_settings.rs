@@ -41,7 +41,7 @@ impl Projection for SpaceSettingsProjection {
         // The space scope rides the envelope, not the payload. An event with no
         // space_id has no overlay to attach to — skip it (the global tier owns
         // unscoped settings).
-        let Some(space_id) = event.space_id.clone() else {
+        let Some(space_id) = event.space_id().map(str::to_string) else {
             return Ok(());
         };
         let payload: SpaceSettingChanged = serde_json::from_str(&event.payload_json)?;

@@ -75,7 +75,12 @@ CREATE TABLE IF NOT EXISTS events (
   payload_json     TEXT NOT NULL DEFAULT '{}',
   version          INTEGER NOT NULL DEFAULT 1,
   causation_id     TEXT,
-  space_id       TEXT,
+  -- Partition tuple (D0): scope = device|account|space|system, scope_key = the
+  -- id within that scope (Space→space_id, Account→account_id, Device/System→
+  -- device_id or NULL). Replaces the loose space_id column; scope and its key
+  -- always travel together. Pre-existing DBs are migrated by events_scope_reconcile.
+  scope            TEXT NOT NULL DEFAULT 'device',
+  scope_key        TEXT,
   session_id       TEXT,
   actor_id         TEXT,
   parent_actor_id  TEXT,
@@ -86,7 +91,7 @@ CREATE TABLE IF NOT EXISTS events (
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_events_entity    ON events(entity_id, event_type);
-CREATE INDEX IF NOT EXISTS idx_events_project ON events(space_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_events_scope   ON events(scope, scope_key, created_at);
 CREATE INDEX IF NOT EXISTS idx_events_session   ON events(session_id);
 CREATE INDEX IF NOT EXISTS idx_events_actor     ON events(actor_id, elevated);
 CREATE INDEX IF NOT EXISTS idx_events_job       ON events(job_id);

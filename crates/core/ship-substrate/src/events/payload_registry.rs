@@ -99,9 +99,12 @@ register_event!("config.changed", EventScope::Space, Retention::Ephemeral, Stabi
 register_event!("config.file_changed", EventScope::Space, Retention::Ephemeral, Stability::Stable, "ConfigFileChanged");
 
 // ── daemon.* ────────────────────────────────────────────────────────────────
-register_event!("daemon.port_bind_failed", EventScope::Device, Retention::Durable, Stability::Stable, "DaemonPortBindFailed");
-register_event!("daemon.shutdown_completed", EventScope::Device, Retention::Durable, Stability::Stable, "DaemonShutdownCompleted");
-register_event!("daemon.startup_completed", EventScope::Device, Retention::Durable, Stability::Stable, "DaemonStartupCompleted");
+// Platform-lifecycle events: not local to one device's log, not an account or
+// space concern — they belong to the daemon/platform as a whole. EventScope::System
+// (D0) absorbs them; previously they were jammed into Device.
+register_event!("daemon.port_bind_failed", EventScope::System, Retention::Durable, Stability::Stable, "DaemonPortBindFailed");
+register_event!("daemon.shutdown_completed", EventScope::System, Retention::Durable, Stability::Stable, "DaemonShutdownCompleted");
+register_event!("daemon.startup_completed", EventScope::System, Retention::Durable, Stability::Stable, "DaemonStartupCompleted");
 
 // ── daemon.owner.* ──────────────────────────────────────────────────────────
 register_event!("daemon.owner.bound", EventScope::Account, Retention::Durable, Stability::Stable, "DaemonOwnerBound");
@@ -232,9 +235,9 @@ register_event!("workspace.created", EventScope::Device, Retention::Durable, Sta
 register_event!("workspace.activated", EventScope::Device, Retention::Durable, Stability::Deprecated, "WorkspaceActivated");
 register_event!("workspace.archived", EventScope::Device, Retention::Durable, Stability::Deprecated, "WorkspaceArchived");
 register_event!("project.changed", EventScope::Device, Retention::Durable, Stability::Deprecated, "ProjectChanged");
-register_event!("daemon.crashed", EventScope::Device, Retention::Durable, Stability::Deprecated, "DaemonCrashed");
-register_event!("daemon.pidfile_acquired", EventScope::Device, Retention::Durable, Stability::Deprecated, "DaemonPidfileAcquired");
-register_event!("daemon.pidfile_stale_taken", EventScope::Device, Retention::Durable, Stability::Deprecated, "DaemonPidfileStaleTaken");
+register_event!("daemon.crashed", EventScope::System, Retention::Durable, Stability::Deprecated, "DaemonCrashed");
+register_event!("daemon.pidfile_acquired", EventScope::System, Retention::Durable, Stability::Deprecated, "DaemonPidfileAcquired");
+register_event!("daemon.pidfile_stale_taken", EventScope::System, Retention::Durable, Stability::Deprecated, "DaemonPidfileStaleTaken");
 register_event!("pipeline.run.updated", EventScope::Space, Retention::Ephemeral, Stability::Deprecated, "PipelineRunUpdatedPayload");
 register_event!("process.orphaned", EventScope::Device, Retention::Durable, Stability::Deprecated, "ProcessOrphaned");
 register_event!("skill.started", EventScope::Device, Retention::Ephemeral, Stability::Deprecated, "SkillStarted");

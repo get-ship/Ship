@@ -187,10 +187,10 @@ let session = start_session(
                 ev.session_id
             );
             assert_eq!(
-                ev.space_id.as_deref(),
+                ev.space_id(),
                 Some(workspace_id.as_str()),
-                "space_id must equal workspace id, got {:?}",
-                ev.space_id
+                "scope_key must equal workspace id, got {:?}",
+                ev.space_id()
             );
             assert_eq!(
                 ev.parent_actor_id.as_deref(),

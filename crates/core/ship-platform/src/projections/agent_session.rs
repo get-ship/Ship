@@ -149,7 +149,7 @@ fn record_from_started(event: &EventEnvelope) -> Option<AgentSession> {
         model: p.model,
         workspace: p.workspace,
         branch: p.branch,
-        space_id: event.space_id.clone(),
+        space_id: event.space_id().map(str::to_string),
         open_tab: p.open_tab,
         invocation: p.invocation,
         keepalive: p.keepalive,

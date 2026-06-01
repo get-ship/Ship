@@ -30,11 +30,7 @@ fn is_needs_author(v: &serde_json::Value) -> bool {
 }
 
 fn scope_str(s: &EventScope) -> &'static str {
-    match s {
-        EventScope::Space => "space",
-        EventScope::Account => "account",
-        EventScope::Device => "device",
-    }
+    s.as_str()
 }
 
 fn retention_str(r: &Retention) -> &'static str {
