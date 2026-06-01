@@ -142,7 +142,7 @@
   }
 
   :host([set='app'][variant='tile']) .frame {
-    background: color-mix(in oklab, var(--app-accent) 16%, transparent);
+    background: color-mix(in oklch, var(--app-accent) 16%, transparent);
     color: var(--app-accent);
   }
 
