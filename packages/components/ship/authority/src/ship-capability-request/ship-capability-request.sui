@@ -85,6 +85,7 @@
     <p class="label">For how long</p>
     <sui-toggle-group
       type="single"
+      variant="segmented"
       value={duration()}
       aria-label="Duration"
       on:sui-change={onDurationChange}>
