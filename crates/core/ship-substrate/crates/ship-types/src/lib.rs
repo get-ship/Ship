@@ -11,7 +11,7 @@ pub mod vector;
 pub use caller::{ActorConfig, CallerKind, EmitContext};
 pub use envelope::EventEnvelope;
 pub use hash::sha256_hex;
-pub use identity::{ActorIdentity, ActorType};
+pub use identity::{AccountId, ActorIdentity, ActorType, DeviceId, SpaceId};
 pub use scope::Scope;
 pub use vector::Vector;
 
