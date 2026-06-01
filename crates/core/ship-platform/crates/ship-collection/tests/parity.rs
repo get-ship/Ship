@@ -631,12 +631,8 @@ async fn parity_service_full_crud_lifecycle() {
     assert_eq!(updated.data["status"], "done");
     assert_eq!(updated.data["title"], "Lifecycle");
 
-    let q = Query {
-        table: "collection_task".into(),
-        filter: [("status".into(), serde_json::Value::String("done".into()))].into(),
-        limit: 50,
-        ..Default::default()
-    };
+    let q = Query::new("collection_task")
+        .with_eq("status", serde_json::Value::String("done".into()));
     let (items, _) = svc.query_items_by_query(q).await.unwrap();
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].id, item.id);
@@ -771,12 +767,8 @@ async fn parity_query_filter_by_equality() {
         .unwrap();
     }
 
-    let q = Query {
-        table: "collection_task".into(),
-        filter: [("status".into(), serde_json::Value::String("todo".into()))].into(),
-        limit: 50,
-        ..Default::default()
-    };
+    let q = Query::new("collection_task")
+        .with_eq("status", serde_json::Value::String("todo".into()));
     let (items, _) = svc.query_items_by_query(q).await.unwrap();
     assert_eq!(items.len(), 2, "only todo items");
     assert!(items.iter().all(|i| i.data["status"] == "todo"));

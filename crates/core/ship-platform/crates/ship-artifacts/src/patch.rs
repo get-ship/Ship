@@ -67,7 +67,7 @@ pub async fn snapshot_for_artifacts(
 
     let q = ship_substrate::ports::Query {
         table: TABLE.to_string(),
-        filter,
+        filters: ship_substrate::ports::Predicate::eq_all(filter),
         limit: 500,
         ..Default::default()
     };

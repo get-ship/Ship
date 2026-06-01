@@ -9,7 +9,6 @@
 //! No sqlite/sqlx/rusqlite types anywhere in this crate. All storage/events
 //! go through the port types from ship-substrate.
 
-pub mod ast;
 pub mod builtin;
 pub mod error;
 pub mod helpers;

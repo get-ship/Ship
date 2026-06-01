@@ -251,8 +251,7 @@ async fn data_store_rejects_unsafe_column_key() {
         "expected UnsafeIdent, got {err:?}"
     );
 
-    let mut q = Query::new("items");
-    q.filter.insert("bad-key!".to_string(), serde_json::json!("x"));
+    let q = Query::new("items").with_eq("bad-key!", serde_json::json!("x"));
     let err = store.query(q).await.unwrap_err();
     assert!(matches!(err, DataStoreError::UnsafeIdent(_)));
 }
@@ -279,7 +278,7 @@ async fn data_store_accepts_valid_idents() {
     store.insert("_my_table_123", row).await.unwrap();
 
     let mut q = Query::new("_my_table_123");
-    q.sort_asc = Some("col_one".to_string());
+    q.sort = Some(ship_substrate::ports::Sort { column: "col_one".to_string(), descending: false });
     let result = store.query(q).await.unwrap();
     assert_eq!(result.rows.len(), 1);
 

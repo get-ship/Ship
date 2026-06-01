@@ -24,10 +24,15 @@ New baseline (after this job): **12 (behavior.rs) + 48 (parity.rs) = 60 tests**.
 |---|-----|--------|
 | 1 | **Array element type validation** — old impl validated each element in an array field with index-path errors (`tags[1] must be a string`). New impl only checks that the field is an array. | Low. Array fields are permissive by design in the new schema model. |
 | 2 | **Object required\_keys validation** — old impl validated `required_keys` on object fields (`author.name is required`). New impl only checks that the field is an object. | Low. Object properties are permissive by design. |
-| 3 | **gte/lt/lte filter operator** — old impl supported `priority__gte: 2` style filters. New AST translator only supports `=`. **Locked test added; pending implementation (job/kysely-promote phase 2).** | Medium. Range queries on numeric fields require AST extension. |
-| 4 | **IN filter operator** — old impl supported `status__in: ["todo", "doing"]`. New impl has no IN-query support. **Locked test added; pending implementation (job/kysely-promote phase 2).** | Medium. Multi-value equality queries require AST extension. |
-| 5 | **Sort descending** — old impl supported `sort.insert("priority", -1)`. New `Query::sort_asc` is ascending-only; AST ORDER BY loses direction. **Locked test added; pending implementation (job/kysely-promote phase 2).** | Low. Descending sort requires a direction flag on Query. |
+| 3 | **gte/lt/lte filter operator** — old impl supported `priority__gte: 2` style filters. **RESOLVED (job/kysely-promote): `FilterOp::{Gt,Gte,Lt,Lte}` on the substrate `Query` port + translator; `parity_gap_query_filter_by_gte` green.** | Resolved. |
+| 4 | **IN filter operator** — old impl supported `status__in: ["todo", "doing"]`. **RESOLVED (job/kysely-promote): `FilterOp::In`, one bound param per element; `parity_gap_query_filter_by_in` green.** | Resolved. |
+| 5 | **Sort descending** — old impl supported `sort.insert("priority", -1)`. **RESOLVED (job/kysely-promote): `Query::sort: Option<Sort>` carries direction; translator reads `OrderByItemNode.direction`; `parity_gap_query_sort_descending` green.** | Resolved. |
 | 6 | **Update merge/patch semantics** — old `update_item` merged partial data (passing `{"status": "done"}` preserved existing `title`). New impl replaces the full item. | Medium. Callers who relied on partial update must fetch+merge+resubmit. |
+
+**job/kysely-promote** moved the OperationNode→AST→Query executor out of
+`ship-collection/src/ast.rs` into `ship_substrate::query` (the shared query surface) and
+gave `DataStore::Query`/`CountQuery` an operator/predicate model (`FilterOp` + `Predicate`
++ `Sort`). GAPs #3/#4/#5 are closed. Remaining ignored gaps: **#1, #2, #6** (3 `#[ignore]`).
 
 ---
 
