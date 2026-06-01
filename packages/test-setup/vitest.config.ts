@@ -31,7 +31,7 @@ export default defineConfig({
   },
   test: {
     include: ['test/**/*.test.ts'],
-    environment: 'jsdom',
+    environment: 'happy-dom',
     setupFiles: ['./test/setup.ts'],
     ...SHIP_VITEST_DEFAULTS,
   },

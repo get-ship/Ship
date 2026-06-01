@@ -19,6 +19,7 @@
     "@ship/sui-runtime": "workspace:*"
   },
   "devDependencies": {
+    "happy-dom": "^20.9.0",
     "typescript": "~5.8.3",
     "vitest": "^4.1.5"
   }
