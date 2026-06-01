@@ -260,12 +260,20 @@ export function createVirtualizer<TScroll extends Element = HTMLElement>(
   return api
 }
 
+/** Initial viewport size used until layout measures the scroll element. A
+ *  scroll container that has not yet been measured (offset size 0 — pre-layout,
+ *  or a headless environment with no layout engine) still windows a meaningful
+ *  initial slice rather than zero rows; the real measured size supersedes it the
+ *  moment layout or a ResizeObserver reports it. */
+const UNMEASURED_VIEWPORT = 400
+
 /** Local `observeElementRect`: reads `offsetWidth`/`offsetHeight` (the size the
  *  view sets on the scroll element) synchronously on attach, then keeps it
  *  current via a ResizeObserver when available. Mirrors the vendored core's
  *  default but binds to the thunked element identity the adapter already owns,
  *  so the very first synchronous `virtualItems()` read has a real viewport size
- *  even before any layout/scroll event fires. */
+ *  even before any layout/scroll event fires. A zero measurement (pre-layout)
+ *  falls back to `UNMEASURED_VIEWPORT` so the initial window is non-empty. */
 function observeElementRect<T extends Element>(
   instance: Virtualizer<T, Element>,
   cb: (rect: { width: number; height: number }) => void,
@@ -273,7 +281,10 @@ function observeElementRect<T extends Element>(
   const element = instance.scrollElement as (T & HTMLElement) | null
   if (!element) return
   const measure = (): void =>
-    cb({ width: element.offsetWidth, height: element.offsetHeight })
+    cb({
+      width: element.offsetWidth || UNMEASURED_VIEWPORT,
+      height: element.offsetHeight || UNMEASURED_VIEWPORT,
+    })
   measure()
   const win = instance.targetWindow
   if (!win || !win.ResizeObserver) return () => {}
