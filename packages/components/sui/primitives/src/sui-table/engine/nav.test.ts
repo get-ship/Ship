@@ -155,6 +155,134 @@ describe('nav — tree rows: Right/Left expand/collapse when getCanExpand, else 
   })
 })
 
+describe('nav — ARIA-tree nav in navMode:row (#240 follow-up 3)', () => {
+  interface Node {
+    id: string
+    label: string
+    children?: Node[]
+  }
+  // Root ─ c1 ─ (g1, g2) , Root ─ c2
+  const TREE: Node[] = [
+    {
+      id: 'root',
+      label: 'Root',
+      children: [
+        { id: 'c1', label: 'C1', children: [{ id: 'g1', label: 'G1' }, { id: 'g2', label: 'G2' }] },
+        { id: 'c2', label: 'C2' },
+      ],
+    },
+  ]
+  // Explicit per-id expansion map (NOT the expand-all sentinel) so collapsing one
+  // node leaves the others expanded — the expand-all `true` demotes to a sparse map
+  // on the first explicit collapse, which would collapse every unlisted node.
+  function mkTree(expanded: Record<string, boolean> = { root: true, c1: true }) {
+    return createTable<Node>({
+      data: TREE,
+      columns: [{ id: 'label', accessorKey: 'label' }],
+      getRowId: (r) => r.id,
+      getSubRows: (r) => r.children,
+      enableExpanding: true,
+      navMode: 'row',
+      initialState: { expanded },
+    })
+  }
+
+  it('ArrowLeft on an EXPANDED node collapses it (does not move)', () => {
+    const t = mkTree()
+    t.nav.focusCell('c1', 'label')
+    expect(t.nav.onKeydown(key('ArrowLeft'))).toBe(true)
+    expect(t.getRow('c1')!.getIsExpanded()).toBe(false)
+    expect(t.nav.active().rowId).toBe('c1') // stayed put
+  })
+
+  it('ArrowLeft on a COLLAPSED node moves focus to its PARENT', () => {
+    const t = mkTree({ root: true, c1: false }) // root open, c1 collapsed
+    expect(t.getRow('c1')!.getIsExpanded()).toBe(false)
+    t.nav.focusCell('c1', 'label')
+    expect(t.nav.onKeydown(key('ArrowLeft'))).toBe(true)
+    expect(t.nav.active().rowId).toBe('root') // moved to parent
+  })
+
+  it('ArrowLeft on a LEAF moves focus to its PARENT', () => {
+    const t = mkTree()
+    t.nav.focusCell('g1', 'label')
+    expect(t.nav.onKeydown(key('ArrowLeft'))).toBe(true)
+    expect(t.nav.active().rowId).toBe('c1') // leaf → parent
+  })
+
+  it('ArrowLeft on a depth-0 collapsed/leaf row with no parent is a no-op (stays put)', () => {
+    const t = mkTree({ root: false }) // root collapsed → only root visible, depth 0, no parent
+    t.nav.focusCell('root', 'label')
+    expect(t.nav.onKeydown(key('ArrowLeft'))).toBe(true)
+    expect(t.nav.active().rowId).toBe('root')
+  })
+
+  it('ArrowRight on a COLLAPSED node expands it (does not move)', () => {
+    const t = mkTree({ root: true, c1: false }) // c1 collapsed, root open
+    expect(t.getRow('c1')!.getIsExpanded()).toBe(false)
+    t.nav.focusCell('c1', 'label')
+    expect(t.nav.onKeydown(key('ArrowRight'))).toBe(true)
+    expect(t.getRow('c1')!.getIsExpanded()).toBe(true)
+    expect(t.nav.active().rowId).toBe('c1') // stayed put
+  })
+
+  it('ArrowRight on an EXPANDED node moves focus to its FIRST CHILD', () => {
+    const t = mkTree() // root + c1 expanded
+    t.nav.focusCell('c1', 'label')
+    expect(t.nav.onKeydown(key('ArrowRight'))).toBe(true)
+    expect(t.nav.active().rowId).toBe('g1') // first child
+  })
+
+  it('ArrowRight on a LEAF is a no-op (no children, cannot expand)', () => {
+    const t = mkTree()
+    t.nav.focusCell('g1', 'label')
+    expect(t.nav.onKeydown(key('ArrowRight'))).toBe(true)
+    expect(t.nav.active().rowId).toBe('g1')
+    expect(t.getRow('g1')!.getCanExpand()).toBe(false)
+  })
+
+  it('Home jumps to the FIRST visible row, End to the LAST visible row', () => {
+    const t = mkTree() // visible: root, c1, g1, g2, c2
+    t.nav.focusCell('g1', 'label')
+    t.nav.onKeydown(key('Home'))
+    expect(t.nav.active().rowId).toBe('root')
+    t.nav.onKeydown(key('End'))
+    expect(t.nav.active().rowId).toBe('c2')
+  })
+})
+
+describe('nav — FLAT table is UNAFFECTED by the ARIA-tree nav change', () => {
+  function mkFlat() {
+    return createTable<Row>({
+      data: ROWS,
+      columns: COLUMNS,
+      getRowId: (r) => r.id,
+      navMode: 'row',
+    })
+  }
+
+  it('ArrowRight / ArrowLeft on a flat row still move across columns (no getCanExpand)', () => {
+    const t = mkFlat()
+    t.nav.focusCell('a', 'name')
+    t.nav.onKeydown(key('ArrowRight'))
+    expect(t.nav.active().columnId).toBe('age') // moved columns, not expand
+    t.nav.onKeydown(key('ArrowLeft'))
+    expect(t.nav.active().columnId).toBe('name')
+    expect(t.nav.active().rowId).toBe('a') // never jumped to a parent
+  })
+
+  it('Home / End on a flat row jump to the column ends (depth-0 leaves, no tree)', () => {
+    const t = mkFlat()
+    t.nav.focusCell('b', 'age')
+    t.nav.onKeydown(key('Home'))
+    expect(t.nav.active().columnId).toBe('name')
+    expect(t.nav.active().rowId).toBe('b') // same row
+    t.nav.onKeydown(key('End'))
+    expect(t.nav.active().columnId).toBe('age')
+    expect(t.nav.active().rowId).toBe('b')
+  })
+})
+
 describe('nav — suspended during edit', () => {
   it('while editing, arrow keys do NOT move the active cell (nav suspended)', () => {
     const table = mk()

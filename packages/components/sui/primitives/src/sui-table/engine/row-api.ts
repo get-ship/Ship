@@ -78,6 +78,46 @@ export interface RowTree<T> {
   parent?: Row<T>
   /** The depth in the tree (top-level = 0). */
   depth: number
+  /** The row's sibling band (its parent's subRows, or the root list at depth 0).
+   *  Late-bound (returns a function) so depth-0 rows can reference the root array
+   *  that is still being built. Drives `getPosInSet`/`getSetSize`. */
+  siblings?: () => Row<T>[]
+}
+
+/**
+ * The leaf-selection tri-state + cascade a BRANCH carries (a regular tree row
+ * with subRows, or a synthetic group row): selection reflects the SELECTABLE
+ * leaf descendants — fully selected when every selectable leaf is selected, tri-state
+ * when some-but-not-all are; toggling cascades to every selectable leaf. One source
+ * of truth shared by `makeRow` (tree branch) and `makeGroupRow` (Feature #7).
+ */
+export function branchSelection<T>(
+  leafRows: () => Row<T>[],
+  bindings: RowBindings<T>,
+): {
+  getIsSelected: () => boolean
+  getIsSomeSelected: () => boolean
+  getCanSelect: () => boolean
+  toggleSelected: (v?: boolean) => void
+} {
+  const selectable = (): Row<T>[] =>
+    leafRows().filter((l) => bindings.selection?.canSelectId(l.id) ?? true)
+  const allSelected = (): boolean => {
+    const sel = selectable()
+    return sel.length > 0 && sel.every((l) => l.getIsSelected())
+  }
+  return {
+    getIsSelected: allSelected,
+    getIsSomeSelected: () => {
+      const sel = selectable()
+      return sel.some((l) => l.getIsSelected()) && !sel.every((l) => l.getIsSelected())
+    },
+    getCanSelect: () => selectable().length > 0,
+    toggleSelected: (v?: boolean) => {
+      const target = v ?? !allSelected()
+      for (const l of selectable()) l.toggleSelected(target)
+    },
+  }
 }
 
 /**
@@ -114,6 +154,29 @@ export function makeRow<T>(
     return out
   }
 
+  // Siblings band — parent's subRows, or the root list (late-bound at depth 0).
+  const siblingsOf = (): Row<T>[] => {
+    const explicit = tree?.siblings?.()
+    if (explicit) return explicit
+    const parent = tree?.parent
+    return parent ? parent.subRows : [row]
+  }
+  const getPosInSet = (): number => {
+    const i = siblingsOf().findIndex((s) => s.id === id)
+    return i < 0 ? 1 : i + 1
+  }
+  const getSetSize = (): number => {
+    const n = siblingsOf().length
+    return n === 0 ? 1 : n
+  }
+
+  // A BRANCH (has subRows) carries the leaf tri-state + cascade; a LEAF keeps the
+  // flat single-row selection contract (no tri-state, direct toggle). `subRows` is
+  // mutated AFTER construction (children push in), so `isBranch` is read lazily at
+  // call time — never captured at build time.
+  const branchSel = branchSelection<T>(collectLeaves, bindings)
+  const isBranch = (): boolean => subRows.length > 0
+
   const row: Row<T> = {
     id,
     index,
@@ -135,12 +198,20 @@ export function makeRow<T>(
       }
       return chain
     },
+    getPosInSet,
+    getSetSize,
     getLeafRows: collectLeaves,
-    getIsSelected: () => bindings.selection?.isSelected(id) ?? false,
-    getIsSomeSelected: () => false,
-    getCanSelect: () => bindings.selection?.canSelectId(id) ?? true,
+    // A branch reflects its leaf descendants (tri-state + cascade); a leaf selects
+    // itself directly through the late-bound selection handle.
+    getIsSelected: () =>
+      isBranch() ? branchSel.getIsSelected() : bindings.selection?.isSelected(id) ?? false,
+    getIsSomeSelected: () => (isBranch() ? branchSel.getIsSomeSelected() : false),
+    getCanSelect: () =>
+      isBranch() ? branchSel.getCanSelect() : bindings.selection?.canSelectId(id) ?? true,
     toggleSelected: (v?: boolean, opts?: { range?: boolean }) =>
-      bindings.selection?.toggleRowSelected(id, v, opts),
+      isBranch()
+        ? branchSel.toggleSelected(v)
+        : bindings.selection?.toggleRowSelected(id, v, opts),
     getIsPinned: () => false,
     pin: () => {},
     getIsGrouped: () => false,
@@ -162,6 +233,10 @@ export interface GroupRowInputs<T> {
   bindings: RowBindings<T>
   /** Per-column aggregate over the leaf rows: colId → aggregated CellValue. */
   aggregate: (colId: string) => CellValue
+  /** The group's sibling band (the sibling group rows at this level). Late-bound
+   *  so the level builder can reference the array still being assembled. Drives
+   *  `getPosInSet`/`getSetSize` for `aria-posinset`/`aria-setsize`. */
+  siblings?: () => Row<T>[]
 }
 
 /**
@@ -176,8 +251,19 @@ export function makeGroupRow<T>(inputs: GroupRowInputs<T>): Row<T> {
   const { groupColId, groupingValue, subRows, leafRows, index, depth, bindings, aggregate } =
     inputs
   const id = `group:${depth}:${groupColId}:${String(groupingValue)}`
-  const selectableLeaves = (): Row<T>[] =>
-    leafRows.filter((l) => bindings.selection?.canSelectId(l.id) ?? true)
+  // The leaf tri-state + cascade — one source of truth shared with tree branches.
+  const sel = branchSelection<T>(() => leafRows, bindings)
+
+  // Siblings band — the sibling group rows at this level (drives posinset/setsize).
+  const siblingsOf = (): Row<T>[] => inputs.siblings?.() ?? [group]
+  const getPosInSet = (): number => {
+    const i = siblingsOf().findIndex((s) => s.id === id)
+    return i < 0 ? 1 : i + 1
+  }
+  const getSetSize = (): number => {
+    const n = siblingsOf().length
+    return n === 0 ? 1 : n
+  }
 
   const group: Row<T> = {
     id,
@@ -193,22 +279,13 @@ export function makeGroupRow<T>(inputs: GroupRowInputs<T>): Row<T> {
     toggleExpanded: (v?: boolean) => bindings.expansion?.toggleExpanded(id, v),
     getParentRow: () => undefined,
     getParentRows: () => [],
+    getPosInSet,
+    getSetSize,
     getLeafRows: () => leafRows,
-    getIsSelected: () => {
-      const sel = selectableLeaves()
-      return sel.length > 0 && sel.every((l) => l.getIsSelected())
-    },
-    getIsSomeSelected: () => {
-      const sel = selectableLeaves()
-      const some = sel.some((l) => l.getIsSelected())
-      return some && !sel.every((l) => l.getIsSelected())
-    },
-    getCanSelect: () => selectableLeaves().length > 0,
-    toggleSelected: (v?: boolean) => {
-      const sel = selectableLeaves()
-      const target = v ?? !(sel.length > 0 && sel.every((l) => l.getIsSelected()))
-      for (const l of sel) l.toggleSelected(target)
-    },
+    getIsSelected: sel.getIsSelected,
+    getIsSomeSelected: sel.getIsSomeSelected,
+    getCanSelect: sel.getCanSelect,
+    toggleSelected: (v?: boolean) => sel.toggleSelected(v),
     getIsPinned: () => false,
     pin: () => {},
     getIsGrouped: () => true,

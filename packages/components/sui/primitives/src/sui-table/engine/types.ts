@@ -210,6 +210,11 @@ export interface Row<T> {
   toggleExpanded: (v?: boolean) => void
   getParentRow: () => Row<T> | undefined
   getParentRows: () => Row<T>[]
+  /** 1-based index of this row among its siblings (its parent's subRows, or the
+   *  root row list at depth 0) — drives `aria-posinset` for a tree/treegrid. */
+  getPosInSet: () => number
+  /** Count of this row's siblings (incl. itself) — drives `aria-setsize`. */
+  getSetSize: () => number
   getLeafRows: () => Row<T>[]
   getIsSelected: () => boolean
   getIsSomeSelected: () => boolean

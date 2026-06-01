@@ -175,6 +175,9 @@ export function buildGroupedRows<T>(
           depth,
           bindings: inputs.bindings,
           aggregate: (cid) => aggregateOver(memberLeaves, cid),
+          // Sibling band = the group rows at THIS level (posinset/setsize). Late-
+          // bound so each group can reference the array still being assembled.
+          siblings: () => out,
         }),
       )
     }

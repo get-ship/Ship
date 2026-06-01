@@ -55,18 +55,30 @@ export function buildCore<T>(inputs: PipelineInputs<T>): CoreModel<T> {
   const accessors = buildAccessors(columns)
   const coreRows = derived<Row<T>[]>(() => {
     if (!getSubRows) {
-      return data().map((original, index) =>
-        makeRow(original, index, getRowId, accessors, bindings),
-      )
+      // Flat rows: every row's sibling band is the full root list (posinset/setsize).
+      const flat: Row<T>[] = []
+      data().forEach((original, index) => {
+        flat.push(
+          makeRow(original, index, getRowId, accessors, bindings, {
+            subRows: [],
+            depth: 0,
+            siblings: () => flat,
+          }),
+        )
+      })
+      return flat
     }
     const build = (records: T[], depth: number, parent?: Row<T>): Row<T>[] => {
       const rows: Row<T>[] = []
       records.forEach((original, index) => {
         const childRecords = getSubRows(original)
+        // Siblings band = the rows array at THIS level (parent's subRows / the root
+        // list). Late-bound so a row can reference the array still being filled.
         const row = makeRow(original, index, getRowId, accessors, bindings, {
           subRows: [],
           ...(parent ? { parent } : {}),
           depth,
+          siblings: () => rows,
         })
         if (childRecords && childRecords.length > 0) {
           row.subRows.push(...build(childRecords, depth + 1, row))

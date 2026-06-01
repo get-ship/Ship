@@ -30,6 +30,7 @@
 // (the `nav` surface), Slice 4.
 
 import { derived, signal, type Derived } from '@ship/sui-runtime'
+import { buildTreeNav } from './nav-tree'
 import type { ColumnApi, Row } from './types'
 
 export type NavMode = 'row' | 'cell'
@@ -199,22 +200,20 @@ export function buildNav<T>(inputs: NavInputs<T>): NavApi {
     }
   }
 
-  /** Tree Right/Left: expand/collapse a collapsible row; else move columns. */
-  function treeArrow(dir: 'left' | 'right'): boolean {
-    const row = activeRow()
-    if (row && row.getCanExpand()) {
-      if (dir === 'right' && !row.getIsExpanded()) {
-        row.toggleExpanded(true)
-        return true
-      }
-      if (dir === 'left' && row.getIsExpanded()) {
-        row.toggleExpanded(false)
-        return true
-      }
-    }
-    move(dir)
-    return true
+  /** Move row focus to a row by id (no-op when the id is not displayed). */
+  function focusRowId(id: string): void {
+    const i = rowIndex(id)
+    if (i >= 0) focusRowAt(i, colIdSig())
   }
+
+  // ARIA-tree row nav (navMode:'row' Left/Right + Home/End) — see `nav-tree.ts`.
+  const tree = buildTreeNav<T>({
+    activeRow,
+    rows,
+    move,
+    focusRowAt: (i) => focusRowAt(i, colIdSig()),
+    focusRowId,
+  })
 
   function onKeydown(e: KeyboardEvent): boolean {
     // Suspended during edit — the input owns the keys (Escape still cancels).
@@ -236,14 +235,19 @@ export function buildNav<T>(inputs: NavInputs<T>): NavApi {
         move('down')
         return true
       case 'ArrowRight':
-        return modeSig() === 'row' ? treeArrow('right') : (move('right'), true)
+        return modeSig() === 'row' ? tree.arrow('right') : (move('right'), true)
       case 'ArrowLeft':
-        return modeSig() === 'row' ? treeArrow('left') : (move('left'), true)
+        return modeSig() === 'row' ? tree.arrow('left') : (move('left'), true)
       case 'Home':
-        move(ctrl ? 'ctrl-home' : 'home')
+        // Row mode + tree row: first VISIBLE row (ARIA-tree). Else column ends.
+        if (!(ctrl === false && modeSig() === 'row' && tree.rowEnd('home'))) {
+          move(ctrl ? 'ctrl-home' : 'home')
+        }
         return true
       case 'End':
-        move(ctrl ? 'ctrl-end' : 'end')
+        if (!(ctrl === false && modeSig() === 'row' && tree.rowEnd('end'))) {
+          move(ctrl ? 'ctrl-end' : 'end')
+        }
         return true
       case 'PageUp':
         move('pageup')
