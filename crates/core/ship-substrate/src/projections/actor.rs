@@ -268,10 +268,12 @@ fn apply_stopped(
     })
 }
 
-#[derive(serde::Deserialize)]
+/// Crash payload. Both fields default so the projection applies whether the
+/// crash was emitted by the supervisor (`{error, restart_count}`) or by the
+/// kernel's lifecycle path (`{actor_id, reason}` — see `handle_actor_crash`).
+#[derive(serde::Deserialize, Default)]
 struct CrashedPayload {
-    #[allow(dead_code)]
-    error: String,
+    #[serde(default)]
     restart_count: u32,
 }
 

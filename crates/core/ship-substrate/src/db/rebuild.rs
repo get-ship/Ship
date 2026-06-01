@@ -8,7 +8,7 @@ use anyhow::Result;
 use std::path::Path;
 use std::time::Instant;
 
-use crate::db::envelope::envelope_from_row;
+use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row};
 use crate::db::{block_on, ensure_db_at, open_db_at};
 use ship_types::envelope::EventEnvelope;
 use crate::projections::{ActorProjection, EventBus, SessionProjection};
@@ -31,10 +31,6 @@ pub fn rebuild_projections(ship_dir: &Path) -> Result<RebuildReport> {
     ensure_db_at(ship_dir)?;
     let db_path = crate::db::platform_db_path(ship_dir);
     let mut conn = open_db_at(&db_path)?;
-
-    const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-        causation_id, scope, scope_key, session_id, \
-        actor_id, parent_actor_id, elevated, created_at, target_actor_id";
 
     let rows = block_on(async {
         sqlx::query(&format!("SELECT {COLS} FROM events ORDER BY id ASC"))
