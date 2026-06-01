@@ -32,9 +32,11 @@ pub mod trash;
 pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
 
 pub use ports::{
-    is_safe_ident, ColumnKind, ColumnSpec, CountQuery, Cursor, DataStore, DataStoreError,
-    FilterOp, KernelLog, Predicate, PrimaryKey, Query, QueryResult, Row, SingleBackendDataStore,
-    Sort, SpaceContext, SpaceId, TableSchema,
+    is_safe_ident, AccountId, BlobBackendConfig, BlobError, BlobHash, BlobScope, BlobStore,
+    ByteStream, ColumnKind, ColumnSpec, CountQuery, Cursor, DataStore, DataStoreError, FilterOp,
+    FsBroker, FsCap, FsError, FsMode, FsRoot, KernelLog, LocalFsBlobStore, LocalFsBroker,
+    Predicate, PrimaryKey, Query, QueryResult, Row, S3BlobStore, SingleBackendDataStore, Sort,
+    SpaceContext, SpaceId, TableSchema,
 };
 
 pub use events::{

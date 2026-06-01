@@ -27,6 +27,9 @@ sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runti
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
 portable-pty = "0.9"
 async-trait = { workspace = true }
+object_store = { version = "0.13", features = ["aws"] }
+bytes = "1"
+futures-util = { workspace = true }
 sha2 = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
