@@ -7,7 +7,7 @@
 // must round-trip through Rust now. This helper is the only test-time
 // bridge between `.sui` source and a mounted DOM tree.
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { initSync, compile as wasmCompile } from '@ship/sui-compiler-wasm'
@@ -25,9 +25,32 @@ function ensureWasm(): void {
   if (wasmReady) return
   const here = dirname(fileURLToPath(import.meta.url))
   const wasmPath = resolve(here, '../../../compiler-wasm/pkg/sui_compiler_bg.wasm')
+  warnIfStale(wasmPath, here)
   const bytes = readFileSync(wasmPath)
   initSync({ module: bytes })
   wasmReady = true
+}
+
+// The wasm pkg embeds the primitives registry at build time. If primitives.json
+// has changed since the pkg was built, the harness validates `.sui` against a
+// stale registry — silently rejecting valid props or accepting removed ones.
+// Warn loudly so the fix (`just sui-wasm`) is obvious rather than mysterious.
+function warnIfStale(wasmPath: string, here: string): void {
+  try {
+    const registry = resolve(here, '../../../../../crates/sui/compiler/primitives.json')
+    const wasmMtime = statSync(wasmPath).mtimeMs
+    const regMtime = statSync(registry).mtimeMs
+    if (regMtime > wasmMtime) {
+      const days = Math.round((regMtime - wasmMtime) / 86_400_000)
+      console.warn(
+        `[sui-compiler-wasm] STALE: primitives.json is newer than the wasm pkg ` +
+          `(~${days}d). The harness is validating against an out-of-date registry. ` +
+          `Run \`just sui-wasm\` to rebuild.`,
+      )
+    }
+  } catch {
+    /* registry not locatable (published pkg / different layout) — skip the check */
+  }
 }
 
 /* ----------------------------- compile API ----------------------------- */
