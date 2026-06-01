@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::time::SystemTime;
 
+use crate::event_registry::{self, EventScope};
+
 thread_local! {
     static ULID_GEN: RefCell<ulid::Generator> = const { RefCell::new(ulid::Generator::new()) };
 }
@@ -32,7 +34,17 @@ pub struct EventEnvelope {
     pub payload_json: String,
     pub version: u32,
     pub causation_id: Option<String>,
-    pub space_id: Option<String>,
+    /// Partition axis this event belongs to. Stamped at `new()` from the
+    /// event-type registry (fail-closed `Device` for unregistered types).
+    /// `#[serde(default)]` so envelopes serialized before the tuple existed
+    /// still decode (→ Device).
+    #[serde(default)]
+    pub scope: EventScope,
+    /// The id within `scope` — Space→space_id, Account→account_id,
+    /// Device→device_id (or None), System→None. Together `(scope, scope_key)`
+    /// is the unified replacement for the loose `space_id: Option<String>`:
+    /// scope and its key always travel together.
+    pub scope_key: Option<String>,
     pub session_id: Option<String>,
     pub actor_id: Option<String>,
     pub parent_actor_id: Option<String>,
@@ -56,7 +68,8 @@ impl EventEnvelope {
             payload_json,
             version: 1,
             causation_id: None,
-            space_id: None,
+            scope: event_registry::scope_for(event_type).unwrap_or(EventScope::Device),
+            scope_key: None,
             session_id: None,
             actor_id: None,
             parent_actor_id: None,
@@ -71,10 +84,37 @@ impl EventEnvelope {
         self
     }
 
+    /// Attach the caller's space context + session. Behavior-preserving shim
+    /// for the legacy `space_id`-keyed call sites: a present key means the event
+    /// belongs to that space, so this stamps `(Space, key)`. A `None` key leaves
+    /// the registry-inferred scope from `new()` untouched. Phase 1/2 replace
+    /// this caller-supplied key with the authoritative substrate scope binding.
     pub fn with_context(mut self, space_id: Option<&str>, session_id: Option<&str>) -> Self {
-        self.space_id = space_id.map(str::to_string);
+        if let Some(key) = space_id {
+            self.scope = EventScope::Space;
+            self.scope_key = Some(key.to_string());
+        }
         self.session_id = session_id.map(str::to_string);
         self
+    }
+
+    /// Set the full `(scope, scope_key)` tuple directly. The explicit form used
+    /// by call sites that know the event's partition (Account/System/Device),
+    /// not only Space.
+    pub fn with_scope(mut self, scope: EventScope, scope_key: Option<&str>) -> Self {
+        self.scope = scope;
+        self.scope_key = scope_key.map(str::to_string);
+        self
+    }
+
+    /// The space id this event belongs to, or `None` when it is not space-scoped.
+    /// The legacy `space_id` accessor expressed over the new tuple — read sites
+    /// that genuinely mean "which space" use this.
+    pub fn space_id(&self) -> Option<&str> {
+        match self.scope {
+            EventScope::Space => self.scope_key.as_deref(),
+            _ => None,
+        }
     }
 
     pub fn with_actor_id(mut self, actor_id: &str) -> Self {

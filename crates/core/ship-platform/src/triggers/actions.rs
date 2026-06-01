@@ -134,7 +134,7 @@ async fn event_emit(
     let emit_ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: envelope.space_id.clone(),
+        space_id: envelope.space_id().map(str::to_string),
         session_id: envelope.session_id.clone(),
     };
     // Inject the hook depth so the engine sees a chain even when events

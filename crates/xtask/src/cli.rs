@@ -241,7 +241,7 @@ fn build_cloud_types(ts: &Typescript, root: &Path) -> String {
         .export(&c)
         .expect("specta-typescript export failed (cloud)");
 
-    let event_types_src = root.join("crates/core/ship-types/src/event_types/mod.rs");
+    let event_types_src = root.join("crates/core/ship-substrate/crates/ship-types/src/event_types/mod.rs");
     let src = std::fs::read_to_string(&event_types_src)
         .unwrap_or_else(|e| panic!("read {}: {e}", event_types_src.display()));
     let mut consts = String::new();
@@ -261,5 +261,5 @@ fn build_cloud_types(ts: &Typescript, root: &Path) -> String {
         ));
     }
 
-    format!("{struct_ts}\n// ── Event-type constants (mirrored from crates/core/ship-types/src/event_types/mod.rs) ──\n\n{consts}")
+    format!("{struct_ts}\n// ── Event-type constants (mirrored from crates/core/ship-substrate/crates/ship-types/src/event_types/mod.rs) ──\n\n{consts}")
 }

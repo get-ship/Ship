@@ -259,7 +259,7 @@ impl ShipRuntime {
         let ctx = EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
-            space_id: envelope.space_id.clone(),
+            space_id: envelope.space_id().map(str::to_string),
             session_id: envelope.session_id.clone(),
         };
         self.kernel

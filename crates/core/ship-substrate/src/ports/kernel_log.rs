@@ -112,8 +112,11 @@ fn matches_filter(env: &EventEnvelope, filter: &EventFilter) -> bool {
     if let Some(ref et) = filter.event_type {
         if env.event_type != *et { return false; }
     }
-    if let Some(ref sid) = filter.space_id {
-        if env.space_id.as_deref() != Some(sid.as_str()) { return false; }
+    if let Some(ref scope) = filter.scope {
+        if env.scope.as_str() != scope.as_str() { return false; }
+    }
+    if let Some(ref key) = filter.scope_key {
+        if env.scope_key.as_deref() != Some(key.as_str()) { return false; }
     }
     if let Some(ref sess) = filter.session_id {
         if env.session_id.as_deref() != Some(sess.as_str()) { return false; }

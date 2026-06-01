@@ -9,15 +9,58 @@
 //! `EventScope` (not `Scope`) avoids collision with `ship_types::scope::Scope`
 //! (the authoring-scope enum for vector directories).
 
-/// Which log the event rides → what it syncs with.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Which partition the event rides → which `(scope, scope_key)` it belongs to
+/// on the envelope, and what it syncs with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(rename_all = "snake_case")]
 pub enum EventScope {
     /// Event is local to the device; never synced to the account or space log.
+    /// `scope_key` = the device id (or None when device-global). Fail-closed
+    /// default for unregistered/legacy events.
+    #[default]
     Device,
     /// Event belongs to the user's account; synced across devices.
+    /// `scope_key` = the account id.
     Account,
     /// Event belongs to a specific space (project); replayed during space restoration.
+    /// `scope_key` = the space id.
     Space,
+    /// Event belongs to the daemon/platform as a whole — not to any one device,
+    /// account, or space. Absorbs the events that were previously mis-scoped to
+    /// Device or routed as the hardcoded `"global"` key. `scope_key` = None.
+    System,
+}
+
+impl EventScope {
+    /// Stable lowercase wire/storage form. Persisted in the `events.scope`
+    /// column and carried on the serialized envelope.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            EventScope::Device => "device",
+            EventScope::Account => "account",
+            EventScope::Space => "space",
+            EventScope::System => "system",
+        }
+    }
+
+    /// Parse the storage/wire form back to a variant. Returns `None` for any
+    /// unrecognized string (callers decide the fail-closed default).
+    pub fn from_storage(s: &str) -> Option<Self> {
+        match s {
+            "device" => Some(EventScope::Device),
+            "account" => Some(EventScope::Account),
+            "space" => Some(EventScope::Space),
+            "system" => Some(EventScope::System),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for EventScope {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 /// Whether the event is kept in full history or windowed/dropped.
@@ -77,6 +120,14 @@ pub fn registry() -> impl Iterator<Item = &'static EventDef> {
 /// Look up a single event by name.
 pub fn lookup(name: &str) -> Option<&'static EventDef> {
     registry().find(|d| d.name == name)
+}
+
+/// Resolve the partition scope for an event type from the registry. Returns
+/// `None` when the type is unregistered (ad-hoc / test events); callers apply
+/// the fail-closed default. This is the source consulted by
+/// `EventEnvelope::new` to stamp the envelope's `scope`.
+pub fn scope_for(name: &str) -> Option<EventScope> {
+    lookup(name).map(|d| d.scope)
 }
 
 /// Returns all event names in the registry (sorted for stable output).

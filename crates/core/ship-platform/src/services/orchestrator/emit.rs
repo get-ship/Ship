@@ -351,7 +351,7 @@ pub async fn persist_and_route(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: envelope.space_id.clone(),
+        space_id: envelope.space_id().map(str::to_string),
         session_id: envelope.session_id.clone(),
     };
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {

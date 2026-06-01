@@ -18,7 +18,7 @@ use ship_types::envelope::EventEnvelope;
 use crate::events::EventFilter;
 
 const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-    causation_id, space_id, session_id, \
+    causation_id, scope, scope_key, session_id, \
     actor_id, parent_actor_id, elevated, created_at, target_actor_id";
 
 /// A scoped event handle bound to a single actor's SQLite DB.
@@ -155,8 +155,11 @@ fn query_db(db_path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>> 
     if let Some(ref v) = filter.event_type {
         qb.push(" AND event_type = ").push_bind(v.clone());
     }
-    if let Some(ref v) = filter.space_id {
-        qb.push(" AND space_id = ").push_bind(v.clone());
+    if let Some(ref v) = filter.scope {
+        qb.push(" AND scope = ").push_bind(v.clone());
+    }
+    if let Some(ref v) = filter.scope_key {
+        qb.push(" AND scope_key = ").push_bind(v.clone());
     }
     if let Some(ref v) = filter.session_id {
         qb.push(" AND session_id = ").push_bind(v.clone());

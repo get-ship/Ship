@@ -5,7 +5,12 @@ use specta::Type;
 pub struct EventFilter {
     pub entity_id: Option<String>,
     pub event_type: Option<String>,
-    pub space_id: Option<String>,
+    /// Partition axis to filter on (storage form: `device`/`account`/`space`/
+    /// `system`). `None` matches any scope.
+    pub scope: Option<String>,
+    /// The id within `scope` — the unified replacement for the old `space_id`
+    /// filter field. `None` matches any key.
+    pub scope_key: Option<String>,
     pub session_id: Option<String>,
     pub actor_id: Option<String>,
     pub parent_actor_id: Option<String>,

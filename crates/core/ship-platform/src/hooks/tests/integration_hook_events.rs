@@ -26,8 +26,8 @@ fn hooks_hook_events_session_start_actor_and_workspace_wired() {
     assert_eq!(event.event_type, event_types::SESSION_STARTED);
     assert_eq!(event.actor_id.as_deref(), Some("actor-a"),
         "actor_id must match the actor argument");
-    assert_eq!(event.space_id.as_deref(), Some("ws-a"),
-        "space_id must match the workspace_id argument");
+    assert_eq!(event.space_id(), Some("ws-a"),
+        "scope_key must match the workspace_id argument");
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn hooks_hook_events_session_end_actor_and_workspace_wired() {
         .expect("handle_session_end must succeed");
     assert_eq!(event.event_type, event_types::SESSION_ENDED);
     assert_eq!(event.actor_id.as_deref(), Some("actor-b"));
-    assert_eq!(event.space_id.as_deref(), Some("ws-b"));
+    assert_eq!(event.space_id(), Some("ws-b"));
 }
 
 #[test]
@@ -56,8 +56,8 @@ fn hooks_hook_events_session_start_workspace_survives_different_actors() {
     // Verify that the workspace_id arg is threaded correctly regardless of actor.
     let e1 = handle_session_start("actor-x", "shared-ws").unwrap();
     let e2 = handle_session_start("actor-y", "shared-ws").unwrap();
-    assert_eq!(e1.space_id, e2.space_id,
-        "both actors in the same workspace should produce the same space_id");
+    assert_eq!(e1.space_id(), e2.space_id(),
+        "both actors in the same workspace should produce the same scope_key");
     assert_ne!(e1.actor_id, e2.actor_id,
         "different actors must produce different actor_ids");
 }
@@ -126,7 +126,7 @@ fn hooks_hook_events_before_tool_actor_and_workspace_wired() {
     let json = r#"{"tool_name":"mcp__ship__sync","hook_event_name":"PreToolUse"}"#;
     let env = handle_before_tool(json, "my-actor", "my-ws").unwrap().unwrap();
     assert_eq!(env.actor_id.as_deref(), Some("my-actor"));
-    assert_eq!(env.space_id.as_deref(), Some("my-ws"));
+    assert_eq!(env.space_id(), Some("my-ws"));
 }
 
 #[test]

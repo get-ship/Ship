@@ -200,7 +200,7 @@ fn load_processes_from_conn(
     use crate::db::envelope::envelope_from_row;
 
     const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-        causation_id, space_id, session_id, \
+        causation_id, scope, scope_key, session_id, \
         actor_id, parent_actor_id, elevated, created_at";
 
     let rows = block_on(async {

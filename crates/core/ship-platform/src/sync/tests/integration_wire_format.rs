@@ -26,7 +26,8 @@ fn elevated_envelope(id: &str, event_type: &str) -> EventEnvelope {
         payload_json: r#"{"k":"v"}"#.to_string(),
         version: 1,
         causation_id: None,
-        space_id: Some("sp-wire-test".to_string()),
+        scope: ship_substrate::events::EventScope::Space,
+        scope_key: Some("sp-wire-test".to_string()),
         session_id: None,
         actor_id: None,
         parent_actor_id: None,
@@ -58,18 +59,18 @@ fn sync_wire_format_push_request_no_top_level_space_id() {
 }
 
 #[test]
-fn sync_wire_format_push_request_space_id_in_envelope_not_duplicated() {
-    // space_id appears exactly once per event (inside the EventEnvelope),
-    // not at the PushRequest wrapper level.
+fn sync_wire_format_push_request_scope_key_in_envelope_not_duplicated() {
+    // The partition key appears exactly once per event (inside the
+    // EventEnvelope), not at the PushRequest wrapper level.
     let events = vec![elevated_envelope("01JAA", "workspace.created")];
     let req = PushRequest { events };
     let json_str = serde_json::to_string(&req).unwrap();
 
     // Should appear exactly once (inside the envelope object).
-    let count = json_str.matches("\"space_id\"").count();
+    let count = json_str.matches("\"scope_key\"").count();
     assert_eq!(
         count, 1,
-        "\"space_id\" must appear exactly once in the serialised PushRequest (inside the envelope, not duplicated); json: {json_str}"
+        "\"scope_key\" must appear exactly once in the serialised PushRequest (inside the envelope, not duplicated); json: {json_str}"
     );
 }
 
@@ -221,7 +222,8 @@ fn sync_wire_format_pull_response_preserves_all_envelope_fields() {
             "payload_json": "{\"archived\":true}",
             "version": 3,
             "causation_id": "01JPREV",
-            "space_id": "sp-preserve",
+            "scope": "space",
+            "scope_key": "sp-preserve",
             "session_id": "sess-1",
             "actor_id": "actor-1",
             "parent_actor_id": "parent-1",
@@ -241,7 +243,8 @@ fn sync_wire_format_pull_response_preserves_all_envelope_fields() {
     assert_eq!(env.entity_id, "ws-preserve");
     assert_eq!(env.version, 3);
     assert_eq!(env.causation_id.as_deref(), Some("01JPREV"));
-    assert_eq!(env.space_id.as_deref(), Some("sp-preserve"));
+    assert_eq!(env.space_id(), Some("sp-preserve"));
+    assert_eq!(env.scope, ship_substrate::events::EventScope::Space);
     assert_eq!(env.session_id.as_deref(), Some("sess-1"));
     assert_eq!(env.actor_id.as_deref(), Some("actor-1"));
     assert_eq!(env.parent_actor_id.as_deref(), Some("parent-1"));

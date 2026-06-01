@@ -14,9 +14,9 @@ use crate::events::types::SessionStarted;
 const EVENT_INSERT: &str =
     "INSERT INTO events \
      (id, event_type, entity_id, actor, payload_json, version, \
-      causation_id, space_id, session_id, \
+      causation_id, scope, scope_key, session_id, \
       actor_id, parent_actor_id, elevated, created_at) \
-     VALUES (?, ?, ?, 'ship', ?, 1, NULL, ?, ?, ?, ?, ?, ?)";
+     VALUES (?, ?, ?, 'ship', ?, 1, NULL, 'space', ?, ?, ?, ?, ?, ?)";
 
 /// Emit only a `session.started` event (no session row write).
 ///
