@@ -11,7 +11,7 @@ const LINE_LIMIT: usize = 400;
 
 #[test]
 fn adapters_module_under_line_limit() {
-    let lines = include_str!("../../../../crates/core/ship-supervisor/src/adapters.rs").lines().count();
+    let lines = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/adapters.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "adapters.rs has {lines} lines (limit {LINE_LIMIT})"
@@ -38,7 +38,7 @@ fn dispatch_replay_under_line_limit() {
 
 #[test]
 fn supervisor_lib_under_line_limit() {
-    let lines = include_str!("../../../../crates/core/ship-supervisor/src/lib.rs").lines().count();
+    let lines = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/lib.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "ship-supervisor/src/lib.rs has {lines} lines (limit {LINE_LIMIT})"
@@ -58,7 +58,7 @@ fn dispatch_handlers_under_line_limit() {
 
 #[test]
 fn helpers_under_line_limit() {
-    let lines = include_str!("../../../../crates/core/ship-supervisor/src/helpers.rs").lines().count();
+    let lines = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/helpers.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "helpers.rs has {lines} lines (limit {LINE_LIMIT})"
@@ -67,7 +67,7 @@ fn helpers_under_line_limit() {
 
 #[test]
 fn run_dispatch_under_line_limit() {
-    let lines = include_str!("../../../../crates/core/ship-supervisor/src/run_dispatch.rs").lines().count();
+    let lines = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/run_dispatch.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "run_dispatch.rs has {lines} lines (limit {LINE_LIMIT})"
@@ -78,7 +78,7 @@ fn run_dispatch_under_line_limit() {
 
 #[test]
 fn executors_mod_under_line_limit() {
-    let lines = include_str!("../../../../crates/core/ship-supervisor/src/executors/mod.rs").lines().count();
+    let lines = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/executors/mod.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "executors/mod.rs has {lines} lines (limit {LINE_LIMIT})"
@@ -98,7 +98,7 @@ fn pipeline_loader_under_line_limit() {
 
 #[test]
 fn agent_lifecycle_under_line_limit() {
-    let lines = include_str!("../../../../crates/core/ship-supervisor/src/agent_lifecycle.rs").lines().count();
+    let lines = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/agent_lifecycle.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "agent_lifecycle.rs has {lines} lines (limit {LINE_LIMIT})"
@@ -118,7 +118,7 @@ fn pending_dispatch_under_line_limit() {
 
 #[test]
 fn orphan_cleanup_under_line_limit() {
-    let lines = include_str!("../../../../crates/core/ship-supervisor/src/orphan_cleanup.rs").lines().count();
+    let lines = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/orphan_cleanup.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "orphan_cleanup.rs has {lines} lines (limit {LINE_LIMIT})"
