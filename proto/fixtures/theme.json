@@ -1,11 +1,17 @@
 {
-  "_theme": "A single coherent demo Ship workspace — the 'harbor' project mid-feature on branch feat/checkout-flow, worked by agents rust-lane and code-reviewer. Every op fixture below draws from this ONE world so cross-references line up (the git author is an agent that exists; the staged file is the rule-governed checkout service). SSOT for example VALUES; the proto messages are SSOT for SHAPE — gen-fixtures decodes each value into its connectrpc type to validate, then emits proto/fixtures/<service>.json. Realistic enough for design handoffs, valid enough for contract tests, seed corpus for fuzzing.",
+  "_theme": "A single coherent demo Ship workspace \u2014 the 'harbor' project mid-feature on branch feat/checkout-flow, worked by agents rust-lane and code-reviewer. Every op fixture below draws from this ONE world so cross-references line up (the git author is an agent that exists; the staged file is the rule-governed checkout service). SSOT for example VALUES; the proto messages are SSOT for SHAPE \u2014 gen-fixtures decodes each value into its connectrpc type to validate, then emits proto/fixtures/<service>.json. Realistic enough for design handoffs, valid enough for contract tests, seed corpus for fuzzing.",
   "_authoring": "Add an entry under responses keyed by the dotted op name. Run `cargo run -p xtask -- gen-fixtures`. If the value drifts from the proto message, gen-fixtures fails with the field that broke.",
   "responses": {
     "agents.list": {
       "items": [
-        { "id": "rust-lane", "scope": "project" },
-        { "id": "code-reviewer", "scope": "project" }
+        {
+          "id": "rust-lane",
+          "scope": "project"
+        },
+        {
+          "id": "code-reviewer",
+          "scope": "project"
+        }
       ]
     },
     "agents.summaries": {
@@ -13,13 +19,15 @@
         {
           "id": "rust-lane",
           "name": "Rust Lane",
-          "description": "Full Rust implementation lane — compiler, runtime, MCP server.",
+          "description": "Full Rust implementation lane \u2014 compiler, runtime, MCP server.",
           "skills_count": 2,
           "mcp_count": 1,
           "rules_count": 4,
           "letter": "R",
           "source": "project",
-          "tags": ["implementation"],
+          "tags": [
+            "implementation"
+          ],
           "active": true
         },
         {
@@ -31,7 +39,10 @@
           "rules_count": 2,
           "letter": "C",
           "source": "project",
-          "tags": ["review", "workflow"],
+          "tags": [
+            "review",
+            "workflow"
+          ],
           "active": false
         }
       ]
@@ -39,21 +50,39 @@
     "agents.detail": {
       "id": "rust-lane",
       "name": "Rust Lane",
-      "description": "Full Rust implementation lane — compiler, runtime, MCP server.",
+      "description": "Full Rust implementation lane \u2014 compiler, runtime, MCP server.",
       "letter": "R",
       "icon": "hammer",
       "version": "1.0.0",
-      "tags": ["implementation"],
-      "skills": ["run", "verify"],
-      "mcp_servers": ["ship"],
-      "rules": ["no-placeholders", "test-first", "commit-style"],
+      "tags": [
+        "implementation"
+      ],
+      "skills": [
+        "run",
+        "verify"
+      ],
+      "mcp_servers": [
+        "ship"
+      ],
+      "rules": [
+        "no-placeholders",
+        "test-first",
+        "commit-style"
+      ],
       "inline_rules": "Prefer minimal diffs. Test first.",
       "permissions_tier": "standard",
       "permissions": {
         "preset": "standard",
-        "tools_allow": ["Bash(cargo *)", "Bash(just *)"],
-        "tools_ask": ["Bash(git push*)"],
-        "tools_deny": ["Bash(rm -rf *)"]
+        "tools_allow": [
+          "Bash(cargo *)",
+          "Bash(just *)"
+        ],
+        "tools_ask": [
+          "Bash(git push*)"
+        ],
+        "tools_deny": [
+          "Bash(rm -rf *)"
+        ]
       },
       "source": "project"
     },
@@ -65,7 +94,10 @@
           "description": "Full implementation lane for a feature or fix.",
           "letter": "I",
           "hue": "blue",
-          "skill_ids": ["run", "verify"],
+          "skill_ids": [
+            "run",
+            "verify"
+          ],
           "permission_preset": "standard"
         },
         {
@@ -74,28 +106,67 @@
           "description": "Reviews diffs and surfaces correctness issues.",
           "letter": "R",
           "hue": "green",
-          "skill_ids": ["code-review"],
+          "skill_ids": [
+            "code-review"
+          ],
           "permission_preset": "readonly"
         }
       ]
     },
     "agents.permission_presets": {
       "items": [
-        { "id": "standard", "label": "Standard", "description": "Read + write within the workspace." },
-        { "id": "readonly", "label": "Read-only", "description": "Read access only — no writes." },
-        { "id": "elevated", "label": "Elevated", "description": "Includes network and system calls." }
+        {
+          "id": "standard",
+          "label": "Standard",
+          "description": "Read + write within the workspace."
+        },
+        {
+          "id": "readonly",
+          "label": "Read-only",
+          "description": "Read access only \u2014 no writes."
+        },
+        {
+          "id": "elevated",
+          "label": "Elevated",
+          "description": "Includes network and system calls."
+        }
       ]
     },
     "agents.harnesses": {
-      "items": ["claude", "claude-code", "shell"]
+      "items": [
+        "claude",
+        "claude-code",
+        "shell"
+      ]
     },
-    "agents.create": { "id": "rust-lane", "scope": "project" },
-    "agents.put": { "id": "rust-lane", "scope": "project" },
-    "agents.patch": { "id": "rust-lane", "scope": "project" },
-    "agents.delete": { "id": "code-reviewer", "scope": "project" },
-    "agents.rename": { "id": "rust-lane-v2", "scope": "project" },
-    "agents.duplicate": { "id": "rust-lane-copy", "scope": "project" },
-    "agents.move_scope": { "id": "rust-lane", "scope": "user" },
+    "agents.create": {
+      "id": "rust-lane",
+      "scope": "project"
+    },
+    "agents.put": {
+      "id": "rust-lane",
+      "scope": "project"
+    },
+    "agents.patch": {
+      "id": "rust-lane",
+      "scope": "project"
+    },
+    "agents.delete": {
+      "id": "code-reviewer",
+      "scope": "project"
+    },
+    "agents.rename": {
+      "id": "rust-lane-v2",
+      "scope": "project"
+    },
+    "agents.duplicate": {
+      "id": "rust-lane-copy",
+      "scope": "project"
+    },
+    "agents.move_scope": {
+      "id": "rust-lane",
+      "scope": "user"
+    },
     "analytics.list_sessions": {
       "sessions": [
         {
@@ -140,10 +211,30 @@
     },
     "analytics.tool_usage": {
       "tools": [
-        { "tool": "Bash", "calls": 28, "errors": 1, "avg_duration_ms": 340 },
-        { "tool": "Read", "calls": 12, "errors": 0, "avg_duration_ms": 45 },
-        { "tool": "Edit", "calls": 7, "errors": 0, "avg_duration_ms": 60 },
-        { "tool": "Write", "calls": 3, "errors": 0, "avg_duration_ms": 50 }
+        {
+          "tool": "Bash",
+          "calls": 28,
+          "errors": 1,
+          "avg_duration_ms": 340
+        },
+        {
+          "tool": "Read",
+          "calls": 12,
+          "errors": 0,
+          "avg_duration_ms": 45
+        },
+        {
+          "tool": "Edit",
+          "calls": 7,
+          "errors": 0,
+          "avg_duration_ms": 60
+        },
+        {
+          "tool": "Write",
+          "calls": 3,
+          "errors": 0,
+          "avg_duration_ms": 50
+        }
       ]
     },
     "analytics.session_turns": {
@@ -198,6 +289,16 @@
       "count": 1,
       "scope": "project"
     },
+    "artifacts.watch": {
+      "patches": {
+        "patches": [
+          {
+            "op": "PATCH_OP_SET",
+            "value": "eyJpdGVtcyI6W119"
+          }
+        ]
+      }
+    },
     "artifacts.patch": {
       "id": "artifact-checkout-audit",
       "name": "checkout-audit-v2.md",
@@ -222,7 +323,10 @@
       "owner_actor": "actor-rust-lane-harbor",
       "created_at": "2026-05-24T18:30:00Z"
     },
-    "artifacts.delete": { "id": "artifact-checkout-audit", "deleted": true },
+    "artifacts.delete": {
+      "id": "artifact-checkout-audit",
+      "deleted": true
+    },
     "chat.state": {
       "workspace_id": "harbor",
       "messages": [
@@ -237,7 +341,7 @@
         {
           "id": "msg-002",
           "sender": "rust-lane",
-          "content": "Done — checkout.rs added, router updated, contract test written.",
+          "content": "Done \u2014 checkout.rs added, router updated, contract test written.",
           "timestamp": "2026-05-24T18:30:00Z",
           "event_type": "chat.message",
           "workspace_id": "harbor"
@@ -261,7 +365,10 @@
       "created_at": "2026-05-24T18:35:00Z",
       "updated_at": "2026-05-24T19:00:00Z"
     },
-    "collections.delete_item": { "id": "note-checkout-notes", "deleted": true },
+    "collections.delete_item": {
+      "id": "note-checkout-notes",
+      "deleted": true
+    },
     "events.list": {
       "groups": [
         {
@@ -302,32 +409,85 @@
           ]
         }
       ],
-      "types": ["workspace.session_started", "workspace.file_changed", "workspace.session_ended"],
-      "actors": ["rust-lane", "code-reviewer"]
+      "types": [
+        "workspace.session_started",
+        "workspace.file_changed",
+        "workspace.session_ended"
+      ],
+      "actors": [
+        "rust-lane",
+        "code-reviewer"
+      ]
     },
     "git.status": {
       "clean": false,
       "total": 3,
       "staged": [
-        { "path": "crates/core/ship-platform/src/services/checkout.rs", "basename": "checkout.rs", "status": "A", "tone": "added", "label": "new file" }
+        {
+          "path": "crates/core/ship-platform/src/services/checkout.rs",
+          "basename": "checkout.rs",
+          "status": "A",
+          "tone": "added",
+          "label": "new file"
+        }
       ],
       "modified": [
-        { "path": "apps/shipd/src/router.rs", "basename": "router.rs", "status": "M", "tone": "modified", "label": "modified" }
+        {
+          "path": "apps/shipd/src/router.rs",
+          "basename": "router.rs",
+          "status": "M",
+          "tone": "modified",
+          "label": "modified"
+        }
       ],
       "untracked": [
-        { "path": ".artifacts/checkout-notes.md", "basename": "checkout-notes.md", "status": "?", "tone": "untracked", "label": "untracked" }
+        {
+          "path": ".artifacts/checkout-notes.md",
+          "basename": "checkout-notes.md",
+          "status": "?",
+          "tone": "untracked",
+          "label": "untracked"
+        }
       ]
     },
     "git.log": {
       "commits": [
-        { "sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678", "short_sha": "a1b2c3d", "author": "rust-lane", "date": "2026-05-24T18:30:00Z", "subject": "feat(checkout): scaffold the checkout service", "additions": 142, "deletions": 8 },
-        { "sha": "f4e5d6c7b8a90123456789abcdef0123456789ab", "short_sha": "f4e5d6c", "author": "code-reviewer", "date": "2026-05-24T16:05:00Z", "subject": "test(checkout): lock the happy-path contract", "additions": 67, "deletions": 0 }
+        {
+          "sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+          "short_sha": "a1b2c3d",
+          "author": "rust-lane",
+          "date": "2026-05-24T18:30:00Z",
+          "subject": "feat(checkout): scaffold the checkout service",
+          "additions": 142,
+          "deletions": 8
+        },
+        {
+          "sha": "f4e5d6c7b8a90123456789abcdef0123456789ab",
+          "short_sha": "f4e5d6c",
+          "author": "code-reviewer",
+          "date": "2026-05-24T16:05:00Z",
+          "subject": "test(checkout): lock the happy-path contract",
+          "additions": 67,
+          "deletions": 0
+        }
       ]
     },
     "git.branches": {
       "branches": [
-        { "name": "feat/checkout-flow", "active": true, "upstream": "origin/feat/checkout-flow", "ahead": 2, "behind": 0 },
-        { "name": "main", "active": false, "upstream": "origin/main", "ahead": 0, "behind": 2 }
+        {
+          "name": "feat/checkout-flow",
+          "active": true,
+          "upstream": "origin/feat/checkout-flow",
+          "ahead": 2,
+          "behind": 0
+        },
+        {
+          "name": "main",
+          "active": false,
+          "upstream": "origin/main",
+          "ahead": 0,
+          "behind": 2
+        }
       ],
       "ahead": 2,
       "behind": 0
@@ -339,19 +499,51 @@
       "clean": false,
       "total_changed": 3,
       "staged": [
-        { "path": "crates/core/ship-platform/src/services/checkout.rs", "basename": "checkout.rs", "status": "A", "tone": "added", "label": "new file" }
+        {
+          "path": "crates/core/ship-platform/src/services/checkout.rs",
+          "basename": "checkout.rs",
+          "status": "A",
+          "tone": "added",
+          "label": "new file"
+        }
       ],
       "modified": [
-        { "path": "apps/shipd/src/router.rs", "basename": "router.rs", "status": "M", "tone": "modified", "label": "modified" }
+        {
+          "path": "apps/shipd/src/router.rs",
+          "basename": "router.rs",
+          "status": "M",
+          "tone": "modified",
+          "label": "modified"
+        }
       ],
       "untracked": [
-        { "path": ".artifacts/checkout-notes.md", "basename": "checkout-notes.md", "status": "?", "tone": "untracked", "label": "untracked" }
+        {
+          "path": ".artifacts/checkout-notes.md",
+          "basename": "checkout-notes.md",
+          "status": "?",
+          "tone": "untracked",
+          "label": "untracked"
+        }
       ],
       "commits": [
-        { "sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678", "short_sha": "a1b2c3d", "author": "rust-lane", "date": "2026-05-24T18:30:00Z", "subject": "feat(checkout): scaffold the checkout service", "additions": 142, "deletions": 8 }
+        {
+          "sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+          "short_sha": "a1b2c3d",
+          "author": "rust-lane",
+          "date": "2026-05-24T18:30:00Z",
+          "subject": "feat(checkout): scaffold the checkout service",
+          "additions": 142,
+          "deletions": 8
+        }
       ],
       "branches": [
-        { "name": "feat/checkout-flow", "active": true, "upstream": "origin/feat/checkout-flow", "ahead": 2, "behind": 0 }
+        {
+          "name": "feat/checkout-flow",
+          "active": true,
+          "upstream": "origin/feat/checkout-flow",
+          "ahead": 2,
+          "behind": 0
+        }
       ],
       "ahead": 2,
       "behind": 0
@@ -371,9 +563,21 @@
               {
                 "header": "@@ -0,0 +1,3 @@",
                 "lines": [
-                  { "kind": "add", "content": "pub struct CheckoutService;", "new_num": 1 },
-                  { "kind": "add", "content": "", "new_num": 2 },
-                  { "kind": "add", "content": "impl CheckoutService {}", "new_num": 3 }
+                  {
+                    "kind": "add",
+                    "content": "pub struct CheckoutService;",
+                    "new_num": 1
+                  },
+                  {
+                    "kind": "add",
+                    "content": "",
+                    "new_num": 2
+                  },
+                  {
+                    "kind": "add",
+                    "content": "impl CheckoutService {}",
+                    "new_num": 3
+                  }
                 ]
               }
             ]
@@ -385,46 +589,115 @@
     },
     "mcp.list": {
       "items": [
-        { "id": "ship", "scope": "project" },
-        { "id": "filesystem", "scope": "user" }
+        {
+          "id": "ship",
+          "scope": "project"
+        },
+        {
+          "id": "filesystem",
+          "scope": "user"
+        }
       ]
     },
-    "mcp.create": { "id": "ship", "scope": "project" },
-    "mcp.put": { "id": "ship", "scope": "project" },
-    "mcp.patch": { "id": "ship", "scope": "project" },
-    "mcp.delete": { "id": "filesystem", "scope": "user" },
+    "mcp.create": {
+      "id": "ship",
+      "scope": "project"
+    },
+    "mcp.put": {
+      "id": "ship",
+      "scope": "project"
+    },
+    "mcp.patch": {
+      "id": "ship",
+      "scope": "project"
+    },
+    "mcp.delete": {
+      "id": "filesystem",
+      "scope": "user"
+    },
     "ops.meta": {
       "version": "0.1.0",
       "build": "a1b2c3d"
     },
     "permissions.list": {
       "items": [
-        { "id": "allow-bash-read", "scope": "project" },
-        { "id": "allow-read", "scope": "project" },
-        { "id": "deny-rm-rf", "scope": "project" }
+        {
+          "id": "allow-bash-read",
+          "scope": "project"
+        },
+        {
+          "id": "allow-read",
+          "scope": "project"
+        },
+        {
+          "id": "deny-rm-rf",
+          "scope": "project"
+        }
       ]
     },
     "permissions.tool_patterns": {
       "patterns": [
-        { "pattern": "Bash(cargo *)", "label": "cargo commands", "source": "builtin" },
-        { "pattern": "Bash(just *)", "label": "just commands", "source": "builtin" },
-        { "pattern": "Read", "label": "file reads", "source": "builtin" },
-        { "pattern": "Edit", "label": "file edits", "source": "builtin" }
+        {
+          "pattern": "Bash(cargo *)",
+          "label": "cargo commands",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Bash(just *)",
+          "label": "just commands",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Read",
+          "label": "file reads",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Edit",
+          "label": "file edits",
+          "source": "builtin"
+        }
       ]
     },
-    "permissions.create": { "id": "allow-bash-read", "scope": "project" },
-    "permissions.put": { "id": "allow-bash-read", "scope": "project" },
-    "permissions.patch": { "id": "allow-bash-read", "scope": "project" },
-    "permissions.delete": { "id": "deny-rm-rf", "scope": "project" },
+    "permissions.create": {
+      "id": "allow-bash-read",
+      "scope": "project"
+    },
+    "permissions.put": {
+      "id": "allow-bash-read",
+      "scope": "project"
+    },
+    "permissions.patch": {
+      "id": "allow-bash-read",
+      "scope": "project"
+    },
+    "permissions.delete": {
+      "id": "deny-rm-rf",
+      "scope": "project"
+    },
     "pipelines.list": {
       "items": [
-        { "id": "ship-feature", "scope": "project" }
+        {
+          "id": "ship-feature",
+          "scope": "project"
+        }
       ]
     },
-    "pipelines.put": { "id": "ship-feature", "scope": "project" },
-    "pipelines.patch": { "id": "ship-feature", "scope": "project" },
-    "pipelines.delete": { "id": "ship-feature", "scope": "project" },
-    "space.active": { "id": "harbor" },
+    "pipelines.put": {
+      "id": "ship-feature",
+      "scope": "project"
+    },
+    "pipelines.patch": {
+      "id": "ship-feature",
+      "scope": "project"
+    },
+    "pipelines.delete": {
+      "id": "ship-feature",
+      "scope": "project"
+    },
+    "space.active": {
+      "id": "harbor"
+    },
     "space.add": {
       "id": "harbor",
       "path": "/home/dev/harbor",
@@ -434,9 +707,18 @@
     },
     "rules.list": {
       "items": [
-        { "id": "no-placeholders", "scope": "project" },
-        { "id": "test-first", "scope": "project" },
-        { "id": "commit-style", "scope": "user" }
+        {
+          "id": "no-placeholders",
+          "scope": "project"
+        },
+        {
+          "id": "test-first",
+          "scope": "project"
+        },
+        {
+          "id": "commit-style",
+          "scope": "user"
+        }
       ]
     },
     "rules.get": {
@@ -444,9 +726,18 @@
       "scope": "project",
       "body": "# No placeholders\n\nNo TODOs, no fake data. If it's not finished, remove it. The next agent treats your scaffold as architecture.\n"
     },
-    "rules.create": { "id": "no-placeholders", "scope": "project" },
-    "rules.put": { "id": "test-first", "scope": "project" },
-    "rules.delete": { "id": "commit-style", "scope": "user" },
+    "rules.create": {
+      "id": "no-placeholders",
+      "scope": "project"
+    },
+    "rules.put": {
+      "id": "test-first",
+      "scope": "project"
+    },
+    "rules.delete": {
+      "id": "commit-style",
+      "scope": "user"
+    },
     "runtime.list_procs": {
       "processes": [
         {
@@ -488,9 +779,18 @@
     },
     "skills.list": {
       "items": [
-        { "id": "code-review", "scope": "project" },
-        { "id": "run", "scope": "project" },
-        { "id": "verify", "scope": "user" }
+        {
+          "id": "code-review",
+          "scope": "project"
+        },
+        {
+          "id": "run",
+          "scope": "project"
+        },
+        {
+          "id": "verify",
+          "scope": "user"
+        }
       ]
     },
     "skills.file": {
@@ -499,15 +799,42 @@
       "ext": "md",
       "content": "# Code Review\n\nReview a unified diff for correctness, security, and architecture drift."
     },
-    "skills.create": { "id": "code-review", "scope": "project" },
-    "skills.delete": { "id": "verify", "scope": "user" },
-    "skills.rename": { "id": "diff-review", "scope": "project" },
-    "skills.duplicate": { "id": "code-review-copy", "scope": "project" },
-    "skills.write_frontmatter": { "id": "code-review", "scope": "project" },
-    "skills.write_body": { "id": "code-review", "scope": "project" },
-    "skills.move_scope": { "id": "code-review", "scope": "user" },
-    "skills.write_file": { "id": "code-review", "scope": "project" },
-    "skills.delete_file": { "id": "code-review", "scope": "project" },
+    "skills.create": {
+      "id": "code-review",
+      "scope": "project"
+    },
+    "skills.delete": {
+      "id": "verify",
+      "scope": "user"
+    },
+    "skills.rename": {
+      "id": "diff-review",
+      "scope": "project"
+    },
+    "skills.duplicate": {
+      "id": "code-review-copy",
+      "scope": "project"
+    },
+    "skills.write_frontmatter": {
+      "id": "code-review",
+      "scope": "project"
+    },
+    "skills.write_body": {
+      "id": "code-review",
+      "scope": "project"
+    },
+    "skills.move_scope": {
+      "id": "code-review",
+      "scope": "user"
+    },
+    "skills.write_file": {
+      "id": "code-review",
+      "scope": "project"
+    },
+    "skills.delete_file": {
+      "id": "code-review",
+      "scope": "project"
+    },
     "specs.list": {
       "items": [
         {
@@ -517,9 +844,16 @@
           "status": "launched",
           "pipeline": "ship-feature",
           "agent": "rust-lane",
-          "vars": { "area": "platform" },
-          "criteria": ["Service scaffolded", "Happy-path contract test passes"],
-          "scope": ["crates/core/ship-platform"],
+          "vars": {
+            "area": "platform"
+          },
+          "criteria": [
+            "Service scaffolded",
+            "Happy-path contract test passes"
+          ],
+          "scope": [
+            "crates/core/ship-platform"
+          ],
           "priority": 1,
           "created_at": "2026-05-24T12:00:00Z",
           "updated_at": "2026-05-24T18:00:00Z"
@@ -534,9 +868,16 @@
         "status": "launched",
         "pipeline": "ship-feature",
         "agent": "rust-lane",
-        "vars": { "area": "platform" },
-        "criteria": ["Service scaffolded", "Happy-path contract test passes"],
-        "scope": ["crates/core/ship-platform"],
+        "vars": {
+          "area": "platform"
+        },
+        "criteria": [
+          "Service scaffolded",
+          "Happy-path contract test passes"
+        ],
+        "scope": [
+          "crates/core/ship-platform"
+        ],
         "priority": 1,
         "created_at": "2026-05-24T12:00:00Z",
         "updated_at": "2026-05-24T18:00:00Z"
@@ -560,8 +901,14 @@
       "scope_md": "crates/core/ship-platform",
       "linked_md": "",
       "acceptance": [
-        { "text": "Service scaffolded", "done": true },
-        { "text": "Happy-path contract test passes", "done": false }
+        {
+          "text": "Service scaffolded",
+          "done": true
+        },
+        {
+          "text": "Happy-path contract test passes",
+          "done": false
+        }
       ],
       "other_md": "",
       "launch_label": "Re-run",
@@ -594,12 +941,34 @@
     "view_errors.clear": {
       "cleared": 1
     },
-    "workspaces.active": { "id": "harbor" },
-    "space.info": { "spaceId": "harbor-space-id", "root": "/home/harbor/projects/harbor", "name": "harbor" },
-    "space.window_intent": { "decision": "allow", "actorId": "harbor-actor-id" },
-    "space.window_list": { "windows": [{ "actorId": "harbor-actor-id", "spaceId": "harbor-space-id", "live": true }] },
-    "space.close_window": { "closed": true },
-    "space.set_setting": { "key": "theme", "value_json": "\"dark\"" },
+    "workspaces.active": {
+      "id": "harbor"
+    },
+    "space.info": {
+      "spaceId": "harbor-space-id",
+      "root": "/home/harbor/projects/harbor",
+      "name": "harbor"
+    },
+    "space.window_intent": {
+      "decision": "allow",
+      "actorId": "harbor-actor-id"
+    },
+    "space.window_list": {
+      "windows": [
+        {
+          "actorId": "harbor-actor-id",
+          "spaceId": "harbor-space-id",
+          "live": true
+        }
+      ]
+    },
+    "space.close_window": {
+      "closed": true
+    },
+    "space.set_setting": {
+      "key": "theme",
+      "value_json": "\"dark\""
+    },
     "search.search": {
       "hits": [
         {
@@ -626,8 +995,16 @@
     },
     "collection.list": {
       "collections": [
-        { "id": "notes", "title": "Notes", "item_count": 3 },
-        { "id": "feedback", "title": "Feedback", "system": true }
+        {
+          "id": "notes",
+          "title": "Notes",
+          "item_count": 3
+        },
+        {
+          "id": "feedback",
+          "title": "Feedback",
+          "system": true
+        }
       ]
     },
     "collection.get": {
@@ -668,7 +1045,10 @@
       "created_at": "2026-05-24T18:35:00Z",
       "updated_at": "2026-05-24T19:00:00Z"
     },
-    "collection.delete_item": { "id": "note-checkout-notes", "deleted": true },
+    "collection.delete_item": {
+      "id": "note-checkout-notes",
+      "deleted": true
+    },
     "collection.create_schema": {
       "id": "notes",
       "schema_json": "eyJ0aXRsZSI6Ik5vdGVzIiwiZmllbGRzIjpbeyJuYW1lIjoidGl0bGUiLCJ0eXBlIjoic3RyaW5nIn1dfQ==",
@@ -682,7 +1062,10 @@
     "collection.watch": {
       "patches": {
         "patches": [
-          { "op": "PATCH_OP_SET", "value": "eyJpdGVtcyI6W119" }
+          {
+            "op": "PATCH_OP_SET",
+            "value": "eyJpdGVtcyI6W119"
+          }
         ]
       }
     }

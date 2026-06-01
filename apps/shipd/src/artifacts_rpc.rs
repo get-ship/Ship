@@ -13,9 +13,7 @@ use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceS
 use serde::de::DeserializeOwned;
 use serde_json::json;
 
-use ship_ops_rpc::{
-    ArtifactRecord, ArtifactsListResponse, ArtifactsService, Deletion, JsonResponse,
-};
+use ship_ops_rpc::{ArtifactRecord, ArtifactsListResponse, ArtifactsService, Deletion, WatchEvent};
 
 use crate::auth::AuthContext;
 use crate::ops_rpc::{command_error_to_connect, OpsImpl};
@@ -47,18 +45,14 @@ impl ArtifactsService for OpsImpl {
     }
 
     #[allow(refining_impl_trait)]
-    async fn list_live(
+    async fn watch(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedListArtifactsRequestView,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        let args = json!({
-            "scope": request.scope, "mime": request.mime,
-            "collection_id": request.collection_id, "item_id": request.item_id,
-            "owner_actor": request.owner_actor, "content_hash": request.content_hash,
-            "sort": request.sort, "limit": request.limit, "offset": request.offset,
-        });
-        self.live_read("artifacts.list", args).await
+        _request: ship_ops_rpc::OwnedArtifactsWatchReqView,
+    ) -> ServiceResult<ServiceStream<WatchEvent>> {
+        Err(ConnectError::unimplemented(
+            "artifacts Watch: use the ship-artifacts service mount (registered after this one)",
+        ))
     }
 
     async fn patch(

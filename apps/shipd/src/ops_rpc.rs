@@ -248,6 +248,17 @@ pub fn router(state: ApiState) -> axum::Router {
         move |_ctx: &connectrpc::RequestContext| collection_ctx.clone(),
     ));
     let router = ship_ops_rpc::CollectionServiceExt::register(collection_wire, router);
+    // artifacts.* v2 — ship-artifacts (DataStore + blob backend), overrides
+    // OpsImpl's ArtifactsService registration for all 5 RPCs including Watch.
+    let artifact_ctx = crate::artifact_context::make_artifact_space_context(&state);
+    let artifact_kernel = artifact_ctx.kernel.clone();
+    let global_dir = state.ship_dir().to_path_buf();
+    let artifacts_wire = std::sync::Arc::new(ship_artifacts::ArtifactsWire::new(
+        artifact_kernel,
+        global_dir,
+        move |_ctx: &connectrpc::RequestContext| artifact_ctx.clone(),
+    ));
+    let router = ship_ops_rpc::ArtifactsServiceExt::register(artifacts_wire, router);
     router.into_axum_router()
 }
 
