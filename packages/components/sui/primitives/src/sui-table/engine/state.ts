@@ -24,7 +24,10 @@ export function defaultTableState(): TableState {
     globalFilter: '',
     grouping: [],
     expanded: {},
-    pagination: { pageIndex: 0, pageSize: 10 },
+    // pageSize 0 = no pagination slice: the full row set flows to the
+    // virtualizer, which is the reference grid's default scaling strategy.
+    // Pagination is opt-in (`setPageSize(n)` / `initialState.pagination`).
+    pagination: { pageIndex: 0, pageSize: 0 },
     rowSelection: { mode: 'include', ids: new Set<string>() },
     selectionAnchor: null,
     columnSizing: {},
