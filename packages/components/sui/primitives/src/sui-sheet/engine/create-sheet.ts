@@ -16,9 +16,11 @@
 // PURE TypeScript. Authority: build-spec §"Backbone — createSheet()", §"API
 // sketch", §"Signal graph", §Slices 1/3, create-sheet.test.ts.
 
-import { batch, derived } from '@ship/sui-runtime'
+import { batch, derived, effect, untrack } from '@ship/sui-runtime'
 import { fromA1, toA1 } from './a1'
 import { buildEditing } from './editing'
+import { createFastFormulaCore } from './formula/adapter-fast-formula-parser'
+import { buildFormulaEngine } from './formula-engine'
 import { buildPipeline } from './pipeline'
 import { buildSelection } from './selection'
 import {
@@ -36,15 +38,17 @@ import type {
   CellEdit,
   CellRange,
   ResolvedCell,
+  ScalarValue,
   SheetDef,
 } from './types'
 
 const DEFERRED = (feature: string): never => {
-  throw new Error(`sui-sheet: ${feature} is deferred to a follow-up slice (formula engine)`)
+  throw new Error(`sui-sheet: ${feature} is deferred to a follow-up slice`)
 }
 
 export function createSheet(options: SheetOptions): Sheet {
   const workbook = liftWorkbook(options.workbook)
+  const recalcMode = options.recalcMode ?? 'auto'
 
   // Active-sheet id slice — seeded from the workbook's active id (or the first
   // sheet). The interaction slices (selection / editing) live alongside it.
@@ -53,10 +57,42 @@ export function createSheet(options: SheetOptions): Sheet {
     options.initialState?.activeSheetId ?? seedWb.activeSheetId ?? seedWb.sheets[0]?.id ?? null
   const state = buildInteractionState(seedActiveId, options.initialState?.selection)
 
-  const pipeline = buildPipeline(workbook, state)
+  // ── formula engine (DAG × FormulaCore × cell store) ──
+  // `readCell` is the eval read-side: a formula precedent resolves to its cached
+  // evaluated result (the DAG topo order guarantees it is computed first); a
+  // literal precedent resolves to its raw value. Read untracked inside recompute.
+  const core = options.formulaCore ?? createFastFormulaCore()
+  const formulaEngine = buildFormulaEngine(
+    core,
+    (a1) => readCellValue(a1),
+    recalcMode,
+  )
+
+  const pipeline = buildPipeline(workbook, state, formulaEngine)
   const { activeSheetDef, store, cellApi, geometry } = pipeline
   const selection = buildSelection(state, options.onSelectionChange)
   const editing = buildEditing(state)
+
+  function readCellValue(a1: string): ScalarValue {
+    const raw = store.read(a1)
+    if (raw?.formula != null) return formulaEngine.result(a1)?.value ?? null
+    return raw?.value ?? null
+  }
+
+  // Re-sync the engine whenever the active sheet's authored formula set or extent
+  // changes (init + workbook-identity swap). Local setCell formula edits are
+  // folded in by `onCellWrite`; this effect owns the authored baseline.
+  effect(() => {
+    const def = activeSheetDef()
+    const formulas = new Map<string, string>()
+    if (def) {
+      for (const [a1, data] of Object.entries(def.cells)) {
+        if (data.formula != null) formulas.set(a1, data.formula)
+      }
+    }
+    const extent = { rows: def?.rowCount ?? 0, cols: def?.colCount ?? 0 }
+    untrack(() => formulaEngine.sync(formulas, extent))
+  })
 
   const emitCells = (edits: CellEdit[]): void => {
     if (edits.length > 0) options.onCellChange?.(edits)
@@ -68,17 +104,24 @@ export function createSheet(options: SheetOptions): Sheet {
   const colCount = pipeline.colCount
 
   // ── mutators (foundational) ──
+  // Every cell write routes through the formula engine: a formula cell re-parses
+  // + recomputes its dirty suffix; a literal cell recomputes any formulas that
+  // depend on it. (The engine no-ops for a literal write with no dependents.)
   const setCell = (a1: string, data: CellData): void => {
     batch(() => {
       const before = store.read(a1) ?? {}
       store.write(a1, data)
+      formulaEngine.onCellWrite(a1, data.formula)
       emitCells([{ a1, before, after: data }])
     })
   }
 
   const setCells = (edits: CellEdit[]): void => {
     batch(() => {
-      for (const e of edits) store.write(e.a1, e.after)
+      for (const e of edits) {
+        store.write(e.a1, e.after)
+        formulaEngine.onCellWrite(e.a1, e.after.formula)
+      }
       emitCells(edits)
     })
   }
@@ -92,6 +135,7 @@ export function createSheet(options: SheetOptions): Sheet {
         const after: CellData =
           what === 'formats' ? { value: before.value ?? null } : {}
         store.write(a1, after)
+        formulaEngine.onCellWrite(a1, after.formula)
         edits.push({ a1, before, after })
       }
       emitCells(edits)
@@ -164,9 +208,20 @@ export function createSheet(options: SheetOptions): Sheet {
     selection: selection.selection,
     activeCell: selection.activeCell,
     isInRange: selection.isInRange,
-    dependents: () => derived<string[]>(() => []),
-    precedents: () => derived<string[]>(() => []),
-    hasCycle: derived<boolean>(() => false),
+    dependents: (a1) =>
+      derived<string[]>(() => {
+        formulaEngine.trackGraph()
+        return formulaEngine.dependents(a1)
+      }),
+    precedents: (a1) =>
+      derived<string[]>(() => {
+        formulaEngine.trackGraph()
+        return formulaEngine.precedents(a1)
+      }),
+    hasCycle: derived<boolean>(() => {
+      formulaEngine.trackGraph()
+      return formulaEngine.hasCycle()
+    }),
     isLoading: reflect(options.isLoading, false),
     error: reflect(options.error, null),
     editing: derived<{ cell: CellAddress; draft: string } | null>(() => state.editing()),
@@ -191,7 +246,7 @@ export function createSheet(options: SheetOptions): Sheet {
     setColWidth,
     setRowHeight,
     setActiveSheet,
-    recalc: () => {},
+    recalc: () => batch(() => formulaEngine.recalcAll()),
     reset,
     setOptions: () => DEFERRED('setOptions hot-swap'),
   }

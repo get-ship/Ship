@@ -12,7 +12,7 @@
 // pipeline split out from the start).
 
 import { derived, type Derived } from '@ship/sui-runtime'
-import { buildCellApi, type CellApi } from './cell-api'
+import { buildCellApi, type CellApi, type FormulaResolver } from './cell-api'
 import { buildGeometry, type GridGeometry } from './geometry'
 import { buildCellStore, type CellStore, type InteractionState } from './state'
 import type { SheetDef, WorkbookDef } from './types'
@@ -29,10 +29,12 @@ export interface SheetPipeline {
 
 /** Build the read-side derived chain over the lifted workbook + the active-sheet
  *  id slice. `activeSheetDef` selects the rendered worksheet (the active id, or
- *  the workbook's `activeSheetId`, or the first sheet). */
+ *  the workbook's `activeSheetId`, or the first sheet). The optional
+ *  `formula` resolver swaps in evaluated results for formula cells. */
 export function buildPipeline(
   workbook: Derived<WorkbookDef>,
   state: InteractionState,
+  formula?: FormulaResolver,
 ): SheetPipeline {
   const activeSheetDef = derived<SheetDef | undefined>(() => {
     const wb = workbook()
@@ -45,7 +47,7 @@ export function buildPipeline(
   const colCount = derived<number>(() => activeSheetDef()?.colCount ?? 0)
 
   const store = buildCellStore(activeSheetDef)
-  const cellApi = buildCellApi(store, state, activeSheetDef)
+  const cellApi = buildCellApi(store, state, activeSheetDef, formula)
   const geometry = buildGeometry(activeSheetDef)
 
   return { workbook, activeSheetDef, rowCount, colCount, store, cellApi, geometry }

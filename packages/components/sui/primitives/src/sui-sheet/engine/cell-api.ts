@@ -28,6 +28,15 @@ import type {
 
 const EMPTY_CELL: CellData = {}
 
+/** The formula read-side the cell-api consults for a formula cell: it tracks the
+ *  cell's recompute version (so the derived re-runs surgically) and returns the
+ *  cached evaluated result. Supplied by the formula engine; absent in pure
+ *  literal-only setups (the resolved value then falls through to `null`). */
+export interface FormulaResolver {
+  trackVersion(a1: string): void
+  result(a1: string): { value: ScalarValue; error: FormulaError | null } | undefined
+}
+
 export interface CellApi {
   getCell(a1: string): Derived<ResolvedCell>
   getCellAt(row: number, col: number): Derived<ResolvedCell>
@@ -37,6 +46,7 @@ export function buildCellApi(
   store: CellStore,
   state: InteractionState,
   activeSheet: Derived<SheetDef | undefined>,
+  formula?: FormulaResolver,
 ): CellApi {
   const memo = new Map<string, Derived<ResolvedCell>>()
 
@@ -44,9 +54,16 @@ export function buildCellApi(
     const address = fromA1(a1)
     const d = derived<ResolvedCell>(() => {
       const raw = store.read(a1) ?? EMPTY_CELL
-      // Literal path: value is the authored literal (the formula slice swaps in
-      // the evaluated result here). A formula with no eval yet resolves null.
-      const value: ScalarValue = raw.formula != null ? null : (raw.value ?? null)
+      // Formula path: track the cell's recompute version + read its evaluated
+      // result. Literal path: the authored literal. (A formula with no resolver
+      // wired — pure literal setup — resolves null.)
+      let value: ScalarValue
+      if (raw.formula != null && formula) {
+        formula.trackVersion(a1)
+        value = formula.result(a1)?.value ?? null
+      } else {
+        value = raw.formula != null ? null : (raw.value ?? null)
+      }
       const error: FormulaError | null = isErrorValue(value) ? value.error : null
       const format = raw.format ?? {}
       const sel = state.selection()
