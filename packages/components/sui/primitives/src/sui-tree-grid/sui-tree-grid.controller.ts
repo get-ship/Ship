@@ -18,6 +18,7 @@ import { parseJsonColumns, parseJsonNodes } from '../sui-tree/decode'
 import { treeTableOptions } from '../sui-tree/sui-tree.engine'
 import { treeHeaderViews, windowTreeRows, type TreeHeaderView } from '../sui-tree/sui-tree.view'
 import { wireTreeInteractions } from '../sui-tree/sui-tree.interactions'
+import { wireGridColumns } from './sui-tree-grid.columns'
 import type { Scope } from './sui-tree-grid.sui'
 
 type AnyTreeNode = TreeNode & Record<string, unknown>
@@ -48,6 +49,14 @@ export default controller({
     })
 
     const headers = derived<TreeHeaderView[]>(() => treeHeaderViews(tree()))
+    // The grid-template track string off the resolved per-column sizes — reflects
+    // a resize (setColumnSizing) live so the rendered column widens. Empty cols
+    // fall back to the equal-fraction default the CSS seeds.
+    const gridTemplate = derived<string>(() => {
+      const hs = headers()
+      if (hs.length === 0) return 'minmax(80px, 1fr)'
+      return hs.map((h) => h.size).join(' ')
+    })
     const windowItems = windowTreeRows<AnyTreeNode>(tree, virt.virtualItems, () => INDENT_STEP)
     const totalSize = virt.totalSize
     const rowCount = derived<number>(() => tree().rowCount())
@@ -71,6 +80,7 @@ export default controller({
       tree,
       virt,
       headers,
+      gridTemplate,
       windowItems,
       totalSize,
       rowCount,
@@ -112,12 +122,18 @@ export default controller({
     const stop = wireTreeInteractions(host, () => state.tree, {
       expandOnSelect: () => host.hasAttribute('expand-on-select'),
       selectable: () => (host.getAttribute('selectable') ?? 'none') !== 'none',
+      multi: () => (host.getAttribute('selectable') ?? 'none') === 'multi',
       navRoleSelector: '[role="treegrid"]',
       getWindow: () => state.$signals.windowItems(),
     })
 
+    // The ORTHOGONAL column lane: header sort/hide + a pointer-drag resize route
+    // through the REUSED engine's column mutators (no tree-specific column code).
+    const stopColumns = wireGridColumns(host, () => state.tree)
+
     return () => {
       stop()
+      stopColumns()
       state.virt.dispose()
     }
   },

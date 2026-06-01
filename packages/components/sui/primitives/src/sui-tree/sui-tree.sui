@@ -67,6 +67,12 @@
   }
   .row:hover { background: var(--hover-bg); }
   .row[data-selected] { background: var(--selected-bg); font-weight: var(--font-weight-medium); }
+  .row[data-pending] {
+    cursor: default;
+    color: var(--muted-foreground);
+    font-style: italic;
+  }
+  .row[data-pending]:hover { background: transparent; }
   .row:focus-visible {
     box-shadow: inset 0 0 0 var(--ring-width) var(--ring-color);
   }
@@ -149,6 +155,7 @@
           data-can-expand={w.canExpand ? 'true' : null}
           data-expanded={w.expanded ? 'true' : null}
           data-selected={w.selected ? 'true' : null}
+          data-pending={w.pending ? 'true' : null}
           tabindex={w.id === activeRowId() ? '0' : '-1'}
           style:transform={`translateY(${w.start}px)`}
           style:padding-inline-start={`calc(var(--density-row-px) + ${w.indent}px)`}

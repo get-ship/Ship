@@ -47,10 +47,17 @@ export interface TreeRowView {
   expanded: boolean
   selected: boolean
   someSelected: boolean
+  /** A synthetic "loading children" placeholder row (consumer-injected for the
+   *  lazy seam) — the view styles it as a skeleton, not a real selectable node. */
+  pending: boolean
   /** Per-level indent (px) — depth × the density-derived step, set inline. */
   indent: number
   /** tree-grid only — the row's visible cells (label-only `sui-tree` ignores). */
   cells: TreeCellView[]
+  /** The visible-column signature (tree-grid) — folded into the row `{#for}` key
+   *  so a column hide/show re-keys the row and the cells re-render (the keyed-for
+   *  reuses a same-key row's DOM and would otherwise keep the stale cell set). */
+  cellsKey: string
 }
 
 /** The label of a row — its first visible cell value, or the engine row label
@@ -72,6 +79,12 @@ function rowCells<T>(row: Row<T>, cols: ColumnApi<T>[]): TreeCellView[] {
   }))
 }
 
+/** The visible-column signature for a tree-grid row's `{#for}` key — empty for
+ *  the label-only `sui-tree` (which has no columns). */
+function cellsKeyOf(cells: TreeCellView[]): string {
+  return cells.map((c) => c.columnId).join(',')
+}
+
 /** Map a single engine `Row<T>` + its virtual item to a flat `TreeRowView`. */
 function toRowView<T extends TreeNode>(
   row: Row<T>,
@@ -79,7 +92,14 @@ function toRowView<T extends TreeNode>(
   cols: ColumnApi<T>[],
   indentStep: number,
 ): TreeRowView {
-  const canExpand = row.getCanExpand()
+  // The lazy seam: a consumer marks a branch whose children load on first expand
+  // with `original.lazy`. The engine reports `getCanExpand()=false` while that
+  // branch carries no sub-rows yet, so the view honors the consumer's `lazy` flag
+  // to keep the disclosure caret present before the first load.
+  const orig = row.original as { lazy?: boolean; pending?: boolean } | undefined
+  const pending = orig?.pending === true
+  const canExpand = row.getCanExpand() || orig?.lazy === true
+  const cells = rowCells(row, cols)
   return {
     key: item.key,
     index: item.index,
@@ -95,15 +115,27 @@ function toRowView<T extends TreeNode>(
     expanded: canExpand && row.getIsExpanded(),
     selected: row.getIsSelected(),
     someSelected: row.getIsSomeSelected(),
+    pending,
     indent: row.depth * indentStep,
-    cells: rowCells(row, cols),
+    cells,
+    cellsKey: cellsKeyOf(cells),
   }
 }
 
-/** A tree-grid column header (the `role=columnheader` cell text). */
+/** A tree-grid column header (the `role=columnheader` cell + its sort/hide/resize
+ *  affordance flags, derived from the engine's column lane). */
 export interface TreeHeaderView {
   id: string
   label: string
+  /** Sort state for `aria-sort` + the sort glyph (`asc`/`desc`/false). */
+  sorted: 'asc' | 'desc' | false
+  /** `aria-sort` token mapping the engine's `getIsSorted()`. */
+  ariaSort: 'ascending' | 'descending' | 'none'
+  canSort: boolean
+  canHide: boolean
+  canResize: boolean
+  /** Resolved column width var value (e.g. `'150px'`) — the grid template track. */
+  size: string
 }
 
 function headerLabel<T>(col: ColumnApi<T>): string {
@@ -111,12 +143,23 @@ function headerLabel<T>(col: ColumnApi<T>): string {
   return typeof h === 'string' ? h : col.id
 }
 
-/** The visible leaf headers as flat `TreeHeaderView`s (tree-grid only). */
+/** The visible leaf headers as flat `TreeHeaderView`s (tree-grid only). Reads the
+ *  engine's column lane (sort/visibility/resize) so a header reflects the live
+ *  state with no per-column engine read in the template (declarative aria). */
 export function treeHeaderViews<T extends TreeNode>(table: Table<T>): TreeHeaderView[] {
-  return table.visibleLeafColumns().map((col) => ({
-    id: col.id,
-    label: headerLabel(col),
-  }))
+  return table.visibleLeafColumns().map((col) => {
+    const sorted = col.getIsSorted()
+    return {
+      id: col.id,
+      label: headerLabel(col),
+      sorted,
+      ariaSort: sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none',
+      canSort: col.getCanSort(),
+      canHide: col.getCanHide(),
+      canResize: col.getCanResize(),
+      size: table.getColumnSizeVarValue(col.id),
+    }
+  })
 }
 
 /** Build the windowed `TreeRowView[]` derived. Recomputes when the window

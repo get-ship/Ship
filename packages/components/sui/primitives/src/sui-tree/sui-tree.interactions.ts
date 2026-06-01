@@ -28,6 +28,8 @@ interface HostEmit extends HTMLElement {
 export interface TreeInteractionOpts {
   expandOnSelect: () => boolean
   selectable: () => boolean
+  /** True only when `selectable=multi` — gates shift-range + additive select. */
+  multi: () => boolean
   /** Role-scope guard for keydown (`tree` for sui-tree, `treegrid` for grid). */
   navRoleSelector: string
   /** Read the windowed rows so the reflect re-runs as rows recycle on scroll. */
@@ -72,11 +74,21 @@ export function wireTreeInteractions(
     host.emit?.('sui-toggle', { id, expanded: tree.getRow(id)?.getIsExpanded() ?? false })
     emitExpand()
   }
-  const selectRow = (id: string, range: boolean): void => {
+  const selectRow = (id: string, shift: boolean): void => {
     const tree = getTree()
     if (opts.expandOnSelect()) toggleExpand(id)
     if (!opts.selectable()) return
-    tree.toggleRowSelected(id, undefined, { range })
+    // single mode: a plain click REPLACES the selection (one row at a time) and
+    // ignores shift-range; multi mode honors the shift-range span over the
+    // displayed order, pivoting around the anchor.
+    if (opts.multi()) {
+      tree.toggleRowSelected(id, undefined, { range: shift })
+    } else {
+      // Replace the whole selection, then select the target (which also sets the
+      // anchor) so single mode is exactly one selected row at a time.
+      tree.setRowSelection({ mode: 'include', ids: new Set<string>() })
+      tree.toggleRowSelected(id, true)
+    }
     host.emit?.('sui-select', { id })
     emitSelect()
   }
@@ -144,7 +156,12 @@ export function wireTreeInteractions(
       const id = rowEl.getAttribute('data-node-id') ?? ''
       const row = tree.getRow(id)
       if (!row) return
-      const isSel = selected.has(id) || (row.getCanExpand() && row.getIsSelected())
+      // `data-selected` reflects the ENGINE selection set exactly (the displayed
+      // selectedRowIds). A branch is highlighted only when it is itself in the
+      // range span, never merely because all its leaf descendants are selected —
+      // that "all leaves selected" state surfaces as the checkbox indeterminate/
+      // checked tri-state below, not a row highlight.
+      const isSel = selected.has(id)
       toggleAttr(rowEl, 'data-selected', isSel)
       if (opts.selectable()) rowEl.setAttribute('aria-selected', String(isSel))
       rowEl.setAttribute('tabindex', focus === id ? '0' : '-1')

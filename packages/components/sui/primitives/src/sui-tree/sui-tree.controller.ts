@@ -120,6 +120,7 @@ export default controller({
     const stop = wireTreeInteractions(host, () => state.tree, {
       expandOnSelect: () => host.hasAttribute('expand-on-select'),
       selectable: () => (host.getAttribute('selectable') ?? 'none') !== 'none',
+      multi: () => (host.getAttribute('selectable') ?? 'none') === 'multi',
       navRoleSelector: '[role="tree"]',
       getWindow: () => state.$signals.windowItems(),
     })
