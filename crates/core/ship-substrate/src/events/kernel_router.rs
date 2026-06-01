@@ -9,16 +9,10 @@
 //! - `spawn_actor` → returns `(ActorStore, Mailbox)` instead of just `Mailbox`
 //! - `emit` / `route` with `EmitContext`-aware validation and write-namespace
 //!   enforcement
-//! - `unstable` feature extras: `actor_meta`, `event_log`, `actor_cursors`,
-//!   `spawn_actor_with_permissions*`, scope-filtered delivery
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-#[cfg(feature = "unstable")]
-use std::sync::Mutex;
-#[cfg(feature = "unstable")]
-use tokio::sync::mpsc;
 
 use anyhow::{Result, anyhow};
 
@@ -28,14 +22,6 @@ use crate::persistence::event_store::SqliteEventStore;
 use ship_types::envelope::EventEnvelope;
 use ship_kernel::Mailbox;
 use crate::events::validator::{EmitContext, EventValidator};
-
-#[cfg(feature = "unstable")]
-use crate::events::kernel_security::ActorMeta;
-#[cfg(feature = "unstable")]
-use crate::events::replay_log::ReplayLog;
-
-#[cfg(feature = "unstable")]
-pub use ship_kernel::router::MAILBOX_CAPACITY;
 
 pub use ship_types::ActorConfig;
 
@@ -87,7 +73,6 @@ impl RateCounter {
 /// - `EmitContext`-aware validators (namespace, reserved-namespace, elevated)
 /// - `ActorStore` construction on `spawn_actor`
 /// - Write-namespace enforcement for non-trusted callers
-/// - `unstable` scope/permission features
 pub struct KernelRouter {
     pub(crate) base_dir: PathBuf,
     pub(crate) kernel_store_path: PathBuf,
@@ -98,18 +83,6 @@ pub struct KernelRouter {
     /// (`event.actor_id`) and target (`event.target_actor_id`) so the
     /// mesh view can show "events received" parity with "events emitted."
     rate_counters: std::sync::Mutex<HashMap<String, RateCounter>>,
-    #[cfg(feature = "unstable")]
-    pub(crate) actor_meta: HashMap<String, ActorMeta>,
-    #[cfg(feature = "unstable")]
-    pub(crate) event_log: Mutex<ReplayLog>,
-    #[cfg(feature = "unstable")]
-    pub(crate) actor_cursors: HashMap<String, usize>,
-    /// Sender channels for actors spawned via spawn_actor_with_permissions.
-    /// These actors have custom mailboxes with cursor-based replay that bypass
-    /// inner's delivery mechanism. Kept here for scope-filtered delivery in the
-    /// unstable path.
-    #[cfg(feature = "unstable")]
-    pub(crate) unstable_senders: HashMap<String, mpsc::Sender<EventEnvelope>>,
 }
 
 impl KernelRouter {
@@ -120,8 +93,6 @@ impl KernelRouter {
         }
         crate::db::ensure_db_at(&base_dir)?;
         let kernel_store_path = crate::db::platform_db_path(&base_dir);
-        #[cfg(feature = "unstable")]
-        crate::persistence::cursor::init_cursor_table(&kernel_store_path)?;
 
         let sink = Arc::new(SqliteEventStore::new_at(&base_dir)?);
         let inner = ship_kernel::KernelRouter::new(sink);
@@ -132,14 +103,6 @@ impl KernelRouter {
             validators: Vec::new(),
             inner,
             rate_counters: std::sync::Mutex::new(HashMap::new()),
-            #[cfg(feature = "unstable")]
-            actor_meta: HashMap::new(),
-            #[cfg(feature = "unstable")]
-            event_log: Mutex::new(ReplayLog::default()),
-            #[cfg(feature = "unstable")]
-            actor_cursors: HashMap::new(),
-            #[cfg(feature = "unstable")]
-            unstable_senders: HashMap::new(),
         })
     }
 
@@ -160,9 +123,6 @@ impl KernelRouter {
         // Every actor queries the shared platform.db events table filtered
         // by its own actor_id. No per-actor file is created.
         let db_path = crate::db::platform_db_path(&self.base_dir);
-
-        #[cfg(feature = "unstable")]
-        self.actor_cursors.remove(actor_id);
 
         let write_ns = config.write_namespaces.clone();
         let read_ns = config.read_namespaces.clone();
@@ -224,26 +184,8 @@ impl KernelRouter {
                 }
         }
 
-        #[cfg(feature = "unstable")]
-        self.enforce_emit_permissions(&event, ctx)?;
-
-        #[cfg(feature = "unstable")]
-        {
-            // Persist via inner.persist() so the projection bus fires
-            // (raw_append bypasses it and leaves SQL projections stale).
-            // inner.route() would also push to kernel mailboxes — we
-            // skip that because unstable owns scope-filtered delivery
-            // via deliver_with_scope.
-            self.inner.persist(&event)?;
-            self.event_log.lock().unwrap_or_else(|e| e.into_inner()).append(event.clone());
-            return self.deliver_with_scope(&event).await;
-        }
-
-        #[cfg(not(feature = "unstable"))]
-        {
-            // inner.route() = persist via sink + deliver to mailboxes.
-            self.inner.route(event).await
-        }
+        // inner.route() = persist via sink + deliver to mailboxes.
+        self.inner.route(event).await
     }
 
     /// Deliver an already-persisted event to actor mailboxes.
@@ -258,14 +200,6 @@ impl KernelRouter {
     }
 
     pub fn stop_actor(&mut self, actor_id: &str) -> Result<(), KernelError> {
-        #[cfg(feature = "unstable")]
-        {
-            let log_len = self.event_log.lock().unwrap_or_else(|e| e.into_inner()).logical_len();
-            self.actor_cursors.insert(actor_id.to_string(), log_len);
-            self.actor_meta.remove(actor_id);
-            self.unstable_senders.remove(actor_id);
-        }
-
         let db_path = self.actor_db_path(actor_id);
         // Delegate to inner first to validate the actor exists.
         self.inner.stop_actor(actor_id)?;
@@ -311,24 +245,7 @@ impl KernelRouter {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .len();
-        #[cfg(feature = "unstable")]
-        {
-            let log = self.event_log.lock().unwrap_or_else(|e| e.into_inner());
-            format!(
-                "kernel: actors={actors} sub_edges={subs} rate_counters={rate_counters} \
-                 event_log_phys={} event_log_bytes={} event_log_logical={} actor_meta={} actor_cursors={} unstable_senders={}",
-                log.len(),
-                log.retained_bytes(),
-                log.logical_len(),
-                self.actor_meta.len(),
-                self.actor_cursors.len(),
-                self.unstable_senders.len(),
-            )
-        }
-        #[cfg(not(feature = "unstable"))]
-        {
-            format!("kernel: actors={actors} sub_edges={subs} rate_counters={rate_counters}")
-        }
+        format!("kernel: actors={actors} sub_edges={subs} rate_counters={rate_counters}")
     }
 
     pub fn kernel_store_path(&self) -> &Path {

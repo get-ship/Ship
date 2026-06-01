@@ -34,7 +34,7 @@ pub struct ActorCursor {
 }
 
 /// Ensure the cursor table exists in platform.db.
-pub(crate) fn init_cursor_table(db_path: &Path) -> Result<()> {
+pub fn init_cursor_table(db_path: &Path) -> Result<()> {
     let mut conn = open_db_at(db_path)?;
     block_on(async {
         sqlx::query(
