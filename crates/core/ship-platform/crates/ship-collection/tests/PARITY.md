@@ -4,8 +4,8 @@
 
 | | Count |
 |---|---|
-| PORT (tests added in parity.rs) | 45 |
-| IGNORED/GAP (in parity.rs, `#[ignore]`) | 6 |
+| PORT (tests added in parity.rs) | 48 |
+| IGNORED/GAP (in parity.rs, `#[ignore]`) | 3 |
 | OBSOLETE (old plumbing gone, omitted) | 22 |
 
 Old baseline: **~160 old tests** across schema_tests.rs, tests_integration.rs,
@@ -14,7 +14,7 @@ integration_validation.rs.
 
 New baseline (before this job): **12 tests** in behavior.rs.
 
-New baseline (after this job): **12 (behavior.rs) + 45 (parity.rs) = 57 tests**.
+New baseline (after this job): **12 (behavior.rs) + 48 (parity.rs) = 60 tests**.
 
 ---
 
@@ -24,9 +24,9 @@ New baseline (after this job): **12 (behavior.rs) + 45 (parity.rs) = 57 tests**.
 |---|-----|--------|
 | 1 | **Array element type validation** — old impl validated each element in an array field with index-path errors (`tags[1] must be a string`). New impl only checks that the field is an array. | Low. Array fields are permissive by design in the new schema model. |
 | 2 | **Object required\_keys validation** — old impl validated `required_keys` on object fields (`author.name is required`). New impl only checks that the field is an object. | Low. Object properties are permissive by design. |
-| 3 | **gte/lt/lte filter operator** — old impl supported `priority__gte: 2` style filters. New AST translator only supports `=`. | Medium. Range queries on numeric fields require AST extension. |
-| 4 | **IN filter operator** — old impl supported `status__in: ["todo", "doing"]`. New impl has no IN-query support. | Medium. Multi-value equality queries require AST extension. |
-| 5 | **Sort descending** — old impl supported `sort.insert("priority", -1)`. New `Query::sort_asc` is ascending-only; AST ORDER BY loses direction. | Low. Descending sort requires a direction flag on Query. |
+| 3 | **gte/lt/lte filter operator** — old impl supported `priority__gte: 2` style filters. New AST translator only supports `=`. **Locked test added; pending implementation (job/kysely-promote phase 2).** | Medium. Range queries on numeric fields require AST extension. |
+| 4 | **IN filter operator** — old impl supported `status__in: ["todo", "doing"]`. New impl has no IN-query support. **Locked test added; pending implementation (job/kysely-promote phase 2).** | Medium. Multi-value equality queries require AST extension. |
+| 5 | **Sort descending** — old impl supported `sort.insert("priority", -1)`. New `Query::sort_asc` is ascending-only; AST ORDER BY loses direction. **Locked test added; pending implementation (job/kysely-promote phase 2).** | Low. Descending sort requires a direction flag on Query. |
 | 6 | **Update merge/patch semantics** — old `update_item` merged partial data (passing `{"status": "done"}` preserved existing `title`). New impl replaces the full item. | Medium. Callers who relied on partial update must fetch+merge+resubmit. |
 
 ---

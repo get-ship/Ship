@@ -784,8 +784,9 @@ async fn parity_query_filter_by_equality() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn parity_ast_query_rejects_non_equality_operator() {
-    // Origin: query_filter_by_gte (behavior intent: non-equality ops are rejected)
-    // Old crate supported __gte; new crate's AST translator only supports "=".
+    // Repurposed: >= is now SUPPORTED (see parity_gap_query_filter_by_gte below).
+    // This test verifies that operators we still do NOT support remain rejected.
+    // LIKE is not in the supported set and must continue to be rejected.
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
     let ctx = make_ctx(&tmp, kernel);
@@ -802,18 +803,18 @@ async fn parity_ast_query_rejects_non_equality_operator() {
         }]},
         "where": { "kind": "WhereNode", "where": {
             "kind": "BinaryOperationNode",
-            "op": { "kind": "OperatorNode", "operator": ">=" },
+            "op": { "kind": "OperatorNode", "operator": "like" },
             "leftOperand": { "kind": "ReferenceNode", "column": {
                 "kind": "ColumnNode",
-                "column": { "kind": "IdentifierNode", "name": "priority" } }},
+                "column": { "kind": "IdentifierNode", "name": "title" } }},
             "rightOperand": { "kind": "ValueNode", "value": {
-                "kind": "PrimitiveValueNode", "value": 2, "type": "number" }}
+                "kind": "PrimitiveValueNode", "value": "%task%", "type": "string" }}
         }}
     });
 
     let result =
         svc.query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50).await;
-    assert!(result.is_err(), ">= operator must be rejected");
+    assert!(result.is_err(), "like operator must be rejected");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -858,28 +859,144 @@ async fn parity_ast_query_rejects_unsafe_column_name() {
 // GAP: query operators not supported in new crate
 // ═══════════════════════════════════════════════════════════════════════════════
 
-#[test]
-#[ignore]
-// PARITY-GAP: old impl supported "priority__gte": 2 filter syntax. New crate's
-// AST translator only supports the equality operator ("="). To add >=, <=, >,
-// <, IN support: extend extract_equality_expr in ast.rs to recognise additional
-// OperatorNode values and translate them to DataStore::Query filter extensions.
-fn parity_gap_query_filter_by_gte() {}
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parity_gap_query_filter_by_gte() {
+    // PARITY-GAP #3: gte/lt/lte comparison operators via AST.
+    // Kysely BinaryOperationNode shape for `>=`:
+    //   { kind: "BinaryOperationNode", op: { kind: "OperatorNode", operator: ">=" },
+    //     leftOperand: ReferenceNode, rightOperand: ValueNode/PrimitiveValueNode }
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let ctx = make_ctx(&tmp, kernel);
+    let svc = make_service(ctx);
 
-#[test]
-#[ignore]
-// PARITY-GAP: old impl supported "status__in": ["todo", "doing"] filter syntax.
-// New crate has no IN-query support in either the simple Query filter or the
-// AST translator.
-fn parity_gap_query_filter_by_in() {}
+    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    for (title, priority) in [("low", 1i64), ("mid", 2i64), ("high", 3i64)] {
+        svc.create_item(
+            "task",
+            &serde_json::to_vec(&json!({ "title": title, "priority": priority })).unwrap(),
+        )
+        .await
+        .unwrap();
+    }
 
-#[test]
-#[ignore]
-// PARITY-GAP: old impl supported sort descending (sort.insert("priority", -1)).
-// New crate's Query::sort_asc only supports ascending; AST ORDER BY extract
-// returns column name without direction. Descending sort requires a sort_desc
-// field in Query or a direction enum.
-fn parity_gap_query_sort_descending() {}
+    let ast = json!({
+        "kind": "SelectQueryNode",
+        "from": { "kind": "FromNode", "froms": [{
+            "kind": "TableNode",
+            "table": { "kind": "SchemableIdentifierNode",
+                "identifier": { "kind": "IdentifierNode", "name": "task" } }
+        }]},
+        "where": { "kind": "WhereNode", "where": {
+            "kind": "BinaryOperationNode",
+            "op": { "kind": "OperatorNode", "operator": ">=" },
+            "leftOperand": { "kind": "ReferenceNode", "column": {
+                "kind": "ColumnNode",
+                "column": { "kind": "IdentifierNode", "name": "priority" } }},
+            "rightOperand": { "kind": "ValueNode", "value": {
+                "kind": "PrimitiveValueNode", "value": 2, "type": "number" }}
+        }}
+    });
+
+    let (items, _) =
+        svc.query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50).await.unwrap();
+    assert_eq!(items.len(), 2, "priority >= 2 should return mid and high");
+    assert!(items.iter().all(|i| i.data["priority"].as_f64().unwrap() >= 2.0));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parity_gap_query_filter_by_in() {
+    // PARITY-GAP #4: IN operator via AST.
+    // Kysely emits `.where('status', 'in', ['todo', 'done'])` as:
+    //   { kind: "BinaryOperationNode", op: { kind: "OperatorNode", operator: "in" },
+    //     leftOperand: ReferenceNode,
+    //     rightOperand: { kind: "ValueListNode", values: [
+    //       { kind: "ValueNode", value: { kind: "PrimitiveValueNode", value: "todo", type: "string" } },
+    //       { kind: "ValueNode", value: { kind: "PrimitiveValueNode", value: "done", type: "string" } }
+    //     ]} }
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let ctx = make_ctx(&tmp, kernel);
+    let svc = make_service(ctx);
+
+    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    for (title, status) in [("T1", "todo"), ("T2", "done"), ("T3", "doing")] {
+        svc.create_item(
+            "task",
+            &serde_json::to_vec(&json!({ "title": title, "status": status })).unwrap(),
+        )
+        .await
+        .unwrap();
+    }
+
+    let ast = json!({
+        "kind": "SelectQueryNode",
+        "from": { "kind": "FromNode", "froms": [{
+            "kind": "TableNode",
+            "table": { "kind": "SchemableIdentifierNode",
+                "identifier": { "kind": "IdentifierNode", "name": "task" } }
+        }]},
+        "where": { "kind": "WhereNode", "where": {
+            "kind": "BinaryOperationNode",
+            "op": { "kind": "OperatorNode", "operator": "in" },
+            "leftOperand": { "kind": "ReferenceNode", "column": {
+                "kind": "ColumnNode",
+                "column": { "kind": "IdentifierNode", "name": "status" } }},
+            "rightOperand": { "kind": "ValueListNode", "values": [
+                { "kind": "ValueNode", "value": { "kind": "PrimitiveValueNode", "value": "todo", "type": "string" } },
+                { "kind": "ValueNode", "value": { "kind": "PrimitiveValueNode", "value": "done", "type": "string" } }
+            ]}
+        }}
+    });
+
+    let (items, _) =
+        svc.query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50).await.unwrap();
+    assert_eq!(items.len(), 2, "IN ('todo','done') should return T1 and T2");
+    assert!(items.iter().all(|i| matches!(i.data["status"].as_str(), Some("todo") | Some("done"))));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parity_gap_query_sort_descending() {
+    // PARITY-GAP #5: ORDER BY DESC via AST.
+    // Kysely OrderByItemNode shape: { kind: "OrderByItemNode", orderBy: ReferenceNode,
+    //   direction: "desc" }
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let ctx = make_ctx(&tmp, kernel);
+    let svc = make_service(ctx);
+
+    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    for (title, priority) in [("A", 1i64), ("B", 2i64), ("C", 3i64)] {
+        svc.create_item(
+            "task",
+            &serde_json::to_vec(&json!({ "title": title, "priority": priority })).unwrap(),
+        )
+        .await
+        .unwrap();
+    }
+
+    let ast = json!({
+        "kind": "SelectQueryNode",
+        "from": { "kind": "FromNode", "froms": [{
+            "kind": "TableNode",
+            "table": { "kind": "SchemableIdentifierNode",
+                "identifier": { "kind": "IdentifierNode", "name": "task" } }
+        }]},
+        "orderBy": { "kind": "OrderByNode", "items": [{
+            "kind": "OrderByItemNode",
+            "orderBy": { "kind": "ReferenceNode", "column": {
+                "kind": "ColumnNode",
+                "column": { "kind": "IdentifierNode", "name": "priority" } }},
+            "direction": "desc"
+        }]}
+    });
+
+    let (items, _) =
+        svc.query_items_ast(&serde_json::to_vec(&ast).unwrap(), None, 50).await.unwrap();
+    assert_eq!(items.len(), 3, "all three items should return");
+    let priorities: Vec<f64> = items.iter().map(|i| i.data["priority"].as_f64().unwrap()).collect();
+    assert_eq!(priorities, vec![3.0, 2.0, 1.0], "items must be sorted priority DESC");
+}
 
 #[test]
 #[ignore]
