@@ -17,9 +17,8 @@
     ship-decide  { detail: { id, decision: 'deny' | 'allow', duration } }
     ship-dismiss { detail: {} }   — backdrop / ESC closed the dialog
 
-  Composition: <sui-dialog> chrome, <sui-button> footer actions. The duration
-  picker is a component-internal aria-pressed button group (no published
-  single-select primitive ships a child element today).
+  Composition: <sui-dialog> chrome, <sui-button> footer actions, and
+  <sui-toggle-group>/<sui-toggle> (single-select) for the duration picker.
 -->
 
 <prop name="request" type="string" default="" />
@@ -57,26 +56,7 @@
   }
   .value-prose { font-family: var(--font-body); }
 
-  .durations {
-    display: flex;
-    gap: var(--space-2, 8px);
-  }
-  .duration {
-    appearance: none;
-    flex: 1;
-    padding: var(--space-2, 8px);
-    border: 1px solid var(--border);
-    border-radius: var(--radius, 6px);
-    background: var(--background);
-    color: var(--foreground);
-    font: inherit;
-    cursor: pointer;
-  }
-  .duration[aria-pressed='true'] {
-    border-color: var(--primary);
-    background: var(--primary);
-    color: var(--primary-foreground, var(--background));
-  }
+  sui-toggle-group { display: flex; }
 </style>
 
 <sui-dialog
@@ -103,17 +83,15 @@
 
   <div class="section">
     <p class="label">For how long</p>
-    <div class="durations" role="group" aria-label="Duration">
-      {#for d of options() key={d.id}}
-        <button
-          class="duration"
-          type="button"
-          attr:aria-pressed={duration() === d.id ? 'true' : 'false'}
-          on:click={() => pickDuration(d.id)}>
-          {d.label}
-        </button>
-      {/for}
-    </div>
+    <sui-toggle-group
+      type="single"
+      value={duration()}
+      aria-label="Duration"
+      on:sui-change={onDurationChange}>
+      <sui-toggle value="once">Once</sui-toggle>
+      <sui-toggle value="session">This session</sui-toggle>
+      <sui-toggle value="always">Always</sui-toggle>
+    </sui-toggle-group>
   </div>
 
   <span slot="footer">

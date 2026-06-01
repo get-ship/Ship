@@ -9,12 +9,6 @@ const EMPTY: AuthorityRequest = {
   id: '', agent: '', space: '', kind: 'capability', why: '', risk: 'low',
 }
 
-const OPTIONS: { id: Duration; label: string }[] = [
-  { id: 'once', label: 'Once' },
-  { id: 'session', label: 'This session' },
-  { id: 'always', label: 'Always' },
-]
-
 function parseRequest(raw: unknown): Partial<AuthorityRequest> {
   if (raw && typeof raw === 'object') return raw as Partial<AuthorityRequest>
   if (typeof raw !== 'string' || raw === '') return {}
@@ -33,10 +27,11 @@ export default controller({
     const space = derived(() => req().space)
     const why = derived(() => req().why)
     const scopeLine = derived(() => [req().scope, req().path].filter(Boolean).join(' '))
-    const options = derived(() => OPTIONS)
 
-    function pickDuration(d: Duration): void {
-      duration.set(d)
+    // sui-toggle-group emits sui-change { value } — mirror it into our prop.
+    function onDurationChange(e: Event): void {
+      const value = (e as CustomEvent<{ value: string }>).detail?.value
+      if (value === 'once' || value === 'session' || value === 'always') duration.set(value)
     }
 
     function emitDecide(decision: 'deny' | 'allow'): void {
@@ -52,7 +47,7 @@ export default controller({
     function deny(): void { emitDecide('deny') }
     function allow(): void { emitDecide('allow') }
 
-    return { dialogRef, req, agent, space, why, scopeLine, options, pickDuration, deny, allow }
+    return { dialogRef, req, agent, space, why, scopeLine, onDurationChange, deny, allow }
   },
 
   mount(state, host) {

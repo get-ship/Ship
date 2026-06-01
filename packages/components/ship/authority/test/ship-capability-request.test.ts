@@ -34,12 +34,21 @@ function buttonByText(root: ParentNode, text: string): Element {
   if (!btn) throw new Error(`no sui-button labelled "${text}"`)
   return btn
 }
-function durationByLabel(root: ParentNode, label: string): HTMLButtonElement {
-  const btn = Array.from(root.querySelectorAll('button.duration')).find(
-    (b) => b.textContent?.trim() === label,
+function durationLabels(root: ParentNode): string[] {
+  return Array.from(root.querySelectorAll('sui-toggle')).map((t) => t.textContent?.trim() ?? '')
+}
+function toggleGroup(root: ParentNode): HTMLElement {
+  const g = root.querySelector('sui-toggle-group')
+  if (!g) throw new Error('no sui-toggle-group')
+  return g as HTMLElement
+}
+// The toggle-group's click→selection→sui-change behavior is the primitive's
+// own concern (covered by its suite); here we test our contract WITH it —
+// reacting to the sui-change it emits and binding our duration back to value.
+function chooseDuration(root: ParentNode, value: string): void {
+  toggleGroup(root).dispatchEvent(
+    new CustomEvent('sui-change', { detail: { value }, bubbles: true }),
   )
-  if (!btn) throw new Error(`no duration option "${label}"`)
-  return btn as HTMLButtonElement
 }
 
 describe('<ship-capability-request>', () => {
@@ -54,24 +63,20 @@ describe('<ship-capability-request>', () => {
     expect(text).toContain('Why')
     expect(text).toContain('to import workspace-tab.md into the current draft')
     expect(text).toContain('For how long')
-    expect(text).toContain('Once')
-    expect(text).toContain('This session')
-    expect(text).toContain('Always')
+    expect(durationLabels(c.el)).toEqual(['Once', 'This session', 'Always'])
     c.unmount()
   })
 
-  it('defaults the duration to "This session"', () => {
+  it('binds the default duration (session) to the toggle group', () => {
     const c = mount()
-    expect(durationByLabel(c.el, 'This session').getAttribute('aria-pressed')).toBe('true')
-    expect(durationByLabel(c.el, 'Once').getAttribute('aria-pressed')).toBe('false')
+    expect(toggleGroup(c.el).getAttribute('value')).toBe('session')
     c.unmount()
   })
 
-  it('selecting a duration moves the pressed state', () => {
+  it('reflects a chosen duration back into the toggle group value', () => {
     const c = mount()
-    durationByLabel(c.el, 'Always').dispatchEvent(new Event('click', { bubbles: true }))
-    expect(durationByLabel(c.el, 'Always').getAttribute('aria-pressed')).toBe('true')
-    expect(durationByLabel(c.el, 'This session').getAttribute('aria-pressed')).toBe('false')
+    chooseDuration(c.el, 'always')
+    expect(toggleGroup(c.el).getAttribute('value')).toBe('always')
     c.unmount()
   })
 
@@ -79,7 +84,7 @@ describe('<ship-capability-request>', () => {
     const c = mount()
     let detail: unknown = null
     c.el.addEventListener('ship-decide', (e) => { detail = (e as CustomEvent).detail })
-    durationByLabel(c.el, 'Once').dispatchEvent(new Event('click', { bubbles: true }))
+    chooseDuration(c.el, 'once')
     buttonByText(c.el, 'Allow').dispatchEvent(new Event('click', { bubbles: true }))
     expect(detail).toEqual({ id: 'r1', decision: 'allow', duration: 'once' })
     c.unmount()
