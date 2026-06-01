@@ -16,6 +16,14 @@
 
 // Slice 1 — the engine primitive.
 import './sui-render/sui-render.compiled.js'
+// Slice 2 — the CEM-driven knob playground.
+import './sui-prop-knobs/sui-prop-knobs.compiled.js'
+// Slice 3 — the Storybook-style state sweep.
+import './sui-prop-matrix/sui-prop-matrix.compiled.js'
+// Slice 4 — source + paste-able snippet + the one copy path.
+import './sui-source-panel/sui-source-panel.compiled.js'
+// Slice 5 — the composition primitive (the embeddable tag).
+import './sui-component-viewer/sui-component-viewer.compiled.js'
 
 // WASM-in-browser bootstrap (Slice 0). Framework-pure: takes the wasm URL as a
 // param, exposes the bound `compile()` the host injects into the primitives via
