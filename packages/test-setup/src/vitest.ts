@@ -133,6 +133,11 @@ export function suiComponentVitestConfig(opts: SuiComponentVitestOptions = {}) {
     resolve: {
       alias: {
         // Resolved by package name → point at the framework source, move-proof.
+        // Subpaths first (most specific) so they win over the bare-name alias —
+        // renderView/renderComponent in @ship/test-setup import these.
+        '@ship/sui-dom/test-utils': require.resolve('@ship/sui-dom/test-utils'),
+        '@ship/sui-runtime/template-hooks': require.resolve('@ship/sui-runtime/template-hooks'),
+        '@ship/sui-runtime/route': require.resolve('@ship/sui-runtime/route'),
         '@ship/sui-runtime': require.resolve('@ship/sui-runtime'),
         '@ship/sui-dom': require.resolve('@ship/sui-dom'),
         ...opts.alias,

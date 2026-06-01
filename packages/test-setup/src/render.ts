@@ -110,6 +110,10 @@ export function renderView(source: string, opts: RenderOpts = {}): Rendered {
 export interface RenderComponentOpts {
   /** Attribute props to set on the element before it connects. */
   attrs?: Record<string, string | boolean>
+  /** The component's paired controller — its default export, or a raw setup
+   *  function. Omit for templates with no controller. Without it, derived
+   *  scope, event emitters, and `{#if}` branches that read scope render empty. */
+  controller?: ControllerInput
 }
 
 /**
@@ -124,9 +128,16 @@ export function renderComponent(
   opts: RenderComponentOpts = {},
 ): Omit<Rendered, 'scope'> & { el: HTMLElement; shadow: ShadowRoot | null } {
   // Component compile is a side-effecting `component(tag, def)` that registers
-  // the custom element. No setup/mount cycle — we instantiate directly.
-  const compiled = compileSui(source, { componentName: tag, mode: 'component' })
-  evalCompiledJs(compiled.js)
+  // the custom element. When a controller is supplied, compile with the setup
+  // marker so eval rewrites the `import setup` line to the injected controller
+  // (mirrors renderView); otherwise the template renders without scope.
+  const usesController = opts.controller != null
+  const compiled = compileSui(source, {
+    componentName: tag,
+    mode: 'component',
+    ...(usesController ? { setupMarker: SETUP_MARKER } : {}),
+  })
+  evalCompiledJs(compiled.js, opts.controller as never)
 
   const root = document.createElement('div')
   document.body.appendChild(root)
