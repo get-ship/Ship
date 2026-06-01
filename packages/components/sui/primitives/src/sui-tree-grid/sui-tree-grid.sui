@@ -1,0 +1,204 @@
+<!--
+  <sui-tree-grid> — engine-backed hierarchical TREE-GRID (role=treegrid).
+
+  The SAME flattened depth-first `tree.rows()` from the REUSED Table engine
+  (createTable with getSubRows+expanded — NO createTree()), rendered through the
+  Table view's COLUMN/CELL machinery (row.getVisibleCells()), with the disclosure
+  caret + indent in the FIRST visible column. navMode:'cell' (vs 'row' for
+  sui-tree); role=treegrid (vs role=tree). The live Table<T> (carrying the column
+  defs) arrives via prop:tree IDENTITY binding; a nodes+columns JSON pair is the
+  SSR fallback.
+
+  Density is the platform axis (<html data-density>). NO density/dense prop.
+
+  Events (host.emit): sui-toggle {id, expanded}, sui-expand-change {expanded},
+  sui-select {id}, sui-node-select {selected, selectedIds}, sui-node-click
+  {id, depth, index}.
+-->
+
+<prop name="nodes" type="string" default="" />
+<prop name="columns" type="string" default="" />
+<prop name="label" type="string" default="" />
+<prop name="selectable" values="none|single|multi" default="none" reflect />
+<prop name="expand-on-select" type="bool" default="false" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="loading" type="bool" default="false" reflect />
+<prop name="error" type="string" default="" />
+
+<style>
+  :host {
+    display: block;
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: var(--density-text);
+    color: var(--foreground);
+    --sui-tree-indent: var(--density-row-px);
+    --sui-col-count: 1;
+  }
+  :host([hidden]) { display: none; }
+
+  .grid {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+    overflow: hidden;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .head {
+    display: grid;
+    grid-template-columns: repeat(var(--sui-col-count), minmax(80px, 1fr));
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    background: var(--surface-2);
+    box-shadow: 0 1px 0 0 var(--border);
+  }
+  .col-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--density-row-py) var(--density-row-px);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-foreground);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .viewport {
+    position: relative;
+    width: 100%;
+    overflow-y: auto;
+    max-height: 480px;
+  }
+  .spacer { position: relative; width: 100%; }
+
+  .row {
+    display: grid;
+    grid-template-columns: repeat(var(--sui-col-count), minmax(80px, 1fr));
+    position: absolute;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+    outline: none;
+    transition: background-color var(--duration-fast) var(--ease-out);
+  }
+  .row:hover { background: var(--hover-bg); }
+  .row[data-selected] { background: var(--selected-bg); }
+  .row:focus-visible { box-shadow: inset 0 0 0 var(--ring-width) var(--ring-color); }
+
+  .cell {
+    display: flex;
+    align-items: center;
+    gap: var(--density-row-gap);
+    padding: var(--density-row-py) var(--density-row-px);
+    border-bottom: 1px solid var(--divider);
+    color: var(--foreground);
+    min-width: 0;
+  }
+
+  .caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: var(--density-icon);
+    height: var(--density-icon);
+    color: var(--muted-foreground);
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+  .row[data-expanded] .caret { transform: rotate(90deg); }
+  .row:not([data-can-expand]) .caret { visibility: hidden; }
+
+  .cell-label {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  @media (forced-colors: active) {
+    .row:focus-visible { outline: 2px solid CanvasText; outline-offset: -2px; }
+  }
+</style>
+
+{#if error() !== ''}
+<div class="tree-error" part="error" role="alert">
+  <sui-error-state prop:message={error()}></sui-error-state>
+</div>
+{:else if isEmptyInitial()}
+<div class="tree-empty" part="empty" role="status">
+  <slot name="empty"><sui-empty-state></sui-empty-state></slot>
+</div>
+{:else if isEmptyFiltered()}
+<div class="tree-empty" part="empty" role="status">
+  <slot name="empty">
+    <sui-empty-state>
+      <button slot="action" type="button" data-action="clear-filters">Clear filters</button>
+    </sui-empty-state>
+  </slot>
+</div>
+{:else}
+<div
+  class="grid"
+  part="grid"
+  role="treegrid"
+  aria-label={label() || null}
+  aria-rowcount={rowCount()}
+  aria-multiselectable={selectable() === 'multi' ? 'true' : null}
+  style:--sui-col-count={headers().length}
+>
+  <div class="head" part="thead" role="row">
+    {#for h of headers() key={h.id}}
+      <div class="col-head" part="columnheader" role="columnheader">{h.label}</div>
+    {/for}
+  </div>
+  <div class="viewport" part="viewport" bind:this={viewportEl}>
+    <div class="spacer" part="spacer" style:height={`${totalSize()}px`}>
+      {#for w of windowItems() key={w.key}}
+        <div
+          class="row"
+          part="row"
+          role="row"
+          data-node-id={w.id}
+          aria-level={w.level}
+          aria-posinset={w.posInSet}
+          aria-setsize={w.setSize}
+          aria-rowindex={w.index + 1}
+          aria-expanded={w.canExpand ? (w.expanded ? 'true' : 'false') : null}
+          aria-selected={selectable() !== 'none' ? (w.selected ? 'true' : 'false') : null}
+          data-can-expand={w.canExpand ? 'true' : null}
+          data-expanded={w.expanded ? 'true' : null}
+          data-selected={w.selected ? 'true' : null}
+          tabindex={w.id === activeRowId() ? '0' : '-1'}
+          style:transform={`translateY(${w.start}px)`}
+        >
+          {#for c of w.cells key={c.columnId}}
+            <div
+              class="cell"
+              part="cell"
+              role="gridcell"
+              style:padding-inline-start={c.first ? `calc(var(--density-row-px) + ${w.indent}px)` : null}
+            >
+              {#if c.first && w.canExpand}
+                <span class="caret" part="caret" aria-hidden="true">
+                  <sui-icon name="chevron-right" size="xs"></sui-icon>
+                </span>
+              {/if}
+              <span class="cell-label">{c.value}</span>
+            </div>
+          {/for}
+        </div>
+      {/for}
+    </div>
+  </div>
+</div>
+{/if}
