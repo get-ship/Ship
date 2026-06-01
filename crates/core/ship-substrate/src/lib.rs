@@ -24,6 +24,7 @@ pub mod log;
 pub mod persistence;
 pub mod project;
 pub mod projections;
+pub mod query;
 pub mod services;
 pub mod supervisor;
 pub mod trash;
@@ -31,9 +32,9 @@ pub mod trash;
 pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
 
 pub use ports::{
-    ColumnKind, ColumnSpec, CountQuery, Cursor, DataStore, DataStoreError, KernelLog,
-    PrimaryKey, Query, QueryResult, Row, SingleBackendDataStore, SpaceContext, SpaceId,
-    TableSchema,
+    is_safe_ident, ColumnKind, ColumnSpec, CountQuery, Cursor, DataStore, DataStoreError,
+    FilterOp, KernelLog, Predicate, PrimaryKey, Query, QueryResult, Row, SingleBackendDataStore,
+    Sort, SpaceContext, SpaceId, TableSchema,
 };
 
 pub use events::{

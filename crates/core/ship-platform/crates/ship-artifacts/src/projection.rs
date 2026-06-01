@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 use ship_substrate::ports::{
-    ColumnKind, ColumnSpec, DataStore, DataStoreError, Query, Row, TableSchema,
+    ColumnKind, ColumnSpec, DataStore, DataStoreError, Predicate, Query, Row, TableSchema,
 };
 
 use crate::error::ArtifactError;
@@ -139,7 +139,12 @@ pub fn record_to_scope(record: &ArtifactRecord) -> Result<ArtifactScope, Artifac
 pub async fn get_by_id(store: &dyn DataStore, id: &str) -> Result<Option<ArtifactRecord>, ArtifactError> {
     let mut filter = BTreeMap::new();
     filter.insert("id".into(), serde_json::Value::String(id.to_string()));
-    let q = Query { table: TABLE.to_string(), filter, limit: 1, ..Default::default() };
+    let q = Query {
+        table: TABLE.to_string(),
+        filters: Predicate::eq_all(filter),
+        limit: 1,
+        ..Default::default()
+    };
     let result = store.query(q).await?;
     match result.rows.into_iter().next() {
         Some(row) => Ok(Some(row_to_record(row)?)),
@@ -154,7 +159,13 @@ pub async fn query_artifacts(
     limit: u32,
     after: Option<String>,
 ) -> Result<Vec<ArtifactRecord>, ArtifactError> {
-    let q = Query { table: TABLE.to_string(), filter, limit, after, ..Default::default() };
+    let q = Query {
+        table: TABLE.to_string(),
+        filters: Predicate::eq_all(filter),
+        limit,
+        after,
+        ..Default::default()
+    };
     let result = store.query(q).await?;
     result.rows.into_iter().map(row_to_record).collect()
 }
@@ -165,7 +176,7 @@ pub async fn count_by_filter(
     filter: BTreeMap<String, serde_json::Value>,
 ) -> Result<usize, ArtifactError> {
     use ship_substrate::ports::CountQuery;
-    let q = CountQuery { table: TABLE.to_string(), filter };
+    let q = CountQuery { table: TABLE.to_string(), filters: Predicate::eq_all(filter) };
     Ok(store.count(q).await?)
 }
 
@@ -179,7 +190,12 @@ pub async fn find_by_hash(
     filter.insert("scope".into(), sv(scope.kind_str().to_string()));
     filter.insert("content_hash".into(), sv(content_hash.to_string()));
     scope_filter_fields(scope, &mut filter);
-    let q = Query { table: TABLE.to_string(), filter, limit: 1, ..Default::default() };
+    let q = Query {
+        table: TABLE.to_string(),
+        filters: Predicate::eq_all(filter),
+        limit: 1,
+        ..Default::default()
+    };
     let result = store.query(q).await?;
     Ok(result.rows.into_iter().next()
         .and_then(|r| r.fields.get("path").and_then(|v| v.as_str().map(str::to_string))))

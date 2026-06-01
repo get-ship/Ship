@@ -14,8 +14,8 @@ use tokio::sync::Mutex;
 use crate::data::{DataService, SqlParam};
 
 use super::data_store::{
-    ColumnKind, CountQuery, DataStore, DataStoreError, PrimaryKey, Query, QueryResult, Row,
-    TableSchema,
+    is_safe_ident, ColumnKind, CountQuery, DataStore, DataStoreError, FilterOp, Predicate,
+    PrimaryKey, Query, QueryResult, Row, TableSchema,
 };
 
 pub struct SingleBackendDataStore {
@@ -122,19 +122,15 @@ impl DataStore for SingleBackendDataStore {
 
     async fn query(&self, q: Query) -> Result<QueryResult, DataStoreError> {
         check_ident(&q.table)?;
-        for k in q.filter.keys() {
-            check_ident(k)?;
-        }
-        if let Some(ref col) = q.sort_asc {
-            check_ident(col)?;
+        if let Some(ref sort) = q.sort {
+            check_ident(&sort.column)?;
         }
         let mut svc = self.inner.lock().await;
         let mut conditions = vec!["space_id = ?".to_string()];
         let mut params: Vec<SqlParam> = vec![SqlParam::from(self.space_id.as_str())];
 
-        for (k, v) in &q.filter {
-            conditions.push(format!("`{k}` = ?"));
-            params.push(json_to_param(v));
+        for pred in &q.filters {
+            push_predicate(pred, &mut conditions, &mut params)?;
         }
 
         if let Some(ref after) = q.after {
@@ -143,11 +139,14 @@ impl DataStore for SingleBackendDataStore {
         }
 
         let where_clause = conditions.join(" AND ");
-        let order = match &q.sort_asc {
-            Some(col) => format!("ORDER BY `{col}` ASC"),
+        let order = match &q.sort {
+            Some(sort) => {
+                let dir = if sort.descending { "DESC" } else { "ASC" };
+                format!("ORDER BY `{}` {dir}", sort.column)
+            }
             None => "ORDER BY id ASC".to_string(),
         };
-        let limit = q.limit.min(500).max(1);
+        let limit = q.limit.clamp(1, 500);
         let sql = format!(
             "SELECT * FROM `{table}` WHERE {where_clause} {order} LIMIT {limit}",
             table = q.table,
@@ -161,16 +160,12 @@ impl DataStore for SingleBackendDataStore {
 
     async fn count(&self, q: CountQuery) -> Result<usize, DataStoreError> {
         check_ident(&q.table)?;
-        for k in q.filter.keys() {
-            check_ident(k)?;
-        }
         let mut svc = self.inner.lock().await;
         let mut conditions = vec!["space_id = ?".to_string()];
         let mut params: Vec<SqlParam> = vec![SqlParam::from(self.space_id.as_str())];
 
-        for (k, v) in &q.filter {
-            conditions.push(format!("`{k}` = ?"));
-            params.push(json_to_param(v));
+        for pred in &q.filters {
+            push_predicate(pred, &mut conditions, &mut params)?;
         }
 
         let where_clause = conditions.join(" AND ");
@@ -190,14 +185,46 @@ impl DataStore for SingleBackendDataStore {
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-fn is_safe_ident(s: &str) -> bool {
-    if s.is_empty() || s.len() > 128 {
-        return false;
+/// Append one predicate's WHERE fragment + bound params. Column is validated;
+/// values are always bound, never interpolated.
+fn push_predicate(
+    pred: &Predicate,
+    conditions: &mut Vec<String>,
+    params: &mut Vec<SqlParam>,
+) -> Result<(), DataStoreError> {
+    check_ident(&pred.column)?;
+    let col = &pred.column;
+    match pred.op {
+        FilterOp::Eq | FilterOp::Gt | FilterOp::Gte | FilterOp::Lt | FilterOp::Lte => {
+            let sql_op = match pred.op {
+                FilterOp::Eq => "=",
+                FilterOp::Gt => ">",
+                FilterOp::Gte => ">=",
+                FilterOp::Lt => "<",
+                FilterOp::Lte => "<=",
+                FilterOp::In => unreachable!(),
+            };
+            conditions.push(format!("`{col}` {sql_op} ?"));
+            params.push(json_to_param(&pred.value));
+        }
+        FilterOp::In => {
+            let items = pred.value.as_array().ok_or_else(|| {
+                DataStoreError::Storage(format!("IN predicate on `{col}` requires an array value"))
+            })?;
+            if items.is_empty() {
+                // `col IN ()` is invalid SQL and matches nothing — emit a
+                // contradiction so the row set is empty.
+                conditions.push("1 = 0".to_string());
+                return Ok(());
+            }
+            let placeholders = vec!["?"; items.len()].join(", ");
+            conditions.push(format!("`{col}` IN ({placeholders})"));
+            for v in items {
+                params.push(json_to_param(v));
+            }
+        }
     }
-    let mut chars = s.chars();
-    let first = chars.next().unwrap();
-    (first.is_ascii_alphabetic() || first == '_')
-        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+    Ok(())
 }
 
 fn check_ident(s: &str) -> Result<(), DataStoreError> {

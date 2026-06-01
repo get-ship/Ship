@@ -4,17 +4,15 @@
 //! All events go through `SpaceContext.kernel()` (KernelLog port).
 //! No sqlite/rusqlite/sqlx types here.
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use ship_substrate::ports::{PrimaryKey, Query, SpaceContext};
+use ship_substrate::ports::{Predicate, PrimaryKey, Query, SpaceContext};
 use ship_types::envelope::EventEnvelope;
 use ship_types::payload::{
     CollectionCreated, CollectionItemCreated, CollectionItemDeleted, CollectionItemUpdated,
     CollectionSchemaChanged,
 };
 
-use crate::ast::translate_ast;
 use crate::error::CollectionError;
 use crate::helpers::{build_row, emit_ctx, new_ulid, now_rfc3339, row_to_item};
 use crate::projection::{
@@ -56,7 +54,7 @@ impl CollectionService {
         })?;
         let q = Query {
             table: format!("collection_{collection}"),
-            filter: BTreeMap::from([("id".into(), serde_json::Value::String(id.into()))]),
+            filters: vec![Predicate::eq("id", serde_json::Value::String(id.into()))],
             limit: 1,
             ..Default::default()
         };
@@ -86,7 +84,11 @@ impl CollectionService {
         cursor: Option<String>,
         limit: u32,
     ) -> Result<(Vec<ItemRecord>, Option<String>), CollectionError> {
-        let q = translate_ast(ast_bytes, cursor, limit)?;
+        let mut q = ship_substrate::query::translate_ast(ast_bytes, cursor, limit)
+            .map_err(|e| CollectionError::UnsupportedQuery(e.to_string()))?;
+        // The translator returns the logical table name; map it to the physical
+        // collection table here (the executor no longer applies the prefix).
+        q.table = format!("collection_{}", q.table);
         self.query_items_by_query(q).await
     }
 
