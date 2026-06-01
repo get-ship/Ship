@@ -160,6 +160,7 @@ mod tests {
             caller_kind: CallerKind::Mcp,
             agent_id: Some("a".into()),
             workspace_id: workspace.map(str::to_string),
+            space_id: None,
             session_id: None,
             scopes: vec![Scope::Full],
             grants: vec![],
