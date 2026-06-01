@@ -168,6 +168,20 @@ test-pkg pkg:
 check:
     cargo check --workspace --exclude ship-shell --all-targets --features unstable
 
+# THE GATE. Every dispatched job runs this before commit; the operator skims the
+# diff for taste only — the objective bar is proven here, not claimed. Composes
+# the existing check/lint/drift/test surface. If this is green, the mechanical
+# bar is met. See .artifacts/services/_docs-strategy.md (gate note).
+[group('daily')]
+gate:
+    @just check
+    @just lint
+    @just gen-contract-check
+    @just gen-events-check
+    @just gen-indexes-check
+    cargo test --workspace --exclude ship-shell --features unstable
+    @echo "✓ gate green — objective bar met (taste review still required)"
+
 # Rust clippy + home-layout grep guards. Hard-fail on raw .ship/ joins
 # (devx-06 Tier 6).
 [group('daily')]
