@@ -1,0 +1,13 @@
+[package]
+name = "ship-policy"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L0 authz primitive — the scope-binding + decision types and enforce_scope. The one place scope enforcement lives; depends only on ship-types."
+
+[dependencies]
+ship-types = { path = "../ship-types" }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

@@ -7789,6 +7789,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-policy"
+version = "0.1.0"
+dependencies = [
+ "ship-types",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "ship-reactive"
 version = "0.1.0"
 dependencies = [
