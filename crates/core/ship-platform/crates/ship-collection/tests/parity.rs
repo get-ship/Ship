@@ -287,40 +287,6 @@ fn parity_validate_multiple_errors_collected() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// GAP: nested sub-schema validation not in new crate
-// ═══════════════════════════════════════════════════════════════════════════════
-
-#[test]
-#[ignore]
-// PARITY-GAP: old impl validated array element types with index-path error
-// reporting (e.g., "tags[1] must be a string"). New crate only checks that
-// the field value is an array, not what each element contains.
-// To fix: add `items: Option<Box<FieldDef>>` to FieldDef and recurse in
-// check_field for Array, tracking the "[{i}]" path segment.
-fn parity_gap_array_element_type_validation() {
-    let schema =
-        parse_schema_doc(br#"{ "id": "t", "fields": { "tags": { "type": "array" } } }"#)
-            .unwrap();
-    let err = validate_item(&schema, &json!({ "tags": ["ok", 42, "ok"] })).unwrap_err();
-    assert!(err.to_string().contains("tags[1]"));
-}
-
-#[test]
-#[ignore]
-// PARITY-GAP: old impl validated object `required_keys` (e.g., "author.name is
-// required"). New crate only checks that the field value is an object.
-// To fix: add `properties: Option<IndexMap<String, FieldDef>>` and
-// `required_keys: Vec<String>` to FieldDef.
-fn parity_gap_object_required_key_validation() {
-    let schema =
-        parse_schema_doc(br#"{ "id": "t", "fields": { "author": { "type": "object" } } }"#)
-            .unwrap();
-    let err =
-        validate_item(&schema, &json!({ "author": { "age": 32 } })).unwrap_err();
-    assert!(err.to_string().contains("author.name"));
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // BUILTIN SCHEMAS — unit tests (PORT)
 // Origin: integration_builtin.rs
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -990,25 +956,53 @@ async fn parity_gap_query_sort_descending() {
     assert_eq!(priorities, vec![3.0, 2.0, 1.0], "items must be sorted priority DESC");
 }
 
-#[test]
-#[ignore]
-// PARITY-GAP: old update_item had merge/patch semantics — passing only
-// {"status": "done"} would preserve the existing "title" field. New impl
-// replaces the full item. Callers who relied on partial update must now fetch
-// the item, apply the patch manually, and re-submit the complete object.
-fn parity_gap_update_merges_fields_preserving_untouched() {}
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parity_gap_update_merges_fields_preserving_untouched() {
+    // PARITY-GAP #6: partial update must preserve untouched fields.
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let ctx = make_ctx(&tmp, kernel);
+    let svc = make_service(ctx);
+
+    svc.create_schema("task", &task_schema_json()).await.unwrap();
+    let item = svc
+        .create_item(
+            "task",
+            &serde_json::to_vec(&json!({ "title": "Keep me", "status": "todo" })).unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Partial update — only status; title must survive.
+    let updated = svc
+        .update_item(
+            "task",
+            &item.id,
+            &serde_json::to_vec(&json!({ "status": "done" })).unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(updated.data["status"], "done", "status must be updated");
+    assert_eq!(updated.data["title"], "Keep me", "title must be preserved");
+
+    // Verify via a fresh get — not just the returned value.
+    let fetched = svc.get_item("task", &item.id).await.unwrap();
+    assert_eq!(fetched.data["status"], "done");
+    assert_eq!(fetched.data["title"], "Keep me");
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PARITY REPORT
 // ─────────────────────────────────────────────────────────────────────────────
-//  PORT    : 35 tests (see all non-#[ignore] tests above)
+//  PORT    : 49 tests (all non-#[ignore] tests above, including resolved gaps)
 //  OBSOLETE: 22 old tests omitted — reasons:
 //    - parse_rejects_items_on_non_array / parse_rejects_properties_on_non_object
 //      / parse_rejects_required_key_not_in_properties: items/properties/
 //      required_keys sub-schema fields not in new SchemaDoc (simpler design).
 //    - array_of_strings_rejects_*, object_*, deeply_nested_*, array_of_objects_*,
 //      round_trip_serde_preserves_nested_schema: nested sub-schema validation
-//      replaced entirely (→ GAPs above).
+//      replaced entirely (→ dropped below).
 //    - load_schemas_from_*, load_schemas_merged_*, load_schemas_skips_*:
 //      new crate uses SchemaRegistry (in-memory seeded from builtins + DataStore),
 //      not filesystem JSONC loading.
@@ -1016,12 +1010,13 @@ fn parity_gap_update_merges_fields_preserving_untouched() {}
 //      collections_builtin_register_is_idempotent: no public register() API.
 //    - collections_builtin_adrs_schema_parses: no adrs schema in new builtins.
 //    - query_with_sort_descending / query_with_limit_and_offset: descending sort
-//      unsupported; offset replaced by cursor pagination (→ GAP for sort).
-//  GAP     : 5 PARITY-GAPs (see #[ignore] tests above):
-//    1. Array element type validation with index-path reporting
-//    2. Object required_keys validation
-//    3. gte/gte filter operator
-//    4. IN filter operator
-//    5. Sort descending
-//    6. Merge/patch update semantics
+//      unsupported; offset replaced by cursor pagination (→ GAP for sort, now resolved).
+//  GAP     : 0 remaining — all resolved or dropped:
+//    #1/#2 dropped — out-of-model per ADR (relational store declines nested-document
+//          validation). Array element type validation and object required_keys validation
+//          are not part of the relational model.
+//    #3 resolved — gte/lte comparison operators
+//    #4 resolved — IN filter operator
+//    #5 resolved — sort descending
+//    #6 resolved — merge/patch update semantics (partial update preserves untouched fields)
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -4,8 +4,8 @@
 
 | | Count |
 |---|---|
-| PORT (tests added in parity.rs) | 48 |
-| IGNORED/GAP (in parity.rs, `#[ignore]`) | 3 |
+| PORT (tests added in parity.rs) | 49 |
+| IGNORED/GAP (in parity.rs, `#[ignore]`) | 0 |
 | OBSOLETE (old plumbing gone, omitted) | 22 |
 
 Old baseline: **~160 old tests** across schema_tests.rs, tests_integration.rs,
@@ -14,7 +14,7 @@ integration_validation.rs.
 
 New baseline (before this job): **12 tests** in behavior.rs.
 
-New baseline (after this job): **12 (behavior.rs) + 48 (parity.rs) = 60 tests**.
+New baseline (after this job): **12 (behavior.rs) + 49 (parity.rs) = 61 tests**.
 
 ---
 
@@ -27,12 +27,18 @@ New baseline (after this job): **12 (behavior.rs) + 48 (parity.rs) = 60 tests**.
 | 3 | **gte/lt/lte filter operator** — old impl supported `priority__gte: 2` style filters. **RESOLVED (job/kysely-promote): `FilterOp::{Gt,Gte,Lt,Lte}` on the substrate `Query` port + translator; `parity_gap_query_filter_by_gte` green.** | Resolved. |
 | 4 | **IN filter operator** — old impl supported `status__in: ["todo", "doing"]`. **RESOLVED (job/kysely-promote): `FilterOp::In`, one bound param per element; `parity_gap_query_filter_by_in` green.** | Resolved. |
 | 5 | **Sort descending** — old impl supported `sort.insert("priority", -1)`. **RESOLVED (job/kysely-promote): `Query::sort: Option<Sort>` carries direction; translator reads `OrderByItemNode.direction`; `parity_gap_query_sort_descending` green.** | Resolved. |
-| 6 | **Update merge/patch semantics** — old `update_item` merged partial data (passing `{"status": "done"}` preserved existing `title`). New impl replaces the full item. | Medium. Callers who relied on partial update must fetch+merge+resubmit. |
+| 6 | **Update merge/patch semantics** — old `update_item` merged partial data (passing `{"status": "done"}` preserved existing `title`). **RESOLVED (job/collections-closeout): `update_item` fetches existing data, merges the patch on top, validates the merged document, then issues a partial-column UPDATE — untouched fields are preserved.** | Resolved. |
 
 **job/kysely-promote** moved the OperationNode→AST→Query executor out of
 `ship-collection/src/ast.rs` into `ship_substrate::query` (the shared query surface) and
 gave `DataStore::Query`/`CountQuery` an operator/predicate model (`FilterOp` + `Predicate`
-+ `Sort`). GAPs #3/#4/#5 are closed. Remaining ignored gaps: **#1, #2, #6** (3 `#[ignore]`).
++ `Sort`). GAPs #3/#4/#5 are closed.
+
+**job/collections-closeout** resolved #6 and dropped #1/#2 as out-of-model. 0 remaining gaps.
+
+#1/#2 dropped — out-of-model per ADR (relational store declines nested-document validation).
+Array element type validation and object required\_keys validation are not part of the
+relational model.
 
 ---
 

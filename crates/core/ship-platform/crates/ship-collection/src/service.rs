@@ -131,7 +131,8 @@ impl CollectionService {
         })
     }
 
-    /// Update an item, validate against schema, emit event.
+    /// Update an item with merge/patch semantics — only provided fields are
+    /// written; untouched fields retain their existing values.
     pub async fn update_item(
         &self,
         collection: &str,
@@ -141,13 +142,25 @@ impl CollectionService {
         let schema = self.schemas.get(collection).ok_or_else(|| {
             CollectionError::NotFound(format!("collection '{collection}' not found"))
         })?;
-        let data: serde_json::Value = serde_json::from_slice(data_json)
+        let patch: serde_json::Value = serde_json::from_slice(data_json)
             .map_err(|e| CollectionError::Validation(format!("invalid data JSON: {e}")))?;
-        validate_item(&schema, &data)?;
 
         let now = now_rfc3339();
         let original = self.get_item(collection, id).await?;
-        let row = build_row(id, &schema, data.as_object().unwrap(), &original.created_at, &now);
+
+        // Merge patch on top of existing data, then validate the merged result so
+        // required-field checks see the full document.
+        let mut merged = serde_json::Value::Object(original.data.clone());
+        if let (Some(merged_obj), Some(patch_obj)) = (merged.as_object_mut(), patch.as_object()) {
+            for (k, v) in patch_obj {
+                merged_obj.insert(k.clone(), v.clone());
+            }
+        }
+        validate_item(&schema, &merged)?;
+
+        // Build a row from only the provided fields — the DataStore UPDATE sets
+        // only those columns and leaves the rest untouched.
+        let row = build_row(id, &schema, patch.as_object().unwrap(), &original.created_at, &now);
         self.ctx.data().update(&format!("collection_{collection}"), row).await?;
 
         let envelope = EventEnvelope::new(
@@ -164,7 +177,7 @@ impl CollectionService {
         Ok(ItemRecord {
             id: id.to_string(),
             collection: collection.to_string(),
-            data: data.as_object().cloned().unwrap_or_default(),
+            data: merged.as_object().cloned().unwrap_or_default(),
             created_at: original.created_at,
             updated_at: now,
         })
