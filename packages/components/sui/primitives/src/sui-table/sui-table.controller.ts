@@ -51,6 +51,14 @@ export default controller({
     const colCount = derived<number>(() => table().visibleLeafColumns().length)
     const totalSize = virt.totalSize
 
+    // ── Pagination footer (Slice 6) ─────────────────────────────────────────
+    // Pagination is opt-in: pageSize 0 = no footer (the full set flows to the
+    // virtualizer). When a pageSize is set, the footer <sui-pagination> reads
+    // these 1-based views and drives setPageIndex/setPageSize on sui-page-change.
+    const hasPagination = derived<boolean>(() => table().state.pagination().pageSize > 0)
+    const pageSize = derived<number>(() => table().state.pagination().pageSize)
+    const pageIndex1 = derived<number>(() => table().state.pagination().pageIndex + 1)
+
     return {
       tableSig,
       viewportEl,
@@ -63,6 +71,9 @@ export default controller({
       rowCount,
       colCount,
       totalSize,
+      hasPagination,
+      pageSize,
+      pageIndex1,
     }
   },
 

@@ -178,6 +178,14 @@
     display: flex;
     justify-content: center;
   }
+  .grid-foot {
+    display: flex;
+    align-items: center;
+    padding: var(--space-2) var(--density-row-px);
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .grid-foot sui-pagination { width: 100%; }
 
   @media (forced-colors: active) {
     .wrap { border-color: CanvasText; }
@@ -271,6 +279,16 @@
         </div>
       </div>
     </div>
+    {#if hasPagination()}
+      <div class="grid-foot" part="foot">
+        <sui-pagination
+          part="pagination"
+          prop:page={pageIndex1()}
+          prop:total={rowCount()}
+          prop:page-size={pageSize()}
+        ></sui-pagination>
+      </div>
+    {/if}
   {/if}
 </div>
 {:else if variant() !== 'native'}

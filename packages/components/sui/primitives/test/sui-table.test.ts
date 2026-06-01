@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import '../src/sui-table/sui-table.compiled.js'
+// Behavioral spec #7 (pagination UI) renders the footer <sui-pagination>, which
+// composes <sui-button>. Register both so the footer + its delegated nav clicks
+// drive the engine through real custom elements.
+import '../src/sui-pagination/sui-pagination.compiled.js'
+import '../src/sui-button/sui-button.compiled.js'
 import { createTable } from '../src/sui-table/engine/create-table'
 import type { ColumnDef } from '../src/sui-table/engine/types'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
@@ -683,5 +688,84 @@ describe('<sui-table> data variant — pagination (direct engine drive)', () => 
     await flush()
     expect(rowIds(shadow)).toEqual(['6'])
     expect(table.getCanNextPage()).toBe(false)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Behavioral spec #7 — the pagination UI (Slice 6). The data footer renders a
+// <sui-pagination> when the engine has an active page size; its controls drive
+// setPageIndex / setPageSize via the `sui-page-change` event the table relays
+// into the engine. The footer reflects engine state (range label, page numbers,
+// 1-based current page) back. Pagination is opt-in: pageSize 0 = no footer.
+
+describe('<sui-table> data variant — pagination UI footer (#7)', () => {
+  const PEOPLE: Person[] = Array.from({ length: 7 }, (_, i) => ({
+    id: String(i),
+    name: `P${i}`,
+    age: i,
+  }))
+
+  const footerPager = (shadow: ShadowRoot | null): HTMLElement | null =>
+    shadow!.querySelector('[part~="pagination"], sui-pagination')
+
+  const pagerShadow = (pager: HTMLElement | null): ShadowRoot | null =>
+    pager?.shadowRoot ?? null
+
+  it('renders NO footer pager until a page size is set', async () => {
+    const { shadow } = mountWithEngine(PEOPLE, PERSON_COLS)
+    await flush()
+    expect(footerPager(shadow)).toBeNull()
+  })
+
+  it('renders the footer <sui-pagination> once a page size is active', async () => {
+    const { shadow, table } = mountWithEngine(PEOPLE, PERSON_COLS)
+    table.setPageSize(3)
+    await flush()
+    const pager = footerPager(shadow)
+    expect(pager).not.toBeNull()
+  })
+
+  it('footer reflects the engine: 1-based page, total, page size → range + numbers', async () => {
+    const { shadow, table } = mountWithEngine(PEOPLE, PERSON_COLS)
+    table.setPageSize(3)
+    await flush()
+    const ps = pagerShadow(footerPager(shadow))
+    // 7 rows / 3 per page → 3 pages; page 1 shows "1–3 of 7".
+    expect(ps!.querySelector('[part~="range"]')!.textContent).toMatch(/1\s*[–-]\s*3\s+of\s+7/)
+    const nums = Array.from(ps!.querySelectorAll('[data-page]')).map((b) =>
+      b.getAttribute('data-page'),
+    )
+    expect(nums).toEqual(['1', '2', '3'])
+    const current = ps!.querySelector('[aria-current="page"]')
+    expect(current!.getAttribute('data-page')).toBe('1')
+  })
+
+  it('clicking the footer NEXT advances the engine page + re-windows the rows', async () => {
+    const { shadow, table } = mountWithEngine(PEOPLE, PERSON_COLS)
+    table.setPageSize(3)
+    await flush()
+    expect(rowIds(shadow)).toEqual(['0', '1', '2'])
+
+    const ps = pagerShadow(footerPager(shadow))
+    ;(ps!.querySelector('[data-page-action="next"]') as HTMLElement).click()
+    await flush()
+
+    // Engine advanced to page index 1 (0-based) and the body re-windowed.
+    expect(table.state.pagination().pageIndex).toBe(1)
+    expect(rowIds(shadow)).toEqual(['3', '4', '5'])
+  })
+
+  it('clicking a numbered footer page jumps the engine to that page', async () => {
+    const { shadow, table } = mountWithEngine(PEOPLE, PERSON_COLS)
+    table.setPageSize(3)
+    await flush()
+    const ps = pagerShadow(footerPager(shadow))
+    const page3 = Array.from(ps!.querySelectorAll('[data-page]')).find(
+      (b) => b.getAttribute('data-page') === '3',
+    ) as HTMLElement
+    page3.click()
+    await flush()
+    expect(table.state.pagination().pageIndex).toBe(2)
+    expect(rowIds(shadow)).toEqual(['6'])
   })
 })

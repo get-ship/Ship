@@ -108,10 +108,25 @@ export function wireDataVariant(
     tab.setColumnFilter(col, (el as unknown as { value?: string }).value ?? '')
   }
 
+  // Footer <sui-pagination> → engine. `sui-page-change { page, pageSize }` is
+  // 1-based; the engine pageIndex is 0-based. Set pageSize first so the page
+  // window is computed against the new size in the same flush.
+  const onPageChange = (e: Event): void => {
+    const tab = getTable()
+    if (!tab) return
+    const detail = (e as CustomEvent<{ page?: number; pageSize?: number }>).detail
+    if (!detail) return
+    const size = Number(detail.pageSize)
+    if (Number.isInteger(size) && size > 0) tab.setPageSize(size)
+    const page = Number(detail.page)
+    if (Number.isInteger(page) && page >= 1) tab.setPageIndex(page - 1)
+  }
+
   shadow?.addEventListener('click', onClick)
   shadow?.addEventListener('keydown', onKey)
   shadow?.addEventListener('input', onInput)
   shadow?.addEventListener('sui-change', onInput)
+  shadow?.addEventListener('sui-page-change', onPageChange)
 
   // Reflect [data-empty] from the engine's empty discriminators.
   const stopEmpty = effect(() => {
@@ -150,6 +165,7 @@ export function wireDataVariant(
     shadow?.removeEventListener('keydown', onKey)
     shadow?.removeEventListener('input', onInput)
     shadow?.removeEventListener('sui-change', onInput)
+    shadow?.removeEventListener('sui-page-change', onPageChange)
     stopEmpty()
     stopReflect()
   }
