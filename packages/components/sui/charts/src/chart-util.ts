@@ -78,6 +78,62 @@ export function polar(cx: number, cy: number, r: number, angleRad: number): [num
   return [cx + r * Math.cos(angleRad), cy + r * Math.sin(angleRad)]
 }
 
+// ── extent / scale / normalize ──────────────────────────────────────────────
+// Consolidated from the min/max/normalize math that was duplicated inline in
+// every chart controller. Pure scalar helpers; the engine's `scales.ts` wires
+// them into the reactive `derived` chain. `null` is a GAP (see types.ChartValue).
+
+/**
+ * The finite y-domain of a value list. `null`/non-finite values are ignored.
+ * `count` is the number of finite points. An all-null/empty list yields the
+ * degenerate `{ min: 0, max: 0, count: 0 }`.
+ */
+export function extent(values: ReadonlyArray<number | null>): {
+  min: number
+  max: number
+  count: number
+} {
+  let min = Infinity
+  let max = -Infinity
+  let count = 0
+  for (const v of values) {
+    if (v == null || !Number.isFinite(v)) continue
+    if (v < min) min = v
+    if (v > max) max = v
+    count++
+  }
+  if (count === 0) return { min: 0, max: 0, count: 0 }
+  return { min, max, count }
+}
+
+/**
+ * Linear scale: map `v` from the `[domainMin, domainMax]` domain onto
+ * `0..1`. A zero-width domain maps every finite value to `0`. Returns `null`
+ * for a `null`/non-finite input (gap preserved).
+ */
+export function scaleLinear(
+  v: number | null,
+  domainMin: number,
+  domainMax: number,
+): number | null {
+  if (v == null || !Number.isFinite(v)) return null
+  const range = domainMax - domainMin
+  if (range === 0) return 0
+  return (v - domainMin) / range
+}
+
+/**
+ * Map a value list to `0..1` of its own (or a supplied) domain, preserving
+ * `null` gaps. When `domain` is omitted the list's finite extent is used.
+ */
+export function normalize(
+  values: ReadonlyArray<number | null>,
+  domain?: { min: number; max: number },
+): Array<number | null> {
+  const d = domain ?? extent(values)
+  return values.map((v) => scaleLinear(v, d.min, d.max))
+}
+
 export function arcPath(
   cx: number,
   cy: number,

@@ -29,22 +29,28 @@ describe('<sui-bar-chart>', () => {
     expect(shadow(el).querySelector('svg')?.getAttribute('role')).toBe('img')
   })
 
-  it('aria-label set from label prop', async () => {
+  it('aria-label leads with the label prop (kind + data summary)', async () => {
+    // MIGRATED: aria-label is now "kind: summary" (engine ariaSummary), not bare.
     const { el } = mount(reg, 'sui-bar-chart', { data: '1,2', label: 'Sales' })
     await flush()
-    expect(shadow(el).querySelector('svg')?.getAttribute('aria-label')).toBe('Sales')
+    const aria = shadow(el).querySelector('svg')?.getAttribute('aria-label') ?? ''
+    expect(aria.startsWith('Sales')).toBe(true)
   })
 
-  it('default aria-label is "bar chart"', async () => {
+  it('default aria-label leads with "bar chart"', async () => {
     const { el } = mount(reg, 'sui-bar-chart', { data: '1,2' })
     await flush()
-    expect(shadow(el).querySelector('svg')?.getAttribute('aria-label')).toBe('bar chart')
+    const aria = shadow(el).querySelector('svg')?.getAttribute('aria-label') ?? ''
+    expect(aria.startsWith('bar chart')).toBe(true)
   })
 
-  it('empty data renders aria-hidden SVG', async () => {
+  it('empty data composes a sui-empty-state (no bare aria-hidden SVG)', async () => {
+    // MIGRATED: the engine discriminator routes empty data to sui-empty-state,
+    // replacing the ad-hoc aria-hidden empty SVG.
     const { el } = mount(reg, 'sui-bar-chart')
     await flush()
-    expect(shadow(el).querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
+    expect(shadow(el).querySelector('sui-empty-state')).not.toBeNull()
+    expect(shadow(el).querySelector('svg[role="img"]')).toBeNull()
   })
 
   it('empty data renders no rect elements', async () => {

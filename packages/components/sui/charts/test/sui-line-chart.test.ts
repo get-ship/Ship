@@ -34,16 +34,24 @@ describe('<sui-line-chart>', () => {
     expect(shadow(el).querySelector('svg')?.getAttribute('role')).toBe('img')
   })
 
-  it('aria-label set from label prop', async () => {
-    const { el } = mount(reg, 'sui-line-chart', { label: 'Activity' })
+  it('aria-label leads with the label prop (kind + data summary)', async () => {
+    // MIGRATED: aria-label is now "kind: summary" (engine ariaSummary), not the
+    // bare label — the data is perceivable, not just the chart kind.
+    const series = JSON.stringify([{ name: 'a', data: [1, 2] }])
+    const { el } = mount(reg, 'sui-line-chart', { series, label: 'Activity' })
     await flush()
-    expect(shadow(el).querySelector('svg')?.getAttribute('aria-label')).toBe('Activity')
+    const aria = shadow(el).querySelector('svg')?.getAttribute('aria-label') ?? ''
+    expect(aria.startsWith('Activity')).toBe(true)
   })
 
-  it('default aria-label is "line chart"', async () => {
-    const { el } = mount(reg, 'sui-line-chart')
+  it('default aria-label leads with "line chart"', async () => {
+    // MIGRATED: empty data renders a sui-empty-state (no data SVG); a populated
+    // default chart leads its aria-label with the "line chart" kind.
+    const series = JSON.stringify([{ name: 'a', data: [1, 2] }])
+    const { el } = mount(reg, 'sui-line-chart', { series })
     await flush()
-    expect(shadow(el).querySelector('svg')?.getAttribute('aria-label')).toBe('line chart')
+    const aria = shadow(el).querySelector('svg')?.getAttribute('aria-label') ?? ''
+    expect(aria.startsWith('line chart')).toBe(true)
   })
 
   it('renders circles when points attr is set', async () => {
@@ -73,11 +81,14 @@ describe('<sui-line-chart>', () => {
     expect(shadow(el).querySelectorAll('path').length).toBe(0)
   })
 
-  it('skips series with fewer than 2 data points', async () => {
+  it('renders a single-point series as one centered path', async () => {
+    // MIGRATED: the unified engine renders a lone finite point (centered at w/2)
+    // rather than silently dropping series with < 2 points — consistent with the
+    // null-gap contract (a single-finite run is a centered point, not nothing).
     const series = JSON.stringify([{ name: 'a', data: [5] }])
     const { el } = mount(reg, 'sui-line-chart', { series })
     await flush()
-    expect(shadow(el).querySelectorAll('path').length).toBe(0)
+    expect(shadow(el).querySelectorAll('path').length).toBe(1)
   })
 
   it('points reflects to host attribute', () => {

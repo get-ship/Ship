@@ -1,76 +1,49 @@
-import { controller, effect, signal } from '@ship/sui-runtime'
-import type { ViewScope } from '@ship/sui-runtime'
+import { controller, derived, ref } from '@ship/sui-runtime'
+import { createChartData } from '../engine/create-chart-data'
+import { createChartViewport } from '../engine/create-chart-viewport'
+import { normalizeSeries } from '../engine/normalize'
+import { barGeometry } from '../engine/geometry-cartesian'
+import { parseLabels } from '../chart-util'
 import type { Scope } from './sui-bar-chart.sui'
-import { parseLabels, parseNums, toneColor } from '../chart-util'
 
-interface Bar {
-  id: string
-  x: number
-  y: number
-  w: number
-  h: number
-  rx: number
-  ry: number
-  color: string
-  title: string
+// `error` arrives via `prop:error={…}` identity (no decodable <prop> for
+// `unknown`); read off the host in `mount` and patch the engine.
+interface BarHost extends Element {
+  error?: unknown
 }
 
 export default controller({
-  scope: (_ctx: ViewScope<Scope>) => {
-    const bars = signal<Bar[]>([])
-    const isEmpty = signal(true)
-    return { bars, isEmpty }
-  },
-
-  mount(state, _host) {
-    const stop = effect(() => {
-      const nums = parseNums(state.data)
-      if (nums.length === 0) {
-        state.bars = []
-        state.isEmpty = true
-        return
-      }
-      const labels = parseLabels(state.labels)
-      const w = state.width
-      const h = state.height
-      const rawMax = state.max
-      const maxVal = rawMax > 0 ? rawMax : Math.max(...nums, 0)
-      const safeMax = maxVal <= 0 ? 1 : maxVal
-      const color = toneColor(state.tone)
-      const gap = 4
-      const radius = 3
-      const horizontal = state.orientation === 'horizontal'
-      const n = nums.length
-
-      state.bars = nums.map((v, i) => {
-          const ratio = Math.max(0, v) / safeMax
-          let x: number, y: number, barW: number, barH: number
-          if (horizontal) {
-            barH = (h - gap * (n - 1)) / n
-            y = i * (barH + gap)
-            barW = ratio * w
-            x = 0
-          } else {
-            barW = (w - gap * (n - 1)) / n
-            x = i * (barW + gap)
-            barH = ratio * h
-            y = h - barH
-          }
-          return {
-            id: `b${i}`,
-            x,
-            y,
-            w: Math.max(0, barW),
-            h: Math.max(0, barH),
-            rx: radius,
-            ry: radius,
-            color,
-            title: `${labels[i] ?? String(v)}: ${v}`,
-          }
-        })
-      state.isEmpty = false
+  scope: ({ data, labels, tone, orientation, max, width, height, label, loading }: Scope) => {
+    const svgEl = ref<SVGSVGElement>(null) // bind:this target → viewport observe
+    const viewport = createChartViewport({
+      initialWidth: width(),
+      initialHeight: height(),
+    })
+    const chart = createChartData({
+      series: derived(() => normalizeSeries(data())),
+      // Bars grow from a zero baseline; `max>0` caps the y-domain, `0` = auto
+      // (engine yMax-null) — reactive so changing `max` re-resolves the domain.
+      yMin: 0,
+      yMax: derived(() => (max() > 0 ? max() : null)),
+      isLoading: loading,
     })
 
-    return () => stop()
+    // GEOMETRY IS A PURE DERIVED — present at first paint, no effect-into-signal.
+    const bars = derived(() =>
+      barGeometry(chart.normalized(), { w: viewport.width(), h: viewport.height() }, {
+        horizontal: orientation() === 'horizontal',
+        tone: tone(),
+        labels: parseLabels(labels()),
+      }),
+    )
+    const ariaLabel = derived(() => `${label()}: ${chart.ariaSummary()}`)
+
+    return { chart, viewport, svgEl, bars, ariaLabel }
+  },
+  mount(state, host) {
+    if (state.svgEl) state.viewport.observe(state.svgEl)
+    const err = (host as BarHost).error
+    if (err !== undefined) state.chart.setOptions({ error: err })
+    return () => state.viewport.dispose()
   },
 })
