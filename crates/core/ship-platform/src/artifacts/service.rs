@@ -19,7 +19,8 @@ use crate::collections::service as collection_service;
 use ship_substrate::data::DataService;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
 
-use super::backend::{ArtifactBackend, ArtifactScope, LocalFsBackend, sha256_hex};
+use super::backend::{ArtifactBackend, ArtifactScope, LocalFsBackend};
+use ship_types::sha256_hex;
 use super::schema::{ARTIFACTS_COLLECTION_ID, artifacts_schema, ensure_artifacts_collection};
 
 /// Metadata record returned by all service methods.

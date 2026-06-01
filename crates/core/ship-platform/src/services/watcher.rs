@@ -170,7 +170,7 @@ async fn emit_file_changed(
         .to_string();
     // Empty hash signals a removed file (read fails) — a valid "deleted" marker.
     let content_hash = std::fs::read(path)
-        .map(|bytes| crate::artifacts::sha256_hex(&bytes))
+        .map(|bytes| ship_types::sha256_hex(&bytes))
         .unwrap_or_default();
     let payload = ConfigFileChanged {
         domain: domain.to_string(),

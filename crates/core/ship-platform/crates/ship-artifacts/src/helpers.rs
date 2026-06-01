@@ -13,8 +13,3 @@ pub(crate) fn new_ulid() -> String {
     ulid::Ulid::new().to_string()
 }
 
-pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
-    use sha2::{Digest, Sha256};
-    let hash = Sha256::digest(bytes);
-    format!("{hash:x}")
-}

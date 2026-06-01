@@ -14,7 +14,8 @@ pub mod gc;
 mod schema;
 mod service;
 
-pub use backend::{ArtifactBackend, ArtifactScope, LocalFsBackend, sha256_hex};
+pub use backend::{ArtifactBackend, ArtifactScope, LocalFsBackend};
+pub use ship_types::sha256_hex;
 pub use schema::{ARTIFACTS_COLLECTION_ID, artifacts_schema, ensure_artifacts_collection};
 pub use service::{ArtifactRecord, ArtifactService};
 
