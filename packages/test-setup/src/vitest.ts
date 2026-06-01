@@ -114,6 +114,10 @@ export interface SuiComponentVitestOptions {
   setupFiles?: string[]
   /** Override the default include globs. */
   include?: string[]
+  /** DOM environment. Defaults to `jsdom`. Use `happy-dom` for packs whose
+   *  components inject modern scoped CSS — jsdom 25's parser throws
+   *  "Could not parse CSS stylesheet" on mount; happy-dom tolerates it. */
+  environment?: 'jsdom' | 'happy-dom'
 }
 
 /**
@@ -136,7 +140,7 @@ export function suiComponentVitestConfig(opts: SuiComponentVitestOptions = {}) {
     },
     test: {
       include: opts.include ?? ['test/**/*.test.ts', 'src/**/*.test.ts'],
-      environment: 'jsdom',
+      environment: opts.environment ?? 'jsdom',
       setupFiles: opts.setupFiles ?? ['./test/setup.ts'],
       ...SHIP_VITEST_DEFAULTS,
     },
