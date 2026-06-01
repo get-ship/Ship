@@ -205,17 +205,6 @@ impl KernelRouter {
         Ok(())
     }
 
-    /// Persist an event through the configured sink without delivery.
-    ///
-    /// Lets callers that own their own delivery path (e.g. the substrate
-    /// wrapper's `deliver_with_scope`) reuse the sink's persistence —
-    /// including any projection bus dispatch that happens inside `persist`
-    /// — without going through `route`, which would also push to
-    /// kernel-managed mailboxes.
-    pub fn persist(&self, event: &EventEnvelope) -> anyhow::Result<()> {
-        self.sink.persist(event)
-    }
-
     /// Deliver an event to subscribers without persistence or validation.
     ///
     /// Delivery rules:

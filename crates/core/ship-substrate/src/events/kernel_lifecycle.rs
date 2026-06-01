@@ -17,13 +17,6 @@ impl KernelRouter {
             return Err(anyhow!("actor '{}' not found", actor_id));
         }
 
-        #[cfg(feature = "unstable")]
-        {
-            let log_len = self.event_log.lock().unwrap_or_else(|e| e.into_inner()).logical_len();
-            self.actor_cursors.insert(actor_id.to_string(), log_len);
-            self.actor_meta.remove(actor_id);
-        }
-
         // stop_actor removes the actor from inner's mailboxes and subscriptions.
         let _ = self.inner.stop_actor(actor_id);
 

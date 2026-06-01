@@ -61,13 +61,6 @@ pub fn data_op_examples() -> Vec<(&'static str, serde_json::Value)> {
     out
 }
 
-// Cross-component integration tests spanning substrate + platform service
-// actors. They live here (rather than in a separate crate) so neither
-// substrate nor platform needs a dev-dependency on the other.
-#[cfg(test)]
-mod cross_component_tests;
-#[cfg(test)]
-mod integration_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

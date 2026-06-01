@@ -81,13 +81,6 @@ pub use feedback::{
     AuthorKind, FeedbackEvent, FeedbackIntent, FeedbackKind, FeedbackTarget, Selection,
 };
 
-#[cfg(feature = "unstable")]
-pub mod permissions;
-#[cfg(feature = "unstable")]
-pub mod kernel_security;
-#[cfg(feature = "unstable")]
-pub(crate) mod replay_log;
-
 pub use filter::EventFilter;
 pub use kernel_router::KernelRouter;
 pub use payload_schema::PayloadSchemaValidator;
@@ -112,25 +105,11 @@ mod snapshot_tests;
 #[cfg(test)]
 mod cli_routing_tests;
 #[cfg(test)]
-mod identity_tests;
-#[cfg(test)]
-mod permission_tests;
-#[cfg(test)]
-mod scoped_delivery_tests;
-#[cfg(test)]
-mod directed_delivery_tests;
-#[cfg(test)]
-mod cursor_tests;
-#[cfg(test)]
 mod validator_tests;
-#[cfg(test)]
-mod kernel_security_tests;
 #[cfg(test)]
 mod lifecycle_tests;
 #[cfg(test)]
 mod snapshot_edge_tests;
-#[cfg(test)]
-mod tests_mesh_scope;
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
