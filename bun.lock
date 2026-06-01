@@ -328,6 +328,21 @@
         "vitest": "^4.1.5",
       },
     },
+    "packages/components/sui/viewer": {
+      "name": "@ship/sui-viewer",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/sui-compiler-wasm": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-primitives": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "@ship/test-setup": "workspace:*",
+        "happy-dom": "^20.9.0",
+        "vitest": "^4.1.5",
+      },
+    },
     "packages/components/ui-components": {
       "name": "@ship/ui-components",
       "version": "0.1.0",
@@ -1182,6 +1197,8 @@
     "@ship/sui-runtime": ["@ship/sui-runtime@workspace:packages/sui/runtime"],
 
     "@ship/sui-terminal": ["@ship/sui-terminal@workspace:packages/components/sui/terminal"],
+
+    "@ship/sui-viewer": ["@ship/sui-viewer@workspace:packages/components/sui/viewer"],
 
     "@ship/test-setup": ["@ship/test-setup@workspace:packages/test-setup"],
 
