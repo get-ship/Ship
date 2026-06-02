@@ -44,6 +44,14 @@ struct NapiOpts {
     setup_url: Option<String>,
     /// Optional CSS prepended as a `<style>` block (component sources only).
     styles: Option<String>,
+    /// On-disk path of the `.sui` source. When set, locates the paired
+    /// `<stem>.controller.ts` for the four controller-aware check passes
+    /// (`scope_bound`, `scope_member`, `bind_this_target`, `on_callable`)
+    /// gated on `source_path.is_some()` in `check::run`. The harness passes
+    /// the real path for tests that `readFileSync` a checked-in `.sui` so the
+    /// napi path rejects exactly what the daemon + CLI do (#263-A). `None` for
+    /// synthetic in-memory sources (no controller to pair with).
+    source_path: Option<String>,
 }
 
 /// Discriminated result — byte-for-byte the same JSON the wasm surface
@@ -111,7 +119,7 @@ fn compile_to_result(source: &str, opts_json: &str) -> Result<NapiResult, String
     let opts = CompileOpts {
         setup_url: parsed.setup_url,
         mode,
-        source_path: None,
+        source_path: parsed.source_path.map(std::path::PathBuf::from),
         styles: parsed.styles,
         component_meta,
         emit_dts: false,
@@ -195,5 +203,20 @@ mod tests {
         let v = serde_json::to_value(&json).unwrap();
         assert_eq!(v["kind"], "err");
         assert_eq!(v["line"], 2);
+    }
+
+    #[test]
+    fn lint_error_rule_gates_compile_through_library_path() {
+        // #255: a `sui-prop-value` Error rule lives ONLY in the full lint
+        // stream, not in `check::run`. Before the gate it passed silently
+        // through library `compile()` — which the daemon + this napi harness
+        // both call — while the CLI rejected it (dishonest exit codes / silent
+        // daemon accept). It must now reject here too: one contract per
+        // boundary.
+        let json =
+            compile_to_result(r#"<sui-button variant="primary">x</sui-button>"#, "{}").unwrap();
+        let v = serde_json::to_value(&json).unwrap();
+        assert_eq!(v["kind"], "err", "{v}");
+        assert_eq!(v["category"], "sui-prop-value");
     }
 }

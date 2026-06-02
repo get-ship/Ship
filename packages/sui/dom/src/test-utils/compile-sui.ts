@@ -130,6 +130,13 @@ export interface CompileOpts {
   /** Marker passed to the compiler as the setup_url; eval rewrites the
    *  resulting `import setup from "<marker>"` to the injected setup. */
   setupMarker?: string
+  /** On-disk path of the `.sui` source. Pass it when the test reads a
+   *  checked-in `.sui` off disk (e.g. `readFileSync(here('foo.sui'))`) so the
+   *  compiler can locate the paired `<stem>.controller.ts` and run the four
+   *  controller-aware passes (scope_bound, scope_member, bind_this_target,
+   *  on_callable) — the napi path then rejects exactly what the daemon + CLI
+   *  do (#263-A). Omit for synthetic in-memory sources. */
+  sourcePath?: string
 }
 
 export interface CompiledSui {
@@ -145,6 +152,7 @@ export function compileSui(source: string, opts: CompileOpts = {}): CompiledSui 
     mode: opts.mode ?? 'auto',
     componentName: opts.componentName,
     setupUrl: opts.setupMarker,
+    sourcePath: opts.sourcePath,
   })
   // The addon returns the WasmResult-shaped discriminated object as a JSON
   // string (one parse here); the {kind:'ok'|'err',...} shape is byte-identical

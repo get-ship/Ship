@@ -212,6 +212,13 @@ pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, Compile
     let program = parse::parse(effective_source).map_err(|e| attach_path(e, &opts))?;
     check::run(&program, effective_source, opts.source_path.as_deref())
         .map_err(|e| attach_path(e, &opts))?;
+    // One contract per boundary (#255): the full Error-severity lint stream
+    // (sui-prop-value, sui-attr-bool-prop, sui-css-content-text, controller-*)
+    // gates `compile()` itself, so the daemon + napi harness reject exactly
+    // what the CLI does. The CLI's post-compile `fatal_diagnostics_gate` is now
+    // redundant-but-harmless.
+    check::gate(&program, effective_source, opts.source_path.as_deref())
+        .map_err(|e| attach_path(e, &opts))?;
     let bindings = bindings::build(&program);
     let lowered = lower::lower(&program, mode);
 

@@ -40,6 +40,12 @@ export interface RenderOpts {
   url?: string
   /** Navigation sink — called when the view navigates. Defaults to a no-op. */
   navigate?: (path: string) => void
+  /** On-disk path of the `.sui` source. Pass it when the source was read off
+   *  disk (`readFileSync(new URL('./page.sui', import.meta.url))`) so the
+   *  compiler locates the paired `<stem>.controller.ts` and runs the four
+   *  controller-aware passes — the harness then rejects exactly what the daemon
+   *  + CLI do (#263-A). Use `fileURLToPath(new URL('./page.sui', import.meta.url))`. */
+  sourcePath?: string
 }
 
 export interface Rendered {
@@ -69,7 +75,10 @@ const SETUP_MARKER = '__test_setup__'
  */
 export function renderView(source: string, opts: RenderOpts = {}): Rendered {
   const usesController = opts.controller != null
-  const compiled = compileSui(source, usesController ? { setupMarker: SETUP_MARKER } : {})
+  const compiled = compileSui(source, {
+    ...(usesController ? { setupMarker: SETUP_MARKER } : {}),
+    ...(opts.sourcePath ? { sourcePath: opts.sourcePath } : {}),
+  })
   const def = evalCompiledJs(compiled.js, opts.controller as never)
 
   const root = document.createElement('div')
@@ -114,6 +123,13 @@ export interface RenderComponentOpts {
    *  function. Omit for templates with no controller. Without it, derived
    *  scope, event emitters, and `{#if}` branches that read scope render empty. */
   controller?: ControllerInput
+  /** On-disk path of the `.sui` source. Pass it when the source was read off
+   *  disk so the compiler locates the paired `<stem>.controller.ts` and runs
+   *  the four controller-aware passes (scope_bound, scope_member,
+   *  bind_this_target, on_callable) — the harness then rejects exactly what the
+   *  daemon + CLI do (#263-A). Use
+   *  `fileURLToPath(new URL('./foo.sui', import.meta.url))`. */
+  sourcePath?: string
 }
 
 /**
@@ -136,6 +152,7 @@ export function renderComponent(
     componentName: tag,
     mode: 'component',
     ...(usesController ? { setupMarker: SETUP_MARKER } : {}),
+    ...(opts.sourcePath ? { sourcePath: opts.sourcePath } : {}),
   })
   evalCompiledJs(compiled.js, opts.controller as never)
 
