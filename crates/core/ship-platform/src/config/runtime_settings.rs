@@ -2,7 +2,7 @@ use super::project::ProjectConfig;
 use ship_substrate::db::daemon_settings;
 use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
 use ship_substrate::events::{
-    CallerKind, EmitContext, EventEnvelope, KernelRouter,
+    EmitContext, EventEnvelope, KernelRouter,
 };
 use anyhow::Result;
 use std::collections::HashMap;
@@ -98,12 +98,8 @@ pub async fn set_setting_and_emit(
         detail: Some(value.to_string()),
     };
     let envelope = EventEnvelope::new(CONFIG_CHANGED, key, &payload)?;
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        space_id: None,
-        session_id: None,
-    };
+    // Config service — its own namespace, no space. Daemon-internal mint.
+    let ctx = EmitContext::daemon_internal(None);
     kernel.lock().await.emit(envelope, &ctx).await
 }
 

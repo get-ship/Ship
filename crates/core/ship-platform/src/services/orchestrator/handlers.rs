@@ -48,10 +48,12 @@ pub async fn handle_pipeline_run_updated(
         }
     };
 
+    // Directed mesh.send — space absent by design. Daemon-internal binding for
+    // shape consistency; caller_kind preserved (Mcp) to keep routing behavior.
     let ctx = EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        space_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
     match kernel.lock().await.emit(mesh_envelope, &ctx).await {

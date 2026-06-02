@@ -5,13 +5,9 @@ use ship_substrate::ports::Row;
 use crate::types::{ItemRecord, SchemaDoc};
 
 pub(crate) fn emit_ctx() -> ship_substrate::events::validator::EmitContext {
-    use ship_substrate::events::CallerKind;
-    ship_substrate::events::validator::EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        space_id: None,
-        session_id: None,
-    }
+    // Behavior-preserving: this service emitted with no space today; the
+    // daemon-internal mint keeps the keyless shape while carrying a binding.
+    ship_substrate::events::validator::EmitContext::daemon_internal(None)
 }
 
 pub(crate) fn now_rfc3339() -> String {

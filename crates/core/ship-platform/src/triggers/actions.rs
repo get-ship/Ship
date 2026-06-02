@@ -131,10 +131,15 @@ async fn event_emit(
         .with_actor_id(&format!("hook:{}", ctx.hook_name));
     // Propagate hook depth in payload? We store depth separately in an
     // internal registry — the envelope itself doesn't expose depth.
+    // Relay: carry the envelope's own resolved space through the binding,
+    // preserving its session. Daemon-internal mint (trusted relay).
     let emit_ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: envelope.space_id().map(str::to_string),
+        binding: ship_types::ScopeBinding::daemon_internal(
+            envelope.space_id().map(ship_types::SpaceId::new),
+            ship_types::Authority::Sdk,
+        ),
         session_id: envelope.session_id.clone(),
     };
     // Inject the hook depth so the engine sees a chain even when events
@@ -187,12 +192,7 @@ async fn pipeline_trigger(
     let envelope = EventEnvelope::new("pipeline.run.started", &pipeline_run_id, &payload)?
         .with_causation(ctx.trigger_event_id)
         .with_actor_id(&format!("hook:{}", ctx.hook_name));
-    let emit_ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        space_id: None,
-        session_id: None,
-    };
+    let emit_ctx = EmitContext::daemon_internal(None);
     ctx.kernel.lock().await.emit(envelope.clone(), &emit_ctx).await?;
     Ok(json!({
         "pipeline_run_id": pipeline_run_id,

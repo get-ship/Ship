@@ -16,7 +16,7 @@ use chrono::Utc;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
+use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};
 use ship_types::event_types::PROJECT_SWITCHED;
 use ship_types::payload::ProjectSwitched;
 
@@ -78,12 +78,9 @@ pub async fn switch_to(
         at: Utc::now().to_rfc3339(),
     };
     let envelope = EventEnvelope::new(PROJECT_SWITCHED, &record.id, &payload)?;
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        space_id: Some(record.id.clone()),
-        session_id: None,
-    };
+    // The switched-to project's id IS its space — already correct; carry it
+    // through the binding (daemon-internal mint).
+    let ctx = EmitContext::daemon_internal(Some(ship_types::SpaceId::new(record.id.clone())));
     kernel.lock().await.emit(envelope, &ctx).await?;
     Ok(record)
 }

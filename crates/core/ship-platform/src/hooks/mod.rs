@@ -67,6 +67,8 @@ pub fn handle_before_tool(
         &SkillStarted { skill_id: skill_id.clone() },
     )?
     .with_actor_id(actor_id)
+    // FLAG: stale workspace_id as scope key (server-auth / space arc). Carried
+    // through UNCHANGED in Phase 2 — not converted to a binding-derived key.
     .with_context(Some(workspace_id), None);
     Ok(Some(event))
 }
@@ -101,6 +103,8 @@ pub fn handle_after_tool(
         )?
     };
     Ok(Some(
+        // FLAG: stale workspace_id as scope key (server-auth / space arc).
+        // Carried through UNCHANGED in Phase 2 — not a binding-derived key.
         event.with_actor_id(actor_id).with_context(Some(workspace_id), None),
     ))
 }
@@ -120,6 +124,8 @@ pub fn handle_session_start(
         },
     )?
     .with_actor_id(actor_id)
+    // FLAG: stale workspace_id as scope key (server-auth / space arc). Carried
+    // through UNCHANGED in Phase 2 — not converted to a binding-derived key.
     .with_context(Some(workspace_id), None);
     Ok(event)
 }
@@ -135,6 +141,8 @@ pub fn handle_session_end(
         &SessionEnded::default(),
     )?
     .with_actor_id(actor_id)
+    // FLAG: stale workspace_id as scope key (server-auth / space arc). Carried
+    // through UNCHANGED in Phase 2 — not converted to a binding-derived key.
     .with_context(Some(workspace_id), None);
     Ok(event)
 }

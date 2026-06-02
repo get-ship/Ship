@@ -11,7 +11,7 @@ use std::time::Instant;
 use serde_json::json;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
+use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};
 
 use super::super::def::{HookDef, TriggerSourceDef};
 use super::TriggerSource;
@@ -109,12 +109,8 @@ impl WebhookSource {
 
         match EventEnvelope::new(&event_type, path, &payload) {
             Ok(envelope) => {
-                let ctx = EmitContext {
-                    caller_kind: CallerKind::Runtime,
-                    skill_id: None,
-                    space_id: None,
-                    session_id: None,
-                };
+                // Trigger source: no resolved space → daemon-internal, keyless.
+                let ctx = EmitContext::daemon_internal(None);
                 if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
                     tracing::warn!(path, "webhook: emit failed: {e}");
                 }

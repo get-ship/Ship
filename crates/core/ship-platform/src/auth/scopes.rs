@@ -366,10 +366,11 @@ pub fn persist_session(session: &DaemonSession) {
     let payload = ship_substrate::events::types::AuthSessionCreated {
         agent_id: session.agent_id.clone(),
         scopes_json,
-        // The daemon's SPACE id (sole domain scope), not the branch-slug
-        // workspace_id. A daemon serves one space; the session belongs to it.
-        // See spec `.artifacts/specs/space/116-event-partition.md`.
-        space_id: ship_substrate::project::daemon_space_id(),
+        // The session's OWN resolved space (or None) — not the dying
+        // `daemon_space_id` global (#3: the global leaves the emit path).
+        // A space-window session carries its space; operator/daemon-token
+        // sessions key None. Not the branch-slug workspace_id.
+        space_id: session.space_id.clone(),
         created_at_unix: created_unix,
         expires_at_unix,
         source: "persist".to_string(),
