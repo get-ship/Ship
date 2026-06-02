@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use super::blob_store::{BlobError, BlobHash, BlobScope, BlobStore};
+use super::blob_store::{AccountId, BlobError, BlobHash, BlobScope, BlobStore};
 use super::local_fs_blob_store::LocalFsBlobStore;
 use super::s3_blob_store::S3BlobStore;
 use super::space_context::SpaceId;
@@ -28,8 +28,49 @@ async fn put_idempotency(store: &dyn BlobStore) {
     let h2 = store.put(&s, b"hello world").await.unwrap();
     assert_eq!(h1, h2, "same bytes must yield same hash");
     assert_eq!(h1, BlobHash::of(b"hello world"));
-    // Second put is a no-op; content is still intact.
+    // Second put is a no-op; content is still intact and addressable once.
+    assert!(store.exists(&s, &h1).await.unwrap());
     assert_eq!(store.get(&s, &h1).await.unwrap(), b"hello world");
+}
+
+/// B1 — scope isolation: a blob put in one scope is invisible (get + exists)
+/// from every other scope, yet the SAME bytes put under distinct scopes are
+/// independently addressable under the one content hash.
+async fn scope_isolation(store: &dyn BlobStore) {
+    let bytes = b"scope-isolated payload";
+    let hash = BlobHash::of(bytes);
+    let home = BlobScope::Space(SpaceId::new("a"));
+    let h = store.put(&home, bytes).await.unwrap();
+    assert_eq!(h, hash);
+
+    // No other scope can see the blob written to `home`.
+    let others = [
+        BlobScope::Space(SpaceId::new("b")),
+        BlobScope::Account(AccountId::new("a")),
+        BlobScope::Device,
+    ];
+    for other in &others {
+        match store.get(other, &hash).await {
+            Err(BlobError::NotFound(_)) => {}
+            res => panic!("cross-scope get from {other:?} must be NotFound, got {res:?}"),
+        }
+        assert!(
+            !store.exists(other, &hash).await.unwrap(),
+            "cross-scope exists from {other:?} must be false"
+        );
+    }
+
+    // The same bytes put under a second scope are independently addressable:
+    // identical hash, each retrievable only from its own scope.
+    let elsewhere = BlobScope::Account(AccountId::new("a"));
+    let h2 = store.put(&elsewhere, bytes).await.unwrap();
+    assert_eq!(h2, hash, "content address is scope-independent");
+    assert_eq!(store.get(&home, &hash).await.unwrap(), bytes);
+    assert_eq!(store.get(&elsewhere, &hash).await.unwrap(), bytes);
+    // The bystander scopes still see nothing.
+    for other in [BlobScope::Space(SpaceId::new("b")), BlobScope::Device] {
+        assert!(!store.exists(&other, &hash).await.unwrap());
+    }
 }
 
 async fn get_not_found(store: &dyn BlobStore) {
@@ -64,6 +105,7 @@ async fn integrity_roundtrip(store: &dyn BlobStore) {
 
 async fn run_suite(store: &dyn BlobStore) {
     put_idempotency(store).await;
+    scope_isolation(store).await;
     get_not_found(store).await;
     delete_tolerant_missing(store).await;
     exists_reports(store).await;
@@ -98,6 +140,42 @@ async fn local_fs_integrity_detects_corruption() {
         Err(BlobError::Integrity { .. }) => {}
         other => panic!("expected Integrity error, got {other:?}"),
     }
+}
+
+#[tokio::test]
+async fn local_fs_dedup_is_structural() {
+    // B3 — content-addressing makes dedup free and structural: re-putting the
+    // same bytes mints no second on-disk object. (The generic suite proves the
+    // hash/no-op contract on both backends; this pins the on-disk count.)
+    let (store, dir) = local();
+    let s = scope();
+
+    fn blob_files(root: &std::path::Path) -> usize {
+        fn walk(p: &std::path::Path, n: &mut usize) {
+            for entry in std::fs::read_dir(p).into_iter().flatten().flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    walk(&path, n);
+                } else {
+                    *n += 1;
+                }
+            }
+        }
+        let mut n = 0;
+        walk(root, &mut n);
+        n
+    }
+
+    let h1 = store.put(&s, b"dedup me").await.unwrap();
+    let after_first = blob_files(dir.path());
+    assert_eq!(after_first, 1, "first put writes exactly one object");
+    let h2 = store.put(&s, b"dedup me").await.unwrap();
+    assert_eq!(h1, h2);
+    assert_eq!(
+        blob_files(dir.path()),
+        after_first,
+        "re-put of identical bytes must add no new on-disk object"
+    );
 }
 
 #[test]
