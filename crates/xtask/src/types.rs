@@ -126,8 +126,6 @@ pub fn collect_types() -> TypeCollection {
     // session-shaped types remain)
     c.register::<ship_platform::sessions::Session>();
     c.register::<ship_platform::sessions::SessionStatus>();
-    c.register::<ship_platform::sessions::ProviderMatrix>();
-    c.register::<ship_platform::sessions::ProviderMatrixRepairReport>();
 
     c
 }

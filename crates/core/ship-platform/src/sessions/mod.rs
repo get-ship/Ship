@@ -21,8 +21,6 @@ mod tests_session_lifecycle;
 #[cfg(test)]
 mod tests;
 
-pub use types_session::{
-    EndSessionRequest, ProviderMatrix, ProviderMatrixRepairReport, Session, SessionStatus,
-};
+pub use types_session::{EndSessionRequest, Session, SessionStatus};
 pub use session::{get_active_session, list_sessions, record_session_progress};
 pub use session_lifecycle::{end_session, start_session};

@@ -125,30 +125,3 @@ pub struct EndSessionRequest {
     pub exit_reason: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
-pub struct ProviderMatrix {
-    pub branch: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_id: Option<String>,
-    pub source: String,
-    pub allowed_harnesses: Vec<String>,
-    pub supported_harnesses: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub resolution_error: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
-pub struct ProviderMatrixRepairReport {
-    pub branch: String,
-    pub dry_run: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_id: Option<String>,
-    pub harnesses_expected: Vec<String>,
-    pub missing_harness_configs: Vec<String>,
-    pub needs_recompile: bool,
-    pub reapplied_compile: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub resolution_error: Option<String>,
-    pub actions: Vec<String>,
-}
-
