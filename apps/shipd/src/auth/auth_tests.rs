@@ -392,16 +392,18 @@ async fn anomalous_token_format_fails_closed() {
     assert_eq!(status, StatusCode::UNAUTHORIZED, "anomalous credential format must fail closed");
 }
 
-// ── Per-connection space on the emit path (Arc 2 / #128) ──────────────────
+// ── Session is the sole binding minter (Phase 2 / #196) ───────────────────
 
-/// A space-window session carries its OWN space onto the emit context, not the
-/// daemon's process-global home space. This is the multi-space invariant: one
-/// shipd serves many spaces, and a window's emits land in that window's space.
+use ship_substrate::events::CallerKind;
+use ship_types::{Authority, SpaceId, local_device_id};
+
+/// T1 — a space-window session mints the correct binding: its OWN space (not a
+/// process-global), `Authority::Space`, the placeholder device id, no account.
 #[test]
-fn space_window_auth_emits_into_its_own_space() {
-    let session = space_window_session("sp-OTHER", 4242, "ship_sess_x".to_string());
+fn space_window_session_mints_space_binding() {
+    let session = space_window_session("space-A", 4242, "ship_sess_x".to_string());
     let auth = AuthContext {
-        caller_kind: ship_substrate::events::CallerKind::Mcp,
+        caller_kind: CallerKind::Mcp,
         agent_id: Some(session.agent_id.clone()),
         workspace_id: session.workspace_id.clone(),
         space_id: session.space_id.clone(),
@@ -409,19 +411,23 @@ fn space_window_auth_emits_into_its_own_space() {
         scopes: session.scopes.clone(),
         grants: session.grants.clone(),
     };
+    let ctx = auth.to_emit_context(CallerKind::Mcp);
+    assert_eq!(ctx.binding.space_id(), Some(&SpaceId::new("space-A")));
     assert_eq!(
-        auth.to_emit_context().space_id.as_deref(),
-        Some("sp-OTHER"),
-        "window emit space must be the session's space, not daemon_space_id()"
+        *ctx.binding.authority(),
+        Authority::Space { space_id: SpaceId::new("space-A") }
     );
+    assert_eq!(ctx.binding.device_id(), &local_device_id());
+    assert_eq!(ctx.binding.account_id(), None);
+    assert_eq!(ctx.space_key().as_deref(), Some("space-A"));
 }
 
-/// An operator/daemon-token AuthContext carries no session space, so its emit
-/// space falls back to the daemon's home space (`daemon_space_id()`).
+/// T2 — operator vs SDK authority (privilege-escalation lock).
+/// Daemon token (Cli + no agent) → Operator; SDK token → Sdk, NEVER Operator.
 #[test]
-fn operator_auth_falls_back_to_daemon_home_space() {
-    let auth = AuthContext {
-        caller_kind: ship_substrate::events::CallerKind::Cli,
+fn operator_and_sdk_authority_are_distinct() {
+    let operator = AuthContext {
+        caller_kind: CallerKind::Cli,
         agent_id: None,
         workspace_id: None,
         space_id: None,
@@ -429,9 +435,23 @@ fn operator_auth_falls_back_to_daemon_home_space() {
         scopes: vec![],
         grants: vec![],
     };
+    assert!(operator.is_operator());
+
+    let sdk = AuthContext {
+        caller_kind: CallerKind::Sdk,
+        agent_id: None,
+        workspace_id: None,
+        space_id: None,
+        session_id: None,
+        scopes: vec![],
+        grants: vec![],
+    };
+    assert!(!sdk.is_operator(), "SDK token must NEVER be operator-class (#207)");
     assert_eq!(
-        auth.to_emit_context().space_id,
-        ship_substrate::project::daemon_space_id(),
-        "operator emit space must fall back to the daemon home space"
+        *sdk.to_emit_context(CallerKind::Sdk).binding.authority(),
+        Authority::Sdk
     );
+    // Intended P2 fail-soft: operator with no session space keys None (no
+    // daemon_space_id fallback on the emit path).
+    assert_eq!(operator.to_emit_context(CallerKind::Cli).space_key(), None);
 }

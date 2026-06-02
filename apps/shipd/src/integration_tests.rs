@@ -68,7 +68,7 @@ async fn sse_delivers_routed_event_to_registered_agent() {
         let ctx = ship_substrate::events::EmitContext {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             skill_id: None,
-            space_id: None,
+            binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
             session_id: None,
         };
         daemon.kernel.lock().await.emit(envelope, &ctx).await.unwrap();
@@ -355,7 +355,7 @@ async fn broadcast_routes_to_subscribed_actors() {
     let ctx = ship_substrate::events::EmitContext {
         caller_kind: ship_substrate::events::CallerKind::Mcp,
         skill_id: None,
-        space_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
     kernel.emit(ev.clone(), &ctx).await.unwrap();

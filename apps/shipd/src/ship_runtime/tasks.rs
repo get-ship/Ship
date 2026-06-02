@@ -256,10 +256,15 @@ impl ShipRuntime {
     /// return means the event is durable on disk AND delivered to in-memory
     /// subscribers.
     pub async fn persist_and_route(&self, envelope: &EventEnvelope) -> anyhow::Result<()> {
+        // Relay: carry the envelope's own resolved space through the binding,
+        // preserving its session. Daemon-internal mint (trusted relay).
         let ctx = EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
-            space_id: envelope.space_id().map(str::to_string),
+            binding: ship_types::ScopeBinding::daemon_internal(
+                envelope.space_id().map(ship_types::SpaceId::new),
+                ship_types::Authority::Sdk,
+            ),
             session_id: envelope.session_id.clone(),
         };
         self.kernel

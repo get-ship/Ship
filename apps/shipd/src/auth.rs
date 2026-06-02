@@ -37,6 +37,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use ship_substrate::events::CallerKind;
+use ship_types::{Authority, ScopeBinding, SpaceId, local_device_id};
 
 /// Constant-time token comparison to prevent timing attacks.
 /// XORs all bytes and checks the accumulator — execution time is
@@ -76,10 +77,10 @@ pub struct AuthContext {
     pub workspace_id: Option<String>,
     /// The space this request belongs to (path-hash space identity), carried
     /// from the authenticated session. A space-window session carries its OWN
-    /// space here; operator/agent/daemon-token requests leave it `None` and fall
-    /// back to the daemon's home space (`daemon_space_id()`) at emit. This is the
-    /// per-connection space source that replaces the process-global on the emit
-    /// path. See spec `.artifacts/specs/space/128-multi-space-emit.md`.
+    /// space here; operator/agent/daemon-token requests leave it `None`, which
+    /// the binding keys as `None` (Phase 2 fail-soft — no `daemon_space_id`
+    /// fallback on the emit path). This is the per-connection space source. See
+    /// spec `.artifacts/specs/space/128-multi-space-emit.md`.
     pub space_id: Option<String>,
     pub session_id: Option<String>,
     /// Granted scopes for this request. Daemon token gets `[Full]`.
@@ -91,50 +92,57 @@ pub struct AuthContext {
 }
 
 impl AuthContext {
-    /// Convert to the runtime's `EmitContext` preserving the caller's identity.
+    /// Mint the authoritative [`ScopeBinding`] for this verified session — the
+    /// SOLE session→binding constructor (auth-is-the-sole-minter, #196). The
+    /// `daemon_space_id` fallback dies here: a session with no resolvable space
+    /// keys `None` (the intended P2 fail-soft; P3 rejects).
     ///
-    /// `space_id` is the request's space: the session-carried space when the
-    /// caller is a space window, else the daemon's home space (`daemon_space_id()`)
-    /// as a fallback. This is the per-connection space source — one shipd serves
-    /// many spaces, so the emit space follows the session, not a process-global.
-    /// NOT the legacy `workspace_id` branch slug. See spec
-    /// `.artifacts/specs/space/128-multi-space-emit.md`.
-    pub fn to_emit_context(&self) -> ship_substrate::events::EmitContext {
+    /// Authority derivation reproduces today's operator population EXACTLY
+    /// (`caller_kind == Cli && agent_id.is_none()`); an SDK token is capped at
+    /// `Sdk` and is NEVER `Operator` (#207 privilege-escalation lock).
+    fn binding(&self) -> ScopeBinding {
+        // NO `.or_else(daemon_space_id)` — the global leaves the emit path.
+        let space = self.space_id.clone().map(SpaceId::new);
+        let authority = if self.caller_kind == CallerKind::Cli && self.agent_id.is_none() {
+            Authority::Operator
+        } else if self.caller_kind == CallerKind::Sdk {
+            // Capped: the on-disk SDK token is never operator-class.
+            Authority::Sdk
+        } else if let Some(sid) = space.clone() {
+            Authority::Space { space_id: sid }
+        } else if let Some(id) = self.agent_id.clone() {
+            Authority::Agent { id }
+        } else {
+            Authority::Sdk
+        };
+        // FLAG: server-auth — device_id is a per-install placeholder, account
+        // is anonymous until the server-auth arc lands.
+        ScopeBinding::from_session(local_device_id(), None, space, authority)
+    }
+
+    /// Convert to the runtime's `EmitContext`, carrying the session's minted
+    /// binding. `kind` is the emitting `CallerKind` — session-originated emits
+    /// pass the caller's own kind; daemon-mediated emits pass
+    /// `CallerKind::Runtime` (the daemon is a trusted intermediary that may
+    /// reach reserved namespaces while still carrying the caller's binding).
+    pub fn to_emit_context(&self, kind: CallerKind) -> ship_substrate::events::EmitContext {
         ship_substrate::events::EmitContext {
-            caller_kind: self.caller_kind.clone(),
+            caller_kind: kind,
             skill_id: None,
-            space_id: self
-                .space_id
-                .clone()
-                .or_else(ship_substrate::project::daemon_space_id),
+            binding: self.binding(),
             session_id: self.session_id.clone(),
         }
+    }
+
+    /// Whether this caller is operator-class — the named replacement for the
+    /// `Scope::Full` / `is_operator` conflation at the gate.
+    pub fn is_operator(&self) -> bool {
+        *self.binding().authority() == Authority::Operator
     }
 
     /// Check whether this caller has the given scope.
     pub fn has_scope(&self, scope: Scope) -> bool {
         scope.is_granted_by(&self.scopes)
-    }
-
-    /// Create an emit context for daemon-mediated operations.
-    ///
-    /// The daemon is a trusted intermediary: it validates the caller's identity
-    /// and permissions, then emits events on their behalf using `CallerKind::Runtime`.
-    /// This allows the daemon to emit to reserved namespaces (mesh.*, job.*, etc.)
-    /// while still carrying the caller's workspace/session context.
-    pub fn to_daemon_emit_context(&self) -> ship_substrate::events::EmitContext {
-        ship_substrate::events::EmitContext {
-            caller_kind: CallerKind::Runtime,
-            skill_id: None,
-            // Session-carried space when present (space window), else the
-            // daemon's home space. Not the branch-slug workspace_id. See spec
-            // `.artifacts/specs/space/128-multi-space-emit.md`.
-            space_id: self
-                .space_id
-                .clone()
-                .or_else(ship_substrate::project::daemon_space_id),
-            session_id: self.session_id.clone(),
-        }
     }
 }
 

@@ -102,6 +102,9 @@ impl SpaceService for OpsImpl {
     ) -> ServiceResult<SpaceInfoResponse> {
         // Identity: the daemon's active/home space, with root+name from the
         // projects projection (the registry of known spaces).
+        // FLAG: daemon-home read; replace with active-space source (space/shell
+        // arc). Non-emit read of the global — deferred past P2 (#3): no
+        // active-space source yet; deleting it now breaks `space.info`.
         let space_id = ship_substrate::project::daemon_space_id();
         let (root, name) = match space_id.as_deref() {
             Some(id) => match ship_platform::projections::projects::get(id) {

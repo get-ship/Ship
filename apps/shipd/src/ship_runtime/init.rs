@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::{CallerKind, EmitContext};
+use ship_substrate::events::EmitContext;
 use ship_platform::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
 
@@ -288,12 +288,7 @@ impl ShipRuntime {
             "supervisor",
             &serde_json::json!({}),
         ) {
-            let ctx = EmitContext {
-                caller_kind: CallerKind::Runtime,
-                skill_id: None,
-                space_id: None,
-                session_id: None,
-            };
+            let ctx = EmitContext::daemon_internal(None);
             let kernel = self.kernel.clone();
             let result = tokio::task::spawn(async move {
                 kernel.lock().await.emit(envelope, &ctx).await

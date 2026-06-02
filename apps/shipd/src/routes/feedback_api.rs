@@ -192,7 +192,7 @@ async fn emit_kernel(
     })?;
     let envelope = EventEnvelope::new("studio.feedback.created", entity_id, &payload)
         .map_err(|e| err(StatusCode::BAD_REQUEST, "envelope_invalid", &e.to_string()))?;
-    let ctx = auth.to_daemon_emit_context();
+    let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
     state
         .kernel()
         .lock()

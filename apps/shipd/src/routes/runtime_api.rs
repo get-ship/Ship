@@ -537,6 +537,9 @@ mod tests {
             target_actor_id: None,
             elevated: false,
             created_at: ts,
+            author_account_id: None,
+            author_device_id: None,
+            signature: None,
         };
         let events = vec![
             mk("supervisor.drift_detected", drift_ts),
@@ -563,6 +566,9 @@ mod tests {
             target_actor_id: None,
             elevated: false,
             created_at: chrono::Utc::now(),
+            author_account_id: None,
+            author_device_id: None,
+            signature: None,
         };
         let events = vec![mk("supervisor.drift_detected")];
         assert!(drift_active_for_slug("slug", &events));

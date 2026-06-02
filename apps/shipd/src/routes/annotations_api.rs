@@ -128,7 +128,7 @@ pub(crate) async fn post_annotation_core(
             );
         }
     };
-    let ctx = auth.to_daemon_emit_context();
+    let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
     if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
         return err(
             StatusCode::INTERNAL_SERVER_ERROR,

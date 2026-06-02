@@ -36,7 +36,7 @@ pub async fn try_dispatch(
             )
             .map(|e| e.with_actor_id(&from))
             .map_err(|e| CommandError::bad_args(e.to_string()))?;
-            let emit_ctx = ctx.auth.to_daemon_emit_context();
+            let emit_ctx = ctx.auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
             ctx.state
                 .kernel()
                 .lock()
@@ -68,7 +68,7 @@ pub async fn try_dispatch(
                 ship_substrate::events::EventEnvelope::new("mesh.broadcast", &from, &payload)
                     .map(|e| e.with_actor_id(&from))
                     .map_err(|e| CommandError::bad_args(e.to_string()))?;
-            let emit_ctx = ctx.auth.to_daemon_emit_context();
+            let emit_ctx = ctx.auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
             ctx.state
                 .kernel()
                 .lock()
@@ -96,7 +96,7 @@ pub async fn try_dispatch(
             )
             .map(|e| e.with_actor_id(&agent_id))
             .map_err(|e| CommandError::bad_args(e.to_string()))?;
-            let emit_ctx = ctx.auth.to_daemon_emit_context();
+            let emit_ctx = ctx.auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
             ctx.state
                 .kernel()
                 .lock()

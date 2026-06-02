@@ -84,6 +84,10 @@ pub async fn register_space_window(
             }
         }
         None => {
+            // FLAG: daemon-home read; replace with active-space source
+            // (space/shell arc). Non-emit read of the global — deferred past P2
+            // (#3): no active-space source yet; deleting it now breaks window
+            // registration when the shell doesn't pass target_space_id (#215).
             let Some(home) = ship_substrate::project::daemon_space_id() else {
                 return Err((
                     StatusCode::CONFLICT,

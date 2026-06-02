@@ -54,10 +54,17 @@ pub async fn send_message(
     if let Some(ws) = req.workspace_id.as_deref() {
         envelope = envelope.with_context(Some(ws), None);
     }
+    // FLAG: stale workspace_id field — route through space_id (server-auth /
+    // space arc). The request body supplies the space key directly, bypassing
+    // the auth seam; Phase 2 carries the SAME key through the binding (mandatory
+    // fix #4) but does not re-resolve it.
     let ctx = ship_substrate::events::EmitContext {
         caller_kind: ship_substrate::events::CallerKind::Cli,
         skill_id: None,
-        space_id: req.workspace_id.clone(),
+        binding: ship_types::ScopeBinding::daemon_internal(
+            req.workspace_id.clone().map(ship_types::SpaceId::new),
+            ship_types::Authority::Sdk,
+        ),
         session_id: None,
     };
     if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {

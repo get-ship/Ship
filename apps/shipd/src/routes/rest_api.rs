@@ -128,7 +128,7 @@ pub async fn mesh_register(
         Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     };
 
-    let ctx = auth.to_daemon_emit_context();
+    let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
     match state.kernel().lock().await.emit(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!(format!("registered: {}", req.agent_id)) })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
@@ -156,7 +156,7 @@ pub async fn mesh_send(
         Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })).into_response(),
     };
 
-    let ctx = auth.to_daemon_emit_context();
+    let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
     match state.kernel().lock().await.emit(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("sent") })).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })).into_response(),
@@ -182,7 +182,7 @@ pub async fn mesh_broadcast(
         Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })).into_response(),
     };
 
-    let ctx = auth.to_daemon_emit_context();
+    let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
     match state.kernel().lock().await.emit(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("broadcast sent") })).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })).into_response(),
@@ -229,7 +229,7 @@ pub async fn mesh_status_update(
         Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })).into_response(),
     };
 
-    let ctx = auth.to_daemon_emit_context();
+    let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
     match state.kernel().lock().await.emit(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("status updated") })).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })).into_response(),

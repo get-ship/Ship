@@ -147,7 +147,7 @@ pub async fn session_message(
         let envelope = envelope
             .with_context(Some(&workspace_id), Some(&id))
             .with_target(&id);
-        let ctx = auth.to_daemon_emit_context();
+        let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
         if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
             // Event-sourced audit gap if dropped silently — log at warn so
             // a missing studio.chat_turn shows up in operator dashboards.
@@ -312,7 +312,7 @@ pub async fn session_reply(
     let payload = serde_json::json!({ "actor_id": id, "text": &text });
     if let Ok(envelope) = EventEnvelope::new(event_types::STUDIO_REPLY, &id, &payload) {
         let envelope = envelope.with_target(&id);
-        let ctx = auth.to_daemon_emit_context();
+        let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
         if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
             tracing::warn!(actor = %id, "studio.reply emit failed: {e}");
         }

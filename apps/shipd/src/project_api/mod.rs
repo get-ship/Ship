@@ -237,12 +237,17 @@ pub async fn emit_event(
     // Studio (localhost browser) is exempted from auth but needs Cli caller kind
     // to emit to system namespaces like studio.*.
     let ctx = if let Some(axum::Extension(ac)) = auth {
-        ac.to_daemon_emit_context()
+        ac.to_emit_context(ship_substrate::events::CallerKind::Runtime)
     } else {
+        // FLAG: stale workspace_id field — route through space_id (server-auth /
+        // space arc). Carries the SAME key the literal carried (mandatory #4).
         ship_substrate::events::EmitContext {
             caller_kind: ship_substrate::events::CallerKind::Cli,
             skill_id: None,
-            space_id: body.workspace_id.clone(),
+            binding: ship_types::ScopeBinding::daemon_internal(
+                body.workspace_id.clone().map(ship_types::SpaceId::new),
+                ship_types::Authority::Sdk,
+            ),
             session_id: None,
         }
     };

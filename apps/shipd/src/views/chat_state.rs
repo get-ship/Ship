@@ -132,6 +132,9 @@ mod tests {
             target_actor_id: None,
             elevated: false,
             created_at: Utc::now(),
+            author_account_id: None,
+            author_device_id: None,
+            signature: None,
         }
     }
 
