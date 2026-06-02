@@ -260,8 +260,23 @@ impl KernelRouter {
     pub fn stop_actor(&mut self, actor_id: &str) -> Result<(), KernelError> {
         #[cfg(feature = "unstable")]
         {
-            let log_len = self.event_log.lock().unwrap_or_else(|e| e.into_inner()).logical_len();
-            self.actor_cursors.insert(actor_id.to_string(), log_len);
+            // Only RESTARTABLE/permissioned actors (those carrying `actor_meta`)
+            // can replay on re-spawn — `spawn_actor_with_permissions_inner` is
+            // the sole reader of `actor_cursors` (kernel_security.rs). Transient
+            // single-use ids (SSE-source `sui-sse-…-{ulid}`, git-signal updater
+            // `git-signal-updater-{ulid}`) are spawned via the legacy
+            // `spawn_actor` path, stopped on disconnect, and NEVER re-spawned —
+            // stranding a cursor for them is a #256-class leak (unbounded in
+            // connection churn). Mirror the `actor_meta.remove` discipline below:
+            // record a cursor only when the actor has permission metadata, and
+            // evict any stale cursor otherwise.
+            if self.actor_meta.contains_key(actor_id) {
+                let log_len =
+                    self.event_log.lock().unwrap_or_else(|e| e.into_inner()).logical_len();
+                self.actor_cursors.insert(actor_id.to_string(), log_len);
+            } else {
+                self.actor_cursors.remove(actor_id);
+            }
             self.actor_meta.remove(actor_id);
             self.unstable_senders.remove(actor_id);
         }

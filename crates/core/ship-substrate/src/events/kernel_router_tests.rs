@@ -304,3 +304,62 @@ async fn stop_actor_evicts_rate_counter() {
         "stop_actor must evict the per-actor rate counter"
     );
 }
+
+// #256 (the regression the rate_counter batch MISSED): `stop_actor` (and
+// `handle_actor_crash`) used to UNCONDITIONALLY `actor_cursors.insert(id, ..)`.
+// The ONLY removal was on re-spawn of the identical id via `spawn_actor`.
+// SSE-source actors (`sui-sse-{name}-{ulid}`) and the git-signal updater
+// (`git-signal-updater-{ulid}`) are spawned via the legacy `spawn_actor`
+// path with single-use ULID ids that are stopped on disconnect and NEVER
+// re-spawned — so every disconnect stranded one cursor permanently
+// (unbounded in connection churn). Cursors are only ever READ on re-spawn
+// in `spawn_actor_with_permissions_inner` (kernel_security.rs), so only
+// permissioned/restartable actors can meaningfully replay; legacy actors
+// strand a cursor that is never consumed. The fix mirrors the sibling
+// `actor_meta.remove`/`rate_counters.remove` discipline: retain a cursor
+// only for actors that carry `actor_meta` (the permissioned/replay path).
+#[cfg(feature = "unstable")]
+#[test]
+fn stop_actor_does_not_strand_cursor_for_single_use_actor() {
+    use crate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};
+    use ship_types::identity::{ActorIdentity, ActorType};
+
+    let (_tmp, mut router) = setup();
+
+    // --- Single-use legacy actor (the SSE/git-signal shape): unique id,
+    //     spawned via `spawn_actor`, stopped, never re-spawned. ---
+    let single_use_id = "sui-sse-git-01J0000000000000000000SSEX";
+    router
+        .spawn_actor(single_use_id, studio_config())
+        .unwrap();
+    router.stop_actor(single_use_id).unwrap();
+    assert!(
+        !router.actor_cursors.contains_key(single_use_id),
+        "stop_actor must NOT strand a cursor for a single-use (non-permissioned) actor"
+    );
+
+    // --- Restartable/permissioned actor: cursor MUST be retained so a
+    //     re-spawn through spawn_actor_with_permissions can replay events
+    //     emitted while it was down. ---
+    let restartable_id = "agent-restartable";
+    let identity = ActorIdentity {
+        instance_id: restartable_id.to_string(),
+        label: restartable_id.to_string(),
+        actor_type: ActorType::Agent,
+    };
+    let permissions = ActorPermissions {
+        emit: vec!["agent.".into()],
+        subscribe: vec![PermittedSubscription {
+            namespace: "agent.".into(),
+            scope: DeliveryScope::Global,
+        }],
+    };
+    router
+        .spawn_actor_with_permissions(identity, permissions)
+        .unwrap();
+    router.stop_actor(restartable_id).unwrap();
+    assert!(
+        router.actor_cursors.contains_key(restartable_id),
+        "stop_actor must RETAIN a cursor for a restartable/permissioned actor (replay-on-respawn)"
+    );
+}
