@@ -8,6 +8,7 @@ mod build_assets;
 mod cli;
 mod coverage;
 mod gen_audit_readme;
+mod gen_collection_types;
 mod gen_contract;
 mod gen_events;
 mod gen_fixtures;
