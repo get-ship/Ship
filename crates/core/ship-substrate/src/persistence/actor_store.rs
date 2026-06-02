@@ -45,17 +45,19 @@ impl ActorStore {
         }
     }
 
-    /// Open an ActorStore for the given actor, backed by platform.db.
+    /// Open an ActorStore for the given actor, backed by the Runtime-scope
+    /// `runtime.db` (actors are Runtime-owned).
     ///
-    /// `base_dir` is the global Ship directory (e.g. `~/.ship`). Platform.db
-    /// must have been initialised already (via `ship_substrate::db::ensure_db_at`).
+    /// `base_dir` is the global Ship directory (e.g. `~/.ship`) — NOT a
+    /// pre-resolved db path. The runtime.db schema is provisioned by the kernel
+    /// sink on first persist; replay reads here resolve the same file.
     pub fn open(
         actor_id: &str,
         base_dir: &Path,
         write_namespaces: Vec<String>,
         read_namespaces: Vec<String>,
     ) -> Result<Self> {
-        let db_path = crate::db::platform_db_path(base_dir);
+        let db_path = crate::db::runtime_db_path(base_dir);
         Ok(Self::new(actor_id, db_path, write_namespaces, read_namespaces))
     }
 

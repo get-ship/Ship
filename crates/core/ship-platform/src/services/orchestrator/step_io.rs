@@ -237,7 +237,16 @@ pub fn find_artifact_id_in_events(
     step_id: &str,
     output_name: &str,
 ) -> Option<String> {
-    let store = SqliteEventStore::new().ok()?;
+    // pipeline.step.* is Runtime-scoped → query runtime.db.
+    let store = ship_substrate::project::get_global_dir()
+        .and_then(|dir| {
+            SqliteEventStore::new_for_scope(
+                &dir,
+                ship_types::event_registry::EventScope::Runtime,
+                None,
+            )
+        })
+        .ok()?;
     let envelopes = store
         .query(&EventFilter {
             entity_id: Some(pipeline_run_id.to_string()),
@@ -278,7 +287,14 @@ pub fn find_fanout_step_for_lane<'a>(
 
 /// Retrieve the full `outputs` map from a step's `step.done_declared` event.
 pub fn get_step_outputs_from_events(pipeline_run_id: &str, step_id: &str) -> BTreeMap<String, String> {
-    let Ok(store) = SqliteEventStore::new() else {
+    // pipeline.step.* is Runtime-scoped → query runtime.db.
+    let Ok(store) = ship_substrate::project::get_global_dir().and_then(|dir| {
+        SqliteEventStore::new_for_scope(
+            &dir,
+            ship_types::event_registry::EventScope::Runtime,
+            None,
+        )
+    }) else {
         return BTreeMap::new();
     };
     let Ok(envelopes) = store.query(&EventFilter {

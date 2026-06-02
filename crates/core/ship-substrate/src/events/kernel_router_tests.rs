@@ -196,7 +196,7 @@ async fn kernel_store_receives_system_events() {
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     // Verify via raw SQL — kernel store has the event.
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     let count: i64 = block_on(async {
         sqlx::query_scalar(
             "SELECT COUNT(*) FROM events WHERE id = ?",

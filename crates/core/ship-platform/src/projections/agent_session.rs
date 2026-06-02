@@ -458,7 +458,7 @@ pub fn load_sessions() -> Result<HashMap<String, AgentSession>> {
 /// Test variant — load from an explicit ship_dir. Mirrors
 /// [`super::pipeline_run::load_pipeline_runs_at`].
 pub fn load_sessions_at(ship_dir: &std::path::Path) -> Result<HashMap<String, AgentSession>> {
-    let mut conn = ship_substrate::db::open_db_at(&ship_substrate::db::platform_db_path(ship_dir))?;
+    let mut conn = ship_substrate::db::open_runtime_db(ship_dir)?;
     load_all_rows(&mut conn)
 }
 
@@ -471,7 +471,7 @@ pub fn load_session_by_id_at(
     ship_dir: &std::path::Path,
     session_id: &str,
 ) -> Result<Option<AgentSession>> {
-    let mut conn = ship_substrate::db::open_db_at(&ship_substrate::db::platform_db_path(ship_dir))?;
+    let mut conn = ship_substrate::db::open_runtime_db(ship_dir)?;
     load_row(session_id, &mut conn)
 }
 
@@ -490,7 +490,7 @@ pub fn load_session_by_slug_at(
     ship_dir: &std::path::Path,
     slug: &str,
 ) -> Result<Option<AgentSession>> {
-    let mut conn = ship_substrate::db::open_db_at(&ship_substrate::db::platform_db_path(ship_dir))?;
+    let mut conn = ship_substrate::db::open_runtime_db(ship_dir)?;
     let row = block_on(async {
         sqlx::query(&format!("SELECT {ROW_COLS} FROM agent_sessions WHERE slug = ?"))
             .bind(slug)
@@ -518,9 +518,10 @@ pub fn load_sessions_by_parent(
 }
 
 fn open_default_conn() -> Result<SqliteConnection> {
+    // agent.session.* is Runtime-scoped → agent_sessions lives in runtime.db.
     let ship_dir = ship_substrate::project::get_global_dir()
         .context("agent_sessions: cannot resolve default ship dir")?;
-    ship_substrate::db::open_db_at(&ship_substrate::db::platform_db_path(&ship_dir))
+    ship_substrate::db::open_runtime_db(&ship_dir)
 }
 
 #[cfg(test)]

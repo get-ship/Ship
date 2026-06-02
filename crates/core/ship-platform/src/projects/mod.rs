@@ -22,6 +22,20 @@ use ship_substrate::events::EventEnvelope;
 use ship_substrate::home::path_hash;
 use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::projections::projects;
+
+/// Open the Runtime-scope store for the daemon-wide project registry.
+///
+/// The `projects` table is the machine's record of known project paths, read
+/// daemon-wide with no space in hand (and the source the `space_id` resolver
+/// itself consults), so `project.registered/seen/archived` are Runtime-owned
+/// and land in runtime.db — matching the projection's read side.
+fn projects_store() -> Result<SqliteEventStore> {
+    SqliteEventStore::new_for_scope(
+        &ship_substrate::project::get_global_dir()?,
+        ship_types::event_registry::EventScope::Runtime,
+        None,
+    )
+}
 use ship_types::event_types::{PROJECT_ARCHIVED, PROJECT_REGISTERED, PROJECT_SEEN};
 use ship_types::payload::{ProjectArchived, ProjectRegistered, ProjectSeen};
 
@@ -64,7 +78,7 @@ pub fn register(path: &Path, name: Option<&str>) -> Result<ProjectRecord> {
     let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
     let id = path_hash(&canonical);
     let now = Utc::now().to_rfc3339();
-    let store = SqliteEventStore::new()?;
+    let store = projects_store()?;
 
     if let Some(existing) = projects::get(&id)? {
         let payload = ProjectSeen {
@@ -131,7 +145,7 @@ pub fn forget(id: &str) -> Result<()> {
     };
     let envelope = EventEnvelope::new(PROJECT_ARCHIVED, id, &payload)
         .context("build project.archived envelope")?;
-    let store = SqliteEventStore::new()?;
+    let store = projects_store()?;
     store.append(&envelope)?;
     Ok(())
 }
@@ -146,7 +160,7 @@ pub fn touch(id: &str) -> Result<bool> {
         seen_at: Utc::now().to_rfc3339(),
     };
     let envelope = EventEnvelope::new(PROJECT_SEEN, id, &payload)?;
-    let store = SqliteEventStore::new()?;
+    let store = projects_store()?;
     store.append(&envelope)?;
     Ok(true)
 }

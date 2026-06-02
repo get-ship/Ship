@@ -626,20 +626,17 @@ fn load_all_rows(conn: &mut SqliteConnection) -> Result<HashMap<String, Pipeline
 /// Backed by the `jobs` table. On installs that predate the projection table,
 /// hydrates from the event log on first call (idempotent).
 pub fn load_pipeline_runs() -> Result<HashMap<String, PipelineRun>> {
-    use ship_substrate::db::{db_path, ensure_db, open_db_at};
-
-    ensure_db()?;
-    let mut conn = open_db_at(&db_path()?)?;
+    // pipeline.* is Runtime-scoped → the pipeline_runs table lives in runtime.db.
+    let mut conn = ship_substrate::db::open_runtime_db(
+        &ship_substrate::project::get_global_dir()?,
+    )?;
     hydrate_if_needed(&mut conn)?;
     load_all_rows(&mut conn)
 }
 
 /// Load all jobs from an explicit `ship_dir` path. Preferred in tests.
 pub fn load_pipeline_runs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, PipelineRun>> {
-    use ship_substrate::db::{ensure_db_at, open_db_at};
-
-    ensure_db_at(ship_dir)?;
-    let mut conn = open_db_at(&ship_substrate::db::platform_db_path(ship_dir))?;
+    let mut conn = ship_substrate::db::open_runtime_db(ship_dir)?;
     hydrate_if_needed(&mut conn)?;
     load_all_rows(&mut conn)
 }
@@ -649,10 +646,9 @@ pub fn load_pipeline_runs_at(ship_dir: &std::path::Path) -> Result<HashMap<Strin
 /// Used by the orchestrator's terminal-state guard and other hot-path callers
 /// that previously fetched every job to filter for one.
 pub fn load_pipeline_run_by_id(pipeline_run_id: &str) -> Result<Option<PipelineRun>> {
-    use ship_substrate::db::{db_path, ensure_db, open_db_at};
-
-    ensure_db()?;
-    let mut conn = open_db_at(&db_path()?)?;
+    let mut conn = ship_substrate::db::open_runtime_db(
+        &ship_substrate::project::get_global_dir()?,
+    )?;
     hydrate_if_needed(&mut conn)?;
     load_row(pipeline_run_id, &mut conn)
 }
@@ -663,10 +659,7 @@ pub fn load_pipeline_run_by_id_at(
     ship_dir: &std::path::Path,
     pipeline_run_id: &str,
 ) -> Result<Option<PipelineRun>> {
-    use ship_substrate::db::{ensure_db_at, open_db_at};
-
-    ensure_db_at(ship_dir)?;
-    let mut conn = open_db_at(&ship_substrate::db::platform_db_path(ship_dir))?;
+    let mut conn = ship_substrate::db::open_runtime_db(ship_dir)?;
     hydrate_if_needed(&mut conn)?;
     load_row(pipeline_run_id, &mut conn)
 }
@@ -675,10 +668,9 @@ pub fn load_pipeline_run_by_id_at(
 /// recently updated match (slug isn't unique across job lifetimes — re-runs
 /// of the same logical job get a fresh pipeline_run_id but reuse the slug).
 pub fn load_pipeline_run_by_slug(slug: &str) -> Result<Option<PipelineRun>> {
-    use ship_substrate::db::{db_path, ensure_db, open_db_at};
-
-    ensure_db()?;
-    let mut conn = open_db_at(&db_path()?)?;
+    let mut conn = ship_substrate::db::open_runtime_db(
+        &ship_substrate::project::get_global_dir()?,
+    )?;
     load_pipeline_run_by_slug_on(&mut conn, slug)
 }
 
@@ -688,10 +680,7 @@ pub fn load_pipeline_run_by_slug_at(
     ship_dir: &std::path::Path,
     slug: &str,
 ) -> Result<Option<PipelineRun>> {
-    use ship_substrate::db::{ensure_db_at, open_db_at};
-
-    ensure_db_at(ship_dir)?;
-    let mut conn = open_db_at(&ship_substrate::db::platform_db_path(ship_dir))?;
+    let mut conn = ship_substrate::db::open_runtime_db(ship_dir)?;
     load_pipeline_run_by_slug_on(&mut conn, slug)
 }
 

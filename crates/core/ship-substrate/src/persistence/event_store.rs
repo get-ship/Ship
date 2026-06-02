@@ -78,6 +78,49 @@ impl SqliteEventStore {
         })
     }
 
+    /// The concrete db file this store reads/writes. Used by `PartitionedSink`
+    /// to enumerate mounted scope dbs for the shutdown WAL flush.
+    pub fn db_path(&self) -> &Path {
+        &self.db_path
+    }
+
+    /// Create an event store bound to a single scope's db (Phase 4d).
+    ///
+    /// Resolves the per-scope db path under `ship_dir` exactly as
+    /// `PartitionedSink::route` does, so an off-kernel `append()` lands in the
+    /// same db the kernel sink would have routed the event to:
+    ///
+    /// - `Runtime` → `runtime.db`
+    /// - `Account` → `account.db`
+    /// - `Space`   → `spaces/<scope_key>/space.db` (a `scope_key` is required;
+    ///   a Space write with no space id has no home and is rejected — the
+    ///   caller must resolve the space first or emit under Runtime)
+    ///
+    /// This is the bounded fix for the off-kernel emit sites that previously
+    /// constructed via `new()`/`new_at()` and wrote a `platform.db` nobody
+    /// projects or reads. Full kernel-routing of these helpers is deferred to
+    /// the log-as-truth arc (#91).
+    pub fn new_for_scope(
+        ship_dir: &Path,
+        scope: ship_types::event_registry::EventScope,
+        scope_key: Option<&str>,
+    ) -> Result<Self> {
+        use ship_types::event_registry::EventScope;
+        let db_path = match scope {
+            EventScope::Runtime => crate::db::runtime_db_path(ship_dir),
+            EventScope::Account => crate::db::account_db_path(ship_dir),
+            EventScope::Space => {
+                let key = scope_key.ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "new_for_scope: Space store requires a space_id scope_key"
+                    )
+                })?;
+                crate::db::space_db_path(ship_dir, key)
+            }
+        };
+        Self::new_at_db_path(&db_path)
+    }
+
     /// Create an event store backed by a connection pool.
     ///
     /// Requires a running Tokio runtime. Use in the daemon for high-throughput

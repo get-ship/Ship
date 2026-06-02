@@ -30,7 +30,7 @@ fn ev(id: &str, event_type: &str) -> EventEnvelope {
 }
 
 fn kernel_event_count(router: &KernelRouter, event_type: &str) -> i64 {
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     block_on(async {
         sqlx::query_scalar("SELECT COUNT(*) FROM events WHERE event_type = ?")
             .bind(event_type)

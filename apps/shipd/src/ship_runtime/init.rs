@@ -385,7 +385,9 @@ pub fn build_space_context(
 /// count ever drops between restarts without a reset, that's the first
 /// thing to investigate.
 fn log_event_log_summary(global_dir: &Path) {
-    if !ship_substrate::db::platform_db_path(global_dir).exists() {
+    // The kernel sink writes the Runtime partition to runtime.db; its presence
+    // is the "have we persisted any events yet" signal.
+    if !ship_substrate::db::runtime_db_path(global_dir).exists() {
         tracing::info!("shipd: fresh install, no events yet");
         return;
     }

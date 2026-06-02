@@ -50,7 +50,12 @@ fn query_events_at(
     ship_dir: &Path,
     event_type: &str,
 ) -> Vec<ship_types::envelope::EventEnvelope> {
-    let store = SqliteEventStore::new_at(ship_dir).expect("open event store at ship_dir");
+    // collection.* is Space-scoped → the kernel sink routes it to the bound
+    // space's db. Every test in this module uses space "space-test".
+    let store = SqliteEventStore::new_at_db_path(
+        &ship_substrate::db::space_db_path(ship_dir, "space-test"),
+    )
+    .expect("open event store at space.db");
     store
         .query(&EventFilter {
             event_type: Some(event_type.to_string()),

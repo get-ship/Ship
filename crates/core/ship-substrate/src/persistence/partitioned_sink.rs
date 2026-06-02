@@ -64,6 +64,18 @@ impl PartitionedSink {
         }
     }
 
+    /// Snapshot of the db paths the sink has opened so far — one per scope it
+    /// has actually routed an event to (`runtime.db`, `account.db`, each
+    /// touched `spaces/<id>/space.db`). The shutdown WAL flush iterates this so
+    /// it checkpoints exactly the mounted scope dbs rather than a single dead
+    /// `platform.db`.
+    pub fn opened_db_paths(&self) -> Vec<PathBuf> {
+        self.stores
+            .lock()
+            .map(|stores| stores.values().map(|s| s.db_path().to_path_buf()).collect())
+            .unwrap_or_default()
+    }
+
     /// Return the cached store for `key`, lazily opening + caching it at
     /// `db_path` on a miss.
     fn store_for(&self, key: String, db_path: PathBuf) -> Result<Arc<SqliteEventStore>> {

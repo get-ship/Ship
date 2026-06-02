@@ -26,8 +26,11 @@ async fn set_setting_and_emit_publishes_config_changed() {
     let stored = get_setting(key).expect("get_setting").expect("value present");
     assert_eq!(stored, value);
 
-    // Event landed in platform.db with the right shape.
-    let store = SqliteEventStore::new_at(&ship_dir).expect("event store");
+    // config.changed is Runtime-scoped → the kernel sink lands it in runtime.db.
+    let store = SqliteEventStore::new_at_db_path(
+        &ship_substrate::db::runtime_db_path(&ship_dir),
+    )
+    .expect("event store");
     let events = store
         .query(&EventFilter {
             event_type: Some(CONFIG_CHANGED.to_string()),

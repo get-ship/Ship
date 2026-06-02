@@ -1,10 +1,17 @@
 use crate::db::block_on_anyhow;
 use ship_types::envelope::EventEnvelope;
+use ship_types::event_registry::EventScope;
 use crate::events::filter::EventFilter;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
 use crate::events::types::ProjectLog;
 use anyhow::Result;
+
+/// The daemon-wide project log is a Runtime-scoped audit stream (`project.log`
+/// fires with a fixed `"project"` entity and no space binding) → runtime.db.
+fn project_log_store() -> Result<SqliteEventStore> {
+    SqliteEventStore::new_for_scope(&crate::project::get_global_dir()?, EventScope::Runtime, None)
+}
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
@@ -28,7 +35,7 @@ pub fn log_action_by(
     action: &str,
     details: &str,
 ) -> Result<()> {
-    let store = SqliteEventStore::new()?;
+    let store = project_log_store()?;
     let payload = ProjectLog {
         action: action.to_string(),
         details: details.to_string(),
@@ -61,7 +68,7 @@ pub fn read_log(project_dir: &std::path::Path) -> Result<String> {
 
 /// Parse log entries from the event stream into structured rows, newest first, capped at `MAX_LOG_ENTRIES`.
 pub fn read_log_entries(_project_dir: &std::path::Path) -> Result<Vec<LogEntry>> {
-    let store = SqliteEventStore::new()?;
+    let store = project_log_store()?;
     let events = store.query(&EventFilter {
         event_type: Some(event_types::PROJECT_LOG.to_string()),
         ..Default::default()

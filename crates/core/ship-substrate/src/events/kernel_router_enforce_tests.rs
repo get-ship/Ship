@@ -45,10 +45,31 @@ fn ctx_with(binding: ScopeBinding) -> EmitContext {
     }
 }
 
-/// Read the persisted envelope back from platform.db at the router's base dir.
+/// Read the persisted envelope back from the per-scope db it routes to. The
+/// kernel sink partitions by scope, so the reader names the scope (and, for
+/// Space, the space key) to resolve the right db. A db that was never opened
+/// (rejected event, or no event of that scope) reads back as `None`.
+fn read_back_scope(
+    tmp: &tempfile::TempDir,
+    id: &str,
+    scope: EventScope,
+    space_key: Option<&str>,
+) -> Option<EventEnvelope> {
+    let root = crate::ShipHome::project_ship_dir(tmp.path());
+    let path = match scope {
+        EventScope::Runtime => crate::db::runtime_db_path(&root),
+        EventScope::Account => crate::db::account_db_path(&root),
+        EventScope::Space => crate::db::space_db_path(&root, space_key.unwrap_or("space-A")),
+    };
+    if !path.exists() {
+        return None;
+    }
+    SqliteEventStore::new_at_db_path(&path).unwrap().get(id).unwrap()
+}
+
+/// Convenience: read a Space event back from space "space-A"'s db.
 fn read_back(tmp: &tempfile::TempDir, id: &str) -> Option<EventEnvelope> {
-    let store = SqliteEventStore::new_at(&crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
-    store.get(id).unwrap()
+    read_back_scope(tmp, id, EventScope::Space, Some("space-A"))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -188,14 +209,14 @@ async fn emit_stamps_non_space_keys_without_cross_check() {
     let acct = ev("studio.canvas_updated").with_scope(EventScope::Account, None);
     let acct_id = acct.id.clone();
     router.emit(acct, &ctx_with(binding.clone())).await.unwrap();
-    let p = read_back(&tmp, &acct_id).unwrap();
+    let p = read_back_scope(&tmp, &acct_id, EventScope::Account, None).unwrap();
     assert_eq!(p.scope_key.as_deref(), Some("acct-1"));
 
     // Runtime → machine/device key, no cross-check.
     let rt = ev("studio.canvas_updated").with_scope(EventScope::Runtime, None);
     let rt_id = rt.id.clone();
     router.emit(rt, &ctx_with(binding)).await.unwrap();
-    let p = read_back(&tmp, &rt_id).unwrap();
+    let p = read_back_scope(&tmp, &rt_id, EventScope::Runtime, None).unwrap();
     assert_eq!(p.scope_key.as_deref(), Some("dev-1"));
     assert_eq!(p.author_device_id.as_deref(), Some("dev-1"));
 }

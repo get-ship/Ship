@@ -1,6 +1,6 @@
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::fs_util::write_atomic;
-use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+use ship_substrate::persistence::event_store::EventStore;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use ship_types::event_types::PERMISSIONS_UPDATED;
@@ -48,7 +48,9 @@ fn emit_permissions_updated(ship_dir: &Path, json: &str) {
             return;
         }
     };
-    let store = match SqliteEventStore::new() {
+    // permissions.* — Runtime audit emit (no space_id at call site, no
+    // read-back projection) → runtime.db. See agents::runtime_audit_store.
+    let store = match super::runtime_audit_store() {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("permissions.updated: open store failed: {e}");

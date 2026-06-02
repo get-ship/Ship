@@ -48,17 +48,33 @@ fn user_scope(uid: &str) -> ArtifactScope {
     ArtifactScope::User { user_id: uid.to_string() }
 }
 
+/// Query `artifact.*` (Space-scoped) events from every per-space db the kernel
+/// sink wrote under `<ship_dir>/spaces/`. Test-only union (promote crosses
+/// spaces); production reads are bounded by a known space id.
 fn query_events_at(
     ship_dir: &std::path::Path,
     event_type: &str,
 ) -> Vec<ship_types::envelope::EventEnvelope> {
-    let store = SqliteEventStore::new_at(ship_dir).expect("open test event store");
-    store
-        .query(&EventFilter {
-            event_type: Some(event_type.to_string()),
-            ..Default::default()
-        })
-        .expect("query events")
+    let spaces = ship_dir.join(ship_substrate::db::SPACES_DIR);
+    let mut out = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&spaces) {
+        for entry in entries.flatten() {
+            let db = entry.path().join("space.db");
+            if !db.exists() {
+                continue;
+            }
+            let store = SqliteEventStore::new_at_db_path(&db).expect("open space.db");
+            out.extend(
+                store
+                    .query(&EventFilter {
+                        event_type: Some(event_type.to_string()),
+                        ..Default::default()
+                    })
+                    .expect("query events"),
+            );
+        }
+    }
+    out
 }
 
 // ── scope transitions ─────────────────────────────────────────────────────────

@@ -312,9 +312,9 @@ fn started_full(session_id: &str, slug: &str) -> EventEnvelope {
 
 fn fresh_conn() -> (tempfile::TempDir, sqlx::SqliteConnection) {
     let tmp = tempfile::tempdir().unwrap();
-    ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
-    let conn =
-        ship_substrate::db::open_db_at(&ship_substrate::db::platform_db_path(tmp.path())).unwrap();
+    // agent.session.* is Runtime-scoped → agent_sessions lives in runtime.db,
+    // the db `load_sessions_at` reads.
+    let conn = ship_substrate::db::open_runtime_db(tmp.path()).unwrap();
     (tmp, conn)
 }
 

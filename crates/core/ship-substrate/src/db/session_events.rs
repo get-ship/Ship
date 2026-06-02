@@ -39,7 +39,12 @@ fn session_envelope<P: serde::Serialize>(
 /// `SqliteEventStore::append`. Mailbox delivery is best-effort if a
 /// kernel router is up.
 fn emit_session(envelope: EventEnvelope, _workspace_id: &str) -> Result<EventEnvelope> {
-    let store = SqliteEventStore::new()?;
+    // session.* is Runtime-scoped → write runtime.db (the session projection's db).
+    let store = SqliteEventStore::new_for_scope(
+        &crate::project::get_global_dir()?,
+        ship_types::event_registry::EventScope::Runtime,
+        None,
+    )?;
     store.append(&envelope)?;
 
     if let Some(kr) = crate::events::kernel_router() {

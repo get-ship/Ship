@@ -118,6 +118,62 @@ fn space_event_without_scope_key_errs() {
     );
 }
 
+/// Phase 4d §3 proof: persisting through the sink dispatches the FULL
+/// projection bus into the scope's OWN db, not just the raw events row. Here
+/// the substrate `ActorProjection` materializes the `actors` row in runtime.db
+/// when an `actor.created` (Runtime) event is routed — and that row is absent
+/// from account.db.
+#[test]
+fn per_scope_projection_fires_into_scope_db() {
+    use crate::db::block_on;
+
+    let tmp = tempdir().unwrap();
+    let root = tmp.path();
+    let sink = PartitionedSink::new(root.to_path_buf());
+
+    let payload = serde_json::json!({
+        "kind": "test-worker",
+        "environment_type": "local",
+        "restart_count": 0
+    });
+    let ev = EventEnvelope::new("actor.created", "actor-xyz", &payload)
+        .unwrap()
+        .with_actor_id("actor-xyz")
+        .with_scope(EventScope::Runtime, Some("machine-1"));
+    sink.persist(&ev).unwrap();
+
+    // The actors projection row landed in runtime.db…
+    let count_in = |path: &std::path::Path| -> i64 {
+        if !path.exists() {
+            return 0;
+        }
+        let mut conn = db::open_db_at(path).unwrap();
+        block_on(async {
+            sqlx::query_scalar("SELECT COUNT(*) FROM actors WHERE id = ?")
+                .bind("actor-xyz")
+                .fetch_one(&mut conn)
+                .await
+        })
+        .unwrap_or(0)
+    };
+    assert_eq!(count_in(&db::runtime_db_path(root)), 1, "actors row must be in runtime.db");
+    assert_eq!(count_in(&db::account_db_path(root)), 0, "actors row must NOT be in account.db");
+}
+
+/// The kernel emit path never provisions a `platform.db` — the sink routes by
+/// scope into the per-scope files only.
+#[test]
+fn kernel_emit_path_never_creates_platform_db() {
+    let tmp = tempdir().unwrap();
+    let root = tmp.path();
+    let sink = PartitionedSink::new(root.to_path_buf());
+    sink.persist(&event(EventScope::Runtime, Some("m"))).unwrap();
+    assert!(
+        !db::platform_db_path(root).exists(),
+        "PartitionedSink must not create platform.db"
+    );
+}
+
 #[test]
 fn implements_event_sink_trait_as_arc() {
     let tmp = tempdir().unwrap();

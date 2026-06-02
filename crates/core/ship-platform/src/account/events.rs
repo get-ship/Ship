@@ -20,7 +20,15 @@ use ship_substrate::events::types::{
 use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 
 fn append(envelope: EventEnvelope) {
-    match SqliteEventStore::new() {
+    // account.* is Account-scoped → write account.db.
+    let store = ship_substrate::project::get_global_dir().and_then(|dir| {
+        SqliteEventStore::new_for_scope(
+            &dir,
+            ship_types::event_registry::EventScope::Account,
+            None,
+        )
+    });
+    match store {
         Ok(store) => {
             if let Err(e) = store.append(&envelope) {
                 tracing::warn!("account event append failed ({}): {e}", envelope.event_type);

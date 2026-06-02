@@ -137,8 +137,7 @@ fn apply_session_terminal(
 /// Look up an active (not revoked, not expired) session by token. Used on
 /// every authenticated request — single-PK lookup against `auth_sessions`.
 pub fn active_session(token: &str) -> Result<Option<AuthSessionRow>> {
-    ship_substrate::db::ensure_db()?;
-    let mut conn = ship_substrate::db::open_db()?;
+    let mut conn = open_account_conn()?;
     let now = chrono::Utc::now().timestamp();
     let row = block_on(async {
         sqlx::query(
@@ -157,8 +156,7 @@ pub fn active_session(token: &str) -> Result<Option<AuthSessionRow>> {
 
 /// List all live (non-revoked, non-expired) sessions — for hydrate at startup.
 pub fn list_active_sessions() -> Result<Vec<AuthSessionRow>> {
-    ship_substrate::db::ensure_db()?;
-    let mut conn = ship_substrate::db::open_db()?;
+    let mut conn = open_account_conn()?;
     let now = chrono::Utc::now().timestamp();
     let rows = block_on(async {
         sqlx::query(
@@ -254,8 +252,7 @@ fn apply_owner_unbound(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
 
 /// Read the current daemon owner, if any.
 pub fn current_owner() -> Result<Option<DaemonOwnerRow>> {
-    ship_substrate::db::ensure_db()?;
-    let mut conn = ship_substrate::db::open_db()?;
+    let mut conn = open_account_conn()?;
     let row = block_on(async {
         sqlx::query("SELECT user_id, bound_at_unix, source FROM daemon_owner LIMIT 1")
             .fetch_optional(&mut conn)
@@ -266,4 +263,11 @@ pub fn current_owner() -> Result<Option<DaemonOwnerRow>> {
         bound_at_unix: r.get(1),
         source: r.get(2),
     }))
+}
+
+/// Open the per-account `account.db` for the auth/owner projections (both
+/// `auth.session.*` and `daemon.owner.*` are Account-scoped).
+fn open_account_conn() -> Result<SqliteConnection> {
+    let ship_dir = ship_substrate::project::get_global_dir()?;
+    ship_substrate::db::open_account_db(&ship_dir)
 }

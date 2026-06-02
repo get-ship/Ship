@@ -161,7 +161,10 @@ register_event!("mesh.send.failed", [EventScope::Runtime], Retention::Durable, S
 register_event!("mesh.status", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "MeshStatus");
 
 // ── permissions.* ───────────────────────────────────────────────────────────
-register_event!("permissions.updated", [EventScope::Space], Retention::Durable, Stability::Stable, "PermissionsUpdated");
+// Runtime audit emit: the agent-file CRUD helper takes a ship_dir but no
+// space_id and has no read-back projection (Phase 4d §6.3 resolution) → the
+// daemon-wide runtime.db, where the off-kernel write lands.
+register_event!("permissions.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PermissionsUpdated");
 
 // ── pipeline.* ──────────────────────────────────────────────────────────────
 register_event!("pipeline.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "PipelineChanged");
@@ -191,17 +194,27 @@ register_event!("process.signal_sent", [EventScope::Runtime], Retention::Ephemer
 register_event!("process.spawned", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProcessSpawnedPayload");
 
 // ── project.* ───────────────────────────────────────────────────────────────
-register_event!("project.archived", [EventScope::Space], Retention::Durable, Stability::Stable, "ProjectArchived");
-register_event!("project.log", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "ProjectLog");
-register_event!("project.registered", [EventScope::Space], Retention::Durable, Stability::Stable, "ProjectRegistered");
-register_event!("project.seen", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "ProjectSeen");
+// The `projects` registry is the daemon's machine-wide record of known project
+// paths, read by id/path with no space in hand — and the source the space_id
+// resolver itself consults. So the registry events are Runtime-owned (Phase 4d
+// §6.1): a space-partitioned registry could not bootstrap space-id resolution,
+// and routing them to space.db while reading daemon-wide would force fan-out.
+// `project.log` is a daemon-wide audit stream (fixed "project" entity, no
+// space) → also Runtime. `project.switched` carries a space binding through
+// the kernel and stays Space.
+register_event!("project.archived", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ProjectArchived");
+register_event!("project.log", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProjectLog");
+register_event!("project.registered", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ProjectRegistered");
+register_event!("project.seen", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProjectSeen");
 register_event!("project.switched", [EventScope::Space], Retention::Durable, Stability::Stable, "ProjectSwitched");
 
 // ── rule.* ──────────────────────────────────────────────────────────────────
-register_event!("rule.changed", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "RuleChanged");
-register_event!("rule.created", [EventScope::Space], Retention::Durable, Stability::Stable, "RuleCreated");
-register_event!("rule.deleted", [EventScope::Space], Retention::Durable, Stability::Stable, "RuleDeleted");
-register_event!("rule.updated", [EventScope::Space], Retention::Durable, Stability::Stable, "RuleUpdated");
+// Runtime audit emit: agent-file CRUD helpers take a ship_dir but no space_id
+// and have no read-back projection (Phase 4d §6.3) → daemon-wide runtime.db.
+register_event!("rule.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "RuleChanged");
+register_event!("rule.created", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleCreated");
+register_event!("rule.deleted", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleDeleted");
+register_event!("rule.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleUpdated");
 
 // ── session.* ───────────────────────────────────────────────────────────────
 register_event!("session.attached", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SessionAttached");
@@ -217,10 +230,12 @@ register_event!("session.tool_count_incremented", [EventScope::Runtime], Retenti
 register_event!("session.turn_failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SessionTurnFailed");
 
 // ── skill.* ─────────────────────────────────────────────────────────────────
-register_event!("skill.changed", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "SkillChanged");
-register_event!("skill.created", [EventScope::Space], Retention::Durable, Stability::Stable, "SkillCreated");
-register_event!("skill.deleted", [EventScope::Space], Retention::Durable, Stability::Stable, "SkillDeleted");
-register_event!("skill.updated", [EventScope::Space], Retention::Durable, Stability::Stable, "SkillUpdated");
+// Runtime audit emit: agent-file CRUD helpers take a ship_dir but no space_id
+// and have no read-back projection (Phase 4d §6.3) → daemon-wide runtime.db.
+register_event!("skill.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SkillChanged");
+register_event!("skill.created", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillCreated");
+register_event!("skill.deleted", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillDeleted");
+register_event!("skill.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillUpdated");
 
 // ── space.setting.* ─────────────────────────────────────────────────────────
 register_event!("space.setting.changed", [EventScope::Space], Retention::Durable, Stability::Stable, "SpaceSettingChanged");

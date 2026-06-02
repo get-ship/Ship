@@ -61,7 +61,13 @@ async fn logout_is_idempotent() {
 fn query_event_types(types: &[&str]) -> Vec<String> {
     use ship_substrate::events::EventFilter;
     use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
-    let store = SqliteEventStore::new().expect("event store");
+    // account.* is Account-scoped → read account.db.
+    let store = SqliteEventStore::new_for_scope(
+        &ship_substrate::project::get_global_dir().expect("global dir"),
+        ship_types::event_registry::EventScope::Account,
+        None,
+    )
+    .expect("event store");
     let mut found = Vec::new();
     for t in types {
         let events = store
@@ -127,14 +133,19 @@ async fn logout_clears_local_token_when_gateway_revoke_fails() {
 
     use ship_substrate::events::EventFilter;
     use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
-    let events = SqliteEventStore::new()
-        .unwrap()
-        .query(&EventFilter {
-            event_type: Some("account.logout".into()),
-            entity_id: Some("user-offline".into()),
-            ..Default::default()
-        })
-        .unwrap();
+    // account.* is Account-scoped → read account.db.
+    let events = SqliteEventStore::new_for_scope(
+        &ship_substrate::project::get_global_dir().unwrap(),
+        ship_types::event_registry::EventScope::Account,
+        None,
+    )
+    .unwrap()
+    .query(&EventFilter {
+        event_type: Some("account.logout".into()),
+        entity_id: Some("user-offline".into()),
+        ..Default::default()
+    })
+    .unwrap();
     let ev = events
         .iter()
         .find(|e| e.entity_id == "user-offline")

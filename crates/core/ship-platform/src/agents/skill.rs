@@ -22,7 +22,7 @@ use storage::{
 };
 
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+use ship_substrate::persistence::event_store::EventStore;
 use ship_types::event_types::{SKILL_CHANGED, SKILL_CREATED, SKILL_DELETED, SKILL_UPDATED};
 use ship_types::payload::{SkillChanged, SkillCreated, SkillDeleted, SkillUpdated};
 
@@ -50,7 +50,9 @@ fn emit_skill_event(event_type: &'static str, id: &str, payload: &impl serde::Se
             return;
         }
     };
-    let store = match SqliteEventStore::new() {
+    // skill.* — Runtime audit emit (no space_id at call site, no read-back
+    // projection) → runtime.db. See agents::runtime_audit_store.
+    let store = match super::runtime_audit_store() {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("skill event {event_type}: open store failed: {e}");

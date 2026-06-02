@@ -55,7 +55,12 @@ fn fresh_ship_dir() -> std::path::PathBuf {
 }
 
 fn emit_event(ship_dir: &std::path::Path, event_type: &str, entity: &str, payload: serde_json::Value) {
-    let store = SqliteEventStore::new_at(ship_dir).expect("event store");
+    // pipeline.*/step.* are Runtime-scoped → seed runtime.db (the orchestrator
+    // projection loaders read it).
+    let store = SqliteEventStore::new_at_db_path(
+        &ship_substrate::db::runtime_db_path(ship_dir),
+    )
+    .expect("event store");
     let env = EventEnvelope::new(event_type, entity, &payload).unwrap();
     store.persist(&env).expect("persist");
 }

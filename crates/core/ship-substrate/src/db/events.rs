@@ -4,12 +4,19 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 
 use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row};
-use crate::db::{block_on, db_path, ensure_db, open_db_at};
+use crate::db::{block_on, open_db_at, open_runtime_db, runtime_db_path};
 use ship_types::envelope::EventEnvelope;
 
+/// Open the daemon-wide Runtime event log (`runtime.db`). These typed queries
+/// scan the Runtime partition — the per-machine event feed (pipeline/session/
+/// actor/process/hook are all Runtime-owned). Space/Account partitions are
+/// surfaced through their own scope-bounded readers.
+fn open_runtime_events() -> Result<sqlx::SqliteConnection> {
+    open_runtime_db(&crate::project::get_global_dir()?)
+}
+
 pub fn list_all_events() -> Result<Vec<EventEnvelope>> {
-    ensure_db()?;
-    let mut conn = open_db_at(&db_path()?)?;
+    let mut conn = open_runtime_events()?;
     let rows = block_on(async {
         sqlx::query(&format!("SELECT {COLS} FROM events ORDER BY id ASC"))
             .fetch_all(&mut conn)
@@ -22,8 +29,7 @@ pub fn list_events_since_time(
     since: &DateTime<Utc>,
     limit: Option<usize>,
 ) -> Result<Vec<EventEnvelope>> {
-    ensure_db()?;
-    let mut conn = open_db_at(&db_path()?)?;
+    let mut conn = open_runtime_events()?;
     let since_str = since.to_rfc3339();
     let rows = match limit {
         Some(n) => block_on(async {
@@ -47,15 +53,20 @@ pub fn list_events_since_time(
     rows.iter().map(|r| envelope_from_row(r, true)).collect()
 }
 
-/// Like [`list_recent_events`] but against an explicit platform.db under
-/// `ship_dir`. View handlers should prefer this so test harnesses stay
-/// isolated from the global `~/.ship/platform.db`.
+/// Like [`list_recent_events`] but against an explicit `ship_dir`. View
+/// handlers prefer this so test harnesses stay isolated from the global
+/// ship-home.
+///
+/// Reads the Runtime partition (`runtime.db`) — the daemon-wide event feed
+/// (pipeline/session/actor/process/executor/hook are all Runtime-owned). The
+/// per-space Space partitions are surfaced through the space→runtime
+/// projection layer (FUTURE), not this daemon-wide reader.
 pub fn list_recent_events_at(
     ship_dir: &std::path::Path,
     limit: usize,
 ) -> Result<Vec<EventEnvelope>> {
-    crate::db::ensure_db_at(ship_dir)?;
-    let path = crate::db::platform_db_path(ship_dir);
+    let path = crate::db::runtime_db_path(ship_dir);
+    crate::db::ensure_events_db_at_path(&path)?;
     let mut conn = open_db_at(&path)?;
     let rows = block_on(async {
         sqlx::query(&format!(
@@ -72,8 +83,7 @@ pub fn list_recent_events_at(
 }
 
 pub fn list_recent_events(limit: usize) -> Result<Vec<EventEnvelope>> {
-    ensure_db()?;
-    let mut conn = open_db_at(&db_path()?)?;
+    let mut conn = open_runtime_events()?;
     let rows = block_on(async {
         sqlx::query(&format!(
             "SELECT {COLS} FROM events ORDER BY id DESC LIMIT ?"
@@ -92,7 +102,11 @@ pub fn query_events_by_entity_and_type(
     entity_id: &str,
     event_type: &str,
 ) -> Result<Vec<EventEnvelope>> {
-    query_events_by_entity_and_type_at(&db_path()?, entity_id, event_type)
+    query_events_by_entity_and_type_at(
+        &runtime_db_path(&crate::project::get_global_dir()?),
+        entity_id,
+        event_type,
+    )
 }
 
 /// Same as `query_events_by_entity_and_type` but against an explicit platform.db.
@@ -121,7 +135,11 @@ pub fn query_recent_events_for_entity(
     entity_id: &str,
     limit: usize,
 ) -> Result<Vec<EventEnvelope>> {
-    query_recent_events_for_entity_at(&db_path()?, entity_id, limit)
+    query_recent_events_for_entity_at(
+        &runtime_db_path(&crate::project::get_global_dir()?),
+        entity_id,
+        limit,
+    )
 }
 
 /// Same as `query_recent_events_for_entity` but against an explicit platform.db.
@@ -154,8 +172,7 @@ pub fn query_events_since(
     cursor: Option<&str>,
     elevated_only: bool,
 ) -> Result<Vec<EventEnvelope>> {
-    ensure_db()?;
-    let mut conn = open_db_at(&db_path()?)?;
+    let mut conn = open_runtime_events()?;
     let query = match (cursor, elevated_only) {
         (Some(c), true) => {
             block_on(async {

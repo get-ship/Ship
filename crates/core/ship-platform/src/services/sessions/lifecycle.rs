@@ -34,7 +34,18 @@ fn emit_session_event(event_type: &'static str, session_id: &str, payload: &impl
             return;
         }
     };
-    let store = match SqliteEventStore::new() {
+    // session.* is Runtime-scoped → write runtime.db (the session projection's db).
+    let store = match SqliteEventStore::new_for_scope(
+        &match ship_substrate::project::get_global_dir() {
+            Ok(d) => d,
+            Err(e) => {
+                tracing::warn!("session event {event_type}: resolve ship dir failed: {e}");
+                return;
+            }
+        },
+        ship_types::event_registry::EventScope::Runtime,
+        None,
+    ) {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("session event {event_type}: open store failed: {e}");

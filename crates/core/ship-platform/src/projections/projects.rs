@@ -110,8 +110,7 @@ fn apply_archived(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<
 
 /// List all live (non-archived) projects, sorted by last_seen_at desc.
 pub fn list_active() -> Result<Vec<ProjectRow>> {
-    ship_substrate::db::ensure_db()?;
-    let mut conn = ship_substrate::db::open_db()?;
+    let mut conn = open_projects_conn()?;
     let rows = block_on(async {
         sqlx::query(
             "SELECT id, path, name, label, created_at, last_seen_at, archived_at \
@@ -125,8 +124,7 @@ pub fn list_active() -> Result<Vec<ProjectRow>> {
 
 /// Lookup by id.
 pub fn get(id: &str) -> Result<Option<ProjectRow>> {
-    ship_substrate::db::ensure_db()?;
-    let mut conn = ship_substrate::db::open_db()?;
+    let mut conn = open_projects_conn()?;
     let row = block_on(async {
         sqlx::query(
             "SELECT id, path, name, label, created_at, last_seen_at, archived_at \
@@ -141,8 +139,7 @@ pub fn get(id: &str) -> Result<Option<ProjectRow>> {
 
 /// Lookup by path.
 pub fn find_by_path(path: &str) -> Result<Option<ProjectRow>> {
-    ship_substrate::db::ensure_db()?;
-    let mut conn = ship_substrate::db::open_db()?;
+    let mut conn = open_projects_conn()?;
     let row = block_on(async {
         sqlx::query(
             "SELECT id, path, name, label, created_at, last_seen_at, archived_at \
@@ -153,6 +150,19 @@ pub fn find_by_path(path: &str) -> Result<Option<ProjectRow>> {
         .await
     })?;
     Ok(row.map(row_to_project))
+}
+
+/// Open the per-machine `runtime.db` for the projects registry.
+///
+/// The `projects` table is the daemon's machine-wide record of known project
+/// paths — read by id/path with no space in hand, and the source the
+/// `space_id` resolver itself consults. It is therefore Runtime-owned (the
+/// `project.registered/seen/archived` registry events were reclassified to
+/// `{Runtime}` in Phase 4d; a space-partitioned registry could not bootstrap
+/// space-id resolution). See `payload_registry.rs`.
+fn open_projects_conn() -> Result<sqlx::SqliteConnection> {
+    let ship_dir = ship_substrate::project::get_global_dir()?;
+    ship_substrate::db::open_runtime_db(&ship_dir)
 }
 
 fn row_to_project(row: sqlx::sqlite::SqliteRow) -> ProjectRow {

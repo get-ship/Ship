@@ -205,9 +205,10 @@ pub async fn get_job_detail(
         }
     };
 
-    let platform_db = ship_substrate::db::platform_db_path(state.ship_dir());
+    // pipeline.step.observed is Runtime-scoped → read runtime.db.
+    let runtime_db = ship_substrate::db::runtime_db_path(state.ship_dir());
     let step_observations = ship_substrate::db::events::query_events_by_entity_and_type_at(
-        &platform_db, &pipeline_run_id, "pipeline.step.observed",
+        &runtime_db, &pipeline_run_id, "pipeline.step.observed",
     )
     .unwrap_or_default()
     .into_iter()

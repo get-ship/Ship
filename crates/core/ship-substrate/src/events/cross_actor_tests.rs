@@ -261,7 +261,7 @@ async fn kernel_store_records_system_events_for_audit() {
     let event = ev("session.started");
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     let count: i64 = block_on(async {
         sqlx::query_scalar("SELECT COUNT(*) FROM events WHERE id = ?")
             .bind(&event.id)

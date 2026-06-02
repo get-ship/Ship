@@ -52,7 +52,9 @@ pub struct EventLogSummary {
 /// error returns a summary with count=-1 to signal "unavailable" so startup
 /// proceeds.
 pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
-    let path = platform_db_path(ship_dir);
+    // The kernel persists the bulk of events (Runtime-scoped) into runtime.db;
+    // this boot health line reports its count.
+    let path = runtime_db_path(ship_dir);
     let Ok(mut conn) = open_db_at(&path) else {
         return EventLogSummary { event_count: -1, latest_event_id: None };
     };
@@ -416,6 +418,40 @@ const BASELINE_TABLE_STATEMENTS: &[&str] = &[
 /// The database must already be initialized via `ensure_db`.
 pub fn open_db_at(path: &Path) -> Result<SqliteConnection> {
     connect(path)
+}
+
+// ── Per-scope read openers (Phase 4d) ────────────────────────────────────────
+//
+// Projection reads resolve their backing db by the EVENT FAMILY'S ownership
+// scope, matching `PartitionedSink`'s write routing:
+//   - Runtime-owned reads  → `runtime.db`
+//   - Account-owned reads  → `account.db`
+//   - Space-owned reads    → `spaces/<space_id>/space.db`
+// Each ensures the events schema (mirroring `open_db` → `ensure_db`) so a read
+// that races ahead of the first per-scope write still finds a valid db.
+
+/// Open the per-machine `runtime.db`, ensuring its schema first. The default
+/// (no explicit ship-dir) variant resolves the ship-home via `get_global_dir`
+/// exactly as `open_db()` does.
+pub fn open_runtime_db(ship_dir: &Path) -> Result<SqliteConnection> {
+    let path = runtime_db_path(ship_dir);
+    ensure_events_db_at_path(&path)?;
+    connect(&path)
+}
+
+/// Open the per-account `account.db`, ensuring its schema first.
+pub fn open_account_db(ship_dir: &Path) -> Result<SqliteConnection> {
+    let path = account_db_path(ship_dir);
+    ensure_events_db_at_path(&path)?;
+    connect(&path)
+}
+
+/// Open the per-space `spaces/<space_id>/space.db`, ensuring its schema first.
+/// The `space_id` is the bounded scope key the reader already carries.
+pub fn open_space_db(ship_dir: &Path, space_id: &str) -> Result<SqliteConnection> {
+    let path = space_db_path(ship_dir, space_id);
+    ensure_events_db_at_path(&path)?;
+    connect(&path)
 }
 
 fn connect(path: &Path) -> Result<SqliteConnection> {

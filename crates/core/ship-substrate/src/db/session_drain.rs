@@ -7,9 +7,9 @@ use anyhow::{Result, anyhow};
 use chrono::Utc;
 use sqlx::Row;
 
-use super::session::{SESSION_COLS, parse_session_row};
+use super::session::{SESSION_COLS, open_sessions_db, parse_session_row};
 use super::types::SessionDb;
-use super::{block_on, open_db};
+use super::block_on;
 use crate::db::session_events::emit_session_drain_event;
 use crate::events::types::{
     SessionDrainAborted, SessionDrainCompleted, SessionDrainStarted,
@@ -21,7 +21,7 @@ pub fn find_draining_session(
     workspace_id: &str,
     agent_id: &str,
 ) -> Result<Option<SessionDb>> {
-    let mut conn = open_db()?;
+    let mut conn = open_sessions_db()?;
     let row = block_on(async {
         sqlx::query(&format!(
             "SELECT {SESSION_COLS} FROM sessions \
@@ -67,7 +67,7 @@ pub fn resume_session(session_id: &str) -> Result<()> {
 /// Close sessions stuck in "draining" longer than `grace_secs`.
 /// Returns the number of sessions finalized.
 pub fn cleanup_stale_draining(grace_secs: i64) -> Result<u64> {
-    let mut conn = open_db()?;
+    let mut conn = open_sessions_db()?;
     let cutoff = (Utc::now() - chrono::Duration::seconds(grace_secs)).to_rfc3339();
     let rows = block_on(async {
         sqlx::query(
@@ -129,7 +129,7 @@ pub fn update_heartbeat(session_id: &str) -> Result<()> {
 
 /// Query all sessions with status = 'active'.
 pub fn list_active_sessions() -> Result<Vec<SessionDb>> {
-    let mut conn = open_db()?;
+    let mut conn = open_sessions_db()?;
     let rows = block_on(async {
         sqlx::query(&format!(
             "SELECT {SESSION_COLS} FROM sessions WHERE status = 'active'"
@@ -157,7 +157,7 @@ pub fn force_end_session(session_id: &str, exit_reason: &str) -> Result<()> {
 
 /// Look up the workspace_id for a session.
 fn lookup_session_workspace(session_id: &str) -> Result<String> {
-    let mut conn = open_db()?;
+    let mut conn = open_sessions_db()?;
     let wid = block_on(async {
         sqlx::query_scalar::<_, String>(
             "SELECT workspace_id FROM sessions WHERE id = ?",

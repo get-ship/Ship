@@ -73,8 +73,12 @@ impl Projection for SpaceSettingsProjection {
 /// settings object. A row whose `value_json` fails to parse is skipped (the
 /// emit path validates JSON, so this is defensive).
 pub fn get_all(space_id: &str) -> Result<HashMap<String, Value>> {
-    ship_substrate::db::ensure_db()?;
-    let mut conn = ship_substrate::db::open_db()?;
+    // space.setting.* is Space-scoped → space_settings lives in the bounded
+    // spaces/<space_id>/space.db; the `space_id` arg IS the scope key.
+    let mut conn = ship_substrate::db::open_space_db(
+        &ship_substrate::project::get_global_dir()?,
+        space_id,
+    )?;
     let rows = block_on(async {
         sqlx::query("SELECT key, value_json FROM space_settings WHERE space_id = ?")
             .bind(space_id)
@@ -95,8 +99,10 @@ pub fn get_all(space_id: &str) -> Result<HashMap<String, Value>> {
 /// A single override for `(space_id, key)`, parsed back to a `Value`. `None`
 /// when the key has no space override.
 pub fn get(space_id: &str, key: &str) -> Result<Option<Value>> {
-    ship_substrate::db::ensure_db()?;
-    let mut conn = ship_substrate::db::open_db()?;
+    let mut conn = ship_substrate::db::open_space_db(
+        &ship_substrate::project::get_global_dir()?,
+        space_id,
+    )?;
     let row = block_on(async {
         sqlx::query("SELECT value_json FROM space_settings WHERE space_id = ? AND key = ?")
             .bind(space_id)

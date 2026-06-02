@@ -16,7 +16,13 @@ mod tests {
     }
 
     fn event_store() -> SqliteEventStore {
-        SqliteEventStore::new().unwrap()
+        // session.* is Runtime-scoped → read runtime.db.
+        SqliteEventStore::new_for_scope(
+            &ship_substrate::project::get_global_dir().unwrap(),
+            ship_types::event_registry::EventScope::Runtime,
+            None,
+        )
+        .unwrap()
     }
 
     // ── test 1: start session → session.started event with correct goal ───────
