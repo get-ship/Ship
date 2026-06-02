@@ -81,6 +81,8 @@ describe('<sui-label>', () => {
 
   it('disconnect — no leaked effects', () => {
     const { container } = mount(reg, 'sui-label', { for: 'x', required: true })
+    expect(container.isConnected).toBe(true)
     container.remove()
+    expect(container.isConnected).toBe(false)
   })
 })

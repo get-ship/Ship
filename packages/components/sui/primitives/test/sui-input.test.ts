@@ -8,6 +8,13 @@ afterEach(() => reg.cleanup())
 const shadow = (el: HTMLElement) => el.shadowRoot!
 const input = (el: HTMLElement) => shadow(el).querySelector('input') as HTMLInputElement
 
+// ElementInternals.setFormValue is partial under jsdom — the FormData
+// round-trip needs the real webview tier (proof owed in #164). Gate, not skip
+// silently past the only assert.
+const setFormValueAbsent =
+  typeof (window as unknown as { ElementInternals?: { prototype: ElementInternals } })
+    .ElementInternals?.prototype?.setFormValue !== 'function'
+
 describe('<sui-input>', () => {
   it('registers the custom element', () => {
     expect(customElements.get('sui-input')).toBeDefined()
@@ -25,14 +32,11 @@ describe('<sui-input>', () => {
     expect(ctor.formAssociated).toBe(true)
   })
 
-  it('participates in FormData when named inside a <form>', async () => {
+  it.skipIf(setFormValueAbsent)('participates in FormData when named inside a <form>', async () => {
     const container = reg.mk()
     container.innerHTML = '<form><sui-input name="q" value="hello"></sui-input></form>'
     const form = container.querySelector('form') as HTMLFormElement
     await flush()
-    const proto = (window as unknown as { ElementInternals?: { prototype: ElementInternals } })
-      .ElementInternals?.prototype
-    if (!proto || typeof proto.setFormValue !== 'function') return
     const data = new FormData(form)
     expect(data.get('q')).toBe('hello')
   })

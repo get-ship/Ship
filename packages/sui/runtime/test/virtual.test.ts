@@ -65,8 +65,12 @@ describe('createVirtualizer — windowing', () => {
       getScrollElement: () => viewport,
     })
     const r = v.range()
-    expect(r.startIndex).toBeGreaterThanOrEqual(0)
-    expect(r.endIndex).toBeGreaterThanOrEqual(r.startIndex)
+    // At scroll 0 the window starts at the top, spans a real slice (viewport
+    // 200 / est 20 = ~10 rows + overscan), and stays FAR short of the 1000-row
+    // count — that windowing is the whole point of "showing X–Y of N".
+    expect(r.startIndex).toBe(0)
+    expect(r.endIndex).toBeGreaterThan(r.startIndex)
+    expect(r.endIndex).toBeLessThan(100)
   })
 })
 

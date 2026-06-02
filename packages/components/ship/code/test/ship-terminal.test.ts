@@ -28,6 +28,22 @@ afterEach(() => {
   for (const c of containers.splice(0)) c.remove()
 })
 
+// xterm.js needs canvas/WebGL the headless DOM does not provide, so it never
+// initializes here and the host's write/writeln/clear/focus API is never
+// attached (proof owed in the #164 webview tier / the Playwright probe). Probe
+// once: mount, let rAF settle, and check whether the engine attached its API.
+async function xtermApiAttaches(): Promise<boolean> {
+  const c = mkContainer()
+  c.innerHTML = '<ship-terminal></ship-terminal>'
+  const el = c.querySelector('ship-terminal') as HTMLElement & { write?: unknown }
+  await new Promise((r) => setTimeout(r, 0))
+  const attached = el.write !== undefined
+  c.remove()
+  containers.splice(containers.indexOf(c), 1)
+  return attached
+}
+const xtermApiAbsent = !(await xtermApiAttaches())
+
 describe('<ship-terminal>', () => {
   it('registers the custom element', () => {
     expect(customElements.get('ship-terminal')).toBeDefined()
@@ -86,7 +102,7 @@ describe('<ship-terminal>', () => {
     expect(el.hasAttribute('fit')).toBe(true)
   })
 
-  it('host has imperative API methods after connect', async () => {
+  it.skipIf(xtermApiAbsent)('host has imperative API methods after connect', async () => {
     const c = mkContainer()
     c.innerHTML = '<ship-terminal></ship-terminal>'
     const el = c.querySelector('ship-terminal') as HTMLElement & {
@@ -97,13 +113,11 @@ describe('<ship-terminal>', () => {
     }
     // requestAnimationFrame fires after microtasks; flush it
     await new Promise((r) => setTimeout(r, 0))
-    // In JSDOM, xterm.js may not initialize (no layout), but the methods
-    // are set on the host unconditionally before open() — if they exist,
-    // they must be functions; if not initialized, they are undefined.
-    if (el.write !== undefined) expect(typeof el.write).toBe('function')
-    if (el.writeln !== undefined) expect(typeof el.writeln).toBe('function')
-    if (el.clear !== undefined) expect(typeof el.clear).toBe('function')
-    if (el.focus !== undefined) expect(typeof el.focus).toBe('function')
+    // Once xterm initializes, the host exposes the imperative API as functions.
+    expect(typeof el.write).toBe('function')
+    expect(typeof el.writeln).toBe('function')
+    expect(typeof el.clear).toBe('function')
+    expect(typeof el.focus).toBe('function')
   })
 
   it('removes without throwing', () => {

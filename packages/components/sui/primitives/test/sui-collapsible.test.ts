@@ -157,6 +157,8 @@ describe('<sui-collapsible>', () => {
 
   it('disconnect — no leaked effects', () => {
     const { container } = makeCollapsible({ open: true })
+    expect(container.isConnected).toBe(true)
     container.remove()
+    expect(container.isConnected).toBe(false)
   })
 })

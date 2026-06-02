@@ -142,6 +142,8 @@ describe('<sui-hover-card>', () => {
 
   it('disconnect clears timers — no error', () => {
     const { container } = makeCard()
+    expect(container.isConnected).toBe(true)
     container.remove()
+    expect(container.isConnected).toBe(false)
   })
 })

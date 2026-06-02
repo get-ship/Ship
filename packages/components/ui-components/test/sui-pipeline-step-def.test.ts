@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-pipeline-step-def/sui-pipeline-step-def.compiled.js'
-// sui-chip lives in @ship/sui-primitives — umbrella import registers it.
-import '@ship/sui-primitives'
+// sui-pipeline-step-def was removed from ui-components/src in the #151 reorg
+// (not carried into @ship/pipelines). Suite skipped (component gone).
+// import '../src/sui-pipeline-step-def/sui-pipeline-step-def.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
@@ -9,7 +9,7 @@ afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
 
-describe('<sui-pipeline-step-def>', () => {
+describe.skip('<sui-pipeline-step-def> (removed in #151 reorg)', () => {
   it('registers the custom element', () => {
     expect(customElements.get('sui-pipeline-step-def')).toBeDefined()
   })

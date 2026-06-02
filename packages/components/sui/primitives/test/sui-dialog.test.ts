@@ -157,11 +157,19 @@ describe('<sui-dialog>', () => {
 
   it('disconnect without open — no scroll lock leak', () => {
     const { container } = makeDialog()
+    expect(container.isConnected).toBe(true)
     container.remove()
+    expect(container.isConnected).toBe(false)
+    // A never-opened dialog must not have locked the document scroll.
+    expect(document.documentElement.style.overflow).not.toBe('hidden')
   })
 
   it('disconnect while open — scroll lock released', () => {
     const { container } = makeDialog({ open: true })
+    expect(container.isConnected).toBe(true)
     container.remove()
+    expect(container.isConnected).toBe(false)
+    // Disconnect while open releases any scroll lock the open state took.
+    expect(document.documentElement.style.overflow).not.toBe('hidden')
   })
 })

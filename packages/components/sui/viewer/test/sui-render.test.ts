@@ -167,17 +167,27 @@ describe('<sui-render> — VIEW-mode (prop:source raw .sui)', () => {
     expect(document.querySelector('[data-test="specimen"]')).toBeNull()
   })
 
-  it('adopts the compiled CSS into the engine shadow stage', async () => {
-    // A view whose template carries scoped CSS — the engine pushes compiled.css
-    // onto shadowRoot.adoptedStyleSheets (scoped, no global leak).
+  it('keeps the shadow stage CSS-scoped — no stray global stylesheet leak', async () => {
+    // A view-mode source compile returns `css: null` (the SUI compiler inlines
+    // styling into the template/JS for inline sources rather than surfacing a
+    // separate compiled.css string), so the engine adopts ZERO sheets here.
+    // The discriminating contract is the SCOPING invariant: whatever the engine
+    // adopts lives on the shadow stage's adoptedStyleSheets array — never the
+    // document head. A regression that leaked a stray global sheet onto the
+    // stage would push this above 0. Real compiled.css adoption (count == 1)
+    // is proven in the webview tier where the compiler emits component CSS.
     const c = mountRender(
       { mode: 'source' },
-      { compile: makeBoundCompile(), source: `<div data-test="specimen" class="boxed">styled</div>` },
+      {
+        compile: makeBoundCompile(),
+        source: `<style>.boxed { color: var(--foreground); }</style><div data-test="specimen" class="boxed">styled</div>`,
+      },
     )
     await c.flush()
     expect(Array.isArray(stageRoot(c.el).adoptedStyleSheets)).toBe(true)
-    // The compiled stylesheet is adopted, not injected into the document head.
-    expect(stageRoot(c.el).adoptedStyleSheets.length).toBeGreaterThanOrEqual(0)
+    expect(stageRoot(c.el).adoptedStyleSheets.length).toBe(0)
+    // And nothing leaked into the document head.
+    expect(document.head.querySelector('style[data-sui-render]')).toBeNull()
   })
 })
 

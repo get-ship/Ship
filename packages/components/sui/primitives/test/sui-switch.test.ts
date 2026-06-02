@@ -5,6 +5,13 @@ import { createContainerRegistry, flush, mount } from '../src/test-utils'
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
+// ElementInternals.setFormValue is partial under jsdom — the FormData
+// round-trip needs the real webview tier (proof owed in #164). Gate, not skip
+// silently past the only assert.
+const setFormValueAbsent =
+  typeof (window as unknown as { ElementInternals?: { prototype: ElementInternals } })
+    .ElementInternals?.prototype?.setFormValue !== 'function'
+
 const shadow = (el: HTMLElement) => el.shadowRoot!
 const input = (el: HTMLElement) => shadow(el).querySelector('input') as HTMLInputElement
 
@@ -169,9 +176,14 @@ describe('<sui-switch>', () => {
     expect(bubbled).toBe(true)
   })
 
-  it('cleanup on disconnect — no leaked effects', () => {
-    const { container } = mount(reg, 'sui-switch', { checked: true })
+  it('cleanup on disconnect — disconnects without leaking', () => {
+    const { el, container } = mount(reg, 'sui-switch', { checked: true })
+    expect(el.isConnected).toBe(true)
     container.remove()
+    expect(el.isConnected).toBe(false)
+    // A fresh instance mounts cleanly afterwards — proves no global leak.
+    const { el: el2 } = mount(reg, 'sui-switch')
+    expect(el2.hasAttribute('checked')).toBe(false)
   })
 
   it('multiple instances render independently', () => {
@@ -188,15 +200,12 @@ describe('<sui-switch>', () => {
     expect(ctor.formAssociated).toBe(true)
   })
 
-  it('participates in FormData when named inside a <form>', async () => {
+  it.skipIf(setFormValueAbsent)('participates in FormData when named inside a <form>', async () => {
     const container = reg.mk()
     container.innerHTML =
       '<form><sui-switch name="dark" checked></sui-switch></form>'
     const form = container.querySelector('form') as HTMLFormElement
     await flush()
-    const proto = (window as unknown as { ElementInternals?: { prototype: ElementInternals } })
-      .ElementInternals?.prototype
-    if (!proto || typeof proto.setFormValue !== 'function') return
     const data = new FormData(form)
     expect(data.get('dark')).toBe('true')
   })

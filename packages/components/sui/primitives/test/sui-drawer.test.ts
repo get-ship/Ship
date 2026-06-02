@@ -138,6 +138,8 @@ describe('<sui-drawer>', () => {
 
   it('disconnect while open — no error', () => {
     const { container } = makeDrawer({ open: true })
+    expect(container.isConnected).toBe(true)
     container.remove()
+    expect(container.isConnected).toBe(false)
   })
 })

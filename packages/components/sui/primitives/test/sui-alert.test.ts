@@ -138,6 +138,8 @@ describe('<sui-alert>', () => {
 
   it('disconnect — no leaked effects', () => {
     const { container } = mount(reg, 'sui-alert', { dismissible: true }, 'msg')
+    expect(container.isConnected).toBe(true)
     container.remove()
+    expect(container.isConnected).toBe(false)
   })
 })

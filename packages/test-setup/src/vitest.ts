@@ -44,6 +44,12 @@ const repoRoot = findRepoRoot()
 const mirrorRoot = resolve(repoRoot, '.ship/sui-out')
 const compilerBin = resolve(repoRoot, 'target/debug/sui-compiler')
 
+// Honesty guard — runs `expect.hasAssertions()` before every test so a body
+// that asserts nothing FAILS instead of passing green. Prepended to every
+// package's setupFiles (its own setup.ts still runs after). Resolved by
+// package subpath so it survives the package moving, same as @ship/sui-* below.
+const assertHonestySetup = require.resolve('@ship/test-setup/assert-honesty')
+
 const MAX_FORKS = Number(process.env.VITEST_MAX_FORKS ?? 2)
 
 /** Workers + timeouts. vitest defaults to one fork per core; each jsdom fork
@@ -54,6 +60,11 @@ export const SHIP_VITEST_DEFAULTS: NonNullable<VitestUserConfig['test']> = {
   minForks: 1,
   testTimeout: 10_000,
   hookTimeout: 10_000,
+  // Zero-collection guard (runtime half): fail the run if it collected no
+  // tests at all, instead of vitest's default green-on-empty. The static
+  // `scripts/check-zero-collection.mjs` catches the per-file empty case; this
+  // catches a whole suite that silently collected nothing.
+  passWithNoTests: false,
 }
 
 // ── WASM fallback for the compiled-js shim ──────────────────────────────────
@@ -130,6 +141,10 @@ export interface SuiComponentVitestOptions {
  */
 export function suiComponentVitestConfig(opts: SuiComponentVitestOptions = {}) {
   return defineConfig({
+    // The honesty-guard setup file lives in @ship/test-setup, outside each
+    // consuming package's root. Vite's dev FS guard (`/@fs/…`) blocks reads
+    // above the package dir by default, so allow-list the repo root.
+    server: { fs: { allow: [repoRoot] } },
     resolve: {
       alias: {
         // Resolved by package name → point at the framework source, move-proof.
@@ -146,7 +161,9 @@ export function suiComponentVitestConfig(opts: SuiComponentVitestOptions = {}) {
     test: {
       include: opts.include ?? ['test/**/*.test.ts', 'src/**/*.test.ts'],
       environment: opts.environment ?? 'jsdom',
-      setupFiles: opts.setupFiles ?? ['./test/setup.ts'],
+      // Honesty guard first, then the package's own setup. `hasAssertions()`
+      // fails any test whose executed body ran zero assertions.
+      setupFiles: [assertHonestySetup, ...(opts.setupFiles ?? ['./test/setup.ts'])],
       ...SHIP_VITEST_DEFAULTS,
     },
     // `<tag>.compiled.js` shim — resolve to the mirror-tree artifact (produced

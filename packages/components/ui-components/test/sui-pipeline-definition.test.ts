@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-pipeline-definition/sui-pipeline-definition.compiled.js'
-// sui-card lives in @ship/sui-primitives.
-import '@ship/sui-primitives'
+// sui-pipeline-definition was single-sourced into @ship/pipelines (#151) and
+// removed from ui-components/src. Suite skipped (component gone here).
+// import '../src/sui-pipeline-definition/sui-pipeline-definition.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
@@ -9,7 +9,7 @@ afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
 
-describe('<sui-pipeline-definition>', () => {
+describe.skip('<sui-pipeline-definition> (moved to @ship/pipelines #151)', () => {
   it('registers the custom element', () => {
     expect(customElements.get('sui-pipeline-definition')).toBeDefined()
   })

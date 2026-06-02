@@ -91,7 +91,12 @@ describe('defineComponent (formAssociated)', () => {
     el.setAttribute('name', 'sample')
     expect(() => form.appendChild(el)).not.toThrow()
     document.body.appendChild(form)
-    expect(form.elements.length).toBeGreaterThanOrEqual(0)
+    // The host is a live DOM child of the form (the structural fact jsdom can
+    // confirm). jsdom does NOT enroll form-associated custom elements into
+    // `form.elements` — that enrollment + the FormData round-trip is proven in
+    // the webview tier (#164), so we assert containment, not `form.elements`.
+    expect(el.parentElement).toBe(form)
+    expect(form.contains(el)).toBe(true)
     form.remove()
   })
 })

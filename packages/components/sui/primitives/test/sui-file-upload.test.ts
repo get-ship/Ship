@@ -264,6 +264,8 @@ describe('<sui-file-upload>', () => {
 
   it('cleanup on disconnect — no leaked effects', () => {
     const { container } = mount(reg, 'sui-file-upload')
+    expect(container.isConnected).toBe(true)
     container.remove()
+    expect(container.isConnected).toBe(false)
   })
 })

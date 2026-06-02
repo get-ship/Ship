@@ -74,10 +74,13 @@ describe('wasm-bootstrap init-once', () => {
     const injected = 'https://cdn.example.test/assets/sui_compiler_bg-abc123.wasm'
     await ensureWasm(injected)
 
-    // The explicit-fetch fallback fetched precisely the injected URL.
-    for (const call of fetchSpy.mock.calls) {
-      expect(call[0]).toBe(injected)
-    }
+    // EXACTLY the injected URL is fetched — never a hardcoded/daemon path.
+    // Asserting on the full url set (not iterating, which is vacuous when the
+    // global wasm was already inited by a prior test and ensureWasm short-
+    // circuits) keeps this discriminating regardless of run order.
+    const urls = fetchSpy.mock.calls.map((c) => c[0])
+    expect(urls.every((u) => u === injected)).toBe(true)
+    expect(urls).not.toContain('/_sui/sui_compiler_bg.wasm')
   })
 
   it('coalesces concurrent first callers (shared in-flight init, no double-run)', async () => {

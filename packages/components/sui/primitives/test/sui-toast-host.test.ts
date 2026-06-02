@@ -119,10 +119,8 @@ describe('<sui-toast-host>', () => {
     dispatchNotify(document.body, { message: 'after-remove' })
     await flush()
 
-    // Either no stack at all, or no toast was created after the disconnect.
-    const stack = document.body.querySelector('[data-sui-toast-stack]')
-    if (stack) {
-      expect(stack.querySelector('sui-toast')).toBeNull()
-    }
+    // The disconnected host's ship:notify listener is gone, so no toast was
+    // created after remove — regardless of whether a stack element lingers.
+    expect(document.body.querySelector('[data-sui-toast-stack] sui-toast')).toBeNull()
   })
 })

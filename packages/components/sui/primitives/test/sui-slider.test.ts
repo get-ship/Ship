@@ -125,7 +125,8 @@ describe('<sui-slider>', () => {
     const thumb = el.shadowRoot!.querySelector('[role="slider"]') as HTMLElement
     thumb.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
     await flush()
-    expect(Number(el.getAttribute('value'))).toBeGreaterThanOrEqual(0)
+    // value=2 steps down by 5 from min=0 → clamps to the min exactly.
+    expect(Number(el.getAttribute('value'))).toBe(0)
   })
 
   it('disabled slider does not respond to keyboard', async () => {

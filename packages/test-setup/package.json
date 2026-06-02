@@ -7,7 +7,8 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./vitest": "./src/vitest.ts"
+    "./vitest": "./src/vitest.ts",
+    "./assert-honesty": "./src/assert-honesty.ts"
   },
   "scripts": {
     "test": "vitest run",

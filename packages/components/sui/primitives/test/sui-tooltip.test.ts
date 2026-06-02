@@ -90,6 +90,8 @@ describe('<sui-tooltip>', () => {
 
   it('disconnect — no leaked event listeners', () => {
     const { container } = mount(reg, 'sui-tooltip', {}, '<button>x</button><span slot="content">tip</span>')
+    expect(container.isConnected).toBe(true)
     container.remove()
+    expect(container.isConnected).toBe(false)
   })
 })

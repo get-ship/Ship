@@ -5,6 +5,13 @@ import { createContainerRegistry, flush, mount } from '../src/test-utils'
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
+// ElementInternals.setFormValue is partial under jsdom — the FormData
+// round-trip needs the real webview tier (proof owed in #164). Gate, not skip
+// silently past the only assert.
+const setFormValueAbsent =
+  typeof (window as unknown as { ElementInternals?: { prototype: ElementInternals } })
+    .ElementInternals?.prototype?.setFormValue !== 'function'
+
 const shadow = (el: HTMLElement) => el.shadowRoot!
 const ta = (el: HTMLElement) => shadow(el).querySelector('textarea') as HTMLTextAreaElement
 
@@ -169,9 +176,14 @@ describe('<sui-textarea>', () => {
     expect(ta(el).rows).toBe(8)
   })
 
-  it('cleanup on disconnect — no leaked effects', () => {
-    const { container } = mount(reg, 'sui-textarea')
+  it('cleanup on disconnect — disconnects without leaking', () => {
+    const { el, container } = mount(reg, 'sui-textarea')
+    expect(el.isConnected).toBe(true)
     container.remove()
+    expect(el.isConnected).toBe(false)
+    // A fresh instance mounts cleanly afterwards — proves no global leak.
+    const { el: el2 } = mount(reg, 'sui-textarea')
+    expect(ta(el2)).not.toBeNull()
   })
 
   it('is form-associated', () => {
@@ -181,15 +193,12 @@ describe('<sui-textarea>', () => {
     expect(ctor.formAssociated).toBe(true)
   })
 
-  it('participates in FormData when named inside a <form>', async () => {
+  it.skipIf(setFormValueAbsent)('participates in FormData when named inside a <form>', async () => {
     const container = reg.mk()
     container.innerHTML =
       '<form><sui-textarea name="note" value="hi"></sui-textarea></form>'
     const form = container.querySelector('form') as HTMLFormElement
     await flush()
-    const proto = (window as unknown as { ElementInternals?: { prototype: ElementInternals } })
-      .ElementInternals?.prototype
-    if (!proto || typeof proto.setFormValue !== 'function') return
     const data = new FormData(form)
     expect(data.get('note')).toBe('hi')
   })

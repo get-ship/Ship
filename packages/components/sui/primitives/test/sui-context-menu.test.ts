@@ -181,6 +181,8 @@ describe('<sui-context-menu>', () => {
 
   it('disconnect — no error', () => {
     const { container } = makeMenuWithItems()
+    expect(container.isConnected).toBe(true)
     container.remove()
+    expect(container.isConnected).toBe(false)
   })
 })

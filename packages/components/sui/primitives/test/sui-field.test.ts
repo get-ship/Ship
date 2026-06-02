@@ -156,7 +156,9 @@ describe('<sui-field>', () => {
 
   it('cleanup on disconnect — no leaked effects', () => {
     const { container } = mountField('<input />')
+    expect(container.isConnected).toBe(true)
     container.remove()
+    expect(container.isConnected).toBe(false)
   })
 
   it('multiple field instances have different IDs', async () => {

@@ -38,6 +38,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+// CodeMirror's keydown flush calls document.execCommand (a Safari selection
+// hack); jsdom does not implement it, so dispatching a real keydown into the
+// editor throws before the Mod-s keymap can run. The keymap → sui-save path is
+// proven in the webview tier (#164) / the Playwright probe.
+const cmKeymapAbsent = typeof document.execCommand !== 'function'
+
 describe('<ship-code-editor>', () => {
   it('registers the custom element', () => {
     expect(customElements.get('ship-code-editor')).toBeDefined()
@@ -144,18 +150,20 @@ describe('<ship-code-editor>', () => {
     ).not.toThrow()
   })
 
-  it('dispatches sui-save on Mod-s keydown', async () => {
+  it.skipIf(cmKeymapAbsent)('dispatches sui-save on Mod-s keydown', async () => {
     const el = await mount('<ship-code-editor value="fn main() {}"></ship-code-editor>')
     const saves: CustomEvent[] = []
     el.addEventListener('sui-save', (e) => saves.push(e as CustomEvent))
-    const cm = el.shadowRoot!.querySelector('.cm-editor') as HTMLElement | null
+    const cm = el.shadowRoot!.querySelector('.cm-editor .cm-content') as HTMLElement | null
+    cm?.focus()
     cm?.dispatchEvent(new KeyboardEvent('keydown', {
       key: 's', metaKey: true, ctrlKey: false, bubbles: true, composed: true,
     }))
     // CM's keymap fires on keydown within the editor.
     await new Promise((r) => setTimeout(r, 0))
-    // Event may or may not fire depending on jsdom focus state; assert no throw.
-    expect(saves.length).toBeGreaterThanOrEqual(0)
+    // Exactly one sui-save fires, carrying the current document value.
+    expect(saves.length).toBe(1)
+    expect(saves[0].detail.value).toBe('fn main() {}')
   })
 
   it('removes without throwing', async () => {
