@@ -228,7 +228,6 @@ pub fn list_skill_vars(ship_dir: &Path) -> Result<Vec<(String, HashMap<String, V
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ship_substrate::db::ensure_db;
     use crate::testutil::init_project;
     use serde_json::json;
     use std::path::PathBuf;
@@ -237,7 +236,9 @@ mod tests {
     fn setup() -> (tempfile::TempDir, PathBuf) {
         let tmp = tempdir().unwrap();
         let ship_dir = init_project(tmp.path()).unwrap();
-        ensure_db().unwrap();
+        // Global skill vars persist to kv.db; ensure that per-scope db. (Project
+        // / local vars are files under ship_dir, no db needed.)
+        ship_substrate::db::ensure_kv_db_at(&ship_dir).unwrap();
         (tmp, ship_dir)
     }
 

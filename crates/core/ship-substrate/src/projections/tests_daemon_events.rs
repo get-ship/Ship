@@ -7,7 +7,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::db::ensure_db;
+    use crate::db::runtime_db_path;
     use crate::events::daemon::{
         CrashedPayload, PidfileStaleTakenPayload, PortBindFailedPayload,
         ShutdownCompletedPayload, StartupCompletedPayload,
@@ -16,17 +16,20 @@ mod tests {
     use crate::events::{EventStore, SqliteEventStore};
     use crate::events::filter::EventFilter;
     use ship_types::envelope::EventEnvelope;
+    use std::path::PathBuf;
 
-    fn setup() -> tempfile::TempDir {
+    /// Returns the temp dir (kept alive for the test) and the runtime.db path
+    /// each test backs its store with.
+    fn setup() -> (tempfile::TempDir, PathBuf) {
         let tmp = tempfile::tempdir().unwrap();
-        crate::testutil::init_project_minimal(tmp.path()).unwrap();
-        ensure_db().unwrap();
-        tmp
+        let ship_dir = crate::testutil::init_project_minimal(tmp.path()).unwrap();
+        let db = runtime_db_path(&ship_dir);
+        (tmp, db)
     }
 
     #[test]
     fn startup_completed_serializes_correctly() {
-        let _tmp = setup();
+        let (_tmp, db) = setup();
         let payload = StartupCompletedPayload {
             pid: 4242,
             port: 9315,
@@ -44,7 +47,7 @@ mod tests {
         .unwrap()
         .with_actor_id("daemon");
 
-        let store = SqliteEventStore::new().unwrap();
+        let store = SqliteEventStore::new_at_db_path(&db).unwrap();
         store.append(&envelope).unwrap();
 
         let read = store
@@ -65,8 +68,8 @@ mod tests {
 
     #[test]
     fn crashed_payload_handles_signal_or_exit_code() {
-        let _tmp = setup();
-        let store = SqliteEventStore::new().unwrap();
+        let (_tmp, db) = setup();
+        let store = SqliteEventStore::new_at_db_path(&db).unwrap();
 
         // Variant A: clean non-zero exit code, no signal.
         let exit_only = CrashedPayload {
@@ -114,7 +117,7 @@ mod tests {
 
     #[test]
     fn pidfile_stale_taken_carries_prior_record() {
-        let _tmp = setup();
+        let (_tmp, db) = setup();
         let payload = PidfileStaleTakenPayload {
             new_pid: 1234,
             prior_pid: 9999,
@@ -128,7 +131,7 @@ mod tests {
         )
         .unwrap();
 
-        let store = SqliteEventStore::new().unwrap();
+        let store = SqliteEventStore::new_at_db_path(&db).unwrap();
         store.append(&env).unwrap();
 
         let read = store
@@ -148,8 +151,8 @@ mod tests {
 
     #[test]
     fn shutdown_and_port_bind_failed_round_trip() {
-        let _tmp = setup();
-        let store = SqliteEventStore::new().unwrap();
+        let (_tmp, db) = setup();
+        let store = SqliteEventStore::new_at_db_path(&db).unwrap();
 
         let shutdown = ShutdownCompletedPayload {
             pid: 7,

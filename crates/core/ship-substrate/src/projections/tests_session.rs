@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod session_tests {
-    use crate::db::{block_on, db_path, ensure_db, open_db_at};
+    use crate::db::{block_on, open_runtime_db};
     use crate::events::types::event_types;
     use crate::events::EventEnvelope;
     use crate::projections::{EventBus, SessionProjection};
@@ -11,8 +11,7 @@ mod session_tests {
         let ship_dir = crate::project::get_global_dir().unwrap();
         let base = ship_dir.parent().unwrap().to_path_buf();
         crate::testutil::init_project_minimal(base).unwrap();
-        ensure_db().unwrap();
-        open_db_at(&db_path().unwrap()).unwrap()
+        open_runtime_db(&ship_dir).unwrap()
     }
 
     fn bus() -> EventBus {

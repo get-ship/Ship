@@ -1,4 +1,4 @@
-use crate::db::ensure_db;
+use crate::db::runtime_db_path;
 use ship_types::envelope::EventEnvelope;
 use crate::events::filter::EventFilter;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
@@ -9,9 +9,8 @@ use tempfile::tempdir;
 
 fn setup() -> (tempfile::TempDir, SqliteEventStore) {
     let tmp = tempdir().unwrap();
-    let _ship = init_project(tmp.path()).unwrap();
-    ensure_db().unwrap();
-    let store = SqliteEventStore::new().unwrap();
+    let ship = init_project(tmp.path()).unwrap();
+    let store = SqliteEventStore::new_at_db_path(&runtime_db_path(&ship)).unwrap();
     (tmp, store)
 }
 

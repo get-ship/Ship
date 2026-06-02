@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use ship_substrate::db::{block_on, ensure_db, open_db_at};
+    use ship_substrate::db::{block_on, open_db_at};
     use ship_substrate::events::filter::EventFilter;
     use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
     use ship_substrate::events::types::event_types;
@@ -11,7 +11,8 @@ mod tests {
     fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
         let tmp = tempdir().unwrap();
         let ship_dir = crate::testutil::init_project(tmp.path()).unwrap();
-        ensure_db().unwrap();
+        // session.* is Runtime-scoped; the per-scope store/openers below
+        // self-ensure runtime.db, so no global platform.db setup is needed.
         (tmp, ship_dir)
     }
 

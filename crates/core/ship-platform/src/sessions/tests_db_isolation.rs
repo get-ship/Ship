@@ -32,20 +32,30 @@ mod tests {
         }
     }
 
-    // ---- 2. db isolation: db_path() never points to home DB in tests ---------
+    // ---- 2. db isolation: the per-scope db never points to the home DB -------
 
-    /// db_path() in test context must either return a temp-based path or panic
-    /// (guard fires).  Either outcome prevents production DB contamination.
+    /// The Runtime-scope db resolver (the production event-log path, now that the
+    /// global-path `db_path()`/platform.db resolver is gone) must either resolve
+    /// to a temp-based path or panic (guard fires) in test context. Either
+    /// outcome prevents production DB contamination.
     #[test]
-    fn db_path_in_test_context_never_points_to_home_db() {
-        let result = std::panic::catch_unwind(|| ship_substrate::db::db_path().unwrap());
+    fn runtime_db_in_test_context_never_points_to_home_db() {
+        let result = std::panic::catch_unwind(|| {
+            ship_substrate::db::runtime_db_path(
+                &ship_substrate::project::get_global_dir().unwrap(),
+            )
+        });
         match result {
             Ok(path) => {
-                let home_db = home::home_dir().map(|h| ship_substrate::db::platform_db_path(&ship_substrate::ShipHome::project_ship_dir(h)));
+                let home_db = home::home_dir().map(|h| {
+                    ship_substrate::db::runtime_db_path(
+                        &ship_substrate::ShipHome::project_ship_dir(h),
+                    )
+                });
                 if let Some(home_path) = home_db {
                     assert_ne!(
                         path, home_path,
-                        "db_path() must not resolve to the production database"
+                        "runtime_db_path must not resolve to the production database"
                     );
                 }
             }

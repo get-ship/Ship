@@ -34,7 +34,9 @@ pub fn poll_events_core(
     limit: usize,
 ) -> Result<serde_json::Value, String> {
     let limit = limit.min(2000);
-    ship_substrate::db::ensure_db_at(ship_dir).map_err(|e| e.to_string())?;
+    // The read targets the Runtime partition (`runtime.db`);
+    // `list_recent_events_at` ensures that scope db's schema itself. No
+    // platform.db touch — events live in the per-scope partitions post-4d.
     let events = ship_substrate::db::events::list_recent_events_at(ship_dir, 5_000)
         .map_err(|e| e.to_string())?;
 

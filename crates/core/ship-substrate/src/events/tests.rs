@@ -1,4 +1,4 @@
-use crate::db::{block_on, ensure_db, open_db_at};
+use crate::db::{block_on, open_db_at, runtime_db_path};
 use ship_types::envelope::EventEnvelope;
 use crate::events::filter::EventFilter;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
@@ -9,9 +9,8 @@ use tempfile::tempdir;
 
 fn setup() -> (tempfile::TempDir, SqliteEventStore) {
     let tmp = tempdir().unwrap();
-    let _ship = init_project(tmp.path()).unwrap();
-    ensure_db().unwrap();
-    let store = SqliteEventStore::new().unwrap();
+    let ship = init_project(tmp.path()).unwrap();
+    let store = SqliteEventStore::new_at_db_path(&runtime_db_path(&ship)).unwrap();
     (tmp, store)
 }
 
@@ -123,7 +122,7 @@ fn test_immutability() -> anyhow::Result<()> {
     let ev = EventEnvelope::new(event_types::SESSION_STARTED, "immut-entity", &SessionStarted { goal: None, ..Default::default() })?;
     store.append(&ev)?;
 
-    let db_p = crate::db::db_path()?;
+    let db_p = store.db_path().to_path_buf();
     let mut conn = open_db_at(&db_p)?;
     let result = block_on(async {
         sqlx::query("UPDATE events SET actor = 'hacked' WHERE id = ?")

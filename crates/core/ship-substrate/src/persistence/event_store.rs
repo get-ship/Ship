@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row, insert_event_row};
-use crate::db::{block_on, db_path, ensure_db, ensure_db_at, open_db_at};
+use crate::db::{block_on, open_db_at};
 use ship_types::envelope::EventEnvelope;
 use crate::events::EventFilter;
 use crate::projections::{ActorProjection, EventBus, SessionProjection};
@@ -18,9 +18,9 @@ pub trait EventStore: Send + Sync {
 }
 
 /// Build the default projection bus (ActorProjection, SessionProjection,
-/// CompileStateProjection). Every `SqliteEventStore` constructed via
-/// `new*()` carries this bus, and `append` dispatches matching events to it
-/// in the same transaction as the row insert.
+/// CompileStateProjection). Every `SqliteEventStore` carries this bus, and
+/// `append` dispatches matching events to it in the same transaction as the
+/// row insert.
 fn default_bus() -> Arc<EventBus> {
     let mut bus = EventBus::new();
     bus.register(Box::new(ActorProjection::new()));
@@ -37,43 +37,25 @@ fn default_bus() -> Arc<EventBus> {
 
 pub struct SqliteEventStore {
     db_path: PathBuf,
-    pool: Option<sqlx::SqlitePool>,
     bus: Arc<EventBus>,
 }
 
 impl SqliteEventStore {
-    pub fn new() -> Result<Self> {
-        ensure_db()?;
-        Ok(Self {
-            db_path: db_path()?,
-            pool: None,
-            bus: default_bus(),
-        })
-    }
-
-    /// Create an event store at an explicit `ship_dir` path.
+    /// Create an event store at an explicit db-file path.
     ///
-    /// Preferred in tests to avoid thread-local / env var isolation issues.
-    pub fn new_at(ship_dir: &Path) -> Result<Self> {
-        ensure_db_at(ship_dir)?;
-        Ok(Self {
-            db_path: crate::db::platform_db_path(ship_dir),
-            pool: None,
-            bus: default_bus(),
-        })
-    }
-
-    /// Create an event store at an explicit db-file path (Phase 4b/4a).
-    ///
-    /// Unlike [`new_at`], which derives `platform.db` from a ship-home dir, this
-    /// takes the concrete db file directly — used by `PartitionedSink` to back
+    /// Takes the concrete db file directly — used by `PartitionedSink` to back
     /// each scope with its own per-scope db (`spaces/<id>/space.db`, `runtime.db`,
     /// etc.). Ensures the events schema exists at that path before returning.
+    ///
+    /// This is the sole event-store constructor: it can only ever materialize the
+    /// db file it is handed, so there is no path by which it resurrects the dead
+    /// `platform.db`. Per-scope production paths come from [`crate::db::runtime_db_path`]
+    /// / [`crate::db::account_db_path`] / [`crate::db::space_db_path`]; use
+    /// [`Self::new_for_scope`] to resolve one from a `ship_dir` + `EventScope`.
     pub fn new_at_db_path(db_path: &Path) -> Result<Self> {
         crate::db::ensure_events_db_at_path(db_path)?;
         Ok(Self {
             db_path: db_path.to_path_buf(),
-            pool: None,
             bus: default_bus(),
         })
     }
@@ -119,21 +101,6 @@ impl SqliteEventStore {
             }
         };
         Self::new_at_db_path(&db_path)
-    }
-
-    /// Create an event store backed by a connection pool.
-    ///
-    /// Requires a running Tokio runtime. Use in the daemon for high-throughput
-    /// event operations. Falls back to per-call connections if pool acquire fails.
-    pub fn new_pooled(ship_dir: &Path) -> Result<Self> {
-        ensure_db_at(ship_dir)?;
-        let db_path = crate::db::platform_db_path(ship_dir);
-        let pool = crate::db::pool::create_pool(&db_path, 5)?;
-        Ok(Self {
-            db_path,
-            pool: Some(pool),
-            bus: default_bus(),
-        })
     }
 }
 
@@ -190,13 +157,7 @@ impl EventStore for SqliteEventStore {
     /// fail the transaction (consistent with the documented persist
     /// contract) — see `EventBus::dispatch` for handler-error semantics.
     fn append(&self, event: &EventEnvelope) -> Result<()> {
-        let mut conn = if let Some(ref pool) = self.pool {
-            // Acquire a connection from the pool so we can run the tx
-            // (event row + projection apply) on a single connection.
-            block_on(async { pool.acquire().await })?.detach()
-        } else {
-            open_db_at(&self.db_path)?
-        };
+        let mut conn = open_db_at(&self.db_path)?;
 
         block_on(async { sqlx::query("BEGIN IMMEDIATE").execute(&mut conn).await })?;
 
@@ -212,22 +173,13 @@ impl EventStore for SqliteEventStore {
     }
 
     fn get(&self, id: &str) -> Result<Option<EventEnvelope>> {
-        let row = if let Some(ref pool) = self.pool {
-            block_on(async {
-                sqlx::query(&format!("SELECT {COLS} FROM events WHERE id = ?"))
-                    .bind(id)
-                    .fetch_optional(pool)
-                    .await
-            })?
-        } else {
-            let mut conn = open_db_at(&self.db_path)?;
-            block_on(async {
-                sqlx::query(&format!("SELECT {COLS} FROM events WHERE id = ?"))
-                    .bind(id)
-                    .fetch_optional(&mut conn)
-                    .await
-            })?
-        };
+        let mut conn = open_db_at(&self.db_path)?;
+        let row = block_on(async {
+            sqlx::query(&format!("SELECT {COLS} FROM events WHERE id = ?"))
+                .bind(id)
+                .fetch_optional(&mut conn)
+                .await
+        })?;
         match row {
             Some(r) => envelope_from_row(&r, true).map(Some),
             None => Ok(None),
@@ -267,7 +219,8 @@ mod event_sink_tests {
     #[test]
     fn sqlite_event_store_persist_writes_to_events_table() {
         let tmp = tempdir().unwrap();
-        let store = SqliteEventStore::new_at(tmp.path()).unwrap();
+        let store =
+            SqliteEventStore::new_at_db_path(&crate::db::runtime_db_path(tmp.path())).unwrap();
         let event = EventEnvelope::new("test.sink", "entity-1", &serde_json::json!({})).unwrap();
 
         store.persist(&event).unwrap();
@@ -280,7 +233,8 @@ mod event_sink_tests {
     #[test]
     fn sqlite_event_store_implements_event_sink_trait() {
         let tmp = tempdir().unwrap();
-        let store = SqliteEventStore::new_at(tmp.path()).unwrap();
+        let store =
+            SqliteEventStore::new_at_db_path(&crate::db::runtime_db_path(tmp.path())).unwrap();
         // Verify the type can be used as Arc<dyn EventSink>
         let sink: std::sync::Arc<dyn EventSink> = std::sync::Arc::new(store);
         let event = EventEnvelope::new("test.trait", "entity-2", &serde_json::json!({})).unwrap();
