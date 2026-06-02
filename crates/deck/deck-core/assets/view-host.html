@@ -100,10 +100,13 @@
       try {
         const res = await fetch(`/_sui/views/${viewPath}`, { credentials: 'same-origin' })
         if (!res.ok) {
-          const body = await res.text()
+          // The daemon serves a styled HTML 404 for a missing top-level view
+          // before this shell ever boots, so this branch only fires for
+          // sub-route / transient failures. Show a clean inline message —
+          // never dump the payload endpoint's raw JSON error body.
+          const reason = res.status === 404 ? 'View not found' : `Request failed (${res.status})`
           target.innerHTML =
-            `<div class="view-host-error">Failed to load /_sui/views/${viewPath}\n\n` +
-            `${res.status}: ${body}</div>`
+            '<div class="view-host-error">' + reason + ': ' + viewPath + '</div>'
         } else {
           const payload = await res.json()
           // Build a same-origin SDK client so view controllers that use

@@ -73,3 +73,38 @@ fn join_request(name: &str, sub_path: Option<&str>) -> String {
         None => name.to_string(),
     }
 }
+
+/// Best-effort list of top-level view names servable on this daemon, for the
+/// human-facing not-found page. Scans the same on-disk roots the resolver
+/// consults — the first-party bucket (`SHIP_FIRST_PARTY_VIEWS`), the project's
+/// `views/`, and `.ship/views/`. Cheap (one shallow `read_dir` per root, no
+/// compilation) and graceful: any missing root contributes nothing, and with
+/// no project root at all the list is simply empty. Names are deduped and
+/// sorted so the page renders deterministically.
+pub fn list_view_names() -> Vec<String> {
+    let mut names: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    if let Some(fp) = first_party_root() {
+        collect_view_dirs(&fp, &mut names);
+    }
+    if let Some(root) = resolve_project_root() {
+        collect_view_dirs(&root.join("views"), &mut names);
+        collect_view_dirs(&root.join(".ship").join("views"), &mut names);
+    }
+    names.into_iter().collect()
+}
+
+/// Add each immediate child directory of `dir` whose name is a valid view name
+/// to `out`. A non-directory or unreadable `dir` contributes nothing.
+fn collect_view_dirs(dir: &std::path::Path, out: &mut std::collections::BTreeSet<String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        if !entry.path().is_dir() {
+            continue;
+        }
+        if let Some(name) = entry.file_name().to_str()
+            && crate::view::is_valid_view_name(name)
+        {
+            out.insert(name.to_string());
+        }
+    }
+}

@@ -72,6 +72,19 @@ pub fn serve_view_host(mode: DaemonMode, path: &str) -> DeckResponse {
     // If no precompiled SSR exists, fall back to live-emit so the shell
     // never ships an empty #sui-root — the client morphs onto real markup.
     let view_name = view_name_from_path(path);
+
+    // A named-but-unresolvable view is a human-facing 404: serve the rendered
+    // not-found page rather than a 200 shell that boots, fetches the JSON
+    // payload, gets a 404, and dumps raw `{"error":{"view_not_found":…}}` into
+    // a div. The bare `/view-host` landing (no name) keeps serving the shell —
+    // its client-side message handles the "no view in URL" case. The
+    // programmatic payload endpoint (`/_sui/views/<name>`) is untouched and
+    // still answers JSON for API callers.
+    if let Some(name) = view_name.as_deref()
+        && (!crate::view::is_valid_view_name(name) || resolve(name, None).is_err())
+    {
+        return crate::error_page::view_not_found(mode, name);
+    }
     let ssr_content = view_name
         .as_deref()
         .map(|name| {
@@ -118,31 +131,66 @@ mod tests {
     }
 
     #[test]
-    fn no_ssr_file_leaves_root_empty() {
+    fn unresolvable_view_serves_html_not_found_page() {
+        // A named view the daemon can't resolve must now render the styled
+        // 404 page (text/html, status 404) instead of a 200 shell that boots
+        // only to dump the payload endpoint's raw JSON into a div. Point the
+        // resolver at an empty tempdir so the view is deterministically absent.
+        let _lock = crate::test_lock::lock();
+        let tmp = tempfile::tempdir().unwrap();
+        let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
+        unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", tmp.path()); }
+
         let resp = serve_view_host(DaemonMode::Development, "/view-host/no-such-view-xyzzy");
-        assert_eq!(resp.status, 200);
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
+            None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
+        }
+
+        assert_eq!(resp.status, 404);
+        assert!(resp.content_type.contains("text/html"));
         let body = std::str::from_utf8(&resp.body).unwrap();
-        // The content placeholder collapses to empty, but the root keeps
-        // its `data-sui-root` / `data-view` scoping attributes.
+        assert!(body.contains("<!doctype html>"), "must be a rendered page; got: {body}");
+        assert!(body.contains("no-such-view-xyzzy"), "must name the missing view; got: {body}");
+        assert!(body.contains("href=\"/hub\""), "must link back to the hub; got: {body}");
         assert!(
-            body.contains(
-                "<div id=\"sui-root\" data-sui-root data-view=\"no-such-view-xyzzy\"></div>"
-            ),
-            "content placeholder must collapse to empty while root attrs stay; got: {body}"
+            !body.contains("\"view_not_found\""),
+            "must NOT leak the raw JSON error shape; got: {body}"
         );
     }
 
     #[test]
-    fn root_carries_view_name_from_path() {
+    fn resolvable_view_serves_shell_with_root_name() {
+        // A view that resolves on disk still serves the 200 shell, with the
+        // root advertising the view name. The bare `/view-host` landing (no
+        // view in URL) keeps serving the shell with an empty name.
+        let _lock = crate::test_lock::lock();
+        let tmp = tempfile::tempdir().unwrap();
+        let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
+        unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", tmp.path()); }
+
+        let view_dir = tmp.path().join(".ship/views/some-view");
+        std::fs::create_dir_all(&view_dir).unwrap();
+        std::fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
+
         let resp = serve_view_host(DaemonMode::Development, "/view-host/some-view/sub");
+        let bare = serve_view_host(DaemonMode::Development, "/view-host");
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
+            None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
+        }
+
+        assert_eq!(resp.status, 200);
         let body = std::str::from_utf8(&resp.body).unwrap();
         assert!(
             body.contains("data-sui-root data-view=\"some-view\""),
             "root must advertise the resolved view name; got: {body}"
         );
         // The bare host landing (no view in URL) leaves the name empty.
-        let resp = serve_view_host(DaemonMode::Development, "/view-host");
-        let body = std::str::from_utf8(&resp.body).unwrap();
+        assert_eq!(bare.status, 200);
+        let body = std::str::from_utf8(&bare.body).unwrap();
         assert!(
             body.contains("data-sui-root data-view=\"\""),
             "bare /view-host must leave data-view empty; got: {body}"

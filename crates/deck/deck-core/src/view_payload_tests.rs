@@ -355,6 +355,39 @@ fn unknown_view_returns_404_json() {
     assert_eq!(v["error"]["view_not_found"]["name"], "nope");
 }
 
+/// The human-facing host route serves a rendered HTML 404 — not the raw JSON
+/// the programmatic payload endpoint emits — and surfaces the views the daemon
+/// CAN serve so the founder can recover. The JSON contract above is untouched.
+#[test]
+fn host_unknown_view_serves_html_404_with_available_views() {
+    let tmp = tempfile::tempdir().unwrap();
+    let _g = lock_with_dir(tmp.path());
+
+    // Two real views so the not-found page has something to list.
+    for name in ["counter", "dashboard"] {
+        let dir = tmp.path().join(format!(".ship/views/{name}"));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("index.sui"), "<p>hi</p>").unwrap();
+    }
+
+    let resp = serve_view_host(DaemonMode::Development, "/sui/home");
+    assert_eq!(resp.status, 404, "missing view must 404");
+    assert!(
+        resp.content_type.contains("text/html"),
+        "human-facing 404 must be HTML, got: {}",
+        resp.content_type
+    );
+    let body = body_str(&resp);
+    assert!(body.contains("<!doctype html>"), "must be a rendered page; got: {body}");
+    assert!(body.contains("home"), "must name the requested view; got: {body}");
+    assert!(body.contains("href=\"/hub\""), "must link back to the hub; got: {body}");
+    // Available-views list pulled from the resolver's roots.
+    assert!(body.contains("/sui/counter"), "must list servable views; got: {body}");
+    assert!(body.contains("/sui/dashboard"), "must list servable views; got: {body}");
+    // The page must NOT leak the JSON error shape the payload endpoint uses.
+    assert!(!body.contains("\"view_not_found\""), "must not dump raw JSON; got: {body}");
+}
+
 #[test]
 fn invalid_name_returns_404_json() {
     let tmp = tempfile::tempdir().unwrap();

@@ -9,6 +9,7 @@
 pub mod response;
 
 pub mod assets;
+pub mod error_page;
 pub mod meta;
 pub mod mode_html;
 pub mod packs;
@@ -40,6 +41,7 @@ pub use assets::{
     serve_sui_components, serve_sui_dom, serve_sui_icon, serve_sui_island,
     serve_sui_live_reload, serve_sui_runtime, serve_sui_sdk_client,
 };
+pub use error_page::view_not_found;
 pub use meta::{serve_meta, DaemonBuildInfo};
 pub use mode_html::{inject_mode_meta, mode_str};
 pub use packs::{serve_catalog_published, serve_catalog_workspace, serve_pack_asset};
