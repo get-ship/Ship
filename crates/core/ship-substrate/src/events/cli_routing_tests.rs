@@ -125,27 +125,26 @@ async fn cli_context_event_delivered_to_subscribed_mailbox() {
     assert_eq!(received.id, event.id);
 }
 
-// ── fallback: no router → events go to platform.db only ──────────────────────
+// ── fallback: no router → events go straight to the store db ─────────────────
 //
 // This test verifies the fallback path by directly calling SqliteEventStore,
 // which is what workspace_events/session_events/actor_events do when
 // kernel_router() returns None.
 
 #[test]
-fn event_persisted_to_platform_db_without_router() {
-    use crate::db::ensure_db;
+fn event_persisted_to_store_without_router() {
+    use crate::db::runtime_db_path;
     use crate::persistence::event_store::{EventStore, SqliteEventStore};
     use crate::testutil::init_project_minimal as init_project;
 
     let tmp = tempdir().unwrap();
-    let _ship_dir = init_project(tmp.path()).unwrap();
-    ensure_db().unwrap();
+    let ship_dir = init_project(tmp.path()).unwrap();
 
-    let store = SqliteEventStore::new().unwrap();
+    let store = SqliteEventStore::new_at_db_path(&runtime_db_path(&ship_dir)).unwrap();
     let event = ev(event_types::WORKSPACE_CREATED);
     store.append(&event).unwrap();
 
-    let got = store.get(&event.id).unwrap().expect("event must be in platform.db");
+    let got = store.get(&event.id).unwrap().expect("event must be in the store db");
     assert_eq!(got.id, event.id);
     assert_eq!(got.event_type, event_types::WORKSPACE_CREATED);
 }

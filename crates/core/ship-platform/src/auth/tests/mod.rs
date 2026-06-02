@@ -4,10 +4,11 @@
 /// tool matches them via the `<service>_<method>_*` pattern.
 ///
 /// Each test is hermetic: a `tempdir()` is used wherever disk or DB state
-/// is needed. Event-emitting tests use `SqliteEventStore::new()` which in
-/// test context routes to the per-thread auto-isolated store (via
-/// `auto_test_global_dir`). Tests that touch the event store call
-/// `init_project` to ensure the DB schema is created.
+/// is needed. Event-emitting tests build a store via
+/// `SqliteEventStore::new_for_scope(get_global_dir(), Runtime, None)` (or
+/// `new_at_db_path` on an explicit per-scope db), which routes to the
+/// per-thread auto-isolated store (via `auto_test_global_dir`). Tests that
+/// touch the event store call `init_project` first.
 #[cfg(test)]
 mod integration_gate_matrix;
 #[cfg(test)]

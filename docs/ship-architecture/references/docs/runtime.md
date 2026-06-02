@@ -56,7 +56,7 @@ The `db` module (`crates/core/ship-substrate/src/db/`) contains all platform.db 
 | `db::space_id_reconcile` | Project-id reconciliation |
 | `db::types` | Shared DB type definitions |
 
-The platform database path is `~/.ship/machine/db/platform.db`. The `ensure_db()` function runs sqlx migrations idempotently, sets WAL journal mode and foreign keys, then opens a connection. There are no per-actor event stores and no separate kernel store — all actors share `platform.db`'s `events` table (see Actor Model below). The key-value store moved out of platform.db; KV now lives in its own `kv.db`, accessed via `ship_platform::kv` (a single `kv.rs` with a namespaced API).
+The event log is partitioned per scope: `~/.ship/runtime.db`, `~/.ship/account.db`, and `~/.ship/spaces/<id>/space.db`. The kernel routes each event into its scope db via `PartitionedSink`; the per-scope openers (`open_runtime_db` / `open_account_db` / `open_space_db`) run sqlx migrations idempotently, set WAL journal mode and foreign keys, then open a connection. The legacy single `platform.db` is dead — production never creates or reads it; only a `.exists()`-guarded one-time boot drain and the read-only `ship repair` diagnostic touch it. The key-value store lives in its own `kv.db`, accessed via `ship_platform::kv` (a single `kv.rs` with a namespaced API).
 
 {% aside type="tip" %}
 Tests get automatic isolation. The `get_global_dir()` function detects test binaries and returns a per-thread temp directory instead of `~/.ship/`.

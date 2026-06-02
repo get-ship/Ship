@@ -44,15 +44,17 @@ pub trait EventStore: Send + Sync {
 
 ## SqliteEventStore
 
-Concrete implementation. Three constructors, three use cases:
+Concrete implementation. Two constructors, both bound to an explicit per-scope
+db (the global-path `new()`/`new_at()`/`new_pooled()` constructors were deleted
+with the per-scope capstone — they resolved/created the dead `platform.db`):
 
 | Constructor | Use case |
 |---|---|
-| `new()` | Default global Ship dir resolved via `db_path()`. Production CLI path. |
-| `new_at(ship_dir: &Path)` | Explicit directory. Required in tests to avoid thread-local / env-var isolation issues. |
-| `new_pooled(ship_dir: &Path)` | Connection pool (size 5). Daemon uses this for high-throughput events. Requires a running Tokio runtime. |
+| `new_at_db_path(db_path: &Path)` | Bind to a concrete db file. Used by `PartitionedSink` to back each scope (`runtime.db` / `account.db` / `spaces/<id>/space.db`), and by tests against a temp dir. |
+| `new_for_scope(ship_dir, scope, scope_key)` | Resolve the per-scope db under `ship_dir` from an `EventScope` (+ space id for `Space`) and bind to it. |
 
-All three call `ensure_db()` or `ensure_db_at()` — migrations run idempotently before the store is usable.
+Both call `ensure_events_db_at_path` — the events schema is created idempotently
+at the per-scope path before the store is usable.
 
 Struct:
 
@@ -181,13 +183,20 @@ pub struct ActorCursor {
 
 `init_cursor_table(kernel_db_path)` creates the `actor_cursors` table (primary key `actor_label`, value `last_event_id`). Feature-gated; not in the default build. Used by experimental replay logic to resume an actor's event stream from where it left off.
 
-There is no separate kernel database — events live in `platform.db` at `~/.ship/machine/db/platform.db`, and callers pass that path.
+There is no single platform database — events live in per-scope dbs
+(`runtime.db` / `account.db` / `spaces/<id>/space.db`), and callers pass the
+concrete per-scope path.
 
 ## Testing
 
-`new_at(ship_dir)` is the test-friendly constructor. Tests create a `tempdir()`, pass it in, and get full isolation without polluting `~/.ship`. The `#[cfg(test)] mod event_sink_tests` at the bottom of `event_store.rs` is the template — two tests verifying the `EventSink` trait impl writes to the events table and can be wrapped in `Arc<dyn EventSink>`.
+`new_at_db_path(&runtime_db_path(ship_dir))` (or `new_for_scope(ship_dir,
+Runtime, None)`) is the test-friendly constructor. Tests create a `tempdir()`,
+resolve a per-scope path under it, and get full isolation without polluting
+`~/.ship`. The `#[cfg(test)] mod event_sink_tests` at the bottom of
+`event_store.rs` is the template — two tests verifying the `EventSink` trait
+impl writes to the events table and can be wrapped in `Arc<dyn EventSink>`.
 
-Global runtime test isolation goes further: `ship_substrate::project::get_global_dir()` detects test binaries and returns a per-thread temp directory instead of `~/.ship`. Any code that resolves a path via `db_path()` (rather than `db_path_at(ship_dir)`) inherits that isolation.
+Global runtime test isolation goes further: `ship_substrate::project::get_global_dir()` detects test binaries and returns a per-thread temp directory instead of `~/.ship`. Any code that resolves a per-scope path via `runtime_db_path(get_global_dir())` inherits that isolation.
 
 ## Invariants
 

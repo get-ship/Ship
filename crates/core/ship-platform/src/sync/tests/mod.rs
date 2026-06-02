@@ -9,8 +9,9 @@
 /// - wire-format invariants (space_id field placement, field presence)
 ///
 /// Each test is hermetic: `init_project` + `tempdir` per test, no shared state.
-/// `SqliteEventStore::new_at(&ship_dir)` is used instead of `::new()` to avoid
-/// thread-local / env-var isolation issues (cross-module finding).
+/// Event stores are built via `SqliteEventStore::new_at_db_path(&runtime_db_path(&ship_dir))`
+/// on an explicit per-scope db, which sidesteps thread-local / env-var
+/// isolation issues (cross-module finding).
 ///
 /// Test naming follows `sync_<subdomain>_<scenario>` for Track A coverage tool
 /// compatibility.

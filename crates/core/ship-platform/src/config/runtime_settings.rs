@@ -432,7 +432,12 @@ mod resolver_tests {
     /// at the start of each test because a thread may be reused across
     /// tests within this module.
     fn fresh_settings() {
-        ship_substrate::db::ensure_db().unwrap();
+        // daemon_settings lives in runtime.db; the per-scope opener ensures its
+        // schema (delete() self-ensures, but make the dependency explicit).
+        let _ = ship_substrate::db::open_runtime_db(
+            &ship_substrate::project::get_global_dir().unwrap(),
+        )
+        .unwrap();
         let _ = daemon_settings::delete("watcher.debounce_ms");
         let _ = daemon_settings::delete("git.log_limit");
         let _ = daemon_settings::delete("hooks.max_depth");

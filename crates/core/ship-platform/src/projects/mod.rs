@@ -183,7 +183,12 @@ mod tests {
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         crate::testutil::init_project(tmp.path()).unwrap();
-        ship_substrate::db::ensure_db().unwrap();
+        // Project registry state lives in runtime.db (daemon_settings + kernel
+        // events); ensure that per-scope db at the thread-local global dir.
+        let _ = ship_substrate::db::open_runtime_db(
+            &ship_substrate::project::get_global_dir().unwrap(),
+        )
+        .unwrap();
         tmp
     }
 

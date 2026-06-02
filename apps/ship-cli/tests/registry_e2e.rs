@@ -197,7 +197,7 @@ fn install_writes_lock_with_correct_package_entry() {
 // Test 8: WorkspaceState round trip via ship_substrate::db::kv
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// active_profile written to platform.db, read back correctly.
+// active_profile written to kv.db, read back correctly.
 // Second write is idempotent.
 
 #[test]
@@ -211,7 +211,7 @@ fn workspace_state_active_profile_round_trip() {
     // the "tmp-test-test" slug collision that would occur with a hardcoded id.
     let _ship_dir = init_project(tmp.path()).expect("init_project must succeed");
 
-    db::ensure_db().expect("ensure_db must succeed");
+    db::ensure_kv_db().expect("ensure_kv_db must succeed");
 
     // First write.
     kv::set(

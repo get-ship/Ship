@@ -172,7 +172,13 @@ mod tests {
     async fn registers_window_and_mints_pid_bound_c2_session() {
         let tmp = tempfile::tempdir().unwrap();
         ship_substrate::testutil::init_project_minimal(tmp.path().to_path_buf()).unwrap();
-        ship_substrate::db::ensure_db().unwrap();
+        // Window registration routes through the kernel into the per-scope dbs
+        // (runtime.db / space.db), which self-ensure their schema; pre-ensure
+        // runtime.db at the thread-local global dir so the read side is ready.
+        let _ = ship_substrate::db::open_runtime_db(
+            &ship_substrate::project::get_global_dir().unwrap(),
+        )
+        .unwrap();
         // A daemon serves one space; stamp its identity so the handler binds to it.
         ship_substrate::project::set_daemon_space_id_from_root(tmp.path());
         let space = ship_substrate::project::daemon_space_id().expect("daemon space id set");
@@ -224,7 +230,13 @@ mod tests {
     async fn unregistered_target_space_is_refused() {
         let tmp = tempfile::tempdir().unwrap();
         ship_substrate::testutil::init_project_minimal(tmp.path().to_path_buf()).unwrap();
-        ship_substrate::db::ensure_db().unwrap();
+        // Window registration routes through the kernel into the per-scope dbs
+        // (runtime.db / space.db), which self-ensure their schema; pre-ensure
+        // runtime.db at the thread-local global dir so the read side is ready.
+        let _ = ship_substrate::db::open_runtime_db(
+            &ship_substrate::project::get_global_dir().unwrap(),
+        )
+        .unwrap();
         let registry = empty_registry();
         // A target space id that was never registered must be refused — a window
         // can't conjure a space.

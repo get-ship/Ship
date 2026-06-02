@@ -166,9 +166,17 @@ impl ServiceHandler for SyncServiceHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ship_substrate::db::{block_on, db_path, ensure_db, open_db_at};
+    use ship_substrate::db::{block_on, open_db_at, open_runtime_db, runtime_db_path};
     use crate::testutil::init_project;
     use tempfile::tempdir;
+
+    /// The runtime.db path under the test's thread-local global ship-dir. The
+    /// sync test fixtures persist Runtime-scoped (`workspace.created`) events, so
+    /// they back their `ActorStore` with `runtime.db` rather than the dead
+    /// `platform.db`.
+    fn test_runtime_db() -> std::path::PathBuf {
+        runtime_db_path(&ship_substrate::project::get_global_dir().unwrap())
+    }
 
     struct MockTransport {
         response_cursor: String,
@@ -202,13 +210,14 @@ mod tests {
     fn setup_global_db() -> tempfile::TempDir {
         let tmp = tempdir().unwrap();
         init_project(tmp.path()).unwrap();
-        ensure_db().unwrap();
+        // Ensure the runtime.db events schema exists at the thread-local global dir.
+        let _ = open_runtime_db(&ship_substrate::project::get_global_dir().unwrap()).unwrap();
         tmp
     }
 
     fn insert_elevated_event(id: &str) {
         use chrono::Utc;
-        let mut conn = open_db_at(&db_path().unwrap()).unwrap();
+        let mut conn = open_db_at(&test_runtime_db()).unwrap();
         let now = Utc::now().to_rfc3339();
         block_on(async {
             sqlx::query(
@@ -225,10 +234,10 @@ mod tests {
     }
 
     fn make_store(_tmp: &tempfile::TempDir) -> ActorStore {
-        // Backed by the already-initialised global platform.db (setup_global_db).
+        // Backed by the already-initialised global runtime.db (setup_global_db).
         ActorStore::new(
             "sync",
-            db_path().unwrap(),
+            test_runtime_db(),
             vec!["sync.".into()],
             vec![],
         )

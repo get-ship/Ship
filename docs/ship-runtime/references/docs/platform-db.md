@@ -40,25 +40,30 @@ Set on every call to `ensure_db_at_path`:
 
 `crates/core/ship-substrate/src/db/mod.rs`:
 
+> **platform.db is dead.** The per-scope capstone deleted the no-arg
+> global-path creators (`db_path()`, `ensure_db()`, `open_db()`) and the pooled
+> event store. Production event writes/reads go through the kernel
+> (`PartitionedSink`) and the per-scope openers below. What survives of the
+> legacy file is READ-ONLY plus the one guarded migration entry.
+
 | Function | Purpose |
 |---|---|
-| `db_path() -> Result<PathBuf>` | Resolves `~/.ship/machine/db/platform.db` (or test-thread temp dir). |
-| `ensure_db() -> Result<()>` | Runs migrations idempotently at `db_path()`. |
-| `ensure_db_at(ship_dir: &Path) -> Result<()>` | Same, but at an explicit ship_dir. Use in tests and handlers that take `ApiState`. |
-| `open_db() -> Result<SqliteConnection>` | Shortcut: `ensure_db()` then `connect()`. |
-| `open_db_at(path: &Path) -> Result<SqliteConnection>` | Open without migrating. DB must already exist. |
+| `platform_db_path(ship_dir: &Path) -> PathBuf` | Resolve the LEGACY `<ship_dir>/machine/db/platform.db` path. Pure path resolution, no I/O — never creates the file. |
+| `ensure_db_at(ship_dir: &Path) -> Result<()>` | The ONE surviving fn that can materialize/migrate platform.db. Production calls it only inside the `.exists()`-guarded boot drain (`init.rs`); otherwise `#[cfg(test)]`. |
+| `open_db_at(path: &Path) -> Result<SqliteConnection>` | Open without migrating; never creates a missing file. Used by the read-only drift diagnostic (`ship repair`). |
+| `runtime_db_path` / `account_db_path` / `space_db_path` | Per-scope event-log paths (the production write/read targets). |
+| `open_runtime_db` / `open_account_db` / `open_space_db` | Open + ensure-schema the per-scope event-log db. |
+| `new_at_db_path(db_path)` / `new_for_scope(ship_dir, scope, key)` | The only `SqliteEventStore` constructors — both bind an explicit per-scope db. |
 
-Migration failure causes `ensure_db` to refuse startup. The error message surfaces the hint "this usually means a different Ship binary created this database" and points to `ship daemon reset-db`. **Migrations never delete user data on failure.**
+Migration failure causes `ensure_db_at` to refuse startup. The error message surfaces the hint "this usually means a different Ship binary created this database" and points to `ship daemon reset-db`. **Migrations never delete user data on failure.**
 
 ## Connection pool
 
-`crates/core/ship-substrate/src/db/pool.rs`. Optional — used by the daemon for hot paths (event queries, KV reads, projection lookups). Not used by CLI invocations that open and close per-command.
-
-- Size: `DEFAULT_POOL_SIZE = 5` (4 read + 1 write, per SQLite WAL semantics).
-- Acquisition: `platform_pool() -> &'static SqlitePool`. Lazy; initialized on first call via `OnceLock`.
-- Custom size: `create_pool(path, size)` for explicit construction in tests or specialized callers.
-
-**Not suitable for per-test isolation** — the static `PLATFORM_POOL` persists across test runs and its path is fixed at first init. Tests must use `open_db_at()` or `create_pool(path, size)` against a temp dir.
+Removed with the per-scope capstone. There is no process-wide platform.db pool
+and no pooled `SqliteEventStore`: production event writes open per-call
+connections against the per-scope db a `PartitionedSink` routes to. Tests use
+`SqliteEventStore::new_at_db_path(&runtime_db_path(ship_dir))` against a temp dir
+for isolation.
 
 ## Migrations
 

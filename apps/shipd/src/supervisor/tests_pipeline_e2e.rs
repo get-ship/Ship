@@ -81,7 +81,8 @@ async fn simple_job_lifecycle_through_event_store() {
     let dir = TempDir::new().unwrap();
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+    let store =
+        SqliteEventStore::new_at_db_path(&ship_substrate::db::runtime_db_path(&ship_dir)).unwrap();
 
     let pipeline_run_id = "j-e2e-simple";
     let slug = "e2e-simple";
@@ -155,7 +156,8 @@ async fn pipeline_advances_through_all_steps() {
         "---\nslug: e2e-pipe\n---\n# Pipeline Test",
     ).unwrap();
 
-    let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+    let store =
+        SqliteEventStore::new_at_db_path(&ship_substrate::db::runtime_db_path(&ship_dir)).unwrap();
 
     let pipeline_run_id = "j-e2e-pipe";
     let slug = "e2e-pipe";
@@ -247,7 +249,8 @@ async fn dependent_job_dispatches_after_upstream_completes() {
     let dir = TempDir::new().unwrap();
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+    let store =
+        SqliteEventStore::new_at_db_path(&ship_substrate::db::runtime_db_path(&ship_dir)).unwrap();
 
     // Create upstream job
     store.append(&EventEnvelope::new(
@@ -314,7 +317,8 @@ async fn restart_recovery_finds_stale_jobs() {
     let dir = TempDir::new().unwrap();
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+    let store =
+        SqliteEventStore::new_at_db_path(&ship_substrate::db::runtime_db_path(&ship_dir)).unwrap();
 
     // Job stuck in dispatched (agent died)
     store.append(&EventEnvelope::new(
@@ -392,7 +396,8 @@ async fn run_step_advances_to_agent_step() {
         "---\nslug: run-advance\n---\n# Run Step Test",
     ).unwrap();
 
-    let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+    let store =
+        SqliteEventStore::new_at_db_path(&ship_substrate::db::runtime_db_path(&ship_dir)).unwrap();
     let pipeline_run_id = "j-run-advance";
     let slug = "run-advance";
 
@@ -499,7 +504,8 @@ async fn first_step_run_executes_without_agent() {
     std::fs::create_dir_all(&ship_dir).unwrap();
     std::fs::create_dir_all(&worktree_path).unwrap();
 
-    let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+    let store =
+        SqliteEventStore::new_at_db_path(&ship_substrate::db::runtime_db_path(&ship_dir)).unwrap();
     let pipeline_run_id = "j-run-first";
     let slug = "run-first";
 
