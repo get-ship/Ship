@@ -109,6 +109,9 @@ export default controller<Scope>({
     const isMonth = derived(() => view() === 'month')
     const isWeek = derived(() => view() === 'week')
     const isDay = derived(() => view() === 'day')
+    // The keyboard focus anchor — drives the month grid's roving tabindex
+    // (focused cell tabindex=0, all others -1) so the grid is reachable + operable.
+    const focusedIso = derived(() => cal().focusDate())
 
     return {
       engine,
@@ -126,6 +129,7 @@ export default controller<Scope>({
       isMonth,
       isWeek,
       isDay,
+      focusedIso,
     }
   },
 
@@ -203,7 +207,45 @@ export default controller<Scope>({
       if (dayCell) cal.goToDate(dayCell.dataset.iso!)
     }
 
+    // Month-grid keyboard operability — the grid advertises role=grid/gridcell
+    // with a roving tabindex, so the focused day cell must respond to arrow /
+    // Home / End / PageUp-Down / Enter-Space. All moves route through the engine
+    // (which owns the date math); DOM focus follows the new focus anchor.
+    const onShadowKey = (e: KeyboardEvent) => {
+      const cell = (e.target as HTMLElement | null)?.closest?.(
+        '[role=gridcell][data-iso]',
+      ) as HTMLElement | null
+      if (!cell) return
+      const cal = active()
+      switch (e.key) {
+        case 'ArrowRight': cal.moveFocus(1); break
+        case 'ArrowLeft': cal.moveFocus(-1); break
+        case 'ArrowDown': cal.moveFocus(7); break
+        case 'ArrowUp': cal.moveFocus(-7); break
+        case 'Home': cal.focusWeekEdge(false); break
+        case 'End': cal.focusWeekEdge(true); break
+        case 'PageDown': cal.next(); break
+        case 'PageUp': cal.prev(); break
+        case 'Enter':
+        case ' ':
+          cal.goToDate(cell.dataset.iso!)
+          break
+        default:
+          return
+      }
+      e.preventDefault()
+      // Move DOM focus onto the newly-anchored cell after the grid re-renders.
+      const iso = active().focusDate()
+      queueMicrotask(() => {
+        const next = host.shadowRoot?.querySelector(
+          `[role=gridcell][data-iso="${iso}"]`,
+        ) as HTMLElement | null
+        next?.focus()
+      })
+    }
+
     host.shadowRoot?.addEventListener('click', onShadowClick)
+    host.shadowRoot?.addEventListener('keydown', onShadowKey)
 
     host.expose!({
       next: () => active().next(),
@@ -216,6 +258,7 @@ export default controller<Scope>({
       stopView()
       stopEmit()
       host.shadowRoot?.removeEventListener('click', onShadowClick)
+      host.shadowRoot?.removeEventListener('keydown', onShadowKey)
       delete (host as { calendar?: unknown }).calendar
     }
   },

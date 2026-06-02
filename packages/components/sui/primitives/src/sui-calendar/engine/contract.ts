@@ -59,6 +59,10 @@ export interface Calendar {
   // Mutators — call ONLY from on:* / mount (Cardinal 3).
   setView(v: ViewMode): void
   goToDate(d: ISODate): void
+  /** Move the focus anchor by whole days (keyboard grid nav). */
+  moveFocus(deltaDays: number): void
+  /** Move the focus anchor to the start (false) or end (true) of its week. */
+  focusWeekEdge(end: boolean): void
   today(): void
   next(): void
   prev(): void

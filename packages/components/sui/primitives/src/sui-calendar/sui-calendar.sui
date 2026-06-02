@@ -213,6 +213,7 @@
             class="cell"
             role="gridcell"
             data-iso={cr.cell.iso}
+            tabindex={cr.cell.iso === focusedIso() ? '0' : '-1'}
             class:out={!cr.cell.inMonth}
             class:today={cr.cell.today}
             class:weekend={cr.cell.isWeekend}

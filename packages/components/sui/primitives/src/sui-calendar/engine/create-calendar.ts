@@ -144,6 +144,13 @@ export function createCalendar(options: CalendarOptions): Calendar {
     const next = v === 'month' ? addMonths(f, dir) : v === 'week' ? addDays(f, dir * 7) : addDays(f, dir)
     goToDate(next)
   }
+  // Keyboard grid navigation (arrow/Home/End) — move the focus anchor by whole
+  // days without changing the view mode. Date math stays in the engine.
+  const moveFocus = (deltaDays: number) => goToDate(addDays(focusDate(), deltaDays))
+  const focusWeekEdge = (end: boolean) => {
+    const s = startOfWeek(focusDate(), weekStartsOn)
+    goToDate(end ? addDays(s, 6) : s)
+  }
 
   const selectEvent = (id: string, opts?: { additive?: boolean }) => {
     batch(() => {
@@ -176,6 +183,8 @@ export function createCalendar(options: CalendarOptions): Calendar {
     state: { events: eventsSig, view, focusDate, range, selectedEventIds },
     setView,
     goToDate,
+    moveFocus,
+    focusWeekEdge,
     today: () => goToDate(todayIso()),
     next: () => stepBy(1),
     prev: () => stepBy(-1),

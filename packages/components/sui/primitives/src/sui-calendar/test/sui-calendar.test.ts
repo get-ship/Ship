@@ -209,6 +209,55 @@ describe('<sui-calendar> — empty state precedence (#11)', () => {
   })
 })
 
+describe('<sui-calendar> — month grid keyboard operability (a11y #259)', () => {
+  const press = (el: HTMLElement, key: string): void => {
+    const cell = shadow(el).querySelector('[role=gridcell][data-iso="2026-06-15"]') as HTMLElement
+    cell.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, composed: true }))
+  }
+
+  it('gives the focus anchor a roving tabindex (focused cell 0, others -1)', async () => {
+    const { v } = mountWith(EV) // initialDate 2026-06-15
+    live.push(v)
+    await v.flush()
+    const focused = shadow(v.el).querySelector('[data-iso="2026-06-15"]')!
+    expect(focused.getAttribute('tabindex')).toBe('0')
+    const other = shadow(v.el).querySelector('[data-iso="2026-06-16"]')!
+    expect(other.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('ArrowRight moves the focus anchor forward one day', async () => {
+    const { v, calendar } = mountWith(EV)
+    live.push(v)
+    await v.flush()
+    press(v.el, 'ArrowRight')
+    await v.flush()
+    expect(calendar.focusDate()).toBe('2026-06-16')
+    expect(shadow(v.el).querySelector('[data-iso="2026-06-16"]')!.getAttribute('tabindex')).toBe('0')
+  })
+
+  it('ArrowDown moves the focus anchor forward one week', async () => {
+    const { v, calendar } = mountWith(EV)
+    live.push(v)
+    await v.flush()
+    press(v.el, 'ArrowDown')
+    await v.flush()
+    expect(calendar.focusDate()).toBe('2026-06-22')
+  })
+
+  it('emits sui-date-change as arrow navigation moves the anchor', async () => {
+    const { v } = mountWith(EV)
+    live.push(v)
+    let date: string | null = null
+    v.el.addEventListener('sui-date-change', (e) => {
+      date = (e as CustomEvent).detail.date
+    })
+    await v.flush()
+    press(v.el, 'ArrowLeft')
+    await v.flush()
+    expect(date).toBe('2026-06-14')
+  })
+})
+
 describe('<sui-calendar> — SSR fallback + density/token discipline', () => {
   it('parses the events type="string" SSR fallback when no engine identity is set', async () => {
     const json = JSON.stringify(EV)
