@@ -33,7 +33,11 @@ export function prodHome() {
  * One source of truth so every caller agrees on what "prod" means.
  */
 export function resolveHome() {
-  return process.env.SHIP_HOME ?? prodHome();
+  // Treat unset OR empty/whitespace SHIP_HOME as prod (fail loud). `??` alone
+  // would let SHIP_HOME="" resolve to "" — a relative/cwd path that silently
+  // bypasses the guard. An empty home is a misconfig, not an opt-out.
+  const h = process.env.SHIP_HOME;
+  return h && h.trim() ? h : prodHome();
 }
 
 /** True when the explicit opt-out is set. */
