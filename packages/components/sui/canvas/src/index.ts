@@ -1,8 +1,44 @@
-// @ship/sui-canvas — the drawing-surface pack.
+// @ship/sui-canvas — the spatial substrate pack.
 //
-// The compiled <sui-canvas> tag calls customElements.define() on import,
-// so a single `import '@ship/sui-canvas'` registers the tag globally.
+// <sui-canvas> is the bare pan/zoom/infinite-surface primitive (backbone #3),
+// built on @ship/sui-runtime signals — no React, no Excalidraw, no SDK. A
+// single `import '@ship/sui-canvas'` registers the tag globally; the compiled
+// tag calls customElements.define() on import.
 //
-// Bundle note: importing this pulls in @excalidraw/excalidraw + a React 19
-// tree (~1 MB minified). Import only where you actually mount a canvas.
+// The shared engine is exported for the sibling faces (sui-board, sui-draw)
+// to build their domain models on the same coordinate substrate.
 import './sui-canvas/sui-canvas.compiled.js'
+import './sui-board/sui-board.compiled.js'
+import './sui-draw/sui-draw.compiled.js'
+
+export { createCanvas } from './engine/create-canvas'
+export { createBoardModel } from './sui-board/engine/board-model'
+export { createDrawScene } from './sui-draw/engine/scene'
+export type {
+  DrawScene,
+  DrawElement,
+  DrawTool,
+  StrokeElement,
+  ShapeElement,
+  TextElement,
+  RenderedElement,
+} from './sui-draw/engine/scene'
+export type { ShapeKind } from './sui-draw/engine/shape'
+export type { StrokeSample } from './sui-draw/engine/stroke'
+export type {
+  BoardModel,
+  Node,
+  Edge,
+  Port,
+  PortRef,
+  EdgeRoute,
+  PendingEdge,
+} from './sui-board/engine/board-model'
+export type {
+  Canvas,
+  CanvasOptions,
+  Transform,
+  Vec2,
+  Rect,
+  PointerState,
+} from './engine/types'

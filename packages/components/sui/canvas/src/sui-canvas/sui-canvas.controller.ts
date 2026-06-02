@@ -1,73 +1,86 @@
-import { controller, signal, effect, debounce, untrack, ref } from '@ship/sui-runtime'
+import { controller, signal, effect, debounce, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-canvas.sui'
-import { mountExcalidraw, type CanvasProps, type CanvasTheme } from './excalidraw-bridge'
+import { createCanvas } from '../engine/create-canvas'
+import type { Transform } from '../engine/types'
 
-interface ChangePayload {
-  value: string
-  sceneVersion: number
+// SSR fallback = the verified sui-combobox shape: plain JSON.parse in the
+// controller, try/caught. The live path is prop:* identity onto the engine.
+function parseSnapshot(raw: string): { transform?: Partial<Transform> } | null {
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as { transform?: Partial<Transform> }
+  } catch {
+    return null
+  }
 }
 
-// <sui-canvas> controller. Owns the Excalidraw React-root lifecycle
-// through the bridge: mount on connect, dispose on disconnect. Prop
-// changes (value / readonly / theme) flow into the React tree via an
-// effect; scene edits flow back out as a 200ms-debounced
-// `sui-canvas-change` event.
+// <sui-canvas> controller — the bare substrate primitive. Builds a
+// createCanvas() in scope, forwards raw pointer/wheel events to the engine
+// in on:*, and emits a debounced sui-canvas-viewport event via host.emit!.
 export default controller<Scope>({
-  scope: () => {
-    // Raw scene edits land here; `debounced` gates the outbound event.
-    const lastChange = signal<ChangePayload | null>(null)
-    const debounced = debounce(lastChange, 200)
-    const surfaceEl = ref<HTMLElement>(null)
-    return { lastChange, debounced, surfaceEl }
+  scope: ({ value }) => {
+    const viewportEl = ref<HTMLDivElement>(null)
+    const canvas = createCanvas({
+      getViewportElement: () => viewportEl(),
+      initialTransform: parseSnapshot(value())?.transform,
+    })
+    // Drives the debounced outbound viewport event.
+    const lastTransform = signal<Transform | null>(null)
+    const debounced = debounce(lastTransform, 200)
+    return { canvas, viewportEl, lastTransform, debounced }
+  },
+
+  derived: {
+    transformCss: ({ canvas }) => {
+      const t = canvas.transform()
+      return `transform: translate(${t.x}px, ${t.y}px) scale(${t.scale})`
+    },
+  },
+
+  on: {
+    pointerDown: (s, e: PointerEvent) => {
+      s.canvas.onPointerDown(e)
+    },
+    pointerMove: (s, e: PointerEvent) => {
+      s.canvas.onPointerMove(e)
+    },
+    pointerUp: (s, e: PointerEvent) => {
+      s.canvas.onPointerUp(e)
+    },
+    wheel: (s, e: WheelEvent) => {
+      s.canvas.onWheel(e)
+      e.preventDefault()
+    },
   },
 
   mount(state, host) {
-    const surface = state.surfaceEl as HTMLElement | null
-    if (!surface) return
-
-    const readProps = (): CanvasProps => ({
-      value: (state.value as string) ?? '',
-      readonly: Boolean(state.readonly),
-      theme: ((state.theme as string) === 'dark' ? 'dark' : 'light') as CanvasTheme,
+    // controller<Scope> OVER-CONSTRAINS union-typed reads — read the
+    // reflected enum/number props imperatively off the host (the verified
+    // sui-table.controller.ts:95 precedent), not through the typed scope.
+    const minScale = host.getAttribute('min-scale')
+    const maxScale = host.getAttribute('max-scale')
+    state.canvas.setOptions({
+      ...(minScale != null ? { minScale: Number(minScale) } : {}),
+      ...(maxScale != null ? { maxScale: Number(maxScale) } : {}),
     })
 
-    const bridge = mountExcalidraw(surface, {
-      ...untrack(readProps),
-      onChange: (value, sceneVersion) => {
-        // Proxy routes the assignment through the signal's setter.
-        state.lastChange = { value, sceneVersion }
-      },
+    // Feed engine transform changes into the debounce source.
+    const stopTrack = effect(() => {
+      state.canvas.transform()
+      state.lastTransform = state.canvas.transform()
     })
 
-    // Push external prop changes into the React tree. The first run is
-    // the initial mount (already rendered above), so skip it.
-    let first = true
-    const stopProps = effect(() => {
-      const props = readProps()
-      if (first) {
-        first = false
-        return
-      }
-      bridge.update(props)
-    })
-
-    // Emit the debounced change event. Skip the initial `null`.
+    // Emit the debounced viewport event. Skip the initial null.
     const stopEmit = effect(() => {
-      const change = state.debounced
-      if (!change) return
-      host.dispatchEvent(
-        new CustomEvent('sui-canvas-change', {
-          detail: change,
-          bubbles: true,
-          composed: true,
-        }),
-      )
+      const t = state.debounced
+      if (!t) return
+      host.emit!('sui-canvas-viewport', { transform: t })
     })
 
     return () => {
-      stopProps()
+      stopTrack()
       stopEmit()
-      bridge.destroy()
+      state.canvas.dispose()
     }
   },
 })
