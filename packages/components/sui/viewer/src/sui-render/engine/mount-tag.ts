@@ -27,6 +27,17 @@ export interface TagMountOpts {
   props?: Record<string, unknown> | null
   /** Composed slot inner-HTML injected into the host (light DOM). */
   slots?: string | null
+  /**
+   * Mint a CONTENT-HASHED versioned tag (`base-v<hash(source)>`) instead of the
+   * base tag. Set on a source-CHANGE re-mount: the custom-elements registry is
+   * process-global + append-only (no undefine), so reusing the base tag after
+   * the source changes would silently keep the OLD definition (stale render).
+   * A versioned tag gives a FRESH definition for distinct source, while the
+   * define-once guard collapses identical source to the prior registration —
+   * bounding registry growth by distinct-source count. Defaults to false (the
+   * first mount uses the base tag so the host can `createElement(base)`).
+   */
+  versioned?: boolean
 }
 
 export interface TagMount {
@@ -94,7 +105,7 @@ export function mountByTag(
   compile: CompileFn,
   opts: TagMountOpts,
 ): TagMount {
-  const tag = ensureDefined(compile, opts.tag, opts.source, false)
+  const tag = ensureDefined(compile, opts.tag, opts.source, opts.versioned ?? false)
   const el = document.createElement(tag)
   applyProps(el, opts.props)
   ;(stage as HTMLElement).appendChild(el)

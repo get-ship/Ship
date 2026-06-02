@@ -445,6 +445,96 @@ describe('<sui-render> — reactive re-mount on source/tag change', () => {
   })
 })
 
+describe('<sui-render> — COMPONENT-mode source-change (#258 correctness + registry bound)', () => {
+  // Drives the ACTUAL controller recompile loop: a component-mode source flip
+  // (same base component-name, DIFFERENT body) must (a) re-render the NEW
+  // source — a same-base-tag content change cannot silently keep the OLD
+  // customElements definition (the stale-render bug from the hardcoded
+  // versioned=false at mount-tag.ts mountByTag) — and (b) NOT grow the
+  // customElements registry on repeated IDENTICAL re-mounts (the #258 bound).
+
+  it('a component-mode source CHANGE re-renders the NEW source (not the stale prior definition)', async () => {
+    const TAG = 'sui-render-stale'
+    const SRC_A = `<prop name="label" type="string" reflect />\n<b data-test="render-a">{label}</b>`
+    const SRC_B = `<prop name="label" type="string" reflect />\n<i data-test="render-b">{label}</i>`
+    const c = mountRender(
+      { mode: 'tag', 'component-name': TAG },
+      { compile: makeBoundCompile(), source: SRC_A, propValues: { label: 'x' } },
+    )
+    await c.flush()
+    // First mount renders source A.
+    expect(stageRoot(c.el).querySelector('[data-test="render-a"]')).not.toBeNull()
+
+    // Flip the source (SAME base component-name, NEW body). The engine must
+    // mount a FRESH definition — with the bug, createElement(baseTag) re-uses
+    // the already-registered A definition and silently keeps rendering <b>.
+    ;(c.el as unknown as Record<string, unknown>).source = SRC_B
+    await c.flush()
+    // The new source B is rendered...
+    expect(stageRoot(c.el).querySelector('[data-test="render-b"]')).not.toBeNull()
+    // ...and the stale A render is gone.
+    expect(stageRoot(c.el).querySelector('[data-test="render-a"]')).toBeNull()
+  })
+
+  it('repeated IDENTICAL-source re-mounts do NOT grow the customElements registry (define-once guard)', async () => {
+    const TAG = 'sui-render-bound'
+    const SRC = `<prop name="label" type="string" reflect />\n<u data-test="render-bound">{label}</u>`
+    const c = mountRender(
+      { mode: 'tag', 'component-name': TAG },
+      { compile: makeBoundCompile(), source: SRC, propValues: { label: 'x' } },
+    )
+    await c.flush()
+    expect(stageRoot(c.el).querySelector('[data-test="render-bound"]')).not.toBeNull()
+
+    // The realistic agentic edit→revert loop toggles between exactly TWO
+    // sources: the canonical SRC and one edited variant SRC_EDIT. The controller
+    // dedups src===lastTagSource, so we round-trip through the OTHER source to
+    // force the reactive effect to re-mount each time. Each DISTINCT source
+    // mints AT MOST ONE customElements definition; once both are registered,
+    // every further re-mount of an already-seen source hits the define-once
+    // guard and mints ZERO — registry growth is bounded by distinct-source
+    // count, NOT by re-mount count (the #258 bound).
+    const SRC_EDIT = `${SRC}\n<i data-test="render-edit">edit</i>`
+    const origDefine = customElements.define
+    let defines = 0
+    ;(customElements as unknown as { define: typeof origDefine }).define = function (
+      name: string,
+      ctor: CustomElementConstructor,
+      o?: ElementDefinitionOptions,
+    ) {
+      defines++
+      return origDefine.call(customElements, name, ctor, o)
+    }
+    try {
+      // Warmup: register BOTH distinct sources once (their versioned tags).
+      ;(c.el as unknown as Record<string, unknown>).source = SRC_EDIT
+      await c.flush()
+      ;(c.el as unknown as Record<string, unknown>).source = SRC
+      await c.flush()
+      const definesAfterWarmup = defines
+
+      // Steady state: toggle between the two ALREADY-REGISTERED sources 10
+      // times. With the bug (hardcoded versioned=false) the engine cannot mint
+      // a fresh tag, so this would either render stale or — were the registry
+      // wired naively — grow once per re-mount. With the fix it mints NOTHING:
+      // both versioned tags are already in the registry.
+      for (let i = 0; i < 10; i++) {
+        ;(c.el as unknown as Record<string, unknown>).source = i % 2 === 0 ? SRC_EDIT : SRC
+        await c.flush()
+      }
+      const steadyStateDefines = defines - definesAfterWarmup
+      // Re-mounting already-seen sources adds ZERO registrations.
+      expect(steadyStateDefines).toBe(0)
+      // And the engine still reflects the live source (not a stale definition).
+      ;(c.el as unknown as Record<string, unknown>).source = SRC_EDIT
+      await c.flush()
+      expect(stageRoot(c.el).querySelector('[data-test="render-edit"]')).not.toBeNull()
+    } finally {
+      ;(customElements as unknown as { define: typeof origDefine }).define = origDefine
+    }
+  })
+})
+
 describe('<sui-render> — prop change patches in place (NO remount)', () => {
   it('a prop-values change patches the existing node — the live element identity survives', async () => {
     const SPECIMEN_SRC = `<prop name="label" type="string" reflect />\n<input data-test="focusable" />`

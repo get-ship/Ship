@@ -203,16 +203,27 @@ export default controller({
         if (slotHtml != null) tagMount.setSlots(slotHtml)
         return
       }
+      // A source CHANGE (tag already mounted, src differs) must mint a FRESH
+      // definition: the customElements registry is process-global + append-only
+      // (no undefine), so re-using the base tag would silently keep the OLD
+      // definition (stale render). A content-hashed versioned tag gives a fresh
+      // definition for distinct source while the define-once guard collapses
+      // identical source — bounding registry growth by distinct-source count.
+      // First mount (no prior tagMount) uses the base tag so a host querying by
+      // `component-name` finds the registered element.
+      const versioned = tagMount != null
       state.compiling = true
       try {
-        const next = mountByTag(stage, fn, { tag, source: src, props: pv, slots: slotHtml })
+        const next = mountByTag(stage, fn, { tag, source: src, props: pv, slots: slotHtml, versioned })
         disposeTag()
         tagMount = next
         lastTagSource = src
         clearCompileError()
         lastErrorKey = ''
         host.emit!('sui-render:compiled', { js: '', css: null, dts: null, ssrHtml: null })
-        host.emit!('sui-render:mounted', { tag: next.tag === tag ? tag : tag })
+        // Report the tag actually mounted: the base tag on first mount, the
+        // content-hashed versioned tag on a source-change swap.
+        host.emit!('sui-render:mounted', { tag: next.tag })
       } catch (e) {
         showCompileError(diagFromError(e), src)
       } finally {
