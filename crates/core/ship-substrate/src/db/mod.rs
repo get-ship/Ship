@@ -29,6 +29,8 @@ pub mod repair;
 mod events_tests;
 #[cfg(test)]
 mod tests_envelope;
+#[cfg(test)]
+mod property_tests;
 pub mod rebuild;
 pub mod session;
 pub mod session_drain;

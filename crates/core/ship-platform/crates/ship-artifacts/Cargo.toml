@@ -24,6 +24,14 @@ tokio = { workspace = true, features = ["sync", "rt"] }
 chrono = { workspace = true }
 ulid = { workspace = true }
 anyhow = { workspace = true }
+# Optional: derive(specta::Type) on wire-facing records so the daemon's
+# specta-gated TS surface (apps/shipd wire.rs `ArtifactsListResponse`) can
+# embed `ArtifactRecord` under the `specta` feature. Off by default — the
+# production daemon/binary never pulls specta.
+specta = { workspace = true, features = ["chrono", "serde_json"], optional = true }
+
+[features]
+specta = ["dep:specta"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }

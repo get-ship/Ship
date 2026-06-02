@@ -3,6 +3,8 @@ pub mod event_store;
 pub mod partitioned_sink;
 #[cfg(test)]
 mod partitioned_sink_tests;
+#[cfg(test)]
+mod partition_property_tests;
 pub mod snapshot;
 
 pub use actor_store::ActorStore;
