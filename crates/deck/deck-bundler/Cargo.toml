@@ -29,5 +29,21 @@ rolldown_common = "1.0.3"
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { workspace = true }
 
+[features]
+# G3 bundle-parity regression gate (.artifacts/sui-arc/integrity/report.md §4).
+# OFF by default so it never runs in `cargo test -p deck-bundler` / `just build`.
+# The gate (`tests/bundle_parity.rs`) (1) builds every `all_targets()` target
+# through the deck Rolldown path SEQUENTIALLY with a real exit check (Err
+# propagates — unlike `build_all`, which swallows per-target errors), and
+# (2) asserts the native `sui_compiler::compile` and the wasm `compile` export
+# emit byte-identical `.js` over the compiler fixture corpus (the #160
+# native-vs-wasm divergence class). Invoke explicitly:
+#   cargo test -p deck-bundler --features g3 --test bundle_parity -- --nocapture
+g3 = ["dep:sui-compiler"]
+
+[dependencies.sui-compiler]
+path = "../../sui/compiler"
+optional = true
+
 [lints]
 workspace = true
