@@ -374,11 +374,12 @@ mod tests {
                 "marketing bundle must register {tag}"
             );
         }
-        // Umbrella-only tags must NOT leak in (entry imports specific components,
-        // not a package index). `sui-git-diff` lives only in the umbrella.
+        // Other-pack tags must NOT leak in (entry imports specific components,
+        // not a package index). `ship-git-diff` lives in the @ship/code pack, not
+        // anything the focused marketing entry imports.
         assert!(
-            !body.contains("`sui-git-diff`"),
-            "umbrella full set must not leak into the focused marketing bundle"
+            !body.contains("`ship-git-diff`"),
+            "out-of-entry packs must not leak into the focused marketing bundle"
         );
     }
 

@@ -3,9 +3,9 @@
   TutorialApp — editor + preview pane wired entirely from Ship's own
   SUI components: <sui-tabs> / <sui-tab> / <sui-tab-panel> for pane
   switching, <sui-button> for actions, <sui-status-dot> for the live
-  status, <sui-code-editor> for editing, <sui-diff> for the "what
+  status, <ship-code-editor> for editing, <sui-diff> for the "what
   changed vs. solution" view. The base set ships in the marketing
-  bundle (sui-marketing.js, loaded by BaseLayout); <sui-code-editor>
+  bundle (sui-marketing.js, loaded by BaseLayout); <ship-code-editor>
   is a lazy chunk loaded by the tutorial route's head. Compile errors
   render in a plain box (the destructive variant of <sui-alert> isn't
   in the marketing bundle, so we don't pull it in for one element).
@@ -15,7 +15,7 @@
   the reference site.
 
   Author flow on every edit:
-    sui-change (debounced 150ms inside sui-code-editor)
+    sui-change (debounced 150ms inside ship-code-editor)
       → compile via wasm
       → controller TS→JS regex strip
       → postMessage to iframe host → blob URL injection → re-mount.
@@ -62,22 +62,22 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     </div>
     <div class="tut-editor-host">
       <sui-tab-panel name="template" active>
-        <sui-code-editor
+        <ship-code-editor
           class="tut-editor"
           data-pane="template"
           language="html"
           size="md"
           value={starterTemplate}
-        ></sui-code-editor>
+        ></ship-code-editor>
       </sui-tab-panel>
       <sui-tab-panel name="controller">
-        <sui-code-editor
+        <ship-code-editor
           class="tut-editor"
           data-pane="controller"
           language="typescript"
           size="md"
           value={starterController}
-        ></sui-code-editor>
+        ></ship-code-editor>
       </sui-tab-panel>
       <sui-tab-panel name="diff">
         <div class="tut-diff-wrap">
@@ -140,12 +140,12 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     return lspClient
   }
 
-  // sui-code-editor is loaded by the tutorial route's head as a lazy
-  // chunk (/sui-components/sui-code-editor.js). Wait for the
+  // ship-code-editor is loaded by the tutorial route's head as a lazy
+  // chunk (/sui-components/ship-code-editor.js). Wait for the
   // custom-element definition to land before booting.
   function ensureEditorCE(): Promise<unknown> {
     if (typeof customElements === 'undefined') return Promise.resolve()
-    return customElements.whenDefined('sui-code-editor')
+    return customElements.whenDefined('ship-code-editor')
   }
 
   // Wait for the base set bootApp actually queries to be defined.
@@ -196,8 +196,8 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     const tagBase = `tut-${slug.replace(/[^a-z0-9-]/gi, '')}-`
     let tagSeq = 0
 
-    const tplEl = root.querySelector<EditorEl>('sui-code-editor[data-pane="template"]')!
-    const ctrlEl = root.querySelector<EditorEl>('sui-code-editor[data-pane="controller"]')!
+    const tplEl = root.querySelector<EditorEl>('ship-code-editor[data-pane="template"]')!
+    const ctrlEl = root.querySelector<EditorEl>('ship-code-editor[data-pane="controller"]')!
     const tplDiff = root.querySelector<DiffEl>('sui-diff[data-pane="template"]')!
     const ctrlDiff = root.querySelector<DiffEl>('sui-diff[data-pane="controller"]')!
 

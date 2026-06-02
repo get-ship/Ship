@@ -302,7 +302,7 @@ body::after {
   --status-orange: oklch(0.6 0.2 35);
   --status-amber: oklch(0.75 0.15 75);
 
-  /* Syntax-highlighting tokens — read by sui-code-editor and any
+  /* Syntax-highlighting tokens — read by ship-code-editor and any
    * other code-rendering surface. Kept separate from the brand
    * palette so themes that intentionally subdue their --primary /
    * --accent (halo, paper) can still keep code legibility high.
@@ -510,7 +510,7 @@ body::after {
   /*
    * --accent in dark mode must be readable AS A FOREGROUND COLOR — it's
    * used as text in syntax highlighting (attribute names, type names,
-   * function calls in sui-code-editor) and as link/select tone foregrounds
+   * function calls in ship-code-editor) and as link/select tone foregrounds
    * via the --tone-accent-fg alias in tokens.css. The prior value
    * (oklch 0.3 lightness) was too close to the 0.22 card background and
    * surfaced as illegible text in dark mode — flagged by user QA on the

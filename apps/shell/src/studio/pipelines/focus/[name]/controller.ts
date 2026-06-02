@@ -56,7 +56,7 @@ const read = (envelope: unknown): FocusCtx => {
 
 type Ed = HTMLElement & { value: string; getAttribute(n: string): string | null; setDiagnostics?(d: unknown[]): void }
 
-// `sui-code-editor` ships as a lazy island bundle (`/_sui/sui-components/<tag>.js`).
+// `ship-code-editor` ships as a lazy island bundle (`/_sui/sui-components/<tag>.js`).
 // The daemon eagerly injects islands it finds by static-scanning templates, but the
 // editor only renders inside the `editMode` branch — fetch it on demand so the
 // element upgrades when the user opens the editor.
@@ -65,9 +65,9 @@ type Ed = HTMLElement & { value: string; getAttribute(n: string): string | null;
 let beforeUnloadListener: ((e: BeforeUnloadEvent) => void) | null = null
 let editorIslandLoaded = false
 function ensureEditorIsland(): void {
-  if (editorIslandLoaded || customElements.get('sui-code-editor')) { editorIslandLoaded = true; return }
+  if (editorIslandLoaded || customElements.get('ship-code-editor')) { editorIslandLoaded = true; return }
   editorIslandLoaded = true
-  const tag = 'sui-code-editor'
+  const tag = 'ship-code-editor'
   import(/* @vite-ignore */ `/_sui/sui-components/${tag}.js`).catch(() => { editorIslandLoaded = false })
 }
 

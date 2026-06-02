@@ -8,7 +8,7 @@ An element earns a spot in `packages/components/ui-components/src/` only if at l
 
 1. **Semantic primitive** — `<sui-button>`, `<sui-input>`, `<sui-select>`, `<sui-dialog>`. Maps to a familiar HTML/ARIA concept; reusable across products.
 2. **Platform concept** — `<sui-rail>`, `<sui-nav-top>`, `<sui-panel-dock>`, `<sui-status-bar>`. Models a Ship-specific shell concept that multiple views share.
-3. **Has its own brain** — `<sui-graph-canvas>`, `<sui-terminal>`, `<sui-markdown>`. Wraps a substantial third-party engine or non-trivial behaviour the consumer would otherwise have to glue.
+3. **Has its own brain** — `<sui-graph-canvas>`, `<ship-terminal>`, `<sui-markdown>`. Wraps a substantial third-party engine or non-trivial behaviour the consumer would otherwise have to glue.
 
 Everything else is view-local. View-local compositions live in the consuming view's `partials/` directory, not in the component library. A thin wrapper whose only value is filling slots with view-specific content is a partial, not a component.
 

@@ -357,7 +357,7 @@ function run(): void {
 
   // Lazy `<sui-*>` chunks live next to the umbrella bundle under
   // crates/deck/deck-core/assets/sui-components/. The tutorial
-  // playground side-loads sui-code-editor.js from there; copy the
+  // playground side-loads ship-code-editor.js from there; copy the
   // whole dir so any other chunk a future step needs is reachable.
   const chunkSrcDir = join(SUI_ASSETS_DIR, "sui-components")
   if (existsSync(chunkSrcDir)) {
@@ -365,7 +365,7 @@ function run(): void {
     mkdirSync(chunkOutDir, { recursive: true })
     // Tutorial needs the editor; the others are unused on the docs
     // site but ~30-80KB each and don't hurt to ship as static.
-    const needs = new Set(["sui-code-editor.js", "sui-brand-mark.js"])
+    const needs = new Set(["ship-code-editor.js", "sui-brand-mark.js"])
     let chunkCount = 0
     for (const entry of readdirSync(chunkSrcDir)) {
       if (!needs.has(entry)) continue

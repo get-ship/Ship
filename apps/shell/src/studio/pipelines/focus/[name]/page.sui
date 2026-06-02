@@ -124,10 +124,10 @@
         {#if editIssueCount() > 1}<span slot="actions">+{editIssueCount() - 1} more — see inline markers</span>{/if}
       </sui-alert>
       {/if}
-      <sui-code-editor id="pipeline-editor" bind:this={editorRef}
+      <ship-code-editor id="pipeline-editor" bind:this={editorRef}
         attr:language={format() === 'jsonc' ? 'jsonc' : format() === 'json' ? 'json' : 'yaml'}
         attr:value={raw()} on:ship-save={savePipeline} on:ship-cancel={cancelEdit}
-        class="ship-focus-editor"></sui-code-editor>
+        class="ship-focus-editor"></ship-code-editor>
     </sui-card>
     {/if}
 

@@ -1,5 +1,5 @@
 // Skills detail — the editor. Ported from the old views/skills detail into the
-// deck-routed studio section: sui-markdown-editor for the SKILL.md body
+// deck-routed studio section: ship-markdown-editor for the SKILL.md body
 // (draft/save), plus a metadata panel of collapsible sections — identity,
 // editable description, editable tags, variables, files. Data via liveExpr
 // (ship.skills.detail); writes via the /api/v1/skills REST surface.

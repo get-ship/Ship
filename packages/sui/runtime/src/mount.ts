@@ -129,7 +129,7 @@ export async function mount<Scope = Record<string, unknown>>(
   //     yet. The compiler walks the template and lists every `<sui-*>`
   //     island bundle in `payload.islands`; the host page only
   //     bootstraps chrome islands, so view-owned islands (e.g.
-  //     sui-markdown-editor) are pulled here on demand.
+  //     ship-markdown-editor) are pulled here on demand.
   await loadViewIslands(payload.islands, opts.loader)
 
   // 1. Adopt SSR markup if present (morph in place), else clean-mount.

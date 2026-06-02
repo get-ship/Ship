@@ -208,13 +208,13 @@ const pageTitle = `${fm.title} · SUI tutorial`
     </div>
   </div>
 
-  {/* sui-code-editor is a lazy chunk, not in the marketing bundle.
-      Load it here so <sui-code-editor> upgrades on this route only.
+  {/* ship-code-editor is a lazy chunk, not in the marketing bundle.
+      Load it here so <ship-code-editor> upgrades on this route only.
       The syntax-tokens sheet defines the --syntax-* custom properties
       the editor colours tokens with (absent from the site's curated
       tokens; without it highlighting is monochrome). */}
   <link rel="stylesheet" href="/_sui/syntax-tokens.css" />
-  <script is:inline type="module" src="/sui-components/sui-code-editor.js"></script>
+  <script is:inline type="module" src="/sui-components/ship-code-editor.js"></script>
 </BaseLayout>
 
 <style>

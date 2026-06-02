@@ -1,5 +1,5 @@
 // Unit tests for the WS attach bridge that powers <sui-agent-attach>.
-// Stubs the WebSocket constructor + a fake <sui-terminal>-shaped host so
+// Stubs the WebSocket constructor + a fake <ship-terminal>-shaped host so
 // the byte-pump can run in JSDOM.
 
 import { describe, expect, it } from 'vitest'
@@ -66,7 +66,7 @@ class FakeSocket extends EventTarget {
   }
 }
 
-/// Minimal `<sui-terminal>`-shaped host: tracks writes, supports the data
+/// Minimal `<ship-terminal>`-shaped host: tracks writes, supports the data
 /// CustomEvent the bridge listens for, and exposes a `terminal` truthy
 /// once `markReady()` runs so the buffer flushes.
 function makeTermStub(): HTMLElement & {
@@ -88,10 +88,10 @@ function makeTermStub(): HTMLElement & {
   }
   el.markReady = () => {
     el.terminal = { cols: 80, rows: 24 }
-    el.dispatchEvent(new CustomEvent('sui-terminal-ready', { bubbles: true, composed: true }))
+    el.dispatchEvent(new CustomEvent('ship-terminal-ready', { bubbles: true, composed: true }))
   }
   el.emitData = (text: string) => {
-    el.dispatchEvent(new CustomEvent('sui-terminal-data', {
+    el.dispatchEvent(new CustomEvent('ship-terminal-data', {
       detail: { data: text }, bubbles: true, composed: true,
     }))
   }
@@ -123,7 +123,7 @@ describe('attachAgentSession', () => {
     attachment.dispose()
   })
 
-  it('buffers server bytes until <sui-terminal> is ready, then flushes', () => {
+  it('buffers server bytes until <ship-terminal> is ready, then flushes', () => {
     const term = makeTermStub()
     const attachment = attachAgentSession(term, 'echo', defaultOpts())
     FakeSocket.last!.fireOpen()

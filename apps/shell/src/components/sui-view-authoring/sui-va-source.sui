@@ -1,7 +1,7 @@
 <bundle separate />
 <!--
   <sui-va-source> — Source tab content for the view-authoring dev panel.
-  Wraps <sui-code-editor>, loads source for the current view via the
+  Wraps <ship-code-editor>, loads source for the current view via the
   MCP shim `window.__viewMcp.readSource()`, and saves on Cmd+S via
   `writeSource()`. Compile errors arrive on `sui:view:errored` events
   and surface as gutter diagnostics.
@@ -39,7 +39,7 @@
     color: var(--foreground);
   }
   .editor-host { flex: 1; min-height: 0; display: flex; }
-  sui-code-editor { flex: 1; min-height: 0; }
+  ship-code-editor { flex: 1; min-height: 0; }
 </style>
 
 <div class="header">
@@ -50,11 +50,11 @@
   </span>
 </div>
 <div class="editor-host">
-  <sui-code-editor
+  <ship-code-editor
     bind:this={editorEl}
     language="html"
     prop:value={source()}
     on:sui-change={onChange}
     on:sui-save={onSave}>
-  </sui-code-editor>
+  </ship-code-editor>
 </div>

@@ -43,12 +43,12 @@ const LANG_BY_KIND: Record<string, string> = {
 }
 
 function ensureCodeEditorLoaded(): void {
-  if (customElements.get('sui-code-editor')) return
-  if (document.querySelector('script[data-sui-code-editor]')) return
+  if (customElements.get('ship-code-editor')) return
+  if (document.querySelector('script[data-ship-code-editor]')) return
   const s = document.createElement('script')
   s.type = 'module'
-  s.src = '/_sui/sui-components/sui-code-editor.js'
-  s.dataset['suiCodeEditor'] = '1'
+  s.src = '/_sui/sui-components/ship-code-editor.js'
+  s.dataset['shipCodeEditor'] = '1'
   document.head.appendChild(s)
 }
 
@@ -322,7 +322,7 @@ export default controller({
     // Before this, the prop setter exists but the editor's mount effect
     // hasn't run, so writes get lost.
     let editorUpgraded = false
-    void customElements.whenDefined('sui-code-editor').then(() => {
+    void customElements.whenDefined('ship-code-editor').then(() => {
       editorUpgraded = true
       tryAssignEditorValue()
     })
@@ -334,7 +334,7 @@ export default controller({
       readState.selectedPath()
       readState.files()
       if (editorUpgraded) tryAssignEditorValue()
-      // The template can re-render the <sui-code-editor> after the
+      // The template can re-render the <ship-code-editor> after the
       // effect snapshot. Poll a few frames so the value lands once the
       // host element appears in the DOM.
       let attempts = 0
@@ -379,7 +379,7 @@ export default controller({
     const compileErrorSig = (state as unknown as { compileError: { set(v: string | null): void; (): string | null } }).compileError
     // Push compile diagnostics into the CodeMirror gutter on the active
     // editor instance. The editor exposes setDiagnostics(diags[]) per
-    // its sui-code-editor.sui prop/method surface; we call it on every
+    // its ship-code-editor.sui prop/method surface; we call it on every
     // errored event (with the new diag) and clear on every compiled.
     function pushDiagnosticsToEditor(diags: SuiDiagnostic[]): void {
       const el = readState.editorEl()

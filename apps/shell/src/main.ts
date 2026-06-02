@@ -814,7 +814,7 @@ document.addEventListener('sui:dock:toggle', () => getDock()?.toggle())
 
 // First time the user opens the dock OR activates the Terminal tab,
 // spawn a real shell PTY session via /api/v1/sessions/spawn + wire
-// the EventSource ↔ sui-terminal IO. Idempotent — only spawns once.
+// the EventSource ↔ ship-terminal IO. Idempotent — only spawns once.
 // Listening on both because the dock may boot already-open OR already
 // pointed at the terminal tab (persisted state), in which case
 // `sui:dock:activate` won't refire.

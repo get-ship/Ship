@@ -30,18 +30,18 @@
           </div>
           <div class="sk-editor-body">
             {#if hasBody() || dirty()}
-              <sui-markdown-editor data-test="skill-editor" full-height
+              <ship-markdown-editor data-test="skill-editor" full-height
                 attr:value={draft()}
                 on:sui-change={onEditorInput}
-                on:input={onEditorInput}></sui-markdown-editor>
+                on:input={onEditorInput}></ship-markdown-editor>
             {:else}
               <div class="sk-editor-empty">
                 <sui-icon name="file" size="xl" tone="muted"></sui-icon>
                 <span>This skill has no SKILL.md content yet — start typing to add it.</span>
-                <sui-markdown-editor data-test="skill-editor" full-height
+                <ship-markdown-editor data-test="skill-editor" full-height
                   attr:value={draft()}
                   on:sui-change={onEditorInput}
-                  on:input={onEditorInput}></sui-markdown-editor>
+                  on:input={onEditorInput}></ship-markdown-editor>
               </div>
             {/if}
           </div>

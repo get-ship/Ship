@@ -51,8 +51,8 @@ let sharedNodeTag: string | null = null
 // studio creates host nodes via createElement at runtime — the daemon can't see
 // those, so eagerly fetch the bundle when about to render one of these tags.
 const ISLAND_TAGS = new Set<string>([
-  'sui-code-editor',
-  'sui-markdown-editor',
+  'ship-code-editor',
+  'ship-markdown-editor',
 ])
 const islandsLoaded = new Set<string>()
 function ensureIsland(tag: string): void {

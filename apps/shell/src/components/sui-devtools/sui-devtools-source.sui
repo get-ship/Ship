@@ -3,7 +3,7 @@
   <sui-devtools-source> — view source explorer + single editor.
 
   Two-column layout: file explorer (200px) on the left, one
-  sui-code-editor on the right. Explorer lists every textual file
+  ship-code-editor on the right. Explorer lists every textual file
   under the active view's directory plus any `[id]/`-shaped subroute,
   fetched from /api/v1/views/{name}/files. Selecting a file loads its
   contents into the editor.
@@ -270,7 +270,7 @@
     display: flex;
     flex-direction: column;
   }
-  .editor-pane sui-code-editor { flex: 1; min-height: 0; }
+  .editor-pane ship-code-editor { flex: 1; min-height: 0; }
 
   .empty {
     flex: 1;
@@ -383,12 +383,12 @@
       </div>
     {/if}
     <div class="editor-pane">
-      <sui-code-editor
+      <ship-code-editor
         bind:this={editorEl}
         language={editorLang()}
         on:sui-change={onChange}
         on:sui-save={onSave}>
-      </sui-code-editor>
+      </ship-code-editor>
     </div>
     {#if errorMsg() || compileError()}
       <div class="diagnostics" transition:slide={{ duration: 180 }}>{errorMsg() ?? compileError()}</div>

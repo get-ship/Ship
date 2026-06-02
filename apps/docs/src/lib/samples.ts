@@ -594,42 +594,42 @@ export const SHOTS: Record<string, ComponentShot[]> = {
 </sui-pipeline-dag>`,
     },
   ],
-  'sui-git-diff': [
+  'ship-git-diff': [
     {
       label: 'Diff',
-      raw: `<sui-git-diff>
-  <sui-git-diff-file path="src/index.ts" additions="4" deletions="1">
-    <sui-git-diff-hunk header="@@ -10,3 +10,6 @@">
-      <sui-git-diff-line type="context" old="10" new="10">const name = 'ship';</sui-git-diff-line>
-      <sui-git-diff-line type="del" old="11">console.log('hi');</sui-git-diff-line>
-      <sui-git-diff-line type="add" new="11">console.info('hello');</sui-git-diff-line>
-      <sui-git-diff-line type="add" new="12">console.info('world');</sui-git-diff-line>
-    </sui-git-diff-hunk>
-  </sui-git-diff-file>
-</sui-git-diff>`,
+      raw: `<ship-git-diff>
+  <ship-git-diff-file path="src/index.ts" additions="4" deletions="1">
+    <ship-git-diff-hunk header="@@ -10,3 +10,6 @@">
+      <ship-git-diff-line type="context" old="10" new="10">const name = 'ship';</ship-git-diff-line>
+      <ship-git-diff-line type="del" old="11">console.log('hi');</ship-git-diff-line>
+      <ship-git-diff-line type="add" new="11">console.info('hello');</ship-git-diff-line>
+      <ship-git-diff-line type="add" new="12">console.info('world');</ship-git-diff-line>
+    </ship-git-diff-hunk>
+  </ship-git-diff-file>
+</ship-git-diff>`,
     },
   ],
-  'sui-git-diff-file': [
+  'ship-git-diff-file': [
     {
-      label: 'File', raw: `<sui-git-diff-file path="src/button.ts" additions="2" deletions="1" collapsed>
-  <sui-git-diff-hunk header="@@ -1,3 +1,4 @@"></sui-git-diff-hunk>
-</sui-git-diff-file>`,
+      label: 'File', raw: `<ship-git-diff-file path="src/button.ts" additions="2" deletions="1" collapsed>
+  <ship-git-diff-hunk header="@@ -1,3 +1,4 @@"></ship-git-diff-hunk>
+</ship-git-diff-file>`,
     },
   ],
-  'sui-git-diff-hunk': [
+  'ship-git-diff-hunk': [
     {
-      label: 'Hunk', raw: `<sui-git-diff-hunk header="@@ -1,3 +1,4 @@">
-  <sui-git-diff-line type="context" old="1" new="1">line unchanged</sui-git-diff-line>
-  <sui-git-diff-line type="add"     new="2">line added</sui-git-diff-line>
-</sui-git-diff-hunk>`,
+      label: 'Hunk', raw: `<ship-git-diff-hunk header="@@ -1,3 +1,4 @@">
+  <ship-git-diff-line type="context" old="1" new="1">line unchanged</ship-git-diff-line>
+  <ship-git-diff-line type="add"     new="2">line added</ship-git-diff-line>
+</ship-git-diff-hunk>`,
     },
   ],
-  'sui-git-diff-line': [
+  'ship-git-diff-line': [
     {
       label: 'Inside hunk',
-      raw: `<sui-git-diff-hunk header="@@ -1,2 +1,3 @@">
-  <sui-git-diff-line type="add" new="2">console.log('added')</sui-git-diff-line>
-</sui-git-diff-hunk>`,
+      raw: `<ship-git-diff-hunk header="@@ -1,2 +1,3 @@">
+  <ship-git-diff-line type="add" new="2">console.log('added')</ship-git-diff-line>
+</ship-git-diff-hunk>`,
     },
   ],
 };

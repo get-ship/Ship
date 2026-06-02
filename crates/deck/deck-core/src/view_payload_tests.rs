@@ -427,18 +427,18 @@ fn write_islands_manifest(root: &std::path::Path, json: &str) {
 fn island_tags_listed() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
-    write_islands_manifest(tmp.path(), r#"{"sui-terminal":"sui-terminal"}"#);
+    write_islands_manifest(tmp.path(), r#"{"ship-terminal":"ship-terminal"}"#);
     let view_dir = tmp.path().join(".ship/views/term-view");
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(view_dir.join("index.sui"),
-        r#"<div><sui-terminal rows={24} cols={80}></sui-terminal></div>"#).unwrap();
+        r#"<div><ship-terminal rows={24} cols={80}></ship-terminal></div>"#).unwrap();
 
     let resp = serve_view_payload(DaemonMode::Development, "term-view");
     assert_eq!(resp.status, 200);
     let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     let islands = v["islands"].as_array().unwrap();
     assert_eq!(islands.len(), 1);
-    assert_eq!(islands[0], "sui-terminal");
+    assert_eq!(islands[0], "ship-terminal");
 }
 
 /// The canvas fix: a view embedding `<sui-canvas>` resolves it as an island
@@ -467,7 +467,7 @@ fn canvas_resolves_as_island_from_manifest() {
 fn unflagged_tag_is_not_an_island() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
-    write_islands_manifest(tmp.path(), r#"{"sui-terminal":"sui-terminal"}"#);
+    write_islands_manifest(tmp.path(), r#"{"ship-terminal":"ship-terminal"}"#);
     let view_dir = tmp.path().join(".ship/views/plain-view");
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(view_dir.join("index.sui"),

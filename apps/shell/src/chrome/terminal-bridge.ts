@@ -1,4 +1,4 @@
-// chrome/terminal-bridge.ts — connects the dock's <sui-terminal> to a
+// chrome/terminal-bridge.ts — connects the dock's <ship-terminal> to a
 // real shell PTY session on the daemon.
 //
 // Lifecycle: bridge once on first activation (dock open or terminal-tab
@@ -35,8 +35,8 @@ let pendingResize: { cols: number; rows: number } | null = null
 let termReady = false
 
 function findTerminal(): TerminalEl | null {
-  return document.querySelector<TerminalEl>('sui-terminal[slot="terminal"]')
-    ?? document.getElementById('ship-panel-dock')?.querySelector<TerminalEl>(':scope > sui-terminal')
+  return document.querySelector<TerminalEl>('ship-terminal[slot="terminal"]')
+    ?? document.getElementById('ship-panel-dock')?.querySelector<TerminalEl>(':scope > ship-terminal')
     ?? null
 }
 
@@ -178,11 +178,11 @@ export async function bridgeDockTerminal(): Promise<void> {
       pendingResize = { cols: detail.cols ?? 0, rows: detail.rows ?? 0 }
     }
   }
-  termEl.addEventListener('sui-terminal-data', dataListener)
-  termEl.addEventListener('sui-terminal-resize', resizeListener)
+  termEl.addEventListener('ship-terminal-data', dataListener)
+  termEl.addEventListener('ship-terminal-resize', resizeListener)
 
   // If the engine hasn't mounted yet (script island still loading), wait
-  // for the `sui-terminal-ready` CustomEvent before flushing buffered
+  // for the `ship-terminal-ready` CustomEvent before flushing buffered
   // bytes — writing to an unupgraded element silently no-ops because
   // the `write` method only exists post-controller-mount.
   readyListener = () => {
@@ -194,7 +194,7 @@ export async function bridgeDockTerminal(): Promise<void> {
       void sendResize(sessionId, boundEl.terminal.cols, boundEl.terminal.rows)
     }
   }
-  termEl.addEventListener('sui-terminal-ready', readyListener, { once: true })
+  termEl.addEventListener('ship-terminal-ready', readyListener, { once: true })
   // Belt-and-braces: if the engine already mounted before we attached
   // (race on second bridge call), inspect `el.terminal` and flush
   // immediately so we don't deadlock on a ready event that already fired.
@@ -244,9 +244,9 @@ export async function disposeDockTerminal(): Promise<void> {
   pendingBytes = []
   pendingInput = []
   pendingResize = null
-  if (el && dataListener) el.removeEventListener('sui-terminal-data', dataListener)
-  if (el && resizeListener) el.removeEventListener('sui-terminal-resize', resizeListener)
-  if (el && readyListener) el.removeEventListener('sui-terminal-ready', readyListener)
+  if (el && dataListener) el.removeEventListener('ship-terminal-data', dataListener)
+  if (el && resizeListener) el.removeEventListener('ship-terminal-resize', resizeListener)
+  if (el && readyListener) el.removeEventListener('ship-terminal-ready', readyListener)
   dataListener = null
   resizeListener = null
   readyListener = null

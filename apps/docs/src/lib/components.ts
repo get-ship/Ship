@@ -156,7 +156,7 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-code': 'observability',
   'sui-copy-button': 'observability',
   'sui-diff': 'observability',
-  'sui-git-diff': 'observability',
+  'ship-git-diff': 'observability',
   'sui-history-row': 'observability',
   'sui-json-view': 'observability',
   'sui-log-stream': 'observability',
@@ -222,7 +222,7 @@ function deriveCategory(tag: string): ComponentCategory {
  * would render an undefined-element husk.
  */
 const ISLAND_TAGS = new Set([
-  'sui-code-editor',
+  'ship-code-editor',
   'sui-command-bar',
   'sui-command-chat',
   'sui-devtools-components',
@@ -230,13 +230,13 @@ const ISLAND_TAGS = new Set([
   'sui-devtools-signals',
   'sui-devtools-source',
   'sui-launcher',
-  'sui-markdown-editor',
+  'ship-markdown-editor',
   'sui-nav-top',
   'sui-panel-dock',
   'sui-rail',
   'sui-rail-item',
   'sui-rail-section',
-  'sui-terminal',
+  'ship-terminal',
 ]);
 
 /**
@@ -259,9 +259,9 @@ const HIDDEN_TAGS = new Set([
   'sui-navigation-item',
   'sui-pipeline-step-def',
   'sui-timeline-item',
-  'sui-git-diff-file',
-  'sui-git-diff-hunk',
-  'sui-git-diff-line',
+  'ship-git-diff-file',
+  'ship-git-diff-hunk',
+  'ship-git-diff-line',
   'sui-toast-host',
   'sui-annotation-layer',
   'sui-annotation-marker',

@@ -15,15 +15,17 @@ const BUNDLE_SEPARATE_NEEDLE: &str = "<bundle separate";
 
 /// Roots scanned for `<tag>/` dirs that may opt into separate bundles.
 ///
-/// `sui/terminal/src` is here because `<sui-terminal>` is a real island: it
-/// carries `<bundle separate />` (its xterm graph is too heavy for any umbrella)
-/// and is mounted live by the shell's `<sui-agent-attach>`. The daemon serves it
-/// at `/_sui/sui-components/sui-terminal.js`; without this root deck would never
-/// build it and the daemon would 404 the island.
-const SEPARATE_BUNDLE_ROOTS: [&str; 3] = [
+/// `ship/code/src` + `ship/markdown/src` are here because the editor packs
+/// carry `<bundle separate />` islands too heavy for any umbrella:
+/// `<ship-code-editor>` (CodeMirror), `<ship-terminal>` (xterm — mounted live by
+/// the shell's `<sui-agent-attach>`), and `<ship-markdown-editor>` (TipTap). The
+/// daemon serves them at `/_sui/sui-components/<tag>.js`; without these roots deck
+/// would never build the island and the daemon would 404 it.
+const SEPARATE_BUNDLE_ROOTS: [&str; 4] = [
     "packages/components/ui-components/src",
     "apps/shell/src/components",
-    "packages/components/sui/terminal/src",
+    "packages/components/ship/code/src",
+    "packages/components/ship/markdown/src",
 ];
 
 /// Deck's OWN runtime bundles — baked into the deck-core crate (like Next

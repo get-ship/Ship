@@ -74,7 +74,7 @@ for (const step of STEPS) {
       // (light-DOM tag, not shadow internals) and the preview to
       // have rendered something (status leaves 'ready').
       await page.waitForFunction(
-        () => !!customElements.get('sui-code-editor'),
+        () => !!customElements.get('ship-code-editor'),
         { timeout: 25_000 },
       )
       // TutorialApp stamps `data-tut-state` on .tut-app-root after

@@ -65,8 +65,8 @@ mod tests {
 
     #[test]
     fn collects_custom_element_tags_only() {
-        let tags = used_tags("<div><sui-terminal></sui-terminal><span>hi</span><ship-foo /></div>");
-        assert!(tags.contains("sui-terminal"));
+        let tags = used_tags("<div><ship-terminal></ship-terminal><span>hi</span><ship-foo /></div>");
+        assert!(tags.contains("ship-terminal"));
         assert!(tags.contains("ship-foo"));
         assert!(!tags.contains("div"), "plain HTML tags excluded");
         assert!(!tags.contains("span"), "plain HTML tags excluded");

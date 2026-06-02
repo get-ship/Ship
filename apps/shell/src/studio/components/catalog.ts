@@ -75,7 +75,12 @@ const CATEGORY_BY_TAG: Record<string, string> = {
   'sui-table': 'Data', 'sui-tree-view': 'Data',
   'sui-json-view': 'Data', 'sui-diff': 'Data', 'sui-timeline': 'Data',
   'sui-history-row': 'Data', 'sui-list': 'Data', 'sui-data-grid': 'Data',
-  'sui-code-editor': 'Data', 'sui-markdown-editor': 'Data', 'sui-code-block': 'Data',
+  'ship-code-editor': 'Data', 'ship-markdown-editor': 'Data', 'sui-code-block': 'Data',
+  'ship-terminal': 'Data',
+  'ship-git-diff': 'Data', 'ship-git-diff-file': 'Data', 'ship-git-diff-hunk': 'Data',
+  'ship-git-diff-line': 'Data',
+  'ship-viewer': 'Data', 'sui-media-image': 'Data', 'sui-media-csv': 'Data',
+  'sui-media-av': 'Data',
   'sui-nav': 'Navigation',
 }
 

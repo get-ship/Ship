@@ -3,7 +3,7 @@
  *
  * Covers the bug the user explicitly called out ("Skills details do
  * not load tiptap and are seriously degraded from the og shell"):
- *   - the `<sui-markdown-editor>` island MUST mount on the detail route
+ *   - the `<ship-markdown-editor>` island MUST mount on the detail route
  *   - its TipTap ProseMirror surface MUST be present + editable
  *   - typing into it MUST be saveable via the daemon
  *
@@ -67,7 +67,7 @@ test.describe('skills view parity', () => {
 
     // The user's complaint: tiptap didn't load. Assert it does — both the
     // island element AND its ProseMirror surface.
-    const editor = page.locator('sui-markdown-editor[data-testid="skill-editor"]')
+    const editor = page.locator('ship-markdown-editor[data-testid="skill-editor"]')
     await expect(editor).toBeVisible({ timeout: 15_000 })
 
     // ProseMirror node lives in shadow DOM; reach it via locator chain.
@@ -86,7 +86,7 @@ test.describe('skills view parity', () => {
     const skillId = decodeURIComponent(href!.replace(/^\/skills\//, ''))
     await firstRow.click()
 
-    const editor = page.locator('sui-markdown-editor[data-testid="skill-editor"]')
+    const editor = page.locator('ship-markdown-editor[data-testid="skill-editor"]')
     const prose = editor.locator('.ProseMirror')
     await expect(prose).toBeVisible({ timeout: 15_000 })
 

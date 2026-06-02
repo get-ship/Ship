@@ -3,7 +3,7 @@
   <sui-agent-attach> — xterm.js attached to a running PTY-backed agent
   session over the daemon's WebSocket bridge.
 
-  Wraps <sui-terminal> (the xterm engine) with the byte-pump (see
+  Wraps <ship-terminal> (the xterm engine) with the byte-pump (see
   ./attach.ts) so views can drop in a fully functional attached terminal
   without re-implementing the WS lifecycle.
 
@@ -21,7 +21,7 @@
   auto-connect  (bool, true, reflect)  — open the WS on mount. Set false
                                          to defer until the host calls the
                                          imperative connect() method.
-  readonly      (bool, false, reflect) — pass through to <sui-terminal>;
+  readonly      (bool, false, reflect) — pass through to <ship-terminal>;
                                          when true, inbound bytes still
                                          render but xterm doesn't capture
                                          keystrokes (display-only attach).
@@ -59,8 +59,8 @@
     display: flex;
   }
 
-  .saa-term sui-terminal {
-    /* <sui-terminal>'s :host is `display: block` with no intrinsic height.
+  .saa-term ship-terminal {
+    /* <ship-terminal>'s :host is `display: block` with no intrinsic height.
        Without these, FitAddon sees a 0-height container and xterm
        collapses to its default rows × line-height, leaving the wrapper
        largely empty. */
@@ -111,11 +111,11 @@
 </style>
 
 <div class="saa-term">
-  <sui-terminal
+  <ship-terminal
     bind:this={termRef}
     prop:readonly={readonly()}
     fit
-  ></sui-terminal>
+  ></ship-terminal>
 </div>
 
 {#if !slug()}
