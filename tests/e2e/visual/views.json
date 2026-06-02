@@ -1,5 +1,5 @@
 {
-  "_comment": "Visual baseline registry. Top-level views render at /sui/<name>; components render in a synthesized harness page. Themes captured: paper (light) and ship-dark. All 18 views compile and serve as of this update; any captured-but-broken renders are recorded in .artifacts/sui-arc/views-baseline-coverage.md.",
+  "_comment": "Visual baseline registry. Top-level views render at /sui/<name>; components render in a synthesized harness page. Themes captured: paper (light) and ship-dark. All 16 views compile and serve as of this update; any captured-but-broken renders are recorded in .artifacts/sui-arc/views-baseline-coverage.md.",
   "views": [
     "agents",
     "artifacts",
@@ -12,12 +12,10 @@
     "mesh",
     "pipelines",
     "pipelines-board",
-    "sessions",
     "settings",
     "setup",
     "skills",
     "specs",
-    "theme-studio",
     "workspaces"
   ],
   "components": [
