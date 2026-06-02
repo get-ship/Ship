@@ -11388,6 +11388,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "ship-collection",
  "ship-ops-rpc",
  "ship-platform",
  "ship-substrate",
