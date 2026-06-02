@@ -242,19 +242,33 @@ impl Bundler {
     }
 
     /// Build every target, then aggregate the catalog into `.deck/catalogs/`.
+    ///
+    /// Honest exit (#262): every target is attempted (one failure must not
+    /// abort the others — the catalog + islands manifest still need refreshing),
+    /// but per-target failures are collected and surfaced as `Err` so a caller
+    /// (the asset bake, CI) cannot mistake a partial bake for a clean one.
     pub async fn build_all(&self) -> Result<(), BundlerError> {
         let layout = self.layout();
+        let mut failed: Vec<String> = Vec::new();
         // Reuse the cached snapshot instead of re-walking every `.sui` (#256).
         for t in self.targets_snapshot().iter() {
             if let Err(e) =
                 rolldown_bundle::bundle_target(&layout, t, &self.compiler, &self.staging, false).await
             {
                 error!(target = %t.name, error = %e, "bundler: target failed");
+                failed.push(format!("{} ({e})", t.name));
             }
         }
         self.refresh_catalog(&layout);
         self.emit_islands_manifest(&layout);
-        Ok(())
+        if failed.is_empty() {
+            Ok(())
+        } else {
+            Err(BundlerError::Bundle {
+                target: format!("{} target(s)", failed.len()),
+                message: failed.join(", "),
+            })
+        }
     }
 
     /// Write `.deck/islands.json` — the marker-derived tag→bundle map deck-core

@@ -34,6 +34,13 @@ jobs:
       # paying `cargo run` per `.sui` file.
       - name: Build sui-compiler
         run: cargo build -p sui-compiler
+      # Production-compile gate: run the REAL native compiler over EVERY
+      # first-party `.sui` (packages/components, views, .ship/views). jsdom unit
+      # tests don't exercise the full `check_all` pass, so a `.sui` can be green
+      # in vitest yet fail the real compiler (#263). This catches that before it
+      # ships. Honest exit (#255): any Error-severity finding fails the gate.
+      - name: Check every first-party .sui compiles (production gate)
+        run: node scripts/check-sui-compiles.mjs
       - name: Build daemon asset bundles
         run: bun run build:bundles
       - name: Check silent-error patterns
@@ -105,6 +112,12 @@ jobs:
       # pipeline: controller-purity, css-token, bind-this-ref, on-callable,
       # and the rest of the type-strengthening passes. The earlier
       # `bun run build:bundles` step covers the same checks for views/*.
+      # Zero-collection guard: a `*.test.ts` that collects no tests passes
+      # vacuously (green while proving nothing). Static half — every test file
+      # must declare at least one it()/test(); the runtime half is
+      # `passWithNoTests:false` in the shared vitest defaults.
+      - name: Check no test file collects zero tests
+        run: node scripts/check-zero-collection.mjs
       - name: JS tests (compiles SUI on demand via the vitest factory)
         run: bun run --filter '@ship/ui-components' test
       - name: Bundle sui-runtime

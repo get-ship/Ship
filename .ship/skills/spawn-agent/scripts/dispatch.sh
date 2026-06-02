@@ -291,6 +291,22 @@ if [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
     echo "Regenerating SDK manifests (cargo run -p xtask -- gen-sdk)"
     (cd "$WORKTREE_PATH" && cargo run -p xtask --quiet -- gen-sdk) 2>&1 | tail -10
   fi
+
+  # Build the SUI compiler binaries into this worktree's target/. Without this,
+  # the daemon + per-edit harness fall back to the stale installed
+  # ~/.ship/runtime/sui-compiler instead of the worktree's current source, so a
+  # fresh worktree silently lints/compiles against old language rules. Also warm
+  # the lib-only lint example (the CLI form agents call per edit). Robust by
+  # design: offline / locked-registry builds must not abort the dispatch — log
+  # and continue; the agent's own edit-loop will surface a missing binary.
+  echo "Building SUI compiler binaries (cargo build -p sui-compiler -p sui-compiler-napi)"
+  if ! (cd "$WORKTREE_PATH" && cargo build -p sui-compiler -p sui-compiler-napi 2>&1 | tail -15); then
+    echo "Warning: cargo build of sui-compiler/sui-compiler-napi failed (offline?); agent must build before its edit loop" >&2
+  fi
+  echo "Warming the sui-lint check example (cargo build -p sui-lint --example check)"
+  if ! (cd "$WORKTREE_PATH" && cargo build -p sui-lint --example check 2>&1 | tail -10); then
+    echo "Warning: building the sui-lint check example failed (offline?); agent must build before its edit loop" >&2
+  fi
 fi
 
 # ── Detect provider CLI ────────────────────────────────────────────────────────

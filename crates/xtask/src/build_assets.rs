@@ -36,8 +36,10 @@ pub fn run(repo_root: &Path) -> Result<()> {
     rt.block_on(bundler.build_all())
         .map_err(|e| anyhow::anyhow!("build_all failed: {e}"))?;
 
-    // build_all logs per-target failures but returns Ok, so verify the framework
-    // bundles actually landed non-empty before declaring the bake good.
+    // build_all now returns Err if any target failed (#262), so the bail above
+    // already covers per-target failures. Keep this as defense in depth: verify
+    // the framework bundles actually landed non-empty before declaring the bake
+    // good (catches an empty-but-"successful" write that no Err would flag).
     let assets = repo_root.join("crates/deck/deck-core/assets");
     for name in FRAMEWORK_BUNDLES {
         let path = assets.join(name);
@@ -50,8 +52,9 @@ pub fn run(repo_root: &Path) -> Result<()> {
 
     // The lean `sui-marketing.js` (apps/site's mounted `<sui-*>` subset) is a
     // Virtual aggregate that lands in `.deck/`, not deck-core/assets. It has no
-    // build.rs guard, so a swallowed per-target failure (build_all only logs)
-    // would silently ship a stale bundle to the site. Guard it here, same as the
+    // build.rs guard, so even though build_all now returns Err on target failure
+    // (#262), an empty-but-not-errored bundle would still slip past. Guard it
+    // here as defense in depth, same as the
     // framework set — non-empty after bake, or fail loud.
     let marketing = repo_root.join(".deck/sui-marketing.js");
     let marketing_len = std::fs::metadata(&marketing).map(|m| m.len()).unwrap_or(0);
