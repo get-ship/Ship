@@ -1,7 +1,7 @@
-import { controller, signal, effect, debounce, ref } from '@ship/sui-runtime'
+import { controller, signal, derived, effect, debounce, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-canvas.sui'
 import { createCanvas } from '../engine/create-canvas'
-import type { Transform } from '../engine/types'
+import type { Canvas, Transform } from '../engine/types'
 
 // SSR fallback = the verified sui-combobox shape: plain JSON.parse in the
 // controller, try/caught. The live path is prop:* identity onto the engine.
@@ -20,19 +20,25 @@ function parseSnapshot(raw: string): { transform?: Partial<Transform> } | null {
 export default controller<Scope>({
   scope: ({ value }) => {
     const viewportEl = ref<HTMLDivElement>(null)
-    const canvas = createCanvas({
+    // Fallback engine — used when no engine is injected via prop:canvas.
+    const fallback = createCanvas({
       getViewportElement: () => viewportEl(),
       initialTransform: parseSnapshot(value())?.transform,
     })
-    // Drives the debounced outbound viewport event.
-    const lastTransform = signal<Transform | null>(null)
-    const debounced = debounce(lastTransform, 200)
-    return { canvas, viewportEl, lastTransform, debounced }
+    // An engine injected by a composing face (sui-board / sui-draw) via
+    // prop:canvas identity. When present it supersedes the fallback so the
+    // board/draw transform and sui-canvas pan/zoom share ONE engine.
+    const injected = signal<Canvas | null>(null)
+    const canvas = derived<Canvas>(() => injected() ?? fallback)
+    // Drives the debounced outbound viewport event off the ACTIVE engine.
+    const transformSig = derived<Transform>(() => canvas().transform())
+    const debounced = debounce(transformSig, 200)
+    return { canvas, injected, fallback, viewportEl, debounced }
   },
 
   derived: {
     transformCss: ({ canvas }) => {
-      const t = canvas.transform()
+      const t = canvas().transform()
       return `transform: translate(${t.x}px, ${t.y}px) scale(${t.scale})`
     },
   },
@@ -54,6 +60,19 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
+    // prop:canvas identity — a composing face (sui-board / sui-draw) injects
+    // its engine (built with getViewportElement:()=>null) here; we rewire it
+    // onto sui-canvas's REAL viewport so screenToWorld/pan/zoom share ONE
+    // engine. Mirrors the sui-calendar prop:calendar identity pattern.
+    Object.defineProperty(host, 'canvas', {
+      configurable: true,
+      get: () => state.$signals.injected(),
+      set: (c: Canvas | null) => {
+        if (c) c.setOptions({ getViewportElement: () => state.$signals.viewportEl() })
+        state.injected = c
+      },
+    })
+
     // controller<Scope> OVER-CONSTRAINS union-typed reads — read the
     // reflected enum/number props imperatively off the host (the verified
     // sui-table.controller.ts:95 precedent), not through the typed scope.
@@ -64,13 +83,7 @@ export default controller<Scope>({
       ...(maxScale != null ? { maxScale: Number(maxScale) } : {}),
     })
 
-    // Feed engine transform changes into the debounce source.
-    const stopTrack = effect(() => {
-      state.canvas.transform()
-      state.lastTransform = state.canvas.transform()
-    })
-
-    // Emit the debounced viewport event. Skip the initial null.
+    // Emit the debounced viewport event off the active engine.
     const stopEmit = effect(() => {
       const t = state.debounced
       if (!t) return
@@ -78,9 +91,9 @@ export default controller<Scope>({
     })
 
     return () => {
-      stopTrack()
       stopEmit()
-      state.canvas.dispose()
+      delete (host as { canvas?: unknown }).canvas
+      state.$signals.fallback().dispose()
     }
   },
 })

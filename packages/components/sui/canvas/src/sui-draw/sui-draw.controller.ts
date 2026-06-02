@@ -32,7 +32,7 @@ const TOOL_KEYS: Record<string, DrawTool> = {
 // screen through the substrate transform. Pen drafting + shape drag + select
 // + undo/redo run through on:* handlers / mount (Cardinal 3).
 export default controller<Scope>({
-  scope: ({ value, sketchy }) => {
+  scope: ({ value, sketchy, readonly }) => {
     const seed = parseScene(value())
     const scene = createDrawScene({
       elements: seed?.elements ?? [],
@@ -46,7 +46,7 @@ export default controller<Scope>({
     const lastPointer = signal<{ x: number; y: number } | null>(null)
     const version = signal(0)
     const changeSrc = debounce(version, 200)
-    return { scene, canvas, drawing, movingSelection, lastPointer, version, changeSrc }
+    return { scene, canvas, drawing, movingSelection, lastPointer, version, changeSrc, readonly }
   },
 
   derived: {
@@ -65,6 +65,7 @@ export default controller<Scope>({
     // Press on empty surface: begin a draft for the active tool (pen/shape),
     // or clear selection in select mode.
     surfaceDown: (s, e: PointerEvent) => {
+      if (s.readonly) return
       if (e.button !== 0) return
       const tool = s.scene.tool()
       const world = s.canvas.screenToWorld({ x: e.clientX, y: e.clientY })
@@ -80,6 +81,7 @@ export default controller<Scope>({
     },
     // Press on an element (select mode): select + begin a move drag.
     elementDown: (s, e: PointerEvent) => {
+      if (s.readonly) return
       if (s.scene.tool() !== 'select') return
       const el = e.currentTarget as SVGElement
       const id = el.dataset.elId
@@ -127,6 +129,9 @@ export default controller<Scope>({
       }
     }
     const onKey = (e: KeyboardEvent): void => {
+      // Never hijack keys while typing into a field.
+      const tgt = e.target as HTMLElement | null
+      if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
       if (e.key === 'Escape') {
         scene.clearSelection()
         scene.cancelDraft()
@@ -135,14 +140,14 @@ export default controller<Scope>({
         return
       }
       const mod = e.metaKey || e.ctrlKey
-      if (mod && e.key.toLowerCase() === 'z') {
+      if (!state.readonly && mod && e.key.toLowerCase() === 'z') {
         if (e.shiftKey) scene.redo()
         else scene.undo()
         state.version = state.version + 1
         e.preventDefault()
         return
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && scene.selection().length > 0) {
+      if (!state.readonly && (e.key === 'Delete' || e.key === 'Backspace') && scene.selection().length > 0) {
         scene.removeElements(scene.selection())
         state.version = state.version + 1
         host.emit!('sui-draw-select', { ids: [] })

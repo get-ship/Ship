@@ -50,7 +50,7 @@
   prop:readonly={readonly()}
   on:pointerdown={surfaceDown}
 >
-  <svg class="scene" part="scene" aria-hidden="true">
+  <svg class="scene" part="scene" role="group" aria-label={statusLabel()}>
     {#for el of rendered() key={el.id}}
       {#if el.kind === 'text'}
         <text
