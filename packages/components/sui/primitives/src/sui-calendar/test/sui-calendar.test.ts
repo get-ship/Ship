@@ -90,15 +90,15 @@ describe('<sui-calendar> — month grid (#1)', () => {
     expect(grid.hasAttribute('aria-rowcount')).toBe(false)
   })
 
-  it('places event chips into the day cell they touch (role=button descendants)', async () => {
+  it('places event chips into the day cell they touch (native button descendants)', async () => {
     const { v } = mountWith(EV)
     live.push(v)
     await v.flush()
     const cell = shadow(v.el).querySelector('[data-iso="2026-06-15"]')!
-    const chip = cell.querySelector('[role=button][data-event-id="a"]')
+    const chip = cell.querySelector('button[data-event-id="a"]')
     expect(chip).not.toBeNull()
-    // A chip is a descendant, NOT itself a gridcell.
-    expect((chip as HTMLElement).getAttribute('role')).toBe('button')
+    // A chip is a native <button> descendant (implicit role=button), NOT itself a gridcell.
+    expect((chip as HTMLElement).tagName).toBe('BUTTON')
   })
 
   it("today's cell carries aria-current=date (#3)", async () => {

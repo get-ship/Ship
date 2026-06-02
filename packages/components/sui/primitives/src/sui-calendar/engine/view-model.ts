@@ -105,11 +105,21 @@ export interface DayColumnInput {
   windowEnd: number
 }
 
+/** Clip a (possibly midnight-spanning) timed event to one calendar day so
+ *  layoutDay sees a same-day interval. The id is preserved (selection keys on
+ *  it); the day-N+1 portion of a multi-day event becomes a 00:00 start, the
+ *  day-N portion a 23:59 end. */
+function clipTimedToDay(e: TimedEvent, iso: ISODate): TimedEvent {
+  const start = e.start.slice(0, 10) === iso ? e.start : `${iso}T00:00`
+  const end = e.end.slice(0, 10) === iso ? e.end : `${iso}T23:59`
+  return { ...e, start, end }
+}
+
 export function buildDayColumns(input: DayColumnInput): DayColumn[] {
   const { days, today, events, windowStart, windowEnd } = input
   const { allDayEvents, timedEvents } = partitionEvents(events)
   return days.map((iso) => {
-    const dayTimed = timedEvents.filter((e) => e.start.slice(0, 10) === iso)
+    const dayTimed = timedEvents.filter((e) => touchesDay(e, iso)).map((e) => clipTimedToDay(e, iso))
     const dayAllDay = allDayEvents.filter((e) => touchesDay(e, iso))
     return {
       iso,

@@ -96,7 +96,7 @@ export default controller<Scope>({
       return cal()
         .dayColumns()
         .map((col) => ({
-          key: `${col.iso}|${col.laidOut.map((p) => p.event.id).join(',')}|${sel.join(',')}`,
+          key: `${col.iso}|${col.laidOut.map((p) => p.event.id).join(',')}|${col.allDayEvents.map((e) => e.id).join(',')}|${sel.join(',')}`,
           col,
         }))
     })
@@ -149,15 +149,22 @@ export default controller<Scope>({
 
     const active = (): Calendar => state.$signals.cal()
 
-    // Deduped emit (sui-combobox lastEmitted pattern) over host.emit!.
+    // Deduped emit (sui-combobox lastEmitted pattern) over host.emit!. When
+    // prop:calendar swaps the engine identity we re-seed from the NEW engine
+    // (no emit) instead of diffing its view/date against the prior engine's —
+    // otherwise the stale closure fires a spurious sui-view/date-change.
+    let lastEngine: Calendar | null = null
     let lastView: ViewMode | null = null
     let lastDate: string | null = null
     const stopEmit = effect(() => {
       const cal = active()
       const v = cal.view()
       const d = cal.focusDate()
-      if (lastView !== null && v !== lastView) host.emit!('sui-view-change', { view: v })
-      if (lastDate !== null && d !== lastDate) host.emit!('sui-date-change', { date: d })
+      if (cal === lastEngine) {
+        if (lastView !== null && v !== lastView) host.emit!('sui-view-change', { view: v })
+        if (lastDate !== null && d !== lastDate) host.emit!('sui-date-change', { date: d })
+      }
+      lastEngine = cal
       lastView = v
       lastDate = d
     })
@@ -209,6 +216,7 @@ export default controller<Scope>({
       stopView()
       stopEmit()
       host.shadowRoot?.removeEventListener('click', onShadowClick)
+      delete (host as { calendar?: unknown }).calendar
     }
   },
 })

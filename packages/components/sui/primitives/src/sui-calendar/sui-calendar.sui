@@ -145,6 +145,15 @@
   .day-cols { display: grid; }
   .day-col { position: relative; border-right: 1px solid var(--border); min-height: 864px; }
   .day-col.today { background: var(--selected-bg); }
+  .allday-zone {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--cal-gap-xs);
+    padding: var(--cal-gap-xs);
+  }
+  .allday-zone:empty { display: none; }
   .timed-chip {
     position: absolute;
     left: var(--cal-gap-xs);
@@ -154,7 +163,7 @@
     text-align: start;
     font: inherit;
     font-size: var(--density-text);
-    color: var(--primary-foreground);
+    color: var(--tone-primary-fg);
     background: var(--tone-primary-bg);
     border-radius: var(--radius-sm);
     padding: var(--cal-chip-py) var(--space-1);
@@ -215,7 +224,6 @@
               <button
                 type="button"
                 class="chip"
-                role="button"
                 data-event-id={ev.id}
                 class:allday={ev.allDay}
                 aria-selected={selectedIds().includes(ev.id) ? 'true' : 'false'}
@@ -240,11 +248,21 @@
     <div class="day-cols" part="day-col">
       {#for dc of dayColumns() key={dc.key}}
         <div class="day-col" class:today={dc.col.today} data-iso={dc.col.iso}>
+          <div class="allday-zone">
+            {#for ev of dc.col.allDayEvents key={ev.id}}
+              <button
+                type="button"
+                class="chip allday"
+                data-event-id={ev.id}
+                aria-selected={selectedIds().includes(ev.id) ? 'true' : 'false'}
+                title={ev.title}
+              >{ev.title}</button>
+            {/for}
+          </div>
           {#for pe of dc.col.laidOut key={pe.event.id}}
             <button
               type="button"
               class="timed-chip"
-              role="button"
               data-event-id={pe.event.id}
               aria-selected={selectedIds().includes(pe.event.id) ? 'true' : 'false'}
               style:top={`${pe.topPct}%`}
