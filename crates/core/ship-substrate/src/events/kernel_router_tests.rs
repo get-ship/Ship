@@ -16,11 +16,11 @@ fn runtime_ctx() -> EmitContext {
     }
 }
 
-fn ev(event_type: &str) -> EventEnvelope {
+pub(super) fn ev(event_type: &str) -> EventEnvelope {
     EventEnvelope::new(event_type, "entity-1", &serde_json::json!({})).unwrap()
 }
 
-fn studio_config() -> ActorConfig {
+pub(super) fn studio_config() -> ActorConfig {
     ActorConfig {
         namespace: "studio".into(),
         write_namespaces: vec!["studio.".into()],
@@ -30,7 +30,7 @@ fn studio_config() -> ActorConfig {
     }
 }
 
-fn setup() -> (tempfile::TempDir, KernelRouter) {
+pub(super) fn setup() -> (tempfile::TempDir, KernelRouter) {
     let tmp = tempdir().unwrap();
     let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
     (tmp, router)
@@ -283,3 +283,4 @@ async fn stopped_actor_mailbox_is_closed() {
     // Sender was dropped — recv returns None.
     assert!(mb.recv().await.is_none());
 }
+

@@ -170,11 +170,17 @@ impl KernelRouter {
     /// If persistence fails, the event is not delivered and the caller gets
     /// an Err. If delivery to a particular mailbox fails (closed, full), the
     /// event is already durable — a future replay or sweep can redeliver.
-    pub async fn emit(&self, event: EventEnvelope, ctx: &EmitContext) -> Result<()> {
+    pub async fn emit(&self, mut event: EventEnvelope, ctx: &EmitContext) -> Result<()> {
         for v in &self.validators {
             v.validate(&event, ctx).map_err(|e| anyhow!("{e}"))?;
         }
         self.enforce_write_namespaces(&event, ctx)?;
+
+        // Author + scope chokepoint: stamp author identity, then stamp-or-reject
+        // the scope key from the authoritative binding. Runs BEFORE persist so a
+        // rejected (cross-space / space-unbound) event is never half-written.
+        ship_types::stamp_author(&mut event, &ctx.binding);
+        ship_types::enforce_scope(&mut event, &ctx.binding).map_err(|e| anyhow!("{e}"))?;
 
         // Bump per-actor rate counters before delivery — best-effort,
         // mutex contention is bounded (six 10s buckets, single hashmap
