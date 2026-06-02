@@ -7,12 +7,14 @@
   shorter or longer is rejected on commit and the previous value is
   restored.
 
-  The swatch palette draws from the same tokens the rest of the
-  design system uses (`--primary`, `--info`, `--success`, …). The
-  preview swatch and the swatch tiles need to render an arbitrary
-  hex; that color is bound via `style:background-color={…}` in the
-  template (the css-literal lint only inspects `<style>` blocks, not
-  inline `style:` attribute bindings).
+  The swatch palette is DERIVED at mount() from the host's resolved
+  design-system tone tokens (`--primary`, `--accent`, `--info`,
+  `--success`, `--warning`, `--destructive`) plus a theme-free neutral
+  ramp — see `color-math.ts#deriveSwatches`. No hardcoded brand hex; the
+  swatches track whichever theme is active. The preview swatch and the
+  swatch tiles render the resolved hex via `style:background-color={…}`
+  in the template (the css-literal lint only inspects `<style>` blocks,
+  not inline `style:` attribute bindings).
   ─────────────────────────────────────────────────────────────────────
   Props
     name        Form field name.
@@ -114,7 +116,7 @@
     color: var(--popover-foreground);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md, 0 4px 12px color-mix(in oklch, var(--foreground) 10%, transparent));
+    box-shadow: var(--shadow-md);
     font-family: var(--font-body);
     font-size: var(--fs);
     display: flex;

@@ -1,87 +1,17 @@
-import { controller, derived, effect, ref, signal } from '@ship/sui-runtime'
+import { controller, effect, ref, signal } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
+import {
+  type Swatch,
+  deriveSwatches,
+  hexToRgb,
+  hslToHex,
+  isHex,
+  normHex,
+  rgbToHsl,
+} from './color-math'
 import type { Scope } from './sui-color-picker.sui'
 
-interface Swatch { hex: string; label: string }
-
-const SWATCHES: Swatch[] = [
-  { hex: '#000000', label: 'Black' },
-  { hex: '#ffffff', label: 'White' },
-  { hex: '#6b7280', label: 'Gray' },
-  { hex: '#ef4444', label: 'Red' },
-  { hex: '#f97316', label: 'Orange' },
-  { hex: '#eab308', label: 'Yellow' },
-  { hex: '#22c55e', label: 'Green' },
-  { hex: '#10b981', label: 'Emerald' },
-  { hex: '#06b6d4', label: 'Cyan' },
-  { hex: '#3b82f6', label: 'Blue' },
-  { hex: '#8b5cf6', label: 'Violet' },
-  { hex: '#ec4899', label: 'Pink' },
-]
-
 let idSeq = 0
-
-const isHex = (s: string): boolean => /^#[0-9a-f]{6}$/i.test(s)
-
-const normHex = (s: string): string => {
-  const t = s.trim().toLowerCase()
-  if (/^#[0-9a-f]{6}$/.test(t)) return t
-  if (/^[0-9a-f]{6}$/.test(t)) return `#${t}`
-  if (/^#[0-9a-f]{3}$/.test(t)) {
-    return `#${t[1]}${t[1]}${t[2]}${t[2]}${t[3]}${t[3]}`
-  }
-  return ''
-}
-
-const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
-  if (!isHex(hex)) return null
-  return {
-    r: parseInt(hex.slice(1, 3), 16),
-    g: parseInt(hex.slice(3, 5), 16),
-    b: parseInt(hex.slice(5, 7), 16),
-  }
-}
-
-const rgbToHex = (r: number, g: number, b: number): string => {
-  const to2 = (n: number) => {
-    const v = Math.max(0, Math.min(255, Math.round(n)))
-    return v.toString(16).padStart(2, '0')
-  }
-  return `#${to2(r)}${to2(g)}${to2(b)}`
-}
-
-const rgbToHsl = (r: number, g: number, b: number): { h: number; s: number; l: number } => {
-  const rn = r / 255, gn = g / 255, bn = b / 255
-  const max = Math.max(rn, gn, bn)
-  const min = Math.min(rn, gn, bn)
-  const l = (max + min) / 2
-  let h = 0, s = 0
-  if (max !== min) {
-    const d = max - min
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-    if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0))
-    else if (max === gn) h = (bn - rn) / d + 2
-    else h = (rn - gn) / d + 4
-    h *= 60
-  }
-  return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) }
-}
-
-const hslToHex = (h: number, s: number, l: number): string => {
-  const sn = s / 100, ln = l / 100
-  const c = (1 - Math.abs(2 * ln - 1)) * sn
-  const hp = ((h % 360) + 360) % 360 / 60
-  const x = c * (1 - Math.abs((hp % 2) - 1))
-  let r1 = 0, g1 = 0, b1 = 0
-  if (hp < 1) { r1 = c; g1 = x; b1 = 0 }
-  else if (hp < 2) { r1 = x; g1 = c; b1 = 0 }
-  else if (hp < 3) { r1 = 0; g1 = c; b1 = x }
-  else if (hp < 4) { r1 = 0; g1 = x; b1 = c }
-  else if (hp < 5) { r1 = x; g1 = 0; b1 = c }
-  else { r1 = c; g1 = 0; b1 = x }
-  const m = ln - c / 2
-  return rgbToHex((r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255)
-}
 
 export default controller({
   scope: (_ctx: ViewScope<Scope>) => {
@@ -100,7 +30,9 @@ export default controller({
     const hueId = signal(`sui-color-picker-h-${id}`)
     const satId = signal(`sui-color-picker-s-${id}`)
     const lightId = signal(`sui-color-picker-l-${id}`)
-    const swatches = derived<Swatch[]>(() => SWATCHES)
+    // Theme-derived at mount() from the host's computed tone tokens — never a
+    // hardcoded palette. Seeded empty; populated once the host is connected.
+    const swatches = signal<Swatch[]>([])
     return {
       open, hue, sat, light, hueText, satText, lightText, hexDraft,
       inputEl, panelEl, hexInputEl, hueId, satId, lightId, swatches,
@@ -109,6 +41,11 @@ export default controller({
 
   mount(state, host) {
     let suppress = false
+
+    // Derive the swatch palette from the host's resolved design-system tone
+    // tokens (+ a neutral ramp) now that the element is connected and the
+    // cascade is in effect.
+    state.swatches = deriveSwatches(host)
 
     const emit = (hex: string) => {
       host.dispatchEvent(
