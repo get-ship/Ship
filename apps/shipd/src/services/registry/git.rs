@@ -129,7 +129,7 @@ ship_ops! {
         run: |args, state, _files| {
             let file = required_str(args, "file")?;
             let workspace_id = args.get("workspace_id").and_then(|v| v.as_str());
-            Ok(annotations::load_file_annotations(state.ship_dir(), file, workspace_id))
+            Ok(annotations::load_file_annotations(state.kernel().clone(), state.ship_dir(), file, workspace_id))
         },
     },
 }

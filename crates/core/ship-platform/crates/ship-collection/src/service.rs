@@ -120,7 +120,7 @@ impl CollectionService {
             },
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx()).await?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
 
         Ok(ItemRecord {
             id,
@@ -172,7 +172,7 @@ impl CollectionService {
             },
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx()).await?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
 
         Ok(ItemRecord {
             id: id.to_string(),
@@ -209,7 +209,7 @@ impl CollectionService {
             },
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx()).await?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
         Ok(())
     }
 
@@ -245,7 +245,7 @@ impl CollectionService {
             &CollectionCreated { collection_id: id.to_string(), schema_json: schema_str },
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx()).await?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
 
         self.schemas.insert(doc.clone());
         Ok(doc)
@@ -274,7 +274,7 @@ impl CollectionService {
             &CollectionSchemaChanged { collection_id: id.to_string(), schema_json: schema_str },
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx()).await?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
 
         self.schemas.update(doc.clone());
         Ok(doc)

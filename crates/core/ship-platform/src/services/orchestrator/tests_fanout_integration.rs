@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::artifacts::ArtifactScope;
+use ship_artifacts::types::ArtifactScope;
 use ship_substrate::events::pipeline::{
     FanoutJudge, FanoutSpec, OutputScope, Pipeline, PipelineStep, StepOutput, StepVerdict,
 };
@@ -35,8 +35,10 @@ use crate::services::orchestrator::LaneOutcome;
 async fn fanout_all_lanes_succeed_judge_sees_every_lane_output() {
     let ship_dir = fresh_ship_dir();
     let pipeline_run_id = "job-fanout-all-ok";
+    // Store under the same space the orchestrator's read-side derives (the
+    // project slug) so the DataStore partition matches on lookup.
     let run_scope = ArtifactScope::Run {
-        space_id: "test-proj".into(),
+        space_id: ship_substrate::project::project_slug_from_ship_dir(&ship_dir),
         run_id: pipeline_run_id.into(),
     };
 
@@ -77,7 +79,8 @@ async fn fanout_all_lanes_succeed_judge_sees_every_lane_output() {
     // Judge resolves its three lane-scoped consumes.
     let wt = tempfile::tempdir().unwrap();
     let judge = pipeline.steps.iter().find(|s| s.id == "choose").unwrap();
-    let resolved = resolve_consumes(judge, &pipeline, pipeline_run_id, wt.path())
+    let resolved = resolve_consumes(&kernel, judge, &pipeline, pipeline_run_id, wt.path())
+        .await
         .expect("judge must resolve all three lane outputs");
 
     assert_eq!(resolved.len(), 3, "judge sees three inputs");
@@ -104,7 +107,7 @@ async fn fanout_one_lane_fails_judge_sees_survivors_plus_failed_marker() {
     let ship_dir = fresh_ship_dir();
     let pipeline_run_id = "job-fanout-one-fails";
     let run_scope = ArtifactScope::Run {
-        space_id: "test-proj".into(),
+        space_id: ship_substrate::project::project_slug_from_ship_dir(&ship_dir),
         run_id: pipeline_run_id.into(),
     };
 
@@ -186,7 +189,8 @@ async fn fanout_one_lane_fails_judge_sees_survivors_plus_failed_marker() {
     // The failure path slots into the same resolve_consumes mechanism.
     let wt = tempfile::tempdir().unwrap();
     let judge = pipeline.steps.iter().find(|s| s.id == "choose").unwrap();
-    let resolved = resolve_consumes(judge, &pipeline, pipeline_run_id, wt.path())
+    let resolved = resolve_consumes(&kernel, judge, &pipeline, pipeline_run_id, wt.path())
+        .await
         .expect("judge must resolve survivors + failed marker");
 
     assert_eq!(resolved.len(), 3);
@@ -259,7 +263,7 @@ async fn fanout_all_lanes_fail_aggregator_fails_fanout_judge_skipped() {
     // never dispatch in production when the aggregator emits step_failed.
     let wt = tempfile::tempdir().unwrap();
     let judge = pipeline.steps.iter().find(|s| s.id == "choose").unwrap();
-    let err = match resolve_consumes(judge, &pipeline, pipeline_run_id, wt.path()) {
+    let err = match resolve_consumes(&kernel, judge, &pipeline, pipeline_run_id, wt.path()).await {
         Err(e) => e,
         Ok(_) => panic!("judge must not resolve when all lanes failed and it consumes .draft"),
     };

@@ -126,11 +126,6 @@ pub fn record_to_scope(record: &ArtifactRecord) -> Result<ArtifactScope, Artifac
                 .ok_or_else(|| ArtifactError::Internal("project-scope artifact missing space_id".into()))?;
             Ok(ArtifactScope::Project { space_id })
         }
-        "user" => {
-            let user_id = record.user_id.clone()
-                .ok_or_else(|| ArtifactError::Internal("user-scope artifact missing user_id".into()))?;
-            Ok(ArtifactScope::User { user_id })
-        }
         other => Err(ArtifactError::Internal(format!("invalid scope `{other}`"))),
     }
 }
@@ -222,9 +217,6 @@ fn scope_filter_fields(scope: &ArtifactScope, filter: &mut BTreeMap<String, serd
         }
         ArtifactScope::Project { space_id } => {
             filter.insert(COL_SCOPE_SPACE.into(), sv(space_id.clone()));
-        }
-        ArtifactScope::User { user_id } => {
-            filter.insert("user_id".into(), sv(user_id.clone()));
         }
     }
 }

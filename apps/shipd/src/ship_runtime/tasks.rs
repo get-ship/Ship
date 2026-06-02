@@ -91,25 +91,22 @@ impl ShipRuntime {
     ///
     /// Best-effort: errors are logged but don't take down the daemon.
     pub fn start_artifact_gc(&self) {
-        let ship_dir = self.ship_dir.clone();
-        let kernel = self.kernel.clone();
+        let artifact_ctx = self.artifact_ctx.clone();
+        let global_dir = self.global_blob_dir.clone();
         ship_substrate::task_health::spawn_supervised(
             &self.health_registry,
             "artifact-gc",
             move || {
-                let ship_dir = ship_dir.clone();
-                let kernel = kernel.clone();
+                let artifact_ctx = artifact_ctx.clone();
+                let global_dir = global_dir.clone();
                 async move {
                     loop {
-                        match ship_substrate::data::DataService::open(&ship_dir) {
-                            Ok(mut svc) => {
-                                if let Err(e) = ship_platform::artifacts::gc::collect_expired(
-                                    &ship_dir, &mut svc, &kernel,
-                                ).await {
-                                    tracing::warn!("artifact GC run failed: {e}");
-                                }
-                            }
-                            Err(e) => tracing::warn!("artifact GC: failed to open DataService: {e}"),
+                        let svc = ship_artifacts::gc::make_service_for_gc(
+                            artifact_ctx.clone(),
+                            global_dir.clone(),
+                        );
+                        if let Err(e) = ship_artifacts::gc::collect_expired(&svc).await {
+                            tracing::warn!("artifact GC run failed: {e}");
                         }
                         tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
                     }
@@ -200,6 +197,7 @@ impl ShipRuntime {
         match ship_platform::triggers::engine::spawn_hook_service(
             self.kernel.clone(),
             library_dir,
+            self.schemas.clone(),
         )
         .await
         {

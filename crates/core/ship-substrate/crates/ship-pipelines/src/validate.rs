@@ -157,19 +157,9 @@ fn validate_scope_transition(
 ) -> Result<(), String> {
     let valid = matches!((from, to), (OutputScope::Run, OutputScope::Project));
     if !valid {
-        let reason = match to {
-            OutputScope::User => {
-                "User-scope promotes are not yet supported — the orchestrator \
-                 has no user-id resolver (blocked on cloud/auth). \
-                 Use Project scope for now."
-            }
-            _ => {
-                "invalid scope transition (only Run→Project is supported today; \
-                 Run→User and Project→User are blocked on cloud/auth)"
-            }
-        };
         return Err(format!(
-            "step '{step_id}' promotes '{name}': {reason} (requested: {from:?}→{to:?})"
+            "step '{step_id}' promotes '{name}': invalid scope transition \
+             (only Run→Project is supported) (requested: {from:?}→{to:?})"
         ));
     }
     Ok(())

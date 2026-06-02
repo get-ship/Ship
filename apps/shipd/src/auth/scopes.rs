@@ -92,7 +92,6 @@ pub fn can_read_artifacts(auth: &super::AuthContext, scope_kind: &str) -> bool {
     match scope_kind {
         "run" => auth.has_scope(Scope::ReadArtifactsRun),
         "project" => auth.has_scope(Scope::ReadArtifactsProject),
-        "user" => auth.has_scope(Scope::ReadArtifactsUser),
         _ => false,
     }
 }
@@ -104,7 +103,6 @@ pub fn can_write_artifacts(auth: &super::AuthContext, scope_kind: &str) -> bool 
     match scope_kind {
         "run" => auth.has_scope(Scope::WriteArtifactsRun),
         "project" => auth.has_scope(Scope::WriteArtifactsProject),
-        "user" => auth.has_scope(Scope::WriteArtifactsUser),
         _ => false,
     }
 }
@@ -116,7 +114,6 @@ pub fn can_delete_artifacts(auth: &super::AuthContext, scope_kind: &str) -> bool
     match scope_kind {
         "run" => auth.has_scope(Scope::DeleteArtifactsRun),
         "project" => auth.has_scope(Scope::DeleteArtifactsProject),
-        "user" => auth.has_scope(Scope::DeleteArtifactsUser),
         _ => false,
     }
 }

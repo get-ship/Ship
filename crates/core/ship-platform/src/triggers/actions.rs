@@ -8,9 +8,8 @@ use anyhow::{Context, Result, anyhow};
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
-use crate::collections::schema::{CollectionSchema, load_schemas};
-use crate::collections::{service as collection_service, store as collection_store};
-use ship_substrate::data::DataService;
+use ship_collection::projection::SchemaRegistry;
+use ship_collection::service::CollectionService;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
 
 use super::def::HookActionType;
@@ -20,6 +19,9 @@ use super::render;
 pub struct ActionCtx<'a> {
     pub kernel: &'a Arc<Mutex<KernelRouter>>,
     pub ship_dir: &'a Path,
+    /// Shared schema registry — the SAME instance the wire + view-authoring
+    /// hold, so a wire-created schema is visible to a trigger insert (C-2 UD-7).
+    pub schemas: &'a Arc<SchemaRegistry>,
     pub trigger_event_id: &'a str,
     /// The space the triggering event resolved to (its `scope_key` when Space).
     /// Threaded onto the Space-scoped events this action emits
@@ -76,20 +78,14 @@ async fn collection_insert(
         render::render_value(data, render_ctx)?
     };
 
-    let schema = load_schema(ctx.ship_dir, collection)?;
-    let mut svc = open_docs(ctx.ship_dir)?;
-    collection_store::ensure_collection_table(&mut svc, &schema)?;
-    let id = ship_substrate::gen_ulid();
-    let item = collection_service::create_item(
-        &mut svc,
-        ctx.kernel,
-        &schema,
-        ctx.trigger_space,
-        &id,
-        &data_value,
-        Some(&format!("hook:{}", ctx.hook_name)),
-    )
-    .await?;
+    let svc = collection_service(ctx);
+    ensure_table(&svc, collection).await?;
+    let data_bytes = serde_json::to_vec(&data_value)
+        .map_err(|e| anyhow!("collection.insert data is not serializable: {e}"))?;
+    let item = svc
+        .create_item(collection, &data_bytes)
+        .await
+        .map_err(|e| anyhow!("collection.insert failed: {e}"))?;
     Ok(json!({
         "collection": collection,
         "item_id": item.id,
@@ -106,12 +102,15 @@ async fn collection_update(
 ) -> Result<Value> {
     let filter_value = render::render_value(filter, render_ctx)?;
     let data_value = render::render_value(data, render_ctx)?;
-    let schema = load_schema(ctx.ship_dir, collection)?;
-    let mut svc = open_docs(ctx.ship_dir)?;
-    collection_store::ensure_collection_table(&mut svc, &schema)?;
     let id = resolve_filter_id(&filter_value)?;
-    let item =
-        collection_service::update_item(&mut svc, ctx.kernel, &schema, ctx.trigger_space, &id, &data_value).await?;
+    let svc = collection_service(ctx);
+    ensure_table(&svc, collection).await?;
+    let data_bytes = serde_json::to_vec(&data_value)
+        .map_err(|e| anyhow!("collection.update data is not serializable: {e}"))?;
+    let item = svc
+        .update_item(collection, &id, &data_bytes)
+        .await
+        .map_err(|e| anyhow!("collection.update failed: {e}"))?;
     Ok(json!({
         "collection": collection,
         "item_id": item.id,
@@ -217,16 +216,34 @@ fn envelope_payload_mut(envelope: &mut EventEnvelope) -> Result<Value> {
         .map_err(|e| anyhow!("event.emit payload is not JSON: {e}"))
 }
 
-fn open_docs(ship_dir: &Path) -> Result<DataService> {
-    collection_store::open_data_db(ship_dir)
+/// Build a `CollectionService` over a `SpaceContext` bound to the trigger's
+/// space (the daemon DataStore + shared kernel). The schema registry is the
+/// shared one threaded through `ActionCtx` (C-2 UD-7) — collection-table
+/// creation + schema validation happen inside `create_item`/`update_item`.
+fn collection_service(ctx: &ActionCtx<'_>) -> CollectionService {
+    use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+    let space_id = ctx.trigger_space.unwrap_or("global");
+    let data_svc = ship_substrate::data::DataService::open(ctx.ship_dir)
+        .expect("trigger collection action: open data.db");
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
+    let kernel_log = Arc::new(KernelLog::new(ctx.kernel.clone()));
+    let space_ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel_log));
+    CollectionService { ctx: space_ctx, schemas: ctx.schemas.clone() }
 }
 
-fn load_schema(ship_dir: &Path, collection: &str) -> Result<CollectionSchema> {
-    let schemas = load_schemas(ship_dir)?;
-    schemas
-        .into_iter()
-        .find(|s| s.id == collection)
-        .ok_or_else(|| anyhow!("no schema for collection '{collection}'"))
+/// Ensure the collection's item table exists before a CRUD call. The new
+/// `CollectionService::create_item`/`update_item` assume the table is present
+/// (it is created by `create_schema`); file-authored / built-in collections
+/// hit by a trigger may not have been created yet, so create it from the
+/// registered schema here.
+async fn ensure_table(svc: &CollectionService, collection: &str) -> Result<()> {
+    let schema = svc
+        .schemas
+        .get(collection)
+        .ok_or_else(|| anyhow!("no schema for collection '{collection}'"))?;
+    ship_collection::projection::ensure_collection_table(svc.ctx.data(), &schema)
+        .await
+        .map_err(|e| anyhow!("ensure collection table '{collection}': {e}"))
 }
 
 fn resolve_filter_id(filter: &Value) -> Result<String> {

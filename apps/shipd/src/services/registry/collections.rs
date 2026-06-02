@@ -1,7 +1,15 @@
 //! Registry dispatcher for `collections.*` ops. Split off from
 //! services/registry.rs (mr-04 follow-up).
+//!
+//! Reads route through the new `ship-collection` service over the daemon's
+//! global `SpaceContext` (C-2). Registry ops are sync (`ship_ops!` `run:`
+//! closures), so the async query bridges via `block_in_place` + the current
+//! runtime handle.
 
 use serde_json::{json, Value};
+
+use ship_collection::types::SchemaDoc;
+use ship_substrate::ports::Query;
 
 use super::wire::{
     CollectionDetailResponse, CollectionFieldRecord, CollectionItemsResponse,
@@ -13,45 +21,52 @@ use crate::services::schema::ArgDescriptor;
 
 // Field tuples + field-record builders share one source so `collections.state`
 // (tuples for templates) and `collections.list` / `collections.detail` (records
-// for view controllers) can't drift.
-pub(crate) fn fields_tuples(s: &ship_platform::collections::schema::CollectionSchema) -> Vec<Value> {
+// for view controllers) can't drift. `default` is dropped (C-2 Gap 3).
+pub(crate) fn fields_tuples(s: &SchemaDoc) -> Vec<Value> {
     s.fields.iter().map(|(k, v)| json!([k, {
-        "field_type": format!("{:?}", v.field_type).to_lowercase(),
+        "field_type": format!("{:?}", v.kind).to_lowercase(),
         "required": v.required,
         "values": v.values,
-        "default": v.default,
     }])).collect()
 }
 
-pub(crate) fn fields_records(s: &ship_platform::collections::schema::CollectionSchema) -> Vec<CollectionFieldRecord> {
+pub(crate) fn fields_records(s: &SchemaDoc) -> Vec<CollectionFieldRecord> {
     s.fields.iter().map(|(k, v)| {
-        let ty = format!("{:?}", v.field_type).to_lowercase();
+        let ty = format!("{:?}", v.kind).to_lowercase();
         CollectionFieldRecord {
             name: k.clone(),
             r#type: ty.clone(),
             field_type: ty,
             required: v.required,
             values: v.values.clone(),
-            default: v.default.clone(),
         }
     }).collect()
 }
 
-fn load_schemas(state: &ApiState) -> Vec<ship_platform::collections::schema::CollectionSchema> {
+/// All user-visible schemas (built-in user schemas + file-overlay schemas).
+/// Sources from the new crate's built-ins (filtered to `!system`) plus the
+/// relocated file loader.
+fn load_schemas(state: &ApiState) -> Vec<SchemaDoc> {
     let ship_dir = state.ship_dir();
     let project_dir = ship_substrate::project::get_project_dir(None).ok();
-    let mut schemas = ship_platform::collections::builtin::user_schemas();
+    let mut schemas: Vec<SchemaDoc> = ship_collection::builtin::all_builtin_schemas()
+        .into_iter()
+        .filter(|s| !s.system)
+        .collect();
     schemas.extend(
-        ship_platform::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())
-            .unwrap_or_default(),
+        ship_platform::registry::collection_schemas::load_schemas_merged(
+            ship_dir,
+            project_dir.as_deref(),
+        )
+        .unwrap_or_default(),
     );
     schemas
 }
 
 pub(crate) fn is_builtin(id: &str) -> bool {
-    ship_platform::collections::builtin::user_schemas()
+    ship_collection::builtin::all_builtin_schemas()
         .iter()
-        .any(|s| s.id == id)
+        .any(|s| !s.system && s.id == id)
 }
 
 struct CollectionStats {
@@ -66,45 +81,17 @@ struct CollectionStats {
 /// keeps the index responsive while still giving accurate counts for the
 /// typical project. The status summary attaches when the schema declares a
 /// field literally named `status` of type `enum`.
-fn collection_summary(
-    data: Option<&mut ship_substrate::data::DataService>,
-    schema: &ship_platform::collections::schema::CollectionSchema,
-) -> CollectionStats {
+fn collection_summary(state: &ApiState, schema: &SchemaDoc) -> CollectionStats {
+    use ship_collection::types::FieldKind;
     let status_field = schema.fields.get("status").and_then(|f| {
-        matches!(f.field_type, ship_platform::collections::schema::FieldType::Enum)
-            .then(|| "status".to_string())
+        matches!(f.kind, FieldKind::Enum).then(|| "status".to_string())
     });
     let status_values: Vec<String> = schema
         .fields
         .get("status")
         .and_then(|f| f.values.clone())
         .unwrap_or_default();
-    let Some(svc) = data else {
-        return CollectionStats {
-            item_count: 0,
-            status_field,
-            status_values,
-            status_counts: serde_json::Map::new(),
-            last_activity: None,
-        };
-    };
-    if ship_platform::collections::store::ensure_collection_table(svc, schema).is_err() {
-        return CollectionStats {
-            item_count: 0,
-            status_field,
-            status_values,
-            status_counts: serde_json::Map::new(),
-            last_activity: None,
-        };
-    }
-    let req = ship_platform::collections::query::QueryRequest {
-        collection: schema.id.clone(),
-        filter: Default::default(),
-        sort: Default::default(),
-        limit: 500,
-        offset: 0,
-    };
-    let rows = ship_platform::collections::store::query_items(svc, schema, &req).unwrap_or_default();
+    let rows = query_items(state, &schema.id, 500);
     let mut counts: serde_json::Map<String, Value> = serde_json::Map::new();
     for v in &status_values { counts.insert(v.clone(), json!(0)); }
     let mut last: Option<String> = None;
@@ -138,7 +125,6 @@ ship_ops! {
         args: &[ArgDescriptor { name: "active", kind: "string?", required: false }],
         ret: CollectionsStateResponse,
         run: |args, state, _files| {
-            let ship_dir = state.ship_dir();
             let schemas = load_schemas(state);
             let active_id = args.get("active").and_then(|v| v.as_str())
                 .filter(|s| !s.is_empty())
@@ -146,7 +132,7 @@ ship_ops! {
             // `collections.state` keeps the field tuple shape templates iterate on
             // (key, attrs); the view-controller surface uses `collections.list`.
             let summaries: Vec<Value> = schemas.iter().map(|s| json!({
-                "id": s.id, "name": s.name,
+                "id": s.id, "name": s.title,
                 "field_count": s.fields.len(),
                 "fields": fields_tuples(s),
             })).collect();
@@ -155,23 +141,12 @@ ship_ops! {
                 .or_else(|| schemas.first());
             let (schema, items, total_items, active_collection) = match active_schema {
                 Some(first) => {
-                    let mut items_out: Vec<Value> = Vec::new();
-                    if let Ok(mut svc) = ship_platform::collections::store::open_data_db(ship_dir) {
-                        let _ = ship_platform::collections::store::ensure_collection_table(&mut svc, first);
-                        let req = ship_platform::collections::query::QueryRequest {
-                            collection: first.id.clone(),
-                            filter: Default::default(),
-                            sort: Default::default(),
-                            limit: 200, offset: 0,
-                        };
-                        if let Ok(rows) = ship_platform::collections::store::query_items(&mut svc, first, &req) {
-                            items_out = rows.into_iter()
-                                .map(|i| serde_json::to_value(i).unwrap_or_default())
-                                .collect();
-                        }
-                    }
+                    let items_out: Vec<Value> = query_items(state, &first.id, 200)
+                        .into_iter()
+                        .map(|i| serde_json::to_value(i).unwrap_or_default())
+                        .collect();
                     let schema_val = json!({
-                        "id": first.id, "name": first.name,
+                        "id": first.id, "name": first.title,
                         "fields": fields_tuples(first),
                     });
                     let total = items_out.len();
@@ -196,12 +171,11 @@ ship_ops! {
         ret: CollectionsListResponse,
         run: |_args, state, _files| {
             let schemas = load_schemas(state);
-            let mut svc = ship_platform::collections::store::open_data_db(state.ship_dir()).ok();
             let items: Vec<CollectionSummary> = schemas.iter().map(|s| {
-                let summary = collection_summary(svc.as_mut(), s);
+                let summary = collection_summary(state, s);
                 CollectionSummary {
                     id: s.id.clone(),
-                    name: s.name.clone(),
+                    name: s.title.clone(),
                     field_count: s.fields.len(),
                     fields: fields_records(s),
                     builtin: is_builtin(&s.id),
@@ -230,7 +204,7 @@ ship_ops! {
             let total_items = items.len();
             let schema_val = json!({
                 "id": schema.id,
-                "name": schema.name,
+                "name": schema.title,
                 "fields": fields_records(schema),
                 "builtin": is_builtin(&schema.id),
             });
@@ -255,28 +229,30 @@ ship_ops! {
     },
 }
 
-/// Query up to 200 rows of a collection as serialized JSON values. Shared by
-/// `collections.detail` and `collections.items` (identical body before).
-fn query_collection_items(
-    state: &ApiState,
-    schema: &ship_platform::collections::schema::CollectionSchema,
-) -> Vec<Value> {
-    let mut items_out: Vec<Value> = Vec::new();
-    if let Ok(mut svc) = ship_platform::collections::store::open_data_db(state.ship_dir()) {
-        let _ = ship_platform::collections::store::ensure_collection_table(&mut svc, schema);
-        let req = ship_platform::collections::query::QueryRequest {
-            collection: schema.id.clone(),
-            filter: Default::default(),
-            sort: Default::default(),
-            limit: 200,
-            offset: 0,
-        };
-        if let Ok(rows) = ship_platform::collections::store::query_items(&mut svc, schema, &req) {
-            items_out = rows
-                .into_iter()
-                .map(|i| serde_json::to_value(i).unwrap_or_default())
-                .collect();
-        }
+/// Query up to `limit` rows of a collection via the new service, bridging the
+/// async call onto the sync registry dispatch path (C-2 Gap 5). Returns the
+/// raw `ItemRecord`s; the schema is unknown-to-the-registry only by id.
+fn query_items(state: &ApiState, collection_id: &str, limit: u32) -> Vec<ship_collection::types::ItemRecord> {
+    let q = Query {
+        table: format!("collection_{collection_id}"),
+        limit,
+        ..Default::default()
+    };
+    let svc = state.collections();
+    let result = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(svc.query_items_by_query(q))
+    });
+    match result {
+        Ok((rows, _)) => rows,
+        Err(_) => Vec::new(),
     }
-    items_out
+}
+
+/// Query up to 200 rows of a collection as serialized JSON values. Shared by
+/// `collections.detail` and `collections.items`.
+fn query_collection_items(state: &ApiState, schema: &SchemaDoc) -> Vec<Value> {
+    query_items(state, &schema.id, 200)
+        .into_iter()
+        .map(|i| serde_json::to_value(i).unwrap_or_default())
+        .collect()
 }

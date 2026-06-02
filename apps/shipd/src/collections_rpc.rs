@@ -95,18 +95,13 @@ impl CollectionsService for OpsImpl {
     ) -> ServiceResult<JsonResponse> {
         // No read-registry op exists for the single-item GET, so call the
         // platform service directly (as the old REST handler did) and mirror
-        // its `{ ok, data }` envelope. NotFound maps to the Connect not_found.
-        use ship_platform::services::collections::service::Error;
+        // its `{ ok, data }` envelope. The service error maps to Connect codes.
         let item = self
             .state()
             .collections()
             .get_item(request.collection, request.id)
             .await
-            .map_err(|e| match e {
-                Error::NotFound(m) => ConnectError::not_found(m),
-                Error::Validation(m) => ConnectError::invalid_argument(m),
-                other => ConnectError::internal(other.to_string()),
-            })?;
+            .map_err(ConnectError::from)?;
         let value = json!({ "ok": true, "data": item });
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }

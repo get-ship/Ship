@@ -22,19 +22,12 @@ impl ShipRuntime {
         let pipelines =
             ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
-        let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
-            Arc::new(tokio::sync::Mutex::new(None));
-        let collections =
-            ship_platform::services::collections::service::CollectionsServiceImpl::arc(
-                ship_dir.clone(),
-                kernel.clone(),
-                data_service.clone(),
-            );
-        let artifacts = ship_platform::services::artifacts::service::ArtifactsServiceImpl::arc(
-            ship_dir.clone(),
-            kernel.clone(),
-            data_service.clone(),
-        );
+        let collection_ctx =
+            super::init::build_space_context_arc(kernel.clone(), &ship_dir, "global");
+        let artifact_ctx =
+            super::init::build_space_context_arc(kernel.clone(), &ship_dir, "global");
+        let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
+        let global_blob_dir = ship_dir.clone();
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
@@ -62,7 +55,10 @@ impl ShipRuntime {
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             diag_registry: std::sync::OnceLock::new(),
-            data_service,
+            collection_ctx,
+            artifact_ctx,
+            schemas,
+            global_blob_dir,
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
@@ -100,19 +96,12 @@ impl ShipRuntime {
         let pipelines =
             ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
-        let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
-            Arc::new(tokio::sync::Mutex::new(None));
-        let collections =
-            ship_platform::services::collections::service::CollectionsServiceImpl::arc(
-                ship_dir.clone(),
-                kernel.clone(),
-                data_service.clone(),
-            );
-        let artifacts = ship_platform::services::artifacts::service::ArtifactsServiceImpl::arc(
-            ship_dir.clone(),
-            kernel.clone(),
-            data_service.clone(),
-        );
+        let collection_ctx =
+            super::init::build_space_context_arc(kernel.clone(), &ship_dir, "global");
+        let artifact_ctx =
+            super::init::build_space_context_arc(kernel.clone(), &ship_dir, "global");
+        let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
+        let global_blob_dir = ship_dir.clone();
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
@@ -140,7 +129,10 @@ impl ShipRuntime {
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             diag_registry: std::sync::OnceLock::new(),
-            data_service,
+            collection_ctx,
+            artifact_ctx,
+            schemas,
+            global_blob_dir,
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),

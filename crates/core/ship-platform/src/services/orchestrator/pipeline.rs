@@ -252,7 +252,7 @@ async fn advance_pipeline_inner(
 
                 // Resolve consumes before dispatch — fail fast if inputs are missing.
                 let resolved_inputs = if let Some(pipeline) = &job.steps {
-                    match resolve_consumes(step, pipeline, &job.pipeline_run_id, &worktree_path) {
+                    match resolve_consumes(kernel, step, pipeline, &job.pipeline_run_id, &worktree_path).await {
                         Ok(inputs) => inputs,
                         Err(e) => {
                             tracing::error!(

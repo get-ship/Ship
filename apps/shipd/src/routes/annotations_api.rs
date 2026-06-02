@@ -13,8 +13,6 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use ship_platform::collections::builtin::annotations_schema;
-use ship_platform::collections::service as collection_service;
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::annotation::AnnotationEvent;
 use ulid::Ulid;
@@ -75,39 +73,29 @@ pub(crate) async fn post_annotation_core(
         },
     });
 
-    let mut data_guard = match state.data_service().await {
-        Ok(g) => g,
+    // Persist to the built-in `annotations` collection via the new service.
+    // The author lives inside the item data (`author_kind`) + the kernel event's
+    // actor/binding — no dedicated `created_by` column (C-2 Gap 1). Ensure the
+    // table exists before insert (the schema is a registry built-in).
+    let svc = state.collections();
+    let row_bytes = match serde_json::to_vec(&row) {
+        Ok(b) => b,
         Err(e) => {
-            return err(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "data_unavailable",
-                &e.to_string(),
-            );
+            return err(StatusCode::INTERNAL_SERVER_ERROR, "serialize_failed", &e.to_string());
         }
     };
-    let data = data_guard.as_mut().expect("data service initialized");
-    let schema = annotations_schema();
-    // Annotations are space content (`collection.item_created` is Space-scoped):
-    // bind the session's resolved space.
-    let space = auth.space_id.clone();
-    if let Err(e) = collection_service::create_item(
-        data,
-        state.kernel(),
-        &schema,
-        space.as_deref(),
-        &ev.id,
-        &row,
-        auth.agent_id.as_deref(),
-    )
-    .await
+    if let Some(schema) = svc.schemas.get("annotations")
+        && let Err(e) = ship_collection::projection::ensure_collection_table(svc.ctx.data(), &schema).await
     {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, "persist_failed", &e.to_string());
+    }
+    if let Err(e) = svc.create_item("annotations", &row_bytes).await {
         return err(
             StatusCode::INTERNAL_SERVER_ERROR,
             "persist_failed",
             &e.to_string(),
         );
     }
-    drop(data_guard);
 
     // Mirror the canonical wire-format event so EventRelay delivers the
     // full `AnnotationEvent` payload to subscribed peers (collection.* fires

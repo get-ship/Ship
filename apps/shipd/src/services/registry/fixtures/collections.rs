@@ -10,7 +10,7 @@
 use serde_json::{json, Value};
 
 use crate::services::registry::collections::{fields_records, fields_tuples, is_builtin};
-use ship_platform::collections::builtin::notes_schema;
+use ship_collection::builtin::notes_schema;
 
 const ITEM_COUNT: usize = 2;
 
@@ -27,7 +27,6 @@ fn item_rows() -> Vec<Value> {
                 "tags": ["design", "tokens"],
                 "category": "design",
             },
-            "created_by": Value::Null,
             "created_at": "2026-01-01T09:00:00Z",
             "updated_at": "2026-01-01T09:30:00Z",
         }),
@@ -40,7 +39,6 @@ fn item_rows() -> Vec<Value> {
                 "tags": ["infra"],
                 "category": "engineering",
             },
-            "created_by": Value::Null,
             "created_at": "2026-01-02T14:00:00Z",
             "updated_at": "2026-01-02T14:10:00Z",
         }),
@@ -52,7 +50,7 @@ fn list_row() -> Value {
     let s = notes_schema();
     json!({
         "id": s.id,
-        "name": s.name,
+        "name": s.title,
         "field_count": s.fields.len(),
         "fields": fields_records(&s),
         "builtin": is_builtin(&s.id),
@@ -68,18 +66,18 @@ pub fn examples() -> Vec<(&'static str, Value)> {
     let s = notes_schema();
     let detail_schema = json!({
         "id": s.id,
-        "name": s.name,
+        "name": s.title,
         "fields": fields_records(&s),
         "builtin": is_builtin(&s.id),
     });
     let state_schema = json!({
         "id": s.id,
-        "name": s.name,
+        "name": s.title,
         "fields": fields_tuples(&s),
     });
     let state_summary = json!({
         "id": s.id,
-        "name": s.name,
+        "name": s.title,
         "field_count": s.fields.len(),
         "fields": fields_tuples(&s),
     });

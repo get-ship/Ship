@@ -88,6 +88,15 @@ fn write_schema(ship_dir: &Path, id: &str) {
     .unwrap();
 }
 
+/// Build a schema registry hydrated from the `.ship/collections/*.jsonc`
+/// overlay — mirrors the daemon's shared-registry hydration (C-2 UD-7) so a
+/// trigger insert into a file-authored collection validates + lands.
+fn hydrated_registry(ship_dir: &Path) -> Arc<ship_collection::projection::SchemaRegistry> {
+    let registry = Arc::new(ship_collection::projection::SchemaRegistry::new());
+    crate::registry::collection_schemas::hydrate_registry(&registry, ship_dir, None);
+    registry
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -251,7 +260,9 @@ async fn triggers_engine_dispatch_results_chain_across_actions() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_engine_dispatch_template_file_is_rendered() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    write_schema(&ship_dir, "notes");
+    // `tasks` is a user (non-reserved) collection authored on the file overlay;
+    // the trigger insert validates against it via the hydrated shared registry.
+    write_schema(&ship_dir, "tasks");
     std::fs::create_dir_all(ship_dir.join("triggers/templates")).unwrap();
     std::fs::write(
         ship_dir.join("triggers/templates/note.j2"),
@@ -266,40 +277,46 @@ async fn triggers_engine_dispatch_template_file_is_rendered() {
             "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "collection.insert",
-                  "collection": "notes",
+                  "collection": "tasks",
                   "template_file": "triggers/templates/note.j2" }
             ]
         }"#,
     );
 
     let kernel = test_kernel(&ship_dir);
-    let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
+    let engine = HookEngine::new(kernel.clone(), ship_dir.clone())
+        .with_schemas(hydrated_registry(&ship_dir));
     engine.reload().await;
     assert_eq!(engine.snapshot().await.len(), 1);
 
     engine.dispatch_event(&run_failed_envelope()).await;
 
-    let mut svc = crate::collections::store::open_data_db(&ship_dir).unwrap();
-    let schema = crate::collections::schema::load_schemas(&ship_dir)
-        .unwrap()
-        .into_iter()
-        .find(|s| s.id == "notes")
-        .unwrap();
-    let items = crate::collections::store::query_items(
-        &mut svc,
-        &schema,
-        &crate::collections::query::QueryRequest {
-            collection: "notes".to_string(),
-            filter: Default::default(),
-            sort: Default::default(),
-            limit: 50,
-            offset: 0,
-        },
-    )
-    .unwrap();
+    // Read the inserted item back via the new collection service over a
+    // SpaceContext (C-2 — the trigger insert routed through ship-collection).
+    let items = read_collection(&kernel, &ship_dir, "tasks").await;
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].data["title"], "job-1");
     assert_eq!(items[0].data["body"], "failed");
+}
+
+/// Query a collection through the new service for verification.
+async fn read_collection(
+    kernel: &std::sync::Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
+    ship_dir: &std::path::Path,
+    collection: &str,
+) -> Vec<ship_collection::types::ItemRecord> {
+    use std::sync::Arc;
+    use ship_substrate::ports::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
+    let data_svc = ship_substrate::data::DataService::open(ship_dir).unwrap();
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, "global"));
+    let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new("global"), store, kernel_log));
+    let svc = ship_collection::service::CollectionService {
+        ctx,
+        schemas: Arc::new(ship_collection::projection::SchemaRegistry::new()),
+    };
+    let q = Query { table: format!("collection_{collection}"), limit: 50, ..Default::default() };
+    svc.query_items_by_query(q).await.unwrap().0
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -346,4 +363,88 @@ fn triggers_engine_filter_build_context_dot_paths() {
         Some(&json!({ "payload.status": "ok" })),
         &ctx
     ));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn triggers_wire_created_schema_visible_to_trigger_insert() {
+    // BLOCKER 1 regression (C-2 UD-7): the trigger engine and the collection
+    // wire must share ONE Arc<SchemaRegistry>. A schema created over the wire
+    // (CollectionService::create_schema — the exact call the wire RPC makes)
+    // must be visible to a trigger `collection.insert`. `wire_notes` is neither
+    // a built-in nor file-authored, so the insert can only succeed if the
+    // engine holds the SAME registry the wire mutated.
+    let (_tmp, ship_dir) = tmp_ship_dir();
+    let kernel = test_kernel(&ship_dir);
+
+    // ONE shared registry — the wire and the engine both hold this Arc.
+    let shared = Arc::new(ship_collection::projection::SchemaRegistry::new());
+    assert!(
+        shared.get("wire_notes").is_none(),
+        "precondition: wire_notes is not a built-in"
+    );
+
+    // Create the schema over the wire path (same registry Arc the daemon mounts
+    // CollectionWire::with_schemas with).
+    create_schema_over_wire(&kernel, &ship_dir, &shared, "wire_notes").await;
+    assert!(
+        shared.get("wire_notes").is_some(),
+        "wire create_schema must land in the shared registry"
+    );
+
+    write_hook(
+        &ship_dir,
+        "record.jsonc",
+        r#"{
+            "name": "record",
+            "trigger": { "event": "pipeline.run.failed" },
+            "actions": [
+                { "type": "collection.insert",
+                  "collection": "wire_notes",
+                  "data": { "title": "{{ event.entity_id }}", "body": "failed", "status": "open" } }
+            ]
+        }"#,
+    );
+
+    // Engine holds the SAME shared registry — proves the wiring, not a re-hydrate.
+    let engine = HookEngine::new(kernel.clone(), ship_dir.clone())
+        .with_schemas(shared.clone());
+    engine.reload().await;
+    assert_eq!(engine.snapshot().await.len(), 1);
+
+    engine.dispatch_event(&run_failed_envelope()).await;
+
+    let items = read_collection(&kernel, &ship_dir, "wire_notes").await;
+    assert_eq!(items.len(), 1, "trigger insert must land via the shared schema");
+    assert_eq!(items[0].data["title"], "job-1");
+    assert_eq!(items[0].data["body"], "failed");
+}
+
+/// Create a schema through the collection service over the shared registry —
+/// the same `create_schema` call the collection wire RPC makes.
+async fn create_schema_over_wire(
+    kernel: &std::sync::Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
+    ship_dir: &std::path::Path,
+    schemas: &Arc<ship_collection::projection::SchemaRegistry>,
+    id: &str,
+) {
+    use std::sync::Arc;
+    use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+    let data_svc = ship_substrate::data::DataService::open(ship_dir).unwrap();
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, "global"));
+    let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new("global"), store, kernel_log));
+    let svc = ship_collection::service::CollectionService {
+        ctx,
+        schemas: schemas.clone(),
+    };
+    let schema_json = serde_json::to_vec(&json!({
+        "id": id,
+        "fields": {
+            "title": { "type": "string" },
+            "body": { "type": "markdown" },
+            "status": { "type": "string" }
+        }
+    }))
+    .unwrap();
+    svc.create_schema(id, &schema_json).await.unwrap();
 }

@@ -13,7 +13,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::views::chat_state::ChatMessage;
-use ship_platform::artifacts::ArtifactRecord;
+use ship_artifacts::types::ArtifactRecord;
 use ship_platform::services::git::diff::ParsedDiff;
 use ship_platform::services::git::state::{BranchSummary, CommitSummary, StatusFile};
 use ship_platform::services::pipelines::state as pipelines_state;
@@ -192,7 +192,6 @@ pub struct CollectionFieldRecord {
     pub field_type: String,
     pub required: bool,
     pub values: Option<Vec<String>>,
-    pub default: Option<Value>,
 }
 
 /// One row of `ship.collections.list()` — schema metadata + per-collection

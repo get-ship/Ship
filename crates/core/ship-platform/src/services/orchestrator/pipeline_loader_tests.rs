@@ -273,46 +273,6 @@ fn promotes_invalid_scope_transition_fails_at_load() {
 }
 
 #[test]
-fn promotes_run_to_user_fails_at_load() {
-    // User-scope targets blocked until cloud/auth lands. Loader must reject
-    // so pipelines can't claim a transition the executor can't perform.
-    let mut payload = base_payload("coder");
-    let mut step = agent_step("gate", "reviewer");
-    step.produces = vec![StepOutput {
-        name: "patch".into(),
-        scope: OutputScope::Run,
-        required: false,
-    }];
-    step.promotes = vec![StepPromote {
-        name: "patch".into(),
-        target_scope: OutputScope::User,
-    }];
-    payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
-    let err = ensure_pipeline(payload).expect_err("Run→User promote must fail at load");
-    assert!(err.to_lowercase().contains("user") && err.to_lowercase().contains("auth"),
-        "error must name the missing auth dependency: {err}");
-}
-
-#[test]
-fn promotes_project_to_user_fails_at_load() {
-    let mut payload = base_payload("coder");
-    let mut step = agent_step("gate", "reviewer");
-    step.produces = vec![StepOutput {
-        name: "patch".into(),
-        scope: OutputScope::Project,
-        required: false,
-    }];
-    step.promotes = vec![StepPromote {
-        name: "patch".into(),
-        target_scope: OutputScope::User,
-    }];
-    payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
-    let err = ensure_pipeline(payload).expect_err("Project→User promote must fail at load");
-    assert!(err.to_lowercase().contains("user"),
-        "error must name the blocker: {err}");
-}
-
-#[test]
 fn produces_name_with_path_traversal_fails_at_load() {
     // Security: a pipeline that declares a produces.name containing "../"
     // must be rejected at load time. Otherwise `input_dir.join(name)` in

@@ -41,6 +41,11 @@ pub struct HookEngine {
     /// External source adapters. `None` when the engine is created without
     /// source support (e.g. in tests that only exercise the internal-event path).
     sources: Option<Arc<SourceManager>>,
+    /// Shared collection schema registry. Defaults to a fresh registry seeded
+    /// with built-ins; the daemon injects the runtime's SHARED registry via
+    /// `with_schemas` so a wire-created schema is visible to a trigger insert
+    /// (C-2 UD-7).
+    schemas: Arc<ship_collection::projection::SchemaRegistry>,
 }
 
 impl HookEngine {
@@ -50,6 +55,7 @@ impl HookEngine {
             ship_dir,
             hooks: Arc::new(RwLock::new(HashMap::new())),
             sources: None,
+            schemas: Arc::new(ship_collection::projection::SchemaRegistry::new()),
         }
     }
 
@@ -63,7 +69,18 @@ impl HookEngine {
             ship_dir,
             hooks: Arc::new(RwLock::new(HashMap::new())),
             sources: Some(sources),
+            schemas: Arc::new(ship_collection::projection::SchemaRegistry::new()),
         }
+    }
+
+    /// Inject the daemon's shared collection schema registry so trigger inserts
+    /// see schemas created over the collection wire (C-2 UD-7).
+    pub fn with_schemas(
+        mut self,
+        schemas: Arc<ship_collection::projection::SchemaRegistry>,
+    ) -> Self {
+        self.schemas = schemas;
+        self
     }
 
     pub fn ship_dir(&self) -> &Path {
@@ -162,6 +179,7 @@ impl HookEngine {
             let action_ctx = ActionCtx {
                 kernel: &self.kernel,
                 ship_dir: &self.ship_dir,
+                schemas: &self.schemas,
                 trigger_event_id: &envelope.id,
                 trigger_space: envelope.space_id(),
                 hook_name: &hook.name,
@@ -242,18 +260,22 @@ impl ServiceHandler for HookService {
 
 /// Spawn the hook service on the kernel with source adapters enabled.
 /// Reloads the hook set once before returning so hooks are live immediately.
+///
+/// `schemas` is the daemon's ONE shared collection schema registry (the same
+/// `Arc` the collection wire is mounted with). Threading it here is what makes
+/// a wire-created user schema visible to a trigger insert (C-2 UD-7).
 pub async fn spawn_hook_service(
     kernel: Arc<Mutex<KernelRouter>>,
     ship_dir: PathBuf,
+    schemas: Arc<ship_collection::projection::SchemaRegistry>,
 ) -> Result<Arc<HookEngine>> {
     let source_mgr = Arc::new(SourceManager::new(ship_dir.clone()));
     source_mgr.start_all(kernel.clone());
 
-    let engine = Arc::new(HookEngine::new_with_sources(
-        kernel.clone(),
-        ship_dir,
-        source_mgr,
-    ));
+    let engine = Arc::new(
+        HookEngine::new_with_sources(kernel.clone(), ship_dir, source_mgr)
+            .with_schemas(schemas),
+    );
     engine.reload().await;
 
     let runtime = tokio::runtime::Handle::current();

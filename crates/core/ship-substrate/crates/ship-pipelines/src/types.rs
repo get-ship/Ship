@@ -43,8 +43,6 @@ pub enum OutputScope {
     Run,
     /// Persistent project-level artifact.
     Project,
-    /// Persistent user-personal artifact.
-    User,
 }
 
 /// A named output produced by a pipeline step.
@@ -67,7 +65,8 @@ pub struct StepOutput {
 pub struct StepPromote {
     /// Must match a `produces.name` on this step.
     pub name: String,
-    /// Valid transitions: Run→Project, Run→User, Project→User.
+    /// Valid transitions: Run→Project. (A personal/account scope returns later
+    /// as Account; there is no promote-to-global paradigm.)
     pub target_scope: OutputScope,
 }
 

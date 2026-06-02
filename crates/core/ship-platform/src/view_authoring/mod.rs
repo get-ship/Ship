@@ -21,6 +21,6 @@ pub use capability::{
 };
 pub use snapshot::{
     VIEW_SNAPSHOTS_COLLECTION_ID, delete_snapshot, ensure_view_snapshots_collection,
-    list_snapshots, read_snapshot, snapshot_view, view_snapshots_schema,
+    list_snapshots, read_snapshot, snapshot_view, space_context_for, view_snapshots_schema,
 };
 pub use types::*;

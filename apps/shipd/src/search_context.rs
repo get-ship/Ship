@@ -8,7 +8,7 @@
 use std::collections::HashSet;
 
 use async_trait::async_trait;
-use ship_platform::collections::query::QueryRequest;
+use ship_substrate::ports::Query;
 use ship_search::SearchContext;
 use ship_search::adapters::{
     agents::AgentSnapshot,
@@ -72,10 +72,10 @@ impl SearchContext for ShipdSearchContext {
     fn collections(&self) -> Vec<CollectionSnapshot> {
         self.state
             .collections()
-            .list_user_schemas()
-            .unwrap_or_default()
+            .list()
             .into_iter()
-            .map(|s| CollectionSnapshot { id: s.id, name: s.name })
+            .filter(|s| !s.system)
+            .map(|s| CollectionSnapshot { id: s.id, name: s.title })
             .collect()
     }
 
@@ -151,20 +151,16 @@ impl SearchContext for ShipdSearchContext {
     }
 
     async fn collection_items(&self) -> Vec<CollectionItemSnapshot> {
-        let schemas = self.state.collections().list_user_schemas().unwrap_or_default();
+        let svc = self.state.collections();
+        let schemas: Vec<_> = svc.list().into_iter().filter(|s| !s.system).collect();
         let mut out: Vec<CollectionItemSnapshot> = Vec::new();
         for schema in schemas {
-            if schema.id == ship_platform::artifacts::ARTIFACTS_COLLECTION_ID {
-                continue;
-            }
-            let req = QueryRequest {
-                collection: schema.id.clone(),
-                filter: std::collections::BTreeMap::new(),
-                sort: std::collections::BTreeMap::new(),
+            let q = Query {
+                table: format!("collection_{}", schema.id),
                 limit: ITEMS_PER_COLLECTION_CAP,
-                offset: 0,
+                ..Default::default()
             };
-            let Ok(items) = self.state.collections().query_items(&schema.id, req).await else {
+            let Ok((items, _)) = svc.query_items_by_query(q).await else {
                 continue;
             };
             for item in items {
@@ -174,7 +170,8 @@ impl SearchContext for ShipdSearchContext {
                     .or_else(|| item.data.get("name"))
                     .and_then(|v| v.as_str())
                     .map(str::to_string);
-                let searchable_text = stringify_data(&item.data);
+                let searchable_text =
+            stringify_data(&serde_json::Value::Object(item.data.clone()));
                 out.push(CollectionItemSnapshot {
                     collection_id: schema.id.clone(),
                     item_id: item.id,
@@ -187,16 +184,9 @@ impl SearchContext for ShipdSearchContext {
     }
 
     async fn artifacts(&self) -> Vec<ArtifactSnapshot> {
-        let req = QueryRequest {
-            collection: ship_platform::artifacts::ARTIFACTS_COLLECTION_ID.to_string(),
-            filter: std::collections::BTreeMap::new(),
-            sort: std::collections::BTreeMap::new(),
-            limit: 200,
-            offset: 0,
-        };
         self.state
             .artifacts()
-            .list(req)
+            .list(std::collections::BTreeMap::new(), 200)
             .await
             .unwrap_or_default()
             .into_iter()

@@ -1,8 +1,10 @@
 //! Single-source `artifacts.*` ops — descriptors + dispatch via `ship_ops!`.
 //!
-//! Sync mirror of the async `ArtifactsService::list` surface — opens the data
-//! DB directly the same way `collections.list` does, so the registry call
-//! doesn't need to bounce through the tokio runtime.
+//! Reads route through the `ship-artifacts` service over the daemon's global
+//! `SpaceContext` (C-2). The registry op is sync, so the async `list` bridges
+//! via `block_in_place` + the current runtime handle. `sort`/`offset` are
+//! dropped (C-2 Gap 2) — the only caller hardcoded `-created_at`, which the
+//! ULID-ordered projection already yields newest-first.
 
 use std::collections::BTreeMap;
 
@@ -26,9 +28,7 @@ ship_ops! {
             ArgDescriptor { name: "item_id", kind: "string?", required: false },
             ArgDescriptor { name: "owner_actor", kind: "string?", required: false },
             ArgDescriptor { name: "content_hash", kind: "string?", required: false },
-            ArgDescriptor { name: "sort", kind: "string?", required: false },
             ArgDescriptor { name: "limit", kind: "number?", required: false },
-            ArgDescriptor { name: "offset", kind: "number?", required: false },
         ],
         ret: ArtifactsListResponse,
         run: |args, state, _files| {
@@ -40,27 +40,12 @@ ship_ops! {
                     filter.insert(key.into(), Value::String(v.to_string()));
                 }
             }
-            let mut sort: BTreeMap<String, i8> = BTreeMap::new();
-            let s = args.get("sort").and_then(|v| v.as_str()).unwrap_or("-created_at");
-            let (field, dir) = if let Some(rest) = s.strip_prefix('-') { (rest, -1i8) } else { (s, 1i8) };
-            if !field.is_empty() {
-                sort.insert(field.to_string(), dir);
-            }
             let limit = optional_usize(args, "limit", 50) as u32;
-            let offset = optional_usize(args, "offset", 0) as u32;
-            let req = ship_platform::collections::query::QueryRequest {
-                collection: ship_platform::artifacts::ARTIFACTS_COLLECTION_ID.to_string(),
-                filter,
-                sort,
-                limit,
-                offset,
-            };
-            let mut svc = ship_platform::collections::store::open_data_db(state.ship_dir())
-                .map_err(|e| RegistryError::service(e.to_string()))?;
-            let runtime = ship_platform::artifacts::ArtifactService::new(state.ship_dir());
-            let items = runtime
-                .list(&mut svc, req)
-                .map_err(|e| RegistryError::service(e.to_string()))?;
+            let svc = state.artifacts();
+            let items = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(svc.list(filter, limit))
+            })
+            .map_err(|e| RegistryError::service(e.to_string()))?;
             let count = items.len();
             Ok(ArtifactsListResponse { items, count, scope })
         },

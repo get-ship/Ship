@@ -118,9 +118,9 @@ pub fn collect_types() -> TypeCollection {
     // events/filter.rs
     c.register::<ship_substrate::events::filter::EventFilter>();
 
-    // collections/schema.rs — collection field-definition types (nested schemas)
-    c.register::<ship_platform::collections::schema::FieldDef>();
-    c.register::<ship_platform::collections::schema::FieldType>();
+    // collection field-definition types are NOT specta-exported in the new
+    // ship-collection crate (post-#81 specta removal from domain types); the
+    // wire/proto types are the registered surface now (C-2 §3.8).
 
     // workspace/types_session.rs (the workspace primitive retired; only
     // session-shaped types remain)
@@ -214,8 +214,9 @@ pub fn collect_ship_data_types() -> TypeCollection {
     c.register::<ship_platform::account::types::AccountState>();
     c.register::<ship_platform::account::types::MeView>();
 
-    // artifacts — metadata record (was hand-written in ship-sdk.ts).
-    c.register::<ship_platform::artifacts::ArtifactRecord>();
+    // artifacts — the new `ship_artifacts::types::ArtifactRecord` is not
+    // specta-exported (post-#81); the proto wire type is the registered surface
+    // (C-2 §3.8). The daemon `ArtifactsListResponse` carries the proto shape.
 
     // skills — index row. `#[specta(rename = "SkillIndexEntry")]` on the Rust
     // struct disambiguates it from the other domains' IndexEntry.

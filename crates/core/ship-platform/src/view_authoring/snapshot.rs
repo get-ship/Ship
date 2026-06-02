@@ -11,71 +11,84 @@
 //! doesn't need a migration when it lands.
 
 use anyhow::{Context, Result, anyhow};
-use std::collections::BTreeMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use indexmap::IndexMap;
 
-use crate::artifacts::{ArtifactScope, ArtifactService, sha256_hex};
-use crate::collections::query::QueryRequest;
-use crate::collections::schema::{CollectionSchema, FieldDef, FieldType};
-use crate::collections::service as collection_service;
-use crate::collections::store;
-use ship_substrate::data::DataService;
-use ship_substrate::events::KernelRouter;
+use ship_artifacts::service::ArtifactService;
+use ship_artifacts::types::ArtifactScope;
+use ship_collection::projection::{SchemaRegistry, ensure_collection_table};
+use ship_collection::service::CollectionService;
+use ship_collection::types::{FieldDef, FieldKind, SchemaDoc};
+use ship_substrate::ports::{
+    KernelLog, Predicate, Query, SingleBackendDataStore, Sort, SpaceContext, SpaceId,
+};
+use ship_types::sha256_hex;
 
 use super::types::SnapshotMeta;
 
 /// ID of the built-in `view_snapshots` collection.
 pub const VIEW_SNAPSHOTS_COLLECTION_ID: &str = "view_snapshots";
 
-fn def(field_type: FieldType, required: bool, filterable: bool) -> FieldDef {
-    FieldDef {
-        field_type,
-        required,
-        filterable,
-        default: None,
-        values: None,
-        items: None,
-        properties: None,
-        required_keys: None,
-    }
+fn def(field_type: FieldKind, required: bool) -> FieldDef {
+    FieldDef { kind: field_type, required, values: None }
 }
 
 /// Schema mirrors the contract block in `view-authoring-contract.md`.
-pub fn view_snapshots_schema() -> CollectionSchema {
+pub fn view_snapshots_schema() -> SchemaDoc {
     let mut fields: IndexMap<String, FieldDef> = IndexMap::new();
-    fields.insert("view_name".into(), def(FieldType::String, true, true));
-    fields.insert("turn_id".into(), def(FieldType::String, true, true));
-    fields.insert("agent_id".into(), def(FieldType::String, true, true));
-    fields.insert("label".into(), def(FieldType::String, false, false));
-    fields.insert("content_hash".into(), def(FieldType::String, true, true));
-    fields.insert("size_bytes".into(), def(FieldType::Number, true, false));
-    fields.insert(
-        "is_full".into(),
-        FieldDef {
-            default: Some(serde_json::Value::Bool(true)),
-            ..def(FieldType::Boolean, true, false)
-        },
-    );
+    fields.insert("view_name".into(), def(FieldKind::String, true));
+    fields.insert("turn_id".into(), def(FieldKind::String, true));
+    fields.insert("agent_id".into(), def(FieldKind::String, true));
+    fields.insert("label".into(), def(FieldKind::String, false));
+    fields.insert("content_hash".into(), def(FieldKind::String, true));
+    fields.insert("size_bytes".into(), def(FieldKind::Number, true));
+    // v1: every snapshot is `is_full = true` (written explicitly below); diff
+    // storage is a future optimisation, so the field is kept on the schema.
+    fields.insert("is_full".into(), def(FieldKind::Boolean, true));
     // The artifact id holding the blob — looked up by `read_snapshot`.
-    fields.insert("artifact_id".into(), def(FieldType::String, true, true));
+    fields.insert("artifact_id".into(), def(FieldKind::String, true));
     // Project that owns the snapshot, used to scope the underlying artifact.
-    fields.insert("space_id".into(), def(FieldType::String, true, true));
+    // Named `scope_space` (not `space_id`) because `SingleBackendDataStore`
+    // auto-adds a `space_id` partition column — a `space_id` field would
+    // collide in the CREATE TABLE.
+    fields.insert("scope_space".into(), def(FieldKind::String, true));
 
-    CollectionSchema {
+    SchemaDoc {
         id: VIEW_SNAPSHOTS_COLLECTION_ID.to_string(),
-        name: Some("View Snapshots".to_string()),
-        fields,
+        title: Some("View Snapshots".to_string()),
         system: true,
+        fields,
     }
 }
 
+/// A `CollectionService` whose registry contains the `view_snapshots` schema —
+/// the snapshot collection is system-internal (no wire creates it), so it owns
+/// its own registry rather than sharing the daemon's.
+fn collection_service(ctx: Arc<SpaceContext>) -> CollectionService {
+    let registry = SchemaRegistry::new();
+    registry.insert(view_snapshots_schema());
+    CollectionService { ctx, schemas: Arc::new(registry) }
+}
+
+/// Build a `SpaceContext` over the daemon DataStore for the given space.
+pub fn space_context_for(
+    kernel: ship_substrate::access::SharedKernel,
+    ship_dir: &std::path::Path,
+    space_id: &str,
+) -> Arc<SpaceContext> {
+    let data_svc = ship_substrate::data::DataService::open(ship_dir)
+        .expect("view_authoring: open data.db");
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
+    let kernel_log = Arc::new(KernelLog::new(kernel));
+    Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel_log))
+}
+
 /// Ensure the `view_snapshots` collection table exists. Idempotent.
-pub fn ensure_view_snapshots_collection(svc: &mut DataService) -> Result<()> {
-    store::ensure_collection_table(svc, &view_snapshots_schema())?;
-    Ok(())
+pub async fn ensure_view_snapshots_collection(ctx: &SpaceContext) -> Result<()> {
+    ensure_collection_table(ctx.data(), &view_snapshots_schema())
+        .await
+        .map_err(|e| anyhow!("ensure view_snapshots table: {e}"))
 }
 
 /// Persist a snapshot of `source` for `view_name` and return its metadata.
@@ -85,8 +98,7 @@ pub fn ensure_view_snapshots_collection(svc: &mut DataService) -> Result<()> {
 /// 2. Inserts a `view_snapshots` row pointing at that artifact.
 /// 3. Reads back the row's `created_at` to build the returned `SnapshotMeta`.
 pub async fn snapshot_view(
-    svc: &mut DataService,
-    kernel: &Arc<Mutex<KernelRouter>>,
+    ctx: Arc<SpaceContext>,
     artifacts: &ArtifactService,
     space_id: &str,
     view_name: &str,
@@ -95,7 +107,7 @@ pub async fn snapshot_view(
     agent_id: &str,
     label: Option<&str>,
 ) -> Result<SnapshotMeta> {
-    ensure_view_snapshots_collection(svc)?;
+    ensure_view_snapshots_collection(&ctx).await?;
 
     let bytes = source.as_bytes();
     let content_hash = sha256_hex(bytes);
@@ -104,8 +116,6 @@ pub async fn snapshot_view(
     };
     let artifact = artifacts
         .store(
-            svc,
-            kernel,
             &format!("view_snapshot:{view_name}"),
             "text/x-sui",
             bytes,
@@ -118,7 +128,6 @@ pub async fn snapshot_view(
         .await
         .context("persisting snapshot artifact blob")?;
 
-    let snapshot_id = ship_substrate::gen_ulid();
     let row = serde_json::json!({
         "view_name": view_name,
         "turn_id": turn_id,
@@ -128,23 +137,17 @@ pub async fn snapshot_view(
         "size_bytes": bytes.len() as u64,
         "is_full": true,
         "artifact_id": artifact.id,
-        "space_id": space_id,
+        "scope_space": space_id,
     });
-    let schema = view_snapshots_schema();
-    let item = collection_service::create_item(
-        svc,
-        kernel,
-        &schema,
-        Some(space_id),
-        &snapshot_id,
-        &row,
-        Some(agent_id),
-    )
-    .await
-    .context("inserting view_snapshots metadata row")?;
+    let row_bytes = serde_json::to_vec(&row).context("serializing view_snapshots row")?;
+    let svc = collection_service(ctx);
+    let item = svc
+        .create_item(VIEW_SNAPSHOTS_COLLECTION_ID, &row_bytes)
+        .await
+        .context("inserting view_snapshots metadata row")?;
 
     Ok(SnapshotMeta {
-        snapshot_id: snapshot_id.clone(),
+        snapshot_id: item.id,
         view_name: view_name.to_string(),
         turn_id: turn_id.to_string(),
         agent_id: agent_id.to_string(),
@@ -154,40 +157,44 @@ pub async fn snapshot_view(
     })
 }
 
-/// List snapshots for a view, newest first. Cursor is the snapshot_id of the
+/// List snapshots for a view, newest first. Cursor is the `created_at` of the
 /// last item from the previous page; pass `None` for the first page.
-pub fn list_snapshots(
-    svc: &mut DataService,
+///
+/// The `ports::Query.after` cursor is ascending-id only, but this list pages
+/// newest-first. So we sort by `created_at` descending and carry the last
+/// row's `created_at` as a `<` predicate cursor (C-2 Gap 6). `created_at` is
+/// rfc3339 (lexically sortable) and snapshots are monotonic, so this is a
+/// stable strictly-older cursor.
+pub async fn list_snapshots(
+    ctx: Arc<SpaceContext>,
     view_name: &str,
     limit: u32,
     cursor: Option<&str>,
 ) -> Result<(Vec<SnapshotMeta>, Option<String>)> {
-    ensure_view_snapshots_collection(svc)?;
-    let mut filter: BTreeMap<String, serde_json::Value> = BTreeMap::new();
-    filter.insert(
-        "view_name".into(),
+    ensure_view_snapshots_collection(&ctx).await?;
+    let mut filters = vec![Predicate::eq(
+        "view_name",
         serde_json::Value::String(view_name.to_string()),
-    );
+    )];
     if let Some(c) = cursor {
-        // Cursor is the snapshot_id (ULID) of the last item on the prior
-        // page. gen_ulid is monotonic, so id__lt cursor selects strictly
-        // older rows — the next page when sorted descending.
-        filter.insert(
-            "id__lt".into(),
-            serde_json::Value::String(c.to_string()),
-        );
+        filters.push(Predicate {
+            column: "created_at".into(),
+            op: ship_substrate::ports::FilterOp::Lt,
+            value: serde_json::Value::String(c.to_string()),
+        });
     }
-    let mut sort: BTreeMap<String, i8> = BTreeMap::new();
-    sort.insert("created_at".into(), -1);
-    let req = QueryRequest {
-        collection: VIEW_SNAPSHOTS_COLLECTION_ID.to_string(),
-        filter,
-        sort,
+    let q = Query {
+        table: format!("collection_{VIEW_SNAPSHOTS_COLLECTION_ID}"),
+        filters,
+        sort: Some(Sort { column: "created_at".into(), descending: true }),
         limit,
-        offset: 0,
+        after: None,
     };
-    let schema = view_snapshots_schema();
-    let items = collection_service::query_items(svc, &schema, &req)?;
+    let svc = collection_service(ctx);
+    let (items, _next) = svc
+        .query_items_by_query(q)
+        .await
+        .map_err(|e| anyhow!("list view snapshots: {e}"))?;
     let mut out = Vec::with_capacity(items.len());
     for item in &items {
         let d = &item.data;
@@ -218,7 +225,7 @@ pub fn list_snapshots(
         });
     }
     let next_cursor = if items.len() == limit as usize {
-        items.last().map(|it| it.id.clone())
+        items.last().map(|it| it.created_at.clone())
     } else {
         None
     };
@@ -226,23 +233,26 @@ pub fn list_snapshots(
 }
 
 /// Read a snapshot's source bytes back out, decoded as UTF-8.
-pub fn read_snapshot(
-    svc: &mut DataService,
+pub async fn read_snapshot(
+    ctx: Arc<SpaceContext>,
     artifacts: &ArtifactService,
     snapshot_id: &str,
 ) -> Result<String> {
-    ensure_view_snapshots_collection(svc)?;
-    let schema = view_snapshots_schema();
-    let item = collection_service::get_item(svc, &schema, snapshot_id)?
-        .ok_or_else(|| anyhow!("view snapshot '{snapshot_id}' not found"))?;
+    ensure_view_snapshots_collection(&ctx).await?;
+    let svc = collection_service(ctx);
+    let item = svc
+        .get_item(VIEW_SNAPSHOTS_COLLECTION_ID, snapshot_id)
+        .await
+        .map_err(|_| anyhow!("view snapshot '{snapshot_id}' not found"))?;
     let artifact_id = item
         .data
         .get("artifact_id")
         .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow!("view snapshot '{snapshot_id}' missing artifact_id"))?;
     let (_, bytes) = artifacts
-        .get(svc, artifact_id)?
-        .ok_or_else(|| anyhow!("view snapshot '{snapshot_id}' blob missing"))?;
+        .get_blob(artifact_id)
+        .await
+        .map_err(|_| anyhow!("view snapshot '{snapshot_id}' blob missing"))?;
     String::from_utf8(bytes)
         .with_context(|| format!("snapshot '{snapshot_id}' bytes are not valid UTF-8"))
 }
@@ -251,34 +261,26 @@ pub fn read_snapshot(
 /// when the snapshot didn't exist. Used by the atomic `view.write_source`
 /// path when compile fails after a fresh snapshot was taken.
 pub async fn delete_snapshot(
-    svc: &mut DataService,
-    kernel: &Arc<Mutex<KernelRouter>>,
+    ctx: Arc<SpaceContext>,
     artifacts: &ArtifactService,
     snapshot_id: &str,
 ) -> Result<bool> {
-    ensure_view_snapshots_collection(svc)?;
-    let schema = view_snapshots_schema();
-    let Some(item) = collection_service::get_item(svc, &schema, snapshot_id)? else {
-        return Ok(false);
+    ensure_view_snapshots_collection(&ctx).await?;
+    let svc = collection_service(ctx);
+    let item = match svc.get_item(VIEW_SNAPSHOTS_COLLECTION_ID, snapshot_id).await {
+        Ok(item) => item,
+        Err(_) => return Ok(false),
     };
     let artifact_id = item
         .data
         .get("artifact_id")
         .and_then(|v| v.as_str())
         .map(str::to_string);
-    let space = item.data.get("space_id").and_then(|v| v.as_str()).map(str::to_string);
-    let removed = collection_service::delete_item(
-        svc,
-        kernel,
-        VIEW_SNAPSHOTS_COLLECTION_ID,
-        space.as_deref(),
-        snapshot_id,
-    )
-    .await?;
-    if removed
-        && let Some(aid) = artifact_id
-    {
-        let _ = artifacts.delete(svc, kernel, &aid).await;
+    svc.delete_item(VIEW_SNAPSHOTS_COLLECTION_ID, snapshot_id)
+        .await
+        .map_err(|e| anyhow!("delete view snapshot '{snapshot_id}': {e}"))?;
+    if let Some(aid) = artifact_id {
+        let _ = artifacts.delete(&aid).await;
     }
-    Ok(removed)
+    Ok(true)
 }

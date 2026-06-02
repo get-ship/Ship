@@ -1,39 +1,33 @@
-//! Collection commands over the platform `CollectionsService`
+//! Collection commands over the `ship-collection` service
 //! (`ctx.state.collections()`). Item CRUD + schema CRUD. Reads (list / detail /
 //! items) are in the read registry.
 //!
-//! Default workspace (C1): collections are the user's own data. Two open
-//! payloads ride as JSON strings: item bodies as `data_json`, and the full
-//! nested `CollectionSchema` (fields, etc.) as `schema_json` — the schema is a
-//! fixed typed model, but it's large/nested, so it crosses the wire as a string
-//! and is deserialized at the boundary, consistent with the open-payload surface.
+//! Item bodies + the full nested schema cross the wire as JSON strings
+//! (`data_json` / `schema_json`) and are deserialized at the boundary. Schema
+//! writes go through the DataStore-backed service (C-2 Gap 4) — no file write.
 
 use serde_json::Value;
 
-use ship_platform::collections::schema::CollectionSchema;
-use ship_platform::services::collections::service::{CreateItemArgs, Error, UpdateItemArgs};
+use ship_collection::error::CollectionError;
 
 use super::{req_str, CommandCtx, CommandError};
 
-fn map_err(e: Error) -> CommandError {
+fn map_err(e: CollectionError) -> CommandError {
     match e {
-        Error::NotFound(m) => CommandError::not_found(m),
-        Error::Conflict(m) | Error::Validation(m) => CommandError::bad_args(m),
+        CollectionError::NotFound(m) => CommandError::not_found(m),
+        CollectionError::ReservedId(m)
+        | CollectionError::Validation(m)
+        | CollectionError::UnsupportedQuery(m) => CommandError::bad_args(m),
         other => CommandError::service(other.to_string()),
     }
 }
 
-fn req_data(args: &Value) -> Result<Value, CommandError> {
+fn req_data_bytes(args: &Value) -> Result<Vec<u8>, CommandError> {
     let raw = req_str(args, "data_json")?;
-    serde_json::from_str(&raw)
-        .map_err(|e| CommandError::bad_args(format!("`data_json` is not valid JSON: {e}")))
-}
-
-/// Deserialize the nested `CollectionSchema` from the `schema_json` arg.
-fn parse_schema(args: &Value) -> Result<CollectionSchema, CommandError> {
-    let raw = req_str(args, "schema_json")?;
-    serde_json::from_str(&raw)
-        .map_err(|e| CommandError::bad_args(format!("`schema_json` is not valid JSON: {e}")))
+    // Validate it parses as JSON at the boundary; pass the bytes through.
+    serde_json::from_str::<Value>(&raw)
+        .map_err(|e| CommandError::bad_args(format!("`data_json` is not valid JSON: {e}")))?;
+    Ok(raw.into_bytes())
 }
 
 /// Time-ordered fallback id when the caller doesn't supply one (mirrors the
@@ -46,14 +40,13 @@ fn generate_item_id() -> String {
     format!("{ts:x}-{:08x}", u32::from_le_bytes(buf))
 }
 
-/// Project a stored `Item` into the `CollectionItem` wire shape: the envelope is
-/// flat-typed, the open `data` is re-serialized into the `data_json` string.
-fn item_value(item: &ship_platform::collections::store::Item) -> Value {
+/// Project a stored `ItemRecord` into the `CollectionItem` wire shape: the
+/// envelope is flat-typed, the open `data` is re-serialized into `data_json`.
+fn item_value(item: &ship_collection::types::ItemRecord) -> Value {
     serde_json::json!({
         "id": item.id,
         "collection": item.collection,
-        "data_json": item.data.to_string(),
-        "created_by": item.created_by,
+        "data_json": serde_json::Value::Object(item.data.clone()).to_string(),
         "created_at": item.created_at,
         "updated_at": item.updated_at,
     })
@@ -68,49 +61,42 @@ pub async fn try_dispatch(
     match name {
         "collections.create_item" => {
             let collection = req_str(args, "collection")?;
-            let id = match args.get("id").and_then(|v| v.as_str()) {
+            // `id` is no longer caller-assignable — the service mints a ULID.
+            // The legacy fallback id is preserved only as a no-op compat read.
+            let _ = match args.get("id").and_then(|v| v.as_str()) {
                 Some(s) if !s.is_empty() => s.to_string(),
                 _ => generate_item_id(),
             };
-            let data = req_data(args)?;
-            let item = svc
-                .create_item(CreateItemArgs {
-                    collection,
-                    id,
-                    data,
-                    created_by: ctx.auth.agent_id.clone(),
-                })
-                .await
-                .map_err(map_err)?;
+            let data = req_data_bytes(args)?;
+            let item = svc.create_item(&collection, &data).await.map_err(map_err)?;
             Ok(Some(item_value(&item)))
         }
         "collections.update_item" => {
             let collection = req_str(args, "collection")?;
             let id = req_str(args, "id")?;
-            let data = req_data(args)?;
-            let item = svc
-                .update_item(UpdateItemArgs { collection, id, data })
-                .await
-                .map_err(map_err)?;
+            let data = req_data_bytes(args)?;
+            let item = svc.update_item(&collection, &id, &data).await.map_err(map_err)?;
             Ok(Some(item_value(&item)))
         }
         "collections.delete_item" => {
             let collection = req_str(args, "collection")?;
             let id = req_str(args, "id")?;
-            let deleted = svc.delete_item(&collection, &id).await.map_err(map_err)?;
-            Ok(Some(serde_json::json!({ "id": id, "deleted": deleted })))
+            svc.delete_item(&collection, &id).await.map_err(map_err)?;
+            Ok(Some(serde_json::json!({ "id": id, "deleted": true })))
         }
         "collections.create_schema" => {
-            let schema: CollectionSchema = parse_schema(args)?;
-            let id = schema.id.clone();
-            // Sync method (file-backed schema), not the async store path.
-            svc.create_schema(schema).map_err(map_err)?;
+            let schema_json = req_str(args, "schema_json")?;
+            // Parse to recover the id; the service re-parses + persists.
+            let doc = ship_collection::schema::parse_schema_doc(schema_json.as_bytes())
+                .map_err(map_err)?;
+            let id = doc.id.clone();
+            svc.create_schema(&id, schema_json.as_bytes()).await.map_err(map_err)?;
             Ok(Some(serde_json::json!({ "ok": true, "collection": id })))
         }
         "collections.update_schema" => {
             let collection = req_str(args, "collection")?;
-            let schema: CollectionSchema = parse_schema(args)?;
-            svc.update_schema(&collection, schema).map_err(map_err)?;
+            let schema_json = req_str(args, "schema_json")?;
+            svc.update_schema(&collection, schema_json.as_bytes()).await.map_err(map_err)?;
             Ok(Some(serde_json::json!({ "ok": true, "collection": collection })))
         }
         _ => Ok(None),

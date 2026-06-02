@@ -9,7 +9,9 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::artifacts::{ArtifactScope, ArtifactService};
+use ship_artifacts::service::ArtifactService;
+use ship_artifacts::types::ArtifactScope;
+use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 use ship_substrate::events::pipeline::{
     PipelineStepDoneDeclaredPayload, PipelineStepObservedPayload, StepVerdict, event_types,
 };
@@ -107,17 +109,20 @@ pub(crate) async fn emit_failed_marker(
             return None;
         }
     };
-    let mut data = match ship_substrate::data::DataService::open(&ship_dir) {
+    let space_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
+    let data_svc = match ship_substrate::data::DataService::open(&ship_dir) {
         Ok(d) => d,
         Err(e) => {
             tracing::warn!(pipeline_run_id, lane_id, "fanout: failed marker — cannot open data service: {e}");
             return None;
         }
     };
-    let space_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
-    let art_svc = ArtifactService::new(&ship_dir);
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, &space_id));
+    let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new(&space_id), store, kernel_log));
+    let art_svc = ArtifactService::new(ctx, ship_dir.clone());
     let scope = ArtifactScope::Run {
-        space_id,
+        space_id: space_id.clone(),
         run_id: pipeline_run_id.to_string(),
     };
     let body = format!(
@@ -125,7 +130,6 @@ pub(crate) async fn emit_failed_marker(
     );
     let rec = match art_svc
         .store(
-            &mut data, kernel,
             &format!("{lane_id}.failed"),
             "text/plain",
             body.as_bytes(),

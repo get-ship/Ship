@@ -159,21 +159,28 @@ impl ShipRuntime {
         // Uses spawn_blocking because the DB layer uses block_in_place.
         let _ = tokio::task::spawn_blocking(cleanup_active_sessions_on_startup).await;
 
-        // Build db-bound service impls before the struct literal so they
-        // can share the same `data_service` Arc.
-        let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
-            Arc::new(tokio::sync::Mutex::new(None));
-        let collections =
-            ship_platform::services::collections::service::CollectionsServiceImpl::arc(
-                global_dir.clone(),
-                kernel.clone(),
-                data_service.clone(),
+        // Build the global collection + artifact `SpaceContext`s and the ONE
+        // shared schema registry once, here (C-2 §3.1 / UD-7). The
+        // `collections()`/`artifacts()` accessors construct stateless services
+        // over these per call; the collection wire is mounted with the SAME
+        // registry so a wire-created schema is visible to trigger inserts.
+        let collection_ctx = build_space_context_arc(kernel.clone(), global_dir, "global");
+        let artifact_ctx = build_space_context_arc(kernel.clone(), global_dir, "global");
+        let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
+        // Hydrate user-authored `.ship/collections/*.jsonc` schemas into the
+        // shared registry so they are queryable alongside the built-ins.
+        {
+            let project_ship = ship_substrate::project::get_project_dir(
+                workspace_dir.clone(),
+            )
+            .ok();
+            ship_platform::registry::collection_schemas::hydrate_registry(
+                &schemas,
+                global_dir,
+                project_ship.as_deref(),
             );
-        let artifacts = ship_platform::services::artifacts::service::ArtifactsServiceImpl::arc(
-            global_dir.clone(),
-            kernel.clone(),
-            data_service.clone(),
-        );
+        }
+        let global_blob_dir = global_dir.clone();
 
         // Account service — owns the gateway-bearer token store + PKCE
         // pending registry. Base URL defaults to production gateway;
@@ -259,7 +266,10 @@ impl ShipRuntime {
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             diag_registry: std::sync::OnceLock::new(),
-            data_service: Arc::new(tokio::sync::Mutex::new(None)),
+            collection_ctx,
+            artifact_ctx,
+            schemas,
+            global_blob_dir,
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
@@ -283,8 +293,6 @@ impl ShipRuntime {
             agents: ship_platform::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
             pipelines: ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
             git: ship_platform::services::git::service::GitServiceImpl::arc(global_dir.clone()),
-            collections,
-            artifacts,
             account,
             workspace_dir,
             started_at: std::time::Instant::now(),
@@ -346,10 +354,6 @@ impl ShipRuntime {
     }
 }
 
-// `ensure_data_service` moved to `ship_platform::services::data::ensure_data_service`
-// so the migrated CollectionsService + ArtifactsService can call it without
-// a back-reference to shipd. ShipRuntime's accessor below delegates.
-
 /// End all previously-active sessions on daemon startup.
 ///
 /// Handles the case where the daemon crashed and sessions were never ended.
@@ -408,6 +412,16 @@ pub fn build_space_context(
     let data_store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
     let kernel_log = Arc::new(KernelLog::new(kernel));
     SpaceContext::new(SpaceId::new(space_id), data_store, kernel_log)
+}
+
+/// `Arc`-wrapped `build_space_context` — the shape the collection/artifact
+/// accessors + the wire mount hold (per-request cheap `Arc` clones).
+pub fn build_space_context_arc(
+    kernel: super::SharedKernel,
+    ship_dir: &Path,
+    space_id: &str,
+) -> Arc<ship_substrate::ports::SpaceContext> {
+    Arc::new(build_space_context(kernel, ship_dir, space_id))
 }
 
 /// Emit a single INFO line with event-log health at startup. Gives operators
