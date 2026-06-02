@@ -107,8 +107,11 @@ register_event!("collection.schema.changed", [EventScope::Space], Retention::Dur
 register_event!("compile.completed", [EventScope::Space], Retention::Durable, Stability::Stable, "CompileCompleted");
 
 // ── config.* ────────────────────────────────────────────────────────────────
-register_event!("config.changed", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "ConfigChanged");
-register_event!("config.file_changed", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "ConfigFileChanged");
+// Machine/daemon runtime settings (daemon.port, terminal.program, watcher.*,
+// isolation tiers) — per-machine, never synced. `set_setting_and_emit` mints
+// daemon-internal with no space; Device is the correct partition.
+register_event!("config.changed", [EventScope::Device], Retention::Ephemeral, Stability::Stable, "ConfigChanged");
+register_event!("config.file_changed", [EventScope::Device], Retention::Ephemeral, Stability::Stable, "ConfigFileChanged");
 
 // ── daemon.* ────────────────────────────────────────────────────────────────
 // Platform-lifecycle events: not local to one device's log, not an account or
@@ -135,7 +138,11 @@ register_event!("hook.tool_use_started", [EventScope::Device], Retention::Epheme
 register_event!("hook.turn_observed", [EventScope::Device], Retention::Ephemeral, Stability::Stable, "HookTurnObservedPayload");
 
 // ── human.* ─────────────────────────────────────────────────────────────────
-register_event!("human.response", [EventScope::Space], Retention::Durable, Stability::Stable, "HumanResponse");
+// Poly-scopic (Model C): a human reply may unblock space work (Space), arrive at
+// the meta-OS ingress before its run is correlated (System), or address the
+// account (Account). The webhook ingress emits under System; downstream
+// correlation can re-emit under the resolved Space.
+register_event!("human.response", [EventScope::Space, EventScope::System, EventScope::Account], Retention::Durable, Stability::Stable, "HumanResponse");
 
 // ── kernel.actor.* ──────────────────────────────────────────────────────────
 register_event!("kernel.actor.restored", [EventScope::Device], Retention::Durable, Stability::Stable, "KernelActorRestored");

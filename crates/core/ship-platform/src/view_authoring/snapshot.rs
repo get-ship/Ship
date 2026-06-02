@@ -135,6 +135,7 @@ pub async fn snapshot_view(
         svc,
         kernel,
         &schema,
+        Some(space_id),
         &snapshot_id,
         &row,
         Some(agent_id),
@@ -265,10 +266,12 @@ pub async fn delete_snapshot(
         .get("artifact_id")
         .and_then(|v| v.as_str())
         .map(str::to_string);
+    let space = item.data.get("space_id").and_then(|v| v.as_str()).map(str::to_string);
     let removed = collection_service::delete_item(
         svc,
         kernel,
         VIEW_SNAPSHOTS_COLLECTION_ID,
+        space.as_deref(),
         snapshot_id,
     )
     .await?;
