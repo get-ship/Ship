@@ -34,5 +34,11 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['./test/setup.ts'],
     ...SHIP_VITEST_DEFAULTS,
+    // Expose `global.gc` to the worker forks so the leak-budget retention signal
+    // (WeakRef/FinalizationRegistry after a forced GC) is CONCLUSIVE here, not
+    // inconclusive. Without this flag the component-leak gate still runs but its
+    // closure/effect-retention check degrades to a documented no-op. In Vitest 4
+    // `poolOptions` was removed — pool args are top-level `execArgv`.
+    execArgv: ['--expose-gc'],
   },
 })

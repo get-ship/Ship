@@ -2,8 +2,8 @@
 // cycles, in-process (jsdom/happy-dom), with no browser and no OOM risk.
 //
 // Motivation: a long-lived webview heap balloons when a component's lifecycle
-// accretes state it never releases. Two such classes are observable from the
-// DOM alone and are what this helper guards:
+// accretes state it never releases. Three such classes are observable in-process
+// and are what this helper guards:
 //
 //   1. NODE RETENTION — a teardown (unmount / disconnectedCallback) that leaves
 //      detached roots in the document. Observable as `document.body` not
@@ -13,10 +13,15 @@
 //      is process-global and append-only — there is no undefine). Observable by
 //      counting `define` calls across cycles: a define-once component settles to
 //      zero new defines after warmup; a per-cycle minter grows ~1 define/cycle.
-//
-// NOT covered (needs heap profiling / runtime instrumentation — a follow-up):
-// effect/subscription retention where the node IS removed but a closure still
-// holds it. Use a browser heap snapshot for that tier.
+//   3. CLOSURE/EFFECT RETENTION — the subtle class the first two CANNOT see: the
+//      node IS removed from the DOM (bodyDelta=0) and no new element is defined,
+//      but an undisposed effect / orphaned subscription / un-removed listener
+//      still captures it, so it never collects. It needs WeakRef +
+//      FinalizationRegistry + a forced GC and is therefore async — it lives in
+//      the sibling module `./leak-retention` (`measureRetention`,
+//      `assertNoRetention`, `measureMountLeakAsync`), which reuses the
+//      synchronous `measureMountLeak` below. This file owns signals (1) and (2),
+//      which are synchronous and need no GC.
 
 export interface LeakBudgetOpts {
   /** Mount/unmount cycles to run. Default 100. */
@@ -97,3 +102,9 @@ export function assertNoMountLeak(
   }
   return r
 }
+
+// The third growth class — CLOSURE/EFFECT RETENTION (a node removed but pinned
+// by an undisposed effect/subscription) — needs WeakRef + FinalizationRegistry
+// + a forced GC and is therefore async. It lives in `./leak-retention`
+// (`measureRetention`, `assertNoRetention`, `measureMountLeakAsync`) and reuses
+// `measureMountLeak` above for the synchronous signals.

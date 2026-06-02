@@ -21,3 +21,15 @@ export {
   type LeakBudgetOpts,
   type LeakReport,
 } from './leak-budget'
+export {
+  measureRetention,
+  assertNoRetention,
+  measureMountLeakAsync,
+  forceGc,
+  gcAvailable,
+  type RetentionOpts,
+  type RetentionFields,
+  type RetentionReport,
+  type RetentionCycle,
+  type LeakReportWithRetention,
+} from './leak-retention'
