@@ -199,7 +199,7 @@ mod tests {
         EmitContext {
             caller_kind: kind,
             skill_id: None,
-            space_id: None,
+            binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
             session_id: None,
         }
     }

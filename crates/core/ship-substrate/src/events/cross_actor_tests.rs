@@ -17,7 +17,7 @@ fn runtime_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: Some("feature/actor-test".to_string()),
+        binding: ship_types::ScopeBinding::daemon_internal(Some(ship_types::SpaceId::new("feature/actor-test".to_string())), ship_types::Authority::Sdk),
         session_id: None,
     }
 }
@@ -26,7 +26,7 @@ fn mcp_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        space_id: Some("feature/actor-test".to_string()),
+        binding: ship_types::ScopeBinding::daemon_internal(Some(ship_types::SpaceId::new("feature/actor-test".to_string())), ship_types::Authority::Sdk),
         session_id: None,
     }
 }

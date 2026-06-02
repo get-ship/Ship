@@ -158,6 +158,45 @@ pub fn reconcile_events_scope_columns(conn: &mut SqliteConnection) -> Result<()>
     Ok(())
 }
 
+/// Idempotent reconcile for the Phase-2 author-identity + signature columns.
+///
+/// Mirrors [`reconcile_events_scope_columns`]: the three columns live in the
+/// living 0001 baseline (additive, edited in place — not a forward migration,
+/// which would trip the strict runner's checksum guard). A pre-existing DB
+/// (15-col events table) gets `author_account_id`, `author_device_id`,
+/// `signature` added if absent; a fresh DB already has them from the DDL.
+/// No-op when the `events` table is absent or the columns already exist.
+pub fn reconcile_events_author_columns(conn: &mut SqliteConnection) -> Result<()> {
+    let table_present: i64 = block_on(async {
+        sqlx::query_scalar(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='events'",
+        )
+        .fetch_one(&mut *conn)
+        .await
+    })?;
+    if table_present == 0 {
+        return Ok(());
+    }
+
+    for col in ["author_account_id", "author_device_id", "signature"] {
+        let present: i64 = block_on(async {
+            sqlx::query_scalar(&format!(
+                "SELECT COUNT(*) FROM pragma_table_info('events') WHERE name='{col}'"
+            ))
+            .fetch_one(&mut *conn)
+            .await
+        })?;
+        if present == 0 {
+            block_on(async {
+                sqlx::query(&format!("ALTER TABLE events ADD COLUMN {col} TEXT"))
+                    .execute(&mut *conn)
+                    .await
+            })?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -260,6 +299,57 @@ mod tests {
 
         // Idempotent on second call.
         reconcile_events_scope_columns(&mut conn).unwrap();
+    }
+
+    // T7 (reconcile path) — a pre-existing 15-col events table gets the three
+    // author/signature columns added idempotently; existing rows read back
+    // with NULL for the new columns.
+    #[test]
+    fn author_reconcile_adds_columns_idempotently() {
+        let tmp = tempdir().unwrap();
+        let db = tmp.path().join("author.db");
+        let mut conn = open(&db);
+        block_on(async {
+            sqlx::query(
+                "CREATE TABLE events (id TEXT PRIMARY KEY, event_type TEXT, scope TEXT, \
+                 scope_key TEXT, created_at TEXT)",
+            )
+            .execute(&mut conn)
+            .await
+        })
+        .unwrap();
+        block_on(async {
+            sqlx::query(
+                "INSERT INTO events (id, event_type, scope, scope_key, created_at) \
+                 VALUES ('e1','artifact.created','space','sp-1','2026-05-14T00:00:00Z')",
+            )
+            .execute(&mut conn)
+            .await
+        })
+        .unwrap();
+
+        reconcile_events_author_columns(&mut conn).unwrap();
+        // Idempotent second call.
+        reconcile_events_author_columns(&mut conn).unwrap();
+
+        for col in ["author_account_id", "author_device_id", "signature"] {
+            let present: i64 = block_on(async {
+                sqlx::query_scalar(&format!(
+                    "SELECT COUNT(*) FROM pragma_table_info('events') WHERE name='{col}'"
+                ))
+                .fetch_one(&mut conn)
+                .await
+            })
+            .unwrap();
+            assert_eq!(present, 1, "{col} must be present after reconcile");
+        }
+        let sig: Option<String> = block_on(async {
+            sqlx::query_scalar("SELECT signature FROM events WHERE id='e1'")
+                .fetch_one(&mut conn)
+                .await
+        })
+        .unwrap();
+        assert_eq!(sig, None);
     }
 
     #[test]

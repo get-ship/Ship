@@ -1219,6 +1219,9 @@ impl SessionExecutor for ProcessExecutor {
 /// Build a `process.killed` envelope and persist+route it via the kernel.
 /// Mirrors the inline pattern used in `handlers.rs::cancel_job` so both
 /// call sites project into the same event stream.
+// PHASE-3-TODO: move emit to platform via callback — this is an L0 supervisor
+// reaching the kernel directly (layer-direction violation), left in place for
+// Phase 2 (out of scope).
 async fn emit_process_killed(
     kernel: Option<&Arc<TokioMutex<KernelRouter>>>,
     slug: &str,

@@ -201,7 +201,7 @@ async fn restored_actor_receives_new_messages() {
     let ctx = crate::events::validator::EmitContext {
         caller_kind: crate::events::validator::CallerKind::Runtime,
         skill_id: None,
-        space_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
     router.emit(inbox_event.clone(), &ctx).await.unwrap();

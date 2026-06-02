@@ -206,6 +206,13 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
         format!("events scope/scope_key reconcile failed on {}", path.display())
     })?;
 
+    // Additive Phase-2 author-identity + signature columns. Same living-baseline
+    // posture as the scope reconcile: add the columns to a pre-existing events
+    // table if absent (fresh DBs already have them from the 0001 DDL).
+    events_scope_reconcile::reconcile_events_author_columns(&mut conn).with_context(|| {
+        format!("events author-columns reconcile failed on {}", path.display())
+    })?;
+
     // Tolerant migration pass — see `db::migrate`. It relaxes exactly one
     // failure mode: a `_sqlx_migrations` log that is *ahead* of this binary
     // (chronic across dev worktrees sharing one `platform.db`, impossible

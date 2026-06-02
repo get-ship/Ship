@@ -155,6 +155,13 @@ impl KernelRouter {
 
     /// Persist an event to platform.db and deliver it to subscribed mailboxes.
     ///
+    // FLAG (Phase 2 / R10): author-identity is NOT yet stamped at a single
+    // chokepoint. This `emit` path carries the binding via `EmitContext`, but
+    // the other live append paths (`SqliteEventStore::append`,
+    // `ActorStore::append`/`raw_append`, and the two `deliver()` db-helpers)
+    // bypass `EmitContext` entirely and write `None` author-identity. Do NOT
+    // collapse them in P2 (north-star Phase 0/later) — flagged, not converged.
+    ///
     /// Every event is:
     ///   1. Validated (namespace checks, permission checks, EmitContext-aware)
     ///   2. Persisted to platform.db via the inner router's sink
