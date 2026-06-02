@@ -1,5 +1,6 @@
 ---
 name: trigger-authoring
+audience: internal
 stable-id: trigger-authoring
 description: Author Ship triggers — JSONC files in .ship/triggers/*.jsonc that match a Ship event and run actions. Reactive automation layer. Distinct from agent/provider hooks, which are a compiler concern.
 tags: [triggers, extension-authoring, jsonc, jinja, automation]

@@ -4,7 +4,7 @@ stable-id: ship-views
 description: USE BEFORE AUTHORING A VIEW. SUI templates compile AOT to ESM and hydrate server-rendered HTML. Pair `.sui` with optional `controller.ts` + `style.css` + required `manifest.jsonc`. Wrong shape and the resolver won't find it.
 tags: [views, sui, sdk, extension-authoring, ship-elements]
 authors: [ship]
-audience: agent
+audience: public
 ---
 
 # ship-views

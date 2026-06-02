@@ -1,5 +1,6 @@
 ---
 name: web-qa
+audience: public
 stable-id: web-qa
 description: Systematic QA for a UI surface — every interactive element pressed, multi-theme, console + network captured, evidence written to .artifacts/web-qa/. Use before claiming any UI work "done". Gate-required when touching apps/shell, packages/components/ui-components, views, or crates/sui.
 tags: [qa, testing, browser, playwright, gate-required]

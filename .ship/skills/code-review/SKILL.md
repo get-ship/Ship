@@ -1,5 +1,6 @@
 ---
 name: code-review
+audience: internal
 stable-id: code-review
 description: Use when reviewing a PR or branch diff. Security, correctness, test coverage, architecture drift. Produces structured verdicts with line references.
 tags: [review, code-quality, security]

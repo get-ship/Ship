@@ -1,5 +1,6 @@
 ---
 name: ship-view
+audience: public
 stable-id: ship-view
 description: >-
   The `view` capability (6 ops). Call any op over ConnectRPC with

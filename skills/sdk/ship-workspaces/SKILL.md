@@ -1,5 +1,6 @@
 ---
 name: ship-workspaces
+audience: public
 stable-id: ship-workspaces
 description: >-
   The `workspaces` capability (2 ops). Call any op over ConnectRPC with

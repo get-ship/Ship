@@ -1,5 +1,6 @@
 ---
 name: ship-collections
+audience: public
 stable-id: ship-collections
 description: >-
   The `collections` capability (9 ops). Call any op over ConnectRPC with

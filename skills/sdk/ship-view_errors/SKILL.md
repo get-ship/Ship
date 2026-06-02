@@ -1,5 +1,6 @@
 ---
 name: ship-view_errors
+audience: public
 stable-id: ship-view_errors
 description: >-
   The `view_errors` capability (3 ops). Call any op over ConnectRPC with

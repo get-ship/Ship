@@ -1,5 +1,6 @@
 ---
 name: cmdr
+audience: internal
 stable-id: cmdr
 description: Ship Commander — captures intent, dispatches specialist agents, monitors via mesh, gates before merge. The human's proxy in the agent cluster.
 tags: [commander, orchestration]

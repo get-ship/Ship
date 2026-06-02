@@ -1,5 +1,6 @@
 ---
 name: gate
+audience: internal
 stable-id: gate
 description: Gate a completed job branch before merge. The objective bar is machine-proven via `just gate`; the operator judges only taste. Run inline or as subagent.
 tags: [gate, review, quality]

@@ -1,5 +1,6 @@
 ---
 name: ship-account
+audience: public
 stable-id: ship-account
 description: >-
   The `account` capability (1 ops). Call any op over ConnectRPC with

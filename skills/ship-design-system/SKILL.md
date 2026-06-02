@@ -1,5 +1,6 @@
 ---
 name: ship-design-system
+audience: public
 stable-id: ship-design-system
 description: Charter for Ship's design-system layer — tokens, themes, surfaces, tone ramps, motion, density. Load this when authoring or reviewing changes to packages/components/ui-components/src/tokens/tokens.css or themes.css, adding a new theme, debugging why a component doesn't respond to a theme switch, or helping a user customize Ship's look beyond brand color.
 tags: [design-system, tokens, themes, css, theming, frontend]

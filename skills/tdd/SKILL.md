@@ -1,5 +1,6 @@
 ---
 name: tdd
+audience: public
 stable-id: tdd
 description: Use when implementing any feature, fix, or behavior change. Enforces the TDD protocol — write the failing test first, then the minimal code to pass it. Includes interactive spec-building workflow for collaborative test design.
 tags: [testing, workflow, engineering, tdd, spec]

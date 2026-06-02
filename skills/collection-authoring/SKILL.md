@@ -1,5 +1,6 @@
 ---
 name: collection-authoring
+audience: public
 stable-id: collection-authoring
 description: Hands-on guide to writing a collection schema for Ship. Covers the schema file shape, field-type selection, filterable/required/indexed flags, naming conventions, testing the schema against the API, and common patterns. Pair with ship-collections (reference).
 tags: [collections, schema, extension-authoring, jsonc]

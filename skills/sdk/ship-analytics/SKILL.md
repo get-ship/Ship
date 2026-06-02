@@ -1,5 +1,6 @@
 ---
 name: ship-analytics
+audience: public
 stable-id: ship-analytics
 description: >-
   The `analytics` capability (4 ops). Call any op over ConnectRPC with

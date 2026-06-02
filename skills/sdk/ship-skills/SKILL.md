@@ -1,5 +1,6 @@
 ---
 name: ship-skills
+audience: public
 stable-id: ship-skills
 description: >-
   The `skills` capability (16 ops). Call any op over ConnectRPC with

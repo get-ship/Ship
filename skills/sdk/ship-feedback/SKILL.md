@@ -1,5 +1,6 @@
 ---
 name: ship-feedback
+audience: public
 stable-id: ship-feedback
 description: >-
   The `feedback` capability (1 ops). Call any op over ConnectRPC with

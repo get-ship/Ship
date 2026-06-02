@@ -1,5 +1,6 @@
 ---
 name: ship-rules
+audience: public
 stable-id: ship-rules
 description: >-
   The `rules` capability (5 ops). Call any op over ConnectRPC with

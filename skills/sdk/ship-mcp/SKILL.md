@@ -1,5 +1,6 @@
 ---
 name: ship-mcp
+audience: public
 stable-id: ship-mcp
 description: >-
   The `mcp` capability (6 ops). Call any op over ConnectRPC with

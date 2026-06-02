@@ -1,5 +1,6 @@
 ---
 name: ship-specs
+audience: public
 stable-id: ship-specs
 description: >-
   The `specs` capability (4 ops). Call any op over ConnectRPC with

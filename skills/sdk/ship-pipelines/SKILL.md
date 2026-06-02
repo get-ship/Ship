@@ -1,5 +1,6 @@
 ---
 name: ship-pipelines
+audience: public
 stable-id: ship-pipelines
 description: >-
   The `pipelines` capability (11 ops). Call any op over ConnectRPC with

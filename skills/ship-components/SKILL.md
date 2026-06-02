@@ -4,7 +4,7 @@ stable-id: ship-components
 description: Author Ship components in SUI — `<sui-*>` primitives compiled AOT from `.sui` source with optional paired `.controller.ts`.
 tags: [ui, components, web-components, sui, design-system]
 authors: [ship]
-audience: agent
+audience: public
 ---
 
 # ship-components

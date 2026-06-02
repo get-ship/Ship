@@ -1,5 +1,6 @@
 ---
 name: ship-chat
+audience: public
 stable-id: ship-chat
 description: >-
   The `chat` capability (1 ops). Call any op over ConnectRPC with

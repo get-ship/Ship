@@ -402,10 +402,10 @@ body
                 failures.push(format!("{name}: {err}"));
             }
         }
-        // Post doc-skill cull: only the conceptual docs-skills keep a SKILL.md
-        // (concepts/architecture/contributing/agents/skills/adrs); the
-        // code-mirroring ones were retired (their reference pages remain under
-        // references/docs/). Floor guards against the corpus vanishing entirely.
+        // Post doc-skill cull + body gut: only the conceptual doc-skills keep a
+        // SKILL.md (concepts/architecture/contributing/agents/skills/adrs); the
+        // code-mirroring ones were retired and their orphaned reference bodies
+        // gutted. Floor guards against the corpus vanishing entirely.
         assert!(
             checked >= 5,
             "sanity: expected the conceptual ship-* SKILL.md corpus, found {checked}"
@@ -413,6 +413,67 @@ body
         assert!(
             failures.is_empty(),
             "{} committed docs/ship-*/SKILL.md files failed schema validation:\n{}",
+            failures.len(),
+            failures.join("\n")
+        );
+    }
+
+    /// Enforce the published/internal skill split by directory.
+    /// `skills/` (top-level) is the PUBLISHED tree — every skill there is
+    /// `public` or `agent-only`. `.ship/skills/` is the INTERNAL tree —
+    /// operator/dev skills, always `internal`. The directory and the
+    /// `audience:` field must agree; a misplaced skill fails here.
+    #[test]
+    fn skill_audience_matches_published_internal_split() {
+        let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let root = manifest
+            .ancestors()
+            .find(|p| p.join("skills").is_dir() && p.join(".ship/skills").is_dir())
+            .expect("workspace root with skills/ + .ship/skills/ not found");
+
+        // (dir, allowed audiences) — directory dictates the published boundary.
+        let trees: [(std::path::PathBuf, &[&str]); 2] = [
+            (root.join("skills"), &["public", "agent-only"]),
+            (root.join(".ship/skills"), &["internal"]),
+        ];
+
+        let audience_of = |skill_md: &std::path::Path| -> Option<String> {
+            let body = fs::read_to_string(skill_md).ok()?;
+            body.lines()
+                .find_map(|l| l.strip_prefix("audience:").map(|v| v.trim().to_string()))
+        };
+
+        let mut failures = Vec::new();
+        let mut checked = 0usize;
+        for (tree, allowed) in &trees {
+            // Skills nest one level under the tree (and skills/sdk/<name> two);
+            // walk every committed SKILL.md beneath it.
+            let mut stack = vec![tree.clone()];
+            while let Some(dir) = stack.pop() {
+                let Ok(rd) = fs::read_dir(&dir) else { continue };
+                for entry in rd.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        stack.push(path);
+                    } else if path.file_name().and_then(|n| n.to_str()) == Some("SKILL.md") {
+                        checked += 1;
+                        let rel = path.strip_prefix(&root).unwrap_or(&path);
+                        match audience_of(&path) {
+                            None => failures.push(format!("{}: missing `audience:`", rel.display())),
+                            Some(a) if !allowed.contains(&a.as_str()) => failures.push(format!(
+                                "{}: audience `{a}` not allowed in this tree (expected one of {allowed:?})",
+                                rel.display()
+                            )),
+                            Some(_) => {}
+                        }
+                    }
+                }
+            }
+        }
+        assert!(checked >= 20, "sanity: expected the skill corpus, found {checked}");
+        assert!(
+            failures.is_empty(),
+            "{} skill(s) violate the published/internal split:\n{}",
             failures.len(),
             failures.join("\n")
         );

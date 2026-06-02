@@ -1,5 +1,6 @@
 ---
 name: ship-permissions
+audience: public
 stable-id: ship-permissions
 description: >-
   The `permissions` capability (7 ops). Call any op over ConnectRPC with

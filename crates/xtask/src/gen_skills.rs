@@ -129,7 +129,7 @@ fn render_skill_toc(domain: &str, ops: &[OpRow]) -> String {
     let mut s = String::new();
     let _ = write!(
         s,
-        "---\nname: ship-{domain}\nstable-id: ship-{domain}\ndescription: >-\n  The `{domain}` capability ({n} ops). Call any op over ConnectRPC with\n  `ship ops call <name> --json '<args>'`. This file is a table of contents;\n  open `references/docs/<op>.mdoc` for an op's args, return shape, and policy.\ntags: [sdk, api, {domain}]\nauthors: [ship]\n---\n\n",
+        "---\nname: ship-{domain}\nstable-id: ship-{domain}\naudience: public\ndescription: >-\n  The `{domain}` capability ({n} ops). Call any op over ConnectRPC with\n  `ship ops call <name> --json '<args>'`. This file is a table of contents;\n  open `references/docs/<op>.mdoc` for an op's args, return shape, and policy.\ntags: [sdk, api, {domain}]\nauthors: [ship]\n---\n\n",
         n = ops.len(),
     );
     let _ = write!(
