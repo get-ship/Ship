@@ -18,7 +18,7 @@
 // Authority: build-spec Slice 6, §"Backbone #2 — ViewerRenderer contract",
 // §"Props" (sui-media-image), §Accessibility, behavioral spec #4.
 
-import { bindHtml, controller, derived, effect, emit, signal } from '@ship/sui-runtime'
+import { bindHtml, controller, derived, effect, emit, ref, signal } from '@ship/sui-runtime'
 import type { ViewerSource } from '../engine/types'
 import { emitViewerError, emitViewerLoad } from '../engine/renderer-contract'
 import { attachZoomPan, type ZoomPanState } from './engine/zoom-pan'
@@ -68,6 +68,16 @@ export default controller<Scope>({
     const srcSig = signal<ImageSrc>(null)
     const activeIndex = signal(0)
 
+    // bind:this DOM-handle slots. Every `bind:this={X}` target in the template
+    // must be declared here as `ref(null)` — the runtime writes the rendered
+    // element into the ref and the controller reads it via `state.$signals.X()`.
+    // The raster <img>, its zoom/pan stage, the inline-SVG span, and the gallery
+    // strip <ul>.
+    const imgEl = ref<HTMLImageElement>(null)
+    const stageEl = ref<HTMLElement>(null)
+    const svgEl = ref<HTMLElement>(null)
+    const stripEl = ref<HTMLElement>(null)
+
     // SVG text source → role=img inline path; else the raster <img> path.
     const isSvg = derived<boolean>(() => svgTextOf(firstSource(srcSig())) != null)
 
@@ -88,7 +98,7 @@ export default controller<Scope>({
       })
     })
 
-    return { srcSig, activeIndex, isSvg, sources, isGallery, galleryItems }
+    return { srcSig, activeIndex, isSvg, sources, isGallery, galleryItems, imgEl, stageEl, svgEl, stripEl }
   },
 
   mount(state, host) {

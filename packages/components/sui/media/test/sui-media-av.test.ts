@@ -25,15 +25,18 @@
 // plays resolved sources; object URLs revoked on unmount).
 
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderComponent } from '@ship/test-setup'
 // RED: greenfield media renderer controller.
 import mediaRenderer from '../src/sui-media-av/sui-media-av.controller'
 
-const SOURCE = readFileSync(
-  new URL('../src/sui-media-av/sui-media-av.sui', import.meta.url),
-  'utf8',
-)
+const SOURCE_URL = new URL('../src/sui-media-av/sui-media-av.sui', import.meta.url)
+const SOURCE = readFileSync(SOURCE_URL, 'utf8')
+// On-disk path so the compiler pairs the controller and runs the
+// controller-aware passes (bind:this targets must be `ref(null)`) — the
+// harness then rejects exactly what the daemon + CLI do (#263-A).
+const SOURCE_PATH = fileURLToPath(SOURCE_URL)
 
 interface ViewerSource {
   contentType?: string
@@ -83,6 +86,7 @@ afterEach(() => {
 function mountMedia(src: ViewerSource, attrs?: Record<string, string | boolean>) {
   const v = renderComponent(SOURCE, 'sui-media-av', {
     controller: mediaRenderer,
+    sourcePath: SOURCE_PATH,
     ...(attrs ? { attrs } : {}),
   })
   ;(v.el as unknown as { src: ViewerSource }).src = src
@@ -91,7 +95,10 @@ function mountMedia(src: ViewerSource, attrs?: Record<string, string | boolean>)
 
 describe('<sui-media-av> — registration + kind routing', () => {
   it('registers the custom element', () => {
-    const v = renderComponent(SOURCE, 'sui-media-av', { controller: mediaRenderer })
+    const v = renderComponent(SOURCE, 'sui-media-av', {
+      controller: mediaRenderer,
+      sourcePath: SOURCE_PATH,
+    })
     live.push(v)
     expect(customElements.get('sui-media-av')).toBeDefined()
   })

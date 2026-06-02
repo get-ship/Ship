@@ -25,15 +25,18 @@
 // behavioral spec #4 (image zoom/pan/gallery).
 
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { renderComponent } from '@ship/test-setup'
 // RED: greenfield image renderer controller.
 import imageRenderer from '../src/sui-media-image/sui-media-image.controller'
 
-const SOURCE = readFileSync(
-  new URL('../src/sui-media-image/sui-media-image.sui', import.meta.url),
-  'utf8',
-)
+const SOURCE_URL = new URL('../src/sui-media-image/sui-media-image.sui', import.meta.url)
+const SOURCE = readFileSync(SOURCE_URL, 'utf8')
+// On-disk path so the compiler pairs the controller and runs the
+// controller-aware passes (bind:this targets must be `ref(null)`) — the
+// harness then rejects exactly what the daemon + CLI do (#263-A).
+const SOURCE_PATH = fileURLToPath(SOURCE_URL)
 
 interface ViewerSource {
   contentType?: string
@@ -69,6 +72,7 @@ afterEach(() => {
 function mountImage(src: ViewerSource, attrs?: Record<string, string | boolean>) {
   const v = renderComponent(SOURCE, 'sui-media-image', {
     controller: imageRenderer,
+    sourcePath: SOURCE_PATH,
     ...(attrs ? { attrs } : {}),
   })
   ;(v.el as unknown as { src: ViewerSource }).src = src
@@ -79,7 +83,10 @@ const PNG_URL = 'blob:http://localhost/raster-fixture'
 
 describe('<sui-media-image> — registration + raster', () => {
   it('registers the custom element', () => {
-    const v = renderComponent(SOURCE, 'sui-media-image', { controller: imageRenderer })
+    const v = renderComponent(SOURCE, 'sui-media-image', {
+      controller: imageRenderer,
+      sourcePath: SOURCE_PATH,
+    })
     live.push(v)
     expect(customElements.get('sui-media-image')).toBeDefined()
   })
@@ -212,6 +219,7 @@ describe('<sui-media-image> — gallery strip (#4)', () => {
   function mountGallery() {
     const v = renderComponent(SOURCE, 'sui-media-image', {
       controller: imageRenderer,
+      sourcePath: SOURCE_PATH,
       attrs: { gallery: '' },
     })
     ;(v.el as unknown as { src: ViewerSource[] }).src = GALLERY

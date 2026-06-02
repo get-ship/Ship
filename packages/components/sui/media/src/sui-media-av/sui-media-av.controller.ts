@@ -16,7 +16,7 @@
 // Authority: build-spec Slice 7, §"Backbone #2 — ViewerRenderer contract",
 // §"Props" (sui-media-av), §Accessibility, behavioral spec #5.
 
-import { controller, derived, effect, emit, signal } from '@ship/sui-runtime'
+import { controller, derived, effect, emit, ref, signal } from '@ship/sui-runtime'
 import type { ViewerSource } from '../engine/types'
 import { emitViewerError, emitViewerLoad } from '../engine/renderer-contract'
 import { decodePeaks, drawWaveform } from './engine/waveform'
@@ -73,7 +73,14 @@ export default controller<Scope>({
 
     const showWaveform = signal<boolean>(false)
 
-    return { srcSig, kindOverride, isVideo, showWaveform }
+    // bind:this DOM-handle slots. Every `bind:this={X}` target in the template
+    // must be declared here as `ref(null)` — the runtime writes the rendered
+    // element into the ref and the controller reads it via `state.$signals.X()`.
+    // The native <video>/<audio> element and the decorative waveform <canvas>.
+    const mediaEl = ref<HTMLMediaElement>(null)
+    const waveEl = ref<HTMLCanvasElement>(null)
+
+    return { srcSig, kindOverride, isVideo, showWaveform, mediaEl, waveEl }
   },
 
   mount(state, host) {
