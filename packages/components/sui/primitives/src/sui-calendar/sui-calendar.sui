@@ -1,0 +1,261 @@
+<!--
+  <sui-calendar> — month / week / day calendar surface (Slice 2, the VIEW).
+  Pure-framework component over the COMMITTED headless engine
+  (`./engine/createCalendar`), which owns all reactive state + view-model
+  (monthCells / dayColumns / timeSlots / agenda / selection / navigation). The
+  engine arrives via `prop:calendar` IDENTITY; `events`/`focus-date` (type=string)
+  are the SSR/declarative fallback (JSON.parse in the controller — `type="json"`
+  does NOT compile). All emits go through host.emit! (see controller).
+
+  A11y: month grid is a FIXED 6×7 role=grid/row/gridcell tree (never virtualized
+  → NO windowed-count ARIA); event chips are role=button DESCENDANTS inside a
+  gridcell; today → aria-current="date". Density: NO density/dense prop — rows
+  read the --density-* channel off <html data-density>.
+
+  GAP (explicit, not scaffolded): drag-to-create/move, range selection, and the
+  virtualized agenda land when the engine grows those slices; the committed
+  engine exposes view/navigation/selection only.
+-->
+
+<prop name="view" values="month|week|day" default="month" reflect />
+<prop name="events" type="string" default="" />
+<prop name="focus-date" type="string" default="" />
+<prop name="week-starts-on" type="number" default="0" />
+<prop name="slot-minutes" type="number" default="30" />
+<prop name="day-start-hour" type="number" default="0" reflect />
+<prop name="day-end-hour" type="number" default="24" reflect />
+<prop name="range-mode" values="none|date|datetime" default="none" reflect />
+<prop name="editable" type="bool" default="false" reflect />
+<prop name="label" type="string" default="" />
+
+<style>
+  :host {
+    display: block;
+    font-family: var(--font-body);
+    font-size: var(--density-text);
+    color: var(--foreground);
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    /* Local sub-scale spacing tokens (derived from the --space-N scale) for the
+       dense calendar chrome — chips/gaps that read tighter than --space-1 (4px). */
+    --cal-gap-xs: calc(var(--space-1) / 2);
+    --cal-chip-py: calc(var(--space-1) / 4);
+    --cal-chip-px: calc(var(--space-1) * 1.5);
+  }
+  :host([hidden]) { display: none; }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--density-row-gap);
+    padding: var(--density-row-py) var(--density-row-px);
+    border-bottom: 1px solid var(--border);
+  }
+  .title {
+    font-weight: var(--font-weight-semibold);
+    flex: 1;
+  }
+  .nav-group { display: inline-flex; gap: var(--cal-gap-xs); }
+  .view-switch { display: inline-flex; gap: var(--cal-gap-xs); }
+  button.tb {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--foreground);
+    cursor: pointer;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    transition: background var(--duration-fast) var(--ease-out);
+  }
+  button.tb:hover { background: var(--hover-bg); }
+  button.tb[aria-pressed='true'] {
+    background: var(--selected-bg);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  /* ── Month grid ── */
+  .grid { display: none; }
+  :host([view='month']) .grid { display: block; }
+  .dow-row, .week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+  .dow {
+    text-align: center;
+    padding: var(--density-row-py) 0;
+    color: var(--muted-foreground);
+    font-weight: var(--font-weight-medium);
+    font-size: var(--density-text);
+    border-bottom: 1px solid var(--border);
+  }
+  .cell {
+    min-height: 84px;
+    padding: var(--density-row-py) var(--density-row-px);
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--cal-gap-xs);
+  }
+  .cell.out { color: var(--muted-foreground); background: var(--muted); }
+  .cell.weekend { background: var(--muted); }
+  .cell .daynum { font-size: var(--density-text); align-self: flex-start; }
+  .cell.today .daynum {
+    background: var(--selected-bg);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-1);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .chip {
+    appearance: none;
+    border: 0;
+    text-align: start;
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--density-text);
+    color: var(--foreground);
+    background: var(--tone-default-bg);
+    border-radius: var(--radius-sm);
+    padding: var(--cal-chip-py) var(--cal-chip-px);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .chip[aria-selected='true'] { outline: 2px solid var(--ring); outline-offset: -2px; }
+  .chip.allday { background: var(--tone-accent-bg); }
+  .overflow { font-size: var(--density-text); color: var(--muted-foreground); }
+
+  /* ── Week / day time grid ── */
+  .timegrid { display: none; }
+  :host([view='week']) .timegrid,
+  :host([view='day']) .timegrid { display: grid; grid-template-columns: auto 1fr; }
+  .time-axis { display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+  .slot {
+    height: 36px;
+    padding: 0 var(--density-row-px);
+    font-size: var(--density-text);
+    color: var(--muted-foreground);
+    border-bottom: 1px solid var(--border);
+    box-sizing: border-box;
+  }
+  .day-cols { display: grid; }
+  .day-col { position: relative; border-right: 1px solid var(--border); min-height: 864px; }
+  .day-col.today { background: var(--selected-bg); }
+  .timed-chip {
+    position: absolute;
+    left: var(--cal-gap-xs);
+    right: var(--cal-gap-xs);
+    cursor: pointer;
+    border: 0;
+    text-align: start;
+    font: inherit;
+    font-size: var(--density-text);
+    color: var(--primary-foreground);
+    background: var(--tone-primary-bg);
+    border-radius: var(--radius-sm);
+    padding: var(--cal-chip-py) var(--space-1);
+    overflow: hidden;
+  }
+  .timed-chip[aria-selected='true'] { outline: 2px solid var(--ring); outline-offset: -1px; }
+
+  /* ── Empty ── */
+  .empty {
+    padding: calc(var(--density-row-py) * 4) var(--density-row-px);
+    text-align: center;
+    color: var(--muted-foreground);
+  }
+</style>
+
+<div class="cal" part="wrap">
+  <div class="toolbar" part="toolbar">
+    <div class="nav-group">
+      <button type="button" class="tb" data-nav="prev" aria-label="Previous">‹</button>
+      <button type="button" class="tb" data-nav="today">Today</button>
+      <button type="button" class="tb" data-nav="next" aria-label="Next">›</button>
+    </div>
+    <span class="title" part="title">{title()}</span>
+    <div class="view-switch" role="group" aria-label="Calendar view">
+      <button type="button" class="tb" data-view="month" aria-pressed={isMonth() ? 'true' : 'false'}>Month</button>
+      <button type="button" class="tb" data-view="week" aria-pressed={isWeek() ? 'true' : 'false'}>Week</button>
+      <button type="button" class="tb" data-view="day" aria-pressed={isDay() ? 'true' : 'false'}>Day</button>
+    </div>
+  </div>
+
+  {#if isEmpty()}
+    <div class="empty" part="empty" role="status">
+      <slot name="empty">No events</slot>
+    </div>
+  {/if}
+
+  <div class="grid" part="grid" role="grid" aria-label={label() || 'Calendar month'}>
+    <div class="dow-row" role="presentation">
+      {#for d of weekdays() key={d.key}}
+        <span class="dow" role="columnheader">{d.label}</span>
+      {/for}
+    </div>
+    {#for wk of weekRows() key={wk.key}}
+      <div class="week" role="row">
+        {#for cr of wk.cells key={cr.key}}
+          <div
+            class="cell"
+            role="gridcell"
+            data-iso={cr.cell.iso}
+            class:out={!cr.cell.inMonth}
+            class:today={cr.cell.today}
+            class:weekend={cr.cell.isWeekend}
+            aria-current={cr.cell.today ? 'date' : null}
+            aria-label={cr.cell.iso}
+          >
+            <span class="daynum">{cr.cell.day}</span>
+            {#for ev of cr.cell.events key={ev.id}}
+              <button
+                type="button"
+                class="chip"
+                role="button"
+                data-event-id={ev.id}
+                class:allday={ev.allDay}
+                aria-selected={selectedIds().includes(ev.id) ? 'true' : 'false'}
+                title={ev.title}
+              >{ev.title}</button>
+            {/for}
+            {#if cr.cell.overflowCount > 0}
+              <span class="overflow">+{cr.cell.overflowCount} more</span>
+            {/if}
+          </div>
+        {/for}
+      </div>
+    {/for}
+  </div>
+
+  <div class="timegrid" part="time-grid" role="grid" aria-label={label() || 'Calendar time grid'}>
+    <div class="time-axis" part="time-axis" role="rowgroup">
+      {#for slot of timeSlots() key={slot.key}}
+        <div class="slot" data-slot={slot.minutes} role="rowheader">{slot.label}</div>
+      {/for}
+    </div>
+    <div class="day-cols" part="day-col">
+      {#for dc of dayColumns() key={dc.key}}
+        <div class="day-col" class:today={dc.col.today} data-iso={dc.col.iso}>
+          {#for pe of dc.col.laidOut key={pe.event.id}}
+            <button
+              type="button"
+              class="timed-chip"
+              role="button"
+              data-event-id={pe.event.id}
+              aria-selected={selectedIds().includes(pe.event.id) ? 'true' : 'false'}
+              style:top={`${pe.topPct}%`}
+              style:height={`${pe.heightPct}%`}
+              style:left={`${(pe.laneIndex / pe.laneCount) * 100}%`}
+              style:width={`${(1 / pe.laneCount) * 100}%`}
+              title={pe.event.title}
+            >{pe.event.title}</button>
+          {/for}
+        </div>
+      {/for}
+    </div>
+  </div>
+</div>
