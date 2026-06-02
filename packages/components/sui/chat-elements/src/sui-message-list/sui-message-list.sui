@@ -1,9 +1,15 @@
 <!--
-  <sui-message-list> — a keyed, scrollable column of <sui-message>
-  bubbles. Items arrive via the `items` JS-property (`prop:items={...}`);
-  each must carry a stable `id` for keyed reconciliation. With
-  `sticky-bottom` (default), the list auto-scrolls to the newest message
-  unless the user has scrolled up to read history.
+  <sui-message-list> — a keyed, windowed, scrollable column of
+  <sui-message> bubbles. Items arrive via the `items` JS-property
+  (`prop:items={...}`); each must carry a stable `id` for keyed
+  reconciliation. With `sticky-bottom` (default), the list auto-scrolls
+  to the newest message unless the user has scrolled up to read history.
+
+  Long threads window through the shared `createVirtualizer`: only the
+  visible slice (+overscan) of <sui-message> elements is in the DOM, so
+  a 10k-message thread renders ~a dozen bubbles, not 10k. A spacer
+  encodes the full thread height so the scrollbar stays honest; each row
+  is absolutely positioned at its virtual offset.
 
   Item shape (all but `id` / `content` optional):
     { id, content, role?, contentType?, timestamp?, status? }
@@ -28,13 +34,22 @@
   :host([hidden]) { display: none; }
 
   .scroll {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3, 12px);
+    position: relative;
     height: 100%;
     overflow-y: auto;
     padding: var(--space-3, 12px);
     scrollbar-width: thin;
+  }
+  .spacer {
+    position: relative;
+    width: 100%;
+  }
+  .row {
+    position: absolute;
+    left: var(--space-3, 12px);
+    right: var(--space-3, 12px);
+    display: flex;
+    flex-direction: column;
   }
   .empty {
     display: contents;
@@ -45,14 +60,18 @@
 </style>
 
 <div class="scroll" part="scroll" bind:this={scrollEl}>
-  {#for item of items() key={item.id}}
-    <sui-message
-      role={item.role || 'assistant'}
-      content-type={item.contentType || 'text'}
-      timestamp={item.timestamp || ''}
-      status={item.status || 'sent'}
-    >{item.content}</sui-message>
-  {/for}
+  <div class="spacer" style:height={`${totalSize()}px`}>
+    {#for w of windowItems() key={w.key}}
+      <div class="row" part="row" style:transform={`translateY(${w.start}px)`}>
+        <sui-message
+          role={w.item.role || 'assistant'}
+          content-type={w.item.contentType || 'text'}
+          timestamp={w.item.timestamp || ''}
+          status={w.item.status || 'sent'}
+        >{w.item.content}</sui-message>
+      </div>
+    {/for}
+  </div>
   {#if items().length === 0}
     <div class="empty"><slot name="empty"></slot></div>
   {/if}
