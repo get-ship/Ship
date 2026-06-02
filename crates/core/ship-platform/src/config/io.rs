@@ -5,9 +5,9 @@ use super::merge::{
 use super::agents::{get_agents_config, save_agents_config};
 use super::project::{ProjectConfig, default_harnesses};
 use super::types::PRIMARY_CONFIG_FILE;
+use ship_substrate::config_doc;
 use ship_substrate::project::get_global_dir;
 use anyhow::Result;
-use std::fs;
 use std::path::PathBuf;
 
 pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
@@ -19,12 +19,8 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
 
     let primary_path = config_dir.join(PRIMARY_CONFIG_FILE);
 
-    let mut config: ProjectConfig = if primary_path.exists() {
-        let content = fs::read_to_string(&primary_path)?;
-        serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&content))?
-    } else {
-        ProjectConfig::default()
-    };
+    let mut config: ProjectConfig =
+        config_doc::read_doc(&primary_path)?.unwrap_or_default();
 
     if is_project {
         let agents = get_agents_config(&config_dir)?;
@@ -76,15 +72,10 @@ pub fn save_config(config: &ProjectConfig, project_dir: Option<PathBuf>) -> Resu
     };
     let path = config_dir.join(PRIMARY_CONFIG_FILE);
 
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
     if project_dir.is_none() {
         // Global config is JSONC. The home-layout migrator converts any
         // pre-existing legacy TOML user-config into the settings/local pair.
-        let json = serde_json::to_string_pretty(config)?;
-        ship_substrate::fs_util::write_atomic(&path, json)?;
+        config_doc::write_doc(&path, config)?;
         return Ok(());
     }
 
@@ -95,11 +86,11 @@ pub fn save_config(config: &ProjectConfig, project_dir: Option<PathBuf>) -> Resu
             #[serde(default)]
             id: String,
         }
-        if let Ok(content) = fs::read_to_string(&path) {
-            let parsed: MinConfig = serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&content)).unwrap_or_default();
-            if !parsed.id.trim().is_empty() {
-                effective.id = parsed.id;
-            }
+        // Lenient: a corrupt existing ship.jsonc must not block re-save; we
+        // only try to preserve a prior id when one parses out.
+        let parsed: MinConfig = config_doc::read_doc_or_default(&path);
+        if !parsed.id.trim().is_empty() {
+            effective.id = parsed.id;
         }
     }
     if effective.id.trim().is_empty() {

@@ -1,5 +1,5 @@
-pub mod catalog;
 pub mod credentials;
+pub mod gateway;
 pub mod library;
 pub mod local;
 pub mod security;
@@ -13,12 +13,14 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 use ship_substrate::ShipHome;
+use ship_substrate::config_doc;
 
 /// Settings document persisted as JSONC under a Ship home directory.
 ///
 /// Each impl supplies `path_at(&ShipHome)`; the trait wires the standard
-/// load / save / parse behavior. Override `after_save` for per-doc concerns
-/// (e.g. `chmod 600` on credentials).
+/// load / save / parse behavior over the substrate config-document accessor —
+/// L1 never touches `std::fs` for config bytes. Override `sensitive()` to
+/// `true` for documents holding machine-local secrets (writes them owner-only).
 pub trait DiskBackedConfig: Sized + Default + Serialize + DeserializeOwned {
     /// Path under an explicit ship home.
     fn path_at(home: &ShipHome) -> PathBuf;
@@ -28,10 +30,15 @@ pub trait DiskBackedConfig: Sized + Default + Serialize + DeserializeOwned {
         Self::path_at(&ShipHome::from_env())
     }
 
+    /// Whether this document holds machine-local secrets. When `true`, saves
+    /// restrict the file to owner-only (`chmod 600` on Unix). Default `false`.
+    fn sensitive() -> bool {
+        false
+    }
+
     /// Strip JSONC comments and parse.
     fn parse(raw: &str) -> Result<Self> {
-        let stripped = ship_substrate::fs_util::strip_jsonc_comments(raw);
-        Ok(serde_json::from_str(&stripped)?)
+        config_doc::parse_doc(raw)
     }
 
     /// Load from `path()`. Defaults on missing or unparseable input.
@@ -41,10 +48,7 @@ pub trait DiskBackedConfig: Sized + Default + Serialize + DeserializeOwned {
 
     /// Load from an explicit path. Defaults on missing or unparseable input.
     fn load_at(path: &Path) -> Self {
-        match std::fs::read_to_string(path) {
-            Ok(raw) => Self::parse(&raw).unwrap_or_default(),
-            Err(_) => Self::default(),
-        }
+        config_doc::read_doc_or_default(path)
     }
 
     /// Save to `path()`, creating parent dirs as needed.
@@ -54,18 +58,11 @@ pub trait DiskBackedConfig: Sized + Default + Serialize + DeserializeOwned {
 
     /// Save to an explicit path, creating parent dirs as needed.
     fn save_at(&self, path: &Path) -> Result<()> {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
+        if Self::sensitive() {
+            config_doc::write_secret_doc(path, self)
+        } else {
+            config_doc::write_doc(path, self)
         }
-        let body = serde_json::to_string_pretty(self)?;
-        std::fs::write(path, format!("{body}\n"))?;
-        Self::after_save(path)?;
-        Ok(())
-    }
-
-    /// Hook for per-impl post-save behavior. Default: no-op.
-    fn after_save(_path: &Path) -> Result<()> {
-        Ok(())
     }
 }
 mod discover;
@@ -117,5 +114,6 @@ pub use runtime_settings::{
 };
 
 pub use credentials::Credentials;
+pub use gateway::{account_token, resolve_gateway_base_url, DEFAULT_GATEWAY};
 pub use library::LibrarySettings;
 pub use local::{worktrees_dir, LocalSettings};

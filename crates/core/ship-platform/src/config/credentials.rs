@@ -4,9 +4,8 @@
 //! consumed by `ship mcp serve` for HTTP transport auth. Both are
 //! machine-local — they never sync across machines.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use ship_substrate::ShipHome;
@@ -36,14 +35,10 @@ impl crate::config::DiskBackedConfig for Credentials {
         home.credentials_path()
     }
 
-    /// Credentials file is sensitive — `chmod 600` after writing.
-    fn after_save(_path: &Path) -> Result<()> {
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(_path, std::fs::Permissions::from_mode(0o600));
-        }
-        Ok(())
+    /// Credentials hold machine-local secrets — substrate writes them
+    /// owner-only (`chmod 600` on Unix).
+    fn sensitive() -> bool {
+        true
     }
 }
 

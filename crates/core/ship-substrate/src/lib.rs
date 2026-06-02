@@ -6,6 +6,7 @@
 //! config schemas, or any L1 primitives.
 
 pub mod access;
+pub mod config_doc;
 pub mod data;
 pub mod ports;
 pub mod db;

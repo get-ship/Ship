@@ -9,11 +9,9 @@
 //! No daemon involvement needed.
 
 use axum::{Extension, Json, http::StatusCode, response::IntoResponse};
-use ship_platform::config::{Credentials, DiskBackedConfig, library::LibrarySettings};
+use ship_platform::config;
 
 use crate::auth::{AuthContext, Scope, require_scope};
-
-const DEFAULT_GATEWAY: &str = "https://api.getship.dev";
 
 fn err(status: StatusCode, msg: impl Into<String>) -> axum::response::Response {
     (
@@ -21,16 +19,6 @@ fn err(status: StatusCode, msg: impl Into<String>) -> axum::response::Response {
         Json(serde_json::json!({ "ok": false, "error": msg.into() })),
     )
         .into_response()
-}
-
-fn resolve_gateway() -> String {
-    let settings = LibrarySettings::load();
-    settings
-        .cloud
-        .and_then(|c| c.base_url)
-        .unwrap_or_else(|| DEFAULT_GATEWAY.to_string())
-        .trim_end_matches('/')
-        .to_string()
 }
 
 /// POST `/api/v1/registry/publish` — forward to gateway.
@@ -58,13 +46,15 @@ pub async fn publish(
 pub async fn publish_to_gateway(
     payload: serde_json::Value,
 ) -> Result<(StatusCode, serde_json::Value), (StatusCode, String)> {
-    let creds = Credentials::load();
-    let token = creds.account_token().map(str::to_string).ok_or((
+    let token = config::account_token().ok_or((
         StatusCode::UNAUTHORIZED,
         "Not authenticated. Run `ship login` on this machine first.".to_string(),
     ))?;
 
-    let url = format!("{}/api/v1/registry/publish", resolve_gateway());
+    let url = format!(
+        "{}/api/v1/registry/publish",
+        config::resolve_gateway_base_url()
+    );
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(60))
         .build()
@@ -98,7 +88,7 @@ mod tests {
 
     #[test]
     fn resolve_gateway_default() {
-        let url = resolve_gateway();
+        let url = config::resolve_gateway_base_url();
         assert!(!url.is_empty());
         assert!(!url.ends_with('/'));
     }
