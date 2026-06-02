@@ -14,8 +14,12 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
+// Shared prod-home refusal — mirrors the Rust fail-loud guard in
+// crates/core/ship-substrate/src/project/global.rs and run.mjs's #185.
+// These tests mutate live daemon kernel state; refuse to target a daemon
+// whose home is the operator's prod ~/.ship (unless SHIP_LOOPS_ALLOW_PROD=1).
+import { assertNotProdHome, resolveHome } from "../loops/_prod-guard.mjs";
 
 // Per-worktree daemon discovery — matches scripts/dev/_lib.sh::daemon_dir.
 //
@@ -38,7 +42,9 @@ function gitToplevel(): string {
 function daemonDir(): string {
   const root = realpathSync(gitToplevel());
   const hash = createHash("sha256").update(root).digest("hex").slice(0, 8);
-  const home = process.env.SHIP_HOME ?? join(homedir(), ".ship");
+  // Refuse to resolve a daemon dir under prod ~/.ship. Throws (caught nowhere)
+  // so the suite aborts at module load rather than mutating prod state.
+  const home = assertNotProdHome(resolveHome());
   return join(home, "machine/daemons", hash);
 }
 

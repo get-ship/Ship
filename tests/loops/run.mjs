@@ -22,7 +22,7 @@ import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, basename } from "node:path";
-import { homedir } from "node:os";
+import { guardProdHome } from "./_prod-guard.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RESULTS = join(__dirname, "results");
@@ -38,26 +38,16 @@ const filter = args.find((a) => !a.startsWith("--"));
 //
 // Safety guard (#185): loops mutate daemon kernel state — they POST hook events,
 // start sessions, drive pipelines. Running them against the operator's prod
-// daemon (~/.ship/) pollutes day-to-day state. Refuse to run unless SHIP_HOME
-// is explicitly set to something other than ~/.ship, OR the caller opts in
-// with SHIP_LOOPS_ALLOW_PROD=1. The dispatched/test-daemon path sets
-// SHIP_HOME=<tmpdir> before invoking us.
+// daemon (~/.ship/) pollutes day-to-day state. The shared `_prod-guard.mjs`
+// refuses unless SHIP_HOME points somewhere other than ~/.ship, OR the caller
+// opts in with SHIP_LOOPS_ALLOW_PROD=1. The dispatched/test-daemon path sets
+// SHIP_HOME=<tmpdir> before invoking us. Same guard is imported by each spec
+// directly so `bun test <spec>` is protected even when run.mjs is bypassed.
 function daemonDir() {
   const r = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" });
   const root = realpathSync(r.status === 0 && r.stdout ? r.stdout.trim() : process.cwd());
   const hash = createHash("sha256").update(root).digest("hex").slice(0, 8);
-  const home = process.env.SHIP_HOME ?? join(homedir(), ".ship");
-  const prodHome = join(homedir(), ".ship");
-  if (home === prodHome && process.env.SHIP_LOOPS_ALLOW_PROD !== "1") {
-    console.error(
-      `\n  ✖ tests/loops would mutate your prod daemon db at ${prodHome}.\n` +
-      `    Either:\n` +
-      `      SHIP_HOME=<tmpdir> node tests/loops/run.mjs\n` +
-      `    or, if you really mean to run against prod:\n` +
-      `      SHIP_LOOPS_ALLOW_PROD=1 node tests/loops/run.mjs\n`,
-    );
-    process.exit(2);
-  }
+  const home = guardProdHome();
   return join(home, "machine/daemons", hash);
 }
 

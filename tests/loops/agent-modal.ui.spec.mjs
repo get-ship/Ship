@@ -23,6 +23,11 @@ import { chromium } from '../../apps/shell/node_modules/playwright/index.mjs';
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { guardProdHome } from './_prod-guard.mjs';
+
+// Refuse to mutate the operator's prod daemon (~/.ship) on direct runs.
+// Fires BEFORE the token read below, which would otherwise touch prod.
+guardProdHome();
 
 const BASE = process.env.SHIPD_URL ?? 'http://localhost:9315';
 const TOKEN = process.env.TOKEN ??

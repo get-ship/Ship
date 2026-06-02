@@ -18,6 +18,10 @@
  * Usage:
  *   TOKEN=$(cat ~/.ship/daemon.token) node apps/shell/scripts/loop4-daemon-minted-ids.mjs
  */
+import { guardProdHome } from "./_prod-guard.mjs";
+
+// Refuse to mutate the operator's prod daemon (~/.ship) on direct runs.
+guardProdHome();
 
 const BASE = process.env.SHIPD_URL ?? "http://localhost:9315";
 const TOKEN = process.env.TOKEN;
