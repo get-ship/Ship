@@ -9,7 +9,7 @@
     "description": "Ship orchestrator — captures intent, dispatches specialists, monitors via mesh, gates before merge"
   },
   "skills": {
-    "refs": ["cmdr", "spawn-agent", "ship-coordination", "ship-agents", "web-qa"]
+    "refs": ["cmdr", "spawn-agent", "ship-agents", "web-qa"]
   },
   "mcp": {
     "servers": ["ship"],
