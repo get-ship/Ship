@@ -164,13 +164,12 @@ impl ShipRuntime {
         // `collections()`/`artifacts()` accessors construct stateless services
         // over these per call; the collection wire is mounted with the SAME
         // registry so a wire-created schema is visible to trigger inserts.
-        // Collections are event-sourced (ADR D6/D7): the read path must bind to
-        // the SAME per-scope `spaces/<id>/space.db` that the `CollectionProjection`
-        // materializes the table into, so a query reads exactly what the
-        // projection wrote. Artifacts are NOT yet event-sourced (sibling slice)
-        // and keep the shared data.db backing.
-        let collection_ctx = build_collection_space_context_arc(kernel.clone(), global_dir, "global");
-        let artifact_ctx = build_space_context_arc(kernel.clone(), global_dir, "global");
+        // Collections AND artifact metadata are event-sourced (ADR D6/D7): the
+        // read path must bind to the SAME per-scope `spaces/<id>/space.db` that the
+        // `CollectionProjection` / `ArtifactProjection` materialize the table into,
+        // so a query reads exactly what the projection wrote.
+        let collection_ctx = build_space_db_context_arc(kernel.clone(), global_dir, "global");
+        let artifact_ctx = build_space_db_context_arc(kernel.clone(), global_dir, "global");
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
         // Hydrate user-authored `.ship/collections/*.jsonc` schemas into the
         // shared registry so they are queryable alongside the built-ins.
@@ -399,42 +398,31 @@ fn cleanup_active_sessions_on_startup() {
     }
 }
 
-/// Construct a `SpaceContext` from existing runtime handles.
-///
-/// Proof-of-wiring: takes the kernel and data dir already owned by `ShipRuntime`
-/// and returns a fully-formed `SpaceContext`. Domain crates adopt this in later
-/// passes; the context is not yet threaded through any handlers here.
-pub fn build_space_context(
+/// Construct a `SpaceContext` over the shared `data.db`. Retained only for the
+/// test ctors, which don't read event-sourced collection/artifact tables through
+/// this ctx and so don't need the per-scope `space.db` mount. Production paths
+/// use [`build_space_db_context_arc`].
+pub fn build_space_context_arc(
     kernel: super::SharedKernel,
     ship_dir: &Path,
     space_id: &str,
-) -> ship_substrate::SpaceContext {
-    use std::sync::Arc;
+) -> Arc<ship_substrate::ports::SpaceContext> {
     use ship_substrate::data::DataService;
     use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
     let data_svc = DataService::open(ship_dir).expect("data service for SpaceContext");
     let data_store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
     let kernel_log = Arc::new(KernelLog::new(kernel));
-    SpaceContext::new(SpaceId::new(space_id), data_store, kernel_log)
+    Arc::new(SpaceContext::new(SpaceId::new(space_id), data_store, kernel_log))
 }
 
-/// `Arc`-wrapped `build_space_context` — the shape the collection/artifact
-/// accessors + the wire mount hold (per-request cheap `Arc` clones).
-pub fn build_space_context_arc(
-    kernel: super::SharedKernel,
-    ship_dir: &Path,
-    space_id: &str,
-) -> Arc<ship_substrate::ports::SpaceContext> {
-    Arc::new(build_space_context(kernel, ship_dir, space_id))
-}
-
-/// Construct a `SpaceContext` for COLLECTIONS, with the `DataStore` bound to the
-/// space's per-scope event db (`spaces/<id>/space.db`) rather than the shared
-/// `data.db`. Collections are event-sourced: the `CollectionProjection` writes
-/// the `collection_<id>` tables into that per-scope db inside the append
-/// transaction, so the read path must query the SAME file (ADR D6/D7).
-pub fn build_collection_space_context_arc(
+/// Construct a `SpaceContext` with the `DataStore` bound to the space's per-scope
+/// event db (`spaces/<id>/space.db`) rather than the shared `data.db`.
+/// Collections AND artifact metadata are event-sourced: the
+/// `CollectionProjection` / `ArtifactProjection` write their tables into that
+/// per-scope db inside the append transaction, so the read path must query the
+/// SAME file (ADR D6/D7).
+pub fn build_space_db_context_arc(
     kernel: super::SharedKernel,
     ship_dir: &Path,
     space_id: &str,
@@ -444,7 +432,7 @@ pub fn build_collection_space_context_arc(
 
     let space_db = ship_substrate::db::space_db_path(ship_dir, space_id);
     let data_svc =
-        DataService::open_at(&space_db).expect("data service over space.db for collections");
+        DataService::open_at(&space_db).expect("data service over space.db");
     let data_store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
     let kernel_log = Arc::new(KernelLog::new(kernel));
     Arc::new(SpaceContext::new(SpaceId::new(space_id), data_store, kernel_log))

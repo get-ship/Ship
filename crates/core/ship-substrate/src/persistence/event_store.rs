@@ -7,7 +7,9 @@ use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row, insert_event_ro
 use crate::db::{block_on, open_db_at};
 use ship_types::envelope::EventEnvelope;
 use crate::events::EventFilter;
-use crate::projections::{ActorProjection, CollectionProjection, EventBus, SessionProjection};
+use crate::projections::{
+    ActorProjection, ArtifactProjection, CollectionProjection, EventBus, SessionProjection,
+};
 use ship_kernel::EventSink;
 
 pub trait EventStore: Send + Sync {
@@ -32,6 +34,14 @@ fn default_bus() -> Arc<EventBus> {
     // factory hop, and so the projection materializes into the SAME space.db the
     // read path queries.
     bus.register(Box::new(CollectionProjection));
+    // Artifact METADATA is event-sourced too (ADR D6/D7): emit-only writes,
+    // this projection is the sole writer of the per-space `collection_artifacts`
+    // metadata table. BLOBS stay on the content-addressed blob plane — only the
+    // relational metadata is a projection. Same dependency profile as
+    // CollectionProjection (ship-types payloads + the DataStore layout), so it
+    // ships in the default bus and materializes into the SAME space.db the read
+    // path queries.
+    bus.register(Box::new(ArtifactProjection));
     // AnalyticsProjection lives in the `ship-analytics` crate. The
     // daemon registers it at startup via
     // `install_extra_projections_factory` (see apps/shipd/src/lib.rs);

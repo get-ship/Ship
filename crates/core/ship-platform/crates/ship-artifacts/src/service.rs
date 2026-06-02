@@ -10,7 +10,7 @@ use std::sync::Mutex as StdMutex;
 
 use tokio::sync::Mutex;
 
-use ship_substrate::ports::{PrimaryKey, SpaceContext};
+use ship_substrate::ports::SpaceContext;
 use ship_types::envelope::EventEnvelope;
 use ship_types::payload::{
     ArtifactCreated, ArtifactDeleted, ArtifactMoved, ArtifactUpdated,
@@ -21,8 +21,8 @@ use crate::error::ArtifactError;
 use crate::helpers::{emit_ctx, new_ulid, now_rfc3339};
 use ship_types::sha256_hex;
 use crate::projection::{
-    TABLE, ensure_artifacts_table, find_by_hash, count_path_refs,
-    get_by_id, query_artifacts, record_to_row, record_to_scope,
+    ensure_artifacts_table, find_by_hash, count_path_refs,
+    get_by_id, query_artifacts, record_to_scope,
 };
 use crate::types::{ArtifactRecord, ArtifactScope};
 
@@ -106,7 +106,7 @@ impl ArtifactService {
             // user-scope was removed (artifacts are Run|Project); column kept
             // for the persisted row but never set.
             user_id: None,
-            content_hash: Some(content_hash.clone()),
+            content_hash: Some(content_hash),
             expires_at: expires_at.map(str::to_string),
             owner_actor: owner_actor.map(str::to_string),
             collection_id: collection_id.map(str::to_string),
@@ -114,29 +114,20 @@ impl ArtifactService {
             created_at: now,
         };
 
-        let row = record_to_row(&record);
-        if let Err(e) = self.ctx.data().insert(TABLE, row).await {
-            let _ = self.backend.delete(scope, &id);
-            return Err(ArtifactError::from(e));
-        }
-
+        // EMIT-ONLY: the blob is on the content-addressed plane; the metadata row
+        // is materialized by `ArtifactProjection` in the same append transaction
+        // (ADR D6/D7). No direct `ctx.data().insert` — the projection is the sole
+        // metadata writer. A failed emit means no row, so GC the just-written blob.
         let envelope = EventEnvelope::new(
             "artifact.created",
             &id,
-            &ArtifactCreated {
-                id: id.clone(),
-                scope: scope.kind_str().to_string(),
-                name: name.to_string(),
-                mime: mime.to_string(),
-                size: bytes.len() as u64,
-                content_hash: Some(content_hash),
-                owner_actor: owner_actor.map(str::to_string),
-                space_id: scope.space_id().map(str::to_string),
-                run_id: scope.run_id().map(str::to_string),
-            },
+            &created_payload(&record),
         )
         .map_err(|e| ArtifactError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx(scope.space_id())).await?;
+        if let Err(e) = self.ctx.kernel().emit(envelope, &emit_ctx(scope.space_id())).await {
+            let _ = self.backend.delete(scope, &id);
+            return Err(ArtifactError::from(e));
+        }
 
         Ok(record)
     }
@@ -200,9 +191,9 @@ impl ArtifactService {
             record.expires_at = Some(e.to_string());
             changed["expires_at"] = serde_json::Value::String(e.to_string());
         }
-        let row = record_to_row(&record);
-        self.ctx.data().update(TABLE, row).await?;
 
+        // EMIT-ONLY: the projection applies the partial column UPDATE for exactly
+        // the `changed` keys in the append transaction. No direct `ctx.data().update`.
         let scope = record.scope.clone();
         let space = record.space_id.clone();
         let envelope = EventEnvelope::new(
@@ -280,35 +271,36 @@ impl ArtifactService {
             created_at: now,
         };
 
-        let new_row = record_to_row(&new_record);
-        if let Err(e) = self.ctx.data().insert(TABLE, new_row).await {
-            let _ = self.backend.delete(&target_scope, &new_id);
-            return Err(ArtifactError::from(e));
-        }
-
-        self.ctx.data()
-            .delete(TABLE, PrimaryKey(id.to_string()))
-            .await
-            .map_err(ArtifactError::from)?;
-
-        // Best-effort old-blob GC.
-        match count_path_refs(self.ctx.data(), &from_scope, &old_path).await {
-            Ok(0) => {
-                let old_blob_id = old_path.split('/').next_back().unwrap_or(id).to_string();
-                let _ = self.backend.delete(&from_scope, &old_blob_id);
-            }
-            _ => {}
-        }
-
+        // EMIT-ONLY: one `artifact.moved` event inserts the new metadata row and
+        // deletes the old one in the projection's append transaction. Promote
+        // keeps the scope SPACE fixed (only the scope KIND changes), so both rows
+        // route to — and the projection materializes them in — the same space.db.
+        // The blob bytes are already on the content-addressed plane; only the
+        // old-blob GC remains here.
         let from_scope_str = old.scope.clone();
         let to_scope_str = target_scope.kind_str().to_string();
         let envelope = EventEnvelope::new(
             "artifact.moved",
             &new_id,
-            &ArtifactMoved { id: new_id.clone(), from_scope: from_scope_str, to_scope: to_scope_str },
+            &ArtifactMoved {
+                old_id: id.to_string(),
+                from_scope: from_scope_str,
+                to_scope: to_scope_str,
+                new: created_payload(&new_record),
+            },
         )
         .map_err(|e| ArtifactError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx(target_scope.space_id())).await?;
+        if let Err(e) = self.ctx.kernel().emit(envelope, &emit_ctx(target_scope.space_id())).await {
+            let _ = self.backend.delete(&target_scope, &new_id);
+            return Err(ArtifactError::from(e));
+        }
+
+        // Best-effort old-blob GC (after the move is durable). `count_path_refs`
+        // reads the projection, which now reflects the deleted old row.
+        if let Ok(0) = count_path_refs(self.ctx.data(), &from_scope, &old_path).await {
+            let old_blob_id = old_path.split('/').next_back().unwrap_or(id).to_string();
+            let _ = self.backend.delete(&from_scope, &old_blob_id);
+        }
 
         Ok(new_record)
     }
@@ -324,29 +316,52 @@ impl ArtifactService {
         let scope = record_to_scope(&record)?;
         let rel_path = record.path.clone();
 
-        let deleted = self.ctx.data().delete(TABLE, PrimaryKey(id.to_string())).await?;
-        if deleted {
-            match count_path_refs(self.ctx.data(), &scope, &rel_path).await {
-                Ok(0) => {
-                    let blob_id = rel_path.split('/').next_back().unwrap_or(id).to_string();
-                    let _ = self.backend.delete(&scope, &blob_id);
-                }
-                _ => {}
-            }
+        // EMIT-ONLY: the projection removes the metadata row in the append
+        // transaction. No direct `ctx.data().delete`.
+        let envelope = EventEnvelope::new(
+            "artifact.deleted",
+            id,
+            &ArtifactDeleted {
+                id: id.to_string(),
+                scope: record.scope.clone(),
+                space_id: record.space_id.clone(),
+                run_id: record.run_id.clone(),
+            },
+        )
+        .map_err(|e| ArtifactError::Internal(e.to_string()))?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(record.space_id.as_deref())).await?;
 
-            let envelope = EventEnvelope::new(
-                "artifact.deleted",
-                id,
-                &ArtifactDeleted {
-                    id: id.to_string(),
-                    scope: record.scope.clone(),
-                    space_id: record.space_id.clone(),
-                    run_id: record.run_id.clone(),
-                },
-            )
-            .map_err(|e| ArtifactError::Internal(e.to_string()))?;
-            self.ctx.kernel().emit(envelope, &emit_ctx(record.space_id.as_deref())).await?;
+        // After the row is gone from the projection, GC the blob iff no other
+        // metadata row still references the same (scope, path).
+        if let Ok(0) = count_path_refs(self.ctx.data(), &scope, &rel_path).await {
+            let blob_id = rel_path.split('/').next_back().unwrap_or(id).to_string();
+            let _ = self.backend.delete(&scope, &blob_id);
         }
-        Ok(deleted)
+        Ok(true)
+    }
+}
+
+/// Build the projection-complete `ArtifactCreated` payload from a record. Every
+/// metadata column the `ArtifactProjection` materializes rides the event, so the
+/// projection never reads prior state. `space_id` here is the artifact's logical
+/// space (stored as the `scope_space` column); the projection takes the row
+/// PARTITION space from the envelope's `scope_key`.
+fn created_payload(r: &ArtifactRecord) -> ArtifactCreated {
+    ArtifactCreated {
+        id: r.id.clone(),
+        scope: r.scope.clone(),
+        name: r.name.clone(),
+        mime: r.mime.clone(),
+        size: r.size,
+        path: r.path.clone(),
+        created_at: r.created_at.clone(),
+        content_hash: r.content_hash.clone(),
+        owner_actor: r.owner_actor.clone(),
+        space_id: r.space_id.clone(),
+        run_id: r.run_id.clone(),
+        user_id: r.user_id.clone(),
+        expires_at: r.expires_at.clone(),
+        collection_id: r.collection_id.clone(),
+        item_id: r.item_id.clone(),
     }
 }

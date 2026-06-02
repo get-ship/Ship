@@ -233,7 +233,10 @@ pub async fn seed_lane_success(
     body: &[u8],
 ) -> String {
     let space_id = run_scope.space_id().unwrap_or("global");
-    let data_svc = ship_substrate::data::DataService::open(ship_dir).unwrap();
+    // Artifact metadata is event-sourced: bind to the per-scope space.db where
+    // `ArtifactProjection` materializes the row (consumer consistency).
+    let space_db = ship_substrate::db::space_db_path(ship_dir, space_id);
+    let data_svc = ship_substrate::data::DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
     let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
     let ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel_log));

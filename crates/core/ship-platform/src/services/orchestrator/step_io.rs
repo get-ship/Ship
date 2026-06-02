@@ -225,17 +225,20 @@ pub async fn run_step_promotes(
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
-/// Build an `ArtifactService` over a `SpaceContext` for the run's space. The
-/// ctx space id is cosmetic for artifacts — artifact SCOPE is carried per-call
-/// (`ArtifactScope::Run/Project/User`) and the blob backend keys off the scope,
-/// not the ctx space (C-2 UD-9). The global ship dir is the blob root.
+/// Build an `ArtifactService` over a `SpaceContext` for the run's space.
+/// Artifact METADATA is event-sourced (ADR D6/D7): `artifact.*` events route to
+/// `spaces/<space_id>/space.db`, where `ArtifactProjection` materializes the
+/// metadata row. The read ctx must bind to that SAME per-scope db (consumer
+/// consistency), with its partition key set to the run's space. The global ship
+/// dir is the blob root (blobs stay on the content-addressed plane).
 fn artifact_service(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     ship_dir: &Path,
 ) -> ArtifactService {
     let space_id = ship_substrate::project::project_slug_from_ship_dir(ship_dir);
-    let data_svc = ship_substrate::data::DataService::open(ship_dir)
-        .expect("orchestrator artifact service: open data.db");
+    let space_db = ship_substrate::db::space_db_path(ship_dir, &space_id);
+    let data_svc = ship_substrate::data::DataService::open_at(&space_db)
+        .expect("orchestrator artifact service: open space.db");
     let store = Arc::new(SingleBackendDataStore::new(data_svc, &space_id));
     let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
     let ctx = Arc::new(SpaceContext::new(SpaceId::new(&space_id), store, kernel_log));

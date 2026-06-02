@@ -15,6 +15,15 @@ use ship_substrate::home::ShipHome;
 use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
+//
+// Artifact METADATA is event-sourced (ADR D6/D7): `artifact.*` (Space-scoped)
+// events route to `spaces/<scope-space>/space.db`, where `ArtifactProjection`
+// materializes the `collection_artifacts` rows. The read ctx must therefore bind
+// to the SAME per-scope `space.db` with its partition key set to the scope space
+// (consumer-consistency). All scopes here use `SCOPE_SPACE`, so the ctx binds to
+// it; the kernel router is rooted at the same `ship_dir`.
+
+const SCOPE_SPACE: &str = "proj1";
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
@@ -23,11 +32,19 @@ fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
     Arc::new(KernelLog::new(router))
 }
 
-fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext> {
+/// Build a `SpaceContext` whose data store reads the per-scope `space.db` for
+/// `space` (matching where `ArtifactProjection` writes), with its partition key
+/// set to the same space.
+fn make_ctx_for(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>, space: &str) -> Arc<SpaceContext> {
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
-    let svc = DataService::open(&ship_dir).unwrap();
-    let store = Arc::new(SingleBackendDataStore::new(svc, "test"));
-    Arc::new(SpaceContext::new(SpaceId::new("test"), store, kernel))
+    let space_db = ship_substrate::db::space_db_path(&ship_dir, space);
+    let svc = DataService::open_at(&space_db).unwrap();
+    let store = Arc::new(SingleBackendDataStore::new(svc, space));
+    Arc::new(SpaceContext::new(SpaceId::new(space), store, kernel))
+}
+
+fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext> {
+    make_ctx_for(tmp, kernel, SCOPE_SPACE)
 }
 
 fn make_service(tmp: &tempfile::TempDir, ctx: Arc<SpaceContext>) -> ArtifactService {
@@ -35,11 +52,11 @@ fn make_service(tmp: &tempfile::TempDir, ctx: Arc<SpaceContext>) -> ArtifactServ
 }
 
 fn project_scope() -> ArtifactScope {
-    ArtifactScope::Project { space_id: "proj1".to_string() }
+    ArtifactScope::Project { space_id: SCOPE_SPACE.to_string() }
 }
 
 fn run_scope() -> ArtifactScope {
-    ArtifactScope::Run { space_id: "proj1".to_string(), run_id: "run1".to_string() }
+    ArtifactScope::Run { space_id: SCOPE_SPACE.to_string(), run_id: "run1".to_string() }
 }
 
 // ── Test 1: create_artifact_emits_event_and_stores_blob ───────────────────────
@@ -161,43 +178,36 @@ async fn promote_marks_retained() {
     assert!(old.is_none(), "old metadata must be removed after promote");
 }
 
-// ── Test 5b: ctx space id is cosmetic — store + promote cross-space (C-2 UD-9) ─
+// ── Test 5b: artifact metadata is per-space isolated (event-sourced) ──────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ctx_space_id_is_cosmetic_store_and_promote_cross_space() {
-    // The service's `SpaceContext` is bound to space "cosmetic-ctx", which
-    // matches NEITHER artifact scope below. Artifact SCOPE is per-call and the
-    // blob backend keys off the scope (not the ctx space). So a store into
-    // project "proj-A" and a promote to project "proj-B" must both succeed and
-    // round-trip bytes through this single service — proving the ctx space id
-    // is cosmetic for artifacts (C-2 UD-9).
+async fn artifact_metadata_is_per_space_isolated() {
+    // Artifact metadata is event-sourced: `artifact.*` events route to the
+    // SCOPE space's `space.db`, where `ArtifactProjection` materializes the
+    // metadata row. A service bound to space A therefore sees A's artifacts and
+    // NOT B's — proving the ctx space is the read partition, not cosmetic. (This
+    // replaces the pre-flip "ctx space is cosmetic" claim, false under D6/D7.)
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
-    let data_svc = DataService::open(&ship_dir).unwrap();
-    let store = Arc::new(SingleBackendDataStore::new(data_svc, "cosmetic-ctx"));
-    let ctx = Arc::new(SpaceContext::new(SpaceId::new("cosmetic-ctx"), store, kernel));
-    let svc = ArtifactService::new(ctx, tmp.path().to_path_buf());
+
+    let svc_a = make_service(&tmp, make_ctx_for(&tmp, kernel.clone(), "proj-A"));
+    let svc_b = make_service(&tmp, make_ctx_for(&tmp, kernel, "proj-B"));
 
     let scope_a = ArtifactScope::Project { space_id: "proj-A".to_string() };
-    let scope_b = ArtifactScope::Project { space_id: "proj-B".to_string() };
-
-    let record = svc
-        .store("cross.txt", "text/plain", b"cross-space bytes", &scope_a, None, None, None, None)
+    let rec = svc_a
+        .store("a-only.txt", "text/plain", b"a-bytes", &scope_a, None, None, None, None)
         .await
         .unwrap();
-    assert_eq!(record.space_id.as_deref(), Some("proj-A"));
+    assert_eq!(rec.space_id.as_deref(), Some("proj-A"));
 
-    // Bytes are readable even though ctx space ("cosmetic-ctx") != scope space.
-    let (_, bytes) = svc.get_blob(&record.id).await.unwrap();
-    assert_eq!(bytes, b"cross-space bytes");
+    // Space A sees its artifact (projection materialized it in proj-A's space.db).
+    assert!(svc_a.get_record(&rec.id).await.unwrap().is_some());
+    let (_, bytes) = svc_a.get_blob(&rec.id).await.unwrap();
+    assert_eq!(bytes, b"a-bytes");
 
-    // Promote to a DIFFERENT space's project scope — the new metadata + blob
-    // key off scope-B, not the ctx space.
-    let promoted = svc.promote(&record.id, scope_b, true).await.unwrap();
-    assert_eq!(promoted.space_id.as_deref(), Some("proj-B"));
-    let (_, promoted_bytes) = svc.get_blob(&promoted.id).await.unwrap();
-    assert_eq!(promoted_bytes, b"cross-space bytes");
+    // Space B sees nothing — A's row lives in spaces/proj-A/space.db only.
+    assert!(svc_b.get_record(&rec.id).await.unwrap().is_none());
+    assert!(svc_b.list(BTreeMap::new(), 50).await.unwrap().is_empty());
 }
 
 // ── Test 6: gc_sweeps_unreferenced_blob ───────────────────────────────────────

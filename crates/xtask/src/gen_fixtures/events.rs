@@ -105,15 +105,32 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         }),
 
         // ── Artifact events ──────────────────────────────────────────────────
+        // Metadata is event-sourced (ADR D6/D7): these payloads are
+        // projection-complete (`ArtifactProjection` materializes the row).
         "ArtifactCreated" => json!({
             "id": "test-artifact-id",
-            "scope": "space",
+            "scope": "project",
             "name": "test-artifact.md",
             "mime": "text/markdown",
-            "size": 1024
+            "size": 1024,
+            "path": "blobs/test-artifact-id",
+            "created_at": "2026-01-01T00:00:00Z"
         }),
-        "ArtifactMoved" => json!({ "id": "test-artifact-id", "from_scope": "space", "to_scope": "account" }),
-        "ArtifactDeleted" => json!({ "id": "test-artifact-id", "scope": "space" }),
+        "ArtifactMoved" => json!({
+            "old_id": "test-artifact-id",
+            "from_scope": "run",
+            "to_scope": "project",
+            "new": {
+                "id": "test-artifact-id-2",
+                "scope": "project",
+                "name": "test-artifact.md",
+                "mime": "text/markdown",
+                "size": 1024,
+                "path": "blobs/test-artifact-id-2",
+                "created_at": "2026-01-01T00:00:00Z"
+            }
+        }),
+        "ArtifactDeleted" => json!({ "id": "test-artifact-id", "scope": "project" }),
 
         // ── Collection events ────────────────────────────────────────────────
         // item_created/updated are projection-complete: they carry the full

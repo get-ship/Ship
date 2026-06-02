@@ -33,7 +33,10 @@ fn art_service(
     ship_dir: &std::path::Path,
     space_id: &str,
 ) -> ArtifactService {
-    let data_svc = ship_substrate::data::DataService::open(ship_dir).unwrap();
+    // Artifact metadata is event-sourced: bind the read ctx to the per-scope
+    // space.db where `ArtifactProjection` materializes the row (consumer consistency).
+    let space_db = ship_substrate::db::space_db_path(ship_dir, space_id);
+    let data_svc = ship_substrate::data::DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
     let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
     let ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel_log));

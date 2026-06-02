@@ -193,6 +193,8 @@ fn artifact_created_v1_round_trips() {
         "name": "out.txt",
         "mime": "text/plain",
         "size": 10,
+        "path": "runs/r-1/blobs/a-1",
+        "created_at": "2026-01-01T00:00:00Z",
         "content_hash": "deadbeef",
         "owner_actor": "lead",
         "project_id": "p-1",
@@ -209,8 +211,23 @@ fn artifact_updated_v1_round_trips() {
 
 #[test]
 fn artifact_moved_v1_round_trips() {
+    // `artifact.moved` (promote) carries the old id to delete + the full new
+    // metadata row to insert (projection-complete, ADR D6/D7).
     let _: ArtifactMoved = parse(
-        r#"{"id": "a-1", "from_scope": "run", "to_scope": "project"}"#,
+        r#"{
+            "old_id": "a-1",
+            "from_scope": "run",
+            "to_scope": "project",
+            "new": {
+                "id": "a-2",
+                "scope": "project",
+                "name": "out.txt",
+                "mime": "text/plain",
+                "size": 10,
+                "path": "blobs/a-2",
+                "created_at": "2026-01-01T00:00:00Z"
+            }
+        }"#,
         "ArtifactMoved",
     );
 }

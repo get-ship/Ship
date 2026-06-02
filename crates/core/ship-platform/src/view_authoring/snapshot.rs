@@ -72,13 +72,19 @@ fn collection_service(ctx: Arc<SpaceContext>) -> CollectionService {
 }
 
 /// Build a `SpaceContext` over the daemon DataStore for the given space.
+///
+/// Collection items and artifact metadata are both event-sourced (ADR D6/D7):
+/// the read ctx must bind to the per-scope `spaces/<space_id>/space.db` where
+/// `CollectionProjection`/`ArtifactProjection` materialize their tables, not the
+/// shared data.db (consumer consistency).
 pub fn space_context_for(
     kernel: ship_substrate::access::SharedKernel,
     ship_dir: &std::path::Path,
     space_id: &str,
 ) -> Arc<SpaceContext> {
-    let data_svc = ship_substrate::data::DataService::open(ship_dir)
-        .expect("view_authoring: open data.db");
+    let space_db = ship_substrate::db::space_db_path(ship_dir, space_id);
+    let data_svc = ship_substrate::data::DataService::open_at(&space_db)
+        .expect("view_authoring: open space.db");
     let store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
     let kernel_log = Arc::new(KernelLog::new(kernel));
     Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel_log))
@@ -111,8 +117,15 @@ pub async fn snapshot_view(
 
     let bytes = source.as_bytes();
     let content_hash = sha256_hex(bytes);
+    // Scope the snapshot artifact to the CTX's space so its event-sourced
+    // metadata materializes in the SAME `space.db` as the `view_snapshots`
+    // collection row (read back through this ctx). The view's logical space is
+    // recorded in the `scope_space` row column below for filtering. (Before the
+    // artifact-metadata flip, direct-write put the row in the ctx-space
+    // partition regardless of scope; emit-only routes by scope, so they must
+    // agree — ADR D6/D7.)
     let scope = ArtifactScope::Project {
-        space_id: space_id.to_string(),
+        space_id: ctx.space_id().to_string(),
     };
     let artifact = artifacts
         .store(

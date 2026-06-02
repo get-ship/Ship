@@ -110,10 +110,14 @@ pub(crate) async fn emit_failed_marker(
         }
     };
     let space_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
-    let data_svc = match ship_substrate::data::DataService::open(&ship_dir) {
+    // Artifact METADATA is event-sourced (ADR D6/D7): the read ctx binds to the
+    // per-scope `spaces/<space_id>/space.db` where `ArtifactProjection` writes,
+    // not the shared data.db.
+    let space_db = ship_substrate::db::space_db_path(&ship_dir, &space_id);
+    let data_svc = match ship_substrate::data::DataService::open_at(&space_db) {
         Ok(d) => d,
         Err(e) => {
-            tracing::warn!(pipeline_run_id, lane_id, "fanout: failed marker — cannot open data service: {e}");
+            tracing::warn!(pipeline_run_id, lane_id, "fanout: failed marker — cannot open space.db: {e}");
             return None;
         }
     };

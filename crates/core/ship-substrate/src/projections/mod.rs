@@ -8,6 +8,7 @@
 //! and rebuilt from the event log at any time via [`rebuild`].
 
 pub mod actor;
+pub mod artifact;
 pub mod async_projection;
 pub mod collection;
 pub mod process;
@@ -23,6 +24,7 @@ mod tests_daemon_events;
 mod tests_session;
 
 pub use actor::ActorProjection;
+pub use artifact::ArtifactProjection;
 pub use async_projection::{AsyncProjection, spawn_projection};
 pub use collection::CollectionProjection;
 pub use process::{ProcessRecord, ProcessStatus, load_processes};

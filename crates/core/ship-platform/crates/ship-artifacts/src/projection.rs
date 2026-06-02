@@ -75,38 +75,6 @@ pub fn row_to_record(row: Row) -> Result<ArtifactRecord, ArtifactError> {
     })
 }
 
-/// Build a `Row` from an `ArtifactRecord` for insert/update.
-pub fn record_to_row(record: &ArtifactRecord) -> Row {
-    let mut row = Row::new(record.id.clone())
-        .with("created_at", sv(record.created_at.clone()))
-        .with("name", sv(record.name.clone()))
-        .with("path", sv(record.path.clone()))
-        .with("mime", sv(record.mime.clone()))
-        .with("size", serde_json::Value::Number(
-            serde_json::Number::from(record.size),
-        ))
-        .with("scope", sv(record.scope.clone()));
-
-    if let Some(ref v) = record.space_id {
-        row = row.with(COL_SCOPE_SPACE, sv(v.clone()));
-    }
-    macro_rules! opt_field {
-        ($field:ident) => {
-            if let Some(ref v) = record.$field {
-                row = row.with(stringify!($field), sv(v.clone()));
-            }
-        };
-    }
-    opt_field!(run_id);
-    opt_field!(user_id);
-    opt_field!(content_hash);
-    opt_field!(expires_at);
-    opt_field!(owner_actor);
-    opt_field!(collection_id);
-    opt_field!(item_id);
-    row
-}
-
 fn sv(s: String) -> serde_json::Value {
     serde_json::Value::String(s)
 }

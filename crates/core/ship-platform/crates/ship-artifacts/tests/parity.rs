@@ -21,6 +21,13 @@ use ship_substrate::home::ShipHome;
 use ship_substrate::ports::{KernelLog, Row, SingleBackendDataStore, SpaceContext, SpaceId};
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
+//
+// Artifact METADATA is event-sourced (ADR D6/D7): the read ctx binds to the
+// per-scope `space.db` for the artifact's scope space (`ArtifactProjection`
+// materializes the row there), with its partition key set to the same space.
+// All scopes here use `SCOPE_SPACE`, so the ctx binds to it.
+
+const SCOPE_SPACE: &str = "proj1";
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
@@ -29,11 +36,16 @@ fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
     Arc::new(KernelLog::new(router))
 }
 
-fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext> {
+fn make_ctx_for(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>, space: &str) -> Arc<SpaceContext> {
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
-    let svc = DataService::open(&ship_dir).unwrap();
-    let store = Arc::new(SingleBackendDataStore::new(svc, "test"));
-    Arc::new(SpaceContext::new(SpaceId::new("test"), store, kernel))
+    let space_db = ship_substrate::db::space_db_path(&ship_dir, space);
+    let svc = DataService::open_at(&space_db).unwrap();
+    let store = Arc::new(SingleBackendDataStore::new(svc, space));
+    Arc::new(SpaceContext::new(SpaceId::new(space), store, kernel))
+}
+
+fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext> {
+    make_ctx_for(tmp, kernel, SCOPE_SPACE)
 }
 
 fn make_service(tmp: &tempfile::TempDir, ctx: Arc<SpaceContext>) -> ArtifactService {
@@ -41,11 +53,11 @@ fn make_service(tmp: &tempfile::TempDir, ctx: Arc<SpaceContext>) -> ArtifactServ
 }
 
 fn project_scope() -> ArtifactScope {
-    ArtifactScope::Project { space_id: "proj1".to_string() }
+    ArtifactScope::Project { space_id: SCOPE_SPACE.to_string() }
 }
 
 fn run_scope() -> ArtifactScope {
-    ArtifactScope::Run { space_id: "proj1".to_string(), run_id: "run1".to_string() }
+    ArtifactScope::Run { space_id: SCOPE_SPACE.to_string(), run_id: "run1".to_string() }
 }
 
 const PAST: &str = "2020-01-01T00:00:00Z";
@@ -116,7 +128,7 @@ async fn parity_project_scope_blob_path_contains_blobs() {
     // Origin: artifacts_backend_project_scope_blob_path_layout
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
-    let ctx = make_ctx(&tmp, kernel);
+    let ctx = make_ctx_for(&tmp, kernel, "demo");
     let scope = ArtifactScope::Project { space_id: "demo".to_string() };
     let svc = make_service(&tmp, ctx);
 
@@ -137,7 +149,7 @@ async fn parity_run_scope_blob_path_contains_runs() {
     // Origin: artifacts_backend_run_scope_blob_path_layout
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
-    let ctx = make_ctx(&tmp, kernel);
+    let ctx = make_ctx_for(&tmp, kernel, "p");
     let scope = ArtifactScope::Run { space_id: "p".to_string(), run_id: "r1".to_string() };
     let svc = make_service(&tmp, ctx);
 
@@ -229,6 +241,8 @@ async fn parity_store_run_scope_sets_run_id() {
     let ctx = make_ctx(&tmp, kernel);
     let svc = make_service(&tmp, ctx);
 
+    // This test reads only the RETURNED record (not via the read store), so the
+    // scope space need not match the ctx space.
     let scope = ArtifactScope::Run { space_id: "proj".into(), run_id: "run-001".into() };
     let rec = svc
         .store("out.json", "application/json", b"{}", &scope, None, None, None, None)
@@ -555,7 +569,7 @@ async fn parity_gc_collects_multiple_expired() {
 
     for i in 0u8..3 {
         let scope = ArtifactScope::Run {
-            space_id: "proj".into(),
+            space_id: SCOPE_SPACE.into(),
             run_id: format!("run-{i}"),
         };
         svc.store(&format!("f{i}.txt"), "text/plain", &[i], &scope, None, None, None, Some(PAST))
@@ -803,7 +817,7 @@ async fn parity_concurrent_store_same_bytes_dedup_to_one_blob() {
     // Origin: artifacts_backend_concurrent_store_same_bytes_dedup_to_one_blob
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
-    let ctx = make_ctx(&tmp, kernel);
+    let ctx = make_ctx_for(&tmp, kernel, "dedup-race");
     let svc = Arc::new(make_service(&tmp, ctx));
 
     let scope = ArtifactScope::Project { space_id: "dedup-race".into() };
@@ -852,7 +866,7 @@ async fn parity_concurrent_store_distinct_bytes_each_get_own_blob() {
     // Origin: artifacts_backend_concurrent_store_distinct_bytes_each_get_own_blob
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
-    let ctx = make_ctx(&tmp, kernel);
+    let ctx = make_ctx_for(&tmp, kernel, "distinct");
     let svc = Arc::new(make_service(&tmp, ctx));
 
     let scope = ArtifactScope::Project { space_id: "distinct".into() };
