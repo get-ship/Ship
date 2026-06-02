@@ -45,10 +45,12 @@ export default controller({
     // don't need to re-do the loading/error/ok dance per access.
     const identity = derived<AccountIdentity>(() => readAccountIdentity(unwrapOr(account, null)))
 
+    // Resolved-identity label only. The live-source load states (loading /
+    // error) are render states owned by the template via {#while-loading} /
+    // {#while-error} — the controller must not re-derive them from
+    // `account().kind` (sui-controller-no-load-state).
     const triggerLabel = derived(() => {
       const id = identity()
-      if (account().kind === 'error') return 'Offline'
-      if (account().kind === 'loading') return '…'
       if (id.status === 'logged_in') return deriveDisplayName(id) || 'Account'
       if (id.status === 'pending') return 'Completing…'
       return 'Sign in'

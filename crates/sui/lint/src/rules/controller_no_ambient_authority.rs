@@ -14,18 +14,18 @@
 //! Compartment denies at runtime (proven in #165 — confined views run with
 //! `fetch`/`window` undefined). This rule is the author-time mirror.
 //!
-//! **Severity: Warning**, scoped to the CONFINED surface — view controllers (a
-//! `views/` tree). First-party chrome component controllers
+//! **Severity: Error** (security), scoped to the CONFINED surface — view
+//! controllers (a `views/` tree). First-party chrome component controllers
 //! (`apps/shell/src/components`, `packages/components` → any `/components/`
 //! path) run UNCONFINED in the host realm and legitimately use `fetch` /
 //! lazy-`import()`, so they are out of scope.
 //!
-//! Promotion to Error is gated on every confined-surface view controller being
-//! migrated off raw ambient authority — NOT yet true (`views/artifacts` still
-//! calls `fetch('/api/v1/…')`). Until those migrate to `ship.<domain>.<op>()`,
-//! Error would hard-fail their compile, so this stays Warning. Note `fetch` is
-//! flagged only as a bare call or on a global (`window`/`globalThis`/`self`);
-//! `ship.git.fetch({})` is a sanctioned SDK op, not ambient authority.
+//! Promotion to Error was gated on every confined-surface view controller being
+//! migrated off raw ambient authority — now true (zero violations across the
+//! confined surface, verified by the repo-wide scan). Error hard-fails compile
+//! on any regression. Note `fetch` is flagged only as a bare call or on a global
+//! (`window`/`globalThis`/`self`); `ship.git.fetch({})` is a sanctioned SDK op,
+//! not ambient authority.
 
 use std::path::{Path, PathBuf};
 
@@ -86,7 +86,7 @@ impl AmbientVisitor<'_> {
             line,
             col,
             rule: RULE_ID,
-            severity: Severity::Warn,
+            severity: Severity::Error,
             message: format!(
                 "controllers must not use ambient authority (`{what}`). All I/O goes \
                  through the `ship` SDK — the only sanctioned, policy-gated path. Raw \
@@ -218,10 +218,10 @@ mod tests {
     }
 
     #[test]
-    fn warning_severity_on_confined_surface() {
+    fn error_severity_on_confined_surface() {
         let f = check(Path::new("views/git/controller.ts"), "fetch('/x')");
         assert_eq!(f.len(), 1);
-        assert_eq!(f[0].severity, Severity::Warn);
+        assert_eq!(f[0].severity, Severity::Error);
     }
 
     #[test]

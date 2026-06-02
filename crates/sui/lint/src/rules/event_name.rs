@@ -4,15 +4,26 @@
 //! never-fired event.
 //!
 //! The whitelist is the set of standard browser events most templates
-//! use, plus three openings:
+//! use, plus four openings:
 //!   - `sui-*` — framework-emitted custom events (e.g. `sui-rail:toggle`)
 //!   - `ship-*` — Ship product custom events
 //!   - `<tag>:` prefix — namespaced events from custom elements
+//!   - a small set of bare SUI framework custom events that carry no
+//!     prefix — `success` (and `failure`) emitted by `<form mutation=…>`
+//!     after the mutation settles. These are real emitted events, not
+//!     DOM events, so they live in their own allowlist rather than the
+//!     DOM `KNOWN_EVENTS` table.
 //!
 //! Suggests the closest whitelisted name via Levenshtein when a typo
 //! is detected. False negatives are acceptable (any custom event with
 //! a `-`/`:` in the name passes); false positives are not — when in
 //! doubt, allow.
+//!
+//! **Severity: Error.** Every `on:<event>` across the components/views
+//! tree resolves to a known DOM event, a prefixed/namespaced custom
+//! event, or a SUI framework custom event (verified by the repo-wide
+//! scan). Error hard-fails a typo'd handler that would silently never
+//! fire.
 
 use std::path::Path;
 
@@ -62,6 +73,13 @@ const KNOWN_EVENTS: &[&str] = &[
     "wheel", "message", "messageerror", "storage",
 ];
 
+/// SUI framework custom events that carry NO prefix. `<form mutation=…>`
+/// emits `success` / `failure` on its host once the mutation settles, so
+/// `on:success=` / `on:failure=` are legitimate even though they aren't DOM
+/// events and lack a `sui-`/`ship-` prefix. Keep this list tight — it's the
+/// escape hatch for bare custom events the framework genuinely fires.
+const SUI_CUSTOM_EVENTS: &[&str] = &["success", "failure"];
+
 pub fn check(path: &Path, source: &str) -> Vec<Finding> {
     let mut findings = Vec::new();
     let bytes = source.as_bytes();
@@ -103,7 +121,7 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
             line,
             col,
             rule: RULE_ID,
-            severity: Severity::Warn,
+            severity: Severity::Error,
             message,
             suggest: Some(
                 "Event names are lowercase ASCII. Standard DOM events \
@@ -125,6 +143,10 @@ fn is_acceptable_event_name(name: &str) -> bool {
     }
     // Known DOM events.
     if KNOWN_EVENTS.contains(&name) {
+        return true;
+    }
+    // Bare SUI framework custom events (`success`/`failure` from <form mutation>).
+    if SUI_CUSTOM_EVENTS.contains(&name) {
         return true;
     }
     // Framework / product custom-event prefixes.
@@ -251,5 +273,23 @@ mod tests {
         let findings = lint(src);
         assert_eq!(findings.len(), 1);
         assert!(findings[0].message.contains("CHANGE"));
+    }
+
+    #[test]
+    fn form_mutation_success_event_passes() {
+        // `<form mutation=…>` emits `success`/`failure` — bare framework
+        // custom events, not DOM events. Both must be accepted.
+        let src = r#"<form mutation="ship.x.update" on:success={() => ok()}></form>"#;
+        assert_eq!(lint(src).len(), 0, "{:?}", lint(src));
+        let f = r#"<form mutation="ship.x.update" on:failure={() => bad()}></form>"#;
+        assert_eq!(lint(f).len(), 0, "{:?}", lint(f));
+    }
+
+    #[test]
+    fn severity_is_error() {
+        let src = r#"<button on:Click={fire}>go</button>"#;
+        let findings = lint(src);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].severity, Severity::Error);
     }
 }
