@@ -1,3 +1,10 @@
+// WASM-bindgen surface — BROWSER ONLY (docs playground + LSP browser worker).
+// The vitest test harness does NOT use this; it loads the native compiler as a
+// Node-API `.node` addon (crates/sui/compiler-napi) so one `cargo build` feeds
+// both the daemon and the harness, with no second artifact to go stale (#255).
+// Keep this surface + `just sui-wasm` + @ship/sui-compiler-wasm for the only
+// legit browser consumer: apps/site / docs (and the browser LSP worker).
+//
 // WASM-bindgen surface for the docs-site playground.
 //
 // Exposes a single `compile(source, optsJSON) -> resultJSON` function

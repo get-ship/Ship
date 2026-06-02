@@ -4,6 +4,11 @@
 //! relative-path>/`. Pass `--out <dir>` to override and emit every file to
 //! a single directory (legacy behaviour). Errors render with file path,
 //! line, and column.
+//
+// FILE_CAP_OVERRIDE: single cohesive CLI driver — arg parsing (clap), the
+// component-path guardrail, mirror-tree resolution, per-file emit, and the
+// fatal-diagnostics exit-code gate are one binary's responsibility. Splitting
+// would scatter the one entry point across modules for no clarity gain.
 
 use std::collections::HashSet;
 use std::fs;
@@ -16,7 +21,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 
 use sui_compiler::out_layout::resolve_out_dir;
-use sui_compiler::{compile, CompileMode, ComponentMeta, CompileOpts};
+use sui_compiler::{check_all, compile, CompileMode, ComponentMeta, CompileOpts, DiagSeverity};
 
 /// Hard caps on virtual memory and wall-clock time. A bug in the
 /// compiler (or a pathological input) must never be able to OOM the
@@ -321,6 +326,8 @@ fn compile_one(
         anyhow!("{rendered}")
     })?;
 
+    fatal_diagnostics_gate(&source, path)?;
+
     let stem = path
         .file_name()
         .and_then(|f| f.to_str())
@@ -377,6 +384,38 @@ fn compile_one(
             .with_context(|| format!("write {}", ssr_path.display()))?;
     }
     Ok(())
+}
+
+/// Honest exit codes. `compile()` short-circuits on the first diagnostic its
+/// `check::run` pass gates (expr-subset, scope-bound, css-token,
+/// controller-purity, …) and returns `Err` — that path already exits non-zero.
+/// But the full `sui-lint` stream carries Error-severity rules `check::run`
+/// does NOT invoke (e.g. `sui-attr-bool-prop`, `sui-prop-value`,
+/// `sui-css-literal`, `sui-css-content-text`, `controller-*`). Without this
+/// gate those compile to `Ok`, the CLI prints "compiled N file(s)" and returns
+/// 0 while the LSP/agent show a hard error — the dishonest-exit-code bug
+/// (#255). Re-run the full diagnostic pass and treat any Error-severity finding
+/// as fatal so batch OK-checks (`sui-compiler build <dir> && …`) mean what they
+/// say.
+fn fatal_diagnostics_gate(source: &str, path: &Path) -> Result<()> {
+    let fatal: Vec<_> = check_all(source, Some(path))
+        .into_iter()
+        .filter(|d| d.severity == DiagSeverity::Error)
+        .collect();
+    if fatal.is_empty() {
+        return Ok(());
+    }
+    // `check_all` diagnostics are already self-describing — lint findings that
+    // flow through this path carry their `[rule]` tag inside the message, and
+    // structural check-pass errors carry a clear category. Render the message
+    // verbatim with just the file/line/col prefix; adding a separate `[rule]`
+    // tag here would double the one the message already embeds.
+    let rendered = fatal
+        .iter()
+        .map(|d| format!("{}: line {} col {}: {}", path.display(), d.line, d.col, d.message))
+        .collect::<Vec<_>>()
+        .join("\n");
+    Err(anyhow!("{rendered}"))
 }
 
 fn paired_setup(path: &Path, out_dir: &Path, mirror_mode: bool) -> Option<String> {

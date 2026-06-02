@@ -391,6 +391,19 @@ install: build-release
 sui-wasm:
     wasm-pack build crates/sui/compiler --target web --out-dir ../../../packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm
 
+# Build the native Node-API addon the SUI test harness compiles through.
+# Unlike `sui-wasm`, this is rarely run by hand: the harness loads whatever
+# `cargo build` / `just build` already produced under `target/`, so a plain
+# build keeps it fresh. This recipe exists for an explicit, isolated rebuild
+# (e.g. after editing the compiler crate while iterating on tests) and is what
+# the drift guard in packages/sui/dom/src/test-utils/compile-sui.ts names. The
+# harness dlopen's the cdylib directly (it exports the N-API init symbol), so
+# there is no `.node` rename step. One cargo-current build feeds both the
+# daemon and the harness — the artifact-drift fix (#255).
+[group('occasional')]
+sui-napi:
+    cargo build -p sui-compiler-napi
+
 # Regenerate Specta types (Rust → generated TS bindings).
 [group('occasional')]
 gen-types:

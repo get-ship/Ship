@@ -23,7 +23,6 @@
     "@ship/sui-runtime": "workspace:*"
   },
   "devDependencies": {
-    "@ship/sui-compiler-wasm": "workspace:*",
     "@ship/test-setup": "workspace:*",
     "jsdom": "^25.0.0",
     "typescript": "^5.5.0",
