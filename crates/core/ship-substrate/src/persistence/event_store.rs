@@ -63,6 +63,21 @@ impl SqliteEventStore {
         })
     }
 
+    /// Create an event store at an explicit db-file path (Phase 4b/4a).
+    ///
+    /// Unlike [`new_at`], which derives `platform.db` from a ship-home dir, this
+    /// takes the concrete db file directly — used by `PartitionedSink` to back
+    /// each scope with its own per-scope db (`spaces/<id>/space.db`, `runtime.db`,
+    /// etc.). Ensures the events schema exists at that path before returning.
+    pub fn new_at_db_path(db_path: &Path) -> Result<Self> {
+        crate::db::ensure_events_db_at_path(db_path)?;
+        Ok(Self {
+            db_path: db_path.to_path_buf(),
+            pool: None,
+            bus: default_bus(),
+        })
+    }
+
     /// Create an event store backed by a connection pool.
     ///
     /// Requires a running Tokio runtime. Use in the daemon for high-throughput

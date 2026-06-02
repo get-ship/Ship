@@ -21,6 +21,11 @@ pub struct ActionCtx<'a> {
     pub kernel: &'a Arc<Mutex<KernelRouter>>,
     pub ship_dir: &'a Path,
     pub trigger_event_id: &'a str,
+    /// The space the triggering event resolved to (its `scope_key` when Space).
+    /// Threaded onto the Space-scoped events this action emits
+    /// (`collection.item_*`, `pipeline.run.started`) so they ride the trigger's
+    /// space — mirroring the `event_emit` relay that carries `envelope.space_id()`.
+    pub trigger_space: Option<&'a str>,
     pub hook_name: &'a str,
     pub depth: u32,
 }
@@ -79,6 +84,7 @@ async fn collection_insert(
         &mut svc,
         ctx.kernel,
         &schema,
+        ctx.trigger_space,
         &id,
         &data_value,
         Some(&format!("hook:{}", ctx.hook_name)),
@@ -105,7 +111,7 @@ async fn collection_update(
     collection_store::ensure_collection_table(&mut svc, &schema)?;
     let id = resolve_filter_id(&filter_value)?;
     let item =
-        collection_service::update_item(&mut svc, ctx.kernel, &schema, &id, &data_value).await?;
+        collection_service::update_item(&mut svc, ctx.kernel, &schema, ctx.trigger_space, &id, &data_value).await?;
     Ok(json!({
         "collection": collection,
         "item_id": item.id,
@@ -192,7 +198,10 @@ async fn pipeline_trigger(
     let envelope = EventEnvelope::new("pipeline.run.started", &pipeline_run_id, &payload)?
         .with_causation(ctx.trigger_event_id)
         .with_actor_id(&format!("hook:{}", ctx.hook_name));
-    let emit_ctx = EmitContext::daemon_internal(None);
+    // `pipeline.run.started` is Space-scoped: the run is space work that syncs to
+    // collaborators. Bind the trigger-resolved space (same as the sibling
+    // `event_emit` relay), not the keyless daemon mint.
+    let emit_ctx = EmitContext::daemon_internal(ctx.trigger_space.map(ship_types::SpaceId::new));
     ctx.kernel.lock().await.emit(envelope.clone(), &emit_ctx).await?;
     Ok(json!({
         "pipeline_run_id": pipeline_run_id,

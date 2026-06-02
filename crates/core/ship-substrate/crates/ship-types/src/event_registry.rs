@@ -10,26 +10,24 @@
 //! (the authoring-scope enum for vector directories).
 
 /// Which partition the event rides → which `(scope, scope_key)` it belongs to
-/// on the envelope, and what it syncs with.
+/// on the envelope, and what it syncs with. The variant IS the sync boundary:
+/// who OWNS (writes the authoritative truth) defines the partition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "snake_case")]
 pub enum EventScope {
-    /// Event is local to the device; never synced to the account or space log.
-    /// `scope_key` = the device id (or None when device-global). Fail-closed
-    /// default for unregistered/legacy events.
+    /// Execution state owned per-machine — sessions, pipelines, steps,
+    /// processes, actors, windows, daemon lifecycle, machine config. Snapshot/
+    /// restorable, NOT continuously synced. `scope_key` = the machine/device id.
+    /// Fail-closed default for unregistered/legacy events.
     #[default]
-    Device,
-    /// Event belongs to the user's account; synced across devices.
+    Runtime,
+    /// Event belongs to the user's account; live N-device (one user) sync.
     /// `scope_key` = the account id.
     Account,
-    /// Event belongs to a specific space (project); replayed during space restoration.
-    /// `scope_key` = the space id.
+    /// Collaborative space work; live N-collaborator sync. Replayed during
+    /// space restoration. `scope_key` = the space id.
     Space,
-    /// Event belongs to the daemon/platform as a whole — not to any one device,
-    /// account, or space. Absorbs the events that were previously mis-scoped to
-    /// Device or routed as the hardcoded `"global"` key. `scope_key` = None.
-    System,
 }
 
 impl EventScope {
@@ -37,10 +35,9 @@ impl EventScope {
     /// column and carried on the serialized envelope.
     pub fn as_str(&self) -> &'static str {
         match self {
-            EventScope::Device => "device",
+            EventScope::Runtime => "runtime",
             EventScope::Account => "account",
             EventScope::Space => "space",
-            EventScope::System => "system",
         }
     }
 
@@ -48,10 +45,9 @@ impl EventScope {
     /// unrecognized string (callers decide the fail-closed default).
     pub fn from_storage(s: &str) -> Option<Self> {
         match s {
-            "device" => Some(EventScope::Device),
+            "runtime" => Some(EventScope::Runtime),
             "account" => Some(EventScope::Account),
             "space" => Some(EventScope::Space),
-            "system" => Some(EventScope::System),
             _ => None,
         }
     }
@@ -87,13 +83,30 @@ pub enum Stability {
 pub struct EventDef {
     /// Dot-separated event name, e.g. `"actor.created"`.
     pub name: &'static str,
-    pub scope: EventScope,
+    /// The SET of scopes this event type is allowed to ride (Model C). The
+    /// emission's binding picks one of these; `enforce_scope` validates the
+    /// chosen scope is in this set AND that the binding is authorized for it.
+    /// The first element is the **primary** (default) scope — stamped at
+    /// `EventEnvelope::new`. A size-1 set behaves exactly as the old
+    /// single-scope model.
+    pub allowed_scopes: &'static [EventScope],
     pub retention: Retention,
     pub stability: Stability,
     /// First version in which this event was emitted, if known.
     pub since_version: Option<&'static str>,
     /// `std::any::type_name`-like string for the payload struct.
     pub payload_type_name: &'static str,
+}
+
+impl EventDef {
+    /// The default scope stamped at `EventEnvelope::new` — the first element of
+    /// the allowed-set. Every registered event has at least one scope (the
+    /// `register_event!` macro and `#[event(...)]` derive both require one).
+    pub fn primary_scope(&self) -> EventScope {
+        // SAFETY-of-invariant: the registration macros never produce an empty
+        // set. Fail-closed to Runtime if a malformed (empty) set ever appears.
+        self.allowed_scopes.first().copied().unwrap_or(EventScope::Runtime)
+    }
 }
 
 /// Trait implemented by the `#[derive(EventPayload)]` macro on each payload struct.
@@ -122,12 +135,21 @@ pub fn lookup(name: &str) -> Option<&'static EventDef> {
     registry().find(|d| d.name == name)
 }
 
-/// Resolve the partition scope for an event type from the registry. Returns
-/// `None` when the type is unregistered (ad-hoc / test events); callers apply
-/// the fail-closed default. This is the source consulted by
-/// `EventEnvelope::new` to stamp the envelope's `scope`.
+/// Resolve the **primary** partition scope for an event type from the registry.
+/// Returns `None` when the type is unregistered (ad-hoc / test events); callers
+/// apply the fail-closed default. This is the source consulted by
+/// `EventEnvelope::new` to stamp the envelope's default `scope` (the first
+/// element of the allowed-set).
 pub fn scope_for(name: &str) -> Option<EventScope> {
-    lookup(name).map(|d| d.scope)
+    lookup(name).map(|d| d.primary_scope())
+}
+
+/// The full allowed-set of scopes for an event type (Model C). Returns an empty
+/// slice when the type is unregistered — callers treat "not in any allowed-set"
+/// per their own fail-closed rule. `enforce_scope` consults this to validate the
+/// chosen scope is permitted for the event type.
+pub fn allowed_scopes(name: &str) -> &'static [EventScope] {
+    lookup(name).map(|d| d.allowed_scopes).unwrap_or(&[])
 }
 
 /// Returns all event names in the registry (sorted for stable output).

@@ -46,7 +46,9 @@ fn mcp_auth(agent: &str) -> AuthContext {
         caller_kind: ship_substrate::events::CallerKind::Mcp,
         agent_id: Some(agent.into()),
         workspace_id: None,
-        space_id: None,
+        // Feedback is Space content (`collection.item_created` + `studio.*`
+        // are Space-scoped); the caller must be bound to a space.
+        space_id: Some("space-test".to_string()),
         session_id: None,
         scopes: vec![crate::auth::Scope::Full],
         grants: vec![],

@@ -3,6 +3,11 @@
 //! Each mutation (create, update, delete) writes to data.db then emits
 //! an event to the kernel. Events are idempotent — the item ID is stable
 //! and re-emitting the same event type for the same entity is harmless.
+//!
+//! `collection.item_*` are Space-scoped (canonical user content that syncs to
+//! collaborators). The owning space of the collection is threaded down from the
+//! caller as `space: Option<&str>` and bound onto the daemon-internal mint so
+//! `enforce_scope` stamps the correct partition.
 
 use anyhow::Result;
 use ship_substrate::data::DataService;
@@ -14,17 +19,18 @@ use super::query::QueryRequest;
 use super::schema::CollectionSchema;
 use super::store::{self, Item};
 
-/// Create an item and emit `collection.item_created`.
+/// Create an item and emit `collection.item_created` under `space`.
 pub async fn create_item(
     svc: &mut DataService,
     kernel: &Arc<Mutex<KernelRouter>>,
     schema: &CollectionSchema,
+    space: Option<&str>,
     id: &str,
     data: &serde_json::Value,
     created_by: Option<&str>,
 ) -> Result<Item> {
     let item = store::create_item(svc, schema, id, data, created_by)?;
-    emit_collection_event(kernel, "collection.item_created", &schema.id, id, &serde_json::json!({
+    emit_collection_event(kernel, "collection.item_created", &schema.id, space, id, &serde_json::json!({
         "collection": schema.id,
         "item_id": id,
         "data": data,
@@ -33,16 +39,17 @@ pub async fn create_item(
     Ok(item)
 }
 
-/// Update an item and emit `collection.item_updated`.
+/// Update an item and emit `collection.item_updated` under `space`.
 pub async fn update_item(
     svc: &mut DataService,
     kernel: &Arc<Mutex<KernelRouter>>,
     schema: &CollectionSchema,
+    space: Option<&str>,
     id: &str,
     updates: &serde_json::Value,
 ) -> Result<Item> {
     let item = store::update_item(svc, schema, id, updates)?;
-    emit_collection_event(kernel, "collection.item_updated", &schema.id, id, &serde_json::json!({
+    emit_collection_event(kernel, "collection.item_updated", &schema.id, space, id, &serde_json::json!({
         "collection": schema.id,
         "item_id": id,
         "fields_changed": updates.as_object().map(|o| o.keys().collect::<Vec<_>>()),
@@ -51,16 +58,17 @@ pub async fn update_item(
     Ok(item)
 }
 
-/// Delete an item and emit `collection.item_deleted`.
+/// Delete an item and emit `collection.item_deleted` under `space`.
 pub async fn delete_item(
     svc: &mut DataService,
     kernel: &Arc<Mutex<KernelRouter>>,
     collection: &str,
+    space: Option<&str>,
     id: &str,
 ) -> Result<bool> {
     let deleted = store::delete_item(svc, collection, id)?;
     if deleted {
-        emit_collection_event(kernel, "collection.item_deleted", collection, id, &serde_json::json!({
+        emit_collection_event(kernel, "collection.item_deleted", collection, space, id, &serde_json::json!({
             "collection": collection,
             "item_id": id,
         })).await;
@@ -90,6 +98,7 @@ async fn emit_collection_event(
     kernel: &Arc<Mutex<KernelRouter>>,
     event_type: &str,
     collection: &str,
+    space: Option<&str>,
     item_id: &str,
     payload: &serde_json::Value,
 ) {
@@ -104,7 +113,7 @@ async fn emit_collection_event(
             return;
         }
     };
-    let ctx = EmitContext::daemon_internal(None);
+    let ctx = EmitContext::daemon_internal(space.map(ship_types::SpaceId::new));
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
         tracing::error!(
             event_type, collection, item_id,
@@ -157,7 +166,7 @@ mod tests {
         let schema = test_schema();
 
         let item = create_item(
-            &mut conn, &kernel, &schema, "n1",
+            &mut conn, &kernel, &schema, Some("space-test"), "n1",
             &json!({"title": "Hello", "body": "World"}),
             Some("tester"),
         ).await.unwrap();
@@ -172,11 +181,11 @@ mod tests {
         let kernel = test_kernel();
         let schema = test_schema();
 
-        create_item(&mut conn, &kernel, &schema, "n1",
+        create_item(&mut conn, &kernel, &schema, Some("space-test"), "n1",
             &json!({"title": "Original"}), None).await.unwrap();
 
         let updated = update_item(
-            &mut conn, &kernel, &schema, "n1",
+            &mut conn, &kernel, &schema, Some("space-test"), "n1",
             &json!({"body": "Added body"}),
         ).await.unwrap();
 
@@ -190,10 +199,10 @@ mod tests {
         let kernel = test_kernel();
         let schema = test_schema();
 
-        create_item(&mut conn, &kernel, &schema, "n1",
+        create_item(&mut conn, &kernel, &schema, Some("space-test"), "n1",
             &json!({"title": "Delete me"}), None).await.unwrap();
 
-        assert!(delete_item(&mut conn, &kernel, "note", "n1").await.unwrap());
+        assert!(delete_item(&mut conn, &kernel, "note", Some("space-test"), "n1").await.unwrap());
         assert!(get_item(&mut conn, &schema, "n1").unwrap().is_none());
     }
 
@@ -202,6 +211,6 @@ mod tests {
         let (mut conn, _schema, _tmp) = test_db();
         let kernel = test_kernel();
 
-        assert!(!delete_item(&mut conn, &kernel, "note", "nope").await.unwrap());
+        assert!(!delete_item(&mut conn, &kernel, "note", Some("space-test"), "nope").await.unwrap());
     }
 }

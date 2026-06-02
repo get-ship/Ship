@@ -9,6 +9,7 @@
 //! without a module cycle through `ship-policy`. `ship-policy` re-exports these
 //! for source compatibility.
 
+use crate::event_registry::EventScope;
 use thiserror::Error;
 
 /// A scope-enforcement rejection. Returned by `enforce_scope` when an envelope
@@ -26,6 +27,14 @@ pub enum ScopeViolation {
     /// Space event. Fail-closed: an unbound caller cannot emit Space data.
     #[error("space-unbound caller cannot emit a Space-scoped event")]
     NoSpaceForSpaceEvent,
+    /// The chosen scope is not in the event type's declared allowed-set
+    /// (Model C). The emission picked a scope the type does not permit.
+    #[error("scope-not-allowed: event {event_type:?} chose {chosen:?}, allowed {allowed:?}")]
+    ScopeNotAllowed {
+        event_type: String,
+        chosen: EventScope,
+        allowed: Vec<EventScope>,
+    },
 }
 
 /// The verb-gate verdict (ring 1). Allow outright, prompt the operator, or deny.

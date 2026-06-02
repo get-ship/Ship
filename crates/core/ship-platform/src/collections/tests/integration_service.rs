@@ -72,7 +72,7 @@ async fn collections_service_create_returns_correct_item() -> Result<()> {
     ensure_collection_table(&mut svc, &schema)?;
 
     let item = service::create_item(
-        &mut svc, &kernel, &schema, "n1",
+        &mut svc, &kernel, &schema, Some("space-test"), "n1",
         &json!({"title": "Hello", "body": "World"}),
         Some("alice"),
     ).await?;
@@ -95,7 +95,7 @@ async fn collections_service_create_emits_item_created_event() -> Result<()> {
     ensure_collection_table(&mut svc, &schema)?;
 
     service::create_item(
-        &mut svc, &kernel, &schema, "n-evt",
+        &mut svc, &kernel, &schema, Some("space-test"), "n-evt",
         &json!({"title": "Event test"}),
         None,
     ).await?;
@@ -119,7 +119,7 @@ async fn collections_service_create_rejects_missing_required_field() -> Result<(
     ensure_collection_table(&mut svc, &schema)?;
 
     let err = service::create_item(
-        &mut svc, &kernel, &schema, "bad",
+        &mut svc, &kernel, &schema, Some("space-test"), "bad",
         &json!({"body": "no title"}),
         None,
     ).await.expect_err("must fail when required field missing");
@@ -144,13 +144,13 @@ async fn collections_service_update_emits_item_updated_event() -> Result<()> {
     ensure_collection_table(&mut svc, &schema)?;
 
     service::create_item(
-        &mut svc, &kernel, &schema, "n2",
+        &mut svc, &kernel, &schema, Some("space-test"), "n2",
         &json!({"title": "Original"}),
         None,
     ).await?;
 
     let updated = service::update_item(
-        &mut svc, &kernel, &schema, "n2",
+        &mut svc, &kernel, &schema, Some("space-test"), "n2",
         &json!({"body": "Added body"}),
     ).await?;
 
@@ -176,7 +176,7 @@ async fn collections_service_update_nonexistent_errors() -> Result<()> {
     ensure_collection_table(&mut svc, &schema)?;
 
     let err = service::update_item(
-        &mut svc, &kernel, &schema, "ghost",
+        &mut svc, &kernel, &schema, Some("space-test"), "ghost",
         &json!({"body": "X"}),
     ).await.expect_err("update of nonexistent item must fail");
 
@@ -197,12 +197,12 @@ async fn collections_service_delete_emits_item_deleted_event() -> Result<()> {
     ensure_collection_table(&mut svc, &schema)?;
 
     service::create_item(
-        &mut svc, &kernel, &schema, "n-del",
+        &mut svc, &kernel, &schema, Some("space-test"), "n-del",
         &json!({"title": "Delete me"}),
         None,
     ).await?;
 
-    let deleted = service::delete_item(&mut svc, &kernel, "note", "n-del").await?;
+    let deleted = service::delete_item(&mut svc, &kernel, "note", Some("space-test"), "n-del").await?;
     assert!(deleted, "delete_item must return true for an existing item");
 
     let events = query_events_at(&ship_dir, "collection.item_deleted");
@@ -227,7 +227,7 @@ async fn collections_service_delete_nonexistent_returns_false_no_event() -> Resu
     let mut svc = open_data_db(&ship_dir)?;
     ensure_collection_table(&mut svc, &schema)?;
 
-    let result = service::delete_item(&mut svc, &kernel, "note", "ghost").await?;
+    let result = service::delete_item(&mut svc, &kernel, "note", Some("space-test"), "ghost").await?;
     assert!(!result, "delete_item must return false for a nonexistent item");
 
     // No event should have been emitted.
@@ -265,9 +265,9 @@ async fn collections_service_query_items_after_create() -> Result<()> {
     let mut svc = open_data_db(&ship_dir)?;
     ensure_collection_table(&mut svc, &schema)?;
 
-    service::create_item(&mut svc, &kernel, &schema, "q1",
+    service::create_item(&mut svc, &kernel, &schema, Some("space-test"), "q1",
         &json!({"title": "Query me"}), None).await?;
-    service::create_item(&mut svc, &kernel, &schema, "q2",
+    service::create_item(&mut svc, &kernel, &schema, Some("space-test"), "q2",
         &json!({"title": "Also query"}), None).await?;
 
     let req = crate::collections::query::QueryRequest {

@@ -16,9 +16,8 @@
 //! * No-op when `events.scope` already exists.
 //! * Otherwise: add `scope` + `scope_key`, map the legacy key column
 //!   (`space_id`/`project_id`/`workspace_id`) → `(Space, <key>)`, and infer the
-//!   scope of keyless rows from the event-type registry (Account/System
-//!   events; everything else fail-closed to Device). Rebuild the partition
-//!   index.
+//!   scope of keyless rows from the event-type registry (Account events;
+//!   everything else fail-closed to Runtime). Rebuild the partition index.
 //! * Returns an error only if SQLite refuses the DDL; we never silently mask
 //!   schema corruption.
 
@@ -29,12 +28,13 @@ use ship_types::event_registry::{self, EventScope};
 
 use crate::db::block_on;
 
-/// Names of every registered event whose scope is `target`. Used to backfill
-/// the `scope` of keyless legacy rows from the event-type registry rather than
-/// a hand-maintained list (drift-free).
+/// Names of every registered event whose **primary** scope is `target`. Used to
+/// backfill the `scope` of keyless legacy rows from the event-type registry
+/// rather than a hand-maintained list (drift-free). Under Model C the home
+/// partition a legacy row backfills to is the type's primary (default) scope.
 fn registered_names(target: EventScope) -> Vec<&'static str> {
     event_registry::registry()
-        .filter(|d| d.scope == target)
+        .filter(|d| d.primary_scope() == target)
         .map(|d| d.name)
         .collect()
 }
@@ -91,10 +91,10 @@ pub fn reconcile_events_scope_columns(conn: &mut SqliteConnection) -> Result<()>
         found
     };
 
-    // Add the tuple columns. `scope` defaults to 'device' (fail-closed) so the
+    // Add the tuple columns. `scope` defaults to 'runtime' (fail-closed) so the
     // NOT NULL canonical insert path is satisfied even for rows we don't reclassify.
     block_on(async {
-        sqlx::query("ALTER TABLE events ADD COLUMN scope TEXT NOT NULL DEFAULT 'device'")
+        sqlx::query("ALTER TABLE events ADD COLUMN scope TEXT NOT NULL DEFAULT 'runtime'")
             .execute(&mut *conn)
             .await
     })?;
@@ -115,12 +115,12 @@ pub fn reconcile_events_scope_columns(conn: &mut SqliteConnection) -> Result<()>
         })?;
     }
 
-    // Keyless rows default to Device; reclassify the Account/System families
-    // from the registry so daemon/platform + account events land on the right
-    // partition (matches `EventEnvelope::new`'s registry-stamped scope).
+    // Keyless rows default to Runtime; reclassify the Account family from the
+    // registry so account events land on the right partition (matches
+    // `EventEnvelope::new`'s registry-stamped scope). Runtime is the default,
+    // so no explicit Runtime pass is needed.
     for (scope, names) in [
         (EventScope::Account, registered_names(EventScope::Account)),
-        (EventScope::System, registered_names(EventScope::System)),
     ] {
         let Some(in_clause) = event_type_in_clause(&names) else {
             continue;
@@ -258,8 +258,8 @@ mod tests {
             .await
         })
         .unwrap();
-        // A space-scoped row (carries a key), an account row, a system row, and
-        // a device row — the last three keyless.
+        // A space-scoped row (carries a key), an account row, and two runtime
+        // rows (former system + device) — the last three keyless.
         for (id, et, space) in [
             ("e1", "artifact.created", Some("sp-1")),
             ("e2", "account.login_completed", None),
@@ -294,8 +294,9 @@ mod tests {
         };
         assert_eq!(row("e1", &mut conn), ("space".into(), Some("sp-1".into())));
         assert_eq!(row("e2", &mut conn), ("account".into(), None));
-        assert_eq!(row("e3", &mut conn), ("system".into(), None));
-        assert_eq!(row("e4", &mut conn), ("device".into(), None));
+        // daemon.startup_completed + actor.created are both Runtime-owned now.
+        assert_eq!(row("e3", &mut conn), ("runtime".into(), None));
+        assert_eq!(row("e4", &mut conn), ("runtime".into(), None));
 
         // Idempotent on second call.
         reconcile_events_scope_columns(&mut conn).unwrap();

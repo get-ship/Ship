@@ -78,6 +78,14 @@ pub struct CollectionsServiceImpl {
 }
 
 impl CollectionsServiceImpl {
+    /// The space this collection store belongs to — derived from the hosting
+    /// `.ship` dir's parent (the space root). Bound onto the Space-scoped
+    /// `collection.item_*` events so they ride the owning space.
+    fn space_id(&self) -> String {
+        let root = self.ship_dir.parent().unwrap_or(&self.ship_dir);
+        ship_substrate::home::path_hash(root)
+    }
+
     pub fn new(ship_dir: PathBuf, kernel: SharedKernel, data: SharedData) -> Self {
         Self { ship_dir, kernel, data }
     }
@@ -191,6 +199,7 @@ impl CollectionsService for CollectionsServiceImpl {
 
     async fn create_item(&self, args: CreateItemArgs) -> Result<store::Item, Error> {
         let schema = self.load_any_schema(&args.collection)?;
+        let space = self.space_id();
         let mut guard = ensure_data_service(&self.data, &self.ship_dir)
             .await
             .map_err(|e| Error::Internal(e.to_string()))?;
@@ -201,6 +210,7 @@ impl CollectionsService for CollectionsServiceImpl {
             svc,
             &self.kernel,
             &schema,
+            Some(&space),
             &args.id,
             &args.data,
             args.created_by.as_deref(),
@@ -226,23 +236,25 @@ impl CollectionsService for CollectionsServiceImpl {
 
     async fn update_item(&self, args: UpdateItemArgs) -> Result<store::Item, Error> {
         let schema = self.load_any_schema(&args.collection)?;
+        let space = self.space_id();
         let mut guard = ensure_data_service(&self.data, &self.ship_dir)
             .await
             .map_err(|e| Error::Internal(e.to_string()))?;
         let svc = guard.as_mut().expect("data service initialized");
         store::ensure_collection_table(svc, &schema)
             .map_err(|e| Error::Internal(e.to_string()))?;
-        col_svc::update_item(svc, &self.kernel, &schema, &args.id, &args.data)
+        col_svc::update_item(svc, &self.kernel, &schema, Some(&space), &args.id, &args.data)
             .await
             .map_err(|e| classify(e.to_string()))
     }
 
     async fn delete_item(&self, collection: &str, id: &str) -> Result<bool, Error> {
+        let space = self.space_id();
         let mut guard = ensure_data_service(&self.data, &self.ship_dir)
             .await
             .map_err(|e| Error::Internal(e.to_string()))?;
         let svc = guard.as_mut().expect("data service initialized");
-        col_svc::delete_item(svc, &self.kernel, collection, id)
+        col_svc::delete_item(svc, &self.kernel, collection, Some(&space), id)
             .await
             .map_err(|e| Error::Internal(e.to_string()))
     }

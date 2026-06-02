@@ -243,7 +243,10 @@ fn domain_catalog() -> Vec<DomainMeta> {
 // ── Parsing ───────────────────────────────────────────────────────────────────
 
 /// Parse all event registrations from payload_registry.rs.
-/// Extracts: register_event!("name", Scope, Retention, Stability, "Type")
+/// Extracts: register_event!("name", [Scope, ...], Retention, Stability, "Type")
+/// The scope argument is an allowed-SET (Model C); the contract page lists the
+/// primary (first) scope. The set may contain commas, so the bracket segment is
+/// peeled off before the remaining fields are split.
 fn parse_events(repo_root: &Path) -> Result<Vec<EventDef>> {
     let src = std::fs::read_to_string(repo_root.join(PAYLOAD_REGISTRY))
         .context("read payload_registry.rs")?;
@@ -254,19 +257,40 @@ fn parse_events(repo_root: &Path) -> Result<Vec<EventDef>> {
         if !line.starts_with("register_event!(") {
             continue;
         }
-        // register_event!("name", EventScope::X, Retention::Y, Stability::Z, "Type")
+        // register_event!("name", [EventScope::X, ...], Retention::Y, Stability::Z, "Type")
         let inner = line
             .trim_start_matches("register_event!(")
             .trim_end_matches(");");
-        let parts: Vec<&str> = inner.splitn(5, ',').collect();
-        if parts.len() < 5 {
+        // 1. name — up to the first comma.
+        let Some((name_part, rest)) = inner.split_once(',') else {
+            continue;
+        };
+        let name = name_part.trim().trim_matches('"').to_string();
+        // 2. allowed-set — the bracketed segment `[..]`. Peel it off so its
+        //    internal commas don't confuse the field split.
+        let rest = rest.trim_start();
+        let Some(rest) = rest.strip_prefix('[') else {
+            continue;
+        };
+        let Some((scope_set, rest)) = rest.split_once(']') else {
+            continue;
+        };
+        // Primary scope = first element of the set.
+        let scope = scope_set
+            .split(',')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .replace("EventScope::", "");
+        // 3. retention, stability, type — the remaining 3 fields after `], `.
+        let tail = rest.trim_start().trim_start_matches(',').trim_start();
+        let parts: Vec<&str> = tail.splitn(3, ',').collect();
+        if parts.len() < 3 {
             continue;
         }
-        let name = parts[0].trim().trim_matches('"').to_string();
-        let scope = parts[1].trim().replace("EventScope::", "");
-        let retention = parts[2].trim().replace("Retention::", "");
-        let stability = parts[3].trim().replace("Stability::", "");
-        let payload_type = parts[4].trim().trim_matches('"').to_string();
+        let retention = parts[0].trim().replace("Retention::", "");
+        let stability = parts[1].trim().replace("Stability::", "");
+        let payload_type = parts[2].trim().trim_matches('"').to_string();
         events.push(EventDef { name, scope, retention, stability, payload_type });
     }
     events.sort_by(|a, b| a.name.cmp(&b.name));

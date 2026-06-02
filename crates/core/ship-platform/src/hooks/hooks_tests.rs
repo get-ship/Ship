@@ -9,9 +9,13 @@ fn session_start_emits_correct_event() {
 }
 
 #[test]
-fn session_start_workspace_id_in_context() {
+fn session_start_records_workspace_in_runtime_payload() {
+    // session.started is Runtime-owned: it does NOT carry a Space scope; the
+    // workspace is a captured field on the payload.
     let event = handle_session_start("actor-x", "ws-x").expect("handle_session_start failed");
-    assert_eq!(event.space_id(), Some("ws-x"));
+    assert_eq!(event.scope, ship_substrate::events::EventScope::Runtime);
+    assert_eq!(event.space_id(), None);
+    assert!(event.payload_json.contains("ws-x"), "workspace recorded in payload");
 }
 
 #[test]

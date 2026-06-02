@@ -121,6 +121,49 @@ pub fn kv_db_path(ship_dir: &Path) -> PathBuf {
     resolve_db_path(ship_dir, crate::Db::Kv)
 }
 
+/// Per-scope event-log path resolvers.
+///
+/// These sit at the ship-home root (NOT under `machine/db/`, and NOT subject to
+/// the `Var::DevDbDir` override) per the on-disk layout, one db file per
+/// EventScope partition:
+///
+/// - Space    → `<ship_dir>/spaces/<space_id>/space.db`
+/// - Account  → `<ship_dir>/account.db`
+/// - Runtime  → `<ship_dir>/runtime.db`
+///
+/// They back `PartitionedSink`'s scope routing. The existing `platform_db_path`
+/// is intentionally left untouched.
+pub const SPACES_DIR: &str = "spaces";
+const SPACE_DB_FILE: &str = "space.db";
+const RUNTIME_DB_FILE: &str = "runtime.db";
+const ACCOUNT_DB_FILE: &str = "account.db";
+
+/// `<ship_dir>/spaces/<space_id>/space.db`.
+pub fn space_db_path(ship_dir: &Path, space_id: &str) -> PathBuf {
+    ship_dir.join(SPACES_DIR).join(space_id).join(SPACE_DB_FILE)
+}
+
+/// `<ship_dir>/runtime.db` — per-machine execution state (replaces the former
+/// `device.db` + `system.db`).
+pub fn runtime_db_path(ship_dir: &Path) -> PathBuf {
+    ship_dir.join(RUNTIME_DB_FILE)
+}
+
+/// `<ship_dir>/account.db`.
+pub fn account_db_path(ship_dir: &Path) -> PathBuf {
+    ship_dir.join(ACCOUNT_DB_FILE)
+}
+
+/// Ensure the events schema is initialized at an explicit per-scope db path.
+///
+/// Mirrors `ensure_db_at`: creates parent directories and applies the full
+/// `events`-table schema (reconcile + migrations) via the shared
+/// [`ensure_db_at_path`]. Idempotent. Used by `PartitionedSink` on cache miss
+/// to lazily provision a scope's db file.
+pub fn ensure_events_db_at_path(path: &Path) -> Result<()> {
+    ensure_db_at_path(path)
+}
+
 /// Ensure the KV schema is up to date at the derived global path.
 pub fn ensure_kv_db() -> Result<()> {
     let ship_dir = crate::project::get_global_dir()?;

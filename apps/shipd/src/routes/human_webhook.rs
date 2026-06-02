@@ -26,7 +26,7 @@ use serde::Deserialize;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 
-use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
+use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, EventScope, KernelRouter};
 
 /// Shared kernel handle used as Axum state.
 pub type SharedKernel = Arc<Mutex<KernelRouter>>;
@@ -86,6 +86,10 @@ pub async fn telegram_webhook(
     let text = message.text.unwrap_or_default();
     let chat_id = message.chat.id;
 
+    // `human.response` is poly-scopic {Space, System, Account}. At the Telegram
+    // ingress only `chat_id` is known — the target run/space is resolved
+    // downstream by gate correlation — so emit under Runtime (per-machine
+    // ingress). A space-bound re-emit can attach the resolved space later.
     let envelope = match EventEnvelope::new(
         "human.response",
         "human",
@@ -95,7 +99,7 @@ pub async fn telegram_webhook(
             "chat_id": chat_id,
         }),
     ) {
-        Ok(e) => e,
+        Ok(e) => e.with_scope(EventScope::Runtime, None),
         Err(e) => {
             warn!("[human-webhook] failed to build event envelope: {e}");
             return StatusCode::INTERNAL_SERVER_ERROR;

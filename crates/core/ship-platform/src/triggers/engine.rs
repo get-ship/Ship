@@ -163,6 +163,7 @@ impl HookEngine {
                 kernel: &self.kernel,
                 ship_dir: &self.ship_dir,
                 trigger_event_id: &envelope.id,
+                trigger_space: envelope.space_id(),
                 hook_name: &hook.name,
                 depth,
             };

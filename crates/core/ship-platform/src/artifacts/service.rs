@@ -201,7 +201,7 @@ impl ArtifactService {
 
         let schema = artifacts_schema();
         let item = match collection_service::create_item(
-            svc, kernel, &schema, &id, &data, owner_actor,
+            svc, kernel, &schema, scope.space_id(), &id, &data, owner_actor,
         ).await {
             Ok(item) => item,
             Err(e) => {
@@ -213,8 +213,9 @@ impl ArtifactService {
 
         let record = ArtifactRecord::from_item(&item)?;
 
-        // Emit artifact-specific event alongside the collection event.
-        emit_artifact_event(kernel, "artifact.created", &id, serde_json::json!({
+        // Emit artifact-specific event alongside the collection event, bound to
+        // the artifact's own space.
+        emit_artifact_event(kernel, "artifact.created", &id, scope.space_id(), serde_json::json!({
             "id": id,
             "scope": scope.kind_str(),
             "name": name,
@@ -286,7 +287,7 @@ impl ArtifactService {
 
         let rel_path = record.path.clone();
         let deleted = collection_service::delete_item(
-            svc, kernel, ARTIFACTS_COLLECTION_ID, id,
+            svc, kernel, ARTIFACTS_COLLECTION_ID, scope.space_id(), id,
         ).await?;
         if deleted {
             // Only drop the blob bytes when no other metadata row (from
@@ -299,7 +300,7 @@ impl ArtifactService {
                     Err(e) => return Err(e.into()),
                 }
             }
-            emit_artifact_event(kernel, "artifact.deleted", id, serde_json::json!({
+            emit_artifact_event(kernel, "artifact.deleted", id, record.space_id.as_deref(), serde_json::json!({
                 "id": id,
                 "scope": record.scope,
                 "space_id": record.space_id,
@@ -326,6 +327,8 @@ impl ArtifactService {
         let Some(existing) = collection_service::get_item(svc, &schema, id)? else {
             return Ok(None);
         };
+        // The artifact's owning space, for the Space-scoped collection event.
+        let space = existing.data.get("space_id").and_then(|v| v.as_str()).map(str::to_string);
         let mut data = existing.data.clone();
         let mut changed = serde_json::json!({});
         if let Some(n) = name {
@@ -340,9 +343,9 @@ impl ArtifactService {
             data["expires_at"] = serde_json::Value::String(exp.to_string());
             changed["expires_at"] = serde_json::Value::String(exp.to_string());
         }
-        let updated = collection_service::update_item(svc, kernel, &schema, id, &data).await?;
+        let updated = collection_service::update_item(svc, kernel, &schema, space.as_deref(), id, &data).await?;
         let record = ArtifactRecord::from_item(&updated)?;
-        emit_artifact_event(kernel, "artifact.updated", id, serde_json::json!({
+        emit_artifact_event(kernel, "artifact.updated", id, record.space_id.as_deref(), serde_json::json!({
             "id": id,
             "scope": record.scope,
             "changed": changed,
@@ -367,6 +370,15 @@ impl ArtifactService {
         target_scope: ArtifactScope,
     ) -> Result<ArtifactRecord> {
         ensure_artifacts_collection(svc)?;
+        // Promote-to-global is a dead paradigm: a space-less (User/global) target
+        // would produce a Space-declared `artifact.moved` with no space. Promotion
+        // targets a space-bearing scope (Run/Project) only; reject the rest.
+        if target_scope.space_id().is_none() {
+            return Err(anyhow!(
+                "promote target must be a space-scoped artifact (run|project); \
+                 promote-to-global is not supported"
+            ));
+        }
         let schema = artifacts_schema();
         let Some(existing_item) = collection_service::get_item(svc, &schema, id)? else {
             return Err(anyhow!("artifact '{id}' not found"));
@@ -417,7 +429,9 @@ impl ArtifactService {
         new_data["path"] = serde_json::Value::String(rel_path);
         new_data["scope"] = serde_json::Value::String(target_scope.kind_str().to_string());
         new_data["content_hash"] = serde_json::Value::String(content_hash);
-        // Clear scope-specific IDs then set appropriate ones.
+        // Clear scope-specific IDs then set the space-bearing target's ids.
+        // The target is guaranteed space-scoped (Run/Project) — promote-to-global
+        // (User, no space) is rejected above — so `user_id` stays cleared.
         new_data["space_id"] = serde_json::Value::Null;
         new_data["run_id"] = serde_json::Value::Null;
         new_data["user_id"] = serde_json::Value::Null;
@@ -427,13 +441,10 @@ impl ArtifactService {
         if let Some(rid) = target_scope.run_id() {
             new_data["run_id"] = serde_json::Value::String(rid.to_string());
         }
-        if let Some(uid) = target_scope.user_id() {
-            new_data["user_id"] = serde_json::Value::String(uid.to_string());
-        }
 
         let owner = old_record.owner_actor.as_deref();
         let new_item = match collection_service::create_item(
-            svc, kernel, &schema, &new_id, &new_data, owner,
+            svc, kernel, &schema, target_scope.space_id(), &new_id, &new_data, owner,
         ).await {
             Ok(item) => item,
             Err(e) => {
@@ -445,7 +456,7 @@ impl ArtifactService {
         // 3. Delete old metadata. Critical: a failure here leaves two rows
         // pointing at the same content with different scopes — silently
         // duplicated. Surface the error so the caller can retry.
-        collection_service::delete_item(svc, kernel, ARTIFACTS_COLLECTION_ID, id)
+        collection_service::delete_item(svc, kernel, ARTIFACTS_COLLECTION_ID, from_scope.space_id(), id)
             .await
             .with_context(|| format!("promote: deleting old metadata row for {id}"))?;
 
@@ -466,7 +477,7 @@ impl ArtifactService {
         }
 
         let new_record = ArtifactRecord::from_item(&new_item)?;
-        emit_artifact_event(kernel, "artifact.moved", &new_id, serde_json::json!({
+        emit_artifact_event(kernel, "artifact.moved", &new_id, target_scope.space_id(), serde_json::json!({
             "id": new_id,
             "from_scope": old_record.scope,
             "to_scope": target_scope.kind_str(),
@@ -587,11 +598,18 @@ fn count_refs_to_path(
     Ok(collection_service::query_items(svc, &schema, &req)?.len())
 }
 
-/// Fire a best-effort artifact event through the kernel router.
+/// Fire a best-effort artifact event under the artifact's own space.
+///
+/// `artifact.*` are Space-scoped: a Run/Project artifact's metadata belongs to
+/// (and syncs with) its space. The space comes from `ArtifactScope::space_id()`
+/// (Run/Project) — bound on the daemon-internal mint so `enforce_scope` stamps
+/// the correct partition. User-scoped (per-user) artifacts have no space; the
+/// emit is best-effort and is dropped for them (they are not space content).
 async fn emit_artifact_event(
     kernel: &Arc<Mutex<KernelRouter>>,
     event_type: &str,
     entity_id: &str,
+    space: Option<&str>,
     payload: serde_json::Value,
 ) {
     let envelope = match EventEnvelope::new(event_type, entity_id, &payload) {
@@ -601,7 +619,7 @@ async fn emit_artifact_event(
             return;
         }
     };
-    let ctx = EmitContext::daemon_internal(None);
+    let ctx = EmitContext::daemon_internal(space.map(ship_types::SpaceId::new));
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
         tracing::error!(event_type, entity_id, "artifacts: event emission failed: {e}");
     }

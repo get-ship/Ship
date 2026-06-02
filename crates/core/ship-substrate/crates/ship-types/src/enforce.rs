@@ -1,32 +1,50 @@
 //! `enforce_scope` — the ring-2 stamp-or-reject rule, and `stamp_author` — the
 //! author-identity chokepoint.
 //!
-//! The registry has already stamped the envelope's home `scope` (at
-//! `EventEnvelope::new`, fail-closed Device). `enforce_scope` supplies the
-//! authoritative `scope_key` from the binding and rejects any envelope that
-//! claims a Space it isn't bound to. RATIFIED hard-reject rule, north-star §2.1.
+//! Model C (RATIFIED): an event TYPE declares an **allowed-set** of scopes; the
+//! emission's `EventEnvelope::scope` picks ONE of them (defaulted to the set's
+//! primary at `EventEnvelope::new`, overridable via `with_scope`).
+//! `enforce_scope`:
+//!   1. requires the chosen scope ∈ the type's allowed-set (`ScopeNotAllowed`);
+//!   2. requires the binding is authorized for the chosen scope (the existing
+//!      Space cross-check rules) and stamps the authoritative `scope_key`.
 //!
-//! NOTE (Phase 2): `enforce_scope` is NOT yet wired onto the emit path — that is
-//! Phase 3. It lives here as the binding-keyed rule the kernel will call.
+//! Unregistered event types (ad-hoc / test events) carry an EMPTY allowed-set —
+//! the membership check is skipped (no declared restriction), preserving the
+//! pre-Model-C behavior where unregistered events were never scope-rejected. A
+//! size-1 set is identical to the old single-scope model.
 
 use crate::binding::ScopeBinding;
 use crate::decision::ScopeViolation;
-use crate::event_registry::EventScope;
+use crate::event_registry::{self, EventScope};
 use crate::envelope::EventEnvelope;
 
 /// Stamp the envelope's `scope_key` from the binding, or reject.
 ///
+/// - **Chosen scope ∉ the type's allowed-set** → `ScopeNotAllowed` (skipped for
+///   unregistered types, whose allowed-set is empty).
 /// - **Space event, key absent** → stamp `binding.space_id` (reject
 ///   `NoSpaceForSpaceEvent` if the binding is space-unbound).
 /// - **Space event, key present == binding space** → ok, untouched.
 /// - **Space event, key present != binding space** → `CrossSpace` reject.
 /// - **Space-unbound caller emitting a Space event** → `NoSpaceForSpaceEvent`.
-/// - **Account / Device / System event** → stamp the matching binding key
-///   (System → `None`); no cross-check.
+/// - **Account / Runtime event** → stamp the matching binding key; no cross-check.
 pub fn enforce_scope(
     env: &mut EventEnvelope,
     binding: &ScopeBinding,
 ) -> Result<(), ScopeViolation> {
+    // 1. Allowed-set membership. The chosen scope is the one on the envelope
+    //    (primary by default; a poly-scopic emitter sets it via `with_scope`).
+    let allowed = event_registry::allowed_scopes(&env.event_type);
+    if !allowed.is_empty() && !allowed.contains(&env.scope) {
+        return Err(ScopeViolation::ScopeNotAllowed {
+            event_type: env.event_type.clone(),
+            chosen: env.scope,
+            allowed: allowed.to_vec(),
+        });
+    }
+
+    // 2. Binding authorization for the chosen scope + key stamping.
     match env.scope {
         EventScope::Space => {
             let bound = binding

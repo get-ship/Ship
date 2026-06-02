@@ -43,7 +43,9 @@ fn human_auth() -> AuthContext {
         caller_kind: ship_substrate::events::CallerKind::Cli,
         agent_id: None,
         workspace_id: None,
-        space_id: None,
+        // Annotations are Space content (`collection.item_created` is
+        // Space-scoped); the caller must be bound to a space.
+        space_id: Some("space-test".to_string()),
         session_id: None,
         scopes: vec![crate::auth::Scope::Full],
         grants: vec![],

@@ -285,7 +285,7 @@ fn collect_all_events() -> Vec<EventEntry> {
     let mut events: Vec<EventEntry> = registry()
         .map(|d| EventEntry {
             name: d.name,
-            scope: d.scope,
+            scope: d.primary_scope(),
             retention: d.retention,
             stability: d.stability,
             payload_type: d.payload_type_name,

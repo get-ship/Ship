@@ -35,13 +35,13 @@ pub struct EventEnvelope {
     pub version: u32,
     pub causation_id: Option<String>,
     /// Partition axis this event belongs to. Stamped at `new()` from the
-    /// event-type registry (fail-closed `Device` for unregistered types).
+    /// event-type registry (fail-closed `Runtime` for unregistered types).
     /// `#[serde(default)]` so envelopes serialized before the tuple existed
-    /// still decode (→ Device).
+    /// still decode (→ Runtime).
     #[serde(default)]
     pub scope: EventScope,
     /// The id within `scope` — Space→space_id, Account→account_id,
-    /// Device→device_id (or None), System→None. Together `(scope, scope_key)`
+    /// Runtime→machine/device id. Together `(scope, scope_key)`
     /// is the unified replacement for the loose `space_id: Option<String>`:
     /// scope and its key always travel together.
     pub scope_key: Option<String>,
@@ -63,8 +63,8 @@ pub struct EventEnvelope {
     pub author_device_id: Option<String>,
     /// Signature over [`EventEnvelope::signing_bytes`]. None in Phase 2
     /// (groundwork). LATER POLICY (sign-iff-syncs): Space + Account events get
-    /// signed; Device-scope (high-volume liveness bulk) + System are NEVER
-    /// signed — they never leave the device. Device-unsigned keeps signing off
+    /// signed; Runtime-scope (high-volume per-machine execution state) is NEVER
+    /// signed — it never leaves the machine. Runtime-unsigned keeps signing off
     /// the hot path. `#[serde(default)]` for back-compat.
     #[serde(default)]
     pub signature: Option<String>,
@@ -85,7 +85,7 @@ impl EventEnvelope {
             payload_json,
             version: 1,
             causation_id: None,
-            scope: event_registry::scope_for(event_type).unwrap_or(EventScope::Device),
+            scope: event_registry::scope_for(event_type).unwrap_or(EventScope::Runtime),
             scope_key: None,
             session_id: None,
             actor_id: None,
@@ -261,7 +261,7 @@ mod tests {
             "payload_json": "{}",
             "version": 1,
             "causation_id": null,
-            "scope": "device",
+            "scope": "runtime",
             "scope_key": null,
             "session_id": null,
             "actor_id": null,

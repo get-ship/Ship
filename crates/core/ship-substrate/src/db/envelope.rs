@@ -95,13 +95,13 @@ pub fn envelope_from_row(
     };
 
     // Fail-closed: a row whose stored scope is unrecognized (or NULL on a
-    // legacy row the reconcile mapped) defaults to Device — the same posture
+    // legacy row the reconcile mapped) defaults to Runtime — the same posture
     // the registry uses for unclassified events.
     let scope_str: Option<String> = row.get(7);
     let scope = scope_str
         .as_deref()
         .and_then(ship_types::event_registry::EventScope::from_storage)
-        .unwrap_or(ship_types::event_registry::EventScope::Device);
+        .unwrap_or(ship_types::event_registry::EventScope::Runtime);
 
     Ok(EventEnvelope {
         id: row.get(0),

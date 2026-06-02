@@ -140,41 +140,47 @@ async fn artifacts_promote_emits_artifact_moved() -> Result<()> {
     Ok(())
 }
 
+// Promote-to-global (a space-less User target) is the deleted dead paradigm:
+// `artifact.moved` is Space-scoped, so a space-less target is rejected.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn artifacts_promote_project_to_user_scope() -> Result<()> {
+async fn artifacts_promote_project_to_user_scope_is_rejected() -> Result<()> {
     let (svc, mut data, kernel, _dir, _tmp) = setup();
     let rec = svc
         .store(&mut data, &kernel, "report.pdf", "application/pdf", b"pdf",
                &project_scope("p"), None, None, None, None)
         .await?;
 
-    let promoted = svc
+    let err = svc
         .promote(&mut data, &kernel, &rec.id, user_scope("bob"))
-        .await?;
-
-    assert_eq!(promoted.scope, "user");
-    assert_eq!(promoted.user_id.as_deref(), Some("bob"));
-    assert!(promoted.space_id.is_none());
-    let (_, bytes) = svc.get(&mut data, &promoted.id)?.unwrap();
+        .await
+        .expect_err("promote-to-global (User target) must be rejected");
+    assert!(
+        err.to_string().contains("space-scoped"),
+        "unexpected error: {err}"
+    );
+    // The original Project artifact is untouched.
+    let (rec2, bytes) = svc.get(&mut data, &rec.id)?.unwrap();
+    assert_eq!(rec2.scope, "project");
     assert_eq!(bytes, b"pdf");
     Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn artifacts_promote_run_to_user_scope() -> Result<()> {
+async fn artifacts_promote_run_to_user_scope_is_rejected() -> Result<()> {
     let (svc, mut data, kernel, _dir, _tmp) = setup();
     let rec = svc
         .store(&mut data, &kernel, "x.bin", "application/octet-stream", b"x",
                &run_scope("p", "r"), None, None, None, None)
         .await?;
 
-    let promoted = svc
+    let err = svc
         .promote(&mut data, &kernel, &rec.id, user_scope("alice"))
-        .await?;
-
-    assert_eq!(promoted.scope, "user");
-    assert_eq!(promoted.user_id.as_deref(), Some("alice"));
-    assert!(promoted.run_id.is_none());
+        .await
+        .expect_err("promote-to-global (User target) must be rejected");
+    assert!(
+        err.to_string().contains("space-scoped"),
+        "unexpected error: {err}"
+    );
     Ok(())
 }
 

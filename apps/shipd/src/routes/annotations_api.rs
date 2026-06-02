@@ -87,10 +87,14 @@ pub(crate) async fn post_annotation_core(
     };
     let data = data_guard.as_mut().expect("data service initialized");
     let schema = annotations_schema();
+    // Annotations are space content (`collection.item_created` is Space-scoped):
+    // bind the session's resolved space.
+    let space = auth.space_id.clone();
     if let Err(e) = collection_service::create_item(
         data,
         state.kernel(),
         &schema,
+        space.as_deref(),
         &ev.id,
         &row,
         auth.agent_id.as_deref(),
