@@ -20,7 +20,13 @@ async fn fixture() -> (tempfile::TempDir, Arc<SpaceContext>, ArtifactService) {
     let tmp = tempfile::tempdir().unwrap();
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let data_svc = ship_substrate::data::DataService::open(&ship_dir).unwrap();
+    // Event-sourced collections: the projection writes into the per-space
+    // `space.db`, so the read store must open that exact file (not the legacy
+    // shared `data.db` via `open`) or reads never see projected rows.
+    let data_svc = ship_substrate::data::DataService::open_at(
+        &ship_substrate::db::space_db_path(&ship_dir, "global"),
+    )
+    .unwrap();
     let kernel = Arc::new(Mutex::new(
         ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));

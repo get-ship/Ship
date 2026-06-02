@@ -739,18 +739,34 @@ pub struct ProcessOrphaned {
 
 // -- Collection events -------------------------------------------------------
 
+/// `collection.item_created` — projection-complete: carries the full validated
+/// item so `CollectionProjection` can materialize the row from the event alone
+/// (event-sourced, no read-back). `data` is the validated item object (schema
+/// fields only); `created_at`/`updated_at` are the row timestamps.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CollectionItemCreated {
     pub collection_id: String,
     pub item_id: String,
     #[serde(default)]
     pub item_type: Option<String>,
+    /// The full validated item data (schema fields → values). The projection
+    /// writes exactly these columns into the collection table.
+    pub data: serde_json::Value,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
+/// `collection.item_updated` — projection-complete: carries the patch (the
+/// fields to set) plus the new `updated_at`. The projection applies a partial
+/// column update; untouched columns keep their values.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CollectionItemUpdated {
     pub collection_id: String,
     pub item_id: String,
+    /// The patch — only the fields provided on update. The projection writes
+    /// exactly these columns (plus `updated_at`); other columns are untouched.
+    pub data: serde_json::Value,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use ship_substrate::ports::{Predicate, PrimaryKey, Query, SpaceContext};
+use ship_substrate::ports::{Predicate, Query, SpaceContext};
 use ship_types::envelope::EventEnvelope;
 use ship_types::payload::{
     CollectionCreated, CollectionItemCreated, CollectionItemDeleted, CollectionItemUpdated,
@@ -14,10 +14,10 @@ use ship_types::payload::{
 };
 
 use crate::error::CollectionError;
-use crate::helpers::{build_row, emit_ctx, new_ulid, now_rfc3339, row_to_item};
+use crate::helpers::{emit_ctx, new_ulid, now_rfc3339, row_to_item};
 use crate::projection::{
-    SchemaRegistry, count_items, ensure_collection_table, ensure_registry_table,
-    persist_schema, update_schema_persistent,
+    SchemaRegistry, count_items, ensure_collection_table, ensure_registry_table, persist_schema,
+    update_schema_persistent,
 };
 use crate::schema::{parse_schema_doc, validate_item};
 use crate::types::{ItemRecord, SchemaDoc};
@@ -107,9 +107,12 @@ impl CollectionService {
 
         let id = new_ulid();
         let now = now_rfc3339();
-        let row = build_row(&id, &schema, data.as_object().unwrap(), &now, &now);
-        self.ctx.data().insert(&format!("collection_{collection}"), row).await?;
 
+        // EMIT-ONLY: validate, then emit the projection-complete event. The
+        // `CollectionProjection` on the per-scope event bus writes the row in
+        // the SAME append transaction, so the read path sees it immediately.
+        // No direct `ctx.data().insert` here — the projection is the sole
+        // table writer (ADR D6/D7).
         let envelope = EventEnvelope::new(
             "collection.item_created",
             &id,
@@ -117,6 +120,9 @@ impl CollectionService {
                 collection_id: collection.to_string(),
                 item_id: id.clone(),
                 item_type: None,
+                data: data.clone(),
+                created_at: now.clone(),
+                updated_at: now.clone(),
             },
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
@@ -158,17 +164,17 @@ impl CollectionService {
         }
         validate_item(&schema, &merged)?;
 
-        // Build a row from only the provided fields — the DataStore UPDATE sets
-        // only those columns and leaves the rest untouched.
-        let row = build_row(id, &schema, patch.as_object().unwrap(), &original.created_at, &now);
-        self.ctx.data().update(&format!("collection_{collection}"), row).await?;
-
+        // EMIT-ONLY: the patch (provided fields only) rides the event; the
+        // projection applies a partial column UPDATE in the append transaction
+        // and leaves untouched columns alone. No direct `ctx.data().update`.
         let envelope = EventEnvelope::new(
             "collection.item_updated",
             id,
             &CollectionItemUpdated {
                 collection_id: collection.to_string(),
                 item_id: id.to_string(),
+                data: patch.clone(),
+                updated_at: now.clone(),
             },
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
@@ -192,14 +198,11 @@ impl CollectionService {
         self.schemas.get(collection).ok_or_else(|| {
             CollectionError::NotFound(format!("collection '{collection}' not found"))
         })?;
-        let deleted = self
-            .ctx
-            .data()
-            .delete(&format!("collection_{collection}"), PrimaryKey(id.to_string()))
-            .await?;
-        if !deleted {
-            return Err(CollectionError::NotFound(format!("item '{id}' not found")));
-        }
+        // EMIT-ONLY: confirm the row exists against the projection (a delete of
+        // a missing item is a NotFound, not a silent no-op), then emit; the
+        // projection removes the row in the append transaction. No direct
+        // `ctx.data().delete`.
+        let _ = self.get_item(collection, id).await?;
         let envelope = EventEnvelope::new(
             "collection.item_deleted",
             id,
@@ -233,6 +236,12 @@ impl CollectionService {
         let mut doc = parse_schema_doc(schema_json)?;
         doc.id = id.to_string();
 
+        // The `_schema_registry` table is the durable backing of the in-memory
+        // SchemaRegistry (schema metadata, not collection items) — the service
+        // owns it. We also DDL the collection table here (DDL, not an item
+        // write) so the read connection's schema cache stays current — the
+        // `CollectionProjection` independently DDLs it on the `collection.created`
+        // event for the rebuild path; both are idempotent CREATE-IF-NOT-EXISTS.
         ensure_registry_table(self.ctx.data()).await?;
         ensure_collection_table(self.ctx.data(), &doc).await?;
         persist_schema(self.ctx.data(), &doc).await?;
@@ -263,6 +272,10 @@ impl CollectionService {
         let mut doc = parse_schema_doc(schema_json)?;
         doc.id = id.to_string();
 
+        // DDL the table on the read connection (adds any new columns) so its
+        // schema cache stays current, then persist the registry row. The
+        // `CollectionProjection` independently DDLs on `collection.schema.changed`
+        // for the rebuild path; both are idempotent.
         ensure_collection_table(self.ctx.data(), &doc).await?;
         update_schema_persistent(self.ctx.data(), &doc).await?;
 

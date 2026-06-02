@@ -9,6 +9,7 @@
 
 pub mod actor;
 pub mod async_projection;
+pub mod collection;
 pub mod process;
 pub mod registry;
 mod session;
@@ -23,6 +24,7 @@ mod tests_session;
 
 pub use actor::ActorProjection;
 pub use async_projection::{AsyncProjection, spawn_projection};
+pub use collection::CollectionProjection;
 pub use process::{ProcessRecord, ProcessStatus, load_processes};
 pub use registry::{EventBus, Projection};
 pub use session::SessionProjection;

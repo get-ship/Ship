@@ -62,7 +62,34 @@ impl DataStore for SingleBackendDataStore {
              )",
             name = schema.name,
         );
-        svc.ensure_table(&ddl).map_err(DataStoreError::from)
+        svc.ensure_table(&ddl).map_err(DataStoreError::from)?;
+
+        // Converge an EXISTING table to the schema: add any column it lacks
+        // (additive schema change). CREATE IF NOT EXISTS is a no-op on an
+        // existing table, so without this the caller's connection never learns
+        // a newly-declared column — and a `SELECT *` then trips on stale schema.
+        // ADD COLUMN cannot carry NOT NULL without a default, so added columns
+        // are nullable (the relational store's additive-evolution contract).
+        let existing: std::collections::HashSet<String> = svc
+            .query(&format!("PRAGMA table_info(`{}`)", schema.name), &[])
+            .map_err(DataStoreError::from)?
+            .into_iter()
+            .filter_map(|r| r.get("name").and_then(|v| v.as_str().map(str::to_string)))
+            .collect();
+        for c in &schema.columns {
+            if existing.contains(&c.name) {
+                continue;
+            }
+            let sql_type = match c.kind {
+                ColumnKind::Text => "TEXT",
+                ColumnKind::Integer => "INTEGER",
+                ColumnKind::Real => "REAL",
+                ColumnKind::Boolean => "INTEGER",
+            };
+            let alter = format!("ALTER TABLE `{}` ADD COLUMN `{}` {sql_type}", schema.name, c.name);
+            svc.execute(&alter, &[]).map_err(DataStoreError::from)?;
+        }
+        Ok(())
     }
 
     async fn insert(&self, table: &str, row: Row) -> Result<(), DataStoreError> {
