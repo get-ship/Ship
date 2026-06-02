@@ -10,7 +10,7 @@
     "tags": ["gate", "review", "security", "pr", "code-quality"]
   },
   "skills": {
-    "refs": ["gate", "code-review", "ship-coordination", "web-qa"]
+    "refs": ["gate", "code-review", "web-qa"]
   },
   "mcp": {
     "servers": ["ship"]
