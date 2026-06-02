@@ -429,8 +429,6 @@ fn find_artifact_for_promote(
 }
 
 /// Convert a pipeline `OutputScope` to an `ArtifactScope` for service calls.
-/// User scope promotes are not supported by the orchestrator (no user_id
-/// available in this context) and return an error.
 fn output_scope_to_artifact_scope(
     scope: &OutputScope,
     space_id: &str,
@@ -439,11 +437,6 @@ fn output_scope_to_artifact_scope(
         OutputScope::Project => Ok(ArtifactScope::Project {
             space_id: space_id.to_string(),
         }),
-        OutputScope::User => Err(
-            "User-scope promotes require an explicit user_id; not available in the orchestrator \
-             context. Use Project scope instead."
-                .to_string(),
-        ),
         OutputScope::Run => Err(
             "Cannot promote to Run scope — run artifacts are the default source, not the target."
                 .to_string(),
@@ -496,12 +489,6 @@ mod tests {
     fn output_scope_to_artifact_scope_project() {
         let scope = output_scope_to_artifact_scope(&OutputScope::Project, "my-proj").unwrap();
         assert!(matches!(scope, ArtifactScope::Project { .. }));
-    }
-
-    #[test]
-    fn output_scope_to_artifact_scope_user_errors() {
-        let err = output_scope_to_artifact_scope(&OutputScope::User, "my-proj");
-        assert!(err.is_err());
     }
 
     #[test]

@@ -260,18 +260,22 @@ impl ServiceHandler for HookService {
 
 /// Spawn the hook service on the kernel with source adapters enabled.
 /// Reloads the hook set once before returning so hooks are live immediately.
+///
+/// `schemas` is the daemon's ONE shared collection schema registry (the same
+/// `Arc` the collection wire is mounted with). Threading it here is what makes
+/// a wire-created user schema visible to a trigger insert (C-2 UD-7).
 pub async fn spawn_hook_service(
     kernel: Arc<Mutex<KernelRouter>>,
     ship_dir: PathBuf,
+    schemas: Arc<ship_collection::projection::SchemaRegistry>,
 ) -> Result<Arc<HookEngine>> {
     let source_mgr = Arc::new(SourceManager::new(ship_dir.clone()));
     source_mgr.start_all(kernel.clone());
 
-    let engine = Arc::new(HookEngine::new_with_sources(
-        kernel.clone(),
-        ship_dir,
-        source_mgr,
-    ));
+    let engine = Arc::new(
+        HookEngine::new_with_sources(kernel.clone(), ship_dir, source_mgr)
+            .with_schemas(schemas),
+    );
     engine.reload().await;
 
     let runtime = tokio::runtime::Handle::current();

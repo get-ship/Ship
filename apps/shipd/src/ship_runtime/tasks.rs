@@ -197,6 +197,7 @@ impl ShipRuntime {
         match ship_platform::triggers::engine::spawn_hook_service(
             self.kernel.clone(),
             library_dir,
+            self.schemas.clone(),
         )
         .await
         {

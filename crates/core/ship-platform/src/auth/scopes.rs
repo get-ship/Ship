@@ -52,9 +52,6 @@ pub enum Scope {
     ReadArtifactsProject,
     WriteArtifactsProject,
     DeleteArtifactsProject,
-    ReadArtifactsUser,
-    WriteArtifactsUser,
-    DeleteArtifactsUser,
     /// Promote an artifact from one scope to another.
     PromoteArtifact,
     /// Bypass all scope checks — used by daemon.token and contributor profile.

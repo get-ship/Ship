@@ -170,7 +170,8 @@ impl SearchContext for ShipdSearchContext {
                     .or_else(|| item.data.get("name"))
                     .and_then(|v| v.as_str())
                     .map(str::to_string);
-                let searchable_text = stringify_data(&item.data);
+                let searchable_text =
+            stringify_data(&serde_json::Value::Object(item.data.clone()));
                 out.push(CollectionItemSnapshot {
                     collection_id: schema.id.clone(),
                     item_id: item.id,

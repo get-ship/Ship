@@ -44,13 +44,6 @@ impl LocalFsBackend {
                 .join("blobs")
                 .join(&prefix)
                 .join(id),
-            ArtifactScope::User { user_id } => self
-                .global_dir
-                .join("artifacts")
-                .join("users")
-                .join(user_id)
-                .join(&prefix)
-                .join(id),
         }
     }
 }
@@ -93,9 +86,6 @@ impl BlobBackend for LocalFsBackend {
             }
             ArtifactScope::Project { space_id } => {
                 format!("artifacts/{space_id}/blobs/{prefix}/{id}")
-            }
-            ArtifactScope::User { user_id } => {
-                format!("artifacts/users/{user_id}/{prefix}/{id}")
             }
         }
     }

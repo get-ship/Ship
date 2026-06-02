@@ -43,12 +43,11 @@ async fn require_scope(
     }
 }
 
-/// Resolve `target_scope` ("run" | "project" | "user") + its required id into an
+/// Resolve `target_scope` ("run" | "project") + its required id into an
 /// `ArtifactScope`, mirroring the route's `parse_scope`.
 fn parse_target(
     target: &str,
     run_id: Option<String>,
-    user_id: Option<String>,
     project_slug: &str,
 ) -> Result<ArtifactScope, CommandError> {
     match target {
@@ -58,13 +57,8 @@ fn parse_target(
             Ok(ArtifactScope::Run { space_id: project_slug.to_string(), run_id })
         }
         "project" => Ok(ArtifactScope::Project { space_id: project_slug.to_string() }),
-        "user" => {
-            let user_id = user_id
-                .ok_or_else(|| CommandError::bad_args("user_id required for target_scope=user"))?;
-            Ok(ArtifactScope::User { user_id })
-        }
         other => Err(CommandError::bad_args(format!(
-            "target_scope must be run|project|user, got `{other}`"
+            "target_scope must be run|project, got `{other}`"
         ))),
     }
 }
@@ -104,7 +98,6 @@ pub async fn try_dispatch(
             let target = parse_target(
                 &req_str(args, "target_scope")?,
                 opt_str(args, "run_id"),
-                opt_str(args, "user_id"),
                 &ctx.state.project_slug().unwrap_or_default(),
             )?;
             // `retained: true` mirrors the prior wrapper, which always retained.

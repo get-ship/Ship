@@ -183,7 +183,6 @@ where
         let target = parse_target_scope(
             request.target_scope.as_ref(),
             ne(request.run_id.as_ref()),
-            ne(request.user_id.as_ref()),
             svc.ctx.space_id().as_str(),
         )
         .map_err(|e| ConnectError::invalid_argument(e.to_string()))?;
@@ -220,7 +219,6 @@ fn ne<'a>(s: &'a str) -> Option<&'a str> {
 fn parse_target_scope(
     target: &str,
     run_id: Option<&str>,
-    user_id: Option<&str>,
     space_id: &str,
 ) -> Result<crate::types::ArtifactScope, ArtifactError> {
     use crate::types::ArtifactScope;
@@ -231,13 +229,8 @@ fn parse_target_scope(
             Ok(ArtifactScope::Run { space_id: space_id.to_string(), run_id: run_id.to_string() })
         }
         "project" => Ok(ArtifactScope::Project { space_id: space_id.to_string() }),
-        "user" => {
-            let user_id = user_id
-                .ok_or_else(|| ArtifactError::Validation("user_id required for target_scope=user".into()))?;
-            Ok(ArtifactScope::User { user_id: user_id.to_string() })
-        }
         other => Err(ArtifactError::Validation(format!(
-            "target_scope must be run|project|user, got `{other}`"
+            "target_scope must be run|project, got `{other}`"
         ))),
     }
 }

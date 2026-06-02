@@ -68,18 +68,14 @@ async fn require_record(
     }
 }
 
-fn parse_scope(scope_str: &str, run_id: Option<&str>, user_id: Option<&str>, project_slug: &str) -> Result<ArtifactScope, String> {
+fn parse_scope(scope_str: &str, run_id: Option<&str>, project_slug: &str) -> Result<ArtifactScope, String> {
     match scope_str {
         "run" => {
             let rid = run_id.ok_or("run_id required for scope=run")?;
             Ok(ArtifactScope::Run { space_id: project_slug.to_string(), run_id: rid.to_string() })
         }
         "project" => Ok(ArtifactScope::Project { space_id: project_slug.to_string() }),
-        "user" => {
-            let uid = user_id.ok_or("user_id required for scope=user")?;
-            Ok(ArtifactScope::User { user_id: uid.to_string() })
-        }
-        other => Err(format!("invalid scope '{other}'; must be run|project|user")),
+        other => Err(format!("invalid scope '{other}'; must be run|project")),
     }
 }
 
@@ -87,12 +83,10 @@ fn parse_scope(scope_str: &str, run_id: Option<&str>, user_id: Option<&str>, pro
 
 #[derive(Deserialize, Default)]
 pub struct UploadQuery {
-    /// Artifact scope: `run`, `project`, or `user`.
+    /// Artifact scope: `run` or `project`.
     pub scope: Option<String>,
     /// Required when `scope=run`.
     pub run_id: Option<String>,
-    /// Required when `scope=user`.
-    pub user_id: Option<String>,
 }
 
 pub async fn upload_artifact(
@@ -107,7 +101,7 @@ pub async fn upload_artifact(
     }
 
     let project_slug = state.project_slug().unwrap_or_default();
-    let scope = match parse_scope(scope_str, q.run_id.as_deref(), q.user_id.as_deref(), &project_slug) {
+    let scope = match parse_scope(scope_str, q.run_id.as_deref(), &project_slug) {
         Ok(s) => s,
         Err(e) => return err_owned(StatusCode::BAD_REQUEST, e),
     };
@@ -160,7 +154,7 @@ pub async fn upload_artifact(
     // Default TTL for run-scope artifacts when the caller didn't supply
     // an explicit `expires_at`. Per design, run-scope is ephemeral and
     // garbage-collected after the run is done. 24h gives enough overlap
-    // for debug attach, promote, and download flows. Project/user-scope
+    // for debug attach, promote, and download flows. Project-scope
     // artifacts are kept until explicitly deleted.
     const RUN_SCOPE_DEFAULT_TTL_HOURS: i64 = 24;
     let computed_expires = match (expires_at, &scope) {

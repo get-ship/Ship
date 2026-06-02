@@ -1,10 +1,10 @@
-/// Three-scope model — run artifacts are ephemeral, project are persistent,
-/// user are personal across workspaces.
+/// Two-scope model — run artifacts are ephemeral, project are persistent.
+/// (A personal/account scope returns later as Account; there is no
+/// promote-to-global paradigm.)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ArtifactScope {
     Run { space_id: String, run_id: String },
     Project { space_id: String },
-    User { user_id: String },
 }
 
 impl ArtifactScope {
@@ -12,7 +12,6 @@ impl ArtifactScope {
         match self {
             ArtifactScope::Run { .. } => "run",
             ArtifactScope::Project { .. } => "project",
-            ArtifactScope::User { .. } => "user",
         }
     }
 
@@ -21,7 +20,6 @@ impl ArtifactScope {
             ArtifactScope::Run { space_id, .. } | ArtifactScope::Project { space_id } => {
                 Some(space_id.as_str())
             }
-            ArtifactScope::User { .. } => None,
         }
     }
 
@@ -32,18 +30,10 @@ impl ArtifactScope {
         }
     }
 
-    pub fn user_id(&self) -> Option<&str> {
-        match self {
-            ArtifactScope::User { user_id } => Some(user_id.as_str()),
-            _ => None,
-        }
-    }
-
     pub fn lock_key(&self) -> String {
         match self {
             ArtifactScope::Run { space_id, run_id } => format!("run:{space_id}:{run_id}"),
             ArtifactScope::Project { space_id } => format!("project:{space_id}"),
-            ArtifactScope::User { user_id } => format!("user:{user_id}"),
         }
     }
 }

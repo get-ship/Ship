@@ -204,12 +204,11 @@ pub const COMMANDS: &[CommandDescriptor] = &[
     },
     CommandDescriptor {
         name: "artifacts.promote",
-        description: "Promote an artifact to a target scope (run → project → user).",
+        description: "Promote an artifact to a target scope (run → project).",
         args: &[
             ArgDescriptor { name: "id", kind: "string", required: true },
             ArgDescriptor { name: "target_scope", kind: "string", required: true },
             ArgDescriptor { name: "run_id", kind: "string?", required: false },
-            ArgDescriptor { name: "user_id", kind: "string?", required: false },
         ],
         permission: "ship.artifacts.write",
         blast_radius: "C1_WORKSPACE",

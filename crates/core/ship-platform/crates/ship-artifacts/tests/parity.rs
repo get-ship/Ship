@@ -48,10 +48,6 @@ fn run_scope() -> ArtifactScope {
     ArtifactScope::Run { space_id: "proj1".to_string(), run_id: "run1".to_string() }
 }
 
-fn user_scope() -> ArtifactScope {
-    ArtifactScope::User { user_id: "alice".to_string() }
-}
-
 const PAST: &str = "2020-01-01T00:00:00Z";
 const FUTURE: &str = "2099-01-01T00:00:00Z";
 
@@ -68,7 +64,6 @@ fn parity_scope_kind_str_values() {
         ArtifactScope::Run { space_id: "p".into(), run_id: "r".into() }.kind_str(),
         "run"
     );
-    assert_eq!(ArtifactScope::User { user_id: "u".into() }.kind_str(), "user");
 }
 
 #[test]
@@ -79,7 +74,6 @@ fn parity_scope_space_id_accessor() {
         ArtifactScope::Run { space_id: "sp".into(), run_id: "r".into() }.space_id(),
         Some("sp")
     );
-    assert!(ArtifactScope::User { user_id: "u".into() }.space_id().is_none());
 }
 
 #[test]
@@ -93,20 +87,13 @@ fn parity_scope_run_id_accessor() {
 }
 
 #[test]
-fn parity_scope_user_id_accessor() {
-    // Origin: artifacts_backend_scope_user_id_accessor
-    assert_eq!(ArtifactScope::User { user_id: "bob".into() }.user_id(), Some("bob"));
-    assert!(ArtifactScope::Project { space_id: "p".into() }.user_id().is_none());
-}
-
-#[test]
 fn parity_lock_keys_are_namespaced() {
     // Origin: artifacts_backend_lock_keys_are_namespaced
     let p = ArtifactScope::Project { space_id: "alice".into() };
-    let u = ArtifactScope::User { user_id: "alice".into() };
-    assert_ne!(p.lock_key(), u.lock_key());
+    let r = ArtifactScope::Run { space_id: "alice".into(), run_id: "r".into() };
+    assert_ne!(p.lock_key(), r.lock_key());
     assert!(p.lock_key().starts_with("project:"));
-    assert!(u.lock_key().starts_with("user:"));
+    assert!(r.lock_key().starts_with("run:"));
 }
 
 #[test]
@@ -164,27 +151,6 @@ async fn parity_run_scope_blob_path_contains_runs() {
         record.path
     );
     assert!(record.path.contains("r1"), "must contain run_id in path: {}", record.path);
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn parity_user_scope_blob_path_contains_users() {
-    // Origin: artifacts_backend_user_scope_blob_path_layout
-    let tmp = tempfile::tempdir().unwrap();
-    let kernel = make_kernel(&tmp);
-    let ctx = make_ctx(&tmp, kernel);
-    let scope = ArtifactScope::User { user_id: "alice".to_string() };
-    let svc = make_service(&tmp, ctx);
-
-    let record = svc
-        .store("n.md", "text/markdown", b"z", &scope, None, None, None, None)
-        .await
-        .unwrap();
-    assert!(
-        record.path.contains("/users/") || record.path.contains("users"),
-        "user scope blob path must contain 'users': {}",
-        record.path
-    );
-    assert!(record.path.contains("alice"), "must contain user_id in path: {}", record.path);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -273,27 +239,6 @@ async fn parity_store_run_scope_sets_run_id() {
     assert_eq!(rec.space_id.as_deref(), Some("proj"));
     assert_eq!(rec.run_id.as_deref(), Some("run-001"));
     assert!(rec.user_id.is_none());
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn parity_store_user_scope_sets_user_id() {
-    // Origin: artifacts_store_user_scope_sets_user_id
-    let tmp = tempfile::tempdir().unwrap();
-    let kernel = make_kernel(&tmp);
-    let ctx = make_ctx(&tmp, kernel);
-    let svc = make_service(&tmp, ctx);
-
-    let scope = ArtifactScope::User { user_id: "alice".into() };
-    let rec = svc
-        .store("note.md", "text/markdown", b"# Hi", &scope, None, None, Some("alice"), None)
-        .await
-        .unwrap();
-
-    assert_eq!(rec.scope, "user");
-    assert_eq!(rec.user_id.as_deref(), Some("alice"));
-    assert_eq!(rec.owner_actor.as_deref(), Some("alice"));
-    assert!(rec.run_id.is_none());
-    assert!(rec.space_id.is_none());
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -736,54 +681,6 @@ async fn parity_promote_emits_artifact_moved() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn parity_promote_project_to_user_scope() {
-    // Origin: artifacts_promote_project_to_user_scope
-    let tmp = tempfile::tempdir().unwrap();
-    let kernel = make_kernel(&tmp);
-    let ctx = make_ctx(&tmp, kernel);
-    let svc = make_service(&tmp, ctx);
-
-    let rec = svc
-        .store("report.pdf", "application/pdf", b"pdf", &project_scope(), None, None, None, None)
-        .await
-        .unwrap();
-
-    let promoted = svc
-        .promote(&rec.id, ArtifactScope::User { user_id: "bob".into() }, false)
-        .await
-        .unwrap();
-
-    assert_eq!(promoted.scope, "user");
-    assert_eq!(promoted.user_id.as_deref(), Some("bob"));
-    assert!(promoted.space_id.is_none());
-    let (_, bytes) = svc.get_blob(&promoted.id).await.unwrap();
-    assert_eq!(bytes, b"pdf");
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn parity_promote_run_to_user_scope() {
-    // Origin: artifacts_promote_run_to_user_scope
-    let tmp = tempfile::tempdir().unwrap();
-    let kernel = make_kernel(&tmp);
-    let ctx = make_ctx(&tmp, kernel);
-    let svc = make_service(&tmp, ctx);
-
-    let rec = svc
-        .store("x.bin", "application/octet-stream", b"x", &run_scope(), None, None, None, None)
-        .await
-        .unwrap();
-
-    let promoted = svc
-        .promote(&rec.id, ArtifactScope::User { user_id: "alice".into() }, false)
-        .await
-        .unwrap();
-
-    assert_eq!(promoted.scope, "user");
-    assert_eq!(promoted.user_id.as_deref(), Some("alice"));
-    assert!(promoted.run_id.is_none());
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn parity_promote_retained_clears_expires_at() {
     // Origin: artifacts_promote_* (retained=true semantics)
     // New promote() has retained:bool param; old did not.
@@ -993,10 +890,11 @@ async fn parity_concurrent_store_distinct_bytes_each_get_own_blob() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // PARITY REPORT
 // ─────────────────────────────────────────────────────────────────────────────
-//  PORT    : 38 tests (all non-#[ignore] tests above)
+//  PORT    : 34 tests (all non-#[ignore] tests above)
 //  OBSOLETE: 9 old tests omitted — reasons:
-//    - artifacts_backend_project/run/user_scope_blob_path_layout: LocalFsBackend
+//    - artifacts_backend_project/run_scope_blob_path_layout: LocalFsBackend
 //      is pub(crate); behavior ported via record.path field assertions instead.
+//      (user_scope removed — ArtifactScope is Run|Project only.)
 //    - artifacts_backend_sha256_hex_known_vector / is_lowercase / deterministic:
 //      sha256_hex is pub(crate); ported via content_hash field on stored records.
 //    - artifacts_backend_invalid_scope_row_errors_loudly: old test used internal

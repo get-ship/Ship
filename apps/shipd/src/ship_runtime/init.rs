@@ -293,8 +293,6 @@ impl ShipRuntime {
             agents: ship_platform::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
             pipelines: ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
             git: ship_platform::services::git::service::GitServiceImpl::arc(global_dir.clone()),
-            collections,
-            artifacts,
             account,
             workspace_dir,
             started_at: std::time::Instant::now(),

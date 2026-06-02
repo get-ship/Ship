@@ -217,7 +217,7 @@ pub async fn get_job_detail(
     })
     .collect::<Vec<_>>();
 
-    let recent_events = ship_substrate::db::events::query_recent_events_for_entity_at(&platform_db, &pipeline_run_id, 50)
+    let recent_events = ship_substrate::db::events::query_recent_events_for_entity_at(&runtime_db, &pipeline_run_id, 50)
         .unwrap_or_default()
         .into_iter()
         .map(|env| {
