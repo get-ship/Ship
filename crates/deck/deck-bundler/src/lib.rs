@@ -7,25 +7,28 @@
 //! broadcast channel for HMR. Output lands in `assets_dir_for` (sui-out/dist).
 
 pub mod app;
+mod arena;
 pub mod catalog;
 pub mod routes;
 pub mod compile;
 pub mod proto;
 pub mod rolldown_bundle;
 pub mod targets;
+mod watch;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, Notify};
 use tracing::{error, info, warn};
 
 use ship_substrate::ShipHome;
 
 pub use proto::BundleManifest;
-use targets::BundleLayout;
+use targets::{BundleLayout, BundleTarget};
 
 /// Unsolicited events emitted while watching.
 #[derive(Debug, Clone)]
@@ -53,6 +56,19 @@ pub struct Bundler {
     staging: PathBuf,
     event_tx: broadcast::Sender<BundlerEvent>,
     watching: Arc<AtomicBool>,
+    /// Single-flight registry (#256). Maps a target name to a `Notify` that
+    /// fires when the in-flight build of that target finishes. Concurrent
+    /// cold-misses for the same target wait on the same `Notify` instead of
+    /// each spinning a fresh `BundlerBuilder` + oxc module graph (the primary
+    /// 470MB/min driver). Without this, N concurrent fanout lanes requesting
+    /// the same view → N full module graphs live simultaneously.
+    in_flight: Arc<tokio::sync::Mutex<HashMap<String, Arc<Notify>>>>,
+    /// Cached `all_targets()` snapshot (#256). `all_targets` re-reads every
+    /// `.sui` under the source roots; the watcher hit it on every FS event and
+    /// the build path on every request. Reuse one long-lived snapshot,
+    /// invalidated only when a directory is created/removed (the watcher calls
+    /// `invalidate_targets`).
+    targets_cache: Arc<Mutex<Option<Arc<Vec<BundleTarget>>>>>,
 }
 
 impl Bundler {
@@ -73,6 +89,8 @@ impl Bundler {
             staging,
             event_tx,
             watching: Arc::new(AtomicBool::new(false)),
+            in_flight: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            targets_cache: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -80,25 +98,156 @@ impl Bundler {
         BundleLayout::new(self.repo_root.clone(), self.workspace.clone())
     }
 
-    /// Build one named target.
-    pub async fn build(&self, target: &str) -> Result<BundleManifest, BundlerError> {
+    /// One long-lived `all_targets()` snapshot, computed on first use and
+    /// reused until `invalidate_targets` clears it (#256). Cheap clone of the
+    /// shared `Arc<Vec<_>>` — the expensive per-`.sui` FS walk runs once per
+    /// invalidation, not once per request/FS-event.
+    fn targets_snapshot(&self) -> Arc<Vec<BundleTarget>> {
+        {
+            let guard = self.targets_cache.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(snap) = guard.as_ref() {
+                return snap.clone();
+            }
+        }
+        let snap = Arc::new(self.layout().all_targets());
+        *self.targets_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(snap.clone());
+        snap
+    }
+
+    /// Drop the cached target snapshot so the next `targets_snapshot` re-walks.
+    /// Called by the watcher when a directory is created/removed (a new view or
+    /// island may have appeared/disappeared).
+    fn invalidate_targets(&self) {
+        *self.targets_cache.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// Single-flight a build of `target` (#256). If another task is already
+    /// building this exact target, await its completion instead of starting a
+    /// second `BundlerBuilder`. The first caller registers a `Notify`, runs the
+    /// build, then removes the entry and wakes every waiter. Waiters re-resolve
+    /// the on-disk artifact themselves (this returns `Ok(None)` for them) — the
+    /// build wrote `view.js`, which is what they actually need.
+    ///
+    /// Returns `Some(manifest)` for the task that performed the build, `None`
+    /// for a coalesced waiter (the artifact is on disk either way).
+    async fn build_single_flight(
+        &self,
+        target_name: &str,
+        target: &BundleTarget,
+    ) -> Result<Option<BundleManifest>, BundlerError> {
+        // Either claim the build, or grab the in-flight notifier to wait on.
+        let (notify, is_leader) = {
+            let mut map = self.in_flight.lock().await;
+            match map.get(target_name) {
+                Some(existing) => (existing.clone(), false),
+                None => {
+                    let n = Arc::new(Notify::new());
+                    map.insert(target_name.to_string(), n.clone());
+                    (n, true)
+                }
+            }
+        };
+
+        if !is_leader {
+            // Coalesced: wait for the leader's build to finish, then let the
+            // caller read the freshly-written artifact from disk. The presence
+            // of the map entry is the source of truth — `notify_waiters` only
+            // wakes tasks already parked, so a wake that fires between us
+            // grabbing the `Notify` and parking on it would be lost. Guard that
+            // race by re-checking the map on a short timeout: once the leader
+            // removed the entry, the build is done regardless of the wake.
+            loop {
+                if !self.in_flight.lock().await.contains_key(target_name) {
+                    break;
+                }
+                let _ = tokio::time::timeout(Duration::from_millis(100), notify.notified()).await;
+            }
+            return Ok(None);
+        }
+
+        // Leader: run the one build, then clear the entry and wake all waiters.
         let layout = self.layout();
-        let t = layout
-            .all_targets()
-            .into_iter()
-            .find(|t| t.name == target)
-            .ok_or_else(|| BundlerError::UnknownTarget(target.to_string()))?;
-        rolldown_bundle::bundle_target(&layout, &t, &self.compiler, &self.staging, false)
-            .await
-            .map_err(|e| BundlerError::Bundle { target: target.to_string(), message: e.to_string() })
+        let result = rolldown_bundle::bundle_target(
+            &layout,
+            target,
+            &self.compiler,
+            &self.staging,
+            false,
+        )
+        .await
+        .map_err(|e| BundlerError::Bundle {
+            target: target_name.to_string(),
+            message: e.to_string(),
+        });
+        {
+            let mut map = self.in_flight.lock().await;
+            map.remove(target_name);
+        }
+        notify.notify_waiters();
+        result.map(Some)
+    }
+
+    /// Build one named target.
+    ///
+    /// Cold-misses from `serve_sui_view_setup` funnel through here; concurrent
+    /// requests for the same target coalesce onto one build via
+    /// `build_single_flight` (#256). A coalesced waiter doesn't get the
+    /// leader's manifest, so we synthesize one pointing at the on-disk artifact
+    /// — the handler only needs the bundle on disk, which the leader wrote.
+    pub async fn build(&self, target: &str) -> Result<BundleManifest, BundlerError> {
+        // Resolve the target from the cached snapshot. On a miss, refresh once
+        // (a just-created view won't be in a stale snapshot) and retry before
+        // giving up.
+        let t = match self.find_target(target) {
+            Some(t) => t,
+            None => {
+                self.invalidate_targets();
+                self.find_target(target)
+                    .ok_or_else(|| BundlerError::UnknownTarget(target.to_string()))?
+            }
+        };
+
+        match self.build_single_flight(target, &t).await? {
+            Some(m) => Ok(m),
+            // Coalesced waiter: the leader already wrote the artifact. Report a
+            // manifest derived from the layout so the caller has a value; the
+            // handler reads the bytes off disk regardless.
+            None => Ok(self.manifest_for_built(&t)),
+        }
+    }
+
+    /// Look up a target by name in the cached snapshot.
+    fn find_target(&self, name: &str) -> Option<BundleTarget> {
+        self.targets_snapshot().iter().find(|t| t.name == name).cloned()
+    }
+
+    /// Synthesize a manifest for a target whose artifact a concurrent leader
+    /// already wrote (single-flight waiter path). Reads the on-disk size.
+    fn manifest_for_built(&self, t: &BundleTarget) -> BundleManifest {
+        use targets::TargetEntry;
+        let out_dir = self.layout().assets_dir_for(&t.name);
+        let out_path = out_dir.join(&t.out_file);
+        let bytes = std::fs::metadata(&out_path).map(|m| m.len() as usize).unwrap_or(0);
+        BundleManifest {
+            target: t.name.clone(),
+            out_path: out_path.to_string_lossy().to_string(),
+            bytes,
+            inputs: match &t.entry {
+                TargetEntry::Real(p) => vec![p.to_string_lossy().to_string()],
+                TargetEntry::Virtual { sources } => {
+                    sources.iter().map(|p| p.to_string_lossy().to_string()).collect()
+                }
+            },
+        }
     }
 
     /// Build every target, then aggregate the catalog into `.deck/catalogs/`.
     pub async fn build_all(&self) -> Result<(), BundlerError> {
         let layout = self.layout();
-        for t in layout.all_targets() {
+        // Reuse the cached snapshot instead of re-walking every `.sui` (#256).
+        for t in self.targets_snapshot().iter() {
             if let Err(e) =
-                rolldown_bundle::bundle_target(&layout, &t, &self.compiler, &self.staging, false).await
+                rolldown_bundle::bundle_target(&layout, t, &self.compiler, &self.staging, false).await
             {
                 error!(target = %t.name, error = %e, "bundler: target failed");
             }
@@ -156,113 +305,47 @@ impl Bundler {
     }
 
     async fn run_watch(&self) {
-        use notify::{RecursiveMode, Watcher};
-
-        let mut roots = vec![self.repo_root.clone()];
-        if let Some(ws) = &self.workspace {
-            if ws != &self.repo_root {
-                roots.push(ws.clone());
-            }
-        }
-        let watch_dirs: Vec<PathBuf> = roots
-            .iter()
-            .flat_map(|r| ["packages", "views", ".ship/views", "apps/shell/src"].map(|d| r.join(d)))
-            .filter(|p| p.exists())
-            .collect();
-        if watch_dirs.is_empty() {
-            return;
-        }
-
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<PathBuf>();
-        let mut watcher = match notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-            if let Ok(ev) = res {
-                for p in ev.paths {
-                    let _ = tx.send(p);
-                }
-            }
-        }) {
-            Ok(w) => w,
-            Err(e) => {
-                warn!(error = %e, "bundler: watcher init failed");
-                return;
-            }
-        };
-        // #193: a `RecursiveMode::Recursive` watch over `packages/` pulled in
-        // every per-package `node_modules` — notify retains a PathBuf per
-        // watched dir, so during a fanout the daemon's RSS climbed to multiple
-        // GB (509k+ retained paths, confirmed by dhat). Walk the roots with an
-        // explicit stack, PRUNE vendored/build trees, and attach NON-recursive
-        // watches per surviving source directory so notify never descends into
-        // (or retains) node_modules et al.
-        const PRUNE: &[&str] = &["node_modules", ".git", "target", "dist", ".deck", "sui-out"];
-        let mut stack: Vec<PathBuf> = watch_dirs.clone();
-        let mut watched = 0usize;
-        while let Some(dir) = stack.pop() {
-            if watcher.watch(&dir, RecursiveMode::NonRecursive).is_err() {
-                warn!(dir = %dir.display(), "bundler: watch failed");
-            } else {
-                watched += 1;
-            }
-            let Ok(rd) = std::fs::read_dir(&dir) else { continue };
-            for entry in rd.flatten() {
-                // `file_type()` does not follow symlinks, so symlinked dirs are
-                // skipped here (no cycles) and only real subdirectories recurse.
-                if matches!(entry.file_type(), Ok(ft) if ft.is_dir())
-                    && !PRUNE.contains(&entry.file_name().to_string_lossy().as_ref())
-                {
-                    stack.push(entry.path());
-                }
-            }
-        }
-        info!(dirs = watched, "bundler: watching (in-process rolldown, vendored dirs pruned)");
-
-        let layout = self.layout();
-        loop {
-            let Some(first) = rx.recv().await else { break };
-            // Debounce: drain the burst over 150ms.
-            tokio::time::sleep(Duration::from_millis(150)).await;
-            let mut changed = vec![first];
-            while let Ok(p) = rx.try_recv() {
-                changed.push(p);
-            }
-            let mut seen = std::collections::HashSet::new();
-            for path in changed {
-                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                if !matches!(ext, "ts" | "tsx" | "js" | "sui") {
-                    continue;
-                }
-                for t in layout.targets_for_file(&path) {
-                    if !seen.insert(t.name.clone()) {
-                        continue;
-                    }
-                    match rolldown_bundle::bundle_target(&layout, &t, &self.compiler, &self.staging, false)
-                        .await
-                    {
-                        Ok(m) => {
-                            let _ = self.event_tx.send(BundlerEvent::ModuleChanged {
-                                target: m.target,
-                                out_path: m.out_path,
-                                bytes: m.bytes,
-                            });
-                        }
-                        Err(e) => {
-                            let _ = self.event_tx.send(BundlerEvent::CompileError {
-                                target: t.name.clone(),
-                                message: e.to_string(),
-                                line: None,
-                                col: None,
-                                file: Some(path.display().to_string()),
-                            });
-                        }
-                    }
-                }
-            }
-        }
+        // The watch machinery (bounded drop-oldest ring, runtime re-prune)
+        // lives in `watch.rs` to keep this file under the line cap (#256).
+        watch::run(self).await;
     }
 
-    /// Graceful shutdown (no child process to stop; clears the watch flag).
+    /// Graceful shutdown (#256): clear the watch flag so the watch loop exits on
+    /// its next iteration instead of staying detached for the daemon's life. No
+    /// child process to stop.
     pub async fn shutdown(&self) -> Result<(), BundlerError> {
         self.watching.store(false, Ordering::SeqCst);
         Ok(())
+    }
+
+    // ── `watch.rs` accessors ──────────────────────────────────────────────
+    // The watcher lives in a sibling module, so it reaches the private build
+    // state through these `pub(crate)` views rather than touching fields.
+    pub(crate) fn repo_root(&self) -> &std::path::Path {
+        &self.repo_root
+    }
+    pub(crate) fn workspace(&self) -> Option<&std::path::Path> {
+        self.workspace.as_deref()
+    }
+    pub(crate) fn watching_flag(&self) -> &AtomicBool {
+        &self.watching
+    }
+    pub(crate) fn compiler_for_watch(&self) -> &std::path::Path {
+        &self.compiler
+    }
+    pub(crate) fn staging_for_watch(&self) -> &std::path::Path {
+        &self.staging
+    }
+    pub(crate) fn layout_for_watch(&self) -> BundleLayout {
+        self.layout()
+    }
+    pub(crate) fn invalidate_targets_for_watch(&self) {
+        self.invalidate_targets();
+    }
+    pub(crate) fn emit_watch_event(
+        &self,
+        ev: BundlerEvent,
+    ) -> Result<usize, broadcast::error::SendError<BundlerEvent>> {
+        self.event_tx.send(ev)
     }
 }

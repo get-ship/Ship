@@ -254,16 +254,25 @@ pub async fn bundle_target(
         repo_root: layout.repo_root.clone(),
         compiler: compiler.to_path_buf(),
     };
-    let mut bundler = BundlerBuilder::default()
-        .with_options(options)
-        .with_plugins(vec![Arc::new(plugin)])
-        .build()
-        .map_err(|e| anyhow!("rolldown build({}): {e:?}", target.name))?;
+    // The bundler + its oxc module graph live in `bundler` and are dropped at
+    // the end of this scope. Wrap the build/write in an inner block so the
+    // transient arenas are released BEFORE the `malloc_trim` below — otherwise
+    // the graph is still alive when we trim and nothing is reclaimed.
+    {
+        let mut bundler = BundlerBuilder::default()
+            .with_options(options)
+            .with_plugins(vec![Arc::new(plugin)])
+            .build()
+            .map_err(|e| anyhow!("rolldown build({}): {e:?}", target.name))?;
 
-    bundler
-        .write()
-        .await
-        .map_err(|e| anyhow!("rolldown write({}): {e:?}", target.name))?;
+        bundler
+            .write()
+            .await
+            .map_err(|e| anyhow!("rolldown write({}): {e:?}", target.name))?;
+    }
+    // Return the freed module-graph arenas to the OS so repeated builds don't
+    // ratchet RSS up under glibc (#256). No-op off glibc.
+    crate::arena::trim_arenas();
 
     let out_path = out_dir.join(&target.out_file);
     let bytes = std::fs::metadata(&out_path).map(|m| m.len() as usize).unwrap_or(0);

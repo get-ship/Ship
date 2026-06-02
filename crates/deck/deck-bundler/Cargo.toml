@@ -23,6 +23,12 @@ tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync",
 rolldown = "1.0.3"
 rolldown_common = "1.0.3"
 
+# glibc `malloc_trim` after each bundle returns the transient rolldown/oxc
+# module-graph arenas to the OS (#256). Linux-only; on other targets the
+# trim is a no-op (see `arena::trim_arenas`).
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = { workspace = true }
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 
