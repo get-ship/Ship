@@ -15,3 +15,9 @@ export {
   type Step,
   type ScenarioResult,
 } from './scenario-runner'
+export {
+  measureMountLeak,
+  assertNoMountLeak,
+  type LeakBudgetOpts,
+  type LeakReport,
+} from './leak-budget'
