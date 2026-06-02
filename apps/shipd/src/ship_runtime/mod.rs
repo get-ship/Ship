@@ -57,11 +57,20 @@ pub struct ShipRuntime {
     /// impls. Built lazily via `diag_registry()` / `set_diag_registry()`
     /// after the dispatch handle is set (supervisor snapshot depends on it).
     pub(super) diag_registry: std::sync::OnceLock<ship_substrate::diagnostics::DiagnosticRegistry>,
-    /// Shared data service for collections and extensions. Arc-wrapped
-    /// so trait-bound service impls (`CollectionsService`,
-    /// `ArtifactsService`) can hold a clone of the same handle and see
-    /// the same lazily-opened DataService.
-    pub(super) data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>>,
+    /// Global-space `SpaceContext` for collections (DataStore over `data.db` +
+    /// shared kernel). The `collections()` accessor builds a stateless
+    /// `CollectionService` on demand from this ctx + the shared `schemas`.
+    pub(super) collection_ctx: Arc<ship_substrate::ports::SpaceContext>,
+    /// Global-space `SpaceContext` for artifacts. The `artifacts()` accessor
+    /// builds an `ArtifactService` on demand from this ctx + `global_blob_dir`.
+    pub(super) artifact_ctx: Arc<ship_substrate::ports::SpaceContext>,
+    /// The ONE shared collection schema registry — hydrated from the file
+    /// overlay at startup and shared across the collection wire, triggers,
+    /// and the internal `collections()` accessor so a wire-created schema is
+    /// visible everywhere (C-2 UD-7).
+    pub(super) schemas: Arc<ship_collection::projection::SchemaRegistry>,
+    /// Blob root for artifacts (global ship dir).
+    pub(super) global_blob_dir: std::path::PathBuf,
     /// Agent-owned view sessions (Phase 1 canvas framework).
     pub(super) view_sessions: crate::views::session::SharedViewSessionRegistry,
     /// PTY session registry — chat, pipelines, dock terminal all go
@@ -107,12 +116,6 @@ pub struct ShipRuntime {
     /// `GitService` impl — seventh mr-02 migration. Project-bound; the
     /// SSE handler in `git/mod.rs` stays separate.
     pub(super) git: std::sync::Arc<dyn ship_platform::services::git::service::GitService>,
-    /// `CollectionsService` impl — eighth mr-02 migration. Db-bound;
-    /// shares the `data_service` Arc with the runtime.
-    pub(super) collections: std::sync::Arc<dyn ship_platform::services::collections::service::CollectionsService>,
-    /// `ArtifactsService` impl — ninth mr-02 migration. Db-bound;
-    /// shares the `data_service` Arc with the runtime.
-    pub(super) artifacts: std::sync::Arc<dyn ship_platform::services::artifacts::service::ArtifactsService>,
     /// Account service — owns the gateway-bearer token store and the
     /// PKCE state for in-flight logins. Constructed once per daemon and
     /// shared between the REST routes (`account_api`) and the read-op

@@ -4,10 +4,14 @@ use ship_substrate::ports::Row;
 
 use crate::types::{ItemRecord, SchemaDoc};
 
-pub(crate) fn emit_ctx() -> ship_substrate::events::validator::EmitContext {
-    // Behavior-preserving: this service emitted with no space today; the
-    // daemon-internal mint keeps the keyless shape while carrying a binding.
-    ship_substrate::events::validator::EmitContext::daemon_internal(None)
+pub(crate) fn emit_ctx(space_id: &str) -> ship_substrate::events::validator::EmitContext {
+    // `collection.*` events are Space-scoped and the kernel fail-closes a
+    // space-unbound caller (`ScopeViolation::NoSpaceForSpaceEvent`). Bind the
+    // service's `SpaceContext` space so the daemon-internal mint carries the
+    // right scope key.
+    ship_substrate::events::validator::EmitContext::daemon_internal(Some(
+        ship_types::SpaceId::new(space_id),
+    ))
 }
 
 pub(crate) fn now_rfc3339() -> String {

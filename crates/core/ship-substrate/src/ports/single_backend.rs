@@ -1,7 +1,8 @@
 //! `SingleBackendDataStore` — `DataStore` impl wrapping today's `DataService`.
 //!
-//! Wraps `crates/core/ship-substrate/src/data.rs` (`DataService`) and
-//! `crates/core/ship-platform/src/services/data.rs` (`ensure_data_service`).
+//! Wraps `crates/core/ship-substrate/src/data.rs` (`DataService`). Domain
+//! services (`ship-collection`, `ship-artifacts`) hold a `SpaceContext` over
+//! this store and create their own tables on demand.
 //!
 //! Every write injects a `space_id` column so the abstraction preserves
 //! today's logical per-space partition even within a shared DB file.

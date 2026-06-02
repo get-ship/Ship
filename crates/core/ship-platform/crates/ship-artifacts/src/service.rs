@@ -134,7 +134,7 @@ impl ArtifactService {
             },
         )
         .map_err(|e| ArtifactError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx()).await?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(scope.space_id())).await?;
 
         Ok(record)
     }
@@ -202,13 +202,14 @@ impl ArtifactService {
         self.ctx.data().update(TABLE, row).await?;
 
         let scope = record.scope.clone();
+        let space = record.space_id.clone();
         let envelope = EventEnvelope::new(
             "artifact.updated",
             id,
             &ArtifactUpdated { id: id.to_string(), scope, changed },
         )
         .map_err(|e| ArtifactError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx()).await?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(space.as_deref())).await?;
 
         Ok(record)
     }
@@ -305,7 +306,7 @@ impl ArtifactService {
             &ArtifactMoved { id: new_id.clone(), from_scope: from_scope_str, to_scope: to_scope_str },
         )
         .map_err(|e| ArtifactError::Internal(e.to_string()))?;
-        self.ctx.kernel().emit(envelope, &emit_ctx()).await?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(target_scope.space_id())).await?;
 
         Ok(new_record)
     }
@@ -342,7 +343,7 @@ impl ArtifactService {
                 },
             )
             .map_err(|e| ArtifactError::Internal(e.to_string()))?;
-            self.ctx.kernel().emit(envelope, &emit_ctx()).await?;
+            self.ctx.kernel().emit(envelope, &emit_ctx(record.space_id.as_deref())).await?;
         }
         Ok(deleted)
     }

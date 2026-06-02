@@ -88,6 +88,15 @@ fn write_schema(ship_dir: &Path, id: &str) {
     .unwrap();
 }
 
+/// Build a schema registry hydrated from the `.ship/collections/*.jsonc`
+/// overlay — mirrors the daemon's shared-registry hydration (C-2 UD-7) so a
+/// trigger insert into a file-authored collection validates + lands.
+fn hydrated_registry(ship_dir: &Path) -> Arc<ship_collection::projection::SchemaRegistry> {
+    let registry = Arc::new(ship_collection::projection::SchemaRegistry::new());
+    crate::registry::collection_schemas::hydrate_registry(&registry, ship_dir, None);
+    registry
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -251,7 +260,9 @@ async fn triggers_engine_dispatch_results_chain_across_actions() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_engine_dispatch_template_file_is_rendered() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    write_schema(&ship_dir, "notes");
+    // `tasks` is a user (non-reserved) collection authored on the file overlay;
+    // the trigger insert validates against it via the hydrated shared registry.
+    write_schema(&ship_dir, "tasks");
     std::fs::create_dir_all(ship_dir.join("triggers/templates")).unwrap();
     std::fs::write(
         ship_dir.join("triggers/templates/note.j2"),
@@ -266,40 +277,46 @@ async fn triggers_engine_dispatch_template_file_is_rendered() {
             "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "collection.insert",
-                  "collection": "notes",
+                  "collection": "tasks",
                   "template_file": "triggers/templates/note.j2" }
             ]
         }"#,
     );
 
     let kernel = test_kernel(&ship_dir);
-    let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
+    let engine = HookEngine::new(kernel.clone(), ship_dir.clone())
+        .with_schemas(hydrated_registry(&ship_dir));
     engine.reload().await;
     assert_eq!(engine.snapshot().await.len(), 1);
 
     engine.dispatch_event(&run_failed_envelope()).await;
 
-    let mut svc = crate::collections::store::open_data_db(&ship_dir).unwrap();
-    let schema = crate::collections::schema::load_schemas(&ship_dir)
-        .unwrap()
-        .into_iter()
-        .find(|s| s.id == "notes")
-        .unwrap();
-    let items = crate::collections::store::query_items(
-        &mut svc,
-        &schema,
-        &crate::collections::query::QueryRequest {
-            collection: "notes".to_string(),
-            filter: Default::default(),
-            sort: Default::default(),
-            limit: 50,
-            offset: 0,
-        },
-    )
-    .unwrap();
+    // Read the inserted item back via the new collection service over a
+    // SpaceContext (C-2 — the trigger insert routed through ship-collection).
+    let items = read_collection(&kernel, &ship_dir, "tasks").await;
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].data["title"], "job-1");
     assert_eq!(items[0].data["body"], "failed");
+}
+
+/// Query a collection through the new service for verification.
+async fn read_collection(
+    kernel: &std::sync::Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
+    ship_dir: &std::path::Path,
+    collection: &str,
+) -> Vec<ship_collection::types::ItemRecord> {
+    use std::sync::Arc;
+    use ship_substrate::ports::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
+    let data_svc = ship_substrate::data::DataService::open(ship_dir).unwrap();
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, "global"));
+    let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new("global"), store, kernel_log));
+    let svc = ship_collection::service::CollectionService {
+        ctx,
+        schemas: Arc::new(ship_collection::projection::SchemaRegistry::new()),
+    };
+    let q = Query { table: format!("collection_{collection}"), limit: 50, ..Default::default() };
+    svc.query_items_by_query(q).await.unwrap().0
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

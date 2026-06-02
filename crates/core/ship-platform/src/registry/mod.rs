@@ -12,6 +12,7 @@
 
 pub mod bundle_sig;
 pub mod cache;
+pub mod collection_schemas;
 pub mod compose;
 pub mod constraint;
 pub mod dep_skills;

@@ -9,17 +9,17 @@
 
 use serde_json::Value;
 
-use ship_platform::artifacts::ArtifactScope;
-use ship_platform::services::artifacts::service::{Error, PatchArgs};
+use ship_artifacts::error::ArtifactError;
+use ship_artifacts::types::ArtifactScope;
 
 use crate::auth::scopes::{can_delete_artifacts, can_write_artifacts};
 
 use super::{req_str, CommandCtx, CommandError};
 
-fn map_err(e: Error) -> CommandError {
+fn map_err(e: ArtifactError) -> CommandError {
     match e {
-        Error::NotFound(m) => CommandError::not_found(m),
-        Error::Validation(m) => CommandError::bad_args(m),
+        ArtifactError::NotFound(m) => CommandError::not_found(m),
+        ArtifactError::Validation(m) => CommandError::bad_args(m),
         other => CommandError::service(other.to_string()),
     }
 }
@@ -29,6 +29,17 @@ fn opt_str(args: &Value, key: &str) -> Option<String> {
     match args.get(key).and_then(|v| v.as_str()) {
         None | Some("") => None,
         Some(s) => Some(s.to_string()),
+    }
+}
+
+/// Fetch a record or map a not-found to the command error.
+async fn require_scope(
+    svc: &ship_artifacts::service::ArtifactService,
+    id: &str,
+) -> Result<String, CommandError> {
+    match svc.get_record(id).await.map_err(map_err)? {
+        Some(r) => Ok(r.scope),
+        None => Err(CommandError::not_found(format!("artifact '{id}' not found"))),
     }
 }
 
@@ -69,18 +80,16 @@ pub async fn try_dispatch(
             let id = req_str(args, "id")?;
             // Per-artifact scope ACL: fetch the record, then check write rights
             // against its scope before mutating (mirrors the REST handler).
-            let record = svc.get_record(&id).await.map_err(map_err)?;
-            if !can_write_artifacts(ctx.auth, &record.scope) {
+            let scope = require_scope(&svc, &id).await?;
+            if !can_write_artifacts(ctx.auth, &scope) {
                 return Err(CommandError::forbidden("insufficient scope for artifact write"));
             }
             let patched = svc
                 .patch(
                     &id,
-                    PatchArgs {
-                        name: opt_str(args, "name"),
-                        owner_actor: opt_str(args, "owner_actor"),
-                        expires_at: opt_str(args, "expires_at"),
-                    },
+                    opt_str(args, "name").as_deref(),
+                    opt_str(args, "owner_actor").as_deref(),
+                    opt_str(args, "expires_at").as_deref(),
                 )
                 .await
                 .map_err(map_err)?;
@@ -88,8 +97,8 @@ pub async fn try_dispatch(
         }
         "artifacts.promote" => {
             let id = req_str(args, "id")?;
-            let record = svc.get_record(&id).await.map_err(map_err)?;
-            if !can_write_artifacts(ctx.auth, &record.scope) {
+            let scope = require_scope(&svc, &id).await?;
+            if !can_write_artifacts(ctx.auth, &scope) {
                 return Err(CommandError::forbidden("insufficient scope for artifact write"));
             }
             let target = parse_target(
@@ -98,13 +107,14 @@ pub async fn try_dispatch(
                 opt_str(args, "user_id"),
                 &ctx.state.project_slug().unwrap_or_default(),
             )?;
-            let promoted = svc.promote(&id, target).await.map_err(map_err)?;
+            // `retained: true` mirrors the prior wrapper, which always retained.
+            let promoted = svc.promote(&id, target, true).await.map_err(map_err)?;
             Ok(Some(serde_json::to_value(promoted).unwrap_or_default()))
         }
         "artifacts.delete" => {
             let id = req_str(args, "id")?;
-            let record = svc.get_record(&id).await.map_err(map_err)?;
-            if !can_delete_artifacts(ctx.auth, &record.scope) {
+            let scope = require_scope(&svc, &id).await?;
+            if !can_delete_artifacts(ctx.auth, &scope) {
                 return Err(CommandError::forbidden("insufficient scope for artifact delete"));
             }
             let deleted = svc.delete(&id).await.map_err(map_err)?;

@@ -10,6 +10,12 @@ description = "L1 platform primitives — agents, collections, artifacts, trigge
 ship-substrate = { path = "../ship-substrate" }
 ship-host = { path = "../ship-substrate/crates/ship-host" }
 ship-analytics = { path = "crates/ship-analytics" }
+# Sibling L1 crates (live under this crate's `crates/` dir). The internal
+# platform consumers (triggers, view_authoring, orchestrator) call into the
+# async collection/artifact services over substrate ports. No cycle — the new
+# crates depend on ship-substrate/ship-types, not on ship-platform.
+ship-collection = { path = "crates/ship-collection" }
+ship-artifacts = { path = "crates/ship-artifacts" }
 ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines", features = ["specta"] }
@@ -54,7 +60,6 @@ tar = "0.4"
 rmp-serde = "1"
 portable-pty = "0.9"
 tracing = { workspace = true }
-sea-query = { version = "0.32.7", features = ["backend-sqlite"] }
 indexmap = { workspace = true, features = ["serde"] }
 globset = "0.4"
 minijinja = { workspace = true }

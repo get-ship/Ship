@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchemaDoc {
     pub id: String,
-    #[serde(default)]
+    /// Display title. Accepts the legacy `.jsonc` key `name` on input so the
+    /// file-overlay loader maps `.ship/collections/*.jsonc` `name` → `title`.
+    #[serde(default, alias = "name")]
     pub title: Option<String>,
     #[serde(default)]
     pub system: bool,
@@ -53,7 +55,10 @@ impl FieldKind {
 }
 
 /// A collection item as held in memory between storage and wire.
-#[derive(Debug, Clone)]
+///
+/// `Serialize` so the daemon read registry (`collections.state` /
+/// `collections.items`) can emit a row directly via `serde_json::to_value`.
+#[derive(Debug, Clone, Serialize)]
 pub struct ItemRecord {
     pub id: String,
     pub collection: String,

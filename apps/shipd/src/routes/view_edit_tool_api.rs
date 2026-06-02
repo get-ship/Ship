@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
-use ship_platform::artifacts::ArtifactService;
+use ship_artifacts::service::ArtifactService;
 use ship_platform::view_authoring::{self, CompileError, ViewAnnotateResponse, ViewCompileCheckResponse,
     ViewListSnapshotsResponse, ViewPreviewSnapshotResponse, ViewReadSourceResponse,
     ViewRestoreSnapshotResponse, ViewWriteSourceResponse};
@@ -123,7 +123,7 @@ async fn op_read_source(name: &str) -> Response {
         Ok(v) => v,
         Err(e) => return e,
     };
-    let content_hash = ship_platform::artifacts::sha256_hex(source.as_bytes());
+    let content_hash = ship_types::sha256_hex(source.as_bytes());
     ok(&ViewReadSourceResponse { source, content_hash })
 }
 
@@ -225,7 +225,7 @@ async fn op_write_source(
             let _ = delete_snapshot_now(state, &snapshot_meta.snapshot_id).await;
             let (message, file, line, col) = compile_error_from_worker(&worker_err, name);
             let content_hash =
-                ship_platform::artifacts::sha256_hex(prior_source.as_bytes());
+                ship_types::sha256_hex(prior_source.as_bytes());
             ok(&ViewWriteSourceResponse {
                 snapshot_id: None,
                 content_hash,
@@ -244,23 +244,14 @@ async fn op_collections_schema(state: &ApiState, args: serde_json::Value) -> Res
     }
     let a: A = serde_json::from_value(args).unwrap_or_default();
     let svc = state.collections();
-    let schemas = match a.id {
-        Some(id) => match svc.get_schema(&id) {
-            Ok(s) => vec![s],
-            Err(e) => {
-                return err(StatusCode::NOT_FOUND, "schema_not_found", &e.to_string());
+    let schemas: Vec<ship_collection::types::SchemaDoc> = match a.id {
+        Some(id) => match svc.list().into_iter().find(|s| s.id == id) {
+            Some(s) => vec![s],
+            None => {
+                return err(StatusCode::NOT_FOUND, "schema_not_found", &format!("collection '{id}' not found"));
             }
         },
-        None => match svc.list_user_schemas() {
-            Ok(s) => s,
-            Err(e) => {
-                return err(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "list_schemas_failed",
-                    &e.to_string(),
-                );
-            }
-        },
+        None => svc.list().into_iter().filter(|s| !s.system).collect(),
     };
     ok(&schemas)
 }
@@ -390,18 +381,12 @@ async fn op_list_snapshots(state: &ApiState, name: &str, args: serde_json::Value
     }
     let a: A = serde_json::from_value(args).unwrap_or_default();
     let limit = a.limit.unwrap_or(50).clamp(1, 200);
-    let mut guard = match state.data_service().await {
-        Ok(g) => g,
-        Err(e) => {
-            return err(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "data_unavailable",
-                &e.to_string(),
-            );
-        }
-    };
-    let data = guard.as_mut().expect("data service initialized");
-    match view_authoring::list_snapshots(data, name, limit, a.cursor.as_deref()) {
+    let ctx = view_authoring::space_context_for(
+        state.kernel().clone(),
+        state.ship_dir(),
+        "global",
+    );
+    match view_authoring::list_snapshots(ctx, name, limit, a.cursor.as_deref()).await {
         Ok((snaps, cursor)) => ok(&ViewListSnapshotsResponse {
             snapshots: snaps,
             cursor,
@@ -430,19 +415,13 @@ async fn op_restore_snapshot(
     };
     // Read snapshot bytes.
     let source = {
-        let mut guard = match state.data_service().await {
-            Ok(g) => g,
-            Err(e) => {
-                return err(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "data_unavailable",
-                    &e.to_string(),
-                );
-            }
-        };
-        let data = guard.as_mut().expect("data service initialized");
-        let artifacts = ArtifactService::new(state.ship_dir());
-        match view_authoring::read_snapshot(data, &artifacts, &a.snapshot_id) {
+        let ctx = view_authoring::space_context_for(
+            state.kernel().clone(),
+            state.ship_dir(),
+            "global",
+        );
+        let artifacts = ArtifactService::new(ctx.clone(), state.ship_dir().to_path_buf());
+        match view_authoring::read_snapshot(ctx, &artifacts, &a.snapshot_id).await {
             Ok(s) => s,
             Err(e) => {
                 return err(StatusCode::NOT_FOUND, "snapshot_not_found", &e.to_string());
@@ -511,12 +490,14 @@ async fn snapshot_now(
     agent_id: &str,
     label: Option<&str>,
 ) -> anyhow::Result<view_authoring::SnapshotMeta> {
-    let mut guard = state.data_service().await?;
-    let data = guard.as_mut().expect("data service initialized");
-    let artifacts = ArtifactService::new(state.ship_dir());
+    let ctx = view_authoring::space_context_for(
+        state.kernel().clone(),
+        state.ship_dir(),
+        "global",
+    );
+    let artifacts = ArtifactService::new(ctx.clone(), state.ship_dir().to_path_buf());
     view_authoring::snapshot_view(
-        data,
-        state.kernel(),
+        ctx,
         &artifacts,
         space_id,
         view_name,
@@ -529,10 +510,13 @@ async fn snapshot_now(
 }
 
 async fn delete_snapshot_now(state: &ApiState, snapshot_id: &str) -> anyhow::Result<bool> {
-    let mut guard = state.data_service().await?;
-    let data = guard.as_mut().expect("data service initialized");
-    let artifacts = ArtifactService::new(state.ship_dir());
-    view_authoring::snapshot::delete_snapshot(data, state.kernel(), &artifacts, snapshot_id).await
+    let ctx = view_authoring::space_context_for(
+        state.kernel().clone(),
+        state.ship_dir(),
+        "global",
+    );
+    let artifacts = ArtifactService::new(ctx.clone(), state.ship_dir().to_path_buf());
+    view_authoring::snapshot::delete_snapshot(ctx, &artifacts, snapshot_id).await
 }
 
 #[derive(serde::Deserialize)]

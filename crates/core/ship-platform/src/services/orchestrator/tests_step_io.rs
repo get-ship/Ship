@@ -13,15 +13,32 @@
 //! Each test clears that directory's `platform.db` + `data.db` on entry
 //! so prior tests sharing the same worker thread start from a clean state.
 
-use crate::artifacts::{ArtifactScope, ArtifactService};
+use std::sync::Arc;
+
+use ship_artifacts::service::ArtifactService;
+use ship_artifacts::types::ArtifactScope;
 use ship_substrate::events::pipeline::{
     OutputScope, Pipeline, PipelineStep, PipelineStepDoneDeclaredPayload, StepOutput, StepPromote, StepType,
 };
 use ship_substrate::events::{EventEnvelope, EventSink};
 use ship_substrate::persistence::event_store::SqliteEventStore;
+use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 use crate::services::orchestrator::step_io::{
     check_required_outputs, find_artifact_id_in_events, run_step_promotes,
 };
+
+/// Build an `ArtifactService` over a `SpaceContext` for the test's space.
+fn art_service(
+    kernel: &Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
+    ship_dir: &std::path::Path,
+    space_id: &str,
+) -> ArtifactService {
+    let data_svc = ship_substrate::data::DataService::open(ship_dir).unwrap();
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
+    let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel_log));
+    ArtifactService::new(ctx, ship_dir.to_path_buf())
+}
 
 fn step(id: &str, agent: &str) -> PipelineStep {
     PipelineStep {
@@ -101,7 +118,12 @@ fn emit_step_done(
 async fn three_step_flow_resolves_consumes_and_promotes_patch() {
     let ship_dir = fresh_ship_dir();
 
-    let space_id = "test-proj";
+    // The orchestrator's read-side `artifact_service` binds its `SpaceContext`
+    // to the run's space, which it derives as `project_slug_from_ship_dir`.
+    // The `SingleBackendDataStore` partitions rows by that space, so the store
+    // side must use the SAME space for the row to be readable by id.
+    let space_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
+    let space_id = space_id.as_str();
     let pipeline_run_id = "job-three-step";
     let run_id = "run-001";
     let run_scope = ArtifactScope::Run {
@@ -109,15 +131,14 @@ async fn three_step_flow_resolves_consumes_and_promotes_patch() {
         run_id: run_id.into(),
     };
 
-    let art_svc = ArtifactService::new(&ship_dir);
-    let mut data = ship_substrate::data::DataService::open(&ship_dir).unwrap();
     let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
         ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).expect("kernel"),
     ));
+    let art_svc = art_service(&kernel, &ship_dir, space_id);
 
     // Step 1 — write-tests produces `failing_tests`.
     let tests_art = art_svc
-        .store(&mut data, &kernel, "failing_tests.js", "text/javascript",
+        .store("failing_tests.js", "text/javascript",
                b"describe(); it(); expect();", &run_scope,
                None, None, Some("test-writer"), None)
         .await
@@ -132,7 +153,7 @@ async fn three_step_flow_resolves_consumes_and_promotes_patch() {
 
     // Step 2 — implement produces `patch`.
     let patch_art = art_svc
-        .store(&mut data, &kernel, "patch.diff", "text/x-diff",
+        .store("patch.diff", "text/x-diff",
                b"diff --git a/f b/f\n@@ -1 +1,2 @@\n hi\n+hello\n",
                &run_scope, None, None, Some("implementer"), None)
         .await
@@ -180,20 +201,12 @@ async fn three_step_flow_resolves_consumes_and_promotes_patch() {
     run_step_promotes(&kernel, pipeline_run_id, &gate_step).await;
 
     // Verify the patch now lives in project scope with the same bytes.
-    let mut data = ship_substrate::data::DataService::open(&ship_dir).unwrap();
-    let promoted = art_svc
-        .list(&mut data, crate::collections::query::QueryRequest {
-            collection: "artifacts".into(),
-            filter: [
-                ("scope".to_string(), serde_json::Value::String("project".into())),
-                ("content_hash".to_string(), serde_json::Value::String(
-                    patch_art.content_hash.clone().unwrap_or_default())),
-            ].into(),
-            sort: Default::default(),
-            limit: 10,
-            offset: 0,
-        })
-        .unwrap();
+    let filter: std::collections::BTreeMap<String, serde_json::Value> = [
+        ("scope".to_string(), serde_json::Value::String("project".into())),
+        ("content_hash".to_string(), serde_json::Value::String(
+            patch_art.content_hash.clone().unwrap_or_default())),
+    ].into();
+    let promoted = art_svc.list(filter, 10).await.unwrap();
     assert_eq!(promoted.len(), 1, "patch must have been promoted to project scope");
     assert_eq!(promoted[0].scope, "project");
 }

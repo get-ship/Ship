@@ -34,9 +34,21 @@ where
     F: Fn(&RequestContext) -> Arc<SpaceContext> + Send + Sync + 'static,
 {
     pub fn new(kernel: Arc<KernelLog>, make_ctx: F) -> Self {
+        Self::with_schemas(kernel, Arc::new(SchemaRegistry::new()), make_ctx)
+    }
+
+    /// Construct with a caller-owned `SchemaRegistry` so the daemon can hydrate
+    /// the file-overlay schemas once and share ONE registry instance across the
+    /// wire and the internal (trigger / view-authoring) service callers — a
+    /// schema created over the wire must be visible to a trigger insert.
+    pub fn with_schemas(
+        kernel: Arc<KernelLog>,
+        schemas: Arc<SchemaRegistry>,
+        make_ctx: F,
+    ) -> Self {
         Self {
             make_ctx,
-            schemas: Arc::new(SchemaRegistry::new()),
+            schemas,
             reactive: Arc::new(ReactiveRegistry::new(kernel)),
         }
     }

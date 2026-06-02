@@ -113,18 +113,45 @@ impl ShipRuntime {
         &*self.git
     }
 
-    /// `CollectionsService` accessor — db-bound CRUD + query.
-    pub fn collections(
-        &self,
-    ) -> &dyn ship_platform::services::collections::service::CollectionsService {
-        &*self.collections
+    /// Build a `CollectionService` over the global `SpaceContext` + the shared
+    /// schema registry. Cheap + stateless-but-for-ctx — constructed per call
+    /// (C-2 §3.1).
+    pub fn collections(&self) -> ship_collection::service::CollectionService {
+        ship_collection::service::CollectionService {
+            ctx: self.collection_ctx.clone(),
+            schemas: self.schemas.clone(),
+        }
     }
 
-    /// `ArtifactsService` accessor — db-bound CRUD + scope promotion.
-    pub fn artifacts(
+    /// Build an `ArtifactService` over the global `SpaceContext` + blob root.
+    pub fn artifacts(&self) -> ship_artifacts::service::ArtifactService {
+        ship_artifacts::service::ArtifactService::new(
+            self.artifact_ctx.clone(),
+            self.global_blob_dir.clone(),
+        )
+    }
+
+    /// The shared collection schema registry (C-2 UD-7) — used by the wire mount
+    /// and any caller that needs the same registry instance.
+    pub fn collection_schemas(
         &self,
-    ) -> &dyn ship_platform::services::artifacts::service::ArtifactsService {
-        &*self.artifacts
+    ) -> Arc<ship_collection::projection::SchemaRegistry> {
+        self.schemas.clone()
+    }
+
+    /// The global collection `SpaceContext` — used by the wire mount.
+    pub fn collection_ctx(&self) -> Arc<ship_substrate::ports::SpaceContext> {
+        self.collection_ctx.clone()
+    }
+
+    /// The global artifact `SpaceContext` — used by the wire mount + GC sweep.
+    pub fn artifact_ctx(&self) -> Arc<ship_substrate::ports::SpaceContext> {
+        self.artifact_ctx.clone()
+    }
+
+    /// Blob root for artifacts (global ship dir).
+    pub fn global_blob_dir(&self) -> &std::path::Path {
+        &self.global_blob_dir
     }
 
     /// `AccountService` accessor — gateway-bearer token store + PKCE
@@ -170,24 +197,6 @@ impl ShipRuntime {
 
     pub fn session_registry(&self) -> &crate::auth::SessionRegistry {
         &self.session_registry
-    }
-
-    /// Get or lazily create the shared DataService for collections.
-    ///
-    /// On first call, registers built-in collections (currently `artifacts`)
-    /// so they are guaranteed present without requiring a schema file.
-    pub async fn data_service(&self) -> anyhow::Result<tokio::sync::MutexGuard<'_, Option<ship_substrate::data::DataService>>> {
-        ship_platform::services::data::ensure_data_service(&self.data_service, &self.ship_dir).await
-    }
-
-    /// Arc handle to the shared `DataService` mutex — passed to service
-    /// impls (`CollectionsService`, `ArtifactsService`) so they can lock
-    /// the same mutex the runtime holds. Lazy-init is shared via
-    /// `ensure_data_service`.
-    pub fn data_service_arc(
-        &self,
-    ) -> Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> {
-        self.data_service.clone()
     }
 
     pub fn health_registry(&self) -> &HealthRegistry {

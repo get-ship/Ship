@@ -9,13 +9,15 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::artifacts::{ArtifactScope, ArtifactService};
+use ship_artifacts::service::ArtifactService;
+use ship_artifacts::types::ArtifactScope;
 use ship_substrate::events::pipeline::{
     FanoutJudge, FanoutLane, FanoutSpec, OutputScope, Pipeline, PipelineStep,
     PipelineStepDoneDeclaredPayload, PipelineStepObservedPayload, StepOutput, StepTrigger, StepType, StepVerdict,
 };
 use ship_substrate::events::{EventEnvelope, EventSink};
 use ship_substrate::persistence::event_store::SqliteEventStore;
+use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 use crate::services::dispatch_ports::{ExecutorHandle, ProcessRegistryPort};
 use crate::services::orchestrator::{FanoutLaneRef, OrchestratorContext, StepActivity};
 
@@ -230,11 +232,14 @@ pub async fn seed_lane_success(
     lane_id: &str,
     body: &[u8],
 ) -> String {
-    let art_svc = ArtifactService::new(ship_dir);
-    let mut data = ship_substrate::data::DataService::open(ship_dir).unwrap();
+    let space_id = run_scope.space_id().unwrap_or("global");
+    let data_svc = ship_substrate::data::DataService::open(ship_dir).unwrap();
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
+    let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel_log));
+    let art_svc = ArtifactService::new(ctx, ship_dir.to_path_buf());
     let rec = art_svc
         .store(
-            &mut data, kernel,
             &format!("{lane_id}-draft.md"),
             "text/markdown", body, run_scope,
             None, None, Some("test"), None,

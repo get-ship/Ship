@@ -239,20 +239,23 @@ pub fn router(state: ApiState) -> axum::Router {
         },
     ));
     let router = ship_ops_rpc::SearchServiceExt::register(search_wire, router);
-    // collection.* v2 — CollectionService (collection.proto), additive beside
-    // old CollectionsService (collections.proto) until migration completes.
-    let collection_ctx = crate::collection_context::make_collection_space_context(&state);
+    // collection.* v2 — CollectionService (collection.proto). Mounted with the
+    // runtime's ONE shared SpaceContext + schema registry (C-2 §3.1 / UD-7) so
+    // a wire-created schema is visible to the internal trigger/view callers.
+    let collection_ctx = state.collection_ctx();
     let collection_kernel = collection_ctx.kernel.clone();
-    let collection_wire = std::sync::Arc::new(ship_collection::CollectionWire::new(
+    let collection_schemas = state.collection_schemas();
+    let collection_wire = std::sync::Arc::new(ship_collection::CollectionWire::with_schemas(
         collection_kernel,
+        collection_schemas,
         move |_ctx: &connectrpc::RequestContext| collection_ctx.clone(),
     ));
     let router = ship_ops_rpc::CollectionServiceExt::register(collection_wire, router);
     // artifacts.* v2 — ship-artifacts (DataStore + blob backend), overrides
     // OpsImpl's ArtifactsService registration for all 5 RPCs including Watch.
-    let artifact_ctx = crate::artifact_context::make_artifact_space_context(&state);
+    let artifact_ctx = state.artifact_ctx();
     let artifact_kernel = artifact_ctx.kernel.clone();
-    let global_dir = state.ship_dir().to_path_buf();
+    let global_dir = state.global_blob_dir().to_path_buf();
     let artifacts_wire = std::sync::Arc::new(ship_artifacts::ArtifactsWire::new(
         artifact_kernel,
         global_dir,

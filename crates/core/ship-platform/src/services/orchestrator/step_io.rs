@@ -18,9 +18,11 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::artifacts::{ArtifactRecord, ArtifactScope, ArtifactService};
+use ship_artifacts::service::ArtifactService;
+use ship_artifacts::types::{ArtifactRecord, ArtifactScope};
 use ship_substrate::events::pipeline::{OutputScope, PipelineStep, StepOutput};
 use ship_substrate::events::{EventFilter, EventStore, SqliteEventStore};
+use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
 /// An artifact resolved from a prior step's `produces` declaration.
 pub struct ResolvedInput {
@@ -44,7 +46,8 @@ pub struct ResolvedInput {
 /// 4. Writes the blob to `<worktree>/.artifacts/input/<name>` (hardlink or copy).
 ///
 /// Returns `Err` with a human-readable message when any input cannot be resolved.
-pub fn resolve_consumes(
+pub async fn resolve_consumes(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     step: &PipelineStep,
     pipeline: &ship_substrate::events::pipeline::Pipeline,
     pipeline_run_id: &str,
@@ -56,9 +59,7 @@ pub fn resolve_consumes(
 
     let ship_dir = ship_substrate::project::get_global_dir()
         .map_err(|e| format!("resolve_consumes: cannot get ship dir: {e}"))?;
-    let mut svc = ship_substrate::data::DataService::open(&ship_dir)
-        .map_err(|e| format!("resolve_consumes: cannot open data service: {e}"))?;
-    let art_svc = ArtifactService::new(&ship_dir);
+    let art_svc = artifact_service(kernel, &ship_dir);
 
     let mut resolved = Vec::new();
 
@@ -96,7 +97,8 @@ pub fn resolve_consumes(
 
         // Fetch the artifact record.
         let record = art_svc
-            .get_record(&mut svc, &artifact_id)
+            .get_record(&artifact_id)
+            .await
             .map_err(|e| {
                 format!("resolve_consumes: artifact lookup failed for '{consumed_name}': {e}")
             })?
@@ -171,14 +173,7 @@ pub async fn run_step_promotes(
             return;
         }
     };
-    let mut svc = match ship_substrate::data::DataService::open(&ship_dir) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!(pipeline_run_id, step_id = step.id, "promotes: cannot open data service: {e}");
-            return;
-        }
-    };
-    let art_svc = ArtifactService::new(&ship_dir);
+    let art_svc = artifact_service(kernel, &ship_dir);
     let space_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
 
     // This step's own outputs (for promotes of self-produced artifacts).
@@ -215,7 +210,7 @@ pub async fn run_step_promotes(
             }
         };
 
-        match art_svc.promote(&mut svc, kernel, &artifact_id, target).await {
+        match art_svc.promote(&artifact_id, target, true).await {
             Ok(r) => tracing::info!(
                 pipeline_run_id, step_id = step.id, name = promote.name,
                 new_id = r.id, "promotes: artifact promoted"
@@ -229,6 +224,23 @@ pub async fn run_step_promotes(
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
+
+/// Build an `ArtifactService` over a `SpaceContext` for the run's space. The
+/// ctx space id is cosmetic for artifacts — artifact SCOPE is carried per-call
+/// (`ArtifactScope::Run/Project/User`) and the blob backend keys off the scope,
+/// not the ctx space (C-2 UD-9). The global ship dir is the blob root.
+fn artifact_service(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    ship_dir: &Path,
+) -> ArtifactService {
+    let space_id = ship_substrate::project::project_slug_from_ship_dir(ship_dir);
+    let data_svc = ship_substrate::data::DataService::open(ship_dir)
+        .expect("orchestrator artifact service: open data.db");
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, &space_id));
+    let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new(&space_id), store, kernel_log));
+    ArtifactService::new(ctx, ship_dir.to_path_buf())
+}
 
 /// Scan the event store for a `step.done_declared` event from the given step
 /// and return the artifact_id mapped to `output_name` in its `outputs` field.

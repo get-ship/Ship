@@ -161,6 +161,45 @@ async fn promote_marks_retained() {
     assert!(old.is_none(), "old metadata must be removed after promote");
 }
 
+// ── Test 5b: ctx space id is cosmetic — store + promote cross-space (C-2 UD-9) ─
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ctx_space_id_is_cosmetic_store_and_promote_cross_space() {
+    // The service's `SpaceContext` is bound to space "cosmetic-ctx", which
+    // matches NEITHER artifact scope below. Artifact SCOPE is per-call and the
+    // blob backend keys off the scope (not the ctx space). So a store into
+    // project "proj-A" and a promote to project "proj-B" must both succeed and
+    // round-trip bytes through this single service — proving the ctx space id
+    // is cosmetic for artifacts (C-2 UD-9).
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+    let data_svc = DataService::open(&ship_dir).unwrap();
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, "cosmetic-ctx"));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new("cosmetic-ctx"), store, kernel));
+    let svc = ArtifactService::new(ctx, tmp.path().to_path_buf());
+
+    let scope_a = ArtifactScope::Project { space_id: "proj-A".to_string() };
+    let scope_b = ArtifactScope::Project { space_id: "proj-B".to_string() };
+
+    let record = svc
+        .store("cross.txt", "text/plain", b"cross-space bytes", &scope_a, None, None, None, None)
+        .await
+        .unwrap();
+    assert_eq!(record.space_id.as_deref(), Some("proj-A"));
+
+    // Bytes are readable even though ctx space ("cosmetic-ctx") != scope space.
+    let (_, bytes) = svc.get_blob(&record.id).await.unwrap();
+    assert_eq!(bytes, b"cross-space bytes");
+
+    // Promote to a DIFFERENT space's project scope — the new metadata + blob
+    // key off scope-B, not the ctx space.
+    let promoted = svc.promote(&record.id, scope_b, true).await.unwrap();
+    assert_eq!(promoted.space_id.as_deref(), Some("proj-B"));
+    let (_, promoted_bytes) = svc.get_blob(&promoted.id).await.unwrap();
+    assert_eq!(promoted_bytes, b"cross-space bytes");
+}
+
 // ── Test 6: gc_sweeps_unreferenced_blob ───────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

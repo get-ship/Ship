@@ -26,11 +26,8 @@ fn fresh_state() -> (ApiState, TempDir) {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
-    // Register built-in collection schemas so create_item against the
-    // `annotations` table doesn't fail with "no such table".
-    let mut data = ship_substrate::data::DataService::open(&ship_dir).unwrap();
-    ship_platform::collections::builtin::register_builtin_schemas(&mut data).unwrap();
-    drop(data);
+    // The annotation route ensures the `annotations` collection table on first
+    // insert (the schema is a registry built-in) — no manual registration.
     let kernel = Arc::new(tokio::sync::Mutex::new(
         ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));
@@ -89,15 +86,19 @@ async fn point_annotation_persists_and_returns_201() {
     assert_eq!(status, 201, "{body}");
     assert_eq!(body["id"].as_str().unwrap(), id);
 
-    // Persistence: row exists in the annotations collection.
-    let mut guard = state.data_service().await.unwrap();
-    let data = guard.as_mut().unwrap();
-    let schema = ship_platform::collections::builtin::annotations_schema();
-    let item = ship_platform::collections::service::get_item(data, &schema, &id).unwrap();
-    assert!(item.is_some(), "annotation row missing");
-    let row = item.unwrap();
-    assert_eq!(row.data["kind"], "point");
-    assert_eq!(row.data["view_id"], "v-1");
+    // Persistence: a row landed in the annotations collection. The collection
+    // row carries its own minted ULID (the wire event keeps `ev.id`), so query
+    // the collection rather than look up by the wire id.
+    let svc = state.collections();
+    let q = ship_substrate::ports::Query {
+        table: "collection_annotations".into(),
+        limit: 50,
+        ..Default::default()
+    };
+    let (rows, _) = svc.query_items_by_query(q).await.unwrap();
+    assert_eq!(rows.len(), 1, "annotation row missing");
+    assert_eq!(rows[0].data["kind"], "point");
+    assert_eq!(rows[0].data["view_id"], "v-1");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

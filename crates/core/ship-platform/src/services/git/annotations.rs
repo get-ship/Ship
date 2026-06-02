@@ -7,11 +7,22 @@
 //! `view_id` is set to `"git"` (or `"git:{workspace_id}"` when a workspace
 //! is active) so comments from other views never bleed in.
 
-use crate::collections::{builtin::ANNOTATIONS_ID, query::QueryRequest, service};
-use ship_substrate::data::DataService;
+use std::sync::Arc;
+
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+use ship_collection::builtin::annotations_schema;
+use ship_collection::projection::SchemaRegistry;
+use ship_collection::service::CollectionService;
+use ship_substrate::access::SharedKernel;
+use ship_substrate::ports::{
+    KernelLog, Predicate, Query, SingleBackendDataStore, Sort, SpaceContext, SpaceId,
+};
+
+/// Built-in `annotations` collection id.
+const ANNOTATIONS_ID: &str = "annotations";
 
 #[derive(Clone, Serialize)]
 pub struct GitAnnotation {
@@ -29,56 +40,51 @@ pub struct GitAnnotation {
 pub type AnnotationsByLine = BTreeMap<String, Vec<GitAnnotation>>;
 
 /// Query the annotations collection for all comments attached to `file_path`
-/// in the given git view context. Synchronous — opens a fresh DataService
-/// handle per call so the registry op can run on a sync dispatch path.
+/// in the given git view context. Synchronous wrapper over the async
+/// `CollectionService`: the registry op runs on a sync dispatch path, so it
+/// bridges to the async query via `block_in_place` + the current runtime
+/// handle (C-2 Gap 5 — registry ops keep their sync signature, the read
+/// routes through the new service over a `SpaceContext`).
 pub fn load_file_annotations(
+    kernel: SharedKernel,
     ship_dir: &Path,
     file_path: &str,
     workspace_id: Option<&str>,
 ) -> AnnotationsByLine {
-    let mut svc = match DataService::open(ship_dir) {
+    let data_svc = match ship_substrate::data::DataService::open(ship_dir) {
         Ok(s) => s,
         Err(e) => {
-            tracing::warn!(error = %e, "failed to open DataService for git annotations");
+            tracing::warn!(error = %e, "failed to open data store for git annotations");
             return BTreeMap::new();
         }
     };
-    load_from_svc(&mut svc, file_path, workspace_id)
-}
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, "global"));
+    let kernel_log = Arc::new(KernelLog::new(kernel));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new("global"), store, kernel_log));
+    let registry = SchemaRegistry::new();
+    registry.insert(annotations_schema());
+    let svc = CollectionService { ctx, schemas: Arc::new(registry) };
 
-fn load_from_svc(
-    svc: &mut DataService,
-    file_path: &str,
-    workspace_id: Option<&str>,
-) -> AnnotationsByLine {
     let view_id = match workspace_id.filter(|s| !s.is_empty() && *s != "project") {
         Some(id) => format!("git:{id}"),
         None => "git".to_string(),
     };
-
-    let schema = crate::collections::builtin::annotations_schema();
-
-    let mut filter = BTreeMap::new();
-    filter.insert(
-        "file_path".to_string(),
-        serde_json::Value::String(file_path.to_string()),
-    );
-    filter.insert("view_id".to_string(), serde_json::Value::String(view_id));
-
-    let req = QueryRequest {
-        collection: ANNOTATIONS_ID.to_string(),
-        filter,
-        sort: {
-            let mut s = BTreeMap::new();
-            s.insert("created_at".to_string(), 1i8);
-            s
-        },
+    let q = Query {
+        table: format!("collection_{ANNOTATIONS_ID}"),
+        filters: vec![
+            Predicate::eq("file_path", serde_json::Value::String(file_path.to_string())),
+            Predicate::eq("view_id", serde_json::Value::String(view_id)),
+        ],
+        sort: Some(Sort { column: "created_at".into(), descending: false }),
         limit: 200,
-        offset: 0,
+        after: None,
     };
 
-    let items = match service::query_items(svc, &schema, &req) {
-        Ok(rows) => rows,
+    let items = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(svc.query_items_by_query(q))
+    });
+    let items = match items {
+        Ok((rows, _)) => rows,
         Err(e) => {
             tracing::warn!(error = %e, file_path, "failed to load git annotations");
             return BTreeMap::new();

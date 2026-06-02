@@ -27,10 +27,9 @@ use crate::access::RuntimeAccess;
 use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use crate::auth::scopes::{can_read_artifacts, can_write_artifacts};
-use ship_platform::services::artifacts::service::{
-    ArtifactsService, Error as ArtifactsError, StoreArgs,
-};
-use ship_platform::artifacts::ArtifactScope;
+use ship_artifacts::error::ArtifactError as ArtifactsError;
+use ship_artifacts::service::ArtifactService;
+use ship_artifacts::types::ArtifactScope;
 
 /// Max upload: 50 MB.
 pub const MAX_UPLOAD_BYTES: usize = 50 * 1024 * 1024;
@@ -48,13 +47,25 @@ fn map_err(e: ArtifactsError) -> Response {
     match e {
         NotFound(m) => err_owned(StatusCode::NOT_FOUND, m),
         Validation(m) => err_owned(StatusCode::BAD_REQUEST, m),
-        Io(m) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, m),
+        Blob(m) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, m),
         Internal(m) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, m),
     }
 }
 
-fn artifacts(state: &ApiState) -> &dyn ArtifactsService {
+fn artifacts(state: &ApiState) -> ArtifactService {
     state.services().artifacts()
+}
+
+/// `get_record` returns `Option`; the routes want a record-or-404.
+async fn require_record(
+    state: &ApiState,
+    id: &str,
+) -> Result<ship_artifacts::types::ArtifactRecord, Response> {
+    match artifacts(state).get_record(id).await {
+        Ok(Some(r)) => Ok(r),
+        Ok(None) => Err(err_owned(StatusCode::NOT_FOUND, format!("artifact '{id}' not found"))),
+        Err(e) => Err(map_err(e)),
+    }
 }
 
 fn parse_scope(scope_str: &str, run_id: Option<&str>, user_id: Option<&str>, project_slug: &str) -> Result<ArtifactScope, String> {
@@ -161,17 +172,19 @@ pub async fn upload_artifact(
         (None, _) => None,
     };
 
-    let args = StoreArgs {
-        name,
-        mime,
-        bytes,
-        scope,
-        collection_id,
-        item_id,
-        owner_actor: auth.agent_id.clone(),
-        expires_at: computed_expires,
-    };
-    match artifacts(&state).store(args).await {
+    match artifacts(&state)
+        .store(
+            &name,
+            &mime,
+            &bytes,
+            &scope,
+            collection_id.as_deref(),
+            item_id.as_deref(),
+            auth.agent_id.as_deref(),
+            computed_expires.as_deref(),
+        )
+        .await
+    {
         Ok(record) => (
             StatusCode::CREATED,
             Json(serde_json::json!({ "ok": true, "data": record })),
@@ -189,14 +202,14 @@ pub async fn download_artifact(
     Path(id): Path<String>,
 ) -> Response {
     // Fetch metadata first to check scope.
-    let record = match artifacts(&state).get_record(&id).await {
+    let record = match require_record(&state, &id).await {
         Ok(r) => r,
-        Err(e) => return map_err(e),
+        Err(resp) => return resp,
     };
     if !can_read_artifacts(&auth, &record.scope) {
         return err(StatusCode::FORBIDDEN, "insufficient scope for artifact read");
     }
-    match artifacts(&state).get(&id).await {
+    match artifacts(&state).get_blob(&id).await {
         Ok((rec, bytes)) => {
             let disposition = format!("attachment; filename=\"{}\"", sanitize_filename(&rec.name));
             Response::builder()
@@ -220,7 +233,7 @@ pub async fn head_artifact(
     Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Response {
-    match artifacts(&state).get_record(&id).await {
+    match require_record(&state, &id).await {
         Ok(rec) => {
             if !can_read_artifacts(&auth, &rec.scope) {
                 return err(StatusCode::FORBIDDEN, "insufficient scope");
@@ -234,7 +247,7 @@ pub async fn head_artifact(
                 .body(Body::empty())
                 .unwrap_or_else(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "response build failed"))
         }
-        Err(e) => map_err(e),
+        Err(resp) => resp,
     }
 }
 
@@ -245,14 +258,14 @@ pub async fn artifact_metadata(
     Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Response {
-    match artifacts(&state).get_record(&id).await {
+    match require_record(&state, &id).await {
         Ok(rec) => {
             if !can_read_artifacts(&auth, &rec.scope) {
                 return err(StatusCode::FORBIDDEN, "insufficient scope");
             }
             (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": rec }))).into_response()
         }
-        Err(e) => map_err(e),
+        Err(resp) => resp,
     }
 }
 

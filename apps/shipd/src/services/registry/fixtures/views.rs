@@ -11,7 +11,7 @@ use crate::services::settings::view_state::{
     AboutInfo, FeatureFlag, ProviderRow, SelectOption, SettingsCtx, TerminalConfig,
 };
 use crate::views::chat_state::{ChatMessage, Sender};
-use ship_platform::artifacts::ArtifactRecord;
+use ship_artifacts::types::ArtifactRecord;
 use ship_platform::services::sessions::types::{SessionKind, SessionMeta, SessionStatus};
 
 fn fixed_dt() -> chrono::DateTime<chrono::Utc> {

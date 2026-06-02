@@ -49,7 +49,11 @@ impl ArtifactScope {
 }
 
 /// Metadata record returned by service methods.
-#[derive(Debug, Clone)]
+///
+/// `Serialize` so daemon read/command surfaces (registry `artifacts.list`,
+/// `command::artifacts::patch/promote`, REST metadata) can emit it directly —
+/// the old record carried the same derive.
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ArtifactRecord {
     pub id: String,
     pub name: String,

@@ -22,8 +22,6 @@ pub use ship_substrate::access::{ConfigAccess, KernelAccess, MeshAccess, SharedK
 
 use crate::auth::SessionRegistry;
 use ship_platform::services::agents::service::AgentsService;
-use ship_platform::services::artifacts::service::ArtifactsService;
-use ship_platform::services::collections::service::CollectionsService;
 use ship_platform::services::git::service::GitService;
 use ship_platform::services::mcp::service::McpService;
 use ship_platform::services::permissions::service::PermissionsService;
@@ -44,8 +42,12 @@ pub trait ServicesAccess: Send + Sync {
     fn agents(&self) -> &dyn AgentsService;
     fn pipelines(&self) -> &dyn PipelinesService;
     fn git(&self) -> &dyn GitService;
-    fn collections(&self) -> &dyn CollectionsService;
-    fn artifacts(&self) -> &dyn ArtifactsService;
+    /// Build a `CollectionService` over the global `SpaceContext` + shared
+    /// schema registry. Returned by value — the service is stateless-but-for-ctx
+    /// (C-2 §3.1).
+    fn collections(&self) -> ship_collection::service::CollectionService;
+    /// Build an `ArtifactService` over the global `SpaceContext` + blob root.
+    fn artifacts(&self) -> ship_artifacts::service::ArtifactService;
 }
 
 /// Auth + session registry surface. Today this is just the scoped
@@ -92,10 +94,10 @@ impl ServicesAccess for ShipRuntime {
     fn git(&self) -> &dyn GitService {
         ShipRuntime::git(self)
     }
-    fn collections(&self) -> &dyn CollectionsService {
+    fn collections(&self) -> ship_collection::service::CollectionService {
         ShipRuntime::collections(self)
     }
-    fn artifacts(&self) -> &dyn ArtifactsService {
+    fn artifacts(&self) -> ship_artifacts::service::ArtifactService {
         ShipRuntime::artifacts(self)
     }
 }
