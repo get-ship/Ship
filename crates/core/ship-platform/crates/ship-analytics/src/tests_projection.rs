@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod analytics_tests {
-    use ship_substrate::db::{block_on, open_db};
+    use ship_substrate::db::{block_on, open_runtime_db};
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::events::hooks::{
         event_types,
@@ -15,8 +15,11 @@ mod analytics_tests {
         let ship_dir = ship_substrate::project::get_global_dir().unwrap();
         let base = ship_dir.parent().unwrap().to_path_buf();
         ship_substrate::testutil::init_project_minimal(base).unwrap();
-        ship_substrate::db::ensure_db().unwrap();
-        let conn = open_db().unwrap();
+        // AnalyticsProjection is Runtime-scoped (analytics_* tables); production
+        // reads via runtime.db. Open it directly so the test validates the real
+        // production read path, not a self-consistent platform.db. open_runtime_db
+        // ensures the events + projection schema itself.
+        let conn = open_runtime_db(&ship_dir).unwrap();
         (ship_dir, conn)
     }
 

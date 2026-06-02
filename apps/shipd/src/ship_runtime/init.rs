@@ -43,20 +43,25 @@ impl ShipRuntime {
 
         // Integrity check + rebuild if needed.
         //
-        // On startup: check platform.db integrity. If projections drift from
-        // the event log, replay events into fresh projection tables. If the
-        // event log itself is corrupt, refuse to start — the user needs to
-        // intervene rather than lose data silently.
-        if ship_substrate::db::platform_db_path(global_dir).exists() {
-            match ship_substrate::db::integrity::check_platform_integrity(global_dir) {
+        // On startup: check each per-scope event db's integrity. After the
+        // storage partition every scope owns its own db (`runtime.db`,
+        // `account.db`, each mounted `spaces/<id>/space.db`), each with its own
+        // `events` log AND projection tables. If any scope's projections drift
+        // from its log, replay every scope db's events into fresh projection
+        // tables. If a scope's event log itself is corrupt, refuse to start —
+        // the user needs to intervene rather than lose data silently. The
+        // Runtime scope db (`runtime.db`) is the boot gate: it is the kernel's
+        // primary scope and its presence signals a non-fresh install.
+        if ship_substrate::db::runtime_db_path(global_dir).exists() {
+            match ship_substrate::db::integrity::check_scope_integrity(global_dir) {
                 Ok(ship_substrate::db::integrity::IntegrityStatus::Ok) => {
-                    tracing::info!("shipd: platform.db integrity check passed");
+                    tracing::info!("shipd: per-scope db integrity check passed");
                 }
                 Ok(ship_substrate::db::integrity::IntegrityStatus::ProjectionsCorrupt {
                     details,
                 }) => {
                     tracing::warn!(
-                        "shipd: projection tables drifted from event log ({details}), rebuilding"
+                        "shipd: projection tables drifted from event log ({details}), rebuilding per-scope"
                     );
                     let dir = global_dir.clone();
                     let report = tokio::task::spawn_blocking(move || {
@@ -68,24 +73,25 @@ impl ShipRuntime {
                         events = report.events_replayed,
                         projections = report.projections_rebuilt.len(),
                         duration_ms = report.duration_ms,
-                        "shipd: projection rebuild complete"
+                        "shipd: per-scope projection rebuild complete"
                     );
                 }
                 Ok(ship_substrate::db::integrity::IntegrityStatus::EventsCorrupt {
                     details,
                 }) => {
                     return Err(anyhow!(
-                        "platform.db events table is corrupt and cannot be recovered: \
-                         {details}. Back up ~/.ship/platform.db, then either restore \
-                         from a known-good copy or remove it (destroys all workspace \
-                         and job history) and restart the daemon."
+                        "a scope event log is corrupt and cannot be recovered: \
+                         {details}. Back up the named db under ~/.ship/, then either \
+                         restore from a known-good copy or remove it (destroys that \
+                         scope's history) and restart the daemon."
                     ));
                 }
                 Err(e) => {
                     return Err(anyhow!(
                         "shipd: integrity check failed: {e}. \
                          Refusing to start with unknown database health. \
-                         Inspect ~/.ship/platform.db manually or remove it to reset."
+                         Inspect the per-scope dbs under ~/.ship/ manually or remove \
+                         them to reset."
                     ));
                 }
             }
@@ -93,11 +99,19 @@ impl ShipRuntime {
 
         // Ensure DB exists and init kernel.
         //
-        // Ordering matters:
+        // platform.db is dead — the kernel routes every event into its per-scope
+        // db (runtime.db / account.db / spaces/<id>/space.db) via PartitionedSink.
+        // The only remaining reason to touch platform.db at boot is the ONE-TIME
+        // legacy migration off it: a pre-existing install carries `kv_state` +
+        // legacy collection tables in platform.db that the kv/collections
+        // migrations drain out. Both steps run only when a platform.db actually
+        // exists — a fresh install never creates one.
+        //
+        // Ordering for the legacy drain:
         // 1. Open data.db (collections migration copies legacy rows out of platform.db)
-        //    BEFORE ensure_db_at — migration 0006 drops those legacy tables.
-        // 2. Ensure kv.db schema and copy any rows from platform.db kv_state BEFORE
-        //    ensure_db_at — migration 0002 drops kv_state from platform.db.
+        //    BEFORE the platform.db migration — migration 0006 drops those tables.
+        // 2. Migrate kv rows from platform.db kv_state into kv.db BEFORE the
+        //    platform.db migration — migration 0002 drops kv_state.
         //
         // Use spawn_blocking because the DB layer uses block_in_place internally.
         // Install platform-level projections + supervisor hooks before
@@ -110,10 +124,16 @@ impl ShipRuntime {
                 .context("ensure ship home layout")?;
             // Open data.db + run collections migration first.
             let _ = ship_substrate::data::DataService::open(&dir)?;
-            // Migrate kv rows from platform.db to kv.db before migration 0002 drops them.
+            // Legacy platform.db drain — one-time, only when a platform.db is
+            // present. `migrate_from_platform_db` already early-returns when it
+            // is absent; the platform.db schema migration (which drops the
+            // drained legacy tables) is gated on the same `.exists()` so a fresh
+            // install never materializes a dead platform.db.
             ship_platform::kv::migrate_from_platform_db(&dir)
                 .context("kv migration from platform.db")?;
-            ship_substrate::db::ensure_db_at(&dir)?;
+            if ship_substrate::db::platform_db_path(&dir).exists() {
+                ship_substrate::db::ensure_db_at(&dir)?;
+            }
             ship_substrate::events::init_kernel_router(dir)
                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
         })
@@ -307,6 +327,16 @@ impl ShipRuntime {
 
         // Drain — allow managers to finish in-flight work.
         tracing::info!("shipd: drain complete, cleaning up daemon files");
+
+        // Checkpoint the WAL across every per-scope db the kernel sink mounted
+        // (`runtime.db`, `account.db`, each touched `spaces/<id>/space.db`) so
+        // no scope's write-ahead log is left un-truncated at stop. Runs after
+        // the shutting_down emit + drain, so the final events are durable
+        // before the checkpoint. Best-effort: a flush failure must not block
+        // shutdown.
+        if let Err(e) = self.kernel.lock().await.flush_wal_all_scopes() {
+            tracing::warn!("shipd: WAL flush across scope dbs failed: {e}");
+        }
 
         // Remove pid and port (liveness indicators) but keep the token.
         // Preserving the token across restarts means CLI clients that cached

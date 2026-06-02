@@ -1,8 +1,9 @@
-//! Machine-wide daemon settings — `daemon_settings` table in platform.db.
+//! Machine-wide daemon settings — `daemon_settings` table in runtime.db.
 //!
-//! Replaces the `settings` namespace in kv.db. Daemon-managed values that
-//! benefit from ACID alongside event writes belong here, not in KV. KV is
-//! reserved for L2+ user-app state.
+//! Replaces the `settings` namespace in kv.db. Daemon-managed values are
+//! per-machine execution state, so they live in the Runtime scope db
+//! (`runtime.db`) alongside the actor/session/process projections — never in
+//! the dead platform.db. KV is reserved for L2+ user-app state.
 //!
 //! API mirrors `db::kv` (get/set/delete/list_all) but takes only a key —
 //! there's no namespace to register.
@@ -11,11 +12,18 @@ use anyhow::Result;
 use chrono::Utc;
 use sqlx::Row;
 
-use crate::db::{block_on, ensure_db, open_db};
+use crate::db::{block_on, open_runtime_db};
+
+/// Open the Runtime scope db backing `daemon_settings`. `open_runtime_db`
+/// ensures the events + projection schema (which includes the
+/// `daemon_settings` table) on a missing file, so callers need no separate
+/// ensure step.
+fn open_settings_db() -> Result<sqlx::SqliteConnection> {
+    open_runtime_db(&crate::project::get_global_dir()?)
+}
 
 pub fn set(key: &str, value: &serde_json::Value) -> Result<()> {
-    ensure_db()?;
-    let mut conn = open_db()?;
+    let mut conn = open_settings_db()?;
     let now = Utc::now().to_rfc3339();
     let value_json = serde_json::to_string(value)?;
     block_on(async {
@@ -36,8 +44,7 @@ pub fn set(key: &str, value: &serde_json::Value) -> Result<()> {
 }
 
 pub fn get(key: &str) -> Result<Option<serde_json::Value>> {
-    ensure_db()?;
-    let mut conn = open_db()?;
+    let mut conn = open_settings_db()?;
     let row = block_on(async {
         sqlx::query("SELECT value_json FROM daemon_settings WHERE key = ?")
             .bind(key)
@@ -54,8 +61,7 @@ pub fn get(key: &str) -> Result<Option<serde_json::Value>> {
 }
 
 pub fn delete(key: &str) -> Result<()> {
-    ensure_db()?;
-    let mut conn = open_db()?;
+    let mut conn = open_settings_db()?;
     block_on(async {
         sqlx::query("DELETE FROM daemon_settings WHERE key = ?")
             .bind(key)
@@ -66,8 +72,7 @@ pub fn delete(key: &str) -> Result<()> {
 }
 
 pub fn list_all() -> Result<Vec<(String, serde_json::Value)>> {
-    ensure_db()?;
-    let mut conn = open_db()?;
+    let mut conn = open_settings_db()?;
     let rows = block_on(async {
         sqlx::query("SELECT key, value_json FROM daemon_settings ORDER BY key")
             .fetch_all(&mut conn)
@@ -93,7 +98,7 @@ mod tests {
     fn setup() -> tempfile::TempDir {
         let tmp = tempdir().unwrap();
         init_project(tmp.path()).unwrap();
-        ensure_db().unwrap();
+        // get/set/delete self-provision runtime.db via open_settings_db.
         tmp
     }
 

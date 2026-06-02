@@ -29,10 +29,10 @@ impl ProjectState {
     /// Returns the default (all-None) when the project has never been
     /// compiled.
     pub fn load(ship_dir: &Path) -> Self {
-        if let Err(e) = ship_substrate::db::ensure_db() {
-            eprintln!("warning: could not open platform.db: {}", e);
-            return ProjectState::default();
-        }
+        // The read is `compile_state::load` → `open_space_db`, which opens (and
+        // self-provisions) the bounded `spaces/<id>/space.db` where the
+        // Space-scoped `project_compile_state` projection lives. No platform.db
+        // is touched here.
         let space_id = match ship_substrate::project::ensure_space_id(ship_dir) {
             Ok(id) => id,
             Err(e) => {
@@ -57,8 +57,10 @@ impl ProjectState {
 
 // ── Activation ────────────────────────────────────────────────────────────────
 
-/// Activate an agent: compile + install plugins + persist workspace state to platform.db.
-/// If `agent_id` is None, re-runs the active agent from platform.db.
+/// Activate an agent: compile + install plugins. Compile state (active_agent,
+/// plugins) is recorded by the `compile.completed` event into the Space-scoped
+/// `project_compile_state` projection — no state file, no platform.db write.
+/// If `agent_id` is None, re-runs the active agent read from that projection.
 /// `extra_skills` are injected at compile time on top of the agent's declared skill refs.
 pub fn activate_agent(
     agent_id: Option<&str>,

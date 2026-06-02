@@ -109,7 +109,8 @@ pub fn query_events_by_entity_and_type(
     )
 }
 
-/// Same as `query_events_by_entity_and_type` but against an explicit platform.db.
+/// Same as `query_events_by_entity_and_type` but against an explicit scope db
+/// path (callers pass the resolved per-scope db, e.g. `runtime_db_path(...)`).
 /// Handlers with access to `state.ship_dir()` should use this so test harnesses
 /// don't leak state across isolated tempdirs.
 pub fn query_events_by_entity_and_type_at(
@@ -142,7 +143,7 @@ pub fn query_recent_events_for_entity(
     )
 }
 
-/// Same as `query_recent_events_for_entity` but against an explicit platform.db.
+/// Same as `query_recent_events_for_entity` but against an explicit scope db path.
 pub fn query_recent_events_for_entity_at(
     db_path: &std::path::Path,
     entity_id: &str,

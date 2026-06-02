@@ -1,4 +1,4 @@
-//! `PartitionedSink` — scope-routed `EventSink` (Phase 4a).
+//! `PartitionedSink` — scope-routed `EventSink`.
 //!
 //! A single `EventSink` that fans every persisted event out to a per-scope
 //! SQLite db, keyed by the event's `(scope, scope_key)`:
@@ -9,11 +9,15 @@
 //!
 //! Each backing db is a lazily-opened, cached [`SqliteEventStore`]. The cache
 //! key is the resolved db identity (`"space:<id>"`, `"account"`, `"runtime"`)
-//! so the same store is reused across persists.
+//! so the same store is reused across persists. Each store also dispatches the
+//! full projection bus into its OWN db on persist, so a scope db carries both
+//! its `events` log and the projection tables those events feed.
 //!
-//! SCOPE BOUNDARY (Phase 4): this is a complete, isolated component. It is NOT
-//! yet wired into `KernelRouter` (whose sink stays `platform.db`-backed) and it
-//! touches no projection read path — that cutover is Phase 4d.
+//! This IS the kernel's sink: `KernelRouter::new` constructs a `PartitionedSink`
+//! and hands it to `ship_kernel::KernelRouter`, so every emitted event lands in
+//! its scope's db. There is no `platform.db` on the emit path. The shutdown WAL
+//! flush iterates [`PartitionedSink::opened_db_paths`] to checkpoint exactly the
+//! scope dbs it has mounted.
 
 use std::collections::HashMap;
 use std::path::PathBuf;

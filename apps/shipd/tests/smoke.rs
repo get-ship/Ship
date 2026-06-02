@@ -238,14 +238,23 @@ async fn fresh_daemon_writes_canonical_home_layout() {
         );
     }
 
-    // Databases live in machine/db/.
+    // The kernel's primary scope db is runtime.db, eagerly provisioned at boot.
+    // It lives at the ship-home root (the per-scope dbs are NOT under machine/db).
+    // platform.db is dead — a fresh daemon must NOT create it (asserted below in
+    // the legacy-paths sweep).
     assert!(
-        root.join("machine").join("db").join("platform.db").is_file(),
-        "machine/db/platform.db must exist"
+        root.join("runtime.db").is_file(),
+        "runtime.db (kernel Runtime scope db) must exist"
     );
+    // data.db (DataService collections store) still lives in machine/db/.
     assert!(
         root.join("machine").join("db").join("data.db").is_file(),
         "machine/db/data.db must exist"
+    );
+    // platform.db is dead — a fresh daemon never creates it.
+    assert!(
+        !root.join("machine").join("db").join("platform.db").exists(),
+        "machine/db/platform.db must NOT exist on a fresh daemon (platform.db is dead)"
     );
 
     // Logs live in machine/logs/.

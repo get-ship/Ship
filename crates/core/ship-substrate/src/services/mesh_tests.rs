@@ -11,8 +11,10 @@ fn setup() -> (MeshService, mpsc::UnboundedReceiver<EventEnvelope>, ActorStore, 
     let (tx, rx) = mpsc::unbounded_channel();
     let svc = MeshService::new(tx);
     let tmp = tempdir().unwrap();
-    crate::db::ensure_db_at(tmp.path()).unwrap();
-    let db_path = crate::db::platform_db_path(tmp.path());
+    // mesh.* is Runtime-scoped → the kernel routes it to runtime.db; back the
+    // test ActorStore with the same scope db so it mirrors production.
+    let db_path = crate::db::runtime_db_path(tmp.path());
+    crate::db::ensure_events_db_at_path(&db_path).unwrap();
     let store = ActorStore::new("mesh", db_path, vec!["mesh.".into()], vec!["mesh.".into()]);
     (svc, rx, store, tmp)
 }
