@@ -313,9 +313,11 @@ pub async fn run_network(
         });
     }
 
-    // Start the Bun bundler worker. In dev mode, also forward module_changed
+    // Start the in-process bundler. In dev mode, also forward module_changed
     // events to the HMR SSE channel so browser clients get in-place updates.
-    {
+    // The forwarder task's JoinHandle is captured (#256) so shutdown can abort
+    // it instead of leaving it detached to hold the runtime alive past SIGTERM.
+    let bundler_forwarder: tokio::task::JoinHandle<()> = {
         let bundler = rt.bundler().clone();
         let mut events = bundler.subscribe_events();
         let mode = daemon_mode;
@@ -399,8 +401,8 @@ pub async fn run_network(
                     Err(_) => break,
                 }
             }
-        });
-    }
+        })
+    };
 
     // Register the launch-time project (if any) into the project registry
     // so the launcher / shell sees it on first list. Idempotent.
@@ -441,6 +443,12 @@ pub async fn run_network(
     let ct = CancellationToken::new();
     let ct2 = ct.clone();
     tokio::spawn(async move { daemon::shutdown_signal().await; ct2.cancel(); });
+    // Hand the runtime a CHILD of the signal token (#256) so long-lived SSE
+    // keepalive/data loops can `select!` against cancellation. When the signal
+    // handler above cancels `ct`, the child fires and those streams close —
+    // letting axum's graceful-shutdown drain finish instead of hanging on a
+    // never-closing SSE connection until SIGKILL.
+    rt.set_shutdown_token(ct.child_token());
 
     let session_registry = rt.session_registry().clone();
     // Hydrate any persisted paired sessions from a previous daemon lifetime.
@@ -580,10 +588,29 @@ pub async fn run_network(
         .with_graceful_shutdown(async move { ct.cancelled_owned().await })
         .await.map_err(|e| anyhow!("server error: {e}"))?;
 
+    // Serve has returned (graceful shutdown drained the listener). Tear down the
+    // bundler's detached tasks (#256): flip its watch flag so `run_watch` exits,
+    // then abort the HMR event-forwarder so neither holds the runtime alive past
+    // SIGTERM. Both are idempotent and best-effort.
+    if let Err(e) = rt.bundler().shutdown().await {
+        tracing::warn!("bundler: shutdown error: {e}");
+    }
+    bundler_forwarder.abort();
+
+    // Bound the agent drain so a stuck child can't hang shutdown forever (#256).
+    // axum already drained connections; this cap protects the supervisor drain
+    // (the SIGTERM→SIGKILL hang was an unbounded wait here + un-cancelled SSE).
+    const SHUTDOWN_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
     let agents_drained = if let Some(dh) = rt.dispatch_handle() {
         let mut registry = dh.registry.lock().await;
         let count = registry.len();
-        supervisor::graceful_shutdown(rt.kernel(), &mut registry, Arc::clone(&dh.executor)).await;
+        let drain = supervisor::graceful_shutdown(rt.kernel(), &mut registry, Arc::clone(&dh.executor));
+        if tokio::time::timeout(SHUTDOWN_DRAIN_TIMEOUT, drain).await.is_err() {
+            tracing::warn!(
+                timeout_secs = SHUTDOWN_DRAIN_TIMEOUT.as_secs(),
+                "shipd: agent drain timed out; proceeding with shutdown"
+            );
+        }
         count
     } else {
         0

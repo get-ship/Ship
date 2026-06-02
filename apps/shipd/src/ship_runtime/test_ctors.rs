@@ -82,6 +82,7 @@ impl ShipRuntime {
             config_watcher: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
             worktree_resolver: default_worktree_resolver(),
+            shutdown_token: std::sync::OnceLock::new(),
         }
     }
 
@@ -160,6 +161,7 @@ impl ShipRuntime {
             config_watcher: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
             worktree_resolver: default_worktree_resolver(),
+            shutdown_token: std::sync::OnceLock::new(),
         }
     }
 

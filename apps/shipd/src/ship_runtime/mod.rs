@@ -122,4 +122,11 @@ pub struct ShipRuntime {
     /// override with an in-memory map. See `resolve_worktree` method and
     /// `new_test_with_worktree_resolver` test ctor.
     pub(super) worktree_resolver: WorktreeResolver,
+    /// Shutdown cancellation token (#256). A child of the daemon's signal
+    /// token, set once in `run_network` right after that token is created.
+    /// Long-lived SSE keepalive/data loops `select!` against this so a SIGTERM
+    /// closes them promptly instead of holding the axum graceful-shutdown drain
+    /// open until the client happens to disconnect (the ~10s SIGTERM→SIGKILL
+    /// hang). Cleared/cancelled again in `shutdown()` as a belt-and-suspenders.
+    pub(super) shutdown_token: std::sync::OnceLock<tokio_util::sync::CancellationToken>,
 }

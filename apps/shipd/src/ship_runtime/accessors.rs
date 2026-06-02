@@ -35,6 +35,24 @@ impl ShipRuntime {
         self.started_at.elapsed()
     }
 
+    /// Install the shutdown cancellation token (#256). Called once in
+    /// `run_network` with a child of the daemon's signal token. Idempotent —
+    /// a second set is ignored.
+    pub fn set_shutdown_token(&self, token: tokio_util::sync::CancellationToken) {
+        let _ = self.shutdown_token.set(token);
+    }
+
+    /// A child of the daemon shutdown token (#256). SSE handlers `select!`
+    /// their long-lived loops against `.cancelled()` so a SIGTERM closes them
+    /// promptly. Returns a detached child token when none is installed (tests),
+    /// so handlers always have something to await.
+    pub fn shutdown_token(&self) -> tokio_util::sync::CancellationToken {
+        self.shutdown_token
+            .get()
+            .map(|t| t.child_token())
+            .unwrap_or_default()
+    }
+
     pub fn kernel(&self) -> &SharedKernel {
         &self.kernel
     }

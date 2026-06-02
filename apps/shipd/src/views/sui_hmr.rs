@@ -15,6 +15,7 @@
 //! subscribes.
 
 use axum::{
+    Extension,
     body::Body,
     http::{StatusCode, header},
     response::Response,
@@ -23,6 +24,7 @@ use futures_util::stream::StreamExt;
 use std::sync::OnceLock;
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
+use tokio_util::sync::CancellationToken;
 
 /// Event forwarded from the bundler worker to browser clients.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -69,9 +71,13 @@ pub fn publish_bundle_event(event: BundleModuleEvent) {
 ///
 /// The Deck host's live-reload client subscribes here. Events are
 /// `module-changed` and `compile-error` kinds with JSON payloads.
-pub async fn serve_bundle_hmr() -> Response {
+///
+/// The optional `Extension<CancellationToken>` (a child of the daemon shutdown
+/// token) terminates the stream on SIGTERM (#256) so this long-lived SSE
+/// connection doesn't hold the axum graceful-shutdown drain open until SIGKILL.
+pub async fn serve_bundle_hmr(cancel: Option<Extension<CancellationToken>>) -> Response {
     let rx = bundle_channel().tx.subscribe();
-    let stream = BroadcastStream::new(rx).filter_map(|res| async move {
+    let events = BroadcastStream::new(rx).filter_map(|res| async move {
         let Ok(event) = res else { return None };
         let event_name = match event.kind {
             BundleModuleEventKind::ModuleChanged => "module-changed",
@@ -80,6 +86,11 @@ pub async fn serve_bundle_hmr() -> Response {
         let payload = serde_json::to_string(&event).unwrap_or_default();
         Some(Ok::<_, std::io::Error>(format!("event: {event_name}\ndata: {payload}\n\n")))
     });
+    // End the stream when the shutdown token fires. `take_until` completes the
+    // stream as soon as the cancellation future resolves; with no token (tests)
+    // the stream runs until the client disconnects, as before.
+    let cancel = cancel.map(|e| e.0).unwrap_or_default();
+    let stream = events.take_until(async move { cancel.cancelled().await });
 
     Response::builder()
         .status(StatusCode::OK)

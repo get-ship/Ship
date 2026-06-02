@@ -34,7 +34,7 @@ pub fn build_router(
     session_registry: auth::SessionRegistry,
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
-    _mcp_ct: CancellationToken,
+    shutdown_ct: CancellationToken,
     daemon_mode: deck::DaemonMode,
 ) -> Router {
     use crate::routes::{Route, ShipRouterExt};
@@ -284,10 +284,13 @@ pub fn build_router(
         .merge(mcp_registry_routes)
         .merge(webhook_source_route)
         .merge(authenticated_routes);
-    // The HMR firehose is development-only; not registered in production.
+    // The HMR firehose is development-only; not registered in production. Its
+    // SSE stream is cancelled on shutdown via a child of the daemon token
+    // (#256) so it can't hold the graceful-shutdown drain open past SIGTERM.
     if daemon_mode == deck::DaemonMode::Development {
         let hmr_routes: Router<()> = Router::new()
-            .ship_public_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr);
+            .ship_public_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr)
+            .layer(axum::Extension(shutdown_ct.child_token()));
         root = root.merge(hmr_routes);
     }
     root
