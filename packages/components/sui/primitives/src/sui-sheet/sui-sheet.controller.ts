@@ -3,6 +3,8 @@ import { createVirtualizer } from '@ship/sui-runtime'
 import { createSheet, type Sheet } from './engine/create-sheet'
 import { colToLabel } from './engine/a1'
 import { parseJsonWorkbook } from './engine/decode'
+import { cellBox, rangeCorner, type CellBox } from './view/geometry'
+import { wireSheetInteractions } from './view/interactions'
 import type { ResolvedCell } from './engine/contract'
 
 /** A windowed column (header + geometry) keyed by logical index. */
@@ -19,7 +21,10 @@ interface RowView {
   top: number
   height: number
 }
-/** A windowed grid cell — the resolved render contract + its placement. */
+/** A windowed grid cell — the resolved render contract + its placement. Its
+ *  own `Derived<ResolvedCell>` carries the per-cell interaction flags
+ *  (`isActive`/`isInSelection`) the view paints; reading it in the template
+ *  subscribes the cell's attribute bindings to the selection slice. */
 interface CellView {
   key: string
   a1: string
@@ -47,6 +52,8 @@ export default controller({
     // (wired in mount) OR the `workbook` SSR string is parsed into one.
     const sheetSig = signal<Sheet | null>(null)
     const viewportEl = ref<HTMLDivElement>(null)
+    const gridEl = ref<HTMLDivElement>(null)
+    const editorEl = ref<HTMLInputElement>(null)
 
     // A stable empty engine backs every read so the template never branches on
     // null; the active engine is `sheetSig() ?? EMPTY`.
@@ -92,9 +99,30 @@ export default controller({
       return out
     })
 
+    // ── editor overlay placement (active while editing != null) ──────────────
+    // Reads the engine's editing slice; absolute pixel box of the editing cell.
+    const editor = derived<(CellBox & { draft: string }) | null>(() => {
+      const e = sheet().editing()
+      if (!e) return null
+      return { ...cellBox(sheet(), e.cell), draft: e.draft }
+    })
+
+    // ── fill-handle placement (bottom-right corner of the active range) ──────
+    // Falls back to the active cell when the selection is the collapsed origin
+    // (no explicit range yet) so the affordance is always reachable.
+    const fillHandle = derived<{ top: number; left: number } | null>(() => {
+      const s = sheet()
+      if (s.editing()) return null
+      const sel = s.selection()
+      const corner = sel.ranges[0]?.normalized().end ?? sel.active
+      return rangeCorner(s, corner)
+    })
+
     return {
       sheetSig,
       viewportEl,
+      gridEl,
+      editorEl,
       sheet,
       rowCount,
       colCount,
@@ -105,6 +133,8 @@ export default controller({
       cols,
       rows,
       cells,
+      editor,
+      fillHandle,
     }
   },
 
@@ -171,9 +201,6 @@ export default controller({
         return { index, label: colToLabel(index), left: it.start, width: it.size }
       })
     }
-    // An effect reading each virtualizer's `virtualItems()` subscribes to its
-    // window; on change it republishes the logical-index slice into the scope
-    // signal the template renders.
     const stopRowSync = effect(() => {
       rowV.virtualItems()
       syncRows()
@@ -183,9 +210,38 @@ export default controller({
       syncCols()
     })
 
+    // ── interaction wiring (Cardinal 3 — every mutation is in a handler) ─────
+    // Cells live in the shadow root; the wiring delegates from it. The active
+    // engine is read fresh on each event so a prop:sheet swap is honored.
+    wireSheetInteractions(host, {
+      sheetOf: () => state.sheetSig,
+      focusGrid: () => state.gridEl?.focus(),
+      scroll: {
+        rowToIndex: (i) => rowV.scrollToIndex(i),
+        colToIndex: (i) => colV.scrollToIndex(i),
+      },
+    })
+
+    // Focus + seed the editor input the frame after the {#if} mounts it.
+    const stopEditorFocus = effect(() => {
+      const e = state.sheet.editing()
+      const input = state.editorEl
+      if (e && input) {
+        input.value = e.draft
+        input.focus()
+        const end = input.value.length
+        try {
+          input.setSelectionRange(end, end)
+        } catch {
+          // some input types reject setSelectionRange — non-fatal
+        }
+      }
+    })
+
     return () => {
       stopRowSync()
       stopColSync()
+      stopEditorFocus()
       rowV.dispose()
       colV.dispose()
     }

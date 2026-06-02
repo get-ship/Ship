@@ -7,11 +7,12 @@
 // `@ship/sui-runtime` ONLY — no SDK, no network, no DOM (the engine is pure
 // reactive state over a cell space; the view renders it via prop:sheet).
 //
-// SCOPE — FOUNDATIONAL slice: the literal cell path, range selection, the
-// editing model, geometry, and live-workbook ingestion. The formula engine
-// (parse / DAG / eval), fill-handle series, and clipboard re-basing are DEFERRED
-// to follow-up slices; their facade methods throw a clear deferred error rather
-// than ship a silent no-op that "looks better than it is".
+// SCOPE: the literal cell path, range selection, the editing model, geometry,
+// and live-workbook ingestion — plus the formula engine (parse / DAG / eval via
+// `formula-engine.ts`), fill-handle series (`fillRange` → `fill.ts`), and
+// clipboard re-basing (relative-ref shifting via `refs.ts`, shared by fill +
+// `clipboard.ts`). All of these are wired through the facade below; nothing here
+// throws a deferred-slice error.
 //
 // PURE TypeScript. Authority: build-spec §"Backbone — createSheet()", §"API
 // sketch", §"Signal graph", §Slices 1/3, create-sheet.test.ts.
@@ -19,6 +20,7 @@
 import { batch, derived, effect, untrack } from '@ship/sui-runtime'
 import { fromA1, toA1 } from './a1'
 import { buildEditing } from './editing'
+import { computeFill } from './fill'
 import { createFastFormulaCore } from './formula/adapter-fast-formula-parser'
 import { buildFormulaEngine } from './formula-engine'
 import { buildPipeline } from './pipeline'
@@ -42,8 +44,36 @@ import type {
   SheetDef,
 } from './types'
 
-const DEFERRED = (feature: string): never => {
-  throw new Error(`sui-sheet: ${feature} is deferred to a follow-up slice`)
+/** Compute the next active address for a `moveActive` direction, clamped to the
+ *  logical extent. `tab`/`enter` advance like `right`/`down`. */
+function nextAddress(
+  cur: CellAddress,
+  dir: Parameters<Sheet['moveActive']>[0],
+  rows: number,
+  cols: number,
+): CellAddress {
+  const clampRow = (r: number): number => Math.max(0, Math.min(rows - 1, r))
+  const clampCol = (c: number): number => Math.max(0, Math.min(cols - 1, c))
+  switch (dir) {
+    case 'up':
+      return { row: clampRow(cur.row - 1), col: cur.col }
+    case 'down':
+    case 'enter':
+      return { row: clampRow(cur.row + 1), col: cur.col }
+    case 'left':
+      return { row: cur.row, col: clampCol(cur.col - 1) }
+    case 'right':
+    case 'tab':
+      return { row: cur.row, col: clampCol(cur.col + 1) }
+    case 'home':
+      return { row: cur.row, col: 0 }
+    case 'end':
+      return { row: cur.row, col: cols - 1 }
+    case 'ctrl-home':
+      return { row: 0, col: 0 }
+    case 'ctrl-end':
+      return { row: rows - 1, col: cols - 1 }
+  }
 }
 
 export function createSheet(options: SheetOptions): Sheet {
@@ -159,6 +189,28 @@ export function createSheet(options: SheetOptions): Sheet {
     }
   }
 
+  // ── keyboard nav ──
+  // Move the active cell within the logical extent. `extend` grows the active
+  // range FROM the anchor (shift-arrow) by delegating to setActiveCell's extend
+  // path; otherwise it collapses to a 1×1 selection at the destination.
+  const moveActive: Sheet['moveActive'] = (dir, opts) => {
+    const rows = rowCount()
+    const cols = colCount()
+    if (rows === 0 || cols === 0) return
+    const cur = selection.activeCell()
+    const next = nextAddress(cur, dir, rows, cols)
+    selection.setActiveCell(next, opts?.extend ? { extend: true } : undefined)
+  }
+
+  // ── fill handle (relative-reference series) ──
+  // Extend `from` across `to`: a literal copies / a numeric run series-fills, a
+  // formula re-bases its relative refs. The pure computation lives in fill.ts;
+  // the writes route through setCells so each fill cell recomputes its suffix.
+  const fillRange: Sheet['fillRange'] = (from, to, mode = 'copy') => {
+    const edits = computeFill(from, to, mode, (a1) => store.read(a1))
+    if (edits.length > 0) setCells(edits)
+  }
+
   // ── structure ──
   const setFrozen = (rows: number, cols: number): void => {
     const def = activeSheetDef()
@@ -227,7 +279,7 @@ export function createSheet(options: SheetOptions): Sheet {
     editing: derived<{ cell: CellAddress; draft: string } | null>(() => state.editing()),
     setActiveCell: selection.setActiveCell,
     setSelection: selection.setSelection,
-    moveActive: () => DEFERRED('moveActive keyboard nav'),
+    moveActive,
     startEditing,
     updateDraft: editing.updateDraft,
     commitEdit,
@@ -235,7 +287,7 @@ export function createSheet(options: SheetOptions): Sheet {
     setCell,
     setCells,
     clearCells,
-    fillRange: () => DEFERRED('fillRange (relative-reference series)'),
+    fillRange,
     setFormat: (range, fmt) => applyToRange(range, (c) => ({ ...c, format: { ...c.format, ...fmt } })),
     setStyle: (range, style) =>
       applyToRange(range, (c) => ({
@@ -248,7 +300,6 @@ export function createSheet(options: SheetOptions): Sheet {
     setActiveSheet,
     recalc: () => batch(() => formulaEngine.recalcAll()),
     reset,
-    setOptions: () => DEFERRED('setOptions hot-swap'),
   }
 
   /** Apply a per-cell transform over a range, emitting one batched onCellChange. */

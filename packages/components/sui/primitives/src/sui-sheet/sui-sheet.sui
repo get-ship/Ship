@@ -131,6 +131,37 @@
   .cell.align-end { justify-content: flex-end; }
   .cell.align-center { justify-content: center; }
 
+  /* The in-place cell editor — an absolutely-positioned input overlaying the
+     active cell while `editing != null`. */
+  .cell-editor {
+    position: absolute;
+    box-sizing: border-box;
+    z-index: var(--z-elevated);
+    padding: var(--density-row-py) var(--density-row-px);
+    border: var(--ring-width) solid var(--ring-color);
+    border-radius: 0;
+    background: var(--card);
+    color: var(--foreground);
+    font: inherit;
+    outline: none;
+  }
+
+  /* The fill handle — a small square at the bottom-right of the active
+     selection that drags to extend a series. */
+  .fill-handle {
+    position: absolute;
+    box-sizing: border-box;
+    z-index: var(--z-dropdown);
+    width: var(--space-2);
+    height: var(--space-2);
+    margin: calc(var(--space-2) / -2) 0 0 calc(var(--space-2) / -2);
+    background: var(--ring-color);
+    border: 1px solid var(--card);
+    cursor: crosshair;
+  }
+
+  .viewport:focus-visible { outline: none; }
+
   @media (forced-colors: active) {
     .grid { border-color: CanvasText; }
     .cell, .col-head, .row-head { border-color: CanvasText; }
@@ -141,6 +172,8 @@
   class="grid"
   part="grid"
   role="grid"
+  tabindex="0"
+  bind:this={gridEl}
   aria-label={label() || null}
   aria-rowcount={rowCount()}
   aria-colcount={colCount()}
@@ -188,8 +221,8 @@
           aria-rowindex={c.row + 1}
           aria-colindex={c.col + 1}
           aria-selected={c.cell().isInSelection ? 'true' : null}
-          data-active={c.cell().isActive ? '' : null}
-          data-selected={c.cell().isInSelection ? '' : null}
+          data-active={c.cell().isActive ? true : null}
+          data-selected={c.cell().isInSelection ? true : null}
           class:align-end={c.cell().format.align === 'end'}
           class:align-center={c.cell().format.align === 'center'}
           style:top={`${c.top}px`}
@@ -198,6 +231,29 @@
           style:height={`${c.height}px`}
         >{c.cell().display}</div>
       {/for}
+
+      {#if editor()}
+        <input
+          class="cell-editor"
+          part="cell-editor"
+          aria-label="Cell editor"
+          bind:this={editorEl}
+          style:top={`${editor().top}px`}
+          style:left={`${editor().left}px`}
+          style:width={`${editor().width}px`}
+          style:height={`${editor().height}px`}
+        />
+      {/if}
+
+      {#if fillHandle()}
+        <div
+          class="fill-handle"
+          part="fill-handle"
+          role="presentation"
+          style:top={`${fillHandle().top}px`}
+          style:left={`${fillHandle().left}px`}
+        ></div>
+      {/if}
     </div>
   </div>
 </div>

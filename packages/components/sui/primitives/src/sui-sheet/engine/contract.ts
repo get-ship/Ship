@@ -11,7 +11,7 @@
 //
 // Authority: build-spec §"API sketch" (SheetOptions + Sheet facade), §"id per
 // sheet + stable A1 are REQUIRED", §"Authoritative Cell / Selection / Range /
-// DAG API", §"Controlled-slice rule", §"setOptions hot-swap contract".
+// DAG API", §"Controlled-slice rule".
 
 import type { Derived, Signal } from '@ship/sui-runtime'
 import type {
@@ -175,5 +175,4 @@ export interface Sheet {
   setActiveSheet(sheetId: string): void
   recalc(): void
   reset(): void
-  setOptions(patch: Partial<SheetOptions>): void
 }
