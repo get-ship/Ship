@@ -25,6 +25,10 @@ import { renderComponent } from '@ship/test-setup'
 import '../../../sui/primitives/src/sui-json-view/sui-json-view.compiled.js'
 import '../../../sui/primitives/src/sui-markdown/sui-markdown.compiled.js'
 import '../../../sui/primitives/src/sui-empty-state/sui-empty-state.compiled.js'
+// The pdf arm dispatches to `<ship-pdf>` (the @ship/pdf SHIP-tier renderer).
+// Register it the same way the composed primitives are registered — by importing
+// its compiled.js — so the dispatcher resolves a real, defined element.
+import '@ship/pdf'
 import dispatcher from '../src/ship-viewer/ship-viewer.controller'
 
 const SOURCE = readFileSync(
@@ -219,5 +223,36 @@ describe('<ship-viewer> dispatcher — lifecycle events bubble to the host (#9)'
     shadow(v.el).querySelector('sui-media-csv')!.dispatchEvent(childEvent('sui-viewer-load'))
     await v.flush()
     expect(caught).not.toBeNull()
+  })
+})
+
+describe('<ship-viewer> dispatcher — pdf routes to <ship-pdf> (NOT the fallback)', () => {
+  it('an application/pdf source dispatches to a real <ship-pdf> element', async () => {
+    const v = mountViewer({ contentType: 'application/pdf', url: 'https://x/doc.pdf' })
+    live.push(v)
+    await v.flush()
+    const pdf = shadow(v.el).querySelector('ship-pdf')
+    expect(pdf).not.toBeNull()
+    // a REAL, defined element — not an inert/undefined custom element
+    expect(customElements.get('ship-pdf')).toBeDefined()
+    // and NOT the {:default}/empty-state fallback
+    expect(shadow(v.el).querySelector('sui-empty-state')).toBeNull()
+  })
+
+  it('routes a .pdf filename (extension detection) to <ship-pdf>', async () => {
+    const v = mountViewer({ filename: 'report.pdf', url: 'https://x/report.pdf' })
+    live.push(v)
+    await v.flush()
+    expect(shadow(v.el).querySelector('ship-pdf')).not.toBeNull()
+    expect(shadow(v.el).querySelector('sui-empty-state')).toBeNull()
+  })
+
+  it('passes the resolved url through to <ship-pdf> as its src', async () => {
+    const v = mountViewer({ contentType: 'application/pdf', url: 'https://x/doc.pdf' })
+    live.push(v)
+    await v.flush()
+    const pdf = shadow(v.el).querySelector('ship-pdf') as (HTMLElement & { src?: string }) | null
+    expect(pdf).not.toBeNull()
+    expect(pdf!.src).toBe('https://x/doc.pdf')
   })
 })

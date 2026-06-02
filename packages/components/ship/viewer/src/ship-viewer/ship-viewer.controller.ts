@@ -53,6 +53,19 @@ export default controller<Scope>({
     const kind = derived(() => descriptor().kind)
 
     const source = derived<ViewerSource | null>(() => resolvedSource())
+    // The pdf arm passes a STRING `src` to <ship-pdf> (its declared prop), not
+    // the ViewerSource identity: a resolved `url` is used verbatim, else a
+    // `blob:` URL is minted from the source's resolved `bytes`.
+    const pdfSrc = derived<string>(() => {
+      const s = resolvedSource()
+      if (!s) return ''
+      if (s.url) return s.url
+      if (s.bytes) {
+        const part = (s.bytes instanceof Uint8Array ? s.bytes : new Uint8Array(s.bytes)) as BlobPart
+        return URL.createObjectURL(new Blob([part], { type: 'application/pdf' }))
+      }
+      return ''
+    })
     const textValue = derived<string>(() => resolvedSource()?.text ?? '')
     const lang = derived<string>(() => langOf(filename()))
     const from = derived<string>(() => resolvedSource()?.from ?? '')
@@ -65,6 +78,7 @@ export default controller<Scope>({
       srcSig,
       kind,
       source,
+      pdfSrc,
       textValue,
       lang,
       from,

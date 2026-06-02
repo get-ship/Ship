@@ -54,15 +54,11 @@
 
 {#match kind()}
   {:case 'pdf'}
-    <!-- The pdf renderer (`sui-media-pdf`) ships in a later wave. Until then
-         a pdf source resolves to a real "coming soon" empty-state — NOT an
-         undefined `<sui-media-pdf>` element (which would mount as an inert,
-         blank custom element). A graceful fallback, never a blank screen. -->
-    <sui-empty-state variant="placeholder" part="empty">
-      <span slot="title">PDF preview coming soon</span>
-      {unsupportedMsg()}
-      <slot name="download" slot="action"></slot>
-    </sui-empty-state>
+    <!-- The pdf renderer is `<ship-pdf>` — the @ship/pdf SHIP-tier component
+         wrapping a vendored pdf.js engine. The dispatcher resolves a real,
+         defined element here (no fallback/blank): `pdfSrc()` is the source's
+         resolved URL (or a blob: URL minted from its bytes). -->
+    <ship-pdf prop:src={pdfSrc()}></ship-pdf>
   {:case 'image'}    <sui-media-image prop:src={source()}></sui-media-image>
   {:case 'media'}    <sui-media-av prop:src={source()}></sui-media-av>
   {:case 'tabular'}  <sui-media-csv prop:src={source()}></sui-media-csv>

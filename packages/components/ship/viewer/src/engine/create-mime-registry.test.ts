@@ -105,7 +105,7 @@ describe('createMimeRegistry — resolve() one-shot (pure)', () => {
     const reg = createMimeRegistry_()
     const d = reg.resolve({ contentType: 'application/pdf', filename: 'x.png' })
     expect(d.kind).toBe('pdf')
-    expect(d.renderer).toBe('sui-media-pdf')
+    expect(d.renderer).toBe('ship-pdf')
     expect(d.reason).toBe('content-type')
   })
 

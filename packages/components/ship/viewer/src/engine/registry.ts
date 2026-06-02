@@ -8,9 +8,10 @@
 // and hands it to that engine. The leaf-renderer tags this maps to (image / av /
 // csv) are the @ship/sui-media `sui-media-*` components; the markdown / code /
 // json / diff / tabular arms map to @ship/sui-primitives composition targets,
-// left unchanged. The pdf arm maps to `sui-media-pdf` — a tag built in a later
-// wave; until then the dispatcher renders a graceful "unsupported/loading"
-// fallback for the unresolved `pdf` kind (no blank screen, no undefined element).
+// left unchanged. The pdf arm maps to `<ship-pdf>` — the @ship/pdf pack's
+// SHIP-tier renderer that wraps a vendored pdf.js engine. PDF is NOT a
+// `sui-media-*` leaf (it carries a vendored engine, not a pure renderer), so the
+// dispatch table names the ship-tier tag directly.
 //
 // Authority: build-spec §"The default registry table (the eight kinds)",
 // §"Resolution order is FIXED and validated".
@@ -80,14 +81,13 @@ const DIFF_EXT = set('diff', 'patch')
 export function defaultEntries(): RegistryEntry[] {
   return [
     {
-      // pdf maps to a tag built in a later wave (`sui-media-pdf`). Until that
-      // ships the tag does not resolve to a defined element — the dispatcher's
-      // `{:case 'pdf'}` arm renders an explicit "unsupported / coming soon"
-      // fallback rather than an undefined custom element, so a pdf source never
-      // produces a blank screen.
+      // pdf maps to `<ship-pdf>` (the @ship/pdf SHIP-tier renderer wrapping a
+      // vendored pdf.js engine). It is NOT a `sui-media-*` leaf — the dispatch
+      // table names the ship-tier tag directly, and the dispatcher resolves a
+      // real, defined element for a pdf source (no fallback/blank screen).
       id: 'pdf',
       kind: 'pdf',
-      renderer: 'sui-media-pdf',
+      renderer: 'ship-pdf',
       matchesType: (t) => PDF_TYPES.has(t),
       matchesExt: (e) => PDF_EXT.has(e),
       matchesBytes: (h) => sniffMagicBytes(h) === 'pdf',

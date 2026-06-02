@@ -8,8 +8,11 @@
 // router's default kind→TAG table (`engine/registry.ts` — the dispatch
 // decision). The leaf renderers it dispatches to are the @ship/sui-media
 // `sui-media-*` tags; the markdown / code / json / diff / tabular arms compose
-// @ship/sui-primitives targets. Both are declared dependencies the host
-// registers via `import '@ship/sui-media'` + `import '@ship/sui-primitives'`.
+// @ship/sui-primitives targets; the pdf arm renders `<ship-pdf>` from @ship/pdf.
+// All are declared dependencies — importing this barrel registers the pdf tag
+// (`@ship/pdf` self-registers on import) alongside the host's own
+// `import '@ship/sui-media'` + `import '@ship/sui-primitives'`.
+import '@ship/pdf'
 import './ship-viewer/ship-viewer.compiled.js'
 
 // The router's default kind→TAG table — exported so a host can extend it
