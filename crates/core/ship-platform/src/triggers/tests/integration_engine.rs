@@ -307,7 +307,10 @@ async fn read_collection(
 ) -> Vec<ship_collection::types::ItemRecord> {
     use std::sync::Arc;
     use ship_substrate::ports::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
-    let data_svc = ship_substrate::data::DataService::open(ship_dir).unwrap();
+    let data_svc = ship_substrate::data::DataService::open_at(
+        &ship_substrate::db::space_db_path(ship_dir, "global"),
+    )
+    .unwrap();
     let store = Arc::new(SingleBackendDataStore::new(data_svc, "global"));
     let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
     let ctx = Arc::new(SpaceContext::new(SpaceId::new("global"), store, kernel_log));
@@ -429,7 +432,10 @@ async fn create_schema_over_wire(
 ) {
     use std::sync::Arc;
     use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
-    let data_svc = ship_substrate::data::DataService::open(ship_dir).unwrap();
+    let data_svc = ship_substrate::data::DataService::open_at(
+        &ship_substrate::db::space_db_path(ship_dir, "global"),
+    )
+    .unwrap();
     let store = Arc::new(SingleBackendDataStore::new(data_svc, "global"));
     let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
     let ctx = Arc::new(SpaceContext::new(SpaceId::new("global"), store, kernel_log));
