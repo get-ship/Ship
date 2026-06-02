@@ -98,6 +98,7 @@ mod tests;
 mod tests_actor;
 #[cfg(test)]
 mod kernel_router_tests;
+#[cfg(test)]
 mod kernel_router_enforce_tests;
 #[cfg(test)]
 mod cross_actor_tests;
