@@ -402,9 +402,13 @@ body
                 failures.push(format!("{name}: {err}"));
             }
         }
+        // Post doc-skill cull: only the conceptual docs-skills keep a SKILL.md
+        // (concepts/architecture/contributing/agents/skills/adrs); the
+        // code-mirroring ones were retired (their reference pages remain under
+        // references/docs/). Floor guards against the corpus vanishing entirely.
         assert!(
-            checked >= 20,
-            "sanity: expected to find a corpus of ship-* SKILL.md files, found {checked}"
+            checked >= 5,
+            "sanity: expected the conceptual ship-* SKILL.md corpus, found {checked}"
         );
         assert!(
             failures.is_empty(),
