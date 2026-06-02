@@ -157,7 +157,7 @@ pub fn list_trash_at(
         }
     }
     // Newest first.
-    entries.sort_by(|a, b| b.trashed_at.cmp(&a.trashed_at));
+    entries.sort_by_key(|e| std::cmp::Reverse(e.trashed_at));
     Ok(entries)
 }
 

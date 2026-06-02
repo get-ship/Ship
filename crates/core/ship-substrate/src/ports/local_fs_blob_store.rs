@@ -8,6 +8,7 @@
 //! The two-char fan-out keeps directory sizes bounded. Writes are atomic
 //! (temp file + rename); puts are idempotent (skip if the blob already exists).
 
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
@@ -42,7 +43,16 @@ impl LocalFsBlobStore {
                 .map(|n| n.to_string_lossy())
                 .unwrap_or_default()
         ));
-        std::fs::write(&tmp, bytes).map_err(|e| BlobError::Io(e.to_string()))?;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&tmp)
+            .map_err(|e| BlobError::Io(e.to_string()))?;
+        file.write_all(bytes)
+            .map_err(|e| BlobError::Io(e.to_string()))?;
+        file.sync_all().map_err(|e| BlobError::Io(e.to_string()))?;
+        drop(file);
         std::fs::rename(&tmp, path).map_err(|e| BlobError::Io(e.to_string()))?;
         Ok(())
     }
