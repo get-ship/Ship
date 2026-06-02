@@ -4,8 +4,6 @@
 //! bundler (#163) only the build manifest remains — constructed in Rust, not
 //! deserialized from a worker.
 
-use std::path::PathBuf;
-
 /// What one target produced.
 #[derive(Debug, Clone)]
 pub struct BundleManifest {
@@ -17,11 +15,4 @@ pub struct BundleManifest {
     pub bytes: usize,
     /// Source inputs (entry / aggregate sources) — for watch dependency hints.
     pub inputs: Vec<String>,
-}
-
-impl BundleManifest {
-    /// Output path as a `PathBuf`.
-    pub fn out_path(&self) -> PathBuf {
-        PathBuf::from(&self.out_path)
-    }
 }

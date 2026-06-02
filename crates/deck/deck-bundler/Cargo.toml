@@ -19,7 +19,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 notify = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
 rolldown = "1.0.3"
 rolldown_common = "1.0.3"
 
@@ -28,9 +28,6 @@ rolldown_common = "1.0.3"
 # trim is a no-op (see `arena::trim_arenas`).
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { workspace = true }
-
-[dev-dependencies]
-tokio = { workspace = true, features = ["test-util"] }
 
 [lints]
 workspace = true
