@@ -11,7 +11,7 @@ fn env(scope: EventScope, key: Option<&str>) -> EventEnvelope {
 }
 
 fn space_binding(space: &str) -> ScopeBinding {
-    ScopeBinding::new(
+    ScopeBinding::from_session(
         DeviceId::new("dev-1"),
         Some(AccountId::new("acct-1")),
         Some(SpaceId::new(space)),
@@ -22,7 +22,7 @@ fn space_binding(space: &str) -> ScopeBinding {
 }
 
 fn spaceless_binding() -> ScopeBinding {
-    ScopeBinding::new(
+    ScopeBinding::from_session(
         DeviceId::new("dev-1"),
         Some(AccountId::new("acct-1")),
         None,

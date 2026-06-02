@@ -43,6 +43,16 @@ scope_id! {
     SpaceId
 }
 
+/// The stable per-install device identity.
+///
+/// FLAG: server-auth — this is a per-install *placeholder*. Today it returns a
+/// fixed local id; the server-auth arc replaces it with a real, attested device
+/// identity. Every minter that fills it carries the same flag so the arc does
+/// not silently ship a fake identity. Deterministic so it is testable.
+pub fn local_device_id() -> DeviceId {
+    DeviceId::new("local-device")
+}
+
 /// Actor identity — unique instance IDs and stable labels.
 #[derive(Debug, Clone)]
 pub struct ActorIdentity {

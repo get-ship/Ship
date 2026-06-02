@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::binding::{Authority, ScopeBinding};
+use crate::event_registry::EventScope;
+use crate::identity::SpaceId;
+
 /// Who is emitting the event.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CallerKind {
@@ -11,11 +15,37 @@ pub enum CallerKind {
 }
 
 /// Context provided alongside every emit call.
+///
+/// Carries the authoritative [`ScopeBinding`] minted by the auth seam (sessions)
+/// or `ScopeBinding::daemon_internal` (background tasks) — never a loose
+/// `space_id: Option<String>`. The scope key courier for the Phase-2
+/// `with_context` shim is [`EmitContext::space_key`]; Phase 3 stamps the key
+/// from the binding inside `KernelLog::emit` and deletes that shim.
 pub struct EmitContext {
     pub caller_kind: CallerKind,
     pub skill_id: Option<String>,
-    pub space_id: Option<String>,
+    pub binding: ScopeBinding,
     pub session_id: Option<String>,
+}
+
+impl EmitContext {
+    /// The Space scope key carried by the binding — exactly what the legacy
+    /// `space_id` field returned. The courier accessor for the Phase-2
+    /// handler-side `with_context(ctx.space_key(), …)` shim. Phase 3 deletes it.
+    pub fn space_key(&self) -> Option<String> {
+        self.binding.key_for(EventScope::Space)
+    }
+
+    /// Convenience constructor for daemon-internal background emits:
+    /// `CallerKind::Runtime` + a trusted-internal binding (`Authority::Sdk`).
+    pub fn daemon_internal(space: Option<SpaceId>) -> Self {
+        Self {
+            caller_kind: CallerKind::Runtime,
+            skill_id: None,
+            binding: ScopeBinding::daemon_internal(space, Authority::Sdk),
+            session_id: None,
+        }
+    }
 }
 
 /// Configuration provided to the kernel when spawning an actor.
@@ -55,10 +85,20 @@ mod tests {
         let ctx = EmitContext {
             caller_kind: CallerKind::Mcp,
             skill_id: None,
-            space_id: None,
+            binding: ScopeBinding::daemon_internal(None, Authority::Sdk),
             session_id: None,
         };
         assert_eq!(ctx.caller_kind, CallerKind::Mcp);
+    }
+
+    #[test]
+    fn daemon_internal_space_key_roundtrips() {
+        let ctx = EmitContext::daemon_internal(Some(SpaceId::new("space-X")));
+        assert_eq!(ctx.caller_kind, CallerKind::Runtime);
+        assert_eq!(ctx.space_key(), Some("space-X".to_string()));
+        assert_eq!(ctx.binding.device_id(), &crate::identity::local_device_id());
+        assert_eq!(ctx.binding.account_id(), None);
+        assert_eq!(EmitContext::daemon_internal(None).space_key(), None);
     }
 
     #[test]
