@@ -30,7 +30,13 @@ import {
   titleFor,
 } from './view-model'
 import type { Calendar, CalendarOptions } from './contract'
-import type { AgendaRow, CalendarEvent, DateRange, ViewMode } from './types'
+import type {
+  AgendaRow,
+  CalendarEvent,
+  DateRange,
+  ISODateTime,
+  ViewMode,
+} from './types'
 
 const DEFAULT_CAP = 3
 
@@ -40,6 +46,7 @@ export function createCalendar(options: CalendarOptions): Calendar {
   const dayStartHour = options.dayStartHour ?? 0
   const dayEndHour = options.dayEndHour ?? 24
   const cap = options.monthCellCap ?? DEFAULT_CAP
+  const rangeMode = options.rangeMode ?? 'none'
 
   // ── State slices ────────────────────────────────────────────────────────────
   // Lift the raw array OR bind to the live signal identity.
@@ -168,6 +175,52 @@ export function createCalendar(options: CalendarOptions): Calendar {
     options.onSelectionChange?.([])
   }
 
+  // ── Range selection (gated by rangeMode; `none` makes every path a no-op) ─────
+  // The begin anchor is plain closure state (not reactive) — it pivots the
+  // drag/Shift+Arrow extend without affecting the derived chain.
+  let rangeAnchor: ISODate | ISODateTime | null = null
+  const setRange = (next: DateRange | null) => {
+    batch(() => range.set(next))
+    options.onRangeChange?.(next)
+  }
+  // Lexical compare is valid for both ISODate (YYYY-MM-DD) and ISODateTime
+  // (YYYY-MM-DDThh:mm) — chronological order is the string order.
+  const normalize = (a: string, b: string): DateRange =>
+    a <= b ? { start: a, end: b } : { start: b, end: a }
+
+  const selectRange = (start: ISODate | ISODateTime, end: ISODate | ISODateTime) => {
+    if (rangeMode === 'none') return
+    rangeAnchor = start
+    setRange(normalize(start, end))
+  }
+  const beginRange = (anchor: ISODate | ISODateTime) => {
+    if (rangeMode === 'none') return
+    rangeAnchor = anchor
+    setRange({ start: anchor, end: anchor })
+  }
+  const extendRange = (to: ISODate | ISODateTime) => {
+    if (rangeMode === 'none') return
+    const anchor = rangeAnchor ?? to
+    rangeAnchor = anchor
+    setRange(normalize(anchor, to))
+  }
+  const clearRange = () => {
+    rangeAnchor = null
+    setRange(null)
+  }
+
+  // ── Drag intents (PURE emit — the engine NEVER mutates its own events array;
+  // the consumer commits the create/move). Bounds are normalized so a backward
+  // drag still yields start<=end. ──────────────────────────────────────────────
+  const createIntent = (start: ISODateTime, end: ISODateTime) => {
+    const r = normalize(start, end)
+    options.onEventCreateIntent?.({ start: r.start as ISODateTime, end: r.end as ISODateTime })
+  }
+  const moveEvent = (id: string, start: ISODateTime, end: ISODateTime) => {
+    const r = normalize(start, end)
+    options.onEventMoveIntent?.({ id, start: r.start as ISODateTime, end: r.end as ISODateTime })
+  }
+
   return {
     view: view as Calendar['view'],
     focusDate: focusDate as Calendar['focusDate'],
@@ -178,6 +231,7 @@ export function createCalendar(options: CalendarOptions): Calendar {
     allDayBand,
     agenda: agenda as Calendar['agenda'],
     range: range as Calendar['range'],
+    rangeMode,
     selectedEventIds: selectedEventIds as Calendar['selectedEventIds'],
     isEmpty,
     state: { events: eventsSig, view, focusDate, range, selectedEventIds },
@@ -190,6 +244,12 @@ export function createCalendar(options: CalendarOptions): Calendar {
     prev: () => stepBy(-1),
     selectEvent,
     clearSelection,
+    selectRange,
+    beginRange,
+    extendRange,
+    clearRange,
+    createIntent,
+    moveEvent,
   }
 }
 

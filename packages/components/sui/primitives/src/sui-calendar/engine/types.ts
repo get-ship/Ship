@@ -11,6 +11,8 @@ import type { ISODate, ISODateTime } from './date-math'
 export type { ISODate, ISODateTime } from './date-math'
 export type ViewMode = 'month' | 'week' | 'day'
 export type WeekStart = 0 | 1 | 2 | 3 | 4 | 5 | 6
+/** Range-selection granularity. Mirrors the `range-mode` prop. */
+export type RangeMode = 'none' | 'date' | 'datetime'
 
 // ── Events model — a DISCRIMINATED UNION on `allDay` ──────────────────────────
 

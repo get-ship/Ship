@@ -12,9 +12,12 @@
   gridcell; today → aria-current="date". Density: NO density/dense prop — rows
   read the --density-* channel off <html data-density>.
 
-  GAP (explicit, not scaffolded): drag-to-create/move, range selection, and the
-  virtualized agenda land when the engine grows those slices; the committed
-  engine exposes view/navigation/selection only.
+  Range selection (range-mode date|datetime): pointer drag across month-grid day
+  cells, or Shift+Arrow from the focus anchor, sets the engine `range` signal and
+  emits sui-range-change. Drag-to-create (empty time slot → sui-event-create-intent)
+  and drag-to-move (timed chip → sui-event-move) ride a background slot grid that
+  carries data-iso + data-minutes so the pointer→time map is element-addressed.
+  The virtualized agenda remains an explicit GAP.
 -->
 
 <prop name="view" values="month|week|day" default="month" reflect />
@@ -102,6 +105,7 @@
   }
   .cell.out { color: var(--muted-foreground); background: var(--muted); }
   .cell.weekend { background: var(--muted); }
+  .cell.in-range { background: var(--selected-bg); }
   .cell .daynum { font-size: var(--density-text); align-self: flex-start; }
   .cell.today .daynum {
     background: var(--selected-bg);
@@ -145,6 +149,21 @@
   .day-cols { display: grid; }
   .day-col { position: relative; border-right: 1px solid var(--border); min-height: 864px; }
   .day-col.today { background: var(--selected-bg); }
+  /* Background slot grid — the pointer→time addressing surface for drag-to-
+     create/move. Each .slot-bg carries data-iso + data-minutes; the timed chips
+     float above it (z-index). The slot rows line up with the time-axis height. */
+  .slot-layer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .slot-bg {
+    flex: 1 0 36px;
+    border-bottom: 1px solid var(--border);
+    cursor: cell;
+  }
+  .slot-bg:hover { background: var(--hover-bg); }
   .allday-zone {
     position: relative;
     z-index: 1;
@@ -217,6 +236,7 @@
             class:out={!cr.cell.inMonth}
             class:today={cr.cell.today}
             class:weekend={cr.cell.isWeekend}
+            class:in-range={cr.inRange}
             aria-current={cr.cell.today ? 'date' : null}
             aria-label={cr.cell.iso}
           >
@@ -249,6 +269,11 @@
     <div class="day-cols" part="day-col">
       {#for dc of dayColumns() key={dc.key}}
         <div class="day-col" class:today={dc.col.today} data-iso={dc.col.iso}>
+          <div class="slot-layer" part="slot-layer">
+            {#for slot of timeSlots() key={slot.key}}
+              <div class="slot-bg" data-iso={dc.col.iso} data-minutes={slot.minutes}></div>
+            {/for}
+          </div>
           <div class="allday-zone">
             {#for ev of dc.col.allDayEvents key={ev.id}}
               <button

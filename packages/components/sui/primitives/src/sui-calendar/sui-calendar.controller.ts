@@ -6,19 +6,18 @@
 // `prop:calendar` IDENTITY path (a JS reference, never a stringified attribute),
 // falls back to building an engine from the `events` `type="string"` SSR prop
 // (sui-combobox JSON.parse pattern), re-exposes the engine's `Derived` surfaces
-// as scope signals the template reads, and emits `sui-*` lifecycle events via
-// the runtime `host.emit!` helper (NOT open-coded `dispatchEvent` — the
-// date-picker debt this pack avoids).
+// as scope signals the template reads, and emits `sui-*` events via the runtime
+// `host.emit!` helper (NOT open-coded `dispatchEvent`).
 //
 // Cardinals honored: mutations only in on:* / mount; no fetch / ship.* / <data>
-// (the engine is pure, asserted by engine/purity.test.ts). Drag-to-create/move
-// and range selection are an explicit v1 GAP — the committed engine exposes
-// view/navigation/selection only (see contract.ts); no fake drag scaffold is
-// shipped here. They land when the engine grows the drag/range slices.
+// (engine purity asserted by engine/purity.test.ts). Range selection +
+// drag-to-create/move ride the engine's range/intent mutators; the DOM bridge
+// (pointer drag + Shift+Arrow → engine + sui-* emits) lives in `./sui-calendar.interactions`.
 
 import { controller, derived, effect, signal } from '@ship/sui-runtime'
 import { createCalendar } from './engine'
-import type { Calendar, CalendarEvent, MonthCell, ViewMode } from './engine'
+import type { Calendar, CalendarEvent, DateRange, MonthCell, ViewMode } from './engine'
+import { wireCalendarInteractions } from './sui-calendar.interactions'
 import type { Scope } from './sui-calendar.sui'
 
 const EMPTY: CalendarEvent[] = []
@@ -48,7 +47,15 @@ function weekdayLabels(weekStartsOn: number): { key: string; label: string }[] {
 }
 
 export default controller<Scope>({
-  scope: ({ events, focusDate, weekStartsOn, slotMinutes, dayStartHour, dayEndHour }) => {
+  scope: ({
+    events,
+    focusDate,
+    weekStartsOn,
+    slotMinutes,
+    dayStartHour,
+    dayEndHour,
+    rangeMode,
+  }) => {
     // The live engine. `prop:calendar` identity (set in mount) supersedes; until
     // then we seed from the SSR `events` string + the focus-date attr so a
     // declarative (no-parent-controller) mount still renders.
@@ -61,6 +68,7 @@ export default controller<Scope>({
       slotMinutes: slotMinutes() || 30,
       dayStartHour: dayStartHour() ?? 0,
       dayEndHour: dayEndHour() ?? 24,
+      rangeMode: (rangeMode() || 'none') as 'none',
     })
 
     /** The active engine — the prop:calendar identity if present, else fallback. */
@@ -74,16 +82,27 @@ export default controller<Scope>({
     // cell (and its inner event {#for}) when the engine swaps in / events change —
     // a stable `iso`-only key would let the runtime reuse the row DOM and skip
     // the inner loop (the nested-for-over-a-plain-array reuse trap).
-    type CellRow = { key: string; iso: string; cell: MonthCell }
+    // A cell is in-range when the range (day part) covers its day. The cell key
+    // is content-sensitive but EXCLUDES the range, so `in-range` re-binds on the
+    // REUSED cell as the range changes (a re-key would detach drag nodes mid-drag).
+    const inRangeIso = (iso: string, r: DateRange | null): boolean =>
+      r != null && iso >= r.start.slice(0, 10) && iso <= r.end.slice(0, 10)
+    type CellRow = { key: string; iso: string; cell: MonthCell; inRange: boolean }
     const weekRows = derived<{ key: string; cells: CellRow[] }[]>(() => {
       const cells = cal().monthCells()
       const sel = cal().selectedEventIds()
+      const range = cal().range()
       const sig = (c: MonthCell): string =>
         `${c.iso}|${c.today ? 't' : ''}|${c.events.map((e) => e.id).join(',')}|${c.overflowCount}|${sel.join(',')}`
       const rows: { key: string; cells: CellRow[] }[] = []
-      for (let r = 0; r < 6; r++) {
-        const slice = cells.slice(r * 7, r * 7 + 7)
-        const cellRows = slice.map((c) => ({ key: sig(c), iso: c.iso, cell: c }))
+      for (let row = 0; row < 6; row++) {
+        const slice = cells.slice(row * 7, row * 7 + 7)
+        const cellRows = slice.map((c) => ({
+          key: sig(c),
+          iso: c.iso,
+          cell: c,
+          inRange: inRangeIso(c.iso, range),
+        }))
         rows.push({ key: cellRows.map((cr) => cr.key).join('::'), cells: cellRows })
       }
       return rows
@@ -216,6 +235,10 @@ export default controller<Scope>({
         '[role=gridcell][data-iso]',
       ) as HTMLElement | null
       if (!cell) return
+      // Shift+Arrow is range extension — owned by the interactions wiring (which
+      // moves focus AND extends the range as one move). Skip it here so focus is
+      // not moved twice.
+      if (e.shiftKey) return
       const cal = active()
       switch (e.key) {
         case 'ArrowRight': cal.moveFocus(1); break
@@ -246,6 +269,18 @@ export default controller<Scope>({
 
     host.shadowRoot?.addEventListener('click', onShadowClick)
     host.shadowRoot?.addEventListener('keydown', onShadowKey)
+
+    // Range selection (month drag + Shift+Arrow) + drag-to-create/move (time-
+    // grid slot drag). The DOM↔engine bridge lives in the interactions module;
+    // it reads the engine fresh per event and emits sui-range-change /
+    // sui-event-create-intent / sui-event-move, auto-cleaning against the mount
+    // scope. The slot span is the step between consecutive slots (the engine
+    // builds them by stepping `slotMinutes`, so the gap recovers it).
+    const slotSpan = (): number => {
+      const s = active().timeSlots()
+      return s.length > 1 ? s[1]!.minutes - s[0]!.minutes : 30
+    }
+    wireCalendarInteractions(host, { calOf: active, slotMinutes: slotSpan })
 
     host.expose!({
       next: () => active().next(),
