@@ -17,7 +17,7 @@ The canonical schema lives at [`schemas/skill.schema.json`](https://github.com/g
 
 | Field | Type | Constraint | Notes |
 |-|-|-|-|
-| `name` | string | kebab-case, 1-64 chars, must equal the directory name | `docs/ship-triggers/SKILL.md` requires `name: ship-triggers` |
+| `name` | string | kebab-case, 1-64 chars, must equal the directory name | `.ship/skills/ship-docs/SKILL.md` requires `name: ship-docs` |
 | `stable-id` | string | kebab-case, 1-64 chars | Stable storage key for variable state. Survives directory renames. By convention equals `name`. |
 | `description` | string | 1-1024 chars | One sentence. Front-load with "Use when..." for reliable trigger matching. |
 | `tags` | array of kebab strings | non-empty | Discovery labels. |

@@ -91,7 +91,7 @@ fn domain_catalog() -> Vec<DomainMeta> {
             event_prefixes: vec!["actor.", "process.", "executor.", "supervisor.", "kernel.actor.", "mesh."],
             services: vec!["RuntimeService"],
             description: "Actor lifecycle supervision, process management, mesh peer-discovery, and kernel snapshot primitives.",
-            coverage_audit_docs: vec!["docs/ship-kernel/SKILL.md", ".artifacts/specs/module-audits/L0-substrate/ship-kernel.md", ".artifacts/specs/module-audits/L0-substrate/ship-supervisor.md"],
+            coverage_audit_docs: vec![".artifacts/specs/module-audits/L0-substrate/ship-kernel.md", ".artifacts/specs/module-audits/L0-substrate/ship-supervisor.md"],
         },
         DomainMeta {
             key: "registry",

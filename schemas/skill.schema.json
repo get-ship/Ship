@@ -11,7 +11,7 @@
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$",
       "maxLength": 64,
-      "description": "Skill id. Kebab-case; must equal the containing directory name (e.g. docs/ship-triggers/SKILL.md => name: ship-triggers)."
+      "description": "Skill id. Kebab-case; must equal the containing directory name (e.g. .ship/skills/ship-docs/SKILL.md => name: ship-docs)."
     },
     "stable-id": {
       "type": "string",
