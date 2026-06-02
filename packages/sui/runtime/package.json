@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",
+    "@tanstack/virtual-core": "^3.16.1",
     "@vitest/browser": "^4.1.5",
     "axe-core": "^4.11.4",
     "jsdom": "^25.0.0",

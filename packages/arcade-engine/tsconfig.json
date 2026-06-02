@@ -18,6 +18,6 @@
     "verbatimModuleSyntax": true,
     "noEmit": false
   },
-  "include": ["src/**/*", "vendor/**/*.d.ts"],
+  "include": ["src/**/*"],
   "exclude": ["dist"]
 }

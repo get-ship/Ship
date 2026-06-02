@@ -15,17 +15,16 @@
 // vendor) … Test-asserted; not sui-lint-asserted").
 //
 // NOTE — engine purity is TEST-asserted here, NOT sui-lint (sui-lint targets
-// .sui/.controller.ts and never sees these .ts modules). The scan recurses so
-// it also covers the (future) vendor/formula-core/ dir once it lands.
+// .sui/.controller.ts and never sees these .ts modules). The opaque math engine
+// (`fast-formula-parser`) is an npm dep the bundler inlines at build — there is no
+// committed vendor source to scan; the seam test below keeps it behind one file.
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const ENGINE_DIR = dirname(fileURLToPath(import.meta.url))
-const PACK_DIR = resolve(ENGINE_DIR, '..')
-const VENDOR_DIR = join(PACK_DIR, 'vendor', 'formula-core')
 
 // Recurse a dir collecting every .ts/.mjs/.js EXCEPT the *.test.ts specs (tests
 // legitimately name the forbidden tokens in comments/strings; the impl must not).
@@ -88,27 +87,18 @@ describe('engine purity (grep gate — Cardinal 4 + sui-* boundary)', () => {
   })
 })
 
-describe('formula-core vendor boundary (the load-bearing seam)', () => {
-  // The vendor dir is opaque math — it must know nothing of Ship. Until the
-  // vendor slice lands the dir does not exist; once it does, this scan asserts
-  // the bundle carries no ship.* / fetch / network coupling.
-  it('the vendor dir, when present, contains no forbidden boundary tokens', () => {
-    for (const file of sourceFiles(VENDOR_DIR)) {
-      const src = readFileSync(file, 'utf8')
-      for (const token of ['@ship/sdk-client', 'ship.', 'fetch(', 'EventSource']) {
-        expect(src.includes(token), `${file} (vendor) contains forbidden "${token}"`).toBe(false)
-      }
-    }
-  })
-
-  it('ONLY the adapter imports from vendor/formula-core/ (one seam, swappable)', () => {
-    // No file under engine/ may import the vendor EXCEPT the named adapter — the
-    // engine binds to the FormulaCore interface, never the vendor API. (This
-    // gate stays meaningful even pre-vendor: zero engine files reference it yet.)
+describe('formula-core parser boundary (the load-bearing seam)', () => {
+  // `fast-formula-parser` is the opaque third-party math engine — it must stay
+  // behind ONE seam. The npm dep is inlined by the bundler at build (no committed
+  // vendor source to scan); the architectural gate is that exactly ONE engine file
+  // names the bare specifier, so the core stays swappable.
+  it('ONLY the adapter imports `fast-formula-parser` (one seam, swappable)', () => {
+    // No file under engine/ may import the parser EXCEPT the named adapter — the
+    // engine binds to the FormulaCore interface, never the library API.
     const offenders = engineSourceFiles().filter((file) => {
       if (file.endsWith('adapter-fast-formula-parser.ts')) return false
-      return readFileSync(file, 'utf8').includes('vendor/formula-core')
+      return /from\s+['"]fast-formula-parser['"]/.test(readFileSync(file, 'utf8'))
     })
-    expect(offenders, `only adapter-fast-formula-parser.ts may import the vendor`).toEqual([])
+    expect(offenders, `only adapter-fast-formula-parser.ts may import the parser`).toEqual([])
   })
 })

@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",
+    "fast-formula-parser": "1.0.19",
     "vitest": "^4.1.5"
   }
 }

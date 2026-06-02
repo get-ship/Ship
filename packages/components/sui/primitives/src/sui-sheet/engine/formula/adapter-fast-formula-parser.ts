@@ -1,24 +1,23 @@
-// sui-sheet engine — the REAL FormulaCore over the vendored fast-formula-parser.
+// sui-sheet engine — the REAL FormulaCore over the `fast-formula-parser` npm dep.
 //
-// The ONLY file that imports the vendor bundle (the purity gate asserts this).
-// It maps the vendor's API ↔ OUR `FormulaCore` contract: 1-based vendor refs ↔
-// our 0-based `CellAddress`, the vendor's `FormulaError` ↔ our closed
+// The ONLY file that imports the parser library (the purity gate asserts this).
+// It maps the library's API ↔ OUR `FormulaCore` contract: 1-based parser refs ↔
+// our 0-based `CellAddress`, the library's `FormulaError` ↔ our closed
 // `FormulaError` vocabulary (`#DIV/0!`/`#VALUE!`/`#NAME?`/…), and the dep-parser
 // output ↔ the cell/range dep set the DAG consumes. The engine binds to
 // `FormulaCore`, never to anything in this file.
 //
-// PURE TypeScript — imports the vendor bundle + OUR contract types ONLY.
+// PURE TypeScript — imports `fast-formula-parser` + OUR contract types ONLY.
+// `fast-formula-parser` is a `devDependency`: the Rolldown bundler inlines it at
+// build, so the published pack carries no runtime dep (FFP is MIT). `FormulaParser`
+// is the package's DEFAULT export; `DepParser`/`FormulaError` are named exports.
 //
-// Authority: build-spec §"The formula-core vendor boundary"
+// Authority: build-spec §"The formula-core boundary"
 // (`createFastFormulaCore()` maps FFP ↔ FormulaCore, opaque), §Slice 2/6a,
 // adapter-fast-formula-parser.test.ts.
 
-import {
-  DepParser,
-  FormulaError as FFPError,
-  FormulaParser,
-} from '../../vendor/formula-core/fast-formula-parser.mjs'
-import type { CellRef, RangeRef } from '../../vendor/formula-core/fast-formula-parser.mjs'
+import FormulaParser, { DepParser, FormulaError as FFPError } from 'fast-formula-parser'
+import type { CellRef, RangeRef } from 'fast-formula-parser'
 import type { FormulaCore, FormulaError } from '../contract'
 import type { CellAddress, ScalarValue } from '../types'
 

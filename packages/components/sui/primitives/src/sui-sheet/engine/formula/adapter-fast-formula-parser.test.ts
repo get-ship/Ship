@@ -1,29 +1,24 @@
-// TESTS-FIRST — sui-sheet FORMULA slice (Slice 2 + 6a): the vendored-parser core.
+// sui-sheet FORMULA slice (Slice 2 + 6a): the FormulaCore over `fast-formula-parser`.
 //
-// Status: RED. `./adapter-fast-formula-parser` does not exist yet, and neither
-// does the vendor bundle it wraps (`../../vendor/formula-core/`). Both import
-// failures are the expected red for this contract. DO NOT add the impl here. DO
-// NOT weaken into passing stubs.
-//
-// Authority: build-spec §"The formula-core vendor boundary" ("`createFastFormulaCore()`
-// maps FFP ↔ FormulaCore, opaque" — the ONLY file that imports the vendor),
+// Authority: build-spec §"The formula-core boundary" ("`createFastFormulaCore()`
+// maps FFP ↔ FormulaCore, opaque" — the ONLY file that imports the parser),
 // §Slice 2 ("`createFastFormulaCore()` maps `fast-formula-parser` tokens/errors ↔
 // `FormulaCore` (`#DIV/0!`, `#REF!`, etc.); `parse()` returns the dep set the DAG
-// needs"), §Slice 6a (vendor `fast-formula-parser`, confirm MIT), Behavioral spec
+// needs"), §Slice 6a (`fast-formula-parser`, MIT), Behavioral spec
 // #2 ("=SUM(A1:A3) evaluates a range"), #3 ("formula errors are per-cell"), #16
 // ("swapping the injected formulaCore … changes evaluation without touching the
 // engine").
 //
 // This core is the REAL evaluator (function library: SUM/IF/etc.) over the
-// vendored `fast-formula-parser`. The adapter is the ONLY seam that imports the
-// vendor — the engine binds to the `FormulaCore` interface (the purity gate in
-// `purity.test.ts` already asserts no other engine file imports the vendor).
+// `fast-formula-parser` npm dep (a `devDependency` the bundler inlines at build).
+// The adapter is the ONLY seam that imports the parser — the engine binds to the
+// `FormulaCore` interface (the purity gate in `purity.test.ts` asserts no other
+// engine file imports `fast-formula-parser`).
 //
 // Engine purity (Cardinal 4): imports ONLY @ship/sui-runtime, OUR contract, and
-// the vendor bundle (the one sanctioned import site).
+// `fast-formula-parser` (the one sanctioned import site).
 
 import { describe, expect, it } from 'vitest'
-// RED: greenfield module — the adapter + the vendor bundle land with Slices 2/6a.
 import { createFastFormulaCore } from './adapter-fast-formula-parser'
 import type { FormulaCore } from '../contract'
 import type { CellAddress, ScalarValue } from '../types'

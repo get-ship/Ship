@@ -2,17 +2,20 @@
 // graph-layout adapter: (nodes, edges, options) → new nodes with repositioned
 // rects in world coords. Deterministic — no signals, no DOM, no randomness.
 //
-// `layered` runs the vendored dagre Sugiyama pipeline (rank → order → place)
-// and projects dagre's CENTER coords back onto top-left node rects. `force`
-// runs a minimal seeded force-directed sim (fixed iteration budget, layout
-// seeded from node index, so the result is reproducible). `none` is identity.
+// `layered` runs the dagre Sugiyama pipeline (rank → order → place) and
+// projects dagre's CENTER coords back onto top-left node rects. `force` runs a
+// minimal seeded force-directed sim (fixed iteration budget, layout seeded from
+// node index, so the result is reproducible). `none` is identity.
 //
-// The board model binds to THIS adapter's `layoutBoard`, never to the vendored
+// The board model binds to THIS adapter's `layoutBoard`, never to the dagre
 // core directly. The adapter owns geometry mapping; dagre owns ranking.
 
-import dagre from '../../vendor/dagre/dagre.mjs'
-import type { RankDir } from '../../vendor/dagre/dagre.d.mts'
+import dagre from '@dagrejs/dagre'
 import type { Node, Edge } from './board-model'
+
+/** Layered rank direction: left→right, right→left, top→bottom, bottom→top.
+ *  Matches @dagrejs/dagre's `GraphLabel['rankdir']` union. */
+export type RankDir = 'LR' | 'RL' | 'TB' | 'BT'
 
 export type LayoutKind = 'none' | 'layered' | 'force'
 
@@ -31,21 +34,28 @@ function moveTo(node: Node, x: number, y: number): Node {
   return { ...node, rect: { ...node.rect, x, y } }
 }
 
-/** Layered (Sugiyama) layout through the vendored dagre core. */
+/** Layered (Sugiyama) layout through the @dagrejs/dagre core. Builds a graphlib
+ *  Graph, runs dagre.layout() (which mutates node labels with center x/y in
+ *  place), then projects those CENTER coords back onto top-left node rects. */
 function layered(nodes: Node[], edges: Edge[], opts: LayoutOptions): Node[] {
-  const g = {
-    nodes: new Map(nodes.map((n) => [n.id, { width: n.rect.w, height: n.rect.h }])),
-    edges: edges.map((e) => ({ v: e.source.node, w: e.target.node })),
-    options: {
-      rankdir: opts.direction ?? 'LR',
-      nodesep: opts.nodesep ?? 50,
-      ranksep: opts.ranksep ?? 120,
-    },
+  const g = new dagre.graphlib.Graph()
+  g.setGraph({
+    rankdir: opts.direction ?? 'LR',
+    nodesep: opts.nodesep ?? 50,
+    ranksep: opts.ranksep ?? 120,
+  })
+  // Edges carry no label here; dagre still requires a default so setEdge works.
+  g.setDefaultEdgeLabel(() => ({}))
+  for (const n of nodes) g.setNode(n.id, { width: n.rect.w, height: n.rect.h })
+  for (const e of edges) {
+    if (g.hasNode(e.source.node) && g.hasNode(e.target.node)) {
+      g.setEdge(e.source.node, e.target.node)
+    }
   }
-  const placed = dagre.layout(g)
+  dagre.layout(g)
   return nodes.map((n) => {
-    const p = placed.get(n.id)
-    if (!p) return n
+    const p = g.node(n.id)
+    if (!p || p.x === undefined || p.y === undefined) return n
     // dagre returns CENTERS; the board rect is top-left.
     return moveTo(n, p.x - n.rect.w / 2, p.y - n.rect.h / 2)
   })

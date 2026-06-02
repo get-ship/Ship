@@ -122,9 +122,9 @@ export { bindFor, bindForSignal } from './for'
 export type { BindForOptions, RenderedItem } from './for'
 
 // Backbone #2 — virtualization. `createVirtualizer()` is a reactive adapter
-// over the vendored `@tanstack/virtual-core` windowing engine (see
-// src/vendor/virtual-core/). Consumers bind to `Virtual<T>` — never to the
-// vendored core directly.
+// over the `@tanstack/virtual-core` windowing engine (a devDependency the
+// bundler inlines at build). Consumers bind to `Virtual<T>` — never to the
+// upstream core directly.
 export { createVirtualizer } from './virtual'
 export type { Virtual, VirtualOptions, VirtualItem } from './virtual'
 

@@ -169,6 +169,21 @@ impl BundleLayout {
                 externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
                 out_file: "sui-arcade.js".into(),
             },
+            BundleTarget {
+                // The pdf pack — a lazy chunk wrapping the pdf.js (`pdfjs-dist`)
+                // engine. The pack's `index.ts` side-effect-registers `<ship-pdf>`
+                // and bundles BOTH the engine AND the pdf.js worker module
+                // (`pdfjs-dist/build/pdf.worker.mjs`) — the worker registers a
+                // main-thread `WorkerMessageHandler` (`globalThis.pdfjsWorker`)
+                // that pdf.js uses with no separate URL / fetch / CDN, so the pack
+                // renders offline / same-origin. Like arcade, the engine is
+                // BUNDLED (this is the heavy chunk) and only the runtime singletons
+                // stay external.
+                name: "sui-pdf".into(),
+                entry: TargetEntry::Real(r("packages/components/ship/pdf/src/index.ts")),
+                externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
+                out_file: "sui-pdf.js".into(),
+            },
         ]
     }
 

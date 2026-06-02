@@ -1,6 +1,6 @@
 // JSDOM polyfills for the @ship/pdf pack.
 //
-// The vendored pdf.js build touches DOM/graphics globals (DOMMatrix, Path2D,
+// The pdf.js (pdfjs-dist) build touches DOM/graphics globals (DOMMatrix, Path2D,
 // OffscreenCanvas, ResizeObserver) that jsdom does not ship. These stubs let
 // the engine import and the components mount under the test environment.
 

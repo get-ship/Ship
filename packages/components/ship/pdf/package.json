@@ -1,14 +1,13 @@
 {
   "name": "@ship/pdf",
   "version": "0.1.0",
-  "description": "Ship PDF pack — ship-pdf-* components wrapping a vendored pdf.js (pdfjs-dist) engine. SHIP-tier vendored engine; the engine ships in src/vendor/pdfjs, not as an npm dependency.",
+  "description": "Ship PDF pack — ship-pdf-* components wrapping the pdf.js (pdfjs-dist) engine. The bundler inlines the engine at build; the published pack carries no committed engine source.",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "customElements": "dist/custom-elements.json",
   "exports": {
-    ".": "./src/index.ts",
-    "./pdfjs": "./src/vendor/pdfjs/pdfjs.mjs"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "test": "vitest run",
@@ -17,7 +16,8 @@
   "dependencies": {
     "@ship/sui-runtime": "workspace:*",
     "@ship/sui-dom": "workspace:*",
-    "@ship/sui-primitives": "workspace:*"
+    "@ship/sui-primitives": "workspace:*",
+    "pdfjs-dist": "^6.0.227"
   },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",

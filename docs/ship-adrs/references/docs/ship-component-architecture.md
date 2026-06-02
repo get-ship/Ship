@@ -1,6 +1,6 @@
 ---
 title: "Ship Component Architecture — the sui / ship tiers"
-description: "ADR: component packs split into two tiers. sui-* is the framework's reusable, dependency-pure, atomic primitive library; ship-* is everything built from it — features, verticals, vendored-engine wrappers, internal/unpublished, and domain-coupled packs. A pack is sui only if it passes every sui gate; ship is the default."
+description: "ADR: component packs split into two tiers. sui-* is the framework's reusable, dependency-pure, atomic primitive library; ship-* is everything built from it — features, verticals, external-engine wrappers, internal/unpublished, and domain-coupled packs. A pack is sui only if it passes every sui gate; ship is the default. External engines are declared deps inlined at build (never committed as vendored source)."
 group: ADRs
 order: 50
 audience: internal
@@ -48,9 +48,10 @@ composition. A pack is `sui` **only if it is all of**:
 it trips **any** of these:
 
 - **Domain coupling** — touches a Ship domain / the SDK (`agents`, `pipelines`, `authority`).
-- **Vendored engine** — *wraps* an external engine that is fundamentally the
+- **External engine** — *wraps* an external engine that is fundamentally the
   component (`code` ← CodeMirror, `markdown` ← Tiptap, `terminal` ← xterm,
-  `arcade` ← PixiJS, a PDF viewer ← pdf.js, a map viewer ← maplibre).
+  `arcade` ← PixiJS, a PDF viewer ← pdf.js, a map viewer ← maplibre). The engine
+  is a declared dependency inlined at build, not committed source (see below).
 - **Feature / vertical** — a composed surface with a product identity, even if
   pure (`arcade` the game vertical, the `code` dev workspace, the `viewer` router).
 - **Internal / unpublished** — a Ship-internal surface not shipped as a pack.
@@ -70,29 +71,48 @@ it trips **any** of these:
 4. Internal / unpublished? → **ship**.
 5. Otherwise — one atomic, generic, own-engine, published primitive? → **sui**.
 
-### Engine vs helper (the vendoring nuance)
+### Engine vs helper (the external-dependency nuance)
 
-Vendoring pushes to `ship` only when the external lib **is** the component's
+An external dependency pushes to `ship` only when it **is** the component's
 engine — the component is a thin SUI shell around it (xterm/CodeMirror/Tiptap/
-pixi/pdf.js). Vendoring a **pure helper** as one internal ingredient, while the
-engine is ours, keeps a pack `sui`: `sui-draw` (perfect-freehand/roughjs stroke
-math), `sui-sheet` (a formula evaluator), `sui-board` (dagre layout) — our
-engines call vendored algorithms, but the architecture and identity are ours.
-The test: *"is this a shell around someone else's engine, or our engine that
-calls a vendored function?"*
+pixi/pdf.js). Depending on a **pure helper** as one internal ingredient, while
+the engine is ours, keeps a pack `sui`: `sui-draw` (perfect-freehand/roughjs
+stroke math), `sui-sheet` (a formula evaluator), `sui-board` (dagre layout) —
+our engines call third-party algorithms, but the architecture and identity are
+ours. The test: *"is this a shell around someone else's engine, or our engine
+that calls a third-party function?"*
+
+> **How external engines are carried (no vendored bytes).** We do **not** commit
+> vendored third-party source. Each external engine/helper is a *declared
+> dependency* in the pack's `package.json` and is **inlined at build** by the
+> Rolldown bundler. The two tiers differ only in `depKind`:
+>
+> - **ship-tier** → `"dependencies"`. A `ship` pack may be consumed as a
+>   published package whose own dep graph carries the engine.
+> - **sui-tier** → `"devDependencies"`. The published `sui-*` pack stays
+>   dependency-pure (gate #1); the bundler inlines the helper at build, so the
+>   shipped artifact carries it without a runtime dep edge. This is the proven
+>   `@ship/code` model applied to the `sui` purity gate.
+>
+> **Pinning** is the lockfile (`bun.lock`), not a committed copy. **License
+> control** is the CI audit gate (`just license-check` → `scripts/check-licenses.mjs`),
+> which walks the resolved tree and fails on any copyleft license (GPL/AGPL/
+> LGPL/EPL/MPL/CDDL…) — this replaces the old hand-copied vendor `LICENSE`
+> files. A `packages/**/vendor/` `.gitignore` rule guarantees no third-party
+> source is ever re-committed.
 
 ### Worked classification
 
 | `sui` (standard library) | `ship` (features / verticals) | Why `ship` |
 |---|---|---|
 | primitives, table, tree, calendar, charts | agents · pipelines · authority | domain |
-| canvas / board / draw (own engines; vendor *helpers*) | code (CodeMirror) · markdown (Tiptap) · terminal (xterm) | vendored engine |
+| canvas / board / draw (own engines; helper *deps*) | code (CodeMirror) · markdown (Tiptap) · terminal (xterm) | external engine |
 | chat-elements; media renderers (image/av/csv); json-view, diff | arcade (PixiJS + a game vertical) | engine + feature |
-| component-viewer tooling | viewer (the mime *router* — a capability); pdf (pdf.js), map (maplibre) renderers | feature / vendored engine |
+| component-viewer tooling | viewer (the mime *router* — a capability); pdf (pdf.js), map (maplibre) renderers | feature / external engine |
 
 The viewer family makes the split concrete: the **router** (`ship-viewer`) is a
 `ship` capability; **own-rendering leaves** (image/av/csv) are `sui-media`;
-**vendored-engine leaves** (pdf, map) are `ship` renderers the router dispatches to.
+**external-engine leaves** (pdf, map) are `ship` renderers the router dispatches to.
 
 ## Consequences
 
@@ -100,14 +120,14 @@ The viewer family makes the split concrete: the **router** (`ship-viewer`) is a
 - One unambiguous test; the tier stops drifting.
 - The boundary lint's purity rule is correctly understood as *necessary, not
   sufficient* for `sui`.
-- `ship` absorbs the messy reality (vendors, verticals, internal, domain) so
-  `sui` stays a clean, publishable, atomic library.
+- `ship` absorbs the messy reality (external engines, verticals, internal,
+  domain) so `sui` stays a clean, publishable, atomic library.
 
 ### Negative
-- A generic-but-vendored primitive (a bare terminal/code editor) is `ship`, not
-  `sui`, even though a stranger might want it standalone. Accepted: we keep one
-  home per component; if a non-feature consumer ever needs it alone, it becomes a
-  shared `ship` component, not a `sui` promotion.
+- A generic-but-engine-backed primitive (a bare terminal/code editor) is `ship`,
+  not `sui`, even though a stranger might want it standalone. Accepted: we keep
+  one home per component; if a non-feature consumer ever needs it alone, it
+  becomes a shared `ship` component, not a `sui` promotion.
 - Name/dir/tag must be kept in agreement by hand until the lint below lands.
 
 ## Migration
@@ -115,13 +135,32 @@ The viewer family makes the split concrete: the **router** (`ship-viewer`) is a
   `@ship/markdown`; tags retagged `sui-*`→`ship-*`.
 - Viewers split: `@ship/sui-media` (own-rendering leaves) + `@ship/viewer` (router).
 - `arcade` stays `@ship/arcade` (correct tier); its tags retag `sui-*`→`ship-*`.
+- **De-vendoring (this ADR's update).** Previously, several engines/helpers were
+  carried as *committed vendored source* under `src/vendor/` with a hand-copied
+  `LICENSE` next to the bytes. That is reversed: each is now a **declared
+  dependency** inlined at build, the committed `vendor/` dirs are `git rm`'d, and
+  a `packages/**/vendor/` `.gitignore` rule keeps third-party bytes out of the
+  tree. Packs and `depKind`:
+  - `@ship/pdf` (ship) → `pdfjs-dist` as a **`dependency`** (Apache-2.0).
+  - `@ship/arcade-engine` (ship) → `pixi.js` as a **`dependency`** (MIT).
+  - `@ship/sui-primitives` (sui, sui-sheet) → `fast-formula-parser` as a
+    **`devDependency`** (MIT); bundler inlines it.
+  - `@ship/sui-runtime` (sui) → `@tanstack/virtual-core` as a **`devDependency`** (MIT).
+  - `@ship/sui-canvas` (sui) → `@dagrejs/dagre`, `perfect-freehand`, `roughjs` as
+    **`devDependencies`** (all MIT); bundler inlines them.
+  Pinning is `bun.lock`; license control is the CI audit gate
+  (`scripts/check-licenses.mjs`, wired into `.github/workflows/ci.yml`).
 - Follow-up: a lint that flags a `ship-*` pack shipping `sui-*` tags (and vice-versa).
 
 ## Alternatives Considered
-- **Purity-only (pure ⟹ sui).** Rejected: makes `arcade` and vendored-engine
+- **Purity-only (pure ⟹ sui).** Rejected: makes `arcade` and external-engine
   wrappers `sui`, which is wrong — they're features/shells, not atomic primitives.
-- **Vendoring-only (any vendor ⟹ ship).** Rejected: would force `sui-draw`/
-  `sui-sheet`/`sui-board` to `ship` for calling a pure helper. The engine-vs-helper
-  line preserves them as `sui`.
+- **External-engine-only (any external dep ⟹ ship).** Rejected: would force
+  `sui-draw`/`sui-sheet`/`sui-board` to `ship` for depending on a pure helper.
+  The engine-vs-helper line preserves them as `sui`.
+- **Committing vendored source (the prior practice).** Rejected: duplicates the
+  registry into the tree, makes upgrades a manual byte-copy, and pushes license
+  audit onto hand-copied `LICENSE` files. Replaced by declared deps + lockfile
+  pinning + the CI license gate.
 - **A single flat tier.** Rejected: loses the publishable-framework boundary that
   lets `sui-*` ship as a standalone component library.

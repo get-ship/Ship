@@ -3,9 +3,9 @@ import { pixiMockModule } from './_pixi-mock.ts'
 
 // index.ts re-exports the public surface. Almost everything is a type (erased
 // at runtime); the one runtime value is createStage. Importing index pulls in
-// stage → world → particles → the vendored Pixi bundle, so mock Pixi to keep
-// the import cheap and DOM-free.
-vi.mock('../vendor/pixi.js/pixi.mjs', () => pixiMockModule())
+// stage → world → particles → the Pixi bundle, so mock Pixi to keep the
+// import cheap and DOM-free.
+vi.mock('pixi.js', () => pixiMockModule())
 
 import * as engine from '../src/index.ts'
 

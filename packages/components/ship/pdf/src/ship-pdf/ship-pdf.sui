@@ -1,12 +1,12 @@
 <!--
-  <ship-pdf> — a PDF page renderer wrapping the vendored pdf.js engine.
+  <ship-pdf> — a PDF page renderer wrapping the pdf.js (pdfjs-dist) engine.
 
-  SHIP-tier (vendored engine, not sui-media): the controller drives a small
-  load/render engine (`engine/pdf-engine.ts`) that calls the vendored
+  SHIP-tier (engine via the pdfjs-dist npm dep, not sui-media): the controller
+  drives a small load/render engine (`engine/pdf-engine.ts`) that calls pdf.js
   `getDocument()` and paints the current page onto an engine-OWNED <canvas>
   (`bind:this` — pdf.js draws into the 2d context; the controller never sets
   innerHTML). `GlobalWorkerOptions` is pointed at the pack's same-origin
-  vendored worker (never a CDN).
+  bundler-emitted worker (never a CDN).
 
   Props
   ─────────────────────────────────────────────────────────────────────────────

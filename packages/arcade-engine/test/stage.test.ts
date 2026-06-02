@@ -7,7 +7,7 @@ import { pixiMockModule, pixiMockState } from './_pixi-mock.ts'
 // document/getComputedStyle/MutationObserver (stubbed minimally). With those in
 // place we can exercise the real orchestration: state machine, per-tick physics
 // integration, collide-event fanout, and teardown — no renderer, no real time.
-vi.mock('../vendor/pixi.js/pixi.mjs', () => pixiMockModule())
+vi.mock('pixi.js', () => pixiMockModule())
 
 let now = 0
 let scheduled: ((t: number) => void) | null = null

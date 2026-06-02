@@ -5,7 +5,7 @@
 // biome-ignore lint/suspicious/noExplicitAny: vendored Pixi types are not bundled
 type PixiAny = any
 
-import * as PIXI from '../vendor/pixi.js/pixi.mjs'
+import * as PIXI from 'pixi.js'
 // biome-ignore lint/suspicious/noExplicitAny: vendored Pixi module is opaque
 const pixi: any = PIXI
 

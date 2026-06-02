@@ -1,22 +1,28 @@
 // pdf-engine — the small load/render engine <ship-pdf> wraps around the
-// vendored pdf.js. It owns the loading task + the document/page proxies and the
+// pdf.js (pdfjs-dist) build. It owns the loading task + the document/page proxies and the
 // canvas draw; the controller is glue (read props → drive the engine → emit
 // events). Keeping the pdf.js surface here means the component never touches
 // `getDocument`/`RenderTask` directly and the engine is unit-testable on its
 // own (load a tiny PDF, assert `numPages`, probe the canvas context).
 //
-// Worker: the engine points `GlobalWorkerOptions.workerSrc` at an injectable
-// URL (defaults to the pack's same-origin vendored worker — never a CDN). The
-// `workerSrc` seam exists so a Node test env (whose ESM loader rejects `http:`
-// worker imports) can hand a `file://` URL; production passes the default.
+// Worker: the pack bundles the pdf.js worker module (`@ship/pdf`'s `index.ts`
+// side-effect-imports it), which registers a main-thread `WorkerMessageHandler`
+// (`globalThis.pdfjsWorker`). pdf.js detects that handler and renders on the main
+// thread automatically — no URL, no separate fetch, no CDN, works offline. So no
+// `workerSrc` is required. The `workerSrc` seam below stays for explicit
+// overrides: a Node test env (whose ESM loader rejects `http:` worker imports)
+// hands a `file://` URL, and a host that wants a dedicated Worker thread can pass
+// the served worker URL. Importing `pdfWorkerUrl` from the pack barrel also pulls
+// the bundled worker module into THIS module's graph, so the engine never relies
+// on a separate side-effect import landing first.
 
-import { getDocument, GlobalWorkerOptions } from '../../vendor/pdfjs/pdfjs.mjs'
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
 import type {
   DocumentInitParameters,
   PDFDocumentProxy,
   PDFPageProxy,
   RenderTask,
-} from '../../vendor/pdfjs/pdfjs.mjs'
+} from 'pdfjs-dist'
 import { pdfWorkerUrl } from '../../index'
 
 /** What the engine loads from: a URL (http/https/data/blob) or raw bytes. */
@@ -25,7 +31,8 @@ export type PdfSource =
   | { data: ArrayBuffer | Uint8Array }
 
 export interface PdfEngineOptions {
-  /** Override the worker URL. Defaults to the pack's vendored worker. */
+  /** Override the worker URL to spawn a dedicated Worker. Omit to use the pack's
+   *  bundled main-thread worker handler (the default — offline, no URL). */
   workerSrc?: string
 }
 
@@ -76,10 +83,13 @@ export interface PdfEngine {
 }
 
 export function createPdfEngine(opts: PdfEngineOptions = {}): PdfEngine {
-  // Point the global worker config at the vendored worker. An explicit
-  // `workerSrc` always wins; otherwise we only set it when nothing is
-  // configured yet, so a host that already called `useVendoredWorker()` (or a
-  // test that pre-set a `file://` worker URL) is respected rather than clobbered.
+  // An explicit `opts.workerSrc` makes pdf.js spawn a dedicated Worker from that
+  // URL (tests pass a `file://`; a host can pass a served URL). Otherwise we fall
+  // back to `pdfWorkerUrl` only when nothing is configured — but pdf.js prefers
+  // the bundled main-thread handler (registered by the pack's worker-module
+  // import) over any `workerSrc`, so this fallback just keeps the bundled worker
+  // referenced. A `workerSrc` a host already set (e.g. `useVendoredWorker()`) is
+  // respected, never clobbered.
   if (opts.workerSrc) {
     GlobalWorkerOptions.workerSrc = opts.workerSrc
   } else if (!GlobalWorkerOptions.workerSrc) {

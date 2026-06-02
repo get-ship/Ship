@@ -1,4 +1,4 @@
-// <ship-pdf> controller — drives the vendored-pdf.js load/render engine and
+// <ship-pdf> controller — drives the pdf.js (pdfjs-dist) load/render engine and
 // wires it to the component's props + lifecycle events. The engine owns the
 // pdf.js surface and the canvas draw (`engine/pdf-engine.ts`); this controller
 // is glue: read `src`/`page`/`zoom` → load/render → emit `ship-pdf-load` /

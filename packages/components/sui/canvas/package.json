@@ -18,7 +18,10 @@
     "@ship/sui-runtime": "workspace:*"
   },
   "devDependencies": {
+    "@dagrejs/dagre": "^3.0.0",
     "@ship/test-setup": "workspace:*",
+    "perfect-freehand": "^1.2.3",
+    "roughjs": "^4.6.6",
     "vitest": "^4.1.5"
   }
 }

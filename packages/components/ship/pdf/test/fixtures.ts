@@ -2,14 +2,15 @@
 //
 // A minimal, hand-built one-page PDF (no images/fonts — just a catalog, a pages
 // node, and a single MediaBox page) as a base64 `data:` URI, plus its decoded
-// bytes. The vendored pdf.js opens it and reports `numPages === 1`.
+// bytes. pdf.js opens it and reports `numPages === 1`.
 //
-// `WORKER_FILE_URL` is the vendored worker as a `file://` URL — the Node ESM
+// `WORKER_FILE_URL` is the `pdfjs-dist` worker as a `file://` URL — the Node ESM
 // loader vitest runs under rejects an `http:` worker import, so tests hand the
-// engine this path-based URL. Production uses the same-origin `pdfWorkerUrl`.
+// engine this path-based URL. Production uses the same-origin `pdfWorkerUrl`
+// (the bundler-emitted asset).
 
-import { fileURLToPath, pathToFileURL } from 'node:url'
-import { resolve } from 'node:path'
+import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 
 /** Base64 body of a valid 1-page PDF (MediaBox 100×100). */
 export const TINY_PDF_BASE64 =
@@ -34,7 +35,8 @@ export function invalidPdfBytes(): Uint8Array {
 /** A `data:` URI carrying the invalid bytes (an invalid `prop:src`). */
 export const INVALID_DATA_URI = `data:application/pdf;base64,${btoa('not a pdf at all')}`
 
-/** The vendored worker as a `file://` URL for the Node test ESM loader. */
+/** The `pdfjs-dist` worker as a `file://` URL for the Node test ESM loader,
+ *  resolved through the installed package so it survives the package moving. */
 export const WORKER_FILE_URL: string = pathToFileURL(
-  resolve(fileURLToPath(import.meta.url), '../../src/vendor/pdfjs/pdf.worker.mjs'),
+  createRequire(import.meta.url).resolve('pdfjs-dist/build/pdf.worker.mjs'),
 ).href

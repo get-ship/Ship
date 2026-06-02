@@ -419,4 +419,57 @@ mod tests {
             );
         }
     }
+
+    /// The `sui-pdf` bundle wraps the pdf.js (`pdfjs-dist`) engine. The pack's
+    /// `index.ts` side-effect-imports the worker module
+    /// (`pdfjs-dist/build/pdf.worker.mjs`) instead of a `?url` asset — the deck
+    /// bundler has no `?url` support, so a `?url` import ABORTS the build (the bug
+    /// this guards). Bundling the worker module straight in (it registers
+    /// `globalThis.pdfjsWorker`) keeps the worker same-origin + offline with no
+    /// served-asset URL. This test asserts the pack BUILDS through Rolldown, the
+    /// engine + worker are inlined (heavy chunk), the runtime stays external, and
+    /// `<ship-pdf>` registers.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn rolldown_bundles_pdf_with_worker_inlined() {
+        let repo = repo_root();
+        let scratch = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        let layout =
+            BundleLayout::new(repo, None).with_out_root(scratch.path().to_path_buf());
+        let comp = compiler();
+
+        let targets = layout.all_targets();
+        let pdf = targets.iter().find(|t| t.name == "sui-pdf").unwrap();
+        let m = bundle_target(&layout, pdf, &comp, staging.path(), true)
+            .await
+            .expect("pdf pack must bundle through Rolldown (no `?url` abort)");
+        // The heavy lazy chunk: pdf.js engine + worker are inlined.
+        assert!(m.bytes > 200_000, "pdf bundles the engine, got {} bytes", m.bytes);
+        let body = std::fs::read_to_string(&m.out_path).unwrap();
+        // Runtime stays external (one instance).
+        assert!(
+            body.contains("@ship/sui-runtime"),
+            "pdf keeps the runtime singleton external"
+        );
+        // The worker module is bundled, not fetched — it side-effect-registers the
+        // main-thread handler on `globalThis.pdfjsWorker`. Its presence proves the
+        // worker resolves SAME-ORIGIN with no served-asset URL and no CDN.
+        assert!(
+            body.contains("pdfjsWorker"),
+            "pdf must bundle the worker module's main-thread handler registration"
+        );
+        // No CDN / `?url` leaked into the bundle.
+        assert!(
+            !body.contains("pdf.worker.mjs?url"),
+            "the `?url` asset suffix must be gone (it aborts the deck bundler)"
+        );
+        for needle in ["cdnjs", "unpkg", "jsdelivr"] {
+            assert!(!body.contains(needle), "worker must not load from a CDN ({needle})");
+        }
+        // `<ship-pdf>` registers via its `component(\`ship-pdf\`, …)` call.
+        assert!(
+            body.contains("`ship-pdf`"),
+            "pdf bundle must register the ship-pdf tag"
+        );
+    }
 }

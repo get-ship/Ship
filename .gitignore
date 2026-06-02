@@ -199,6 +199,15 @@ apps/shipd/assets/.cache/
 # Legacy shell vendor dir — shell now loads bundles via /api/runtime/assets/*.
 apps/shell/public/vendor/
 
+# Third-party vendored source is never committed. Per the component-architecture
+# ADR, external engines are declared deps (ship-tier: dependency; sui-tier:
+# devDependency) inlined at build by the bundler — pinning is the lockfile,
+# license control is `just license-check` (scripts/check-licenses.mjs) in CI.
+# Any future `vendor/` dir under a package holds third-party bytes and must not
+# be tracked. (Hand-authored files like `*/test/vendor-*.test.ts` are NOT in a
+# vendor/ directory, so this does not touch them.)
+packages/**/vendor/
+
 # loop test results — local only
 tests/loops/results/
 

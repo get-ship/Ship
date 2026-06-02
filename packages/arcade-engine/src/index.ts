@@ -1,8 +1,8 @@
 // @ship/arcade-engine — minimal 2D arcade engine.
 //
-// Public surface only. PixiJS is a vendored implementation detail — the
-// engine imports it directly inside stage/world/particles. Consumers never
-// pass Pixi in or see Pixi types; they get a typed Stage handle.
+// Public surface only. PixiJS is an implementation detail — the engine
+// imports it (the `pixi.js` npm dep) directly inside world/particles.
+// Consumers never pass Pixi in or see Pixi types; they get a typed Stage handle.
 
 export { createStage, type Stage, type StageOptions, type StageState } from './stage.ts'
 export { type Entity, type EntityInit, type EntityVisualInit, type SpriteInit, type ShapeInit, type ContainerInit, type CompositeInit, type ShapePart, type World } from './world.ts'

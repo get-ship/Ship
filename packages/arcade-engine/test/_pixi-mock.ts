@@ -1,14 +1,14 @@
-// Lightweight stand-in for the vendored PixiJS bundle.
+// Lightweight stand-in for the PixiJS bundle.
 //
-// world.ts / particles.ts / stage.ts `import * as PIXI from
-// '../vendor/pixi.js/pixi.mjs'` — the real bundle is ~800 KB and wants a live
-// WebGL/canvas renderer. None of the engine LOGIC depends on Pixi actually
-// drawing: it only depends on the display objects recording the transforms /
-// child list mutations the engine pushes into them. This mock records those so
-// tests can assert on them, while staying fast and DOM-free.
+// world.ts / particles.ts `import * as PIXI from 'pixi.js'` — the real bundle
+// is large and wants a live WebGL/canvas renderer. None of the engine LOGIC
+// depends on Pixi actually drawing: it only depends on the display objects
+// recording the transforms / child list mutations the engine pushes into them.
+// This mock records those so tests can assert on them, while staying fast and
+// DOM-free.
 //
 // Tests wire it in with:
-//   vi.mock('../vendor/pixi.js/pixi.mjs', () => pixiMockModule())
+//   vi.mock('pixi.js', () => pixiMockModule())
 // and can reach the recorded state through the exported `pixiMockState`.
 
 export interface MockTransform {

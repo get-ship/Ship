@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { pixiMockModule, pixiMockState } from './_pixi-mock.ts'
 
-// particles.ts `import * as PIXI from '../vendor/pixi.js/pixi.mjs'` — mock it so
-// the 800 KB renderer never loads; we only need Graphics/Container stubs that
+// particles.ts `import * as PIXI from 'pixi.js'` — mock it so the renderer
+// never loads; we only need Graphics/Container stubs that
 // record transforms. spawnParticle reads Math.random for angle/jitter; we drive
 // that with a SEEDED PRNG (mulberry32) so spawn/age/expire is reproducible —
 // never the global RNG (banned in this test env).
-vi.mock('../vendor/pixi.js/pixi.mjs', () => pixiMockModule())
+vi.mock('pixi.js', () => pixiMockModule())
 
 import { createParticles, type EmitterSpec } from '../src/particles.ts'
 

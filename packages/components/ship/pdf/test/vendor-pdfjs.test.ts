@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import * as pdfjs from '../src/vendor/pdfjs/pdfjs.mjs'
+import * as pdfjs from 'pdfjs-dist'
 import { pdfWorkerUrl, useVendoredWorker } from '../src/index.ts'
 
-// SLICE 0 contract: the vendored pdf.js engine is real, self-contained, and
-// wired to its vendored worker offline (no CDN). These specs guard the vendor.
+// SLICE 0 contract: the pdf.js engine (pdfjs-dist npm dep) is real and wired to
+// its worker offline (no CDN). These specs guard the engine + offline wiring.
 
-describe('vendored pdf.js engine', () => {
+describe('pdf.js engine', () => {
   it('exposes the load-bearing API', () => {
     expect(typeof pdfjs.getDocument).toBe('function')
     // GlobalWorkerOptions is a class-based singleton (typeof 'function') whose

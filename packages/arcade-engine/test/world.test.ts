@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { pixiMockModule, pixiMockState } from './_pixi-mock.ts'
 
-// world.ts `import * as PIXI from '../vendor/pixi.js/pixi.mjs'` and does a full
-// renderer init. We mock Pixi so no WebGL/canvas is needed; createWorld stays
-// async (it awaits app.init), so tests await it. The placeholder canvas only
-// needs replaceWith (world swaps it for Pixi's canvas).
-vi.mock('../vendor/pixi.js/pixi.mjs', () => pixiMockModule())
+// world.ts `import * as PIXI from 'pixi.js'` and does a full renderer init.
+// We mock Pixi so no WebGL/canvas is needed; createWorld stays async (it
+// awaits app.init), so tests await it. The placeholder canvas only needs
+// replaceWith (world swaps it for Pixi's canvas).
+vi.mock('pixi.js', () => pixiMockModule())
 
 import { createWorld, type ShapeInit, type World } from '../src/world.ts'
 

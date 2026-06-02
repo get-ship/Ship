@@ -245,6 +245,15 @@ fmt-check:
 lint-views:
     cargo run --features unstable -p ship-cli --quiet -- lint views --format json
 
+# License audit gate — walks the resolved dependency tree (node_modules/.bun)
+# and fails on copyleft (GPL/AGPL/LGPL/EPL/MPL/CDDL…). Replaces hand-copied
+# vendor LICENSE files now that third-party engines are declared deps inlined
+# at build (see docs/ship-adrs/.../ship-component-architecture.md). Run after
+# `bun install`. Pre-approved build-time-only exceptions live in the script.
+[group('occasional')]
+license-check:
+    node scripts/check-licenses.mjs
+
 # Enforce layer-direction rules: substrate must not import platform; etc.
 [group('occasional')]
 lint-layers:

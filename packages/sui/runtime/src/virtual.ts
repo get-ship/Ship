@@ -1,9 +1,10 @@
-// Backbone #2 — createVirtualizer(): the reactive adapter over the vendored
-// `@tanstack/virtual-core` windowing engine.
+// Backbone #2 — createVirtualizer(): the reactive adapter over the
+// `@tanstack/virtual-core` windowing engine (devDependency; the bundler
+// inlines it at build, so the published pack carries no runtime dep).
 //
-// This is the ONLY consumer of `./vendor/virtual-core/`. Consumers bind to the
+// This is the ONLY consumer of `@tanstack/virtual-core`. Consumers bind to the
 // `Virtual<T>` surface re-exported from the runtime barrel — never to the
-// vendored core directly. "One contract per boundary": if the upstream engine
+// upstream core directly. "One contract per boundary": if the upstream engine
 // changes internals, only this file moves.
 //
 // Signal-graph mechanics (build-spec §"Signal-graph mechanics"):
@@ -36,7 +37,7 @@ import {
   elementScroll,
   observeElementOffset,
   type VirtualItem as CoreVirtualItem,
-} from './vendor/virtual-core/virtual-core.mjs'
+} from '@tanstack/virtual-core'
 
 export type VirtualItem = CoreVirtualItem
 

@@ -1,13 +1,13 @@
 // sui-draw — the SOLE roughjs importer ("one contract per boundary"). Wraps
-// the vendored roughjs generator to roughen a clean shape into the hand-drawn
+// the roughjs generator to roughen a clean shape into the hand-drawn
 // ("sketchy") aesthetic, returning an SVG path `d` string the view binds to.
 //
 // The scene rendering binds to THIS adapter's `roughPath`, never to the
-// vendored core directly. roughjs is rendering-aesthetic only — geometry +
+// roughjs core directly. roughjs is rendering-aesthetic only — geometry +
 // hit-testing stay in shape.ts/stroke.ts (ours).
 
-import rough from '../../vendor/roughjs/roughjs.mjs'
-import type { Drawable, OpSet } from '../../vendor/roughjs/roughjs.d.mts'
+import rough from 'roughjs'
+import type { Drawable, OpSet } from 'roughjs/bin/core'
 import type { Vec2 } from '../../engine/types'
 import { rectFromPoints, type ShapeKind } from './shape'
 

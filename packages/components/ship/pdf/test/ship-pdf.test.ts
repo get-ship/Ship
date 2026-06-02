@@ -1,4 +1,4 @@
-// SLICE 1 — <ship-pdf>, the vendored-pdf.js page renderer.
+// SLICE 1 — <ship-pdf>, the pdf.js (pdfjs-dist) page renderer.
 //
 // `renderComponent` from @ship/test-setup compiles the `.sui` from source under
 // the `ship-pdf` tag (same production Rust/WASM compiler the daemon uses) and
@@ -9,15 +9,15 @@
 //
 // Canvas 2d is stubbed in test/setup.ts (jsdom ships no raster backend); we
 // assert via the engine's load/page lifecycle EVENTS + the rendered DOM, not
-// pixels. The worker is pointed at the vendored worker's `file://` URL because
-// the Node ESM loader vitest runs under rejects an `http:` worker import.
+// pixels. The worker is pointed at the `pdfjs-dist` worker's `file://` URL
+// because the Node ESM loader vitest runs under rejects an `http:` worker import.
 
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { renderComponent } from '@ship/test-setup'
-import { GlobalWorkerOptions } from '../src/vendor/pdfjs/pdfjs.mjs'
+import { GlobalWorkerOptions } from 'pdfjs-dist'
 // The error-state primitive the template composes for the failure branch.
 import '../../../sui/primitives/src/sui-error-state/sui-error-state.compiled.js'
 import controller from '../src/ship-pdf/ship-pdf.controller'

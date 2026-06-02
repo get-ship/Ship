@@ -3,10 +3,10 @@
 //
 // Pure geometry: no signals, no DOM. The scene model stores raw sample points
 // (world coords + pressure); the view renders strokePath(points) into an SVG
-// <path> fill. Heavy outline math is the vendored perfect-freehand core; this
+// <path> fill. Heavy outline math is the perfect-freehand npm core; this
 // module is the thin adapter from outline polygon → SVG path.
 
-import { getStroke, type StrokeOptions } from '../../vendor/perfect-freehand/perfect-freehand.mjs'
+import { getStroke, type StrokeOptions } from 'perfect-freehand'
 
 /** A single freehand sample: world point + optional pen pressure [0..1]. */
 export interface StrokeSample {
