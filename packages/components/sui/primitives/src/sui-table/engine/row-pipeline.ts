@@ -70,7 +70,11 @@ export function buildRowChain<T>(inputs: RowChainInputs<T>): RowChain<T> {
       ? buildTreeFilter<T>(coreRows, columns, state, flat.preColumnFilteredRows)
       : flat.filteredRows
 
-  const sortedRows = buildSortStage<T>(filteredRows, state.sorting, manualSorting)
+  // For TREE data the per-level sort happens inside `flattenTree` (a node's
+  // children are sorted within their parent); the ROOT order is preserved, so the
+  // top-level sort stage is skipped (sorting it would reshuffle the roots on a
+  // column sort). Flat tables sort here as before.
+  const sortedRows = buildSortStage<T>(filteredRows, state.sorting, manualSorting || isTree)
   const prePaginationRows = buildGroupStage<T>({
     sortedRows,
     grouping: state.grouping,

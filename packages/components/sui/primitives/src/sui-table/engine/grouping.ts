@@ -57,7 +57,11 @@ export function groupingValueOf<T>(
 
 /**
  * Depth-first flatten of a Row tree: emit each row, then (when expanded) recurse
- * into its `subRows`. Sort recurses per level so each sibling band is ordered.
+ * into its `subRows`. Sorting orders a node's CHILDREN within their parent (each
+ * sibling band is ordered) while the ROOT order is preserved as received — the
+ * top-level rows were already ordered by the upstream sort stage / source, and
+ * re-sorting them here would shuffle the tree's top-level structure on a column
+ * sort (a tree-grid sorts within a branch, it does not reshuffle the roots).
  */
 export function flattenTree<T>(
   roots: Row<T>[],
@@ -65,14 +69,14 @@ export function flattenTree<T>(
   order: SortState[],
 ): Row<T>[] {
   const out: Row<T>[] = []
-  const walk = (rows: Row<T>[]): void => {
-    const ordered = order.length > 0 ? sortRows(rows, order) : rows
+  const walk = (rows: Row<T>[], isRoot: boolean): void => {
+    const ordered = !isRoot && order.length > 0 ? sortRows(rows, order) : rows
     for (const row of ordered) {
       out.push(row)
-      if (row.subRows.length > 0 && isExpanded(expanded, row.id)) walk(row.subRows)
+      if (row.subRows.length > 0 && isExpanded(expanded, row.id)) walk(row.subRows, false)
     }
   }
-  walk(roots)
+  walk(roots, true)
   return out
 }
 
