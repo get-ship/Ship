@@ -93,6 +93,14 @@ specta = { workspace = true, features = ["chrono", "serde_json"], optional = tru
 
 [features]
 unstable = ["ship-platform/unstable"]
+# G2 daemon RSS-soak regression gate (.artifacts/sui-arc/integrity/report.md §4).
+# OFF by default so it never runs in `cargo test` / `just build`. The soak
+# harness (`tests/rss_soak.rs`) drives the leak-prone substrate churn
+# (actor_cursors / rate_counters / ReplayLog spawn-stop-emit cycles) and asserts
+# the post-warmup RSS slope is ~flat. Those paths are themselves `unstable`-gated
+# in the kernel router, so `soak` forwards to `unstable`.
+#   cargo test -p shipd --features soak --test rss_soak -- --nocapture
+soak = ["unstable"]
 specta = ["dep:specta", "deck/specta"]
 # Compile the `example()` fixture constructors for the daemon-side wire
 # shapes so `cargo xtask gen-fixtures` can serialize them to committed JSON.
