@@ -79,8 +79,12 @@ impl Projection for CompileStateProjection {
 /// Read the materialized compile state for a project. None if there's never
 /// been a `compile.completed` event for that project.
 pub fn load(space_id: &str) -> Result<Option<ProjectCompileState>> {
-    ship_substrate::db::ensure_db()?;
-    let mut conn = ship_substrate::db::open_db()?;
+    // compile.* is Space-scoped → project_compile_state lives in the bounded
+    // spaces/<space_id>/space.db; the `space_id` arg IS the scope key.
+    let mut conn = ship_substrate::db::open_space_db(
+        &ship_substrate::project::get_global_dir()?,
+        space_id,
+    )?;
     let row = block_on(async {
         sqlx::query(
             "SELECT space_id, active_agent, compiled_at, ship_version, harness, plugins_installed_json \
@@ -108,16 +112,25 @@ pub fn load(space_id: &str) -> Result<Option<ProjectCompileState>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ship_substrate::db::{ensure_db, open_db};
     use ship_substrate::projections::EventBus;
     use ship_types::envelope::EventEnvelope;
 
-    fn setup() -> sqlx::SqliteConnection {
+    /// Initialize the auto-isolated project. compile.* is Space-scoped, so the
+    /// projection row lands in the bound space's db — tests dispatch against
+    /// `space_conn(id)`, the same db `load(id)` reads.
+    fn setup() {
         let global = ship_substrate::project::get_global_dir().unwrap();
         let base = global.parent().unwrap().to_path_buf();
         crate::testutil::init_project(base).unwrap();
-        ensure_db().unwrap();
-        open_db().unwrap()
+    }
+
+    /// Open the per-space db for `space_id` under the auto-isolated global dir.
+    fn space_conn(space_id: &str) -> sqlx::SqliteConnection {
+        ship_substrate::db::open_space_db(
+            &ship_substrate::project::get_global_dir().unwrap(),
+            space_id,
+        )
+        .unwrap()
     }
 
     fn bus() -> EventBus {
@@ -139,7 +152,7 @@ mod tests {
 
     #[test]
     fn missing_project_returns_none() {
-        let _conn = setup();
+        setup();
         // Use a space_id that won't collide with prior test runs in the
         // shared global DB.
         let id = format!("proj-missing-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
@@ -148,8 +161,9 @@ mod tests {
 
     #[test]
     fn compile_completed_event_materializes_row() {
-        let mut conn = setup();
+        setup();
         let id = format!("proj-mat-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+        let mut conn = space_conn(&id);
         let event = compile_event(&id, "planner", "2026-05-04T00:00:00Z");
         bus().dispatch(&event, &mut conn);
         let row = load(&id).unwrap().expect("row should exist");
@@ -162,8 +176,9 @@ mod tests {
 
     #[test]
     fn second_event_overwrites_row() {
-        let mut conn = setup();
+        setup();
         let id = format!("proj-over-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+        let mut conn = space_conn(&id);
         bus().dispatch(&compile_event(&id, "a", "2026-05-04T00:00:00Z"), &mut conn);
         bus().dispatch(&compile_event(&id, "b", "2026-05-04T01:00:00Z"), &mut conn);
         let row = load(&id).unwrap().unwrap();

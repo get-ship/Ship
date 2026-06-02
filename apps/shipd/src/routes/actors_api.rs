@@ -248,7 +248,9 @@ async fn build_mesh_snapshot(state: &ApiState) -> Result<serde_json::Value, Stri
         .iter()
         .filter_map(|a| a.get("process").and_then(|p| p.get("rss_bytes")).and_then(|v| v.as_u64()))
         .sum();
-    let platform_db_bytes = std::fs::metadata(ship_substrate::db::platform_db_path(state.ship_dir()))
+    // Size gauge of the primary scope db (runtime.db backs actor/session/
+    // pipeline state); platform.db is no longer on any write path.
+    let platform_db_bytes = std::fs::metadata(ship_substrate::db::runtime_db_path(state.ship_dir()))
         .ok()
         .map(|m| m.len())
         .unwrap_or(0);

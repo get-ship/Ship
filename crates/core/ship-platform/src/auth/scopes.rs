@@ -9,6 +9,19 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+/// Open the Account-scope `account.db` for off-kernel auth/owner emits.
+///
+/// `auth.session.*` and `daemon.owner.*` are Account-owned → they land in
+/// account.db, the db the `auth_sessions` / `daemon_owner` projections read.
+pub(crate) fn account_store(
+) -> anyhow::Result<ship_substrate::persistence::event_store::SqliteEventStore> {
+    ship_substrate::persistence::event_store::SqliteEventStore::new_for_scope(
+        &ship_substrate::project::get_global_dir()?,
+        ship_types::event_registry::EventScope::Account,
+        None,
+    )
+}
+
 /// Coarse-grained capability scopes for daemon session access control.
 /// Each handler declares which scope it requires; the auth layer checks
 /// the session's granted scopes before the handler runs.
@@ -255,7 +268,7 @@ pub fn provision_grants(
         agent_id,
         &payload,
     )?;
-    let store = ship_substrate::persistence::event_store::SqliteEventStore::new()?;
+    let store = account_store()?;
     ship_substrate::persistence::event_store::EventStore::append(&store, &envelope)?;
     Ok(())
 }
@@ -386,7 +399,7 @@ pub fn persist_session(session: &DaemonSession) {
             return;
         }
     };
-    let store = match ship_substrate::persistence::event_store::SqliteEventStore::new() {
+    let store = match account_store() {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("session persist: store open failed: {e}");
@@ -414,7 +427,7 @@ pub fn remove_persisted_session(token: &str) {
             return;
         }
     };
-    let store = match ship_substrate::persistence::event_store::SqliteEventStore::new() {
+    let store = match account_store() {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("session revoke: store open failed: {e}");
@@ -755,11 +768,9 @@ mod tests {
         use ship_substrate::projections::registry::Projection;
 
         let tmp = tempfile::tempdir().unwrap();
-        ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
-        let mut conn = ship_substrate::db::open_db_at(
-            &ship_substrate::db::platform_db_path(tmp.path()),
-        )
-        .unwrap();
+        // provisioned_grants (Account-scoped) lives in account.db, where
+        // resolve_grants_at → provisioned_grants_for_at reads it.
+        let mut conn = ship_substrate::db::open_account_db(tmp.path()).unwrap();
         // Operator provisions a *narrower* set than the commander role default.
         let ev = EventEnvelope::new(
             ship_types::event_types::AGENT_GRANTS_PROVISIONED,

@@ -7,7 +7,7 @@ use super::row::{row_to_actor, ActorRow, ListActorsFilter, SELECT_COLS};
 use crate::db::block_on;
 
 pub fn list_actors(filter: &ListActorsFilter) -> Result<Vec<ActorRow>> {
-    let mut conn = crate::db::open_db()?;
+    let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     let limit = if filter.limit > 0 { filter.limit } else { 200 }.min(1000);
     let mut sql = format!(
         "SELECT {SELECT_COLS} FROM actors WHERE 1=1"
@@ -41,7 +41,7 @@ pub fn list_actors(filter: &ListActorsFilter) -> Result<Vec<ActorRow>> {
 }
 
 pub fn get_actor(actor_id: &str) -> Result<Option<ActorRow>> {
-    let mut conn = crate::db::open_db()?;
+    let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     let sql = format!("SELECT {SELECT_COLS} FROM actors WHERE id = ?");
     block_on(async {
         let row = sqlx::query(&sql).bind(actor_id).fetch_optional(&mut conn).await?;
@@ -105,7 +105,7 @@ pub fn list_actor_events(
     from_id: Option<&str>,
     limit: i64,
 ) -> Result<Vec<ActorEventRow>> {
-    let mut conn = crate::db::open_db()?;
+    let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     let limit = if limit > 0 { limit } else { 500 }.min(2000);
     let mut sql = String::from(
         "SELECT id, event_type, entity_id, actor_id, target_actor_id, \
@@ -149,7 +149,7 @@ pub fn list_actor_events(
 /// Look up `(status, workspace_id)` for routing decisions in the input
 /// endpoint. Returns `None` if the actor isn't in the projection.
 pub fn actor_status(actor_id: &str) -> Result<Option<(String, Option<String>)>> {
-    let mut conn = crate::db::open_db()?;
+    let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     block_on(async {
         let row: Option<(String, Option<String>)> = sqlx::query_as(
             "SELECT status, workspace_id FROM actors WHERE id = ?",
@@ -176,7 +176,7 @@ pub fn actor_status(actor_id: &str) -> Result<Option<(String, Option<String>)>> 
 /// no longer a reason to spare a live registered process from the orphan
 /// check — that process genuinely outlived its actor record.
 pub fn active_actor_ids() -> Result<std::collections::HashSet<String>> {
-    let mut conn = crate::db::open_db()?;
+    let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     active_actor_ids_on(&mut conn)
 }
 
@@ -184,7 +184,7 @@ pub fn active_actor_ids() -> Result<std::collections::HashSet<String>> {
 /// `load_*_at` shape used by the pipeline-run and agent-session
 /// projections so callers can point at a specific platform db.
 pub fn active_actor_ids_at(ship_dir: &std::path::Path) -> Result<std::collections::HashSet<String>> {
-    let mut conn = crate::db::open_db_at(&crate::db::platform_db_path(ship_dir))?;
+    let mut conn = crate::db::open_runtime_db(ship_dir)?;
     active_actor_ids_on(&mut conn)
 }
 

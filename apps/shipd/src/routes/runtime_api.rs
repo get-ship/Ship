@@ -309,7 +309,7 @@ mod tests {
 
         // Confirm the cancelled event actually landed.
         let events = ship_substrate::db::events::query_recent_events_for_entity_at(
-            &ship_substrate::db::platform_db_path(state.ship_dir()),
+            &ship_substrate::db::runtime_db_path(state.ship_dir()),
             &pipeline_run_id, 20,
         )
         .unwrap();
@@ -348,7 +348,7 @@ mod tests {
 
         // Make sure no job.cancelled was emitted (idempotent no-op).
         let events = ship_substrate::db::events::query_recent_events_for_entity_at(
-            &ship_substrate::db::platform_db_path(state.ship_dir()),
+            &ship_substrate::db::runtime_db_path(state.ship_dir()),
             &pipeline_run_id, 20,
         )
         .unwrap();

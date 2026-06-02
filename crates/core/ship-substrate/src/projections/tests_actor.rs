@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod actor_tests {
-    use crate::db::{block_on, open_db};
+    use crate::db::block_on;
     use crate::events::types::event_types;
     use crate::events::EventEnvelope;
     use crate::projections::{ActorProjection, EventBus};
@@ -11,9 +11,10 @@ mod actor_tests {
         let ship_dir = crate::project::get_global_dir().unwrap();
         let base = ship_dir.parent().unwrap().to_path_buf();
         crate::testutil::init_project_minimal(base).unwrap();
-        crate::db::ensure_db().unwrap();
-        // actors table lives in platform.db.
-        let conn = open_db().unwrap();
+        // actor.* is Runtime-scoped → the actors table lives in runtime.db,
+        // which the read API (`list_actors`, `find_live_window_for_space`) and
+        // the `register_window` writer both resolve.
+        let conn = crate::db::open_runtime_db(&ship_dir).unwrap();
         (ship_dir, conn)
     }
 

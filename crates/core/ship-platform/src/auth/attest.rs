@@ -235,7 +235,8 @@ pub fn set_daemon_owner(user_id: &str) -> anyhow::Result<()> {
         user_id,
         &payload,
     )?;
-    let store = ship_substrate::persistence::event_store::SqliteEventStore::new()?;
+    // daemon.owner.* is Account-scoped → write account.db (the daemon_owner db).
+    let store = super::scopes::account_store()?;
     ship_substrate::persistence::event_store::EventStore::append(&store, &envelope)?;
     Ok(())
 }
@@ -253,7 +254,8 @@ pub fn clear_daemon_owner() -> anyhow::Result<()> {
         &user_id,
         &payload,
     )?;
-    let store = ship_substrate::persistence::event_store::SqliteEventStore::new()?;
+    // daemon.owner.* is Account-scoped → write account.db (the daemon_owner db).
+    let store = super::scopes::account_store()?;
     ship_substrate::persistence::event_store::EventStore::append(&store, &envelope)?;
     Ok(())
 }

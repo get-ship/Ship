@@ -15,6 +15,13 @@ use crate::events::types::event_types;
 use crate::events::types::{ActorCrashed, ActorCreated, ActorSlept, ActorStopped, ActorWoke};
 use crate::events::EventEnvelope;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
+use ship_types::event_registry::EventScope;
+
+/// Open a Runtime-scope store at the default ship-home. actor.* lands in
+/// runtime.db, matching the kernel sink's routing for the same family.
+fn runtime_store() -> Result<SqliteEventStore> {
+    SqliteEventStore::new_for_scope(&crate::project::get_global_dir()?, EventScope::Runtime, None)
+}
 
 fn emit_actor_event<P: serde::Serialize>(
     actor_id: &str,
@@ -31,8 +38,10 @@ fn emit_actor_event<P: serde::Serialize>(
         envelope = envelope.with_parent_actor_id(parent);
     }
 
-    // Canonical write: event row + actor projection apply in one tx.
-    let store = SqliteEventStore::new()?;
+    // Canonical write: event row + actor projection apply in one tx. actor.*
+    // is Runtime-scoped → route to runtime.db (the db the actor projection
+    // reads), not the kernel-less platform.db.
+    let store = runtime_store()?;
     store.append(&envelope)?;
 
     // Deliver to mailboxes if a kernel router is running. Persistence
@@ -218,7 +227,7 @@ pub fn persist_actor_created_simple(
     }
 
     // Durable write — the part that must not be raced by a short-lived child.
-    SqliteEventStore::new()?.append(&envelope)?;
+    runtime_store()?.append(&envelope)?;
 
     // Best-effort live notification. `blocking_lock` (no runtime) keeps this
     // cheap; a missed push just means subscribers see the row on next read.

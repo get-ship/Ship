@@ -3,8 +3,8 @@
 //! `ship_kernel::KernelRouter` owns the pure routing state: actor mailboxes,
 //! namespace subscriptions, and sink-based persistence. This wrapper adds:
 //!
-//! - `base_dir` / `kernel_store_path` for filesystem helpers (WAL flush,
-//!   mailbox-overflow events)
+//! - `base_dir` + the held `PartitionedSink` for filesystem helpers (per-scope
+//!   WAL flush, mailbox-overflow events)
 //! - Runtime validators that carry `EmitContext` (caller kind, skill ID, etc.)
 //! - `spawn_actor` → returns `(ActorStore, Mailbox)` instead of just `Mailbox`
 //! - `emit` / `route` with `EmitContext`-aware validation and write-namespace
@@ -17,8 +17,8 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 
 use crate::errors::KernelError;
+use crate::persistence::PartitionedSink;
 use crate::persistence::actor_store::ActorStore;
-use crate::persistence::event_store::SqliteEventStore;
 use ship_types::envelope::EventEnvelope;
 use ship_kernel::Mailbox;
 use crate::events::validator::{EmitContext, EventValidator};
@@ -75,7 +75,10 @@ impl RateCounter {
 /// - Write-namespace enforcement for non-trusted callers
 pub struct KernelRouter {
     pub(crate) base_dir: PathBuf,
-    pub(crate) kernel_store_path: PathBuf,
+    /// The scope-routed sink the kernel persists through. Held here (in
+    /// addition to `inner`'s `Arc<dyn EventSink>`) so shutdown can flush WAL
+    /// across exactly the per-scope dbs the sink has mounted.
+    sink: Arc<PartitionedSink>,
     validators: Vec<Box<dyn EventValidator>>,
     /// Pure kernel router — owns mailboxes, actor_configs, subscriptions, sink.
     pub(crate) inner: ship_kernel::KernelRouter,
@@ -87,19 +90,26 @@ pub struct KernelRouter {
 
 impl KernelRouter {
     pub fn new(base_dir: PathBuf) -> Result<Self> {
-        // Ensure platform.db exists — single event log for the whole runtime.
+        // The root ship-home dir must exist. We eagerly provision runtime.db —
+        // the kernel's primary (Runtime) scope db that backs actors, sessions,
+        // and process state — so direct `ActorStore` reads/writes and the
+        // session table are usable before the sink's first lazy persist. The
+        // Space/Account dbs stay lazy (provisioned on first persist of their
+        // scope). No boot-time `platform.db` ensure — the kernel no longer
+        // writes it.
         if !base_dir.exists() {
             std::fs::create_dir_all(&base_dir)?;
         }
-        crate::db::ensure_db_at(&base_dir)?;
-        let kernel_store_path = crate::db::platform_db_path(&base_dir);
+        crate::db::ensure_events_db_at_path(&crate::db::runtime_db_path(&base_dir))?;
 
-        let sink = Arc::new(SqliteEventStore::new_at(&base_dir)?);
-        let inner = ship_kernel::KernelRouter::new(sink);
+        // Scope-routed sink (the held Phase-4 swap): every emitted event lands
+        // in its scope's db — `runtime.db` / `account.db` / `spaces/<id>/space.db`.
+        let sink = Arc::new(PartitionedSink::new(base_dir.clone()));
+        let inner = ship_kernel::KernelRouter::new(sink.clone());
 
         Ok(Self {
             base_dir,
-            kernel_store_path,
+            sink,
             validators: Vec::new(),
             inner,
             rate_counters: std::sync::Mutex::new(HashMap::new()),
@@ -120,9 +130,10 @@ impl KernelRouter {
         actor_id: &str,
         config: ActorConfig,
     ) -> Result<(ActorStore, Mailbox), KernelError> {
-        // Every actor queries the shared platform.db events table filtered
-        // by its own actor_id. No per-actor file is created.
-        let db_path = crate::db::platform_db_path(&self.base_dir);
+        // Actors are Runtime-scoped: every actor queries the shared
+        // `runtime.db` events table filtered by its own actor_id. No per-actor
+        // file is created.
+        let db_path = crate::db::runtime_db_path(&self.base_dir);
 
         let write_ns = config.write_namespaces.clone();
         let read_ns = config.read_namespaces.clone();
@@ -261,15 +272,32 @@ impl KernelRouter {
         format!("kernel: actors={actors} sub_edges={subs} rate_counters={rate_counters}")
     }
 
-    pub fn kernel_store_path(&self) -> &Path {
-        &self.kernel_store_path
+    /// The Runtime-scope event db (`runtime.db`) — where the kernel routes
+    /// actor/session/process lifecycle events. Tests and the actor snapshot
+    /// path read it directly; the per-scope sink writes Space/Account events to
+    /// their own dbs (see `flush_wal_all_scopes`).
+    pub fn kernel_store_path(&self) -> PathBuf {
+        crate::db::runtime_db_path(&self.base_dir)
     }
 
-    /// Path for an actor's events. In the single-event-log architecture this
-    /// always returns platform.db — actor isolation is by `actor_id` column,
-    /// not by file.
+    /// Checkpoint the WAL across every per-scope db the sink has mounted
+    /// (`runtime.db`, `account.db`, each touched `spaces/<id>/space.db`). Called
+    /// at shutdown so no scope's write-ahead log is left un-truncated. Replaces
+    /// the former single-`platform.db` flush, which only ever covered one of
+    /// several scope dbs.
+    pub fn flush_wal_all_scopes(&self) -> Result<()> {
+        for path in self.sink.opened_db_paths() {
+            if path.exists() {
+                flush_wal(&path)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Path for an actor's events. Actors are Runtime-scoped, so this returns
+    /// `runtime.db` — actor isolation is by `actor_id` column, not by file.
     pub(crate) fn actor_db_path(&self, _actor_id: &str) -> PathBuf {
-        crate::db::platform_db_path(&self.base_dir)
+        crate::db::runtime_db_path(&self.base_dir)
     }
 
     /// Enforce write namespace permissions.

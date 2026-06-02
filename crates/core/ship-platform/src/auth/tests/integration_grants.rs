@@ -17,7 +17,13 @@ use crate::auth::scopes::{provision_grants, resolve_grants_at};
 use crate::testutil::init_project;
 
 fn query_events(event_type: &str) -> Vec<ship_types::envelope::EventEnvelope> {
-    let store = SqliteEventStore::new().expect("open auto-isolated test store");
+    // auth.session.* / daemon.owner.* / agent.grants.* are Account-scoped → account.db.
+    let store = SqliteEventStore::new_for_scope(
+        &ship_substrate::project::get_global_dir().expect("global dir"),
+        ship_types::event_registry::EventScope::Account,
+        None,
+    )
+    .expect("open auto-isolated test store");
     store
         .query(&EventFilter {
             event_type: Some(event_type.to_string()),
@@ -75,11 +81,8 @@ fn auth_grants_resolve_provisioned_record_overrides_role() {
     use ship_substrate::projections::registry::Projection;
 
     let tmp = tempdir().unwrap();
-    ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
-    let mut conn = ship_substrate::db::open_db_at(
-        &ship_substrate::db::platform_db_path(tmp.path()),
-    )
-    .unwrap();
+    // provisioned_grants (Account-scoped) → account.db, where resolve reads it.
+    let mut conn = ship_substrate::db::open_account_db(tmp.path()).unwrap();
 
     // Provision a narrower set than the commander role default.
     let ev = EventEnvelope::new(
@@ -102,11 +105,8 @@ fn auth_grants_resolve_provisioned_empty_set_overrides_role() {
     use ship_substrate::projections::registry::Projection;
 
     let tmp = tempdir().unwrap();
-    ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
-    let mut conn = ship_substrate::db::open_db_at(
-        &ship_substrate::db::platform_db_path(tmp.path()),
-    )
-    .unwrap();
+    // provisioned_grants (Account-scoped) → account.db, where resolve reads it.
+    let mut conn = ship_substrate::db::open_account_db(tmp.path()).unwrap();
 
     // Operator explicitly revokes all grants.
     let ev = EventEnvelope::new(
@@ -173,11 +173,8 @@ fn auth_grants_provision_latest_write_wins() {
     use ship_substrate::projections::registry::Projection;
 
     let tmp = tempdir().unwrap();
-    ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
-    let mut conn = ship_substrate::db::open_db_at(
-        &ship_substrate::db::platform_db_path(tmp.path()),
-    )
-    .unwrap();
+    // provisioned_grants (Account-scoped) → account.db, where resolve reads it.
+    let mut conn = ship_substrate::db::open_account_db(tmp.path()).unwrap();
 
     let mk = |grants: &[&str], source: &str| {
         EventEnvelope::new(

@@ -16,7 +16,13 @@ mod tests {
     }
 
     fn event_store() -> SqliteEventStore {
-        SqliteEventStore::new().unwrap()
+        // session.* is Runtime-scoped → read runtime.db.
+        SqliteEventStore::new_for_scope(
+            &ship_substrate::project::get_global_dir().unwrap(),
+            ship_types::event_registry::EventScope::Runtime,
+            None,
+        )
+        .unwrap()
     }
 
     // ── test 1: start session → session.started event with correct goal ───────
@@ -480,9 +486,13 @@ let session = start_session(
         use ship_substrate::events::types::SessionStarted;
 
         let (_tmp, _ship_dir) = setup();
-        let db = ship_substrate::db::db_path()?;
+        // session.* is Runtime-scoped — the testutil writes to runtime.db, so
+        // install the sentinel trigger on the same db. open_runtime_db ensures
+        // the events schema before the trigger DDL.
+        let global = ship_substrate::project::get_global_dir()?;
+        let db = ship_substrate::db::runtime_db_path(&global);
 
-        let mut conn = open_db_at(&db)?;
+        let mut conn = ship_substrate::db::open_runtime_db(&global)?;
         block_on(async {
             sqlx::query(
                 "CREATE TRIGGER IF NOT EXISTS session_events_test_block \

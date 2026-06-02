@@ -238,7 +238,16 @@ fn emit_compile_completed(
             return;
         }
     };
-    let store = match SqliteEventStore::new() {
+    // compile.* is Space-scoped → write the bound space's space.db under the
+    // global ship-home (the db compile_state::load(space_id) reads). `space_id`
+    // is the scope key.
+    let store = match ship_substrate::project::get_global_dir().and_then(|root| {
+        SqliteEventStore::new_for_scope(
+            &root,
+            ship_types::event_registry::EventScope::Space,
+            Some(space_id.as_str()),
+        )
+    }) {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("compile: cannot open event store: {e}");

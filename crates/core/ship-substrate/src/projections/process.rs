@@ -185,10 +185,8 @@ pub fn project(events: &[EventEnvelope]) -> Vec<ProcessRecord> {
 
 /// Load all process events from the platform DB and return projected records.
 pub fn load_processes(slug: Option<&str>) -> Result<Vec<ProcessRecord>> {
-    use crate::db::{db_path, ensure_db, open_db_at};
-
-    ensure_db()?;
-    let mut conn = open_db_at(&db_path()?)?;
+    // process.* is Runtime-scoped → read the per-machine runtime.db.
+    let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     load_processes_from_conn(&mut conn, slug)
 }
 

@@ -24,7 +24,14 @@ pub fn load_job_context(pipeline_run_id: &str) -> SessionContextFromEvents {
         user_spec_body: String::new(),
         pipeline_name: None,
     };
-    let Ok(store) = SqliteEventStore::new() else {
+    // pipeline.run.started is Runtime-scoped → query runtime.db.
+    let Ok(store) = ship_substrate::project::get_global_dir().and_then(|dir| {
+        SqliteEventStore::new_for_scope(
+            &dir,
+            ship_types::event_registry::EventScope::Runtime,
+            None,
+        )
+    }) else {
         return out;
     };
     let envelopes = store

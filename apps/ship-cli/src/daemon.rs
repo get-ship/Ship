@@ -538,7 +538,12 @@ fn emit_supervisor_event<P: Serialize>(
             return;
         }
     };
-    let store = match SqliteEventStore::new_at(global_dir) {
+    // daemon.* is Runtime-scoped → write runtime.db (not the dead platform.db).
+    let store = match SqliteEventStore::new_for_scope(
+        global_dir,
+        ship_substrate::events::EventScope::Runtime,
+        None,
+    ) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("shipd supervisor: cannot open event store: {e}");

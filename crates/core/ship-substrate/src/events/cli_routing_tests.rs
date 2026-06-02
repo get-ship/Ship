@@ -59,7 +59,7 @@ async fn workspace_event_reaches_kernel_store() {
     // emit persists + delivers. route is delivery-only.
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     let count: i64 = block_on(async {
         sqlx::query_scalar("SELECT COUNT(*) FROM events WHERE id = ?")
             .bind(&event.id)
@@ -98,7 +98,7 @@ async fn cli_context_event_reaches_kernel_store() {
     // CallerKind::Cli is trusted — must not be rejected by validators.
     router.emit(event.clone(), &cli_ctx()).await.unwrap();
 
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     let count: i64 = block_on(async {
         sqlx::query_scalar("SELECT COUNT(*) FROM events WHERE id = ?")
             .bind(&event.id)

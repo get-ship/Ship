@@ -248,8 +248,12 @@ mod tests {
         (tmp, ship_dir, kernel)
     }
 
-    fn count_events(ship_dir: &Path, event_type: &str) -> usize {
-        let store = SqliteEventStore::new_at(ship_dir).unwrap();
+    // Count events of `event_type` in a specific scope db. The kernel sink
+    // routes by scope, so config.* (Runtime) lands in runtime.db while
+    // agent/skill.changed (Space) land in the bound space.db — the caller
+    // names the db to read.
+    fn count_events(db_path: &Path, event_type: &str) -> usize {
+        let store = SqliteEventStore::new_at_db_path(db_path).unwrap();
         store
             .query(&EventFilter {
                 event_type: Some(event_type.to_string()),
@@ -271,7 +275,12 @@ mod tests {
         // (subject "agents") the watcher produced before the relocation.
         author_change(&kernel, event_types::AGENT_CHANGED, "agents", Some(SpaceId::new("sp-1")))
             .await;
-        let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+        // agent.changed is Space-scoped → the kernel sink routes it to the bound
+        // space's db (sp-1), not platform.db.
+        let store = SqliteEventStore::new_at_db_path(
+            &ship_substrate::db::space_db_path(&ship_dir, "sp-1"),
+        )
+        .unwrap();
         let evs = store
             .query(&EventFilter {
                 event_type: Some(event_types::AGENT_CHANGED.to_string()),
@@ -283,13 +292,14 @@ mod tests {
         assert_eq!(evs[0].entity_id, "agents", "entity_id (subject) preserved");
 
         // Fine-grained per-file event — CONFIG_FILE_CHANGED, entity = rel path.
+        // config.* is Runtime-scoped → it lands in runtime.db.
         let dir = ship_dir.join("agents");
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("x.jsonc");
         std::fs::write(&file, "{}").unwrap();
         author_file_changed(&kernel, "agents", &dir, &file, Some(SpaceId::new("sp-1"))).await;
         assert_eq!(
-            count_events(&ship_dir, event_types::CONFIG_FILE_CHANGED),
+            count_events(&ship_substrate::db::runtime_db_path(&ship_dir), event_types::CONFIG_FILE_CHANGED),
             1,
             "config service must author config.file_changed"
         );

@@ -117,7 +117,11 @@ fn test_event_stream_since() -> anyhow::Result<()> {
     let tmp = tempdir()?;
     let ship_path = init_project(tmp.path())?;
     let before = chrono::Utc::now();
-    let store = SqliteEventStore::new()?;
+    let store = SqliteEventStore::new_for_scope(
+        &ship_substrate::project::get_global_dir()?,
+        ship_substrate::events::EventScope::Runtime,
+        None,
+    )?;
     store.append(&EventEnvelope::new(
         event_types::WORKSPACE_ACTIVATED,
         "feat-1",
@@ -136,7 +140,11 @@ fn test_event_append_and_read() -> anyhow::Result<()> {
     use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
     let tmp = tempdir()?;
     let ship_path = init_project(tmp.path())?;
-    let store = SqliteEventStore::new()?;
+    let store = SqliteEventStore::new_for_scope(
+        &ship_substrate::project::get_global_dir()?,
+        ship_substrate::events::EventScope::Runtime,
+        None,
+    )?;
     store.append(&EventEnvelope::new(
         event_types::PROJECT_LOG,
         "project",

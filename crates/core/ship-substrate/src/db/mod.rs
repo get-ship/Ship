@@ -52,7 +52,9 @@ pub struct EventLogSummary {
 /// error returns a summary with count=-1 to signal "unavailable" so startup
 /// proceeds.
 pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
-    let path = platform_db_path(ship_dir);
+    // The kernel persists the bulk of events (Runtime-scoped) into runtime.db;
+    // this boot health line reports its count.
+    let path = runtime_db_path(ship_dir);
     let Ok(mut conn) = open_db_at(&path) else {
         return EventLogSummary { event_count: -1, latest_event_id: None };
     };
@@ -279,143 +281,44 @@ pub fn ensure_db_at(ship_dir: &Path) -> Result<()> {
     ensure_db_at_path(&platform_db_path(ship_dir))
 }
 
-/// Idempotent baseline-schema reconcile. Re-executes the platform-layer
-/// `CREATE TABLE IF NOT EXISTS` statements when an expected table is
-/// missing. Returns the number of statements executed (0 == healthy,
-/// nothing to do).
-///
-/// Why this exists: migration tracking is checksum-driven and version-keyed.
-/// If a `platform.db` ends up with migration 0001 recorded as applied while
-/// its tables still reflect an *older* 0001 — e.g. a DB carried across an
-/// aggressive pre-launch baseline edit — `ensure_db_at` sees 0001 as already
-/// applied, skips it, and the daemon boots into a database where queries
-/// like `SELECT … FROM projects` raise `no such table`. This routine
-/// restores the schema without touching `_sqlx_migrations` and without
-/// re-running migrations that were genuinely already applied.
-///
-/// The statements are hand-lifted from migration 0001 (the subset that
-/// creates tables consumers query directly). Indices, triggers, and
-/// already-existing tables are left alone — an `IF NOT EXISTS` table
-/// rebuild is enough to clear the user-visible `no such table` errors.
-pub fn reconcile_baseline_schema(ship_dir: &Path) -> Result<usize> {
-    let path = platform_db_path(ship_dir);
-    if !path.exists() {
-        return Ok(0);
-    }
-    let mut conn = open_db_at(&path)?;
-    let projects_present: i64 = block_on(async {
-        sqlx::query_scalar(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='projects'",
-        )
-        .fetch_one(&mut conn)
-        .await
-    })?;
-    if projects_present > 0 {
-        return Ok(0);
-    }
-
-    let mut executed = 0usize;
-    for stmt in BASELINE_TABLE_STATEMENTS {
-        block_on(async { sqlx::query(stmt).execute(&mut conn).await })
-            .with_context(|| {
-                let preview: String = stmt.chars().take(80).collect();
-                format!("reconcile statement failed: {preview}")
-            })?;
-        executed += 1;
-    }
-    Ok(executed)
-}
-
-/// Subset of migration 0001 that recreates the projection tables read by
-/// platform handlers (`projects`, `sessions`, `daemon_settings`,
-/// `cursors`, `auth_sessions`, `daemon_owner`, `project_compile_state`).
-/// Every statement is `CREATE … IF NOT EXISTS` so this is safe to run on
-/// every startup; the matching content lives in
-/// `migrations/0001_schema.sql` and must be kept in sync when the
-/// canonical schema gains a column.
-const BASELINE_TABLE_STATEMENTS: &[&str] = &[
-    "CREATE TABLE IF NOT EXISTS sessions (
-        id                          TEXT PRIMARY KEY,
-        workspace_id                TEXT NOT NULL,
-        branch                      TEXT NOT NULL,
-        space_id                  TEXT,
-        kind                        TEXT NOT NULL DEFAULT 'direct_attach',
-        pipeline_run_id             TEXT,
-        chat_thread_id              TEXT,
-        status                      TEXT NOT NULL DEFAULT 'active',
-        started_at                  TEXT NOT NULL,
-        ended_at                    TEXT,
-        agent_id                    TEXT,
-        primary_harness            TEXT,
-        goal                        TEXT,
-        summary                     TEXT,
-        updated_workspace_ids_json  TEXT NOT NULL DEFAULT '[]',
-        tool_call_count             INTEGER NOT NULL DEFAULT 0,
-        drained_at                  TEXT,
-        last_activity_at            TEXT,
-        duration_secs               INTEGER,
-        model                       TEXT,
-        files_changed               INTEGER,
-        lines_added                 INTEGER,
-        lines_removed               INTEGER,
-        tool_calls                  INTEGER,
-        gate_result                 TEXT,
-        exit_reason                 TEXT,
-        created_at                  TEXT NOT NULL,
-        updated_at                  TEXT NOT NULL
-    )",
-    "CREATE TABLE IF NOT EXISTS cursors (
-        name           TEXT PRIMARY KEY,
-        last_event_id  TEXT NOT NULL,
-        updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
-    )",
-    "CREATE TABLE IF NOT EXISTS daemon_settings (
-        key         TEXT PRIMARY KEY NOT NULL,
-        value_json  TEXT NOT NULL,
-        updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
-    )",
-    "CREATE TABLE IF NOT EXISTS auth_sessions (
-        token            TEXT PRIMARY KEY NOT NULL,
-        agent_id         TEXT NOT NULL,
-        scopes_json      TEXT NOT NULL,
-        space_id       TEXT,
-        created_at_unix  INTEGER NOT NULL,
-        expires_at_unix  INTEGER NOT NULL,
-        revoked_at_unix  INTEGER,
-        source           TEXT NOT NULL,
-        updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
-    )",
-    "CREATE TABLE IF NOT EXISTS daemon_owner (
-        user_id        TEXT PRIMARY KEY NOT NULL,
-        bound_at_unix  INTEGER NOT NULL,
-        source         TEXT NOT NULL,
-        updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
-    )",
-    "CREATE TABLE IF NOT EXISTS projects (
-        id            TEXT PRIMARY KEY NOT NULL,
-        path          TEXT NOT NULL,
-        name          TEXT NOT NULL,
-        label         TEXT,
-        created_at    TEXT NOT NULL,
-        last_seen_at  TEXT NOT NULL,
-        archived_at   TEXT,
-        updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
-    )",
-    "CREATE TABLE IF NOT EXISTS project_compile_state (
-        space_id              TEXT PRIMARY KEY NOT NULL,
-        active_agent            TEXT,
-        compiled_at             TEXT NOT NULL,
-        ship_version            TEXT NOT NULL,
-        harness                TEXT,
-        plugins_installed_json  TEXT NOT NULL DEFAULT '[]',
-        updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
-    )",
-];
-
 /// Open a connection to a specific database path (no migration run).
 /// The database must already be initialized via `ensure_db`.
 pub fn open_db_at(path: &Path) -> Result<SqliteConnection> {
     connect(path)
+}
+
+// ── Per-scope read openers (Phase 4d) ────────────────────────────────────────
+//
+// Projection reads resolve their backing db by the EVENT FAMILY'S ownership
+// scope, matching `PartitionedSink`'s write routing:
+//   - Runtime-owned reads  → `runtime.db`
+//   - Account-owned reads  → `account.db`
+//   - Space-owned reads    → `spaces/<space_id>/space.db`
+// Each ensures the events schema (mirroring `open_db` → `ensure_db`) so a read
+// that races ahead of the first per-scope write still finds a valid db.
+
+/// Open the per-machine `runtime.db`, ensuring its schema first. The default
+/// (no explicit ship-dir) variant resolves the ship-home via `get_global_dir`
+/// exactly as `open_db()` does.
+pub fn open_runtime_db(ship_dir: &Path) -> Result<SqliteConnection> {
+    let path = runtime_db_path(ship_dir);
+    ensure_events_db_at_path(&path)?;
+    connect(&path)
+}
+
+/// Open the per-account `account.db`, ensuring its schema first.
+pub fn open_account_db(ship_dir: &Path) -> Result<SqliteConnection> {
+    let path = account_db_path(ship_dir);
+    ensure_events_db_at_path(&path)?;
+    connect(&path)
+}
+
+/// Open the per-space `spaces/<space_id>/space.db`, ensuring its schema first.
+/// The `space_id` is the bounded scope key the reader already carries.
+pub fn open_space_db(ship_dir: &Path, space_id: &str) -> Result<SqliteConnection> {
+    let path = space_db_path(ship_dir, space_id);
+    ensure_events_db_at_path(&path)?;
+    connect(&path)
 }
 
 fn connect(path: &Path) -> Result<SqliteConnection> {

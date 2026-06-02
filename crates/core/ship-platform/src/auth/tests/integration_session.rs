@@ -48,7 +48,13 @@ fn persisted_session(token: &str) -> DaemonSession {
 }
 
 fn query_events(event_type: &str) -> Vec<ship_types::envelope::EventEnvelope> {
-    let store = SqliteEventStore::new().expect("open auto-isolated test store");
+    // auth.session.* is Account-scoped → account.db.
+    let store = SqliteEventStore::new_for_scope(
+        &ship_substrate::project::get_global_dir().expect("global dir"),
+        ship_types::event_registry::EventScope::Account,
+        None,
+    )
+    .expect("open auto-isolated test store");
     store
         .query(&EventFilter {
             event_type: Some(event_type.to_string()),

@@ -4,7 +4,6 @@
 //! The job projection query omits `target_actor_id` (13-col SELECT).
 //! A shared `envelope_from_row` must handle both schemas correctly.
 
-use crate::db::ensure_db;
 use ship_types::envelope::EventEnvelope;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::testutil::init_project_minimal as init_project;
@@ -13,8 +12,17 @@ use tempfile::tempdir;
 fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
     let tmp = tempdir().unwrap();
     let ship_dir = init_project(tmp.path()).unwrap();
-    ensure_db().unwrap();
     (tmp, ship_dir)
+}
+
+/// Seed into runtime.db — the db `list_all_events` reads after Phase 4d.
+fn runtime_store() -> SqliteEventStore {
+    SqliteEventStore::new_for_scope(
+        &crate::project::get_global_dir().unwrap(),
+        ship_types::event_registry::EventScope::Runtime,
+        None,
+    )
+    .unwrap()
 }
 
 fn sample_event(target: Option<&str>) -> EventEnvelope {
@@ -29,7 +37,7 @@ fn sample_event(target: Option<&str>) -> EventEnvelope {
 #[test]
 fn envelope_from_row_platform_with_target_actor_id() {
     let (_tmp, _ship_dir) = setup();
-    let store = SqliteEventStore::new().unwrap();
+    let store = runtime_store();
 
     let ev = sample_event(Some("actor-42"));
     store.append(&ev).unwrap();
@@ -47,7 +55,7 @@ fn envelope_from_row_platform_with_target_actor_id() {
 #[test]
 fn envelope_from_row_platform_without_target_actor_id() {
     let (_tmp, _ship_dir) = setup();
-    let store = SqliteEventStore::new().unwrap();
+    let store = runtime_store();
 
     let ev = sample_event(None);
     store.append(&ev).unwrap();
@@ -63,7 +71,7 @@ fn envelope_from_row_platform_without_target_actor_id() {
 #[test]
 fn envelope_round_trip_preserves_all_fields() {
     let (_tmp, _ship_dir) = setup();
-    let store = SqliteEventStore::new().unwrap();
+    let store = runtime_store();
 
     let ev = EventEnvelope::new("test.roundtrip", "entity-rt", &serde_json::json!({"x": 1}))
         .unwrap()

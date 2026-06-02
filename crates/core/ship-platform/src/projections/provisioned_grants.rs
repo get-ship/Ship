@@ -81,8 +81,10 @@ fn apply_provisioned(event: &EventEnvelope, conn: &mut SqliteConnection) -> Resu
 /// `None` means the agent has no baseline yet — the caller falls back to the
 /// role-derived grants. Used on the token-mint path.
 pub fn provisioned_grants_for(agent_id: &str) -> Result<Option<Vec<String>>> {
-    ship_substrate::db::ensure_db()?;
-    let mut conn = ship_substrate::db::open_db()?;
+    // agent.grants.provisioned is Account-scoped → provisioned_grants in account.db.
+    let mut conn = ship_substrate::db::open_account_db(
+        &ship_substrate::project::get_global_dir()?,
+    )?;
     let row = block_on(async {
         sqlx::query("SELECT grants_json FROM provisioned_grants WHERE agent_id = ?")
             .bind(agent_id)
@@ -104,9 +106,7 @@ pub fn provisioned_grants_for_at(
     home: &std::path::Path,
     agent_id: &str,
 ) -> Result<Option<Vec<String>>> {
-    ship_substrate::db::ensure_db_at(home)?;
-    let mut conn =
-        ship_substrate::db::open_db_at(&ship_substrate::db::platform_db_path(home))?;
+    let mut conn = ship_substrate::db::open_account_db(home)?;
     let row = block_on(async {
         sqlx::query("SELECT grants_json FROM provisioned_grants WHERE agent_id = ?")
             .bind(agent_id)
@@ -128,11 +128,8 @@ mod tests {
 
     fn fresh() -> (tempfile::TempDir, sqlx::SqliteConnection) {
         let tmp = tempfile::tempdir().unwrap();
-        ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
-        let conn = ship_substrate::db::open_db_at(
-            &ship_substrate::db::platform_db_path(tmp.path()),
-        )
-        .unwrap();
+        // provisioned_grants is Account-scoped → write + read account.db.
+        let conn = ship_substrate::db::open_account_db(tmp.path()).unwrap();
         (tmp, conn)
     }
 
@@ -195,8 +192,9 @@ mod tests {
 
 /// Read the full provisioned row (for audit / display surfaces).
 pub fn provisioned_row(agent_id: &str) -> Result<Option<ProvisionedGrantsRow>> {
-    ship_substrate::db::ensure_db()?;
-    let mut conn = ship_substrate::db::open_db()?;
+    let mut conn = ship_substrate::db::open_account_db(
+        &ship_substrate::project::get_global_dir()?,
+    )?;
     let row = block_on(async {
         sqlx::query(
             "SELECT agent_id, grants_json, source, approved_by \

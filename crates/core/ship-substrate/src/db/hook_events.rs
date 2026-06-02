@@ -38,7 +38,12 @@ fn emit<P: serde::Serialize>(
 ) -> Result<()> {
     let envelope = EventEnvelope::new(event_type, actor_id, payload)?
         .with_actor_id(actor_id);
-    let store = SqliteEventStore::new()?;
+    // hook.* is Runtime-scoped → write runtime.db (the analytics rollups' db).
+    let store = SqliteEventStore::new_for_scope(
+        &crate::project::get_global_dir()?,
+        ship_types::event_registry::EventScope::Runtime,
+        None,
+    )?;
     store.append(&envelope)?;
     if let Some(kr) = crate::events::kernel_router() {
         let _ = block_on_anyhow(async {

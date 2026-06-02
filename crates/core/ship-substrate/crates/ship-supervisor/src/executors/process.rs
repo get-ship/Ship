@@ -1392,7 +1392,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let base = ship_substrate::ShipHome::project_ship_dir(dir.path());
         let router = KernelRouter::new(base.clone()).unwrap();
-        let db = ship_substrate::db::platform_db_path(&base);
+        // process.* is Runtime-scoped → the kernel sink routes it to runtime.db.
+        let db = ship_substrate::db::runtime_db_path(&base);
         (dir, Arc::new(TokioMutex::new(router)), db)
     }
 

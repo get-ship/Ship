@@ -6,7 +6,7 @@
 //! sessions linger in the registry and never produce an
 //! `auth.session.expired` event.
 
-use super::scopes::{DaemonSession, SessionRegistry};
+use super::scopes::{DaemonSession, SessionRegistry, account_store};
 
 /// Interval between session-expiry sweeps. Five minutes balances "evict
 /// stale sessions promptly" against "don't burn the event log with sweep
@@ -41,7 +41,8 @@ async fn drain_expired(registry: &SessionRegistry) -> Vec<DaemonSession> {
 }
 
 fn emit_expired(expired: &[DaemonSession]) {
-    let store = match ship_substrate::persistence::event_store::SqliteEventStore::new() {
+    // auth.session.* is Account-scoped → write account.db (the auth_sessions db).
+    let store = match account_store() {
         Ok(s) => Some(s),
         Err(e) => {
             tracing::warn!("session sweep: store open failed (will skip emits): {e}");

@@ -37,7 +37,7 @@ fn runtime_ctx() -> EmitContext {
 }
 
 fn kernel_event_count(router: &KernelRouter, event_type: &str) -> i64 {
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     block_on(async {
         sqlx::query_scalar("SELECT COUNT(*) FROM events WHERE event_type = ?")
             .bind(event_type)
@@ -48,7 +48,7 @@ fn kernel_event_count(router: &KernelRouter, event_type: &str) -> i64 {
 }
 
 fn actor_status(router: &KernelRouter, actor_id: &str) -> Option<String> {
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     block_on(async {
         sqlx::query_scalar("SELECT status FROM actors WHERE id = ?")
             .bind(actor_id)
@@ -157,7 +157,7 @@ fn crash_payload_contains_reason() {
 
     router.handle_actor_crash("dispatch", "task panicked: division by zero").unwrap();
 
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     let payload: String = block_on(async {
         sqlx::query_scalar(
             "SELECT payload_json FROM events WHERE event_type = 'actor.crashed'"
