@@ -34,16 +34,54 @@ fn path_escape_rejected() {
 }
 
 #[test]
-fn read_only_rejects_write() {
+fn symlink_escape_rejected() {
+    // A symlink inside the root that points outside it must not become an
+    // escape hatch: confinement canonicalizes the deepest existing ancestor.
     let broker = LocalFsBroker::new();
-    let (cap, _dir) = cap(FsMode::ReadOnly);
-    match broker.write_atomic(&cap, "file.txt", b"x") {
-        Err(FsError::ReadOnlyViolation) => {}
-        other => panic!("expected ReadOnlyViolation, got {other:?}"),
+    let (cap, dir) = cap(FsMode::ReadWrite);
+    let outside = tempfile::tempdir().unwrap();
+    std::fs::write(outside.path().join("secret.txt"), b"top secret").unwrap();
+    std::os::unix::fs::symlink(outside.path(), dir.path().join("link")).unwrap();
+
+    // Reading through the symlink (directly and via a child path) escapes.
+    for bad in ["link", "link/secret.txt"] {
+        match broker.read(&cap, bad) {
+            Err(FsError::PathEscape) => {}
+            other => panic!("expected PathEscape for symlink {bad:?}, got {other:?}"),
+        }
     }
-    match broker.create_dir_all(&cap, "d") {
-        Err(FsError::ReadOnlyViolation) => {}
-        other => panic!("expected ReadOnlyViolation, got {other:?}"),
+    // Writing through it is likewise refused.
+    match broker.write_atomic(&cap, "link/planted.txt", b"x") {
+        Err(FsError::PathEscape) => {}
+        other => panic!("expected PathEscape writing through symlink, got {other:?}"),
+    }
+}
+
+#[test]
+fn read_only_rejects_every_mutating_op() {
+    // Lock the full mutating surface: a ReadOnly cap rejects each write door
+    // with ReadOnlyViolation, before any disk access.
+    let broker = LocalFsBroker::new();
+    let (ro, _dir) = cap(FsMode::ReadOnly);
+    let (rw, _rw_dir) = cap(FsMode::ReadWrite);
+    let cap = ro;
+
+    let attempts: [(&str, FsError); 5] = [
+        ("write_atomic", broker.write_atomic(&cap, "file.txt", b"x").unwrap_err()),
+        ("create_new", broker.create_new(&cap, "new.txt", b"x").unwrap_err()),
+        ("remove", broker.remove(&cap, "file.txt").unwrap_err()),
+        ("create_dir_all", broker.create_dir_all(&cap, "d").unwrap_err()),
+        // link_into requires the *destination* cap to be RW.
+        (
+            "link_into",
+            broker.link_into(&rw, "src.txt", &cap, "dst.txt").unwrap_err(),
+        ),
+    ];
+    for (op, err) in attempts {
+        assert!(
+            matches!(err, FsError::ReadOnlyViolation),
+            "{op} through ReadOnly cap must be ReadOnlyViolation, got {err:?}"
+        );
     }
 }
 
