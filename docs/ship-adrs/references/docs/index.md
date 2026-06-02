@@ -16,6 +16,7 @@ See `SKILL.md` for authoring conventions and lifecycle.
 
 Listed alphabetically. Filter by `status` in frontmatter to see active decisions.
 
+- [`ship-component-architecture`](./ship-component-architecture.md) — *(proposed)* component packs split into two tiers: `sui-*` is the dependency-pure, atomic, reusable primitive library; `ship-*` is everything built from it (features, verticals, vendored-engine wrappers, internal, domain). `sui` has to earn it; `ship` is the default.
 - [`collections-as-data-layer`](./collections-as-data-layer.md) — all user-authored content goes through collections in `data.db`; `platform.db` holds only runtime state.
 - [`home-layout-and-scope-convention`](./home-layout-and-scope-convention.md) — `~/.ship/` splits into `library/` (portable user scope) and `machine/` (runtime state); canonical customization-vector list applied uniformly at project and user scopes.
 - [`api-url-shape-and-versioning`](./api-url-shape-and-versioning.md) — all HTTP API routes live under `/api/v1/`; tenancy is a `t/{tenant}/` path segment; `/auth/*`, `/assets/*`, `/webhooks/*`, `/health` are exempt.
