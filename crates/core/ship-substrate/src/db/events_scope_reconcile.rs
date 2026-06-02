@@ -29,12 +29,13 @@ use ship_types::event_registry::{self, EventScope};
 
 use crate::db::block_on;
 
-/// Names of every registered event whose scope is `target`. Used to backfill
-/// the `scope` of keyless legacy rows from the event-type registry rather than
-/// a hand-maintained list (drift-free).
+/// Names of every registered event whose **primary** scope is `target`. Used to
+/// backfill the `scope` of keyless legacy rows from the event-type registry
+/// rather than a hand-maintained list (drift-free). Under Model C the home
+/// partition a legacy row backfills to is the type's primary (default) scope.
 fn registered_names(target: EventScope) -> Vec<&'static str> {
     event_registry::registry()
-        .filter(|d| d.scope == target)
+        .filter(|d| d.primary_scope() == target)
         .map(|d| d.name)
         .collect()
 }

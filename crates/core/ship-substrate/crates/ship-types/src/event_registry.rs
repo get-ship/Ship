@@ -87,13 +87,30 @@ pub enum Stability {
 pub struct EventDef {
     /// Dot-separated event name, e.g. `"actor.created"`.
     pub name: &'static str,
-    pub scope: EventScope,
+    /// The SET of scopes this event type is allowed to ride (Model C). The
+    /// emission's binding picks one of these; `enforce_scope` validates the
+    /// chosen scope is in this set AND that the binding is authorized for it.
+    /// The first element is the **primary** (default) scope — stamped at
+    /// `EventEnvelope::new`. A size-1 set behaves exactly as the old
+    /// single-scope model.
+    pub allowed_scopes: &'static [EventScope],
     pub retention: Retention,
     pub stability: Stability,
     /// First version in which this event was emitted, if known.
     pub since_version: Option<&'static str>,
     /// `std::any::type_name`-like string for the payload struct.
     pub payload_type_name: &'static str,
+}
+
+impl EventDef {
+    /// The default scope stamped at `EventEnvelope::new` — the first element of
+    /// the allowed-set. Every registered event has at least one scope (the
+    /// `register_event!` macro and `#[event(...)]` derive both require one).
+    pub fn primary_scope(&self) -> EventScope {
+        // SAFETY-of-invariant: the registration macros never produce an empty
+        // set. Fail-closed to Device if a malformed (empty) set ever appears.
+        self.allowed_scopes.first().copied().unwrap_or(EventScope::Device)
+    }
 }
 
 /// Trait implemented by the `#[derive(EventPayload)]` macro on each payload struct.
@@ -122,12 +139,21 @@ pub fn lookup(name: &str) -> Option<&'static EventDef> {
     registry().find(|d| d.name == name)
 }
 
-/// Resolve the partition scope for an event type from the registry. Returns
-/// `None` when the type is unregistered (ad-hoc / test events); callers apply
-/// the fail-closed default. This is the source consulted by
-/// `EventEnvelope::new` to stamp the envelope's `scope`.
+/// Resolve the **primary** partition scope for an event type from the registry.
+/// Returns `None` when the type is unregistered (ad-hoc / test events); callers
+/// apply the fail-closed default. This is the source consulted by
+/// `EventEnvelope::new` to stamp the envelope's default `scope` (the first
+/// element of the allowed-set).
 pub fn scope_for(name: &str) -> Option<EventScope> {
-    lookup(name).map(|d| d.scope)
+    lookup(name).map(|d| d.primary_scope())
+}
+
+/// The full allowed-set of scopes for an event type (Model C). Returns an empty
+/// slice when the type is unregistered — callers treat "not in any allowed-set"
+/// per their own fail-closed rule. `enforce_scope` consults this to validate the
+/// chosen scope is permitted for the event type.
+pub fn allowed_scopes(name: &str) -> &'static [EventScope] {
+    lookup(name).map(|d| d.allowed_scopes).unwrap_or(&[])
 }
 
 /// Returns all event names in the registry (sorted for stable output).

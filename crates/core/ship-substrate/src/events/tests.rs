@@ -266,7 +266,13 @@ fn test_property_event_ordering() -> anyhow::Result<()> {
 fn registry_actor_created_is_device_ephemeral() {
     let def = ship_types::event_registry::lookup("actor.created")
         .expect("actor.created must be in registry");
-    assert_eq!(def.scope, ship_types::event_registry::EventScope::Device);
+    // Model C: a single-scope event has a size-1 allowed-set whose sole (primary)
+    // element is the home scope.
+    assert_eq!(
+        def.allowed_scopes,
+        &[ship_types::event_registry::EventScope::Device]
+    );
+    assert_eq!(def.primary_scope(), ship_types::event_registry::EventScope::Device);
     assert_eq!(def.retention, ship_types::event_registry::Retention::Ephemeral);
 }
 

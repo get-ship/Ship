@@ -19,7 +19,9 @@
 //! - `stability` is one of `stable | experimental | deprecated` (compile error on unknown).
 //!
 //! It emits `inventory::submit!` so the global `EVENT_REGISTRY` assembles from every
-//! annotated struct across all crates.
+//! annotated struct across all crates. The derive declares a SINGLE-scope
+//! allowed-set (the lone `scope`); poly-scopic events use the variadic
+//! `register_event!` macro in `payload_registry.rs`.
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -134,7 +136,7 @@ fn impl_event_payload(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStre
                 static DEF: ::ship_types::event_registry::EventDef =
                     ::ship_types::event_registry::EventDef {
                         name: #name_str,
-                        scope: #scope_variant,
+                        allowed_scopes: &[#scope_variant],
                         retention: #retention_variant,
                         stability: #stability_variant,
                         since_version: #since_version_tokens,
