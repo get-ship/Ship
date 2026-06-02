@@ -7998,6 +7998,7 @@ dependencies = [
  "sha2",
  "ship-events-macro",
  "specta",
+ "thiserror 2.0.18",
  "ulid",
 ]
 

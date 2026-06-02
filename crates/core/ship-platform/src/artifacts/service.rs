@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 use crate::collections::query::QueryRequest;
 use crate::collections::service as collection_service;
 use ship_substrate::data::DataService;
-use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
+use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};
 
 use super::backend::{ArtifactBackend, ArtifactScope, LocalFsBackend};
 use ship_types::sha256_hex;
@@ -601,12 +601,7 @@ async fn emit_artifact_event(
             return;
         }
     };
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        space_id: None,
-        session_id: None,
-    };
+    let ctx = EmitContext::daemon_internal(None);
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
         tracing::error!(event_type, entity_id, "artifacts: event emission failed: {e}");
     }

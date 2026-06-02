@@ -17,10 +17,7 @@
 //! [`Decision`]. Every write surface resolves through it via `command::call`,
 //! so there is one gate, not one per transport.
 
-use ship_substrate::events::CallerKind;
-
 use crate::auth::AuthContext;
-use crate::auth::scopes::Scope;
 
 /// Blast-radius class of an op — the human-vs-agent line. The canonical
 /// definition lives in `ship-ops-rpc` (next to the FDS policy reader that
@@ -56,13 +53,17 @@ pub struct Caller {
 }
 
 /// Map `AuthContext` onto the gate's [`Caller`]. `auth.grants` carries the
-/// agent's elevated services (the C2 set), provisioned per-agent (#85). The
-/// operator line reads `Scope::Full` (the operator marker, a separate axis that
-/// dies with the REST route-auth conversion in P4).
+/// agent's elevated services (the C2 set), provisioned per-agent (#85).
+///
+/// The operator decision now reads the binding's `Authority` (Phase 2): an
+/// operator is `Authority::Operator` == today's `caller_kind == Cli &&
+/// agent_id.is_none()`. The SDK token is capped at `Authority::Sdk` and is
+/// NEVER operator (#207) — the prior `|| has_scope(Scope::Full)` line conferred
+/// operator on the SDK token's `Scope::Full`; that escalation is now closed.
+/// `Scope::Full` stays mintable for the dying REST route-auth axis (#78), but
+/// no longer drives the operator decision.
 pub fn caller_from_auth(auth: &AuthContext) -> Caller {
-    let is_operator = (matches!(auth.caller_kind, CallerKind::Cli) && auth.agent_id.is_none())
-        || auth.has_scope(Scope::Full);
-    Caller { is_operator, elevated_services: auth.grants.clone() }
+    Caller { is_operator: auth.is_operator(), elevated_services: auth.grants.clone() }
 }
 
 /// The decision. Pure — no I/O, no auth lookups. `service` is the op's domain
@@ -100,6 +101,7 @@ pub fn decide(blast: BlastRadius, service: &str, caller: &Caller) -> Decision {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ship_substrate::events::CallerKind;
 
     fn caller(is_operator: bool, elevated: &[&str]) -> Caller {
         Caller {

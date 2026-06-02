@@ -51,6 +51,23 @@ pub struct EventEnvelope {
     pub target_actor_id: Option<String>,
     pub elevated: bool,
     pub created_at: DateTime<Utc>,
+    /// Author account identity (the signing principal's account), when present.
+    /// Additive Phase-2 groundwork — populated by `stamp_author` where the
+    /// binding carries an account; `None` otherwise. `#[serde(default)]` so
+    /// pre-existing envelopes (no author keys) decode to `None`.
+    #[serde(default)]
+    pub author_account_id: Option<String>,
+    /// Author device identity. Populated by `stamp_author` from the binding's
+    /// always-present device id. `#[serde(default)]` for back-compat.
+    #[serde(default)]
+    pub author_device_id: Option<String>,
+    /// Signature over [`EventEnvelope::signing_bytes`]. None in Phase 2
+    /// (groundwork). LATER POLICY (sign-iff-syncs): Space + Account events get
+    /// signed; Device-scope (high-volume liveness bulk) + System are NEVER
+    /// signed — they never leave the device. Device-unsigned keeps signing off
+    /// the hot path. `#[serde(default)]` for back-compat.
+    #[serde(default)]
+    pub signature: Option<String>,
 }
 
 impl EventEnvelope {
@@ -76,7 +93,51 @@ impl EventEnvelope {
             target_actor_id: None,
             elevated: false,
             created_at: Utc::now(),
+            author_account_id: None,
+            author_device_id: None,
+            signature: None,
         })
+    }
+
+    /// Canonical, deterministic byte form signed (in a later phase) to attest
+    /// authorship + integrity. **FROZEN CONTRACT:** once any signature is ever
+    /// produced over this form, the field set + framing cannot change.
+    ///
+    /// IN (immutable authored facts, fixed order): `id`, `event_type`,
+    /// `entity_id`, `version` (decimal), `scope` (`as_str`), `scope_key`
+    /// (`""` when None), `causation_id` (`""` when None), `author_account_id`
+    /// (`""` when None), `author_device_id` (`""` when None), `created_at`
+    /// (RFC3339 UTC), `sha256_hex(payload_json)`.
+    ///
+    /// OUT (mutable / delivery-routing / local — excluded so re-delivery or a
+    /// local re-stamp never invalidates a signature): `actor`, `actor_id`,
+    /// `parent_actor_id`, `target_actor_id`, `session_id`, `elevated`, and
+    /// `signature` itself.
+    ///
+    /// Framing: each field is length-prefixed (`(len as u32).to_be_bytes()`
+    /// then the bytes), in the fixed order above — no boundary ambiguity. The
+    /// payload is carried as its `sha256_hex` digest, NOT raw; a verifier needs
+    /// the raw `payload_json` to recompute the digest. NOT `serde_json` of the
+    /// struct (key-order/whitespace are unstable across versions and would
+    /// couple the signed form to the wire form).
+    pub fn signing_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut field = |bytes: &[u8]| {
+            out.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
+            out.extend_from_slice(bytes);
+        };
+        field(self.id.as_bytes());
+        field(self.event_type.as_bytes());
+        field(self.entity_id.as_bytes());
+        field(self.version.to_string().as_bytes());
+        field(self.scope.as_str().as_bytes());
+        field(self.scope_key.as_deref().unwrap_or("").as_bytes());
+        field(self.causation_id.as_deref().unwrap_or("").as_bytes());
+        field(self.author_account_id.as_deref().unwrap_or("").as_bytes());
+        field(self.author_device_id.as_deref().unwrap_or("").as_bytes());
+        field(self.created_at.to_rfc3339().as_bytes());
+        field(crate::hash::sha256_hex(self.payload_json.as_bytes()).as_bytes());
+        out
     }
 
     pub fn with_causation(mut self, causation_id: &str) -> Self {
@@ -173,5 +234,81 @@ mod tests {
         let json = serde_json::to_string(&env).unwrap();
         let decoded: EventEnvelope = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded.event_type, env.event_type);
+    }
+
+    // T7 — Envelope round-trips with the optional signature/author fields.
+    #[test]
+    fn new_envelope_author_signature_default_none() {
+        let env = EventEnvelope::new("workspace.created", "ws-1", &serde_json::json!({})).unwrap();
+        assert_eq!(env.signature, None);
+        assert_eq!(env.author_account_id, None);
+        assert_eq!(env.author_device_id, None);
+        let json = serde_json::to_string(&env).unwrap();
+        let decoded: EventEnvelope = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.signature, None);
+        assert_eq!(decoded.author_account_id, None);
+        assert_eq!(decoded.author_device_id, None);
+    }
+
+    #[test]
+    fn old_shape_json_decodes_author_signature_to_none() {
+        // An envelope JSON without the author/signature keys (pre-Phase-2 shape).
+        let old = serde_json::json!({
+            "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "event_type": "workspace.created",
+            "entity_id": "ws-1",
+            "actor": "ship",
+            "payload_json": "{}",
+            "version": 1,
+            "causation_id": null,
+            "scope": "device",
+            "scope_key": null,
+            "session_id": null,
+            "actor_id": null,
+            "parent_actor_id": null,
+            "target_actor_id": null,
+            "elevated": false,
+            "created_at": "2024-01-01T00:00:00Z"
+        });
+        let decoded: EventEnvelope = serde_json::from_value(old).unwrap();
+        assert_eq!(decoded.author_account_id, None);
+        assert_eq!(decoded.author_device_id, None);
+        assert_eq!(decoded.signature, None);
+    }
+
+    // T8 — signing_bytes is canonical + deterministic.
+    #[test]
+    fn signing_bytes_ignores_mutable_fields() {
+        let base = EventEnvelope::new("workspace.created", "ws-1", &serde_json::json!({"k": 1}))
+            .unwrap();
+        let mut a = base.clone();
+        let mut b = base.clone();
+        // Differ only in mutable / delivery-routing / local fields.
+        b.actor = "other".to_string();
+        b.actor_id = Some("agent.z".to_string());
+        b.session_id = Some("sess-9".to_string());
+        b.elevated = true;
+        b.target_actor_id = Some("agent.y".to_string());
+        b.signature = Some("sig".to_string());
+        a.actor_id = Some("agent.x".to_string());
+        assert_eq!(a.signing_bytes(), b.signing_bytes());
+    }
+
+    #[test]
+    fn signing_bytes_changes_with_authored_fields() {
+        let base = EventEnvelope::new("workspace.created", "ws-1", &serde_json::json!({"k": 1}))
+            .unwrap();
+        // payload digest is covered.
+        let mut diff_payload = base.clone();
+        diff_payload.payload_json = serde_json::to_string(&serde_json::json!({"k": 2})).unwrap();
+        assert_ne!(base.signing_bytes(), diff_payload.signing_bytes());
+        // author_device_id is in the signed set.
+        let mut diff_author = base.clone();
+        diff_author.author_device_id = Some("dev-2".to_string());
+        assert_ne!(base.signing_bytes(), diff_author.signing_bytes());
+        // scope_key is in the signed set.
+        let mut diff_scope = base.clone();
+        diff_scope.scope_key = Some("space-Q".to_string());
+        assert_ne!(base.signing_bytes(), diff_scope.signing_bytes());
     }
 }

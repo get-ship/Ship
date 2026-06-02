@@ -1,4 +1,7 @@
+pub mod binding;
 pub mod caller;
+pub mod decision;
+pub mod enforce;
 pub mod envelope;
 pub mod event_registry;
 pub mod event_types;
@@ -8,10 +11,15 @@ pub mod payload;
 pub mod scope;
 pub mod vector;
 
+pub use binding::{Authority, ScopeBinding};
 pub use caller::{ActorConfig, CallerKind, EmitContext};
+pub use decision::{AskReason, Decision, ScopeViolation};
+pub use enforce::{enforce_scope, stamp_author};
 pub use envelope::EventEnvelope;
 pub use hash::sha256_hex;
-pub use identity::{AccountId, ActorIdentity, ActorType, DeviceId, SpaceId};
+pub use identity::{
+    local_device_id, AccountId, ActorIdentity, ActorType, DeviceId, SpaceId,
+};
 pub use scope::Scope;
 pub use vector::Vector;
 

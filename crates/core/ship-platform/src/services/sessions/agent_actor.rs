@@ -398,12 +398,8 @@ fn emit_studio_reply(actor_id: &str, text: &str) {
                 return;
             }
         };
-        let ctx = ship_substrate::events::EmitContext {
-            caller_kind: ship_substrate::events::CallerKind::Runtime,
-            skill_id: None,
-            space_id: None,
-            session_id: None,
-        };
+        // Directed studio.reply — space absent by design. Daemon-internal mint.
+        let ctx = ship_substrate::events::EmitContext::daemon_internal(None);
         if let Err(e) = ship_substrate::db::block_on_anyhow(async move {
             kr.lock().await.emit(envelope, &ctx).await
         }) {

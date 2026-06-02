@@ -166,7 +166,7 @@ async fn seed_dispatched_job(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
 
@@ -226,7 +226,7 @@ async fn seed_dispatched_job_with_pipeline(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
 
@@ -314,7 +314,7 @@ async fn seed_failed_job(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
 
@@ -705,7 +705,7 @@ async fn seed_dispatched_agent_session(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
 
@@ -767,7 +767,7 @@ async fn seed_actor_created(kernel: &Arc<Mutex<KernelRouter>>, slug: &str) {
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
     let payload = serde_json::json!({

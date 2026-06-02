@@ -7,7 +7,7 @@
 //! own debounce so a burst of file writes emits exactly one event per
 //! domain. Watchers are RAII via the returned [`WatcherService`].
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -15,10 +15,14 @@ use notify::RecursiveMode;
 use tokio::sync::Mutex;
 
 use crate::config::resolve_watcher_debounce;
-use crate::services::watcher::{WatcherService, WatcherSpec};
+use crate::services::watcher::{PathChangedSignal, WatcherService, WatcherSpec};
 use ship_substrate::ShipHome;
+use ship_substrate::events::EmitContext;
 use ship_substrate::events::kernel_router::KernelRouter;
+use ship_types::SpaceId;
+use ship_types::envelope::EventEnvelope;
 use ship_types::event_types;
+use ship_types::payload::{ConfigChanged, ConfigFileChanged};
 
 /// Re-export so existing call sites that imported `config::ConfigWatcher`
 /// continue to work — the type is the generic [`WatcherService`].
@@ -79,6 +83,14 @@ pub fn spawn_config_watcher(
     workspace_dir: Option<PathBuf>,
 ) -> Result<WatcherService> {
     let library_dir = ShipHome::at(ship_dir).library_dir();
+
+    // Project-scope config events are Space-scoped (registry: config.changed /
+    // *.changed → EventScope::Space). The space key is the project root's
+    // path-hash identity — derived from the watched path, NOT read from the
+    // dying `daemon_space_id` global (#3: global leaves the emit path).
+    let project_space = workspace_dir
+        .as_deref()
+        .map(|root| SpaceId::new(ship_substrate::home::path_hash(root)));
     let project_ship_dir = workspace_dir.map(ShipHome::project_ship_dir);
 
     let mut service = WatcherService::new();
@@ -87,43 +99,133 @@ pub fn spawn_config_watcher(
     for domain in DOMAINS {
         // User scope — ensure the dir exists so we always have somewhere to
         // attach. (Project scope is created by `ship init`, not the watcher.)
+        // FLAG: user-scope config classification → P3 registry decision. These
+        // `~/.ship/library/` watchers have no project space; they author with a
+        // keyless daemon-internal binding pending the P3 user/account scoping.
         let user_dir = library_dir.join(domain.dir_name);
         if !user_dir.exists() {
             let _ = std::fs::create_dir_all(&user_dir);
         }
-        service.register(
-            kernel.clone(),
-            WatcherSpec {
-                dir: user_dir,
-                event_type: domain.event_type,
-                subject: domain.dir_name.to_string(),
-                recursive: domain.recursive,
-                debounce,
-            },
-        )?;
+        let rx = service.register(WatcherSpec {
+            dir: user_dir,
+            recursive: domain.recursive,
+            debounce,
+        })?;
+        spawn_domain_consumer(&mut service, kernel.clone(), rx, domain, None);
 
         // Project scope (only when a workspace is attached).
         if let Some(ref pd) = project_ship_dir {
             let proj_dir = pd.join(domain.dir_name);
-            if let Err(e) = service.register(
-                kernel.clone(),
-                WatcherSpec {
-                    dir: proj_dir.clone(),
-                    event_type: domain.event_type,
-                    subject: domain.dir_name.to_string(),
-                    recursive: domain.recursive,
-                    debounce,
-                },
-            ) {
-                tracing::warn!(
+            match service.register(WatcherSpec {
+                dir: proj_dir.clone(),
+                recursive: domain.recursive,
+                debounce,
+            }) {
+                Ok(rx) => spawn_domain_consumer(
+                    &mut service,
+                    kernel.clone(),
+                    rx,
+                    domain,
+                    project_space.clone(),
+                ),
+                Err(e) => tracing::warn!(
                     "config watcher: could not watch {}: {e}",
                     proj_dir.display()
-                );
+                ),
             }
         }
     }
 
     Ok(service)
+}
+
+/// Spawn the consumer loop that authors config events from a watcher's
+/// debounced [`PathChangedSignal`] stream, and adopt it into the service's RAII
+/// lifetime. The config service — not the watcher — owns event authorship: it
+/// names the domain `event_type`, sets the `subject`/`entity_id`, and mints the
+/// scope binding from the resolved `space`.
+fn spawn_domain_consumer(
+    service: &mut WatcherService,
+    kernel: Arc<Mutex<KernelRouter>>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<PathChangedSignal>,
+    domain: &'static DomainCfg,
+    space: Option<SpaceId>,
+) {
+    let event_type = domain.event_type;
+    let subject = domain.dir_name.to_string();
+    let task = tokio::spawn(async move {
+        while let Some(signal) = rx.recv().await {
+            // Coarse domain signal — existing consumers (compile invalidation).
+            author_change(&kernel, event_type, &subject, space.clone()).await;
+            // Fine-grained per-file events — Format-2 reactivity / sync.
+            for path in &signal.paths {
+                author_file_changed(&kernel, &subject, &signal.dir, path, space.clone()).await;
+            }
+        }
+    });
+    service.push_task(task);
+}
+
+/// Author the coarse `<domain>.changed` config event with the SAME
+/// `event_type` / `subject` / `entity_id` the watcher used to emit, so config
+/// reactivity (compile invalidation, Studio) is unbroken.
+async fn author_change(
+    kernel: &Arc<Mutex<KernelRouter>>,
+    event_type: &str,
+    subject: &str,
+    space: Option<SpaceId>,
+) {
+    let payload = ConfigChanged {
+        subject: subject.to_string(),
+        detail: None,
+    };
+    let envelope = match EventEnvelope::new(event_type, subject, &payload) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("config: failed to build {event_type} envelope: {e}");
+            return;
+        }
+    };
+    let ctx = EmitContext::daemon_internal(space);
+    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
+        tracing::warn!("config: failed to emit {event_type}: {e}");
+    }
+}
+
+/// Author the fine-grained `config.file_changed` for one changed file: the path
+/// relative to the watched domain dir + its content hash (empty when removed).
+async fn author_file_changed(
+    kernel: &Arc<Mutex<KernelRouter>>,
+    domain: &str,
+    dir: &Path,
+    path: &Path,
+    space: Option<SpaceId>,
+) {
+    let rel = path
+        .strip_prefix(dir)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .to_string();
+    // Empty hash signals a removed file (read fails) — a valid "deleted" marker.
+    let content_hash = std::fs::read(path)
+        .map(|bytes| ship_types::sha256_hex(&bytes))
+        .unwrap_or_default();
+    let payload = ConfigFileChanged {
+        domain: domain.to_string(),
+        path: rel.clone(),
+        content_hash,
+    };
+    let envelope = match EventEnvelope::new(event_types::CONFIG_FILE_CHANGED, &rel, &payload) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("config: failed to build config.file_changed envelope: {e}");
+            return;
+        }
+    };
+    let ctx = EmitContext::daemon_internal(space);
+    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
+        tracing::warn!("config: failed to emit config.file_changed: {e}");
+    }
 }
 
 #[cfg(test)]
@@ -156,6 +258,41 @@ mod tests {
             })
             .unwrap()
             .len()
+    }
+
+    // T6 — the config service (not the watcher) authors config events with the
+    // IDENTICAL event_type / subject / entity_id the watcher used to emit. Not
+    // flaky: drives the authoring path directly with a synthetic signal instead
+    // of relying on inotify.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn config_service_authors_domain_event_with_identical_shape() {
+        let (_tmp, ship_dir, kernel) = setup().await;
+        // Coarse domain event — same event_type (AGENT_CHANGED) + entity_id
+        // (subject "agents") the watcher produced before the relocation.
+        author_change(&kernel, event_types::AGENT_CHANGED, "agents", Some(SpaceId::new("sp-1")))
+            .await;
+        let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+        let evs = store
+            .query(&EventFilter {
+                event_type: Some(event_types::AGENT_CHANGED.to_string()),
+                limit: Some(10),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(evs.len(), 1, "config service must author exactly one agent.changed");
+        assert_eq!(evs[0].entity_id, "agents", "entity_id (subject) preserved");
+
+        // Fine-grained per-file event — CONFIG_FILE_CHANGED, entity = rel path.
+        let dir = ship_dir.join("agents");
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("x.jsonc");
+        std::fs::write(&file, "{}").unwrap();
+        author_file_changed(&kernel, "agents", &dir, &file, Some(SpaceId::new("sp-1"))).await;
+        assert_eq!(
+            count_events(&ship_dir, event_types::CONFIG_FILE_CHANGED),
+            1,
+            "config service must author config.file_changed"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]

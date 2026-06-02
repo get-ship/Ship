@@ -10,4 +10,4 @@ pub mod enforce;
 
 pub use binding::{Authority, ScopeBinding};
 pub use decision::{AskReason, Decision, ScopeViolation};
-pub use enforce::enforce_scope;
+pub use enforce::{enforce_scope, stamp_author};

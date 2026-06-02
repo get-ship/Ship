@@ -105,7 +105,7 @@ pub async fn telegram_webhook(
     let ctx = EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        space_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
 

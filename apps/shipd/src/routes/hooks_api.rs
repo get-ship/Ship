@@ -178,7 +178,7 @@ pub async fn hook_session_start(
         match EventEnvelope::new(hook_event_types::HOOK_SESSION_STARTED, target, &payload) {
             Ok(env) => {
                 let env = env.with_target(target).with_actor_id(target);
-                let ctx = auth.to_daemon_emit_context();
+                let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
                 if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
                     tracing::warn!(target, "hook.session_started emit failed: {e}");
                 }
@@ -235,7 +235,7 @@ pub async fn hook_before_tool(
         };
         if let Ok(env) = EventEnvelope::new(hook_event_types::HOOK_TOOL_USE_STARTED, &actor, &payload) {
             let env = env.with_target(&actor).with_actor_id(&actor);
-            let ctx = auth.to_daemon_emit_context();
+            let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
             if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
                 tracing::warn!(actor, "hook.tool_use_started emit failed: {e}");
             }
@@ -317,7 +317,7 @@ pub async fn hook_after_tool(
         };
         if let Ok(env) = EventEnvelope::new(hook_event_types::HOOK_TOOL_USE_COMPLETED, &actor, &payload) {
             let env = env.with_target(&actor).with_actor_id(&actor);
-            let ctx = auth.to_daemon_emit_context();
+            let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
             if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
                 tracing::warn!(actor, "hook.tool_use_completed emit failed: {e}");
             }
@@ -364,7 +364,7 @@ pub async fn hook_session_end(
         };
         if let Ok(env) = EventEnvelope::new(hook_event_types::HOOK_SESSION_ENDED, target, &payload) {
             let env = env.with_target(target).with_actor_id(target);
-            let ctx = auth.to_daemon_emit_context();
+            let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
             if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
                 tracing::warn!(target, "hook.session_ended emit failed: {e}");
             }
@@ -419,7 +419,7 @@ pub async fn hook_permission_denied(
             EventEnvelope::new(hook_event_types::HOOK_PERMISSION_DENIED, &actor, &payload)
         {
             let env = env.with_target(&actor).with_actor_id(&actor);
-            let ctx = auth.to_daemon_emit_context();
+            let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
             if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
                 tracing::warn!(actor, "hook.permission_denied emit failed: {e}");
             }

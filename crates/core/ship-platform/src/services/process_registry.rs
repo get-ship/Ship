@@ -9,7 +9,7 @@
 
 use async_trait::async_trait;
 use futures_util::future::join_all;
-use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
+use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -217,12 +217,8 @@ pub async fn graceful_shutdown(
         }
     };
 
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        space_id: None,
-        session_id: None,
-    };
+    // `supervisor.*` is Device-scoped — no space. Trusted daemon-internal mint.
+    let ctx = EmitContext::daemon_internal(None);
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
         tracing::warn!("graceful_shutdown: failed to emit shutting_down event: {e}");
     }

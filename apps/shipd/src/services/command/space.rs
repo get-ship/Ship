@@ -34,8 +34,13 @@ pub async fn try_dispatch(
                 CommandError::bad_args(format!("`value_json` is not valid JSON: {e}"))
             })?;
 
-            let emit_ctx = ctx.auth.to_emit_context();
-            let space_id = emit_ctx.space_id.clone().ok_or_else(|| {
+            let emit_ctx = ctx.auth.to_emit_context(ctx.auth.caller_kind.clone());
+            // Intended P2 fail-soft (mandatory fix #2): with the
+            // `daemon_space_id` emit-path fallback gone, an operator/daemon-token
+            // caller (binding has no space) calling `space.set` hard-errors
+            // instead of silently writing the daemon home space's config. An
+            // operator with no space genuinely cannot set a space's setting.
+            let space_id = emit_ctx.space_key().ok_or_else(|| {
                 CommandError::bad_args(
                     "no space resolved for this request — a per-space setting needs a space",
                 )

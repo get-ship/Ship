@@ -132,7 +132,7 @@ pub async fn actor_spawn(
                 ok: false, data: serde_json::json!(e.to_string()),
             })),
         };
-        let ctx = auth.to_daemon_emit_context();
+        let ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
         if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
             tracing::warn!(actor_id = %actor_id, "mesh.register emit failed: {e}");
         }
@@ -198,10 +198,17 @@ pub async fn event_route(
     // trusted Ship component — it validates caller permissions before emitting.
     // Use the authenticated caller kind but allow CLI callers (default) to route
     // system-namespace events (the bridge has already validated permissions).
+    // FLAG: stale workspace_id field — route through space_id (server-auth /
+    // space arc). This `EmitContext.space_id` is dead (kernel.emit ignores it;
+    // the request's own envelope is passed through), so the behavior-preserving
+    // move (mandatory fix #4) is a binding that carries the SAME key.
     let ctx = EmitContext {
         caller_kind: auth.caller_kind,
         skill_id: None,
-        space_id: req.workspace_id.or(auth.workspace_id),
+        binding: ship_types::ScopeBinding::daemon_internal(
+            req.workspace_id.or(auth.workspace_id).map(ship_types::SpaceId::new),
+            ship_types::Authority::Sdk,
+        ),
         session_id: req.session_id.or(auth.session_id),
     };
     match state.kernel().lock().await.emit(req.envelope, &ctx).await {

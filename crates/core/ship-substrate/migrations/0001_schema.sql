@@ -88,6 +88,13 @@ CREATE TABLE IF NOT EXISTS events (
   job_id           TEXT,
   agent_id         TEXT,
   target_actor_id  TEXT,
+  -- Author-identity + signature groundwork (Phase 2, additive). author_*
+  -- carry the signing principal; signature is reserved (NULL until a later
+  -- phase signs over EventEnvelope::signing_bytes). Pre-existing DBs get these
+  -- added idempotently by events_author_reconcile.
+  author_account_id TEXT,
+  author_device_id  TEXT,
+  signature         TEXT,
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_events_entity    ON events(entity_id, event_type);

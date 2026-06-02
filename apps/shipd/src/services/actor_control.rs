@@ -49,7 +49,7 @@ pub async fn deliver_actor_input(
     let envelope = EventEnvelope::new(event_types::STUDIO_CHAT_TURN, id, &payload)
         .map(|e| e.with_context(workspace_id.as_deref(), Some(id)).with_target(id))
         .map_err(|e| ActorInputError::Service(format!("envelope: {e}")))?;
-    let emit_ctx = auth.to_daemon_emit_context();
+    let emit_ctx = auth.to_emit_context(ship_substrate::events::CallerKind::Runtime);
     state
         .kernel()
         .lock()

@@ -1,55 +1,51 @@
 //! Generic filesystem watcher service.
 //!
 //! Each [`WatcherSpec`] registration spawns a `notify` watcher and a tokio
-//! debounce task that emits a kernel event when files in the watched dir
-//! change. The service is RAII — dropping the [`WatcherService`] stops every
-//! registered watcher and cancels every debounce task.
+//! debounce task. On a debounced change the task forwards a
+//! [`PathChangedSignal`] on the channel returned by [`WatcherService::register`].
+//! The watcher is intentionally namespace-agnostic: it does NOT author any
+//! domain event. The subscriber (the config service) owns event authorship —
+//! it names the event type, resolves the scope from the watched path, and mints
+//! the binding. The service is RAII — dropping the [`WatcherService`] stops
+//! every registered watcher and cancels every debounce/consumer task.
 //!
 //! Used today for declarative config dirs (`.ship/agents`, `.ship/skills`,
-//! `.ship/views`, `.ship/pipelines`, `.ship/rules`) — see
-//! `crate::config::watcher` for those registrations. Any module that needs
-//! "watch this dir, emit this event" can register against the same service.
+//! `.ship/views`, `.ship/pipelines`, `.ship/rules`, `.ship/collections`) — see
+//! `crate::config::watcher` for those registrations and the event authorship.
 
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
 use notify::{Event, EventKind, RecursiveMode, Watcher};
-use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 
-use ship_substrate::events::kernel_router::KernelRouter;
-use ship_types::{CallerKind, EmitContext};
-use ship_types::envelope::EventEnvelope;
-use ship_types::payload::{ConfigChanged, ConfigFileChanged};
-use ship_types::event_types;
+/// A debounced filesystem-change signal: the watched directory plus the set of
+/// distinct paths touched during the debounce window. The subscriber decides
+/// what (if any) event to author from it.
+#[derive(Debug, Clone)]
+pub struct PathChangedSignal {
+    /// The watched directory root (used to compute paths relative to the domain).
+    pub dir: PathBuf,
+    /// The distinct paths touched during the debounce window.
+    pub paths: Vec<PathBuf>,
+}
 
-/// One watcher registration. Caller chooses the path, event type, and
-/// debounce window.
+/// One watcher registration. The caller chooses the path, recursion mode, and
+/// debounce window; event authorship is the subscriber's job.
 pub struct WatcherSpec {
     /// Directory to watch. The directory must exist; the caller is
     /// responsible for creating it if needed.
     pub dir: PathBuf,
-    /// Event type emitted on debounced change (e.g. `"agent.changed"`).
-    pub event_type: &'static str,
-    /// Subject placed on the [`ConfigChanged`] payload — typically the
-    /// domain name (`"agents"`, `"skills"`, …).
-    pub subject: String,
     /// Whether to watch subdirectories recursively.
     pub recursive: RecursiveMode,
     /// Debounce window. A burst of writes within this window collapses to a
-    /// single emitted event.
+    /// single emitted signal.
     pub debounce: Duration,
 }
 
-// Historical default for the watcher debounce window — short enough to feel
-// instant in Studio, long enough to coalesce editor saves and scaffolder
-// bursts. The runtime value is resolved from the `watcher.debounce_ms` KV
-// setting (default 200ms) via `crate::config::resolve_watcher_debounce`.
-
-/// RAII handle holding every registered watcher and debounce task. Dropping
-/// it stops them all.
+/// RAII handle holding every registered watcher and task. Dropping it stops
+/// them all.
 pub struct WatcherService {
     watchers: Vec<notify::RecommendedWatcher>,
     tasks: Vec<tokio::task::JoinHandle<()>>,
@@ -69,16 +65,17 @@ impl WatcherService {
         }
     }
 
-    /// Register a watcher for the given spec. No-op if the path doesn't
-    /// exist (the caller can pre-check or pre-create); returns an error if
-    /// the underlying notify watcher fails to attach.
+    /// Register a watcher for the given spec. Returns the receiver on which
+    /// debounced [`PathChangedSignal`]s arrive. No-op (returns an immediately
+    /// closed receiver) if the path doesn't exist; returns an error if the
+    /// underlying notify watcher fails to attach.
     pub fn register(
         &mut self,
-        kernel: Arc<Mutex<KernelRouter>>,
         spec: WatcherSpec,
-    ) -> Result<()> {
+    ) -> Result<mpsc::UnboundedReceiver<PathChangedSignal>> {
+        let (out_tx, out_rx) = mpsc::unbounded_channel::<PathChangedSignal>();
         if !spec.dir.exists() {
-            return Ok(());
+            return Ok(out_rx);
         }
 
         let (tx, mut rx) = mpsc::unbounded_channel::<Vec<PathBuf>>();
@@ -97,8 +94,6 @@ impl WatcherService {
         w.watch(&spec.dir, spec.recursive)?;
         self.watchers.push(w);
 
-        let event_type = spec.event_type;
-        let subject = spec.subject;
         let debounce = spec.debounce;
         let dir = spec.dir;
 
@@ -110,87 +105,24 @@ impl WatcherService {
                 while let Ok(more) = rx.try_recv() {
                     paths.extend(more);
                 }
-                // Coarse domain signal — existing consumers (compile invalidation).
-                emit_change(&kernel, event_type, &subject).await;
-                // Fine-grained per-file events — Format-2 reactivity / sync.
-                for path in &paths {
-                    emit_file_changed(&kernel, &subject, &dir, path).await;
+                let signal = PathChangedSignal {
+                    dir: dir.clone(),
+                    paths: paths.into_iter().collect(),
+                };
+                if out_tx.send(signal).is_err() {
+                    // Subscriber dropped — nothing more to forward.
+                    break;
                 }
             }
         });
         self.tasks.push(task);
-        Ok(())
+        Ok(out_rx)
     }
-}
 
-async fn emit_change(
-    kernel: &Arc<Mutex<KernelRouter>>,
-    event_type: &str,
-    subject: &str,
-) {
-    let payload = ConfigChanged {
-        subject: subject.to_string(),
-        detail: None,
-    };
-    let envelope = match EventEnvelope::new(event_type, subject, &payload) {
-        Ok(e) => e,
-        Err(e) => {
-            tracing::warn!("watcher: failed to build {event_type} envelope: {e}");
-            return;
-        }
-    };
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        // Stamp the daemon's space id so config-change events are space-scoped
-        // like every other space-scoped emit (#116). Resolved once at startup;
-        // `None` only in global-only mode (no discoverable project root).
-        space_id: ship_substrate::project::daemon_space_id(),
-        session_id: None,
-    };
-    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
-        tracing::warn!("watcher: failed to emit {event_type}: {e}");
-    }
-}
-
-/// Emit a fine-grained `config.file_changed` for one changed file: the path
-/// relative to the watched domain dir + its content hash (empty when the file
-/// was removed). Space-scoped via the daemon's space id, like every other
-/// space-scoped emit (#116).
-async fn emit_file_changed(
-    kernel: &Arc<Mutex<KernelRouter>>,
-    domain: &str,
-    dir: &std::path::Path,
-    path: &std::path::Path,
-) {
-    let rel = path
-        .strip_prefix(dir)
-        .unwrap_or(path)
-        .to_string_lossy()
-        .to_string();
-    // Empty hash signals a removed file (read fails) — a valid "deleted" marker.
-    let content_hash = std::fs::read(path)
-        .map(|bytes| ship_types::sha256_hex(&bytes))
-        .unwrap_or_default();
-    let payload = ConfigFileChanged {
-        domain: domain.to_string(),
-        path: rel.clone(),
-        content_hash,
-    };
-    let envelope = match EventEnvelope::new(event_types::CONFIG_FILE_CHANGED, &rel, &payload) {
-        Ok(e) => e,
-        Err(e) => {
-            tracing::warn!("watcher: failed to build config.file_changed envelope: {e}");
-            return;
-        }
-    };
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        space_id: ship_substrate::project::daemon_space_id(),
-        session_id: None,
-    };
-    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
-        tracing::warn!("watcher: failed to emit config.file_changed: {e}");
+    /// Adopt an externally-spawned task into the service's RAII lifetime, so it
+    /// is cancelled when the service is dropped. Used by subscribers that run a
+    /// consumer loop over a [`register`](Self::register) receiver.
+    pub fn push_task(&mut self, task: tokio::task::JoinHandle<()>) {
+        self.tasks.push(task);
     }
 }

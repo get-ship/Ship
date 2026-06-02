@@ -348,10 +348,15 @@ pub async fn persist_and_route(
     let event_type = envelope.event_type.clone();
     let entity_id = envelope.entity_id.clone();
 
+    // Relay: carry the envelope's own resolved space through the binding,
+    // preserving its session. Daemon-internal mint (trusted relay).
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: envelope.space_id().map(str::to_string),
+        binding: ship_types::ScopeBinding::daemon_internal(
+            envelope.space_id().map(ship_types::SpaceId::new),
+            ship_types::Authority::Sdk,
+        ),
         session_id: envelope.session_id.clone(),
     };
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
