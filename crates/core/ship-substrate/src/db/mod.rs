@@ -1,9 +1,15 @@
-//! Platform DB — relational state (workspaces, sessions, jobs, targets)
-//! plus the shared `events` table backing every actor's event log.
+//! SQLite db layer: the per-scope event-log openers (`runtime.db` /
+//! `account.db` / `spaces/<id>/space.db`) that production reads and writes go
+//! through, plus the schema/migration plumbing shared by every db file.
 //!
-//! Path: `~/.ship/platform.db`. Migrations in `migrations/`.
-//! Actors are a logical boundary over this shared log — see
-//! `persistence::actor_store` for the namespace-scoped write/read handle.
+//! `platform.db` itself is dead (deleted in the 4d/B per-scope arc). Production
+//! never creates or reads it. The `Db::Platform` variant, `platform_db_path`,
+//! `ensure_db`/`ensure_db_at`/`open_db`/`db_path` resolve to that legacy file
+//! and survive ONLY for: (a) the one-time, `.exists()`-guarded legacy drain at
+//! boot (`apps/shipd/.../init.rs`) and the read-only migration-drift diagnostic
+//! (`ship repair`), and (b) `#[cfg(test)]` round-trips. Do not wire any of them
+//! into a new production write/read path — emit through the kernel
+//! (`PartitionedSink`) and read via the per-scope openers below.
 
 pub mod actor_events;
 pub mod cursors;
@@ -95,18 +101,21 @@ pub(crate) fn resolve_db_path(ship_dir: &Path, db: crate::Db) -> PathBuf {
         .join(db.as_str())
 }
 
-/// Platform database path: `~/.ship/machine/db/platform.db` (or the
-/// `Var::DevDbDir` override). Thin typed wrapper over [`resolve_db_path`].
+/// LEGACY platform.db path at the derived global ship-home:
+/// `~/.ship/machine/db/platform.db` (or the `Var::DevDbDir` override). Thin
+/// typed wrapper over [`resolve_db_path`].
 ///
-/// Never inside a project directory. Per-actor event stores are managed
-/// separately by `KernelRouter`. Tests get automatic isolation
-/// via `get_global_dir()`'s test-binary detection (per-thread temp dir).
+/// platform.db is dead (per-scope arc). This resolver survives for the guarded
+/// legacy drain / drift diagnostic and `#[cfg(test)]` round-trips only — do not
+/// use it to back a production read/write. Per-scope production paths are
+/// [`runtime_db_path`] / [`account_db_path`] / [`space_db_path`].
 pub fn db_path() -> Result<PathBuf> {
     Ok(resolve_db_path(&crate::project::get_global_dir()?, crate::Db::Platform))
 }
 
-/// Resolve the platform database path under a given ship-home root.
-/// Thin typed wrapper over [`resolve_db_path`].
+/// Resolve the LEGACY platform.db path under a given ship-home root. Thin typed
+/// wrapper over [`resolve_db_path`]. See [`db_path`] — legacy-migration / test
+/// only, never a production path.
 pub fn platform_db_path(ship_dir: &Path) -> PathBuf {
     resolve_db_path(ship_dir, crate::Db::Platform)
 }
@@ -210,17 +219,23 @@ pub fn open_kv_db_at(path: &Path) -> Result<SqliteConnection> {
     connect(path)
 }
 
-/// Open a connection, ensuring schema exists first.
+/// Open a connection to the LEGACY platform.db, ensuring schema first.
+/// Test-only round-trip helper — production reads use the per-scope openers
+/// ([`open_runtime_db`] / [`open_account_db`] / [`open_space_db`]).
 pub fn open_db() -> Result<SqliteConnection> {
     ensure_db()?;
     let path = db_path()?;
     connect(&path)
 }
 
-/// Ensure the schema is up to date via sqlx migrations.
+/// Ensure the LEGACY platform.db schema is up to date via sqlx migrations at
+/// the derived global path. Idempotent.
 ///
-/// Idempotent — sqlx tracks applied migrations in `_sqlx_migrations`.
-/// Connection-level PRAGMAs are set on every call.
+/// platform.db is dead (per-scope arc); this exists for the guarded legacy
+/// drain / drift diagnostic and `#[cfg(test)]` round-trips. A fresh production
+/// install never calls this (the boot gate is `.exists()`-guarded). To ensure a
+/// production event-log schema, use [`ensure_events_db_at_path`] on a per-scope
+/// db. Connection-level PRAGMAs are set on every call.
 pub fn ensure_db() -> Result<()> {
     let path = db_path()?;
     ensure_db_at_path(&path)
@@ -272,11 +287,13 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-/// Ensure the schema is up to date for a database at an explicit path.
+/// Ensure the LEGACY platform.db schema is up to date for an explicit ship-dir.
 ///
-/// Like `ensure_db()` but takes a `ship_dir` instead of deriving it from
-/// `get_global_dir()`. Use this in tests and handlers that receive `ship_dir`
-/// through `ApiState` to avoid env-var races.
+/// Like [`ensure_db`] but takes a `ship_dir` instead of deriving it from
+/// `get_global_dir()`. Only legitimate production caller is the `.exists()`-
+/// guarded one-time legacy drain at daemon boot (`apps/shipd/.../init.rs`);
+/// otherwise `#[cfg(test)]` only. Production handlers ensure their per-scope db
+/// via the per-scope openers — do not call this to "prepare" an event read.
 pub fn ensure_db_at(ship_dir: &Path) -> Result<()> {
     ensure_db_at_path(&platform_db_path(ship_dir))
 }

@@ -141,7 +141,8 @@ pub(crate) fn list_processes_at(
     ship_dir: &std::path::Path,
     slug: Option<&str>,
 ) -> anyhow::Result<Vec<ship_substrate::projections::process::ProcessRecord>> {
-    ship_substrate::db::ensure_db_at(ship_dir)?;
+    // Reads the Runtime partition (`runtime.db`); `list_recent_events_at`
+    // ensures that scope db's schema. No platform.db touch (per-scope, post-4d).
     let events = ship_substrate::db::events::list_recent_events_at(ship_dir, 50_000)?;
     let mut records = ship_substrate::projections::process::project(&events);
     if let Some(s) = slug {
@@ -156,7 +157,8 @@ pub(crate) fn load_recent_events_by_type(
     types: &[&str],
     limit: usize,
 ) -> anyhow::Result<Vec<ship_substrate::events::EventEnvelope>> {
-    ship_substrate::db::ensure_db_at(ship_dir)?;
+    // Reads the Runtime partition (`runtime.db`); `list_recent_events_at`
+    // ensures that scope db's schema. No platform.db touch (per-scope, post-4d).
     let events = ship_substrate::db::events::list_recent_events_at(ship_dir, limit)?;
     Ok(events
         .into_iter()

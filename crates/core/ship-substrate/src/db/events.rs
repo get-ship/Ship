@@ -131,19 +131,9 @@ pub fn query_events_by_entity_and_type_at(
     rows.iter().map(|r| envelope_from_row(r, true)).collect()
 }
 
-/// Query the most recent N events for a specific entity.
-pub fn query_recent_events_for_entity(
-    entity_id: &str,
-    limit: usize,
-) -> Result<Vec<EventEnvelope>> {
-    query_recent_events_for_entity_at(
-        &runtime_db_path(&crate::project::get_global_dir()?),
-        entity_id,
-        limit,
-    )
-}
-
-/// Same as `query_recent_events_for_entity` but against an explicit scope db path.
+/// Query the most recent N events for a specific entity against an explicit
+/// scope db path (callers pass the resolved per-scope db, e.g.
+/// `runtime_db_path(...)`).
 pub fn query_recent_events_for_entity_at(
     db_path: &std::path::Path,
     entity_id: &str,
