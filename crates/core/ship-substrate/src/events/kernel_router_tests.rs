@@ -283,3 +283,24 @@ async fn stopped_actor_mailbox_is_closed() {
     // Sender was dropped — recv returns None.
     assert!(mb.recv().await.is_none());
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn stop_actor_evicts_rate_counter() {
+    // #256: `emit` inserts a `RateCounter` per distinct originator/target id;
+    // `stop_actor` must evict it so heavy fanout (short-lived ids) doesn't
+    // strand counters forever. Mirrors the `actor_meta.remove` discipline.
+    let (_tmp, mut router) = setup();
+    let (_store, _mb) = router.spawn_actor("studio", studio_config()).unwrap();
+
+    // Emit an event AUTHORED by `studio` so its rate counter is bumped.
+    let event = ev("studio.canvas_updated").with_actor_id("studio");
+    router.emit(event, &runtime_ctx()).await.unwrap();
+    assert!(router.msg_rate("studio") > 0, "emit must bump the originator's counter");
+
+    router.stop_actor("studio").unwrap();
+    assert_eq!(
+        router.msg_rate("studio"),
+        0,
+        "stop_actor must evict the per-actor rate counter"
+    );
+}

@@ -266,6 +266,15 @@ impl KernelRouter {
             self.unstable_senders.remove(actor_id);
         }
 
+        // Evict the actor's rolling rate counter — `emit` inserts an entry
+        // per distinct originator/target id, so heavy fanout (short-lived
+        // lane / live-read ids) otherwise strands a permanent `RateCounter`
+        // for every id that ever emitted. Mirror the `actor_meta.remove` above.
+        self.rate_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(actor_id);
+
         let db_path = self.actor_db_path(actor_id);
         // Delegate to inner first to validate the actor exists.
         self.inner.stop_actor(actor_id)?;
