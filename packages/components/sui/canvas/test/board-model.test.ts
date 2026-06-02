@@ -189,6 +189,40 @@ describe('board-model — node dragging + snap', () => {
   })
 })
 
+describe('board-model — auto-layout (applyLayout)', () => {
+  it('layered repositions overlapping nodes into ranked, non-overlapping rects', () => {
+    // Both nodes seeded at the origin (fully overlapping) with an a→b edge.
+    const b = createBoardModel({
+      nodes: [node('a', 0, 0), node('b', 0, 0)],
+      edges: [{ id: 'e1', source: { node: 'a', port: 'a:out' }, target: { node: 'b', port: 'b:in' }, kind: 'bezier' }],
+    })
+    b.applyLayout({ layout: 'layered' })
+    const by = Object.fromEntries(b.nodes().map((n) => [n.id, n.rect]))
+    // a is the source rank, b the next rank → b sits to the right (LR default).
+    expect(by.b.x).toBeGreaterThan(by.a.x)
+  })
+
+  it("layout 'none' is a no-op (manual placement preserved)", () => {
+    const b = createBoardModel({ nodes: [node('a', 17, 23), node('b', 99, 5)] })
+    b.applyLayout({ layout: 'none' })
+    const by = Object.fromEntries(b.nodes().map((n) => [n.id, n.rect]))
+    expect(by.a).toMatchObject({ x: 17, y: 23 })
+    expect(by.b).toMatchObject({ x: 99, y: 5 })
+  })
+
+  it('routes follow the relaid-out node positions', () => {
+    const b = createBoardModel({
+      nodes: [node('a', 0, 0), node('b', 0, 0)],
+      edges: [{ id: 'e1', source: { node: 'a', port: 'a:out' }, target: { node: 'b', port: 'b:in' }, kind: 'straight' }],
+    })
+    const before = b.routes()[0].path
+    b.applyLayout({ layout: 'layered' })
+    const after = b.routes()[0].path
+    // Geometry moved, so the rendered edge path must change.
+    expect(after).not.toBe(before)
+  })
+})
+
 describe('board-model — pending edge (drag-from-port)', () => {
   it('begins, updates, and commits a pending edge', () => {
     const b = createBoardModel({ nodes: [node('a', 0, 0, 100, 60), node('b', 300, 0, 100, 60)] })

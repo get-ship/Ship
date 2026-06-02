@@ -9,6 +9,7 @@
 import { signal, derived, batch, untrack, type Derived } from '@ship/sui-runtime'
 import type { Rect, Vec2 } from '../../engine/types'
 import { routeEdge, type EdgeKind } from './edge-route'
+import { layoutBoard, type LayoutOptions } from './layout-adapter'
 
 export type PortSide = 'left' | 'right' | 'top' | 'bottom'
 
@@ -80,6 +81,8 @@ export interface BoardModel {
   // dragging
   moveNodeBy(id: string, dx: number, dy: number): void
   moveSelectionBy(dx: number, dy: number): void
+  // auto-layout
+  applyLayout(opts: LayoutOptions): void
   // selection
   setSelection(ids: string[]): void
   toggleSelection(id: string): void
@@ -211,6 +214,12 @@ export function createBoardModel(options: BoardModelOptions = {}): BoardModel {
     )
   }
 
+  function applyLayout(opts: LayoutOptions): void {
+    if (opts.layout === 'none') return
+    const next = layoutBoard(untrack(nodes), untrack(edges), opts)
+    nodes.set(next)
+  }
+
   function setSelection(ids: string[]): void {
     selection.set([...ids])
   }
@@ -270,6 +279,7 @@ export function createBoardModel(options: BoardModelOptions = {}): BoardModel {
     portAnchor,
     moveNodeBy,
     moveSelectionBy,
+    applyLayout,
     setSelection,
     toggleSelection,
     selectInRect,

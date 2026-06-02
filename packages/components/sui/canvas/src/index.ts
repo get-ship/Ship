@@ -13,6 +13,8 @@ import './sui-draw/sui-draw.compiled.js'
 
 export { createCanvas } from './engine/create-canvas'
 export { createBoardModel } from './sui-board/engine/board-model'
+export { layoutBoard } from './sui-board/engine/layout-adapter'
+export type { LayoutKind, LayoutOptions } from './sui-board/engine/layout-adapter'
 export { createDrawScene } from './sui-draw/engine/scene'
 export type {
   DrawScene,

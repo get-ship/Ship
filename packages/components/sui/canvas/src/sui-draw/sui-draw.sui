@@ -9,9 +9,11 @@
   <sui-canvas> as its substrate via prop:canvas identity and renders its scene
   into the world layer; selection/transform are an SVG overlay.
 
-  This REPLACES the deleted React + Excalidraw bridge. Konva-backed
-  resize/rotate transform handles are an explicit follow-up slice (see
-  Notes); v1 ships owned SVG-native strokes + shapes + selection + undo/redo.
+  This REPLACES the deleted React + Excalidraw bridge. v1 ships owned
+  SVG-native strokes + shapes + selection + move + undo/redo. Resize/rotate
+  transform handles are not implemented — the scene is intentionally
+  SVG-native (no canvas scene-graph engine), so when they land they will be
+  SVG-overlay handles driven by the scene model, not a vendored canvas lib.
 
   Props
   ─────────────────────────────────────────────────────────────────────

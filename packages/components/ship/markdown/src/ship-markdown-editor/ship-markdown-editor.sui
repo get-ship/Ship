@@ -1,0 +1,169 @@
+<bundle separate />
+<!--
+  <ship-markdown-editor> — SUI island wrapping TipTap v3.
+  Form-associated markdown editor with inline toolbar, selection bubble,
+  and comment composer. Lazy-loads TipTap on mount.
+-->
+
+<prop name="value" type="string" default="" form-value />
+<prop name="placeholder" type="string" default="" />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="tone" type="string" default="" reflect />
+<prop name="disabled" type="bool" default="false" reflect form-disabled />
+<prop name="invalid" type="bool" default="false" reflect />
+<prop name="rows" type="number" default="12" />
+<prop name="full-height" type="bool" default="false" reflect />
+<prop name="name" type="string" default="" reflect />
+<prop name="label" type="string" default="" />
+<prop name="show-selection-toolbar" type="bool" default="true" />
+<prop name="allow-comment" type="bool" default="true" />
+<prop name="allow-generate" type="bool" default="false" />
+
+<style>
+  /* Structural chrome — ProseMirror content, bubble, and composer CSS
+     are injected by the controller via adoptedStyleSheets. */
+  :host {
+    display: block;
+    width: 100%;
+    --tone: var(--ring-color);
+    --ed-min-h: 320px;
+  }
+  :host([hidden]) { display: none; }
+  :host([tone='info'])        { --tone: var(--info); }
+  :host([tone='success'])     { --tone: var(--success); }
+  :host([tone='warning'])     { --tone: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); }
+  :host([tone='accent'])      { --tone: var(--accent); }
+  :host([tone='muted'])       { --tone: var(--muted-foreground); }
+  :host(:not([size])), :host([size='md']) {
+    --ed-fs: 0.95rem; --ed-lh: 1.7;
+    --ed-pad-y: var(--space-4); --ed-pad-x: var(--space-5);
+    --ed-tb-h: 36px; --ed-tb-btn: 28px;
+  }
+  :host([size='sm']) {
+    --ed-fs: var(--text-sm); --ed-lh: 1.6;
+    --ed-pad-y: var(--space-3); --ed-pad-x: var(--space-4);
+    --ed-tb-h: 32px; --ed-tb-btn: 24px;
+  }
+  :host([size='lg']) {
+    --ed-fs: 1rem; --ed-lh: 1.75;
+    --ed-pad-y: var(--space-5); --ed-pad-x: var(--space-6);
+    --ed-tb-h: 40px; --ed-tb-btn: 32px;
+  }
+  :host([full-height]) .shell { height: 100%; min-height: 0; }
+  .shell {
+    position: relative;
+    display: flex; flex-direction: column;
+    background: var(--card); color: var(--foreground);
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xs); overflow: hidden;
+    min-height: var(--ed-min-h, 320px);
+    transition: border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out);
+  }
+  :host(:not([disabled])) .shell:hover {
+    border-color: color-mix(in oklch, var(--border) 160%, transparent);
+    box-shadow: var(--shadow-sm);
+  }
+  .shell:focus-within {
+    outline: none;
+    border-color: color-mix(in oklch, var(--tone) 70%, var(--border));
+    box-shadow: 0 0 0 var(--ring-width) color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+  }
+  :host([invalid]) .shell { border-color: color-mix(in oklch, var(--destructive) 65%, var(--border)); }
+  :host([invalid]) .shell:focus-within {
+    border-color: var(--destructive);
+    box-shadow: 0 0 0 var(--ring-width) color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent);
+  }
+  :host([disabled]) .shell { background: var(--muted); opacity: 0.6; cursor: not-allowed; }
+  .toolbar {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
+    padding: var(--space-1) 6px; min-height: var(--ed-tb-h);
+    background: color-mix(in oklch, var(--muted) 40%, var(--card));
+    border-bottom: 1px solid var(--border);
+  }
+  .toolbar button {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: var(--ed-tb-btn); height: var(--ed-tb-btn);
+    padding: 0; border: 0; background: transparent;
+    color: var(--muted-foreground); border-radius: var(--radius-sm);
+    cursor: pointer; font-family: var(--font-body); font-size: var(--text-sm);
+    transition: background-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
+  .toolbar button sui-icon { --tone-fg: currentColor; }
+  .toolbar button:hover:not(:disabled) { background: color-mix(in oklch, var(--muted) 80%, transparent); color: var(--foreground); }
+  .toolbar button:focus-visible { outline: none; box-shadow: 0 0 0 var(--ring-width) color-mix(in oklch, var(--tone) var(--ring-opacity), transparent); color: var(--foreground); }
+  .toolbar button[aria-pressed='true'], .toolbar button.is-active { background: color-mix(in oklch, var(--primary) 18%, var(--muted)); color: var(--foreground); }
+  .toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .toolbar sui-icon::part(svg) { width: 14px; height: 14px; }
+  .toolbar .divider { width: 1px; height: 18px; background: var(--border); margin: 0 var(--space-1); flex-shrink: 0; }
+  .surface { flex: 1; min-height: 0; overflow: auto; }
+  @media (forced-colors: active) {
+    .shell:focus-within { outline: 2px solid CanvasText; outline-offset: 2px; }
+    .toolbar button:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+  }
+</style>
+
+<div class="shell" part="shell" bind:this={shellEl}
+  aria-invalid={invalid() ? 'true' : null}
+  aria-disabled={disabled() ? 'true' : null}>
+  <div class="toolbar" part="toolbar" role="toolbar"
+    aria-label={label() || 'Editor toolbar'}
+    on:mousedown={(e) => e.preventDefault()}>
+    <button type="button" part="tb-bold" class:is-active={marks().bold} disabled={disabled()} data-action="bold" aria-label="Bold" aria-pressed={marks().bold ? 'true' : 'false'} title="Bold (Ctrl+B)" on:click={onToolbarClick}><sui-icon name="bold" size="sm" aria-hidden="true"></sui-icon></button>
+    <button type="button" part="tb-italic" class:is-active={marks().italic} disabled={disabled()} data-action="italic" aria-label="Italic" aria-pressed={marks().italic ? 'true' : 'false'} title="Italic (Ctrl+I)" on:click={onToolbarClick}><sui-icon name="italic" size="sm" aria-hidden="true"></sui-icon></button>
+    <button type="button" part="tb-code" class:is-active={marks().code} disabled={disabled()} data-action="code" aria-label="Inline code" aria-pressed={marks().code ? 'true' : 'false'} on:click={onToolbarClick}><sui-icon name="code-2" size="sm" aria-hidden="true"></sui-icon></button>
+    <span class="divider" aria-hidden="true"></span>
+    <button type="button" part="tb-h1" class:is-active={marks().h1} disabled={disabled()} data-action="h1" aria-label="Heading 1" aria-pressed={marks().h1 ? 'true' : 'false'} on:click={onToolbarClick}><sui-icon name="heading-1" size="sm" aria-hidden="true"></sui-icon></button>
+    <button type="button" part="tb-h2" class:is-active={marks().h2} disabled={disabled()} data-action="h2" aria-label="Heading 2" aria-pressed={marks().h2 ? 'true' : 'false'} on:click={onToolbarClick}><sui-icon name="heading-2" size="sm" aria-hidden="true"></sui-icon></button>
+    <button type="button" part="tb-h3" class:is-active={marks().h3} disabled={disabled()} data-action="h3" aria-label="Heading 3" aria-pressed={marks().h3 ? 'true' : 'false'} on:click={onToolbarClick}><sui-icon name="heading-3" size="sm" aria-hidden="true"></sui-icon></button>
+    <span class="divider" aria-hidden="true"></span>
+    <button type="button" part="tb-bullet" class:is-active={marks().bullet} disabled={disabled()} data-action="bullet" aria-label="Bullet list" aria-pressed={marks().bullet ? 'true' : 'false'} on:click={onToolbarClick}><sui-icon name="list" size="sm" aria-hidden="true"></sui-icon></button>
+    <button type="button" part="tb-ordered" class:is-active={marks().ordered} disabled={disabled()} data-action="ordered" aria-label="Ordered list" aria-pressed={marks().ordered ? 'true' : 'false'} on:click={onToolbarClick}><sui-icon name="list-ordered" size="sm" aria-hidden="true"></sui-icon></button>
+    <button type="button" part="tb-task" class:is-active={marks().task} disabled={disabled()} data-action="task" aria-label="Task list" aria-pressed={marks().task ? 'true' : 'false'} on:click={onToolbarClick}><sui-icon name="list-checks" size="sm" aria-hidden="true"></sui-icon></button>
+    <span class="divider" aria-hidden="true"></span>
+    <button type="button" part="tb-link" class:is-active={marks().link} disabled={disabled()} data-action="link" aria-label="Link" aria-pressed={marks().link ? 'true' : 'false'} title="Link (Ctrl+K)" on:click={onLinkClick}><sui-icon name="link-2" size="sm" aria-hidden="true"></sui-icon></button>
+  </div>
+  <div class="surface" part="surface">
+    <div part="editor" bind:this={editorHost}></div>
+  </div>
+  {#if showSelectionToolbar()}
+    <div class="bubble" part="bubble" role="toolbar" aria-label="Selection actions"
+      data-open={bubblePos() !== null && pending() === null ? 'true' : 'false'}
+      aria-hidden={bubblePos() !== null && pending() === null ? 'false' : 'true'}
+      style:top={bubblePos() ? (bubblePos().top + 'px') : '-9999px'}
+      style:left={bubblePos() ? (bubblePos().left + 'px') : '-9999px'}
+      on:mousedown={(e) => e.preventDefault()}>
+      <button type="button" part="bubble-bold" class:is-active={marks().bold} aria-label="Bold" aria-pressed={marks().bold ? 'true' : 'false'} data-action="bold" on:click={onBubbleFmt}><sui-icon name="bold" size="sm" aria-hidden="true"></sui-icon></button>
+      <button type="button" part="bubble-italic" class:is-active={marks().italic} aria-label="Italic" aria-pressed={marks().italic ? 'true' : 'false'} data-action="italic" on:click={onBubbleFmt}><sui-icon name="italic" size="sm" aria-hidden="true"></sui-icon></button>
+      <button type="button" part="bubble-strike" class:is-active={marks().strike} aria-label="Strike" aria-pressed={marks().strike ? 'true' : 'false'} data-action="strike" on:click={onBubbleFmt}><sui-icon name="strikethrough" size="sm" aria-hidden="true"></sui-icon></button>
+      <button type="button" part="bubble-code" class:is-active={marks().code} aria-label="Code" aria-pressed={marks().code ? 'true' : 'false'} data-action="code" on:click={onBubbleFmt}><sui-icon name="code-2" size="sm" aria-hidden="true"></sui-icon></button>
+      {#if allowComment() || allowGenerate()}
+        <span class="sep" aria-hidden="true"></span>
+      {/if}
+      {#if allowComment()}
+        <button type="button" part="bubble-comment" aria-label="Comment" on:click={onOpenComposer}><sui-icon name="message-circle" size="sm" aria-hidden="true"></sui-icon></button>
+      {/if}
+      {#if allowGenerate()}
+        <button type="button" part="bubble-generate" aria-label="Generate" on:click={onGenerate}><sui-icon name="sparkles" size="sm" aria-hidden="true"></sui-icon></button>
+      {/if}
+    </div>
+    {#if pending()}
+      <div class="composer" part="composer" role="dialog" aria-label="Add comment"
+        style:top={composerTop()}
+        style:left={composerLeft()}
+        on:mousedown={(e) => e.stopPropagation()}>
+        <div class="composer-quote">"{pendingQuote()}"</div>
+        <textarea rows="2" placeholder="Add your comment…" data-composer-input
+          bind:this={composerInputEl}
+          bind:value={composerValue}
+          on:keydown={onComposerKey}></textarea>
+        <div class="composer-actions">
+          <button type="button" class="cancel" on:click={onCancel}>Cancel</button>
+          <button type="button" class="submit" disabled={!composerValue().trim()} on:click={onSubmit}>Add comment <kbd>⌘↵</kbd></button>
+        </div>
+      </div>
+    {/if}
+  {/if}
+</div>

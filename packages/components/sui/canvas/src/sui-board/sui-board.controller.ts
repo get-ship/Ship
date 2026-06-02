@@ -3,6 +3,7 @@ import type { Scope } from './sui-board.sui'
 import { createCanvas } from '../engine/create-canvas'
 import { createBoardModel, type Node, type Edge, type PortRef } from './engine/board-model'
 import { applyBoardKey } from './engine/board-keys'
+import type { LayoutKind } from './engine/layout-adapter'
 
 // SSR fallback = the verified sui-combobox shape: plain JSON.parse, try/caught.
 // The live path is prop:* identity onto the board model.
@@ -19,7 +20,7 @@ function parseBoard(raw: string): { nodes?: Node[]; edges?: Edge[] } | null {
 // substrate. Geometry lives in the board model (world coords); the view maps
 // to screen through the substrate transform. Node visuals are a per-node slot.
 export default controller<Scope>({
-  scope: ({ value }) => {
+  scope: ({ value, layout }) => {
     const seed = parseBoard(value())
     const board = createBoardModel({
       nodes: seed?.nodes ?? [],
@@ -34,7 +35,7 @@ export default controller<Scope>({
     // Outbound debounced change source: a monotonic version bumped on mutation.
     const version = signal(0)
     const changeSrc = debounce(version, 200)
-    return { board, canvas, draggingNode, lastPointer, version, changeSrc }
+    return { board, canvas, draggingNode, lastPointer, version, changeSrc, layout }
   },
 
   derived: {
@@ -161,12 +162,26 @@ export default controller<Scope>({
       host.emit!('sui-node-select', { ids })
     })
 
+    // Auto-layout: when the `layout` prop changes to a real algorithm, re-lay
+    // out the board through the pure adapter and bump the change version so the
+    // new geometry is announced. 'none' is a no-op (manual placement wins).
+    let lastLayout: LayoutKind | null = null
+    const stopLayout = effect(() => {
+      const kind = (state.layout || 'none') as LayoutKind
+      if (kind === lastLayout) return
+      lastLayout = kind
+      if (kind === 'none') return
+      board.applyLayout({ layout: kind })
+      state.version = state.version + 1
+    })
+
     return () => {
       host.removeEventListener('pointermove', onMove as EventListener)
       host.removeEventListener('pointerup', onUp as EventListener)
       host.removeEventListener('keydown', onKey as EventListener)
       stopChange()
       stopSel()
+      stopLayout()
       canvas.dispose()
     }
   },
