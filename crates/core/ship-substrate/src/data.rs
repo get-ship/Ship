@@ -49,6 +49,17 @@ impl DataService {
         Ok(Self { conn, db_path })
     }
 
+    /// Open a managed SQLite connection at an explicit db-file path (no
+    /// startup). This is the seam for the event-sourced data plane: collections
+    /// bind their `DataStore` to the SAME per-scope db (`spaces/<id>/space.db`)
+    /// that the projection bus materializes the collection table into, so a
+    /// query reads exactly what the projection wrote. Creates parent dirs and
+    /// applies WAL mode; the file is created if missing.
+    pub fn open_at(db_path: &Path) -> Result<Self> {
+        let conn = open_connection(db_path)?;
+        Ok(Self { conn, db_path: db_path.to_path_buf() })
+    }
+
     /// Register built-in schemas. Idempotent — safe to call on every open.
     /// The actual schema registrations are injected by ship-platform via
     /// `DataService::register_schema`; this is a no-op at the substrate level.
@@ -210,7 +221,15 @@ fn open_connection(db_path: &Path) -> Result<SqliteConnection> {
     let opts = SqliteConnectOptions::from_str(&url)
         .with_context(|| format!("invalid sqlite url: {url}"))?
         .create_if_missing(true)
-        .busy_timeout(std::time::Duration::from_secs(5));
+        .busy_timeout(std::time::Duration::from_secs(5))
+        // Collections are event-sourced: the `CollectionProjection` mutates a
+        // collection table (ADD COLUMN on additive schema change) from the
+        // event-store's OWN connection, while this long-lived `DataService`
+        // connection reads it. A cached `SELECT *` prepared statement would
+        // carry the pre-ALTER column list and panic on decode. Disabling the
+        // statement cache makes every query re-read the current schema — the
+        // correct trade for a read model another connection evolves.
+        .statement_cache_capacity(0);
 
     let mut conn = crate::db::block_on(async {
         SqliteConnection::connect_with(&opts).await

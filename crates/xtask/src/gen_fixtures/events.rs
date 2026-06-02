@@ -116,8 +116,22 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "ArtifactDeleted" => json!({ "id": "test-artifact-id", "scope": "space" }),
 
         // ── Collection events ────────────────────────────────────────────────
-        "CollectionItemCreated" => json!({ "collection_id": "test-collection", "item_id": "test-item" }),
-        "CollectionItemUpdated" => json!({ "collection_id": "test-collection", "item_id": "test-item" }),
+        // item_created/updated are projection-complete: they carry the full
+        // item / patch data + timestamps so `CollectionProjection` rebuilds the
+        // row from the event alone (event-sourced, no read-back).
+        "CollectionItemCreated" => json!({
+            "collection_id": "test-collection",
+            "item_id": "test-item",
+            "data": { "title": "test" },
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }),
+        "CollectionItemUpdated" => json!({
+            "collection_id": "test-collection",
+            "item_id": "test-item",
+            "data": { "title": "updated" },
+            "updated_at": "2026-01-01T00:00:00Z"
+        }),
         "CollectionItemDeleted" => json!({ "collection_id": "test-collection", "item_id": "test-item" }),
 
         // ── Compile events ───────────────────────────────────────────────────

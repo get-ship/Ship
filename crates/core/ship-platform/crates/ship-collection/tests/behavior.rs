@@ -31,7 +31,11 @@ fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
 
 fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext> {
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
-    let svc = DataService::open(&ship_dir).unwrap();
+    // Collections are event-sourced: bind the data store to the SAME per-scope
+    // `spaces/test/space.db` the kernel routes `collection.*` (Space-scoped)
+    // events to, so the `CollectionProjection`'s writes are read back here.
+    let space_db = ship_substrate::db::space_db_path(&ship_dir, "test");
+    let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, "test"));
     Arc::new(SpaceContext::new(SpaceId::new("test"), store, kernel))
 }

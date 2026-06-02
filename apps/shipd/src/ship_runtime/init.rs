@@ -164,7 +164,12 @@ impl ShipRuntime {
         // `collections()`/`artifacts()` accessors construct stateless services
         // over these per call; the collection wire is mounted with the SAME
         // registry so a wire-created schema is visible to trigger inserts.
-        let collection_ctx = build_space_context_arc(kernel.clone(), global_dir, "global");
+        // Collections are event-sourced (ADR D6/D7): the read path must bind to
+        // the SAME per-scope `spaces/<id>/space.db` that the `CollectionProjection`
+        // materializes the table into, so a query reads exactly what the
+        // projection wrote. Artifacts are NOT yet event-sourced (sibling slice)
+        // and keep the shared data.db backing.
+        let collection_ctx = build_collection_space_context_arc(kernel.clone(), global_dir, "global");
         let artifact_ctx = build_space_context_arc(kernel.clone(), global_dir, "global");
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
         // Hydrate user-authored `.ship/collections/*.jsonc` schemas into the
@@ -422,6 +427,27 @@ pub fn build_space_context_arc(
     space_id: &str,
 ) -> Arc<ship_substrate::ports::SpaceContext> {
     Arc::new(build_space_context(kernel, ship_dir, space_id))
+}
+
+/// Construct a `SpaceContext` for COLLECTIONS, with the `DataStore` bound to the
+/// space's per-scope event db (`spaces/<id>/space.db`) rather than the shared
+/// `data.db`. Collections are event-sourced: the `CollectionProjection` writes
+/// the `collection_<id>` tables into that per-scope db inside the append
+/// transaction, so the read path must query the SAME file (ADR D6/D7).
+pub fn build_collection_space_context_arc(
+    kernel: super::SharedKernel,
+    ship_dir: &Path,
+    space_id: &str,
+) -> Arc<ship_substrate::ports::SpaceContext> {
+    use ship_substrate::data::DataService;
+    use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+
+    let space_db = ship_substrate::db::space_db_path(ship_dir, space_id);
+    let data_svc =
+        DataService::open_at(&space_db).expect("data service over space.db for collections");
+    let data_store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
+    let kernel_log = Arc::new(KernelLog::new(kernel));
+    Arc::new(SpaceContext::new(SpaceId::new(space_id), data_store, kernel_log))
 }
 
 /// Emit a single INFO line with event-log health at startup. Gives operators

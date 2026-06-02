@@ -16,7 +16,11 @@
     "occurred_at": "2026-01-01T00:00:00Z",
     "payload": {
       "collection_id": "test-collection",
-      "item_id": "test-item"
+      "item_id": "test-item",
+      "data": {
+        "title": "updated"
+      },
+      "updated_at": "2026-01-01T00:00:00Z"
     }
   }
 }

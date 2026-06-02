@@ -1,8 +1,8 @@
-//! Row building and conversion helpers for the collection service.
+//! Row conversion helpers for the collection service.
 
 use ship_substrate::ports::Row;
 
-use crate::types::{ItemRecord, SchemaDoc};
+use crate::types::ItemRecord;
 
 pub(crate) fn emit_ctx(space_id: &str) -> ship_substrate::events::validator::EmitContext {
     // `collection.*` events are Space-scoped and the kernel fail-closes a
@@ -20,30 +20,6 @@ pub(crate) fn now_rfc3339() -> String {
 
 pub(crate) fn new_ulid() -> String {
     ulid::Ulid::new().to_string()
-}
-
-pub(crate) fn build_row(
-    id: &str,
-    schema: &SchemaDoc,
-    data: &serde_json::Map<String, serde_json::Value>,
-    created_at: &str,
-    updated_at: &str,
-) -> Row {
-    let mut row = Row::new(id);
-    row = row.with("created_at", serde_json::Value::String(created_at.to_string()));
-    row = row.with("updated_at", serde_json::Value::String(updated_at.to_string()));
-    for (name, _field) in &schema.fields {
-        if let Some(val) = data.get(name) {
-            let stored = match val {
-                serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-                    serde_json::Value::String(val.to_string())
-                }
-                other => other.clone(),
-            };
-            row = row.with(name, stored);
-        }
-    }
-    row
 }
 
 pub(crate) fn row_to_item(row: Row, collection: &str) -> ItemRecord {
