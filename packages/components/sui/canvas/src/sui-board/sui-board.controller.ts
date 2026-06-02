@@ -2,6 +2,7 @@ import { controller, signal, derived, effect, debounce } from '@ship/sui-runtime
 import type { Scope } from './sui-board.sui'
 import { createCanvas } from '../engine/create-canvas'
 import { createBoardModel, type Node, type Edge, type PortRef } from './engine/board-model'
+import { applyBoardKey } from './engine/board-keys'
 
 // SSR fallback = the verified sui-combobox shape: plain JSON.parse, try/caught.
 // The live path is prop:* identity onto the board model.
@@ -60,7 +61,10 @@ export default controller<Scope>({
       else if (!s.board.selectedNodes().includes(id)) s.board.setSelection([id])
       s.draggingNode = id
       s.lastPointer = { x: e.clientX, y: e.clientY }
-      el.setPointerCapture?.(e.pointerId)
+      // Capture on the host — the same element the pointermove/up listeners are
+      // bound to (B3). Capturing on the node while listening on the host meant a
+      // slotted child's stopPropagation could wedge the drag.
+      ;(el.getRootNode() as ShadowRoot).host?.setPointerCapture?.(e.pointerId)
       e.stopPropagation()
     },
     portPointerDown: (s, e: PointerEvent) => {
@@ -101,7 +105,6 @@ export default controller<Scope>({
       if (state.draggingNode) {
         state.draggingNode = null
         state.lastPointer = null
-        host.emit!('sui-node-select', { ids: board.selectedNodes() })
       }
       const pe = board.pendingEdge()
       if (pe) {
@@ -116,12 +119,20 @@ export default controller<Scope>({
         }
       }
     }
+    // Keyboard operability (B1) — board nodes are tabindex=0 role=group, so they
+    // must be operable, not just focusable. The focused node is resolved from the
+    // event target; arrow keys nudge it (or the whole selection if it is part of
+    // one) in world space, Enter/Space select it, Escape clears selection. The
+    // pure resolver lives in engine/board-keys; all mutations route through the
+    // board model so the selection effect stays the single emit path (B2).
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        board.clearSelection()
-        board.cancelEdge()
-        host.emit!('sui-node-select', { ids: [] })
-      }
+      const el = (e.target as HTMLElement | null)?.closest?.('[data-node-id]') as HTMLElement | null
+      const focusedId = el?.dataset.nodeId ?? null
+      const before = board.serialize()
+      const acted = applyBoardKey(board, e, focusedId, canvas.transform().scale)
+      if (!acted) return
+      if (board.serialize() !== before) state.version = state.version + 1
+      e.preventDefault()
     }
     host.addEventListener('pointermove', onMove as EventListener)
     host.addEventListener('pointerup', onUp as EventListener)
@@ -134,8 +145,20 @@ export default controller<Scope>({
       host.emit!('sui-board-change', { value: board.serialize(), version: v })
     })
     // Announce selection changes on the host (live-region consumers read it).
+    // SINGLE emit path (B2): deduped against the last-emitted selection (the
+    // sui-combobox lastEmitted pattern) and skipping the initial mount value so
+    // there is no spurious empty emit and no double fire on drag-end.
+    let lastEmitted: string | null = null
     const stopSel = effect(() => {
-      host.emit!('sui-node-select', { ids: board.selectedNodes() })
+      const ids = board.selectedNodes()
+      const key = ids.join(' ')
+      if (lastEmitted === null) {
+        lastEmitted = key // prime on mount; do not emit the initial value
+        return
+      }
+      if (key === lastEmitted) return
+      lastEmitted = key
+      host.emit!('sui-node-select', { ids })
     })
 
     return () => {
