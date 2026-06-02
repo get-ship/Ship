@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.micahcotton.ship",
   "build": {
-    "beforeDevCommand": "VITE_PORT=3200 bun run dev",
+    "beforeDevCommand": "",
     "beforeBuildCommand": "bun run build",
     "frontendDist": "bootstrap",
-    "devUrl": "http://127.0.0.1:3200"
+    "devUrl": "http://127.0.0.1:9330/hub"
   },
   "app": {
     "withGlobalTauri": true,

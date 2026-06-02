@@ -64,7 +64,14 @@ pub fn run() {
                         let _ = window.set_title(&format!("Ship — {id}"));
                         format!("/space/{id}")
                     }
-                    None => "/hub".to_string(),
+                    // Hub by default; `SHIP_SHELL_TARGET` overrides the landing
+                    // path for dev — point the window straight at an internal view
+                    // (e.g. `/component-viewer`) while the hub's default `home`
+                    // route is still being wired by window-actors.
+                    None => std::env::var("SHIP_SHELL_TARGET")
+                        .ok()
+                        .filter(|s| s.starts_with('/'))
+                        .unwrap_or_else(|| "/hub".to_string()),
                 };
                 if let Some(port) = crate::daemon::daemon_status().port {
                     if let Ok(url) = format!("http://127.0.0.1:{port}{target}").parse() {
