@@ -5,12 +5,11 @@
 //!
 //! - `EventScope::Space`   → `spaces/<scope_key>/space.db`
 //! - `EventScope::Account` → `account.db`
-//! - `EventScope::Device`  → `device.db`
-//! - `EventScope::System`  → `system.db`
+//! - `EventScope::Runtime` → `runtime.db`
 //!
 //! Each backing db is a lazily-opened, cached [`SqliteEventStore`]. The cache
-//! key is the resolved db identity (`"space:<id>"`, `"account"`, `"device"`,
-//! `"system"`) so the same store is reused across persists.
+//! key is the resolved db identity (`"space:<id>"`, `"account"`, `"runtime"`)
+//! so the same store is reused across persists.
 //!
 //! SCOPE BOUNDARY (Phase 4): this is a complete, isolated component. It is NOT
 //! yet wired into `KernelRouter` (whose sink stays `platform.db`-backed) and it
@@ -59,11 +58,8 @@ impl PartitionedSink {
             EventScope::Account => {
                 Ok(("account".to_string(), db::account_db_path(&self.root)))
             }
-            EventScope::Device => {
-                Ok(("device".to_string(), db::device_db_path(&self.root)))
-            }
-            EventScope::System => {
-                Ok(("system".to_string(), db::system_db_path(&self.root)))
+            EventScope::Runtime => {
+                Ok(("runtime".to_string(), db::runtime_db_path(&self.root)))
             }
         }
     }

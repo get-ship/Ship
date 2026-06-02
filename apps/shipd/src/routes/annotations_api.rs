@@ -89,7 +89,7 @@ pub(crate) async fn post_annotation_core(
     let schema = annotations_schema();
     // Annotations are space content (`collection.item_created` is Space-scoped):
     // bind the session's resolved space.
-    let space = auth.binding.space_id().map(|s| s.0.clone());
+    let space = auth.space_id.clone();
     if let Err(e) = collection_service::create_item(
         data,
         state.kernel(),

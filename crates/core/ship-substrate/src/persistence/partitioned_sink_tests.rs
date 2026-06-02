@@ -55,11 +55,10 @@ fn space_event_isolated_from_other_scopes() {
     let ev = event(EventScope::Space, Some("A"));
     sink.persist(&ev).unwrap();
 
-    // Not in another space, nor in account/device/system.
+    // Not in another space, nor in account/runtime.
     assert!(!has_event(&db::space_db_path(root, "B"), &ev.id));
     assert!(!has_event(&db::account_db_path(root), &ev.id));
-    assert!(!has_event(&db::device_db_path(root), &ev.id));
-    assert!(!has_event(&db::system_db_path(root), &ev.id));
+    assert!(!has_event(&db::runtime_db_path(root), &ev.id));
 }
 
 #[test]
@@ -90,36 +89,20 @@ fn account_event_routes_to_account_db() {
     sink.persist(&ev).unwrap();
 
     assert!(has_event(&db::account_db_path(root), &ev.id));
-    assert!(!has_event(&db::device_db_path(root), &ev.id));
-    assert!(!has_event(&db::system_db_path(root), &ev.id));
+    assert!(!has_event(&db::runtime_db_path(root), &ev.id));
 }
 
 #[test]
-fn device_event_routes_to_device_db() {
+fn runtime_event_routes_to_runtime_db() {
     let tmp = tempdir().unwrap();
     let root = tmp.path();
     let sink = PartitionedSink::new(root.to_path_buf());
 
-    let ev = event(EventScope::Device, Some("dev-1"));
+    let ev = event(EventScope::Runtime, Some("machine-1"));
     sink.persist(&ev).unwrap();
 
-    assert!(has_event(&db::device_db_path(root), &ev.id));
+    assert!(has_event(&db::runtime_db_path(root), &ev.id));
     assert!(!has_event(&db::account_db_path(root), &ev.id));
-    assert!(!has_event(&db::system_db_path(root), &ev.id));
-}
-
-#[test]
-fn system_event_routes_to_system_db() {
-    let tmp = tempdir().unwrap();
-    let root = tmp.path();
-    let sink = PartitionedSink::new(root.to_path_buf());
-
-    let ev = event(EventScope::System, None);
-    sink.persist(&ev).unwrap();
-
-    assert!(has_event(&db::system_db_path(root), &ev.id));
-    assert!(!has_event(&db::account_db_path(root), &ev.id));
-    assert!(!has_event(&db::device_db_path(root), &ev.id));
 }
 
 #[test]
@@ -140,7 +123,7 @@ fn implements_event_sink_trait_as_arc() {
     let tmp = tempdir().unwrap();
     let root = tmp.path();
     let sink: Arc<dyn EventSink> = Arc::new(PartitionedSink::new(root.to_path_buf()));
-    let ev = event(EventScope::System, None);
+    let ev = event(EventScope::Runtime, Some("machine-1"));
     sink.persist(&ev).unwrap();
-    assert!(has_event(&db::system_db_path(root), &ev.id));
+    assert!(has_event(&db::runtime_db_path(root), &ev.id));
 }

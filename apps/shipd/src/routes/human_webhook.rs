@@ -88,8 +88,8 @@ pub async fn telegram_webhook(
 
     // `human.response` is poly-scopic {Space, System, Account}. At the Telegram
     // ingress only `chat_id` is known — the target run/space is resolved
-    // downstream by gate correlation — so emit under System (meta-OS control
-    // plane). A space-bound re-emit can attach the resolved space later.
+    // downstream by gate correlation — so emit under Runtime (per-machine
+    // ingress). A space-bound re-emit can attach the resolved space later.
     let envelope = match EventEnvelope::new(
         "human.response",
         "human",
@@ -99,7 +99,7 @@ pub async fn telegram_webhook(
             "chat_id": chat_id,
         }),
     ) {
-        Ok(e) => e.with_scope(EventScope::System, None),
+        Ok(e) => e.with_scope(EventScope::Runtime, None),
         Err(e) => {
             warn!("[human-webhook] failed to build event envelope: {e}");
             return StatusCode::INTERNAL_SERVER_ERROR;

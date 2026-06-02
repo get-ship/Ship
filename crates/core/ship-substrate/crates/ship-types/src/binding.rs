@@ -101,18 +101,17 @@ impl ScopeBinding {
     }
 
     /// The binding's key for a given scope axis:
-    /// Space→space_id, Account→account_id, Device→Some(device_id), System→None.
+    /// Space→space_id, Account→account_id, Runtime→Some(machine/device id).
     ///
     /// Returns `None` when the binding carries no key for that axis (e.g. a
-    /// space-unbound caller asked for the Space key, or any caller asked for
-    /// the keyless System scope). `enforce_scope` turns an absent Space key
-    /// into a hard reject; the others stamp whatever this returns.
+    /// space-unbound caller asked for the Space key). `enforce_scope` turns an
+    /// absent Space key into a hard reject; the others stamp whatever this
+    /// returns.
     pub fn key_for(&self, scope: EventScope) -> Option<String> {
         match scope {
             EventScope::Space => self.space_id.as_ref().map(|s| s.0.clone()),
             EventScope::Account => self.account_id.as_ref().map(|a| a.0.clone()),
-            EventScope::Device => Some(self.device_id.0.clone()),
-            EventScope::System => None,
+            EventScope::Runtime => Some(self.device_id.0.clone()),
         }
     }
 }

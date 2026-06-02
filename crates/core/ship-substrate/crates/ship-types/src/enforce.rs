@@ -28,8 +28,7 @@ use crate::envelope::EventEnvelope;
 /// - **Space event, key present == binding space** → ok, untouched.
 /// - **Space event, key present != binding space** → `CrossSpace` reject.
 /// - **Space-unbound caller emitting a Space event** → `NoSpaceForSpaceEvent`.
-/// - **Account / Device / System event** → stamp the matching binding key
-///   (System → `None`); no cross-check.
+/// - **Account / Runtime event** → stamp the matching binding key; no cross-check.
 pub fn enforce_scope(
     env: &mut EventEnvelope,
     binding: &ScopeBinding,

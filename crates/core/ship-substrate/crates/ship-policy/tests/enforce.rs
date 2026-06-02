@@ -72,17 +72,18 @@ fn account_event_is_stamped_with_account_key() {
 }
 
 #[test]
-fn device_event_is_stamped_with_device_key() {
-    let mut e = env(EventScope::Device, None);
+fn runtime_event_is_stamped_with_machine_key() {
+    let mut e = env(EventScope::Runtime, None);
     enforce_scope(&mut e, &space_binding("space-A")).expect("stamp");
     assert_eq!(e.scope_key.as_deref(), Some("dev-1"));
 }
 
 #[test]
-fn system_event_key_is_none() {
-    let mut e = env(EventScope::System, Some("leftover"));
+fn runtime_event_key_is_machine_id_even_with_leftover() {
+    // A leftover key on a Runtime event is overwritten by the binding's machine id.
+    let mut e = env(EventScope::Runtime, Some("leftover"));
     enforce_scope(&mut e, &space_binding("space-A")).expect("stamp");
-    assert_eq!(e.scope_key, None);
+    assert_eq!(e.scope_key.as_deref(), Some("dev-1"));
 }
 
 #[test]
@@ -90,7 +91,6 @@ fn key_for_returns_axis_keys() {
     let b = space_binding("space-A");
     assert_eq!(b.key_for(EventScope::Space).as_deref(), Some("space-A"));
     assert_eq!(b.key_for(EventScope::Account).as_deref(), Some("acct-1"));
-    assert_eq!(b.key_for(EventScope::Device).as_deref(), Some("dev-1"));
-    assert_eq!(b.key_for(EventScope::System), None);
+    assert_eq!(b.key_for(EventScope::Runtime).as_deref(), Some("dev-1"));
     assert_eq!(spaceless_binding().key_for(EventScope::Space), None);
 }

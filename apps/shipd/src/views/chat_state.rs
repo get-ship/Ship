@@ -123,7 +123,7 @@ mod tests {
             scope: if ws.is_some() {
                 ship_substrate::events::EventScope::Space
             } else {
-                ship_substrate::events::EventScope::Device
+                ship_substrate::events::EventScope::Runtime
             },
             scope_key: ws.map(String::from),
             session_id: None,

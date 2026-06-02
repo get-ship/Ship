@@ -138,13 +138,13 @@ fn allowed_set_chosen_in_set_and_authorized_passes() {
 fn allowed_set_chosen_not_in_set_is_rejected() {
     let mut e = EventEnvelope::new("artifact.created", "art-1", &serde_json::json!({}))
         .expect("envelope")
-        .with_scope(EventScope::System, None);
+        .with_scope(EventScope::Runtime, None);
     let err = enforce_scope(&mut e, &space_binding("space-A")).unwrap_err();
     assert_eq!(
         err,
         ScopeViolation::ScopeNotAllowed {
             event_type: "artifact.created".to_string(),
-            chosen: EventScope::System,
+            chosen: EventScope::Runtime,
             allowed: vec![EventScope::Space],
         }
     );
@@ -172,10 +172,11 @@ fn allowed_set_unregistered_event_skips_membership() {
     );
     let mut e = EventEnvelope::new("test.adhoc", "x", &serde_json::json!({}))
         .expect("envelope")
-        .with_scope(EventScope::System, None);
-    // System chosen, no declared restriction → passes (key None).
+        .with_scope(EventScope::Runtime, None);
+    // Runtime chosen, no declared restriction → passes; key stamped from the
+    // binding's device/machine id.
     enforce_scope(&mut e, &space_binding("space-A")).expect("unregistered: no membership reject");
-    assert_eq!(e.scope_key, None);
+    assert_eq!(e.scope_key.as_deref(), Some("dev-1"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -190,18 +191,11 @@ async fn emit_stamps_non_space_keys_without_cross_check() {
     let p = read_back(&tmp, &acct_id).unwrap();
     assert_eq!(p.scope_key.as_deref(), Some("acct-1"));
 
-    // Device → device key.
-    let dev = ev("studio.canvas_updated").with_scope(EventScope::Device, None);
-    let dev_id = dev.id.clone();
-    router.emit(dev, &ctx_with(binding.clone())).await.unwrap();
-    let p = read_back(&tmp, &dev_id).unwrap();
+    // Runtime → machine/device key, no cross-check.
+    let rt = ev("studio.canvas_updated").with_scope(EventScope::Runtime, None);
+    let rt_id = rt.id.clone();
+    router.emit(rt, &ctx_with(binding)).await.unwrap();
+    let p = read_back(&tmp, &rt_id).unwrap();
     assert_eq!(p.scope_key.as_deref(), Some("dev-1"));
-
-    // System → None, no cross-check.
-    let sys = ev("studio.canvas_updated").with_scope(EventScope::System, None);
-    let sys_id = sys.id.clone();
-    router.emit(sys, &ctx_with(binding)).await.unwrap();
-    let p = read_back(&tmp, &sys_id).unwrap();
-    assert_eq!(p.scope_key, None);
     assert_eq!(p.author_device_id.as_deref(), Some("dev-1"));
 }

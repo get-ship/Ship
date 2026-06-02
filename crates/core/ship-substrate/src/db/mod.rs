@@ -121,42 +121,37 @@ pub fn kv_db_path(ship_dir: &Path) -> PathBuf {
     resolve_db_path(ship_dir, crate::Db::Kv)
 }
 
-/// Per-scope event-log path resolvers (Phase 4b).
+/// Per-scope event-log path resolvers.
 ///
 /// These sit at the ship-home root (NOT under `machine/db/`, and NOT subject to
-/// the `Var::DevDbDir` override) per north-star §2's on-disk layout:
+/// the `Var::DevDbDir` override) per the on-disk layout, one db file per
+/// EventScope partition:
 ///
 /// - Space    → `<ship_dir>/spaces/<space_id>/space.db`
-/// - Device   → `<ship_dir>/device.db`
 /// - Account  → `<ship_dir>/account.db`
-/// - System   → `<ship_dir>/system.db`
+/// - Runtime  → `<ship_dir>/runtime.db`
 ///
 /// They back `PartitionedSink`'s scope routing. The existing `platform_db_path`
-/// is intentionally left untouched — 4d-era reads still resolve through it.
+/// is intentionally left untouched.
 pub const SPACES_DIR: &str = "spaces";
 const SPACE_DB_FILE: &str = "space.db";
-const DEVICE_DB_FILE: &str = "device.db";
+const RUNTIME_DB_FILE: &str = "runtime.db";
 const ACCOUNT_DB_FILE: &str = "account.db";
-const SYSTEM_DB_FILE: &str = "system.db";
 
 /// `<ship_dir>/spaces/<space_id>/space.db`.
 pub fn space_db_path(ship_dir: &Path, space_id: &str) -> PathBuf {
     ship_dir.join(SPACES_DIR).join(space_id).join(SPACE_DB_FILE)
 }
 
-/// `<ship_dir>/device.db`.
-pub fn device_db_path(ship_dir: &Path) -> PathBuf {
-    ship_dir.join(DEVICE_DB_FILE)
+/// `<ship_dir>/runtime.db` — per-machine execution state (replaces the former
+/// `device.db` + `system.db`).
+pub fn runtime_db_path(ship_dir: &Path) -> PathBuf {
+    ship_dir.join(RUNTIME_DB_FILE)
 }
 
 /// `<ship_dir>/account.db`.
 pub fn account_db_path(ship_dir: &Path) -> PathBuf {
     ship_dir.join(ACCOUNT_DB_FILE)
-}
-
-/// `<ship_dir>/system.db`.
-pub fn system_db_path(ship_dir: &Path) -> PathBuf {
-    ship_dir.join(SYSTEM_DB_FILE)
 }
 
 /// Ensure the events schema is initialized at an explicit per-scope db path.

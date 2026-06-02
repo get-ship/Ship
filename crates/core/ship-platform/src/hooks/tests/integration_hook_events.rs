@@ -14,6 +14,7 @@
 ///   - Cursor camelCase schema recognised by `handle_before_tool`
 ///   - Error response inside `handle_after_tool` → skill.failed with message
 use ship_substrate::events::types::event_types;
+use ship_substrate::events::EventScope;
 
 use crate::hooks::{handle_after_tool, handle_before_tool, handle_session_end, handle_session_start};
 
@@ -26,8 +27,12 @@ fn hooks_hook_events_session_start_actor_and_workspace_wired() {
     assert_eq!(event.event_type, event_types::SESSION_STARTED);
     assert_eq!(event.actor_id.as_deref(), Some("actor-a"),
         "actor_id must match the actor argument");
-    assert_eq!(event.space_id(), Some("ws-a"),
-        "scope_key must match the workspace_id argument");
+    // session.started is Runtime-owned: NOT space-scoped. The workspace is a
+    // captured payload field, not the envelope scope.
+    assert_eq!(event.scope, EventScope::Runtime);
+    assert_eq!(event.space_id(), None);
+    assert!(event.payload_json.contains("ws-a"),
+        "workspace must be recorded in the payload");
 }
 
 #[test]
@@ -36,7 +41,9 @@ fn hooks_hook_events_session_end_actor_and_workspace_wired() {
         .expect("handle_session_end must succeed");
     assert_eq!(event.event_type, event_types::SESSION_ENDED);
     assert_eq!(event.actor_id.as_deref(), Some("actor-b"));
-    assert_eq!(event.space_id(), Some("ws-b"));
+    // session.ended is Runtime-owned: NOT space-scoped.
+    assert_eq!(event.scope, EventScope::Runtime);
+    assert_eq!(event.space_id(), None);
 }
 
 #[test]
@@ -53,11 +60,14 @@ fn hooks_hook_events_session_lifecycle_event_types_differ() {
 
 #[test]
 fn hooks_hook_events_session_start_workspace_survives_different_actors() {
-    // Verify that the workspace_id arg is threaded correctly regardless of actor.
+    // session.started is Runtime-owned: neither carries a Space scope. The
+    // workspace is recorded in the payload regardless of actor.
     let e1 = handle_session_start("actor-x", "shared-ws").unwrap();
     let e2 = handle_session_start("actor-y", "shared-ws").unwrap();
-    assert_eq!(e1.space_id(), e2.space_id(),
-        "both actors in the same workspace should produce the same scope_key");
+    assert_eq!(e1.scope, EventScope::Runtime);
+    assert_eq!(e2.scope, EventScope::Runtime);
+    assert!(e1.payload_json.contains("shared-ws") && e2.payload_json.contains("shared-ws"),
+        "both sessions record the workspace in the payload");
     assert_ne!(e1.actor_id, e2.actor_id,
         "different actors must produce different actor_ids");
 }
@@ -126,7 +136,9 @@ fn hooks_hook_events_before_tool_actor_and_workspace_wired() {
     let json = r#"{"tool_name":"mcp__ship__sync","hook_event_name":"PreToolUse"}"#;
     let env = handle_before_tool(json, "my-actor", "my-ws").unwrap().unwrap();
     assert_eq!(env.actor_id.as_deref(), Some("my-actor"));
-    assert_eq!(env.space_id(), Some("my-ws"));
+    // skill.started is Runtime-owned: NOT space-scoped.
+    assert_eq!(env.scope, EventScope::Runtime);
+    assert_eq!(env.space_id(), None);
 }
 
 #[test]

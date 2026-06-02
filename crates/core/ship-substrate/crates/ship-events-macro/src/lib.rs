@@ -7,14 +7,14 @@
 //! Usage:
 //! ```ignore
 //! #[derive(EventPayload)]
-//! #[event(name = "actor.created", scope = "device", retention = "durable", stability = "stable")]
+//! #[event(name = "actor.created", scope = "runtime", retention = "durable", stability = "stable")]
 //! pub struct ActorCreated { ... }
 //! ```
 //!
 //! The macro validates:
 //! - `#[event(...)]` attribute is present (compile error if absent).
 //! - `name` matches `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$` (compile error on mismatch).
-//! - `scope` is one of `device | account | space` (compile error on unknown).
+//! - `scope` is one of `runtime | account | space` (compile error on unknown).
 //! - `retention` is one of `durable | ephemeral` (compile error on unknown).
 //! - `stability` is one of `stable | experimental | deprecated` (compile error on unknown).
 //!
@@ -78,7 +78,7 @@ fn impl_event_payload(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStre
 
     // Map scope string → EventScope variant path.
     let scope_variant = match attr.scope.as_str() {
-        "device" => quote! { ::ship_types::event_registry::EventScope::Device },
+        "runtime" => quote! { ::ship_types::event_registry::EventScope::Runtime },
         "account" => quote! { ::ship_types::event_registry::EventScope::Account },
         "space" => quote! { ::ship_types::event_registry::EventScope::Space },
         other => {
@@ -86,7 +86,7 @@ fn impl_event_payload(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStre
                 Span::call_site(),
                 format!(
                     "#[event(scope = \"{other}\")] on `{struct_name}` is invalid; \
-                     valid values: device | account | space"
+                     valid values: runtime | account | space"
                 ),
             ));
         }

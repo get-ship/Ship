@@ -41,6 +41,8 @@ struct ProviderHook {
 pub fn handle_before_tool(
     stdin_json: &str,
     actor_id: &str,
+    // Used for soft-delete trash placement. The emitted skill.* event is
+    // Runtime-owned, so the workspace is NOT stamped as the envelope scope.
     workspace_id: &str,
 ) -> Result<Option<EventEnvelope>> {
     if stdin_json.is_empty() {
@@ -66,10 +68,7 @@ pub fn handle_before_tool(
         &skill_id,
         &SkillStarted { skill_id: skill_id.clone() },
     )?
-    .with_actor_id(actor_id)
-    // FLAG: stale workspace_id as scope key (server-auth / space arc). Carried
-    // through UNCHANGED in Phase 2 — not converted to a binding-derived key.
-    .with_context(Some(workspace_id), None);
+    .with_actor_id(actor_id);
     Ok(Some(event))
 }
 
@@ -78,7 +77,8 @@ pub fn handle_before_tool(
 pub fn handle_after_tool(
     stdin_json: &str,
     actor_id: &str,
-    workspace_id: &str,
+    // Runtime-owned event: workspace recorded by payload, not envelope scope.
+    _workspace_id: &str,
 ) -> Result<Option<EventEnvelope>> {
     if stdin_json.is_empty() {
         return Err(anyhow!("stdin is empty"));
@@ -102,11 +102,7 @@ pub fn handle_after_tool(
             &SkillCompleted { skill_id: skill_id.clone(), duration_ms: None },
         )?
     };
-    Ok(Some(
-        // FLAG: stale workspace_id as scope key (server-auth / space arc).
-        // Carried through UNCHANGED in Phase 2 — not a binding-derived key.
-        event.with_actor_id(actor_id).with_context(Some(workspace_id), None),
-    ))
+    Ok(Some(event.with_actor_id(actor_id)))
 }
 
 /// Emits session.started for the current actor.
@@ -123,27 +119,22 @@ pub fn handle_session_start(
             ..Default::default()
         },
     )?
-    .with_actor_id(actor_id)
-    // FLAG: stale workspace_id as scope key (server-auth / space arc). Carried
-    // through UNCHANGED in Phase 2 — not converted to a binding-derived key.
-    .with_context(Some(workspace_id), None);
+    .with_actor_id(actor_id);
     Ok(event)
 }
 
 /// Emits session.ended for the current actor.
 pub fn handle_session_end(
     actor_id: &str,
-    workspace_id: &str,
+    // Runtime-owned event: workspace recorded by payload, not envelope scope.
+    _workspace_id: &str,
 ) -> Result<EventEnvelope> {
     let event = EventEnvelope::new(
         event_types::SESSION_ENDED,
         actor_id,
         &SessionEnded::default(),
     )?
-    .with_actor_id(actor_id)
-    // FLAG: stale workspace_id as scope key (server-auth / space arc). Carried
-    // through UNCHANGED in Phase 2 — not converted to a binding-derived key.
-    .with_context(Some(workspace_id), None);
+    .with_actor_id(actor_id);
     Ok(event)
 }
 
