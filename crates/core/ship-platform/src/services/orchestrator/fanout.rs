@@ -90,7 +90,7 @@ pub async fn dispatch_fanout_step(
             spec_path: job.spec_path.clone(),
             spec_content: None,
             work_dir: lane_wt.clone(),
-            env: super::dispatch::build_spawn_env(&lane_slug, &lane.agent, octx.spawn_policy.as_ref()).await,
+            env: crate::services::agent_sessions::build_spawn_env(&lane_slug, &lane.agent, octx.spawn_policy.as_ref()).await,
             exit_tx: None,
             launch: LaunchProfile {
                 harness,

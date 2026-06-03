@@ -7632,6 +7632,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-agents"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "ship-runner",
+ "ship-substrate",
+ "ship-types",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ship-analytics"
 version = "0.1.0"
 dependencies = [
@@ -7928,6 +7944,7 @@ dependencies = [
  "sha2",
  "shell-words",
  "ship-account",
+ "ship-agents",
  "ship-analytics",
  "ship-artifacts",
  "ship-collection",

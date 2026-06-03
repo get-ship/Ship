@@ -1,10 +1,20 @@
-//! Job dispatch subscriber — thin wrapper over the runtime orchestrator.
+//! Job + agent-session dispatch subscriber — composition root.
 //!
-//! Constructs the `OrchestratorContext` with shipd's concrete executor,
-//! isolation strategy, and platform implementations, then delegates all
-//! event handling to `ship_platform::services::orchestrator::router`.
+//! Constructs the concrete executor / isolation / platform impls, builds the
+//! `OrchestratorContext` (pipeline-DAG actor) and the `AgentPorts` bundle
+//! (agent-session actor), then starts both actors. All event handling delegates
+//! to `ship_platform::services::orchestrator::router` (pipelines) and
+//! `ship_platform::services::agent_sessions::start_agents` (agent sessions).
+//!
+//! The two actors share ONE `ConfigSpawnPolicy` instance (cloned into both
+//! bundles) so role/token resolution is identical on every dispatch path. The
+//! agent-session actor is reached through the ship-platform facade
+//! (`services::agent_sessions`, a re-export of the L0-deps-only `ship-agents`
+//! crate) — this crate already depends on ship-platform, so wiring `start_agents`
+//! here adds no NEW direct crate dependency on ship-agents.
 
-use ship_platform::services::dispatch_ports::SessionExecutor;
+use ship_platform::services::agent_sessions::{start_agents, AgentPorts};
+use ship_platform::services::dispatch_ports::{SessionExecutor, SpawnPolicy};
 use ship_platform::services::orchestrator::OrchestratorContext;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -62,18 +72,28 @@ pub async fn subscribe_job_events(
 
     let activity_txs = Arc::new(Mutex::new(HashMap::new()));
 
+    // The shared dispatch ports — one instance each, cloned into BOTH the
+    // pipeline orchestrator and the agent-session actor so role/token
+    // resolution and the orphan/terminal projection reads are identical on
+    // every dispatch path.
+    let isolation: Arc<dyn ship_platform::services::dispatch_ports::IsolationStrategy> =
+        Arc::new(adapters::GitWorktreeIsolation);
+    let registry_port: Arc<dyn ship_platform::services::dispatch_ports::ProcessRegistryPort> =
+        Arc::new(SharedRegistry(registry.clone()));
+    let spawn_policy: Arc<dyn SpawnPolicy> = Arc::new(
+        ship_platform::services::orchestrator::spawn_policy::ConfigSpawnPolicy::new(platform.clone()),
+    );
+    let projections: Arc<dyn ship_platform::services::dispatch_ports::ProjectionReader> =
+        Arc::new(ship_platform::services::orchestrator::projection_reader::ProjectionsReader);
+
     let octx = Arc::new(OrchestratorContext {
-        isolation: Arc::new(adapters::GitWorktreeIsolation),
+        isolation: isolation.clone(),
         executor: executor.clone(),
         platform: platform.clone(),
-        registry: Arc::new(SharedRegistry(registry.clone())),
+        registry: registry_port.clone(),
         probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
-        spawn_policy: Arc::new(
-            ship_platform::services::orchestrator::spawn_policy::ConfigSpawnPolicy::new(platform),
-        ),
-        projections: Arc::new(
-            ship_platform::services::orchestrator::projection_reader::ProjectionsReader,
-        ),
+        spawn_policy: spawn_policy.clone(),
+        projections: projections.clone(),
         done_flags: Arc::new(Mutex::new(HashMap::new())),
         activity_txs: activity_txs.clone(),
         run_locks: Arc::new(Mutex::new(HashMap::new())),
@@ -82,9 +102,30 @@ pub async fn subscribe_job_events(
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
     });
 
+    // The agent-session actor's ports — the SAME concrete impls + the SAME
+    // ConfigSpawnPolicy, but only the bare-session subset (no pipeline-DAG
+    // bookkeeping). Its own EventDedup instance: separate from the
+    // orchestrator's so each actor dedups its own delivery; since
+    // `agent.session.started` is acted on by `service.agents` ALONE (S3b), the
+    // two instances never double-admit a spawn.
+    let agent_ports = Arc::new(AgentPorts {
+        isolation,
+        executor: executor.clone(),
+        platform: platform.clone(),
+        registry: registry_port,
+        spawn_policy,
+        projections,
+        event_dedup: Arc::new(ship_platform::services::orchestrator::dedup::EventDedup::new()),
+    });
+
     let kr = kernel.clone();
     ship_substrate::task_health::spawn_monitored(health_registry, "job-orchestrator", async move {
         ship_platform::services::orchestrator::router::start_orchestrator(kr, octx).await;
+    });
+
+    let kr_agents = kernel.clone();
+    ship_substrate::task_health::spawn_monitored(health_registry, "agent-sessions", async move {
+        start_agents(kr_agents, agent_ports).await;
     });
 
     Some(DispatchHandle { registry, executor, activity_txs })
