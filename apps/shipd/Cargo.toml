@@ -30,6 +30,7 @@ ship-search = { path = "../../crates/core/ship-platform/crates/ship-search" }
 ship-collection = { path = "../../crates/core/ship-platform/crates/ship-collection" }
 ship-artifacts = { path = "../../crates/core/ship-platform/crates/ship-artifacts" }
 ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
+ship-device = { path = "../../crates/core/ship-platform/crates/ship-device" }
 ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 ship-account = { path = "../../crates/core/ship-platform/crates/ship-account" }
 compiler = { path = "../../crates/core/ship-platform/crates/compiler" }
