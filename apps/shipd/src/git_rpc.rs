@@ -316,7 +316,7 @@ mod tests {
         ] {
             let p = policy_for(path).unwrap_or_else(|| panic!("{path} missing from policy map"));
             assert_eq!(p.capability, "ship.git.write", "{path}");
-            assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C1Workspace, "{path}");
+            assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C1Space, "{path}");
         }
     }
 }

@@ -183,7 +183,7 @@ mod tests {
             "ship.ops.v1.DeviceService/WindowList",
         ] {
             let p = policy_for(path).unwrap_or_else(|| panic!("{path} missing from policy map"));
-            assert_eq!(p.capability, "ship.workspaces.read", "{path}");
+            assert_eq!(p.capability, "ship.space.read", "{path}");
             assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C0Read, "{path}");
         }
     }
@@ -197,7 +197,7 @@ mod tests {
             "ship.ops.v1.DeviceService/CloseWindow",
         ] {
             let p = policy_for(path).unwrap_or_else(|| panic!("{path} missing from policy map"));
-            assert_eq!(p.capability, "ship.projects.write", "{path}");
+            assert_eq!(p.capability, "ship.space.write", "{path}");
             assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C3Critical, "{path}");
         }
     }

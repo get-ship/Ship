@@ -87,22 +87,22 @@ message DeviceCloseWindowResponse {
 // lifecycle; a space shell (C2) structurally cannot close another window.
 service DeviceService {
   rpc WindowIntent(DeviceWindowIntentRequest) returns (DeviceWindowIntentResponse) {
-    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.capability) = "ship.space.read";
     option (ship.ops.v1.description) = "Focus-vs-spawn decision for opening a window (the shell adaptor executes it).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc WindowList(DeviceWindowListRequest) returns (DeviceWindowListResponse) {
-    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.capability) = "ship.space.read";
     option (ship.ops.v1.description) = "Enumerate window actors the daemon knows about (actor id, space, pid, live).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc RegisterWindow(RegisterWindowRequest) returns (RegisterWindowResponse) {
-    option (ship.ops.v1.capability) = "ship.projects.write";
+    option (ship.ops.v1.capability) = "ship.space.write";
     option (ship.ops.v1.description) = "Register a launched window and mint its pid-bound, C2-capped session (operator-only; pid is kernel-attested).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C3_CRITICAL;
   }
   rpc CloseWindow(DeviceCloseWindowRequest) returns (DeviceCloseWindowResponse) {
-    option (ship.ops.v1.capability) = "ship.projects.write";
+    option (ship.ops.v1.capability) = "ship.space.write";
     option (ship.ops.v1.description) = "Revoke a window's pid-bound token and close its lifecycle (operator-only).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C3_CRITICAL;
   }

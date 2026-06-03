@@ -26,3 +26,8 @@
 #   by design.
 #
 # ── banned terms (append below; one per line, TAB-separated) ──────────────
+ship\.workspaces\.read	renamed to ship.space.read (S1 cap-rename)
+ship\.workspaces\.write	renamed to ship.space.write (S1)
+ship\.projects\.read	renamed to ship.space.read (S1)
+ship\.projects\.write	renamed to ship.space.write (S1)
+BLAST_RADIUS_C1_WORKSPACE	renamed to BLAST_RADIUS_C1_SPACE (S1)

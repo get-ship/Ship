@@ -29,7 +29,7 @@ pub enum BlastRadius {
     #[serde(rename = "C0_SAFE")]
     C0Read,
     #[serde(rename = "C1_WORKSPACE")]
-    C1Workspace,
+    C1Space,
     #[serde(rename = "C2_ELEVATED")]
     C2Elevated,
     #[serde(rename = "C3_CRITICAL")]
@@ -40,7 +40,7 @@ impl BlastRadius {
     pub fn from_descriptor(s: &str) -> Self {
         match s {
             "C0_SAFE" | "C0_READ" => Self::C0Read,
-            "C1_WORKSPACE" => Self::C1Workspace,
+            "C1_WORKSPACE" => Self::C1Space,
             "C2_ELEVATED" => Self::C2Elevated,
             "C3_CRITICAL" => Self::C3Critical,
             _ => Self::C3Critical,
@@ -50,7 +50,7 @@ impl BlastRadius {
     pub fn as_descriptor(self) -> &'static str {
         match self {
             Self::C0Read => "C0_SAFE",
-            Self::C1Workspace => "C1_WORKSPACE",
+            Self::C1Space => "C1_WORKSPACE",
             Self::C2Elevated => "C2_ELEVATED",
             Self::C3Critical => "C3_CRITICAL",
         }
@@ -225,7 +225,7 @@ impl MethodPolicy {
 fn blast_from_proto(n: Option<i32>) -> BlastRadius {
     match n {
         Some(1) => BlastRadius::C0Read,      // BLAST_RADIUS_C0_SAFE
-        Some(2) => BlastRadius::C1Workspace, // BLAST_RADIUS_C1_WORKSPACE
+        Some(2) => BlastRadius::C1Space, // BLAST_RADIUS_C1_SPACE
         Some(3) => BlastRadius::C2Elevated,  // BLAST_RADIUS_C2_ELEVATED
         Some(4) => BlastRadius::C3Critical,  // BLAST_RADIUS_C3_CRITICAL
         _ => BlastRadius::C3Critical,        // UNSPECIFIED, unknown — fail closed
@@ -315,7 +315,7 @@ mod tests {
         // the custom options buffa drops from the generated structs.
         let create = policy("RulesCreate");
         assert_eq!(create.capability, "ship.rules.write");
-        assert_eq!(create.blast, BlastRadius::C1Workspace);
+        assert_eq!(create.blast, BlastRadius::C1Space);
     }
 
     #[test]

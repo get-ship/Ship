@@ -67,16 +67,16 @@ service ArtifactsService {
   rpc Patch(PatchArtifactRequest) returns (ArtifactRecord) {
     option (ship.ops.v1.description) = "Patch an artifact's metadata (name / owner / expiry).";
     option (ship.ops.v1.capability) = "ship.artifacts.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Promote(PromoteArtifactRequest) returns (ArtifactRecord) {
     option (ship.ops.v1.description) = "Promote an artifact to a target scope (run → project → user).";
     option (ship.ops.v1.capability) = "ship.artifacts.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Delete(DeleteArtifactRequest) returns (Deletion) {
     option (ship.ops.v1.description) = "Soft-delete an artifact by id.";
     option (ship.ops.v1.capability) = "ship.artifacts.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 }

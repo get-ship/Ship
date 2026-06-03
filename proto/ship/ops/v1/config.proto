@@ -74,7 +74,7 @@ service ConfigService {
   rpc Set(SetSettingReq) returns (Setting) {
     option (ship.ops.v1.description) = "Set a daemon setting (value is arbitrary JSON); authors config.changed.";
     option (ship.ops.v1.capability) = "ship.config.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   // live (Watch is THE reactive surface — the StateLive replacement)
   rpc Watch(WatchConfigReq) returns (stream WatchEvent) {
