@@ -148,6 +148,22 @@ impl SqliteEventStore {
         };
         Self::new_at_db_path(&db_path)
     }
+
+    /// Construct a store at `db_path` with an explicit projection bus.
+    ///
+    /// Test-only seam: the production constructors always wire `default_bus()`,
+    /// which cannot be perturbed to make a handler fail. The transaction-
+    /// atomicity proof needs a store whose bus contains a deliberately-failing
+    /// projection so it can assert that `append` rolls the event row back when
+    /// dispatch errors. No production path constructs a store this way.
+    #[cfg(test)]
+    pub(crate) fn new_with_bus(db_path: &Path, bus: Arc<EventBus>) -> Result<Self> {
+        crate::db::ensure_events_db_at_path(db_path)?;
+        Ok(Self {
+            db_path: db_path.to_path_buf(),
+            bus,
+        })
+    }
 }
 
 /// Query a single DB file with the given filter. Returns empty vec if the DB
