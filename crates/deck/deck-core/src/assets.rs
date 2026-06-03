@@ -110,18 +110,18 @@ pub fn serve_space_asset(mode: DaemonMode, file: &str) -> DeckResponse {
     }
 }
 
-/// `GET /hub` — the hub scaffold (apps/shell). Tauri's no-`--app` window
-/// navigates here so the hub loads SAME-ORIGIN with the daemon — `/_sui` +
+/// `GET /` — the shell scaffold (apps/shell), the Ship platform app. Tauri's
+/// window loads the daemon root so the shell loads SAME-ORIGIN — `/_sui` +
 /// Connect resolve to this daemon with no proxy, the same model as
-/// `/space/<id>`. Replaces the prior `frontendDist: ../dist` static-bundle
-/// path; dev/prod parity through the daemon.
+/// `/space/<id>`. There is no `/hub`: the shell IS the platform root; spaces
+/// get their own windows at `/space/<id>`.
 pub fn serve_hub(mode: DaemonMode) -> DeckResponse {
     let Some(html) = read_deck_asset("hub-scaffold/index.html") else {
         return DeckResponse::not_found(
             "hub scaffold not built (missing hub-scaffold/index.html asset)",
         );
     };
-    let html = html.replace("\"/assets/", "\"/hub/_assets/");
+    let html = html.replace("\"/assets/", "\"/_assets/");
     let html = crate::mode_html::inject_mode_meta(&html, mode);
     DeckResponse::html_view(html, mode)
 }

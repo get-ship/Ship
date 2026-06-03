@@ -153,7 +153,7 @@ mod tests {
         let body = std::str::from_utf8(&resp.body).unwrap();
         assert!(body.contains("<!doctype html>"), "must be a rendered page; got: {body}");
         assert!(body.contains("no-such-view-xyzzy"), "must name the missing view; got: {body}");
-        assert!(body.contains("href=\"/hub\""), "must link back to the hub; got: {body}");
+        assert!(body.contains("href=\"/\""), "must link back to the shell root; got: {body}");
         assert!(
             !body.contains("\"view_not_found\""),
             "must NOT leak the raw JSON error shape; got: {body}"

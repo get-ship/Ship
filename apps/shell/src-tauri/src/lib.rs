@@ -71,7 +71,7 @@ pub fn run() {
                     None => std::env::var("SHIP_SHELL_TARGET")
                         .ok()
                         .filter(|s| s.starts_with('/'))
-                        .unwrap_or_else(|| "/hub".to_string()),
+                        .unwrap_or_else(|| "/".to_string()),
                 };
                 if let Some(port) = crate::daemon::daemon_status().port {
                     if let Ok(url) = format!("http://127.0.0.1:{port}{target}").parse() {

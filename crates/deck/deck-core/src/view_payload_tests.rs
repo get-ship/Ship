@@ -380,7 +380,7 @@ fn host_unknown_view_serves_html_404_with_available_views() {
     let body = body_str(&resp);
     assert!(body.contains("<!doctype html>"), "must be a rendered page; got: {body}");
     assert!(body.contains("home"), "must name the requested view; got: {body}");
-    assert!(body.contains("href=\"/hub\""), "must link back to the hub; got: {body}");
+    assert!(body.contains("href=\"/\""), "must link back to the shell root; got: {body}");
     // Available-views list pulled from the resolver's roots.
     assert!(body.contains("/sui/counter"), "must list servable views; got: {body}");
     assert!(body.contains("/sui/dashboard"), "must list servable views; got: {body}");
