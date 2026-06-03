@@ -172,7 +172,6 @@ pub fn build_router(
     let pair_confirm_sessions = auth_registry.clone();
     let list_sessions_registry = auth_registry.clone();
     let revoke_sessions_registry = auth_registry.clone();
-    let space_window_registry = auth_registry.clone();
     let pair_confirm_routes = Router::new()
         .route(
             "/auth/pair/confirm",
@@ -202,30 +201,12 @@ pub fn build_router(
             body: axum::Json<auth::SessionRegisterRequest>,
         | {
             auth::session_register(register_registry, auth_ext, body)
-        }))
-        // Space window registration (FE ask 1): the launched window calls this
-        // over the host socket at startup → registers its window actor + mints
-        // its pid-bound, C2-capped session. `PeerPid` is present only on the
-        // UDS (peer-cred layer); absent over TCP → the handler refuses (a
-        // window token is meaningless without a kernel-attested pid).
-        .route("/api/space-window/register", axum::routing::post(move |
-            auth_ext: axum::Extension<auth::AuthContext>,
-            peer_pid: Option<axum::Extension<auth::peer_socket::PeerPid>>,
-            query: axum::extract::Query<std::collections::HashMap<String, String>>,
-        | {
-            let reg = space_window_registry.clone();
-            async move {
-                use axum::response::IntoResponse;
-                let pid = peer_pid.and_then(|p| (p.0).0);
-                // Optional `?space_id=` targets a specific registered space;
-                // omitted ⟹ the daemon's home space.
-                let target = query.get("space_id").map(String::as_str);
-                match auth::space_window::register_space_window(&reg, &auth_ext.0, pid, target).await {
-                    Ok(resp) => axum::Json(resp).into_response(),
-                    Err((status, msg)) => (status, msg).into_response(),
-                }
-            }
         }));
+    // Space-window registration retired: the launched window now calls
+    // `DeviceService.RegisterWindow` (device.proto, Connect) over the host
+    // socket — same pid-bound C2 mint, kernel-attested pid from `PeerPid`,
+    // operator-only at the transport. The legacy `/api/space-window/register`
+    // REST route + `auth::space_window` were removed in the space cutover.
 
     let session_issue_registry = auth_registry.clone();
     let session_issue_handler = move |auth: axum::Extension<auth::AuthContext>| {

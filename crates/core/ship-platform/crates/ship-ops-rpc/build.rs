@@ -45,7 +45,6 @@ fn main() {
         .arg("ship/ops/v1/agents.proto")
         .arg("ship/ops/v1/agent.proto")
         .arg("ship/ops/v1/space.proto")
-        .arg("ship/ops/v1/spacev2.proto")
         .arg("ship/ops/v1/device.proto")
         .arg("ship/ops/v1/config.proto")
         .arg("ship/ops/v1/sessions.proto")
@@ -85,7 +84,6 @@ fn main() {
             "ship/ops/v1/agents.proto",
             "ship/ops/v1/agent.proto",
             "ship/ops/v1/space.proto",
-            "ship/ops/v1/spacev2.proto",
             "ship/ops/v1/device.proto",
             "ship/ops/v1/config.proto",
             "ship/ops/v1/sessions.proto",

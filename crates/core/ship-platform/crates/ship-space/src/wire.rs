@@ -8,8 +8,8 @@
 //!   source + the per-space store factory; this keeps the daemon thin while the
 //!   overlay composition lives in the crate.
 //!
-//! It implements the generated `ship_ops_rpc::SpaceV2Service` trait so shipd can
-//! mount it via `SpaceV2ServiceExt::register`.
+//! It implements the generated `ship_ops_rpc::SpaceService` trait so shipd can
+//! mount it via `SpaceServiceExt::register`.
 
 use std::sync::Arc;
 
@@ -19,8 +19,8 @@ use ship_substrate::events::EventFilter;
 use ship_substrate::ports::{DataStore, KernelLog, SpaceContext};
 
 use ship_ops_rpc::{
-    ActiveSpace, Space, SpaceInfo, SpaceList, SpaceSettingValue,
-    SpaceV2Service as SpaceV2ServiceTrait, WatchEvent,
+    ActiveSpace, Space, SpaceInfo, SpaceList, SpaceService as SpaceServiceTrait,
+    SpaceSettingValue, WatchEvent,
 };
 
 use crate::service::SpaceService;
@@ -75,7 +75,7 @@ fn record_to_proto(r: SpaceRecord) -> Space {
 // ── Trait implementation ──────────────────────────────────────────────────────
 
 #[allow(refining_impl_trait)]
-impl<F, G> SpaceV2ServiceTrait for SpaceWire<F, G>
+impl<F, G> SpaceServiceTrait for SpaceWire<F, G>
 where
     F: Fn(&RequestContext) -> Arc<SpaceContext> + Send + Sync + 'static,
     G: Fn(&RequestContext) -> TargetSpace + Send + Sync + 'static,

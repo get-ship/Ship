@@ -38,8 +38,10 @@ pub fn install_defaults() {
         vec![
             Box::new(projections::CompileStateProjection),
             Box::new(projections::ProjectsProjection),
-            // Per-space settings overlay (event-sourced), layered over the
-            // global daemon settings by `SpaceService.Info`.
+            // Per-space settings overlay (event-sourced fold of
+            // `space.setting.changed`). The live overlay read is owned by the
+            // ship-space crate's own DataStore-backed table (`SpaceService.Info`);
+            // this projection materializes the same events for the event history.
             Box::new(projections::SpaceSettingsProjection),
             Box::new(projections::AuthSessionsProjection),
             Box::new(projections::DaemonOwnerProjection),

@@ -696,7 +696,25 @@
       "scope": "project"
     },
     "space.active": {
-      "id": "harbor"
+      "active": {
+        "id": "harbor",
+        "path": "/home/dev/harbor",
+        "name": "Harbor",
+        "created_at": "2026-01-01T00:00:00Z",
+        "last_seen_at": "2026-05-24T18:30:00Z"
+      }
+    },
+    "space.list": {
+      "spaces": [
+        {
+          "id": "harbor",
+          "path": "/home/dev/harbor",
+          "name": "Harbor",
+          "created_at": "2026-01-01T00:00:00Z",
+          "last_seen_at": "2026-05-24T18:30:00Z"
+        }
+      ],
+      "active_id": "harbor"
     },
     "space.add": {
       "id": "harbor",
@@ -704,6 +722,15 @@
       "name": "Harbor",
       "created_at": "2026-01-01T00:00:00Z",
       "last_seen_at": "2026-05-24T18:30:00Z"
+    },
+    "space.activate": {
+      "active": {
+        "id": "harbor",
+        "path": "/home/dev/harbor",
+        "name": "Harbor",
+        "created_at": "2026-01-01T00:00:00Z",
+        "last_seen_at": "2026-05-24T18:30:00Z"
+      }
     },
     "rules.list": {
       "items": [
@@ -945,29 +972,24 @@
       "id": "harbor"
     },
     "space.info": {
-      "spaceId": "harbor-space-id",
-      "root": "/home/harbor/projects/harbor",
-      "name": "harbor"
-    },
-    "space.window_intent": {
-      "decision": "allow",
-      "actorId": "harbor-actor-id"
-    },
-    "space.window_list": {
-      "windows": [
-        {
-          "actorId": "harbor-actor-id",
-          "spaceId": "harbor-space-id",
-          "live": true
-        }
-      ]
-    },
-    "space.close_window": {
-      "closed": true
+      "spaceId": "harbor",
+      "root": "/home/dev/harbor",
+      "name": "harbor",
+      "settings_json": "{\"theme\":\"dark\"}"
     },
     "space.set_setting": {
       "key": "theme",
       "value_json": "\"dark\""
+    },
+    "space.watch": {
+      "patches": {
+        "patches": [
+          {
+            "op": "PATCH_OP_SET",
+            "value": "eyJzcGFjZXMiOltdfQ=="
+          }
+        ]
+      }
     },
     "search.search": {
       "hits": [

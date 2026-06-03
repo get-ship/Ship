@@ -1,4 +1,4 @@
-//! `ship-space` — SpaceV2Service over substrate ports (L1).
+//! `ship-space` — SpaceService over substrate ports (L1).
 //!
 //! A space = the unit of isolation/coordination/config (one `.ship/` directory).
 //! This crate owns three capabilities and nothing else (window management lives

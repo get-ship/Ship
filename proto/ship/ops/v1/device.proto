@@ -1,9 +1,9 @@
 // `device.*` — the device/isolation + window service, hand-authored under
 // proto-as-SSOT (#89). The space carve split window management out of the space
 // surface into this device topic ("the space service loses window-mgmt →
-// device"). Mounted ADDITIVELY beside the legacy SpaceService window RPCs (which
-// still serve these ops until the space cutover retires them). Old space window
-// messages + handlers stay untouched.
+// device"). This is the SOLE window surface — the legacy SpaceService window
+// RPCs (WindowIntent/WindowList/CloseWindow + the `register_space_window` REST
+// route) were retired in the space cutover.
 //
 // The daemon is the brain: it owns window liveness (via the actor projection),
 // each window's kernel-attested pid, and the pid-bound C2 token; it can decide

@@ -16,9 +16,9 @@
 //! adaptor executes (only it can touch an OS window).
 //!
 //! `register_window` and `close_window` are C3, operator-only — the checks stay
-//! at the transport (mirroring `auth/space_window.rs` and the legacy C3 close
-//! gate): a non-operator caller is refused before the crate runs, so a space
-//! shell (C2) structurally cannot register or close another window.
+//! at the transport (the C3 authority gate the retired space-window seam held):
+//! a non-operator caller is refused before the crate runs, so a space shell (C2)
+//! structurally cannot register or close another window.
 //! `register_window` additionally requires a kernel-attested pid (`PeerPid` from
 //! the host socket); over a transport that can't attest one (TCP) it is refused
 //! — a window token is meaningless without the pid it binds.

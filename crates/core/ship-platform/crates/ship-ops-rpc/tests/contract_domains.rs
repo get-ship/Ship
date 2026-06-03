@@ -5,11 +5,11 @@
 
 use serde_json::Value;
 use ship_ops_rpc::{
-    ArtifactsListResponse, ChatStateResponse, CollectionItem, Deletion, EventsListResponse,
-    ListProcsResponse, McpIndexResponse, PermissionsIndexResponse, PipelinesIndexResponse,
-    ProjectRecord, SessionsListResponse, SettingValue, SkillFileResponse, SkillsIndexResponse,
-    CloseWindowResponse, SpaceInfoResponse, SpaceWindowIntentResponse, SpaceWindowListResponse,
-    SpecDetail, SpecGetResponse, SpecsListResponse, ToolPatternsResponse, WorkspaceActiveResponse,
+    ActiveSpace, ArtifactsListResponse, ChatStateResponse, CollectionItem, Deletion,
+    EventsListResponse, ListProcsResponse, McpIndexResponse, PermissionsIndexResponse,
+    PipelinesIndexResponse, SessionsListResponse, SkillFileResponse, SkillsIndexResponse, Space,
+    SpaceInfo, SpaceList, SpaceSettingValue, SpecDetail, SpecGetResponse, SpecsListResponse,
+    ToolPatternsResponse,
 };
 
 const ARTIFACTS: &str = include_str!("../../../../../../proto/fixtures/artifacts_service.json");
@@ -105,10 +105,17 @@ fn pipelines_list_parses_index() {
 
 #[test]
 fn space_add_parses_record() {
-    let r: ProjectRecord =
-        serde_json::from_str(&response_ok(SPACE, "Add")).expect("parse ProjectRecord");
+    let r: Space = serde_json::from_str(&response_ok(SPACE, "Add")).expect("parse Space");
     assert_eq!(r.id, "harbor");
     assert_eq!(r.path, "/home/dev/harbor");
+}
+
+#[test]
+fn space_list_parses_spaces_and_active() {
+    let r: SpaceList = serde_json::from_str(&response_ok(SPACE, "List")).expect("parse SpaceList");
+    assert_eq!(r.spaces.len(), 1);
+    assert_eq!(r.spaces[0].id, "harbor");
+    assert_eq!(r.active_id.as_deref(), Some("harbor"));
 }
 
 #[test]
@@ -174,8 +181,8 @@ fn specs_detail_parses_acceptance() {
 
 #[test]
 fn space_info_parses_identity_and_settings() {
-    let r: SpaceInfoResponse =
-        serde_json::from_str(&response_ok(SPACE, "Info")).expect("parse SpaceInfoResponse");
+    let r: SpaceInfo =
+        serde_json::from_str(&response_ok(SPACE, "Info")).expect("parse SpaceInfo");
     assert_eq!(r.space_id.as_deref(), Some("harbor"));
     assert_eq!(r.root.as_deref(), Some("/home/dev/harbor"));
     assert!(r.settings_json.contains("theme"));
@@ -183,43 +190,21 @@ fn space_info_parses_identity_and_settings() {
 
 #[test]
 fn space_set_setting_parses_key_and_value() {
-    // Per-space override write (#129) returns the typed SettingValue — the same
-    // shape as settings.set; the typed return needs a fixture sample.
-    let r: SettingValue =
-        serde_json::from_str(&response_ok(SPACE, "SetSetting")).expect("parse SettingValue");
+    // Per-space override write returns the typed SpaceSettingValue (space-domain
+    // owned); the typed return needs a fixture sample.
+    let r: SpaceSettingValue =
+        serde_json::from_str(&response_ok(SPACE, "SetSetting")).expect("parse SpaceSettingValue");
     assert_eq!(r.key, "theme");
     assert_eq!(r.value_json, "\"dark\"");
 }
 
-#[test]
-fn space_window_list_parses_windows() {
-    let r: SpaceWindowListResponse = serde_json::from_str(&response_ok(SPACE, "WindowList"))
-        .expect("parse SpaceWindowListResponse");
-    assert_eq!(r.windows.len(), 1);
-    assert_eq!(r.windows[0].actor_id, "window-harbor-01");
-    assert_eq!(r.windows[0].pid, Some(4242));
-    assert!(r.windows[0].live);
-}
+// Window contract tests moved to the device topic (DeviceService) — the space
+// surface no longer carries window RPCs after the cutover.
 
 #[test]
-fn space_close_window_parses_revocation() {
-    let r: CloseWindowResponse = serde_json::from_str(&response_ok(SPACE, "CloseWindow"))
-        .expect("parse CloseWindowResponse");
-    assert!(r.closed);
-    assert!(r.token_revoked);
-}
-
-#[test]
-fn space_window_intent_parses_decision() {
-    let r: SpaceWindowIntentResponse = serde_json::from_str(&response_ok(SPACE, "WindowIntent"))
-        .expect("parse SpaceWindowIntentResponse");
-    assert_eq!(r.decision, "focus");
-    assert_eq!(r.actor_id.as_deref(), Some("window-harbor-01"));
-}
-
-#[test]
-fn space_active_parses_id() {
-    let r: WorkspaceActiveResponse =
-        serde_json::from_str(&response_ok(SPACE, "Active")).expect("parse WorkspaceActiveResponse");
-    assert_eq!(r.id.as_deref(), Some("harbor"));
+fn space_active_parses_active_record() {
+    let r: ActiveSpace =
+        serde_json::from_str(&response_ok(SPACE, "Active")).expect("parse ActiveSpace");
+    let active = r.active.as_option().expect("an active space is set in the fixture");
+    assert_eq!(active.id, "harbor");
 }
