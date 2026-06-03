@@ -9,9 +9,9 @@ use std::sync::{Arc, LazyLock};
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use ship_ops_rpc::{
-    BytesChunk, CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
+    BytesChunk, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
     OwnedEventsRequestView, OwnedMetaRequestView, OwnedSessionStreamRequestView,
-    ReadOpsServiceExt, StreamService, StreamServiceExt,
+    StreamService, StreamServiceExt,
 };
 
 use crate::ship_runtime::ApiState;
@@ -27,39 +27,6 @@ impl OpsImpl {
     /// (e.g. `analytics_rpc`, `runtime_rpc`) that need `ApiState`.
     pub(crate) fn state(&self) -> &ApiState {
         &self.state
-    }
-
-    /// Run a registry op by name and wrap its JSON projection in `JsonResponse`
-    /// — the migration shape for ported read ops (see ops.proto / the spec).
-    fn dispatch_json(&self, op: &str) -> ServiceResult<JsonResponse> {
-        self.dispatch_json_args(op, serde_json::Value::Null)
-    }
-
-    /// As [`dispatch_json`] but with JSON `args` for ops that take parameters
-    /// (the generated arg-bearing read methods build these from their request).
-    fn dispatch_json_args(&self, op: &str, args: serde_json::Value) -> ServiceResult<JsonResponse> {
-        let value = crate::services::registry::call(op, &args, &self.state)
-            .map_err(|e| ConnectError::internal(format!("{op}: {e}")))?;
-        Ok(Response::new(JsonResponse {
-            json: value.to_string(),
-            ..Default::default()
-        }))
-    }
-
-    /// Typed read dispatch: run the registry op and decode its JSON projection
-    /// onto the proto message `T` (buffa messages derive serde with snake-case
-    /// aliases + ignore unknown fields, so the wire struct's JSON decodes with
-    /// no hand-mapping). The typed analog of `dispatch_json` — the generated
-    /// read methods whose return type has a proto message call this.
-    fn dispatch_typed<T>(&self, op: &str, args: serde_json::Value) -> ServiceResult<T>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        let value = crate::services::registry::call(op, &args, &self.state)
-            .map_err(|e| ConnectError::internal(format!("{op}: {e}")))?;
-        let msg = serde_json::from_value::<T>(value)
-            .map_err(|e| ConnectError::internal(format!("{op} decode: {e}")))?;
-        Ok(Response::new(msg))
     }
 }
 
@@ -82,15 +49,6 @@ impl OpsService for OpsImpl {
         }))
     }
 }
-
-// Generated read ops (`ReadOpsService`) — projected from `schema::OPS` by
-// `cargo xtask gen-ops`. Each delegates to the registry via `dispatch_json`.
-// Regenerate after changing the read-op set; do not hand-edit the .rs.
-include!("ops_reads_gen.rs");
-// Generated commands (`CommandOpsService`) — projected from `schema::COMMANDS`
-// by `cargo xtask gen-ops`; each builds args from the typed request and
-// delegates to `services::command::call`. Do not hand-edit the .rs.
-include!("ops_commands_gen.rs");
 
 // ── Streaming (the Connect-native event bus; retires the SSE event route) ─────
 // Mirrors runtime_api::event_stream: spawn a broadcast subscriber actor, then
@@ -189,8 +147,6 @@ impl StreamService for OpsImpl {
 pub fn router(state: ApiState) -> axum::Router {
     let svc = Arc::new(OpsImpl { state: state.clone() });
     let router = OpsServiceExt::register(svc.clone(), connectrpc::Router::new());
-    let router = ReadOpsServiceExt::register(svc.clone(), router);
-    let router = CommandOpsServiceExt::register(svc.clone(), router);
     let router = StreamServiceExt::register(svc.clone(), router);
     // Hand-authored proto-as-SSOT domains (impls in analytics_rpc / runtime_rpc).
     // C0 reads, edge-authenticated like the other reads.

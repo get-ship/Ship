@@ -30,8 +30,6 @@ fn main() {
         .arg("ship/ops/v1/policy.proto")
         .arg("ship/ops/v1/ops.proto")
         .arg("ship/ops/v1/types.proto")
-        .arg("ship/ops/v1/reads.gen.proto")
-        .arg("ship/ops/v1/commands.gen.proto")
         .arg("ship/ops/v1/stream.proto")
         .arg("ship/ops/v1/analytics.proto")
         .arg("ship/ops/v1/runtime.proto")
@@ -70,8 +68,6 @@ fn main() {
         .files(&[
             "ship/ops/v1/ops.proto",
             "ship/ops/v1/types.proto",
-            "ship/ops/v1/reads.gen.proto",
-            "ship/ops/v1/commands.gen.proto",
             "ship/ops/v1/stream.proto",
             "ship/ops/v1/analytics.proto",
             "ship/ops/v1/runtime.proto",

@@ -15,7 +15,6 @@ mod gen_fixtures;
 mod gen_icons;
 mod gen_indexes;
 mod gen_indexes_substrate;
-mod gen_ops;
 mod gen_skills;
 mod gen_sdk;
 mod lint_imports;

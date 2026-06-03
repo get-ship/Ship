@@ -7,7 +7,7 @@ use specta_typescript::{BigIntExportBehavior, Typescript};
 
 use crate::{
     build_assets, coverage, gen_audit_readme, gen_collection_types, gen_contract, gen_events,
-    gen_fixtures, gen_icons, gen_indexes, gen_ops, gen_skills, gen_sdk, lint_imports, lint_layers,
+    gen_fixtures, gen_icons, gen_indexes, gen_skills, gen_sdk, lint_imports, lint_layers,
     port_descriptions, types,
 };
 
@@ -90,12 +90,6 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
-        "gen-ops" => {
-            if let Err(e) = gen_ops::run() {
-                eprintln!("gen-ops failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
         "gen-skills" => {
             if let Err(e) = gen_skills::run() {
                 eprintln!("gen-skills failed: {e:#}");
@@ -166,7 +160,6 @@ fn print_help() {
     eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");
     eprintln!("  gen-events            Generate tier-filtered proto + TS from the event registry");
     eprintln!("  gen-events --check    Verify generated files are up-to-date (CI)");
-    eprintln!("  gen-ops               Generate the read-op Connect surface from schema::OPS");
     eprintln!("  gen-contract          Generate docs/contract/<domain>.md consumer guides");
     eprintln!("  gen-contract --check  Verify generated contract docs are up-to-date (CI)");
     eprintln!("  gen-audit-readme      Regenerate .artifacts/specs/module-audits/README.md");
