@@ -44,7 +44,6 @@ pub mod agent_rpc;
 pub mod space_rpc;
 pub mod space_ports;
 pub mod spacev2_rpc;
-pub mod settings_rpc;
 pub mod sessions_rpc;
 pub mod account_rpc;
 pub mod chat_rpc;

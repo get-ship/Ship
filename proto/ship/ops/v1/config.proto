@@ -1,8 +1,8 @@
 // ConfigService — daemon settings (the `config` domain), hand-authored clean
-// proto-SSOT (decision #89, _arc.md principles 1/2/11). Replaces settings.proto.
+// proto-SSOT (decision #89, _arc.md principles 1/2/11). The canonical settings
+// contract — the legacy SettingsService wire it replaced has been retired.
 //
-// Mounted ADDITIVELY beside the legacy SettingsService until the operator's
-// sequential cutover. The clean shape WE WANT:
+// The clean shape:
 //   - typed SettingList / Setting reads, NOT the opaque JsonResponse envelope.
 //   - the crate owns its own `Setting` message (one contract per boundary) —
 //     no shared types.proto `SettingValue` return.
