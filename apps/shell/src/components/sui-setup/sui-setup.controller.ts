@@ -94,6 +94,67 @@ function persistFromState(s: Record<string, unknown>, completed = false): void {
   savePersisted(entry)
 }
 
+// Step-transition behaviors live at module scope so both the `on:` handlers
+// (template-wired) and the keyboard shortcuts (mount / onFieldKeydown) invoke
+// the SAME function. `on:` handlers are not members of the state proxy, so a
+// handler cannot reach a sibling handler through `s.*`; these shared functions
+// take the same `Record<string, unknown>` view `persistFromState`/`readEntry`
+// already accept (the proxy IS that shape).
+function advanceStep(s: Record<string, unknown>): void {
+  const next = Math.min(TOTAL_STEPS, (s.step as number) + 1)
+  s.step = next
+  persistFromState(s)
+}
+
+function submitIdentityStep(s: Record<string, unknown>): void {
+  const name = String(s.identityName ?? '').trim()
+  if (!name) {
+    s.identityError = 'Please enter a display name.'
+    return
+  }
+  s.identityError = ''
+  s.step = 3
+  persistFromState(s)
+}
+
+function submitProjectStep(s: Record<string, unknown>): void {
+  const name = String(s.projectName ?? '').trim()
+  if (!name) return
+  const path = String(s.projectPath ?? '').trim() || defaultProjectPath(name)
+  s.projectPath = path
+  s.projectError = ''
+  s.projectWarning = ''
+  s.projectSubmitting = true
+  void (async () => {
+    const result = await postProject(name, path)
+    s.projectSubmitting = false
+    if (result.ok) {
+      s.step = 5
+      persistFromState(s)
+      return
+    }
+    if (result.warning) {
+      s.projectWarning = result.warning
+    } else if (result.error) {
+      s.projectError = result.error
+    }
+    // Advance anyway — capture-now, fix-in-settings.
+    s.step = 5
+    persistFromState(s)
+  })()
+}
+
+function submitSampleStep(s: Record<string, unknown>): void {
+  s.step = 6
+  persistFromState(s)
+}
+
+function finishSetup(s: Record<string, unknown>): void {
+  persistFromState(s, true)
+  try { localStorage.setItem('ship-setup-completed', '1') } catch { /* best-effort */ }
+  window.location.href = '/'
+}
+
 // Listener teardown ref (set in mount, called in unmount). Module-local
 // because the chrome scope proxy rejects extra property writes.
 let setupKeyCleanup: (() => void) | null = null
@@ -122,26 +183,13 @@ export default controller({
     }
   },
   on: {
-    goNext: (s) => {
-      const next = Math.min(TOTAL_STEPS, s.step + 1)
-      s.step = next
-      persistFromState(s)
-    },
+    goNext: (s) => advanceStep(s),
     goBack: (s) => {
       const prev = Math.max(1, s.step - 1)
       s.step = prev
       persistFromState(s)
     },
-    submitIdentity: (s) => {
-      const name = String(s.identityName ?? '').trim()
-      if (!name) {
-        s.identityError = 'Please enter a display name.'
-        return
-      }
-      s.identityError = ''
-      s.step = 3
-      persistFromState(s)
-    },
+    submitIdentity: (s) => submitIdentityStep(s),
     selectProvider: (s, id: string) => {
       s.provider = id
       s.providerTestOk = false
@@ -188,41 +236,9 @@ export default controller({
       s.step = 4
       persistFromState(s)
     },
-    submitProject: (s) => {
-      const name = String(s.projectName ?? '').trim()
-      if (!name) return
-      const path = String(s.projectPath ?? '').trim() || defaultProjectPath(name)
-      s.projectPath = path
-      s.projectError = ''
-      s.projectWarning = ''
-      s.projectSubmitting = true
-      void (async () => {
-        const result = await postProject(name, path)
-        s.projectSubmitting = false
-        if (result.ok) {
-          s.step = 5
-          persistFromState(s)
-          return
-        }
-        if (result.warning) {
-          s.projectWarning = result.warning
-        } else if (result.error) {
-          s.projectError = result.error
-        }
-        // Advance anyway — capture-now, fix-in-settings.
-        s.step = 5
-        persistFromState(s)
-      })()
-    },
-    submitSample: (s) => {
-      s.step = 6
-      persistFromState(s)
-    },
-    finish: (s) => {
-      persistFromState(s, true)
-      try { localStorage.setItem('ship-setup-completed', '1') } catch { /* best-effort */ }
-      window.location.href = '/'
-    },
+    submitProject: (s) => submitProjectStep(s),
+    submitSample: (s) => submitSampleStep(s),
+    finish: (s) => finishSetup(s),
     requestExit: (s) => { s.confirmingExit = true },
     cancelExit: (s) => { s.confirmingExit = false },
     confirmExit: (s) => {
@@ -241,8 +257,8 @@ export default controller({
       if (e.key === 'Enter') {
         e.preventDefault()
         const step = s.step
-        if (step === 2) (s).submitIdentity?.()
-        else if (step === 4) (s).submitProject?.()
+        if (step === 2) submitIdentityStep(s)
+        else if (step === 4) submitProjectStep(s)
       }
     },
   },
@@ -257,9 +273,9 @@ export default controller({
       // Top-level Enter advances the welcome / sample / done steps.
       if (e.key === 'Enter' && !(e.target instanceof HTMLInputElement)) {
         const step = state.step
-        if (step === 1) (state).goNext?.()
-        else if (step === 5) (state).submitSample?.()
-        else if (step === 6) (state).finish?.()
+        if (step === 1) advanceStep(state)
+        else if (step === 5) submitSampleStep(state)
+        else if (step === 6) finishSetup(state)
       }
     }
     window.addEventListener('keydown', onKey, true)

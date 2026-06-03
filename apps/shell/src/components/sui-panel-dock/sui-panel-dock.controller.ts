@@ -127,7 +127,7 @@ export default controller({
     const activeTabSig = state.$signals.activeTab
     const resizingSig = state.$signals.resizing
     const dragHeightSig = state.$signals.dragHeight
-    const storageKey = state.storageKey
+    const storageKey = state.$signals.storageKey
     const activate = state.activate
     const resizeHandle = state.resizeHandle
 
@@ -189,48 +189,58 @@ export default controller({
     })
     mo.observe(sr, { childList: true, subtree: true })
 
-    // Resize drag.
-    const onPointerDown = (ev: PointerEvent): void => {
-      ev.preventDefault()
-      const startY = ev.clientY
-      const startH = currentHeight()
-      resizingSig.set(true)
-      resizeHandle.setPointerCapture(ev.pointerId)
-      const onMove = (e: PointerEvent): void => {
-        const max = Math.round(window.innerHeight * 0.5)
-        applyHeight(
-          Math.min(max, Math.max(MIN_HEIGHT, startH + (startY - e.clientY))),
-        )
+    // Resize drag. `bind:this={resizeHandle}` targets the static `.resize`
+    // div, present at mount; guard once so the dependent block narrows and
+    // its teardown is registered only when the handle exists.
+    const resizeCleanups: Array<() => void> = []
+    if (resizeHandle) {
+      const handle = resizeHandle
+      const onPointerDown = (ev: PointerEvent): void => {
+        ev.preventDefault()
+        const startY = ev.clientY
+        const startH = currentHeight()
+        resizingSig.set(true)
+        handle.setPointerCapture(ev.pointerId)
+        const onMove = (e: PointerEvent): void => {
+          const max = Math.round(window.innerHeight * 0.5)
+          applyHeight(
+            Math.min(max, Math.max(MIN_HEIGHT, startH + (startY - e.clientY))),
+          )
+        }
+        const onUp = (e: PointerEvent): void => {
+          resizingSig.set(false)
+          handle.releasePointerCapture(e.pointerId)
+          handle.removeEventListener('pointermove', onMove)
+          handle.removeEventListener('pointerup', onUp)
+          handle.removeEventListener('pointercancel', onUp)
+          const final = currentHeight()
+          writeStored('height', String(final))
+          host.dispatchEvent(
+            new CustomEvent('sui:dock:resize', {
+              detail: { height: final }, bubbles: true, composed: true,
+            }),
+          )
+        }
+        handle.addEventListener('pointermove', onMove)
+        handle.addEventListener('pointerup', onUp)
+        handle.addEventListener('pointercancel', onUp)
       }
-      const onUp = (e: PointerEvent): void => {
-        resizingSig.set(false)
-        resizeHandle.releasePointerCapture(e.pointerId)
-        resizeHandle.removeEventListener('pointermove', onMove)
-        resizeHandle.removeEventListener('pointerup', onUp)
-        resizeHandle.removeEventListener('pointercancel', onUp)
-        const final = currentHeight()
-        writeStored('height', String(final))
+      const onDblClick = (): void => {
+        applyHeight(DEFAULT_HEIGHT)
+        writeStored('height', String(DEFAULT_HEIGHT))
         host.dispatchEvent(
           new CustomEvent('sui:dock:resize', {
-            detail: { height: final }, bubbles: true, composed: true,
+            detail: { height: DEFAULT_HEIGHT }, bubbles: true, composed: true,
           }),
         )
       }
-      resizeHandle.addEventListener('pointermove', onMove)
-      resizeHandle.addEventListener('pointerup', onUp)
-      resizeHandle.addEventListener('pointercancel', onUp)
+      handle.addEventListener('pointerdown', onPointerDown)
+      handle.addEventListener('dblclick', onDblClick)
+      resizeCleanups.push(() => {
+        handle.removeEventListener('pointerdown', onPointerDown)
+        handle.removeEventListener('dblclick', onDblClick)
+      })
     }
-    const onDblClick = (): void => {
-      applyHeight(DEFAULT_HEIGHT)
-      writeStored('height', String(DEFAULT_HEIGHT))
-      host.dispatchEvent(
-        new CustomEvent('sui:dock:resize', {
-          detail: { height: DEFAULT_HEIGHT }, bubbles: true, composed: true,
-        }),
-      )
-    }
-    resizeHandle.addEventListener('pointerdown', onPointerDown)
-    resizeHandle.addEventListener('dblclick', onDblClick)
 
     // Imperative API parity with <ship-panel-dock>.
     Object.defineProperty(host, 'activate', { value: activate, configurable: true })
@@ -252,8 +262,7 @@ export default controller({
     return () => {
       for (const cleanup of toolbarCleanups) cleanup()
       mo.disconnect()
-      resizeHandle.removeEventListener('pointerdown', onPointerDown)
-      resizeHandle.removeEventListener('dblclick', onDblClick)
+      for (const cleanup of resizeCleanups) cleanup()
     }
   },
 })
