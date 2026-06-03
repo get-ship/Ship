@@ -21,15 +21,36 @@ enum EntityKind {
   ENTITY_KIND_ARTIFACT = 7;
 }
 
+// Search reach. THIS_SPACE searches only the caller's active space (the
+// historical, scope-blind behavior). GLOBAL fans out across every reachable
+// space (per the space registry), merges, and re-ranks by the same heuristic
+// scorer. UNSPECIFIED defaults to THIS_SPACE so existing clients are unchanged.
+enum SearchScope {
+  SEARCH_SCOPE_UNSPECIFIED = 0;
+  SEARCH_SCOPE_THIS_SPACE = 1;
+  SEARCH_SCOPE_GLOBAL = 2;
+}
+
 message SearchRequest {
   string q = 1;
   repeated EntityKind kinds = 2;
   uint32 limit = 3;
   string cursor = 4;
+  // Reach of the search. UNSPECIFIED is treated as THIS_SPACE (safe default).
+  SearchScope scope = 5;
 }
 
 // A single ranked hit. collection_id is populated only when kind =
 // ENTITY_KIND_COLLECTION_ITEM; empty string otherwise.
+//
+// space_id names the space the hit came from. It is set for GLOBAL searches
+// (so the client can disambiguate same-named entities across spaces) and is
+// empty for THIS_SPACE searches, where the space is implicit.
+//
+// Deeplink convention: a hit's cross-space deeplink URI is composed as
+// `ship://space/<space_id><path>` — the space prefix plus the existing
+// intra-space `path` (which always begins with `/`). For THIS_SPACE hits the
+// space prefix is omitted and the bare `path` is used.
 message SearchHit {
   EntityKind kind = 1;
   string id = 2;
@@ -39,6 +60,7 @@ message SearchHit {
   string snippet = 6;
   double score = 7;
   string collection_id = 8;
+  string space_id = 9;
 }
 
 message SearchResponse {

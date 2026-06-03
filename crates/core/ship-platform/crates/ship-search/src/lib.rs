@@ -15,6 +15,7 @@
 pub mod adapter;
 pub mod adapters;
 pub mod aggregator;
+pub mod global;
 pub mod ranking;
 pub mod service;
 pub mod types;
@@ -22,6 +23,7 @@ pub mod wire;
 
 pub use adapter::{AdapterResult, EntitySearchAdapter};
 pub use aggregator::{SearchResponse, run_search};
+pub use global::{merge_global, run_global, SpaceTarget};
 pub use service::{sanitize_query, SearchContext, SearchService};
 pub use types::{Cursor, EntityKind, EntityKindFilter, SearchHit, SearchOpts};
-pub use wire::SearchWire;
+pub use wire::{hit_to_proto, parse_request, ParsedSearchRequest, SearchScope, SearchWire};

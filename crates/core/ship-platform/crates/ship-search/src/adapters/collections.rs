@@ -42,6 +42,7 @@ impl EntitySearchAdapter for CollectionsAdapter {
                     icon: Some("folder".into()),
                     snippet: None,
                     score,
+                    space_id: String::new(),
                 }))
             })
             .collect();

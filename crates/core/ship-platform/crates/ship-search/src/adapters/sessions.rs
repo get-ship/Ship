@@ -49,6 +49,7 @@ impl EntitySearchAdapter for SessionsAdapter {
                     icon: Some("message-square-plus".into()),
                     snippet: Some(format!("{} — {}", s.workspace_id, s.status)),
                     score,
+                    space_id: String::new(),
                 }))
             })
             .collect();

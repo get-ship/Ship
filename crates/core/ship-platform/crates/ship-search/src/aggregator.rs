@@ -112,6 +112,7 @@ mod tests {
                     icon: None,
                     snippet: None,
                     score: *score,
+                    space_id: String::new(),
                 })
                 .collect();
             let consumed = start + hits.len();

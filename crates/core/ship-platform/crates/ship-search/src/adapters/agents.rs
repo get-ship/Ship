@@ -43,6 +43,7 @@ impl EntitySearchAdapter for AgentsAdapter {
                     icon: Some("bot".into()),
                     snippet: a.description.clone(),
                     score,
+                    space_id: String::new(),
                 }))
             })
             .collect();

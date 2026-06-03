@@ -46,6 +46,7 @@ impl EntitySearchAdapter for ArtifactsAdapter {
                     icon: Some("file".into()),
                     snippet: a.mime.clone(),
                     score,
+                    space_id: String::new(),
                 }))
             })
             .collect();
