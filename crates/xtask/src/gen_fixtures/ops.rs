@@ -51,6 +51,9 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         // space.* (clean SpaceService — ship-space crate): typed identity +
         // config overlay + registry. Window types moved to DeviceService.
         v!(Space), v!(SpaceList), v!(ActiveSpace), v!(SpaceInfo), v!(SpaceSettingValue),
+        // settings.* (unified, scope-discriminated SettingsService — ship-config
+        // crate): the settings keystone. Replaces the retired ConfigService.
+        v!(Setting), v!(SettingList),
     ]
     .into_iter()
     .collect()

@@ -113,6 +113,14 @@ register_event!("compile.completed", [EventScope::Space], Retention::Durable, St
 register_event!("config.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ConfigChanged");
 register_event!("config.file_changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ConfigFileChanged");
 
+// ── settings.* ──────────────────────────────────────────────────────────────
+// The unified scope-discriminated settings keystone (SettingsService.Set).
+// Poly-scopic (Model C): the chosen scope at emit picks the partition —
+// Runtime (machine launch defaults, daemon_settings), Account (account.db),
+// or Space (the active space's space.db overlay). The binding authorizes the
+// chosen scope and the kernel routes to the matching per-scope db.
+register_event!("settings.changed", [EventScope::Runtime, EventScope::Account, EventScope::Space], Retention::Durable, Stability::Stable, "SettingChanged");
+
 // ── daemon.* ────────────────────────────────────────────────────────────────
 // Daemon/platform-lifecycle events: per-machine execution state, never synced.
 // Runtime owns them (folds the former System partition).

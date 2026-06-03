@@ -1,14 +1,12 @@
-//! Patch conversion + snapshot builder for the config Watch resolver.
+//! Patch conversion + snapshot builder for the settings Watch resolver.
 //!
 //! Mirrors `ship-collection/src/patch.rs`: maps `ship_reactive` patch types to
-//! the shared proto wire types, and builds the settings snapshot the resolver
-//! diffs on each `config.changed` emission.
+//! the shared proto wire types, and builds the per-scope settings snapshot the
+//! resolver diffs on each `settings.changed` emission.
 
 use ship_ops_rpc::{
     Patch as ProtoPatch, PatchFrame as ProtoPatchFrame, PatchOp as ProtoPatchOp, WatchEvent,
 };
-
-use crate::settings;
 
 fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ProtoPatchOp {
     use ship_reactive::PatchOp::*;
@@ -46,20 +44,5 @@ pub(crate) fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEve
     WatchEvent {
         body: Some(ship_ops_rpc::__buffa::oneof::watch_event::Body::Patches(Box::new(proto_frame))),
         ..Default::default()
-    }
-}
-
-/// Snapshot of all daemon settings as a JSON object `{ settings: { key: value } }`.
-///
-/// Re-run on each `config.changed` event; the resolver diffs successive
-/// snapshots into patch frames. Defaults are merged in so a Watch subscriber
-/// sees the same shape `List` returns.
-pub(crate) async fn settings_snapshot() -> serde_json::Value {
-    match settings::get_all_settings() {
-        Ok(map) => {
-            let obj: serde_json::Map<String, serde_json::Value> = map.into_iter().collect();
-            serde_json::json!({ "settings": obj })
-        }
-        Err(_) => serde_json::json!({ "settings": {} }),
     }
 }
