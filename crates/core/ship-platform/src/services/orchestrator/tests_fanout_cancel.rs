@@ -91,6 +91,8 @@ fn make_octx(
         platform,
         registry,
         probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        spawn_policy: Arc::new(crate::services::orchestrator::spawn_policy::NoopSpawnPolicy),
+        projections: Arc::new(crate::services::orchestrator::projection_reader::ProjectionsReader),
         done_flags: Arc::new(Mutex::new(HashMap::new())),
         activity_txs: Arc::new(Mutex::new(HashMap::<
             String, tokio::sync::mpsc::UnboundedSender<StepActivity>,

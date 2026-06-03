@@ -31,8 +31,10 @@ pub mod pipeline_loader;
 mod pipeline_loader_tests;
 pub mod pending;
 pub mod pipeline_specs;
+pub mod projection_reader;
 pub mod prompt_composer;
 pub mod replay;
+pub mod spawn_policy;
 pub mod router;
 pub mod run_step;
 pub mod step_executor;
@@ -76,9 +78,12 @@ mod tests_fanout_recover;
 mod tests_merge_step;
 #[cfg(test)]
 mod tests_review_retry;
+#[cfg(test)]
+mod tests_runner_ports;
 
 use crate::services::dispatch_ports::{
-    AgentPlatform, IsolationStrategy, SessionExecutor, ProcessRegistryPort, ProcessTreeProbe,
+    AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProcessTreeProbe, ProjectionReader,
+    SessionExecutor, SpawnPolicy,
 };
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
@@ -112,6 +117,16 @@ pub struct FanoutLaneRef {
 /// Created by the host process (e.g. shipd) and passed to the orchestrator
 /// router. All fields are trait objects so the orchestration logic is
 /// decoupled from the concrete supervisor implementation.
+///
+/// The fields divide into two groups that the agents-arc keystone split
+/// names explicitly (see `dispatch_ports::RunnerPorts` / `RunnerDomainState`):
+///   - **core ports** the runner mechanism needs (`isolation`, `executor`,
+///     `platform`, `registry`, `probe`, `spawn_policy`, `projections`,
+///     `event_dedup`, `run_locks`) — the movable half;
+///   - **per-domain state** kept by the L1 caller (`done_flags`,
+///     `activity_txs`, `fanout_lane_txs`, `fanout_lane_refs`).
+/// Held as one struct this slice (no crate move); the next slice relocates the
+/// runner against `RunnerPorts` alone.
 #[derive(Clone)]
 pub struct OrchestratorContext {
     pub isolation: Arc<dyn IsolationStrategy>,
@@ -121,6 +136,12 @@ pub struct OrchestratorContext {
     /// Subprocess-tree heartbeat probe used by `StepMonitor` to distinguish
     /// "agent is burning CPU on a tool call" from "agent is stuck."
     pub probe: Arc<dyn ProcessTreeProbe>,
+    /// Spawn/op-invocation policy. The runner hands a domain-free `Authority`
+    /// principal; this resolves the scoped spawn env (role + token mint).
+    pub spawn_policy: Arc<dyn SpawnPolicy>,
+    /// Projection reads in primitive shapes (orphan-slug union, terminal-run
+    /// guard) so the runner doesn't reach into `crate::projections` directly.
+    pub projections: Arc<dyn ProjectionReader>,
     /// Maps `slug` → done_declared flag for active step monitors.
     pub done_flags: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
     /// Maps `slug` → activity sender for active step monitors.

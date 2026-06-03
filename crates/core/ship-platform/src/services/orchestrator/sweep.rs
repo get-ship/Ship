@@ -8,45 +8,14 @@ use ship_substrate::events::supervisor::{
     SweepCompletedPayload, SweepStartedPayload,
 };
 use ship_substrate::events::EventEnvelope;
-use crate::projections::agent_session::{load_sessions, AgentSession};
 use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRun, PipelineRunStatus};
-use ship_substrate::projections::actor::active_actor_ids;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 
 use super::emit::persist_and_route;
 use super::OrchestratorContext;
-
-/// Is this slug owned by ANY known intentional dispatch? Source of
-/// truth combines three read models:
-///   - `jobs` (pipeline composition runs)
-///   - `agent_sessions` (the dispatch primitive — bare ship use,
-///     ship dispatch, MCP dispatch_agent, future pipeline steps)
-///   - `actor_state` (the actor read model — every spawned actor,
-///     including fanout lanes, chat actors, and shell sessions)
-///
-/// True orphan processes — registered with no record in ANY of these —
-/// are the only legitimate stray-kill targets. Phase 6 of the
-/// agent-primitive inversion added `agent_sessions`; this check also
-/// consults `actor_state` because fanout LANES never travel through
-/// either `jobs` (the pipeline-run row carries the PARENT slug, not the
-/// `<parent>-<step>-<lane>` lane slug) or `agent_sessions` (lanes are
-/// spawned directly by the fanout dispatcher, which emits `process.spawned`
-/// + `actor.created`, not `agent.session.started`). Without the
-/// actor_state arm, every live lane was flagged as a stray orphan and
-/// killed ~one sweep after spawn — before it could read its job spec.
-fn is_known_dispatch(
-    jobs: &HashMap<String, PipelineRun>,
-    sessions: &HashMap<String, AgentSession>,
-    actors: &HashSet<String>,
-    slug: &str,
-) -> bool {
-    actors.contains(slug)
-        || jobs.values().any(|j| j.slug == slug)
-        || sessions.values().any(|s| s.slug == slug)
-}
 
 /// Spawn the coherence sweep loop — runs every 30s, first tick immediate.
 pub async fn start_coherence_sweep(
@@ -70,16 +39,14 @@ pub async fn run_sweep(
     let start = std::time::Instant::now();
 
     let jobs = load_pipeline_runs()?;
-    // The agent_sessions projection is the dispatch-primitive read
-    // model. Sweep needs to consult it to avoid false-positive
-    // stray-process kills for bare ship use / dispatch flows. See
-    // is_known_dispatch above for the rule.
-    let sessions = load_sessions().unwrap_or_default();
-    // The actor_state read model names every spawned actor — including
-    // fanout lanes, which have no jobs/agent_sessions row. Without this
-    // the orphan check (Check B) murders live lanes one sweep after
-    // spawn. Read fresh each cycle so a stale snapshot can't mis-flag.
-    let active_actors = active_actor_ids().unwrap_or_default();
+    // The "known dispatch" slug set — union of pipeline runs, agent
+    // sessions, and live actors (fanout lanes, chat/shell actors) — comes
+    // through the ProjectionReader port as a flat primitive slug list so the
+    // sweep doesn't reach into the projection read models directly. The
+    // orphan check (Check B) treats a registered slug absent from this set as
+    // a true stray. Read fresh each cycle so a stale snapshot can't mis-flag.
+    let known_dispatch: HashSet<String> =
+        octx.projections.known_dispatch_slugs().await.into_iter().collect();
 
     // Evict dead handles from the registry before reading live_slugs. The
     // registry tracks "what was registered"; this drains anything the
@@ -270,7 +237,7 @@ pub async fn run_sweep(
     // Failed, etc.) but whose process was still cleaning up — the
     // ship-use-auto false-positive bug.
     for slug in &live_slugs {
-        if is_known_dispatch(&jobs, &sessions, &active_actors, slug) {
+        if known_dispatch.contains(slug) {
             // Lifecycle owns this process. Don't interfere.
             continue;
         }

@@ -16,51 +16,25 @@ use ship_substrate::events::agent_session::{
 };
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::{PipelineRunStartedPayload, StepType};
-use crate::services::dispatch_ports::{AgentPlatform, ExitCause, ExitSignal, SessionContext, LaunchProfile};
+use crate::services::dispatch_ports::{Authority, ExitCause, ExitSignal, SessionContext, LaunchProfile, SpawnPolicy};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-/// Build the spawn env for a daemon-spawned agent: `SHIP_ACTOR_ID` plus, when
-/// the platform issues them, a scoped `SHIP_TOKEN` + `SHIP_DAEMON_URL` so the
-/// agent authenticates to the daemon-hosted MCP server with role scopes.
+/// Build the spawn env for a daemon-spawned agent via the domain-free
+/// [`SpawnPolicy`] port: the runner names the principal it acts as
+/// (`Authority::Agent { id }` for `agent`) and the target `slug`; the policy
+/// impl resolves `SHIP_ACTOR_ID` plus, when the host issues them, a scoped
+/// `SHIP_TOKEN` + `SHIP_DAEMON_URL`.
 ///
-/// The compiler emits the authed-HTTP `ship` entry only for scoped launches,
-/// so these env vars resolve exactly where they're needed; on a non-token
-/// platform (tests) the agent simply has no scoped token. Dispatched workers
-/// mint with the default (worker) role.
+/// The role/token resolution moved into the impl (`spawn_policy::ConfigSpawnPolicy`)
+/// — the runner no longer names config / auth / agent-role types here.
 pub(super) async fn build_spawn_env(
     slug: &str,
     agent: &str,
-    platform: &dyn AgentPlatform,
+    spawn_policy: &dyn SpawnPolicy,
 ) -> std::collections::HashMap<String, String> {
-    let mut env = std::collections::HashMap::new();
-    env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
-    // Mint the scoped token with the AGENT'S DECLARED ROLE so its capabilities
-    // match what it is — designer → SuiAuthoring, contributor → Full, etc. This
-    // was role-blind (`None`) before, which handed every daemon-spawned agent
-    // the read-only default and silently denied e.g. a designer's view tools.
-    // A missing/unknown role resolves to `None` → `scopes_for_role`'s read-only
-    // default: fail closed, never silently elevated.
-    let role = crate::config::get_config(None)
-        .ok()
-        .and_then(|cfg| agent_role(&cfg, agent));
-    if let Some(token) = platform.mint_session_token(slug, role.as_deref()).await {
-        env.insert("SHIP_TOKEN".to_string(), token);
-    }
-    if let Some(url) = platform.daemon_url() {
-        env.insert("SHIP_DAEMON_URL".to_string(), url);
-    }
-    env
-}
-
-/// The declared role of `agent` in the project config, if any. Drives the
-/// scoped token's capabilities at spawn. Pure (takes the loaded config) so the
-/// mapping is unit-testable without touching the process-global cwd.
-fn agent_role(cfg: &crate::config::ProjectConfig, agent: &str) -> Option<String> {
-    cfg.agents
-        .iter()
-        .find(|a| a.id == agent)
-        .and_then(|a| a.role.clone())
+    let principal = Authority::Agent { id: agent.to_string() };
+    spawn_policy.spawn_env(&principal, slug).await
 }
 
 use super::emit::{
@@ -198,7 +172,7 @@ pub async fn dispatch_pipeline_run_internal(
         spec_path: payload.spec_path.clone(),
         spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: build_spawn_env(slug, agent, octx.platform.as_ref()).await,
+        env: build_spawn_env(slug, agent, octx.spawn_policy.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: launch_harness.clone(),
@@ -493,7 +467,7 @@ async fn dispatch_agent_session_internal(
         spec_path: ".artifacts/job-spec.md".to_string(),
         spec_content: payload.spec.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: build_spawn_env(slug, &payload.agent, octx.platform.as_ref()).await,
+        env: build_spawn_env(slug, &payload.agent, octx.spawn_policy.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: payload.harness.clone(),
@@ -976,7 +950,7 @@ async fn dispatch_first_run_step_inner(
         spec_path: payload.spec_path.clone(),
         spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: build_spawn_env(slug, &payload.agent, octx.platform.as_ref()).await,
+        env: build_spawn_env(slug, &payload.agent, octx.spawn_policy.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: payload.harness.clone(),
@@ -1071,51 +1045,5 @@ mod invocation_tests {
             resolve_step_invocation(Some("unknown-future-mode"), false),
             InvocationMode::Pty,
         );
-    }
-}
-
-#[cfg(test)]
-mod role_tests {
-    use super::agent_role;
-    use crate::auth::scopes::{scopes_for_role, Scope};
-    use crate::config::{AgentProfile, ProjectConfig};
-
-    fn cfg_with(id: &str, role: Option<&str>) -> ProjectConfig {
-        ProjectConfig {
-            agents: vec![AgentProfile {
-                id: id.to_string(),
-                role: role.map(str::to_string),
-                ..Default::default()
-            }],
-            ..Default::default()
-        }
-    }
-
-    /// The whole point of the fix: a designer agent's declared role resolves
-    /// and mints SuiAuthoring — the scope the role-blind `None` silently denied.
-    #[test]
-    fn designer_role_resolves_and_grants_sui_authoring() {
-        let cfg = cfg_with("dz", Some("designer"));
-        let role = agent_role(&cfg, "dz");
-        assert_eq!(role.as_deref(), Some("designer"));
-        assert!(Scope::SuiAuthoring.is_granted_by(&scopes_for_role(role.as_deref())));
-    }
-
-    /// Unknown agent → no role → read-only default, never SuiAuthoring.
-    #[test]
-    fn unknown_agent_fails_closed() {
-        let cfg = cfg_with("dz", Some("designer"));
-        let role = agent_role(&cfg, "missing");
-        assert_eq!(role, None);
-        assert!(!Scope::SuiAuthoring.is_granted_by(&scopes_for_role(role.as_deref())));
-    }
-
-    /// An agent with no declared role fails closed too — not silently elevated.
-    #[test]
-    fn roleless_agent_fails_closed() {
-        let cfg = cfg_with("plain", None);
-        let role = agent_role(&cfg, "plain");
-        assert_eq!(role, None);
-        assert!(!Scope::SuiAuthoring.is_granted_by(&scopes_for_role(role.as_deref())));
     }
 }

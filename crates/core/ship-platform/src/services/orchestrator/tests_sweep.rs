@@ -145,6 +145,11 @@ fn make_octx(
         platform: Arc::new(NoopPlatform),
         registry,
         probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        // Sweep tests assert real orphan/known-dispatch behavior against the
+        // seeded test DB, so inject the real reader (same projections the
+        // old inline is_known_dispatch read).
+        spawn_policy: Arc::new(crate::services::orchestrator::spawn_policy::NoopSpawnPolicy),
+        projections: Arc::new(crate::services::orchestrator::projection_reader::ProjectionsReader),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),

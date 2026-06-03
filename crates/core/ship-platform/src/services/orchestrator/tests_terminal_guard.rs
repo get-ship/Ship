@@ -109,6 +109,10 @@ fn octx(executor: Arc<TrackingExecutor>, worktrees: PathBuf) -> OrchestratorCont
         platform: Arc::new(TestPlatform(worktrees)),
         registry: Arc::new(NoopRegistry),
         probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        // Terminal-guard tests assert against the real projection state they
+        // seed, so inject the real reader behind the port.
+        spawn_policy: Arc::new(crate::services::orchestrator::spawn_policy::NoopSpawnPolicy),
+        projections: Arc::new(crate::services::orchestrator::projection_reader::ProjectionsReader),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
