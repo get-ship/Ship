@@ -7606,6 +7606,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc6fe69c597f9c37bfeeeeeb33da3530379845f10be461a66d16d03eca2ded77"
 
 [[package]]
+name = "ship-account"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64 0.22.1",
+ "buffa",
+ "chrono",
+ "connectrpc",
+ "getrandom 0.2.17",
+ "serde",
+ "serde_json",
+ "sha2",
+ "ship-gateway-client",
+ "ship-ops-rpc",
+ "ship-substrate",
+ "ship-types",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "urlencoding",
+]
+
+[[package]]
 name = "ship-analytics"
 version = "0.1.0"
 dependencies = [
@@ -7884,6 +7909,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "shell-words",
+ "ship-account",
  "ship-analytics",
  "ship-artifacts",
  "ship-collection",
@@ -8137,6 +8163,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "ship-account",
  "ship-analytics",
  "ship-artifacts",
  "ship-collection",

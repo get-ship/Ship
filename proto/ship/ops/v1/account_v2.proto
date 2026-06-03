@@ -1,0 +1,101 @@
+// Clean, typed `account.*` wire contract — the proto-SSOT replacement for the
+// opaque-JsonResponse `account.proto` (#89 vestige). Typed messages replace the
+// opaque JSON; the *Live streaming twin is dropped (Watch is the reactive
+// surface and account state is coarse login/logout).
+//
+// Mounted ADDITIVELY beside the legacy `AccountService` (account.proto) under a
+// distinct service name (`AccountWireService`) so the legacy surface + its
+// shipd handler keep compiling until the operator's sequential cutover renames
+// this to `AccountService` and deletes the legacy proto + handler.
+//
+// ALL 4 RPCs require user presence (CallerKind::Cli). The Connect router does
+// not run the per-route `@auth cli` middleware, so the handler re-enforces
+// `require_user_presence` itself.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+
+message StateRequest {}
+message LogoutRequest {}
+
+// PKCE login start — CLI passes its local-callback redirect_uri; daemon returns
+// the browser URL + a state_id.
+message LoginRequest {
+  string redirect_uri = 1;
+}
+
+// PKCE login finish — CLI passes the state_id + the code from its callback.
+message LoginCompleteRequest {
+  string state_id = 1;
+  string code = 2;
+}
+
+// User identity. `image == ""` means None on the wire (the service maps
+// Option<String> <-> "").
+message Me {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  string image = 4;
+}
+
+// Account-state snapshot. The tag mirrors the AccountState enum:
+// pending carries state_id; logged_in carries user_id + optional me.
+message AccountState {
+  enum Status {
+    LOGGED_OUT = 0;
+    PENDING = 1;
+    LOGGED_IN = 2;
+  }
+  Status status = 1;
+  string user_id = 2;   // set when LOGGED_IN
+  string state_id = 3;  // set when PENDING
+  optional Me me = 4;   // best-effort identity when LOGGED_IN
+}
+
+message LoginStarted {
+  string state_id = 1;
+  string browser_url = 2;
+}
+
+message LoginCompleted {
+  string user_id = 1;
+  optional Me me = 2;
+}
+
+message LogoutResult {
+  bool had_token = 1;
+  bool key_revoked = 2;
+}
+
+// Ship Cloud account ops (typed). ALL ops require user presence.
+service AccountWireService {
+  // Snapshot — logged_out / pending / logged_in. C0 read.
+  rpc State(StateRequest) returns (AccountState) {
+    option (ship.ops.v1.description) = "Ship Cloud account snapshot — logged_out / pending / logged_in.";
+    option (ship.ops.v1.capability) = "ship.account.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  // PKCE login start — CLI passes its local-callback redirect_uri; daemon
+  // returns the browser URL + state_id.
+  rpc Login(LoginRequest) returns (LoginStarted) {
+    option (ship.ops.v1.description) = "Start a PKCE login — returns the browser auth URL + a state_id.";
+    option (ship.ops.v1.capability) = "ship.account.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  // PKCE login finish — CLI passes state_id + callback code; daemon exchanges,
+  // stores the key, binds the owner.
+  rpc LoginComplete(LoginCompleteRequest) returns (LoginCompleted) {
+    option (ship.ops.v1.description) = "Finish a PKCE login — exchanges the code, stores the key, returns identity.";
+    option (ship.ops.v1.capability) = "ship.account.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  // Revoke gateway key (best-effort) + clear local token. Idempotent. C2.
+  rpc Logout(LogoutRequest) returns (LogoutResult) {
+    option (ship.ops.v1.description) = "Revoke the gateway key (best-effort) and clear the local token. Idempotent.";
+    option (ship.ops.v1.capability) = "ship.account.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+}

@@ -21,6 +21,7 @@ const MACHINE_DAEMON_DIR: &str = "daemon";
 const SETTINGS_FILE: &str = "settings.jsonc";
 const LOCAL_FILE: &str = "local.jsonc";
 const CREDENTIALS_FILE: &str = "credentials.jsonc";
+const ACCOUNT_TOKEN_FILE: &str = "account.jsonc";
 const RUNTIME_DIR: &str = "runtime";
 const RUNTIME_SUI_COMPILER: &str = "sui-compiler";
 
@@ -130,6 +131,14 @@ impl ShipHome {
     /// Path to a daemon IPC handshake file (singleton daemon).
     pub fn daemon_file(&self, file: DaemonFile) -> PathBuf {
         self.daemon_dir().join(file.as_str())
+    }
+
+    /// `machine/daemon/account.jsonc` — the daemon-owned Ship Cloud token
+    /// store (mode 0600). Narrower than the legacy `credentials.jsonc`: only
+    /// the daemon process reads it. The typed accessor the home-layout ADR
+    /// requires in place of a hand-joined `~/.ship` path.
+    pub fn account_token_path(&self) -> PathBuf {
+        self.daemon_dir().join(ACCOUNT_TOKEN_FILE)
     }
 
     /// Per-worktree daemon directory: `machine/daemons/<hash>/`.

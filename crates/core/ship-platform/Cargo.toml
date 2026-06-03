@@ -16,6 +16,7 @@ ship-analytics = { path = "crates/ship-analytics" }
 # crates depend on ship-substrate/ship-types, not on ship-platform.
 ship-collection = { path = "crates/ship-collection" }
 ship-artifacts = { path = "crates/ship-artifacts" }
+ship-account = { path = "crates/ship-account" }
 ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines", features = ["specta"] }

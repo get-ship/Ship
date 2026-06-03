@@ -50,6 +50,7 @@ fn main() {
         .arg("ship/ops/v1/config.proto")
         .arg("ship/ops/v1/sessions.proto")
         .arg("ship/ops/v1/account.proto")
+        .arg("ship/ops/v1/account_v2.proto")
         .arg("ship/ops/v1/chat.proto")
         .arg("ship/ops/v1/events.proto")
         .arg("ship/ops/v1/view.proto")
@@ -90,6 +91,7 @@ fn main() {
             "ship/ops/v1/config.proto",
             "ship/ops/v1/sessions.proto",
             "ship/ops/v1/account.proto",
+            "ship/ops/v1/account_v2.proto",
             "ship/ops/v1/chat.proto",
             "ship/ops/v1/events.proto",
             "ship/ops/v1/view.proto",
