@@ -344,17 +344,26 @@ impl Bundler {
     pub(crate) fn watching_flag(&self) -> &AtomicBool {
         &self.watching
     }
-    pub(crate) fn compiler_for_watch(&self) -> &std::path::Path {
-        &self.compiler
-    }
-    pub(crate) fn staging_for_watch(&self) -> &std::path::Path {
-        &self.staging
-    }
     pub(crate) fn layout_for_watch(&self) -> BundleLayout {
         self.layout()
     }
     pub(crate) fn invalidate_targets_for_watch(&self) {
         self.invalidate_targets();
+    }
+    /// Rebuild one target from the watcher, COALESCED through the same
+    /// single-flight gate the on-demand `build` path uses. A watcher rebuild of
+    /// `views/git/view` must not run a second `BundlerBuilder` concurrently with
+    /// an on-demand build of the same target — that's the cross-build collision
+    /// class. Route through `build_single_flight`; a coalesced waiter gets the
+    /// on-disk manifest the leader wrote (same fallback as `build`).
+    pub(crate) async fn rebuild_for_watch(
+        &self,
+        target: &BundleTarget,
+    ) -> Result<BundleManifest, BundlerError> {
+        match self.build_single_flight(&target.name, target).await? {
+            Some(m) => Ok(m),
+            None => Ok(self.manifest_for_built(target)),
+        }
     }
     pub(crate) fn emit_watch_event(
         &self,

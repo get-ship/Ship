@@ -21,6 +21,7 @@
 //! root. This registry is a transport, not a policy enforcer.
 
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 use std::sync::OnceLock;
 use tokio::sync::{Mutex, broadcast};
 
@@ -35,16 +36,66 @@ fn registry() -> &'static Registry {
     REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+/// A subscription receiver that evicts its view's sender from the registry
+/// when the LAST subscriber drops (#256-class fix).
+///
+/// The bare `HashMap<view, Sender>` was append-only: `subscribe` did
+/// `entry().or_insert`, and nothing ever removed a sender — so over connection
+/// churn (every SSE disconnect/reconnect on a view) the map grew without bound.
+/// This guard derefs to the inner [`broadcast::Receiver`] (so call sites are
+/// unchanged) and, on drop, spawns a short eviction task: it re-locks the
+/// registry and removes the sender IFF it has no remaining receivers. Drop
+/// can't `await` the async mutex directly, hence the detached task; the
+/// `receiver_count() == 0` re-check under the lock closes the race with a
+/// concurrent `subscribe` (which holds the same lock and would have bumped the
+/// count, or creates a fresh sender after our removal).
+pub struct ViewReceiver {
+    inner: broadcast::Receiver<String>,
+    view_name: String,
+}
+
+impl Deref for ViewReceiver {
+    type Target = broadcast::Receiver<String>;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for ViewReceiver {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl Drop for ViewReceiver {
+    fn drop(&mut self) {
+        let view_name = std::mem::take(&mut self.view_name);
+        tokio::spawn(async move {
+            let mut reg = registry().lock().await;
+            // Evict only when no receiver remains. `subscribe` holds this same
+            // lock, so a sender we see with `receiver_count() == 0` here has no
+            // live subscriber and is safe to drop; a later `subscribe` re-creates
+            // it lazily.
+            if reg.get(&view_name).is_some_and(|s| s.receiver_count() == 0) {
+                reg.remove(&view_name);
+            }
+        });
+    }
+}
+
 /// Subscribe to the broadcast channel for `view_name`. Lazily creates
 /// the sender on first call; subsequent calls reuse it. Returns a
-/// [`broadcast::Receiver`] that yields every frame published after
-/// subscription. The caller is responsible for closing it on disconnect.
-pub async fn subscribe(view_name: &str) -> broadcast::Receiver<String> {
+/// [`ViewReceiver`] that yields every frame published after subscription and
+/// evicts the view's sender from the registry when the last subscriber drops.
+pub async fn subscribe(view_name: &str) -> ViewReceiver {
     let mut reg = registry().lock().await;
     let sender = reg
         .entry(view_name.to_string())
         .or_insert_with(|| broadcast::channel::<String>(CHANNEL_CAPACITY).0);
-    sender.subscribe()
+    ViewReceiver {
+        inner: sender.subscribe(),
+        view_name: view_name.to_string(),
+    }
 }
 
 /// Publish a pre-encoded SSE frame to every subscriber of `view_name`.
@@ -86,6 +137,56 @@ mod tests {
         assert_eq!(n, 2);
         assert_eq!(rx1.recv().await.unwrap(), "hello");
         assert_eq!(rx2.recv().await.unwrap(), "hello");
+    }
+
+    #[tokio::test]
+    async fn dropping_last_subscriber_evicts_the_sender() {
+        // #256-class: the registry must NOT grow without bound across
+        // connection churn. After the last subscriber for a view drops, its
+        // sender is evicted (publish to it then counts zero receivers, and the
+        // map no longer retains the entry).
+        let view = "test-view-evict";
+        {
+            let _rx = subscribe(view).await;
+            assert!(
+                registry().lock().await.contains_key(view),
+                "sender registered while subscribed"
+            );
+        }
+        // Drop spawns the eviction task; give it a turn to run.
+        for _ in 0..50 {
+            tokio::task::yield_now().await;
+            tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+            if !registry().lock().await.contains_key(view) {
+                break;
+            }
+        }
+        assert!(
+            !registry().lock().await.contains_key(view),
+            "sender evicted once the last subscriber dropped"
+        );
+    }
+
+    #[tokio::test]
+    async fn sender_retained_while_a_subscriber_remains() {
+        // Two subscribers; dropping one must NOT evict — the surviving receiver
+        // still needs the sender. Eviction only fires when the LAST drops.
+        let view = "test-view-retain";
+        let _keep = subscribe(view).await;
+        {
+            let _drop = subscribe(view).await;
+        }
+        // Let any (incorrect) eviction task run.
+        for _ in 0..10 {
+            tokio::task::yield_now().await;
+            tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+        }
+        assert!(
+            registry().lock().await.contains_key(view),
+            "sender retained while a subscriber survives"
+        );
+        // The surviving subscriber still receives frames.
+        assert_eq!(publish(view, "still-here".into()).await, 1);
     }
 
     #[tokio::test]

@@ -74,11 +74,19 @@ pub(crate) struct SuiPlugin {
 
 impl SuiPlugin {
     /// Compile a `.sui` to JS via sui-compiler (component or view per dir).
+    ///
+    /// The output dir must be UNIQUE per invocation. Every view entry is
+    /// `page.sui` (stem `page`), so a process-shared `shipbundle-page-{pid}`
+    /// dir let concurrent cold-builds of DIFFERENT views read/write/serve one
+    /// another's `page.js` — a 200-OK wrong bundle. A RAII `TempDir` (removed
+    /// when this fn returns) gives every compile its own directory and also
+    /// fixes the temp-dir leak the per-pid scheme accumulated.
     fn compile(&self, sui: &Path) -> Result<String> {
         let (mode, stem) = detect_mode(sui, &self.repo_root);
-        let out = std::env::temp_dir().join(format!("shipbundle-{}-{}", stem, std::process::id()));
-        std::fs::create_dir_all(&out)?;
-        let res = compile_sui(&self.compiler, sui, &out, mode, &stem)
+        let out = tempfile::Builder::new()
+            .prefix(&format!("shipbundle-{}-", std::process::id()))
+            .tempdir()?;
+        let res = compile_sui(&self.compiler, sui, out.path(), mode, &stem)
             .map_err(|e| anyhow!("compile {}: {e}", sui.display()))?;
         Ok(std::fs::read_to_string(&res.js_path)?)
     }

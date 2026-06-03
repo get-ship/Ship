@@ -398,7 +398,20 @@ pub async fn run_network(
                             });
                         }
                     }
-                    Err(_) => break,
+                    // A broadcast receiver that falls behind a write storm gets
+                    // `Lagged(n)` — transient, recoverable: the channel dropped n
+                    // buffered events but is still open. Collapsing it with
+                    // `Closed` (the old `Err(_) => break`) permanently killed
+                    // HMR/compile forwarding on a single lag. Warn + CONTINUE on
+                    // a lag; break only when the sender is truly gone.
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        tracing::warn!(
+                            dropped = n,
+                            "bundler-event forwarder lagged; resyncing (HMR/compile events dropped)"
+                        );
+                        continue;
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 }
             }
         })

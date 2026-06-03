@@ -20,7 +20,7 @@ use std::time::Duration;
 use tokio::sync::Notify;
 use tracing::{info, warn};
 
-use crate::{rolldown_bundle, Bundler, BundlerEvent};
+use crate::{Bundler, BundlerEvent};
 
 /// Bounded watch-ring capacity (#256). Large enough to absorb a normal editor
 /// save burst; on overflow `WatchQueue::push` drops the OLDEST entry so the ring
@@ -135,15 +135,11 @@ pub(crate) async fn run(b: &Bundler) {
                 if !seen.insert(t.name.clone()) {
                     continue;
                 }
-                match rolldown_bundle::bundle_target(
-                    &layout,
-                    &t,
-                    b.compiler_for_watch(),
-                    b.staging_for_watch(),
-                    false,
-                )
-                .await
-                {
+                // Route through single-flight so a watcher rebuild of this
+                // target coalesces with any on-demand build of the SAME target
+                // instead of running a second concurrent `BundlerBuilder` (the
+                // cross-build collision class). #256.
+                match b.rebuild_for_watch(&t).await {
                     Ok(m) => {
                         let _ = b.emit_watch_event(BundlerEvent::ModuleChanged {
                             target: m.target,
