@@ -71,7 +71,6 @@ mod mcp;
 mod merge;
 pub mod agents;
 mod project;
-mod runtime_settings;
 mod types;
 pub mod watcher;
 
@@ -107,10 +106,14 @@ pub use crud::{
 pub use discover::discover_projects;
 pub use watcher::{spawn_config_watcher, ConfigWatcher};
 
-pub use runtime_settings::{
-    drain_legacy_project_config_kv, drain_legacy_settings_kv, get_all_settings, get_setting,
-    get_setting_u64_or, resolve_bool, resolve_git_log_limit, resolve_hooks_max_depth,
-    resolve_str, resolve_watcher_debounce, set_setting, set_setting_and_emit, setting_default,
+// RUNTIME-scope settings API — the single source of truth now lives in the
+// `ship-config` crate (`ship_config::settings`); the legacy in-tree settings
+// module was unified into it (S4). Re-exported here so existing
+// `ship_platform::config::{get_setting, …}` consumers keep working.
+pub use ship_config::settings::{
+    get_all_settings, get_setting, get_setting_u64_or, resolve_bool, resolve_git_log_limit,
+    resolve_hooks_max_depth, resolve_str, resolve_watcher_debounce, set_setting,
+    set_setting_and_emit, setting_default,
 };
 
 pub use credentials::Credentials;

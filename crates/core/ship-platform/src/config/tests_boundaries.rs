@@ -61,8 +61,9 @@ fn save_then_get_config_roundtrips() -> anyhow::Result<()> {
     assert_eq!(loaded.description.as_deref(), Some("roundtrip test"));
 
     // Boundary: a second independent project must not inherit project-a's harnesses
-    // from the global kv store. Fails today because save_runtime_settings ignores
-    // its ship_dir argument and writes to a shared "runtime" namespace.
+    // from the global kv store (the historical regression was a project-config
+    // save path that ignored its ship_dir argument and wrote to a shared
+    // "runtime" namespace).
     let tmp_b = tempdir()?;
     let loaded_b = get_config(Some(tmp_b.path().to_path_buf()))?;
     assert_ne!(

@@ -17,6 +17,12 @@ ship-analytics = { path = "crates/ship-analytics" }
 ship-collection = { path = "crates/ship-collection" }
 ship-artifacts = { path = "crates/ship-artifacts" }
 ship-account = { path = "crates/ship-account" }
+# Unified settings keystone (S4). The RUNTIME-scope Rust settings API
+# (`ship_config::settings`) is the single source of truth for daemon launch
+# defaults — the legacy in-tree settings module was unified into it.
+# No cycle: ship-config depends on ship-substrate/ship-types/ship-reactive/
+# ship-ops-rpc, none of which depend on ship-platform.
+ship-config = { path = "crates/ship-config" }
 ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines", features = ["specta"] }
