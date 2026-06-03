@@ -1,57 +1,80 @@
-//! Daemon space identity.
+//! Active-space resolution.
 //!
-//! A daemon serves exactly one worktree/project = one **space**. The space id
-//! is the path-hash identity of the project root, resolved once at daemon
-//! startup (`ProjectRoot::discover`) and stored here as a process-global so the
-//! per-request emit path can stamp it onto every space-scoped event's
-//! `space_id` field.
+//! There is NO daemon "home space" and NO `global` pseudo-space. A shell runs
+//! space-less (account / runtime context); a space becomes active only when one
+//! is discoverable or has been explicitly activated.
 //!
-//! This is the sole domain scope. The legacy `workspace_id` (a git branch slug)
-//! must never be used as a scope/partition/delivery key — see spec
+//! [`resolve_active_space`] is the one seam every caller uses to answer "what is
+//! the active space for this probe path?":
+//!
+//! - a discoverable project root → `Some(path_hash(root))` — the path-hash
+//!   space identity, matching the `projects` projection primary key
+//!   (`ship_platform::projects::register`). NOT a branch slug.
+//! - no discoverable project → `None` (space-less). The caller MUST treat this
+//!   as "no active space" and error cleanly — it must NEVER fabricate a
+//!   `"global"` partition.
+//!
+//! The legacy `workspace_id` (a git branch slug) must never be used as a
+//! scope/partition/delivery key — see spec
 //! `.artifacts/specs/space/116-event-partition.md`.
 
 use std::path::Path;
-use std::sync::OnceLock;
 
-use crate::home::path_hash;
+use crate::home::{ProjectRoot, path_hash};
 
-static DAEMON_SPACE_ID: OnceLock<String> = OnceLock::new();
-
-/// Set the daemon's space id from its project root. Idempotent: the first
-/// caller wins (startup sets it once, before any request thread reads it).
+/// Resolve the active space id for `probe`: `Some(path_hash(root))` when a
+/// project root is discoverable from it, else `None` (space-less).
 ///
-/// The id is `path_hash(canonical(root))`, matching the `projects` projection
-/// primary key (`ship_platform::projects::register`). This is the path-hash
-/// space identity, NOT a branch slug.
-pub fn set_daemon_space_id_from_root(root: &Path) {
-    let id = path_hash(root);
-    let _ = DAEMON_SPACE_ID.set(id);
-}
-
-/// Set the daemon's space id directly (used by tests and callers that already
-/// hold the computed id). Idempotent — first caller wins.
-pub fn set_daemon_space_id(id: String) {
-    let _ = DAEMON_SPACE_ID.set(id);
-}
-
-/// The daemon's space id, if startup resolved a project root. `None` in
-/// global-only mode (no `--workspace`, no discoverable `.ship/`), in which case
-/// space-scoped emits carry `None` — the same posture as the legacy unscoped
-/// path, never a branch slug.
-pub fn daemon_space_id() -> Option<String> {
-    DAEMON_SPACE_ID.get().cloned()
+/// This is the SOLE active-space resolution primitive. It is pure — no process
+/// global, no fabricated fallback. `None` means "no active space"; the caller
+/// errors cleanly rather than inventing one.
+pub fn resolve_active_space(probe: &Path) -> Option<String> {
+    // RED step (S2): current behaviour still fabricates the `global`
+    // pseudo-space when no project is discoverable. The accompanying test
+    // asserts `None`, so it FAILS here on purpose; the GREEN step removes the
+    // fabrication.
+    Some(
+        ProjectRoot::discover(probe)
+            .map(|root| path_hash(root.path()))
+            .unwrap_or_else(|| "global".to_string()),
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::tempdir;
 
-    // NOTE: `DAEMON_SPACE_ID` is a set-once process global; a unit test that
-    // writes it would pollute every other test in this binary. So we only
-    // exercise the path-hash derivation, which is the load-bearing part.
     #[test]
-    fn space_id_from_root_is_path_hash() {
-        let dir = std::env::temp_dir();
-        assert_eq!(path_hash(&dir), path_hash(&dir), "path_hash is deterministic");
+    fn resolves_path_hash_inside_a_project() {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        fs::create_dir_all(root.join(".ship")).unwrap();
+        fs::create_dir_all(root.join("src")).unwrap();
+
+        let got = resolve_active_space(&root.join("src")).expect("project → Some");
+        let expected = ProjectRoot::discover(&root.join("src"))
+            .map(|r| path_hash(r.path()))
+            .unwrap();
+        assert_eq!(got, expected, "active space is the project root's path-hash");
+        assert_ne!(got, "global", "must never be the global pseudo-space");
+    }
+
+    #[test]
+    fn no_project_resolves_to_no_active_space() {
+        // The space-less boot: a probe outside any project must resolve to NO
+        // active space (None) — NEVER the fabricated `global` partition. This is
+        // the home-space kill (S2): there is no daemon home space to fall back
+        // onto, and no `spaces/global/space.db` is ever created.
+        let tmp = tempdir().unwrap();
+        let outside = tmp.path().join("nowhere");
+        fs::create_dir_all(&outside).unwrap();
+
+        assert_eq!(
+            resolve_active_space(&outside),
+            None,
+            "no discoverable project → no active space (no `global` fabrication)"
+        );
     }
 }

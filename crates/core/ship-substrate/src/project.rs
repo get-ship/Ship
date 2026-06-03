@@ -33,7 +33,7 @@ pub use registry::{
     ProjectEntry, ProjectRegistry, get_registry_path, list_registered_projects, load_registry,
     register_project, save_registry, unregister_project,
 };
-pub use space::{daemon_space_id, set_daemon_space_id, set_daemon_space_id_from_root};
+pub use space::resolve_active_space;
 
 #[cfg(test)]
 mod tests {
