@@ -21,18 +21,18 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use ship_substrate::events::CallerKind;
 
 /// Per-route auth enforcement middleware. Wraps the actual handler.
 ///
 /// Behavior:
 /// - `RequiredAuth::Public` — pass through (this branch should never be
 ///   hit because `ship_route` only wraps non-public routes).
-/// - `RequiredAuth::Cli` — require `AuthContext` in extensions AND
-///   `caller_kind == CallerKind::Cli`. MCP session tokens get 403 even
-///   when they hold `Scope::Full`.
 /// - `RequiredAuth::Scope(s)` — require `auth.has_scope(s)`.
 /// - `RequiredAuth::Handler` — pass through; the handler enforces.
+///
+/// The `Cli` arm was removed (S6, #124): "requires the CLI transport" was an
+/// elevation shortcut. Operator-only routes now enforce in-handler
+/// (`Scope::Full` / `require_scope`) or run through the gate (`command::call`).
 ///
 /// Missing `AuthContext` (the outer `auth_middleware` didn't run, or
 /// failed) returns 401. Insufficient privileges return 403 with the
@@ -44,23 +44,6 @@ pub async fn enforce_required_auth(
 ) -> Response {
     match required {
         RequiredAuth::Public | RequiredAuth::Handler => next.run(req).await,
-        RequiredAuth::Cli => {
-            let Some(auth) = req.extensions().get::<super::AuthContext>().cloned() else {
-                return (StatusCode::UNAUTHORIZED, "missing auth context").into_response();
-            };
-            if matches!(auth.caller_kind, CallerKind::Cli) {
-                next.run(req).await
-            } else {
-                (
-                    StatusCode::FORBIDDEN,
-                    axum::Json(crate::wire::MeshResponse {
-                        ok: false,
-                        data: json!("requires user-presence (CallerKind::Cli)"),
-                    }),
-                )
-                    .into_response()
-            }
-        }
         RequiredAuth::Scope(scope) => {
             let Some(auth) = req.extensions().get::<super::AuthContext>().cloned() else {
                 return (StatusCode::UNAUTHORIZED, "missing auth context").into_response();
@@ -216,6 +199,8 @@ pub async fn session_register(
         created_at: std::time::Instant::now(),
         expires_at_unix: None,
         ephemeral: true,
+        // A role-scoped MCP agent session is never the operator cred (S6).
+        is_operator_cred: false,
     };
 
     registry.lock().await.insert(token.clone(), session);

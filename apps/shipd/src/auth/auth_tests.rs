@@ -12,7 +12,7 @@ use http_body_util::BodyExt;
 use std::sync::Arc;
 use tower::ServiceExt;
 
-use crate::auth::{self, AuthContext, SessionRegistry};
+use crate::auth::{self, AuthContext, Scope, SessionRegistry};
 
 /// Build a minimal router with the auth middleware and a 200-OK handler.
 fn test_router(token: &str) -> Router {
@@ -47,7 +47,92 @@ const TEST_TOKEN: &str = "a01b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c
 // ── Pid-bound session token enforcement (space window) ───────────────────
 
 use crate::auth::peer_socket::PeerPid;
-use ship_platform::auth::scopes::space_window_session;
+use ship_platform::auth::scopes::{operator_session, space_window_session};
+
+/// Handler that reports whether the resolved caller is operator-class — the S6
+/// end-to-end probe (the operator cred is the SOLE elevation source).
+async fn operator_probe(axum::Extension(auth): axum::Extension<AuthContext>) -> impl IntoResponse {
+    (StatusCode::OK, if auth.is_operator() { "operator" } else { "not-operator" })
+}
+
+/// Router serving `/whoami` (operator probe) behind the real bearer middleware,
+/// pre-seeded with `session` and injecting `peer_pid` like the UDS peer-cred layer.
+async fn operator_router(
+    session: ship_platform::auth::scopes::DaemonSession,
+    peer_pid: Option<u32>,
+) -> Router {
+    let token = Arc::new(TEST_TOKEN.to_string());
+    let registry: SessionRegistry =
+        Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+    registry.lock().await.insert(session.token.clone(), session);
+    Router::new()
+        .route("/whoami", axum::routing::get(operator_probe))
+        .layer(middleware::from_fn(move |req, next| {
+            auth::auth_middleware(token.clone(), registry.clone(), req, next)
+        }))
+        .layer(middleware::from_fn(move |mut req: Request<Body>, next: middleware::Next| async move {
+            req.extensions_mut().insert(PeerPid(peer_pid));
+            next.run(req).await
+        }))
+}
+
+#[tokio::test]
+async fn operator_cred_over_attested_transport_is_operator() {
+    // The pid-attested operator cred presented from its bound process is the
+    // operator — the SOLE elevation source (S6).
+    let session = operator_session(4242, "ship_sess_op".to_string());
+    let router = operator_router(session, Some(4242)).await;
+    let req = Request::builder()
+        .uri("/whoami")
+        .header("authorization", "Bearer ship_sess_op")
+        .body(Body::empty())
+        .unwrap();
+    let (status, body) = send(router, req).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, "operator", "a pid-attested operator cred is operator-class");
+}
+
+#[tokio::test]
+async fn operator_cred_over_unattested_transport_is_rejected() {
+    // The operator cred is pid-bound: presented over a transport that can't
+    // attest a pid (TCP, no PeerPid) it fails closed — the operator binding
+    // can't be stripped by switching transports.
+    let session = operator_session(4242, "ship_sess_op".to_string());
+    let router = operator_router(session, None).await;
+    let req = Request::builder()
+        .uri("/whoami")
+        .header("authorization", "Bearer ship_sess_op")
+        .body(Body::empty())
+        .unwrap();
+    let (status, _) = send(router, req).await;
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "a pid-bound operator cred over an unattested transport must fail closed"
+    );
+}
+
+#[tokio::test]
+async fn daemon_token_is_not_operator() {
+    // The S6 kill, end to end: the daemon token (the CLI transport) carries
+    // Scope::Full but grants NO operator elevation.
+    let router = Router::new()
+        .route("/whoami", axum::routing::get(operator_probe))
+        .layer(middleware::from_fn({
+            let token = Arc::new(TEST_TOKEN.to_string());
+            let registry: SessionRegistry =
+                Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+            move |req, next| auth::auth_middleware(token.clone(), registry.clone(), req, next)
+        }));
+    let req = Request::builder()
+        .uri("/whoami")
+        .header("authorization", format!("Bearer {TEST_TOKEN}"))
+        .body(Body::empty())
+        .unwrap();
+    let (status, body) = send(router, req).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, "not-operator", "the daemon token must NOT confer operator (S6)");
+}
 
 /// Router whose auth layer sees a session registry pre-seeded with `session`,
 /// and whose outer layer injects `peer_pid` into request extensions (modelling
@@ -410,6 +495,8 @@ fn space_window_session_mints_space_binding() {
         session_id: None,
         scopes: session.scopes.clone(),
         grants: session.grants.clone(),
+        // A space window is C2-capped — never the operator cred.
+        operator_cred: session.is_operator_cred,
     };
     let ctx = auth.to_emit_context(CallerKind::Mcp);
     assert_eq!(ctx.binding.space_id(), Some(&SpaceId::new("space-A")));
@@ -422,10 +509,13 @@ fn space_window_session_mints_space_binding() {
     assert_eq!(ctx.space_key().as_deref(), Some("space-A"));
 }
 
-/// T2 — operator vs SDK authority (privilege-escalation lock).
-/// Daemon token (Cli + no agent) → Operator; SDK token → Sdk, NEVER Operator.
+/// T2 — operator authority derives SOLELY from a verified operator cred (S6,
+/// #124), NOT from the CLI transport. A verified operator cred → Operator; a
+/// bare CLI connection (no cred) → NOT operator; an SDK token → Sdk, never
+/// Operator (#207).
 #[test]
-fn operator_and_sdk_authority_are_distinct() {
+fn operator_authority_requires_a_verified_cred_not_the_cli_transport() {
+    // The verified operator cred — the SOLE elevation source.
     let operator = AuthContext {
         caller_kind: CallerKind::Cli,
         agent_id: None,
@@ -434,8 +524,26 @@ fn operator_and_sdk_authority_are_distinct() {
         session_id: None,
         scopes: vec![],
         grants: vec![],
+        operator_cred: true,
     };
-    assert!(operator.is_operator());
+    assert!(operator.is_operator(), "a verified operator cred is operator-class");
+
+    // The CLI transport WITHOUT a verified operator cred grants NO elevation —
+    // this is the S6 kill: CLI != operator.
+    let bare_cli = AuthContext {
+        caller_kind: CallerKind::Cli,
+        agent_id: None,
+        workspace_id: None,
+        space_id: None,
+        session_id: None,
+        scopes: vec![Scope::Full],
+        grants: vec![],
+        operator_cred: false,
+    };
+    assert!(
+        !bare_cli.is_operator(),
+        "the CLI transport (and the daemon token's Scope::Full) must NOT confer operator (S6)"
+    );
 
     let sdk = AuthContext {
         caller_kind: CallerKind::Sdk,
@@ -445,6 +553,7 @@ fn operator_and_sdk_authority_are_distinct() {
         session_id: None,
         scopes: vec![],
         grants: vec![],
+        operator_cred: false,
     };
     assert!(!sdk.is_operator(), "SDK token must NEVER be operator-class (#207)");
     assert_eq!(

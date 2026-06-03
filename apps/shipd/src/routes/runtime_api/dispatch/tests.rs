@@ -24,6 +24,9 @@ fn full_auth() -> Extension<AuthContext> {
         session_id: None,
         scopes: vec![Scope::Full],
         grants: vec![],
+        // The dispatch REST handler gates on cross-project (mcp_workspace_violation),
+        // not the operator path — no operator cred needed.
+        operator_cred: false,
     })
 }
 
@@ -36,6 +39,7 @@ fn mcp_auth(workspace: &str) -> Extension<AuthContext> {
         session_id: None,
         scopes: vec![Scope::Full],
         grants: vec![],
+        operator_cred: false,
     })
 }
 

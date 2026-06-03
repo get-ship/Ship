@@ -55,13 +55,14 @@ pub struct Caller {
 /// Map `AuthContext` onto the gate's [`Caller`]. `auth.grants` carries the
 /// agent's elevated services (the C2 set), provisioned per-agent (#85).
 ///
-/// The operator decision now reads the binding's `Authority` (Phase 2): an
-/// operator is `Authority::Operator` == today's `caller_kind == Cli &&
-/// agent_id.is_none()`. The SDK token is capped at `Authority::Sdk` and is
-/// NEVER operator (#207) — the prior `|| has_scope(Scope::Full)` line conferred
-/// operator on the SDK token's `Scope::Full`; that escalation is now closed.
+/// The operator decision reads the binding's `Authority` (S6, #124): an operator
+/// is `Authority::Operator`, granted SOLELY when the connection carries a
+/// verified operator cred (`AuthContext.operator_cred`, set only by a
+/// pid-attested operator session). The CLI transport, the daemon token, the
+/// browser cookie, and the local peer-uid no longer confer operator. The SDK
+/// token is capped at `Authority::Sdk` and is NEVER operator (#207).
 /// `Scope::Full` stays mintable for the dying REST route-auth axis (#78), but
-/// no longer drives the operator decision.
+/// it does NOT drive the operator decision.
 pub fn caller_from_auth(auth: &AuthContext) -> Caller {
     Caller { is_operator: auth.is_operator(), elevated_services: auth.grants.clone() }
 }
@@ -166,6 +167,8 @@ mod tests {
             session_id: None,
             scopes: session.scopes.clone(),
             grants: session.grants.clone(),
+            // A space window is C2-capped — never the operator cred.
+            operator_cred: session.is_operator_cred,
         };
         let caller = caller_from_auth(&auth);
         assert!(!caller.is_operator, "a space window is never the operator");
@@ -175,6 +178,38 @@ mod tests {
         // C3 is denied no matter the service — the space can never touch it.
         assert!(matches!(decide(BlastRadius::C3Critical, "account", &caller), Decision::Deny(_)));
         assert!(matches!(decide(BlastRadius::C3Critical, "agent", &caller), Decision::Deny(_)));
+    }
+
+    #[test]
+    fn caller_is_operator_only_with_a_verified_cred_not_the_cli_transport() {
+        // S6 (#124): the gate's operator verdict reads SOLELY the verified
+        // operator cred (`operator_cred`), never the CLI transport. A bare CLI
+        // connection with Scope::Full is NOT operator; the cred is.
+        let bare_cli = AuthContext {
+            caller_kind: CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            space_id: None,
+            session_id: None,
+            scopes: vec![crate::auth::Scope::Full],
+            grants: vec![],
+            operator_cred: false,
+        };
+        assert!(
+            !caller_from_auth(&bare_cli).is_operator,
+            "the CLI transport must NOT confer operator at the gate (S6)"
+        );
+
+        let cred = AuthContext { operator_cred: true, ..bare_cli };
+        assert!(
+            caller_from_auth(&cred).is_operator,
+            "a verified operator cred clears the gate at every tier"
+        );
+        // And it clears C3 — the operator-only tier.
+        assert_eq!(
+            decide(BlastRadius::C3Critical, "account", &caller_from_auth(&cred)),
+            Decision::Allow
+        );
     }
 
     #[test]

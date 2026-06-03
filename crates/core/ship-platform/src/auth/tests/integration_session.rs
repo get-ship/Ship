@@ -44,6 +44,7 @@ fn persisted_session(token: &str) -> DaemonSession {
         created_at: std::time::Instant::now(),
         expires_at_unix: Some(chrono::Utc::now().timestamp() + 86400),
         ephemeral: false,
+        is_operator_cred: false,
     }
 }
 
@@ -149,6 +150,7 @@ fn auth_session_is_expired_no_expiry_never_expires() {
         created_at: std::time::Instant::now(),
         expires_at_unix: None,
         ephemeral: true,
+        is_operator_cred: false,
     };
     assert!(!s.is_expired());
 }
@@ -166,6 +168,7 @@ fn auth_session_is_expired_future_expiry_not_expired() {
         pid: None,
         created_at: std::time::Instant::now(),
         ephemeral: false,
+        is_operator_cred: false,
     };
     assert!(!s.is_expired());
 }
@@ -183,6 +186,7 @@ fn auth_session_is_expired_past_expiry_is_expired() {
         pid: None,
         created_at: std::time::Instant::now(),
         ephemeral: false,
+        is_operator_cred: false,
     };
     assert!(s.is_expired());
 }

@@ -88,6 +88,15 @@ pub struct AuthContext {
     /// session's provisioned set. Empty for the operator (cleared by is_operator)
     /// and for agents with no restricted domains. Distinct from `scopes`.
     pub grants: Vec<String>,
+    /// True iff this connection presented a **verified operator cred** — the
+    /// SOLE source of operator authority (S6, #124). Set ONLY when a
+    /// pid-attested operator session (`DaemonSession::is_operator_cred`) cleared
+    /// `pid_authorizes` in the bearer middleware. The CLI transport, the daemon
+    /// token, the browser cookie, and the local peer-uid grant NO elevation —
+    /// they leave this `false`. `binding()` derives `Authority::Operator` from
+    /// THIS flag, never from `caller_kind`. A cloud-issued operator cred can
+    /// later set it through its own verified minter without touching the gate.
+    pub operator_cred: bool,
 }
 
 impl AuthContext {
@@ -96,13 +105,17 @@ impl AuthContext {
     /// home-space fallback dies here: a session with no resolvable space keys
     /// `None` (the intended P2 fail-soft; P3 rejects).
     ///
-    /// Authority derivation reproduces today's operator population EXACTLY
-    /// (`caller_kind == Cli && agent_id.is_none()`); an SDK token is capped at
-    /// `Sdk` and is NEVER `Operator` (#207 privilege-escalation lock).
+    /// Authority derivation (S6 elevation-source kill, #124): `Operator` is
+    /// granted SOLELY when the connection carries a verified operator cred
+    /// (`operator_cred`, set only by a pid-attested operator session that
+    /// cleared `pid_authorizes`). The CLI transport, the daemon token, the
+    /// browser cookie, and the local peer-uid no longer confer operator. An SDK
+    /// token is capped at `Sdk` and is NEVER `Operator` (#207).
     fn binding(&self) -> ScopeBinding {
         // NO home-space fallback — the global pseudo-space is gone (S2).
         let space = self.space_id.clone().map(SpaceId::new);
-        let authority = if self.caller_kind == CallerKind::Cli && self.agent_id.is_none() {
+        let authority = if self.operator_cred {
+            // THE one elevation source — a verified operator cred.
             Authority::Operator
         } else if self.caller_kind == CallerKind::Sdk {
             // Capped: the on-disk SDK token is never operator-class.
@@ -134,9 +147,19 @@ impl AuthContext {
     }
 
     /// Whether this caller is operator-class — the named replacement for the
-    /// `Scope::Full` / `is_operator` conflation at the gate.
+    /// `Scope::Full` / `is_operator` conflation at the gate. Reads SOLELY the
+    /// verified operator cred (S6): true iff `operator_cred` flipped
+    /// `Authority::Operator` in [`binding`](Self::binding).
     pub fn is_operator(&self) -> bool {
         *self.binding().authority() == Authority::Operator
+    }
+
+    /// The caller's resolved [`Authority`]. shipd projects this into Connect
+    /// request extensions so crate-owned wires (e.g. `ship-account`) can gate on
+    /// the shared `ship_types::Authority` without coupling to shipd's
+    /// `AuthContext`. The SOLE authority derivation is [`binding`](Self::binding).
+    pub fn authority(&self) -> Authority {
+        self.binding().authority().clone()
     }
 
     /// Check whether this caller has the given scope.
@@ -224,6 +247,9 @@ pub async fn auth_middleware(
                             session_id: None,
                             scopes: session.scopes.clone(),
                             grants: session.grants.clone(),
+                            // A browser cookie is NOT a pid-attested operator
+                            // cred — it grants no elevation (S6).
+                            operator_cred: false,
                         };
                         req.extensions_mut().insert(auth);
                         return next.run(req).await;
@@ -285,10 +311,13 @@ pub async fn auth_middleware(
         let registry = session_registry.lock().await;
         return match registry.get(token) {
             Some(session) => {
-                // Pid-binding: a space window token is bound to its registering
-                // process. The kernel pid arrives via the peer-cred layer
-                // (UDS only); on TCP it's absent → a bound token fails closed.
-                // An unbound session (CLI/agent/legacy) is not pid-restricted.
+                // Pid-binding: a pid-bound token (a space window OR an operator
+                // cred, S6 #124) is bound to its registering process. The kernel
+                // pid arrives via the peer-cred layer (UDS only); on TCP it's
+                // absent → a bound token fails closed. An unbound session
+                // (agent/legacy) is not pid-restricted. This check runs BEFORE the
+                // operator cred is carried below, so an operator cred reaching the
+                // AuthContext has a verified pid.
                 let peer_pid = req
                     .extensions()
                     .get::<crate::auth::peer_socket::PeerPid>()
@@ -317,6 +346,12 @@ pub async fn auth_middleware(
                     scopes: session.scopes.clone(),
                     // The minted restricted grants — the gate's grant axis.
                     grants: session.grants.clone(),
+                    // Operator authority comes SOLELY from a pid-attested
+                    // operator cred (S6). `pid_authorizes` was already enforced
+                    // above, so an operator-cred session that reaches here has a
+                    // verified pid — carry the elevation. Every other session
+                    // (space window, agent, paired Studio) leaves this `false`.
+                    operator_cred: session.is_operator_cred,
                 };
                 drop(registry);
                 req.extensions_mut().insert(auth);
@@ -334,7 +369,10 @@ pub async fn auth_middleware(
     }
 
     let (caller_kind, scopes) = if is_daemon_token(token) {
-        // The daemon token is the operator's human-bootstrap credential.
+        // The daemon token is a local bootstrap credential carrying the dying
+        // REST `Scope::Full` axis. It is NOT a pid-attested operator cred (S6):
+        // `CallerKind::Cli` is a transport label only — it grants NO elevation.
+        // Operator authority comes solely from a pid-attested operator session.
         (CallerKind::Cli, vec![Scope::Full])
     } else if token.starts_with("ship_") {
         (CallerKind::Sdk, vec![Scope::Full])
@@ -355,14 +393,17 @@ pub async fn auth_middleware(
         caller_kind,
         agent_id,
         workspace_id,
-        // Daemon/SDK (operator) tokens carry no session space; emits fall back
-        // to the daemon's home space.
+        // Daemon/SDK tokens carry no session space; emits key None (no
+        // home-space fallback on the emit path, S2).
         space_id: None,
         session_id,
         scopes,
-        // Daemon/SDK tokens are operator-class (is_operator clears the gate);
-        // no restricted grants needed on this path.
+        // No restricted grants on this path.
         grants: vec![],
+        // The daemon/SDK token is NOT a pid-attested operator cred (S6): it
+        // grants no operator authority. The dying `Scope::Full` it carries
+        // clears the REST route-auth axis only, never the gate's operator path.
+        operator_cred: false,
     };
 
     req.extensions_mut().insert(auth);
@@ -374,6 +415,25 @@ fn header_string(req: &Request<Body>, name: &str) -> Option<String> {
         .get(name)
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string())
+}
+
+/// Project the authenticated caller's resolved [`Authority`] into the request
+/// extensions, so crate-owned Connect wires (e.g. `ship-account`) can gate on
+/// the shared `ship_types::Authority` without depending on shipd's
+/// `AuthContext`. Mirrors how `settings_rpc` passes `is_operator` into
+/// `ship-config`: the authority is resolved in shipd (the SOLE minter) and
+/// handed across the crate boundary as the shared type. Runs INSIDE
+/// `auth_middleware` (which has already populated `AuthContext`); a request with
+/// no `AuthContext` inserts nothing, and the wire fails closed (unauthenticated).
+pub async fn project_authority_middleware(mut req: Request<Body>, next: Next) -> Response {
+    if let Some(authority) = req
+        .extensions()
+        .get::<AuthContext>()
+        .map(AuthContext::authority)
+    {
+        req.extensions_mut().insert(authority);
+    }
+    next.run(req).await
 }
 
 /// Determine if a token is the local daemon token (64-char hex).

@@ -140,7 +140,29 @@ impl TestDaemon {
         }
     }
 
-    /// Create a CLI AuthContext (trusted, default for tests).
+    /// A verified **operator-cred** AuthContext — the elevated default for
+    /// tests that exercise operator-only behavior (S6, #124). Mirrors the bearer
+    /// middleware's operator-session branch: `operator_cred: true` is the SOLE
+    /// elevation source. Use this where a test previously relied on
+    /// `CallerKind::Cli` to mean operator.
+    pub fn operator_auth() -> AuthContext {
+        AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            space_id: None,
+            session_id: None,
+            scopes: vec![crate::auth::Scope::Full],
+            grants: vec![],
+            // THE elevation source: a verified operator cred.
+            operator_cred: true,
+        }
+    }
+
+    /// A bare CLI AuthContext — the CLI transport carries `Scope::Full` for the
+    /// dying REST axis but grants NO operator elevation (S6): `operator_cred`
+    /// stays `false`, so the gate denies C2/C3. For operator behavior use
+    /// [`operator_auth`](Self::operator_auth).
     pub fn cli_auth() -> AuthContext {
         AuthContext {
             caller_kind: ship_substrate::events::CallerKind::Cli,
@@ -150,6 +172,7 @@ impl TestDaemon {
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
+            operator_cred: false,
         }
     }
 
@@ -163,6 +186,7 @@ impl TestDaemon {
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
+            operator_cred: false,
         }
     }
 

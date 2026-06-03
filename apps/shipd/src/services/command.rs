@@ -120,12 +120,12 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         if let gate::Decision::Deny(msg) = gate::decide(pol.blast, service, &caller) {
             return Err(CommandError::forbidden(msg));
         }
-        // Security observability for #86 (daemon token grants Full). The on-disk
-        // daemon token is operator-class today, so the operator path clears C2
-        // (credential mint, billing, acting as another actor). Record every such
-        // clearance: this is the audit trail of what an on-disk credential can
-        // reach, and makes the eventual "C2 needs the GUI/2FA elevated session"
-        // flip observable before it lands. Non-breaking — log only.
+        // Security observability (S6, #124): the operator cred clears C2/C3
+        // (credential mint, billing, acting as another actor). Operator authority
+        // now derives SOLELY from a verified, pid-attested operator cred — the
+        // CLI transport and on-disk daemon token no longer elevate. Record every
+        // such clearance as the audit trail of what a verified operator cred
+        // reaches. Non-breaking — log only.
         if caller.is_operator
             && matches!(pol.blast, gate::BlastRadius::C2Elevated | gate::BlastRadius::C3Critical)
         {
@@ -134,7 +134,7 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
                 op = %name,
                 blast = pol.blast.as_descriptor(),
                 agent_id = ?ctx.auth.agent_id,
-                "elevated op (C2/C3) cleared by operator credential (on-disk token is operator-class; #86)"
+                "elevated op (C2/C3) cleared by a verified operator credential (S6 #124)"
             );
         }
     }
@@ -254,15 +254,9 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pipeline_update_status_dispatches_through_the_registry() {
         let harness = crate::test_harness::TestDaemon::new().await;
-        let auth = AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Cli,
-            agent_id: None,
-            workspace_id: None,
-            space_id: None,
-            session_id: None,
-            scopes: vec![],
-            grants: vec![],
-        };
+        // The operator cred clears the gate (S6): mint it, don't rely on the
+        // (now non-elevated) CLI transport.
+        let auth = crate::test_harness::TestDaemon::operator_auth();
         let ctx = CommandCtx { state: &harness.state, auth: &auth };
         let args = serde_json::json!({
             "pipeline_run_id": "run-cmd-test",
@@ -291,6 +285,7 @@ mod tests {
             session_id: None,
             scopes: ship_platform::auth::scopes::scopes_for_role(Some("worker")),
             grants: vec![],
+            operator_cred: false,
         };
         let ctx = CommandCtx { state: &harness.state, auth: &auth };
         let args = serde_json::json!({ "agent": "rust-lane" });
@@ -314,6 +309,7 @@ mod tests {
             session_id: None,
             scopes: vec![],
             grants: ship_platform::auth::scopes::grants_for_role(Some("commander")),
+            operator_cred: false,
         };
         let ctx = CommandCtx { state: &harness.state, auth: &auth };
         let args = serde_json::json!({ "agent": "rust-lane" });
@@ -349,21 +345,15 @@ mod tests {
                     created_at: std::time::Instant::now(),
                     expires_at_unix: None,
                     ephemeral: true,
+                    is_operator_cred: false,
                 },
             );
         }
         let args = serde_json::json!({ "agent": "worker-x", "grants": ["ship-orchestration"] });
 
-        // Operator approves → the live session is upgraded.
-        let op = AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Cli,
-            agent_id: None,
-            workspace_id: None,
-            space_id: None,
-            session_id: None,
-            scopes: vec![],
-            grants: vec![],
-        };
+        // Operator approves → the live session is upgraded. Operator authority
+        // comes SOLELY from a verified operator cred (S6) — mint it.
+        let op = crate::test_harness::TestDaemon::operator_auth();
         let v = call("agent.grant", &args, &CommandCtx { state: &harness.state, auth: &op })
             .await
             .expect("operator may grant");
@@ -389,6 +379,7 @@ mod tests {
             session_id: None,
             scopes: vec![],
             grants: vec!["ship-orchestration".to_string()],
+            operator_cred: false,
         };
         let err = call("agent.grant", &args, &CommandCtx { state: &harness.state, auth: &agent })
             .await
@@ -409,6 +400,7 @@ mod tests {
             session_id: None,
             scopes: vec![],
             grants: vec![],
+            operator_cred: false,
         };
         let ctx = CommandCtx { state: &harness.state, auth: &auth };
         // user scope writes to the test's TempDir user root (isolated); project
@@ -447,23 +439,16 @@ mod tests {
             session_id: None,
             scopes: vec![],
             grants: vec![],
+            operator_cred: false,
         };
         let err = call("mcp.create", &args, &CommandCtx { state: &harness.state, auth: &worker })
             .await
             .unwrap_err();
         assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
 
-        // The operator clears the gate and the write lands (user scope = the
-        // test's isolated TempDir root), echoing the typed {id, scope} shape.
-        let op = AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Cli,
-            agent_id: None,
-            workspace_id: None,
-            space_id: None,
-            session_id: None,
-            scopes: vec![],
-            grants: vec![],
-        };
+        // The operator cred clears the gate and the write lands (user scope =
+        // the test's isolated TempDir root), echoing the typed {id, scope} shape.
+        let op = crate::test_harness::TestDaemon::operator_auth();
         let created = call("mcp.create", &args, &CommandCtx { state: &harness.state, auth: &op })
             .await
             .expect("operator may register an mcp server");
@@ -490,6 +475,7 @@ mod tests {
             session_id: None,
             scopes: vec![],
             grants: vec!["ship-authoring".to_string()],
+            operator_cred: false,
         };
         let err =
             call("permissions.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
@@ -497,16 +483,8 @@ mod tests {
                 .unwrap_err();
         assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
 
-        // The operator clears C2 and the write lands.
-        let op = AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Cli,
-            agent_id: None,
-            workspace_id: None,
-            space_id: None,
-            session_id: None,
-            scopes: vec![],
-            grants: vec![],
-        };
+        // The operator cred clears C2 and the write lands.
+        let op = crate::test_harness::TestDaemon::operator_auth();
         let created =
             call("permissions.create", &args, &CommandCtx { state: &harness.state, auth: &op })
                 .await
@@ -578,6 +556,7 @@ mod tests {
             session_id: None,
             scopes: vec![],
             grants: vec![],
+            operator_cred: false,
         };
         let err = call("skills.create", &args, &CommandCtx { state: &harness.state, auth: &worker })
             .await
@@ -593,6 +572,7 @@ mod tests {
             session_id: None,
             scopes: vec![],
             grants: vec!["skills".to_string()],
+            operator_cred: false,
         };
         let created =
             call("skills.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
@@ -622,6 +602,7 @@ mod tests {
             session_id: None,
             scopes: vec![],
             grants: vec!["ship-orchestration".to_string()],
+            operator_cred: false,
         };
         let err =
             call("agents.create", &args, &CommandCtx { state: &harness.state, auth: &commander })
@@ -638,6 +619,7 @@ mod tests {
             session_id: None,
             scopes: vec![],
             grants: vec!["agents".to_string()],
+            operator_cred: false,
         };
         let created =
             call("agents.create", &args, &CommandCtx { state: &harness.state, auth: &designer })

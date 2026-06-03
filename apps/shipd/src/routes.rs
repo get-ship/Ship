@@ -652,7 +652,7 @@ pub enum Route {
     // longer talks to the gateway directly.
 
     /// @route POST "/api/v1/registry/publish"
-    /// @auth cli
+    /// @auth handler
     Publish,
 }
 

@@ -509,6 +509,7 @@ mod tests {
             session_id: None,
             scopes: vec![],
             grants: vec![],
+            operator_cred: false,
         }
     }
 
@@ -521,6 +522,7 @@ mod tests {
             session_id: None,
             scopes: vec![],
             grants: vec![],
+            operator_cred: false,
         }
     }
 

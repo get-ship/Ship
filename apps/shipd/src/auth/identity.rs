@@ -23,9 +23,11 @@ use crate::auth::{AuthContext, Scope};
 /// a presented secret. One `AuthContext` shape, one gate: the result flows to
 /// `services::gate` exactly like a token-derived context.
 ///
-/// - [`PeerIdentity::Operator`] → the operator credential (`Cli` + `Scope::Full`,
-///   no restricted grants), mirroring the daemon-token branch. `role`/`grants`
-///   are ignored — the operator clears the gate's grant axis.
+/// - [`PeerIdentity::Operator`] → a **non-elevated** local-owner context (`Cli`
+///   transport label + the dying `Scope::Full` REST axis). S6 elevation-source
+///   kill: the local peer-uid no longer confers operator (`operator_cred:
+///   false`). Operator authority comes SOLELY from a pid-attested operator cred
+///   (a session with `is_operator_cred`), not from sharing the daemon's uid.
 /// - [`PeerIdentity::Agent`] → an agent caller (`Mcp`), scoped by `role`, with
 ///   `grants` the per-agent provisioned baseline (#85). The agent presents no
 ///   identity claim; `id` came from its kernel process container, and the
@@ -47,6 +49,9 @@ pub fn auth_context_from_peer(
             session_id: None,
             scopes: vec![Scope::Full],
             grants: vec![],
+            // S6: sharing the daemon's uid is NOT operator authority. The local
+            // peer-uid grants no elevation; only a pid-attested operator cred does.
+            operator_cred: false,
         }),
         PeerIdentity::Agent(id) => Some(AuthContext {
             caller_kind: CallerKind::Mcp,
@@ -56,6 +61,7 @@ pub fn auth_context_from_peer(
             session_id: None,
             scopes: scopes_for_role(role),
             grants,
+            operator_cred: false,
         }),
         PeerIdentity::Unresolved => None,
     }
@@ -140,6 +146,7 @@ mod tests {
             session_id: None,
             scopes: vec![Scope::Full],
             grants: vec![],
+            operator_cred: false,
         }
     }
 
@@ -152,6 +159,7 @@ mod tests {
             session_id: None,
             scopes: vec![Scope::Full],
             grants: vec![],
+            operator_cred: false,
         }
     }
 
@@ -164,6 +172,7 @@ mod tests {
             session_id: None,
             scopes: vec![Scope::Full],
             grants: vec![],
+            operator_cred: false,
         }
     }
 
@@ -228,13 +237,26 @@ mod tests {
     }
 
     #[test]
-    fn peer_operator_is_the_operator_credential() {
+    fn peer_local_owner_is_not_operator_elevated() {
+        // S6 (#124): sharing the daemon's uid is IDENTITY, not authority. The
+        // local-owner peer context carries the dying Scope::Full REST axis but
+        // grants NO operator elevation — `operator_cred` stays false, so
+        // `is_operator()` is false. Operator authority comes solely from a
+        // verified, pid-attested operator cred.
         let ctx = auth_context_from_peer(&PeerIdentity::Operator, None, vec![])
-            .expect("operator resolves");
+            .expect("local owner resolves to a context");
         assert_eq!(ctx.caller_kind, CallerKind::Cli);
         assert_eq!(ctx.agent_id, None);
         assert!(ctx.scopes.contains(&Scope::Full));
-        assert!(ctx.grants.is_empty(), "operator clears the grant axis");
+        assert!(ctx.grants.is_empty());
+        assert!(
+            !ctx.operator_cred,
+            "the local peer-uid no longer confers operator (S6)"
+        );
+        assert!(
+            !ctx.is_operator(),
+            "the local-owner peer is not operator-elevated — only a verified cred is"
+        );
     }
 
     #[test]

@@ -97,9 +97,6 @@ impl McpAuth {
 /// - `Public`: unauthenticated. Registered via `ship_public_route` in the
 ///   public group (no auth middleware applied). `ship_public_route` panics
 ///   if a route declares anything other than `Public`.
-/// - `Cli`: requires `CallerKind::Cli` (daemon token or browser cookie).
-///   MCP session tokens are categorically rejected even if they carry
-///   `Scope::Full`. Account ops use this.
 /// - `Scope(s)`: any authenticated caller whose scopes satisfy `s` (or
 ///   `Scope::Full`).
 /// - `Handler`: the handler enforces its own scope (used when the required
@@ -108,10 +105,14 @@ impl McpAuth {
 ///   test suite asserts that every `Handler`-tagged handler still calls
 ///   `require_scope` (or `can_*_artifacts`) so a bare `Handler` annotation
 ///   can't be used to silently disable enforcement.
+///
+/// The `Cli` variant was removed (S6, #124): "requires the CLI transport" was an
+/// elevation shortcut. Operator authority now derives SOLELY from a verified
+/// operator cred at the gate (`command::call`); routes that were operator-only
+/// either enforce `Scope::Full` in-handler (`Handler`) or run through the gate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RequiredAuth {
     Public,
-    Cli,
     Scope(Scope),
     Handler,
 }
@@ -318,6 +319,15 @@ pub struct DaemonSession {
     /// `None` for unbound sessions (CLI daemon token, agent peer sessions,
     /// legacy/hydrated sessions), which are not pid-restricted.
     pub pid: Option<u32>,
+    /// True iff this session is a **verified operator cred** — the SOLE source
+    /// of operator authority (S6 elevation-source kill). Minted today only by
+    /// [`operator_session`] from the pid-attested shell session (`pid` must be
+    /// `Some` and `pid_authorizes` enforced at the transport). The CLI transport
+    /// and the local peer-uid grant NO elevation — they leave this `false`. A
+    /// cloud-issued operator cred can later set this through its own verified
+    /// minter without touching the gate. Distinct from `Scope::Full` (the dying
+    /// REST route-auth axis): only this flag flips `Authority::Operator`.
+    pub is_operator_cred: bool,
     pub created_at: std::time::Instant,
     /// Unix seconds when this session expires. None = never expires (in-memory only).
     pub expires_at_unix: Option<i64>,
@@ -471,6 +481,10 @@ pub async fn hydrate_sessions(registry: &SessionRegistry) {
             created_at: std::time::Instant::now(),
             expires_at_unix: Some(row.expires_at_unix),
             ephemeral: false,
+            // Operator creds are pid-attested + ephemeral, so they are never
+            // persisted; a hydrated session is never the operator. The operator
+            // re-mints by re-registering its shell session on launch.
+            is_operator_cred: false,
         };
         reg.insert(row.token, session);
         loaded += 1;
@@ -547,14 +561,57 @@ pub fn space_window_scopes() -> Vec<Scope> {
     s
 }
 
+/// Mint a pid-attested **operator cred** — the SOLE source of operator
+/// authority (S6, #124). The operator presents this to act at every tier; the
+/// gate's `is_operator` reads ONLY a session carrying `is_operator_cred`.
+///
+/// Bound to `peer_pid` (kernel-verified via `SO_PEERCRED` at register): the
+/// cred is two-factor — the secret AND being that exact process. The token is
+/// rejected over a transport that can't attest a pid (TCP) by
+/// [`DaemonSession::pid_authorizes`], so the operator binding can't be stripped
+/// by switching transports — the same defense the window token relies on.
+///
+/// This is the shell's pid-attested session today; a cloud-issued operator cred
+/// can later plug in through its own verified minter, also setting
+/// `is_operator_cred`. `Scope::Full` rides along for the dying REST route-auth
+/// axis (#78), but it is the flag — not `Scope::Full` — that confers operator.
+///
+/// Ephemeral by construction: the operator's shell session lives for its run and
+/// is never persisted (a persisted session hydrates with `is_operator_cred:
+/// false`; the shell re-registers and re-mints on launch).
+pub fn operator_session(peer_pid: u32, token: String) -> DaemonSession {
+    DaemonSession {
+        token,
+        // The operator's own session — not an agent.
+        agent_id: "operator".to_string(),
+        // Full rides the dying REST axis; the operator flag (not Full) confers
+        // operator at the gate.
+        scopes: vec![Scope::Full],
+        // The operator clears the gate's grant axis — no per-service grants.
+        grants: vec![],
+        workspace_id: None,
+        // The operator session is space-less; emits key None (no home-space
+        // fallback, S2). A space the operator works inside arrives via a
+        // separate space-window token.
+        space_id: None,
+        // Pid-bound: the cred is two-factor (secret + this exact process).
+        pid: Some(peer_pid),
+        created_at: std::time::Instant::now(),
+        expires_at_unix: None,
+        ephemeral: true,
+        // THE elevation source — the one verified operator cred.
+        is_operator_cred: true,
+    }
+}
+
 /// Mint a pid-bound, C2-capped session for a space window.
 ///
 /// The token represents the operator working *inside a space*: it can do
 /// anything at C2 (the operator's own elevated set) but is **structurally
-/// incapable of C3**. It is never `is_operator` — no `Scope::Full`, and session
-/// tokens resolve as `CallerKind::Mcp` — so `gate::decide` denies every C3 op
-/// regardless of grants. C3 only ever happens through the separate approval
-/// flow; a space token can never reach it.
+/// incapable of C3**. It is never `is_operator` — it carries no operator cred
+/// (`is_operator_cred: false`), the SOLE elevation source (S6, #124) — so
+/// `gate::decide` denies every C3 op regardless of grants. C3 only ever happens
+/// through a verified operator cred; a space token can never reach it.
 ///
 /// Bound to `peer_pid` (kernel-verified via `SO_PEERCRED` at register): the
 /// token is two-factor — the secret AND being that exact process. A leaked
@@ -566,10 +623,11 @@ pub fn space_window_scopes() -> Vec<Scope> {
 pub fn space_window_session(space_id: &str, peer_pid: u32, token: String) -> DaemonSession {
     DaemonSession {
         token,
-        // The space identity — non-empty so the operator branch
-        // (`Cli` + `agent_id.is_none()`) can't match. ("contributor" grants
-        // below are documented as the operator's own profile; the space is the
-        // operator's own surface.)
+        // The space identity. The window is C2-capped because it carries no
+        // operator cred (`is_operator_cred: false` below) — operator authority
+        // derives SOLELY from a verified operator cred (S6, #124), never from a
+        // caller-kind/agent-id shape. ("contributor" grants below are the
+        // operator's own profile; the space is the operator's own surface.)
         agent_id: format!("space:{space_id}"),
         scopes: space_window_scopes(),
         // Every C2 elevated service — the operator's own profile. C3 stays
@@ -584,6 +642,9 @@ pub fn space_window_session(space_id: &str, peer_pid: u32, token: String) -> Dae
         created_at: std::time::Instant::now(),
         expires_at_unix: None,
         ephemeral: true,
+        // A space window is C2-capped — NEVER the operator (the load-bearing
+        // invariant). The operator cred is the separate `operator_session`.
+        is_operator_cred: false,
     }
 }
 
@@ -620,6 +681,9 @@ pub async fn mint_session(
         created_at: std::time::Instant::now(),
         expires_at_unix: ttl_secs.map(|s| now_unix() + s),
         ephemeral: true,
+        // A per-process agent token is never the operator — it's a sandboxed
+        // actor's scoped session.
+        is_operator_cred: false,
     };
     registry.lock().await.insert(token.clone(), session);
     Ok((token, scopes))
@@ -659,7 +723,23 @@ mod tests {
             created_at: std::time::Instant::now(),
             expires_at_unix: None,
             ephemeral: true,
+            is_operator_cred: false,
         }
+    }
+
+    #[test]
+    fn operator_session_is_the_pid_attested_operator_cred() {
+        let s = operator_session(4242, "ship_sess_op".to_string());
+        // The one elevation source: an operator cred, pid-attested.
+        assert!(s.is_operator_cred, "operator_session is THE operator cred");
+        assert_eq!(s.pid, Some(4242), "the cred is bound to the shell process");
+        assert!(s.pid_authorizes(Some(4242)), "the bound process is authorized");
+        assert!(!s.pid_authorizes(Some(1)), "a stolen cred from another process is rejected");
+        assert!(!s.pid_authorizes(None), "fails closed over an unattested transport (TCP)");
+        // Ephemeral — pid-attested creds are never persisted.
+        assert!(s.ephemeral, "operator creds are never persisted");
+        // The operator clears the grant axis (no per-service grants needed).
+        assert!(s.grants.is_empty(), "operator clears the gate's grant axis");
     }
 
     #[test]
@@ -682,6 +762,8 @@ mod tests {
         // Has the full C2 elevated set (operator's own profile).
         assert_eq!(s.grants, grants_for_role(Some("contributor")));
         assert!(s.ephemeral, "window tokens are never persisted");
+        // NEVER the operator cred — that is the separate `operator_session`.
+        assert!(!s.is_operator_cred, "a space window is C2-capped, never the operator cred");
     }
 
     #[test]

@@ -106,6 +106,9 @@ async fn ship_route_registers_handler_end_to_end() {
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
+            // Capabilities is `@auth scope` (Scope::Full clears it) — not the
+            // gate's operator path, so no operator cred is needed here.
+            operator_cred: false,
         }));
     let req = Request::builder()
         .method("GET")

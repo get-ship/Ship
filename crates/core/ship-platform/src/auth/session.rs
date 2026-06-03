@@ -72,6 +72,9 @@ pub async fn issue_browser_session_with_ttl(
         created_at: now,
         expires_at_unix: Some(now_unix() + ttl.as_secs() as i64),
         ephemeral: true,
+        // A browser cookie is NOT a pid-attested operator cred — it grants no
+        // elevation (S6). Operator authority comes solely from `operator_session`.
+        is_operator_cred: false,
     };
     registry.lock().await.insert(id.clone(), session);
     id

@@ -91,7 +91,6 @@ struct RouteVariant {
 #[derive(Clone, Debug)]
 enum AuthSpec {
     Public,
-    Cli,
     Scope(String),
     Handler,
 }
@@ -289,23 +288,25 @@ fn parse_type_ref(variant: &str, kind: &str, src: &str) -> TypeRef {
     TypeRef::Plain(s.to_string())
 }
 
-/// Parse `@auth public|cli|scope <Scope>|handler`. The annotation is
+/// Parse `@auth public|scope <Scope>|handler`. The annotation is
 /// mandatory — a missing `@auth` line panics with the offending variant
 /// name. The accepted Scope identifiers are the variants of
 /// `ship_platform::auth::scopes::Scope`; we accept any plain identifier
 /// here and let `rustc` catch unknown scopes at compile time of the
 /// generated match arm.
+///
+/// The `cli` spec was removed (S6, #124): "requires the CLI transport" was an
+/// elevation shortcut. Operator-only routes enforce in-handler (`Scope::Full`,
+/// `@auth handler`) or run through the gate.
 fn parse_auth_line(variant: &str, raw: Option<&str>) -> AuthSpec {
     let line = raw.unwrap_or_else(|| {
         panic!(
-            "build.rs: variant Route::{variant} is missing `/// @auth public|cli|scope <Scope>|handler` annotation"
+            "build.rs: variant Route::{variant} is missing `/// @auth public|scope <Scope>|handler` annotation"
         )
     });
     let trimmed = line.trim();
     if trimmed == "public" {
         AuthSpec::Public
-    } else if trimmed == "cli" {
-        AuthSpec::Cli
     } else if trimmed == "handler" {
         AuthSpec::Handler
     } else if let Some(rest) = trimmed.strip_prefix("scope ") {
@@ -317,7 +318,7 @@ fn parse_auth_line(variant: &str, raw: Option<&str>) -> AuthSpec {
         AuthSpec::Scope(s.to_string())
     } else {
         panic!(
-            "build.rs: Route::{variant} @auth `{trimmed}` is not recognized (expected `public`, `cli`, `scope <Name>`, or `handler`)"
+            "build.rs: Route::{variant} @auth `{trimmed}` is not recognized (expected `public`, `scope <Name>`, or `handler`)"
         )
     }
 }
@@ -448,7 +449,6 @@ fn emit_rust(variants: &[RouteVariant]) -> String {
             };
             let expr = match &v.auth {
                 AuthSpec::Public => "crate::auth::RequiredAuth::Public".to_string(),
-                AuthSpec::Cli => "crate::auth::RequiredAuth::Cli".to_string(),
                 AuthSpec::Handler => "crate::auth::RequiredAuth::Handler".to_string(),
                 AuthSpec::Scope(s) => format!(
                     "crate::auth::RequiredAuth::Scope(crate::auth::Scope::{s})"
