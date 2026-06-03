@@ -24,7 +24,7 @@ use sqlx::{Row, SqliteConnection};
 use specta::Type;
 
 use ship_substrate::db::block_on;
-use ship_substrate::db::envelope::envelope_from_row;
+use ship_substrate::db::envelope::{EVENT_COLS, envelope_from_row};
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::projections::registry::Projection;
@@ -732,20 +732,17 @@ fn hydrate_if_needed(conn: &mut SqliteConnection) -> Result<()> {
         return Ok(());
     }
     let rows = block_on(async {
-        sqlx::query(
-            "SELECT id, event_type, entity_id, actor, payload_json, version, \
-                    causation_id, space_id, session_id, \
-                    actor_id, parent_actor_id, elevated, created_at \
-             FROM events \
+        sqlx::query(&format!(
+            "SELECT {EVENT_COLS} FROM events \
              WHERE event_type LIKE 'pipeline.%' \
-             ORDER BY id ASC",
-        )
+             ORDER BY id ASC"
+        ))
         .fetch_all(&mut *conn)
         .await
     })?;
     let events: Vec<EventEnvelope> = rows
         .iter()
-        .map(|r| envelope_from_row(r, false))
+        .map(|r| envelope_from_row(r, true))
         .collect::<Result<Vec<_>>>()?;
     let map = project(&events);
     for record in map.values() {
