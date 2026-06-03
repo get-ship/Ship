@@ -77,9 +77,9 @@ pub struct AuthContext {
     /// The space this request belongs to (path-hash space identity), carried
     /// from the authenticated session. A space-window session carries its OWN
     /// space here; operator/agent/daemon-token requests leave it `None`, which
-    /// the binding keys as `None` (Phase 2 fail-soft — no `daemon_space_id`
-    /// fallback on the emit path). This is the per-connection space source. See
-    /// spec `.artifacts/specs/space/128-multi-space-emit.md`.
+    /// the binding keys as `None` (Phase 2 fail-soft — no home-space fallback on
+    /// the emit path). This is the per-connection space source. See spec
+    /// `.artifacts/specs/space/128-multi-space-emit.md`.
     pub space_id: Option<String>,
     pub session_id: Option<String>,
     /// Granted scopes for this request. Daemon token gets `[Full]`.
@@ -93,14 +93,14 @@ pub struct AuthContext {
 impl AuthContext {
     /// Mint the authoritative [`ScopeBinding`] for this verified session — the
     /// SOLE session→binding constructor (auth-is-the-sole-minter, #196). The
-    /// `daemon_space_id` fallback dies here: a session with no resolvable space
-    /// keys `None` (the intended P2 fail-soft; P3 rejects).
+    /// home-space fallback dies here: a session with no resolvable space keys
+    /// `None` (the intended P2 fail-soft; P3 rejects).
     ///
     /// Authority derivation reproduces today's operator population EXACTLY
     /// (`caller_kind == Cli && agent_id.is_none()`); an SDK token is capped at
     /// `Sdk` and is NEVER `Operator` (#207 privilege-escalation lock).
     fn binding(&self) -> ScopeBinding {
-        // NO `.or_else(daemon_space_id)` — the global leaves the emit path.
+        // NO home-space fallback — the global pseudo-space is gone (S2).
         let space = self.space_id.clone().map(SpaceId::new);
         let authority = if self.caller_kind == CallerKind::Cli && self.agent_id.is_none() {
             Authority::Operator

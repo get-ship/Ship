@@ -70,9 +70,11 @@ impl SearchContext for ShipdSearchContext {
     }
 
     fn collections(&self) -> Vec<CollectionSnapshot> {
-        self.state
-            .collections()
-            .list()
+        // Space-less: no active space → nothing to index (no `global` fallback).
+        let Ok(svc) = self.state.collections() else {
+            return Vec::new();
+        };
+        svc.list()
             .into_iter()
             .filter(|s| !s.system)
             .map(|s| CollectionSnapshot { id: s.id, name: s.title })
@@ -151,7 +153,10 @@ impl SearchContext for ShipdSearchContext {
     }
 
     async fn collection_items(&self) -> Vec<CollectionItemSnapshot> {
-        let svc = self.state.collections();
+        // Space-less: no active space → nothing to index (no `global` fallback).
+        let Ok(svc) = self.state.collections() else {
+            return Vec::new();
+        };
         let schemas: Vec<_> = svc.list().into_iter().filter(|s| !s.system).collect();
         let mut out: Vec<CollectionItemSnapshot> = Vec::new();
         for schema in schemas {
@@ -184,9 +189,11 @@ impl SearchContext for ShipdSearchContext {
     }
 
     async fn artifacts(&self) -> Vec<ArtifactSnapshot> {
-        self.state
-            .artifacts()
-            .list(std::collections::BTreeMap::new(), 200)
+        // Space-less: no active space → nothing to index (no `global` fallback).
+        let Ok(svc) = self.state.artifacts() else {
+            return Vec::new();
+        };
+        svc.list(std::collections::BTreeMap::new(), 200)
             .await
             .unwrap_or_default()
             .into_iter()

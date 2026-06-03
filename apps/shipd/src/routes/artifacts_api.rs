@@ -52,8 +52,13 @@ fn map_err(e: ArtifactsError) -> Response {
     }
 }
 
-fn artifacts(state: &ApiState) -> ArtifactService {
-    state.services().artifacts()
+/// The active-space artifact service, or a clean 409 when the daemon is
+/// space-less (no active space → no artifact store; no `global` fallback, S2).
+fn artifacts(state: &ApiState) -> Result<ArtifactService, Response> {
+    state
+        .services()
+        .artifacts()
+        .map_err(|e| err_owned(StatusCode::CONFLICT, e.to_string()))
 }
 
 /// `get_record` returns `Option`; the routes want a record-or-404.
@@ -61,7 +66,7 @@ async fn require_record(
     state: &ApiState,
     id: &str,
 ) -> Result<ship_artifacts::types::ArtifactRecord, Response> {
-    match artifacts(state).get_record(id).await {
+    match artifacts(state)?.get_record(id).await {
         Ok(Some(r)) => Ok(r),
         Ok(None) => Err(err_owned(StatusCode::NOT_FOUND, format!("artifact '{id}' not found"))),
         Err(e) => Err(map_err(e)),
@@ -166,7 +171,11 @@ pub async fn upload_artifact(
         (None, _) => None,
     };
 
-    match artifacts(&state)
+    let svc = match artifacts(&state) {
+        Ok(svc) => svc,
+        Err(resp) => return resp,
+    };
+    match svc
         .store(
             &name,
             &mime,
@@ -203,7 +212,11 @@ pub async fn download_artifact(
     if !can_read_artifacts(&auth, &record.scope) {
         return err(StatusCode::FORBIDDEN, "insufficient scope for artifact read");
     }
-    match artifacts(&state).get_blob(&id).await {
+    let svc = match artifacts(&state) {
+        Ok(svc) => svc,
+        Err(resp) => return resp,
+    };
+    match svc.get_blob(&id).await {
         Ok((rec, bytes)) => {
             let disposition = format!("attachment; filename=\"{}\"", sanitize_filename(&rec.name));
             Response::builder()

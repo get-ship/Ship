@@ -238,7 +238,10 @@ fn query_items(state: &ApiState, collection_id: &str, limit: u32) -> Vec<ship_co
         limit,
         ..Default::default()
     };
-    let svc = state.collections();
+    // Space-less: no active space → no rows (no `global` fallback, S2).
+    let Ok(svc) = state.collections() else {
+        return Vec::new();
+    };
     let result = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current().block_on(svc.query_items_by_query(q))
     });

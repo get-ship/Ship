@@ -52,8 +52,6 @@ pub mod view_rpc;
 pub mod registry_rpc;
 pub mod sui_rpc;
 pub mod search_context;
-pub mod collection_context;
-pub mod artifact_context;
 pub mod live_read;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
@@ -404,19 +402,19 @@ pub async fn run_network(
         });
     }
 
-    // Register the launch-time project (if any) into the project registry
-    // so the launcher / shell sees it on first list. Idempotent.
+    // Register the launch-time project (if any) into the project registry so the
+    // launcher / shell sees it on first list. Idempotent.
     //
-    // A daemon serves exactly one project = one space. Stamp the daemon's
-    // space identity (path-hash of the project root, matching the `projects`
-    // projection key) into the process-global so the per-request emit path
-    // carries the SPACE id on `space_id`, never the branch slug. See spec
+    // A discoverable project root IS the active space; the daemon has no separate
+    // "home space" to stamp into a process-global (S2 home-space kill). The active
+    // space is resolved per-request / at boot from the probe path via
+    // `ship_substrate::project::resolve_active_space`. With no discoverable
+    // project the daemon boots space-less. See spec
     // `.artifacts/specs/space/116-event-partition.md`.
-    if let Some(root) = project_root.as_ref() {
-        ship_substrate::project::set_daemon_space_id_from_root(root.path());
-        if let Err(e) = ship_platform::projects::register(root.path(), None) {
-            tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
-        }
+    if let Some(root) = project_root.as_ref()
+        && let Err(e) = ship_platform::projects::register(root.path(), None)
+    {
+        tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
     }
 
     let token = match auth::read_token(&daemon_dir) {

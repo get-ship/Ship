@@ -78,7 +78,7 @@ async fn collection_insert(
         render::render_value(data, render_ctx)?
     };
 
-    let svc = collection_service(ctx);
+    let svc = collection_service(ctx)?;
     ensure_table(&svc, collection).await?;
     let data_bytes = serde_json::to_vec(&data_value)
         .map_err(|e| anyhow!("collection.insert data is not serializable: {e}"))?;
@@ -103,7 +103,7 @@ async fn collection_update(
     let filter_value = render::render_value(filter, render_ctx)?;
     let data_value = render::render_value(data, render_ctx)?;
     let id = resolve_filter_id(&filter_value)?;
-    let svc = collection_service(ctx);
+    let svc = collection_service(ctx)?;
     ensure_table(&svc, collection).await?;
     let data_bytes = serde_json::to_vec(&data_value)
         .map_err(|e| anyhow!("collection.update data is not serializable: {e}"))?;
@@ -220,15 +220,20 @@ fn envelope_payload_mut(envelope: &mut EventEnvelope) -> Result<Value> {
 /// space (the daemon DataStore + shared kernel). The schema registry is the
 /// shared one threaded through `ActionCtx` (C-2 UD-7) — collection-table
 /// creation + schema validation happen inside `create_item`/`update_item`.
-fn collection_service(ctx: &ActionCtx<'_>) -> CollectionService {
+fn collection_service(ctx: &ActionCtx<'_>) -> Result<CollectionService> {
     use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
-    let space_id = ctx.trigger_space.unwrap_or("global");
+    // A collection CRUD action is space-scoped. With no resolved trigger space
+    // there is no active space to bind to — error cleanly rather than fabricate a
+    // `global` partition (S2 home-space kill).
+    let space_id = ctx.trigger_space.ok_or_else(|| {
+        anyhow!("collection action requires a resolved trigger space; none active")
+    })?;
     let data_svc = ship_substrate::data::DataService::open(ctx.ship_dir)
-        .expect("trigger collection action: open data.db");
+        .map_err(|e| anyhow!("trigger collection action: open data.db: {e}"))?;
     let store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
     let kernel_log = Arc::new(KernelLog::new(ctx.kernel.clone()));
     let space_ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel_log));
-    CollectionService { ctx: space_ctx, schemas: ctx.schemas.clone() }
+    Ok(CollectionService { ctx: space_ctx, schemas: ctx.schemas.clone() })
 }
 
 /// Ensure the collection's item table exists before a CRUD call. The new

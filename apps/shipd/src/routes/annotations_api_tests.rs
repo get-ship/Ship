@@ -89,7 +89,7 @@ async fn point_annotation_persists_and_returns_201() {
     // Persistence: a row landed in the annotations collection. The collection
     // row carries its own minted ULID (the wire event keeps `ev.id`), so query
     // the collection rather than look up by the wire id.
-    let svc = state.collections();
+    let svc = state.collections().expect("test fixture binds an active space");
     let q = ship_substrate::ports::Query {
         table: "collection_annotations".into(),
         limit: 50,

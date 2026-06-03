@@ -25,4 +25,4 @@ pub mod windows;
 
 pub use error::{DeviceError, DeviceErrorKind};
 pub use ports::{SpaceRegistry, WindowSessions};
-pub use windows::{ClosedWindow, RegisteredWindow, TargetSpace, WindowIntent};
+pub use windows::{ClosedWindow, RegisteredWindow, WindowIntent};

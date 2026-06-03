@@ -243,7 +243,10 @@ async fn op_collections_schema(state: &ApiState, args: serde_json::Value) -> Res
         id: Option<String>,
     }
     let a: A = serde_json::from_value(args).unwrap_or_default();
-    let svc = state.collections();
+    let svc = match state.collections() {
+        Ok(svc) => svc,
+        Err(e) => return err(StatusCode::CONFLICT, "no_active_space", &e.to_string()),
+    };
     let schemas: Vec<ship_collection::types::SchemaDoc> = match a.id {
         Some(id) => match svc.list().into_iter().find(|s| s.id == id) {
             Some(s) => vec![s],

@@ -57,13 +57,14 @@ pub struct ShipRuntime {
     /// impls. Built lazily via `diag_registry()` / `set_diag_registry()`
     /// after the dispatch handle is set (supervisor snapshot depends on it).
     pub(super) diag_registry: std::sync::OnceLock<ship_substrate::diagnostics::DiagnosticRegistry>,
-    /// Global-space `SpaceContext` for collections (DataStore over `data.db` +
-    /// shared kernel). The `collections()` accessor builds a stateless
-    /// `CollectionService` on demand from this ctx + the shared `schemas`.
-    pub(super) collection_ctx: Arc<ship_substrate::ports::SpaceContext>,
-    /// Global-space `SpaceContext` for artifacts. The `artifacts()` accessor
-    /// builds an `ArtifactService` on demand from this ctx + `global_blob_dir`.
-    pub(super) artifact_ctx: Arc<ship_substrate::ports::SpaceContext>,
+    /// Active-space `SpaceContext` for collections, bound to the active space's
+    /// per-scope `spaces/<id>/space.db`. `None` when the daemon booted space-less
+    /// (no discoverable project); the `collections()` accessor then errors cleanly
+    /// rather than fabricate a `global` partition (S2 home-space kill).
+    pub(super) collection_ctx: Option<Arc<ship_substrate::ports::SpaceContext>>,
+    /// Active-space `SpaceContext` for artifacts. `None` in space-less mode — the
+    /// `artifacts()` accessor errors cleanly.
+    pub(super) artifact_ctx: Option<Arc<ship_substrate::ports::SpaceContext>>,
     /// The ONE shared collection schema registry — hydrated from the file
     /// overlay at startup and shared across the collection wire, triggers,
     /// and the internal `collections()` accessor so a wire-created schema is

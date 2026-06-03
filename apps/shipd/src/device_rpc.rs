@@ -7,7 +7,8 @@
 //! the `ship-device` crate (`ship_device::windows`): the focus-vs-spawn decision,
 //! the register/close lifecycle, consulting the actor projection for live
 //! windows. This handler marshals: it resolves the per-request inputs the crate
-//! cannot own (the kernel-attested pid, the daemon's home space, the session
+//! cannot own (the kernel-attested pid, the concrete target space — explicit or
+//! the connection's active space, no home/global fallback — the session
 //! mint/revoke port, the space-existence port), enforces the transport authority
 //! checks, and maps the crate's error onto the Connect wire shape.
 //!
@@ -25,7 +26,7 @@
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 
-use ship_device::windows::{self, TargetSpace, WindowIntent};
+use ship_device::windows::{self, WindowIntent};
 use ship_device::DeviceErrorKind;
 use ship_ops_rpc::{
     DeviceCloseWindowResponse, DeviceService, DeviceWindowInfo, DeviceWindowIntentResponse,
@@ -121,26 +122,31 @@ impl DeviceService for OpsImpl {
         // token is meaningless without a pid). Never taken from the request body.
         let peer_pid = ctx.extensions.get::<PeerPid>().and_then(|p| p.0);
 
-        // Resolve the target: a supplied id (validated against projects by the
-        // crate's space-registry port) or the daemon's home space.
-        // FLAG: daemon-home read; replace with active-space source (space/shell
-        // arc) when one exists — same deferral as the legacy register path.
-        let home_space_id = ship_substrate::project::daemon_space_id();
-        let target = match request.space_id.as_deref() {
-            Some(id) => TargetSpace::Id(id),
-            None => TargetSpace::Home,
-        };
+        // Resolve the concrete target space: the explicit request `space_id`, else
+        // the connection's active space (from the session binding). There is NO
+        // daemon home space and NO `global` fallback (S2 home-space kill): a
+        // space-less connection with no explicit target is refused here, before
+        // the crate runs. The id is validated against the `projects` projection by
+        // the crate's space-registry port.
+        let connection_space = ctx
+            .extensions
+            .get::<AuthContext>()
+            .and_then(|a| a.space_id.clone());
+        let space_id = request
+            .space_id
+            .as_deref()
+            .map(str::to_string)
+            .or(connection_space)
+            .ok_or_else(|| {
+                ConnectError::failed_precondition(
+                    "window registration requires an explicit space_id or an active space on the connection",
+                )
+            })?;
 
         let sessions = RegistryWindowSessions { registry: self.state().session_registry() };
-        let reg = windows::register(
-            &sessions,
-            &ProjectsSpaceRegistry,
-            peer_pid,
-            target,
-            home_space_id.as_deref(),
-        )
-        .await
-        .map_err(device_err_to_connect)?;
+        let reg = windows::register(&sessions, &ProjectsSpaceRegistry, peer_pid, &space_id)
+            .await
+            .map_err(device_err_to_connect)?;
 
         Ok(Response::new(RegisterWindowResponse {
             session_token: reg.session_token,

@@ -159,8 +159,8 @@ impl ShipRuntime {
         // Uses spawn_blocking because the DB layer uses block_in_place.
         let _ = tokio::task::spawn_blocking(cleanup_active_sessions_on_startup).await;
 
-        // Build the collection + artifact `SpaceContext`s and the ONE shared
-        // schema registry once, here (C-2 §3.1 / UD-7). The
+        // Build the collection + artifact `SpaceContext`s (when a space is active)
+        // and the ONE shared schema registry, here (C-2 §3.1 / UD-7). The
         // `collections()`/`artifacts()` accessors construct stateless services
         // over these per call; the collection wire is mounted with the SAME
         // registry so a wire-created schema is visible to trigger inserts.
@@ -169,26 +169,24 @@ impl ShipRuntime {
         // `CollectionProjection` / `ArtifactProjection` materialize the table into,
         // so a query reads exactly what the projection wrote.
         //
-        // The space id is the path-hash of the DISCOVERED project root — the
-        // SAME identity `set_daemon_space_id_from_root` stamps onto every
-        // space-scoped event (lib.rs) and the `projects` projection keys on.
-        // `daemon_space_id()` is not yet populated at this point in boot (it is
-        // set later, after `ShipRuntime::new`), so derive it here through
-        // `ProjectRoot::discover`, which already redirects a linked worktree to
-        // the main checkout — no worktree special-casing. Without a discoverable
-        // project (global-only mode) fall back to `"global"`, matching the
-        // unscoped emit posture. THIS replaces the former hardcoded `"global"`,
-        // which collapsed every space onto one physical `spaces/global/space.db`.
+        // The active space is the path-hash of the DISCOVERED project root — the
+        // identity the `projects` projection keys on. With NO discoverable project
+        // the daemon boots space-less: `space_id` is `None`, the contexts are NOT
+        // built, and a space-scoped op resolves the active space per-request and
+        // errors cleanly if there is none. There is NO daemon home space and NO
+        // `global` pseudo-space to fall back onto (S2 home-space kill).
         let space_id = {
             let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
             probe
-                .as_ref()
-                .and_then(|p| ship_substrate::home::ProjectRoot::discover(p))
-                .map(|r| ship_substrate::home::path_hash(r.path()))
-                .unwrap_or_else(|| "global".to_string())
+                .as_deref()
+                .and_then(ship_substrate::project::resolve_active_space)
         };
-        let collection_ctx = build_space_db_context_arc(kernel.clone(), global_dir, &space_id);
-        let artifact_ctx = build_space_db_context_arc(kernel.clone(), global_dir, &space_id);
+        let collection_ctx = space_id
+            .as_deref()
+            .map(|id| build_space_db_context_arc(kernel.clone(), global_dir, id));
+        let artifact_ctx = space_id
+            .as_deref()
+            .map(|id| build_space_db_context_arc(kernel.clone(), global_dir, id));
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
         // Hydrate user-authored `.ship/collections/*.jsonc` schemas into the
         // shared registry so they are queryable alongside the built-ins.
@@ -373,24 +371,6 @@ fn cleanup_active_sessions_on_startup() {
             }
         }
     }
-}
-
-/// Construct a `SpaceContext` over the shared `data.db`. Retained only for the
-/// test ctors, which don't read event-sourced collection/artifact tables through
-/// this ctx and so don't need the per-scope `space.db` mount. Production paths
-/// use [`build_space_db_context_arc`].
-pub fn build_space_context_arc(
-    kernel: super::SharedKernel,
-    ship_dir: &Path,
-    space_id: &str,
-) -> Arc<ship_substrate::ports::SpaceContext> {
-    use ship_substrate::data::DataService;
-    use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
-
-    let data_svc = DataService::open(ship_dir).expect("data service for SpaceContext");
-    let data_store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
-    let kernel_log = Arc::new(KernelLog::new(kernel));
-    Arc::new(SpaceContext::new(SpaceId::new(space_id), data_store, kernel_log))
 }
 
 /// Construct a `SpaceContext` with the `DataStore` bound to the space's per-scope

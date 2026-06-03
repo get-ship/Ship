@@ -80,8 +80,8 @@ mod tests {
     #[test]
     fn auth_context_to_emit_context() {
         // Phase 2: the session is the sole binding minter. An MCP agent with no
-        // resolved space keys `None` — there is NO `daemon_space_id` fallback on
-        // the emit path. The branch-slug `workspace_id` never leaks into the key.
+        // resolved space keys `None` — there is NO home-space fallback on the
+        // emit path. The branch-slug `workspace_id` never leaks into the key.
         let auth = AuthContext {
             caller_kind: CallerKind::Mcp,
             agent_id: Some("agent.test".into()),
@@ -96,7 +96,7 @@ mod tests {
         assert_eq!(
             ctx.space_key(),
             None,
-            "no resolved space → keyed None (no daemon_space_id fallback)"
+            "no resolved space → keyed None (no home-space fallback)"
         );
         assert_eq!(ctx.session_id, Some("sess-1".into()));
     }

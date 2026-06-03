@@ -20,15 +20,17 @@ stands today.)
 
 There is exactly **one `shipd`**. It is not forked per space. Its local axum
 server serves the space webviews — a handful of concurrent single-user apps,
-same-origin. The space identity is a path-hash of the space root
-(`daemon_space_id()` is the daemon's *home* space — the one it was launched in),
-but the daemon is not single-space: the **emit path resolves the space
-per-connection**, not from a process global.
+same-origin. A space identity is a path-hash of the space root. There is **no
+daemon home space**: a discoverable project root becomes the active space, but
+with no discoverable project the daemon boots **space-less**. The **emit path
+resolves the active space per-connection**, not from a process global
+(`ship_substrate::project::resolve_active_space` is the per-request seam).
 
 - `DaemonSession.space_id` and `AuthContext.space_id` carry the requesting
   connection's space. A space window's session carries *its* space.
-- `AuthContext::to_emit_context()` stamps `space_id` from the session, falling
-  back to the home space only when a connection carries none (operator/CLI).
+- `AuthContext::to_emit_context()` stamps `space_id` from the session. A
+  connection with no resolved space keys `None` (operator/CLI) — there is no
+  home/global space to fall back onto.
 - So an event a window emits is partitioned into *that window's* space, and the
   event log is space-partitioned end to end.
 

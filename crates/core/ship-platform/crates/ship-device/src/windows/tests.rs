@@ -13,7 +13,7 @@ use std::sync::Mutex;
 use anyhow::Result;
 use async_trait::async_trait;
 
-use super::{close, intent, list, register, TargetSpace, WindowIntent};
+use super::{close, intent, list, register, WindowIntent};
 use crate::error::DeviceErrorKind;
 use crate::ports::{SpaceRegistry, WindowSessions};
 
@@ -41,7 +41,7 @@ impl WindowSessions for RecordingSessions {
 
 /// A space registry that answers a fixed membership set, or fails the lookup.
 struct FakeRegistry {
-    /// Ids that are "registered". `Home`/unknown ids miss.
+    /// Ids that are "registered". Unknown ids miss.
     known: Vec<String>,
     /// When true, every lookup surfaces an error (proves the service maps a
     /// registry failure to a service error, not "absent").
@@ -128,26 +128,21 @@ impl Drop for DeviceTestEnv {
 }
 
 // ── register: pid attestation + target resolution ─────────────────────────
+//
+// The daemon always resolves a CONCRETE registered space id before calling
+// `register` — there is no home/global fallback in the crate (S2 home-space
+// kill). The space-less "no target" refusal lives at the transport (shipd
+// `device_rpc::register_window`), so the crate sees only a concrete id.
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn register_requires_attested_pid() {
     let sessions = RecordingSessions::default();
     let registry = FakeRegistry::known(&["space-a"]);
-    let err = register(&sessions, &registry, None, TargetSpace::Id("space-a"), None)
+    let err = register(&sessions, &registry, None, "space-a")
         .await
         .expect_err("no pid ⟹ refused");
     assert_eq!(err.kind, DeviceErrorKind::Forbidden);
     assert!(sessions.minted.lock().unwrap().is_empty(), "nothing minted without a pid");
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn register_home_with_no_home_space_is_conflict() {
-    let sessions = RecordingSessions::default();
-    let registry = FakeRegistry::empty();
-    let err = register(&sessions, &registry, Some(1234), TargetSpace::Home, None)
-        .await
-        .expect_err("no home space ⟹ conflict");
-    assert_eq!(err.kind, DeviceErrorKind::Conflict);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -159,8 +154,7 @@ async fn register_unregistered_target_space_is_not_found() {
         &sessions,
         &registry,
         Some(std::process::id()),
-        TargetSpace::Id("space-does-not-exist"),
-        None,
+        "space-does-not-exist",
     )
     .await
     .expect_err("a window can't conjure a space");
@@ -173,15 +167,9 @@ async fn register_surfaces_registry_failure_as_service_error() {
     let _env = DeviceTestEnv::new();
     let sessions = RecordingSessions::default();
     let registry = FakeRegistry::failing();
-    let err = register(
-        &sessions,
-        &registry,
-        Some(std::process::id()),
-        TargetSpace::Id("space-a"),
-        None,
-    )
-    .await
-    .expect_err("a registry lookup failure is a service error, not 'absent'");
+    let err = register(&sessions, &registry, Some(std::process::id()), "space-a")
+        .await
+        .expect_err("a registry lookup failure is a service error, not 'absent'");
     assert_eq!(err.kind, DeviceErrorKind::Service);
     assert!(sessions.minted.lock().unwrap().is_empty());
 }
@@ -189,16 +177,17 @@ async fn register_surfaces_registry_failure_as_service_error() {
 // ── register: the actor + mint happy path, observable via intent/list ───────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn register_home_registers_actor_and_mints_session() {
+async fn register_validated_target_id_binds_that_space() {
     let env = DeviceTestEnv::new();
     let space = env.space.clone();
     let sessions = RecordingSessions::default();
-    let registry = FakeRegistry::empty();
+    // The registry vouches for the explicit, concrete target id.
+    let registry = FakeRegistry::known(&[space.as_str()]);
     let pid = std::process::id();
-    let resp = register(&sessions, &registry, Some(pid), TargetSpace::Home, Some(&space))
+    let resp = register(&sessions, &registry, Some(pid), &space)
         .await
-        .expect("operator registers a window onto home");
-    assert_eq!(resp.space_id, space, "no target ⟹ binds the home space");
+        .expect("a registered target id is accepted");
+    assert_eq!(resp.space_id, space, "binds the validated target id");
     assert!(!resp.actor_id.is_empty());
     // The session was minted for exactly this (space, pid).
     assert_eq!(*sessions.minted.lock().unwrap(), vec![(space.clone(), pid)]);
@@ -211,21 +200,6 @@ async fn register_home_registers_actor_and_mints_session() {
     assert!(listed
         .iter()
         .any(|w| w.id == resp.actor_id && w.space_id.as_deref() == Some(&space)));
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn register_validated_target_id_binds_that_space() {
-    let env = DeviceTestEnv::new();
-    let space = env.space.clone();
-    let sessions = RecordingSessions::default();
-    // The registry vouches for the explicit target id.
-    let registry = FakeRegistry::known(&[space.as_str()]);
-    let pid = std::process::id();
-    let resp = register(&sessions, &registry, Some(pid), TargetSpace::Id(&space), None)
-        .await
-        .expect("a registered target id is accepted");
-    assert_eq!(resp.space_id, space, "binds the validated target id");
-    assert_eq!(*sessions.minted.lock().unwrap(), vec![(space, pid)]);
 }
 
 // ── intent: spawn when no live window ───────────────────────────────────────
@@ -246,9 +220,9 @@ async fn close_revokes_token_and_deregisters() {
     let space = env.space.clone();
     let sessions = RecordingSessions::default();
     sessions.revoke_result.store(true, Ordering::SeqCst);
-    let registry = FakeRegistry::empty();
+    let registry = FakeRegistry::known(&[space.as_str()]);
     let pid = std::process::id();
-    let reg = register(&sessions, &registry, Some(pid), TargetSpace::Home, Some(&space))
+    let reg = register(&sessions, &registry, Some(pid), &space)
         .await
         .expect("register");
 

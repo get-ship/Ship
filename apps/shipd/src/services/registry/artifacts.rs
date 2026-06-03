@@ -41,7 +41,7 @@ ship_ops! {
                 }
             }
             let limit = optional_usize(args, "limit", 50) as u32;
-            let svc = state.artifacts();
+            let svc = state.artifacts().map_err(|e| RegistryError::service(e.to_string()))?;
             let items = tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current().block_on(svc.list(filter, limit))
             })

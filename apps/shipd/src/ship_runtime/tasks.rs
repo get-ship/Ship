@@ -89,9 +89,13 @@ impl ShipRuntime {
 
     /// Spawn the artifact GC loop. Runs immediately on startup then every hour.
     ///
-    /// Best-effort: errors are logged but don't take down the daemon.
+    /// Best-effort: errors are logged but don't take down the daemon. No-op when
+    /// the daemon booted space-less (no active space → no artifact store to sweep).
     pub fn start_artifact_gc(&self) {
-        let artifact_ctx = self.artifact_ctx.clone();
+        let Some(artifact_ctx) = self.artifact_ctx.clone() else {
+            tracing::info!("artifact GC: no active space, GC loop not started");
+            return;
+        };
         let global_dir = self.global_blob_dir.clone();
         ship_substrate::task_health::spawn_supervised(
             &self.health_registry,

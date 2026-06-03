@@ -452,6 +452,6 @@ fn operator_and_sdk_authority_are_distinct() {
         Authority::Sdk
     );
     // Intended P2 fail-soft: operator with no session space keys None (no
-    // daemon_space_id fallback on the emit path).
+    // home-space fallback on the emit path).
     assert_eq!(operator.to_emit_context(CallerKind::Cli).space_key(), None);
 }
