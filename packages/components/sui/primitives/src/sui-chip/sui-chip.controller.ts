@@ -5,13 +5,13 @@ export default controller<Scope>({
   mount(state, host) {
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'button')
-    if (!host.hasAttribute('tabindex') && !state.$signals.disabled()) {
+    if (!host.hasAttribute('tabindex') && !state.disabled) {
       host.setAttribute('tabindex', '0')
     }
 
     const stopSync = effect(() => {
-      const sel = state.$signals.selected()
-      const dis = state.$signals.disabled()
+      const sel = state.selected
+      const dis = state.disabled
       host.setAttribute('aria-pressed', sel ? 'true' : 'false')
       if (dis) {
         host.setAttribute('aria-disabled', 'true')
@@ -23,11 +23,11 @@ export default controller<Scope>({
     })
 
     const onKeydown = (e: KeyboardEvent) => {
-      if (state.$signals.disabled()) return
+      if (state.disabled) return
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         host.click()
-      } else if (state.$signals.removable() && (e.key === 'Backspace' || e.key === 'Delete')) {
+      } else if (state.removable && (e.key === 'Backspace' || e.key === 'Delete')) {
         e.preventDefault()
         host.dispatchEvent(new CustomEvent('ship-remove', { detail: {}, bubbles: true, composed: true }))
       }
@@ -35,11 +35,11 @@ export default controller<Scope>({
     host.addEventListener('keydown', onKeydown)
 
     const stopRemoveBtn = effect(() => {
-      const btn = (state.$signals as unknown as { removeBtn?: () => HTMLButtonElement | null }).removeBtn?.()
+      const btn = state.removeBtn
       if (!btn) return
       const onClick = (e: MouseEvent) => {
         e.stopPropagation()
-        if (state.$signals.disabled()) return
+        if (state.disabled) return
         host.dispatchEvent(new CustomEvent('ship-remove', { detail: {}, bubbles: true, composed: true }))
       }
       btn.addEventListener('click', onClick)

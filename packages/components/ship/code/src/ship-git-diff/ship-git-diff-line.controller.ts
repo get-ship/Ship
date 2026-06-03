@@ -40,13 +40,11 @@ export default controller({
     // In mount, `state` is the MutableState proxy: reading a prop returns its
     // unwrapped value (not a Signal), and the read is tracked when done inside
     // an effect. `new` and `type` are reserved in property position, so use
-    // bracket access on the value bag.
-    const props = state as unknown as Record<string, unknown>
-
+    // bracket access — `state['new']` is still the typed unwrapped value.
     const stopLabel = effect(() => {
-      const t = (props['type'] as LineType | undefined) ?? 'context'
-      const n = (props['new'] as string | undefined) ?? ''
-      const o = (props['old'] as string | undefined) ?? ''
+      const t = state['type']
+      const n = state['new']
+      const o = state['old']
       const verb = t === 'add' ? 'added' : t === 'del' ? 'removed' : 'context'
       host.setAttribute('aria-label', `line ${n || o} ${verb}`)
     })

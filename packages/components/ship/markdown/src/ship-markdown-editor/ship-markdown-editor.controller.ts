@@ -1,5 +1,5 @@
 import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
-import type { Signal, ViewScope } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './ship-markdown-editor.sui'
 import { createMarkdownEditor, readMarkdown, type MarkdownEditor } from './ship-markdown-editor.init'
 import { injectEditorStyles } from './ship-markdown-editor.styles'
@@ -22,14 +22,6 @@ function getSelectedText(ed: MarkdownEditor | null): string {
   if (!ed) return ''
   const { from, to } = ed.state.selection
   return ed.state.doc.textBetween(from, to, ' ').trim()
-}
-
-type ExtScope = Scope & {
-  marks: Signal<MarkMap>; bubblePos: Signal<BubblePos>; pending: Signal<PendingComment>
-  composerValue: Signal<string>; composerInputEl: Signal<HTMLTextAreaElement | null>
-  shellEl: Signal<HTMLElement | null>; editorHost: Signal<HTMLElement | null>
-  composerTop: Signal<string>; composerLeft: Signal<string>; pendingQuote: Signal<string>
-  _editorRef: { current: MarkdownEditor | null }
 }
 
 export default controller({
@@ -160,21 +152,13 @@ export default controller({
   },
 
   mount(state, host) {
-    const s = state as unknown as ExtScope
     // `state.$signals` exposes the raw writable Signals from scope (callable /
     // .set()), even though the MutableState proxy unwraps them to plain values
-    // on direct property reads. Mutations + signal-calls must go through this
-    // bag — reading `s.bubblePos` returns the *value*, so `.set()` on it is a
-    // no-op (the template never re-renders). `_editorRef` is a plain object,
-    // not a signal, so it stays on `s`.
-    const sig = state.$signals as unknown as {
-      bubblePos: Signal<BubblePos>; pending: Signal<PendingComment>
-      marks: Signal<MarkMap>; composerValue: Signal<string>
-      value: Signal<string>; placeholder: Signal<string>; disabled: Signal<boolean>
-      rows: Signal<number>; showSelectionToolbar: Signal<boolean>
-      editorHost: Signal<HTMLElement | null>; shellEl: Signal<HTMLElement | null>
-      composerInputEl: Signal<HTMLTextAreaElement | null>
-    }
+    // on direct property reads. Mutations + signal-calls go through this bag —
+    // reading `state.bubblePos` returns the *value*, so `.set()` on it would
+    // throw (it is not the signal). `_editorRef` is a plain object, not a
+    // signal, so it reads straight off `state`.
+    const sig = state.$signals
     const shadow = host.shadowRoot
     if (shadow) { injectEditorStyles(shadow); injectBubbleStyles(shadow) }
 
@@ -217,7 +201,7 @@ export default controller({
     let disposed = false
 
     function refreshMarks() {
-      const ed = s._editorRef.current; if (!ed) return
+      const ed = state._editorRef.current; if (!ed) return
       sig.marks.set({
         bold: ed.isActive('bold'), italic: ed.isActive('italic'),
         strike: ed.isActive('strike'), code: ed.isActive('code'),
@@ -229,7 +213,7 @@ export default controller({
     }
 
     function refreshBubble() {
-      const ed = s._editorRef.current
+      const ed = state._editorRef.current
       if (!ed || !sig.showSelectionToolbar() || sig.disabled() || sig.pending()) {
         sig.bubblePos.set(null); return
       }
@@ -266,7 +250,7 @@ export default controller({
         onBlur: () => sig.bubblePos.set(null),
       })
       if (disposed) { try { ed.destroy() } catch { /* teardown race */ } return }
-      s._editorRef.current = ed
+      state._editorRef.current = ed
       refreshMarks()
       host.dispatchEvent(new Event('input', { bubbles: true, composed: true }))
       disposers.push(effect(() => {
@@ -280,8 +264,8 @@ export default controller({
       disposed = true
       if (changeTimer) clearTimeout(changeTimer)
       for (const d of disposers) d()
-      try { s._editorRef.current?.destroy() } catch { /* teardown race */ }
-      s._editorRef.current = null
+      try { state._editorRef.current?.destroy() } catch { /* teardown race */ }
+      state._editorRef.current = null
     }
   },
 })

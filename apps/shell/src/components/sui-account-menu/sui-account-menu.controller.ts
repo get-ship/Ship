@@ -7,7 +7,7 @@ import {
   unwrapOr,
   chrome,
 } from '@ship/sui-runtime'
-import type { Signal, ViewScope } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import {
   accountDisplayName as deriveDisplayName,
   accountInitials as deriveInitials,
@@ -143,26 +143,20 @@ export default controller({
   },
 
   mount(state, host) {
-    const scope = state as unknown as {
-      panelOpen: Signal<boolean>
-      panelEl: () => PopoverEl | null
-      triggerBtn: () => HTMLElement | null
-      _internals: { host: HTMLElement | null; panel: PopoverEl | null }
-    }
     void EMPTY
 
-    scope._internals.host = host
+    state._internals.host = host
 
     // Sync panel ref into internals + listen for native open/close so
     // panelOpen mirrors the popover state.
     const stopPanelSync = effect(() => {
-      const panel = scope.panelEl()
-      scope._internals.panel = panel
+      const panel = state.panelEl
+      state._internals.panel = panel
       if (!panel) return
       const onToggle = (e: Event) => {
         const newState = (e as ToggleEvent).newState
         const open = newState === 'open'
-        if (scope.panelOpen() !== open) scope.panelOpen.set(open)
+        if (state.panelOpen !== open) state.panelOpen = open
         if (open) anchorPanel()
       }
       panel.addEventListener('toggle', onToggle)
@@ -170,8 +164,8 @@ export default controller({
     })
 
     function anchorPanel(): void {
-      const panel = scope.panelEl()
-      const trigger = scope.triggerBtn()
+      const panel = state.panelEl
+      const trigger = state.triggerBtn
       if (!panel || !trigger) return
       const r = trigger.getBoundingClientRect()
       panel.style.top = `${r.bottom + 4}px`
@@ -183,11 +177,11 @@ export default controller({
     function onPanelKeydown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.preventDefault()
-        scope.panelEl()?.hidePopover?.()
+        state.panelEl?.hidePopover?.()
       }
     }
     const stopKeyBind = effect(() => {
-      const panel = scope.panelEl()
+      const panel = state.panelEl
       if (!panel) return
       panel.addEventListener('keydown', onPanelKeydown)
       return () => panel.removeEventListener('keydown', onPanelKeydown)

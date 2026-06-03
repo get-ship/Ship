@@ -1,5 +1,5 @@
 import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
-import type { Signal, ViewScope } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-project-switcher.sui'
 import { ops } from '../../ops'
 
@@ -92,24 +92,16 @@ export default controller({
   },
 
   mount(state, host) {
-    const scope = state as unknown as {
-      menuOpen: Signal<boolean>
-      menuEl: () => PopoverEl | null
-      triggerBtn: () => HTMLElement | null
-      loadProjects: () => Promise<void>
-      _internals: { menu: PopoverEl | null }
-    }
-
-    void scope.loadProjects()
+    void state.loadProjects()
 
     // Mirror the native popover open/close into menuOpen + anchor on open.
     const stopSync = effect(() => {
-      const menu = scope.menuEl()
-      scope._internals.menu = menu
+      const menu = state.menuEl
+      state._internals.menu = menu
       if (!menu) return
       const onToggle = (e: Event) => {
         const open = (e as ToggleEvent).newState === 'open'
-        if (scope.menuOpen() !== open) scope.menuOpen.set(open)
+        if (state.menuOpen !== open) state.menuOpen = open
         if (open) anchor()
       }
       menu.addEventListener('toggle', onToggle)
@@ -117,8 +109,8 @@ export default controller({
     })
 
     function anchor(): void {
-      const menu = scope.menuEl()
-      const trigger = scope.triggerBtn()
+      const menu = state.menuEl
+      const trigger = state.triggerBtn
       if (!menu || !trigger) return
       const r = trigger.getBoundingClientRect()
       menu.style.top = `${r.bottom + 4}px`

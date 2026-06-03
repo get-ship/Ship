@@ -21,8 +21,7 @@ export default controller<Scope>({
     onCleanup(bindAttr(inputEl, 'aria-describedby', () => {
       const parts: string[] = []
       if (state.$signals.invalid() && state.$signals.errorMessage()) {
-        const errRef = (state.$signals as unknown as { errorEl?: () => HTMLSpanElement | null }).errorEl
-        const errorEl = typeof errRef === 'function' ? errRef() : null
+        const errorEl = state.$signals.errorEl()
         if (errorEl) { errorEl.id = errId; parts.push(errId) }
       }
       const extra = state.$signals.describedBy()

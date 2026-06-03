@@ -5,10 +5,10 @@ export default controller<Scope>({
   mount(state, host) {
 
     const onClick = (e: Event) => {
-      if (state.$signals.disabled()) return
-      if (!state.$signals.href()) e.preventDefault()
+      if (state.disabled) return
+      if (!state.href) e.preventDefault()
       host.dispatchEvent(new CustomEvent('sui-nav-select', {
-        detail: { value: state.$signals.value() },
+        detail: { value: state.value },
         bubbles: true,
         composed: true,
       }))

@@ -31,10 +31,12 @@ export default controller({
     const bound = new Map<string, Signal<unknown>>()
     // The unified mount-state proxy auto-unwraps signals on property read;
     // raw signals live under $signals. We need them raw here so the HUD
-    // binding can call sig() inside its effects.
-    const signals = (state as unknown as { $signals: Record<string, Signal<unknown>> }).$signals
-    bound.set('state', signals.state!)
-    bound.set('score', signals.score!)
+    // binding can call sig() inside its effects. `bound` is keyed by name and
+    // holds erased `Signal<unknown>`; the per-entry cast bridges the precise
+    // `Signal<T>` to that shape (sound — we only set it with its own value
+    // type, the HUD reads it as `() => unknown`).
+    bound.set('state', state.$signals.state as Signal<unknown>)
+    bound.set('score', state.$signals.score as Signal<unknown>)
     let hudCleanup: (() => void) | null = null
     let emitters = new Map<string, Emitter>()
 

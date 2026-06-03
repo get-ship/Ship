@@ -278,21 +278,14 @@ export default controller({
   },
 
   mount(state, host) {
-    // sui-runtime's mount-state proxy uses asymmetric semantics:
-    //   • scope-declared signals (entries, filter, …): READ returns the
-    //     signal itself; WRITE proxies through to signal.set.
-    //   • bridged props (catalogUrl, …): READ returns the signal getter
-    //     (callable). Invoke with () to read its current string value.
-    // Prior `state.entries = ...` form worked for entries (`.set` on
-    // signal) but failed an earlier refactor when entries was misread as
-    // the value. Plain assignment via the proxy is the canonical write
-    // path and is unambiguous: `state.entries = next` becomes
-    // `entries.set(next)` regardless of how the property is exposed.
-    const s = state as unknown as {
-      entries: PickerEntry[]
-      filter: string
-      catalogUrl: () => string
-    }
+    // Reads return the unwrapped value (`state.catalogUrl` is the string,
+    // `state.entries` the array); assignment forwards to `signal.set()`
+    // (`state.entries = next` ⇒ `entries.set(next)`). The `as string` on the
+    // prop read is a value cast, not a signal cast: `MutableState` unwraps
+    // prop signals declared in this view's generated `.sui.d.ts` to `unknown`
+    // (the runtime value is the string), an inference gap the overlay-imported
+    // signal symbol triggers — `MutableState` unwraps an identically-shaped
+    // locally-declared scope to `string` correctly.
     const h = host as HostWithProps
     let loaded = false
     let inflight: Promise<void> | null = null
@@ -302,11 +295,11 @@ export default controller({
       if (inflight) return inflight
       inflight = (async () => {
         try {
-          const url = s.catalogUrl() || FALLBACK_CATALOG
+          const url = (state.catalogUrl as string) || FALLBACK_CATALOG
           const resp = await fetch(url, { credentials: 'same-origin' })
           if (!resp.ok) return
           const doc = await resp.json() as { entries?: CatalogEntryWire[] }
-          s.entries = flattenCatalog(doc.entries ?? [])
+          state.entries = flattenCatalog(doc.entries ?? [])
           loaded = true
         } catch { /* best-effort */ }
         finally { inflight = null }
@@ -325,7 +318,7 @@ export default controller({
     })
     Object.defineProperty(host, 'refresh', {
       configurable: true,
-      value: () => { loaded = false; s.entries = []; void load() },
+      value: () => { loaded = false; state.entries = []; void load() },
     })
     Object.defineProperty(host, 'close', {
       configurable: true,

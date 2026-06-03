@@ -57,7 +57,6 @@ export default controller({
   },
 
   mount(state, host) {
-    const s = state as unknown as Record<string, unknown>
     let ops = new Map<string, OpDescriptor>()
     let lastPath: string | null = null
 
@@ -84,25 +83,25 @@ export default controller({
       const current = (window as unknown as { ship?: { current(): { path: string } } }).ship?.current()
       const path = current?.path ?? location.pathname
       const stripped = stripPrefix(path)
-      if (!stripped) { s['refs'] = []; s['errorMsg'] = null; return }
+      if (!stripped) { state.refs = []; state.errorMsg = null; return }
       if (stripped === lastPath) return
       lastPath = stripped
-      s['errorMsg'] = null
+      state.errorMsg = null
       // Shell-local surfaces (studio) carry no daemon view-source; skip the
       // fetch that would otherwise 404 on every visit.
-      if (isShellLocalView(stripped)) { s['refs'] = []; return }
+      if (isShellLocalView(stripped)) { state.refs = []; return }
       await loadOps()
       try {
         const src = JSON.parse((await opsClient.discovery.source({ path: stripped })).json) as {
           template: string
           manifest: string | null
         }
-        s['refs'] = collectRefs(`${src.template}\n${src.manifest ?? ''}`, ops)
+        state.refs = collectRefs(`${src.template}\n${src.manifest ?? ''}`, ops)
       } catch (e) {
         // not_found → view has no daemon source; otherwise surface the error.
         const msg = (e as Error).message ?? ''
-        if (/not.?found/i.test(msg)) { s['refs'] = [] }
-        else s['errorMsg'] = msg
+        if (/not.?found/i.test(msg)) { state.refs = [] }
+        else state.errorMsg = msg
       }
     }
 
