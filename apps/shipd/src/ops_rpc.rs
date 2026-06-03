@@ -218,6 +218,11 @@ pub fn router(state: ApiState) -> axum::Router {
         move |_ctx: &connectrpc::RequestContext| artifact_ctx.clone(),
     ));
     let router = ship_ops_rpc::ArtifactsServiceExt::register(artifacts_wire, router);
+    // spacev2.* — SpaceV2Service (ship-space crate): typed space identity +
+    // config overlay + registry. Mounted ADDITIVELY beside the legacy
+    // SpaceService (still served above) until the operator's sequential cutover.
+    let space_v2_wire = crate::spacev2_rpc::space_v2_wire(state.clone());
+    let router = ship_ops_rpc::SpaceV2ServiceExt::register(space_v2_wire, router);
     router.into_axum_router()
 }
 

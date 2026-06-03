@@ -7976,6 +7976,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-space"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "buffa",
+ "chrono",
+ "connectrpc",
+ "futures-util",
+ "indexmap 2.14.0",
+ "serde",
+ "serde_json",
+ "ship-ops-rpc",
+ "ship-reactive",
+ "ship-substrate",
+ "ship-types",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ship-substrate"
 version = "0.1.0"
 dependencies = [
@@ -8100,6 +8123,7 @@ dependencies = [
  "ship-pipelines",
  "ship-platform",
  "ship-search",
+ "ship-space",
  "ship-substrate",
  "ship-supervisor",
  "ship-types",
