@@ -1,6 +1,6 @@
 ---
 title: "Scope-Partitioned Substrate"
-description: "ADR: the event log and its projections are physically partitioned by scope into device.db, account.db, and one space.db per mounted space. Each backend has its own kernel router, its own sync channel, its own encryption key."
+description: "ADR: the event log and its projections are physically partitioned by scope into runtime.db, account.db, and one space.db per mounted space. Each backend has its own kernel router, its own sync channel, its own encryption key."
 group: ADRs
 order: 30
 audience: internal
@@ -11,6 +11,30 @@ tags: [storage, substrate, partition, kernel, sync, security, encryption, scope]
 ---
 
 # Scope-Partitioned Substrate
+
+## Status — shipped vs. proposed (reconciled 2026-06-03)
+
+
+> Per-section reconciliation against the landed code. The front-matter still reads
+> `proposed`; the rows marked SHIPPED are now reality and are candidates for ratification.
+
+| Section | Status | Note |
+|---|---|---|
+| §1 Three backends (per-scope physical partition) | **PARTIAL** | The three per-scope event-log files DO exist on disk and are the live emit target (runtime.db, account.db, spaces/<id>/space.db), routed by PartitionedSink on EventScope. BUT (a) the third file is runtime.db, NOT device.db (Device scope renamed to Runtime, System deleted), and (b) blobs and the encryption-key framing in this section are not shipped (see §5). The partition is realized at the SINK over one shared router, not as three router/log instances. |
+| §2 Filesystem location: OS-conventional (XDG/AppSupport/APPDATA) via `directories` crate, SHIP_DATA_HOME override | **PROPOSED** | Not shipped. State lives under ~/.ship (home_dir().join(".ship")). No `directories` crate dependency, no SHIP_DATA_HOME, no $XDG_DATA_HOME resolution for the data root. Per-scope dbs land at ~/.ship/runtime.db, ~/.ship/account.db, ~/.ship/spaces/<id>/space.db. |
+| §2 machine/ bucket removed | **PROPOSED** | Not shipped. machine/ is alive and load-bearing: MACHINE_DIR/MACHINE_DB_DIR/MACHINE_DAEMON_DIR constants, machine_dir(), daemon_dir()=machine/daemon, and the legacy db resolver still joins machine/db/<name>. |
+| §3 Kernel router becomes scope-aware (routes by EventScope to a per-scope backend) | **PARTIAL** | Emit DOES route by EventScope to a per-scope db. BUT the routing key is the ScopeBinding (via enforce_scope stamping scope_key), not ctx.space_id; routing happens at PartitionedSink, not via the device/account/spaces DashMap<SpaceId,Arc<KernelLog>> trio in the §3 code block. One KernelRouter holds one PartitionedSink over one inner ship_kernel router; emit returns Result<()>, not Cursor. The per-scope-router shape is explicitly deferred ('the seam that Phase 2 will replace with a per-scope router'). |
+| §4 Sync model maps 1:1 to backends (per-backend cursors, per-log sync wire) | **PROPOSED** | Not shipped. Sync cursors remain per-platform (push:platform:{space_id} / pull:platform:{space_id}) in a single runtime.db cursors table; sync push reads one unified events table filtered by elevated=1 from runtime.db. No per-backend cursor namespace, no per-space-log sync wire, no account.db-specific sync channel. |
+| §5 Per-space SQLCipher encryption + OS-keychain keys | **PROPOSED** | Not shipped at all. Per-scope dbs open as plaintext sqlite (only PRAGMA journal_mode=WAL); zero 'sqlcipher' hits in the repo, no keyring/security-framework/secret-service dependency, no ship.device/ship.account.<id>/ship.space.<id> key namespaces. All key-lifecycle guarantees are target-only. |
+| §6 Agent process isolation as substrate defense | **PARTIAL** | A real agent isolation system (ship-isolation: tiers None/Process/Container/Vm/Cloud; strategies including SrtWrapper/bubblewrap, Docker, Youki, Lima, Wsl2, AppleContainer, Firecracker) exists and is wired into spawn (loud-fail if a requested strategy has no backend). BUT it is WORKSPACE-confinement, not substrate-protection: the sandbox mounts the work_dir and has zero references to the ship data dir, so it does not hide space.db; Tier-1 (default) does not confine reads; encryption-at-rest row is unmet (§5); and the strategy is resolved from isolation.* settings + OS probes + an enforce flag (off by default), not from per-agent harness capability/grant specs (ActorProfile still: 'No explicit isolation axis on ActorProfile today'). |
+| §7 Search becomes naturally per-scope | **PARTIAL** | Per-scope search IS shipped and wired in shipd: this-space opens the active space's backend; Global fans the same scope-blind SearchService across each reachable space (SpaceContext::for_space) with a per-space search.global opt-out gate and merges/re-ranks; hits stamped with space_id + ship://space/<id> deeplink. BUT the 'hub search' surface as described (account.db + per-space manifest-summary table, 'conceptually different surface') is NOT what shipped — Global reuses the identical in-space surface lifted one level, with no account.db aggregation and no manifest-summary read. |
+| §8 data.db disappears as a file | **PROPOSED** | Not shipped. data.db is still a first-class production file: Db::Data => "data.db", data_db_path() resolves it, DataService::open creates it at boot, first-run detection keys off its existence, and trigger actions open it. Collection projections are NOT yet folded into per-space space.db only. |
+| §8-adjacent: platform.db retired from emit/read path | **SHIPPED** | platform.db is dead on the emit/read path — never created or read by production. The only site that can materialize it is the .exists()-guarded one-time legacy drain at boot, so a fresh install never creates it. PartitionedSink is the live kernel sink; shutdown WAL-flush iterates only the per-scope dbs actually mounted. |
+| ScopeBinding as authoritative routing source of truth (supersedes EmitContext space_id) | **SHIPPED** | ScopeBinding is the landed authoritative binding: private fields, sole minters from_session (auth seam) and daemon_internal (trusted internal), key_for(EventScope) returning Space->space_id / Account->account_id / Runtime->device_id. emit stamps author + enforces scope from the binding BEFORE persist; PartitionedSink routes on the stamped (scope, scope_key). Commit 41ebe1d: EmitContext->ScopeBinding. |
+| Atomic event+projection write transaction (S7) — NOT documented in ADR | **SHIPPED** | Shipped and test-proven but absent from the ADR. SqliteEventStore::append wraps insert_event_row + EventBus::dispatch in one BEGIN IMMEDIATE..COMMIT on the same connection; any projection-handler error rolls back the event row too. Reached via the canonical kernel path (EventSink::persist -> append). Needs a new decision section (see new_sections). |
+| Aggregate / cross-space fan-out principle (central log never queried directly) — under-stated in ADR | **PARTIAL** | The 'reads are per-space; cross-space reads fan out + aggregate' principle is realized concretely — but ONLY in search. run_global runs the scope-blind service per space over each space's own backend and merge_global aggregates+re-ranks; SingleBackendDataStore proves every read is WHERE space_id = ? (no union query of a central log). A GENERAL reusable aggregate service (for collections/artifacts/hub-discovery) is NOT built — it remains a pattern, not a service. Needs a new decision section (see new_sections). |
+| §9 Phasing / Migration / status front-matter ('proposed', 2026-05-31) | **PARTIAL** | Phase 1 (SpaceContext/DataStore abstraction) and the substrate physical-partition emit path landed; the migrator, per-domain DataStore backfill (data.db fold-in), per-backend sync cursors, sandbox-as-substrate-isolation, and key flow have not. Front-matter status 'proposed' remains defensible because §2/§4/§5/§8 and the §6 substrate-isolation half are still target-only — but the parts that DID land (per-scope emit, ScopeBinding, atomic tx, per-scope search) are now shipped reality, so the operator should decide whether to ratify those. |
+
 
 ## Context
 
@@ -42,9 +66,11 @@ This ADR finishes the move both anticipated.
 ### 1. Three backends
 
 ```
-device.db              ← device-scope events + projections
+runtime.db             ← runtime-scope events + projections
                          (actor.*, executor.*, daemon.*, hook.*, harness.*, …)
                          Never syncs. Local diagnostics and runtime.
+                         (formerly named device.db; the Device scope was
+                         renamed Runtime and the former System scope folded in.)
 
 account.db             ← account-scope events + projections
                          (account.*, auth.session.*, agent.grants.*, …)
@@ -97,32 +123,31 @@ The two-bucket discipline survives in spirit (portable vs not). It's implemented
 
 ### 3. Kernel router becomes scope-aware
 
-Today: one `KernelRouter` writing to one `platform.db`. After:
+Today: one `KernelRouter` writing to one `platform.db`. After (TARGET SHAPE — see note below; the landed implementation routes at the sink, not via three KernelLog instances):
 
 ```rust
-pub struct KernelRouter {
-    device: Arc<KernelLog>,                          // appends to device.db
-    account: Arc<KernelLog>,                         // appends to account.db
-    spaces: DashMap<SpaceId, Arc<KernelLog>>,        // per-space, lazy mount
+// AS LANDED: one router, one scope-routed sink. Scope fan-out is the
+// sink's job; routing keys come from the authoritative ScopeBinding
+// (commit 41ebe1d, EmitContext->ScopeBinding), not from a ctx.space_id field.
+pub async fn emit(&self, mut event: EventEnvelope, ctx: &EmitContext) -> Result<()> {
+    // ... validators + write-namespace enforcement ...
+    ship_types::stamp_author(&mut event, &ctx.binding);     // stamp author identity
+    ship_types::enforce_scope(&mut event, &ctx.binding)?;   // stamp scope_key, or reject
+                                                            // CrossSpace / NoSpaceForSpaceEvent
+    self.inner.route(event).await   // persist via the single PartitionedSink, then deliver
 }
 
-impl KernelRouter {
-    pub async fn emit(&self, envelope: EventEnvelope, ctx: &EmitContext) -> Result<Cursor> {
-        let log = match envelope.scope {
-            EventScope::Device  => &self.device,
-            EventScope::Account => &self.account,
-            EventScope::Space   => self.spaces.get(&ctx.space_id?).ok_or(SpaceNotMounted)?,
-        };
-        log.append(envelope).await
-    }
-}
+// PartitionedSink::route then keys on the stamped (scope, scope_key):
+//   EventScope::Space   -> spaces/<scope_key>/space.db
+//   EventScope::Account -> account.db
+//   EventScope::Runtime -> runtime.db   (fail-closed default; replaces Device)
 ```
 
 Each `KernelLog` owns its own append-only event log, its own broadcast channel, its own projection rebuild cursors. Subscribers subscribe to one log. Sync runs per-log. Reactive resolvers attach per-log.
 
 ### 4. Sync model maps 1:1 to backends
 
-- `device.db`: never syncs. Local-only by definition.
+- `runtime.db`: never syncs. Local-only by definition.
 - `account.db`: syncs to cloud account peer. Wire is the account event log's appends.
 - `space.db` per space: syncs to that space's collaborator graph. Wire is the space event log's appends.
 
@@ -132,7 +157,7 @@ Per-backend cursors replace the current per-`{push,pull}:platform:{space_id}` na
 
 SQLCipher per backend file:
 
-- `device.db`: encrypted with a device-installation key in OS keychain (`ship.device`).
+- `runtime.db`: encrypted with a device-installation key in OS keychain (`ship.device`). [PROPOSED — no SQLCipher/keychain shipped; see §5 status note]
 - `account.db`: encrypted with an account key in OS keychain (`ship.account.<account-id>`).
 - `space.db` per space: encrypted with a per-space key in OS keychain (`ship.space.<space-id>`).
 
@@ -147,13 +172,13 @@ The partition enables filesystem-level isolation that wasn't possible with a sin
 | Layer | Mechanism |
 |---|---|
 | Encryption at rest | SQLCipher per-backend, key in OS keychain, daemon-identity-bound ACL |
-| Filesystem sandbox | Spawn agents in OS sandboxes (bubblewrap on Linux, sandbox-exec on macOS, AppContainer on Windows) that do not mount `<XDG>/ship/` into the agent's view at all |
+| Filesystem sandbox | [PARTIAL] OS sandboxes are shipped (ship-isolation: SrtWrapper/bubblewrap, Docker, Youki, Lima, Wsl2, AppleContainer, Firecracker) and wired at spawn, but they confine the agent WORKSPACE, not the substrate — the sandbox has no reference to the ship data dir, so it does not yet exclude `<XDG>/ship/`. Tier-1 (default process) does not confine reads. Substrate-hiding is target, not landed. |
 | RPC gating | All substrate access goes through daemon Connect RPCs; token + capability/grant check on every call |
 | PID-bound identity | Token mint at spawn binds to PID (per #110-#112); a process that didn't go through supervisor spawn has no valid token |
 
-The combination means: a rogue agent on the host cannot `sqlite3 space.db` (file not mounted into its view), cannot `python -c "import sqlite3..."` (same), cannot acquire a token out-of-band (no PID-bound mint), and even if it bypassed everything to read raw bytes, they're ciphertext.
+The combination means: a rogue agent on the host cannot acquire a token out-of-band (no PID-bound mint) [shipped], and — once §5/§6 substrate-isolation land — cannot `sqlite3 space.db` (file not mounted into its view) and the bytes are ciphertext. NOTE (today): the file IS reachable on disk (sandbox confines the workspace, not the substrate) and bytes are plaintext sqlite (no SQLCipher). These two guarantees are TARGET, not current.
 
-Sandbox configuration is the supervisor's responsibility at spawn time, parameterized by the agent's harness capability spec (see #83 / #85 grants work).
+Sandbox configuration is applied by the supervisor at spawn time. [PARTIAL] As landed, the strategy is resolved from isolation.* settings + OS capability probes + an `enforce` flag (off by default) — NOT yet from the agent's harness capability/grant spec; ActorProfile still notes 'No explicit isolation axis on ActorProfile today' (#83/#85 grants integration is target).
 
 ### 7. Search becomes naturally per-scope
 
@@ -166,7 +191,7 @@ Same pattern applies to triggers (subscribe to the kernels for the scopes the tr
 
 ### 8. Data.db disappears as a file
 
-The `data.db` file does not exist after this change. Collection projections live inside `space.db` alongside artifact metadata, sessions projection, agent_sessions projection, etc. — they are all tables in the same per-space backend, fed by the same per-space event log.
+[PROPOSED — NOT yet landed] The `data.db` file does not exist after this change. Collection projections live inside `space.db` alongside artifact metadata, sessions projection, agent_sessions projection, etc. — they are all tables in the same per-space backend, fed by the same per-space event log.
 
 The collections-as-universal-data-layer principle from the superseded ADR survives in full: all user-authored content goes through collections, collections emit events, query API is uniform. Only the physical realization changes — from `data.db` to per-space tables in `space.db`.
 
@@ -179,6 +204,52 @@ This ADR is a target architecture, not a one-shot migration. Sequencing:
 3. **Per-domain backfill:** each domain (collections, artifacts, sessions, …) flips its `DataStore` binding from the legacy single-backend impl to the per-scope backend impl. No domain-code changes.
 
 The reverse order — refactoring domain code against the new substrate after the substrate lands — would force a flag-day flip. Doing the abstraction first gives a clean cutover per domain.
+
+## 10. Atomic event + projection write
+
+> Status: **shipped** (test-proven). This decision was implemented but never written down in the original ADR; recording it here closes that gap.
+
+An event row and every projection it feeds commit **in a single SQLite transaction on one connection**, or roll back together. There is no window in which a durable event exists without its derived state, and no orphaned projection write for an event that failed to persist.
+
+### What it guarantees
+
+`SqliteEventStore::append` opens `BEGIN IMMEDIATE`, inserts the event row, then dispatches the projection bus on the **same** `sqlx` connection, then `COMMIT`s. If the row insert OR any projection handler errors, it `ROLLBACK`s and returns `Err` — leaving **zero** rows in `events` (`crates/core/ship-substrate/src/persistence/event_store.rs:224-241`). The contract is proven by dedicated tests: a deliberately-failing projection makes `append` return `Err` and leaves the `events` table empty (`append_rolls_back_event_row_when_projection_handler_fails`), and a clean append commits exactly one row (`crates/core/ship-substrate/src/persistence/tx_atomicity_tests.rs:75-117`).
+
+### Why co-location = one transaction
+
+The event log and its projections live in the **same per-scope backend** (§1) — `collection.*` events and the collection projection are both tables in that space's `space.db`. Because they share a file and a connection, the event-row insert and the projection apply can be the same atomic unit instead of two coordinated writes across files. `EventBus::dispatch` applies every matching projection on that same `&mut SqliteConnection` and **propagates the first handler error** (first-failing handler short-circuits the dispatch); only the `bump_cursor` bookkeeping write is treated as non-fatal and logged (`crates/core/ship-substrate/src/projections/registry.rs:65-87`). This first-error-wins propagation is exactly what makes `append`'s rollback all-or-nothing.
+
+### Reached via the canonical kernel path
+
+`append` is not a side door — it IS the write path the kernel takes. `SqliteEventStore` implements `ship_kernel::EventSink`, and `EventSink::persist` delegates straight to `append` (`crates/core/ship-substrate/src/persistence/event_store.rs:270-279`). So `kernel.emit -> inner.route -> sink.persist -> append` lands every emitted event in the same atomic event+projection transaction.
+
+### Consequence for §1
+
+This is the per-scope-co-location payoff stated as a guarantee: because projections live in the same backend as their source events, derived state is transactionally consistent with the log per scope, with no cross-file two-phase commit.
+
+## 11. Aggregate reads fan out across per-scope backends
+
+> Status: **partial** — the principle and one concrete instance (search) are shipped; a general reusable aggregate service is **not** built (it is a pattern, not a service).
+
+Once the substrate is per-scope (§1), there is no single file to query across spaces. The landed posture: **reads are physically per-space, and cross-space reads are a fan-out over many single-space backends followed by an in-memory aggregate — the central log is never queried directly.**
+
+### Reads are per-space by construction
+
+`SingleBackendDataStore` scopes every query / count / update / delete to `WHERE space_id = ?` over a single backend (one `space.db` / `runtime.db`) (`crates/core/ship-substrate/src/ports/single_backend.rs:151-211`). There is no store that reads the union of all spaces. Any cross-space answer is therefore necessarily a fan-out over N single-backend stores plus a merge.
+
+### The landed instance: global search
+
+The pattern is realized concretely — and, today, **only** — in search. The pure core (`merge_global` / `run_global`) runs the **same scope-blind `SearchService` once per included space** over that space's own context, stamps each space's hits with its `space_id`, and folds them into one stable-sorted, capped, re-ranked list — no I/O in the core (`crates/core/ship-platform/crates/ship-search/src/global.rs:54-121`). It is wired in shipd: `ShipdSearchWire::run_global_search` enumerates live spaces via `SpaceService.List`, builds a per-space `SearchContext` bound to each space's own physical db (`SpaceContext::for_space`), applies the per-space `search.global=false` opt-out gate, and calls `ship_search::run_global` (`apps/shipd/src/search_rpc.rs:77-111`). The central log is never read; results come from per-space backends and are aggregated at this seam.
+
+### Honest scope: pattern, not yet a service
+
+This is **not** a general aggregate-projection service. `run_global` / `merge_global` / `SpaceTarget` live only in `ship-search` and are consumed only by `search_rpc.rs`; there is no `MultiBackendDataStore` / `AggregateStore` trait, and the `DataStore` port is strictly single-space. Collections, artifacts, and hub-discovery have **no** cross-space enumeration path of their own — if they need one, today they would re-implement the search pattern by hand. (Note: `orchestrator/fanout_aggregate.rs` is pipeline-lane fan-out — parallel pipeline steps — an unrelated concept, not a cross-space data aggregator.)
+
+The §7 'hub search' surface as originally described (a distinct context aggregating `account.db` + a per-space manifest-summary table) is likewise **not** what shipped: global search reuses the identical in-space surface lifted one level, with no `account.db` aggregation and no manifest-summary read.
+
+### Decision
+
+Affirm the principle as architecture: cross-scope reads MUST fan out over per-scope backends and aggregate; no consumer may reintroduce a union query of a central log. Generalizing the fan-out into a reusable aggregate service (so collections/artifacts/hub-discovery do not each re-implement it) is **deferred, explicitly tracked as future work**, not credited as shipped.
 
 ## Consequences
 
@@ -247,7 +318,7 @@ Sketch:
 
 ## How to Measure Success
 
-- `<XDG>/ship/` contains exactly `device.db`, `account.db`, and `spaces/<space-id>/` per mounted space; no other top-level files.
+- `<XDG>/ship/` contains exactly `runtime.db`, `account.db`, and `spaces/<space-id>/` per mounted space; no other top-level files. [TARGET: filesystem location is still ~/.ship, not <XDG>; see §2 status]
 - No `data.db` file exists anywhere.
 - `~/.ship/` contains only `library/` and `settings.jsonc` (no `machine/`, no DBs).
 - `rg "platform.db"` returns zero hits outside migration code.
