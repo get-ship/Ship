@@ -28,7 +28,8 @@ use tokio::sync::Mutex;
 
 use super::StepActivity;
 
-use evidence::{emit_and_finish, kill_spawned_process, resolve_head_sha, scan_git_evidence};
+use evidence::{emit_and_finish, kill_spawned_process};
+use ship_runner::observe::{resolve_head_sha, scan_git_evidence};
 
 /// Primary kill signal: no subprocess CPU progress for this long → stuck.
 pub(crate) const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(5 * 60);

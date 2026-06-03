@@ -142,7 +142,7 @@ async fn exit_handler_emits_job_completed_for_clean_exit() {
     registry.lock().await.register("test-job", dead_handle());
 
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel::<ExitSignal>();
-    exit_handler::start(Arc::clone(&kernel), Arc::new(SharedRegistry(Arc::clone(&registry))), exit_rx);
+    exit_handler::start(Arc::clone(&kernel), Arc::new(SharedRegistry(Arc::clone(&registry))), exit_handler::ExitVocabulary::PipelineRun, exit_rx);
 
     exit_tx
         .send(ExitSignal {
@@ -172,7 +172,7 @@ async fn exit_handler_does_not_panic_for_failed_exit() {
     registry.lock().await.register("failing-job", dead_handle());
 
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel::<ExitSignal>();
-    exit_handler::start(Arc::clone(&kernel), Arc::new(SharedRegistry(Arc::clone(&registry))), exit_rx);
+    exit_handler::start(Arc::clone(&kernel), Arc::new(SharedRegistry(Arc::clone(&registry))), exit_handler::ExitVocabulary::PipelineRun, exit_rx);
 
     exit_tx
         .send(ExitSignal {

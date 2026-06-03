@@ -51,7 +51,7 @@ async fn drive_single_signal_until(
     let port: Arc<dyn ship_platform::services::dispatch_ports::ProcessRegistryPort> =
         Arc::new(SharedRegistry(registry));
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ExitSignal>();
-    exit_handler::start(kernel, port, rx);
+    exit_handler::start(kernel, port, exit_handler::ExitVocabulary::PipelineRun, rx);
     tx.send(signal).expect("channel accepts signal");
 
     // 3s is generous; the handler does at most two kernel emits + a

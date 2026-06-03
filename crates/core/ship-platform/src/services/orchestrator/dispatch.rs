@@ -16,7 +16,7 @@ use ship_substrate::events::agent_session::{
 };
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::{PipelineRunStartedPayload, StepType};
-use crate::services::dispatch_ports::{Authority, ExitCause, ExitSignal, SessionContext, LaunchProfile, SpawnPolicy};
+use crate::services::dispatch_ports::{Authority, SessionContext, LaunchProfile, SpawnPolicy};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -320,7 +320,12 @@ pub async fn dispatch_pipeline_run_internal(
             activity_rx,
         );
     } else {
-        super::exit_handler::start(kernel.clone(), octx.registry.clone(), exit_rx);
+        super::exit_handler::start(
+            kernel.clone(),
+            octx.registry.clone(),
+            super::exit_handler::ExitVocabulary::PipelineRun,
+            exit_rx,
+        );
     }
 
     emit_pipeline_run_dispatched(kernel, &payload.pipeline_run_id, &worktree_path, slug).await;
@@ -549,16 +554,17 @@ async fn dispatch_agent_session_internal(
         return;
     }
 
-    // Start the agent-session exit handler. Distinct from the
-    // pipeline exit_handler — emits agent.session.{completed,failed}
-    // tied to session_id, not pipeline.run.* tied to pipeline_run_id. The
-    // pipeline composer (phase 5) will sit on top of these events to
-    // advance multi-step pipelines.
-    start_agent_session_exit_handler(
+    // Start the exit handler under the agent-session vocabulary — emits
+    // agent.session.{completed,failed} keyed on session_id (not the
+    // pipeline.run.* keyed on pipeline_run_id the PipelineRun vocabulary
+    // emits). One L0 mechanism, two vocabularies. The pipeline composer
+    // (phase 5) sits on top of these events to advance multi-step pipelines.
+    super::exit_handler::start(
         kernel.clone(),
         octx.registry.clone(),
-        payload.session_id.clone(),
-        payload.slug.clone(),
+        super::exit_handler::ExitVocabulary::AgentSession {
+            session_id: payload.session_id.clone(),
+        },
         exit_rx,
     );
 
@@ -574,74 +580,6 @@ async fn dispatch_agent_session_internal(
         pid,
     )
     .await;
-}
-
-/// Spawn the agent-session exit handler task. Waits for the executor's
-/// ExitSignal, classifies it, and emits the matching session lifecycle
-/// event (completed for clean exit; failed for non-zero / no-code /
-/// session destroyed).
-fn start_agent_session_exit_handler(
-    kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    registry: Arc<dyn crate::services::dispatch_ports::ProcessRegistryPort>,
-    session_id: String,
-    slug: String,
-    mut exit_rx: tokio::sync::mpsc::UnboundedReceiver<ExitSignal>,
-) {
-    tokio::spawn(async move {
-        if let Some(signal) = exit_rx.recv().await {
-            tracing::info!(
-                slug, session_id, exit_code = ?signal.exit_code, cause = ?signal.cause,
-                "agent-session-exit: signal received",
-            );
-            registry.unregister(&signal.slug).await;
-            match signal.cause {
-                ExitCause::AgentExited => match signal.exit_code {
-                    Some(0) => {
-                        emit_agent_session_completed(
-                            &kernel,
-                            &session_id,
-                            &slug,
-                            Some(0),
-                        )
-                        .await;
-                    }
-                    Some(code) => {
-                        emit_agent_session_failed(
-                            &kernel,
-                            &session_id,
-                            &slug,
-                            &format!("harness exited with code {code}"),
-                            Some(code),
-                            "exit_nonzero",
-                        )
-                        .await;
-                    }
-                    None => {
-                        emit_agent_session_failed(
-                            &kernel,
-                            &session_id,
-                            &slug,
-                            "harness exited with no captured exit code",
-                            None,
-                            "exit_no_code",
-                        )
-                        .await;
-                    }
-                },
-                ExitCause::SessionDestroyed => {
-                    emit_agent_session_failed(
-                        &kernel,
-                        &session_id,
-                        &slug,
-                        "executor session destroyed externally",
-                        None,
-                        "session_destroyed",
-                    )
-                    .await;
-                }
-            }
-        }
-    });
 }
 
 /// Emit the observability pair (started + dispatched) for a pipeline
