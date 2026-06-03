@@ -211,8 +211,8 @@ pub fn collect_ship_data_types() -> TypeCollection {
     c.register::<ship_platform::services::agents::view_state::AgentsSummariesResponse>();
 
     // account — Ship Cloud account state for the chrome chip.
-    c.register::<ship_platform::account::types::AccountState>();
-    c.register::<ship_platform::account::types::MeView>();
+    c.register::<ship_account::types::AccountState>();
+    c.register::<ship_account::types::MeView>();
 
     // artifacts — the new `ship_artifacts::types::ArtifactRecord` is not
     // specta-exported (post-#81); the proto wire type is the registered surface

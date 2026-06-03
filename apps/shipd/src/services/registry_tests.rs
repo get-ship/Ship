@@ -300,21 +300,3 @@ fn actors_and_mesh_dispatch_but_absent_from_catalog() {
     let actors = call("actors.list", &json!({}), &state).expect("actors.list ok");
     assert!(actors.get("items").and_then(|i| i.as_array()).is_some());
 }
-
-#[test]
-fn account_state_carries_state_tag() {
-    // Behaviour-preserving: serializes the AccountState enum verbatim. A fresh
-    // daemon is logged out — the snapshot must carry the `state` discriminant.
-    // `account.state` bridges async via `block_in_place`, so it must run on a
-    // multi-thread runtime worker (as it does live inside axum).
-    let state = temp_state();
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(2)
-        .enable_all()
-        .build()
-        .unwrap();
-    let v = rt
-        .block_on(async move { call("account.state", &json!({}), &state) })
-        .expect("account.state ok");
-    assert!(v.get("state").is_some(), "AccountState serializes its `state` tag");
-}

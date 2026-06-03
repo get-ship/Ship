@@ -180,7 +180,22 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::SpaceServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::SettingsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::SessionsServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::AccountServiceExt::register(svc.clone(), router);
+    // account.* — typed AccountService (account.proto), served by the
+    // `ship-account` crate (`AccountWire`). Process-global identity: token at
+    // rest under `<daemon_dir>/account.jsonc`, `account.*` + `daemon.owner.*`
+    // audit ride a fresh `KernelLog` over the shared kernel (Account-scoped →
+    // account.db). If the gateway client fails to build, the mount is skipped
+    // and the four account RPCs return Unimplemented.
+    let router = match crate::account_rpc::build_account_wire(
+        std::sync::Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone())),
+        state.daemon_dir().join("account.jsonc"),
+        &std::env::var("SHIP_GATEWAY_URL").unwrap_or_else(|_| "https://api.getship.dev".to_string()),
+    ) {
+        Some(account_wire) => {
+            ship_ops_rpc::AccountServiceExt::register(account_wire, router)
+        }
+        None => router,
+    };
     let router = ship_ops_rpc::ChatServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::EventsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::ViewServiceExt::register(svc.clone(), router);

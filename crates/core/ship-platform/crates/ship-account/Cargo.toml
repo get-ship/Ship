@@ -3,7 +3,7 @@ name = "ship-account"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "AccountService — Ship Cloud identity (login / logout / state / key) over substrate ports (L1). Token at rest via config_doc secret-doc (no raw fs); account.* audit via KernelLog; gateway exchange via ship-gateway-client. Implements account_v2.proto's typed AccountWireService."
+description = "AccountService — Ship Cloud identity (login / logout / state / key) over substrate ports (L1). Token at rest via config_doc secret-doc (no raw fs); account.* audit via KernelLog; gateway exchange via ship-gateway-client. Implements account.proto's typed AccountService."
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
@@ -25,10 +25,16 @@ base64 = { workspace = true }
 sha2 = { workspace = true }
 getrandom = { workspace = true }
 urlencoding = "2"
+# specta export of the account value types (AccountState / MeView) for the
+# deck SDK TS codegen (xtask gen-types). Off by default; xtask enables it.
+specta = { workspace = true, features = ["chrono"], optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
 tempfile = { workspace = true }
+
+[features]
+specta = ["dep:specta"]
 
 [lints]
 workspace = true

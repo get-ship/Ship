@@ -154,13 +154,6 @@ impl ShipRuntime {
         &self.global_blob_dir
     }
 
-    /// `AccountService` accessor — gateway-bearer token store + PKCE
-    /// state for in-flight logins. Shared between REST routes and the
-    /// read-op registry.
-    pub fn account(&self) -> &Arc<ship_platform::account::AccountService> {
-        &self.account
-    }
-
     pub fn mesh_registry(&self) -> &SharedMeshRegistry {
         &self.mesh_registry
     }
