@@ -1,7 +1,7 @@
-//! ConnectRPC wire layer for `AccountWireService` (account_v2.proto).
+//! ConnectRPC wire layer for `AccountService` (account.proto).
 //!
 //! `AccountWire` wraps the process-global `AccountService` and implements the
-//! generated typed trait so shipd mounts it via `AccountWireServiceExt::register`.
+//! generated typed trait so shipd mounts it via `AccountServiceExt::register`.
 //! Account identity is process-global (not per-request / per-space), so the wire
 //! holds one `Arc<AccountService>` directly — no per-request context factory.
 //!
@@ -18,8 +18,8 @@ use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_substrate::events::CallerKind;
 
 use ship_ops_rpc::{
-    AccountState as ProtoState, AccountWireService, LoginCompleted, LoginStarted, LogoutResult, Me,
-    OwnedLoginCompleteRequestView, OwnedLoginRequestView, OwnedLogoutRequestView,
+    AccountService as AccountWireTrait, AccountState as ProtoState, LoginCompleted, LoginStarted,
+    LogoutResult, Me, OwnedLoginCompleteRequestView, OwnedLoginRequestView, OwnedLogoutRequestView,
     OwnedStateRequestView,
 };
 
@@ -81,7 +81,7 @@ fn state_to_proto(state: AccountState) -> ProtoState {
 }
 
 #[allow(refining_impl_trait)]
-impl AccountWireService for AccountWire {
+impl AccountWireTrait for AccountWire {
     async fn state(
         &self,
         ctx: RequestContext,

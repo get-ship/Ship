@@ -39,7 +39,6 @@ impl ShipRuntime {
                     mcp.clone(),
                 ),
             );
-        let account = test_account_service(&ship_dir);
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -69,7 +68,6 @@ impl ShipRuntime {
             agents,
             pipelines,
             git,
-            account: account.clone(),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -111,7 +109,6 @@ impl ShipRuntime {
                     mcp.clone(),
                 ),
             );
-        let account = test_account_service(&ship_dir);
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -141,7 +138,6 @@ impl ShipRuntime {
             agents,
             pipelines,
             git,
-            account: account.clone(),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -163,19 +159,4 @@ impl ShipRuntime {
         rt.worktree_resolver = worktree_resolver;
         rt
     }
-}
-
-/// Synthesise an `AccountService` for unit tests. Uses a tempdir-shaped
-/// fake token store rooted at `ship_dir` (tests don't write to it) and a
-/// localhost gateway URL so client construction succeeds without DNS.
-fn test_account_service(
-    ship_dir: &std::path::Path,
-) -> std::sync::Arc<ship_platform::account::AccountService> {
-    let store = std::sync::Arc::new(
-        ship_platform::account::FileTokenStore::for_daemon_dir(ship_dir),
-    );
-    std::sync::Arc::new(
-        ship_platform::account::AccountService::new(store, "http://127.0.0.1:1")
-            .expect("test account service ctor"),
-    )
 }

@@ -205,51 +205,10 @@ impl ShipRuntime {
         }
         let global_blob_dir = global_dir.clone();
 
-        // Account service — owns the gateway-bearer token store + PKCE
-        // pending registry. Base URL defaults to production gateway;
-        // overridable via SHIP_GATEWAY_URL so dev can point at staging or
-        // a local `wrangler dev` instance. On client construction failure
-        // we fall back to the production URL so route registration still
-        // compiles; downstream handlers surface the construction error.
-        let gateway_base = std::env::var("SHIP_GATEWAY_URL")
-            .unwrap_or_else(|_| "https://api.getship.dev".to_string());
-        let daemon_dir_for_account = {
-            let probe = workspace_dir
-                .clone()
-                .or_else(|| std::env::current_dir().ok());
-            let wt_root = probe
-                .as_ref()
-                .and_then(|p| ship_substrate::home::worktree_root_for(p))
-                .or_else(|| {
-                    probe
-                        .as_ref()
-                        .and_then(|p| ship_substrate::home::ProjectRoot::discover(p))
-                        .map(|r| r.path().to_path_buf())
-                });
-            let home = ship_substrate::ShipHome::at(global_dir.clone());
-            match wt_root.as_ref() {
-                Some(r) => home.worktree_daemon_dir(&ship_substrate::home::path_hash(r)),
-                None => home.daemon_dir(),
-            }
-        };
-        let account_store = Arc::new(
-            ship_platform::account::FileTokenStore::for_daemon_dir(&daemon_dir_for_account),
-        );
-        let account = Arc::new(
-            ship_platform::account::AccountService::new(account_store, &gateway_base)
-                .or_else(|e| {
-                    tracing::warn!(
-                        "account service: build failed ({e}); /api/v1/account/* will return 500"
-                    );
-                    ship_platform::account::AccountService::new(
-                        Arc::new(ship_platform::account::FileTokenStore::for_daemon_dir(
-                            &daemon_dir_for_account,
-                        )),
-                        "https://api.getship.dev",
-                    )
-                })
-                .context("building fallback account service")?,
-        );
+        // Account identity is served by the typed Connect `AccountService`
+        // (account.proto, `ship-account` crate). Its `AccountWire` is built in
+        // `ops_rpc::router` from `daemon_dir` + `SHIP_GATEWAY_URL`; the runtime
+        // no longer holds an account service in `ApiState`.
 
         Ok(Self {
             config,
@@ -316,7 +275,6 @@ impl ShipRuntime {
             agents: ship_platform::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
             pipelines: ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
             git: ship_platform::services::git::service::GitServiceImpl::arc(global_dir.clone()),
-            account,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),

@@ -33,9 +33,10 @@ impl AccountToken {
 }
 
 /// Account-state snapshot. The tagged enum mirrors the typed
-/// `account_v2.proto::AccountState`: `Pending` carries `state_id`, `LoggedIn`
+/// `account.proto::AccountState`: `Pending` carries `state_id`, `LoggedIn`
 /// carries `user_id` + an optional best-effort identity.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum AccountState {
     LoggedOut,
@@ -52,6 +53,7 @@ pub enum AccountState {
 /// the generated buffa types don't leak across the L1 boundary. `image == None`
 /// maps to `""` on the wire.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct MeView {
     pub id: String,
     pub name: String,

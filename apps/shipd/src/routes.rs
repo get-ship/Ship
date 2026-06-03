@@ -35,7 +35,6 @@
 // Handler files live at `routes/<x>_api.rs`. Callers import them as
 // `crate::routes::<x>_api::*` (or `shipd::routes::<x>_api::*` externally).
 
-pub mod account_api;
 pub mod actor_api;
 #[cfg(test)]
 mod actor_api_tests;
@@ -100,28 +99,8 @@ pub enum Route {
     /// @auth scope Full
     IssueSession,
 
-    // ── Account — gateway-mediated Ship Cloud identity ────────────────────
-    // All routes here require CallerKind::Cli (user-presence). MCP session
-    // tokens are categorically denied — see SECURITY.md. Daemon proxies to
-    // the gateway via ship-gateway-client; CLI never touches the gateway
-    // directly.
-
-    /// @route POST "/api/v1/account/login"
-    /// @auth cli
-    StartAccountLogin,
-
-    /// @route POST "/api/v1/account/login/complete"
-    /// @auth cli
-    CompleteAccountLogin,
-
-    /// @route GET "/api/v1/account/state"
-    /// @auth cli
-    GetAccountState,
-
-    /// @route POST "/api/v1/account/logout"
-    /// @auth cli
-    LogoutAccount,
-
+    // Account ops are served by the typed Connect `AccountService`
+    // (account.proto, `ship-account` crate) — there is no REST account surface.
 
     // ── Shared assets (unauthenticated) ──────────────────────────────────
 

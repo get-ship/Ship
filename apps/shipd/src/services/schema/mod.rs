@@ -53,7 +53,6 @@ pub static OPS: LazyLock<Vec<OpDescriptor>> = LazyLock::new(build_ops);
 const DOMAIN_ORDER: &[&str] = &[
     "agents", "skills", "rules", "mcp", "permissions", "pipelines", "git",
     "settings", "collections", "artifacts", "chat", "sessions", "workspaces",
-    "account",
 ];
 
 fn build_ops() -> Vec<OpDescriptor> {
@@ -67,7 +66,6 @@ fn build_ops() -> Vec<OpDescriptor> {
         ("chat", reg::chat::CHAT_OPS),
         ("sessions", reg::sessions::SESSIONS_OPS),
         ("artifacts", reg::artifacts::ARTIFACTS_OPS),
-        ("account", reg::account::ACCOUNT_OPS),
         ("skills", reg::skills::SKILLS_OPS),
         ("pipelines", reg::pipelines::PIPELINES_OPS),
         ("git", reg::git::GIT_OPS),

@@ -122,7 +122,6 @@ pub mod mesh;
 pub mod chat;
 pub mod git;
 pub mod workspaces;
-pub mod account;
 pub mod diagnostics;
 
 // ── Dispatch ─────────────────────────────────────────────────────────
@@ -179,9 +178,6 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
         return Ok(value);
     }
     if let Some(value) = workspaces::try_dispatch(name, args, state, &files)? {
-        return Ok(value);
-    }
-    if let Some(value) = account::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
     if let Some(value) = diagnostics::try_dispatch(name, args, state, &files)? {

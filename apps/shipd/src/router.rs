@@ -14,7 +14,7 @@ use crate::{
     sessions, views,
 };
 use crate::routes::{
-    account_api, actor_api, actors_api, annotations_api,
+    actor_api, actors_api, annotations_api,
     artifacts_api, commands_api, create_api, feedback_api, git_api,
     hooks_api, human_webhook, logs_api,
     registry_api, rest_api, runtime_api,
@@ -236,11 +236,6 @@ pub fn build_router(
     let feedback_guard = feedback_api::FeedbackGuard::new();
     let registry_state = mcp_registry::McpRegistryState::new();
 
-    // Account service is owned by ShipRuntime; expose it as an Extension
-    // so REST handlers (`account_api::*`) can extract it. The read-op
-    // registry reaches the same Arc via `rt.account()`.
-    let account_service = rt.account().clone();
-
     // MCP registry proxy is a public, read-only endpoint — match the
     // original Cloudflare Worker handler's "no auth required" contract
     // so the shell's agent builder can query it before pairing.
@@ -262,7 +257,6 @@ pub fn build_router(
         // auth_middleware below so the gate sees AuthContext. See ops_rpc.
         .merge(crate::ops_rpc::router(rt.clone()))
         .layer(axum::Extension(feedback_guard))
-        .layer(axum::Extension(account_service))
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with
         // auth) so requests must carry a valid bearer before short-circuit.
@@ -447,11 +441,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Feedback ingress
         .ship_route(Route::PostFeedback, feedback_api::post_feedback)
         .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
-        // Account — gateway-mediated; CallerKind::Cli only (MCP denied)
-        .ship_route(Route::StartAccountLogin, account_api::start_login)
-        .ship_route(Route::CompleteAccountLogin, account_api::complete_login)
-        .ship_route(Route::GetAccountState, account_api::get_state)
-        .ship_route(Route::LogoutAccount, account_api::logout)
         // View authoring — chrome edit-mode handshake + agent tool dispatch.
         .ship_route(Route::EnterViewEditMode_template(), view_edit_mode_api::enter_edit_mode)
         .ship_route(Route::ExitViewEditMode_template(), view_edit_mode_api::exit_edit_mode)

@@ -116,11 +116,6 @@ pub struct ShipRuntime {
     /// `GitService` impl — seventh mr-02 migration. Project-bound; the
     /// SSE handler in `git/mod.rs` stays separate.
     pub(super) git: std::sync::Arc<dyn ship_platform::services::git::service::GitService>,
-    /// Account service — owns the gateway-bearer token store and the
-    /// PKCE state for in-flight logins. Constructed once per daemon and
-    /// shared between the REST routes (`account_api`) and the read-op
-    /// registry (`registry::account`).
-    pub(super) account: std::sync::Arc<ship_platform::account::AccountService>,
     /// Worktree resolver — production uses `git worktree list`; tests
     /// override with an in-memory map. See `resolve_worktree` method and
     /// `new_test_with_worktree_resolver` test ctor.
