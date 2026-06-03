@@ -24,6 +24,7 @@ members = [
     "crates/core/ship-platform/crates/ship-device",
     "crates/core/ship-platform/crates/ship-config",
     "crates/core/ship-platform/crates/ship-account",
+    "crates/core/ship-platform/crates/ship-agents",
     "crates/core/ship-isolation",
     "crates/core/ship-isolation/bin/ship-sidecar",
     "crates/core/ship-sidecar-proto",
