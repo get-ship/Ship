@@ -16,7 +16,7 @@ import { file_google_protobuf_descriptor } from "@bufbuild/protobuf/wkt";
  * Describes the file ship/ops/v1/policy.proto.
  */
 export const file_ship_ops_v1_policy: GenFile = /*@__PURE__*/
-  fileDesc("ChhzaGlwL29wcy92MS9wb2xpY3kucHJvdG8SC3NoaXAub3BzLnYxKqABCgtCbGFzdFJhZGl1cxIcChhCTEFTVF9SQURJVVNfVU5TUEVDSUZJRUQQABIYChRCTEFTVF9SQURJVVNfQzBfU0FGRRABEh0KGUJMQVNUX1JBRElVU19DMV9XT1JLU1BBQ0UQAhIcChhCTEFTVF9SQURJVVNfQzJfRUxFVkFURUQQAxIcChhCTEFTVF9SQURJVVNfQzNfQ1JJVElDQUwQBDpACgpjYXBhYmlsaXR5Eh4uZ29vZ2xlLnByb3RvYnVmLk1ldGhvZE9wdGlvbnMY0YYDIAEoCVIKY2FwYWJpbGl0eTpdCgxibGFzdF9yYWRpdXMSHi5nb29nbGUucHJvdG9idWYuTWV0aG9kT3B0aW9ucxjShgMgASgOMhguc2hpcC5vcHMudjEuQmxhc3RSYWRpdXNSC2JsYXN0UmFkaXVzOkMKDG9wX3NlbnNpdGl2ZRIeLmdvb2dsZS5wcm90b2J1Zi5NZXRob2RPcHRpb25zGNOGAyABKAhSC29wU2Vuc2l0aXZlOkIKC2Rlc2NyaXB0aW9uEh4uZ29vZ2xlLnByb3RvYnVmLk1ldGhvZE9wdGlvbnMY1IYDIAEoCVILZGVzY3JpcHRpb25iBnByb3RvMw", [file_google_protobuf_descriptor]);
+  fileDesc("ChhzaGlwL29wcy92MS9wb2xpY3kucHJvdG8SC3NoaXAub3BzLnYxKpwBCgtCbGFzdFJhZGl1cxIcChhCTEFTVF9SQURJVVNfVU5TUEVDSUZJRUQQABIYChRCTEFTVF9SQURJVVNfQzBfU0FGRRABEhkKFUJMQVNUX1JBRElVU19DMV9TUEFDRRACEhwKGEJMQVNUX1JBRElVU19DMl9FTEVWQVRFRBADEhwKGEJMQVNUX1JBRElVU19DM19DUklUSUNBTBAEOkAKCmNhcGFiaWxpdHkSHi5nb29nbGUucHJvdG9idWYuTWV0aG9kT3B0aW9ucxjRhgMgASgJUgpjYXBhYmlsaXR5Ol0KDGJsYXN0X3JhZGl1cxIeLmdvb2dsZS5wcm90b2J1Zi5NZXRob2RPcHRpb25zGNKGAyABKA4yGC5zaGlwLm9wcy52MS5CbGFzdFJhZGl1c1ILYmxhc3RSYWRpdXM6QwoMb3Bfc2Vuc2l0aXZlEh4uZ29vZ2xlLnByb3RvYnVmLk1ldGhvZE9wdGlvbnMY04YDIAEoCFILb3BTZW5zaXRpdmU6QgoLZGVzY3JpcHRpb24SHi5nb29nbGUucHJvdG9idWYuTWV0aG9kT3B0aW9ucxjUhgMgASgJUgtkZXNjcmlwdGlvbmIGcHJvdG8z", [file_google_protobuf_descriptor]);
 
 /**
  * Blast-radius class — see .artifacts/op-blast-radius-audit.md.
@@ -39,9 +39,9 @@ export enum BlastRadius {
   /**
    * Mutates the caller's own space — the user's own risk.
    *
-   * @generated from enum value: BLAST_RADIUS_C1_WORKSPACE = 2;
+   * @generated from enum value: BLAST_RADIUS_C1_SPACE = 2;
    */
-  C1_WORKSPACE = 2,
+  C1_SPACE = 2,
 
   /**
    * Elevated — dispatch/control agents, settings, mcp, authoring. Off the
