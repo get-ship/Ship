@@ -317,30 +317,86 @@ async fn subscribe_filtered_relay_exits_when_receiver_dropped() {
     );
 }
 
-// ── 13. single_backend_data_store_filters_by_space_id ────────────────────────
+// ── 13. for_space mounts a PHYSICAL per-space db (substrate keystone) ─────────
+//
+// Proof of physical partition. Each `SpaceContext::for_space(dir, id)` binds its
+// `DataStore` to `spaces/<id>/space.db` — a SEPARATE file per space, not a shared
+// `data.db` with a logical `space_id` column. The test writes one row through
+// space A's store and another through space B's store, then opens BOTH db files
+// directly and asserts each row lives in its own space's file and is PHYSICALLY
+// ABSENT from the other's. This fails on the old shared-db model (both rows would
+// land in one file) and passes once `for_space` routes to per-space files.
+
+/// Count rows with a given `id` in a collection table inside one space's
+/// physical db file. Opens the file directly (not through any DataStore) so the
+/// assertion is about bytes on disk, not the store's logical filter.
+async fn rows_in_space_db(ship_dir: &std::path::Path, space_id: &str, table: &str, id: &str) -> i64 {
+    use sqlx::Row as _;
+    let mut conn = ship_substrate::db::open_space_db(ship_dir, space_id).unwrap();
+    // The table may not exist in a space that never wrote to it — that is itself
+    // proof of absence, so treat "no such table" as zero rows.
+    let sql = format!("SELECT COUNT(*) AS cnt FROM `{table}` WHERE id = ?");
+    match sqlx::query(&sql).bind(id).fetch_one(&mut conn).await {
+        Ok(row) => row.get::<i64, _>("cnt"),
+        Err(_) => 0,
+    }
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn single_backend_data_store_filters_by_space_id() {
+async fn for_space_lands_rows_in_physically_separate_db_files() {
+    use ship_substrate::testutil::init_project_minimal;
+
     let tmp = tempfile::tempdir().unwrap();
-    // Both stores share the same underlying data.db.
-    let svc_a = open_data_svc(&tmp);
-    let svc_b = open_data_svc(&tmp);
-    let store_a = SingleBackendDataStore::new(svc_a, "space-A");
-    let store_b = SingleBackendDataStore::new(svc_b, "space-B");
+    let ship_dir = init_project_minimal(tmp.path()).unwrap();
 
-    let schema = simple_schema("shared_table");
-    store_a.ensure_table(&schema).await.unwrap();
-    store_b.ensure_table(&schema).await.unwrap();
+    // Two distinct spaces, same ship-home. Each `for_space` mounts its own
+    // physical `spaces/<id>/space.db`.
+    let ctx_a = ship_substrate::ports::SpaceContext::for_space(&ship_dir, SpaceId::new("A")).unwrap();
+    let ctx_b = ship_substrate::ports::SpaceContext::for_space(&ship_dir, SpaceId::new("B")).unwrap();
 
-    store_a.insert("shared_table", Row::new("a-row")).await.unwrap();
-    store_b.insert("shared_table", Row::new("b-row")).await.unwrap();
+    let schema = simple_schema("collection_widgets");
+    ctx_a.data().ensure_table(&schema).await.unwrap();
+    ctx_b.data().ensure_table(&schema).await.unwrap();
 
-    let a_results = store_a.query(Query::new("shared_table")).await.unwrap();
-    let b_results = store_b.query(Query::new("shared_table")).await.unwrap();
+    ctx_a
+        .data()
+        .insert("collection_widgets", Row::new("only-in-a").with("value", serde_json::json!("a")))
+        .await
+        .unwrap();
+    ctx_b
+        .data()
+        .insert("collection_widgets", Row::new("only-in-b").with("value", serde_json::json!("b")))
+        .await
+        .unwrap();
 
-    // Each store sees only its own space's rows.
-    assert_eq!(a_results.rows.len(), 1);
-    assert_eq!(a_results.rows[0].id, "a-row");
-    assert_eq!(b_results.rows.len(), 1);
-    assert_eq!(b_results.rows[0].id, "b-row");
+    // The two physical files must be distinct paths.
+    let path_a = ship_substrate::db::space_db_path(&ship_dir, "A");
+    let path_b = ship_substrate::db::space_db_path(&ship_dir, "B");
+    assert_ne!(path_a, path_b, "each space must resolve to its own db file");
+    assert!(path_a.exists(), "space A db file must exist on disk");
+    assert!(path_b.exists(), "space B db file must exist on disk");
+
+    // A's row is in A's file and PHYSICALLY ABSENT from B's file.
+    assert_eq!(
+        rows_in_space_db(&ship_dir, "A", "collection_widgets", "only-in-a").await,
+        1,
+        "A's row must live in spaces/A/space.db"
+    );
+    assert_eq!(
+        rows_in_space_db(&ship_dir, "B", "collection_widgets", "only-in-a").await,
+        0,
+        "A's row must NOT exist in spaces/B/space.db (physical isolation)"
+    );
+
+    // ...and symmetrically for B.
+    assert_eq!(
+        rows_in_space_db(&ship_dir, "B", "collection_widgets", "only-in-b").await,
+        1,
+        "B's row must live in spaces/B/space.db"
+    );
+    assert_eq!(
+        rows_in_space_db(&ship_dir, "A", "collection_widgets", "only-in-b").await,
+        0,
+        "B's row must NOT exist in spaces/A/space.db (physical isolation)"
+    );
 }
