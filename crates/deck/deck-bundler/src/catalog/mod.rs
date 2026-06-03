@@ -139,7 +139,17 @@ fn entries_from_packaged_manifest(repo_root: &Path, pkg: &WorkspacePackage) -> V
     let Some(cem) = read_json(&manifest_abs) else { return vec![] };
     let Some(modules) = cem["modules"].as_array() else { return vec![] };
     let pack_id = pack_id_for_name(&pkg.name);
-    let bundle_url = match first_js_in_dist(&pkg.root) {
+    // A package with a CEM manifest but NO built `dist/` JS bundle is not a
+    // shippable pack — its components are baked into the deck umbrella
+    // (`/_sui/components.js`, side-effect-loaded by every host) and served from
+    // `/_sui/sui-components`. Emitting a `/_sui/packs/<id>/index.js` bundleUrl
+    // points the view-host's eager pack-loader at a 404 on every page; with the
+    // live-reload that drove a full-reload loop. Mark such packages
+    // workspace-only (private) so they never enter `published.json` — the
+    // umbrella already defines their custom elements.
+    let dist_bundle = first_js_in_dist(&pkg.root);
+    let is_private = pkg.private || dist_bundle.is_none();
+    let bundle_url = match &dist_bundle {
         Some(name) => format!("/_sui/packs/{pack_id}/{name}"),
         None => format!("/_sui/packs/{pack_id}/index.js"),
     };
@@ -160,7 +170,7 @@ fn entries_from_packaged_manifest(repo_root: &Path, pkg: &WorkspacePackage) -> V
                 if let Some(e) = entry_from_decl(
                     decl,
                     pkg.name.clone(),
-                    pkg.private,
+                    is_private,
                     source_path.clone(),
                     bundle_url.clone(),
                     manifest_url.clone(),
