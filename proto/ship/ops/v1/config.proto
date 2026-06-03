@@ -1,0 +1,84 @@
+// ConfigService — daemon settings (the `config` domain), hand-authored clean
+// proto-SSOT (decision #89, _arc.md principles 1/2/11). Replaces settings.proto.
+//
+// Mounted ADDITIVELY beside the legacy SettingsService until the operator's
+// sequential cutover. The clean shape WE WANT:
+//   - typed SettingList / Setting reads, NOT the opaque JsonResponse envelope.
+//   - the crate owns its own `Setting` message (one contract per boundary) —
+//     no shared types.proto `SettingValue` return.
+//   - `Get` (first-class per-key read) is added; `List` replaces `State`.
+//   - the *Live streaming twin (settings.proto StateLive → stream JsonResponse)
+//     is DROPPED. `Watch` streaming the shared `WatchEvent` is THE reactive
+//     surface (mirrors collection.proto's Watch).
+//   - clean message names (Empty / GetSettingReq / SetSettingReq) — the dodge
+//     names GetSettingsRequest/SetSettingRequest existed only to avoid the
+//     reads.gen.proto/commands.gen.proto SettingsStateRequest/SettingsSetRequest
+//     clash, which dies with the ops-registry rip (_arc.md open #5).
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/reactive.proto"; // WatchEvent
+
+// ── Messages ────────────────────────────────────────────────────────────────
+
+// Typed empty request for List (no arguments). Distinct name from
+// collection.proto's `Empty` — both share package ship.ops.v1, so a duplicate
+// `Empty` would collide in the descriptor set.
+message ListReq {}
+
+// One resolved setting.
+message Setting {
+  string key = 1;
+  // Arbitrary JSON value, serialized as bytes (a setting value can be any JSON
+  // type — string, number, bool, object).
+  bytes value_json = 2;
+  // true = no stored row; this is the hardcoded default returned for the key.
+  bool is_default = 3;
+}
+
+message SettingList {
+  repeated Setting settings = 1;
+}
+
+message GetSettingReq {
+  string key = 1;
+}
+
+message SetSettingReq {
+  string key = 1;
+  // Arbitrary JSON value, serialized as bytes.
+  bytes value_json = 2;
+}
+
+// Watch all config.* changes (no scope variants needed for the daemon KV tier).
+// Distinct name from collection.proto's `WatchReq` (same package).
+message WatchConfigReq {}
+
+// ── Service ─────────────────────────────────────────────────────────────────
+
+service ConfigService {
+  // reads (C0)
+  rpc List(ListReq) returns (SettingList) {
+    option (ship.ops.v1.description) = "All daemon settings (stored rows merged with defaults).";
+    option (ship.ops.v1.capability) = "ship.config.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Get(GetSettingReq) returns (Setting) {
+    option (ship.ops.v1.description) = "Read a single setting by key (falls back to its default).";
+    option (ship.ops.v1.capability) = "ship.config.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  // writes (C1)
+  rpc Set(SetSettingReq) returns (Setting) {
+    option (ship.ops.v1.description) = "Set a daemon setting (value is arbitrary JSON); authors config.changed.";
+    option (ship.ops.v1.capability) = "ship.config.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  // live (Watch is THE reactive surface — the StateLive replacement)
+  rpc Watch(WatchConfigReq) returns (stream WatchEvent) {
+    option (ship.ops.v1.capability) = "ship.config.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+}

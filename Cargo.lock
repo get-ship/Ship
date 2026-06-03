@@ -7714,6 +7714,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-config"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "buffa",
+ "compiler",
+ "connectrpc",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "ship-ops-rpc",
+ "ship-reactive",
+ "ship-substrate",
+ "ship-types",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ship-contract-tests"
 version = "0.1.0"
 dependencies = [
@@ -8094,6 +8117,7 @@ dependencies = [
  "ship-analytics",
  "ship-artifacts",
  "ship-collection",
+ "ship-config",
  "ship-host",
  "ship-isolation",
  "ship-ops-rpc",

@@ -207,6 +207,17 @@ pub fn router(state: ApiState) -> axum::Router {
         move |_ctx: &connectrpc::RequestContext| collection_ctx.clone(),
     ));
     let router = ship_ops_rpc::CollectionServiceExt::register(collection_wire, router);
+    // config.* — ConfigService (config.proto): daemon settings tier + Watch.
+    // Mounted ADDITIVELY beside the legacy SettingsService until the operator's
+    // sequential cutover. Reuses the collection ctx's shared kernel (settings are
+    // KV-global; the wire needs the kernel for config.changed emit + Watch).
+    let config_ctx = state.collection_ctx();
+    let config_kernel = config_ctx.kernel.clone();
+    let config_wire = std::sync::Arc::new(ship_config::ConfigWire::new(
+        config_kernel,
+        move |_ctx: &connectrpc::RequestContext| config_ctx.clone(),
+    ));
+    let router = ship_ops_rpc::ConfigServiceExt::register(config_wire, router);
     // artifacts.* v2 — ship-artifacts (DataStore + blob backend), overrides
     // OpsImpl's ArtifactsService registration for all 5 RPCs including Watch.
     let artifact_ctx = state.artifact_ctx();
