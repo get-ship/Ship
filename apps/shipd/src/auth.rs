@@ -202,6 +202,38 @@ pub async fn auth_middleware(
         return next.run(req).await;
     }
 
+    // 0.5 DEV MODE token-less loopback bypass — the local dev loop.
+    //     `--dev` advertises "relaxed auth, auto-pair", but the only relaxation
+    //     was auto-APPROVING a pairing the browser still had to initiate — and
+    //     nothing in the shell ever calls pairInit, so every data request 401'd
+    //     and the dev app couldn't load its own data. A token-less dev loop is
+    //     the intended DX ("a flag → no token"): when `--dev` is set, treat a
+    //     LOOPBACK peer as an authenticated paired browser session (the same
+    //     identity dev auto-pair would mint) with no token/cookie. Gated on BOTH
+    //     `is_dev_mode()` (which prints the "auth relaxed" boot banner) AND a
+    //     loopback peer, so widening `--host` to a LAN/0.0.0.0 bind can never
+    //     relax auth for a remote request — only same-machine clients.
+    if crate::auth::pairing::is_dev_mode() {
+        let loopback = req
+            .extensions()
+            .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+            .map(|c| c.0.ip().is_loopback())
+            .unwrap_or(false);
+        if loopback {
+            let auth = AuthContext {
+                caller_kind: CallerKind::Cli,
+                agent_id: None,
+                workspace_id: None,
+                space_id: None,
+                session_id: None,
+                scopes: crate::auth::pairing::paired_session_scopes(),
+                grants: vec![],
+            };
+            req.extensions_mut().insert(auth);
+            return next.run(req).await;
+        }
+    }
+
     // 1. Cookie check — browser sessions.
     if let Some(cookie_header) = req.headers().get("cookie").and_then(|v| v.to_str().ok())
         && let Some(session_id) = crate::auth::session::parse_session_cookie(cookie_header)
