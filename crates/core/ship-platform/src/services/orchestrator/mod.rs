@@ -13,9 +13,11 @@
 //! the orchestration logic testable without a real supervisor (tmux, git
 //! worktree, etc.).
 
-pub mod dedup;
-pub mod emit;
-pub mod exit_handler;
+// Runner MECHANISM relocated to the L0 `ship-runner` crate (agents-arc S2).
+// Re-exported at the historic `orchestrator::{dedup, emit, exit_handler}` paths
+// so the L1 policy below, shipd, and ship-supervisor resolve them unchanged
+// while the implementation lives in L0 and depends only on the runner ports.
+pub use ship_runner::{dedup, emit, exit_handler};
 pub mod isolation;
 pub mod fanout;
 pub mod fanout_aggregate;

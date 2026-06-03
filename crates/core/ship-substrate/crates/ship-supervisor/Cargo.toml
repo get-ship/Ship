@@ -8,6 +8,11 @@ description = "OS-level agent supervision — executors, isolation, terminal lau
 [dependencies]
 ship-substrate = { path = "../.." }
 ship-platform = { path = "../../../ship-platform" }
+# L0 runner mechanism (agents-arc S2). The supervisor emits process/executor
+# lifecycle events through the runner's kernel-emit helpers — an L0-to-L0 reach
+# that replaces the historic up-reach into `ship_platform::…::orchestrator::emit`
+# (the parked PHASE-3-TODO layer-direction violation in executors/process.rs).
+ship-runner = { path = "../ship-runner" }
 ship-isolation = { path = "../../../ship-isolation", default-features = false }
 ship-types = { path = "../ship-types" }
 

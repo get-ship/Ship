@@ -386,7 +386,7 @@ fn dead_process_recovery_is_observable() {
     let replay = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
     let sweep = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/sweep.rs");
     let exit_handler = include_str!(
-        "../../../../crates/core/ship-platform/src/services/orchestrator/exit_handler.rs"
+        "../../../../crates/core/ship-substrate/crates/ship-runner/src/exit_handler.rs"
     );
     assert!(
         replay.contains("emit_executor_session_destroyed"),

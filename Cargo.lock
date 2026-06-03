@@ -7937,6 +7937,7 @@ dependencies = [
  "ship-isolation",
  "ship-kernel",
  "ship-pipelines",
+ "ship-runner",
  "ship-substrate",
  "ship-types",
  "specta",
@@ -7972,6 +7973,20 @@ dependencies = [
  "ship-substrate",
  "ship-types",
  "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "ship-runner"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "ship-types",
  "tokio",
  "tracing",
 ]
@@ -8120,6 +8135,7 @@ dependencies = [
  "serde_json",
  "ship-isolation",
  "ship-platform",
+ "ship-runner",
  "ship-substrate",
  "ship-types",
  "tempfile",

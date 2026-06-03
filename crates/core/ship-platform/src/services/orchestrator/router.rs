@@ -3,6 +3,7 @@
 //! This is the entry point for all `job.*` and `step.*` events flowing
 //! through the orchestrator.
 
+use ship_runner::router::{extract_slug, terminal_guard, Admit, DISPATCH_GATE};
 use ship_substrate::events::pipeline::{PipelineStepDoneDeclaredPayload, PipelineStepObservedPayload};
 use ship_substrate::events::EventEnvelope;
 use ship_types::event_types as et;
@@ -97,11 +98,6 @@ pub async fn start_orchestrator(
     tracing::info!("job-dispatch: mailbox closed");
 }
 
-/// Bounds concurrent agent-session dispatch preps so a burst doesn't spawn
-/// a thundering herd of harness processes at once. 8 is a starting point —
-/// instrument dispatch latency under load and tune if needed.
-static DISPATCH_GATE: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(8);
-
 /// Handle a single job/step event.
 ///
 /// Called from the mailbox receive loop for each `job.*` or `step.*` event.
@@ -110,35 +106,16 @@ pub async fn handle_orchestrator_event(
     envelope: &EventEnvelope,
     octx: &OrchestratorContext,
 ) {
-    // Dedup by event id. Prevents a replayed envelope — mailbox
-    // redelivery, startup replay racing live delivery, test harness
-    // replays — from advancing the pipeline twice.
-    if octx.event_dedup.record(&envelope.id) == super::dedup::Seen::Duplicate {
-        tracing::debug!(
-            event_id = %envelope.id,
-            event_type = %envelope.event_type,
-            "job-dispatch: duplicate event — skipping"
-        );
-        return;
-    }
-
-    // Terminal-state guard. Once a job is Failed/Merged/Cancelled the
-    // router ignores subsequent pipeline events for it — late-arriving
-    // step.observed signals (kill-session firing after teardown,
-    // replayed deliveries) cannot resurrect a dead job. Operator events
-    // (job.created/update/cancelled) are exempt: those are signals FROM
-    // the operator, not pipeline progression. The terminal check goes
-    // through the ProjectionReader port (primitive `bool`) so the runner
-    // doesn't name the projection status enum here.
-    if !is_operator_event(&envelope.event_type)
-        && octx.projections.is_run_terminal(&envelope.entity_id).await
-    {
-        tracing::warn!(
-            entity_id = %envelope.entity_id,
-            event_type = %envelope.event_type,
-            "job-dispatch: ignoring event for terminal job"
-        );
-        return;
+    // Runner-mechanism entry gate (L0 `ship_runner::router`): dedup by event
+    // id (prevents a replayed envelope — mailbox redelivery, startup replay
+    // racing live delivery, test replays — from advancing twice) AND the
+    // terminal-state guard (once a job is Failed/Merged/Cancelled, late
+    // pipeline events can't resurrect it; operator events are exempt). The
+    // terminal check goes through the ProjectionReader port (primitive `bool`)
+    // so the runner never names the projection status enum.
+    match terminal_guard(&octx.event_dedup, &*octx.projections, envelope).await {
+        Admit::Proceed => {}
+        Admit::Duplicate | Admit::Terminal => return,
     }
 
     match envelope.event_type.as_str() {
@@ -359,21 +336,6 @@ async fn maybe_auto_merge(
         &*octx.platform,
     )
     .await
-}
-
-/// Events originating from the operator (or system policy), not from
-/// pipeline progression. These are exempt from the terminal-state guard
-/// so operators can still issue signals about a finalized job.
-fn is_operator_event(event_type: &str) -> bool {
-    event_type == "pipeline.run.started"
-        || event_type == "pipeline.run.updated"
-        || event_type == et::PIPELINE_RUN_CANCELLED
-}
-
-/// Extract the slug from an event envelope payload.
-fn extract_slug(envelope: &EventEnvelope) -> Option<String> {
-    let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).ok()?;
-    payload["slug"].as_str().map(str::to_string)
 }
 
 /// Check that all `required: true` outputs were reported in `step.done_declared`.
