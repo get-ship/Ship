@@ -1,18 +1,67 @@
-//! Helpers for emitting pipeline-run dispatch events to the store and kernel.
+//! Kernel-emit plumbing for the runner mechanism.
 //!
-//! Every emit function follows the same envelope-build → log-on-failure →
-//! persist-and-route pattern. Three private helpers consolidate that
-//! boilerplate, one per service-actor-id family.
+//! Two layers:
+//!   1. [`EventSink`] — the injected kernel-emit *port*. The runner mechanism
+//!      depends on this trait, never on a concrete [`KernelRouter`]. The L0
+//!      concrete impl ([`KernelEventSink`]) is provided at construction. This
+//!      is the seam that resolves the parked layer-direction violation: an L0
+//!      supervisor / runner that needs to emit no longer reaches up into an L1
+//!      `emit` module — it calls the port (or the `persist_and_route` helper
+//!      directly with a substrate kernel handle, which is L0-to-L0).
+//!   2. The substrate-typed emit helpers — every one follows the same
+//!      envelope-build → log-on-failure → persist-and-route pattern, and every
+//!      signature uses only substrate / primitive types. Domain-free.
 
+use async_trait::async_trait;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-// ── Generic typed emit helpers ────────────────────────────────────────────────
+// ── Kernel-emit port ───────────────────────────────────────────────────────
+
+/// Port: emit an event envelope. The runner mechanism takes a `&dyn EventSink`
+/// so it never names [`KernelRouter`] directly; the concrete kernel-backed impl
+/// is injected at construction.
+///
+/// Domain-free: the only types crossing the seam are [`EventEnvelope`] and the
+/// substrate primitives it carries.
+#[async_trait]
+pub trait EventSink: Send + Sync {
+    /// Persist + route a single envelope. Implementations log their own
+    /// failures; the unit return matches the fire-and-forget call sites.
+    async fn emit(&self, envelope: EventEnvelope);
+}
+
+/// The L0 concrete [`EventSink`]: wraps the substrate [`KernelRouter`] and
+/// drives it through [`persist_and_route`]. Built by the host (daemon) and
+/// handed to the runner mechanism as `Arc<dyn EventSink>`.
+#[derive(Clone)]
+pub struct KernelEventSink {
+    kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
+}
+
+impl KernelEventSink {
+    pub fn new(kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>) -> Self {
+        Self { kernel }
+    }
+}
+
+#[async_trait]
+impl EventSink for KernelEventSink {
+    async fn emit(&self, envelope: EventEnvelope) {
+        let slug = envelope
+            .space_id()
+            .map(str::to_string)
+            .unwrap_or_default();
+        persist_and_route(&self.kernel, envelope, &slug, None).await;
+    }
+}
+
+// ── Generic typed emit helpers ─────────────────────────────────────────────
 
 /// Build + persist an event under the `service.orchestrator` actor.
-/// Logs failures at WARN; failures don't propagate (most orchestrator
-/// callers can't recover from an emit failure).
+/// Logs failures at WARN; failures don't propagate (most callers can't
+/// recover from an emit failure).
 async fn emit_pipeline_run_dispatch_event<P: serde::Serialize>(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     event_type: &str,
@@ -68,7 +117,7 @@ async fn emit_executor_event<P: serde::Serialize>(
     persist_and_route(kernel, envelope, slug, None).await;
 }
 
-// ── Public pipeline-run-lifecycle emitters ────────────────────────────────────
+// ── Public pipeline-run-lifecycle emitters ─────────────────────────────────
 
 /// Emit a `pipeline.run.dispatched` event using the default store path.
 pub async fn emit_pipeline_run_dispatched(
@@ -208,9 +257,10 @@ pub async fn emit_pipeline_run_failed(
     tracing::error!(slug, error, "pipeline run failed");
 }
 
-// ── Process lifecycle event emitters ──────────────────────────────────────────
+// ── Process lifecycle event emitters ───────────────────────────────────────
 
 /// Emit `process.spawned` after an executor successfully creates a process.
+#[allow(clippy::too_many_arguments)]
 pub async fn emit_process_spawned(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     slug: &str,
@@ -282,7 +332,7 @@ pub async fn emit_process_signal_sent(
     emit_process_event(kernel, event_types::PROCESS_SIGNAL_SENT, slug, &payload).await;
 }
 
-// ── Executor substrate event emitters ─────────────────────────────────────────
+// ── Executor substrate event emitters ──────────────────────────────────────
 
 /// Emit `executor.session_destroyed` when a tmux session (or equivalent
 /// executor substrate) is torn down. Used by the liveness handler to record
@@ -327,15 +377,15 @@ pub async fn emit_executor_window_destroyed(
     emit_executor_event(kernel, EXECUTOR_WINDOW_DESTROYED, slug, &payload).await;
 }
 
-// ── Routing ───────────────────────────────────────────────────────────────────
+// ── Routing ─────────────────────────────────────────────────────────────────
 
 /// Persist an event to platform.db and deliver it through the kernel.
 ///
 /// Thin wrapper around `KernelRouter::emit` that logs failures at ERROR
 /// with slug/event_type/entity_id context. The unit return type matches
-/// the call-site contract (most orchestrator callers don't propagate);
-/// when callers are rewritten to propagate, they should call `kernel.emit`
-/// directly and delete their use of this helper.
+/// the call-site contract (most callers don't propagate); when callers are
+/// rewritten to propagate, they should call `kernel.emit` directly and
+/// delete their use of this helper.
 ///
 /// `ship_dir` is accepted for backward compatibility and ignored — the
 /// kernel always writes to the platform.db under its own `base_dir`.

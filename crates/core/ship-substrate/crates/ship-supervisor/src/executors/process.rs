@@ -31,7 +31,7 @@ use ship_substrate::events::{EventEnvelope, KernelRouter};
 use ship_platform::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor, LaunchCommand, LaunchProfile,
 };
-use ship_platform::services::orchestrator::emit::persist_and_route;
+use ship_runner::emit::persist_and_route;
 use ship_platform::services::harness_adapter::{adapter_for_or_default, HarnessAdapter};
 use ship_substrate::supervisor::{spawn_actor, ActorHandle, ActorKind, ActorProfile, TransportKind};
 
@@ -1217,11 +1217,13 @@ impl SessionExecutor for ProcessExecutor {
 }
 
 /// Build a `process.killed` envelope and persist+route it via the kernel.
-/// Mirrors the inline pattern used in `handlers.rs::cancel_job` so both
-/// call sites project into the same event stream.
-// PHASE-3-TODO: move emit to platform via callback — this is an L0 supervisor
-// reaching the kernel directly (layer-direction violation), left in place for
-// Phase 2 (out of scope).
+/// Mirrors the inline pattern used in the runner's cancel path so both call
+/// sites project into the same event stream.
+///
+/// Emits through the L0 `ship_runner::emit::persist_and_route` helper — an
+/// L0-to-L0 reach. This resolves the historic layer-direction violation: the
+/// supervisor no longer reaches UP into `ship_platform::…::orchestrator::emit`
+/// to touch the kernel; the kernel-emit plumbing is now L0 runner mechanism.
 async fn emit_process_killed(
     kernel: Option<&Arc<TokioMutex<KernelRouter>>>,
     slug: &str,

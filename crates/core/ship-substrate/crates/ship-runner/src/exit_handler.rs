@@ -1,7 +1,8 @@
 //! Exit-signal routing — receives a single `ExitSignal` from an executor's
 //! monitor thread and emits the corresponding `job.completed` / `job.failed`
-//! event. Pure event plumbing; no OS calls. Lives in platform so any
-//! orchestrator consumer (today: the daemon) routes through one path.
+//! event. Pure event plumbing; no OS calls. Mechanism only: it routes through
+//! the substrate `KernelRouter` via the L0 `emit` helpers and depends only on
+//! the domain-free runner ports.
 //!
 //! For multi-step pipeline jobs the step monitor takes over the completion
 //! pathway, so callers spawn this only for non-pipeline (single-agent) jobs.
@@ -14,7 +15,7 @@ use ship_substrate::events::{EventEnvelope, KernelRouter};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use crate::services::dispatch_ports::{ExitCause, ExitSignal, ProcessRegistryPort};
+use ship_substrate::services::dispatch_ports::{ExitCause, ExitSignal, ProcessRegistryPort};
 
 use super::emit::{
     emit_executor_session_destroyed, emit_executor_window_destroyed, emit_process_exited,
@@ -25,7 +26,7 @@ use super::emit::{
 ///
 /// For non-pipeline jobs (single agent, no steps), this emits `job.completed`
 /// or `job.failed` directly. Multi-step pipeline jobs route through the
-/// step monitor instead — see [`super::step_monitor::start_step_monitor`].
+/// step monitor instead.
 pub fn start(
     kernel: Arc<Mutex<KernelRouter>>,
     registry: Arc<dyn ProcessRegistryPort>,

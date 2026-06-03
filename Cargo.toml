@@ -8,6 +8,7 @@ members = [
     "crates/core/ship-substrate/crates/ship-kernel",
     "crates/core/ship-substrate/crates/ship-events-macro",
     "crates/core/ship-substrate/crates/ship-supervisor",
+    "crates/core/ship-substrate/crates/ship-runner",
     "crates/core/ship-substrate/crates/ship-pipelines",
     "crates/core/ship-substrate/crates/ship-js",
     "crates/core/ship-platform",

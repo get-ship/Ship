@@ -9,7 +9,7 @@ use std::sync::Arc;
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::KernelRouter;
 use ship_platform::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
-use ship_platform::services::orchestrator::emit::emit_executor_session_destroyed;
+use ship_runner::emit::emit_executor_session_destroyed;
 use tokio::sync::Mutex;
 
 use super::helpers::worktrees_dir;

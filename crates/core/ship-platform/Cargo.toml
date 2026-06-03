@@ -26,6 +26,12 @@ ship-config = { path = "crates/ship-config" }
 ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines", features = ["specta"] }
+# L0 runner mechanism (agents-arc S2). The orchestrator MECHANISM (router gate,
+# event dedup, exit-signal routing, kernel-emit plumbing, invocation-mode
+# resolution) lives here; ship-platform keeps only the policy and drives the
+# mechanism through the runner ports. No cycle: ship-runner depends on
+# ship-substrate/ship-types, not on ship-platform.
+ship-runner = { path = "../ship-substrate/crates/ship-runner" }
 ship-gateway-client = { path = "crates/ship-gateway-client" }
 # Isolation types + recommender. Default-features off — youki and
 # sidecar backends stay opt-in (the daemon's feature flags layer them in).

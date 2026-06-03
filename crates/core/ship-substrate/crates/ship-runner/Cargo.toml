@@ -1,0 +1,19 @@
+[package]
+name = "ship-runner"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L0 runner mechanism — the generic sequence + lifecycle engine (router mailbox loop, event dedup, terminal-state guard, exit-signal routing, kernel-emit plumbing). Distinct from ship-supervisor (per-process OS lifecycle) and from the L1 pipelines service (the user-facing feature). Drives only the domain-free runner ports in ship-substrate; carries NO ship-platform dependency."
+
+[dependencies]
+ship-substrate = { path = "../.." }
+ship-types = { path = "../ship-types" }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync", "macros", "time"] }
+tracing = { workspace = true }
+
+[lints]
+workspace = true
