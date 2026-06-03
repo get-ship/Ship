@@ -1019,6 +1019,33 @@
         ]
       }
     },
+    "account.state": {
+      "status": "LOGGED_IN",
+      "user_id": "usr_7Fk2Qd",
+      "me": {
+        "id": "usr_7Fk2Qd",
+        "name": "Ada Lovelace",
+        "email": "ada@getship.dev",
+        "image": ""
+      }
+    },
+    "account.login": {
+      "state_id": "st_a1b2c3d4",
+      "browser_url": "https://api.getship.dev/v1/auth/cli?code_challenge=Xq9&code_challenge_method=S256&redirect_uri=http%3A%2F%2F127.0.0.1%3A51763%2Fcallback&state=st_a1b2c3d4"
+    },
+    "account.login_complete": {
+      "user_id": "usr_7Fk2Qd",
+      "me": {
+        "id": "usr_7Fk2Qd",
+        "name": "Ada Lovelace",
+        "email": "ada@getship.dev",
+        "image": ""
+      }
+    },
+    "account.logout": {
+      "had_token": true,
+      "key_revoked": true
+    },
     "search.search": {
       "hits": [
         {

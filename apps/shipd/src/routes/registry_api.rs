@@ -1,15 +1,15 @@
 //! Registry handlers — daemon-side gateway proxy.
 //!
 //! `ship publish` calls the daemon here; the daemon attaches the user's
-//! stored API key from `~/.ship/machine/credentials.jsonc` and forwards
-//! the payload to `<cloud.base_url>/api/v1/registry/publish`.
+//! stored API key from the single owner doc `~/.ship/machine/daemon/account.jsonc`
+//! (read via the `ship-account` crate) and forwards the payload to
+//! `<cloud.base_url>/api/v1/registry/publish`.
 //!
 //! Convert is intentionally NOT exposed here — `ship convert .` is a
 //! pure local-fs op (reads provider configs under `.`, writes `.ship/`).
 //! No daemon involvement needed.
 
 use axum::{Extension, Json, http::StatusCode, response::IntoResponse};
-use ship_platform::config;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 
@@ -46,14 +46,14 @@ pub async fn publish(
 pub async fn publish_to_gateway(
     payload: serde_json::Value,
 ) -> Result<(StatusCode, serde_json::Value), (StatusCode, String)> {
-    let token = config::account_token().ok_or((
+    let token = ship_account::account_token().ok_or((
         StatusCode::UNAUTHORIZED,
         "Not authenticated. Run `ship login` on this machine first.".to_string(),
     ))?;
 
     let url = format!(
         "{}/api/v1/registry/publish",
-        config::resolve_gateway_base_url()
+        ship_account::resolve_gateway_base_url()
     );
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(60))
@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn resolve_gateway_default() {
-        let url = config::resolve_gateway_base_url();
+        let url = ship_account::resolve_gateway_base_url();
         assert!(!url.is_empty());
         assert!(!url.ends_with('/'));
     }

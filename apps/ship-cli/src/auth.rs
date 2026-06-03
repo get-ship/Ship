@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::mpsc;
 
-use crate::config::{Credentials, DiskBackedConfig, ShipConfig};
+use crate::config::ShipConfig;
 
 // PKCE state (verifier + challenge generation) moved to the daemon's
 // AccountService in `crates/core/ship-platform/src/account/service.rs`.
@@ -261,38 +261,39 @@ pub fn run_auth_revoke(token: Option<&str>, all: bool) -> Result<()> {
     Ok(())
 }
 
-/// `ship logout` — clear the daemon's stored token + the legacy CLI mirror.
+/// `ship logout` — clear the daemon's stored token.
+///
+/// The daemon owns the SINGLE token doc (`machine/daemon/account.jsonc`), so
+/// logout is just the daemon's `AccountService.Logout` (revoke gateway key +
+/// clear local token). There is no CLI-side `credentials.jsonc` mirror to wipe
+/// (retired in S5).
 pub fn run_logout() -> Result<()> {
-    // Best-effort daemon clear — if daemon isn't running we still want
-    // to nuke the local mirror so the user isn't stuck in a half-state.
-    let mut daemon_cleared = false;
-    if let Ok((port, daemon_token)) = daemon_connect() {
-        use connectrpc::client::{ClientConfig, HttpClient};
-        use ship_ops_rpc::{AccountServiceClient, LogoutRequest};
-        // AccountService.Logout (Connect) revokes the gateway key + clears the
-        // daemon's stored token.
-        if let Ok(uri) = format!("http://127.0.0.1:{port}").parse::<http::Uri>() {
-            let config = ClientConfig::new(uri)
-                .default_header("authorization", format!("Bearer {daemon_token}"));
-            let client = AccountServiceClient::new(HttpClient::plaintext(), config);
-            if let Ok(rt) = tokio::runtime::Runtime::new() {
-                daemon_cleared = rt.block_on(client.logout(LogoutRequest::default())).is_ok();
-            }
-        }
-    }
+    let (port, daemon_token) = daemon_connect().map_err(|_| {
+        anyhow::anyhow!(
+            "daemon is not running — start it with `ship daemon start`, then `ship logout`"
+        )
+    })?;
 
-    let mut creds = Credentials::load();
-    let had_legacy = creds.account_token().is_some();
-    if had_legacy {
-        creds.account = None;
-        creds.save()?;
-    }
+    use connectrpc::client::{ClientConfig, HttpClient};
+    use ship_ops_rpc::{AccountServiceClient, LogoutRequest};
+    // AccountService.Logout (Connect) revokes the gateway key + clears the
+    // daemon's stored token. `had_token=false` means there was nothing to clear.
+    let uri = format!("http://127.0.0.1:{port}")
+        .parse::<http::Uri>()
+        .context("building daemon URI")?;
+    let config =
+        ClientConfig::new(uri).default_header("authorization", format!("Bearer {daemon_token}"));
+    let client = AccountServiceClient::new(HttpClient::plaintext(), config);
+    let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
+    let result = rt
+        .block_on(client.logout(LogoutRequest::default()))
+        .map_err(|e| anyhow::anyhow!("logout failed: {e}"))?;
 
-    if !daemon_cleared && !had_legacy {
+    if result.view().had_token {
+        println!("Logged out.");
+    } else {
         println!("Not logged in.");
-        return Ok(());
     }
-    println!("Logged out.");
     Ok(())
 }
 

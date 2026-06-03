@@ -54,6 +54,9 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         // settings.* (unified, scope-discriminated SettingsService — ship-config
         // crate): the settings keystone. Replaces the retired ConfigService.
         v!(Setting), v!(SettingList),
+        // account.* (typed AccountService — ship-account crate): Ship Cloud
+        // identity. State snapshot + the PKCE login/logout lifecycle results.
+        v!(AccountState), v!(LoginStarted), v!(LoginCompleted), v!(LogoutResult),
     ]
     .into_iter()
     .collect()
