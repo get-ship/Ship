@@ -161,12 +161,12 @@ mod actor_tests {
         .with_context(Some(space), None)
         .with_actor_id("win-find-test")
         .elevate();
-        bus.dispatch(&win, &mut conn);
+        bus.dispatch(&win, &mut conn).unwrap();
         // process.spawned with our own (live) pid makes the row `live`.
         bus.dispatch(
             &process_spawned_event("win-find-test", std::process::id()),
             &mut conn,
-        );
+        ).unwrap();
 
         let found = crate::projections::actor::find_live_window_for_space(space).unwrap();
         assert_eq!(found.map(|r| r.id).as_deref(), Some("win-find-test"), "live window found for its space");
@@ -245,7 +245,7 @@ mod actor_tests {
         let bus = bus();
         let event = actor_created_event("actor-proj-1", "ws-proj-actor");
 
-        bus.dispatch(&event, &mut conn);
+        bus.dispatch(&event, &mut conn).unwrap();
 
         let status = query_actor_status(&mut conn, "actor-proj-1");
         assert_eq!(status.as_deref(), Some("created"), "created event must insert row");
@@ -256,8 +256,8 @@ mod actor_tests {
         let (_ship_dir, mut conn) = setup();
         let bus = bus();
 
-        bus.dispatch(&actor_created_event("actor-proj-2", "ws-proj-actor"), &mut conn);
-        bus.dispatch(&actor_woke_event("actor-proj-2", "ws-proj-actor"), &mut conn);
+        bus.dispatch(&actor_created_event("actor-proj-2", "ws-proj-actor"), &mut conn).unwrap();
+        bus.dispatch(&actor_woke_event("actor-proj-2", "ws-proj-actor"), &mut conn).unwrap();
 
         let status = query_actor_status(&mut conn, "actor-proj-2");
         assert_eq!(status.as_deref(), Some("active"));
@@ -268,8 +268,8 @@ mod actor_tests {
         let (_ship_dir, mut conn) = setup();
         let bus = bus();
 
-        bus.dispatch(&actor_created_event("actor-proj-3", "ws-proj-actor"), &mut conn);
-        bus.dispatch(&actor_stopped_event("actor-proj-3", "ws-proj-actor"), &mut conn);
+        bus.dispatch(&actor_created_event("actor-proj-3", "ws-proj-actor"), &mut conn).unwrap();
+        bus.dispatch(&actor_stopped_event("actor-proj-3", "ws-proj-actor"), &mut conn).unwrap();
 
         let status = query_actor_status(&mut conn, "actor-proj-3");
         assert_eq!(status.as_deref(), Some("stopped"));
@@ -280,8 +280,8 @@ mod actor_tests {
         let (_ship_dir, mut conn) = setup();
         let bus = bus();
 
-        bus.dispatch(&actor_created_event("actor-proj-4", "ws-proj-actor"), &mut conn);
-        bus.dispatch(&actor_crashed_event("actor-proj-4", "ws-proj-actor", 3), &mut conn);
+        bus.dispatch(&actor_created_event("actor-proj-4", "ws-proj-actor"), &mut conn).unwrap();
+        bus.dispatch(&actor_crashed_event("actor-proj-4", "ws-proj-actor", 3), &mut conn).unwrap();
 
         let status = query_actor_status(&mut conn, "actor-proj-4");
         assert_eq!(status.as_deref(), Some("crashed"));
@@ -304,7 +304,7 @@ mod actor_tests {
         ];
 
         for event in &events {
-            bus.dispatch(event, &mut conn);
+            bus.dispatch(event, &mut conn).unwrap();
         }
 
         let status_a = query_actor_status(&mut conn, "actor-rebuild-a");
@@ -327,8 +327,8 @@ mod actor_tests {
         let (_ship_dir, mut conn) = setup();
         let bus = bus();
 
-        bus.dispatch(&actor_created_event("actor-proj-5", "ws-proj-actor"), &mut conn);
-        bus.dispatch(&actor_slept_event("actor-proj-5", "ws-proj-actor"), &mut conn);
+        bus.dispatch(&actor_created_event("actor-proj-5", "ws-proj-actor"), &mut conn).unwrap();
+        bus.dispatch(&actor_slept_event("actor-proj-5", "ws-proj-actor"), &mut conn).unwrap();
 
         let status = query_actor_status(&mut conn, "actor-proj-5");
         assert_eq!(status.as_deref(), Some("sleeping"));
@@ -353,7 +353,7 @@ mod actor_tests {
         .with_actor_id("actor-cwd-test")
         .elevate();
 
-        bus.dispatch(&event, &mut conn);
+        bus.dispatch(&event, &mut conn).unwrap();
 
         let row: Option<(Option<String>, Option<String>)> = block_on(async {
             sqlx::query_as("SELECT cwd, space_id FROM actors WHERE id = ?")
@@ -373,7 +373,7 @@ mod actor_tests {
         let bus = bus();
         // Use the legacy event helper which omits cwd / space_id.
         let event = actor_created_event("actor-legacy-shape", "ws-legacy");
-        bus.dispatch(&event, &mut conn);
+        bus.dispatch(&event, &mut conn).unwrap();
 
         let row: Option<(Option<String>, Option<String>)> = block_on(async {
             sqlx::query_as("SELECT cwd, space_id FROM actors WHERE id = ?")
@@ -398,7 +398,7 @@ mod actor_tests {
         // Pre-state: no cursor.
         assert!(bus.cursor_for("actor_state").unwrap().is_none());
 
-        bus.dispatch(&event, &mut conn);
+        bus.dispatch(&event, &mut conn).unwrap();
 
         // Post-state: cursor matches the event's id.
         let cursor = bus.cursor_for("actor_state").unwrap();
@@ -413,8 +413,8 @@ mod actor_tests {
         let e1 = actor_created_event("actor-cursor-2", "ws-cursor");
         let e2 = actor_woke_event("actor-cursor-2", "ws-cursor");
 
-        bus.dispatch(&e1, &mut conn);
-        bus.dispatch(&e2, &mut conn);
+        bus.dispatch(&e1, &mut conn).unwrap();
+        bus.dispatch(&e2, &mut conn).unwrap();
 
         let cursor = bus.cursor_for("actor_state").unwrap();
         assert_eq!(
@@ -430,7 +430,7 @@ mod actor_tests {
         let bus = bus();
         let event = actor_created_event("actor-cursor-3", "ws-cursor");
 
-        bus.dispatch(&event, &mut conn);
+        bus.dispatch(&event, &mut conn).unwrap();
         assert!(bus.cursor_for("actor_state").unwrap().is_some());
 
         bus.rebuild(&[], &mut conn).unwrap();
@@ -446,8 +446,8 @@ mod actor_tests {
     fn process_spawned_after_created_sets_pid() {
         let (_ship_dir, mut conn) = setup();
         let bus = bus();
-        bus.dispatch(&actor_created_event("pid-ord-1", "ws-pid"), &mut conn);
-        bus.dispatch(&process_spawned_event("pid-ord-1", 12345), &mut conn);
+        bus.dispatch(&actor_created_event("pid-ord-1", "ws-pid"), &mut conn).unwrap();
+        bus.dispatch(&process_spawned_event("pid-ord-1", 12345), &mut conn).unwrap();
         assert_eq!(query_actor_pid(&mut conn, "pid-ord-1"), Some(12345));
     }
 
@@ -460,13 +460,13 @@ mod actor_tests {
         // must NOT trample the pid (ON CONFLICT preserves it).
         let (_ship_dir, mut conn) = setup();
         let bus = bus();
-        bus.dispatch(&process_spawned_event("pid-race-1", 54321), &mut conn);
+        bus.dispatch(&process_spawned_event("pid-race-1", 54321), &mut conn).unwrap();
         assert_eq!(
             query_actor_pid(&mut conn, "pid-race-1"),
             Some(54321),
             "process.spawned must INSERT a stub row carrying pid"
         );
-        bus.dispatch(&actor_created_event("pid-race-1", "ws-pid"), &mut conn);
+        bus.dispatch(&actor_created_event("pid-race-1", "ws-pid"), &mut conn).unwrap();
         assert_eq!(
             query_actor_pid(&mut conn, "pid-race-1"),
             Some(54321),
@@ -491,9 +491,9 @@ mod actor_tests {
     fn process_spawned_with_no_pid_is_noop() {
         let (_ship_dir, mut conn) = setup();
         let bus = bus();
-        bus.dispatch(&actor_created_event("pid-none-1", "ws-pid"), &mut conn);
+        bus.dispatch(&actor_created_event("pid-none-1", "ws-pid"), &mut conn).unwrap();
         // pid: 0 (the kernel-swapper sentinel) → guard rejects.
-        bus.dispatch(&process_spawned_event("pid-none-1", 0), &mut conn);
+        bus.dispatch(&process_spawned_event("pid-none-1", 0), &mut conn).unwrap();
         assert_eq!(
             query_actor_pid(&mut conn, "pid-none-1"),
             None,
@@ -508,12 +508,12 @@ mod actor_tests {
         // The ON CONFLICT DO UPDATE in apply_created must preserve pid.
         let (_ship_dir, mut conn) = setup();
         let bus = bus();
-        bus.dispatch(&actor_created_event("pid-dup-1", "ws-pid"), &mut conn);
-        bus.dispatch(&process_spawned_event("pid-dup-1", 99999), &mut conn);
+        bus.dispatch(&actor_created_event("pid-dup-1", "ws-pid"), &mut conn).unwrap();
+        bus.dispatch(&process_spawned_event("pid-dup-1", 99999), &mut conn).unwrap();
         assert_eq!(query_actor_pid(&mut conn, "pid-dup-1"), Some(99999));
         // Second actor.created (race with reconcile, etc.) must NOT
         // clobber pid.
-        bus.dispatch(&actor_created_event("pid-dup-1", "ws-pid"), &mut conn);
+        bus.dispatch(&actor_created_event("pid-dup-1", "ws-pid"), &mut conn).unwrap();
         assert_eq!(
             query_actor_pid(&mut conn, "pid-dup-1"),
             Some(99999),

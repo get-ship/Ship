@@ -215,9 +215,12 @@ impl EventStore for SqliteEventStore {
     /// reaches it via `EventSink::persist`.
     ///
     /// Atomicity: the event row and any matching projection writes commit
-    /// together, or roll back together. Projection-dispatch errors do
-    /// fail the transaction (consistent with the documented persist
-    /// contract) — see `EventBus::dispatch` for handler-error semantics.
+    /// together, or roll back together. A projection-dispatch error fails the
+    /// transaction — the `BEGIN IMMEDIATE` is rolled back and the event row is
+    /// NOT committed, so a rejected projection leaves no orphaned event whose
+    /// derived state was skipped. The error is returned to the caller (the
+    /// kernel emit path then rejects, and never delivers to mailboxes). See
+    /// `EventBus::dispatch` for the first-error-wins handler semantics.
     fn append(&self, event: &EventEnvelope) -> Result<()> {
         let mut conn = open_db_at(&self.db_path)?;
 
@@ -228,7 +231,10 @@ impl EventStore for SqliteEventStore {
             return Err(e);
         }
 
-        self.bus.dispatch(event, &mut conn);
+        if let Err(e) = self.bus.dispatch(event, &mut conn) {
+            let _ = block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await });
+            return Err(e);
+        }
 
         block_on(async { sqlx::query("COMMIT").execute(&mut conn).await })?;
         Ok(())
