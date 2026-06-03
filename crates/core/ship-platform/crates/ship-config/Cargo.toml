@@ -1,0 +1,33 @@
+[package]
+name = "ship-config"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "ConfigService — daemon settings tier (daemon_settings KV over runtime.db) + declarative-tier file projection (agents/watcher over FsBroker) + thin RPC facade over substrate ports (L1). Implements config.proto's 4 RPCs; ZERO raw fs."
+
+[dependencies]
+ship-substrate = { path = "../../../ship-substrate" }
+ship-types = { path = "../../../ship-substrate/crates/ship-types" }
+ship-reactive = { path = "../ship-reactive" }
+ship-ops-rpc = { path = "../ship-ops-rpc" }
+compiler = { path = "../compiler" }
+
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+async-stream = "0.3"
+connectrpc = { version = "0.4", features = ["axum"] }
+buffa = { version = "0.5" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+tempfile = { workspace = true }
+futures-util = { workspace = true }
+ship-reactive = { path = "../ship-reactive" }
+
+[lints]
+workspace = true
