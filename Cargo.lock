@@ -7774,6 +7774,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-device"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "ship-types",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ship-events-macro"
 version = "0.1.0"
 dependencies = [
@@ -8169,6 +8185,7 @@ dependencies = [
  "ship-artifacts",
  "ship-collection",
  "ship-config",
+ "ship-device",
  "ship-host",
  "ship-isolation",
  "ship-ops-rpc",

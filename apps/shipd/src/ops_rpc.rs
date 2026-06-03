@@ -178,6 +178,12 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::AgentsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::AgentServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::SpaceServiceExt::register(svc.clone(), router);
+    // device.* — DeviceService (device.proto): the window-management surface the
+    // space carve split out of SpaceService ("space loses window-mgmt → device").
+    // Mounted ADDITIVELY beside the legacy SpaceService window RPCs (still served
+    // above) until the space cutover retires them. Impl in device_rpc on OpsImpl;
+    // the mechanism lives in the ship-device crate.
+    let router = ship_ops_rpc::DeviceServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::SettingsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::SessionsServiceExt::register(svc.clone(), router);
     // account.* — typed AccountService (account.proto), served by the
