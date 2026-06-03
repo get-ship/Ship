@@ -74,6 +74,7 @@ function ensureEditorIsland(): void {
 const decorateRun = (r: RunView) => ({
   ...r,
   state_attr: r.state.replace('-', ''),
+  updatedLabel: formatRelative(r.updated_at),
   steps: r.steps?.map((step, i, arr) => ({ ...step, isLast: i === arr.length - 1 })),
 })
 
@@ -106,6 +107,10 @@ export default controller({
     // when `name()` changes. `liveExpr` wraps the SSE channel as a LiveSource.
     const focusCtx = live(() => ship.pipelines.focus({ name: name() }) as LiveSource<FocusCtx>)
     const def = derived(() => decorateDef(read(focusCtx()).def))
+    const relLastRun = derived(() => {
+      const v = read(focusCtx()).def.last_run_at
+      return v ? formatRelative(v) : ''
+    })
     const doc = derived(() => {
       const d = read(focusCtx()).doc
       return { ...d, steps: d.steps.map(decorateStep) }
@@ -130,9 +135,9 @@ export default controller({
     const deleteOpen = signal(false)
     const editorRef = ref<Ed>(null)
     return {
-      focusCtx, name, def, doc, raw, format, workspaceId, runs, activeForPipeline, opsMode, providers,
+      focusCtx, name, def, relLastRun, doc, raw, format, workspaceId, runs, activeForPipeline, opsMode, providers,
       editMode, editSaving, editError, editErrorLine, editErrorCol, editIssueCount,
-      dispatchOpen, dispatchSpec, dispatchProvider, dispatchHeadless, deleteOpen, editorRef, formatRelative,
+      dispatchOpen, dispatchSpec, dispatchProvider, dispatchHeadless, deleteOpen, editorRef,
     }
   },
   on: {

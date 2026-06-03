@@ -28,6 +28,7 @@ type HistoryRow = {
   slug: string; pipeline?: string; state: string; tone: string;
   agent?: string; duration: string; updated_at: string;
 }
+type HistoryRowView = HistoryRow & { updatedLabel: string }
 type HistoryCtx = {
   q: string; pipeline_filter: string; rows: HistoryRow[];
   total: number; offset: number; limit: number;
@@ -56,7 +57,9 @@ export default controller({
     const historyData = live(() => ship.pipelines.history({
       q: q(), pipeline: pipelineFilter(), offset: offset(), limit: limit(),
     }) as LiveSource<HistoryCtx>)
-    const rows = derived(() => read(historyData()).rows)
+    const rows = derived<HistoryRowView[]>(() =>
+      read(historyData()).rows.map((row) => ({ ...row, updatedLabel: formatRelative(row.updated_at) })),
+    )
     const total = derived(() => read(historyData()).total)
     const hasPrev = derived(() => read(historyData()).has_prev)
     const hasNext = derived(() => read(historyData()).has_next)
@@ -66,7 +69,7 @@ export default controller({
     // The view-host doesn't inject `navigate` into ctx; route through the
     // runtime chrome bridge (matches views/home).
     const navigate = (path: string): void => chrome.navigate(path)
-    return { historyData, q, pipelineFilter, offset, limit, rows, total, hasPrev, hasNext, pipelines, qInput, pipelineInput, navigate, formatRelative }
+    return { historyData, q, pipelineFilter, offset, limit, rows, total, hasPrev, hasNext, pipelines, qInput, pipelineInput, navigate }
   },
   on: {
     applyFilter: ({ navigate, qInput, pipelineInput }: any) => {

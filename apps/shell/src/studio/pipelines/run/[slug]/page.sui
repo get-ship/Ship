@@ -26,7 +26,7 @@
           {#if run().branch}<span>{run().branch}</span>{/if}
           {#if run().provider}<span>{run().provider}</span>{/if}
           {#if run().model}<span>{run().model}</span>{/if}
-          <time datetime={run().updated_at}>{formatRelative(run().updated_at)}</time>
+          <time datetime={run().updated_at}>{relUpdated()}</time>
         </div>
       </div>
       {#if run().state === 'dispatched' || run().state === 'pending'}
@@ -99,7 +99,7 @@
         <sui-timeline>
           {#for ev of timeline() key={ev.at + ev.event_type}}
           <sui-timeline-item>
-            <span slot="timestamp"><time datetime={ev.at}>{formatRelative(ev.at)}</time></span>
+            <span slot="timestamp"><time datetime={ev.at}>{ev.atLabel}</time></span>
             <span slot="title">{ev.event_type}</span>
             <span>{ev.summary}</span>
           </sui-timeline-item>

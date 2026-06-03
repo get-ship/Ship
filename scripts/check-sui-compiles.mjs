@@ -27,8 +27,12 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-// Roots to walk for first-party `.sui` sources.
-const ROOTS = ['packages/components', 'views', '.ship/views'];
+// Roots to walk for first-party `.sui` sources. `apps/shell/src` carries the
+// shell's own chrome components + studio view sources; without it a broken
+// shell `.sui` (e.g. a malformed `{#while-error}`) only surfaces at app-build
+// time, never in this gate — exactly how sui-account-menu shipped a real
+// compile error past this gate.
+const ROOTS = ['packages/components', 'views', '.ship/views', 'apps/shell/src'];
 
 // Directory names that never hold authored first-party sources: build output,
 // generated mirrors, vendored deps, scratch, and test fixtures.
