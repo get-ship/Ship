@@ -5,6 +5,30 @@ use sqlx::SqliteConnection;
 
 use crate::db::block_on;
 
+/// Deserialize an actor-event payload, treating a SHAPE mismatch as a
+/// fail-closed SKIP rather than an error.
+///
+/// Actor projections run inside the event-append transaction (S7): a handler
+/// `Err` rolls the whole write back. A payload this projection cannot interpret
+/// means only "no actor row can be derived from this event" — the durable event
+/// must still persist, so we skip the row write and return `None`. Genuine
+/// DB-write failures (constraint, I/O) are NOT caught here — they stay hard
+/// errors and correctly roll the transaction back.
+fn parse_or_skip<P: serde::de::DeserializeOwned>(event_type: &str, payload_json: &str) -> Option<P> {
+    match serde_json::from_str::<P>(payload_json) {
+        Ok(p) => Some(p),
+        Err(e) => {
+            tracing::debug!(
+                "[projection:actor_state] skipping {}: payload not interpretable as {}: {}",
+                event_type,
+                std::any::type_name::<P>(),
+                e,
+            );
+            None
+        }
+    }
+}
+
 #[derive(serde::Deserialize)]
 struct CreatedPayload {
     kind: String,
@@ -42,7 +66,9 @@ pub(super) fn apply_created(
     payload_json: &str,
     conn: &mut SqliteConnection,
 ) -> Result<()> {
-    let p: CreatedPayload = serde_json::from_str(payload_json)?;
+    let Some(p) = parse_or_skip::<CreatedPayload>("actor.created", payload_json) else {
+        return Ok(());
+    };
     let capabilities_json = serde_json::to_string(&p.capabilities).unwrap_or_else(|_| "[]".into());
     block_on(async {
         // ON CONFLICT(id) DO UPDATE — NOT INSERT OR REPLACE — because a
@@ -109,8 +135,11 @@ pub(super) fn apply_created(
 /// Idempotent: if no actor row exists for the slug yet, the UPDATE is
 /// a no-op. Pre-existing rows get pid filled in even if it was None.
 pub(super) fn apply_process_spawned(payload_json: &str, conn: &mut SqliteConnection) -> Result<()> {
-    let payload: crate::events::process::ProcessSpawnedPayload =
-        serde_json::from_str(payload_json)?;
+    let Some(payload) =
+        parse_or_skip::<crate::events::process::ProcessSpawnedPayload>("process.spawned", payload_json)
+    else {
+        return Ok(());
+    };
     let pid = match payload.pid {
         Some(p) if p > 0 => p as i64,
         _ => return Ok(()),

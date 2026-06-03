@@ -7,6 +7,8 @@ mod append_enforce_tests;
 mod partitioned_sink_tests;
 #[cfg(test)]
 mod partition_property_tests;
+#[cfg(test)]
+mod tx_atomicity_tests;
 pub mod snapshot;
 
 pub use actor_store::ActorStore;

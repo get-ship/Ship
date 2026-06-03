@@ -112,7 +112,7 @@ mod session_tests {
         let bus = bus();
         let event = session_started_event("sess-proj-1", "ws-proj-session");
 
-        bus.dispatch(&event, &mut conn);
+        bus.dispatch(&event, &mut conn).unwrap();
 
         let status = query_session_status(&mut conn, "sess-proj-1");
         assert_eq!(status.as_deref(), Some("active"), "started event must insert row");
@@ -144,7 +144,7 @@ mod session_tests {
         .with_actor_id("sess-dim-1")
         .elevate();
 
-        bus.dispatch(&event, &mut conn);
+        bus.dispatch(&event, &mut conn).unwrap();
 
         type SessionDimRow = (Option<String>, String, Option<String>, Option<String>);
         let row: Option<SessionDimRow> =
@@ -171,7 +171,7 @@ mod session_tests {
         let mut conn = setup();
         let bus = bus();
         let event = session_started_event("sess-default-kind", "ws-dim2");
-        bus.dispatch(&event, &mut conn);
+        bus.dispatch(&event, &mut conn).unwrap();
 
         let kind: Option<String> = block_on(async {
             sqlx::query_scalar("SELECT kind FROM sessions WHERE id = ?")
@@ -191,11 +191,11 @@ mod session_tests {
         bus.dispatch(
             &session_started_event("sess-proj-2", "ws-proj-session"),
             &mut conn,
-        );
+        ).unwrap();
         bus.dispatch(
             &session_ended_event("sess-proj-2", "ws-proj-session"),
             &mut conn,
-        );
+        ).unwrap();
 
         let status = query_session_status(&mut conn, "sess-proj-2");
         assert_eq!(status.as_deref(), Some("ended"));
@@ -212,13 +212,13 @@ mod session_tests {
         bus.dispatch(
             &session_started_event("sess-proj-3", "ws-proj-session"),
             &mut conn,
-        );
+        ).unwrap();
 
         let status_before = query_session_status(&mut conn, "sess-proj-3");
         bus.dispatch(
             &session_progress_event("sess-proj-3", "ws-proj-session"),
             &mut conn,
-        );
+        ).unwrap();
         let status_after = query_session_status(&mut conn, "sess-proj-3");
 
         assert_eq!(status_before, status_after, "progress must not change session row");
@@ -303,8 +303,8 @@ mod session_tests {
         let bus = bus();
         let ws = "ws-drain";
 
-        bus.dispatch(&session_started_event("sess-drain-1", ws), &mut conn);
-        bus.dispatch(&drain_started_event("sess-drain-1", ws), &mut conn);
+        bus.dispatch(&session_started_event("sess-drain-1", ws), &mut conn).unwrap();
+        bus.dispatch(&drain_started_event("sess-drain-1", ws), &mut conn).unwrap();
 
         let (status, drained_at) = query_session_drain_status(&mut conn, "sess-drain-1").unwrap();
         assert_eq!(status, "draining");
@@ -317,9 +317,9 @@ mod session_tests {
         let bus = bus();
         let ws = "ws-drain";
 
-        bus.dispatch(&session_started_event("sess-drain-2", ws), &mut conn);
-        bus.dispatch(&drain_started_event("sess-drain-2", ws), &mut conn);
-        bus.dispatch(&drain_completed_event("sess-drain-2", ws), &mut conn);
+        bus.dispatch(&session_started_event("sess-drain-2", ws), &mut conn).unwrap();
+        bus.dispatch(&drain_started_event("sess-drain-2", ws), &mut conn).unwrap();
+        bus.dispatch(&drain_completed_event("sess-drain-2", ws), &mut conn).unwrap();
 
         let status = query_session_status(&mut conn, "sess-drain-2");
         assert_eq!(status.as_deref(), Some("ended"));
@@ -331,9 +331,9 @@ mod session_tests {
         let bus = bus();
         let ws = "ws-drain";
 
-        bus.dispatch(&session_started_event("sess-drain-3", ws), &mut conn);
-        bus.dispatch(&drain_started_event("sess-drain-3", ws), &mut conn);
-        bus.dispatch(&drain_aborted_event("sess-drain-3", ws), &mut conn);
+        bus.dispatch(&session_started_event("sess-drain-3", ws), &mut conn).unwrap();
+        bus.dispatch(&drain_started_event("sess-drain-3", ws), &mut conn).unwrap();
+        bus.dispatch(&drain_aborted_event("sess-drain-3", ws), &mut conn).unwrap();
 
         let (status, drained_at) = query_session_drain_status(&mut conn, "sess-drain-3").unwrap();
         assert_eq!(status, "active");
@@ -346,10 +346,10 @@ mod session_tests {
         let bus = bus();
         let ws = "ws-drain";
 
-        bus.dispatch(&session_started_event("sess-tool-1", ws), &mut conn);
-        bus.dispatch(&tool_count_event("sess-tool-1", ws), &mut conn);
-        bus.dispatch(&tool_count_event("sess-tool-1", ws), &mut conn);
-        bus.dispatch(&tool_count_event("sess-tool-1", ws), &mut conn);
+        bus.dispatch(&session_started_event("sess-tool-1", ws), &mut conn).unwrap();
+        bus.dispatch(&tool_count_event("sess-tool-1", ws), &mut conn).unwrap();
+        bus.dispatch(&tool_count_event("sess-tool-1", ws), &mut conn).unwrap();
+        bus.dispatch(&tool_count_event("sess-tool-1", ws), &mut conn).unwrap();
 
         let count = query_tool_count(&mut conn, "sess-tool-1");
         assert_eq!(count, 3);
@@ -370,7 +370,7 @@ mod session_tests {
         ];
 
         for e in &events {
-            bus.dispatch(e, &mut conn);
+            bus.dispatch(e, &mut conn).unwrap();
         }
 
         let status_before = query_session_status(&mut conn, "sess-drain-rb");
@@ -398,7 +398,7 @@ mod session_tests {
         ];
 
         for event in &events {
-            bus.dispatch(event, &mut conn);
+            bus.dispatch(event, &mut conn).unwrap();
         }
 
         let status_a = query_session_status(&mut conn, "sess-rebuild-a");

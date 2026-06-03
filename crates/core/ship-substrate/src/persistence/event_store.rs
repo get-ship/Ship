@@ -148,6 +148,22 @@ impl SqliteEventStore {
         };
         Self::new_at_db_path(&db_path)
     }
+
+    /// Construct a store at `db_path` with an explicit projection bus.
+    ///
+    /// Test-only seam: the production constructors always wire `default_bus()`,
+    /// which cannot be perturbed to make a handler fail. The transaction-
+    /// atomicity proof needs a store whose bus contains a deliberately-failing
+    /// projection so it can assert that `append` rolls the event row back when
+    /// dispatch errors. No production path constructs a store this way.
+    #[cfg(test)]
+    pub(crate) fn new_with_bus(db_path: &Path, bus: Arc<EventBus>) -> Result<Self> {
+        crate::db::ensure_events_db_at_path(db_path)?;
+        Ok(Self {
+            db_path: db_path.to_path_buf(),
+            bus,
+        })
+    }
 }
 
 /// Query a single DB file with the given filter. Returns empty vec if the DB
@@ -199,9 +215,12 @@ impl EventStore for SqliteEventStore {
     /// reaches it via `EventSink::persist`.
     ///
     /// Atomicity: the event row and any matching projection writes commit
-    /// together, or roll back together. Projection-dispatch errors do
-    /// fail the transaction (consistent with the documented persist
-    /// contract) — see `EventBus::dispatch` for handler-error semantics.
+    /// together, or roll back together. A projection-dispatch error fails the
+    /// transaction — the `BEGIN IMMEDIATE` is rolled back and the event row is
+    /// NOT committed, so a rejected projection leaves no orphaned event whose
+    /// derived state was skipped. The error is returned to the caller (the
+    /// kernel emit path then rejects, and never delivers to mailboxes). See
+    /// `EventBus::dispatch` for the first-error-wins handler semantics.
     fn append(&self, event: &EventEnvelope) -> Result<()> {
         let mut conn = open_db_at(&self.db_path)?;
 
@@ -212,7 +231,10 @@ impl EventStore for SqliteEventStore {
             return Err(e);
         }
 
-        self.bus.dispatch(event, &mut conn);
+        if let Err(e) = self.bus.dispatch(event, &mut conn) {
+            let _ = block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await });
+            return Err(e);
+        }
 
         block_on(async { sqlx::query("COMMIT").execute(&mut conn).await })?;
         Ok(())

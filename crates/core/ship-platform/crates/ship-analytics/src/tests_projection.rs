@@ -185,7 +185,7 @@ mod analytics_tests {
                 "2026-05-18T10:00:00+00:00",
             ),
             &mut conn,
-        );
+        ).unwrap();
         let r = query_session(&mut conn, "sess-uuid-1").expect("row exists");
         assert_eq!(r.actor_id, "actor-sess-1");
         assert_eq!(r.harness.as_deref(), Some("claude"));
@@ -209,7 +209,7 @@ mod analytics_tests {
                 "2026-05-18T10:00:00+00:00",
             ),
             &mut conn,
-        );
+        ).unwrap();
         bus.dispatch(
             &session_ended_event(
                 "actor-sess-2",
@@ -217,7 +217,7 @@ mod analytics_tests {
                 Some("operator-cancelled"),
             ),
             &mut conn,
-        );
+        ).unwrap();
         // session_ended carries no session_id in our event helper, so
         // it keys on actor_id. The started event keyed on session_id.
         // These DON'T match — verify both keys exist (or update fixture
@@ -238,7 +238,7 @@ mod analytics_tests {
         bus.dispatch(
             &session_started_event(actor, Some(sid), None, None, "2026-05-18T10:00:00+00:00"),
             &mut conn,
-        );
+        ).unwrap();
         // End event with matching session_id (build manually).
         let payload = HookSessionEndedPayload {
             actor_id: actor.to_string(),
@@ -247,7 +247,7 @@ mod analytics_tests {
             reason: None,
         };
         let env = EventEnvelope::new(event_types::HOOK_SESSION_ENDED, actor, &payload).unwrap();
-        bus.dispatch(&env, &mut conn);
+        bus.dispatch(&env, &mut conn).unwrap();
         let r = query_session(&mut conn, sid).expect("row");
         assert_eq!(r.duration_ms, Some(2000));
         assert!(r.ended_at.is_some());
@@ -268,11 +268,11 @@ mod analytics_tests {
                 "2026-05-18T10:00:00+00:00",
             ),
             &mut conn,
-        );
+        ).unwrap();
         bus.dispatch(
             &tool_use_started_event("actor-tu-1", "Bash", "2026-05-18T10:00:01+00:00"),
             &mut conn,
-        );
+        ).unwrap();
         let s = query_session(&mut conn, "actor-tu-1").expect("session row");
         assert_eq!(s.tool_use_count, 1);
         let tu = query_tool_uses(&mut conn, "actor-tu-1");
@@ -289,7 +289,7 @@ mod analytics_tests {
         bus.dispatch(
             &tool_use_started_event("actor-tu-2", "Bash", "2026-05-18T10:00:01+00:00"),
             &mut conn,
-        );
+        ).unwrap();
         bus.dispatch(
             &tool_use_completed_event(
                 "actor-tu-2",
@@ -298,7 +298,7 @@ mod analytics_tests {
                 "2026-05-18T10:00:01.750+00:00",
             ),
             &mut conn,
-        );
+        ).unwrap();
         let tu = query_tool_uses(&mut conn, "actor-tu-2");
         assert_eq!(tu.len(), 1);
         assert_eq!(tu[0].status.as_deref(), Some("ok"));
@@ -318,11 +318,11 @@ mod analytics_tests {
                 "2026-05-18T10:00:00+00:00",
             ),
             &mut conn,
-        );
+        ).unwrap();
         bus.dispatch(
             &tool_use_started_event("actor-err", "Write", "2026-05-18T10:00:01+00:00"),
             &mut conn,
-        );
+        ).unwrap();
         bus.dispatch(
             &tool_use_completed_event(
                 "actor-err",
@@ -331,7 +331,7 @@ mod analytics_tests {
                 "2026-05-18T10:00:01.100+00:00",
             ),
             &mut conn,
-        );
+        ).unwrap();
         let s = query_session(&mut conn, "actor-err").expect("session row");
         assert_eq!(s.tool_error_count, 1);
         assert_eq!(s.tool_use_count, 1);
@@ -346,11 +346,11 @@ mod analytics_tests {
         bus.dispatch(
             &tool_use_started_event("actor-pair-2", "Bash", "2026-05-18T10:00:01+00:00"),
             &mut conn,
-        );
+        ).unwrap();
         bus.dispatch(
             &tool_use_started_event("actor-pair-2", "Bash", "2026-05-18T10:00:02+00:00"),
             &mut conn,
-        );
+        ).unwrap();
         bus.dispatch(
             &tool_use_completed_event(
                 "actor-pair-2",
@@ -359,7 +359,7 @@ mod analytics_tests {
                 "2026-05-18T10:00:05+00:00",
             ),
             &mut conn,
-        );
+        ).unwrap();
         let tu = query_tool_uses(&mut conn, "actor-pair-2");
         assert_eq!(tu.len(), 2);
         // First (older start) should be closed.
@@ -413,7 +413,7 @@ mod analytics_tests {
         bus.dispatch(
             &actor_created_event("actor-keepalive-1", Some("claude"), Some("opus")),
             &mut conn,
-        );
+        ).unwrap();
         let r = query_session(&mut conn, "actor-keepalive-1")
             .expect("actor.created must seed a session row");
         assert_eq!(r.actor_id, "actor-keepalive-1");
@@ -428,7 +428,7 @@ mod analytics_tests {
         // They aren't agent sessions and shouldn't populate analytics.
         let (_dir, mut conn) = setup();
         let bus = bus();
-        bus.dispatch(&actor_created_event("service-mesh", None, None), &mut conn);
+        bus.dispatch(&actor_created_event("service-mesh", None, None), &mut conn).unwrap();
         assert!(query_session(&mut conn, "service-mesh").is_none());
     }
 
@@ -439,8 +439,8 @@ mod analytics_tests {
         bus.dispatch(
             &actor_created_event("actor-stop-1", Some("claude"), None),
             &mut conn,
-        );
-        bus.dispatch(&actor_stopped_event("actor-stop-1", "process-exited"), &mut conn);
+        ).unwrap();
+        bus.dispatch(&actor_stopped_event("actor-stop-1", "process-exited"), &mut conn).unwrap();
         let r = query_session(&mut conn, "actor-stop-1").expect("row");
         assert!(r.ended_at.is_some(), "actor.stopped must record ended_at");
         assert_eq!(r.reason.as_deref(), Some("process-exited"));
@@ -461,13 +461,13 @@ mod analytics_tests {
                 "2026-05-18T10:00:00+00:00",
             ),
             &mut conn,
-        );
+        ).unwrap();
         // actor.created arrives later with conflicting model — COALESCE
         // preserves the hook-supplied value.
         bus.dispatch(
             &actor_created_event("actor-both", Some("codex"), Some("gpt-5")),
             &mut conn,
-        );
+        ).unwrap();
         let r = query_session(&mut conn, "actor-both").expect("row");
         assert_eq!(r.harness.as_deref(), Some("claude"), "hook wins");
         assert_eq!(r.model.as_deref(), Some("sonnet"), "hook wins");
@@ -486,14 +486,14 @@ mod analytics_tests {
                 "2026-05-18T10:00:00+00:00",
             ),
             &mut conn,
-        );
+        ).unwrap();
         bus.dispatch(
             &session_ended_event("actor-end-first", "2026-05-18T10:00:05+00:00", Some("normal")),
             &mut conn,
-        );
+        ).unwrap();
         // actor.stopped arrives after; should not overwrite the hook's
         // ended_at (the WHERE clause filters ended_at IS NULL).
-        bus.dispatch(&actor_stopped_event("actor-end-first", "force-killed"), &mut conn);
+        bus.dispatch(&actor_stopped_event("actor-end-first", "force-killed"), &mut conn).unwrap();
         let r = query_session(&mut conn, "actor-end-first").expect("row");
         assert_eq!(r.ended_at.as_deref(), Some("2026-05-18T10:00:05+00:00"));
         assert_eq!(r.reason.as_deref(), Some("normal"), "hook reason preserved");
@@ -539,7 +539,7 @@ mod analytics_tests {
         bus.dispatch(
             &turn_observed_event("actor-tu-tokens", Some("claude-opus"), 250, 75, 10, 1000),
             &mut conn,
-        );
+        ).unwrap();
         let summary =
             crate::queries::session_token_summary(&mut conn, "actor-tu-tokens")
                 .unwrap()
@@ -558,7 +558,7 @@ mod analytics_tests {
         bus.dispatch(
             &turn_observed_event("actor-bf", Some("claude-sonnet"), 100, 50, 0, 0),
             &mut conn,
-        );
+        ).unwrap();
         let row = query_session(&mut conn, "actor-bf").expect("session stub created");
         assert_eq!(row.model.as_deref(), Some("claude-sonnet"));
     }
@@ -576,11 +576,11 @@ mod analytics_tests {
                 "2026-05-19T09:00:00+00:00",
             ),
             &mut conn,
-        );
+        ).unwrap();
         bus.dispatch(
             &turn_observed_event("actor-noov", Some("sonnet"), 100, 50, 0, 0),
             &mut conn,
-        );
+        ).unwrap();
         let row = query_session(&mut conn, "actor-noov").expect("session row");
         assert_eq!(row.model.as_deref(), Some("opus"), "hook model preserved");
     }
@@ -598,11 +598,11 @@ mod analytics_tests {
                 "2026-05-18T10:00:00+00:00",
             ),
             &mut conn,
-        );
+        ).unwrap();
         bus.dispatch(
             &tool_use_started_event("actor-trunc", "Bash", "2026-05-18T10:00:01+00:00"),
             &mut conn,
-        );
+        ).unwrap();
         bus.rebuild(&[], &mut conn).unwrap();
         assert!(query_session(&mut conn, "trunc-1").is_none());
         assert!(query_tool_uses(&mut conn, "actor-trunc").is_empty());

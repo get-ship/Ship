@@ -165,7 +165,7 @@ mod tests {
         let id = format!("proj-mat-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
         let mut conn = space_conn(&id);
         let event = compile_event(&id, "planner", "2026-05-04T00:00:00Z");
-        bus().dispatch(&event, &mut conn);
+        bus().dispatch(&event, &mut conn).unwrap();
         let row = load(&id).unwrap().expect("row should exist");
         assert_eq!(row.space_id, id);
         assert_eq!(row.active_agent.as_deref(), Some("planner"));
@@ -179,8 +179,8 @@ mod tests {
         setup();
         let id = format!("proj-over-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
         let mut conn = space_conn(&id);
-        bus().dispatch(&compile_event(&id, "a", "2026-05-04T00:00:00Z"), &mut conn);
-        bus().dispatch(&compile_event(&id, "b", "2026-05-04T01:00:00Z"), &mut conn);
+        bus().dispatch(&compile_event(&id, "a", "2026-05-04T00:00:00Z"), &mut conn).unwrap();
+        bus().dispatch(&compile_event(&id, "b", "2026-05-04T01:00:00Z"), &mut conn).unwrap();
         let row = load(&id).unwrap().unwrap();
         assert_eq!(row.active_agent.as_deref(), Some("b"));
         assert_eq!(row.compiled_at, "2026-05-04T01:00:00Z");

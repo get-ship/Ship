@@ -85,6 +85,32 @@ impl AsyncProjection for SessionProjection {
 
 // ── Handlers ─────────────────────────────────────────────────────────────────
 
+/// Deserialize a session-event payload, treating a SHAPE mismatch as a
+/// fail-closed SKIP rather than an error.
+///
+/// Session projections run inside the event-append transaction (S7): a handler
+/// `Err` rolls the whole write back. A payload this projection cannot interpret
+/// means only "no session row can be derived from this event" — the durable
+/// event must still persist, so we skip the row write and return `None`. This
+/// mirrors `CollectionProjection`, which returns `Ok(())` for events it cannot
+/// attach. Genuine DB-write failures (constraint, I/O) are NOT caught here —
+/// they stay hard errors and correctly roll the transaction back.
+fn parse_or_skip<P: serde::de::DeserializeOwned>(event: &EventEnvelope) -> Option<P> {
+    match serde_json::from_str::<P>(&event.payload_json) {
+        Ok(p) => Some(p),
+        Err(e) => {
+            tracing::debug!(
+                "[projection:session_state] skipping {} {}: payload not interpretable as {}: {}",
+                event.event_type,
+                event.id,
+                std::any::type_name::<P>(),
+                e,
+            );
+            None
+        }
+    }
+}
+
 #[derive(serde::Deserialize)]
 struct StartedPayload {
     #[serde(default)]
@@ -106,7 +132,9 @@ struct StartedPayload {
 }
 
 fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
-    let p: StartedPayload = serde_json::from_str(&event.payload_json)?;
+    let Some(p) = parse_or_skip::<StartedPayload>(event) else {
+        return Ok(());
+    };
     let now = event.created_at.to_rfc3339();
     let session_id = &event.entity_id;
     let kind = p.kind.unwrap_or_else(|| "direct_attach".to_string());
@@ -177,7 +205,9 @@ struct EndedPayload {
 }
 
 fn apply_ended(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
-    let p: EndedPayload = serde_json::from_str(&event.payload_json)?;
+    let Some(p) = parse_or_skip::<EndedPayload>(event) else {
+        return Ok(());
+    };
     let now = event.created_at.to_rfc3339();
     let session_id = &event.entity_id;
     let updated_ids_json = serde_json::to_string(&p.updated_workspace_ids)?;
@@ -224,7 +254,9 @@ fn apply_ended(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()>
 fn apply_drain_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
     #[derive(serde::Deserialize)]
     struct P { drained_at: String }
-    let p: P = serde_json::from_str(&event.payload_json)?;
+    let Some(p) = parse_or_skip::<P>(event) else {
+        return Ok(());
+    };
     let now = event.created_at.to_rfc3339();
     block_on(async {
         sqlx::query(
@@ -243,7 +275,9 @@ fn apply_drain_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
 fn apply_drain_completed(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
     #[derive(serde::Deserialize)]
     struct P { ended_at: String }
-    let p: P = serde_json::from_str(&event.payload_json)?;
+    let Some(p) = parse_or_skip::<P>(event) else {
+        return Ok(());
+    };
     let now = event.created_at.to_rfc3339();
     block_on(async {
         sqlx::query(
@@ -291,7 +325,9 @@ fn apply_heartbeat(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result
     struct P {
         last_activity_at: String,
     }
-    let p: P = serde_json::from_str(&event.payload_json)?;
+    let Some(p) = parse_or_skip::<P>(event) else {
+        return Ok(());
+    };
     let now = event.created_at.to_rfc3339();
     block_on(async {
         sqlx::query(
