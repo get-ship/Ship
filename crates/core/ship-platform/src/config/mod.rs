@@ -1,5 +1,3 @@
-pub mod credentials;
-pub mod gateway;
 pub mod library;
 pub mod local;
 pub mod security;
@@ -116,7 +114,5 @@ pub use ship_config::settings::{
     set_setting_and_emit, setting_default,
 };
 
-pub use credentials::Credentials;
-pub use gateway::{account_token, resolve_gateway_base_url, DEFAULT_GATEWAY};
 pub use library::LibrarySettings;
 pub use local::{worktrees_dir, LocalSettings};
