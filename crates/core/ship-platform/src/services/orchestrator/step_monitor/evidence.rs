@@ -1,6 +1,11 @@
-//! Side helpers used by the step monitor's main loop: git evidence
-//! gathering, kill-on-timeout, and `step.observed` emission. Separated
-//! from the loop itself to keep `mod.rs` under the 300-line file cap.
+//! Side helpers used by the step monitor's main loop: kill-on-timeout and
+//! `step.observed` emission. Separated from the loop itself to keep `mod.rs`
+//! under the 300-line file cap.
+//!
+//! The git/log/string scanning utilities that used to live here are pure L0
+//! mechanism and now live in [`ship_runner::observe`]; the kill-on-timeout
+//! teardown is the L0 [`ship_runner::stop_by_slug`] primitive. This module
+//! keeps only the pipeline-domain `step.observed` emission.
 
 use std::sync::Arc;
 
@@ -10,29 +15,20 @@ use ship_substrate::events::pipeline::{PipelineStepObservedPayload, StepTrigger,
 use ship_substrate::events::{EventEnvelope, KernelRouter};
 use crate::services::dispatch_ports::{SessionExecutor, ProcessRegistryPort};
 
+use ship_runner::observe::scan_agent_log_tail;
+
 use super::StepMonitor;
 
-/// Stop the dispatched process for `slug` if the registry still has a
-/// handle. Emits `process.signal_sent` for observability; ignores stop
-/// errors (best-effort — the step is already terminal from the
-/// pipeline's view). `emit_and_finish` calls `registry.unregister`
-/// after us, so we use `take` here to avoid a double-remove.
+/// Stop the dispatched process for `slug` on a step timeout, via the L0
+/// teardown primitive. `emit_and_finish` calls `registry.unregister` after us,
+/// and `stop_by_slug` `take`s the handle, so there's no double-remove.
 pub(super) async fn kill_spawned_process(
     kernel: &Arc<Mutex<KernelRouter>>,
     registry: &Arc<dyn ProcessRegistryPort>,
     executor: &Arc<dyn SessionExecutor>,
     slug: &str,
 ) {
-    let Some(handle) = registry.take(slug).await else {
-        return;
-    };
-    let pid = handle.pid;
-    crate::services::orchestrator::emit::emit_process_signal_sent(
-        kernel, slug, pid, "SIGTERM", "step_timeout", "step_monitor",
-    ).await;
-    if let Err(e) = executor.stop(&handle).await {
-        tracing::warn!(slug, "step-monitor: stop on timeout returned err: {e}");
-    }
+    ship_runner::stop_by_slug(kernel, registry, executor, slug, "step_timeout", "step_monitor").await;
 }
 
 /// Build the payload, emit `step.observed`, and unregister from the registry.
@@ -115,124 +111,6 @@ pub(super) async fn emit_and_finish(
         exit_code,
     )
     .await;
-}
-
-/// Scan git state in a worktree, counting commits since `start_sha`.
-///
-/// Returns `(commits_since_start, uncommitted_files)`. Falls back to
-/// `(0, 0)` if git commands fail — never crashes.
-pub(super) fn scan_git_evidence(
-    work_dir: &std::path::Path,
-    start_sha: Option<&str>,
-) -> (u32, u32) {
-    let commits = match start_sha {
-        Some(sha) => std::process::Command::new("git")
-            .args(["rev-list", "--count", &format!("{sha}..HEAD")])
-            .current_dir(work_dir)
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<u32>().ok())
-            .unwrap_or(0),
-        None => std::process::Command::new("git")
-            .args(["rev-list", "--count", "HEAD", "--not", "--remotes"])
-            .current_dir(work_dir)
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<u32>().ok())
-            .unwrap_or(0),
-    };
-
-    let uncommitted = std::process::Command::new("git")
-        .args(["status", "--porcelain"])
-        .current_dir(work_dir)
-        .output()
-        .ok()
-        .map(|o| {
-            String::from_utf8_lossy(&o.stdout)
-                .lines()
-                .filter(|l| !l.is_empty())
-                .count() as u32
-        })
-        .unwrap_or(0);
-
-    (commits, uncommitted)
-}
-
-/// Read the tail of the dispatched agent's log at
-/// `<work_dir>/.artifacts/agent-<slug>.log`. Returns at most ~2 KiB of the
-/// last ~30 non-empty lines, with ANSI escape sequences stripped. None
-/// when the log doesn't exist or is empty.
-pub(super) fn scan_agent_log_tail(
-    work_dir: &std::path::Path,
-    slug: &str,
-) -> Option<String> {
-    const MAX_BYTES: usize = 2048;
-    const MAX_LINES: usize = 30;
-
-    let path = work_dir
-        .join(".artifacts")
-        .join(format!("agent-{slug}.log"));
-    let raw = std::fs::read_to_string(&path).ok()?;
-    if raw.trim().is_empty() {
-        return None;
-    }
-
-    // Last MAX_BYTES. Slice on a char boundary to avoid mid-codepoint cuts.
-    let start = raw.len().saturating_sub(MAX_BYTES);
-    let mut cut = start;
-    while cut < raw.len() && !raw.is_char_boundary(cut) {
-        cut += 1;
-    }
-    let tail = &raw[cut..];
-
-    // Strip ANSI escape sequences (CSI: ESC [ ... cmd) and keep last N lines.
-    let cleaned = strip_ansi(tail);
-    let mut lines: Vec<&str> = cleaned.lines().filter(|l| !l.trim().is_empty()).collect();
-    if lines.len() > MAX_LINES {
-        lines = lines.split_off(lines.len() - MAX_LINES);
-    }
-    if lines.is_empty() {
-        None
-    } else {
-        Some(lines.join("\n"))
-    }
-}
-
-fn strip_ansi(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let mut chars = input.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\x1b' {
-            // CSI: ESC [ ... final byte in 0x40..=0x7E
-            if chars.peek() == Some(&'[') {
-                chars.next();
-                for nc in chars.by_ref() {
-                    if matches!(nc, '\x40'..='\x7E') {
-                        break;
-                    }
-                }
-                continue;
-            }
-            // Other escape sequences: skip the next character.
-            chars.next();
-            continue;
-        }
-        out.push(c);
-    }
-    out
-}
-
-/// Resolve HEAD SHA in a worktree. Returns `None` if git fails.
-pub(super) fn resolve_head_sha(work_dir: &std::path::Path) -> Option<String> {
-    std::process::Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .current_dir(work_dir)
-        .output()
-        .ok()
-        .and_then(|o| {
-            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            if s.is_empty() { None } else { Some(s) }
-        })
 }
 
 async fn emit_step_observed(

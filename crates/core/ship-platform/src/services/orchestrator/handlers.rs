@@ -163,26 +163,15 @@ pub async fn handle_cancelled(
         }
     };
 
-    // Registry first (fast path). On miss, try the executor's resume path
-    // — best effort. `handle` is consumed by executor.stop.
-    let pid = if let Some(handle) = octx.registry.take(&slug).await {
-        let pid = handle.pid;
-        super::emit::emit_process_signal_sent(
-            kernel, &slug, pid, "SIGTERM", "cancellation", "operator",
-        ).await;
-        if let Err(e) = octx.executor.stop(&handle).await {
-            tracing::warn!(slug, "job-dispatch: cancel stop returned err: {e}");
-        }
+    // Registry first (fast path), via the L0 slug-keyed teardown primitive.
+    // On a registry miss, try the executor's resume path — best effort — and
+    // stop the recovered handle through the same L0 teardown core.
+    let pid = if let Some(pid) =
+        ship_runner::stop_by_slug(kernel, &octx.registry, &octx.executor, &slug, "cancellation", "operator").await
+    {
         pid
     } else if let Some(handle) = octx.executor.resume_handle(&slug, None, None).await {
-        let pid = handle.pid;
-        super::emit::emit_process_signal_sent(
-            kernel, &slug, pid, "SIGTERM", "cancellation", "operator",
-        ).await;
-        if let Err(e) = octx.executor.stop(&handle).await {
-            tracing::warn!(slug, "job-dispatch: cancel stop (via resume) returned err: {e}");
-        }
-        pid
+        ship_runner::stop_handle(kernel, &octx.executor, &slug, handle, "cancellation", "operator").await
     } else {
         // No handle to stop — but a dispatch for this slug may be spawning
         // right now (cancel raced the spawn). Drop a tombstone so the
