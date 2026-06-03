@@ -134,8 +134,8 @@ impl Plugin for SuiPlugin {
         }
         // `@ship/<non-singleton>` → workspace package source (not prebuilt
         // dist) so its components compile from source too. A bare specifier
-        // (`@ship/ui-components`) resolves to `src/index.ts`; a subpath
-        // (`@ship/ui-components/tokens/themes`) resolves to the matching file
+        // (`@ship/tokens`) resolves to `src/index.ts`; a subpath
+        // (`@ship/tokens/themes`) resolves to the matching file
         // under `src/` — honoring the package's `exports` subpath map. Without
         // this the subpath collapsed to `src/index.ts`, surfacing as a
         // `MissingExport` for the named imports that live in the subpath file.

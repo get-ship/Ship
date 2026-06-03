@@ -9,7 +9,7 @@ import {
   THEMES,
   readStoredTheme,
   type ThemeId,
-} from '@ship/ui-components/tokens/themes'
+} from '@ship/tokens/themes'
 import type { Scope } from './page.sui'
 
 type FilterId = 'all' | 'light' | 'dark'

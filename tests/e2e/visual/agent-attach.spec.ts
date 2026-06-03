@@ -17,7 +17,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { getDaemonUrl } from './helpers/daemon'
 import { injectStability } from './helpers/render'
 
-/// Every theme registered in packages/components/ui-components/src/tokens/themes.css.
+/// Every theme registered in packages/sui/tokens/src/themes.css.
 /// Captured so the user can eyeball legibility per theme — most are light,
 /// ship-dark + console are dark, halo + glass are tinted.
 const THEMES = [

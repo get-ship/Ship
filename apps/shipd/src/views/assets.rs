@@ -11,17 +11,17 @@
 use axum::http::StatusCode;
 
 /// Shared design tokens + base styles for all daemon-served views.
-/// Canonical OKLCH palette sourced from `@ship/ui-components/tokens/tokens.css`
+/// Canonical OKLCH palette sourced from `@ship/tokens/tokens.css`
 /// so SUI components, daemon views, and theme studio can never drift.
 /// View-scoped base rules live alongside in `assets/view-tokens.css`.
 const VIEW_TOKENS_CSS: &str = concat!(
-    include_str!("../../../../packages/components/ui-components/src/tokens/tokens.css"),
+    include_str!("../../../../packages/sui/tokens/src/tokens.css"),
     "\n",
     include_str!("../../assets/view-tokens.css"),
     "\n",
     // Per-theme overrides — :root[data-theme='paper'] etc. Applied by
     // the theme picker toggling `data-theme` on <html>.
-    include_str!("../../../../packages/components/ui-components/src/tokens/themes.css"),
+    include_str!("../../../../packages/sui/tokens/src/themes.css"),
 );
 
 /// GET /api/v1/runtime/assets/view-tokens.css

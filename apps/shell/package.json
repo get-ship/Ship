@@ -20,6 +20,7 @@
     "@ship/sdk": "workspace:*",
     "@ship/sdk-client": "workspace:*",
     "@ship/sui-dom": "workspace:*",
+    "@ship/tokens": "workspace:*",
     "@ship/ui-components": "workspace:*",
     "@ship/sui-lsp-browser": "workspace:*",
     "@ship/sui-runtime": "workspace:*"
