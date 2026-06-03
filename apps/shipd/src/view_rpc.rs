@@ -119,7 +119,7 @@ mod tests {
             let p = crate::ops_rpc::policy_for(&path)
                 .unwrap_or_else(|| panic!("{path} must carry a policy in the descriptor"));
             assert_eq!(p.capability, "ship.views.write");
-            assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C1Workspace);
+            assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C1Space);
         }
     }
 }

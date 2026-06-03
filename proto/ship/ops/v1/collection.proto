@@ -163,31 +163,31 @@ service CollectionService {
   rpc CreateItem(CreateItemReq) returns (Item) {
     option (ship.ops.v1.description) = "Create an item in a collection.";
     option (ship.ops.v1.capability) = "ship.collection.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 
   rpc UpdateItem(UpdateItemReq) returns (Item) {
     option (ship.ops.v1.description) = "Replace a collection item's data.";
     option (ship.ops.v1.capability) = "ship.collection.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 
   rpc DeleteItem(DeleteItemReq) returns (Deletion) {
     option (ship.ops.v1.description) = "Delete a collection item by id.";
     option (ship.ops.v1.capability) = "ship.collection.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 
   rpc CreateSchema(CreateSchemaReq) returns (CollectionDetail) {
     option (ship.ops.v1.description) = "Define a new collection schema.";
     option (ship.ops.v1.capability) = "ship.collection.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 
   rpc UpdateSchema(UpdateSchemaReq) returns (CollectionDetail) {
     option (ship.ops.v1.description) = "Replace a collection schema.";
     option (ship.ops.v1.capability) = "ship.collection.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 
   // live

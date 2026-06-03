@@ -60,16 +60,16 @@ service RulesService {
   rpc Create(CreateRuleRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Create a new markdown rule (errors if the id is taken).";
     option (ship.ops.v1.capability) = "ship.rules.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Put(PutRuleRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Replace a rule's body (use rules.create for net-new).";
     option (ship.ops.v1.capability) = "ship.rules.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Delete(DeleteRuleRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Trash a rule (scope omitted walks project → user).";
     option (ship.ops.v1.capability) = "ship.rules.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 }

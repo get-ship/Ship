@@ -87,7 +87,7 @@ pub fn decide(blast: BlastRadius, service: &str, caller: &Caller) -> Decision {
     }
     match blast {
         BlastRadius::C3Critical => Decision::Deny("op requires a human-operator credential (2FA)"),
-        BlastRadius::C0Read | BlastRadius::C1Workspace => Decision::Allow,
+        BlastRadius::C0Read | BlastRadius::C1Space => Decision::Allow,
         BlastRadius::C2Elevated => {
             if caller.elevated_services.iter().any(|s| s == service) {
                 Decision::Allow
@@ -114,10 +114,10 @@ mod tests {
     fn unknown_blast_string_fails_closed_to_most_restrictive() {
         // Fail closed to the highest tier — a misdeclared op is operator-only.
         assert_eq!(BlastRadius::from_descriptor("nonsense"), BlastRadius::C3Critical);
-        assert_eq!(BlastRadius::from_descriptor("C1_WORKSPACE"), BlastRadius::C1Workspace);
+        assert_eq!(BlastRadius::from_descriptor("C1_WORKSPACE"), BlastRadius::C1Space);
         assert_eq!(BlastRadius::from_descriptor("C0_SAFE"), BlastRadius::C0Read);
         // Ordering: the gate's `blast <= ceiling` relies on this.
-        assert!(BlastRadius::C0Read < BlastRadius::C1Workspace);
+        assert!(BlastRadius::C0Read < BlastRadius::C1Space);
         assert!(BlastRadius::C2Elevated < BlastRadius::C3Critical);
     }
 
@@ -140,8 +140,8 @@ mod tests {
         // service, out of the box, with no elevated services.
         let worker = caller(false, &[]);
         assert_eq!(decide(BlastRadius::C0Read, "settings", &worker), Decision::Allow);
-        assert_eq!(decide(BlastRadius::C1Workspace, "git", &worker), Decision::Allow);
-        assert_eq!(decide(BlastRadius::C1Workspace, "pipelines", &worker), Decision::Allow);
+        assert_eq!(decide(BlastRadius::C1Space, "git", &worker), Decision::Allow);
+        assert_eq!(decide(BlastRadius::C1Space, "pipelines", &worker), Decision::Allow);
         // C2 needs elevation in that service; C3 is operator-only.
         assert!(matches!(decide(BlastRadius::C2Elevated, "pipelines", &worker), Decision::Deny(_)));
         assert!(matches!(decide(BlastRadius::C3Critical, "account", &worker), Decision::Deny(_)));
@@ -186,7 +186,7 @@ mod tests {
         assert!(matches!(decide(BlastRadius::C2Elevated, "settings", &commander), Decision::Deny(_)));
         // C1 everywhere still holds (baseline); C3 still operator-only even in
         // an elevated service.
-        assert_eq!(decide(BlastRadius::C1Workspace, "settings", &commander), Decision::Allow);
+        assert_eq!(decide(BlastRadius::C1Space, "settings", &commander), Decision::Allow);
         assert!(matches!(decide(BlastRadius::C3Critical, "pipelines", &commander), Decision::Deny(_)));
     }
 

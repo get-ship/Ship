@@ -143,51 +143,51 @@ service GitService {
   rpc Push(GitPushReq) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Push the caller's worktree to a remote.";
     option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Fetch(GitFetchReq) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Fetch a remote in the caller's worktree.";
     option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Pull(GitPullReq) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Pull (ff-only) in the caller's worktree.";
     option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Stage(GitStageReq) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Stage paths in the caller's worktree.";
     option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Unstage(GitUnstageReq) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Unstage paths in the caller's worktree.";
     option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Commit(GitCommitReq) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Commit staged changes in the caller's worktree.";
     option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Checkout(GitCheckoutReq) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Checkout a ref/branch in the caller's worktree.";
     option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc BranchCreate(GitBranchCreateReq) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Create a branch in the caller's worktree (optionally checkout).";
     option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc BranchDelete(GitBranchDeleteReq) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Delete a branch in the caller's worktree.";
     option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Init(GitInitReq) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Initialize a git repository in the caller's worktree.";
     option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 }

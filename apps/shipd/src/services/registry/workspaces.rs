@@ -22,7 +22,7 @@ ship_ops! {
     {
         name: "workspaces.list",
         desc: "Known project workspaces with active flag per row.",
-        perm: "ship.workspaces.read",
+        perm: "ship.space.read",
         args: &[],
         ret: WorkspacesListResponse,
         run: |_args, _state, _files| {
@@ -73,7 +73,7 @@ ship_ops! {
     {
         name: "workspaces.active",
         desc: "Currently-active workspace id (null if none).",
-        perm: "ship.workspaces.read",
+        perm: "ship.space.read",
         args: &[],
         ret: WorkspaceActiveResponse,
         run: |_args, _state, _files| Ok(WorkspaceActiveResponse { id: active_id() }),

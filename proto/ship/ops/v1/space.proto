@@ -98,19 +98,19 @@ service SpaceService {
 
   rpc List(SpaceListReq) returns (SpaceList) {
     option (ship.ops.v1.description) = "List the registered spaces (each a .ship/ directory).";
-    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.capability) = "ship.space.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
 
   rpc Active(SpaceActiveReq) returns (ActiveSpace) {
     option (ship.ops.v1.description) = "The active space, if one has been activated.";
-    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.capability) = "ship.space.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
 
   rpc Info(SpaceInfoReq) returns (SpaceInfo) {
     option (ship.ops.v1.description) = "The active space's identity and effective (global→space) config.";
-    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.capability) = "ship.space.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
 
@@ -118,27 +118,27 @@ service SpaceService {
 
   rpc Add(AddSpaceReq) returns (Space) {
     option (ship.ops.v1.description) = "Register a directory as a space (ensures its .ship/ exists).";
-    option (ship.ops.v1.capability) = "ship.projects.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.capability) = "ship.space.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 
   rpc Activate(ActivateSpaceReq) returns (ActiveSpace) {
     option (ship.ops.v1.description) = "Switch the daemon's active space.";
-    option (ship.ops.v1.capability) = "ship.projects.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.capability) = "ship.space.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 
   rpc SetSetting(SetSpaceSettingReq) returns (SpaceSettingValue) {
     option (ship.ops.v1.description) = "Set a per-space settings override (value is arbitrary JSON).";
     option (ship.ops.v1.capability) = "ship.settings.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 
   // live — the ONE reactive surface (replaces the dropped *Live twins).
 
   rpc Watch(SpaceWatchReq) returns (stream WatchEvent) {
     option (ship.ops.v1.description) = "Live watch — the space registry (list + active) or one space's settings.";
-    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.capability) = "ship.space.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
 }

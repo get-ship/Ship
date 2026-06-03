@@ -75,7 +75,7 @@ fn config_reads_are_c0_config_read() {
 fn config_set_is_c1_config_write() {
     let p = config_policy("Set");
     assert_eq!(p.capability, "ship.config.write");
-    assert_eq!(p.blast, BlastRadius::C1Workspace);
+    assert_eq!(p.blast, BlastRadius::C1Space);
 }
 
 #[test]

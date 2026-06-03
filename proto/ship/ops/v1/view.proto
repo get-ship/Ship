@@ -56,26 +56,26 @@ message ViewToolReq {
 service ViewService {
   rpc PatchSession(ViewPatchReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc AppendSession(ViewAppendReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc SignalSession(ViewSignalReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc EnterEditMode(ViewEditModeReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc ExitEditMode(ViewEditModeReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Tool(ViewToolReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 }

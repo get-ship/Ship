@@ -313,7 +313,7 @@ mod tests {
         let p = policy_for("ship.ops.v1.PipelinesService/UpdateStatus")
             .expect("PipelinesService/UpdateStatus must be in the descriptor");
         assert_eq!(p.capability, "ship.runtime.write");
-        assert_eq!(p.blast_radius, BlastRadius::C1Workspace);
+        assert_eq!(p.blast_radius, BlastRadius::C1Space);
     }
 
     #[test]
@@ -321,6 +321,6 @@ mod tests {
         let p = policy_for("ship.ops.v1.PipelinesService/Put")
             .expect("PipelinesService/Put must be in the descriptor");
         assert_eq!(p.capability, "ship.pipelines.write");
-        assert_eq!(p.blast_radius, BlastRadius::C1Workspace);
+        assert_eq!(p.blast_radius, BlastRadius::C1Space);
     }
 }
