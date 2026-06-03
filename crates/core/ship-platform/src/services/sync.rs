@@ -19,6 +19,14 @@ use crate::sync::{PushResponse, SyncClient};
 
 const PUSH_SCOPE_PREFIX: &str = "push:platform";
 
+/// The sync service's writer binding. `sync.*` are Runtime-scoped daemon
+/// service events with no space binding (the service task has no session), so
+/// the daemon-internal binding is the authoritative non-space binding
+/// `enforce_scope` stamps the Runtime key from.
+fn sync_binding() -> ship_types::ScopeBinding {
+    ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk)
+}
+
 /// Transport abstraction over [`SyncClient`] — enables injection in tests.
 pub(crate) trait SyncTransport: Send + 'static {
     fn push_platform_events(
@@ -101,11 +109,14 @@ impl SyncServiceHandler {
             events_pushed: resp.accepted as u64,
             duration_ms: push_start.elapsed().as_millis() as u64,
         };
-        store.append(&EventEnvelope::new(
-            "sync.push.completed",
-            "sync",
-            &serde_json::to_value(&payload)?,
-        )?)?;
+        store.append_enforced(
+            &EventEnvelope::new(
+                "sync.push.completed",
+                "sync",
+                &serde_json::to_value(&payload)?,
+            )?,
+            &sync_binding(),
+        )?;
         Ok(())
     }
 }
@@ -129,20 +140,26 @@ impl ServiceHandler for SyncServiceHandler {
     }
 
     fn on_start(&mut self, store: &ActorStore) -> Result<()> {
-        store.append(&EventEnvelope::new(
-            "sync.started",
-            "sync",
-            &serde_json::json!({"space_id": &self.config.space_id}),
-        )?)?;
+        store.append_enforced(
+            &EventEnvelope::new(
+                "sync.started",
+                "sync",
+                &serde_json::json!({"space_id": &self.config.space_id}),
+            )?,
+            &sync_binding(),
+        )?;
         Ok(())
     }
 
     fn on_stop(&mut self, store: &ActorStore) -> Result<()> {
-        store.append(&EventEnvelope::new(
-            "sync.stopped",
-            "sync",
-            &serde_json::json!({}),
-        )?)?;
+        store.append_enforced(
+            &EventEnvelope::new(
+                "sync.stopped",
+                "sync",
+                &serde_json::json!({}),
+            )?,
+            &sync_binding(),
+        )?;
         Ok(())
     }
 
@@ -155,7 +172,7 @@ impl ServiceHandler for SyncServiceHandler {
             tracing::warn!("sync push_cycle error: {e}");
             let payload = serde_json::json!({"error": e.to_string()});
             let envelope = EventEnvelope::new("sync.push.failed", "sync", &payload)?;
-            if let Err(persist_err) = store.append(&envelope) {
+            if let Err(persist_err) = store.append_enforced(&envelope, &sync_binding()) {
                 tracing::error!("sync: failed to persist sync.push.failed event: {persist_err}");
             }
         }

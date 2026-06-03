@@ -20,7 +20,7 @@ use super::types::{
     SessionStatus,
 };
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+use ship_substrate::persistence::event_store::SqliteEventStore;
 use ship_types::event_types::{SESSION_STATUS_CHANGED, SESSION_TURN_FAILED};
 use ship_types::payload::{SessionStatusChanged, SessionTurnFailed};
 
@@ -52,7 +52,11 @@ fn emit_session_event(event_type: &'static str, session_id: &str, payload: &impl
             return;
         }
     };
-    if let Err(e) = store.append(&envelope) {
+    // Enforced write: session.* is Runtime-scoped with no space binding at this
+    // call site (the service task has no session-minted binding), so stamp +
+    // enforce from the daemon-internal binding before persist.
+    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+    if let Err(e) = store.append_enforced(&envelope, &binding) {
         tracing::warn!("session event {event_type}: append failed: {e}");
     }
 }

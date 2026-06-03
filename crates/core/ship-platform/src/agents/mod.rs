@@ -25,3 +25,11 @@ pub(crate) fn runtime_audit_store(
         None,
     )
 }
+
+/// The audit emits' writer binding. `rule.* / permissions.* / skill.*` are
+/// Runtime-scoped daemon audit events with no space at the call site, so the
+/// daemon-internal binding (device id, no account, no space) is the
+/// authoritative non-space binding `enforce_scope` stamps the Runtime key from.
+pub(crate) fn runtime_audit_binding() -> ship_types::ScopeBinding {
+    ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk)
+}

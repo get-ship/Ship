@@ -42,12 +42,15 @@ pub fn log_action_by(
     };
     let mut envelope = EventEnvelope::new(event_types::PROJECT_LOG, "project", &payload)?;
     envelope.actor = actor.to_string();
-    store.append(&envelope)?;
+    // project.log is a Runtime-scoped daemon audit stream with no space binding.
+    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+    let stamped = store.append_enforced(&envelope, &binding)?;
 
-    // Mailbox delivery (no re-persist — `store.append` already persisted).
+    // Mailbox delivery (no re-persist — `append_enforced` already persisted the
+    // stamped row; deliver exactly that enforced envelope).
     if let Some(kr) = crate::events::kernel_router() {
         let _ = block_on_anyhow(async {
-            kr.lock().await.deliver(&envelope);
+            kr.lock().await.deliver(&stamped);
             Ok(())
         });
     }

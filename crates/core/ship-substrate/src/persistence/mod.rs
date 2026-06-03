@@ -2,6 +2,8 @@ pub mod actor_store;
 pub mod event_store;
 pub mod partitioned_sink;
 #[cfg(test)]
+mod append_enforce_tests;
+#[cfg(test)]
 mod partitioned_sink_tests;
 #[cfg(test)]
 mod partition_property_tests;

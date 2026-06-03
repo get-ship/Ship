@@ -193,16 +193,20 @@ let session = start_session(
                 "session_id must equal session id, got {:?}",
                 ev.session_id
             );
+            // session.* is Runtime-scoped (#283): the workspace linkage rides on
+            // parent_actor_id + the payload's workspace_id (what the session
+            // projection reads), NOT the envelope scope_key. A Space scope_key
+            // here would be rejected by enforce_scope (session.* allows Runtime).
             assert_eq!(
                 ev.space_id(),
-                Some(workspace_id.as_str()),
-                "scope_key must equal workspace id, got {:?}",
+                None,
+                "session events are Runtime-scoped — scope_key must be None, got {:?}",
                 ev.space_id()
             );
             assert_eq!(
                 ev.parent_actor_id.as_deref(),
                 Some(workspace_id.as_str()),
-                "parent_actor_id must equal workspace id, got {:?}",
+                "workspace linkage must be preserved via parent_actor_id, got {:?}",
                 ev.parent_actor_id
             );
         }

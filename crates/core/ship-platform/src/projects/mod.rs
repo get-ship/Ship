@@ -20,7 +20,7 @@ use std::path::Path;
 
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::home::path_hash;
-use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+use ship_substrate::persistence::event_store::SqliteEventStore;
 use crate::projections::projects;
 
 /// Open the Runtime-scope store for the daemon-wide project registry.
@@ -35,6 +35,14 @@ fn projects_store() -> Result<SqliteEventStore> {
         ship_types::event_registry::EventScope::Runtime,
         None,
     )
+}
+
+/// The registry's writer binding. `project.*` is a Runtime-scoped daemon
+/// record with no space in hand at the call site, so the daemon-internal
+/// binding (device id, no account, no space) is the authoritative non-space
+/// binding `enforce_scope` stamps the Runtime key from.
+fn registry_binding() -> ship_types::ScopeBinding {
+    ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk)
 }
 use ship_types::event_types::{PROJECT_ARCHIVED, PROJECT_REGISTERED, PROJECT_SEEN};
 use ship_types::payload::{ProjectArchived, ProjectRegistered, ProjectSeen};
@@ -86,7 +94,7 @@ pub fn register(path: &Path, name: Option<&str>) -> Result<ProjectRecord> {
         };
         let envelope = EventEnvelope::new(PROJECT_SEEN, &id, &payload)
             .context("build project.seen envelope")?;
-        store.append(&envelope)?;
+        store.append_enforced(&envelope, &registry_binding())?;
         return Ok(ProjectRecord {
             id,
             path: existing.path,
@@ -107,7 +115,7 @@ pub fn register(path: &Path, name: Option<&str>) -> Result<ProjectRecord> {
     };
     let envelope = EventEnvelope::new(PROJECT_REGISTERED, &id, &payload)
         .context("build project.registered envelope")?;
-    store.append(&envelope)?;
+    store.append_enforced(&envelope, &registry_binding())?;
     Ok(ProjectRecord {
         id,
         path: canonical.to_string_lossy().to_string(),
@@ -146,7 +154,7 @@ pub fn forget(id: &str) -> Result<()> {
     let envelope = EventEnvelope::new(PROJECT_ARCHIVED, id, &payload)
         .context("build project.archived envelope")?;
     let store = projects_store()?;
-    store.append(&envelope)?;
+    store.append_enforced(&envelope, &registry_binding())?;
     Ok(())
 }
 
@@ -161,7 +169,7 @@ pub fn touch(id: &str) -> Result<bool> {
     };
     let envelope = EventEnvelope::new(PROJECT_SEEN, id, &payload)?;
     let store = projects_store()?;
-    store.append(&envelope)?;
+    store.append_enforced(&envelope, &registry_binding())?;
     Ok(true)
 }
 

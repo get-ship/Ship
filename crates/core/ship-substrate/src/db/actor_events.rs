@@ -14,7 +14,7 @@ use crate::db::block_on_anyhow;
 use crate::events::types::event_types;
 use crate::events::types::{ActorCrashed, ActorCreated, ActorSlept, ActorStopped, ActorWoke};
 use crate::events::EventEnvelope;
-use crate::persistence::event_store::{EventStore, SqliteEventStore};
+use crate::persistence::event_store::SqliteEventStore;
 use ship_types::event_registry::EventScope;
 
 /// Open a Runtime-scope store at the default ship-home. actor.* lands in
@@ -25,30 +25,35 @@ fn runtime_store() -> Result<SqliteEventStore> {
 
 fn emit_actor_event<P: serde::Serialize>(
     actor_id: &str,
-    space_id: Option<&str>,
+    // Context only: actor.* is Runtime-scoped (registry + runtime.db home) and
+    // the actor projection reads `space_id` from the PAYLOAD, not the envelope
+    // scope. Keeping it off the envelope keeps the scope Runtime for enforce_scope.
+    _space_id: Option<&str>,
     parent_actor_id: Option<&str>,
     event_type: &'static str,
     payload: &P,
 ) -> Result<()> {
     let mut envelope = EventEnvelope::new(event_type, actor_id, payload)?
-        .with_context(space_id, None)
         .with_actor_id(actor_id)
         .elevate();
     if let Some(parent) = parent_actor_id {
         envelope = envelope.with_parent_actor_id(parent);
     }
 
-    // Canonical write: event row + actor projection apply in one tx. actor.*
+    // Enforced canonical write: stamp + enforce against the daemon-internal
+    // binding, then persist (event row + actor projection in one tx). actor.*
     // is Runtime-scoped → route to runtime.db (the db the actor projection
-    // reads), not the kernel-less platform.db.
+    // reads); the `space_id` here is payload/context, not the event scope, so
+    // the binding carries no space.
     let store = runtime_store()?;
-    store.append(&envelope)?;
+    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+    let stamped = store.append_enforced(&envelope, &binding)?;
 
     // Deliver to mailboxes if a kernel router is running. Persistence
     // already happened above, so this is a delivery-only step.
     if let Some(kr) = crate::events::kernel_router() {
         let _ = block_on_anyhow(async {
-            kr.lock().await.deliver(&envelope);
+            kr.lock().await.deliver(&stamped);
             Ok(())
         });
     }
@@ -218,21 +223,25 @@ pub fn persist_actor_created_simple(
         persistence: Some("one-shot".to_string()),
         ..Default::default()
     };
+    // actor.created is Runtime-scoped (registry + runtime.db home). `space_id`
+    // is carried in the payload (what the actor projection reads), not the
+    // envelope scope, so the scope stays Runtime for enforce_scope.
     let mut envelope = EventEnvelope::new(event_types::ACTOR_CREATED, actor_id, &payload)?
-        .with_context(space_id, None)
         .with_actor_id(actor_id)
         .elevate();
     if let Some(parent) = parent_actor_id {
         envelope = envelope.with_parent_actor_id(parent);
     }
 
-    // Durable write — the part that must not be raced by a short-lived child.
-    runtime_store()?.append(&envelope)?;
+    // Durable enforced write — the part that must not be raced by a short-lived
+    // child. Stamp + enforce against the daemon-internal (Runtime) binding.
+    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+    let stamped = runtime_store()?.append_enforced(&envelope, &binding)?;
 
     // Best-effort live notification. `blocking_lock` (no runtime) keeps this
     // cheap; a missed push just means subscribers see the row on next read.
     if let Some(kr) = crate::events::kernel_router() {
-        kr.blocking_lock().deliver(&envelope);
+        kr.blocking_lock().deliver(&stamped);
     }
 
     Ok(())

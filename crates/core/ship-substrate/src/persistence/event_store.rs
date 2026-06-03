@@ -83,6 +83,35 @@ impl SqliteEventStore {
         &self.db_path
     }
 
+    /// The enforced off-kernel write chokepoint.
+    ///
+    /// Every off-kernel emit site (the `db::*_events` helpers, `log`, the
+    /// platform CRUD/audit emitters) writes through here, NOT through the raw
+    /// `EventStore::append`. It runs the SAME stamp-or-reject rule the emit
+    /// chokepoint runs — `ship_types::stamp_author` then `ship_types::enforce_scope`
+    /// against the authoritative `binding` — BEFORE the row is persisted, so a
+    /// rejected (cross-space / space-unbound) event is never half-written.
+    ///
+    /// Returns the stamped envelope so callers deliver exactly the enforced row
+    /// (scope_key + author) to actor mailboxes rather than the pre-stamp draft.
+    ///
+    /// `enforce_scope` rejects on:
+    /// - chosen scope ∉ the type's allowed-set (`ScopeNotAllowed`),
+    /// - a Space event whose key ≠ the binding's space (`CrossSpace`),
+    /// - a Space event from a space-unbound binding (`NoSpaceForSpaceEvent`).
+    pub fn append_enforced(
+        &self,
+        event: &EventEnvelope,
+        binding: &ship_types::ScopeBinding,
+    ) -> Result<EventEnvelope> {
+        let mut stamped = event.clone();
+        ship_types::stamp_author(&mut stamped, binding);
+        ship_types::enforce_scope(&mut stamped, binding)
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        self.append(&stamped)?;
+        Ok(stamped)
+    }
+
     /// Create an event store bound to a single scope's db (Phase 4d).
     ///
     /// Resolves the per-scope db path under `ship_dir` exactly as
