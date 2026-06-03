@@ -104,7 +104,7 @@ pub fn run_view(name: String, route_path: Option<String>, component_tag: Option<
          }}\n"
     );
     let page = format!(
-        "<state name=\"ready\" value=\"true\" />\n\n<div class=\"{name}\">\n  \
+        "<div class=\"{name}\">\n  \
          <h1>{title}</h1>\n  <p>New view — replace this body.</p>\n</div>\n"
     );
     let controller = format!(
