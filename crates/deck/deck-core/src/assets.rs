@@ -90,7 +90,7 @@ pub fn resolve_view_js(name: &str) -> Option<String> {
 
 pub fn serve_space(mode: DaemonMode, id: &str) -> DeckResponse {
     let Some(html) = read_deck_asset("space-scaffold/index.html") else {
-        return DeckResponse::not_found("space scaffold not built (run apps/spaces build)");
+        return DeckResponse::not_found("space scaffold not built (run apps/spaces build)", mode);
     };
     // JSON-encode the id so it is a safe string literal in the injected script.
     let id_js = serde_json::to_string(id).unwrap_or_else(|_| "\"\"".to_string());
@@ -106,7 +106,7 @@ pub fn serve_space_asset(mode: DaemonMode, file: &str) -> DeckResponse {
     match read_deck_asset(&format!("space-scaffold/assets/{file}")) {
         Some(body) if file.ends_with(".css") => DeckResponse::css_view(body, mode),
         Some(body) => DeckResponse::js_asset(body, mode),
-        None => DeckResponse::not_found(format!("space asset not found: {file}")),
+        None => DeckResponse::not_found(format!("space asset not found: {file}"), mode),
     }
 }
 
@@ -119,6 +119,7 @@ pub fn serve_hub(mode: DaemonMode) -> DeckResponse {
     let Some(html) = read_deck_asset("hub-scaffold/index.html") else {
         return DeckResponse::not_found(
             "hub scaffold not built (missing hub-scaffold/index.html asset)",
+            mode,
         );
     };
     let html = html.replace("\"/assets/", "\"/_assets/");
@@ -130,7 +131,7 @@ pub fn serve_hub_asset(mode: DaemonMode, file: &str) -> DeckResponse {
     match read_deck_asset(&format!("hub-scaffold/assets/{file}")) {
         Some(body) if file.ends_with(".css") => DeckResponse::css_view(body, mode),
         Some(body) => DeckResponse::js_asset(body, mode),
-        None => DeckResponse::not_found(format!("hub asset not found: {file}")),
+        None => DeckResponse::not_found(format!("hub asset not found: {file}"), mode),
     }
 }
 
@@ -173,14 +174,14 @@ pub fn serve_sui_icon(mode: DaemonMode, name: &str) -> DeckResponse {
         || name.len() > 64
         || !name.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
     {
-        return DeckResponse::not_found("invalid icon name");
+        return DeckResponse::not_found("invalid icon name", mode);
     }
     let resolved = if icon_map().contains_key(name) {
         name
     } else if let Some(via) = alias_for(name) {
         via
     } else {
-        return DeckResponse::not_found(format!("icon not in lucide set: {name}"));
+        return DeckResponse::not_found(format!("icon not in lucide set: {name}"), mode);
     };
     let inner = icon_map().get(resolved).expect("resolved name in map");
     // Canonical lucide attrs — kept in lockstep with `makeSvg()` in
@@ -213,7 +214,7 @@ pub fn serve_sui_island(mode: DaemonMode, file: &str) -> DeckResponse {
     // verbatim from the URL, so a malicious `../../etc/passwd` would
     // otherwise escape the assets dir.
     if file.contains("..") || file.contains('/') {
-        return DeckResponse::not_found("invalid island name");
+        return DeckResponse::not_found("invalid island name", mode);
     }
     // The route captures the whole filename (`sui-rail.js`) because axum 0.8
     // forbids mixing path-params with literal suffixes in the same segment.
@@ -226,7 +227,10 @@ pub fn serve_sui_island(mode: DaemonMode, file: &str) -> DeckResponse {
     let rel = format!("sui-components/{bundle}.js");
     match read_deck_asset(&rel) {
         Some(js) => DeckResponse::js_asset(js, mode),
-        None => DeckResponse::not_found("island bundle missing — run `cargo xtask build-assets`"),
+        None => DeckResponse::not_found(
+            "island bundle missing — run `cargo xtask build-assets`",
+            mode,
+        ),
     }
 }
 

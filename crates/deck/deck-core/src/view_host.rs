@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
+use std::time::SystemTime;
 
 use sui_compiler::{bindings, parse, render};
 
@@ -10,10 +12,27 @@ const VIEW_HOST_SHELL: &str = include_str!("../assets/view-host.html");
 const SSR_PLACEHOLDER: &str = "<!-- SUI_SSR_CONTENT -->";
 const VIEW_NAME_PLACEHOLDER: &str = "<!-- SUI_VIEW_NAME -->";
 
-static SSR_CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+/// A cached SSR body keyed by the `.ssr.html` artifact's mtime. The mtime gates
+/// reuse: when the artifact on disk changes (re-stat sees a new mtime), the
+/// entry is a MISS and the body is reloaded — so an edited/re-emitted view is
+/// never pinned to stale HTML until restart. Mirrors `resolver::render_resolved`.
+struct CacheEntry {
+    mtime: SystemTime,
+    html: String,
+}
 
-pub fn ssr_cache() -> &'static Mutex<HashMap<String, String>> {
+static SSR_CACHE: OnceLock<Mutex<HashMap<String, CacheEntry>>> = OnceLock::new();
+
+fn ssr_cache() -> &'static Mutex<HashMap<String, CacheEntry>> {
     SSR_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Drop a cached entry for `name`. Test-only — production invalidation is
+/// automatic via the mtime gate; no caller needs to evict by hand.
+#[cfg(test)]
+pub(crate) fn evict_ssr_cache(name: &str) {
+    let mut cache = ssr_cache().lock().unwrap_or_else(|e| e.into_inner());
+    cache.remove(name);
 }
 
 fn view_name_from_path(path: &str) -> Option<String> {
@@ -24,26 +43,56 @@ fn view_name_from_path(path: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-fn ssr_html_for_view(name: &str) -> String {
-    {
-        let cache = ssr_cache().lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(html) = cache.get(name) {
-            return html.clone();
-        }
-    }
-    let html = load_ssr_from_disk(name).unwrap_or_default();
-    let mut cache = ssr_cache().lock().unwrap_or_else(|e| e.into_inner());
-    cache.insert(name.to_string(), html.clone());
-    html
-}
-
-pub(crate) fn load_ssr_from_disk(name: &str) -> Option<String> {
+/// Resolve the on-disk `<stem>.ssr.html` mirror-tree artifact path for `name`.
+/// Returns `None` when the view can't be resolved (no source path) — the caller
+/// then falls back to live-emit and caches nothing.
+fn ssr_artifact_path(name: &str) -> Option<PathBuf> {
     let resolved = resolve(name, None).ok()?;
     let source_path = resolved.source_path?;
     let stem = source_path.file_stem()?.to_str()?;
     let stem_clean = stem.trim_end_matches(".html");
     let mirror = sui_compiler::out_layout::resolve_out_dir(&source_path);
-    let ssr_path = mirror.join(format!("{stem_clean}.ssr.html"));
+    Some(mirror.join(format!("{stem_clean}.ssr.html")))
+}
+
+/// Production SSR body for `name`, mtime-cached on the `.ssr.html` artifact.
+///
+/// The cache is keyed on the artifact's modification time: a hit re-stats the
+/// file and only reuses the body when the mtime is unchanged, so a re-emitted
+/// or edited artifact is picked up without a restart. An absent artifact (no
+/// `.ssr.html` on disk yet) or an empty read is treated as a **MISS** and is
+/// never cached — that lets the caller fall back to live-emit, and prevents an
+/// empty `#sui-root` from being pinned in place until the artifact lands.
+fn ssr_html_for_view(name: &str) -> String {
+    let Some(ssr_path) = ssr_artifact_path(name) else {
+        return String::new();
+    };
+    let mtime = std::fs::metadata(&ssr_path).and_then(|m| m.modified()).ok();
+    if let Some(mtime) = mtime {
+        {
+            let cache = ssr_cache().lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(entry) = cache.get(name)
+                && entry.mtime == mtime
+            {
+                return entry.html.clone();
+            }
+        }
+        let html = std::fs::read_to_string(&ssr_path).unwrap_or_default();
+        // Empty reads are a MISS: never cache them (the artifact may be mid-write
+        // or a placeholder), so a later non-empty read isn't shadowed.
+        if html.is_empty() {
+            return html;
+        }
+        let mut cache = ssr_cache().lock().unwrap_or_else(|e| e.into_inner());
+        cache.insert(name.to_string(), CacheEntry { mtime, html: html.clone() });
+        return html;
+    }
+    // No artifact on disk → nothing to cache, caller falls back to live-emit.
+    String::new()
+}
+
+pub(crate) fn load_ssr_from_disk(name: &str) -> Option<String> {
+    let ssr_path = ssr_artifact_path(name)?;
     std::fs::read_to_string(&ssr_path).ok()
 }
 
@@ -212,10 +261,7 @@ mod tests {
         std::fs::write(dist_dir.join("index.ssr.html"), ssr_content).unwrap();
 
         // Evict cache entry in case a prior run cached an empty value.
-        {
-            let mut cache = ssr_cache().lock().unwrap_or_else(|e| e.into_inner());
-            cache.remove("ssr-host-splice");
-        }
+        evict_ssr_cache("ssr-host-splice");
 
         let resp = serve_view_host(DaemonMode::Development, "/view-host/ssr-host-splice");
         match prev {
@@ -233,6 +279,81 @@ mod tests {
             body.contains("<div id=\"sui-root\""),
             "sui-root div must be present; got: {body}"
         );
+    }
+
+    #[test]
+    fn prod_ssr_cache_invalidates_when_artifact_changes() {
+        // The stale-forever bug: in Production the SSR body was cached by view
+        // name and never invalidated, so an edited/re-emitted `.ssr.html` served
+        // the old HTML until restart. The mtime-keyed cache must pick up the new
+        // artifact once its mtime advances.
+        let _lock = crate::test_lock::lock();
+        let tmp = tempfile::tempdir().unwrap();
+        let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
+        unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", tmp.path()); }
+
+        let view_dir = tmp.path().join(".ship/views/ssr-cache-bust");
+        let dist_dir = view_dir.join("dist");
+        std::fs::create_dir_all(&dist_dir).unwrap();
+        std::fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
+        let ssr_path = dist_dir.join("index.ssr.html");
+        std::fs::write(&ssr_path, "<p>v1-pre-rendered</p>").unwrap();
+        evict_ssr_cache("ssr-cache-bust");
+
+        let first = ssr_html_for_view("ssr-cache-bust");
+        assert!(first.contains("v1-pre-rendered"), "first read sees v1; got: {first}");
+
+        // Rewrite the artifact and advance its mtime — a restart-free edit.
+        std::fs::write(&ssr_path, "<p>v2-pre-rendered</p>").unwrap();
+        let now = std::fs::metadata(&ssr_path).and_then(|m| m.modified()).unwrap();
+        let bumped = now + std::time::Duration::from_secs(5);
+        filetime::set_file_mtime(&ssr_path, filetime::FileTime::from_system_time(bumped)).unwrap();
+
+        let second = ssr_html_for_view("ssr-cache-bust");
+        assert!(
+            second.contains("v2-pre-rendered"),
+            "changed artifact must invalidate the cache (was serving stale forever); got: {second}"
+        );
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
+            None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
+        }
+    }
+
+    #[test]
+    fn prod_ssr_empty_artifact_is_not_cached() {
+        // The empty-pinning bug: an absent/empty `.ssr.html` was cached as the
+        // empty string, pinning the view to an empty #sui-root even after its
+        // artifact landed. Empty/absent must be a MISS — once the real artifact
+        // appears, the next request must serve it.
+        let _lock = crate::test_lock::lock();
+        let tmp = tempfile::tempdir().unwrap();
+        let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
+        unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", tmp.path()); }
+
+        let view_dir = tmp.path().join(".ship/views/ssr-late-artifact");
+        let dist_dir = view_dir.join("dist");
+        std::fs::create_dir_all(&dist_dir).unwrap();
+        std::fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
+        evict_ssr_cache("ssr-late-artifact");
+
+        // No artifact yet → MISS, empty result, nothing cached.
+        assert!(ssr_html_for_view("ssr-late-artifact").is_empty());
+
+        // The artifact lands afterwards — must be served, not shadowed by a
+        // cached empty.
+        std::fs::write(dist_dir.join("index.ssr.html"), "<p>landed</p>").unwrap();
+        let after = ssr_html_for_view("ssr-late-artifact");
+        assert!(
+            after.contains("landed"),
+            "empty must never be cached; the landed artifact must be served; got: {after}"
+        );
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
+            None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
+        }
     }
 
     #[test]

@@ -150,7 +150,7 @@ fn pack_index() -> &'static HashMap<String, PackRecord> {
 /// `dist/<file>` JS bundle or its aggregated `custom-elements.json`.
 pub fn serve_pack_asset(mode: DaemonMode, pack_id: &str, file: &str) -> DeckResponse {
     let Some(record) = pack_index().get(pack_id) else {
-        return DeckResponse::not_found(format!("unknown pack '{pack_id}'"));
+        return DeckResponse::not_found(format!("unknown pack '{pack_id}'"), mode);
     };
     // Custom-elements.json: serve the file the package declared via its
     // `customElements` manifest field, regardless of where it lives in
@@ -159,21 +159,21 @@ pub fn serve_pack_asset(mode: DaemonMode, pack_id: &str, file: &str) -> DeckResp
         let abs = record.root.join(&record.custom_elements);
         return match std::fs::read(&abs) {
             Ok(bytes) => DeckResponse::json_asset(bytes, mode),
-            Err(_) => DeckResponse::not_found(format!("manifest missing: {}", abs.display())),
+            Err(_) => DeckResponse::not_found(format!("manifest missing: {}", abs.display()), mode),
         };
     }
     // Bundle files: confine reads to `<root>/dist/` and reject path
     // traversal. `file` may contain a `.js.map` suffix (sourcemap).
     if file.contains("..") || file.contains('/') {
-        return DeckResponse::not_found("invalid file");
+        return DeckResponse::not_found("invalid file", mode);
     }
     let abs = record.root.join("dist").join(file);
     if !abs.starts_with(&record.root) {
-        return DeckResponse::not_found("path escape");
+        return DeckResponse::not_found("path escape", mode);
     }
     match std::fs::read(&abs) {
         Ok(bytes) => DeckResponse::js_asset(bytes, mode),
-        Err(_) => DeckResponse::not_found(format!("bundle missing: dist/{file}")),
+        Err(_) => DeckResponse::not_found(format!("bundle missing: dist/{file}"), mode),
     }
 }
 

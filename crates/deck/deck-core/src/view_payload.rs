@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::Serialize;
 use sui_compiler::{bindings, islands, parse, render};
 pub use deck_host::view_payload::ViewPayload;
+use deck_host::resolver::read_view_artifact;
 
 use crate::{CachePolicy, DaemonMode, DeckResponse};
 use crate::resolver::resolve;
@@ -108,9 +109,9 @@ fn collect_view_css(name: &str, source_path: Option<&std::path::Path>) -> String
 }
 
 fn push_css_from(buf: &mut String, dir: &std::path::Path) {
-    if let Ok(s) = std::fs::read_to_string(dir.join("style.css"))
-        .or_else(|_| std::fs::read_to_string(dir.join("index.css")))
-        .or_else(|_| std::fs::read_to_string(dir.join("view.css")))
+    if let Some(s) = read_view_artifact(&dir.join("style.css"))
+        .or_else(|| read_view_artifact(&dir.join("index.css")))
+        .or_else(|| read_view_artifact(&dir.join("view.css")))
     {
         if !buf.is_empty() && !buf.ends_with('\n') {
             buf.push('\n');

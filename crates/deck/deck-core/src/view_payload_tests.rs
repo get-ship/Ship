@@ -1,7 +1,7 @@
 use std::fs;
 
 use crate::DaemonMode;
-use crate::view_host::{serve_view_host, ssr_cache};
+use crate::view_host::{evict_ssr_cache, serve_view_host};
 use crate::view_payload::{serve_view_payload, serve_view_payload_subpath};
 
 const VAR: &str = "SHIP_DEV_PROJECT_DIR";
@@ -90,10 +90,7 @@ fn view_host_splices_precompiled_ssr() {
     fs::write(dist_dir.join("index.ssr.html"), ssr_content).unwrap();
 
     // Evict any stale cache entry from a previous run.
-    {
-        let mut cache = ssr_cache().lock().unwrap_or_else(|e| e.into_inner());
-        cache.remove("ssr-host-test-splice");
-    }
+    evict_ssr_cache("ssr-host-test-splice");
 
     let resp = serve_view_host(DaemonMode::Development, "/view-host/ssr-host-test-splice");
     assert_eq!(resp.status, 200);
@@ -139,10 +136,13 @@ fn view_host_without_ssr_live_emits_from_source() {
 
 // ── Mode-specific tests ───────────────────────────────────────────────────────
 
-/// In production mode, view-host uses the SSR cache — a second request
-/// returns the originally-cached content even after the file changes.
+/// In production mode, view-host caches the SSR body keyed on the `.ssr.html`
+/// artifact's mtime. The unchanged file is a hit (cheap, no re-read), and a
+/// changed file (mtime advanced) is a miss that re-reads. This replaces the old
+/// "stale-forever" contract: a re-emitted artifact must be picked up without a
+/// restart, never pinned to the first body the daemon happened to read.
 #[test]
-fn view_host_prod_uses_ssr_cache() {
+fn view_host_prod_ssr_cache_revalidates_on_mtime() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
     let view_name = "ssr-mode-cache-test";
@@ -152,24 +152,26 @@ fn view_host_prod_uses_ssr_cache() {
     fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
     let ssr_file = dist_dir.join("index.ssr.html");
     fs::write(&ssr_file, "content-v1").unwrap();
-
-    {
-        let mut cache = ssr_cache().lock().unwrap_or_else(|e| e.into_inner());
-        cache.remove(view_name);
-    }
+    evict_ssr_cache(view_name);
 
     // First request in prod — populates cache with v1.
     let resp = serve_view_host(DaemonMode::Production, &format!("/view-host/{view_name}"));
     assert!(body_str(&resp).contains("content-v1"), "first prod request must read from disk");
 
-    // Change file on disk.
+    // Re-emit the artifact and advance its mtime — the prod cache MUST revalidate
+    // and serve the new body, not the stale v1 it cached on the first request.
     fs::write(&ssr_file, "content-v2").unwrap();
+    let now = fs::metadata(&ssr_file).and_then(|m| m.modified()).unwrap();
+    let bumped = now + std::time::Duration::from_secs(5);
+    filetime::set_file_mtime(&ssr_file, filetime::FileTime::from_system_time(bumped)).unwrap();
 
-    // Second prod request — must still return cached v1.
     let resp = serve_view_host(DaemonMode::Production, &format!("/view-host/{view_name}"));
     let body = body_str(&resp);
-    assert!(body.contains("content-v1"), "prod second request must use cache (got v2 instead)");
-    assert!(!body.contains("content-v2"), "prod must not bypass cache");
+    assert!(
+        body.contains("content-v2"),
+        "prod must pick up the changed artifact once its mtime advances (stale-forever is fixed); got: {body}"
+    );
+    assert!(!body.contains("content-v1"), "prod must not pin the original body forever");
 }
 
 /// In development mode, view-host bypasses the SSR cache — each request
@@ -186,10 +188,7 @@ fn view_host_dev_bypasses_ssr_cache() {
     let ssr_file = dist_dir.join("index.ssr.html");
     fs::write(&ssr_file, "dev-v1").unwrap();
 
-    {
-        let mut cache = ssr_cache().lock().unwrap_or_else(|e| e.into_inner());
-        cache.remove(view_name);
-    }
+    evict_ssr_cache(view_name);
 
     let resp = serve_view_host(DaemonMode::Development, &format!("/view-host/{view_name}"));
     assert!(body_str(&resp).contains("dev-v1"), "dev first request reads from disk");

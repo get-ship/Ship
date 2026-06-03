@@ -23,6 +23,28 @@ pub struct ResolveError {
     pub message: String,
 }
 
+/// Hard ceiling on a single view artifact read+compiled per request (source
+/// `.sui` and any co-located CSS). Each request reads from disk and compiles in
+/// process with no size bound otherwise — a multi-MB file would let one request
+/// pin a worker on a large parse. 4 MiB is comfortably above any real view yet
+/// rejects pathological inputs. Exposed so deck-core's CSS reads share one
+/// ceiling (one source of truth).
+pub const MAX_VIEW_SOURCE_BYTES: u64 = 4 * 1024 * 1024;
+
+/// Read a view artifact to a string, capped at [`MAX_VIEW_SOURCE_BYTES`].
+///
+/// Returns `None` when the file is absent, unreadable, or larger than the cap —
+/// the size is checked via a cheap `stat` before any bytes are read, so an
+/// oversized file is never slurped into memory. Callers treat `None` as "no
+/// such artifact" (the co-located CSS reads already chain on `Option`/`Result`).
+pub fn read_view_artifact(path: &Path) -> Option<String> {
+    let meta = std::fs::metadata(path).ok()?;
+    if meta.len() > MAX_VIEW_SOURCE_BYTES {
+        return None;
+    }
+    std::fs::read_to_string(path).ok()
+}
+
 pub fn resolve(
     project_root: &Path,
     first_party_root: Option<&Path>,
@@ -48,7 +70,7 @@ pub fn resolve(
         if let Some(found) =
             walk_disk_with_leaf(&fp_root, &segments, "page.sui", &mut fp_params, &mut fp_tried)
         {
-            return read_resolved(found, fp_params);
+            return read_resolved(found, fp_base, fp_params);
         }
     }
 
@@ -80,7 +102,7 @@ pub fn resolve(
                     .unwrap_or_else(|_| p.display().to_string());
                 attempts.push(rel);
             }
-            return read_resolved(found, params);
+            return read_resolved(found, &views_dir, params);
         }
         for p in &tried {
             let rel = p
@@ -92,7 +114,7 @@ pub fn resolve(
     }
 
     if let Some(leaf) = leaf {
-        return read_resolved(leaf, params);
+        return read_resolved(leaf, &new_views_root, params);
     }
 
     Err(ResolveError {
@@ -106,17 +128,53 @@ pub fn resolve(
 
 fn read_resolved(
     leaf: PathBuf,
+    allowed_root: &Path,
     params: HashMap<String, String>,
 ) -> Result<ResolvedView, ResolveError> {
-    let source = match std::fs::read_to_string(&leaf) {
+    // Containment guard against symlink escape: the leaf NAME is validated
+    // upstream, but a symlink *inside* the views bucket can still point its
+    // target outside the project. Canonicalize both the leaf and its bucket
+    // root, then assert the resolved leaf stays under the root — the same
+    // guard `serve_pack_asset` applies. A leaf that resolves outside (or whose
+    // root can't be canonicalized) is rejected, surfacing as a 404 upstream.
+    let canonical = leaf.canonicalize().map_err(|e| ResolveError {
+        message: format!("failed to resolve {}: {e}", leaf.display()),
+    })?;
+    let canonical_root = allowed_root.canonicalize().map_err(|e| ResolveError {
+        message: format!("failed to resolve views root {}: {e}", allowed_root.display()),
+    })?;
+    if !canonical.starts_with(&canonical_root) {
+        return Err(ResolveError {
+            message: format!(
+                "view path escapes its root: {} is not under {}",
+                canonical.display(),
+                canonical_root.display(),
+            ),
+        });
+    }
+    // Size cap before read: each request reads + compiles the source in process
+    // with no other bound. Reject an oversized file up front (cheap stat) rather
+    // than slurping multiple MB into memory and parsing it.
+    if let Ok(meta) = std::fs::metadata(&canonical)
+        && meta.len() > MAX_VIEW_SOURCE_BYTES
+    {
+        return Err(ResolveError {
+            message: format!(
+                "view source too large: {} is {} bytes (max {})",
+                canonical.display(),
+                meta.len(),
+                MAX_VIEW_SOURCE_BYTES,
+            ),
+        });
+    }
+    let source = match std::fs::read_to_string(&canonical) {
         Ok(s) => s,
         Err(e) => {
             return Err(ResolveError {
-                message: format!("failed to read {}: {e}", leaf.display()),
+                message: format!("failed to read {}: {e}", canonical.display()),
             });
         }
     };
-    let canonical = leaf.canonicalize().unwrap_or(leaf);
     Ok(ResolvedView {
         source,
         params,
@@ -240,103 +298,5 @@ fn compile(source: &str, view_name: &str) -> Result<RenderOutput, String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-
-    fn with_tempdir<F: FnOnce(&Path)>(f: F) {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        fs::create_dir_all(tmp.path().join(".ship")).unwrap();
-        f(tmp.path());
-    }
-
-    #[test]
-    fn on_disk_index_resolves() {
-        with_tempdir(|root| {
-            let view_dir = root.join(".ship/views/widget");
-            fs::create_dir_all(&view_dir).unwrap();
-            fs::write(
-                view_dir.join("index.sui"),
-                r#"<state name="x" value="1" /><p>{x()}</p>"#,
-            )
-            .unwrap();
-
-            let r = resolve(root, None, "widget", None).expect("on-disk widget resolves");
-            assert!(r.source.contains("name=\"x\""));
-            assert!(r.source_path.is_some());
-            assert!(r.params.is_empty());
-        });
-    }
-
-    #[test]
-    fn on_disk_param_segment_captures() {
-        with_tempdir(|root| {
-            let leaf = root.join(".ship/views/things/[id]");
-            fs::create_dir_all(&leaf).unwrap();
-            fs::write(
-                leaf.join("index.sui"),
-                r#"<state name="x" value="1" /><p>{x()}</p>"#,
-            )
-            .unwrap();
-
-            let r = resolve(root, None, "things", Some("42")).expect("param dir resolves");
-            assert_eq!(r.params.get("id").map(String::as_str), Some("42"));
-        });
-    }
-
-    #[test]
-    fn missing_view_returns_diagnostic() {
-        with_tempdir(|root| {
-            let err = resolve(root, None, "ghost", None).unwrap_err();
-            assert!(err.message.contains("ghost"));
-            assert!(err.message.contains(".ship/views"));
-        });
-    }
-
-    fn bump_mtime(path: &Path, secs_forward: u64) {
-        let now = std::fs::metadata(path).and_then(|m| m.modified()).unwrap();
-        let bumped = now + std::time::Duration::from_secs(secs_forward);
-        filetime::set_file_mtime(path, filetime::FileTime::from_system_time(bumped))
-            .expect("bump mtime");
-    }
-
-    #[test]
-    fn mtime_cache_reuses_render_until_source_touched() {
-        with_tempdir(|root| {
-            let view_dir = root.join(".ship/views/cachey");
-            fs::create_dir_all(&view_dir).unwrap();
-            let path = view_dir.join("index.sui");
-            fs::write(&path, r#"<p>first</p>"#).unwrap();
-
-            let r = resolve(root, None, "cachey", None).unwrap();
-            let first = render_resolved(&r, "cachey").unwrap();
-
-            let second = render_resolved(&r, "cachey").unwrap();
-            assert_eq!(first.html, second.html);
-
-            fs::write(&path, r#"<p>second</p>"#).unwrap();
-            bump_mtime(&path, 5);
-            let r2 = resolve(root, None, "cachey", None).unwrap();
-            let third = render_resolved(&r2, "cachey").unwrap();
-            assert_ne!(third.html, first.html);
-        });
-    }
-
-    #[test]
-    fn on_disk_page_sui_resolves() {
-        with_tempdir(|root| {
-            let view_dir = root.join("views/widget");
-            fs::create_dir_all(&view_dir).unwrap();
-            fs::write(
-                view_dir.join("page.sui"),
-                r#"<state name="x" value="1" /><p>{x()}</p>"#,
-            )
-            .unwrap();
-
-            let r = resolve(root, None, "widget", None).expect("on-disk widget resolves");
-            assert!(r.source.contains("name=\"x\""));
-            assert!(r.source_path.is_some());
-            assert!(r.params.is_empty());
-        });
-    }
-}
+#[path = "resolver_tests.rs"]
+mod tests;

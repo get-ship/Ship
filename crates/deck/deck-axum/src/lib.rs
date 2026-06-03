@@ -142,7 +142,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn into_axum_not_found_status() {
-        let resp = into_axum(DeckResponse::not_found("nope"));
+        let resp = into_axum(DeckResponse::not_found("nope", DaemonMode::Development));
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 }

@@ -96,8 +96,18 @@ impl DeckResponse {
     }
 
     /// 404 with a plain-text reason (no cache, no etag).
-    pub fn not_found(msg: impl Into<String>) -> Self {
-        let mut r = Self::new(404, "text/plain; charset=utf-8", CachePolicy::None, DaemonMode::Development, msg.into().into_bytes());
+    ///
+    /// In Production the caller-supplied `msg` is suppressed and a generic
+    /// `"not found"` body is returned — `msg` routinely carries internal detail
+    /// (absolute on-disk paths, resolver attempt lists, build hints) that must
+    /// never reach prod clients. In Development the reason is surfaced verbatim
+    /// to aid debugging. Mirrors `render_error`'s mode-gated redaction.
+    pub fn not_found(msg: impl Into<String>, mode: DaemonMode) -> Self {
+        let body = match mode {
+            DaemonMode::Production => "not found".to_string(),
+            DaemonMode::Development => msg.into(),
+        };
+        let mut r = Self::new(404, "text/plain; charset=utf-8", CachePolicy::None, mode, body.into_bytes());
         r.cache_control = "no-cache";
         r
     }
@@ -124,4 +134,32 @@ pub fn compute_etag(content: &[u8]) -> String {
     let mut h = DefaultHasher::new();
     content.hash(&mut h);
     format!("\"{}\"", h.finish())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn not_found_dev_surfaces_reason() {
+        let r = DeckResponse::not_found("/abs/path/views/foo missing", DaemonMode::Development);
+        assert_eq!(r.status, 404);
+        assert_eq!(r.cache_control, "no-cache");
+        assert!(r.etag.is_none());
+        assert_eq!(r.body, b"/abs/path/views/foo missing");
+    }
+
+    #[test]
+    fn not_found_prod_redacts_reason() {
+        // Caller-supplied detail (absolute paths, build hints, resolver attempt
+        // lists) must never reach prod clients — only a generic body ships.
+        let r = DeckResponse::not_found("/abs/path/views/foo missing", DaemonMode::Production);
+        assert_eq!(r.status, 404);
+        let body = std::str::from_utf8(&r.body).unwrap();
+        assert_eq!(body, "not found");
+        assert!(!body.contains("/abs/path"), "prod 404 must not echo on-disk paths");
+        // 404s are never cached and never carry an ETag, in either mode.
+        assert_eq!(r.cache_control, "no-cache");
+        assert!(r.etag.is_none());
+    }
 }

@@ -1,5 +1,5 @@
 use sui_compiler::{CompileOpts, compile};
-use deck_host::resolver::ResolvedView;
+use deck_host::resolver::{ResolvedView, read_view_artifact};
 
 use crate::{DaemonMode, DeckResponse};
 use crate::assets::resolve_view_js;
@@ -12,18 +12,18 @@ pub struct ViewSetupQuery {
 
 pub fn serve_sui_view_template(mode: DaemonMode, name: &str) -> DeckResponse {
     if !is_valid_view_name(name) {
-        return DeckResponse::not_found("invalid view name");
+        return DeckResponse::not_found("invalid view name", mode);
     }
     let body = match resolve(name, None) {
         Ok(r) => r.source,
-        Err(e) => return DeckResponse::not_found(e.message),
+        Err(e) => return DeckResponse::not_found(e.message, mode),
     };
     DeckResponse::text_view(body, mode)
 }
 
 pub fn serve_sui_view_setup(mode: DaemonMode, name: &str, sub: Option<&str>) -> DeckResponse {
     if !is_valid_view_name(name) {
-        return DeckResponse::not_found("invalid view name");
+        return DeckResponse::not_found("invalid view name", mode);
     }
     if sub.is_none() {
         if let Some(js) = resolve_view_js(name) {
@@ -32,7 +32,7 @@ pub fn serve_sui_view_setup(mode: DaemonMode, name: &str, sub: Option<&str>) -> 
     }
     match resolve(name, sub) {
         Ok(r) => compile_view_js(name, &r, mode),
-        Err(e) => DeckResponse::not_found(e.message),
+        Err(e) => DeckResponse::not_found(e.message, mode),
     }
 }
 
@@ -93,7 +93,7 @@ fn compile_view_js(name: &str, resolved: &ResolvedView, mode: DaemonMode) -> Dec
 
 pub fn serve_sui_view_css(mode: DaemonMode, name: &str, sub: Option<&str>) -> DeckResponse {
     if !is_valid_view_name(name) {
-        return DeckResponse::not_found("invalid view name");
+        return DeckResponse::not_found("invalid view name", mode);
     }
     let body: String = match resolve(name, sub) {
         Ok(r) => {
@@ -102,16 +102,16 @@ pub fn serve_sui_view_css(mode: DaemonMode, name: &str, sub: Option<&str>) -> De
                 .source_path
                 .as_ref()
                 .and_then(|p| top_level_view_dir(p, name))
-                && let Ok(s) = std::fs::read_to_string(parent_dir.join("style.css"))
-                    .or_else(|_| std::fs::read_to_string(parent_dir.join("index.css")))
-                    .or_else(|_| std::fs::read_to_string(parent_dir.join("view.css")))
+                && let Some(s) = read_view_artifact(&parent_dir.join("style.css"))
+                    .or_else(|| read_view_artifact(&parent_dir.join("index.css")))
+                    .or_else(|| read_view_artifact(&parent_dir.join("view.css")))
             {
                 buf.push_str(&s);
             }
             if sub.is_some()
                 && let Some(sub_dir) = r.source_path.as_ref().and_then(|p| p.parent())
-                && let Ok(s) = std::fs::read_to_string(sub_dir.join("style.css"))
-                    .or_else(|_| std::fs::read_to_string(sub_dir.join("index.css")))
+                && let Some(s) = read_view_artifact(&sub_dir.join("style.css"))
+                    .or_else(|| read_view_artifact(&sub_dir.join("index.css")))
             {
                 if !buf.is_empty() && !buf.ends_with('\n') {
                     buf.push('\n');
@@ -120,7 +120,7 @@ pub fn serve_sui_view_css(mode: DaemonMode, name: &str, sub: Option<&str>) -> De
             }
             buf
         }
-        Err(e) => return DeckResponse::not_found(e.message),
+        Err(e) => return DeckResponse::not_found(e.message, mode),
     };
     DeckResponse::css_view(body, mode)
 }
