@@ -69,32 +69,24 @@ pub fn list() -> Result<Vec<ActorRow>, DeviceError> {
     actor::list_windows().map_err(|e| DeviceError::service(e.to_string()))
 }
 
-/// How `register` should resolve the space a window binds to.
-pub enum TargetSpace<'a> {
-    /// A specific registered space (validated against the space registry port).
-    Id(&'a str),
-    /// No target supplied — bind the daemon's home space.
-    Home,
-}
-
 /// Register a window + mint its pid-bound, C2-capped session.
 ///
 /// `pid` is the kernel-attested pid (supplied by the daemon; `None` over a
 /// transport that can't attest one — registration is refused, a window token is
-/// meaningless without it). `home_space_id` is the daemon's home space,
-/// supplied by the daemon for the `Home` fallback (`None` ⟹ the daemon has no
-/// space identity to bind to → refused).
+/// meaningless without it).
 ///
-/// A supplied `TargetSpace::Id` must be a REGISTERED space (the window can't
-/// conjure one) — validated through `registry`. On success the window is
-/// registered as a lifecycle actor carrying its pid, and the session is minted
-/// through `sessions`.
+/// `space_id` is an EXPLICIT, concrete space the daemon already resolved (an
+/// explicit request target or the connection's active space). There is NO daemon
+/// home space and NO `global` fallback (S2 home-space kill): a space-less caller
+/// is refused at the transport before this runs. The id must be a REGISTERED
+/// space (the window can't conjure one) — validated through `registry`. On
+/// success the window is registered as a lifecycle actor carrying its pid, and
+/// the session is minted through `sessions`.
 pub async fn register(
     sessions: &dyn WindowSessions,
     registry: &dyn SpaceRegistry,
     pid: Option<u32>,
-    target: TargetSpace<'_>,
-    home_space_id: Option<&str>,
+    space_id: &str,
 ) -> Result<RegisteredWindow, DeviceError> {
     let Some(pid) = pid else {
         return Err(DeviceError::forbidden(
@@ -102,7 +94,15 @@ pub async fn register(
         ));
     };
 
-    let space_id = resolve_target_space(registry, target, home_space_id)?;
+    let space_id = match registry.space_exists(space_id) {
+        Ok(true) => space_id.to_string(),
+        Ok(false) => {
+            return Err(DeviceError::not_found(format!(
+                "no registered space `{space_id}` to bind the window to"
+            )));
+        }
+        Err(e) => return Err(DeviceError::service(format!("space lookup failed: {e}"))),
+    };
 
     let actor_id = ship_substrate::gen_ulid();
     // `register_window` does a durable event-store append (`block_on`), so it
@@ -124,26 +124,6 @@ pub async fn register(
         actor_id,
         space_id,
     })
-}
-
-/// Resolve `target` to a concrete, registered space id.
-fn resolve_target_space(
-    registry: &dyn SpaceRegistry,
-    target: TargetSpace<'_>,
-    home_space_id: Option<&str>,
-) -> Result<String, DeviceError> {
-    match target {
-        TargetSpace::Id(id) => match registry.space_exists(id) {
-            Ok(true) => Ok(id.to_string()),
-            Ok(false) => Err(DeviceError::not_found(format!(
-                "no registered space `{id}` to bind the window to"
-            ))),
-            Err(e) => Err(DeviceError::service(format!("space lookup failed: {e}"))),
-        },
-        TargetSpace::Home => home_space_id.map(str::to_string).ok_or_else(|| {
-            DeviceError::conflict("daemon has no space identity to bind the window to")
-        }),
-    }
 }
 
 /// Close a window: revoke its pid-bound token then close its lifecycle.

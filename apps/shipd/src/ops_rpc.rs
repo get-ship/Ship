@@ -214,41 +214,59 @@ pub fn router(state: ApiState) -> axum::Router {
         },
     ));
     let router = ship_ops_rpc::SearchServiceExt::register(search_wire, router);
+    // collection.* / config.* / artifacts.* bind to the active space's per-scope
+    // `space.db`. In space-less mode (no active space) there is no context to bind
+    // and no `global` pseudo-space to fall back onto (S2 home-space kill), so the
+    // three space-scoped wires are skipped — their RPCs then return Unimplemented
+    // rather than fabricate a partition. Mounted only when a space is active.
+    //
     // collection.* v2 — CollectionService (collection.proto). Mounted with the
-    // runtime's ONE shared SpaceContext + schema registry (C-2 §3.1 / UD-7) so
-    // a wire-created schema is visible to the internal trigger/view callers.
-    let collection_ctx = state.collection_ctx();
-    let collection_kernel = collection_ctx.kernel.clone();
-    let collection_schemas = state.collection_schemas();
-    let collection_wire = std::sync::Arc::new(ship_collection::CollectionWire::with_schemas(
-        collection_kernel,
-        collection_schemas,
-        move |_ctx: &connectrpc::RequestContext| collection_ctx.clone(),
-    ));
-    let router = ship_ops_rpc::CollectionServiceExt::register(collection_wire, router);
+    // active-space SpaceContext + the ONE shared schema registry (C-2 §3.1 / UD-7)
+    // so a wire-created schema is visible to the internal trigger/view callers.
+    let router = match state.collection_ctx() {
+        Some(collection_ctx) => {
+            let collection_kernel = collection_ctx.kernel.clone();
+            let collection_schemas = state.collection_schemas();
+            let collection_wire = std::sync::Arc::new(ship_collection::CollectionWire::with_schemas(
+                collection_kernel,
+                collection_schemas,
+                move |_ctx: &connectrpc::RequestContext| collection_ctx.clone(),
+            ));
+            ship_ops_rpc::CollectionServiceExt::register(collection_wire, router)
+        }
+        None => router,
+    };
     // config.* — ConfigService (config.proto): daemon settings tier + Watch.
     // The canonical settings contract — the legacy SettingsService wire was
-    // retired (per-topic legacy kill). Reuses the collection ctx's shared kernel
+    // retired (per-topic legacy kill). Reuses the active-space ctx's shared kernel
     // (settings are KV-global; the wire needs the kernel for config.changed emit
     // + Watch).
-    let config_ctx = state.collection_ctx();
-    let config_kernel = config_ctx.kernel.clone();
-    let config_wire = std::sync::Arc::new(ship_config::ConfigWire::new(
-        config_kernel,
-        move |_ctx: &connectrpc::RequestContext| config_ctx.clone(),
-    ));
-    let router = ship_ops_rpc::ConfigServiceExt::register(config_wire, router);
+    let router = match state.collection_ctx() {
+        Some(config_ctx) => {
+            let config_kernel = config_ctx.kernel.clone();
+            let config_wire = std::sync::Arc::new(ship_config::ConfigWire::new(
+                config_kernel,
+                move |_ctx: &connectrpc::RequestContext| config_ctx.clone(),
+            ));
+            ship_ops_rpc::ConfigServiceExt::register(config_wire, router)
+        }
+        None => router,
+    };
     // artifacts.* v2 — ship-artifacts (DataStore + blob backend), overrides
     // OpsImpl's ArtifactsService registration for all 5 RPCs including Watch.
-    let artifact_ctx = state.artifact_ctx();
-    let artifact_kernel = artifact_ctx.kernel.clone();
-    let global_dir = state.global_blob_dir().to_path_buf();
-    let artifacts_wire = std::sync::Arc::new(ship_artifacts::ArtifactsWire::new(
-        artifact_kernel,
-        global_dir,
-        move |_ctx: &connectrpc::RequestContext| artifact_ctx.clone(),
-    ));
-    let router = ship_ops_rpc::ArtifactsServiceExt::register(artifacts_wire, router);
+    let router = match state.artifact_ctx() {
+        Some(artifact_ctx) => {
+            let artifact_kernel = artifact_ctx.kernel.clone();
+            let global_dir = state.global_blob_dir().to_path_buf();
+            let artifacts_wire = std::sync::Arc::new(ship_artifacts::ArtifactsWire::new(
+                artifact_kernel,
+                global_dir,
+                move |_ctx: &connectrpc::RequestContext| artifact_ctx.clone(),
+            ));
+            ship_ops_rpc::ArtifactsServiceExt::register(artifacts_wire, router)
+        }
+        None => router,
+    };
     // space.* — SpaceService (ship-space crate): typed space identity + config
     // overlay + registry + Watch. The SOLE space service (the legacy SpaceService
     // — JsonResponse/ProjectRecord vestiges, *Live twins, window RPCs — was

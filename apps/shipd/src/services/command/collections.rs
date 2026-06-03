@@ -57,7 +57,10 @@ pub async fn try_dispatch(
     args: &Value,
     ctx: &CommandCtx<'_>,
 ) -> Result<Option<Value>, CommandError> {
-    let svc = ctx.state.collections();
+    let svc = ctx
+        .state
+        .collections()
+        .map_err(|e| CommandError::service(e.to_string()))?;
     match name {
         "collections.create_item" => {
             let collection = req_str(args, "collection")?;

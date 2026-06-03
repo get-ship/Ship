@@ -51,6 +51,11 @@ pub(super) fn diff(before: &[EventEnvelope], after: &[EventEnvelope]) -> Vec<Eve
         .collect()
 }
 
+/// The fixture space the trigger tests bind. There is no daemon home space /
+/// `global` fallback (S2): a trigger event must carry a concrete space, which the
+/// collection action threads onto its insert and the read helpers query.
+const TEST_SPACE: &str = "test-space";
+
 fn run_failed_envelope() -> EventEnvelope {
     EventEnvelope::new(
         "pipeline.run.failed",
@@ -58,6 +63,7 @@ fn run_failed_envelope() -> EventEnvelope {
         &json!({ "pipeline_run_id": "job-1", "error": "boom", "status": "failed" }),
     )
     .unwrap()
+    .with_context(Some(TEST_SPACE), None)
 }
 
 fn run_completed_envelope() -> EventEnvelope {
@@ -67,6 +73,7 @@ fn run_completed_envelope() -> EventEnvelope {
         &json!({ "pipeline_run_id": "job-1", "slug": "job-1", "status": "ok" }),
     )
     .unwrap()
+    .with_context(Some(TEST_SPACE), None)
 }
 
 fn write_schema(ship_dir: &Path, id: &str) {
@@ -308,12 +315,12 @@ async fn read_collection(
     use std::sync::Arc;
     use ship_substrate::ports::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
     let data_svc = ship_substrate::data::DataService::open_at(
-        &ship_substrate::db::space_db_path(ship_dir, "global"),
+        &ship_substrate::db::space_db_path(ship_dir, TEST_SPACE),
     )
     .unwrap();
-    let store = Arc::new(SingleBackendDataStore::new(data_svc, "global"));
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, TEST_SPACE));
     let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
-    let ctx = Arc::new(SpaceContext::new(SpaceId::new("global"), store, kernel_log));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new(TEST_SPACE), store, kernel_log));
     let svc = ship_collection::service::CollectionService {
         ctx,
         schemas: Arc::new(ship_collection::projection::SchemaRegistry::new()),
@@ -433,12 +440,12 @@ async fn create_schema_over_wire(
     use std::sync::Arc;
     use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
     let data_svc = ship_substrate::data::DataService::open_at(
-        &ship_substrate::db::space_db_path(ship_dir, "global"),
+        &ship_substrate::db::space_db_path(ship_dir, TEST_SPACE),
     )
     .unwrap();
-    let store = Arc::new(SingleBackendDataStore::new(data_svc, "global"));
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, TEST_SPACE));
     let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
-    let ctx = Arc::new(SpaceContext::new(SpaceId::new("global"), store, kernel_log));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new(TEST_SPACE), store, kernel_log));
     let svc = ship_collection::service::CollectionService {
         ctx,
         schemas: schemas.clone(),

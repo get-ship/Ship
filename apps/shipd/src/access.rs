@@ -42,12 +42,13 @@ pub trait ServicesAccess: Send + Sync {
     fn agents(&self) -> &dyn AgentsService;
     fn pipelines(&self) -> &dyn PipelinesService;
     fn git(&self) -> &dyn GitService;
-    /// Build a `CollectionService` over the global `SpaceContext` + shared
-    /// schema registry. Returned by value — the service is stateless-but-for-ctx
-    /// (C-2 §3.1).
-    fn collections(&self) -> ship_collection::service::CollectionService;
-    /// Build an `ArtifactService` over the global `SpaceContext` + blob root.
-    fn artifacts(&self) -> ship_artifacts::service::ArtifactService;
+    /// Build a `CollectionService` over the active-space `SpaceContext` + shared
+    /// schema registry (C-2 §3.1). Errors cleanly when the daemon is space-less
+    /// (no active space) rather than fabricate a `global` partition (S2).
+    fn collections(&self) -> anyhow::Result<ship_collection::service::CollectionService>;
+    /// Build an `ArtifactService` over the active-space `SpaceContext` + blob
+    /// root. Errors cleanly when the daemon is space-less.
+    fn artifacts(&self) -> anyhow::Result<ship_artifacts::service::ArtifactService>;
 }
 
 /// Auth + session registry surface. Today this is just the scoped
@@ -94,10 +95,10 @@ impl ServicesAccess for ShipRuntime {
     fn git(&self) -> &dyn GitService {
         ShipRuntime::git(self)
     }
-    fn collections(&self) -> ship_collection::service::CollectionService {
+    fn collections(&self) -> anyhow::Result<ship_collection::service::CollectionService> {
         ShipRuntime::collections(self)
     }
-    fn artifacts(&self) -> ship_artifacts::service::ArtifactService {
+    fn artifacts(&self) -> anyhow::Result<ship_artifacts::service::ArtifactService> {
         ShipRuntime::artifacts(self)
     }
 }

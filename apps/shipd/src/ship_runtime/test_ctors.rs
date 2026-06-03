@@ -22,10 +22,13 @@ impl ShipRuntime {
         let pipelines =
             ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
+        // Test fixture binds a concrete space (`test-space`) — there is no daemon
+        // home space / `global` partition to fall back onto (S2). Production boot
+        // leaves these `None` in space-less mode.
         let collection_ctx =
-            super::init::build_space_context_arc(kernel.clone(), &ship_dir, "global");
+            Some(super::init::build_space_db_context_arc(kernel.clone(), &ship_dir, "test-space"));
         let artifact_ctx =
-            super::init::build_space_context_arc(kernel.clone(), &ship_dir, "global");
+            Some(super::init::build_space_db_context_arc(kernel.clone(), &ship_dir, "test-space"));
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
         let global_blob_dir = ship_dir.clone();
         // Permissions reaches into Mcp via the trait for tool_patterns.
@@ -92,10 +95,13 @@ impl ShipRuntime {
         let pipelines =
             ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
+        // Test fixture binds a concrete space (`test-space`) — there is no daemon
+        // home space / `global` partition to fall back onto (S2). Production boot
+        // leaves these `None` in space-less mode.
         let collection_ctx =
-            super::init::build_space_context_arc(kernel.clone(), &ship_dir, "global");
+            Some(super::init::build_space_db_context_arc(kernel.clone(), &ship_dir, "test-space"));
         let artifact_ctx =
-            super::init::build_space_context_arc(kernel.clone(), &ship_dir, "global");
+            Some(super::init::build_space_db_context_arc(kernel.clone(), &ship_dir, "test-space"));
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
         let global_blob_dir = ship_dir.clone();
         // Permissions reaches into Mcp via the trait for tool_patterns.

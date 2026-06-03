@@ -77,7 +77,10 @@ pub(crate) async fn post_annotation_core(
     // The author lives inside the item data (`author_kind`) + the kernel event's
     // actor/binding — no dedicated `created_by` column (C-2 Gap 1). Ensure the
     // table exists before insert (the schema is a registry built-in).
-    let svc = state.collections();
+    let svc = match state.collections() {
+        Ok(svc) => svc,
+        Err(e) => return err(StatusCode::CONFLICT, "no_active_space", &e.to_string()),
+    };
     let row_bytes = match serde_json::to_vec(&row) {
         Ok(b) => b,
         Err(e) => {

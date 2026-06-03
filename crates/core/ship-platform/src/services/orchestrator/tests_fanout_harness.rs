@@ -232,7 +232,11 @@ pub async fn seed_lane_success(
     lane_id: &str,
     body: &[u8],
 ) -> String {
-    let space_id = run_scope.space_id().unwrap_or("global");
+    // The fixture's `run_scope` always carries a space_id (the project slug);
+    // require it rather than fabricate a `global` partition (S2 home-space kill).
+    let space_id = run_scope
+        .space_id()
+        .expect("fanout test fixture scope must carry a space_id");
     // Artifact metadata is event-sourced: bind to the per-scope space.db where
     // `ArtifactProjection` materializes the row (consumer consistency).
     let space_db = ship_substrate::db::space_db_path(ship_dir, space_id);

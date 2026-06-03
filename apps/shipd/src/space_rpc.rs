@@ -55,19 +55,32 @@ fn runtime_ctx(state: &ApiState) -> Arc<SpaceContext> {
     Arc::new(SpaceContext::new(SpaceId::new(RUNTIME_PARTITION), store, kernel))
 }
 
-/// Resolve the per-request target space: the active/home space id, a per-space
-/// overlay store, and the daemon-global settings snapshot.
-fn resolve_target(state: &ApiState) -> TargetSpace {
-    let space_id = ship_substrate::project::daemon_space_id();
+/// Resolve the per-request target space: the active space id (from the
+/// connection's session binding), a per-space overlay store, and the
+/// daemon-global settings snapshot.
+///
+/// The active space is the connection's bound space (`AuthContext.space_id`).
+/// There is NO daemon home space and NO `global` pseudo-space to fall back onto
+/// (S2 home-space kill): a space-less connection resolves `space_id = None`, and
+/// the crate's `set_setting` errors cleanly (`failed_precondition`) while reads
+/// compose from the global snapshot only (no overlay). The overlay store binds
+/// the resolved space when present, else the inert Runtime partition (never read
+/// for a space op once `space_id` is `None`).
+fn resolve_target(ctx: &connectrpc::RequestContext, state: &ApiState) -> TargetSpace {
+    let space_id = ctx
+        .extensions
+        .get::<crate::auth::AuthContext>()
+        .and_then(|a| a.space_id.clone());
     let global_settings =
         crate::services::registry::call("settings.state", &serde_json::Value::Null, state)
             .unwrap_or(serde_json::Value::Null);
-    // Bind the overlay store to the resolved space; in global-only mode bind a
-    // "global" partition so reads/writes have a stable home.
-    let partition = space_id.as_deref().unwrap_or("global").to_string();
+    let settings_store = match space_id.as_deref() {
+        Some(id) => space_store(state, id),
+        None => runtime_store(state),
+    };
     TargetSpace {
         space_id,
-        settings_store: space_store(state, &partition),
+        settings_store,
         global_settings,
     }
 }
@@ -88,6 +101,6 @@ pub fn space_wire(
     Arc::new(ship_space::SpaceWire::new(
         kernel,
         move |_ctx: &connectrpc::RequestContext| runtime_ctx(&ctx_state),
-        move |_ctx: &connectrpc::RequestContext| resolve_target(&space_state),
+        move |ctx: &connectrpc::RequestContext| resolve_target(ctx, &space_state),
     ))
 }

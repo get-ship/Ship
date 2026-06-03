@@ -307,9 +307,9 @@ pub struct DaemonSession {
     /// The space this session belongs to (path-hash space identity). Authoritative
     /// per-connection space for the emit path: a space-window session carries its
     /// OWN space here (`space_window_session`), so events it emits are stamped with
-    /// that space rather than the daemon's process-global home space. `None` for
-    /// sessions with no resolvable space (falls back to `daemon_space_id()` at emit).
-    /// Distinct from `workspace_id` (a git branch slug). See spec
+    /// that space. `None` for sessions with no resolvable space — keyed `None` at
+    /// emit, never a fabricated home/global space (S2 home-space kill). Distinct
+    /// from `workspace_id` (a git branch slug). See spec
     /// `.artifacts/specs/space/128-multi-space-emit.md`.
     pub space_id: Option<String>,
     /// Kernel-verified pid this token is bound to, if any. Set for webview
@@ -376,10 +376,10 @@ pub fn persist_session(session: &DaemonSession) {
     let payload = ship_substrate::events::types::AuthSessionCreated {
         agent_id: session.agent_id.clone(),
         scopes_json,
-        // The session's OWN resolved space (or None) — not the dying
-        // `daemon_space_id` global (#3: the global leaves the emit path).
-        // A space-window session carries its space; operator/daemon-token
-        // sessions key None. Not the branch-slug workspace_id.
+        // The session's OWN resolved space (or None) — never a fabricated
+        // home/global space (#3: the global pseudo-space is gone). A space-window
+        // session carries its space; operator/daemon-token sessions key None.
+        // Not the branch-slug workspace_id.
         space_id: session.space_id.clone(),
         created_at_unix: created_unix,
         expires_at_unix,

@@ -86,8 +86,8 @@ pub fn spawn_config_watcher(
 
     // Project-scope config events are Space-scoped (registry: config.changed /
     // *.changed → EventScope::Space). The space key is the project root's
-    // path-hash identity — derived from the watched path, NOT read from the
-    // dying `daemon_space_id` global (#3: global leaves the emit path).
+    // path-hash identity — derived from the watched path. There is no daemon
+    // home-space global to read it from (#3: the global pseudo-space is gone).
     let project_space = workspace_dir
         .as_deref()
         .map(|root| SpaceId::new(ship_substrate::home::path_hash(root)));

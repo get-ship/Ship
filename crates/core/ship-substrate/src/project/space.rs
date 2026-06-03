@@ -29,15 +29,7 @@ use crate::home::{ProjectRoot, path_hash};
 /// global, no fabricated fallback. `None` means "no active space"; the caller
 /// errors cleanly rather than inventing one.
 pub fn resolve_active_space(probe: &Path) -> Option<String> {
-    // RED step (S2): current behaviour still fabricates the `global`
-    // pseudo-space when no project is discoverable. The accompanying test
-    // asserts `None`, so it FAILS here on purpose; the GREEN step removes the
-    // fabrication.
-    Some(
-        ProjectRoot::discover(probe)
-            .map(|root| path_hash(root.path()))
-            .unwrap_or_else(|| "global".to_string()),
-    )
+    ProjectRoot::discover(probe).map(|root| path_hash(root.path()))
 }
 
 #[cfg(test)]
@@ -66,7 +58,7 @@ mod tests {
         // The space-less boot: a probe outside any project must resolve to NO
         // active space (None) — NEVER the fabricated `global` partition. This is
         // the home-space kill (S2): there is no daemon home space to fall back
-        // onto, and no `spaces/global/space.db` is ever created.
+        // onto, and no global pseudo-space db is ever created.
         let tmp = tempdir().unwrap();
         let outside = tmp.path().join("nowhere");
         fs::create_dir_all(&outside).unwrap();

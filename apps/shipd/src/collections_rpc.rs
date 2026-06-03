@@ -99,6 +99,7 @@ impl CollectionsService for OpsImpl {
         let item = self
             .state()
             .collections()
+            .map_err(|e| ConnectError::failed_precondition(e.to_string()))?
             .get_item(request.collection, request.id)
             .await
             .map_err(ConnectError::from)?;

@@ -68,7 +68,10 @@ pub async fn try_dispatch(
     args: &Value,
     ctx: &CommandCtx<'_>,
 ) -> Result<Option<Value>, CommandError> {
-    let svc = ctx.state.artifacts();
+    let svc = ctx
+        .state
+        .artifacts()
+        .map_err(|e| CommandError::service(e.to_string()))?;
     match name {
         "artifacts.patch" => {
             let id = req_str(args, "id")?;

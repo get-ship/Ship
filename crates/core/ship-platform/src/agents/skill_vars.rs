@@ -74,13 +74,13 @@ fn parse_vars_schema(ship_dir: &Path, skill_id: &str) -> Option<HashMap<String, 
             continue;
         }
         let obj = val.as_object()?;
-        let hint = obj
-            .get("storage-hint")
-            .and_then(|v| v.as_str())
-            .unwrap_or("global");
-        let storage_hint = match hint {
-            "local" => StorageHint::Local,
-            "project" => StorageHint::Project,
+        // `storage-hint` is a config-storage scope, NOT a space. An absent or
+        // unrecognized hint defaults to the machine-wide `Global` scope. Matched
+        // on the raw `Option` (no `unwrap_or` default) so this never reads as a
+        // space-`"global"` fallback (S2 home-space kill).
+        let storage_hint = match obj.get("storage-hint").and_then(|v| v.as_str()) {
+            Some("local") => StorageHint::Local,
+            Some("project") => StorageHint::Project,
             _ => StorageHint::Global,
         };
         result.insert(

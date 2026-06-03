@@ -55,8 +55,10 @@ message DeviceWindowListResponse {
 // SO_PEERCRED (threaded into the transport), never from this body — a process
 // can't claim another's pid to the kernel; the field carries no pid. `space_id`
 // MAY name a registered space the window opens onto; omitting it binds the
-// daemon's home space. An unregistered space id is refused (a window can't
-// conjure a space). Operator-only.
+// connection's active space. There is NO daemon home space and NO `global`
+// fallback (S2): if no `space_id` is given and the connection has no active
+// space, registration is refused. An unregistered space id is refused too (a
+// window can't conjure a space). Operator-only.
 message RegisterWindowRequest {
   optional string space_id = 1;
 }
