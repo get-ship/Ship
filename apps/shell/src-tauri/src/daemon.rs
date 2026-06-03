@@ -38,6 +38,17 @@ fn cwd() -> std::path::PathBuf {
     std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
 }
 
+/// Reap a spawned child on a detached thread so it doesn't become a zombie of
+/// the shell process. A `Child` that's dropped without `wait`/`try_wait` leaves
+/// a defunct entry in the process table on Unix until the parent exits; here the
+/// parent (the long-lived shell) may never exit, so we `wait` explicitly. The
+/// thread blocks only until the child does exit, then ends.
+pub(crate) fn reap(mut child: std::process::Child) {
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+}
+
 /// Current daemon status for the shell's working directory. Read-only; never
 /// starts anything.
 #[tauri::command]
@@ -65,10 +76,15 @@ pub fn daemon_start() -> Result<DaemonInfo, String> {
             return Ok(from_handle(h));
         }
     }
-    std::process::Command::new("ship")
+    let child = std::process::Command::new("ship")
         .args(["daemon", "start"])
         .spawn()
         .map_err(|e| format!("spawning `ship daemon start`: {e}"))?;
+    // `ship daemon start` is short-lived — it launches/hands off the daemon and
+    // exits. Reap it on a detached thread so it doesn't linger as a zombie of
+    // the shell process (an un-waited `Child` accumulates a defunct entry on
+    // Unix). The reaper outlives this call; the daemon itself is independent.
+    reap(child);
 
     for _ in 0..50 {
         if let Some(h) = ship_substrate::home::discover_running_daemon(&cwd()) {

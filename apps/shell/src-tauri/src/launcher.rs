@@ -165,7 +165,13 @@ pub fn open_space(app_id: String) -> Result<u32, String> {
         .arg(format!("--app={app_id}"))
         .spawn()
         .map_err(|e| format!("failed to spawn space '{app_id}': {e}"))?;
-    Ok(child.id())
+    // Capture the pid for the caller, then hand the `Child` to a reaper thread.
+    // A long-lived space process that's never `wait`ed becomes a zombie of the
+    // shell when it eventually exits; reaping keeps the process table clean
+    // without coupling the space's lifetime to this window.
+    let pid = child.id();
+    crate::daemon::reap(child);
+    Ok(pid)
 }
 
 #[cfg(test)]

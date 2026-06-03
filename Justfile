@@ -57,13 +57,6 @@ bootstrap:
 dev:
     @scripts/dev/start.sh
 
-# Frontend dev server for shell (vite). Proxies /api, /_sui, /sui, /view-host
-# to the daemon — `just dev` must already be running. vite.config.ts writes
-# its pid to <daemon_dir>/vite.pid so `just dev-stop` can reap it.
-[group('daily')]
-shell-dev:
-    @bun run --filter shell dev
-
 # Force a one-shot rebuild of every asset bundle served by the daemon
 # (sui-runtime, sui-dom, sui-components, islands, views/*).
 # Regenerate the typed dynamic-route table from the view file tree (SSOT).

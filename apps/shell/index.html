@@ -53,8 +53,8 @@
   </script>
 
   <!-- Importmap MUST come before any module script — browsers freeze it
-       at first module fetch. Vite's HMR client injects module scripts
-       early, so the importmap lives at the very top to win the race. -->
+       at first module fetch. The bundle/runtime IIFEs below inject module
+       scripts early, so the importmap lives at the very top to win the race. -->
   <script type="importmap">
     {
       "imports": {

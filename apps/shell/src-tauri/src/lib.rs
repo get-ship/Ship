@@ -33,6 +33,30 @@ fn parse_app_id() -> Option<String> {
     None
 }
 
+/// Resolve the loopback port the webview should target, starting the daemon if
+/// it isn't already up. `daemon_status` is read-only — on a cold launch its port
+/// is `None`, so we must drive `daemon_start` (which spawns `ship daemon start`
+/// and polls ~5s for the handshake). The whole discover→start→re-discover cycle
+/// is retried a bounded number of times so a slow or racing launch self-heals;
+/// `None` is returned only after every attempt is exhausted, letting the caller
+/// surface the in-bootstrap error state instead of hanging.
+fn resolve_daemon_port() -> Option<u16> {
+    const ATTEMPTS: usize = 3;
+    for _ in 0..ATTEMPTS {
+        if let Some(port) = crate::daemon::daemon_status().port {
+            return Some(port);
+        }
+        // Cold or down — start it (bounded internal poll) and read the port the
+        // handshake reports. A start failure falls through to the next attempt.
+        if let Ok(info) = crate::daemon::daemon_start() {
+            if let Some(port) = info.port {
+                return Some(port);
+            }
+        }
+    }
+    None
+}
+
 /// Build and run the shell. Registers the revived plugin set (updater / dialog /
 /// process / opener) and the shell's native command surface, then launches the
 /// `main` window the SUI frontend is served into. When launched with `--app`,
@@ -73,10 +97,20 @@ pub fn run() {
                         .filter(|s| s.starts_with('/'))
                         .unwrap_or_else(|| "/".to_string()),
                 };
-                if let Some(port) = crate::daemon::daemon_status().port {
+                // Discover → start → navigate, bounded. `daemon_status` is
+                // read-only and never starts anything, so on a cold launch
+                // (port is None) we must call `daemon_start` (it already polls
+                // ~5s for the handshake) or the webview hangs on the bootstrap
+                // "Connecting…" forever. Retry the whole loop a few times so a
+                // slow or racing daemon launch self-heals; on final failure
+                // navigate to the bootstrap's in-page `#error`/retry state
+                // rather than leaving the placeholder up indefinitely.
+                if let Some(port) = resolve_daemon_port() {
                     if let Ok(url) = format!("http://127.0.0.1:{port}{target}").parse() {
                         let _ = window.navigate(url);
                     }
+                } else if let Ok(url) = "index.html#error".parse() {
+                    let _ = window.navigate(url);
                 }
                 // Plant the launched app id for the frontend to route on (spaces
                 // also read it server-side from the scaffold; this is a belt-and-
