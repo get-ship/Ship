@@ -74,6 +74,35 @@ The #1 agentic failure is building-over instead of replacing. An additive new cr
 - New impl proven (parity tests green) → the old impl + its competing proto + REST remnant go on `.artifacts/services/_deprecations.md` with an owner.
 - A FAIL if the diff *adds* a third way to do something instead of replacing.
 
+## Banned-vocabulary gate
+
+The banned-vocabulary gate is a regression fence against **deleted concepts**
+crawling back into the tree via a stale test or a careless edit. It is wired
+into `just lint-vocab` (folded into `check-raw` → `lint` → `gate`) and runs
+`scripts/lint/check-banned-vocab.sh`, which ripgreps every banned term across
+hand-authored source, proto, and **tests** (tests are deliberately in scope —
+a test reintroducing a dead word must fail).
+
+**Ban-list:** `.ship/lint/banned-vocab.txt`. One entry per line:
+
+```
+<regex-or-literal><TAB><reason>
+```
+
+Field 1 is a ripgrep pattern (literal or regex); a single TAB separates it
+from the reason, which is printed on a hit. `#` comments and blank lines are
+ignored. An **empty list is a no-op** — the gate exits 0 and prints
+`banned-vocab: 0 terms, clean`. On a hit it prints
+`BANNED VOCAB: <term> — <reason>` with the offending `file:line` and exits
+non-zero.
+
+**THE RULE — never ban a term that still compiles.** A refactor step appends a
+term to the ban-list only *once its last legitimate use is deleted*. The ban is
+the closing act of an eradication, not the opening one: delete the real uses,
+prove the tree is clean, then add the fence so the concept can't return.
+Banning a live term breaks the build for everyone — that is a process error,
+not a caught regression.
+
 ## Notes
 - `just gate` is the source of truth for the objective bar. If a check is missing from it, add the check to xtask/scripts/lint and compose it into the recipe — never hand-grep in the gate instead.
 - UI surfaces still require a fresh `web-qa` artifact (see `web-qa` skill) — that gate is unchanged.
