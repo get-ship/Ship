@@ -26,8 +26,8 @@ use ship_platform::config::library::{Cloud, Defaults, Identity, LibrarySettings}
 use ship_platform::config::local::{Dispatch, LocalSettings, Terminal, Worktrees};
 use ship_platform::config::set_setting;
 
-/// Daemon-KV-backed launch defaults — see
-/// `runtime_settings::setting_default` and `resolve_str/resolve_bool`.
+/// Daemon-KV-backed launch defaults — see `ship_config::settings`'s
+/// `setting_default` and `resolve_str` / `resolve_bool`.
 /// These do NOT live in the JSONC library/local files; the CLI just
 /// routes get/set through to the daemon_settings table so users have
 /// one tool (`ship config`) for everything.

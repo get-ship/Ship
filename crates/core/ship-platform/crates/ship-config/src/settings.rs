@@ -1,18 +1,25 @@
 //! Settings tier — the `daemon_settings` KV store over `runtime.db`.
 //!
-//! Lifted from `ship-platform/src/config/runtime_settings.rs` (refactor-in-place:
-//! the tier was already correct — substrate-backed + event-sourced). The crate
-//! calls `ship_substrate::db::daemon_settings::{get,set,list_all}`; it never opens
-//! sqlite. The KV store is the sanctioned substrate port — the rule-10 prohibition
-//! is on raw `fs` in the service, which a DB accessor is not.
+//! This is the unified RUNTIME-scope settings API (S4): the daemon launch-
+//! defaults tier. The crate calls `ship_substrate::db::daemon_settings::{get,
+//! set,list_all}`; it never opens sqlite. The KV store is the sanctioned
+//! substrate port — the rule-10 prohibition is on raw `fs` in the service,
+//! which a DB accessor is not. RUNTIME reads come straight from the
+//! `daemon_settings` accessor (which self-provisions its table), so they are
+//! safe at early-boot points before the kernel/projections are live.
 //!
 //! `setting_default` carries the well-known infra keys; the resolvers
 //! (`resolve_str`/`resolve_bool`/`resolve_*`) are the precedence chain.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use anyhow::Result;
 use ship_substrate::db::daemon_settings;
+use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};
+use ship_types::event_types::CONFIG_CHANGED;
+use ship_types::payload::ConfigChanged;
+use tokio::sync::Mutex;
 
 use crate::types::HarnessProjectOverrides;
 
@@ -72,6 +79,32 @@ pub fn is_default(key: &str) -> Result<bool> {
 /// Set a single setting in daemon_settings.
 pub fn set_setting(key: &str, value: serde_json::Value) -> Result<()> {
     daemon_settings::set(key, &value)
+}
+
+/// Set a daemon (RUNTIME-scope) setting and publish a `config.changed` kernel
+/// event.
+///
+/// The declarative file-tier watcher emits `agent.changed` / `skill.changed` /
+/// etc. when files under `.ship/` are touched, but `daemon_settings` lives in
+/// the runtime db and is invisible to `notify`. This is the canonical write
+/// seam for daemon-managed RUNTIME settings — daemon route handlers that mutate
+/// a setting call this so SSE consumers of `config.*` see the change. The
+/// caller supplies the shared `KernelRouter` handle; the emit rides the
+/// daemon-internal (Runtime) binding.
+pub async fn set_setting_and_emit(
+    kernel: &Arc<Mutex<KernelRouter>>,
+    key: &str,
+    value: serde_json::Value,
+) -> Result<()> {
+    set_setting(key, value.clone())?;
+    let payload = ConfigChanged {
+        subject: key.to_string(),
+        detail: Some(value.to_string()),
+    };
+    let envelope = EventEnvelope::new(CONFIG_CHANGED, key, &payload)?;
+    // RUNTIME setting — its own namespace, no space. Daemon-internal mint.
+    let ctx = EmitContext::daemon_internal(None);
+    kernel.lock().await.emit(envelope, &ctx).await
 }
 
 /// Return all persisted settings merged with defaults.

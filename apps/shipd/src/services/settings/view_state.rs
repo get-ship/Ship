@@ -171,11 +171,8 @@ pub fn build_ctx() -> SettingsCtx {
 
     let harness_default = setting_string("harness.default");
     let harness_default_model = setting_string("harness.default_model");
-    let agent_session_auto_resume = ship_platform::config::resolve_bool(
-        "agent_session.auto_resume",
-        None,
-        &ship_platform::config::ProjectConfig::default(),
-    );
+    let agent_session_auto_resume =
+        ship_platform::config::resolve_bool("agent_session.auto_resume", None);
     let watcher_debounce_ms =
         ship_platform::config::get_setting_u64_or("watcher.debounce_ms", 200).to_string();
     let git_log_limit =
