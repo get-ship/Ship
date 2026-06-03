@@ -142,7 +142,18 @@ export const studioRoutes = {{
 "
     );
 
-    std::fs::write(studio_dir.join("routes.gen.ts"), body).context("write routes.gen.ts")?;
+    // Write-if-changed (#129-class loop fix): the app build regenerates this on
+    // EVERY rebuild, and the file lives under the watched `apps/shell/src` root.
+    // An unconditional write retriggers the bundler watcher and self-perpetuates
+    // a rebuild/reload loop (shipd CPU spin, page reloads ~6×/sec). Only touch
+    // the file when the generated content actually moved.
+    let target = studio_dir.join("routes.gen.ts");
+    let changed = std::fs::read_to_string(&target)
+        .map(|cur| cur != body)
+        .unwrap_or(true);
+    if changed {
+        std::fs::write(&target, body).context("write routes.gen.ts")?;
+    }
     Ok(routes.len())
 }
 
@@ -172,5 +183,32 @@ mod tests {
     fn no_studio_dir_is_noop() {
         let root = tempfile::tempdir().unwrap();
         assert_eq!(generate_routes(root.path()).unwrap(), 0);
+    }
+
+    // Regression: routes.gen.ts lives under the watched `apps/shell/src` root and
+    // the app build regenerates it every rebuild. An unconditional write
+    // self-triggered the bundler watcher → endless rebuild/reload loop (shipd CPU
+    // spin, ~6 reloads/sec). A second generate with an UNCHANGED tree must NOT
+    // rewrite the file. Proof: make it read-only — a skipped write succeeds; an
+    // attempted write fails with permission denied.
+    #[cfg(unix)]
+    #[test]
+    fn unchanged_tree_does_not_rewrite_routes_gen() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let s = root.path().join("src/studio");
+        std::fs::create_dir_all(s.join("agents/[id]")).unwrap();
+        std::fs::write(s.join("agents/[id]/page.sui"), "<div/>").unwrap();
+
+        generate_routes(root.path()).unwrap();
+        let target = s.join("routes.gen.ts");
+        let mut perms = std::fs::metadata(&target).unwrap().permissions();
+        perms.set_mode(0o444); // read-only: any write attempt now errors
+        std::fs::set_permissions(&target, perms).unwrap();
+
+        // Unchanged tree → write-if-changed must SKIP the write, so this is Ok.
+        // Before the fix this errored (EACCES) — the loop's signature.
+        generate_routes(root.path())
+            .expect("unchanged routes must not rewrite the file (would self-trigger the watcher)");
     }
 }

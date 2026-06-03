@@ -120,6 +120,17 @@ pub(crate) async fn run(b: &Bundler) {
             if !matches!(ext, "ts" | "tsx" | "js" | "sui") {
                 continue;
             }
+            // Generated build OUTPUTS live under watched roots (routes.gen.ts in
+            // apps/shell/src/studio; packages/.../generated/*.ts). Their rewrite
+            // is a rebuild RESULT, not a source change — reacting to it
+            // self-triggers an endless rebuild/reload loop (shipd CPU spin). A
+            // real route change still triggers via the `[param]` dir / `.sui`.
+            {
+                let s = path.to_string_lossy();
+                if s.ends_with(".gen.ts") || s.contains("/generated/") {
+                    continue;
+                }
+            }
             for t in layout.targets_for_file(&path) {
                 if !seen.insert(t.name.clone()) {
                     continue;
