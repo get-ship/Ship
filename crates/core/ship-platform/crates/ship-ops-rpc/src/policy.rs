@@ -298,29 +298,50 @@ pub fn read_policies() -> Vec<MethodPolicy> {
     out
 }
 
+/// The op-policy registry keyed by the canonical op name
+/// (`op_name(service, method)`), built once from the descriptor set. This is the
+/// SINGLE op-name→policy derivation: the command-path gate resolves a policy
+/// through it, the same `op_name` SSOT that `ship ops call`, gen-skills, and the
+/// coverage gate use — no parallel name mangling.
+///
+/// The umbrella scaffold services (`ReadOpsService` / `CommandOpsService` /
+/// `StreamService`) are excluded via [`is_non_domain_service`]: they carry the
+/// same ops as the per-domain services, so the per-domain service is the SSOT
+/// for an op's policy and the umbrella entries would only collide.
+static BY_OP_NAME: std::sync::LazyLock<std::collections::HashMap<String, MethodPolicy>> =
+    std::sync::LazyLock::new(|| {
+        read_policies()
+            .into_iter()
+            .filter(|p| !is_non_domain_service(&p.service))
+            .map(|p| (op_name(&p.service, &p.method), p))
+            .collect()
+    });
+
+/// The gate policy for an op, keyed by op name (`permissions.create`). `None`
+/// for an unknown op — the command-path gate MUST treat `None` as deny (fail
+/// closed), never as allow. shipd's gate delegates here rather than re-deriving
+/// op names, so there is one op-name→policy source.
+pub fn policy_for(op: &str) -> Option<&'static MethodPolicy> {
+    BY_OP_NAME.get(op)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn policy(method: &str) -> MethodPolicy {
-        read_policies()
-            .into_iter()
-            .find(|p| p.method == method)
-            .unwrap_or_else(|| panic!("method `{method}` not in descriptor set"))
-    }
-
     #[test]
     fn reads_capability_and_blast_from_the_descriptor_set() {
-        // Authored in commands.gen.proto today; this proves reflection recovers
-        // the custom options buffa drops from the generated structs.
-        let create = policy("RulesCreate");
+        // Per-domain RulesService.Create (op `rules.create`); proves reflection
+        // recovers the custom options buffa drops from the generated structs.
+        // (The dead op-monolith name `RulesCreate` was removed by #78.)
+        let create = policy_for("rules.create").expect("rules.create policy");
         assert_eq!(create.capability, "ship.rules.write");
         assert_eq!(create.blast, BlastRadius::C1Space);
     }
 
     #[test]
     fn permissions_writes_are_c2_in_the_proto() {
-        let p = policy("PermissionsCreate");
+        let p = policy_for("permissions.create").expect("permissions.create policy");
         assert_eq!(p.capability, "ship.permissions.write");
         assert_eq!(p.blast, BlastRadius::C2Elevated);
     }

@@ -1,40 +1,17 @@
 //! Op gate policy sourced from proto (the single source — decision #67 a) via
 //! the `ship-ops-rpc` FileDescriptorSet reflection, keyed by op name.
 //!
-//! This replaces reading blast/capability off the hand-authored
-//! `schema::COMMANDS` table. The `reflected_policy_matches_declared_commands`
-//! conformance test proves the proto-sourced policy is byte-identical to the
-//! Rust-declared one, so the gate switches source with zero behaviour change —
-//! the first consumer flipped onto proto-as-SSOT.
+//! This is a thin re-export of `ship_ops_rpc::policy::policy_for` — the SINGLE
+//! op-name→policy derivation, keyed by the canonical `op_name(service, method)`
+//! that `ship ops call`, gen-skills, and the coverage gate all use. The gate
+//! consumed a local `pascal()` map before, but `pascal("permissions.create")`
+//! ("PermissionsCreate") never matched the per-domain services' bare method
+//! names ("Create") after #78 deleted the PascalCase op-monolith proto — so
+//! `policy_for` returned `None` for every C2 command and the gate fell OPEN
+//! (task #314). Delegating to the one op-name lookup closes that gap and keeps a
+//! single source: no parallel name mangling lives here.
 
-use std::collections::HashMap;
-use std::sync::LazyLock;
-
-use ship_ops_rpc::policy::{read_policies, MethodPolicy};
-
-/// op name (`skills.create`) → proto rpc method name (`SkillsCreate`). Mirrors
-/// `xtask::gen_ops::pascal` — the function that produced the proto method names,
-/// so this is how an op name addresses its reflected policy.
-fn pascal(op: &str) -> String {
-    op.split(['.', '_'])
-        .map(|seg| {
-            let mut chars = seg.chars();
-            match chars.next() {
-                Some(first) => first.to_uppercase().chain(chars).collect::<String>(),
-                None => String::new(),
-            }
-        })
-        .collect()
-}
-
-/// rpc method name → its declared policy, read once from the descriptor set.
-static BY_METHOD: LazyLock<HashMap<String, MethodPolicy>> =
-    LazyLock::new(|| read_policies().into_iter().map(|p| (p.method.clone(), p)).collect());
-
-/// The gate policy declared for an op, by op name. `None` for an unknown op.
-pub fn policy_for(op_name: &str) -> Option<&'static MethodPolicy> {
-    BY_METHOD.get(&pascal(op_name))
-}
+pub use ship_ops_rpc::policy::{policy_for, MethodPolicy};
 
 #[cfg(test)]
 mod tests {
@@ -42,15 +19,17 @@ mod tests {
     use crate::services::gate::BlastRadius;
     use crate::services::schema::COMMANDS;
 
-    /// Proves the proto-sourced policy equals the hand-declared `COMMANDS`
-    /// policy for every command — so flipping the gate's source from the Rust
-    /// table to reflection is observably a no-op. Guards the emit→embed→reflect
-    /// pipeline against drift.
+    /// Where a command IS on a per-domain proto service, the proto-sourced
+    /// policy must match the hand-declared `COMMANDS` blast + capability —
+    /// proving the op-name lookup the gate uses reflects the catalog without
+    /// drift. Commands not yet on a proto service (`actor.*`, `mesh.*`,
+    /// `project.*`, `create.surface`, …) are gated by the `COMMANDS.blast_radius`
+    /// fallback in `command::blast_for`; they're covered there, not here.
     #[test]
     fn reflected_policy_matches_declared_commands() {
+        let mut checked = 0;
         for cmd in COMMANDS {
-            let pol = policy_for(cmd.name)
-                .unwrap_or_else(|| panic!("no reflected policy for command `{}`", cmd.name));
+            let Some(pol) = policy_for(cmd.name) else { continue };
             assert_eq!(
                 pol.blast,
                 BlastRadius::from_descriptor(cmd.blast_radius),
@@ -62,6 +41,40 @@ mod tests {
                 "capability mismatch for `{}`",
                 cmd.name
             );
+            checked += 1;
         }
+        assert!(checked > 0, "expected at least some commands on proto services");
+    }
+
+    /// SECURITY (#314): every C2 command that DOES carry a proto policy resolves
+    /// to operator-authority through the op-name lookup the gate uses (never to a
+    /// lower tier or absent). This is the shipd-side mirror of the registry
+    /// conformance test `every_c2_op_resolves_to_operator_authority`. C2 commands
+    /// without a proto service are covered by `command::every_c2_command_is_gated`.
+    #[test]
+    fn proto_backed_c2_commands_resolve_to_operator_authority() {
+        for cmd in COMMANDS {
+            if BlastRadius::from_descriptor(cmd.blast_radius) != BlastRadius::C2Elevated {
+                continue;
+            }
+            if let Some(p) = policy_for(cmd.name) {
+                assert_eq!(
+                    p.blast,
+                    BlastRadius::C2Elevated,
+                    "C2 command `{}` resolved to {:?}",
+                    cmd.name,
+                    p.blast
+                );
+            }
+        }
+    }
+
+    /// The fail-closed contract: an unknown / unpoliced op has no proto policy.
+    /// The gate's `blast_for` returns `None` for a truly unknown name (denied by
+    /// fall-through to `unknown_command`), and a tier for every known command.
+    #[test]
+    fn unknown_op_has_no_proto_policy() {
+        assert!(policy_for("permissions.not_a_real_op").is_none());
+        assert!(policy_for("nonsense.nope").is_none());
     }
 }
