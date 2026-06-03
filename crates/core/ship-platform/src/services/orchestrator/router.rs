@@ -127,20 +127,15 @@ pub async fn handle_orchestrator_event(
     // step.observed signals (kill-session firing after teardown,
     // replayed deliveries) cannot resurrect a dead job. Operator events
     // (job.created/update/cancelled) are exempt: those are signals FROM
-    // the operator, not pipeline progression.
+    // the operator, not pipeline progression. The terminal check goes
+    // through the ProjectionReader port (primitive `bool`) so the runner
+    // doesn't name the projection status enum here.
     if !is_operator_event(&envelope.event_type)
-        && let Some(record) = load_pipeline_run(&envelope.entity_id)
-        && matches!(
-            record.status,
-            crate::projections::pipeline_run::PipelineRunStatus::Failed
-                | crate::projections::pipeline_run::PipelineRunStatus::Merged
-                | crate::projections::pipeline_run::PipelineRunStatus::Cancelled
-        )
+        && octx.projections.is_run_terminal(&envelope.entity_id).await
     {
         tracing::warn!(
             entity_id = %envelope.entity_id,
             event_type = %envelope.event_type,
-            status = ?record.status,
             "job-dispatch: ignoring event for terminal job"
         );
         return;
@@ -373,15 +368,6 @@ fn is_operator_event(event_type: &str) -> bool {
     event_type == "pipeline.run.started"
         || event_type == "pipeline.run.updated"
         || event_type == et::PIPELINE_RUN_CANCELLED
-}
-
-/// Load the projected record for a single job by entity_id.
-///
-/// Used by the terminal-state guard. Returns `None` if the projection
-/// can't be loaded or the job doesn't exist — callers treat that as
-/// "not terminal, proceed" so startup races don't drop events.
-fn load_pipeline_run(entity_id: &str) -> Option<crate::projections::pipeline_run::PipelineRun> {
-    crate::projections::pipeline_run::load_pipeline_run_by_id(entity_id).ok().flatten()
 }
 
 /// Extract the slug from an event envelope payload.

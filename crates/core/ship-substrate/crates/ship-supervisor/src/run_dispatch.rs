@@ -65,9 +65,15 @@ pub async fn subscribe_job_events(
     let octx = Arc::new(OrchestratorContext {
         isolation: Arc::new(adapters::GitWorktreeIsolation),
         executor: executor.clone(),
-        platform,
+        platform: platform.clone(),
         registry: Arc::new(SharedRegistry(registry.clone())),
         probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        spawn_policy: Arc::new(
+            ship_platform::services::orchestrator::spawn_policy::ConfigSpawnPolicy::new(platform),
+        ),
+        projections: Arc::new(
+            ship_platform::services::orchestrator::projection_reader::ProjectionsReader,
+        ),
         done_flags: Arc::new(Mutex::new(HashMap::new())),
         activity_txs: activity_txs.clone(),
         run_locks: Arc::new(Mutex::new(HashMap::new())),
