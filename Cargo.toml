@@ -19,6 +19,7 @@ members = [
     "crates/core/ship-platform/crates/ship-reactive",
     "crates/core/ship-platform/crates/ship-collection",
     "crates/core/ship-platform/crates/ship-artifacts",
+    "crates/core/ship-platform/crates/ship-space",
     "crates/core/ship-isolation",
     "crates/core/ship-isolation/bin/ship-sidecar",
     "crates/core/ship-sidecar-proto",

@@ -1,0 +1,148 @@
+// Clean per-domain space contract — the space identity + config + registry
+// surface, hand-authored as the shape we WANT (_arc.md principle 1, 11).
+//
+// A space = the unit of isolation/coordination/config (one .ship/ directory).
+// This is the new-generation surface that retires the legacy space.proto's
+// JsonResponse/ProjectRecord/WorkspaceActiveResponse vestiges and its *Live
+// streaming twins (Watch is the ONE reactive surface). It is named
+// SpaceV2Service and mounted ADDITIVELY beside the legacy SpaceService until the
+// operator's sequential cutover (mirrors collection.proto landing beside
+// collections.proto, #89).
+//
+// Differences from the legacy surface:
+//   - Typed returns everywhere (Space / SpaceList / ActiveSpace) — no opaque
+//     JsonResponse blobs, no WorkspaceActiveResponse / ProjectRecord vestiges.
+//   - Watch is the ONE reactive surface — the *Live streaming twins are dropped.
+//   - Window-management RPCs/messages are NOT here — they belong to the
+//     ship-device topic (the carve splits space identity from device control).
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/reactive.proto";
+
+// ── Messages (real domain types) ────────────────────────────────────────────
+
+// One registered space (a .ship/ directory the daemon has been pointed at).
+// Replaces the ProjectRecord vestige.
+message Space {
+  string id = 1;
+  string path = 2;
+  string name = 3;
+  string created_at = 4;
+  string last_seen_at = 5;
+}
+
+// The registered-space list + the active-space pointer. Replaces the
+// JsonResponse return on the legacy List.
+message SpaceList {
+  repeated Space spaces = 1;
+  optional string active_id = 2;
+}
+
+// The active space, if one has been activated. Replaces the
+// WorkspaceActiveResponse vestige (dead "workspaces" vocabulary).
+message ActiveSpace {
+  optional Space active = 1;
+}
+
+// A space's identity + effective (global ⟵ space) settings. `settings_json` is
+// the overlay result: the daemon-global snapshot overlaid per-key by the space's
+// event-sourced overrides. Identity fields are unset in global-only mode.
+message SpaceInfo {
+  optional string space_id = 1;
+  optional string root = 2;
+  optional string name = 3;
+  string settings_json = 4;
+}
+
+// The echoed shape of a per-space settings write — space-domain-owned now.
+message SpaceSettingValue {
+  string key = 1;
+  // JSON-serialized value (canonical form of the parsed input).
+  string value_json = 2;
+}
+
+// ── Request messages ────────────────────────────────────────────────────────
+
+message SpaceListReq {}
+message SpaceActiveReq {}
+message SpaceInfoReq {}
+
+message AddSpaceReq {
+  string path = 1;
+  string name = 2;
+}
+
+message ActivateSpaceReq {
+  string id = 1;
+}
+
+// Per-space settings override write. The space is resolved from the caller's
+// per-connection context, not an arg.
+message SetSpaceSettingReq {
+  string key = 1;
+  // JSON-serialized value (arbitrary — a setting value can be any JSON type).
+  string value_json = 2;
+}
+
+// Watch scope — the registry (list + active pointer) or one space's settings.
+message SpaceWatchReq {
+  oneof scope {
+    SpaceListReq registry = 1;
+    string space = 2;
+  }
+}
+
+// ── Service ─────────────────────────────────────────────────────────────────
+
+service SpaceV2Service {
+  // reads (C0)
+
+  rpc List(SpaceListReq) returns (SpaceList) {
+    option (ship.ops.v1.description) = "List the registered spaces (each a .ship/ directory).";
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+
+  rpc Active(SpaceActiveReq) returns (ActiveSpace) {
+    option (ship.ops.v1.description) = "The active space, if one has been activated.";
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+
+  rpc Info(SpaceInfoReq) returns (SpaceInfo) {
+    option (ship.ops.v1.description) = "The active space's identity and effective (global→space) config.";
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+
+  // writes (C1)
+
+  rpc Add(AddSpaceReq) returns (Space) {
+    option (ship.ops.v1.description) = "Register a directory as a space (ensures its .ship/ exists).";
+    option (ship.ops.v1.capability) = "ship.projects.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+
+  rpc Activate(ActivateSpaceReq) returns (ActiveSpace) {
+    option (ship.ops.v1.description) = "Switch the daemon's active space.";
+    option (ship.ops.v1.capability) = "ship.projects.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+
+  rpc SetSetting(SetSpaceSettingReq) returns (SpaceSettingValue) {
+    option (ship.ops.v1.description) = "Set a per-space settings override (value is arbitrary JSON).";
+    option (ship.ops.v1.capability) = "ship.settings.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+
+  // live — the ONE reactive surface (replaces the dropped *Live twins).
+
+  rpc Watch(SpaceWatchReq) returns (stream WatchEvent) {
+    option (ship.ops.v1.description) = "Live watch — the space registry (list + active) or one space's settings.";
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+}
