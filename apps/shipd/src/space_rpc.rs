@@ -69,6 +69,19 @@ async fn space_gated_call(
     command::call(op, &args, &cmd_ctx).await.map_err(command_error_to_connect)
 }
 
+/// Map an L1 `SpaceServiceError` to its `ConnectError` wire shape. The service
+/// carries a transport-agnostic kind; this is the daemon's marshal of it.
+fn space_err_to_connect(e: ship_platform::services::space::SpaceServiceError) -> ConnectError {
+    use ship_platform::services::space::SpaceErrorKind;
+    match e.kind {
+        SpaceErrorKind::BadArgs => ConnectError::invalid_argument(e.message),
+        SpaceErrorKind::NotFound => ConnectError::not_found(e.message),
+        SpaceErrorKind::Forbidden => ConnectError::permission_denied(e.message),
+        SpaceErrorKind::Conflict => ConnectError::aborted(e.message),
+        SpaceErrorKind::Service => ConnectError::internal(e.message),
+    }
+}
+
 #[allow(refining_impl_trait)]
 impl SpaceService for OpsImpl {
     async fn list(
@@ -100,38 +113,23 @@ impl SpaceService for OpsImpl {
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedSpaceInfoRequestView,
     ) -> ServiceResult<SpaceInfoResponse> {
-        // Identity: the daemon's active/home space, with root+name from the
-        // projects projection (the registry of known spaces).
+        // The daemon resolves its active/home space and fetches its global
+        // settings snapshot (`settings.state`); the L1 space service owns the
+        // identity lookup + the effective-settings overlay (global ⟵ space).
         // FLAG: daemon-home read; replace with active-space source (space/shell
         // arc). Non-emit read of the global — deferred past P2 (#3): no
         // active-space source yet; deleting it now breaks `space.info`.
         let space_id = ship_substrate::project::daemon_space_id();
-        let (root, name) = match space_id.as_deref() {
-            Some(id) => match ship_platform::projections::projects::get(id) {
-                Ok(Some(row)) => (Some(row.path), Some(row.name)),
-                _ => (None, None),
-            },
-            None => (None, None),
-        };
-        // Config: the effective settings, layered global ⟵ space. The daemon
-        // settings snapshot (`settings.state`) is the base; the space's
-        // event-sourced overrides overlay it per-key (space wins). Global
-        // `settings.state` itself is untouched — the overlay is read-time.
-        let mut settings =
+        let global_settings =
             crate::services::registry::call("settings.state", &Value::Null, self.state())
                 .map_err(|e| ConnectError::internal(format!("settings.state: {e}")))?;
-        if let (Some(id), Some(obj)) = (space_id.as_deref(), settings.as_object_mut())
-            && let Ok(overrides) = ship_platform::projections::space_settings::get_all(id)
-        {
-            for (key, value) in overrides {
-                obj.insert(key, value);
-            }
-        }
+        let info =
+            ship_platform::services::space::info::compose(space_id.as_deref(), global_settings);
         Ok(Response::new(SpaceInfoResponse {
-            space_id,
-            root,
-            name,
-            settings_json: settings.to_string(),
+            space_id: info.space_id,
+            root: info.root,
+            name: info.name,
+            settings_json: info.settings.to_string(),
             ..Default::default()
         }))
     }
@@ -141,19 +139,17 @@ impl SpaceService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedSpaceWindowIntentRequestView,
     ) -> ServiceResult<SpaceWindowIntentResponse> {
-        // Mediation, not initiation: consult the actor projection for a live
-        // window of this space. A hit ⟹ the shell should focus it (no duplicate);
-        // a miss ⟹ the shell spawns one. The daemon decides; it never spawns.
-        let existing =
-            ship_substrate::projections::actor::find_live_window_for_space(&request.space_id)
-                .map_err(|e| ConnectError::internal(format!("find_live_window_for_space: {e}")))?;
-        let resp = match existing {
-            Some(row) => SpaceWindowIntentResponse {
+        // Mediation, not initiation: the service consults the actor projection
+        // for a live window of this space (focus) or returns spawn. The daemon
+        // decides; it never spawns.
+        use ship_platform::services::space::windows::{self, WindowIntent};
+        let resp = match windows::intent(&request.space_id).map_err(space_err_to_connect)? {
+            WindowIntent::Focus { actor_id } => SpaceWindowIntentResponse {
                 decision: "focus".to_string(),
-                actor_id: Some(row.id),
+                actor_id: Some(actor_id),
                 ..Default::default()
             },
-            None => SpaceWindowIntentResponse {
+            WindowIntent::Spawn => SpaceWindowIntentResponse {
                 decision: "spawn".to_string(),
                 ..Default::default()
             },
@@ -166,9 +162,8 @@ impl SpaceService for OpsImpl {
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedSpaceWindowListRequestView,
     ) -> ServiceResult<SpaceWindowListResponse> {
-        // The daemon knows what's open — window actors with pid + live state.
-        let rows = ship_substrate::projections::actor::list_windows()
-            .map_err(|e| ConnectError::internal(format!("list_windows: {e}")))?;
+        // The daemon knows what's open — the service enumerates window actors.
+        let rows = ship_platform::services::space::windows::list().map_err(space_err_to_connect)?;
         let windows = rows
             .into_iter()
             .map(|r| WindowInfo {

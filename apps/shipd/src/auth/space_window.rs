@@ -25,7 +25,11 @@
 use axum::http::StatusCode;
 use serde::Serialize;
 
+use ship_platform::services::space::windows::{self, TargetSpace};
+use ship_platform::services::space::{SpaceErrorKind, SpaceServiceError};
+
 use crate::auth::{AuthContext, SessionRegistry};
+use crate::space_ports::RegistryWindowSessions;
 
 /// What the shell needs back: the bearer token for its Connect transport, plus
 /// the actor id and space it was bound to (for display / single-instance).
@@ -38,99 +42,65 @@ pub struct RegisterSpaceWindowResponse {
 
 /// Register the calling window + mint its pid-bound, C2-capped session.
 ///
+/// The validate + register-actor + mint mechanism lives in the L1 space service
+/// (`windows::register`); this handler enforces the operator-only authority
+/// check, resolves the daemon's home space for the fallback, supplies the
+/// session-mint port, and marshals the service error to an HTTP response.
+///
 /// `peer_pid` is the kernel-attested pid from the host socket ([`PeerPid`]);
 /// `None` means the request didn't arrive over a transport that can attest a
-/// pid (TCP), so registration is refused — a window token only means anything
-/// when the kernel can vouch for the process. Returns `Err((status, msg))` on
-/// any refusal so the caller maps it to an HTTP response.
+/// pid (TCP), so registration is refused. Returns `Err((status, msg))` on any
+/// refusal so the caller maps it to an HTTP response.
 pub async fn register_space_window(
     registry: &SessionRegistry,
     auth: &AuthContext,
     peer_pid: Option<u32>,
     target_space_id: Option<&str>,
 ) -> Result<RegisterSpaceWindowResponse, (StatusCode, String)> {
-    // Only the operator's own process may open a space window.
+    // Only the operator's own process may open a space window. This authority
+    // check stays at the transport — the service owns the mechanism, not policy.
     if !crate::services::gate::caller_from_auth(auth).is_operator {
         return Err((
             StatusCode::FORBIDDEN,
             "space window registration is operator-only".to_string(),
         ));
     }
-    let Some(pid) = peer_pid else {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "space window registration requires a kernel-attested pid (host socket only)"
-                .to_string(),
-        ));
-    };
-    // Resolve the target space. A supplied id must be a REGISTERED space (the
-    // window can't conjure one); omitting it binds the daemon's home space.
-    let space_id = match target_space_id {
-        Some(id) => {
-            match ship_platform::projections::projects::get(id) {
-                Ok(Some(_)) => id.to_string(),
-                Ok(None) => {
-                    return Err((
-                        StatusCode::NOT_FOUND,
-                        format!("no registered space `{id}` to bind the window to"),
-                    ));
-                }
-                Err(e) => {
-                    return Err((
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        format!("space lookup failed: {e}"),
-                    ));
-                }
-            }
-        }
-        None => {
-            // FLAG: daemon-home read; replace with active-space source
-            // (space/shell arc). Non-emit read of the global — deferred past P2
-            // (#3): no active-space source yet; deleting it now breaks window
-            // registration when the shell doesn't pass target_space_id (#215).
-            let Some(home) = ship_substrate::project::daemon_space_id() else {
-                return Err((
-                    StatusCode::CONFLICT,
-                    "daemon has no space identity to bind the window to".to_string(),
-                ));
-            };
-            home
-        }
+
+    // Resolve the target: a supplied id (validated against projects by the
+    // service) or the daemon's home space.
+    // FLAG: daemon-home read; replace with active-space source (space/shell
+    // arc). Non-emit read of the global — deferred past P2 (#3): no
+    // active-space source yet; deleting it now breaks window registration when
+    // the shell doesn't pass target_space_id (#215).
+    let home_space_id = ship_substrate::project::daemon_space_id();
+    let target = match target_space_id {
+        Some(id) => TargetSpace::Id(id),
+        None => TargetSpace::Home,
     };
 
-    let actor_id = ship_substrate::gen_ulid();
+    let sessions = RegistryWindowSessions { registry };
+    let reg = windows::register(&sessions, peer_pid, target, home_space_id.as_deref())
+        .await
+        .map_err(space_err_to_http)?;
 
-    // `register_window` does a durable event-store append (`block_on`), so it
-    // must run off this async worker — same constraint as the reaper.
-    let aid = actor_id.clone();
-    let sid = space_id.clone();
-    let registered = tokio::task::spawn_blocking(move || {
-        ship_substrate::db::actor_events::register_window(&aid, &sid, pid)
+    Ok(RegisterSpaceWindowResponse {
+        session_token: reg.session_token,
+        actor_id: reg.actor_id,
+        space_id: reg.space_id,
     })
-    .await;
-    match registered {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("register window actor: {e}"),
-            ));
-        }
-        Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("register window join: {e}"),
-            ));
-        }
-    }
+}
 
-    let token = ship_platform::auth::scopes::generate_session_token()
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("token generation: {e}")))?;
-    let session =
-        ship_platform::auth::scopes::space_window_session(&space_id, pid, token.clone());
-    registry.lock().await.insert(token.clone(), session);
-
-    Ok(RegisterSpaceWindowResponse { session_token: token, actor_id, space_id })
+/// Marshal an L1 `SpaceServiceError` to the `(StatusCode, String)` shape the
+/// route maps to an HTTP response.
+fn space_err_to_http(e: SpaceServiceError) -> (StatusCode, String) {
+    let status = match e.kind {
+        SpaceErrorKind::BadArgs => StatusCode::BAD_REQUEST,
+        SpaceErrorKind::NotFound => StatusCode::NOT_FOUND,
+        SpaceErrorKind::Forbidden => StatusCode::FORBIDDEN,
+        SpaceErrorKind::Conflict => StatusCode::CONFLICT,
+        SpaceErrorKind::Service => StatusCode::INTERNAL_SERVER_ERROR,
+    };
+    (status, e.message)
 }
 
 #[cfg(test)]

@@ -36,6 +36,7 @@ pub mod skills;
 pub mod path_tolerant;
 pub mod rules;
 pub mod sessions;
+pub mod space;
 
 /// Aggregated `ship.<domain>.<op>` → example-JSON pairs across every domain
 /// migrated to the typed-op single source. Drives `cargo xtask gen-fixtures`,

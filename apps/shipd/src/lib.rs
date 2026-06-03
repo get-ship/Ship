@@ -42,6 +42,7 @@ pub mod git_rpc;
 pub mod agents_rpc;
 pub mod agent_rpc;
 pub mod space_rpc;
+pub mod space_ports;
 pub mod settings_rpc;
 pub mod sessions_rpc;
 pub mod account_rpc;
