@@ -56,6 +56,7 @@ impl EntitySearchAdapter for SkillsAdapter {
                     icon: Some("sparkles".into()),
                     snippet: s.description.clone(),
                     score,
+                    space_id: String::new(),
                 }))
             })
             .collect();

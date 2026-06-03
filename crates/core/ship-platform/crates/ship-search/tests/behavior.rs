@@ -6,7 +6,8 @@
 use async_trait::async_trait;
 
 use ship_search::{
-    EntityKind, EntityKindFilter, SearchContext, SearchOpts, SearchService,
+    EntityKind, EntityKindFilter, SearchContext, SearchOpts, SearchService, SpaceTarget,
+    run_global,
     adapters::{
         agents::AgentSnapshot,
         artifacts::ArtifactSnapshot,
@@ -168,4 +169,98 @@ async fn empty_context_returns_no_hits() {
     let ctx = TestSearchContext::new();
     let resp = SearchService::new().run(&ctx, "anything", SearchOpts::default()).await;
     assert!(resp.hits.is_empty());
+}
+
+// ── global (cross-space) fan-out ─────────────────────────────────────────
+//
+// These exercise `run_global` end-to-end through the SAME scope-blind
+// `SearchService`, proving the fan-out + merge + opt-out without any of
+// shipd's multi-space wiring. Each space is modelled as its own
+// `TestSearchContext`, exactly as shipd builds one `SpaceContext` per space.
+
+// (b) GLOBAL search populates space_id on every hit; the per-space service
+// path is unchanged (this-space hits stay un-stamped — covered above where
+// every prior test asserts on hits whose space_id stays empty by default).
+#[tokio::test]
+async fn global_fanout_stamps_space_id_on_every_hit() {
+    let svc = SearchService::new();
+    let targets = vec![
+        SpaceTarget::new("home", || {
+            TestSearchContext::new().with_agents(vec![agent("h-1", "alpha-home")])
+        }),
+        SpaceTarget::new("work", || {
+            TestSearchContext::new().with_agents(vec![agent("w-1", "alpha-work")])
+        }),
+    ];
+    let hits = run_global(&svc, targets, "alpha", SearchOpts::default(), |_| true).await;
+
+    assert_eq!(hits.len(), 2, "both spaces contribute, got {hits:?}");
+    assert!(hits.iter().all(|h| !h.space_id.is_empty()), "every global hit is stamped");
+    assert_eq!(hits.iter().find(|h| h.id == "h-1").unwrap().space_id, "home");
+    assert_eq!(hits.iter().find(|h| h.id == "w-1").unwrap().space_id, "work");
+}
+
+// (a, end-to-end) the merged set is ranked by the shared score across spaces.
+#[tokio::test]
+async fn global_fanout_ranks_across_spaces_by_score() {
+    let svc = SearchService::new();
+    // Exact-name match outscores a substring match (ranking heuristic), so the
+    // hit whose name equals the query ranks first regardless of which space
+    // it lives in.
+    let targets = vec![
+        SpaceTarget::new("space-a", || {
+            TestSearchContext::new().with_agents(vec![agent("a-1", "alphabet-soup")])
+        }),
+        SpaceTarget::new("space-b", || {
+            TestSearchContext::new().with_agents(vec![agent("b-1", "alpha")])
+        }),
+    ];
+    let hits = run_global(&svc, targets, "alpha", SearchOpts::default(), |_| true).await;
+    assert_eq!(hits.len(), 2);
+    assert_eq!(hits[0].id, "b-1", "exact-name match ranks first");
+    assert_eq!(hits[0].space_id, "space-b");
+    let scores: Vec<f64> = hits.iter().map(|h| h.score).collect();
+    let mut sorted = scores.clone();
+    sorted.sort_by(|a, b| b.partial_cmp(a).unwrap());
+    assert_eq!(scores, sorted, "merged hits are score-descending across spaces");
+}
+
+// (c) an opted-out space is never searched, so its hits never reach the merge.
+#[tokio::test]
+async fn global_fanout_excludes_opted_out_space() {
+    let svc = SearchService::new();
+    let targets = vec![
+        SpaceTarget::new("included", || {
+            TestSearchContext::new().with_agents(vec![agent("in-1", "alpha")])
+        }),
+        SpaceTarget::new("opted-out", || {
+            TestSearchContext::new().with_agents(vec![agent("out-1", "alpha")])
+        }),
+    ];
+    // Opt-out predicate: model the per-space `search.global = false` setting.
+    let hits = run_global(&svc, targets, "alpha", SearchOpts::default(), |space_id| {
+        space_id != "opted-out"
+    })
+    .await;
+
+    assert_eq!(hits.len(), 1, "only the included space contributes, got {hits:?}");
+    assert_eq!(hits[0].id, "in-1");
+    assert_eq!(hits[0].space_id, "included");
+    assert!(
+        hits.iter().all(|h| h.space_id != "opted-out"),
+        "opted-out space must not leak into the merged set"
+    );
+}
+
+// (d, end-to-end) a global hit's deeplink composes ship://space/<id><path>.
+#[tokio::test]
+async fn global_fanout_hit_deeplinks_with_space_prefix() {
+    let svc = SearchService::new();
+    let targets = vec![SpaceTarget::new("space-7", || {
+        TestSearchContext::new().with_views(vec![view("dashboard")])
+    })];
+    let hits = run_global(&svc, targets, "dashboard", SearchOpts::default(), |_| true).await;
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].path, "/dashboard");
+    assert_eq!(hits[0].deeplink(), "ship://space/space-7/dashboard");
 }

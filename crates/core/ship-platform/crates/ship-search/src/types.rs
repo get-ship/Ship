@@ -69,6 +69,11 @@ impl EntityKindFilter {
 
 /// A single search hit. Score is computed by `ranking::score_hit`; the
 /// frontend doesn't need to use it but the aggregator orders by it.
+///
+/// `space_id` names the space the hit came from. Adapters leave it empty
+/// (they are scope-blind, exactly like `SearchService`); the global fan-out
+/// stamps it at the merge boundary (see [`crate::global::merge_global`]).
+/// For this-space searches it stays empty — the space is implicit.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SearchHit {
     #[serde(flatten)]
@@ -81,6 +86,25 @@ pub struct SearchHit {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snippet: Option<String>,
     pub score: f64,
+    /// Originating space. Empty for this-space hits; set by the global merge.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub space_id: String,
+}
+
+impl SearchHit {
+    /// Compose the cross-space deeplink URI for this hit.
+    ///
+    /// When `space_id` is set the URI is `ship://space/<space_id><path>`
+    /// (the existing intra-space `path` always begins with `/`). When the
+    /// hit has no space (this-space search), the bare `path` is returned —
+    /// there is no cross-space prefix to add.
+    pub fn deeplink(&self) -> String {
+        if self.space_id.is_empty() {
+            self.path.clone()
+        } else {
+            format!("ship://space/{}{}", self.space_id, self.path)
+        }
+    }
 }
 
 /// Query options. `types` is the optional adapter allowlist;

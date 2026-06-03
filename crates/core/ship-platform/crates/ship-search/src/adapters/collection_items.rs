@@ -60,6 +60,7 @@ impl EntitySearchAdapter for CollectionItemsAdapter {
                     icon: Some("file".into()),
                     snippet,
                     score,
+                    space_id: String::new(),
                 }))
             })
             .collect();

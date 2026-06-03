@@ -48,6 +48,7 @@ impl EntitySearchAdapter for ViewsAdapter {
                     icon: Some(v.icon.clone().unwrap_or_else(|| "app-window".into())),
                     snippet: v.description.clone(),
                     score,
+                    space_id: String::new(),
                 }))
             })
             .collect();

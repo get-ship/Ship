@@ -205,14 +205,13 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::ViewServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::RegistryServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::SuiServiceExt::register(svc.clone(), router);
-    // search — trait impl in ship-search/src/wire.rs via SearchWire<F>;
-    // ShipdSearchContext is the per-request adapter in search_context.rs.
-    let search_state = state.clone();
-    let search_wire = std::sync::Arc::new(ship_search::SearchWire::new(
-        move |_ctx: &connectrpc::RequestContext| {
-            crate::search_context::ShipdSearchContext::new(search_state.clone())
-        },
-    ));
+    // search — ShipdSearchWire (search_rpc.rs) branches on the request scope:
+    // THIS_SPACE runs the active-space ShipdSearchContext (the historical
+    // single-context path); GLOBAL fans out across reachable spaces via
+    // ship_search::run_global. Composition + ranking + merge stay in the
+    // scope-blind ship-search crate.
+    let search_wire =
+        std::sync::Arc::new(crate::search_rpc::ShipdSearchWire::new(state.clone()));
     let router = ship_ops_rpc::SearchServiceExt::register(search_wire, router);
     // collection.* / config.* / artifacts.* bind to the active space's per-scope
     // `space.db`. In space-less mode (no active space) there is no context to bind

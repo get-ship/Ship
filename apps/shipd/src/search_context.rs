@@ -6,9 +6,10 @@
 //! The search service performs no further permission checks.
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use ship_substrate::ports::Query;
+use ship_substrate::ports::{Query, SpaceContext};
 use ship_search::SearchContext;
 use ship_search::adapters::{
     agents::AgentSnapshot,
@@ -23,13 +24,55 @@ use ship_search::adapters::{
 use crate::ship_runtime::ApiState;
 
 /// Per-request search scope. Holds the runtime handle; snapshots are lazy.
+///
+/// `space_ctx` selects which space the space-partitioned sources (collections,
+/// collection items, artifacts) read from:
+/// - `None` → the daemon's ACTIVE space (the historical this-space behavior),
+///   resolved through `ApiState`'s active-space accessors.
+/// - `Some(ctx)` → the explicit space `ctx` binds, built by the global
+///   fan-out from `SpaceContext::for_space`. Each space in a GLOBAL search
+///   gets its own context here.
+///
+/// The non-partitioned sources (views, agents, skills, sessions) are
+/// filesystem/registry-global and read the same regardless of `space_ctx`.
 pub struct ShipdSearchContext {
     state: ApiState,
+    space_ctx: Option<Arc<SpaceContext>>,
 }
 
 impl ShipdSearchContext {
+    /// Context bound to the daemon's active space (this-space search).
     pub fn new(state: ApiState) -> Self {
-        Self { state }
+        Self { state, space_ctx: None }
+    }
+
+    /// Context bound to an explicit space (one leg of a global fan-out).
+    pub fn for_space(state: ApiState, space_ctx: Arc<SpaceContext>) -> Self {
+        Self { state, space_ctx: Some(space_ctx) }
+    }
+
+    /// Build a `CollectionService` over the bound space (explicit when set,
+    /// else the active space).
+    fn collection_service(&self) -> anyhow::Result<ship_collection::service::CollectionService> {
+        match &self.space_ctx {
+            Some(ctx) => Ok(ship_collection::service::CollectionService {
+                ctx: ctx.clone(),
+                schemas: self.state.collection_schemas(),
+            }),
+            None => self.state.collections(),
+        }
+    }
+
+    /// Build an `ArtifactService` over the bound space (explicit when set,
+    /// else the active space).
+    fn artifact_service(&self) -> anyhow::Result<ship_artifacts::service::ArtifactService> {
+        match &self.space_ctx {
+            Some(ctx) => Ok(ship_artifacts::service::ArtifactService::new(
+                ctx.clone(),
+                self.state.global_blob_dir().to_path_buf(),
+            )),
+            None => self.state.artifacts(),
+        }
     }
 }
 
@@ -71,7 +114,7 @@ impl SearchContext for ShipdSearchContext {
 
     fn collections(&self) -> Vec<CollectionSnapshot> {
         // Space-less: no active space → nothing to index (no `global` fallback).
-        let Ok(svc) = self.state.collections() else {
+        let Ok(svc) = self.collection_service() else {
             return Vec::new();
         };
         svc.list()
@@ -154,7 +197,7 @@ impl SearchContext for ShipdSearchContext {
 
     async fn collection_items(&self) -> Vec<CollectionItemSnapshot> {
         // Space-less: no active space → nothing to index (no `global` fallback).
-        let Ok(svc) = self.state.collections() else {
+        let Ok(svc) = self.collection_service() else {
             return Vec::new();
         };
         let schemas: Vec<_> = svc.list().into_iter().filter(|s| !s.system).collect();
@@ -190,7 +233,7 @@ impl SearchContext for ShipdSearchContext {
 
     async fn artifacts(&self) -> Vec<ArtifactSnapshot> {
         // Space-less: no active space → nothing to index (no `global` fallback).
-        let Ok(svc) = self.state.artifacts() else {
+        let Ok(svc) = self.artifact_service() else {
             return Vec::new();
         };
         svc.list(std::collections::BTreeMap::new(), 200)
