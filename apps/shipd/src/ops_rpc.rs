@@ -236,22 +236,16 @@ pub fn router(state: ApiState) -> axum::Router {
         }
         None => router,
     };
-    // config.* — ConfigService (config.proto): daemon settings tier + Watch.
-    // The canonical settings contract — the legacy SettingsService wire was
-    // retired (per-topic legacy kill). Reuses the active-space ctx's shared kernel
-    // (settings are KV-global; the wire needs the kernel for config.changed emit
-    // + Watch).
-    let router = match state.collection_ctx() {
-        Some(config_ctx) => {
-            let config_kernel = config_ctx.kernel.clone();
-            let config_wire = std::sync::Arc::new(ship_config::ConfigWire::new(
-                config_kernel,
-                move |_ctx: &connectrpc::RequestContext| config_ctx.clone(),
-            ));
-            ship_ops_rpc::ConfigServiceExt::register(config_wire, router)
-        }
-        None => router,
-    };
+    // settings.* — SettingsService (settings.proto): the unified, scope-
+    // discriminated settings keystone (SPACE / ACCOUNT / RUNTIME) served by the
+    // ship-config crate (`SettingsWire`). Replaces the retired ConfigService.
+    // Mounted unconditionally — the wire resolves its own per-request scope
+    // context (account.db + the active-space space.db + the operator verdict).
+    // SPACE ops error cleanly when no active space; ACCOUNT/RUNTIME always serve.
+    // The legacy `SpaceService.SetSetting` stays mounted beside `Set(SPACE)`
+    // until S4 repoints callers.
+    let settings_wire = crate::settings_rpc::settings_wire(state.clone());
+    let router = ship_ops_rpc::SettingsServiceExt::register(settings_wire, router);
     // artifacts.* v2 — ship-artifacts (DataStore + blob backend), overrides
     // OpsImpl's ArtifactsService registration for all 5 RPCs including Watch.
     let router = match state.artifact_ctx() {

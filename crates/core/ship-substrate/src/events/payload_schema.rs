@@ -78,6 +78,7 @@ fn schema_for_event_type(
         "config.changed" => Some(check::<ConfigChanged>),
         "config.file_changed" => Some(check::<ConfigFileChanged>),
         "space.setting.changed" => Some(check::<SpaceSettingChanged>),
+        "settings.changed" => Some(check::<SettingChanged>),
         "agent.changed" => Some(check::<ConfigChanged>),
         "skill.changed" => Some(check::<ConfigChanged>),
         "view.changed" => Some(check::<ConfigChanged>),

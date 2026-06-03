@@ -121,6 +121,12 @@ pub const AGENT_GRANTS_PROVISIONED: &str = "agent.grants.provisioned";
 /// is the setting key. Payload: `SpaceSettingChanged`.
 pub const SPACE_SETTING_CHANGED: &str = "space.setting.changed";
 
+/// Unified scope-discriminated settings change — the keystone settings event.
+/// One type across SPACE / ACCOUNT / RUNTIME (`SettingsService.Set` authors it);
+/// the chosen `EventScope` rides the envelope and routes to the matching
+/// per-scope db. `entity_id` is the setting key. Payload: `SettingChanged`.
+pub const SETTINGS_CHANGED: &str = "settings.changed";
+
 /// Actor — mailbox rejected a message because the channel was full.
 /// `entity_id` is the actor_id.
 /// A1: device, durable.
@@ -261,6 +267,7 @@ pub const ALL: &[&str] = &[
     CONFIG_CHANGED,
     CONFIG_FILE_CHANGED,
     SPACE_SETTING_CHANGED,
+    SETTINGS_CHANGED,
     AGENT_CHANGED,
     SKILL_CHANGED,
     VIEW_CHANGED,

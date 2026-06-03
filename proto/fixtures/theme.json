@@ -800,9 +800,37 @@
         }
       ]
     },
+    "settings.get": {
+      "key": "ui.theme",
+      "value_json": "ImRhcmsi",
+      "scope": "SETTING_SCOPE_ACCOUNT",
+      "is_default": false
+    },
+    "settings.list": {
+      "settings": [
+        {
+          "key": "ui.theme",
+          "value_json": "ImRhcmsi",
+          "scope": "SETTING_SCOPE_ACCOUNT",
+          "is_default": false
+        }
+      ]
+    },
     "settings.set": {
-      "key": "theme",
-      "value_json": "\"dark\""
+      "key": "ui.theme",
+      "value_json": "ImRhcmsi",
+      "scope": "SETTING_SCOPE_ACCOUNT",
+      "is_default": false
+    },
+    "settings.watch": {
+      "patches": {
+        "patches": [
+          {
+            "op": "PATCH_OP_SET",
+            "value": "eyJzZXR0aW5ncyI6e319"
+          }
+        ]
+      }
     },
     "skills.list": {
       "items": [

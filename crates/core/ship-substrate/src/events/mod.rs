@@ -24,9 +24,10 @@ pub mod types {
         #[test]
         fn all_constants_have_expected_count() {
             // Spec 7a bumped from 88 → 111 by adding the 23 Spec-6 events to ALL.
-            // The hard count is enforced here to catch accidental removals.
+            // S3 adds `settings.changed` (the unified scope-discriminated keystone)
+            // → 113. The hard count is enforced here to catch accidental removals.
             // When adding events: update ALL in event_types.rs AND payload_registry.rs.
-            assert_eq!(ALL.len(), 112, "exactly 112 event type constants required (Spec 7a)");
+            assert_eq!(ALL.len(), 113, "exactly 113 event type constants required (S3 settings keystone)");
         }
 
         #[test]
