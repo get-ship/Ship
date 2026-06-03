@@ -145,6 +145,15 @@ async function entriesFromPackagedManifest(
   // the first `.js` we find. Multi-bundle packs aren't shipped today;
   // when they arrive, the pack will declare a bundle-name mapping.
   const bundleName = await firstJsInDist(pkg.root)
+  // A package with a CEM manifest but NO built `dist/` JS bundle is not a
+  // shippable pack — its components are baked into the deck framework umbrella
+  // (`/_sui/components.js`, side-effect-loaded by every host) and served from
+  // `/_sui/sui-components`. Emitting a `/_sui/packs/<id>/index.js` bundleUrl for
+  // it points the view-host's eager pack-loader (view-host.html) at a 404 on
+  // every page; combined with the live-reload that drove a reload loop. Keep
+  // such packages WORKSPACE-ONLY (private) so they never enter `published.json`
+  // — the umbrella already defines their custom elements.
+  const isShippablePack = bundleName != null
   const bundleUrl = bundleName
     ? `/_sui/packs/${packId}/${bundleName}`
     : `/_sui/packs/${packId}/index.js`
@@ -159,7 +168,7 @@ async function entriesFromPackagedManifest(
   }
   return modulesToEntries(cem.modules, {
     packageOrigin: pkg.name,
-    isPrivate: pkg.private,
+    isPrivate: pkg.private || !isShippablePack,
     bundleUrl: () => bundleUrl,
     manifestUrl,
     sourcePathFor,
