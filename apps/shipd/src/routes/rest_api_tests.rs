@@ -629,6 +629,7 @@ async fn mcp_agent_without_agent_id_can_register() {
         session_id: None,
         scopes: vec![crate::auth::Scope::Full],
         grants: vec![],
+        operator_cred: false,
     };
     let resp = mesh_register(
         State(state),

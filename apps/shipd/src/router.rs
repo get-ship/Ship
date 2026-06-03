@@ -236,7 +236,15 @@ pub fn build_router(
         .nest("/api", webhook_routes)
         // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
         // auth_middleware below so the gate sees AuthContext. See ops_rpc.
-        .merge(crate::ops_rpc::router(rt.clone()))
+        // The authority-projection layer runs INSIDE auth_middleware (it's
+        // applied here, so auth wraps it): it reads the populated AuthContext and
+        // stamps the resolved `ship_types::Authority` into the request, so
+        // crate-owned Connect wires (ship-account) gate on the shared authority
+        // without coupling to shipd's AuthContext (S6 operator-cred gate).
+        .merge(
+            crate::ops_rpc::router(rt.clone())
+                .layer(axum::middleware::from_fn(auth::project_authority_middleware)),
+        )
         .layer(axum::Extension(feedback_guard))
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with

@@ -26,6 +26,9 @@ fn full_auth() -> axum::Extension<crate::auth::AuthContext> {
         session_id: None,
         scopes: vec![crate::auth::Scope::Full],
         grants: vec![],
+        // The operator stand-in for these tests: a verified operator cred clears
+        // the gate (a bare CLI no longer does — S6).
+        operator_cred: true,
     })
 }
 

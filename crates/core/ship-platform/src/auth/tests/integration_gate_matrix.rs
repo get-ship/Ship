@@ -24,6 +24,7 @@ fn make_session(scopes: Vec<Scope>, pid: Option<u32>) -> DaemonSession {
         created_at: std::time::Instant::now(),
         expires_at_unix: None,
         ephemeral: true,
+        is_operator_cred: false,
     }
 }
 
@@ -168,9 +169,11 @@ fn auth_gate_matrix_space_window_is_ephemeral_never_persisted() {
 #[test]
 fn auth_gate_matrix_space_window_agent_id_encodes_space() {
     let s = space_window_session("acme", 1, "ship_sess_win".to_string());
-    // agent_id is "space:<space_id>" — distinct from a real agent id so the
-    // operator branch (Cli + agent_id.is_none()) never matches.
+    // agent_id is "space:<space_id>" — a stable space-surface identity. (The
+    // window is C2-capped because it carries no operator cred, not because of
+    // this id shape — S6 #124.)
     assert_eq!(s.agent_id, "space:acme");
+    assert!(!s.is_operator_cred, "a space window is never the operator cred");
 }
 
 // ── Unbound session (daemon token, agent peer session) ────────────────────────

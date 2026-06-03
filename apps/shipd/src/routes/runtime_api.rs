@@ -164,6 +164,9 @@ mod tests {
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
+            // The operator stand-in: a verified operator cred clears the gate
+            // (a bare CLI no longer does — S6).
+            operator_cred: true,
         })
     }
 
@@ -176,6 +179,7 @@ mod tests {
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
+            operator_cred: true,
         }
     }
 

@@ -6,10 +6,12 @@
 // Served by the `ship-account` crate (`ship_account::AccountWire`); the shipd
 // mount lives in `apps/shipd/src/account_rpc.rs`.
 //
-// ALL 4 RPCs require user presence (CallerKind::Cli). The Connect router does
-// not run the per-route `@auth cli` middleware, so the handler re-enforces
-// `require_user_presence` itself. MCP session tokens are categorically denied
-// (SECURITY.md "CallerKind gate on daemon account routes").
+// ALL 4 RPCs are operator-cred-gated (S6, #124): account ops are credential-
+// dangerous, so they require operator authority — granted SOLELY by a verified
+// operator cred. The Connect router runs no per-route auth middleware; the
+// daemon projects the resolved `ship_types::Authority` into the request and the
+// wire checks `Authority::Operator`. Agents/MCP and the bare CLI transport are
+// categorically denied — only the operator cred clears these ops.
 syntax = "proto3";
 
 package ship.ops.v1;

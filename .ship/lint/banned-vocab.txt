@@ -38,3 +38,7 @@ unwrap_or(_else)?\([^)]*"global"	no global space fallback; error cleanly when no
 runtime_settings	settings tier unified into the ship-config SettingsService; in-tree config settings module deleted (S4)
 config::credentials	moved to ship-account (S5): account secrets live in account.jsonc via ship_account::account_token, not the config credential tier
 config::gateway	moved to ship-account (S5): cloud-gateway resolution is ship_account::{resolve_gateway_base_url,DEFAULT_GATEWAY}
+require_user_presence	the CallerKind::Cli presence check is dead; account/op authority is the operator-cred gate, not user-presence (S6 #124)
+RequiredAuth::Cli	CLI-transport route auth removed; operator-only routes enforce in-handler (Scope::Full) or via the gate (S6 #124)
+AuthSpec::Cli	@auth cli build-time spec removed with RequiredAuth::Cli (S6 #124)
+@auth cli	CLI-transport route annotation removed; use @auth handler / @auth scope, operator gating is the gate's job (S6 #124)

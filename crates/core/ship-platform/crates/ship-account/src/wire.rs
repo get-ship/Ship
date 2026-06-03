@@ -5,17 +5,20 @@
 //! Account identity is process-global (not per-request / per-space), so the wire
 //! holds one `Arc<AccountService>` directly — no per-request context factory.
 //!
-//! Every RPC re-enforces **user presence** (`CallerKind::Cli`): the Connect
-//! router does not run the per-route `@auth cli` middleware, so presence is
-//! checked here from the request's `AuthContext`-equivalent. The daemon installs
-//! the auth context as a `RequestContext` extension; this crate cannot see
-//! shipd's `AuthContext` type, so it reads the `CallerKind` via the extension the
-//! daemon registers (`ship_substrate::events::CallerKind`).
+//! Every RPC is **operator-cred-gated** (S6, #124): account ops are credential-
+//! dangerous (login/logout touch the Ship Cloud key), so they require operator
+//! authority — granted SOLELY by a verified, pid-attested operator cred. The
+//! Connect router does not run a per-route auth middleware, so the gate is read
+//! here from the resolved authority the daemon installs as a `RequestContext`
+//! extension. This crate cannot see shipd's `AuthContext` type, so the daemon
+//! projects the operator verdict into the shared `ship_types::Authority` and
+//! inserts it; the wire checks `Authority::Operator`. The CLI transport and the
+//! local peer-uid grant NO elevation — only the operator cred clears this gate.
 
 use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
-use ship_substrate::events::CallerKind;
+use ship_types::Authority;
 
 use ship_ops_rpc::{
     AccountService as AccountWireTrait, AccountState as ProtoState, LoginCompleted, LoginStarted,
@@ -37,13 +40,17 @@ impl AccountWire {
     }
 }
 
-/// Reject any caller that isn't user-present. The daemon registers the caller
-/// kind as a `RequestContext` extension; absence means no auth context.
-fn require_user_presence(ctx: &RequestContext) -> Result<(), ConnectError> {
-    match ctx.extensions.get::<CallerKind>() {
-        Some(CallerKind::Cli) => Ok(()),
+/// Reject any caller that isn't the operator. Account ops are credential-
+/// dangerous, so they require operator authority — granted SOLELY by a verified
+/// operator cred (S6, #124). The daemon resolves the caller's authority and
+/// installs it as a `RequestContext` extension; the wire reads the shared
+/// `ship_types::Authority` (no coupling to shipd's `AuthContext`). Absence ⟹ no
+/// auth context (unauthenticated); any non-operator authority ⟹ denied.
+fn require_operator(ctx: &RequestContext) -> Result<(), ConnectError> {
+    match ctx.extensions.get::<Authority>() {
+        Some(Authority::Operator) => Ok(()),
         Some(_) => Err(ConnectError::permission_denied(
-            "requires user-presence (CallerKind::Cli)",
+            "account ops require operator authority (a verified operator cred)",
         )),
         None => Err(ConnectError::unauthenticated("auth context required")),
     }
@@ -87,7 +94,7 @@ impl AccountWireTrait for AccountWire {
         ctx: RequestContext,
         _request: OwnedStateRequestView,
     ) -> ServiceResult<ProtoState> {
-        require_user_presence(&ctx)?;
+        require_operator(&ctx)?;
         let state = self.svc.state().await.map_err(ConnectError::from)?;
         Ok(Response::new(state_to_proto(state)))
     }
@@ -97,7 +104,7 @@ impl AccountWireTrait for AccountWire {
         ctx: RequestContext,
         request: OwnedLoginRequestView,
     ) -> ServiceResult<LoginStarted> {
-        require_user_presence(&ctx)?;
+        require_operator(&ctx)?;
         let redirect_uri = request.redirect_uri;
         if !redirect_uri.starts_with("http://127.0.0.1:")
             && !redirect_uri.starts_with("http://localhost:")
@@ -119,7 +126,7 @@ impl AccountWireTrait for AccountWire {
         ctx: RequestContext,
         request: OwnedLoginCompleteRequestView,
     ) -> ServiceResult<LoginCompleted> {
-        require_user_presence(&ctx)?;
+        require_operator(&ctx)?;
         let me = self
             .svc
             .complete_login(request.state_id, request.code)
@@ -138,7 +145,7 @@ impl AccountWireTrait for AccountWire {
         ctx: RequestContext,
         _request: OwnedLogoutRequestView,
     ) -> ServiceResult<LogoutResult> {
-        require_user_presence(&ctx)?;
+        require_operator(&ctx)?;
         let outcome = self.svc.logout().await.map_err(ConnectError::from)?;
         Ok(Response::new(LogoutResult {
             had_token: outcome.had_token,

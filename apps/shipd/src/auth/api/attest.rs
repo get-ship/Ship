@@ -112,6 +112,8 @@ pub async fn server_attest(
         created_at: std::time::Instant::now(),
         expires_at_unix: Some(claims.exp),
         ephemeral: false,
+        // A JWT-attested device session is not a pid-attested operator cred (S6).
+        is_operator_cred: false,
     };
     crate::auth::scopes::persist_session(&session);
     session_registry.lock().await.insert(session_token.clone(), session);

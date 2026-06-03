@@ -20,8 +20,15 @@ pub enum PeerIdentity {
     /// A dispatched agent — the peer is inside that agent's process container.
     /// Carries the agent id parsed from the container name.
     Agent(String),
-    /// Not inside any agent container — the operator's own process (the human
-    /// session that owns the daemon).
+    /// Not inside any agent container — the local owner's own process (the
+    /// human session that owns the daemon).
+    ///
+    /// IDENTITY, NOT AUTHORITY (S6, #124): this no longer confers operator
+    /// elevation. `auth_context_from_peer` maps it to a non-elevated context
+    /// (`operator_cred: false`) — sharing the daemon's uid is not operator
+    /// authority. Operator authority comes SOLELY from a verified, pid-attested
+    /// operator cred. This variant only marks "local owner, not an agent" for
+    /// the non-elevated peer context.
     Operator,
     /// The host backend can't report the peer's container (dead process, or a
     /// platform whose `ship-host` backend isn't built yet). The gate MUST treat

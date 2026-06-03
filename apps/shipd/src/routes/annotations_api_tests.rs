@@ -46,6 +46,9 @@ fn human_auth() -> AuthContext {
         session_id: None,
         scopes: vec![crate::auth::Scope::Full],
         grants: vec![],
+        // Annotations are C1 workspace content (any in-scope caller writes);
+        // not the operator path, so no operator cred is required.
+        operator_cred: false,
     }
 }
 

@@ -366,6 +366,9 @@ mod tests {
             session_id: None,
             scopes: vec![],
             grants: vec![],
+            // Meta is C0 (a read) — no operator authority needed. The CLI
+            // transport grants no elevation (S6), so this stays false.
+            operator_cred: false,
         }
     }
 

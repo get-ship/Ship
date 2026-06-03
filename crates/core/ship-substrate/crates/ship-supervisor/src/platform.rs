@@ -116,6 +116,8 @@ impl AgentPlatform for ShipdPlatform {
             // re-spawns the agent (which re-mints), so no persistence needed.
             expires_at_unix: None,
             ephemeral: true,
+            // A dispatched agent's session is never the operator cred (S6).
+            is_operator_cred: false,
         };
         self.session_registry
             .lock()

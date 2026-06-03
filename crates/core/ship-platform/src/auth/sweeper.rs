@@ -113,6 +113,7 @@ mod tests {
             created_at: std::time::Instant::now(),
             expires_at_unix,
             ephemeral: true,
+            is_operator_cred: false,
         }
     }
 

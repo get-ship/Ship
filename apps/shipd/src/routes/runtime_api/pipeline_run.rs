@@ -228,6 +228,8 @@ mod tests {
             session_id: None,
             scopes: vec![Scope::Full],
             grants: vec![],
+            // The operator stand-in: a verified operator cred clears the gate (S6).
+            operator_cred: true,
         })
     }
 

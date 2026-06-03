@@ -2,12 +2,12 @@
 //!
 //! The wire surface lives in the `ship-account` crate (`ship_account::AccountWire`,
 //! the ship-artifacts / ship-collection precedent); this file is the thin shipd
-//! mount, built in `ops_rpc::router`. The wire re-enforces **user presence**
-//! (`CallerKind::Cli`) from a `CallerKind` request extension — the Connect router
-//! does not run the per-route `@auth cli` middleware, so presence is enforced
-//! in-band, without coupling the crate to shipd's `AuthContext`. The daemon
-//! installs `AuthContext`; the auth middleware also inserts `CallerKind` (the
-//! wire's marker) so the wire sees presence.
+//! mount, built in `ops_rpc::router`. Account ops are credential-dangerous, so
+//! the wire gates on **operator authority** — granted SOLELY by a verified
+//! operator cred (S6, #124). The Connect router runs no per-route auth
+//! middleware; instead `auth::project_authority_middleware` (layered on the ops
+//! router) projects the resolved `ship_types::Authority` into the request, and
+//! the wire checks `Authority::Operator` — no coupling to shipd's `AuthContext`.
 
 use std::path::PathBuf;
 use std::sync::Arc;
