@@ -46,6 +46,7 @@ pub mod space_ports;
 pub mod settings_rpc;
 pub mod sessions_rpc;
 pub mod account_rpc;
+pub mod account_v2_rpc;
 pub mod chat_rpc;
 pub mod events_rpc;
 pub mod view_rpc;

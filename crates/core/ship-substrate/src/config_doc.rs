@@ -69,6 +69,19 @@ pub fn write_secret_doc<T: Serialize>(path: &Path, value: &T) -> Result<()> {
     Ok(())
 }
 
+/// Remove a config document at `path`. Idempotent — a missing file is `Ok(())`,
+/// mirroring the "logged out" / "no document" semantics callers expect when
+/// clearing a secret-at-rest doc. Returns `Err` only on I/O failures other than
+/// not-found. The eviction target for hand-rolled `tokio::fs::remove_file`
+/// clears (e.g. the account token store).
+pub fn clear_doc(path: &Path) -> Result<()> {
+    match std::fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e.into()),
+    }
+}
+
 /// Best-effort `chmod 600` on Unix; no-op elsewhere.
 fn restrict_to_owner(_path: &Path) {
     #[cfg(unix)]
@@ -154,6 +167,24 @@ mod tests {
         crate::fs_util::write_atomic(&path, "{ nope").unwrap();
         let got: Result<Option<Doc>> = read_doc(&path);
         assert!(got.is_err());
+    }
+
+    #[test]
+    fn clear_doc_is_idempotent_on_missing() {
+        let tmp = tempdir().unwrap();
+        let path = tmp.path().join("gone.jsonc");
+        clear_doc(&path).unwrap();
+        clear_doc(&path).unwrap();
+    }
+
+    #[test]
+    fn clear_doc_removes_existing() {
+        let tmp = tempdir().unwrap();
+        let path = tmp.path().join("doc.jsonc");
+        write_doc(&path, &Doc::default()).unwrap();
+        assert!(path.exists());
+        clear_doc(&path).unwrap();
+        assert!(!path.exists());
     }
 
     #[cfg(unix)]
