@@ -1,158 +1,143 @@
-// `space.*` as a hand-authored, per-domain proto-SSOT service (#89) — the
-// space registry surface (a space = the unit of isolation/coordination/config,
-// one .ship/ directory). Mounted ADDITIVELY beside the generated
-// ReadOpsService/CommandOpsService (which still serve these ops until the GUI
-// flip, #72). Old descriptor tables + dispatch stay untouched.
+// Clean per-domain space contract — the space identity + config + registry
+// surface, hand-authored as the shape we WANT (_arc.md principle 1, 11).
 //
-// Request messages take fresh names (AddSpaceRequest, ActivateSpaceRequest,
-// SpaceListRequest, SpaceActiveRequest) to avoid colliding with the generated
-// commands.gen.proto/reads.gen.proto declarations in this same package. Return
-// types are SHARED shapes from types.proto (ProjectRecord / WorkspaceActiveResponse
-// — kept under their current wire names; those rename with the retiring umbrella,
-// #72) and JsonResponse from ops.proto, imported, not redeclared.
+// A space = the unit of isolation/coordination/config (one .ship/ directory).
+// This is the SOLE space service (the legacy SpaceService — JsonResponse /
+// ProjectRecord / WorkspaceActiveResponse vestiges, the *Live streaming twins,
+// and the window RPCs — was retired in the space cutover). It is served by the
+// `ship-space` crate (`SpaceWire`) over substrate ports.
+//
+// Shape:
+//   - Typed returns everywhere (Space / SpaceList / ActiveSpace / SpaceInfo) —
+//     no opaque JsonResponse blobs, no Workspace/Project vestiges.
+//   - Watch is the ONE reactive surface — no *Live streaming twins.
+//   - Window-management RPCs/messages are NOT here — they belong to the
+//     ship-device topic (device.proto): the carve split space identity from
+//     device/window control.
 syntax = "proto3";
 
 package ship.ops.v1;
 
 import "ship/ops/v1/policy.proto";
-import "ship/ops/v1/ops.proto";
-import "ship/ops/v1/types.proto";
+import "ship/ops/v1/reactive.proto";
 
-message SpaceListRequest {}
+// ── Messages (real domain types) ────────────────────────────────────────────
 
-message SpaceActiveRequest {}
-
-message AddSpaceRequest {
-  string path = 1;
-  string name = 2;
-}
-
-message ActivateSpaceRequest {
+// One registered space (a .ship/ directory the daemon has been pointed at).
+message Space {
   string id = 1;
+  string path = 2;
+  string name = 3;
+  string created_at = 4;
+  string last_seen_at = 5;
 }
 
-message SpaceInfoRequest {}
-
-// Per-space settings override write (#129). Distinct name from config.proto's
-// SetSettingReq — same package, two definitions would collide. The space
-// is resolved from the caller's per-connection emit context, not an arg.
-message SetSpaceSettingRequest {
-  string key = 1;
-  // JSON-serialized value (arbitrary — a setting value can be any JSON type).
-  string value_json = 2;
+// The registered-space list + the active-space pointer.
+message SpaceList {
+  repeated Space spaces = 1;
+  optional string active_id = 2;
 }
 
-// Focus-vs-spawn decision for opening a space window (#125). The daemon
-// MEDIATES (it owns window liveness via the actor projection); the shell adaptor
-// EXECUTES (only it can spawn/focus an OS window). `open` in the adaptor calls
-// this first: `focus` + actor_id ⟹ raise the existing window; `spawn` ⟹ create
-// one (then register-space-window). The daemon never spawns — it decides.
-message SpaceWindowIntentRequest {
-  string space_id = 1;
-}
-message SpaceWindowIntentResponse {
-  // "focus" when a live window for the space exists, else "spawn".
-  string decision = 1;
-  // The live window's actor id to raise (set only when decision == "focus").
-  optional string actor_id = 2;
+// The active space, if one has been activated.
+message ActiveSpace {
+  optional Space active = 1;
 }
 
-// ── Window control surface (the daemon is the brain) ─────────────────────
-// The daemon owns window liveness, pid, and the pid-bound C2 token; it can
-// enumerate windows and revoke their authority. It cannot spawn an OS window
-// (no handle) — the shell adaptor does that — but it holds the kill switch.
-message SpaceWindowListRequest {}
-message WindowInfo {
-  string actor_id = 1;
-  optional string space_id = 2;
-  optional int64 pid = 3;
-  bool live = 4;
-}
-message SpaceWindowListResponse {
-  repeated WindowInfo windows = 1;
-}
-
-message CloseWindowRequest {
-  string actor_id = 1;
-}
-// CloseWindowResponse lives in types.proto — it's the response_type of the
-// generated `space.window.close` command (commands.gen.proto), which only
-// imports types.proto. Closing a window REVOKES its pid-bound token (instant
-// authority cut) and closes the window actor's lifecycle; the shell destroys
-// the OS frame.
-
-// The active space's identity + config snapshot — what a space window reads to
-// bootstrap. `settings_json` is the `settings.state` snapshot (daemon-global
-// today; per-space settings layering lands later and flows through this same
-// field). Identity fields are `None` when the daemon resolved no space root
-// (global-only mode).
-message SpaceInfoResponse {
+// A space's identity + effective (global ⟵ space) settings. `settings_json` is
+// the overlay result: the daemon-global snapshot overlaid per-key by the space's
+// event-sourced overrides. Identity fields are unset in global-only mode.
+message SpaceInfo {
   optional string space_id = 1;
   optional string root = 2;
   optional string name = 3;
   string settings_json = 4;
 }
 
-// Space registry reads (C0) + writes (C1). Reads surface the space list and
-// the active-space projection. Writes register a new space path or switch the
-// active space; both route through the one gate (services::command::call).
+// The echoed shape of a per-space settings write — space-domain-owned.
+message SpaceSettingValue {
+  string key = 1;
+  // JSON-serialized value (canonical form of the parsed input).
+  string value_json = 2;
+}
+
+// ── Request messages ────────────────────────────────────────────────────────
+
+message SpaceListReq {}
+message SpaceActiveReq {}
+message SpaceInfoReq {}
+
+message AddSpaceReq {
+  string path = 1;
+  string name = 2;
+}
+
+message ActivateSpaceReq {
+  string id = 1;
+}
+
+// Per-space settings override write. The space is resolved from the caller's
+// per-connection context, not an arg.
+message SetSpaceSettingReq {
+  string key = 1;
+  // JSON-serialized value (arbitrary — a setting value can be any JSON type).
+  string value_json = 2;
+}
+
+// Watch scope — the registry (list + active pointer) or one space's settings.
+message SpaceWatchReq {
+  oneof scope {
+    SpaceListReq registry = 1;
+    string space = 2;
+  }
+}
+
+// ── Service ─────────────────────────────────────────────────────────────────
+
 service SpaceService {
-  rpc List(SpaceListRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.workspaces.read";
+  // reads (C0)
+
+  rpc List(SpaceListReq) returns (SpaceList) {
     option (ship.ops.v1.description) = "List the registered spaces (each a .ship/ directory).";
+    option (ship.ops.v1.capability) = "ship.workspaces.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Active(SpaceActiveRequest) returns (WorkspaceActiveResponse) {
+
+  rpc Active(SpaceActiveReq) returns (ActiveSpace) {
+    option (ship.ops.v1.description) = "The active space, if one has been activated.";
     option (ship.ops.v1.capability) = "ship.workspaces.read";
-    option (ship.ops.v1.description) = "The active space and its state.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Info(SpaceInfoRequest) returns (SpaceInfoResponse) {
-    option (ship.ops.v1.capability) = "ship.workspaces.read";
+
+  rpc Info(SpaceInfoReq) returns (SpaceInfo) {
     option (ship.ops.v1.description) = "The active space's identity and effective (global→space) config.";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc WindowIntent(SpaceWindowIntentRequest) returns (SpaceWindowIntentResponse) {
     option (ship.ops.v1.capability) = "ship.workspaces.read";
-    option (ship.ops.v1.description) = "Focus-vs-spawn decision for opening a space window (the shell adaptor executes it).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc WindowList(SpaceWindowListRequest) returns (SpaceWindowListResponse) {
-    option (ship.ops.v1.capability) = "ship.workspaces.read";
-    option (ship.ops.v1.description) = "Enumerate window actors the daemon knows about (actor id, space, pid, live).";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc CloseWindow(CloseWindowRequest) returns (CloseWindowResponse) {
-    option (ship.ops.v1.capability) = "ship.projects.write";
-    option (ship.ops.v1.description) = "Revoke a window's pid-bound token and close its lifecycle (operator-only).";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C3_CRITICAL;
-  }
-  rpc Add(AddSpaceRequest) returns (ProjectRecord) {
+
+  // writes (C1)
+
+  rpc Add(AddSpaceReq) returns (Space) {
     option (ship.ops.v1.description) = "Register a directory as a space (ensures its .ship/ exists).";
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
-  rpc Activate(ActivateSpaceRequest) returns (JsonResponse) {
+
+  rpc Activate(ActivateSpaceReq) returns (ActiveSpace) {
     option (ship.ops.v1.description) = "Switch the daemon's active space.";
     option (ship.ops.v1.capability) = "ship.projects.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
-  // Per-space settings override (#129). Event-sourced overlay layered over the
-  // global daemon settings by Info; the space is the caller's per-connection
-  // space. Routes through the one gate (services::command::call → space.setting.set).
-  rpc SetSetting(SetSpaceSettingRequest) returns (SettingValue) {
+
+  rpc SetSetting(SetSpaceSettingReq) returns (SpaceSettingValue) {
     option (ship.ops.v1.description) = "Set a per-space settings override (value is arbitrary JSON).";
     option (ship.ops.v1.capability) = "ship.settings.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
-  // Live (streaming) variants of the C0 reads — fold of the retired
-  // WorkspacesService (#89): the space list and the active-space pointer
-  // pushed on each projection change.
-  rpc ListLive(SpaceListRequest) returns (stream JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.workspaces.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc ActiveLive(SpaceActiveRequest) returns (stream JsonResponse) {
+
+  // live — the ONE reactive surface (replaces the dropped *Live twins).
+
+  rpc Watch(SpaceWatchReq) returns (stream WatchEvent) {
+    option (ship.ops.v1.description) = "Live watch — the space registry (list + active) or one space's settings.";
     option (ship.ops.v1.capability) = "ship.workspaces.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

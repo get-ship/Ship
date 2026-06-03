@@ -5,8 +5,8 @@
 //! supplies the concrete impls here:
 //!
 //!   - [`RegistryWindowSessions`] — mints / revokes the pid-bound C2 window
-//!     token against the daemon's in-memory `SessionRegistry`. Same mint/revoke
-//!     mechanism as the legacy space-window seam (`space_ports`), re-targeted at
+//!     token against the daemon's in-memory `SessionRegistry`. The mint/revoke
+//!     mechanism the retired space-window seam used, now sole-owned here against
 //!     the device crate's `WindowSessions` trait.
 //!   - [`ProjectsSpaceRegistry`] — validates a window's target space against the
 //!     `projects` projection (an L1 read model the device crate does not own).

@@ -42,8 +42,6 @@ pub mod git_rpc;
 pub mod agents_rpc;
 pub mod agent_rpc;
 pub mod space_rpc;
-pub mod space_ports;
-pub mod spacev2_rpc;
 pub mod device_rpc;
 pub mod device_ports;
 pub mod sessions_rpc;

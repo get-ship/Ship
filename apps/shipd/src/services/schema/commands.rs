@@ -572,28 +572,10 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "SettingValue",
         sensitive: false,
     },
-    // ── space (per-space settings overlay; #129) ─────────────────
-    CommandDescriptor {
-        name: "space.setting.set",
-        description: "Set a per-space settings override (value is arbitrary JSON).",
-        args: &[
-            ArgDescriptor { name: "key", kind: "string", required: true },
-            ArgDescriptor { name: "value_json", kind: "string", required: true },
-        ],
-        permission: "ship.settings.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "SettingValue",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "space.window.close",
-        description: "Revoke a window's pid-bound token and close its lifecycle (operator-only).",
-        args: &[ArgDescriptor { name: "actor_id", kind: "string", required: true }],
-        permission: "ship.projects.write",
-        blast_radius: "C3_CRITICAL",
-        response_type: "CloseWindowResponse",
-        sensitive: true,
-    },
+    // space.setting.set + space.window.close retired in the space cutover —
+    // the per-space override write is now SpaceService.SetSetting (ship-space)
+    // and the window close is DeviceService.CloseWindow (ship-device), both
+    // self-gated wires that bypass the command dispatch table.
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.add",

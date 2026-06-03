@@ -177,12 +177,11 @@ pub fn router(state: ApiState) -> axum::Router {
     // beside the generated ReadOps/CommandOps until the GUI flip (#72).
     let router = ship_ops_rpc::AgentsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::AgentServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::SpaceServiceExt::register(svc.clone(), router);
     // device.* — DeviceService (device.proto): the window-management surface the
     // space carve split out of SpaceService ("space loses window-mgmt → device").
-    // Mounted ADDITIVELY beside the legacy SpaceService window RPCs (still served
-    // above) until the space cutover retires them. Impl in device_rpc on OpsImpl;
-    // the mechanism lives in the ship-device crate.
+    // RegisterWindow replaces the retired `/api/space-window/register` REST route
+    // + legacy `auth::space_window`. Impl in device_rpc on OpsImpl; the mechanism
+    // lives in the ship-device crate.
     let router = ship_ops_rpc::DeviceServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::SessionsServiceExt::register(svc.clone(), router);
     // account.* — typed AccountService (account.proto), served by the
@@ -250,11 +249,12 @@ pub fn router(state: ApiState) -> axum::Router {
         move |_ctx: &connectrpc::RequestContext| artifact_ctx.clone(),
     ));
     let router = ship_ops_rpc::ArtifactsServiceExt::register(artifacts_wire, router);
-    // spacev2.* — SpaceV2Service (ship-space crate): typed space identity +
-    // config overlay + registry. Mounted ADDITIVELY beside the legacy
-    // SpaceService (still served above) until the operator's sequential cutover.
-    let space_v2_wire = crate::spacev2_rpc::space_v2_wire(state.clone());
-    let router = ship_ops_rpc::SpaceV2ServiceExt::register(space_v2_wire, router);
+    // space.* — SpaceService (ship-space crate): typed space identity + config
+    // overlay + registry + Watch. The SOLE space service (the legacy SpaceService
+    // — JsonResponse/ProjectRecord vestiges, *Live twins, window RPCs — was
+    // retired in the space cutover; windows moved to DeviceService above).
+    let space_wire = crate::space_rpc::space_wire(state.clone());
+    let router = ship_ops_rpc::SpaceServiceExt::register(space_wire, router);
     router.into_axum_router()
 }
 

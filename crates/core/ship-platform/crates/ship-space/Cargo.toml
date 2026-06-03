@@ -3,7 +3,7 @@ name = "ship-space"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "SpaceV2Service — space identity + per-space config overlay + space registry (L1). Implements spacev2.proto's 7 RPCs via DataStore + KernelLog; no direct sqlite/raw-fs access."
+description = "SpaceService — space identity + per-space config overlay + space registry (L1). Implements space.proto's 7 RPCs via DataStore + KernelLog; no direct sqlite/raw-fs access."
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }

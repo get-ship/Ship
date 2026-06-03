@@ -1,4 +1,4 @@
-//! Space service — core business logic for the SpaceV2Service RPCs.
+//! Space service — core business logic for the SpaceService RPCs.
 //!
 //! All storage goes through `SpaceContext.data()` (DataStore port); all events
 //! go through `SpaceContext.kernel()` (KernelLog port). No sqlite/sqlx/rusqlite

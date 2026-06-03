@@ -19,7 +19,6 @@ pub mod identity;
 pub mod peer_socket;
 pub mod scopes;
 pub mod session;
-pub mod space_window;
 
 #[cfg(test)]
 mod auth_tests;

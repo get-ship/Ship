@@ -48,8 +48,9 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(RulesIndexResponse), v!(RuleGetResponse),
         v!(ListProcsResponse), v!(SessionsListResponse), v!(SettingValue),
         v!(SkillsIndexResponse), v!(SkillFileResponse),
-        v!(SpaceInfoResponse), v!(SpaceWindowIntentResponse), v!(SpaceWindowListResponse),
-        v!(CloseWindowResponse),
+        // space.* (clean SpaceService — ship-space crate): typed identity +
+        // config overlay + registry. Window types moved to DeviceService.
+        v!(Space), v!(SpaceList), v!(ActiveSpace), v!(SpaceInfo), v!(SpaceSettingValue),
     ]
     .into_iter()
     .collect()
