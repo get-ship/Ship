@@ -61,7 +61,23 @@ pub(crate) async fn run(b: &Bundler) {
     let producer = queue.clone();
     let mut watcher = match notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         if let Ok(ev) = res {
-            let is_create_dir = matches!(ev.kind, notify::EventKind::Create(_));
+            use notify::EventKind;
+            use notify::event::ModifyKind;
+            // SELF-TRIGGER GUARD: the bundler READS source files to compile them.
+            // notify's inotify mask surfaces those reads as `Access` events and
+            // the resulting atime bump as `Modify(Metadata)` (IN_ATTRIB) — neither
+            // is a source EDIT. Reacting to them is a read → rebuild → read loop:
+            // every island re-bundles ~1/s with no edits, emitting `module-changed`,
+            // and the live-reload client full-reloads on each → the page resets
+            // multiple times per second. Only real content/structural changes
+            // (Create / Remove / Modify::Data / Modify::Name) drive a rebuild.
+            if matches!(
+                ev.kind,
+                EventKind::Access(_) | EventKind::Modify(ModifyKind::Metadata(_))
+            ) {
+                return;
+            }
+            let is_create_dir = matches!(ev.kind, EventKind::Create(_));
             for p in ev.paths {
                 producer.push(WatchSignal { path: p, is_create_dir });
             }
