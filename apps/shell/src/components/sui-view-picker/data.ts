@@ -2,7 +2,7 @@
 // drag-pin/unpin state machine. Split from render.ts so each module
 // stays under the 300-line engineering cap.
 
-import { ops } from '../../ops'
+import { ops, readSetting, writeSetting } from '../../ops'
 
 export interface ApiView {
   name: string
@@ -51,24 +51,14 @@ export function partition(args: { views: ApiView[]; pins: string[]; filter: stri
 }
 
 export async function fetchPins(_settingsUrl: string, key: string): Promise<string[]> {
-  try {
-    const body = JSON.parse((await ops.settings.state({})).json) as { data?: Record<string, unknown> }
-    const raw = body.data?.[key]
-    if (typeof raw === 'string') {
-      try {
-        const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed) && parsed.every((v) => typeof v === 'string')) return parsed as string[]
-      } catch { /* default */ }
-    } else if (Array.isArray(raw) && raw.every((v) => typeof v === 'string')) {
-      return raw as string[]
-    }
-    return DEFAULT_PINS
-  } catch { return DEFAULT_PINS }
+  const raw = await readSetting<unknown>(key)
+  if (Array.isArray(raw) && raw.every((v) => typeof v === 'string')) return raw as string[]
+  return DEFAULT_PINS
 }
 
 export async function savePins(_settingsUrl: string, key: string, pins: string[]): Promise<void> {
   try {
-    await ops.settings.set({ key, valueJson: JSON.stringify(pins) })
+    await writeSetting(key, pins)
   } catch { /* fire-and-forget */ }
 }
 

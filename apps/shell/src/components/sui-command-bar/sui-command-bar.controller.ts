@@ -8,7 +8,7 @@ import {
   searchEntities,
   detectMode, navigateTo,
 } from './types'
-import { ops } from '../../ops'
+import { ops, readSetting } from '../../ops'
 
 export default controller({
   scope: (init: ViewScope<Scope>) => {
@@ -112,13 +112,8 @@ export default controller({
       slashCommands.set(list)
     }
     async function refreshSendKey(): Promise<void> {
-      try {
-        const body = JSON.parse((await ops.settings.state({})).json) as {
-          data?: Record<string, unknown>
-        }
-        const v = body.data?.['cmdk.send_key']
-        if (v === 'enter' || v === 'cmd+enter') sendKey.set(v)
-      } catch { /* leave default */ }
+      const v = await readSetting<unknown>('cmdk.send_key')
+      if (v === 'enter' || v === 'cmd+enter') sendKey.set(v)
     }
 
     // ── Open/close effect ──────────────────────────────────────────

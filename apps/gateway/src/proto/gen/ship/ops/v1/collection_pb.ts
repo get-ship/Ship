@@ -12,18 +12,20 @@
 // @generated from file ship/ops/v1/collection.proto (package ship.ops.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_ship_ops_v1_policy } from "./policy_pb.js";
 import type { DeletionSchema } from "./types_pb.js";
 import { file_ship_ops_v1_types } from "./types_pb.js";
+import type { WatchEventSchema } from "./reactive_pb.js";
+import { file_ship_ops_v1_reactive } from "./reactive_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file ship/ops/v1/collection.proto.
  */
 export const file_ship_ops_v1_collection: GenFile = /*@__PURE__*/
-  fileDesc("ChxzaGlwL29wcy92MS9jb2xsZWN0aW9uLnByb3RvEgtzaGlwLm9wcy52MSIHCgVFbXB0eSJSChFDb2xsZWN0aW9uU3VtbWFyeRIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRISCgppdGVtX2NvdW50GAMgASgNEg4KBnN5c3RlbRgEIAEoCCJFCg5Db2xsZWN0aW9uTGlzdBIzCgtjb2xsZWN0aW9ucxgBIAMoCzIeLnNoaXAub3BzLnYxLkNvbGxlY3Rpb25TdW1tYXJ5IkcKEENvbGxlY3Rpb25EZXRhaWwSCgoCaWQYASABKAkSEwoLc2NoZW1hX2pzb24YAiABKAwSEgoKaXRlbV9jb3VudBgDIAEoDSJhCgRJdGVtEgoKAmlkGAEgASgJEhIKCmNvbGxlY3Rpb24YAiABKAkSEQoJZGF0YV9qc29uGAMgASgMEhIKCmNyZWF0ZWRfYXQYBCABKAkSEgoKdXBkYXRlZF9hdBgFIAEoCSJBCghJdGVtUGFnZRIgCgVpdGVtcxgBIAMoCzIRLnNoaXAub3BzLnYxLkl0ZW0SEwoLbmV4dF9jdXJzb3IYAiABKAkiFAoGR2V0UmVxEgoKAmlkGAEgASgJIiwKCkdldEl0ZW1SZXESEgoKY29sbGVjdGlvbhgBIAEoCRIKCgJpZBgCIAEoCSJ0CghRdWVyeVJlcRIVCgtuYW1lZF9xdWVyeRgBIAEoCUgAEhQKCmlubGluZV9hc3QYAiABKAxIABITCgtwYXJhbXNfanNvbhgDIAEoDBIOCgZjdXJzb3IYBCABKAkSDQoFbGltaXQYBSABKA1CBwoFcXVlcnkiNgoNQ3JlYXRlSXRlbVJlcRISCgpjb2xsZWN0aW9uGAEgASgJEhEKCWRhdGFfanNvbhgCIAEoDCJCCg1VcGRhdGVJdGVtUmVxEhIKCmNvbGxlY3Rpb24YASABKAkSCgoCaWQYAiABKAkSEQoJZGF0YV9qc29uGAMgASgMIi8KDURlbGV0ZUl0ZW1SZXESEgoKY29sbGVjdGlvbhgBIAEoCRIKCgJpZBgCIAEoCSIyCg9DcmVhdGVTY2hlbWFSZXESCgoCaWQYASABKAkSEwoLc2NoZW1hX2pzb24YAiABKAwiMgoPVXBkYXRlU2NoZW1hUmVxEgoKAmlkGAEgASgJEhMKC3NjaGVtYV9qc29uGAIgASgMIikKB0l0ZW1SZWYSEgoKY29sbGVjdGlvbhgBIAEoCRIKCgJpZBgCIAEoCSKOAQoIV2F0Y2hSZXESKQoLY29sbGVjdGlvbnMYASABKAsyEi5zaGlwLm9wcy52MS5FbXB0eUgAEhQKCmNvbGxlY3Rpb24YAiABKAlIABIkCgRpdGVtGAMgASgLMhQuc2hpcC5vcHMudjEuSXRlbVJlZkgAEhIKCnF1ZXJ5X2pzb24YBCABKAxCBwoFc2NvcGUipAEKBVBhdGNoEiAKAm9wGAEgASgOMhQuc2hpcC5vcHMudjEuUGF0Y2hPcBIMCgRwYXRoGAIgASgJEhIKBXZhbHVlGAMgASgMSACIAQESDQoFaW5kZXgYBCABKAUSDAoEZnJvbRgFIAEoBRIKCgJ0bxgGIAEoBRINCgVjb3VudBgHIAEoBRIKCgJieRgIIAEoARIJCgF2GAkgASgNQggKBl92YWx1ZSIxCgpQYXRjaEZyYW1lEiMKB3BhdGNoZXMYASADKAsyEi5zaGlwLm9wcy52MS5QYXRjaCIeCgtTdHJlYW1FcnJvchIPCgdtZXNzYWdlGAEgASgJIhcKCUhlYXJ0YmVhdBIKCgJ0cxgBIAEoCSKPAQoKV2F0Y2hFdmVudBIqCgdwYXRjaGVzGAEgASgLMhcuc2hpcC5vcHMudjEuUGF0Y2hGcmFtZUgAEicKA2VychgCIAEoCzIYLnNoaXAub3BzLnYxLlN0cmVhbUVycm9ySAASJAoCaGIYAyABKAsyFi5zaGlwLm9wcy52MS5IZWFydGJlYXRIAEIGCgRib2R5KtgBCgdQYXRjaE9wEhgKFFBBVENIX09QX1VOU1BFQ0lGSUVEEAASEAoMUEFUQ0hfT1BfU0VUEAESEgoOUEFUQ0hfT1BfTUVSR0UQAhITCg9QQVRDSF9PUF9BUFBFTkQQAxIUChBQQVRDSF9PUF9QUkVQRU5EEAQSEwoPUEFUQ0hfT1BfSU5TRVJUEAUSEwoPUEFUQ0hfT1BfUkVNT1ZFEAYSEQoNUEFUQ0hfT1BfTU9WRRAHEhMKD1BBVENIX09QX1NQTElDRRAIEhAKDFBBVENIX09QX0lOQxAJMowLChFDb2xsZWN0aW9uU2VydmljZRKWAQoETGlzdBISLnNoaXAub3BzLnYxLkVtcHR5Ghsuc2hpcC5vcHMudjEuQ29sbGVjdGlvbkxpc3QiXYq1GBRzaGlwLmNvbGxlY3Rpb24ucmVhZJC1GAGitRg9QWxsIGNvbGxlY3Rpb25zLCBpbmNsdWRpbmcgc3lzdGVtIG9uZXMgKGZsYWdnZWQgc3lzdGVtPXRydWUpLhJ8CgNHZXQSEy5zaGlwLm9wcy52MS5HZXRSZXEaHS5zaGlwLm9wcy52MS5Db2xsZWN0aW9uRGV0YWlsIkGKtRgUc2hpcC5jb2xsZWN0aW9uLnJlYWSQtRgBorUYIUNvbGxlY3Rpb24gc2NoZW1hIGFuZCBpdGVtIGNvdW50LhKhAQoKUXVlcnlJdGVtcxIVLnNoaXAub3BzLnYxLlF1ZXJ5UmVxGhUuc2hpcC5vcHMudjEuSXRlbVBhZ2UiZYq1GBRzaGlwLmNvbGxlY3Rpb24ucmVhZJC1GAGitRhFQ3Vyc29yLXBhZ2luYXRlZCBpdGVtIHF1ZXJ5IOKAlCBuYW1lZC1xdWVyeSByZWYgb3IgaW5saW5lIEt5c2VseSBBU1QuEnQKB0dldEl0ZW0SFy5zaGlwLm9wcy52MS5HZXRJdGVtUmVxGhEuc2hpcC5vcHMudjEuSXRlbSI9irUYFHNoaXAuY29sbGVjdGlvbi5yZWFkkLUYAaK1GB1TaW5nbGUgY29sbGVjdGlvbiBpdGVtIGJ5IGlkLhJ9CgpDcmVhdGVJdGVtEhouc2hpcC5vcHMudjEuQ3JlYXRlSXRlbVJlcRoRLnNoaXAub3BzLnYxLkl0ZW0iQIq1GBVzaGlwLmNvbGxlY3Rpb24ud3JpdGWQtRgCorUYH0NyZWF0ZSBhbiBpdGVtIGluIGEgY29sbGVjdGlvbi4SfwoKVXBkYXRlSXRlbRIaLnNoaXAub3BzLnYxLlVwZGF0ZUl0ZW1SZXEaES5zaGlwLm9wcy52MS5JdGVtIkKKtRgVc2hpcC5jb2xsZWN0aW9uLndyaXRlkLUYAqK1GCFSZXBsYWNlIGEgY29sbGVjdGlvbiBpdGVtJ3MgZGF0YS4SgQEKCkRlbGV0ZUl0ZW0SGi5zaGlwLm9wcy52MS5EZWxldGVJdGVtUmVxGhUuc2hpcC5vcHMudjEuRGVsZXRpb24iQIq1GBVzaGlwLmNvbGxlY3Rpb24ud3JpdGWQtRgCorUYH0RlbGV0ZSBhIGNvbGxlY3Rpb24gaXRlbSBieSBpZC4SjQEKDENyZWF0ZVNjaGVtYRIcLnNoaXAub3BzLnYxLkNyZWF0ZVNjaGVtYVJlcRodLnNoaXAub3BzLnYxLkNvbGxlY3Rpb25EZXRhaWwiQIq1GBVzaGlwLmNvbGxlY3Rpb24ud3JpdGWQtRgCorUYH0RlZmluZSBhIG5ldyBjb2xsZWN0aW9uIHNjaGVtYS4SigEKDFVwZGF0ZVNjaGVtYRIcLnNoaXAub3BzLnYxLlVwZGF0ZVNjaGVtYVJlcRodLnNoaXAub3BzLnYxLkNvbGxlY3Rpb25EZXRhaWwiPYq1GBVzaGlwLmNvbGxlY3Rpb24ud3JpdGWQtRgCorUYHFJlcGxhY2UgYSBjb2xsZWN0aW9uIHNjaGVtYS4SpAEKBVdhdGNoEhUuc2hpcC5vcHMudjEuV2F0Y2hSZXEaFy5zaGlwLm9wcy52MS5XYXRjaEV2ZW50ImmKtRgUc2hpcC5jb2xsZWN0aW9uLnJlYWSQtRgBorUYSUxpdmUgd2F0Y2gg4oCUIGFsbCBjb2xsZWN0aW9ucywgb25lIGNvbGxlY3Rpb24gKGZpbHRlcmFibGUpLCBvciBvbmUgaXRlbS4wAWIGcHJvdG8z", [file_ship_ops_v1_policy, file_ship_ops_v1_types]);
+  fileDesc("ChxzaGlwL29wcy92MS9jb2xsZWN0aW9uLnByb3RvEgtzaGlwLm9wcy52MSIHCgVFbXB0eSJSChFDb2xsZWN0aW9uU3VtbWFyeRIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRISCgppdGVtX2NvdW50GAMgASgNEg4KBnN5c3RlbRgEIAEoCCJFCg5Db2xsZWN0aW9uTGlzdBIzCgtjb2xsZWN0aW9ucxgBIAMoCzIeLnNoaXAub3BzLnYxLkNvbGxlY3Rpb25TdW1tYXJ5IkcKEENvbGxlY3Rpb25EZXRhaWwSCgoCaWQYASABKAkSEwoLc2NoZW1hX2pzb24YAiABKAwSEgoKaXRlbV9jb3VudBgDIAEoDSJhCgRJdGVtEgoKAmlkGAEgASgJEhIKCmNvbGxlY3Rpb24YAiABKAkSEQoJZGF0YV9qc29uGAMgASgMEhIKCmNyZWF0ZWRfYXQYBCABKAkSEgoKdXBkYXRlZF9hdBgFIAEoCSJBCghJdGVtUGFnZRIgCgVpdGVtcxgBIAMoCzIRLnNoaXAub3BzLnYxLkl0ZW0SEwoLbmV4dF9jdXJzb3IYAiABKAkiFAoGR2V0UmVxEgoKAmlkGAEgASgJIiwKCkdldEl0ZW1SZXESEgoKY29sbGVjdGlvbhgBIAEoCRIKCgJpZBgCIAEoCSJ0CghRdWVyeVJlcRIVCgtuYW1lZF9xdWVyeRgBIAEoCUgAEhQKCmlubGluZV9hc3QYAiABKAxIABITCgtwYXJhbXNfanNvbhgDIAEoDBIOCgZjdXJzb3IYBCABKAkSDQoFbGltaXQYBSABKA1CBwoFcXVlcnkiNgoNQ3JlYXRlSXRlbVJlcRISCgpjb2xsZWN0aW9uGAEgASgJEhEKCWRhdGFfanNvbhgCIAEoDCJCCg1VcGRhdGVJdGVtUmVxEhIKCmNvbGxlY3Rpb24YASABKAkSCgoCaWQYAiABKAkSEQoJZGF0YV9qc29uGAMgASgMIi8KDURlbGV0ZUl0ZW1SZXESEgoKY29sbGVjdGlvbhgBIAEoCRIKCgJpZBgCIAEoCSIyCg9DcmVhdGVTY2hlbWFSZXESCgoCaWQYASABKAkSEwoLc2NoZW1hX2pzb24YAiABKAwiMgoPVXBkYXRlU2NoZW1hUmVxEgoKAmlkGAEgASgJEhMKC3NjaGVtYV9qc29uGAIgASgMIikKB0l0ZW1SZWYSEgoKY29sbGVjdGlvbhgBIAEoCRIKCgJpZBgCIAEoCSKOAQoIV2F0Y2hSZXESKQoLY29sbGVjdGlvbnMYASABKAsyEi5zaGlwLm9wcy52MS5FbXB0eUgAEhQKCmNvbGxlY3Rpb24YAiABKAlIABIkCgRpdGVtGAMgASgLMhQuc2hpcC5vcHMudjEuSXRlbVJlZkgAEhIKCnF1ZXJ5X2pzb24YBCABKAxCBwoFc2NvcGUyjAsKEUNvbGxlY3Rpb25TZXJ2aWNlEpYBCgRMaXN0EhIuc2hpcC5vcHMudjEuRW1wdHkaGy5zaGlwLm9wcy52MS5Db2xsZWN0aW9uTGlzdCJdirUYFHNoaXAuY29sbGVjdGlvbi5yZWFkkLUYAaK1GD1BbGwgY29sbGVjdGlvbnMsIGluY2x1ZGluZyBzeXN0ZW0gb25lcyAoZmxhZ2dlZCBzeXN0ZW09dHJ1ZSkuEnwKA0dldBITLnNoaXAub3BzLnYxLkdldFJlcRodLnNoaXAub3BzLnYxLkNvbGxlY3Rpb25EZXRhaWwiQYq1GBRzaGlwLmNvbGxlY3Rpb24ucmVhZJC1GAGitRghQ29sbGVjdGlvbiBzY2hlbWEgYW5kIGl0ZW0gY291bnQuEqEBCgpRdWVyeUl0ZW1zEhUuc2hpcC5vcHMudjEuUXVlcnlSZXEaFS5zaGlwLm9wcy52MS5JdGVtUGFnZSJlirUYFHNoaXAuY29sbGVjdGlvbi5yZWFkkLUYAaK1GEVDdXJzb3ItcGFnaW5hdGVkIGl0ZW0gcXVlcnkg4oCUIG5hbWVkLXF1ZXJ5IHJlZiBvciBpbmxpbmUgS3lzZWx5IEFTVC4SdAoHR2V0SXRlbRIXLnNoaXAub3BzLnYxLkdldEl0ZW1SZXEaES5zaGlwLm9wcy52MS5JdGVtIj2KtRgUc2hpcC5jb2xsZWN0aW9uLnJlYWSQtRgBorUYHVNpbmdsZSBjb2xsZWN0aW9uIGl0ZW0gYnkgaWQuEn0KCkNyZWF0ZUl0ZW0SGi5zaGlwLm9wcy52MS5DcmVhdGVJdGVtUmVxGhEuc2hpcC5vcHMudjEuSXRlbSJAirUYFXNoaXAuY29sbGVjdGlvbi53cml0ZZC1GAKitRgfQ3JlYXRlIGFuIGl0ZW0gaW4gYSBjb2xsZWN0aW9uLhJ/CgpVcGRhdGVJdGVtEhouc2hpcC5vcHMudjEuVXBkYXRlSXRlbVJlcRoRLnNoaXAub3BzLnYxLkl0ZW0iQoq1GBVzaGlwLmNvbGxlY3Rpb24ud3JpdGWQtRgCorUYIVJlcGxhY2UgYSBjb2xsZWN0aW9uIGl0ZW0ncyBkYXRhLhKBAQoKRGVsZXRlSXRlbRIaLnNoaXAub3BzLnYxLkRlbGV0ZUl0ZW1SZXEaFS5zaGlwLm9wcy52MS5EZWxldGlvbiJAirUYFXNoaXAuY29sbGVjdGlvbi53cml0ZZC1GAKitRgfRGVsZXRlIGEgY29sbGVjdGlvbiBpdGVtIGJ5IGlkLhKNAQoMQ3JlYXRlU2NoZW1hEhwuc2hpcC5vcHMudjEuQ3JlYXRlU2NoZW1hUmVxGh0uc2hpcC5vcHMudjEuQ29sbGVjdGlvbkRldGFpbCJAirUYFXNoaXAuY29sbGVjdGlvbi53cml0ZZC1GAKitRgfRGVmaW5lIGEgbmV3IGNvbGxlY3Rpb24gc2NoZW1hLhKKAQoMVXBkYXRlU2NoZW1hEhwuc2hpcC5vcHMudjEuVXBkYXRlU2NoZW1hUmVxGh0uc2hpcC5vcHMudjEuQ29sbGVjdGlvbkRldGFpbCI9irUYFXNoaXAuY29sbGVjdGlvbi53cml0ZZC1GAKitRgcUmVwbGFjZSBhIGNvbGxlY3Rpb24gc2NoZW1hLhKkAQoFV2F0Y2gSFS5zaGlwLm9wcy52MS5XYXRjaFJlcRoXLnNoaXAub3BzLnYxLldhdGNoRXZlbnQiaYq1GBRzaGlwLmNvbGxlY3Rpb24ucmVhZJC1GAGitRhJTGl2ZSB3YXRjaCDigJQgYWxsIGNvbGxlY3Rpb25zLCBvbmUgY29sbGVjdGlvbiAoZmlsdGVyYWJsZSksIG9yIG9uZSBpdGVtLjABYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_types, file_ship_ops_v1_reactive]);
 
 /**
  * Typesafe empty — used as the List request and as the `collections` (all)
@@ -457,225 +459,6 @@ export type WatchReq = Message<"ship.ops.v1.WatchReq"> & {
  */
 export const WatchReqSchema: GenMessage<WatchReq> = /*@__PURE__*/
   messageDesc(file_ship_ops_v1_collection, 15);
-
-/**
- * One patch envelope. Mirrors the Patch interface in
- * packages/sui/runtime/src/patch.ts (lines 31-48) field-for-field.
- * path: JSON path within the signal value; empty = root.
- * value: JSON-serialized operand (set/merge/append/prepend/insert/splice).
- * index: insert/splice target index.
- * from/to: move source and destination indices.
- * count: splice remove count.
- * by: inc increment amount.
- * v: wire version (defaults to 1).
- *
- * @generated from message ship.ops.v1.Patch
- */
-export type Patch = Message<"ship.ops.v1.Patch"> & {
-  /**
-   * @generated from field: ship.ops.v1.PatchOp op = 1;
-   */
-  op: PatchOp;
-
-  /**
-   * @generated from field: string path = 2;
-   */
-  path: string;
-
-  /**
-   * @generated from field: optional bytes value = 3;
-   */
-  value?: Uint8Array | undefined;
-
-  /**
-   * @generated from field: int32 index = 4;
-   */
-  index: number;
-
-  /**
-   * @generated from field: int32 from = 5;
-   */
-  from: number;
-
-  /**
-   * @generated from field: int32 to = 6;
-   */
-  to: number;
-
-  /**
-   * @generated from field: int32 count = 7;
-   */
-  count: number;
-
-  /**
-   * @generated from field: double by = 8;
-   */
-  by: number;
-
-  /**
-   * @generated from field: uint32 v = 9;
-   */
-  v: number;
-};
-
-/**
- * Describes the message ship.ops.v1.Patch.
- * Use `create(PatchSchema)` to create a new message.
- */
-export const PatchSchema: GenMessage<Patch> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_collection, 16);
-
-/**
- * @generated from message ship.ops.v1.PatchFrame
- */
-export type PatchFrame = Message<"ship.ops.v1.PatchFrame"> & {
-  /**
-   * @generated from field: repeated ship.ops.v1.Patch patches = 1;
-   */
-  patches: Patch[];
-};
-
-/**
- * Describes the message ship.ops.v1.PatchFrame.
- * Use `create(PatchFrameSchema)` to create a new message.
- */
-export const PatchFrameSchema: GenMessage<PatchFrame> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_collection, 17);
-
-/**
- * @generated from message ship.ops.v1.StreamError
- */
-export type StreamError = Message<"ship.ops.v1.StreamError"> & {
-  /**
-   * @generated from field: string message = 1;
-   */
-  message: string;
-};
-
-/**
- * Describes the message ship.ops.v1.StreamError.
- * Use `create(StreamErrorSchema)` to create a new message.
- */
-export const StreamErrorSchema: GenMessage<StreamError> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_collection, 18);
-
-/**
- * @generated from message ship.ops.v1.Heartbeat
- */
-export type Heartbeat = Message<"ship.ops.v1.Heartbeat"> & {
-  /**
-   * @generated from field: string ts = 1;
-   */
-  ts: string;
-};
-
-/**
- * Describes the message ship.ops.v1.Heartbeat.
- * Use `create(HeartbeatSchema)` to create a new message.
- */
-export const HeartbeatSchema: GenMessage<Heartbeat> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_collection, 19);
-
-/**
- * One event on a Watch stream: a batch of patches, a stream error, or a
- * keepalive heartbeat.
- *
- * @generated from message ship.ops.v1.WatchEvent
- */
-export type WatchEvent = Message<"ship.ops.v1.WatchEvent"> & {
-  /**
-   * @generated from oneof ship.ops.v1.WatchEvent.body
-   */
-  body: {
-    /**
-     * @generated from field: ship.ops.v1.PatchFrame patches = 1;
-     */
-    value: PatchFrame;
-    case: "patches";
-  } | {
-    /**
-     * @generated from field: ship.ops.v1.StreamError err = 2;
-     */
-    value: StreamError;
-    case: "err";
-  } | {
-    /**
-     * @generated from field: ship.ops.v1.Heartbeat hb = 3;
-     */
-    value: Heartbeat;
-    case: "hb";
-  } | { case: undefined; value?: undefined };
-};
-
-/**
- * Describes the message ship.ops.v1.WatchEvent.
- * Use `create(WatchEventSchema)` to create a new message.
- */
-export const WatchEventSchema: GenMessage<WatchEvent> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_collection, 20);
-
-/**
- * Wire-protocol op tag — mirrors PatchOp in patch.ts exactly.
- *
- * @generated from enum ship.ops.v1.PatchOp
- */
-export enum PatchOp {
-  /**
-   * @generated from enum value: PATCH_OP_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: PATCH_OP_SET = 1;
-   */
-  SET = 1,
-
-  /**
-   * @generated from enum value: PATCH_OP_MERGE = 2;
-   */
-  MERGE = 2,
-
-  /**
-   * @generated from enum value: PATCH_OP_APPEND = 3;
-   */
-  APPEND = 3,
-
-  /**
-   * @generated from enum value: PATCH_OP_PREPEND = 4;
-   */
-  PREPEND = 4,
-
-  /**
-   * @generated from enum value: PATCH_OP_INSERT = 5;
-   */
-  INSERT = 5,
-
-  /**
-   * @generated from enum value: PATCH_OP_REMOVE = 6;
-   */
-  REMOVE = 6,
-
-  /**
-   * @generated from enum value: PATCH_OP_MOVE = 7;
-   */
-  MOVE = 7,
-
-  /**
-   * @generated from enum value: PATCH_OP_SPLICE = 8;
-   */
-  SPLICE = 8,
-
-  /**
-   * @generated from enum value: PATCH_OP_INC = 9;
-   */
-  INC = 9,
-}
-
-/**
- * Describes the enum ship.ops.v1.PatchOp.
- */
-export const PatchOpSchema: GenEnum<PatchOp> = /*@__PURE__*/
-  enumDesc(file_ship_ops_v1_collection, 0);
 
 /**
  * reads

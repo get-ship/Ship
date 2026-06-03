@@ -16,15 +16,15 @@ import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2
 import { file_ship_ops_v1_policy } from "./policy_pb.js";
 import type { ArtifactRecordSchema, ArtifactsListResponseSchema, DeletionSchema } from "./types_pb.js";
 import { file_ship_ops_v1_types } from "./types_pb.js";
-import type { JsonResponseSchema } from "./ops_pb.js";
-import { file_ship_ops_v1_ops } from "./ops_pb.js";
+import type { WatchEventSchema } from "./reactive_pb.js";
+import { file_ship_ops_v1_reactive } from "./reactive_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file ship/ops/v1/artifacts.proto.
  */
 export const file_ship_ops_v1_artifacts: GenFile = /*@__PURE__*/
-  fileDesc("ChtzaGlwL29wcy92MS9hcnRpZmFjdHMucHJvdG8SC3NoaXAub3BzLnYxIrMBChRMaXN0QXJ0aWZhY3RzUmVxdWVzdBINCgVzY29wZRgBIAEoCRIMCgRtaW1lGAIgASgJEhUKDWNvbGxlY3Rpb25faWQYAyABKAkSDwoHaXRlbV9pZBgEIAEoCRITCgtvd25lcl9hY3RvchgFIAEoCRIUCgxjb250ZW50X2hhc2gYBiABKAkSDAoEc29ydBgHIAEoCRINCgVsaW1pdBgIIAEoBBIOCgZvZmZzZXQYCSABKAQiWQoUUGF0Y2hBcnRpZmFjdFJlcXVlc3QSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtvd25lcl9hY3RvchgDIAEoCRISCgpleHBpcmVzX2F0GAQgASgJIlsKFlByb21vdGVBcnRpZmFjdFJlcXVlc3QSCgoCaWQYASABKAkSFAoMdGFyZ2V0X3Njb3BlGAIgASgJEg4KBnJ1bl9pZBgDIAEoCRIPCgd1c2VyX2lkGAQgASgJIiMKFURlbGV0ZUFydGlmYWN0UmVxdWVzdBIKCgJpZBgBIAEoCTKOBgoQQXJ0aWZhY3RzU2VydmljZRK4AQoETGlzdBIhLnNoaXAub3BzLnYxLkxpc3RBcnRpZmFjdHNSZXF1ZXN0GiIuc2hpcC5vcHMudjEuQXJ0aWZhY3RzTGlzdFJlc3BvbnNlImmKtRgTc2hpcC5hcnRpZmFjdHMucmVhZJC1GAGitRhKQXJ0aWZhY3QgbWV0YWRhdGEgcmVjb3JkcywgZmlsdGVyYWJsZSBieSBzY29wZS9taW1lL2NvbGxlY3Rpb24vaXRlbS9vd25lci4SZwoITGlzdExpdmUSIS5zaGlwLm9wcy52MS5MaXN0QXJ0aWZhY3RzUmVxdWVzdBoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIbirUYE3NoaXAuYXJ0aWZhY3RzLnJlYWSQtRgBMAESngEKBVBhdGNoEiEuc2hpcC5vcHMudjEuUGF0Y2hBcnRpZmFjdFJlcXVlc3QaGy5zaGlwLm9wcy52MS5BcnRpZmFjdFJlY29yZCJVirUYFHNoaXAuYXJ0aWZhY3RzLndyaXRlkLUYAqK1GDVQYXRjaCBhbiBhcnRpZmFjdCdzIG1ldGFkYXRhIChuYW1lIC8gb3duZXIgLyBleHBpcnkpLhKuAQoHUHJvbW90ZRIjLnNoaXAub3BzLnYxLlByb21vdGVBcnRpZmFjdFJlcXVlc3QaGy5zaGlwLm9wcy52MS5BcnRpZmFjdFJlY29yZCJhirUYFHNoaXAuYXJ0aWZhY3RzLndyaXRlkLUYAqK1GEFQcm9tb3RlIGFuIGFydGlmYWN0IHRvIGEgdGFyZ2V0IHNjb3BlIChydW4g4oaSIHByb2plY3Qg4oaSIHVzZXIpLhKDAQoGRGVsZXRlEiIuc2hpcC5vcHMudjEuRGVsZXRlQXJ0aWZhY3RSZXF1ZXN0GhUuc2hpcC5vcHMudjEuRGVsZXRpb24iPoq1GBRzaGlwLmFydGlmYWN0cy53cml0ZZC1GAKitRgeU29mdC1kZWxldGUgYW4gYXJ0aWZhY3QgYnkgaWQuYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_types, file_ship_ops_v1_ops]);
+  fileDesc("ChtzaGlwL29wcy92MS9hcnRpZmFjdHMucHJvdG8SC3NoaXAub3BzLnYxIrMBChRMaXN0QXJ0aWZhY3RzUmVxdWVzdBINCgVzY29wZRgBIAEoCRIMCgRtaW1lGAIgASgJEhUKDWNvbGxlY3Rpb25faWQYAyABKAkSDwoHaXRlbV9pZBgEIAEoCRITCgtvd25lcl9hY3RvchgFIAEoCRIUCgxjb250ZW50X2hhc2gYBiABKAkSDAoEc29ydBgHIAEoCRINCgVsaW1pdBgIIAEoBBIOCgZvZmZzZXQYCSABKAQiWQoUUGF0Y2hBcnRpZmFjdFJlcXVlc3QSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtvd25lcl9hY3RvchgDIAEoCRISCgpleHBpcmVzX2F0GAQgASgJIlsKFlByb21vdGVBcnRpZmFjdFJlcXVlc3QSCgoCaWQYASABKAkSFAoMdGFyZ2V0X3Njb3BlGAIgASgJEg4KBnJ1bl9pZBgDIAEoCRIPCgd1c2VyX2lkGAQgASgJIiMKFURlbGV0ZUFydGlmYWN0UmVxdWVzdBIKCgJpZBgBIAEoCSIwChFBcnRpZmFjdHNXYXRjaFJlcRINCgVzY29wZRgBIAEoCRIMCgRtaW1lGAIgASgJMssGChBBcnRpZmFjdHNTZXJ2aWNlErgBCgRMaXN0EiEuc2hpcC5vcHMudjEuTGlzdEFydGlmYWN0c1JlcXVlc3QaIi5zaGlwLm9wcy52MS5BcnRpZmFjdHNMaXN0UmVzcG9uc2UiaYq1GBNzaGlwLmFydGlmYWN0cy5yZWFkkLUYAaK1GEpBcnRpZmFjdCBtZXRhZGF0YSByZWNvcmRzLCBmaWx0ZXJhYmxlIGJ5IHNjb3BlL21pbWUvY29sbGVjdGlvbi9pdGVtL293bmVyLhKjAQoFV2F0Y2gSHi5zaGlwLm9wcy52MS5BcnRpZmFjdHNXYXRjaFJlcRoXLnNoaXAub3BzLnYxLldhdGNoRXZlbnQiX4q1GBNzaGlwLmFydGlmYWN0cy5yZWFkkLUYAaK1GEBMaXZlIHdhdGNoIOKAlCB0eXBlZCBwYXRjaCBzdHJlYW0gZm9yIGFydGlmYWN0IG1ldGFkYXRhIGNoYW5nZXMuMAESngEKBVBhdGNoEiEuc2hpcC5vcHMudjEuUGF0Y2hBcnRpZmFjdFJlcXVlc3QaGy5zaGlwLm9wcy52MS5BcnRpZmFjdFJlY29yZCJVirUYFHNoaXAuYXJ0aWZhY3RzLndyaXRlkLUYAqK1GDVQYXRjaCBhbiBhcnRpZmFjdCdzIG1ldGFkYXRhIChuYW1lIC8gb3duZXIgLyBleHBpcnkpLhKuAQoHUHJvbW90ZRIjLnNoaXAub3BzLnYxLlByb21vdGVBcnRpZmFjdFJlcXVlc3QaGy5zaGlwLm9wcy52MS5BcnRpZmFjdFJlY29yZCJhirUYFHNoaXAuYXJ0aWZhY3RzLndyaXRlkLUYAqK1GEFQcm9tb3RlIGFuIGFydGlmYWN0IHRvIGEgdGFyZ2V0IHNjb3BlIChydW4g4oaSIHByb2plY3Qg4oaSIHVzZXIpLhKDAQoGRGVsZXRlEiIuc2hpcC5vcHMudjEuRGVsZXRlQXJ0aWZhY3RSZXF1ZXN0GhUuc2hpcC5vcHMudjEuRGVsZXRpb24iPoq1GBRzaGlwLmFydGlmYWN0cy53cml0ZZC1GAKitRgeU29mdC1kZWxldGUgYW4gYXJ0aWZhY3QgYnkgaWQuYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_types, file_ship_ops_v1_reactive]);
 
 /**
  * @generated from message ship.ops.v1.ListArtifactsRequest
@@ -165,6 +165,30 @@ export const DeleteArtifactRequestSchema: GenMessage<DeleteArtifactRequest> = /*
   messageDesc(file_ship_ops_v1_artifacts, 3);
 
 /**
+ * Watch scope: all artifacts, or filtered by scope/mime.
+ *
+ * @generated from message ship.ops.v1.ArtifactsWatchReq
+ */
+export type ArtifactsWatchReq = Message<"ship.ops.v1.ArtifactsWatchReq"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: string mime = 2;
+   */
+  mime: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.ArtifactsWatchReq.
+ * Use `create(ArtifactsWatchReqSchema)` to create a new message.
+ */
+export const ArtifactsWatchReqSchema: GenMessage<ArtifactsWatchReq> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_artifacts, 4);
+
+/**
  * Artifact metadata records + lifecycle. Reads are C0; metadata mutations are
  * C1 workspace writes, gated through the one gate (services::command::call),
  * which also enforces the per-artifact scope ACL.
@@ -181,12 +205,12 @@ export const ArtifactsService: GenService<{
     output: typeof ArtifactsListResponseSchema;
   },
   /**
-   * @generated from rpc ship.ops.v1.ArtifactsService.ListLive
+   * @generated from rpc ship.ops.v1.ArtifactsService.Watch
    */
-  listLive: {
+  watch: {
     methodKind: "server_streaming";
-    input: typeof ListArtifactsRequestSchema;
-    output: typeof JsonResponseSchema;
+    input: typeof ArtifactsWatchReqSchema;
+    output: typeof WatchEventSchema;
   },
   /**
    * @generated from rpc ship.ops.v1.ArtifactsService.Patch

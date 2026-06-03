@@ -38,7 +38,8 @@ import { ProjectService } from "./gen/ship/ops/v1/project_pb.js";
 import { RulesService } from "./gen/ship/ops/v1/rules_pb.js";
 import { RuntimeService } from "./gen/ship/ops/v1/runtime_pb.js";
 import { SessionsService } from "./gen/ship/ops/v1/sessions_pb.js";
-import { SettingsService } from "./gen/ship/ops/v1/settings_pb.js";
+import { SettingsService, SettingScope } from "./gen/ship/ops/v1/settings_pb.js";
+import type { Setting, SettingList } from "./gen/ship/ops/v1/settings_pb.js";
 import { SkillsService } from "./gen/ship/ops/v1/skills_pb.js";
 import { SpecsService } from "./gen/ship/ops/v1/specs_pb.js";
 import { ViewService } from "./gen/ship/ops/v1/view_pb.js";
@@ -143,8 +144,6 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
 
 export {
   OpsService,
-  ReadOpsService,
-  CommandOpsService,
   StreamService,
   AccountService,
   AgentService,
@@ -168,9 +167,12 @@ export {
   RuntimeService,
   SessionsService,
   SettingsService,
+  SettingScope,
   SkillsService,
   SpecsService,
   ViewService,
   ViewErrorsService,
   WorkspacesService,
 };
+
+export type { Setting, SettingList };

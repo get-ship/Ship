@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/search.proto.
  */
 export const file_ship_ops_v1_search: GenFile = /*@__PURE__*/
-  fileDesc("ChhzaGlwL29wcy92MS9zZWFyY2gucHJvdG8SC3NoaXAub3BzLnYxImEKDVNlYXJjaFJlcXVlc3QSCQoBcRgBIAEoCRImCgVraW5kcxgCIAMoDjIXLnNoaXAub3BzLnYxLkVudGl0eUtpbmQSDQoFbGltaXQYAyABKA0SDgoGY3Vyc29yGAQgASgJIqABCglTZWFyY2hIaXQSJQoEa2luZBgBIAEoDjIXLnNoaXAub3BzLnYxLkVudGl0eUtpbmQSCgoCaWQYAiABKAkSDQoFbGFiZWwYAyABKAkSDAoEcGF0aBgEIAEoCRIMCgRpY29uGAUgASgJEg8KB3NuaXBwZXQYBiABKAkSDQoFc2NvcmUYByABKAESFQoNY29sbGVjdGlvbl9pZBgIIAEoCSJLCg5TZWFyY2hSZXNwb25zZRIkCgRoaXRzGAEgAygLMhYuc2hpcC5vcHMudjEuU2VhcmNoSGl0EhMKC25leHRfY3Vyc29yGAIgASgJKt0BCgpFbnRpdHlLaW5kEhsKF0VOVElUWV9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQRU5USVRZX0tJTkRfVklFVxABEhoKFkVOVElUWV9LSU5EX0NPTExFQ1RJT04QAhIfChtFTlRJVFlfS0lORF9DT0xMRUNUSU9OX0lURU0QAxIVChFFTlRJVFlfS0lORF9BR0VOVBAEEhUKEUVOVElUWV9LSU5EX1NLSUxMEAUSFwoTRU5USVRZX0tJTkRfU0VTU0lPThAGEhgKFEVOVElUWV9LSU5EX0FSVElGQUNUEAcyygEKDVNlYXJjaFNlcnZpY2USuAEKBlNlYXJjaBIaLnNoaXAub3BzLnYxLlNlYXJjaFJlcXVlc3QaGy5zaGlwLm9wcy52MS5TZWFyY2hSZXNwb25zZSJ1irUYEHNoaXAuc2VhcmNoLnJlYWSQtRgBorUYWUZhbi1vdXQgZW50aXR5IHNlYXJjaCBhY3Jvc3Mgdmlld3MsIGNvbGxlY3Rpb25zLCBhZ2VudHMsIHNraWxscywgc2Vzc2lvbnMsIGFuZCBhcnRpZmFjdHMuYgZwcm90bzM", [file_ship_ops_v1_policy]);
+  fileDesc("ChhzaGlwL29wcy92MS9zZWFyY2gucHJvdG8SC3NoaXAub3BzLnYxIooBCg1TZWFyY2hSZXF1ZXN0EgkKAXEYASABKAkSJgoFa2luZHMYAiADKA4yFy5zaGlwLm9wcy52MS5FbnRpdHlLaW5kEg0KBWxpbWl0GAMgASgNEg4KBmN1cnNvchgEIAEoCRInCgVzY29wZRgFIAEoDjIYLnNoaXAub3BzLnYxLlNlYXJjaFNjb3BlIrIBCglTZWFyY2hIaXQSJQoEa2luZBgBIAEoDjIXLnNoaXAub3BzLnYxLkVudGl0eUtpbmQSCgoCaWQYAiABKAkSDQoFbGFiZWwYAyABKAkSDAoEcGF0aBgEIAEoCRIMCgRpY29uGAUgASgJEg8KB3NuaXBwZXQYBiABKAkSDQoFc2NvcmUYByABKAESFQoNY29sbGVjdGlvbl9pZBgIIAEoCRIQCghzcGFjZV9pZBgJIAEoCSJLCg5TZWFyY2hSZXNwb25zZRIkCgRoaXRzGAEgAygLMhYuc2hpcC5vcHMudjEuU2VhcmNoSGl0EhMKC25leHRfY3Vyc29yGAIgASgJKt0BCgpFbnRpdHlLaW5kEhsKF0VOVElUWV9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQRU5USVRZX0tJTkRfVklFVxABEhoKFkVOVElUWV9LSU5EX0NPTExFQ1RJT04QAhIfChtFTlRJVFlfS0lORF9DT0xMRUNUSU9OX0lURU0QAxIVChFFTlRJVFlfS0lORF9BR0VOVBAEEhUKEUVOVElUWV9LSU5EX1NLSUxMEAUSFwoTRU5USVRZX0tJTkRfU0VTU0lPThAGEhgKFEVOVElUWV9LSU5EX0FSVElGQUNUEAcqYQoLU2VhcmNoU2NvcGUSHAoYU0VBUkNIX1NDT1BFX1VOU1BFQ0lGSUVEEAASGwoXU0VBUkNIX1NDT1BFX1RISVNfU1BBQ0UQARIXChNTRUFSQ0hfU0NPUEVfR0xPQkFMEAIyygEKDVNlYXJjaFNlcnZpY2USuAEKBlNlYXJjaBIaLnNoaXAub3BzLnYxLlNlYXJjaFJlcXVlc3QaGy5zaGlwLm9wcy52MS5TZWFyY2hSZXNwb25zZSJ1irUYEHNoaXAuc2VhcmNoLnJlYWSQtRgBorUYWUZhbi1vdXQgZW50aXR5IHNlYXJjaCBhY3Jvc3Mgdmlld3MsIGNvbGxlY3Rpb25zLCBhZ2VudHMsIHNraWxscywgc2Vzc2lvbnMsIGFuZCBhcnRpZmFjdHMuYgZwcm90bzM", [file_ship_ops_v1_policy]);
 
 /**
  * @generated from message ship.ops.v1.SearchRequest
@@ -41,6 +41,13 @@ export type SearchRequest = Message<"ship.ops.v1.SearchRequest"> & {
    * @generated from field: string cursor = 4;
    */
   cursor: string;
+
+  /**
+   * Reach of the search. UNSPECIFIED is treated as THIS_SPACE (safe default).
+   *
+   * @generated from field: ship.ops.v1.SearchScope scope = 5;
+   */
+  scope: SearchScope;
 };
 
 /**
@@ -53,6 +60,15 @@ export const SearchRequestSchema: GenMessage<SearchRequest> = /*@__PURE__*/
 /**
  * A single ranked hit. collection_id is populated only when kind =
  * ENTITY_KIND_COLLECTION_ITEM; empty string otherwise.
+ *
+ * space_id names the space the hit came from. It is set for GLOBAL searches
+ * (so the client can disambiguate same-named entities across spaces) and is
+ * empty for THIS_SPACE searches, where the space is implicit.
+ *
+ * Deeplink convention: a hit's cross-space deeplink URI is composed as
+ * `ship://space/<space_id><path>` — the space prefix plus the existing
+ * intra-space `path` (which always begins with `/`). For THIS_SPACE hits the
+ * space prefix is omitted and the bare `path` is used.
  *
  * @generated from message ship.ops.v1.SearchHit
  */
@@ -96,6 +112,11 @@ export type SearchHit = Message<"ship.ops.v1.SearchHit"> & {
    * @generated from field: string collection_id = 8;
    */
   collectionId: string;
+
+  /**
+   * @generated from field: string space_id = 9;
+   */
+  spaceId: string;
 };
 
 /**
@@ -180,6 +201,37 @@ export enum EntityKind {
  */
 export const EntityKindSchema: GenEnum<EntityKind> = /*@__PURE__*/
   enumDesc(file_ship_ops_v1_search, 0);
+
+/**
+ * Search reach. THIS_SPACE searches only the caller's active space (the
+ * historical, scope-blind behavior). GLOBAL fans out across every reachable
+ * space (per the space registry), merges, and re-ranks by the same heuristic
+ * scorer. UNSPECIFIED defaults to THIS_SPACE so existing clients are unchanged.
+ *
+ * @generated from enum ship.ops.v1.SearchScope
+ */
+export enum SearchScope {
+  /**
+   * @generated from enum value: SEARCH_SCOPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SEARCH_SCOPE_THIS_SPACE = 1;
+   */
+  THIS_SPACE = 1,
+
+  /**
+   * @generated from enum value: SEARCH_SCOPE_GLOBAL = 2;
+   */
+  GLOBAL = 2,
+}
+
+/**
+ * Describes the enum ship.ops.v1.SearchScope.
+ */
+export const SearchScopeSchema: GenEnum<SearchScope> = /*@__PURE__*/
+  enumDesc(file_ship_ops_v1_search, 1);
 
 /**
  * @generated from service ship.ops.v1.SearchService
