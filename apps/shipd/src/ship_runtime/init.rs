@@ -159,8 +159,8 @@ impl ShipRuntime {
         // Uses spawn_blocking because the DB layer uses block_in_place.
         let _ = tokio::task::spawn_blocking(cleanup_active_sessions_on_startup).await;
 
-        // Build the global collection + artifact `SpaceContext`s and the ONE
-        // shared schema registry once, here (C-2 §3.1 / UD-7). The
+        // Build the collection + artifact `SpaceContext`s and the ONE shared
+        // schema registry once, here (C-2 §3.1 / UD-7). The
         // `collections()`/`artifacts()` accessors construct stateless services
         // over these per call; the collection wire is mounted with the SAME
         // registry so a wire-created schema is visible to trigger inserts.
@@ -168,8 +168,27 @@ impl ShipRuntime {
         // read path must bind to the SAME per-scope `spaces/<id>/space.db` that the
         // `CollectionProjection` / `ArtifactProjection` materialize the table into,
         // so a query reads exactly what the projection wrote.
-        let collection_ctx = build_space_db_context_arc(kernel.clone(), global_dir, "global");
-        let artifact_ctx = build_space_db_context_arc(kernel.clone(), global_dir, "global");
+        //
+        // The space id is the path-hash of the DISCOVERED project root — the
+        // SAME identity `set_daemon_space_id_from_root` stamps onto every
+        // space-scoped event (lib.rs) and the `projects` projection keys on.
+        // `daemon_space_id()` is not yet populated at this point in boot (it is
+        // set later, after `ShipRuntime::new`), so derive it here through
+        // `ProjectRoot::discover`, which already redirects a linked worktree to
+        // the main checkout — no worktree special-casing. Without a discoverable
+        // project (global-only mode) fall back to `"global"`, matching the
+        // unscoped emit posture. THIS replaces the former hardcoded `"global"`,
+        // which collapsed every space onto one physical `spaces/global/space.db`.
+        let space_id = {
+            let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
+            probe
+                .as_ref()
+                .and_then(|p| ship_substrate::home::ProjectRoot::discover(p))
+                .map(|r| ship_substrate::home::path_hash(r.path()))
+                .unwrap_or_else(|| "global".to_string())
+        };
+        let collection_ctx = build_space_db_context_arc(kernel.clone(), global_dir, &space_id);
+        let artifact_ctx = build_space_db_context_arc(kernel.clone(), global_dir, &space_id);
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
         // Hydrate user-authored `.ship/collections/*.jsonc` schemas into the
         // shared registry so they are queryable alongside the built-ins.
