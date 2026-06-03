@@ -522,7 +522,16 @@ check-raw:
     @scripts/lint/check-leaf-portability.sh
     @scripts/lint/check-runtime-access.sh
     @scripts/lint/check-module-dag.sh
+    @just lint-vocab
     @just check-migrations
+
+# Banned-vocabulary gate. Fails when a banned term (deleted concept) appears
+# in hand-authored source/proto/tests. Ban-list: .ship/lint/banned-vocab.txt
+# — a refactor step appends a term only once its last real use is deleted.
+# Empty list ⟹ no-op.
+[group('occasional')]
+lint-vocab:
+    @scripts/lint/check-banned-vocab.sh
 
 # Enforce platform.db migration naming + authoring discipline.
 [group('occasional')]

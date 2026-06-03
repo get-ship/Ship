@@ -1,0 +1,28 @@
+# banned-vocab.txt — the regression fence for deleted concepts.
+#
+# WHAT THIS IS
+#   A ban-list of vocabulary terms that MUST NOT appear in hand-authored
+#   source, proto, or tests. `scripts/lint/check-banned-vocab.sh` ripgreps
+#   each entry across the repo and fails the build on any hit. The point is
+#   to stop deleted concepts (e.g. workspace / project / config-as-tier /
+#   home-space) from crawling back in via a stale test or a careless edit.
+#
+# FORMAT
+#   One entry per line:   <regex-or-literal><TAB><reason>
+#   - field 1: a ripgrep pattern (literal text or a regex). It is matched
+#     with `rg` default (regex) semantics, so escape regex metacharacters
+#     if you mean them literally (e.g. `\.` for a dot).
+#   - a single TAB separates the pattern from the human-readable reason.
+#   - the reason is printed on a hit, so name the dead concept and point at
+#     the ADR / refactor step that eradicated it.
+#   Lines starting with `#` are comments. Blank lines are ignored.
+#
+# THE RULE (read before you append a term)
+#   A refactor step appends a term HERE only once its last legitimate use is
+#   deleted from the tree — never ban a term that still compiles. The ban is
+#   the *closing* act of an eradication, not the opening one: you delete the
+#   real uses, prove the tree is clean, THEN add the fence so it can't come
+#   back. An empty ban-list is a no-op (the gate exits 0). Today it is empty
+#   by design.
+#
+# ── banned terms (append below; one per line, TAB-separated) ──────────────
