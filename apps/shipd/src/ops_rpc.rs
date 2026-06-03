@@ -178,7 +178,6 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::AgentsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::AgentServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::SpaceServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::SettingsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::SessionsServiceExt::register(svc.clone(), router);
     // account.* — typed AccountService (account.proto), served by the
     // `ship-account` crate (`AccountWire`). Process-global identity: token at
@@ -223,9 +222,10 @@ pub fn router(state: ApiState) -> axum::Router {
     ));
     let router = ship_ops_rpc::CollectionServiceExt::register(collection_wire, router);
     // config.* — ConfigService (config.proto): daemon settings tier + Watch.
-    // Mounted ADDITIVELY beside the legacy SettingsService until the operator's
-    // sequential cutover. Reuses the collection ctx's shared kernel (settings are
-    // KV-global; the wire needs the kernel for config.changed emit + Watch).
+    // The canonical settings contract — the legacy SettingsService wire was
+    // retired (per-topic legacy kill). Reuses the collection ctx's shared kernel
+    // (settings are KV-global; the wire needs the kernel for config.changed emit
+    // + Watch).
     let config_ctx = state.collection_ctx();
     let config_kernel = config_ctx.kernel.clone();
     let config_wire = std::sync::Arc::new(ship_config::ConfigWire::new(

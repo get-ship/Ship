@@ -1,6 +1,6 @@
 //! Contract tests for the domain-service fixture files: artifacts, chat,
 //! collections, events, mcp, permissions, pipelines, space, runtime,
-//! sessions, settings, skills, specs. One test per distinct
+//! sessions, skills, specs. One test per distinct
 //! read shape; a single representative ScopedMutation/Deletion test each.
 
 use serde_json::Value;
@@ -22,7 +22,6 @@ const PIPELINES: &str = include_str!("../../../../../../proto/fixtures/pipelines
 const SPACE: &str = include_str!("../../../../../../proto/fixtures/space_service.json");
 const RUNTIME: &str = include_str!("../../../../../../proto/fixtures/runtime_service.json");
 const SESSIONS: &str = include_str!("../../../../../../proto/fixtures/sessions_service.json");
-const SETTINGS: &str = include_str!("../../../../../../proto/fixtures/settings_service.json");
 const SKILLS: &str = include_str!("../../../../../../proto/fixtures/skills_service.json");
 const SPECS: &str = include_str!("../../../../../../proto/fixtures/specs_service.json");
 
@@ -128,14 +127,6 @@ fn sessions_list_parses_agent_and_harness() {
     assert_eq!(r.items.len(), 1);
     assert_eq!(r.items[0].agent_id.as_deref(), Some("rust-lane"));
     assert_eq!(r.items[0].harness.as_deref(), Some("claude"));
-}
-
-#[test]
-fn settings_set_parses_key_and_value() {
-    let r: SettingValue =
-        serde_json::from_str(&response_ok(SETTINGS, "Set")).expect("parse SettingValue");
-    assert_eq!(r.key, "theme");
-    assert_eq!(r.value_json, "\"dark\"");
 }
 
 #[test]

@@ -33,8 +33,8 @@ message ActivateSpaceRequest {
 
 message SpaceInfoRequest {}
 
-// Per-space settings override write (#129). Distinct name from settings.proto's
-// SetSettingRequest — same package, two definitions would collide. The space
+// Per-space settings override write (#129). Distinct name from config.proto's
+// SetSettingReq — same package, two definitions would collide. The space
 // is resolved from the caller's per-connection emit context, not an arg.
 message SetSpaceSettingRequest {
   string key = 1;

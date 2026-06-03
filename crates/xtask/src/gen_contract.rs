@@ -161,8 +161,8 @@ fn domain_catalog() -> Vec<DomainMeta> {
             key: "config",
             display: "Config",
             event_prefixes: vec!["config."],
-            services: vec!["SettingsService"],
-            description: "Configuration watcher: file-change events for .ship/ directory mutations.",
+            services: vec!["ConfigService"],
+            description: "Daemon settings KV: list/get/set + watch over the config.* tier.",
             coverage_audit_docs: vec![],
         },
         DomainMeta {
