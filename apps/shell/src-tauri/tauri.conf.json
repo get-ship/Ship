@@ -6,8 +6,7 @@
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "bun run build",
-    "frontendDist": "bootstrap",
-    "devUrl": "http://127.0.0.1:9330/"
+    "frontendDist": "bootstrap"
   },
   "app": {
     "withGlobalTauri": true,
