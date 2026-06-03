@@ -164,14 +164,18 @@ impl KernelRouter {
         self.inner.refine_actor(actor_id, config).map_err(Into::into)
     }
 
-    /// Persist an event to platform.db and deliver it to subscribed mailboxes.
+    /// Persist an event and deliver it to subscribed mailboxes.
     ///
-    // FLAG (Phase 2 / R10): author-identity is NOT yet stamped at a single
-    // chokepoint. This `emit` path carries the binding via `EmitContext`, but
-    // the other live append paths (`SqliteEventStore::append`,
-    // `ActorStore::append`/`raw_append`, and the two `deliver()` db-helpers)
-    // bypass `EmitContext` entirely and write `None` author-identity. Do NOT
-    // collapse them in P2 (north-star Phase 0/later) — flagged, not converged.
+    /// Scope enforcement is now UNIVERSAL across both live write transports:
+    /// this kernel-routed `emit` path and the off-kernel direct-append path
+    /// ([`crate::persistence::SqliteEventStore::append_enforced`]) BOTH funnel
+    /// through the same `ship_types::stamp_author` + `ship_types::enforce_scope`
+    /// primitives before persist. The off-kernel db-helpers
+    /// (`db::*_events`, `log`) and the platform CRUD/audit emitters call
+    /// `append_enforced` (which stamps the row, then delivers exactly that
+    /// enforced envelope), so `deliver()` only ever pushes an already-enforced,
+    /// already-persisted event. The raw `EventStore::append` is the persist
+    /// primitive (sink + tests), not a live emit API.
     ///
     /// Every event is:
     ///   1. Validated (namespace checks, permission checks, EmitContext-aware)

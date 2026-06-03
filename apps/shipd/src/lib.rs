@@ -659,7 +659,11 @@ fn emit_daemon_event<P: serde::Serialize>(
             return;
         }
     };
-    if let Err(e) = store.append(&envelope) {
+    // Enforced write: daemon.* is Runtime-scoped and this path may run with no
+    // live kernel/session, so stamp + enforce from the daemon-internal (Runtime)
+    // binding before persist.
+    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+    if let Err(e) = store.append_enforced(&envelope, &binding) {
         tracing::warn!("shipd: cannot append {event_type}: {e}");
     }
 }

@@ -215,7 +215,7 @@ fn emit_compile_completed(
 ) {
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::events::types::{CompileCompleted, event_types::COMPILE_COMPLETED};
-    use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+    use ship_substrate::persistence::event_store::SqliteEventStore;
 
     let space_id = match ship_substrate::project::ensure_space_id(ship_dir) {
         Ok(id) => id,
@@ -254,7 +254,15 @@ fn emit_compile_completed(
             return;
         }
     };
-    if let Err(e) = store.append(&envelope) {
+    // compile.completed is Space-scoped: the binding must be bound to this
+    // space so enforce_scope stamps/validates the space key. A daemon-internal
+    // Space binding (the compile pass runs in the daemon, no session) carries it.
+    let space = ship_types::identity::SpaceId::new(space_id.as_str());
+    let binding = ship_types::ScopeBinding::daemon_internal(
+        Some(space.clone()),
+        ship_types::Authority::Space { space_id: space },
+    );
+    if let Err(e) = store.append_enforced(&envelope, &binding) {
         tracing::warn!("compile: cannot append compile.completed: {e}");
     }
 }

@@ -1,7 +1,6 @@
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::persistence::event_store::EventStore;
 use ship_types::event_types::{RULE_CHANGED, RULE_CREATED, RULE_DELETED, RULE_UPDATED};
 use ship_types::payload::{RuleChanged, RuleCreated, RuleDeleted, RuleUpdated};
 use specta::Type;
@@ -53,7 +52,7 @@ fn emit_rule_event(event_type: &'static str, id: &str, payload: &impl serde::Ser
             return;
         }
     };
-    if let Err(e) = store.append(&envelope) {
+    if let Err(e) = store.append_enforced(&envelope, &super::runtime_audit_binding()) {
         tracing::warn!("rule event {event_type}: append failed: {e}");
     }
 }

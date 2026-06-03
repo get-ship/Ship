@@ -1,6 +1,5 @@
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::fs_util::write_atomic;
-use ship_substrate::persistence::event_store::EventStore;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use ship_types::event_types::PERMISSIONS_UPDATED;
@@ -57,7 +56,7 @@ fn emit_permissions_updated(ship_dir: &Path, json: &str) {
             return;
         }
     };
-    if let Err(e) = store.append(&envelope) {
+    if let Err(e) = store.append_enforced(&envelope, &super::runtime_audit_binding()) {
         tracing::warn!("permissions.updated: append failed: {e}");
     }
 }

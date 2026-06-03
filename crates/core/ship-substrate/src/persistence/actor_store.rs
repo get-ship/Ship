@@ -75,11 +75,38 @@ impl ActorStore {
     /// logical isolation requires every row in the shared events table know
     /// which actor wrote it. Any pre-existing `actor_id` on the envelope is
     /// overwritten so a store can't launder events for another actor.
+    ///
+    /// This is the persist primitive (namespace check only); live emit sites
+    /// must use [`ActorStore::append_enforced`] so scope is enforced too.
     pub fn append(&self, event: &EventEnvelope) -> Result<()> {
         self.check_write_namespace(&event.event_type)?;
         let mut stamped = event.clone();
         stamped.actor_id = Some(self.actor_id.clone());
         raw_append(&self.db_path, &stamped)
+    }
+
+    /// The enforced actor-write chokepoint.
+    ///
+    /// Off-kernel service handlers (e.g. the sync service) that hold an
+    /// `ActorStore` write through here, not the raw `append`, so scope is
+    /// enforced as well as the actor namespace. Runs the write-namespace check,
+    /// then the SAME stamp-or-reject rule the emit/append chokepoints run —
+    /// `ship_types::stamp_author` then `ship_types::enforce_scope` against the
+    /// authoritative `binding` — BEFORE persisting. The actor's own `actor_id`
+    /// is stamped (logical isolation) and the stamped envelope returned.
+    pub fn append_enforced(
+        &self,
+        event: &EventEnvelope,
+        binding: &ship_types::ScopeBinding,
+    ) -> Result<EventEnvelope> {
+        self.check_write_namespace(&event.event_type)?;
+        let mut stamped = event.clone();
+        stamped.actor_id = Some(self.actor_id.clone());
+        ship_types::stamp_author(&mut stamped, binding);
+        ship_types::enforce_scope(&mut stamped, binding)
+            .map_err(|e| anyhow!("{e}"))?;
+        raw_append(&self.db_path, &stamped)?;
+        Ok(stamped)
     }
 
     /// Query events owned by this actor.

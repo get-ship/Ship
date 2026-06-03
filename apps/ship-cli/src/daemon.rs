@@ -4,7 +4,7 @@ use ship_substrate::events::daemon::{
     CrashedPayload, PidfileAcquiredPayload, PidfileStaleTakenPayload,
     ShutdownCompletedPayload, event_types as daemon_events,
 };
-use ship_substrate::events::{EventStore, SqliteEventStore};
+use ship_substrate::events::SqliteEventStore;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
@@ -550,7 +550,11 @@ fn emit_supervisor_event<P: Serialize>(
             return;
         }
     };
-    if let Err(e) = store.append(&envelope) {
+    // Enforced write: daemon.* is Runtime-scoped and the supervisor process has
+    // no session, so stamp + enforce from the daemon-internal (Runtime) binding
+    // before persist.
+    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+    if let Err(e) = store.append_enforced(&envelope, &binding) {
         eprintln!("shipd supervisor: cannot append {event_type}: {e}");
     }
 }

@@ -22,7 +22,6 @@ use storage::{
 };
 
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::persistence::event_store::EventStore;
 use ship_types::event_types::{SKILL_CHANGED, SKILL_CREATED, SKILL_DELETED, SKILL_UPDATED};
 use ship_types::payload::{SkillChanged, SkillCreated, SkillDeleted, SkillUpdated};
 
@@ -59,7 +58,7 @@ fn emit_skill_event(event_type: &'static str, id: &str, payload: &impl serde::Se
             return;
         }
     };
-    if let Err(e) = store.append(&envelope) {
+    if let Err(e) = store.append_enforced(&envelope, &super::runtime_audit_binding()) {
         tracing::warn!("skill event {event_type}: append failed: {e}");
     }
 }

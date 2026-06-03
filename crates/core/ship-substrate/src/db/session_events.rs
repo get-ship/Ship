@@ -18,7 +18,7 @@ use crate::events::types::{
     SessionAttached, SessionEnded, SessionProgress, SessionStarted,
 };
 use crate::events::EventEnvelope;
-use crate::persistence::event_store::{EventStore, SqliteEventStore};
+use crate::persistence::event_store::SqliteEventStore;
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -28,8 +28,12 @@ fn session_envelope<P: serde::Serialize>(
     workspace_id: &str,
     payload: &P,
 ) -> Result<EventEnvelope> {
+    // session.* is Runtime-scoped (registry + runtime.db home). The workspace
+    // linkage rides on `parent_actor_id` + the payload's `workspace_id` (what the
+    // session projection reads), NOT the envelope scope — so we attach the
+    // session id as context but keep the scope Runtime for enforce_scope.
     Ok(EventEnvelope::new(event_type, session_id, payload)?
-        .with_context(Some(workspace_id), Some(session_id))
+        .with_context(None, Some(session_id))
         .with_actor_id(session_id)
         .with_parent_actor_id(workspace_id)
         .elevate())
@@ -45,16 +49,20 @@ fn emit_session(envelope: EventEnvelope, _workspace_id: &str) -> Result<EventEnv
         ship_types::event_registry::EventScope::Runtime,
         None,
     )?;
-    store.append(&envelope)?;
+    // Enforced write: stamp author + scope key from the daemon-internal binding,
+    // then persist (event row + session projection in one tx). session.* is
+    // Runtime-scoped, so the binding carries no space.
+    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+    let stamped = store.append_enforced(&envelope, &binding)?;
 
     if let Some(kr) = crate::events::kernel_router() {
         let _ = block_on_anyhow(async {
-            kr.lock().await.deliver(&envelope);
+            kr.lock().await.deliver(&stamped);
             Ok(())
         });
     }
 
-    Ok(envelope)
+    Ok(stamped)
 }
 
 // ── public API ────────────────────────────────────────────────────────────────
@@ -95,7 +103,7 @@ pub fn insert_session_progress_event(
     elevated: bool,
 ) -> Result<()> {
     let mut envelope = EventEnvelope::new(event_types::SESSION_PROGRESS, session_id, payload)?
-        .with_context(Some(workspace_id), Some(session_id))
+        .with_context(None, Some(session_id))
         .with_actor_id(session_id)
         .with_parent_actor_id(workspace_id);
     if elevated {
