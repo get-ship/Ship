@@ -251,7 +251,7 @@
   {#while-loading of account}
     <span class="name muted" part="name">…</span>
   {/while-loading}
-  {#while-error of account}
+  {#while-error err of account}
     <span class="name err" part="name">Offline</span>
   {/while-error}
   {#if account().kind === 'ok'}
