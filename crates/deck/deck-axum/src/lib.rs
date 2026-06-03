@@ -93,7 +93,6 @@ pub fn router() -> Router {
         .route("/space/_assets/{file}", get(serve_space_asset))
         .route("/space/{id}", get(serve_space))
         .route("/_assets/{file}", get(serve_hub_asset))
-        .route("/", get(serve_hub))
         .route("/view-host", get(serve_view_host))
         .route("/view-host/{*rest}", get(serve_view_host))
         .route("/sui/{name}", get(serve_view_host))

@@ -52,11 +52,16 @@ pub async fn setup_handler() -> Response {
     html_response(PLACEHOLDER_HTML.to_string())
 }
 
-/// `GET /` — redirect to `/setup` on a fresh install, or to the SUI home
-/// view once at least one workspace is configured.
-pub async fn index_handler() -> Response {
+/// `GET /` — on a fresh install redirect to the `/setup` wizard; once a
+/// workspace is configured SERVE THE SHELL (the Ship platform app) at the
+/// root. The shell's client router lands on the home surface (`<sui-home>`);
+/// there is no daemon `home` view, so the old `redirect("/sui/home")` 404'd
+/// ("no view named home"). The shell IS the platform root — no `/hub`.
+pub async fn index_handler(
+    mode: Option<axum::Extension<deck::DaemonMode>>,
+) -> Response {
     if has_any_workspace() {
-        redirect("/sui/home")
+        deck::serve_hub(mode).await
     } else {
         redirect("/setup")
     }
@@ -100,12 +105,15 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn index_handler_redirects() {
-        let resp = index_handler().await;
-        assert_eq!(resp.status(), StatusCode::SEE_OTHER);
-        let location = resp.headers().get(header::LOCATION).unwrap();
-        let loc_str = location.to_str().unwrap();
-        assert!(loc_str == "/setup" || loc_str == "/sui/home");
+    async fn index_handler_serves_shell_never_missing_home_view() {
+        // Fresh install (no workspace) -> redirect to /setup; configured ->
+        // serve the shell HTML at / (or a not-built fallback). It must NEVER
+        // redirect to /sui/home, which is not a daemon view (the bug we fixed).
+        let resp = index_handler(None).await;
+        if resp.status() == StatusCode::SEE_OTHER {
+            let loc = resp.headers().get(header::LOCATION).unwrap().to_str().unwrap();
+            assert_eq!(loc, "/setup", "fresh-install redirect must be /setup, never /sui/home");
+        }
     }
 
     #[test]
