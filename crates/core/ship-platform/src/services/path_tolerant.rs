@@ -1,6 +1,6 @@
 //! Path-tolerant RFC 6902 support shared across services.
 //!
-//! Extracted from AgentService's original inline helper so McpService and
+//! Extracted from AgentsService's original inline helper so McpService and
 //! PermissionService can reuse it without forking. The behaviour mirrors
 //! `agents::state::ensure_paths_for_adds`: walks every `add` op's path and
 //! materialises missing ancestor objects (and the terminal array for

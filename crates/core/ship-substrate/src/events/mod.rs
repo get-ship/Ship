@@ -26,10 +26,11 @@ pub mod types {
             // Spec 7a bumped from 88 → 111 by adding the 23 Spec-6 events to ALL.
             // S3 adds `settings.changed` (the unified scope-discriminated keystone)
             // → 113. S1 (agents-arc) adds `agent.def.updated` (the Format-2 def
-            // change notification) → 114. The hard count is enforced here to catch
-            // accidental removals. When adding events: update ALL in event_types.rs
-            // AND payload_registry.rs.
-            assert_eq!(ALL.len(), 114, "exactly 114 event type constants required (S1 agent.def.updated)");
+            // change notification) → 114. agents-arc E6 GUTS `studio.message`
+            // (the deprecated chat read-projection event, sole consumer was chat)
+            // → 113. The hard count is enforced here to catch accidental removals.
+            // When adding events: update ALL in event_types.rs AND payload_registry.rs.
+            assert_eq!(ALL.len(), 113, "exactly 113 event type constants required (E6 gutted studio.message)");
         }
 
         #[test]

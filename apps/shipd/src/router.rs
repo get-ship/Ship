@@ -440,7 +440,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Registry — gateway proxy. The daemon attaches the user's API key
         // and forwards to the gateway. CLI never talks to the gateway.
         .ship_route(Route::Publish, registry_api::publish)
-        // AgentService — generic CRUD + lifecycle. First-party and
+        // AgentsService — generic CRUD + lifecycle. First-party and
         // third-party views use this surface equally.
         // PipelineService — CRUD + run ops. Dispatch / cancel / log-stream
         // wrap the existing kernel-backed handlers so the write paths stay
@@ -451,7 +451,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // SkillService — service-shaped CRUD + file tree + vars. Replaces
         // the project-scoped skill endpoints that used to hang off
         // /api/v1/projects/{id}/skills/*.
-        .ship_route(Route::ChatSend, services::chat::send_message)
         // Specs REST
         // Events / projections
         .ship_route(Route::EventStream, runtime_api::event_stream)

@@ -39,8 +39,8 @@ pub mod mcp_rpc;
 pub mod skills_rpc;
 pub mod pipelines_rpc;
 pub mod git_rpc;
-// agent_rpc is the ONE canonical agent handler (agents-arc E4): AgentsService +
-// SessionsService + ChatService folded into the single `impl AgentService`.
+// agent_rpc is the ONE canonical agent handler (agents-arc E4/E6): profile CRUD +
+// SessionsService folded into the single `impl AgentsService` (chat gutted, E6).
 pub mod agent_rpc;
 pub mod agent_rpc_helpers;
 pub mod space_rpc;

@@ -1,7 +1,7 @@
 //! Op RESPONSE fixtures from the themed corpus.
 //!
-//! Reads `proto/fixtures/theme.json`, validates each op response value against
-//! its typed proto type, and emits `proto/fixtures/<service>.json` keyed
+//! Reads `proto/fixtures/fixture-seed.json`, validates each op response value
+//! against its typed proto type, and emits `proto/fixtures/<service>.json` keyed
 //! `{ "<Method>": { "response_ok": <value> } }`.
 //!
 //! This is the original gen_fixtures.rs logic, moved into a submodule during
@@ -41,7 +41,7 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(AnalyticsSessionsResponse), v!(AnalyticsSessionResponse),
         v!(AnalyticsToolUsageResponse), v!(AnalyticsSessionTurnsResponse),
         v!(ArtifactsListResponse), v!(ArtifactRecord),
-        v!(ChatStateResponse), v!(CollectionItem),
+        v!(CollectionItem),
         v!(EventsListResponse),
         v!(StatusBuckets), v!(GitLogResponse), v!(GitBranchesResponse),
         v!(GitOverviewResponse), v!(GitDiffResponse),
@@ -103,7 +103,7 @@ pub fn scaffold_dup_count() -> usize {
 
 /// Run response-fixture generation. Returns count of fixtures written.
 pub fn run(fixtures_dir: &PathBuf, check_mode: bool) -> Result<usize> {
-    let theme_path = fixtures_dir.join("theme.json");
+    let theme_path = fixtures_dir.join("fixture-seed.json");
     let theme: Value = serde_json::from_slice(
         &std::fs::read(&theme_path).with_context(|| format!("read {}", theme_path.display()))?,
     )
@@ -111,7 +111,7 @@ pub fn run(fixtures_dir: &PathBuf, check_mode: bool) -> Result<usize> {
     let responses = theme
         .get("responses")
         .and_then(Value::as_object)
-        .context("theme.json: missing `responses` object")?;
+        .context("fixture-seed.json: missing `responses` object")?;
 
     let validators = type_validators();
     let mut by_service: BTreeMap<String, serde_json::Map<String, Value>> = BTreeMap::new();
@@ -133,7 +133,7 @@ pub fn run(fixtures_dir: &PathBuf, check_mode: bool) -> Result<usize> {
         })?;
         let op = op_name(&p.service, &p.method);
         let value = responses.get(&op).with_context(|| {
-            format!("theme.json: no `responses.{op}` for {}.{}", p.service, p.method)
+            format!("fixture-seed.json: no `responses.{op}` for {}.{}", p.service, p.method)
         })?;
         validate(value).with_context(|| {
             format!("fixture `{op}` does not match proto {}.{}", p.service, p.method)
@@ -184,14 +184,14 @@ pub fn run(fixtures_dir: &PathBuf, check_mode: bool) -> Result<usize> {
     Ok(count)
 }
 
-/// List all typed op methods and whether they have a fixture in theme.json.
+/// List all typed op methods and whether they have a fixture in fixture-seed.json.
 pub fn missing_fixtures(fixtures_dir: &PathBuf) -> Result<Vec<String>> {
-    let theme_path = fixtures_dir.join("theme.json");
+    let theme_path = fixtures_dir.join("fixture-seed.json");
     let theme: Value = serde_json::from_slice(&std::fs::read(&theme_path)?)?;
     let responses = theme
         .get("responses")
         .and_then(Value::as_object)
-        .context("theme.json: missing `responses` object")?;
+        .context("fixture-seed.json: missing `responses` object")?;
     let validators = type_validators();
     let mut missing = Vec::new();
     for p in ship_ops_rpc::policy::read_policies() {
@@ -201,7 +201,7 @@ pub fn missing_fixtures(fixtures_dir: &PathBuf) -> Result<Vec<String>> {
         if !validators.contains_key(p.output_type.as_str()) {
             missing.push(format!("{op}: no decode-validator for `{}`", p.output_type));
         } else if !responses.contains_key(&op) {
-            missing.push(format!("{op}: no corpus fixture in theme.json"));
+            missing.push(format!("{op}: no corpus fixture in fixture-seed.json"));
         }
     }
     Ok(missing)
@@ -213,9 +213,10 @@ mod tests {
 
     fn theme_responses() -> serde_json::Map<String, Value> {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let theme: Value =
-            serde_json::from_slice(&std::fs::read(root.join("proto/fixtures/theme.json")).unwrap())
-                .unwrap();
+        let theme: Value = serde_json::from_slice(
+            &std::fs::read(root.join("proto/fixtures/fixture-seed.json")).unwrap(),
+        )
+        .unwrap();
         theme.get("responses").and_then(Value::as_object).unwrap().clone()
     }
 
@@ -240,7 +241,7 @@ mod tests {
                         gaps.push(format!("{op}: corpus does not match `{}`: {e}", p.output_type));
                     }
                 }
-                None => gaps.push(format!("{op}: no corpus fixture in theme.json")),
+                None => gaps.push(format!("{op}: no corpus fixture in fixture-seed.json")),
             }
         }
         assert!(gaps.is_empty(), "contract-completeness gaps (fixtures):\n  {}", gaps.join("\n  "));

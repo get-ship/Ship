@@ -171,12 +171,12 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::SkillsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::PipelinesServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::GitServiceExt::register(svc.clone(), router);
-    // Wave 2 (#89) — the ONE canonical AgentService (agents-arc E4): profile
-    // CRUD + view reads + runtime-session/chat reads + orchestration control,
-    // collapsed from the historic AgentsService/SessionsService/ChatService split
-    // into a single service + handler. Additive beside the generated
+    // Wave 2 (#89) — the ONE canonical AgentsService (agents-arc E4/E6): profile
+    // CRUD + view reads + runtime-session reads + orchestration control,
+    // collapsed from the historic AgentsService/SessionsService split into a
+    // single service + handler (chat gutted in E6). Additive beside the generated
     // ReadOps/CommandOps until the GUI flip (#72).
-    let router = ship_ops_rpc::AgentServiceExt::register(svc.clone(), router);
+    let router = ship_ops_rpc::AgentsServiceExt::register(svc.clone(), router);
     // device.* — DeviceService (device.proto): the window-management surface the
     // space carve split out of SpaceService ("space loses window-mgmt → device").
     // RegisterWindow replaces the retired `/api/space-window/register` REST route

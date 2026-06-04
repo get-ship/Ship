@@ -217,7 +217,7 @@ message GitDiffResponse {
   ParsedDiff parsed = 5;
 }
 
-// ── sessions / chat / events / specs / actors / agents index ─────────
+// ── sessions / events / specs / actors / agents index ─────────
 
 // sessions.list — PTY/agent session metadata (enums + timestamps as strings).
 message SessionMeta {
@@ -236,22 +236,6 @@ message SessionMeta {
 }
 message SessionsListResponse {
   repeated SessionMeta items = 1;
-}
-
-// chat.state
-message ChatMessage {
-  string id = 1;
-  string sender = 2;
-  string content = 3;
-  optional string detail = 4;
-  string timestamp = 5;
-  string event_type = 6;
-  string workspace_id = 7;
-}
-message ChatStateResponse {
-  string workspace_id = 1;
-  repeated ChatMessage messages = 2;
-  uint64 total = 3;
 }
 
 // events.list

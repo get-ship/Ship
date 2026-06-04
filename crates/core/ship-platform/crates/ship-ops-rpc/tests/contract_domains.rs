@@ -1,11 +1,12 @@
-//! Contract tests for the domain-service fixture files: artifacts, chat,
+//! Contract tests for the domain-service fixture files: artifacts,
 //! collections, events, mcp, permissions, pipelines, space, runtime,
 //! sessions, skills, specs. One test per distinct
 //! read shape; a single representative ScopedMutation/Deletion test each.
+//! (chat gutted in agents-arc E6; sessions folded into AgentsService.)
 
 use serde_json::Value;
 use ship_ops_rpc::{
-    ActiveSpace, ArtifactsListResponse, ChatStateResponse, CollectionItem, Deletion,
+    ActiveSpace, ArtifactsListResponse, CollectionItem, Deletion,
     EventsListResponse, ListProcsResponse, McpIndexResponse, PermissionsIndexResponse,
     PipelinesIndexResponse, SessionsListResponse, SkillFileResponse, SkillsIndexResponse, Space,
     SpaceInfo, SpaceList, SpaceSettingValue, SpecDetail, SpecGetResponse, SpecsListResponse,
@@ -13,7 +14,6 @@ use ship_ops_rpc::{
 };
 
 const ARTIFACTS: &str = include_str!("../../../../../../proto/fixtures/artifacts_service.json");
-const CHAT: &str = include_str!("../../../../../../proto/fixtures/chat_service.json");
 const COLLECTIONS: &str = include_str!("../../../../../../proto/fixtures/collections_service.json");
 const EVENTS: &str = include_str!("../../../../../../proto/fixtures/events_service.json");
 const MCP: &str = include_str!("../../../../../../proto/fixtures/mcp_service.json");
@@ -21,7 +21,8 @@ const PERMISSIONS: &str = include_str!("../../../../../../proto/fixtures/permiss
 const PIPELINES: &str = include_str!("../../../../../../proto/fixtures/pipelines_service.json");
 const SPACE: &str = include_str!("../../../../../../proto/fixtures/space_service.json");
 const RUNTIME: &str = include_str!("../../../../../../proto/fixtures/runtime_service.json");
-const SESSIONS: &str = include_str!("../../../../../../proto/fixtures/sessions_service.json");
+// sessions folded into AgentsService (agents-arc E6: sessions.list → agents.sessions).
+const AGENTS: &str = include_str!("../../../../../../proto/fixtures/agents_service.json");
 const SKILLS: &str = include_str!("../../../../../../proto/fixtures/skills_service.json");
 const SPECS: &str = include_str!("../../../../../../proto/fixtures/specs_service.json");
 
@@ -44,15 +45,6 @@ fn artifacts_delete_is_deletion() {
     let r: Deletion =
         serde_json::from_str(&response_ok(ARTIFACTS, "Delete")).expect("parse Deletion");
     assert!(r.deleted);
-}
-
-#[test]
-fn chat_state_parses_messages() {
-    let r: ChatStateResponse =
-        serde_json::from_str(&response_ok(CHAT, "State")).expect("parse ChatStateResponse");
-    assert_eq!(r.workspace_id, "harbor");
-    assert_eq!(r.total, 2);
-    assert_eq!(r.messages[0].sender, "user");
 }
 
 #[test]
@@ -130,7 +122,7 @@ fn runtime_list_procs_parses_executor_kind() {
 #[test]
 fn sessions_list_parses_agent_and_harness() {
     let r: SessionsListResponse =
-        serde_json::from_str(&response_ok(SESSIONS, "List")).expect("parse SessionsListResponse");
+        serde_json::from_str(&response_ok(AGENTS, "Sessions")).expect("parse SessionsListResponse");
     assert_eq!(r.items.len(), 1);
     assert_eq!(r.items[0].agent_id.as_deref(), Some("rust-lane"));
     assert_eq!(r.items[0].harness.as_deref(), Some("claude"));

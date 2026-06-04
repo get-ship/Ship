@@ -61,23 +61,23 @@ fn named_c2_orphans_now_resolve() {
         "mcp.create",
         "mcp.delete",
         "skills.create",
-        // agents-arc E4: AgentsService folded into the ONE AgentService, so the
-        // profile-write proto op-names move from `agents.*` to `agent.*`.
-        "agent.create",
-        "agent.delete",
-        "agent.dispatch",
-        "agent.stop",
+        // agents-arc E6: the canonical service is plural `AgentsService`, so the
+        // proto op-names are `agents.*` (re-aligned with registry/SDK/CLI).
+        "agents.create",
+        "agents.delete",
+        "agents.dispatch",
+        "agents.stop",
     ] {
         let p = policy_for(op).unwrap_or_else(|| panic!("`{op}` must resolve to a policy"));
         assert_eq!(p.blast, BlastRadius::C2Elevated, "`{op}` must be C2");
     }
 }
 
-/// `agent.grant` hands out authority — it is C3 (operator-only), a tier ABOVE
-/// C2. The same op-name fix that closes the C2 gap also resolves it (the old
-/// `pascal("agent.grant")` = "AgentGrant" never matched `Grant` either).
+/// `agents.grant` hands out authority — it is C3 (operator-only), a tier ABOVE
+/// C2. The plural op-name (agents-arc E6) resolves against the AgentsService
+/// descriptor.
 #[test]
 fn agent_grant_resolves_to_critical() {
-    let p = policy_for("agent.grant").expect("agent.grant must resolve");
+    let p = policy_for("agents.grant").expect("agents.grant must resolve");
     assert_eq!(p.blast, BlastRadius::C3Critical);
 }

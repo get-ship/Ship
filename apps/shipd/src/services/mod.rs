@@ -18,4 +18,3 @@ pub mod schema;
 pub mod ship_ns;
 pub mod pipelines;
 pub mod settings;
-pub mod chat;

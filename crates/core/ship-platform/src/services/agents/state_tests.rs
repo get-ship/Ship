@@ -1,4 +1,4 @@
-//! AgentService state tests. Pure logic, def-backed via temp dirs.
+//! AgentsService state tests. Pure logic, def-backed via temp dirs.
 //!
 //! Every read/write rides the same FsBroker door the service uses (S5b) — the
 //! tests seed through `write_doc` rather than a raw fs write, so they exercise

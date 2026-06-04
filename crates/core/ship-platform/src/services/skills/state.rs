@@ -4,7 +4,7 @@
 //!  - `SKILL.md` — required. Markdown with YAML frontmatter.
 //!  - arbitrary companion files (assets/, references/, evals/, ...).
 //!
-//! Scope model matches AgentService: project wins by default, explicit
+//! Scope model matches AgentsService: project wins by default, explicit
 //! `?scope=user` forces the user root. Vars are delegated to the runtime
 //! `skill_vars` module (KV-backed).
 

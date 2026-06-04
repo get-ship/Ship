@@ -65,20 +65,20 @@ fn domain_catalog() -> Vec<DomainMeta> {
             key: "agents",
             display: "Agents",
             event_prefixes: vec!["agent.", "session."],
-            // The ONE canonical AgentService (agents-arc E4): the historic
-            // AgentsService / SessionsService / ChatService folded in.
-            services: vec!["AgentService"],
-            description: "Agent semantic core: profile CRUD + view reads, runtime-session + chat reads, and orchestration control (dispatch/stop/steer/grant).",
+            // The ONE canonical AgentsService (agents-arc E4/E6): the historic
+            // AgentsService / SessionsService folded in (chat gutted, E6).
+            services: vec!["AgentsService"],
+            description: "Agent semantic core: profile CRUD + view reads, runtime-session reads, and orchestration control (dispatch/stop/steer/grant).",
             coverage_audit_docs: vec![],
         },
         DomainMeta {
             key: "sessions",
             display: "Sessions",
-            // session.* reads folded into AgentService (agents-arc E4); the
+            // session.* reads folded into AgentsService (agents-arc E4/E6); the
             // session lifecycle + hook.* analytics rollup keep their event domain.
             event_prefixes: vec!["hook."],
             services: vec![],
-            description: "Session lifecycle analytics: start/end/list/progress rollup over actor activity (reads served by AgentService).",
+            description: "Session lifecycle analytics: start/end/list/progress rollup over actor activity (reads served by AgentsService).",
             coverage_audit_docs: vec![],
         },
         DomainMeta {
@@ -229,7 +229,8 @@ fn domain_catalog() -> Vec<DomainMeta> {
             key: "studio",
             display: "Studio",
             event_prefixes: vec!["studio.", "human."],
-            // chat reads folded into AgentService (agents-arc E4).
+            // chat gutted in agents-arc E6 (read-projection over the deprecated
+            // `studio.message` event, no real gated RPC).
             services: vec!["DashboardService", "FeedbackService", "AnnotationService"],
             description: "Studio UI primitives: chat turns, agent replies, dashboard state, feedback, and annotation events.",
             coverage_audit_docs: vec![".artifacts/specs/module-audits/apps/shipd.md", ".artifacts/specs/module-audits/L1-platform/sessions.md", ".artifacts/specs/module-audits/L0-substrate/ship-substrate.md"],

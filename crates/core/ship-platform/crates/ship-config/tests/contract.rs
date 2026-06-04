@@ -102,7 +102,7 @@ fn settings_service_has_exactly_four_rpcs() {
 // validator_and_fixture`, which cannot run in this worktree (xtask → deck →
 // deck-core needs bootstrapped SUI bundle assets — the "deck wall"). This is the
 // SAME check, scoped to SettingsService and runnable without deck: every typed
-// `settings.*` method's theme.json corpus value must DESERIALIZE against its
+// `settings.*` method's fixture-seed.json corpus value must DESERIALIZE against its
 // generated proto response type. Proves the fixtures S3 added are contract-valid.
 
 #[test]
@@ -110,9 +110,11 @@ fn settings_fixtures_deserialize_against_their_proto_types() {
     use ship_ops_rpc::WatchEvent;
 
     let theme_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../../../proto/fixtures/theme.json");
-    let theme: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&theme_path).expect("read theme.json")).unwrap();
+        .join("../../../../../proto/fixtures/fixture-seed.json");
+    let theme: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(&theme_path).expect("read fixture-seed.json"),
+    )
+    .unwrap();
     let responses = theme.get("responses").and_then(|v| v.as_object()).expect("responses object");
 
     // Each typed SettingsService method ⇒ its corpus value parses as the response

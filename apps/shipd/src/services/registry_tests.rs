@@ -225,16 +225,13 @@ fn file_backed_get_missing_is_not_found() {
     }
 }
 
-// ── shipd-orchestrated domains (chat/sessions/events/artifacts/account) ──
+// ── shipd-orchestrated domains (sessions/events/artifacts/account) ──
 
 #[test]
-fn chat_sessions_events_wire_identical_to_anonymous_json() {
+fn sessions_events_wire_identical_to_anonymous_json() {
     let state = temp_state();
 
-    let got = call("chat.state", &json!({}), &state).expect("chat.state ok");
-    assert_eq!(got, json!({ "workspace_id": "", "messages": [], "total": 0 }));
-
-    let got = call("sessions.list", &json!({}), &state).expect("sessions.list ok");
+    let got = call("agents.sessions", &json!({}), &state).expect("agents.sessions ok");
     assert_eq!(got, json!({ "items": [] }));
 
     let got = call("events.list", &json!({}), &state).expect("events.list ok");

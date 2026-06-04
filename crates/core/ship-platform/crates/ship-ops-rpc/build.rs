@@ -42,7 +42,7 @@ fn main() {
         .arg("ship/ops/v1/skills.proto")
         .arg("ship/ops/v1/pipelines.proto")
         .arg("ship/ops/v1/git.proto")
-        .arg("ship/ops/v1/agent.proto")
+        .arg("ship/ops/v1/agents.proto")
         .arg("ship/ops/v1/space.proto")
         .arg("ship/ops/v1/device.proto")
         .arg("ship/ops/v1/settings.proto")
@@ -78,7 +78,7 @@ fn main() {
             "ship/ops/v1/skills.proto",
             "ship/ops/v1/pipelines.proto",
             "ship/ops/v1/git.proto",
-            "ship/ops/v1/agent.proto",
+            "ship/ops/v1/agents.proto",
             "ship/ops/v1/space.proto",
             "ship/ops/v1/device.proto",
             "ship/ops/v1/settings.proto",

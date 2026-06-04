@@ -2,7 +2,7 @@
 //!
 //! Three sub-modules cover three fixture surfaces:
 //!
-//!   - `ops`         — per-op RESPONSE fixtures from `proto/fixtures/theme.json`
+//!   - `ops`         — per-op RESPONSE fixtures from `proto/fixtures/fixture-seed.json`
 //!                     (today's gen_fixtures.rs content, unchanged)
 //!   - `events`      — per-event payload + envelope fixtures from the event registry
 //!   - `op_requests` — per-op REQUEST fixtures extending the service JSONs
@@ -42,7 +42,7 @@ pub fn run_with_args(args: &[&str]) -> Result<()> {
 
     // ── Full generation ──────────────────────────────────────────────────────
 
-    // 1. Op response fixtures (from theme.json)
+    // 1. Op response fixtures (from fixture-seed.json)
     let op_count = ops::run(&fixtures_dir, check_mode)?;
 
     // 2. Op request fixtures (extending service JSONs with "request" key)

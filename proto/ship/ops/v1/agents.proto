@@ -1,19 +1,26 @@
-// `agent.*` — the ONE canonical agent surface (#89, agents-arc E4). Collapsed
-// from the historic split: AgentsService (profile CRUD + view reads),
-// AgentService (orchestration: dispatch/stop/steer/grant), SessionsService
-// (runtime-session read), ChatService (chat read) all fold into this single
-// `AgentService`. Mounted ADDITIVELY beside the generated ReadOps/CommandOps
-// (which keep serving the legacy paths until the GUI flip, #72).
+// `agents.*` — the ONE canonical agent surface (#89, agents-arc E4/E6). Collapsed
+// from the historic split: profile CRUD + view reads, orchestration
+// (dispatch/stop/steer/grant), and SessionsService (runtime-session read) all
+// fold into this single plural `AgentsService`.
+// Mounted ADDITIVELY beside the generated ReadOps/CommandOps (which keep serving
+// the legacy paths until the GUI flip, #72).
+//
+// Plural by convention: every sibling resource domain is plural
+// (SkillsService/PipelinesService/CollectionsService/…) → `skills.*`,
+// `pipelines.*`, etc. AgentsService → `agents.*` re-aligns the wire with the
+// registry/SDK/CLI/fixture-seed, which are all already `agents.*` (agents-arc E6
+// reverted E4's outlier singular rename).
 //
 // Two scopes meet here, deliberately kept distinct:
 //   * agent DEFS — space/account-scoped authored config (List/Detail/Get/… +
 //     the CRUD writes). Reads are C0; writes are C2 gated ops that write the
 //     source file.
-//   * sessions / chat — RUNTIME-scoped runtime-instance reads (#283). Distinct
-//     from def scope; never conflated.
+//   * sessions — RUNTIME-scoped runtime-instance reads (#283). Distinct from def
+//     scope; never conflated. (chat was gutted in E6 — a read-projection over the
+//     deprecated `studio.message` event with no real gated RPC.)
 //
 // Request messages take fresh names (ListAgentsRequest, DispatchAgentRequest,
-// ListSessionsReq, ChatStateReq, …) because the generated reads.gen.proto /
+// ListSessionsReq, …) because the generated reads.gen.proto /
 // commands.gen.proto already declare AgentsListRequest et al. in this same
 // package — two definitions would collide. Return types reuse the shared shapes
 // in types.proto + JsonResponse from ops.proto.
@@ -60,17 +67,11 @@ message ListAgentHarnessesRequest {}
 
 message GetAgentCreateCtxRequest {}
 
-// ── Runtime-scoped read request messages (sessions + chat) ──────────────────
+// ── Runtime-scoped read request messages (sessions) ─────────────────────────
 
 // Live runtime-session index. Fresh name (vs SessionsListRequest in
 // reads.gen.proto). RUNTIME-scoped — a runtime-instance read, not a def read.
 message ListSessionsReq {}
-
-// Recent chat messages for the chat drawer, scoped by workspace. Fresh name
-// (vs the generated ChatStateRequest). RUNTIME-scoped read-through view.
-message ChatStateReq {
-  string workspace_id = 1;
-}
 
 // ── Watch request message (the ONE reactive surface — #138 / agents-arc E5) ──
 //
@@ -302,12 +303,12 @@ message GrantResult {
 
 // The ONE canonical agent service — profile reads (C0) + the unified reactive
 // Watch (replaces the six *Live twins) + profile CRUD (C2 gated) +
-// runtime-session/chat reads (C0, RUNTIME-scoped) + orchestration control
-// (C2/C3). Reads are edge-authenticated;
-// writes + control route through services::command::call (the ONE gate) — this
-// service only routes, never reimplements gating. Per-op blast_radius preserved
-// from the collapsed source services.
-service AgentService {
+// runtime-session reads (C0, RUNTIME-scoped) + orchestration control (C2/C3).
+// Reads are edge-authenticated; writes + control route through
+// services::command::call (the ONE gate) — this service only routes, never
+// reimplements gating. Per-op blast_radius preserved from the collapsed source
+// services.
+service AgentsService {
   // ── Profile reads (C0) ──
   rpc List(ListAgentsRequest) returns (AgentIndexResponse) {
     option (ship.ops.v1.description) = "List all agents as minimal IndexEntry rows.";
@@ -378,7 +379,7 @@ service AgentService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
 
-  // ── Runtime-scoped reads (sessions + chat) — folded, C0 (#283) ──
+  // ── Runtime-scoped reads (sessions) — folded, C0 (#283) ──
   rpc Sessions(ListSessionsReq) returns (SessionsListResponse) {
     option (ship.ops.v1.description) = "All live PTY sessions (agent chats, pipeline runs, shells) — Mission Control data.";
     option (ship.ops.v1.capability) = "ship.sessions.read";
@@ -386,15 +387,6 @@ service AgentService {
   }
   rpc SessionsLive(ListSessionsReq) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.sessions.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc Chat(ChatStateReq) returns (ChatStateResponse) {
-    option (ship.ops.v1.description) = "Recent messages for the chat drawer, scoped by workspace.";
-    option (ship.ops.v1.capability) = "ship.chat.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc ChatLive(ChatStateReq) returns (stream JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.chat.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
 

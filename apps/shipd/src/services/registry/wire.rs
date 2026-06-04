@@ -12,7 +12,6 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::views::chat_state::ChatMessage;
 use ship_artifacts::types::ArtifactRecord;
 use ship_platform::services::git::diff::ParsedDiff;
 use ship_platform::services::git::state::{BranchSummary, CommitSummary, StatusFile};
@@ -22,18 +21,9 @@ use ship_platform::services::skills::state as skills_state;
 use ship_platform::services::skills::view_state::SkillSummary;
 use ship_substrate::projections::actor::ActorRow;
 
-// ── chat / sessions / events / artifacts ──────────────────────────────
+// ── sessions / events / artifacts ──────────────────────────────────────
 
-/// Wire shape of `ship.chat.state()`.
-#[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct ChatStateResponse {
-    pub workspace_id: String,
-    pub messages: Vec<ChatMessage>,
-    pub total: usize,
-}
-
-/// Wire shape of `ship.sessions.list()`.
+/// Wire shape of `ship.agents.sessions()`.
 #[derive(Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SessionsListResponse {
