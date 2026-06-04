@@ -28,9 +28,11 @@ pub mod types {
             // → 113. S1 (agents-arc) adds `agent.def.updated` (the Format-2 def
             // change notification) → 114. agents-arc E6 GUTS `studio.message`
             // (the deprecated chat read-projection event, sole consumer was chat)
-            // → 113. The hard count is enforced here to catch accidental removals.
+            // → 113. Job `dead-events-cull` removes `project.changed` and
+            // `skill.attached_to_session` (zero producers, no consumers) → 111.
+            // The hard count is enforced here to catch accidental removals.
             // When adding events: update ALL in event_types.rs AND payload_registry.rs.
-            assert_eq!(ALL.len(), 113, "exactly 113 event type constants required (E6 gutted studio.message)");
+            assert_eq!(ALL.len(), 111, "exactly 111 event type constants required (dead-events-cull removed project.changed + skill.attached_to_session)");
         }
 
         #[test]

@@ -220,7 +220,6 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "ProjectArchived" => json!({ "archived_at": "2026-01-01T00:00:00Z" }),
         "ProjectSwitched" => json!({ "space_id": "test-space", "name": "test", "path": "/home/user/projects/test", "at": "2026-01-01T00:00:00Z" }),
         "ProjectLog" => json!({ "action": "test-action", "details": "test details" }),
-        "ProjectChanged" => json!({ "path": ".ship/project.jsonc", "content_hash": "sha256-test" }),
         "WorkspaceCreated" => json!({ "workspace_id": "test-workspace" }),
 
         // ── Rule events ──────────────────────────────────────────────────────
@@ -249,7 +248,6 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "SkillStarted" => json!({ "skill_id": "test-skill" }),
         "SkillCompleted" => json!({ "skill_id": "test-skill", "duration_ms": 1234 }),
         "SkillFailed" => json!({ "skill_id": "test-skill", "error": "test failure" }),
-        "SkillAttachedToSession" => json!({ "skill_id": "test-skill", "run_id": "test-run", "session_id": "test-session", "mode": "library", "reused": false }),
 
         // ── Studio events ────────────────────────────────────────────────────
         "StudioAnnotationCreated" => json!({ "annotation_id": "test-annotation", "session_id": "test-session", "text": "test annotation" }),

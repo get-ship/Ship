@@ -150,21 +150,6 @@ pub struct SkillFailed {
     pub error: String,
 }
 
-/// Payload for `skill.attached_to_session`.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SkillAttachedToSession {
-    pub skill_id: String,
-    pub run_id: String,
-    pub session_id: String,
-    /// `"library"` today; `"operator"` / `"mode"` once those paths land.
-    pub mode: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub workspace_id: Option<String>,
-    /// `true` when an existing agent session was reused; `false` when
-    /// the run_id was used as a synthetic session.
-    pub reused: bool,
-}
-
 // -- Actor aggregate (v0.2.0 kernel) -------------------------------------------
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -557,13 +542,6 @@ pub struct PipelineChanged {
 /// `rule.changed` — watcher ping when rule shape changes.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RuleChanged {
-    pub path: String,
-    pub content_hash: String,
-}
-
-/// `project.changed` — legacy; kept for backward compat.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProjectChanged {
     pub path: String,
     pub content_hash: String,
 }

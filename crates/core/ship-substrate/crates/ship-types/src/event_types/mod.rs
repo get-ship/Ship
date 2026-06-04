@@ -32,7 +32,6 @@ pub const AGENT_DEF_UPDATED: &str = "agent.def.updated";
 pub const VIEW_CHANGED: &str = "view.changed";
 pub const RULE_CHANGED: &str = "rule.changed";
 pub const COLLECTION_CHANGED: &str = "collection.changed";
-pub const PROJECT_CHANGED: &str = "project.changed";
 pub const PROJECT_LOG: &str = "project.log";
 
 pub const PROCESS_SPAWNED: &str = "process.spawned";
@@ -213,7 +212,6 @@ pub const SKILL_CHANGED: &str = skill::CHANGED;
 pub const SKILL_STARTED: &str = skill::STARTED;
 pub const SKILL_COMPLETED: &str = skill::COMPLETED;
 pub const SKILL_FAILED: &str = skill::FAILED;
-pub const SKILL_ATTACHED_TO_SESSION: &str = skill::ATTACHED_TO_SESSION;
 pub const SKILL_CREATED: &str = skill::CREATED;
 pub const SKILL_UPDATED: &str = skill::UPDATED;
 pub const SKILL_DELETED: &str = skill::DELETED;
@@ -241,8 +239,8 @@ pub const SUPERVISOR_COHERENCE_RESTORED: &str = supervisor::COHERENCE_RESTORED;
 ///
 /// Note: `event_registry::all_names()` returns the registry-derived set (sorted,
 /// deduplicated). This const includes the same names but with legacy aliases that
-/// predate the registry (workspace.*, project.changed, etc.), which remain valid
-/// event types emitted by deprecated code paths.
+/// predate the registry (workspace.*), which remain valid event types emitted
+/// by deprecated code paths.
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
     WORKSPACE_ACTIVATED,
@@ -276,12 +274,10 @@ pub const ALL: &[&str] = &[
     VIEW_CHANGED,
     PIPELINE_CHANGED,
     RULE_CHANGED,
-    PROJECT_CHANGED,
     PROJECT_LOG,
     SKILL_STARTED,
     SKILL_COMPLETED,
     SKILL_FAILED,
-    SKILL_ATTACHED_TO_SESSION,
     SUPERVISOR_SHUTTING_DOWN,
     SUPERVISOR_SWEEP_STARTED,
     SUPERVISOR_SWEEP_COMPLETED,

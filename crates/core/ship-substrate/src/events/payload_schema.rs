@@ -86,14 +86,12 @@ fn schema_for_event_type(
         "view.changed" => Some(check::<ConfigChanged>),
         "pipeline.changed" => Some(check::<ConfigChanged>),
         "rule.changed" => Some(check::<ConfigChanged>),
-        "project.changed" => Some(check::<ConfigChanged>),
         // project
         "project.log" => Some(check::<ProjectLog>),
         // skill
         "skill.started" => Some(check::<SkillStarted>),
         "skill.completed" => Some(check::<SkillCompleted>),
         "skill.failed" => Some(check::<SkillFailed>),
-        ship_types::event_types::SKILL_ATTACHED_TO_SESSION => Some(check::<SkillAttachedToSession>),
         // process
         "process.spawned" => Some(check::<crate::events::process::ProcessSpawnedPayload>),
         "process.exited" => Some(check::<crate::events::process::ProcessExitedPayload>),
