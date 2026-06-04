@@ -15,7 +15,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 pub use workspace::{WorkspacePackage, discover_workspace_packages, pack_id_for_name};
-use workspace::read_json;
+use workspace::{read_json, source_tags_for_package};
 
 const SUI_OUT: &str = ".ship/sui-out";
 const CEM_SUFFIX: &str = ".custom-elements.json";
@@ -85,26 +85,55 @@ pub fn build_catalog(
 
 /// Map every workspace component tag → its source `.sui` path (absolute), for
 /// the per-view resolver: the bundler resolves `@sui-tag/<tag>` to this path so
-/// the component compiles into the view bundle. Derived from the same CEM walk
-/// that drives catalog enumeration — one source of truth. A tag whose source
-/// can't be located is simply absent; the resolver then falls back to external.
+/// the component compiles into the view bundle.
+///
+/// SOURCE-MODE (primary): for every workspace package, recursively scan
+/// `<pkg>/src/` for files where the stem equals the parent directory name
+/// (`<X>/<X>.sui`). This is the authoritative component convention and requires
+/// no pre-built CEM. Views (`page.sui`, stem ≠ parent) are excluded by the
+/// guard, so they never leak into the resolver index.
+///
+/// CEM-MODE (secondary): for any tag NOT already found via source scan, fall
+/// back to the CEM-derived path from `build_catalog` (useful for packages that
+/// only ship a dist CEM with no `.sui` source in the repo). In practice,
+/// the monorepo always has `.sui` source, so CEM only adds anything if a
+/// package genuinely has no local source.
+///
+/// A tag whose source can't be located (neither source scan nor CEM) is absent;
+/// the resolver then falls back to external.
 pub fn tag_source_index(
     repo_root: &Path,
     first_party_app: Option<&deck_config::FirstPartyApp>,
 ) -> std::collections::HashMap<String, PathBuf> {
     let mut out = std::collections::HashMap::new();
-    let Ok(workspace) = build_catalog(repo_root, first_party_app) else {
-        return out;
-    };
-    for e in workspace.entries {
-        if !e.sourcePath.ends_with(".sui") {
-            continue;
-        }
-        let abs = repo_root.join(&e.sourcePath);
-        if abs.is_file() {
-            out.insert(e.tagName, abs);
+
+    // ── primary: source scan of every workspace package ───────────────────
+    if let Ok(packages) = discover_workspace_packages(repo_root) {
+        for pkg in &packages {
+            for (tag, abs_path) in source_tags_for_package(&pkg.root) {
+                if abs_path.is_file() {
+                    out.entry(tag).or_insert(abs_path);
+                }
+            }
         }
     }
+
+    // ── secondary: CEM-derived paths for anything source scan missed ───────
+    if let Ok(workspace) = build_catalog(repo_root, first_party_app) {
+        for e in workspace.entries {
+            if out.contains_key(&e.tagName) {
+                continue; // source-mode already resolved this tag
+            }
+            if !e.sourcePath.ends_with(".sui") {
+                continue;
+            }
+            let abs = repo_root.join(&e.sourcePath);
+            if abs.is_file() {
+                out.insert(e.tagName, abs);
+            }
+        }
+    }
+
     out
 }
 
@@ -409,5 +438,49 @@ mod tests {
         assert!(src.ends_with("packages/charts/src/sui-bar/sui-bar.sui"));
         // Invariant: an unknown tag is absent → the resolver falls back to external.
         assert!(!idx.contains_key("sui-nonexistent"));
+    }
+
+    /// SOURCE-MODE gate: a workspace package that has a `<X>/<X>.sui` component
+    /// source but NO `customElements` CEM at all must still yield tag X in the
+    /// resolver index. This proves that the resolver does not require a pre-built
+    /// CEM artifact to function — the `.sui` source IS the truth.
+    #[test]
+    fn source_mode_resolves_tag_without_cem() {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path();
+        write(&root.join("package.json"), r#"{"workspaces":["packages/*"]}"#);
+        // Package has NO customElements field — no CEM at all.
+        write(
+            &root.join("packages/mycomp/package.json"),
+            r#"{"name":"@ship/mycomp","private":true}"#,
+        );
+        // Component source obeys the convention: stem == parent dir.
+        write(
+            &root.join("packages/mycomp/src/sui-foo/sui-foo.sui"),
+            "<span class=\"sui-foo-marker\">foo</span>\n",
+        );
+        // A view alongside it must NOT appear (stem != parent dir).
+        write(
+            &root.join("packages/mycomp/src/myview/page.sui"),
+            "<div>view</div>\n",
+        );
+
+        let idx = tag_source_index(root, None);
+
+        // The component resolves from source.
+        let src = idx
+            .get("sui-foo")
+            .expect("source-mode: tag must resolve even without a CEM");
+        assert!(src.is_file(), "resolved path must be an existing file");
+        assert!(
+            src.ends_with("packages/mycomp/src/sui-foo/sui-foo.sui"),
+            "resolved path must be the component .sui source; got: {src:?}"
+        );
+
+        // The view (stem=page, parent=myview) must NOT be indexed.
+        assert!(
+            !idx.contains_key("page"),
+            "page.sui (view) must not leak into the resolver index"
+        );
     }
 }

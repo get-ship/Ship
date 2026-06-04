@@ -111,3 +111,49 @@ pub fn pack_id_for_name(npm_name: &str) -> String {
     }
     npm_name.to_string()
 }
+
+/// Recursively walk `dir`, collecting `(tag, abs_path)` pairs where the file
+/// stem equals its parent directory name — i.e. `<X>/<X>.sui`. This is the
+/// source-mode component convention; views (`page.sui`, stem ≠ parent) are
+/// excluded by the guard. `dist`, `node_modules`, `.git`, and `target` are
+/// skipped for speed.
+fn scan_sui_components(dir: &Path, out: &mut Vec<(String, PathBuf)>) {
+    const SKIP: [&str; 5] = ["node_modules", "dist", "target", ".git", ".deck"];
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for e in entries.flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        if SKIP.contains(&name.as_str()) {
+            continue;
+        }
+        let p = e.path();
+        if p.is_dir() {
+            scan_sui_components(&p, out);
+        } else if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
+            if p.extension().and_then(|x| x.to_str()) != Some("sui") {
+                continue;
+            }
+            // Guard: stem must equal the parent directory name.
+            let parent_name = p
+                .parent()
+                .and_then(|par| par.file_name())
+                .and_then(|n| n.to_str())
+                .unwrap_or("");
+            if stem == parent_name {
+                out.push((stem.to_string(), p));
+            }
+        }
+    }
+}
+
+/// Return all `(tag, abs_path)` component pairs discovered by source scan of
+/// `pkg_root/src/`. Only `<X>/<X>.sui` files (stem == parent dir) are
+/// returned; views and other files are excluded by the guard.
+pub fn source_tags_for_package(pkg_root: &Path) -> Vec<(String, PathBuf)> {
+    let src = pkg_root.join("src");
+    if !src.is_dir() {
+        return vec![];
+    }
+    let mut out = Vec::new();
+    scan_sui_components(&src, &mut out);
+    out
+}

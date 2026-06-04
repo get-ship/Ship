@@ -1,5 +1,4 @@
 {
   "name": "@demo/demo-chip",
-  "private": true,
-  "customElements": "custom-elements.json"
+  "private": true
 }
