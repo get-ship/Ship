@@ -46,7 +46,7 @@ bootstrap:
     # Deck is the only bundler: bake the framework singletons + sui-components
     # umbrella + islands + marketing/arcade in-process (rolldown). No per-pack
     # pre-compile step — components compile from source on demand.
-    cargo run -p xtask --quiet -- build-assets
+    cargo run -p deck-cli --quiet -- build-assets
     just dev-runtime-install
     echo "bootstrap complete — 'just dev' to start the daemon"
 
@@ -68,7 +68,7 @@ gen-routes:
 # source. No per-pack build step: components compile from `.sui` on demand.
 [group('daily')]
 dev-build-all: _sui-compiler-lib gen-routes
-    @cargo xtask build-assets
+    @cargo run -p deck-cli --quiet -- build-assets
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
@@ -313,8 +313,8 @@ build: _sui-compiler-lib
     # out-of-band), so without this step it silently goes stale and bundles
     # compile against an old token registry / lint set. Cheap no-op when fresh.
     cargo build -p sui-compiler
-    echo "[3/6] framework + sui-* bundles + islands + views + catalog (cargo xtask build-assets — in-process Rolldown; the only bundler AND the only catalog producer, → .deck/catalogs/workspace.json)"
-    cargo xtask build-assets
+    echo "[3/6] framework + sui-* bundles + islands + views + catalog (cargo run -p deck-cli --quiet -- build-assets — in-process Rolldown; the only bundler AND the only catalog producer, → .deck/catalogs/workspace.json)"
+    cargo run -p deck-cli --quiet -- build-assets
     echo "[4/6] catalog baked in [3/6] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
     echo "[5/6] cargo build --release (ship-cli + shipd)"
     cargo build --release -p ship-cli -p shipd

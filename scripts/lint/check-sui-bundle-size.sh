@@ -20,7 +20,7 @@ declare -A BUDGETS=(
 
 # Produce the framework bundles via the canonical in-process Rolldown bake
 # (#163) — the same engine the daemon runs. Output lands in deck-core/assets.
-cargo xtask build-assets >/dev/null 2>&1
+cargo run -p deck-cli --quiet -- build-assets >/dev/null 2>&1
 
 failures=0
 echo "sui bundle sizes:"

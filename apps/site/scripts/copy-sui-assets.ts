@@ -53,7 +53,7 @@ for (const { name, from } of SUI_BUNDLES) {
   if (!existsSync(src)) {
     console.log(
       `[copy-sui-assets] ${name} not found at ${src}. ` +
-      `Run 'cargo xtask build-assets' first.`,
+      `Run 'deck build-assets' first.`,
     );
     continue;
   }

@@ -5,7 +5,7 @@ import type { Scope } from './sui-devtools-components.sui'
 // The dock's Components tab inspects the workspace SUI catalog —
 // `/api/sui/catalog/workspace` returns every `<sui-*>` the monorepo
 // knows about (packaged pack components + non-packaged shell/view
-// locals). Emitted by deck-bundler (cargo xtask build-assets).
+// locals). Emitted by deck-bundler (deck build-assets).
 const SUI_CATALOG_URL = '/api/sui/catalog/workspace'
 
 interface CemAttr { name: string; description?: string; type?: { text?: string }; default?: string }
