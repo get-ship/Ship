@@ -22,6 +22,13 @@ pub const CONFIG_CHANGED: &str = "config.changed";
 /// `ConfigFileChanged`. Emitted by the watcher alongside the coarse `*.changed`.
 pub const CONFIG_FILE_CHANGED: &str = "config.file_changed";
 pub const AGENT_CHANGED: &str = "agent.changed";
+/// Fine-grained agent def change notification (Format-2). Emitted per def file
+/// when `.ship/agents/<id>.jsonc` changes; carries `{path, content_hash}` (see
+/// `AgentDefUpdated`) and rides the Space scope (the def lives in a space's
+/// `.ship`). NEVER carries file content — the read-only def index re-reads the
+/// file on the ping. The fine-grained, space-stamped successor to the coarse
+/// `agent.changed` for the agents domain.
+pub const AGENT_DEF_UPDATED: &str = "agent.def.updated";
 pub const VIEW_CHANGED: &str = "view.changed";
 pub const RULE_CHANGED: &str = "rule.changed";
 pub const COLLECTION_CHANGED: &str = "collection.changed";
@@ -269,6 +276,7 @@ pub const ALL: &[&str] = &[
     SPACE_SETTING_CHANGED,
     SETTINGS_CHANGED,
     AGENT_CHANGED,
+    AGENT_DEF_UPDATED,
     SKILL_CHANGED,
     VIEW_CHANGED,
     PIPELINE_CHANGED,

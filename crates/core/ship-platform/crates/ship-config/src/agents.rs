@@ -46,7 +46,7 @@ fn cap_root_and_dir(ship_dir: &Path) -> (PathBuf, String) {
 ///
 /// Bootstrap posture (fs_broker.rs:9-10): until `SpaceContext` minting lands in
 /// Phase 5, the cap is `new_unchecked` — not new debt, the documented seam.
-fn agents_cap(ship_dir: &Path, mode: FsMode) -> (FsCap, String) {
+pub(crate) fn agents_cap(ship_dir: &Path, mode: FsMode) -> (FsCap, String) {
     let (root, agents_dir) = cap_root_and_dir(ship_dir);
     let cap = FsCap::new_unchecked(
         root,
@@ -57,7 +57,7 @@ fn agents_cap(ship_dir: &Path, mode: FsMode) -> (FsCap, String) {
 }
 
 /// `<agents_dir>/<id>.jsonc` relative to the cap root.
-fn agent_rel(agents_dir: &str, id: &str) -> String {
+pub(crate) fn agent_rel(agents_dir: &str, id: &str) -> String {
     format!("{agents_dir}/{id}.jsonc")
 }
 

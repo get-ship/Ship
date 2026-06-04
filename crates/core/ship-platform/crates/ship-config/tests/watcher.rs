@@ -184,9 +184,21 @@ async fn agent_def_updated_is_space_scoped_with_content_hash() {
         })
         .unwrap();
     assert_eq!(evs2.len(), 2, "second edit emits a second notification");
-    let latest: ship_types::payload::AgentDefUpdated =
-        serde_json::from_str(&evs2[0].payload_json).unwrap();
-    assert_ne!(latest.content_hash, hash_before, "edited content → new content_hash");
+    // Order-independent: across the two notifications, one carries the original
+    // hash and the other carries a NEW hash — the edited content changed it.
+    let hashes: Vec<String> = evs2
+        .iter()
+        .map(|e| {
+            serde_json::from_str::<ship_types::payload::AgentDefUpdated>(&e.payload_json)
+                .unwrap()
+                .content_hash
+        })
+        .collect();
+    assert!(hashes.contains(&hash_before), "the first notification's hash is present");
+    assert!(
+        hashes.iter().any(|h| *h != hash_before),
+        "edited content → a NEW content_hash appears"
+    );
 }
 
 // A removed def file → the notification carries an empty hash (deleted marker),

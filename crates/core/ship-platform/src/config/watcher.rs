@@ -19,10 +19,11 @@ use crate::services::watcher::{PathChangedSignal, WatcherService, WatcherSpec};
 use ship_substrate::ShipHome;
 use ship_substrate::events::EmitContext;
 use ship_substrate::events::kernel_router::KernelRouter;
+use ship_substrate::ports::{FsBroker, FsCap, FsMode, FsRoot, LocalFsBroker};
 use ship_types::SpaceId;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types;
-use ship_types::payload::{ConfigChanged, ConfigFileChanged};
+use ship_types::payload::{AgentDefUpdated, ConfigChanged, ConfigFileChanged};
 
 /// Re-export so existing call sites that imported `config::ConfigWatcher`
 /// continue to work — the type is the generic [`WatcherService`].
@@ -153,13 +154,20 @@ fn spawn_domain_consumer(
 ) {
     let event_type = domain.event_type;
     let subject = domain.dir_name.to_string();
+    // S1 (agents-arc): the per-file authorship now branches by domain inside
+    // `author_file_changed` — the agents domain emits the fine-grained,
+    // space-stamped, content-hashed `agent.def.updated` (the Format-2 def
+    // notification the read-only index re-reads on); other domains keep the
+    // generic `config.file_changed`. The hash read goes through the FsBroker door
+    // (no raw `std::fs`).
+    let fs = LocalFsBroker::new();
     let task = tokio::spawn(async move {
         while let Some(signal) = rx.recv().await {
             // Coarse domain signal — existing consumers (compile invalidation).
             author_change(&kernel, event_type, &subject, space.clone()).await;
             // Fine-grained per-file events — Format-2 reactivity / sync.
             for path in &signal.paths {
-                author_file_changed(&kernel, &subject, &signal.dir, path, space.clone()).await;
+                author_file_changed(&kernel, &fs, &subject, &signal.dir, path, space.clone()).await;
             }
         }
     });
@@ -192,39 +200,52 @@ async fn author_change(
     }
 }
 
-/// Author the fine-grained `config.file_changed` for one changed file: the path
+/// Author the fine-grained per-file change event for one changed file: the path
 /// relative to the watched domain dir + its content hash (empty when removed).
+///
+/// S1 (agents-arc): the agents domain emits `agent.def.updated` (Space-scoped,
+/// the Format-2 def notification the read-only index re-reads on); every other
+/// domain emits the generic `config.file_changed` (Runtime-scoped). Both carry
+/// `{path, content_hash}` and NEVER file content. The hash read goes through the
+/// FsBroker door (no raw `std::fs`); a read failure = empty hash = "deleted"
+/// marker.
 async fn author_file_changed(
     kernel: &Arc<Mutex<KernelRouter>>,
+    fs: &dyn FsBroker,
     domain: &str,
     dir: &Path,
     path: &Path,
     space: Option<SpaceId>,
 ) {
-    let rel = path
-        .strip_prefix(dir)
-        .unwrap_or(path)
-        .to_string_lossy()
-        .to_string();
-    // Empty hash signals a removed file (read fails) — a valid "deleted" marker.
-    let content_hash = std::fs::read(path)
-        .map(|bytes| ship_types::sha256_hex(&bytes))
-        .unwrap_or_default();
-    let payload = ConfigFileChanged {
-        domain: domain.to_string(),
-        path: rel.clone(),
-        content_hash,
+    let rel = path.strip_prefix(dir).unwrap_or(path).to_string_lossy().to_string();
+    let cap = FsCap::new_unchecked(
+        dir.to_path_buf(),
+        FsRoot::Space(ship_substrate::ports::SpaceId::new("config")),
+        FsMode::ReadOnly,
+    );
+    // Empty hash on read failure = a "deleted" marker (file gone).
+    let content_hash = fs.read(&cap, &rel).map(|b| ship_types::sha256_hex(&b)).unwrap_or_default();
+
+    let (event_type, payload_json) = if domain == "agents" {
+        let p = AgentDefUpdated { path: rel.clone(), content_hash };
+        (event_types::AGENT_DEF_UPDATED, serde_json::to_value(&p))
+    } else {
+        let p = ConfigFileChanged { domain: domain.to_string(), path: rel.clone(), content_hash };
+        (event_types::CONFIG_FILE_CHANGED, serde_json::to_value(&p))
     };
-    let envelope = match EventEnvelope::new(event_types::CONFIG_FILE_CHANGED, &rel, &payload) {
+    let envelope = match payload_json
+        .map_err(|e| e.to_string())
+        .and_then(|p| EventEnvelope::new(event_type, &rel, &p).map_err(|e| e.to_string()))
+    {
         Ok(e) => e,
         Err(e) => {
-            tracing::warn!("config: failed to build config.file_changed envelope: {e}");
+            tracing::warn!("config: failed to build {event_type} envelope: {e}");
             return;
         }
     };
     let ctx = EmitContext::daemon_internal(space);
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
-        tracing::warn!("config: failed to emit config.file_changed: {e}");
+        tracing::warn!("config: failed to emit {event_type}: {e}");
     }
 }
 
@@ -291,17 +312,22 @@ mod tests {
         assert_eq!(evs.len(), 1, "config service must author exactly one agent.changed");
         assert_eq!(evs[0].entity_id, "agents", "entity_id (subject) preserved");
 
-        // Fine-grained per-file event — CONFIG_FILE_CHANGED, entity = rel path.
-        // config.* is Runtime-scoped → it lands in runtime.db.
+        let fs = ship_substrate::ports::LocalFsBroker::new();
+
+        // Fine-grained per-file event for the AGENTS domain — S1 evolves this to
+        // `agent.def.updated` (Space-scoped → bound space's db), not the generic
+        // config.file_changed. (The non-agents `config.file_changed` path is
+        // proved in `ship-config/tests/watcher.rs`.) The hash read goes through
+        // the FsBroker.
         let dir = ship_dir.join("agents");
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("x.jsonc");
         std::fs::write(&file, "{}").unwrap();
-        author_file_changed(&kernel, "agents", &dir, &file, Some(SpaceId::new("sp-1"))).await;
+        author_file_changed(&kernel, &fs, "agents", &dir, &file, Some(SpaceId::new("sp-1"))).await;
         assert_eq!(
-            count_events(&ship_substrate::db::runtime_db_path(&ship_dir), event_types::CONFIG_FILE_CHANGED),
+            count_events(&ship_substrate::db::space_db_path(&ship_dir, "sp-1"), event_types::AGENT_DEF_UPDATED),
             1,
-            "config service must author config.file_changed"
+            "agents domain authors agent.def.updated into the space db"
         );
     }
 

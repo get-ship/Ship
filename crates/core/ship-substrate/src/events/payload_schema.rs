@@ -80,6 +80,8 @@ fn schema_for_event_type(
         "space.setting.changed" => Some(check::<SpaceSettingChanged>),
         "settings.changed" => Some(check::<SettingChanged>),
         "agent.changed" => Some(check::<ConfigChanged>),
+        // Format-2 def notification — typed {path, content_hash} payload.
+        "agent.def.updated" => Some(check::<AgentDefUpdated>),
         "skill.changed" => Some(check::<ConfigChanged>),
         "view.changed" => Some(check::<ConfigChanged>),
         "pipeline.changed" => Some(check::<ConfigChanged>),
