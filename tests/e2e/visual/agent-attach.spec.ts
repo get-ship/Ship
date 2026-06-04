@@ -95,7 +95,6 @@ function attachHarnessHtml(slug: string, theme: ThemeId): string {
     }
   }
   </script>
-  <script type="module" src="/_sui/components.js"></script>
   <script type="module" src="/_sui/sui-components/ship-terminal.js"></script>
   <script type="module" src="/_sui/sui-components/sui-agent-attach.js"></script>
   <style>

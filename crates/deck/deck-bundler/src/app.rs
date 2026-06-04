@@ -176,7 +176,7 @@ pub async fn bundle_app(
     let app_plugin = AppPlugin { externals };
     // The app/SPA build keeps the registry model (umbrella) — no per-view
     // component imports, so its graph stays byte-identical.
-    let sui_plugin = crate::rolldown_bundle::SuiPlugin {
+    let sui_plugin = crate::sui_plugin::SuiPlugin {
         repo_root: repo_root.to_path_buf(),
         emit_component_imports: false,
         component_index: std::sync::Arc::new(std::collections::HashMap::new()),

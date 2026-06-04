@@ -260,13 +260,6 @@ coverage:
 lint-imports:
     cargo run -p xtask --quiet -- lint-imports
 
-# Recompile every `<sui-*>` component via deck (the only bundler) so the
-# per-component CEMs the catalog + studio read are regenerated. Deck compiles
-# the `.sui` sources in-process; there is no per-pack pre-compile step.
-[group('occasional')]
-cem:
-    cargo run -p xtask --quiet -- build-assets
-
 # Build docs site (Astro static).
 [group('occasional')]
 docs:
@@ -320,7 +313,7 @@ build: _sui-compiler-lib
     # out-of-band), so without this step it silently goes stale and bundles
     # compile against an old token registry / lint set. Cheap no-op when fresh.
     cargo build -p sui-compiler
-    echo "[3/6] framework + sui-* bundles + islands + views + catalog (cargo xtask build-assets — in-process Rolldown; the only bundler AND the only catalog producer, → .deck/catalogs/{workspace,published}.json)"
+    echo "[3/6] framework + sui-* bundles + islands + views + catalog (cargo xtask build-assets — in-process Rolldown; the only bundler AND the only catalog producer, → .deck/catalogs/workspace.json)"
     cargo xtask build-assets
     echo "[4/6] catalog baked in [3/6] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
     echo "[5/6] cargo build --release (ship-cli + shipd)"
@@ -336,7 +329,7 @@ build: _sui-compiler-lib
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in crates/deck/deck-core/assets/sui-runtime.js crates/deck/deck-core/assets/sui-components.js .deck/sui-marketing.js .deck/sui-arcade.js .deck/catalogs/workspace.json .deck/catalogs/published.json; do
+    for asset in crates/deck/deck-core/assets/sui-runtime.js crates/deck/deck-core/assets/sui-components.js .deck/sui-marketing.js .deck/sui-arcade.js .deck/catalogs/workspace.json; do
         if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1

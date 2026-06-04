@@ -67,7 +67,7 @@ pub(crate) async fn run(b: &Bundler) {
             // notify's inotify mask surfaces those reads as `Access` events and
             // the resulting atime bump as `Modify(Metadata)` (IN_ATTRIB) — neither
             // is a source EDIT. Reacting to them is a read → rebuild → read loop:
-            // every island re-bundles ~1/s with no edits, emitting `module-changed`,
+            // every target re-bundles ~1/s with no edits, emitting `module-changed`,
             // and the live-reload client full-reloads on each → the page resets
             // multiple times per second. Only real content/structural changes
             // (Create / Remove / Modify::Data / Modify::Name) drive a rebuild.
@@ -123,7 +123,7 @@ pub(crate) async fn run(b: &Bundler) {
             // fanout lane materialized at runtime would re-accumulate notify
             // PathBufs. On a create-dir event, membership-check the new dir:
             // skip pruned trees, watch the surviving subtree, and invalidate the
-            // target snapshot (a new view/island may have appeared).
+            // target snapshot (a new view may have appeared).
             if sig.is_create_dir && path.is_dir() {
                 let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
                 if !PRUNE.contains(&name) {

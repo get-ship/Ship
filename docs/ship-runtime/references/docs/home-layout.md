@@ -109,7 +109,7 @@ Behavior:
 
 1. Walk up from `start_dir` looking for `.ship/`.
 2. If the found `.ship/` lives inside a **linked git worktree**, redirect to the **main checkout's** `.ship/` so worktrees never register as separate projects in `~/.ship/machine/projects/`.
-3. Worktree dev opt-out: when `SHIP_RESPECT_WORKTREE=1` is set, the worktree's local `.ship/` wins (no redirect). Used by `scripts/dev-daemon.sh` and other dev tooling iterating per-worktree views/themes/agents.
+3. Worktree dev opt-out: when `SHIP_RESPECT_WORKTREE=1` is set, the worktree's local `.ship/` wins (no redirect). Used by `scripts/dev/start.sh` and other dev tooling iterating per-worktree views/themes/agents.
 
 Higher-level wrapper `ship_substrate::project::get_project_dir(start: Option<PathBuf>)`:
 

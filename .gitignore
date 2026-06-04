@@ -176,22 +176,10 @@ crates/deck/deck/assets/
 # un-updated runtime bundler never get committed again.
 crates/sui/ship-sui-server/
 
-# Stale sui-* dupes that used to be emitted into apps/shipd/assets/ — the
-# bundle scripts now target crates/deck/deck-core/assets/ exclusively.
+# Bundle outputs baked into apps/shipd/assets/ — the only tracked file
+# there is view-tokens.css. All .js bundles are gitignored by the blanket.
 # The daemon's `.cache` is gitignored separately.
-apps/shipd/assets/sui-runtime.js
-apps/shipd/assets/sui-dom.js
-apps/shipd/assets/sui-sdk-client.js
-apps/shipd/assets/sui-components.js
-apps/shipd/assets/sui-custom-elements.json
-apps/shipd/assets/sui-code-editor.js
-apps/shipd/assets/sui-command-bar.js
-apps/shipd/assets/sui-devtools.js
-apps/shipd/assets/sui-launcher.js
-apps/shipd/assets/sui-markdown-editor.js
-apps/shipd/assets/sui-nav-top.js
-apps/shipd/assets/sui-panel-dock.js
-apps/shipd/assets/sui-terminal.js
+apps/shipd/assets/*.js
 apps/shipd/assets/sui-components/
 apps/shipd/assets/views/
 apps/shipd/assets/.cache/

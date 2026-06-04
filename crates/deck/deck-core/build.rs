@@ -5,16 +5,14 @@
 //! gitignored — the build emits them on demand and `dispatch.sh`
 //! bootstraps fresh worktrees by copying from the launching repo (or
 //! rebuilding when that's empty). The framework bundles (sui-runtime,
-//! sui-dom, sui-sdk-client, sui-components + per-tag islands,
-//! views/*/view.js) are produced by `cargo xtask build-assets` — the
-//! in-process Rolldown bundler (#163), the same engine shipd runs in dev
-//! mode (no bun, no spawned worker). The lucide icon set is committed
-//! source (`assets/lucide-icons.json`) — the daemon embeds it and serves
-//! per-icon at `/_sui/icons/{name}.svg`; regenerate after a lucide-static
-//! version bump via `cargo run -p xtask -- gen-icons`. The aggregated
-//! CEM was retired in favour of `@ship/sui-catalog`, which emits
-//! `.deck/catalogs/{workspace,published}.json` and is read at runtime by
-//! `src/packs.rs`.
+//! sui-dom, sui-sdk-client, sui-components) are produced by
+//! `cargo xtask build-assets` — the in-process Rolldown bundler (#163),
+//! the same engine shipd runs in dev mode. The lucide icon set is
+//! committed source (`assets/lucide-icons.json`) — the daemon embeds it
+//! and serves per-icon at `/_sui/icons/{name}.svg`; regenerate after a
+//! lucide-static version bump via `cargo run -p xtask -- gen-icons`.
+//! The workspace catalog is emitted to `.deck/catalogs/workspace.json`
+//! by `build-assets` and read at runtime by `src/packs.rs`.
 //!
 //! What this build script DOES is verify the assets are populated.
 //! Pre-existing failure mode: `cargo build` on a fresh clone wrote

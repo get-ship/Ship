@@ -7,7 +7,7 @@ use specta_typescript::{BigIntExportBehavior, Typescript};
 
 use crate::{
     build_assets, coverage, gen_audit_readme, gen_contract, gen_events, gen_fixtures, gen_icons,
-    gen_indexes, gen_ops, gen_skills, gen_sdk, lint_imports, lint_layers, port_descriptions, types,
+    gen_indexes, gen_ops, gen_skills, gen_sdk, lint_imports, lint_layers, types,
 };
 
 pub fn repo_root() -> PathBuf {
@@ -118,12 +118,6 @@ pub fn dispatch(cmd: &str, args: &[String]) {
             let check = args.iter().any(|a| a == "--check");
             if let Err(e) = gen_indexes::run(&repo_root(), check) {
                 eprintln!("gen-indexes failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
-        "port-descriptions" => {
-            if let Err(e) = port_descriptions::run() {
-                eprintln!("port-descriptions failed: {e:#}");
                 std::process::exit(1);
             }
         }

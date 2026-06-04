@@ -1,13 +1,8 @@
 /**
  * Render helpers — page setup for visual baselines.
  *
- * Two render modes:
- *   • `gotoView(page, name)` — navigate to a daemon-served `/sui/<name>`
- *     route, set the requested theme, wait for runtime attach.
- *   • `gotoComponentHarness(page, slot)` — intercept a daemon-origin URL
- *     and serve a synthesized harness page that registers every <sui-*>
- *     custom element and renders the slot content. Origin stays on the
- *     daemon so /_sui/* + /api/assets/* resolve normally.
+ * `gotoView(page, name)` — navigate to a daemon-served `/sui/<name>`
+ * route, set the requested theme, wait for runtime attach.
  *
  * Theme application: views don't run applyTheme unless they include a
  * theme-picker, so we set `data-theme` + `.dark` ourselves before any
@@ -99,82 +94,3 @@ export async function gotoView(
   )
 }
 
-/**
- * Build the synthesized harness HTML. Mirrors the daemon's view shell
- * (importmap + components.js + tokens) so component primitives boot the
- * same way they do inside a real view.
- */
-function harnessHtml(slot: string): string {
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SUI harness</title>
-  <link rel="stylesheet" href="/api/assets/view-tokens.css" />
-  <script type="importmap">
-  {
-    "imports": {
-      "@ship/sui-runtime": "/_sui/runtime.js",
-      "@ship/sui-dom":     "/_sui/dom.js",
-      "@ship/sdk-client":  "/_sui/sdk-client.js"
-    }
-  }
-  </script>
-  <script type="module" src="/_sui/components.js"></script>
-  <style>
-    html, body { margin: 0; padding: 0; background: var(--background, #fff); color: var(--foreground, #111); font-family: var(--font-sans, system-ui, sans-serif); }
-    #harness { padding: 32px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
-  </style>
-</head>
-<body>
-  <div id="harness">${slot}</div>
-  <script>
-    (function () {
-      var deadline = Date.now() + 4000
-      function tick () {
-        var pending = Array.prototype.slice
-          .call(document.querySelectorAll('#harness *'))
-          .filter(function (el) { return el.tagName.includes('-') && !customElements.get(el.tagName.toLowerCase()) })
-        if (pending.length === 0 || Date.now() > deadline) {
-          window.__harnessReady = true
-          return
-        }
-        requestAnimationFrame(tick)
-      }
-      tick()
-    })()
-  </script>
-</body>
-</html>`
-}
-
-/**
- * Render a single-component harness page. Intercepts a daemon-origin URL
- * so the synthesized HTML executes with the correct origin for /_sui/*.
- */
-export async function gotoComponentHarness(
-  page: Page,
-  slot: string,
-  theme: ThemeId,
-): Promise<void> {
-  await pinTheme(page, theme)
-  const html = harnessHtml(slot)
-  await page.route('**/__sui_harness', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'text/html; charset=utf-8',
-      body: html,
-    }),
-  )
-  await page.goto('/__sui_harness')
-  await page.waitForFunction(
-    () => (window as unknown as { __harnessReady?: boolean }).__harnessReady === true,
-    null,
-    { timeout: 10_000 },
-  )
-  await injectStability(page)
-  await page.evaluate(
-    () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))),
-  )
-}

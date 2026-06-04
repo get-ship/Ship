@@ -16,7 +16,7 @@ use anyhow::{anyhow, Result};
 use rolldown::{BundlerBuilder, BundlerOptions, InputItem, OutputFormat};
 use rolldown_common::ManualCodeSplittingOptions;
 
-use crate::rolldown_bundle::{component_index, SuiPlugin};
+use crate::sui_plugin::{SuiPlugin, component_index};
 use crate::targets::{BundleLayout, BundleTarget, TargetEntry};
 
 /// Bundle every view in `views` together so a component shared by ≥2 views

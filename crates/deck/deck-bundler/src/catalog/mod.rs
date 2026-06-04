@@ -1,14 +1,11 @@
-//! Component catalog aggregation (#163 catalog port).
+//! Component catalog aggregation.
 //!
-//! Port of `@ship/sui-catalog`'s aggregator: walk per-component CEMs from
-//! published packages (each package's `customElements` manifest) AND from
-//! `.ship/sui-out/**/*.custom-elements.json` (non-packaged: shell-local,
-//! view-local), merge into the canonical workspace + published documents.
-//! Filesystem-only, deterministic (sort by tagName). Pass-through CEM arrays
-//! are kept as raw JSON so component metadata isn't lost to a typed schema.
-//!
-//! Matches the JS aggregator semantically (same entries/fields); exact byte
-//! output isn't required — consumers parse the JSON and nothing bakes it.
+//! Walk per-component CEMs from published packages (each package's
+//! `customElements` manifest) AND from `.ship/sui-out/**/*.custom-elements.json`
+//! (non-packaged: shell-local, view-local), merge into the canonical workspace
+//! catalog document. Filesystem-only, deterministic (sort by tagName).
+//! Pass-through CEM arrays are kept as raw JSON so component metadata isn't
+//! lost to a typed schema.
 
 mod workspace;
 
@@ -24,9 +21,7 @@ const SUI_OUT: &str = ".ship/sui-out";
 const CEM_SUFFIX: &str = ".custom-elements.json";
 const SKIP_DIRS: [&str; 4] = ["node_modules", "dist", "target", ".git"];
 
-/// One catalog entry. Field order mirrors the JS runtime object (base fields,
-/// then routing) so output stays close to the TS version. Pass-through CEM
-/// arrays are raw `Value`.
+/// One catalog entry. Pass-through CEM arrays are raw `Value`.
 #[derive(Debug, Clone, Serialize)]
 #[allow(non_snake_case)]
 pub struct CatalogEntry {
@@ -43,8 +38,6 @@ pub struct CatalogEntry {
     pub package: String,
     pub private: bool,
     pub sourcePath: String,
-    pub bundleUrl: String,
-    pub manifestUrl: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -59,9 +52,8 @@ pub fn stringify_catalog(doc: &CatalogDocument) -> String {
     serde_json::to_string_pretty(doc).unwrap_or_default() + "\n"
 }
 
-/// Build both projections for a repo. `workspace` = every component;
-/// `published` = only non-private.
-pub fn build_catalogs(repo_root: &Path) -> Result<(CatalogDocument, CatalogDocument), String> {
+/// Build the workspace catalog for a repo — every component, sorted by tagName.
+pub fn build_catalog(repo_root: &Path) -> Result<CatalogDocument, String> {
     let packages = discover_workspace_packages(repo_root)?;
 
     let mut all: Vec<CatalogEntry> = Vec::new();
@@ -77,29 +69,21 @@ pub fn build_catalogs(repo_root: &Path) -> Result<(CatalogDocument, CatalogDocum
     let mut seen = std::collections::HashSet::new();
     all.retain(|e| seen.insert(e.tagName.clone()));
 
-    let workspace = CatalogDocument {
+    Ok(CatalogDocument {
         schemaVersion: "1",
         count: all.len(),
-        entries: all.clone(),
-    };
-    let published_entries: Vec<CatalogEntry> = all.into_iter().filter(|e| !e.private).collect();
-    let published = CatalogDocument {
-        schemaVersion: "1",
-        count: published_entries.len(),
-        entries: published_entries,
-    };
-    Ok((workspace, published))
+        entries: all,
+    })
 }
 
 /// Map every workspace component tag → its source `.sui` path (absolute), for
 /// the per-view resolver: the bundler resolves `@sui-tag/<tag>` to this path so
-/// the component compiles into the view bundle. Derived from the SAME CEM walk
+/// the component compiles into the view bundle. Derived from the same CEM walk
 /// that drives catalog enumeration — one source of truth. A tag whose source
-/// can't be located is simply absent; the resolver then falls back to external
-/// (the umbrella/island net still registers it).
+/// can't be located is simply absent; the resolver then falls back to external.
 pub fn tag_source_index(repo_root: &Path) -> std::collections::HashMap<String, PathBuf> {
     let mut out = std::collections::HashMap::new();
-    let Ok((workspace, _)) = build_catalogs(repo_root) else {
+    let Ok(workspace) = build_catalog(repo_root) else {
         return out;
     };
     for e in workspace.entries {
@@ -125,8 +109,6 @@ fn entry_from_decl(
     package: String,
     private: bool,
     source_path: String,
-    bundle_url: String,
-    manifest_url: String,
 ) -> Option<CatalogEntry> {
     let tag = decl["tagName"].as_str().filter(|s| !s.is_empty())?;
     if decl["customElement"].as_bool() != Some(true) {
@@ -148,8 +130,6 @@ fn entry_from_decl(
         package,
         private,
         sourcePath: source_path,
-        bundleUrl: bundle_url,
-        manifestUrl: manifest_url,
     })
 }
 
@@ -161,22 +141,6 @@ fn entries_from_packaged_manifest(repo_root: &Path, pkg: &WorkspacePackage) -> V
     }
     let Some(cem) = read_json(&manifest_abs) else { return vec![] };
     let Some(modules) = cem["modules"].as_array() else { return vec![] };
-    let pack_id = pack_id_for_name(&pkg.name);
-    // A package with a CEM manifest but NO built `dist/` JS bundle is not a
-    // shippable pack — its components are baked into the deck umbrella
-    // (`/_sui/components.js`, side-effect-loaded by every host) and served from
-    // `/_sui/sui-components`. Emitting a `/_sui/packs/<id>/index.js` bundleUrl
-    // points the view-host's eager pack-loader at a 404 on every page; with the
-    // live-reload that drove a full-reload loop. Mark such packages
-    // workspace-only (private) so they never enter `published.json` — the
-    // umbrella already defines their custom elements.
-    let dist_bundle = first_js_in_dist(&pkg.root);
-    let is_private = pkg.private || dist_bundle.is_none();
-    let bundle_url = match &dist_bundle {
-        Some(name) => format!("/_sui/packs/{pack_id}/{name}"),
-        None => format!("/_sui/packs/{pack_id}/index.js"),
-    };
-    let manifest_url = format!("/_sui/packs/{pack_id}/custom-elements.json");
     let pkg_rel_root = rel_unix(repo_root, &pkg.root);
 
     let mut out = Vec::new();
@@ -193,10 +157,8 @@ fn entries_from_packaged_manifest(repo_root: &Path, pkg: &WorkspacePackage) -> V
                 if let Some(e) = entry_from_decl(
                     decl,
                     pkg.name.clone(),
-                    is_private,
+                    pkg.private,
                     source_path.clone(),
-                    bundle_url.clone(),
-                    manifest_url.clone(),
                 ) {
                     out.push(e);
                 }
@@ -204,18 +166,6 @@ fn entries_from_packaged_manifest(repo_root: &Path, pkg: &WorkspacePackage) -> V
         }
     }
     out
-}
-
-fn first_js_in_dist(pkg_root: &Path) -> Option<String> {
-    let entries = std::fs::read_dir(pkg_root.join("dist")).ok()?;
-    let mut names: Vec<String> = entries
-        .flatten()
-        .filter(|e| e.path().is_file())
-        .map(|e| e.file_name().to_string_lossy().into_owned())
-        .filter(|n| n.ends_with(".js"))
-        .collect();
-    names.sort();
-    names.into_iter().next()
 }
 
 fn entries_from_sui_out(repo_root: &Path, packages: &[WorkspacePackage]) -> Vec<CatalogEntry> {
@@ -256,15 +206,11 @@ fn entries_from_sui_out(repo_root: &Path, packages: &[WorkspacePackage]) -> Vec<
         for m in modules {
             if let Some(decls) = m["declarations"].as_array() {
                 for decl in decls {
-                    let tag = decl["tagName"].as_str().unwrap_or("");
-                    let bundle_url = format!("/_sui/sui-components/{tag}.js");
                     if let Some(e) = entry_from_decl(
                         decl,
                         origin.clone(),
                         is_private,
                         source_path.clone(),
-                        bundle_url,
-                        String::new(),
                     ) {
                         out.push(e);
                     }
@@ -365,43 +311,34 @@ mod tests {
     }
 
     #[test]
-    fn aggregates_packaged_and_sui_out_with_private_projection() {
+    fn aggregates_packaged_and_sui_out() {
         let tmp = tempdir().unwrap();
         let root = tmp.path();
         write(&root.join("package.json"), r#"{"workspaces":["packages/*"]}"#);
-        // A published pack (not private) with a CEM manifest + a dist bundle.
+        // A public pack with a CEM manifest.
         write(
             &root.join("packages/charts/package.json"),
             r#"{"name":"@ship/charts","customElements":"dist/custom-elements.json"}"#,
         );
         write(&root.join("packages/charts/dist/custom-elements.json"), &cem("sui-bar"));
-        write(&root.join("packages/charts/dist/charts.js"), "//\n");
         // A shell-local component in the sui-out mirror → app:shell, private.
         write(
             &root.join(".ship/sui-out/apps/shell/src/sui-x/sui-x.custom-elements.json"),
             &cem("sui-x"),
         );
 
-        let (workspace, published) = build_catalogs(root).unwrap();
+        let workspace = build_catalog(root).unwrap();
 
         let ws_tags: Vec<&str> = workspace.entries.iter().map(|e| e.tagName.as_str()).collect();
         assert_eq!(ws_tags, vec!["sui-bar", "sui-x"], "sorted, both present");
-        assert_eq!(workspace.count, 2);
 
         let bar = workspace.entries.iter().find(|e| e.tagName == "sui-bar").unwrap();
         assert_eq!(bar.package, "@ship/charts");
         assert!(!bar.private);
-        assert_eq!(bar.bundleUrl, "/_sui/packs/charts/charts.js");
 
         let x = workspace.entries.iter().find(|e| e.tagName == "sui-x").unwrap();
         assert_eq!(x.package, "app:shell");
         assert!(x.private);
-        assert_eq!(x.bundleUrl, "/_sui/sui-components/sui-x.js");
-
-        // Published drops the private shell-local entry.
-        let pub_tags: Vec<&str> = published.entries.iter().map(|e| e.tagName.as_str()).collect();
-        assert_eq!(pub_tags, vec!["sui-bar"]);
-        assert_eq!(published.count, 1);
     }
 
     #[test]
@@ -414,7 +351,6 @@ mod tests {
             r#"{"name":"@ship/charts","customElements":"dist/custom-elements.json"}"#,
         );
         write(&root.join("packages/charts/dist/custom-elements.json"), &cem("sui-bar"));
-        write(&root.join("packages/charts/dist/charts.js"), "//\n");
         // The CEM implies source packages/charts/src/sui-bar/sui-bar.sui — write it.
         write(&root.join("packages/charts/src/sui-bar/sui-bar.sui"), "<div>bar</div>\n");
 

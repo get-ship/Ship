@@ -75,8 +75,6 @@ interface CatalogEntryWire {
   package: string
   private: boolean
   sourcePath: string
-  bundleUrl: string
-  manifestUrl: string
   description: string
   firstDesc: string
   attributes?: CatalogAttr[]

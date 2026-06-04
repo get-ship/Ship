@@ -1,9 +1,8 @@
 //! `DeckResponse` — the transport-agnostic result every deck handler produces.
 //!
 //! deck-core never speaks HTTP. Handler logic returns a `DeckResponse`
-//! (status + headers + body); a server adapter (deck-axum, a future
-//! deck-bun, …) maps it onto its own response type. This is the port; the
-//! adapters are the plugs.
+//! (status + headers + body); a server adapter (deck-axum, …) maps it
+//! onto its own response type. This is the port; the adapters are the plugs.
 
 use crate::DaemonMode;
 

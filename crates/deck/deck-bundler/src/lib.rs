@@ -14,6 +14,7 @@ pub mod routes;
 pub mod compile;
 pub mod proto;
 pub mod rolldown_bundle;
+pub(crate) mod sui_plugin;
 pub mod targets;
 pub mod views_bundle;
 mod watch;
@@ -293,8 +294,8 @@ impl Bundler {
     }
 
     fn refresh_catalog(&self, layout: &BundleLayout) {
-        match catalog::build_catalogs(&layout.repo_root) {
-            Ok((ws, _)) => {
+        match catalog::build_catalog(&layout.repo_root) {
+            Ok(ws) => {
                 let dir = layout.repo_root.join(".deck/catalogs");
                 let _ = std::fs::create_dir_all(&dir);
                 let _ = std::fs::write(dir.join("workspace.json"), catalog::stringify_catalog(&ws));

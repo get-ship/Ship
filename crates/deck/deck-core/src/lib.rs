@@ -24,6 +24,8 @@ pub mod view_payload;
 #[cfg(test)]
 mod view_payload_tests;
 #[cfg(test)]
+mod view_payload_shape_tests;
+#[cfg(test)]
 mod mode_tests;
 
 #[cfg(test)]
