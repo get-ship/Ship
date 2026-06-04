@@ -30,6 +30,7 @@
 
 pub mod agents;
 pub mod agents_index;
+pub mod agents_write;
 pub mod error;
 pub mod overlay;
 pub mod patch;

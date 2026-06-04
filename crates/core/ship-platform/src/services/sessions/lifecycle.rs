@@ -353,14 +353,15 @@ pub fn stop(registry: &SessionRegistry, id: &str) -> bool {
 /// absent, unreadable, or has no inline rules — callers fall back to vanilla
 /// harness behaviour.
 pub fn load_agent_rules(work_dir: &std::path::Path, agent_id: &str) -> Option<String> {
-    let path = ship_substrate::ShipHome::project_ship_dir(work_dir).join("agents").join(format!("{agent_id}.jsonc"));
-    let raw = std::fs::read_to_string(&path).ok()?;
-    let stripped = ship_substrate::fs_util::strip_jsonc_comments(&raw);
-    let v: serde_json::Value = serde_json::from_str(&stripped).ok()?;
-    let inline = v
-        .get("rules")
-        .and_then(|r| r.get("inline"))
-        .and_then(|s| s.as_str())?;
+    // THE agent-def reader (FsBroker, ship-config) is the one door — no raw
+    // `std::fs` read of the def here. `rules.inline` lives on the FULL nested
+    // profile.
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(work_dir);
+    let fs = ship_substrate::ports::LocalFsBroker::new();
+    let profile = ship_config::agents::read_agent_profile(&fs, &ship_dir, agent_id)
+        .ok()
+        .flatten()?;
+    let inline = profile.rules.inline.as_deref()?;
     if inline.trim().is_empty() {
         return None;
     }

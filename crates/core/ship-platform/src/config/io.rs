@@ -2,13 +2,48 @@ use super::mcp::{get_mcp_config, save_mcp_config};
 use super::merge::{
     merge_agents, merge_mcp_servers, merge_string_lists, write_project_core_config,
 };
-use super::agents::{get_agents_config, save_agents_config};
-use super::project::{ProjectConfig, default_harnesses};
+use super::agents::save_agents_config;
+use super::project::{AgentProfile, ProjectConfig, default_harnesses};
 use super::types::PRIMARY_CONFIG_FILE;
 use ship_substrate::config_doc;
 use ship_substrate::project::get_global_dir;
 use anyhow::Result;
 use std::path::PathBuf;
+
+/// Project the FULL nested `compiler::AgentProfile` (THE reader's output) into
+/// the platform's flat [`AgentProfile`] runtime view. Lossy by design — the
+/// platform UI does not surface the nested type's hand-authored fields; the
+/// fields the platform owns (`rules`, `hooks`, `permissions`, `target_agents`,
+/// `isolation`) are derived elsewhere / default here, matching the prior
+/// projection.
+fn project_canonical(src: &compiler::AgentProfile) -> AgentProfile {
+    AgentProfile {
+        id: src.agent.id.clone(),
+        name: src.agent.name.clone(),
+        description: src.agent.description.clone(),
+        role: src.agent.role.clone(),
+        tools_preset: src.agent.tools_preset.clone(),
+        active_tools: src.agent.active_tools.clone(),
+        mcp_servers: src.mcp.servers.clone(),
+        skills: src.skills.refs.clone(),
+        rules: Vec::new(),
+        hooks: Vec::new(),
+        permissions: super::types::PermissionConfig::default(),
+        target_agents: Vec::new(),
+        isolation: None,
+    }
+}
+
+/// Read the project's agent profiles via THE agent-def reader (FsBroker,
+/// ship-config), projected to the flat platform view. `config_dir` is the
+/// `.ship` directory the reader walks `agents/` under.
+fn read_project_agents(config_dir: &std::path::Path) -> Result<Vec<AgentProfile>> {
+    let fs = ship_substrate::ports::LocalFsBroker::new();
+    Ok(ship_config::agents::read_agent_profiles(&fs, config_dir)?
+        .iter()
+        .map(project_canonical)
+        .collect())
+}
 
 pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
     let is_project = project_dir.is_some();
@@ -23,7 +58,7 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
         config_doc::read_doc(&primary_path)?.unwrap_or_default();
 
     if is_project {
-        let agents = get_agents_config(&config_dir)?;
+        let agents = read_project_agents(&config_dir)?;
         if !agents.is_empty() {
             config.agents = agents;
         }

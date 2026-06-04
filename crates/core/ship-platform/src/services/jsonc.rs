@@ -1,10 +1,11 @@
-//! JSONC helpers for agent config parsing.
+//! JSONC value helpers for agent config projection.
 //!
-//! The agent-specific helpers (`first_letter`, `parse_file`, `resolve_array_field`,
+//! The agent-specific helpers (`first_letter`, `resolve_array_field`,
 //! `extract_str_array`) live here because they're shaped around the agent
-//! config schema. The comment-stripping itself delegates to
-//! `ship_substrate::fs_util::strip_jsonc_comments` — one canonical
-//! parser, four prior copies collapsed to one trunk implementation.
+//! config schema. They operate on already-parsed `serde_json::Value`s — the
+//! file READ + JSONC parse is THE reader's job (`ship_config::agents`), so no
+//! raw `std::fs` lives here. The comment-stripping itself delegates to
+//! `ship_substrate::fs_util::strip_jsonc_comments` — one canonical parser.
 
 /// Strip `// …` / `/* … */` comments and trailing commas from a JSONC
 /// input. Thin wrapper over `ship_substrate::fs_util::strip_jsonc_comments`
@@ -21,15 +22,6 @@ pub(crate) fn first_letter(s: &str) -> String {
         .unwrap_or_else(|| "?".to_string())
 }
 
-pub(crate) fn parse_file(
-    path: &std::path::Path,
-) -> Option<(String, serde_json::Value)> {
-    let id = path.file_stem().and_then(|s| s.to_str())?.to_string();
-    let raw = std::fs::read_to_string(path).ok()?;
-    let json_str = strip_jsonc(&raw);
-    let parsed: serde_json::Value = serde_json::from_str(&json_str).ok()?;
-    Some((id, parsed))
-}
 
 pub(crate) fn extract_str_array(v: &serde_json::Value) -> Vec<String> {
     v.as_array()

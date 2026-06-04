@@ -93,6 +93,15 @@ pub use project::{
 
 pub use mcp::get_mcp_config;
 
+// THE agent-def reader (FsBroker, ship-config). Re-exported so platform
+// consumers (and the CLI through `ship-platform`) read `.ship/agents/*.jsonc`
+// through the one door rather than walking raw `std::fs`. S6 moves the reader
+// into the `ship-agents` crate; this re-export is the interim seam.
+pub use ship_config::agents::{
+    read_agent_doc_in, read_agent_docs_in, read_agent_profile, read_agent_profile_at,
+    read_agent_profiles, read_agent_profiles_in,
+};
+
 pub use io::{get_config, get_effective_config, save_config};
 
 pub use crud::{

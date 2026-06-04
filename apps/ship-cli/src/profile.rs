@@ -6,7 +6,7 @@
 //! `ship status` and the daemon read from there. No filesystem state file
 //! and no per-project KV namespace.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 use compiler::AgentProfile;
@@ -179,28 +179,25 @@ pub fn find_agent_file(agent_id: &str, project_root: &Path) -> Option<PathBuf> {
 
 /// Load an agent profile from a single file. JSONC only — TOML has been
 /// retired. The schema matches `schemas/agent.schema.json` and is
-/// expressed by [`compiler::AgentProfile`].
+/// expressed by [`compiler::AgentProfile`]. Reads through THE agent-def reader
+/// (FsBroker, ship-config via ship-platform) — never raw `std::fs`.
 pub(crate) fn load_agent_profile(path: &Path) -> Result<AgentProfile> {
-    let content = std::fs::read_to_string(path)
-        .with_context(|| format!("read agent file: {}", path.display()))?;
-    compiler::jsonc::from_jsonc_str::<AgentProfile>(&content)
-        .map_err(|e| anyhow::anyhow!("invalid agent JSONC at {}: {}", path.display(), e))
+    let fs = ship_substrate::ports::LocalFsBroker::new();
+    ship_platform::config::read_agent_profile_at(&fs, path)
+        .map_err(|e| anyhow::anyhow!("read agent file {}: {}", path.display(), e))?
+        .ok_or_else(|| anyhow::anyhow!("invalid or missing agent JSONC at {}", path.display()))
 }
 
-/// List agent IDs available in .ship/agents/ (for error messages).
+/// List agent IDs available in .ship/agents/ (for error messages). Sourced
+/// through THE agent-def reader (FsBroker) — no raw `std::fs` walk.
 fn list_available_agents(project_root: &Path) -> Vec<String> {
     let agents_dir = ship_substrate::ShipHome::project_ship_dir(project_root).join("agents");
-    let mut ids = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(&agents_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_file() && crate::paths::is_config_ext(&path) && crate::paths::is_agent_config(&path)
-                && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
-            {
-                ids.push(stem.to_string());
-            }
-        }
-    }
+    let fs = ship_substrate::ports::LocalFsBroker::new();
+    let mut ids: Vec<String> = ship_platform::config::read_agent_docs_in(&fs, &agents_dir)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(stem, _)| stem)
+        .collect();
     ids.sort();
     ids
 }
