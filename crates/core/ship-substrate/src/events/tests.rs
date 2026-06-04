@@ -275,6 +275,26 @@ fn registry_actor_created_is_runtime_ephemeral() {
     assert_eq!(def.retention, ship_types::event_registry::Retention::Ephemeral);
 }
 
+// S1: `agent.def.updated` is the Format-2 def change notification. It lives in a
+// space's `.ship/agents` → Space-scoped. It is a notification (Bucket-2), so it
+// is Ephemeral, never durable: the file is truth, the index re-reads on the ping.
+#[test]
+fn registry_agent_def_updated_is_space_ephemeral() {
+    let def = ship_types::event_registry::lookup("agent.def.updated")
+        .expect("agent.def.updated must be in registry");
+    assert_eq!(
+        def.allowed_scopes,
+        &[ship_types::event_registry::EventScope::Space],
+        "def change notification is Space-scoped (it lives in a space's .ship)"
+    );
+    assert_eq!(def.primary_scope(), ship_types::event_registry::EventScope::Space);
+    assert_eq!(
+        def.retention,
+        ship_types::event_registry::Retention::Ephemeral,
+        "Bucket-2 notification is ephemeral — the file is truth"
+    );
+}
+
 #[test]
 fn registry_names_are_unique() {
     let names = ship_types::event_registry::all_names();

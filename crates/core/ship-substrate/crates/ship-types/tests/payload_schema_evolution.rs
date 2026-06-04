@@ -255,6 +255,35 @@ fn project_log_v1_round_trips() {
     );
 }
 
+// `agent.def.updated` (Format-2 notification): carries ONLY {path, content_hash}.
+// The space_id rides the envelope scope_key (Space-scoped), never the payload —
+// mirror ConfigFileChanged. The notification must NEVER carry file content.
+#[test]
+fn agent_def_updated_v1_round_trips() {
+    let json = r#"{"path": "code-reviewer.jsonc", "content_hash": "deadbeef"}"#;
+    let p: AgentDefUpdated = parse(json, "AgentDefUpdated");
+    assert_eq!(p.path, "code-reviewer.jsonc");
+    assert_eq!(p.content_hash, "deadbeef");
+}
+
+// Format-2 invariant proof: serializing the notification yields ONLY the path +
+// content_hash keys — there is no `content` (or any body) field on the wire, so
+// a def's contents can never ride a change notification.
+#[test]
+fn agent_def_updated_carries_no_content() {
+    let p = AgentDefUpdated {
+        path: "x.jsonc".into(),
+        content_hash: "abc123".into(),
+    };
+    let v: serde_json::Value = serde_json::to_value(&p).unwrap();
+    let obj = v.as_object().unwrap();
+    assert_eq!(obj.len(), 2, "Format-2 notification has exactly two fields");
+    assert!(obj.contains_key("path"));
+    assert!(obj.contains_key("content_hash"));
+    assert!(!obj.contains_key("content"), "notification must NOT carry file content");
+    assert!(!obj.contains_key("body"), "notification must NOT carry file content");
+}
+
 #[test]
 fn supervisor_shutting_down_v1_round_trips() {
     let _: SupervisorShuttingDown = parse(r#"{"reason": "user"}"#, "SupervisorShuttingDown");
