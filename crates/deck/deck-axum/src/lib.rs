@@ -70,9 +70,10 @@ pub fn into_axum(resp: DeckResponse) -> Response {
 /// (top-level + sub-path). Paths mirror shipd's canonical `Route` enum so a
 /// host can mount this in lieu of wiring each handler.
 ///
-/// `/api/_meta`, HMR, and the state-aware SUI endpoints (sse/data/mutation/
-/// patch) are NOT registered here — they need host-supplied extensions or
-/// router state.
+/// HMR and the state-aware SUI endpoints (sse/data/mutation/patch) are NOT
+/// registered here — they need host-supplied extensions or router state.
+/// `/_sui/meta` is registered here; hosts that need to inject a
+/// `DaemonBuildInfo` extension (shipd) simply layer it before mounting.
 pub fn router() -> Router {
     Router::new()
         .route("/_sui/runtime.js", get(serve_sui_runtime))
@@ -85,7 +86,8 @@ pub fn router() -> Router {
         // content-addressed from `.deck/` root. The exact singleton routes
         // above win for `/_sui/runtime.js` etc.; this catches hashed chunks.
         .route("/_sui/{file}", get(serve_sui_chunk))
-        .route("/api/sui/catalog/workspace", get(serve_catalog_workspace))
+        .route("/_sui/catalog/workspace", get(serve_catalog_workspace))
+        .route("/_sui/meta", get(serve_meta))
         .route("/_sui/views/{name}/view.js", get(serve_sui_view_setup))
         .route("/_sui/views/{name}", get(serve_view_payload))
         .route("/_sui/views/{name}/{*sub_path}", get(serve_view_payload_subpath))

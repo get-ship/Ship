@@ -1,4 +1,4 @@
-//! `GET /api/_meta` — drift-detection endpoint.
+//! `GET /_sui/meta` — drift-detection endpoint.
 //!
 //! Returns the compiler identity stamp baked into every compiled
 //! artifact alongside the daemon's own build identity. The shell
@@ -38,7 +38,7 @@ impl DaemonBuildInfo {
     }
 }
 
-/// `GET /api/_meta` logic — returns the meta JSON payload. The daemon's
+/// `GET /_sui/meta` logic — returns the meta JSON payload. The daemon's
 /// own build info is passed in (None falls back to `"unknown"` markers);
 /// the adapter binds it from its request-extension carrier.
 pub fn serve_meta(daemon: Option<DaemonBuildInfo>) -> Value {

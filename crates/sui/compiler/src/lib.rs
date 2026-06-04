@@ -69,7 +69,7 @@ pub struct CompilerVersion {
 
 impl CompilerVersion {
     /// Serialise as the JSON shape consumers (JS comment, CEM,
-    /// schema, meta, `/api/_meta`) all share. Single source of truth.
+    /// schema, meta, `/_sui/meta`) all share. Single source of truth.
     pub fn to_json(&self) -> serde_json::Value {
         serde_json::json!({
             "cargo": self.cargo,

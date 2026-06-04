@@ -1,5 +1,5 @@
 //! Workspace-catalog endpoint — serves `.deck/catalogs/workspace.json` at
-//! `/api/sui/catalog/workspace`. Emitted by `deck-bundler`'s `build_all`
+//! `/_sui/catalog/workspace`. Emitted by `deck-bundler`'s `build_all`
 //! → `refresh_catalog` (bake) and used by devtools/component-picker.
 //!
 //! The published catalog and pack-asset serving endpoints are removed (#267):
@@ -7,7 +7,7 @@
 
 use crate::{DaemonMode, DeckResponse};
 
-/// `GET /api/sui/catalog/workspace` — every component the workspace knows about.
+/// `GET /_sui/catalog/workspace` — every component the workspace knows about.
 pub fn serve_catalog_workspace(mode: DaemonMode) -> DeckResponse {
     serve_catalog_file("workspace.json", mode)
 }

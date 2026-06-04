@@ -67,7 +67,7 @@ function populatePreview(container: HTMLElement, tag: string): void {
   container.appendChild(el)
 }
 
-const FALLBACK_CATALOG = '/api/sui/catalog/workspace'
+const FALLBACK_CATALOG = '/_sui/catalog/workspace'
 
 interface CatalogAttr { name: string; description?: string; type?: { text?: string }; default?: string }
 interface CatalogEntryWire {

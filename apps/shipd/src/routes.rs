@@ -139,9 +139,13 @@ pub enum Route {
 
     // ── SUI framework hosting (deck-axum handlers) ──
 
-    /// @route GET "/api/sui/catalog/workspace"
+    /// @route GET "/_sui/catalog/workspace"
     /// @auth public
     SuiCatalogWorkspace,
+
+    /// @route GET "/_sui/meta"
+    /// @auth public
+    SuiMeta,
 
     /// @route GET "/_sui/runtime.js"
     /// @auth public

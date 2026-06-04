@@ -119,7 +119,7 @@ describe('<sui-devtools-components>', () => {
     expect(typeof (el as unknown as { refresh?: unknown }).refresh).toBe('function')
   })
 
-  it('fetches the workspace catalog from /api/sui/catalog/workspace', async () => {
+  it('fetches the workspace catalog from /_sui/catalog/workspace', async () => {
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ schemaVersion: '1', count: 0, entries: [] }) })
     const origFetch = globalThis.fetch
     globalThis.fetch = fetchSpy
@@ -127,7 +127,7 @@ describe('<sui-devtools-components>', () => {
     await flush(); await flush()
     expect(fetchSpy).toHaveBeenCalled()
     const calledUrl = String(fetchSpy.mock.calls[0]?.[0] ?? '')
-    expect(calledUrl).toContain('/api/sui/catalog/workspace')
+    expect(calledUrl).toContain('/_sui/catalog/workspace')
     expect(calledUrl).not.toContain('/api/assets/sui-custom-elements.json')
     globalThis.fetch = origFetch
   })

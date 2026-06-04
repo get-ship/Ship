@@ -190,9 +190,9 @@ pub async fn serve_view_payload_subpath(
     into_axum(deck_core::serve_view_payload_subpath(mode_from_ext(mode), &name, &sub_path))
 }
 
-// ── Meta handler ──────────────────────────────────────────────────────────────
+// ── Meta handler (/_sui/meta) ─────────────────────────────────────────────────
 
-/// `GET /api/_meta` — wraps deck-core's plain JSON value in `axum::Json`.
+/// `GET /_sui/meta` — wraps deck-core's plain JSON value in `axum::Json`.
 pub async fn serve_meta(daemon: Option<Extension<DaemonBuildInfo>>) -> Json<Value> {
     Json(deck_core::serve_meta(daemon.map(|e| e.0)))
 }

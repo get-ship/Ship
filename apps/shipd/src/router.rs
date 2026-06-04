@@ -110,22 +110,10 @@ pub fn build_router(
         .route("/api/health", axum::routing::get(move || {
             health_check(health_rt)
         }))
-        // Drift-detection endpoint — returns daemon + compiler build
-        // identity so the shell can compare its loaded `_compilerVersion`
-        // marker against what the daemon was built with. Unauthenticated
-        // for the same reason `/api/health` is: shell needs it before
-        // any session exists. Restored alongside the `/_sui/*` wiring the
-        // phase2-substrate-split merge dropped (originally from 0f679ca0).
-        .route("/api/_meta", axum::routing::get({
-            let bi = build_info::build_info!();
-            let dbi = deck::DaemonBuildInfo {
-                cargo: env!("CARGO_PKG_VERSION"),
-                git: bi.git_sha,
-                dirty: bi.git_dirty,
-                built_at: bi.timestamp,
-            };
-            move || deck::serve_meta(Some(axum::Extension(dbi)))
-        }))
+        // Drift-detection endpoint (/_sui/meta) — moved to deck::router()
+        // so deck owns the full /_sui/* namespace. The DaemonBuildInfo
+        // extension is injected at the root layer below so every deck
+        // handler that needs it (serve_meta) finds it via Option<Extension<…>>.
         // Shared static assets — no user-specific data, safe to serve unauth.
         .ship_public_route(Route::AssetViewTokensCss, views::serve_view_tokens)
         .ship_public_route(Route::AssetThemeCss, views::serve_theme_css)
@@ -303,10 +291,25 @@ pub fn build_router(
         .unwrap_or_else(|| rt.ship_dir().to_path_buf());
     let deck_cfg = Arc::new(DeckConfig::load(&repo_root));
 
+    // Build the DaemonBuildInfo once here so deck's serve_meta handler
+    // (/_sui/meta) can read it via Option<Extension<DaemonBuildInfo>>.
+    let dbi = {
+        let bi = build_info::build_info!();
+        deck::DaemonBuildInfo {
+            cargo: env!("CARGO_PKG_VERSION"),
+            git: bi.git_sha,
+            dirty: bi.git_dirty,
+            built_at: bi.timestamp,
+        }
+    };
+
     root
         // Daemon-mode Extension — Sui handlers read it via
         // `Option<Extension<DaemonMode>>` without router-state plumbing.
         .layer(axum::Extension(daemon_mode))
+        // DaemonBuildInfo Extension — deck's /_sui/meta handler reads this
+        // to report the daemon's own build identity alongside the compiler's.
+        .layer(axum::Extension(dbi))
         // DeckConfig Extension — scaffold handlers (serve_shell, serve_space)
         // read scaffold declarations + inject_globals from this.
         .layer(axum::Extension(deck_cfg))
