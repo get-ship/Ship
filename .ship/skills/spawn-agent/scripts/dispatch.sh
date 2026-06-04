@@ -36,6 +36,7 @@ SLUG=""
 AGENT=""
 SPEC_FILE=""
 SHIP_AGENT_MODEL="${SHIP_AGENT_MODEL:-}"
+SHIP_PROVIDER_CLI="${SHIP_PROVIDER_CLI:-}"
 EXTRA_SKILLS=()
 BATCH_NAME=""
 
@@ -53,6 +54,7 @@ while [[ $# -gt 0 ]]; do
     --dry-run)  DRY_RUN=true; shift ;;
     --confirm)  CONFIRM=1; shift ;;
     --batch)    BATCH_NAME="$2"; shift 2 ;;
+    --harness)  SHIP_PROVIDER_CLI="$2"; shift 2 ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
@@ -64,6 +66,7 @@ if [[ -z "$SLUG" || -z "$AGENT" || -z "$SPEC_FILE" ]]; then
   echo "  --skill <id>      Extra skill to inject at compile time (repeatable)" >&2
   echo "  --no-open         Print launch command instead of opening terminal" >&2
   echo "  --confirm         Show spec and ask y/n before launching" >&2
+  echo "  --harness <cli>   Provider CLI to launch: claude (default) | omp | codex | ..." >&2
   echo "  --dry-run         Show what would happen" >&2
   exit 1
 fi
@@ -387,6 +390,13 @@ if [[ "$PROVIDER_CLI" == "claude" ]]; then
   LAUNCH_FLAGS="--permission-mode ${PERMISSION_MODE} --dangerously-load-development-channels server:ship ${MODEL_FLAG}"
 elif [[ "$PROVIDER_CLI" == "codex" ]]; then
   LAUNCH_FLAGS="${MODEL_FLAG}"
+elif [[ "$PROVIDER_CLI" == "omp" ]]; then
+  # omp (Pi CLI) reads CLAUDE.md + .claude/skills (claude's compiled config),
+  # so no new compile harness is needed. --approval-mode yolo runs unattended
+  # (the claude bypassPermissions equivalent); the per-worktree pre-push hook
+  # still gates network/remote ops. Model is omp's own configured default
+  # unless --model is passed.
+  LAUNCH_FLAGS="--approval-mode yolo ${MODEL_FLAG}"
 fi
 LAUNCH_CMD="cd ${WORKTREE_PATH} && ${PROVIDER_CLI} ${LAUNCH_FLAGS}"
 
