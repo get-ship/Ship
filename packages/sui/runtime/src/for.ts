@@ -314,19 +314,35 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
         for (let j = 0; j < nodes.length; j++) frag.appendChild(nodes[j]!)
       }
       parent.insertBefore(frag, anchor.nextSibling)
-    } else {
+    } else if (parent) {
+      // Place records, batching each maximal run of consecutive
+      // non-stable records into one DocumentFragment — a bulk insert
+      // (append 1000 onto 1000, paste a range) then costs one DOM
+      // mutation per run instead of one per row. `cursor` only ever
+      // advances to a stable (unmoved, still-parented) node or the
+      // anchor, so `cursor.nextSibling` — read AFTER the run's nodes are
+      // pulled into the fragment — is the correct insertion point even
+      // when a moved node had been the next sibling.
       let cursor: Node = anchor
-      for (let i = 0; i < nextRecords.length; i++) {
-        if (!parent) break
-        const record = nextRecords[i]!
+      let i = 0
+      while (i < nextRecords.length) {
         if (stable.has(i)) {
-          cursor = record.nodes[record.nodes.length - 1] ?? cursor
-        } else {
-          for (const node of record.nodes) {
-            parent.insertBefore(node, cursor.nextSibling)
-            cursor = node
-          }
+          const nodes = nextRecords[i]!.nodes
+          cursor = nodes[nodes.length - 1] ?? cursor
+          i++
+          continue
         }
+        const frag = document.createDocumentFragment()
+        let lastRunNode: Node | null = null
+        while (i < nextRecords.length && !stable.has(i)) {
+          for (const node of nextRecords[i]!.nodes) {
+            frag.appendChild(node)
+            lastRunNode = node
+          }
+          i++
+        }
+        parent.insertBefore(frag, cursor.nextSibling)
+        if (lastRunNode) cursor = lastRunNode
       }
     }
 

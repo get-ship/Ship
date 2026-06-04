@@ -667,7 +667,7 @@ describe('bindFor — LIS minimality', () => {
     expect(moves).toBe(2)
   })
 
-  it('full reverse of N items moves exactly N-1 nodes', () => {
+  it('full reverse repositions N-1 rows in batched fragment inserts', () => {
     const N = 8
     const items = Array.from({ length: N }, (_, i) => ({ id: String(i), label: `${i}` }))
     const { $list, ids } = setup(items)
@@ -675,8 +675,13 @@ describe('bindFor — LIS minimality', () => {
     const moves = countMoves($list, [...items].reverse())
 
     expect(ids()).toEqual(Array.from({ length: N }, (_, i) => String(N - 1 - i)))
-    // LIS of a fully-reversed sequence has length 1 → N-1 items must move.
-    expect(moves).toBe(N - 1)
+    // LIS of a fully-reversed sequence has length 1 → N-1 rows reposition.
+    // The placement loop batches each maximal run of consecutive
+    // non-stable rows into ONE fragment insert, so the single stable
+    // (LIS) row splits the movers into at most two runs ⇒ ≤2 inserts,
+    // far below the old per-node count. (Correctness is the ids() check.)
+    expect(moves).toBeGreaterThanOrEqual(1)
+    expect(moves).toBeLessThanOrEqual(2)
   })
 
   it('no moves when array order is unchanged', () => {
@@ -799,8 +804,27 @@ describe('bindFor — LIS minimality', () => {
       'r1-a', 'r1-b',
       'r5-a', 'r5-b',
     ])
-    // 2 unstable rows × 2 nodes each = 4 insertBefore calls.
-    expect(moves).toBe(4)
+    // Two unstable rows at non-adjacent positions (new indices 1 and 4,
+    // split by stable rows) → two separate runs. Each run's nodes batch
+    // into one fragment ⇒ 2 insertBefore calls (was 4, one per node).
+    expect(moves).toBe(2)
+  })
+
+  it('appends a block onto an existing list in one fragment insert', () => {
+    // The Krausest `create1k-after1k` shape: 1000 rows already mounted,
+    // append 1000 more. The existing rows are all stable (matched, in
+    // order), the appended tail is one contiguous non-stable run → a
+    // SINGLE fragment insert, not one insertBefore per appended row.
+    const items = Array.from({ length: 1000 }, (_, i) => ({ id: String(i), label: `${i}` }))
+    const { $list, ids } = setup(items)
+
+    const more = Array.from({ length: 1000 }, (_, i) => ({ id: String(1000 + i), label: `${1000 + i}` }))
+    const moves = countMoves($list, [...items, ...more])
+
+    expect(ids()).toHaveLength(2000)
+    expect(ids()[1999]).toBe('1999')
+    // One fragment insert for the whole appended block.
+    expect(moves).toBe(1)
   })
 })
 
@@ -935,4 +959,3 @@ describe('bindFor — perf followups (runtime-perf-followups)', () => {
     expect(updates.some((u) => u.id === 'b' && u.index === 0)).toBe(true)
   })
 })
-
