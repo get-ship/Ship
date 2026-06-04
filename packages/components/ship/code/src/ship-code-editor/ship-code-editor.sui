@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <ship-code-editor> — SUI island: CodeMirror 6 wrapped as a lazy-loaded
   web-component. Language extensions are dynamic-imported when `language`

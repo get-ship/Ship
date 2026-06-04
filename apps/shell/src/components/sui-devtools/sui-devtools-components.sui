@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-devtools-components> — SUI inventory browser.
   Reads /api/sui/catalog/workspace (workspace catalog emitted by

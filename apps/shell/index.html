@@ -68,44 +68,21 @@
     }
   </script>
 
-  <!-- Components + chrome registration — both are side-effect imports
-       that call `customElements.define()` for every tag they ship.
-       Loaded via runtime IIFE so Vite's import-analysis doesn't try
-       to resolve them as local modules.
-         • /_sui/components.js  — @ship/ui-components umbrella
-           (domain components: git-diff, pipeline-*, log-stream,
-           provider-blob, auth-dialog, graph-canvas; primitives
-           transitively via @ship/sui-primitives).
-         • /_sui/sui-chrome.js  — apps/shell chrome aggregate
-           (non-separate chrome: shell-top, shell-bottom, blank-
-           canvas, view-picker, theme-picker, status-bar, brand-mark,
-           view-chrome, edit-overlay, edit-mode-pill, annotation-*).
-         • /_sui/sui-components/<tag>.js — heavy chrome that opts
-           into its own separate bundle via `<bundle separate />`
-           (launcher, panel-dock, command-bar, devtools, account-
-           menu). The rail + nav-top live in this list for code
-           paths that still mount them (Studio's internal rail),
-           but the shell itself no longer paints them on first
-           load. -->
+  <!-- /_sui/components.js — @ship/ui-components umbrella: domain
+       components (git-diff, pipeline-*, log-stream, provider-blob,
+       auth-dialog, graph-canvas) plus primitives (@ship/sui-primitives)
+       as side-effect imports that call customElements.define(). Loaded
+       via an inline IIFE so Vite's import-analysis doesn't try to resolve
+       this daemon-served URL as a local module. The shell chrome
+       (light set + heavy set) is now registered via the TRACED app bundle:
+       apps/shell/src/main.ts → src/components (barrel, static) and
+       src/chrome/load-heavy-chrome.ts (dynamic code-split chunks). -->
   <script>
     (function () {
-      var bundles = [
-        '/_sui/components.js',
-        '/_sui/sui-components/sui-chrome.js',
-        '/_sui/sui-components/sui-nav-top.js',
-        '/_sui/sui-components/sui-launcher.js',
-        '/_sui/sui-components/sui-panel-dock.js',
-        '/_sui/sui-components/sui-command-bar.js',
-        '/_sui/sui-components/sui-devtools.js',
-        '/_sui/sui-components/sui-account-menu.js',
-        '/_sui/sui-components/sui-project-switcher.js',
-      ];
-      bundles.forEach(function (src) {
-        var s = document.createElement('script');
-        s.type = 'module';
-        s.src = src;
-        document.head.appendChild(s);
-      });
+      var s = document.createElement('script');
+      s.type = 'module';
+      s.src = '/_sui/components.js';
+      document.head.appendChild(s);
     })();
   </script>
 

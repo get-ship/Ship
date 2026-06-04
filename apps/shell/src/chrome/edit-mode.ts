@@ -28,9 +28,6 @@ import {
 } from '@ship/sui-runtime'
 import { installViewMcp, viewMcp } from './view-mcp'
 
-const VA_ISLAND_URL = '/_sui/sui-components/sui-view-authoring.js'
-const PICKER_ISLAND_URL = '/_sui/sui-components/sui-component-picker.js'
-
 interface DockTabDef {
   id: string
   label: string
@@ -90,15 +87,6 @@ interface VaWindow extends Window {
 let currentView: string | null = null
 let activeStopEffect: (() => void) | null = null
 let lastApplied: boolean | null = null
-
-function ensureIslandLoaded(src: string, marker: string): void {
-  if (document.querySelector(`script[data-sui-island="${marker}"]`)) return
-  const s = document.createElement('script')
-  s.type = 'module'
-  s.src = src
-  s.dataset['suiIsland'] = marker
-  document.head.appendChild(s)
-}
 
 function getDock(): PanelDock | null {
   return document.getElementById('ship-panel-dock') as PanelDock | null
@@ -184,8 +172,6 @@ function applyEditMode(on: boolean): void {
   else pill.removeAttribute('view')
 
   if (on) {
-    ensureIslandLoaded(PICKER_ISLAND_URL, 'sui-component-picker')
-    ensureIslandLoaded(VA_ISLAND_URL, 'sui-view-authoring')
     ensureVaSlots(currentView ?? '')
     dock.setAttribute('edit-mode-on', '')
     dock.tabs = VA_TABS

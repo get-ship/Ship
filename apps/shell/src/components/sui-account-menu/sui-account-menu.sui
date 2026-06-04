@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-account-menu> — Ship Cloud account affordance for the chrome strip.
   Trigger button shows the signed-in identity (avatar + name) or "Sign in";

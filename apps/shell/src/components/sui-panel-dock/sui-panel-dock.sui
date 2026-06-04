@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-panel-dock> — SUI port of <ship-panel-dock>.
   Bottom chrome panel with a tab strip.

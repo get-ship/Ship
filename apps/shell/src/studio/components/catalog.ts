@@ -107,10 +107,10 @@ export function categoryRank(category: string): number {
   return i === -1 ? CATEGORY_ORDER.length : i
 }
 
-// The SUI catalog (`@ship/sui-catalog`, served at /api/sui/catalog/published)
-// is the single source of truth for installed-pack components: tag, props,
-// examples, and routing. There is no Lit path and no per-tag hide list — the
-// catalog already excludes shell-local chrome and view-local components.
+// The SUI catalog (served at /api/sui/catalog/workspace) is the single source
+// of truth for installed-pack components: tag, props, examples, and routing.
+// There is no Lit path and no per-tag hide list — the catalog already covers
+// shell-local chrome and view-local components via the sui-out walk.
 async function loadSuiComponents(): Promise<CatalogEntry[]> {
   const byTag = await loadSuiCatalog()
   return [...byTag.keys()]
@@ -132,7 +132,7 @@ async function loadSuiComponents(): Promise<CatalogEntry[]> {
     })
 }
 
-// One wire entry from the published catalog. Carries the standard CEM fields
+// One wire entry from the workspace catalog. Carries the standard CEM fields
 // the studio needs plus the co-located `examples` (fun fixtures).
 interface CatalogEntryWire {
   tagName: string
@@ -161,7 +161,7 @@ interface SuiCatalogEntry {
 async function loadSuiCatalog(): Promise<Map<string, SuiCatalogEntry>> {
   const out = new Map<string, SuiCatalogEntry>()
   try {
-    const res = await fetch('/api/sui/catalog/published', { credentials: 'same-origin' })
+    const res = await fetch('/api/sui/catalog/workspace', { credentials: 'same-origin' })
     if (!res.ok) return out
     const doc = await res.json() as { entries?: CatalogEntryWire[] }
     for (const e of doc.entries ?? []) {

@@ -1,7 +1,5 @@
-use std::collections::{BTreeMap, BTreeSet};
-
 use serde::Serialize;
-use sui_compiler::{bindings, islands, parse, render};
+use sui_compiler::{bindings, parse, render};
 pub use deck_host::view_payload::ViewPayload;
 use deck_host::resolver::read_view_artifact;
 
@@ -46,8 +44,6 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
     };
     let css = collect_view_css(name, resolved.source_path.as_deref());
     let module_url = crate::routes::view_module_url(name, sub_path);
-    let used_tags = islands::collect_used_tags(&program.template);
-    let island_bundles = intersect_islands(&used_tags, &load_island_manifest());
     let html = read_precompiled_ssr(resolved.source_path.as_deref())
         .unwrap_or(split.html);
     let payload = ViewPayload {
@@ -57,32 +53,9 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
         css,
         scope: split.init,
         module_url,
-        islands: island_bundles,
         params: resolved.params,
     };
     json_ok(&payload, mode)
-}
-
-/// The marker-derived tag→bundle island map (`.deck/islands.json`). Read fresh
-/// per request — the file is tiny, and the resolver's project root can differ
-/// between served projects (and across tests), so a process-global cache would
-/// go stale. Missing/garbled manifest → empty map → no islands (never a panic).
-fn load_island_manifest() -> BTreeMap<String, String> {
-    crate::assets::read_islands_manifest()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
-}
-
-/// `payload.islands` = the view's used custom-element tags ∩ the manifest,
-/// mapped to bundle names and deduped (family members collapse to one bundle).
-fn intersect_islands(used_tags: &BTreeSet<String>, manifest: &BTreeMap<String, String>) -> Vec<String> {
-    let mut bundles: BTreeSet<String> = BTreeSet::new();
-    for tag in used_tags {
-        if let Some(bundle) = manifest.get(tag) {
-            bundles.insert(bundle.clone());
-        }
-    }
-    bundles.into_iter().collect()
 }
 
 fn read_precompiled_ssr(source_path: Option<&std::path::Path>) -> Option<String> {

@@ -91,6 +91,29 @@ pub fn build_catalogs(repo_root: &Path) -> Result<(CatalogDocument, CatalogDocum
     Ok((workspace, published))
 }
 
+/// Map every workspace component tag → its source `.sui` path (absolute), for
+/// the per-view resolver: the bundler resolves `@sui-tag/<tag>` to this path so
+/// the component compiles into the view bundle. Derived from the SAME CEM walk
+/// that drives catalog enumeration — one source of truth. A tag whose source
+/// can't be located is simply absent; the resolver then falls back to external
+/// (the umbrella/island net still registers it).
+pub fn tag_source_index(repo_root: &Path) -> std::collections::HashMap<String, PathBuf> {
+    let mut out = std::collections::HashMap::new();
+    let Ok((workspace, _)) = build_catalogs(repo_root) else {
+        return out;
+    };
+    for e in workspace.entries {
+        if !e.sourcePath.ends_with(".sui") {
+            continue;
+        }
+        let abs = repo_root.join(&e.sourcePath);
+        if abs.is_file() {
+            out.insert(e.tagName, abs);
+        }
+    }
+    out
+}
+
 fn arr_or_empty(v: &Value) -> Value {
     if v.is_array() { v.clone() } else { json!([]) }
 }
@@ -379,5 +402,29 @@ mod tests {
         let pub_tags: Vec<&str> = published.entries.iter().map(|e| e.tagName.as_str()).collect();
         assert_eq!(pub_tags, vec!["sui-bar"]);
         assert_eq!(published.count, 1);
+    }
+
+    #[test]
+    fn index_maps_tag_to_existing_source_and_omits_missing() {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path();
+        write(&root.join("package.json"), r#"{"workspaces":["packages/*"]}"#);
+        write(
+            &root.join("packages/charts/package.json"),
+            r#"{"name":"@ship/charts","customElements":"dist/custom-elements.json"}"#,
+        );
+        write(&root.join("packages/charts/dist/custom-elements.json"), &cem("sui-bar"));
+        write(&root.join("packages/charts/dist/charts.js"), "//\n");
+        // The CEM implies source packages/charts/src/sui-bar/sui-bar.sui — write it.
+        write(&root.join("packages/charts/src/sui-bar/sui-bar.sui"), "<div>bar</div>\n");
+
+        let idx = tag_source_index(root);
+        // Invariant: an indexed tag points at an EXISTING `.sui` source.
+        let src = idx.get("sui-bar").expect("a tag with a real source is indexed");
+        assert!(src.is_file());
+        assert_eq!(src.extension().and_then(|e| e.to_str()), Some("sui"));
+        assert!(src.ends_with("packages/charts/src/sui-bar/sui-bar.sui"));
+        // Invariant: an unknown tag is absent → the resolver falls back to external.
+        assert!(!idx.contains_key("sui-nonexistent"));
     }
 }

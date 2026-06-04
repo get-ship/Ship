@@ -8,12 +8,14 @@
 
 pub mod app;
 mod arena;
+mod asset_graph;
 pub mod catalog;
 pub mod routes;
 pub mod compile;
 pub mod proto;
 pub mod rolldown_bundle;
 pub mod targets;
+pub mod views_bundle;
 mod watch;
 
 use std::collections::HashMap;
@@ -28,6 +30,7 @@ use tracing::{error, info, warn};
 use ship_substrate::ShipHome;
 
 pub use proto::BundleManifest;
+use asset_graph::write_asset_graph;
 use targets::{BundleLayout, BundleTarget};
 
 /// Unsolicited events emitted while watching.
@@ -52,7 +55,6 @@ pub enum BundlerError {
 pub struct Bundler {
     repo_root: PathBuf,
     workspace: Option<PathBuf>,
-    compiler: PathBuf,
     staging: PathBuf,
     event_tx: broadcast::Sender<BundlerEvent>,
     watching: Arc<AtomicBool>,
@@ -73,19 +75,15 @@ pub struct Bundler {
 
 impl Bundler {
     /// Start the in-process bundler. `repo_root` is the monorepo/source root;
-    /// `workspace` the user-project (if distinct). sui-compiler is located from
-    /// the runtime dir, falling back to `target/`.
-    pub fn start(home: &ShipHome, repo_root: PathBuf, workspace: Option<PathBuf>) -> Self {
-        let compiler = compile::locate_sui_compiler(home).unwrap_or_else(|| {
-            warn!("bundler: sui-compiler not found; builds will fail until `ship runtime install`");
-            home.runtime_sui_compiler()
-        });
+    /// `workspace` the user-project (if distinct). The compiler is the linked
+    /// `sui-compiler` crate, compiled in-process (#255) — no binary to locate,
+    /// no installed-vs-local drift.
+    pub fn start(_home: &ShipHome, repo_root: PathBuf, workspace: Option<PathBuf>) -> Self {
         let (event_tx, _) = broadcast::channel(128);
         let staging = std::env::temp_dir().join(format!("ship-bundle-{}", std::process::id()));
         Self {
             repo_root,
             workspace,
-            compiler,
             staging,
             event_tx,
             watching: Arc::new(AtomicBool::new(false)),
@@ -115,8 +113,8 @@ impl Bundler {
     }
 
     /// Drop the cached target snapshot so the next `targets_snapshot` re-walks.
-    /// Called by the watcher when a directory is created/removed (a new view or
-    /// island may have appeared/disappeared).
+    /// Called by the watcher when a directory is created/removed (a new view
+    /// may have appeared/disappeared).
     fn invalidate_targets(&self) {
         *self.targets_cache.lock().unwrap_or_else(|e| e.into_inner()) = None;
     }
@@ -170,7 +168,6 @@ impl Bundler {
         let result = rolldown_bundle::bundle_target(
             &layout,
             target,
-            &self.compiler,
             &self.staging,
             false,
         )
@@ -244,23 +241,47 @@ impl Bundler {
     /// Build every target, then aggregate the catalog into `.deck/catalogs/`.
     ///
     /// Honest exit (#262): every target is attempted (one failure must not
-    /// abort the others — the catalog + islands manifest still need refreshing),
-    /// but per-target failures are collected and surfaced as `Err` so a caller
-    /// (the asset bake, CI) cannot mistake a partial bake for a clean one.
+    /// abort the others — the catalog still needs refreshing), but per-target
+    /// failures are collected and surfaced as `Err` so a caller (the asset
+    /// bake, CI) cannot mistake a partial bake for a clean one.
     pub async fn build_all(&self) -> Result<(), BundlerError> {
         let layout = self.layout();
         let mut failed: Vec<String> = Vec::new();
+        let mut built: Vec<BundleTarget> = Vec::new();
+        // Per-view resolver (#255/#267): bundle the view targets TOGETHER
+        // (multi-entry) so components shared across views dedup into shared
+        // chunks — the dedup that replaces the umbrella. Everything else stays
+        // per-target. `build_all` is the bake path (xtask build-assets), so the
+        // larger multi-entry graph is a one-shot peak, not a daemon-resident cost.
+        let mut views: Vec<BundleTarget> = Vec::new();
         // Reuse the cached snapshot instead of re-walking every `.sui` (#256).
         for t in self.targets_snapshot().iter() {
+            if t.name.starts_with("views/") {
+                views.push(t.clone());
+                continue;
+            }
             if let Err(e) =
-                rolldown_bundle::bundle_target(&layout, t, &self.compiler, &self.staging, false).await
+                rolldown_bundle::bundle_target(&layout, t, &self.staging, false).await
             {
                 error!(target = %t.name, error = %e, "bundler: target failed");
                 failed.push(format!("{} ({e})", t.name));
+            } else {
+                built.push(t.clone());
+            }
+        }
+        // View targets together (shared-chunk dedup). Atomic: one bad view fails
+        // the whole view bundle — the bake must not ship a broken view.
+        if !views.is_empty() {
+            match crate::views_bundle::bundle_views(&layout, &views, &self.staging, false).await {
+                Ok(()) => built.extend(views),
+                Err(e) => {
+                    error!(error = %e, "bundler: multi-entry view bundle failed");
+                    failed.push(format!("views ({e})"));
+                }
             }
         }
         self.refresh_catalog(&layout);
-        self.emit_islands_manifest(&layout);
+        write_asset_graph(&layout, &built);
         if failed.is_empty() {
             Ok(())
         } else {
@@ -271,32 +292,13 @@ impl Bundler {
         }
     }
 
-    /// Write `.deck/islands.json` — the marker-derived tag→bundle map deck-core
-    /// reads to decide which of a view's used tags are lazy islands. Generated
-    /// output (`.deck/` is gitignored); the `<bundle separate />` scan is the
-    /// single source of truth.
-    fn emit_islands_manifest(&self, layout: &BundleLayout) {
-        let manifest = layout.island_manifest();
-        let dir = layout.repo_root.join(".deck");
-        let _ = std::fs::create_dir_all(&dir);
-        match serde_json::to_string_pretty(&manifest) {
-            Ok(json) => {
-                if std::fs::write(dir.join("islands.json"), json).is_ok() {
-                    info!(islands = manifest.len(), "bundler: islands manifest written");
-                }
-            }
-            Err(e) => warn!(error = %e, "bundler: islands manifest serialize failed"),
-        }
-    }
-
     fn refresh_catalog(&self, layout: &BundleLayout) {
         match catalog::build_catalogs(&layout.repo_root) {
-            Ok((ws, published)) => {
+            Ok((ws, _)) => {
                 let dir = layout.repo_root.join(".deck/catalogs");
                 let _ = std::fs::create_dir_all(&dir);
                 let _ = std::fs::write(dir.join("workspace.json"), catalog::stringify_catalog(&ws));
-                let _ = std::fs::write(dir.join("published.json"), catalog::stringify_catalog(&published));
-                info!(workspace = ws.count, published = published.count, "bundler: catalog refreshed");
+                info!(workspace = ws.count, "bundler: catalog refreshed");
             }
             Err(e) => warn!(error = %e, "bundler: catalog refresh failed"),
         }

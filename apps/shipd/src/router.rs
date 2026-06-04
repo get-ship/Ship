@@ -135,7 +135,7 @@ pub fn build_router(
         // The STATELESS deck serving surface — framework bundles
         // (runtime/dom/sdk/components/live-reload), per-icon lucide,
         // workspace + published catalogs, pack assets, per-view template/setup/css/
-        // payload (+ sub-path), `/view-host`, `/sui/{name}`, and `/space`
+        // payload (+ sub-path), `/_sui/view/{name}` (view-host), and `/space`
         // — is mounted as ONE unit via `deck::router()` in the root
         // assembly below. deck-axum is the single source of truth for
         // those paths; shipd no longer hand-lists them here.
@@ -274,8 +274,8 @@ pub fn build_router(
         .merge(public_routes)
         // deck's whole stateless serving surface as ONE mountable unit
         // (framework bundles, catalogs, pack assets, per-view
-        // template/setup/css/payload + sub-path, `/view-host`,
-        // `/sui/{name}`, and `/space/{id}` + `/space/_assets`). Mounted
+        // template/setup/css/payload + sub-path, `/_sui/view/{name}`,
+        // and `/space/{id}` + `/space/_assets`). Mounted
         // OUTSIDE the auth layer — these are static, no user-specific data,
         // same posture as the rest of `/_sui/*`. `Router<()>` (its handlers
         // read `Option<Extension<DaemonMode>>`, not `State`), so it merges
@@ -612,7 +612,7 @@ mod merge_tests {
             .route("/_sui/mutation/{name}", axum::routing::post(noop))
             .route("/_sui/source/{tag}", get(noop));
 
-        // Merging deck's surface (catch-all + /space + view-host + bundles)
+        // Merging deck's surface (catch-all + /space + /_sui/view/{name} + bundles)
         // with the kept routes must not panic, and the union must build into
         // a service.
         let merged = Router::new().merge(deck::router()).merge(kept);

@@ -135,12 +135,8 @@ fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, mini
     let framework_assets_dir = repo_root.join("crates/deck/deck-core/assets");
     let deck_out_dir = repo_root.join(".deck");
 
-    // The app graph compiles its own `.sui` in-process (Slice 4a) — locate the
-    // sui-compiler the same way the view/component build does.
-    let home = ship_substrate::ShipHome::from_env();
-    let compiler = deck_bundler::compile::locate_sui_compiler(&home)
-        .ok_or_else(|| anyhow!("deck build: sui-compiler not found (build it: cargo build -p sui-compiler)"))?;
-
+    // The app graph compiles its own `.sui` in-process via the linked
+    // sui-compiler crate (#255) — no binary to locate.
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -154,7 +150,6 @@ fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, mini
             bundle_framework,
             &framework_assets_dir,
             &deck_out_dir,
-            &compiler,
         ))
         .map_err(|e| anyhow::anyhow!("{e:#}"))?;
 

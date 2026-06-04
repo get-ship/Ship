@@ -7,11 +7,11 @@
 
 // axum handlers + adapter surface.
 pub use deck_axum::{
-    into_axum, mode_from_ext, router, serve_catalog_published, serve_catalog_workspace,
-    serve_hub, serve_hub_asset, serve_meta, serve_pack_asset, serve_sui_components,
-    serve_sui_dom, serve_sui_icon, serve_sui_island, serve_sui_live_reload,
-    serve_sui_runtime, serve_sui_sdk_client, serve_sui_view_css,
-    serve_sui_view_setup, serve_sui_view_template, serve_view_host, serve_view_payload,
+    into_axum, mode_from_ext, router, serve_bundle_hmr, serve_catalog_workspace,
+    serve_shell, serve_shell_asset, serve_meta, serve_sui_components,
+    serve_sui_dom, serve_sui_icon, serve_sui_live_reload,
+    serve_sui_runtime, serve_sui_sdk_client,
+    serve_sui_view_setup, serve_view_host, serve_view_payload,
     serve_view_payload_subpath,
 };
 

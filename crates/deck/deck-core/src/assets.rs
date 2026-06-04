@@ -1,15 +1,5 @@
 use crate::{DaemonMode, DeckResponse};
 
-// Per-tag island bundles are served by file existence under
-// `assets/sui-components/`. The in-process Rolldown bundler
-// (`crates/deck/deck-bundler/src/`, baked via `cargo xtask
-// build-assets`) is the source of truth for what lands there. The previous
-// hand-maintained `is_known_island` allowlist was retired alongside
-// the workspace-catalog cut-over — origin metadata in
-// `.deck/catalogs/workspace.json` makes per-tag gating
-// redundant. Path-traversal is rejected explicitly in
-// `serve_sui_island` so a missing-bundle 404 is the only failure mode.
-
 const ASSETS_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
 /// deck's OWN baked product (sui-runtime/dom/sdk-client + primitives umbrella +
@@ -27,14 +17,6 @@ fn read_asset(rel: &str) -> Option<String> {
 fn read_deck_asset(rel: &str) -> Option<String> {
     let root = crate::resolver::deck_out_root()?;
     std::fs::read_to_string(root.join(rel)).ok()
-}
-
-/// The generated islands manifest (`.deck/islands.json`), a tag→bundle map the
-/// bundler writes from its `<bundle separate />` scan. Returns the raw JSON;
-/// `view_payload` parses + intersects it with a view's used tags. Absent file
-/// (no project root, or never built) → None → no islands.
-pub(crate) fn read_islands_manifest() -> Option<String> {
-    read_deck_asset("islands.json")
 }
 
 const SUI_RUNTIME_JS: &str = include_str!("../assets/sui-runtime.js");
@@ -75,18 +57,29 @@ fn alias_for(name: &str) -> Option<&'static str> {
 // compiles on demand from source.
 
 pub fn resolve_view_js(name: &str) -> Option<String> {
+    // SSOT-first: if the bundler recorded this view in the asset graph, serve
+    // the exact artifact it built (resolved through the one project root). Fall
+    // back to the conventional `.deck/` path so a view compiled outside
+    // `build_all` (the on-demand path) still resolves — never worse than the
+    // old direct probe.
+    if let Some(node) = crate::asset_graph::lookup(&format!("views/{name}/view"))
+        && let Some(abs) = crate::asset_graph::resolve(&node)
+        && let Ok(js) = std::fs::read_to_string(&abs)
+    {
+        return Some(js);
+    }
     read_deck_asset(&format!("views/{name}/view.js"))
 }
 
-// ── Space + hub scaffolds (apps/spaces → .deck/space-scaffold;
-//                            apps/shell → .deck/hub-scaffold) ─────────────────
+// ── Space + shell scaffolds (apps/spaces → .deck/space-scaffold;
+//                              apps/shell → .deck/hub-scaffold) ──────────────
 //
 // A Tauri `--app=<id>` window navigates to `/space/<id>`; the no-`--app`
-// (hub) window navigates to `/hub`. The daemon serves both as SAME-ORIGIN
-// HTML so the scaffold's `/_sui` + Connect resolve to this daemon with no
-// proxy/origin-injection. Spaces plant a launched id; the hub plants
-// nothing (the `home` space is the implicit context). Each scaffold's
-// hashed asset refs are rewritten to `/{space,hub}/_assets/`.
+// (shell) window navigates to the daemon root `/`. The daemon serves both as
+// SAME-ORIGIN HTML so the scaffold's `/_sui` + Connect resolve to this daemon
+// with no proxy/origin-injection. Spaces plant a launched id; the shell
+// plants nothing (the `home` space is the implicit context). Each scaffold's
+// hashed asset refs are rewritten to `/{space,shell}/_assets/`.
 
 pub fn serve_space(mode: DaemonMode, id: &str) -> DeckResponse {
     let Some(html) = read_deck_asset("space-scaffold/index.html") else {
@@ -113,25 +106,26 @@ pub fn serve_space_asset(mode: DaemonMode, file: &str) -> DeckResponse {
 /// `GET /` — the shell scaffold (apps/shell), the Ship platform app. Tauri's
 /// window loads the daemon root so the shell loads SAME-ORIGIN — `/_sui` +
 /// Connect resolve to this daemon with no proxy, the same model as
-/// `/space/<id>`. There is no `/hub`: the shell IS the platform root; spaces
-/// get their own windows at `/space/<id>`.
-pub fn serve_hub(mode: DaemonMode) -> DeckResponse {
+/// `/space/<id>`. The shell IS the platform root; spaces get their own
+/// windows at `/space/<id>`. Shell assets are served at `/shell/_assets/`
+/// (symmetric with `/space/_assets/`).
+pub fn serve_shell(mode: DaemonMode) -> DeckResponse {
     let Some(html) = read_deck_asset("hub-scaffold/index.html") else {
         return DeckResponse::not_found(
-            "hub scaffold not built (missing hub-scaffold/index.html asset)",
+            "shell scaffold not built (missing hub-scaffold/index.html asset)",
             mode,
         );
     };
-    let html = html.replace("\"/assets/", "\"/_assets/");
+    let html = html.replace("\"/assets/", "\"/shell/_assets/");
     let html = crate::mode_html::inject_mode_meta(&html, mode);
     DeckResponse::html_view(html, mode)
 }
 
-pub fn serve_hub_asset(mode: DaemonMode, file: &str) -> DeckResponse {
+pub fn serve_shell_asset(mode: DaemonMode, file: &str) -> DeckResponse {
     match read_deck_asset(&format!("hub-scaffold/assets/{file}")) {
         Some(body) if file.ends_with(".css") => DeckResponse::css_view(body, mode),
         Some(body) => DeckResponse::js_asset(body, mode),
-        None => DeckResponse::not_found(format!("hub asset not found: {file}"), mode),
+        None => DeckResponse::not_found(format!("shell asset not found: {file}"), mode),
     }
 }
 
@@ -209,28 +203,19 @@ pub fn serve_sui_live_reload(mode: DaemonMode) -> DeckResponse {
     DeckResponse::js_asset(js, mode)
 }
 
-pub fn serve_sui_island(mode: DaemonMode, file: &str) -> DeckResponse {
-    // Reject path-traversal explicitly — the file segment is captured
-    // verbatim from the URL, so a malicious `../../etc/passwd` would
-    // otherwise escape the assets dir.
-    if file.contains("..") || file.contains('/') {
-        return DeckResponse::not_found("invalid island name", mode);
+/// `GET /_sui/{file}` — a shared chunk emitted by the multi-entry view build
+/// (#267): a deduped view bundle does `import "../../<chunk>.js"`, which the
+/// browser resolves to `/_sui/<chunk>.js`. Served content-addressed from the
+/// `.deck/` root. Single-segment `.js` only; the framework singletons
+/// (`/_sui/runtime.js` …) match their exact routes first, so this catches only
+/// the hashed shared chunks.
+pub fn serve_sui_chunk(mode: DaemonMode, file: &str) -> DeckResponse {
+    if file.contains("..") || file.contains('/') || !file.ends_with(".js") {
+        return DeckResponse::not_found("invalid chunk", mode);
     }
-    // The route captures the whole filename (`sui-rail.js`) because axum 0.8
-    // forbids mixing path-params with literal suffixes in the same segment.
-    // Strip the `.js` to recover the bundle name.
-    let bundle = file.strip_suffix(".js").unwrap_or(file).to_string();
-    // Single canonical path: the project's `.deck/sui-components/<bundle>.js`.
-    // Code-split component + chrome bundles are app/user content, so they live
-    // in the project's deck build output — never baked into deck's own crate.
-    // A missing bundle is a 404 with an actionable hint (no baked fallback).
-    let rel = format!("sui-components/{bundle}.js");
-    match read_deck_asset(&rel) {
+    match read_deck_asset(file) {
         Some(js) => DeckResponse::js_asset(js, mode),
-        None => DeckResponse::not_found(
-            "island bundle missing — run `cargo xtask build-assets`",
-            mode,
-        ),
+        None => DeckResponse::not_found(format!("chunk missing: {file}"), mode),
     }
 }
 
@@ -242,22 +227,6 @@ mod tests {
     fn runtime_js_returns_baked_fallback() {
         let resp = serve_sui_runtime(DaemonMode::Development);
         assert_eq!(resp.status, 200);
-    }
-
-    #[test]
-    fn island_missing_returns_404() {
-        // Islands are app/user content read from the project's `.deck/`; deck
-        // bakes no island fallback (chrome is the shell app's, not the
-        // framework's). A name with no `.deck/sui-components/<name>.js` 404s
-        // with the bundler hint — there is no embedded copy to mask it.
-        let resp = serve_sui_island(DaemonMode::Development, "definitely-not-a-real-bundle");
-        assert_eq!(resp.status, 404);
-    }
-
-    #[test]
-    fn island_path_traversal_rejected() {
-        let resp = serve_sui_island(DaemonMode::Development, "../etc/passwd");
-        assert_eq!(resp.status, 404);
     }
 
     #[test]

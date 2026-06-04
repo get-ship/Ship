@@ -6,7 +6,13 @@ pub use deck_host::resolver::{ResolvedView, ResolveError, render_resolved};
 /// (e.g. `<repo>/apps/shell/src`). deck never hardcodes the app's layout — when
 /// the env is unset (a non-ship host) there is no first-party bucket.
 fn first_party_root() -> Option<PathBuf> {
-    std::env::var("SHIP_FIRST_PARTY_VIEWS").ok().map(PathBuf::from)
+    // `DECK_FIRST_PARTY_VIEWS` is canonical; `SHIP_FIRST_PARTY_VIEWS` is the
+    // legacy name, kept as a fallback until hosts migrate (deck is app-agnostic
+    // and shouldn't name its app — see the deck-demo decoupling finding).
+    std::env::var("DECK_FIRST_PARTY_VIEWS")
+        .or_else(|_| std::env::var("SHIP_FIRST_PARTY_VIEWS"))
+        .ok()
+        .map(PathBuf::from)
 }
 
 pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, ResolveError> {
@@ -45,13 +51,18 @@ pub(crate) fn deck_out_root() -> Option<PathBuf> {
 }
 
 /// Resolution order:
-/// 1. `SHIP_DEV_PROJECT_DIR` env var — tests and dev tooling.
+/// 1. `DECK_PROJECT_DIR` (canonical) or legacy `SHIP_DEV_PROJECT_DIR` env var —
+///    tests and dev tooling.
 /// 2. The current daemon's `machine/daemons/<hash>/workspace` file — persisted
 ///    by `apps/shipd/src/daemon.rs::write_workspace_file` on startup. Lets
 ///    a per-worktree daemon serve user-authored views from the workspace
 ///    it was launched against even if its cwd drifts later.
-fn resolve_project_root() -> Option<PathBuf> {
-    if let Ok(env_path) = std::env::var("SHIP_DEV_PROJECT_DIR") {
+pub(crate) fn resolve_project_root() -> Option<PathBuf> {
+    // `DECK_PROJECT_DIR` is canonical; `SHIP_DEV_PROJECT_DIR` is the legacy
+    // name, kept as a fallback until hosts migrate.
+    if let Ok(env_path) =
+        std::env::var("DECK_PROJECT_DIR").or_else(|_| std::env::var("SHIP_DEV_PROJECT_DIR"))
+    {
         return Some(PathBuf::from(env_path));
     }
     workspace_from_daemon_file()

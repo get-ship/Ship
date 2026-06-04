@@ -33,10 +33,10 @@ function classifyKnob(p: PropEntry): Knob {
 }
 
 // Canonical access path is /studio/components/:name (the shell route) and
-// /sui/studio/components/:name (view-host standalone, e.g. dev-panel popouts).
+// /_sui/view/studio/components/:name (view-host standalone, e.g. dev-panel popouts).
 defineRoutes([
   { pattern: '/studio/components/:name' },
-  { pattern: '/sui/studio/components/:name' },
+  { pattern: '/_sui/view/studio/components/:name' },
 ])
 
 // Shared across mounts: one iframe + one preview node at module scope. Holding
@@ -45,27 +45,6 @@ defineRoutes([
 let sharedFrame: HTMLIFrameElement | null = null
 let sharedNode: HTMLElement | null = null
 let sharedNodeTag: string | null = null
-
-// Components shipped as their own bundle at `/_sui/sui-components/<tag>.js`. The
-// daemon injects these by static-scanning view templates for the tag, but the
-// studio creates host nodes via createElement at runtime — the daemon can't see
-// those, so eagerly fetch the bundle when about to render one of these tags.
-const ISLAND_TAGS = new Set<string>([
-  'ship-code-editor',
-  'ship-markdown-editor',
-])
-const islandsLoaded = new Set<string>()
-function ensureIsland(tag: string): void {
-  if (!ISLAND_TAGS.has(tag) || islandsLoaded.has(tag)) return
-  if (customElements.get(tag)) {
-    islandsLoaded.add(tag)
-    return
-  }
-  islandsLoaded.add(tag)
-  import(/* @vite-ignore */ `/_sui/sui-components/${tag}.js`).catch(() => {
-    islandsLoaded.delete(tag)
-  })
-}
 
 export default controller({
   scope: (_ctx: ViewScope<Scope>) => {
@@ -200,8 +179,8 @@ export default controller({
         slot.appendChild(sharedFrame)
       }
       sharedFrame.title = `${entry.id} preview`
-      const nextHref = new URL(`/sui/${entry.id}`, location.href).href
-      if (sharedFrame.src !== nextHref) sharedFrame.src = `/sui/${entry.id}`
+      const nextHref = new URL(`/_sui/view/${entry.id}`, location.href).href
+      if (sharedFrame.src !== nextHref) sharedFrame.src = `/_sui/view/${entry.id}`
       state._dispose = () => {}
       return
     }
@@ -218,7 +197,6 @@ export default controller({
       sharedNode.className = 'detail-rendered-component'
       sharedNodeTag = entry.tag
     }
-    ensureIsland(entry.tag)
     const node = sharedNode
     node.style.transform = ''
     node.style.transformOrigin = ''

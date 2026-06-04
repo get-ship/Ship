@@ -39,11 +39,12 @@ libc = { workspace = true }
 # emit byte-identical `.js` over the compiler fixture corpus (the #160
 # native-vs-wasm divergence class). Invoke explicitly:
 #   cargo test -p deck-bundler --features g3 --test bundle_parity -- --nocapture
-g3 = ["dep:sui-compiler"]
+# (sui-compiler is now a non-optional dep — the bundler compiles in-process, #255 —
+# so g3 only gates the wasm-parity test code, not the dependency.)
+g3 = []
 
 [dependencies.sui-compiler]
 path = "../../sui/compiler"
-optional = true
 
 [lints]
 workspace = true

@@ -10,10 +10,11 @@ mod handlers;
 pub mod render_helpers;
 
 pub use handlers::{
-    serve_catalog_published, serve_catalog_workspace, serve_hub, serve_hub_asset, serve_meta,
-    serve_pack_asset, serve_sui_components, serve_sui_dom, serve_sui_icon, serve_sui_island,
+    serve_bundle_hmr, serve_catalog_workspace, serve_shell, serve_shell_asset,
+    serve_meta,
+    serve_sui_chunk, serve_sui_components, serve_sui_dom, serve_sui_icon,
     serve_sui_live_reload, serve_space, serve_space_asset, serve_sui_runtime,
-    serve_sui_sdk_client, serve_sui_view_css, serve_sui_view_setup, serve_sui_view_template,
+    serve_sui_sdk_client, serve_sui_view_setup,
     serve_view_host, serve_view_payload, serve_view_payload_subpath,
 };
 
@@ -64,11 +65,10 @@ pub fn into_axum(resp: DeckResponse) -> Response {
 /// deck's whole hosting surface as one mountable `Router`.
 ///
 /// Registers: framework bundles (runtime/dom/sdk-client/components),
-/// per-icon lucide serving, per-tag island bundles, the workspace +
-/// published catalogs, pack assets,
-/// per-view template/setup/css, view-host (bare + sub-path), and
-/// view-payload (top-level + sub-path). Paths mirror shipd's canonical
-/// `Route` enum so a host can mount this in lieu of wiring each handler.
+/// per-icon lucide serving, the workspace catalog, per-view setup (compiled
+/// `view.js`), view-host (two paths under `/_sui/view/`), and view-payload
+/// (top-level + sub-path). Paths mirror shipd's canonical `Route` enum so a
+/// host can mount this in lieu of wiring each handler.
 ///
 /// `/api/_meta`, HMR, and the state-aware SUI endpoints (sse/data/mutation/
 /// patch) are NOT registered here — they need host-supplied extensions or
@@ -81,22 +81,22 @@ pub fn router() -> Router {
         .route("/_sui/components.js", get(serve_sui_components))
         .route("/_sui/icons/{file}", get(serve_sui_icon))
         .route("/_sui/live-reload.js", get(serve_sui_live_reload))
-        .route("/_sui/sui-components/{file}", get(serve_sui_island))
+        // Shared chunks from the multi-entry view build (#267), served
+        // content-addressed from `.deck/` root. The exact singleton routes
+        // above win for `/_sui/runtime.js` etc.; this catches hashed chunks.
+        .route("/_sui/{file}", get(serve_sui_chunk))
         .route("/api/sui/catalog/workspace", get(serve_catalog_workspace))
-        .route("/api/sui/catalog/published", get(serve_catalog_published))
-        .route("/_sui/packs/{pack_id}/{file}", get(serve_pack_asset))
-        .route("/_sui/views/{name}/view.sui", get(serve_sui_view_template))
         .route("/_sui/views/{name}/view.js", get(serve_sui_view_setup))
-        .route("/_sui/views/{name}/view.css", get(serve_sui_view_css))
         .route("/_sui/views/{name}", get(serve_view_payload))
         .route("/_sui/views/{name}/{*sub_path}", get(serve_view_payload_subpath))
         .route("/space/_assets/{file}", get(serve_space_asset))
         .route("/space/{id}", get(serve_space))
-        .route("/_assets/{file}", get(serve_hub_asset))
-        .route("/view-host", get(serve_view_host))
-        .route("/view-host/{*rest}", get(serve_view_host))
-        .route("/sui/{name}", get(serve_view_host))
-        .route("/sui/{name}/{*sub_path}", get(serve_view_host))
+        // Shell assets at /shell/_assets/{file} (symmetric with /space/_assets).
+        .route("/shell/_assets/{file}", get(serve_shell_asset))
+        // Single-view host surface under deck's /_sui/ namespace (singular
+        // "view" to avoid colliding with the plural "views" payload routes).
+        .route("/_sui/view/{name}", get(serve_view_host))
+        .route("/_sui/view/{name}/{*sub_path}", get(serve_view_host))
 }
 
 #[cfg(test)]
@@ -144,5 +144,13 @@ mod tests {
     async fn into_axum_not_found_status() {
         let resp = into_axum(DeckResponse::not_found("nope", DaemonMode::Development));
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn router_builds_without_route_conflict() {
+        // The `/_sui/{file}` shared-chunk route is a param sibling of the exact
+        // `/_sui/runtime.js` etc.; matchit (axum 0.8) must accept the overlap.
+        // A conflict would otherwise only surface as a daemon-startup panic.
+        let _ = router();
     }
 }

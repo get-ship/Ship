@@ -9,7 +9,7 @@
 //!
 //! Enumerate `BundleLayout::all_targets()` — the static framework singletons
 //! (`sui-runtime`, `sui-dom`, the umbrella, the heavy lazy packs) PLUS every
-//! discovered `<bundle separate />` island AND every discovered view bundle —
+//! discovered per-component island AND every discovered view bundle —
 //! and build each one through the deck Rolldown path. Every target must return
 //! `Ok`.
 //!
@@ -141,10 +141,6 @@ fn repo_root() -> PathBuf {
     }
 }
 
-fn locate_compiler() -> Option<PathBuf> {
-    ship_substrate::locate::walk_for_target_binary("sui-compiler").ok()
-}
-
 fn fixtures_dir(repo: &Path) -> PathBuf {
     repo.join("crates/sui/compiler/tests/fixtures")
 }
@@ -158,16 +154,8 @@ fn wasm_pkg_dir(repo: &Path) -> PathBuf {
 #[tokio::test(flavor = "multi_thread")]
 async fn gate_bundle_parity_all_targets_build() {
     let repo = repo_root();
-    let Some(compiler) = locate_compiler() else {
-        // Loud skip — never a silent green. A CI without the compiler built is
-        // misconfigured for this gate.
-        panic!(
-            "G3 PREREQ MISSING: sui-compiler not found under target/. \
-             Run `cargo build -p sui-compiler` before the gate."
-        );
-    };
-
-    // Scratch output + staging so we never clobber the committed asset trees.
+    // The compiler is the linked crate — compiled in-process (#255), no binary
+    // prereq. Scratch output + staging so we never clobber the committed trees.
     // Dropped at end of scope (teardown on panic/early-return).
     let scratch = tempfile::tempdir().expect("scratch out_root");
     let staging = tempfile::tempdir().expect("staging dir");
@@ -190,7 +178,7 @@ async fn gate_bundle_parity_all_targets_build() {
     // oxc module graph is ever live; `bundle_target` trims arenas after each.
     // NEVER join_all / spawn-per-target (that is the #256 memory shape).
     for t in targets.iter() {
-        let fut = bundle_target(&layout, t, &compiler, staging.path(), false);
+        let fut = bundle_target(&layout, t, staging.path(), false);
         match tokio::time::timeout(PER_TARGET_TIMEOUT, fut).await {
             Err(_elapsed) => {
                 failures.push(format!(
@@ -403,6 +391,7 @@ fn native_compile(repo: &Path, f: &Fixture) -> Result<String, String> {
         component_meta,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     compile(&source, opts)
         .map(|out| out.js)

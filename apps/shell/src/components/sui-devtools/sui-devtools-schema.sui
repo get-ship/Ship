@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-devtools-schema> — SUI port of <ship-devtools-schema>.
   Lists ship.* ops referenced by the mounted view's template/manifest,

@@ -56,20 +56,9 @@ const read = (envelope: unknown): FocusCtx => {
 
 type Ed = HTMLElement & { value: string; getAttribute(n: string): string | null; setDiagnostics?(d: unknown[]): void }
 
-// `ship-code-editor` ships as a lazy island bundle (`/_sui/sui-components/<tag>.js`).
-// The daemon eagerly injects islands it finds by static-scanning templates, but the
-// editor only renders inside the `editMode` branch — fetch it on demand so the
-// element upgrades when the user opens the editor.
 // The active beforeUnload listener for this view instance. Module-scoped
 // because the writable state proxy only accepts declared template-state keys.
 let beforeUnloadListener: ((e: BeforeUnloadEvent) => void) | null = null
-let editorIslandLoaded = false
-function ensureEditorIsland(): void {
-  if (editorIslandLoaded || customElements.get('ship-code-editor')) { editorIslandLoaded = true; return }
-  editorIslandLoaded = true
-  const tag = 'ship-code-editor'
-  import(/* @vite-ignore */ `/_sui/sui-components/${tag}.js`).catch(() => { editorIslandLoaded = false })
-}
 
 const decorateRun = (r: RunView) => ({
   ...r,
@@ -141,7 +130,7 @@ export default controller({
     }
   },
   on: {
-    startEdit: (s) => { ensureEditorIsland(); s.editMode = true; s.editError = ''; s.editIssueCount = 0 },
+    startEdit: (s) => { s.editMode = true; s.editError = ''; s.editIssueCount = 0 },
     cancelEdit: (s) => {
       s.editMode = false; s.editError = ''; s.editIssueCount = 0
       const ed = s.editorRef
@@ -202,7 +191,7 @@ export default controller({
     },
   },
   mount: (s) => {
-    if (/[?&]edit=1(&|$)/.test(window.location.search)) { ensureEditorIsland(); s.editMode = true }
+    if (/[?&]edit=1(&|$)/.test(window.location.search)) { s.editMode = true }
     const beforeUnload = (e: BeforeUnloadEvent) => {
       if (!s.editMode) return
       const ed = s.editorRef

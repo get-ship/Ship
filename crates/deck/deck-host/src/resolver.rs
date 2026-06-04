@@ -134,9 +134,9 @@ fn read_resolved(
     // Containment guard against symlink escape: the leaf NAME is validated
     // upstream, but a symlink *inside* the views bucket can still point its
     // target outside the project. Canonicalize both the leaf and its bucket
-    // root, then assert the resolved leaf stays under the root — the same
-    // guard `serve_pack_asset` applies. A leaf that resolves outside (or whose
-    // root can't be canonicalized) is rejected, surfacing as a 404 upstream.
+    // root, then assert the resolved leaf stays under the root. A leaf that
+    // resolves outside (or whose root can't be canonicalized) is rejected,
+    // surfacing as a 404 upstream.
     let canonical = leaf.canonicalize().map_err(|e| ResolveError {
         message: format!("failed to resolve {}: {e}", leaf.display()),
     })?;

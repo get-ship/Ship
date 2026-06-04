@@ -20,6 +20,8 @@
 
 import { createClient, setShipClient, type ShipSDK } from '@ship/sdk-client'
 import { ops } from './ops'
+import './components'
+import { loadHeavyChrome } from './chrome/load-heavy-chrome'
 // Charts pack — single workspace import registers every <sui-*-chart>,
 // <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
 // before the first view mounts. Charts moved out of @ship/ui-components
@@ -99,6 +101,10 @@ function injectTokenStyles(): void {
   document.head.appendChild(link)
 }
 injectTokenStyles()
+// Kick off heavy chrome chunk fetches immediately — fire-and-forget.
+// Custom elements upgrade lazily when their chunk lands; does not block
+// first paint. Mirrors the old /_sui/sui-components/<tag>.js island IIFE.
+loadHeavyChrome()
 
 // Single SDK client instance, shared across every mounted view.
 const shipClient: ShipSDK = createClient({ baseUrl: daemonBase() })
@@ -120,8 +126,6 @@ const suiLoader: SuiLoader = {
     }
     return (await res.json()) as ViewPayload
   },
-  loadComponent: (tag: string): Promise<void> =>
-    import(/* @vite-ignore */ `${daemonBase()}/_sui/sui-components/${tag}.js`).then(() => undefined),
 }
 
 // Pre-register dynamic-route patterns the shell knows about. Views in

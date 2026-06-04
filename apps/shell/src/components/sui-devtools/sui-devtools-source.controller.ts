@@ -42,16 +42,6 @@ const LANG_BY_KIND: Record<string, string> = {
   md: 'markdown',
 }
 
-function ensureCodeEditorLoaded(): void {
-  if (customElements.get('ship-code-editor')) return
-  if (document.querySelector('script[data-ship-code-editor]')) return
-  const s = document.createElement('script')
-  s.type = 'module'
-  s.src = '/_sui/sui-components/ship-code-editor.js'
-  s.dataset['shipCodeEditor'] = '1'
-  document.head.appendChild(s)
-}
-
 function viewNameFromRoute(path: string): string {
   const seg = path.split('/').filter(Boolean)[0]
   return seg ?? ''
@@ -236,11 +226,6 @@ export default controller({
   },
 
   mount(state, host) {
-    // sui-runtime mount-state proxy: `state.x` reads the unwrapped value
-    // (and tracks inside effects), `state.x = v` writes the signal, and
-    // `state.$signals.x` is the raw Signal for `.set(updater)` cases.
-    ensureCodeEditorLoaded()
-
     let editorWired: CodeEditor | null = null
     let lastLoadedView: string | null = null
 

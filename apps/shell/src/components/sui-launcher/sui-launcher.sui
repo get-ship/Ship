@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-launcher> — SUI port of <ship-launcher>.
   Floating panel showing all registered views with pin/unpin, fuzzy filter,

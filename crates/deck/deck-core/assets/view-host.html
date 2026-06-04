@@ -25,36 +25,6 @@
     }
   </script>
 
-  <!-- Component primitives — side-effect import registers every <sui-*>
-       custom element before any view template tries to use one. -->
-  <script type="module" src="/_sui/components.js"></script>
-
-  <!-- Pack bundles — load every workspace pack the daemon advertises
-       in the published catalog (`/api/sui/catalog/published`). One
-       `<script type="module">` per pack ensures the pack's tags are
-       defined before any view that uses them mounts. Transitional:
-       once views declare their pack dependencies explicitly, this
-       loader switches to a per-view list. -->
-  <script>
-    (async () => {
-      try {
-        const res = await fetch('/api/sui/catalog/published', { credentials: 'same-origin' })
-        if (!res.ok) return
-        const doc = await res.json()
-        const urls = new Set()
-        for (const e of doc.entries || []) {
-          if (e && e.bundleUrl) urls.add(e.bundleUrl)
-        }
-        for (const url of urls) {
-          const s = document.createElement('script')
-          s.type = 'module'
-          s.src = url
-          document.head.appendChild(s)
-        }
-      } catch { /* pack loading is best-effort */ }
-    })()
-  </script>
-
   <style>
     html, body { height: 100%; margin: 0; padding: 0; background: var(--background, #fff); }
     #sui-root { height: 100vh; display: flex; flex-direction: column; }
@@ -71,11 +41,11 @@
        patch-elements applier queries `[data-sui-root][data-view="<name>"]`
        so out-of-band DOM patches can't escape the hosted view, and the
        SSR markup advertises which view it is. The daemon fills the name
-       from the URL path (empty for the bare `/view-host` landing). -->
+       from the URL path (empty for the bare `/_sui/view` landing). -->
   <div id="sui-root" data-sui-root data-view="<!-- SUI_VIEW_NAME -->"><!-- SUI_SSR_CONTENT --></div>
 
   <!-- Mount script. The hosted view's name comes from the URL path
-       segments after the host prefix (e.g. `/view-host/ship-ui-studio/sui-button`
+       segments after the host prefix (e.g. `/_sui/view/ship-ui-studio/sui-button`
        → name = "ship-ui-studio/sui-button"). The runtime fetches
        /_sui/views/<that> and mounts the payload here. -->
   <script type="module">
@@ -83,9 +53,10 @@
 
     function viewPathFromLocation() {
       const path = location.pathname
-      // Strip the first path segment — the host prefix `/view-host` (or
-      // wherever this file is served from).
-      const m = path.match(/^\/[^/]+\/(.*)$/)
+      // Strip the host prefix `/_sui/view/` — the daemon mounts this shell at
+      // `/_sui/view/<name>[/<sub>]` (the single-view host route). The prefix is
+      // two segments, so match it explicitly rather than dropping one segment.
+      const m = path.match(/^\/_sui\/view\/(.*)$/)
       return m ? m[1] : ''
     }
 
@@ -95,7 +66,7 @@
     if (!viewPath) {
       target.innerHTML =
         '<div class="view-host-error">No view in URL.\n\n' +
-        'Use /view-host/&lt;name&gt;[/&lt;sub&gt;] — e.g. /view-host/ship-ui-studio.</div>'
+        'Use /_sui/view/&lt;name&gt;[/&lt;sub&gt;] — e.g. /_sui/view/ship-ui-studio.</div>'
     } else {
       try {
         const res = await fetch(`/_sui/views/${viewPath}`, { credentials: 'same-origin' })
@@ -123,8 +94,8 @@
             ship = undefined
           }
           // Host loader: the SUI runtime is URL-scheme-agnostic, so the
-          // view-host supplies how to fetch payloads + load component island
-          // bundles. (Keeps `/_sui/...` at the host boundary, not in mount().)
+          // view-host supplies how to fetch payloads.
+          // (Keeps `/_sui/...` at the host boundary, not in mount().)
           const loader = {
             fetchView: async (nameOrPath) => {
               const path = nameOrPath.startsWith('/_sui/views/') ? nameOrPath : `/_sui/views/${nameOrPath}`
@@ -132,7 +103,6 @@
               if (!r.ok) throw new Error(`fetch ${path} ${r.status}`)
               return r.json()
             },
-            loadComponent: (tag) => import(`/_sui/sui-components/${tag}.js`),
           }
           // mount() morphs onto the SSR markup already inside #sui-root
           // (seeded by the daemon, including the __set_init__ island),

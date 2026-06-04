@@ -61,7 +61,7 @@ pub async fn index_handler(
     mode: Option<axum::Extension<deck::DaemonMode>>,
 ) -> Response {
     if has_any_workspace() {
-        deck::serve_hub(mode).await
+        deck::serve_shell(mode).await
     } else {
         redirect("/setup")
     }

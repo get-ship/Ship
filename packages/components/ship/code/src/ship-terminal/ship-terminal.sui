@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <ship-terminal> — SUI port of <ship-terminal>. First SUI component wrapping a
   third-party imperative engine (xterm.js). Establishes the canonical pattern:

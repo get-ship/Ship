@@ -376,26 +376,6 @@ function run(): void {
     if (chunkCount > 0) console.log(`[collect-docs] Copied ${chunkCount} lazy chunk(s) to public/sui-components/.`)
   }
 
-  // Per-pack bundles at the daemon's serve path (/_sui/packs/<pack>/).
-  // Decomposed component packs (charts, primitives) ship their own
-  // bundles; docs site mirrors the URL convention for `<data
-  // live source="...">` resolution and for any tutorial step that
-  // demos pack consumption.
-  const PACKS = [
-    { name: "primitives", file: "sui-primitives.js" },
-    { name: "charts",     file: "sui-charts.js" },
-  ] as const
-  for (const pack of PACKS) {
-    const src = join(REPO_ROOT, "packages/components", pack.name, "dist", pack.file)
-    if (!existsSync(src)) {
-      console.log(`[collect-docs] ${pack.file} not built. Run 'bun run --filter @ship/${pack.name} build'.`)
-      continue
-    }
-    const dest = join(sUiDir, "packs", pack.name)
-    mkdirSync(dest, { recursive: true })
-    copyFileSync(src, join(dest, pack.file))
-    console.log(`[collect-docs] Emitted /_sui/packs/${pack.name}/${pack.file}.`)
-  }
 }
 
 run()

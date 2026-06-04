@@ -9,8 +9,9 @@
 //! Output goes to `assets_dir_for` (sui-out/dist) — no source-tree writes.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use anyhow::{anyhow, Result};
 use rolldown::plugin::{
@@ -25,6 +26,12 @@ use super::proto::BundleManifest;
 use super::targets::{BundleLayout, BundleTarget, TargetEntry};
 
 const SINGLETONS: [&str; 3] = ["@ship/sui-runtime", "@ship/sui-dom", "@ship/sdk-client"];
+
+/// Virtual id for an unresolved `@sui-tag/<tag>` import — a shared empty module
+/// so the import is a harmless no-op (the umbrella/island net registers the
+/// tag). `\0` marks it virtual (Rollup/Rolldown convention: never read/written
+/// on disk).
+const SUI_TAG_NOOP: &str = "\0sui-tag-noop";
 
 /// Component source roots — a `.sui` under one is a custom element; else view.
 fn detect_mode(abs: &Path, repo_root: &Path) -> (CompileMode, String) {
@@ -69,26 +76,23 @@ fn normalize(p: &Path) -> PathBuf {
 #[derive(Debug)]
 pub(crate) struct SuiPlugin {
     pub(crate) repo_root: PathBuf,
-    pub(crate) compiler: PathBuf,
+    /// View builds opt in: each `.sui` compiled in this build emits
+    /// `@sui-tag/<tag>` registration imports (the per-view resolver). Off for
+    /// the umbrella/framework/app builds, which stay byte-identical.
+    pub(crate) emit_component_imports: bool,
+    /// `<tag>` → component source `.sui`, for resolving `@sui-tag/<tag>`.
+    /// Empty when `emit_component_imports` is false.
+    pub(crate) component_index: Arc<HashMap<String, PathBuf>>,
 }
 
 impl SuiPlugin {
-    /// Compile a `.sui` to JS via sui-compiler (component or view per dir).
-    ///
-    /// The output dir must be UNIQUE per invocation. Every view entry is
-    /// `page.sui` (stem `page`), so a process-shared `shipbundle-page-{pid}`
-    /// dir let concurrent cold-builds of DIFFERENT views read/write/serve one
-    /// another's `page.js` — a 200-OK wrong bundle. A RAII `TempDir` (removed
-    /// when this fn returns) gives every compile its own directory and also
-    /// fixes the temp-dir leak the per-pid scheme accumulated.
+    /// Compile a `.sui` to JS via `sui_compiler::compile` IN-PROCESS (#255):
+    /// the compiler is the linked crate, not a spawned binary — no temp dir, no
+    /// file roundtrip, no version drift, no flag that a stale binary can reject.
     fn compile(&self, sui: &Path) -> Result<String> {
         let (mode, stem) = detect_mode(sui, &self.repo_root);
-        let out = tempfile::Builder::new()
-            .prefix(&format!("shipbundle-{}-", std::process::id()))
-            .tempdir()?;
-        let res = compile_sui(&self.compiler, sui, out.path(), mode, &stem)
-            .map_err(|e| anyhow!("compile {}: {e}", sui.display()))?;
-        Ok(std::fs::read_to_string(&res.js_path)?)
+        compile_sui(sui, mode, &stem, self.emit_component_imports)
+            .map_err(|e| anyhow!("compile {}: {e}", sui.display()))
     }
 }
 
@@ -109,6 +113,20 @@ impl Plugin for SuiPlugin {
                 id: spec.into(),
                 external: Some(ResolvedExternal::Bool(true)),
                 ..Default::default()
+            }));
+        }
+        // `@sui-tag/<tag>` — the per-view resolver. Map to the component's
+        // source `.sui` (so it compiles into the view bundle); an unknown tag
+        // (view-private, or no CEM yet) → external, so the umbrella/island net
+        // still registers it. Emitted only under `--emit-component-imports`.
+        if let Some(tag) = spec.strip_prefix("@sui-tag/") {
+            return Ok(Some(match self.component_index.get(tag) {
+                Some(src) => HookResolveIdOutput::from_id(src.to_string_lossy().to_string()),
+                // Unknown tag (view-private, or no CEM yet): resolve to a shared
+                // empty module — a harmless no-op. NOT external, which would
+                // leave an unresolvable `@sui-tag/<tag>` specifier in the served
+                // view; the umbrella/island net registers the tag instead.
+                None => HookResolveIdOutput::from_id(SUI_TAG_NOOP.to_string()),
             }));
         }
         // `*.compiled.js` → virtual id; `load` compiles the sibling `.sui`. The
@@ -206,6 +224,15 @@ impl Plugin for SuiPlugin {
 
     async fn load(&self, _ctx: SharedLoadPluginContext, args: &HookLoadArgs<'_>) -> HookLoadReturn {
         let id = args.id;
+        if id == SUI_TAG_NOOP {
+            // Empty no-op for an unresolved component tag (the umbrella net
+            // registers it). Tree-shaken away if nothing keeps it.
+            return Ok(Some(HookLoadOutput {
+                code: String::new().into(),
+                module_type: Some(ModuleType::Js),
+                ..Default::default()
+            }));
+        }
         let sui: Option<PathBuf> = if let Some(base) = id.strip_suffix(".compiled.js") {
             Some(PathBuf::from(format!("{base}.sui")))
         } else if id.ends_with(".sui") {
@@ -232,12 +259,28 @@ impl Plugin for SuiPlugin {
     }
 }
 
+/// Cached `<tag>` → source `.sui` index for a repo (the per-view resolver's
+/// lookup). The CEM walk is process-stable; build once per repo root and share.
+/// A component added mid-process isn't picked up until restart — until then its
+/// tag resolves external and the umbrella net registers it.
+pub(crate) fn component_index(repo_root: &Path) -> Arc<HashMap<String, PathBuf>> {
+    static CACHE: OnceLock<Mutex<HashMap<PathBuf, Arc<HashMap<String, PathBuf>>>>> =
+        OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(idx) = guard.get(repo_root) {
+        return idx.clone();
+    }
+    let idx = Arc::new(crate::catalog::tag_source_index(repo_root));
+    guard.insert(repo_root.to_path_buf(), idx.clone());
+    idx
+}
+
 /// Build one target with Rolldown. Output written under `assets_dir_for`;
 /// returns the manifest. `staging` holds generated virtual-aggregate entries.
 pub async fn bundle_target(
     layout: &BundleLayout,
     target: &BundleTarget,
-    compiler: &Path,
     staging: &Path,
     production: bool,
 ) -> Result<BundleManifest> {
@@ -274,9 +317,21 @@ pub async fn bundle_target(
         ..Default::default()
     };
 
+    // Per-view resolver (#255/#267): view builds emit `@sui-tag/<tag>` imports
+    // that resolve to component source so the bundle carries exactly what the
+    // view uses. Always on for views — the in-process compiler is the linked
+    // crate, so there is no compiler-version drift to gate around. Umbrella/
+    // framework/app builds stay byte-identical (no component imports).
+    let emit_component_imports = target.name.starts_with("views/");
+    let index = if emit_component_imports {
+        component_index(&layout.repo_root)
+    } else {
+        Arc::new(HashMap::new())
+    };
     let plugin = SuiPlugin {
         repo_root: layout.repo_root.clone(),
-        compiler: compiler.to_path_buf(),
+        emit_component_imports,
+        component_index: index,
     };
     // The bundler + its oxc module graph live in `bundler` and are dropped at
     // the end of this scope. Wrap the build/write in an inner block so the
@@ -329,11 +384,6 @@ mod tests {
         }
     }
 
-    fn compiler() -> PathBuf {
-        ship_substrate::locate::walk_for_target_binary("sui-compiler")
-            .expect("sui-compiler built")
-    }
-
     /// Bundle the REAL sui-components umbrella + a view through Rolldown into a
     /// scratch out_root; assert full-size, runtime external, valid.
     #[tokio::test(flavor = "multi_thread")]
@@ -343,11 +393,10 @@ mod tests {
         let staging = tempfile::tempdir().unwrap();
         let layout =
             BundleLayout::new(repo, None).with_out_root(scratch.path().to_path_buf());
-        let comp = compiler();
 
         let targets = layout.all_targets();
         let umbrella = targets.iter().find(|t| t.name == "sui-components").unwrap();
-        let m = bundle_target(&layout, umbrella, &comp, staging.path(), true)
+        let m = bundle_target(&layout, umbrella, staging.path(), true)
             .await
             .expect("umbrella should bundle");
         assert!(m.bytes > 200_000, "umbrella full-size, got {}", m.bytes);
@@ -366,7 +415,6 @@ mod tests {
         let staging = tempfile::tempdir().unwrap();
         let layout =
             BundleLayout::new(repo, None).with_out_root(scratch.path().to_path_buf());
-        let comp = compiler();
 
         let targets = layout.all_targets();
         let marketing = targets.iter().find(|t| t.name == "sui-marketing").unwrap();
@@ -378,7 +426,7 @@ mod tests {
             marketing.entry
         );
 
-        let m = bundle_target(&layout, marketing, &comp, staging.path(), true)
+        let m = bundle_target(&layout, marketing, staging.path(), true)
             .await
             .expect("marketing should bundle");
         let body = std::fs::read_to_string(&m.out_path).unwrap();
@@ -419,11 +467,10 @@ mod tests {
         let staging = tempfile::tempdir().unwrap();
         let layout =
             BundleLayout::new(repo, None).with_out_root(scratch.path().to_path_buf());
-        let comp = compiler();
 
         let targets = layout.all_targets();
         let arcade = targets.iter().find(|t| t.name == "sui-arcade").unwrap();
-        let m = bundle_target(&layout, arcade, &comp, staging.path(), true)
+        let m = bundle_target(&layout, arcade, staging.path(), true)
             .await
             .expect("arcade should bundle");
         // The heavy lazy chunk: pixi (~800 KB) is bundled in.
@@ -460,11 +507,10 @@ mod tests {
         let staging = tempfile::tempdir().unwrap();
         let layout =
             BundleLayout::new(repo, None).with_out_root(scratch.path().to_path_buf());
-        let comp = compiler();
 
         let targets = layout.all_targets();
         let pdf = targets.iter().find(|t| t.name == "sui-pdf").unwrap();
-        let m = bundle_target(&layout, pdf, &comp, staging.path(), true)
+        let m = bundle_target(&layout, pdf, staging.path(), true)
             .await
             .expect("pdf pack must bundle through Rolldown (no `?url` abort)");
         // The heavy lazy chunk: pdf.js engine + worker are inlined.

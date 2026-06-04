@@ -2,11 +2,7 @@
 // the shell. Loaded eagerly via `/_sui/sui-chrome.js` so the surfaces
 // painted on first paint (rail, nav-top, dock, status-bar, brand-mark,
 // theme/view pickers, view-chrome, annotations, edit-overlay/pill) are
-// registered before mount runs. Heavy chrome (terminal, command-bar,
-// code-/markdown-editor, devtools, launcher, panel-dock, nav-top, rail,
-// component-picker, view-authoring) opts into its own separate bundle
-// via `<bundle separate />` in its `.sui` source — those load on demand
-// from `/_sui/sui-components/<tag>.js` and shouldn't be aggregated here.
+// registered before mount runs.
 //
 // Primitives register globally via the shell's `@ship/sui-primitives/bundle`
 // import; chrome components instantiate primitive `<sui-*>` tags freely

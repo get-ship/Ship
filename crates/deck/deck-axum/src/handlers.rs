@@ -47,38 +47,20 @@ pub async fn serve_sui_live_reload(mode: Option<Extension<DaemonMode>>) -> Respo
     into_axum(deck_core::serve_sui_live_reload(mode_from_ext(mode)))
 }
 
-pub async fn serve_sui_island(
+pub async fn serve_sui_chunk(
     mode: Option<Extension<DaemonMode>>,
     Path(file): Path<String>,
 ) -> Response {
-    into_axum(deck_core::serve_sui_island(mode_from_ext(mode), &file))
+    into_axum(deck_core::serve_sui_chunk(mode_from_ext(mode), &file))
 }
 
-// ── Pack + catalog handlers ───────────────────────────────────────────────────
-
-pub async fn serve_pack_asset(
-    mode: Option<Extension<DaemonMode>>,
-    Path((pack_id, file)): Path<(String, String)>,
-) -> Response {
-    into_axum(deck_core::serve_pack_asset(mode_from_ext(mode), &pack_id, &file))
-}
+// ── Catalog handler ───────────────────────────────────────────────────────────
 
 pub async fn serve_catalog_workspace(mode: Option<Extension<DaemonMode>>) -> Response {
     into_axum(deck_core::serve_catalog_workspace(mode_from_ext(mode)))
 }
 
-pub async fn serve_catalog_published(mode: Option<Extension<DaemonMode>>) -> Response {
-    into_axum(deck_core::serve_catalog_published(mode_from_ext(mode)))
-}
-
 // ── View handlers ─────────────────────────────────────────────────────────────
-
-pub async fn serve_sui_view_template(
-    mode: Option<Extension<DaemonMode>>,
-    Path(name): Path<String>,
-) -> Response {
-    into_axum(deck_core::serve_sui_view_template(mode_from_ext(mode), &name))
-}
 
 pub async fn serve_sui_view_setup(
     mode: Option<Extension<DaemonMode>>,
@@ -97,14 +79,6 @@ pub async fn serve_sui_view_setup(
         let _ = b.build(&format!("views/{name}/view")).await;
     }
     into_axum(deck_core::serve_sui_view_setup(mode_from_ext(mode), &name, q.sub.as_deref()))
-}
-
-pub async fn serve_sui_view_css(
-    mode: Option<Extension<DaemonMode>>,
-    Path(name): Path<String>,
-    Query(q): Query<ViewSetupQuery>,
-) -> Response {
-    into_axum(deck_core::serve_sui_view_css(mode_from_ext(mode), &name, q.sub.as_deref()))
 }
 
 // ── View-host handler ─────────────────────────────────────────────────────────
@@ -132,15 +106,15 @@ pub async fn serve_space_asset(
     into_axum(deck_core::serve_space_asset(mode_from_ext(mode), &file))
 }
 
-pub async fn serve_hub(mode: Option<Extension<DaemonMode>>) -> Response {
-    into_axum(deck_core::serve_hub(mode_from_ext(mode)))
+pub async fn serve_shell(mode: Option<Extension<DaemonMode>>) -> Response {
+    into_axum(deck_core::serve_shell(mode_from_ext(mode)))
 }
 
-pub async fn serve_hub_asset(
+pub async fn serve_shell_asset(
     mode: Option<Extension<DaemonMode>>,
     Path(file): Path<String>,
 ) -> Response {
-    into_axum(deck_core::serve_hub_asset(mode_from_ext(mode), &file))
+    into_axum(deck_core::serve_shell_asset(mode_from_ext(mode), &file))
 }
 
 // ── View-payload handlers ─────────────────────────────────────────────────────
@@ -164,4 +138,55 @@ pub async fn serve_view_payload_subpath(
 /// `GET /api/_meta` — wraps deck-core's plain JSON value in `axum::Json`.
 pub async fn serve_meta(daemon: Option<Extension<DaemonBuildInfo>>) -> Json<Value> {
     Json(deck_core::serve_meta(daemon.map(|e| e.0)))
+}
+
+// ── HMR (dev) handler ─────────────────────────────────────────────────────────
+
+/// `GET /_sui/dev/hmr` — the bundler's event firehose as the SSE stream the
+/// deck live-reload client subscribes to (`event: module-changed` /
+/// `compile-error`, JSON payload). This is the one HMR handler every deck host
+/// should mount — subscribing the bundler directly, with no per-host
+/// reimplementation. Host-wired: it needs an `Extension<deck_bundler::Bundler>`;
+/// without one it serves an empty, immediately-idle stream rather than erroring,
+/// so the route is safe to register unconditionally.
+pub async fn serve_bundle_hmr(bundler: Option<Extension<deck_bundler::Bundler>>) -> Response {
+    use axum::body::Body;
+    use axum::http::{StatusCode, header};
+    use tokio_stream::StreamExt;
+    use tokio_stream::wrappers::BroadcastStream;
+
+    let sse = || {
+        Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "text/event-stream")
+            .header(header::CACHE_CONTROL, "no-cache")
+    };
+
+    let Some(Extension(bundler)) = bundler else {
+        // No bundler wired → no events; serve a valid, empty SSE stream.
+        return sse()
+            .body(Body::empty())
+            .unwrap_or_else(|_| Response::new(Body::empty()));
+    };
+
+    let stream = BroadcastStream::new(bundler.subscribe_events()).filter_map(|res| {
+        let (name, payload) = match res.ok()? {
+            deck_bundler::BundlerEvent::ModuleChanged { target, out_path, bytes } => (
+                "module-changed",
+                serde_json::json!({ "target": target, "out_path": out_path, "bytes": bytes }),
+            ),
+            deck_bundler::BundlerEvent::CompileError { target, message, line, col, file } => (
+                "compile-error",
+                serde_json::json!({
+                    "target": target, "message": message,
+                    "line": line, "col": col, "file": file,
+                }),
+            ),
+        };
+        Some(Ok::<_, std::io::Error>(format!("event: {name}\ndata: {payload}\n\n")))
+    });
+
+    sse()
+        .body(Body::from_stream(stream))
+        .unwrap_or_else(|_| Response::new(Body::from("sse build failed")))
 }

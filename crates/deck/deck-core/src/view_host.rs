@@ -36,9 +36,12 @@ pub(crate) fn evict_ssr_cache(name: &str) {
 }
 
 fn view_name_from_path(path: &str) -> Option<String> {
+    // The view-host surface is at `/_sui/view/{name}[/{*sub_path}]`.
+    // Segment layout: ["_sui", "view", name, ...sub]
+    // Name is at index 2 in the slash-split of the trimmed path.
     path.trim_start_matches('/')
         .split('/')
-        .nth(1)
+        .nth(2)
         .filter(|s| !s.is_empty())
         .map(str::to_string)
 }
@@ -125,7 +128,7 @@ pub fn serve_view_host(mode: DaemonMode, path: &str) -> DeckResponse {
     // A named-but-unresolvable view is a human-facing 404: serve the rendered
     // not-found page rather than a 200 shell that boots, fetches the JSON
     // payload, gets a 404, and dumps raw `{"error":{"view_not_found":…}}` into
-    // a div. The bare `/view-host` landing (no name) keeps serving the shell —
+    // a div. The bare `/_sui/view/` landing (no name) keeps serving the shell —
     // its client-side message handles the "no view in URL" case. The
     // programmatic payload endpoint (`/_sui/views/<name>`) is untouched and
     // still answers JSON for API callers.
@@ -167,7 +170,7 @@ mod tests {
 
     #[test]
     fn serves_html_with_correct_headers() {
-        let resp = serve_view_host(DaemonMode::Development, "/view-host");
+        let resp = serve_view_host(DaemonMode::Development, "/_sui/view/");
         assert_eq!(resp.status, 200);
         assert!(resp.content_type.contains("text/html"));
         let body = std::str::from_utf8(&resp.body).unwrap();
@@ -190,7 +193,7 @@ mod tests {
         let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
         unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", tmp.path()); }
 
-        let resp = serve_view_host(DaemonMode::Development, "/view-host/no-such-view-xyzzy");
+        let resp = serve_view_host(DaemonMode::Development, "/_sui/view/no-such-view-xyzzy");
 
         match prev {
             Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
@@ -212,7 +215,7 @@ mod tests {
     #[test]
     fn resolvable_view_serves_shell_with_root_name() {
         // A view that resolves on disk still serves the 200 shell, with the
-        // root advertising the view name. The bare `/view-host` landing (no
+        // root advertising the view name. The bare `/_sui/view/` landing (no
         // view in URL) keeps serving the shell with an empty name.
         let _lock = crate::test_lock::lock();
         let tmp = tempfile::tempdir().unwrap();
@@ -223,8 +226,8 @@ mod tests {
         std::fs::create_dir_all(&view_dir).unwrap();
         std::fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
 
-        let resp = serve_view_host(DaemonMode::Development, "/view-host/some-view/sub");
-        let bare = serve_view_host(DaemonMode::Development, "/view-host");
+        let resp = serve_view_host(DaemonMode::Development, "/_sui/view/some-view/sub");
+        let bare = serve_view_host(DaemonMode::Development, "/_sui/view/");
 
         match prev {
             Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
@@ -242,7 +245,7 @@ mod tests {
         let body = std::str::from_utf8(&bare.body).unwrap();
         assert!(
             body.contains("data-sui-root data-view=\"\""),
-            "bare /view-host must leave data-view empty; got: {body}"
+            "bare /_sui/view/ must leave data-view empty; got: {body}"
         );
     }
 
@@ -263,7 +266,7 @@ mod tests {
         // Evict cache entry in case a prior run cached an empty value.
         evict_ssr_cache("ssr-host-splice");
 
-        let resp = serve_view_host(DaemonMode::Development, "/view-host/ssr-host-splice");
+        let resp = serve_view_host(DaemonMode::Development, "/_sui/view/ssr-host-splice");
         match prev {
             Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
             None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
@@ -358,10 +361,10 @@ mod tests {
 
     #[test]
     fn view_name_extracted_from_various_paths() {
-        assert_eq!(view_name_from_path("/view-host/counter"), Some("counter".to_string()));
-        assert_eq!(view_name_from_path("/view-host/counter/sub"), Some("counter".to_string()));
-        assert_eq!(view_name_from_path("/sui/counter/sub"), Some("counter".to_string()));
-        assert_eq!(view_name_from_path("/view-host"), None);
+        assert_eq!(view_name_from_path("/_sui/view/counter"), Some("counter".to_string()));
+        assert_eq!(view_name_from_path("/_sui/view/counter/sub"), Some("counter".to_string()));
+        assert_eq!(view_name_from_path("/_sui/view/"), None);
+        assert_eq!(view_name_from_path("/_sui/view"), None);
         assert_eq!(view_name_from_path("/"), None);
     }
 }

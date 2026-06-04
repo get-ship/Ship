@@ -1,32 +1,12 @@
 //! Bundle target resolution for the Rust bundler (#163).
 //!
-//! `TARGETS` + `discoverSeparateBundles` + `discoverViewBundles` +
-//! `assetsDirFor` for the bundler. A `BundleTarget` names what to build, where
-//! its entry is, what stays external, and where the output lands. The Rolldown
-//! build (`rolldown_bundle.rs`) iterates these; nothing here touches the
-//! filesystem beyond discovery reads.
+//! `TARGETS` + `discoverViewBundles` + `assetsDirFor` for the bundler. A
+//! `BundleTarget` names what to build, where its entry is, what stays external,
+//! and where the output lands. The Rolldown build (`rolldown_bundle.rs`)
+//! iterates these; nothing here touches the filesystem beyond discovery reads.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-
-/// `<bundle separate />` top-of-file directive opts a component dir into its own
-/// code-split bundle (vs living in its package umbrella aggregate).
-const BUNDLE_SEPARATE_NEEDLE: &str = "<bundle separate";
-
-/// Roots scanned for `<tag>/` dirs that may opt into separate bundles.
-///
-/// `ship/code/src` + `ship/markdown/src` are here because the editor packs
-/// carry `<bundle separate />` islands too heavy for any umbrella:
-/// `<ship-code-editor>` (CodeMirror), `<ship-terminal>` (xterm — mounted live by
-/// the shell's `<sui-agent-attach>`), and `<ship-markdown-editor>` (TipTap). The
-/// daemon serves them at `/_sui/sui-components/<tag>.js`; without these roots deck
-/// would never build the island and the daemon would 404 it.
-const SEPARATE_BUNDLE_ROOTS: [&str; 4] = [
-    "packages/components/ui-components/src",
-    "apps/shell/src/components",
-    "packages/components/ship/code/src",
-    "packages/components/ship/markdown/src",
-];
 
 /// Deck's OWN runtime bundles — baked into the deck-core crate (like Next
 /// shipping its own runtime). Everything else under `sui-`/`views/` is app/user
@@ -92,22 +72,21 @@ impl BundleLayout {
     }
 
     /// Output dir for a target by name. Deck-own bundles → the crate's assets;
-    /// `sui-*`/`views/*` → `.deck/`; everything else → `apps/shipd/assets`.
+    /// `views/*` and `sui-components/sui-chrome` → `.deck/`; everything else →
+    /// `apps/shipd/assets`.
     pub fn assets_dir_for(&self, name: &str) -> PathBuf {
         if DECK_OWN_BUNDLES.contains(&name) {
             return self.deck_own_assets();
         }
-        if name.starts_with("sui-") || name.starts_with("views/") {
+        if name.starts_with("views/") || name.starts_with("sui-components/") {
             return self.deck_out();
         }
         self.lit_assets()
     }
 
-    /// All targets: the static framework + aggregates, plus discovered
-    /// separate-bundle islands and view bundles.
+    /// All targets: the static framework + aggregates, plus view bundles.
     pub fn all_targets(&self) -> Vec<BundleTarget> {
         let mut out = self.static_targets();
-        out.extend(self.discover_separate_bundles());
         out.extend(self.discover_view_bundles());
         out
     }
@@ -187,74 +166,6 @@ impl BundleLayout {
         ]
     }
 
-    /// The islands manifest: every separate-bundle component tag mapped to its
-    /// bundle name. Derived from the SAME `<bundle separate />` scan that drives
-    /// `discover_separate_bundles` — this is the one source of truth for island
-    /// membership, surfaced to deck-core as `.deck/islands.json`.
-    ///
-    /// Each separate-bundle dir is one bundle (named after the dir). Every `.sui`
-    /// file inside contributes its file-stem as a tag pointing at that bundle, so
-    /// a family dir (e.g. `sui-command-bar/` holding `sui-command-bar.sui` +
-    /// `sui-command-palette.sui`) maps each member tag to the one shared bundle.
-    pub fn island_manifest(&self) -> BTreeMap<String, String> {
-        let mut map = BTreeMap::new();
-        for target in self.discover_separate_bundles() {
-            // `name` is `sui-components/<dir>`; the bundle is `<dir>`.
-            let Some(bundle) = target.name.strip_prefix("sui-components/") else {
-                continue;
-            };
-            if let TargetEntry::Virtual { sources } = &target.entry {
-                for src in sources {
-                    if let Some(tag) = src.file_stem().and_then(|s| s.to_str()) {
-                        map.insert(tag.to_string(), bundle.to_string());
-                    }
-                }
-            }
-        }
-        map
-    }
-
-    /// Walk each separate-bundle root for `sui-*/` dirs whose `.sui` files carry
-    /// `<bundle separate />`; each becomes a virtual aggregate of its `.sui`s.
-    fn discover_separate_bundles(&self) -> Vec<BundleTarget> {
-        let mut out = Vec::new();
-        let mut seen = HashSet::new();
-        for rel in SEPARATE_BUNDLE_ROOTS {
-            let components_dir = self.repo_root.join(rel);
-            let Ok(entries) = std::fs::read_dir(&components_dir) else { continue };
-            for e in entries.flatten() {
-                let name = e.file_name().to_string_lossy().into_owned();
-                if !name.starts_with("sui-") || seen.contains(&name) {
-                    continue;
-                }
-                if !e.path().is_dir() {
-                    continue;
-                }
-                let mut sui_paths = sui_files_in(&e.path());
-                if sui_paths.is_empty() {
-                    continue;
-                }
-                sui_paths.sort();
-                let separate = sui_paths.iter().any(|p| {
-                    std::fs::read_to_string(p)
-                        .map(|s| s.contains(BUNDLE_SEPARATE_NEEDLE))
-                        .unwrap_or(false)
-                });
-                if !separate {
-                    continue;
-                }
-                seen.insert(name.clone());
-                out.push(BundleTarget {
-                    name: format!("sui-components/{name}"),
-                    entry: TargetEntry::Virtual { sources: sui_paths },
-                    externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
-                    out_file: format!("sui-components/{name}.js"),
-                });
-            }
-        }
-        out
-    }
-
     /// One bundle per discovered view. Two layouts under each source root:
     /// `views/<name>/page.sui` and `.ship/views/<name>/index.sui`. First-seen
     /// wins (repo_root before workspace; `views/` before `.ship/views/`).
@@ -314,14 +225,6 @@ impl BundleLayout {
     }
 }
 
-fn sui_files_in(dir: &Path) -> Vec<PathBuf> {
-    let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
-    entries
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.is_file() && p.extension().is_some_and(|x| x == "sui"))
-        .collect()
-}
 
 #[cfg(test)]
 mod tests {
@@ -343,20 +246,11 @@ mod tests {
     }
 
     #[test]
-    fn discovers_views_and_separate_bundles() {
+    fn discovers_view_bundles() {
         let tmp = tempdir().unwrap();
         let root = tmp.path().to_path_buf();
         // A view.
         write(&root.join("views/git/page.sui"), "<div>git</div>\n");
-        // A separate-bundle component + a non-separate one.
-        write(
-            &root.join("packages/components/ui-components/src/sui-rail/sui-rail.sui"),
-            "<bundle separate />\n<div>rail</div>\n",
-        );
-        write(
-            &root.join("packages/components/ui-components/src/sui-plain/sui-plain.sui"),
-            "<div>plain</div>\n",
-        );
 
         let l = BundleLayout::new(root, None);
         let targets = l.all_targets();
@@ -364,30 +258,5 @@ mod tests {
 
         assert!(names.contains(&"sui-runtime"), "static framework target present");
         assert!(names.contains(&"views/git/view"), "discovered view");
-        assert!(names.contains(&"sui-components/sui-rail"), "separate-bundle island");
-        assert!(
-            !names.contains(&"sui-components/sui-plain"),
-            "non-separate component must NOT get its own bundle"
-        );
-    }
-
-    #[test]
-    fn island_manifest_maps_family_tags_to_one_bundle() {
-        let tmp = tempdir().unwrap();
-        let root = tmp.path().to_path_buf();
-        let dir = "packages/components/ui-components/src";
-        // A family bundle: two member tags share one dir/bundle.
-        write(&root.join(format!("{dir}/sui-command-bar/sui-command-bar.sui")), "<bundle separate />\n");
-        write(&root.join(format!("{dir}/sui-command-bar/sui-command-palette.sui")), "<div/>\n");
-        // A solo island.
-        write(&root.join(format!("{dir}/sui-canvas/sui-canvas.sui")), "<bundle separate />\n");
-        // A non-separate component must not appear.
-        write(&root.join(format!("{dir}/sui-plain/sui-plain.sui")), "<div/>\n");
-
-        let m = BundleLayout::new(root, None).island_manifest();
-        assert_eq!(m.get("sui-command-bar").map(String::as_str), Some("sui-command-bar"));
-        assert_eq!(m.get("sui-command-palette").map(String::as_str), Some("sui-command-bar"));
-        assert_eq!(m.get("sui-canvas").map(String::as_str), Some("sui-canvas"));
-        assert!(!m.contains_key("sui-plain"), "non-separate tag must not be an island");
     }
 }

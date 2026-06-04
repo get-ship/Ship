@@ -1,0 +1,13 @@
+/* Minimal chrome stylesheet. `deck build` copies + content-hashes this verbatim
+   (plain CSS, no bundler), the same path the shell's layout.css takes. */
+:root {
+  color-scheme: light dark;
+}
+body {
+  font: 15px/1.5 system-ui, sans-serif;
+  margin: 2rem;
+}
+button {
+  font: inherit;
+  padding: 0.3rem 0.8rem;
+}

@@ -4,11 +4,6 @@ import { ship } from '../../ops'
 import { route as routeFactory } from '@ship/sui-runtime/route'
 import type { Scope } from './sui-canvas-app.sui'
 
-const SUI_CANVAS_BUNDLE = '/_sui/sui-components/sui-canvas.js'
-// The shell SPA preloads the chrome aggregate; the SUI view-host
-// does not. Load it on demand from the canvas controller so
-// <sui-annotation-layer>, <sui-icon>, etc. upgrade in either host.
-const SUI_CHROME_BUNDLE = '/_sui/sui-components/sui-chrome.js'
 const PAIR_KEY_PREFIX = 'ship.canvas.pair.'
 
 type AnnMode = 'off' | 'point' | 'region'
@@ -37,28 +32,6 @@ interface AnnotationLayerHost extends HTMLElement {
     note?: string
     target?: { view_id?: string; selector?: string; rect?: [number, number, number, number] }
   }>
-}
-
-function ensureSuiCanvasLoaded(): void {
-  if (typeof window === 'undefined') return
-  if (customElements.get('sui-canvas')) return
-  if (document.querySelector('script[data-sui-canvas-island]')) return
-  const s = document.createElement('script')
-  s.type = 'module'
-  s.src = SUI_CANVAS_BUNDLE
-  s.dataset['suiCanvasIsland'] = '1'
-  document.head.appendChild(s)
-}
-
-function ensureChromeLoaded(): void {
-  if (typeof window === 'undefined') return
-  if (customElements.get('sui-annotation-layer')) return
-  if (document.querySelector('script[data-sui-chrome-island]')) return
-  const s = document.createElement('script')
-  s.type = 'module'
-  s.src = SUI_CHROME_BUNDLE
-  s.dataset['suiChromeIsland'] = '1'
-  document.head.appendChild(s)
 }
 
 function readPair(canvasId: string): string {
@@ -213,9 +186,6 @@ export default controller({
   },
 
   mount: (state, host) => {
-    ensureSuiCanvasLoaded()
-    ensureChromeLoaded()
-
     function refreshThread(): void {
       const layer = state.annLayerEl
       const staged = layer && Array.isArray(layer.staged) ? layer.staged : []

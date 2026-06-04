@@ -1,13 +1,14 @@
 //! deck-core — transport-agnostic SUI hosting logic.
 //!
-//! This crate owns *what* deck serves (compiled views, bundles, the catalog,
-//! pack assets) and produces a [`DeckResponse`] for each. It never touches
-//! axum or any HTTP framework. Server adapters (`deck-axum`, a future
-//! `deck-bun`) translate `DeckResponse` onto their own response type — the
+//! This crate owns *what* deck serves (compiled views, bundles, the catalog)
+//! and produces a [`DeckResponse`] for each. It never touches axum or any
+//! HTTP framework. Server adapters (`deck-axum`, a future `deck-bun`)
+//! translate `DeckResponse` onto their own response type — the
 //! ports-and-adapters seam.
 
 pub mod response;
 
+pub mod asset_graph;
 pub mod assets;
 pub mod error_page;
 pub mod meta;
@@ -37,17 +38,15 @@ pub(crate) mod test_lock {
 pub use response::{CachePolicy, DeckResponse, compute_etag};
 
 pub use assets::{
-    resolve_view_js, serve_hub, serve_hub_asset, serve_space, serve_space_asset,
-    serve_sui_components, serve_sui_dom, serve_sui_icon, serve_sui_island,
+    resolve_view_js, serve_shell, serve_shell_asset, serve_space, serve_space_asset,
+    serve_sui_chunk, serve_sui_components, serve_sui_dom, serve_sui_icon,
     serve_sui_live_reload, serve_sui_runtime, serve_sui_sdk_client,
 };
 pub use error_page::view_not_found;
 pub use meta::{serve_meta, DaemonBuildInfo};
 pub use mode_html::{inject_mode_meta, mode_str};
-pub use packs::{serve_catalog_published, serve_catalog_workspace, serve_pack_asset};
-pub use view::{
-    serve_sui_view_css, serve_sui_view_setup, serve_sui_view_template, ViewSetupQuery,
-};
+pub use packs::serve_catalog_workspace;
+pub use view::{serve_sui_view_setup, ViewSetupQuery};
 pub use view_host::serve_view_host;
 pub use view_payload::{serve_view_payload, serve_view_payload_subpath};
 

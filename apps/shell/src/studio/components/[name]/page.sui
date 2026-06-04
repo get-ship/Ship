@@ -114,7 +114,7 @@
             {#if entry().kind === 'sui'}
               <pre class="detail-code" data-test="code-output">{snippet()}</pre>
             {:else}
-              <div class="detail-render-caption">Live view · <code>/sui/{entry().id}</code></div>
+              <div class="detail-render-caption">Live view · <code>/_sui/view/{entry().id}</code></div>
             {/if}
           </section>
 

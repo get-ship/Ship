@@ -1,7 +1,6 @@
 // Components studio index — the canonical component explorer. Sources the
-// catalog from the daemon (the published SUI catalog at
-// /api/sui/catalog/published) via loadCatalog; the CEM feeds prop/slot
-// metadata and the per-component `examples` fixtures.
+// workspace catalog from the daemon (/api/sui/catalog/workspace) via
+// loadCatalog; the CEM feeds prop/slot metadata and per-component `examples`.
 //
 // The index is grouped: a flat package filter (All / Primitives / Charts /
 // Pipelines) over a free-text search, rendering one section per semantic

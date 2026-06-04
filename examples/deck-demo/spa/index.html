@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- SPA / static deploy: no daemon, so no dev HMR. -->
+    <meta name="ship-mode" content="production" />
+    <title>deck-demo · SPA</title>
+    <!-- The importmap is the SSOT for what stays EXTERNAL: the build leaves
+         these bare specifiers untouched, and the browser resolves them to
+         /_sui/* (served by a host, or materialized into the static deploy). -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@ship/sui-runtime": "/_sui/runtime.js",
+          "@ship/sui-dom": "/_sui/dom.js",
+          "@ship/sdk-client": "/_sui/sdk-client.js"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="/src/chrome/layout.css" />
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

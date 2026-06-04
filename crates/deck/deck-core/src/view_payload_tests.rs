@@ -92,7 +92,7 @@ fn view_host_splices_precompiled_ssr() {
     // Evict any stale cache entry from a previous run.
     evict_ssr_cache("ssr-host-test-splice");
 
-    let resp = serve_view_host(DaemonMode::Development, "/view-host/ssr-host-test-splice");
+    let resp = serve_view_host(DaemonMode::Development, "/_sui/view/ssr-host-test-splice");
     assert_eq!(resp.status, 200);
     let body = body_str(&resp);
     assert!(
@@ -116,7 +116,7 @@ fn view_host_without_ssr_live_emits_from_source() {
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
 
-    let resp = serve_view_host(DaemonMode::Development, "/view-host/ssr-host-test-empty");
+    let resp = serve_view_host(DaemonMode::Development, "/_sui/view/ssr-host-test-empty");
     assert_eq!(resp.status, 200);
     let body = body_str(&resp);
     assert!(
@@ -155,7 +155,7 @@ fn view_host_prod_ssr_cache_revalidates_on_mtime() {
     evict_ssr_cache(view_name);
 
     // First request in prod — populates cache with v1.
-    let resp = serve_view_host(DaemonMode::Production, &format!("/view-host/{view_name}"));
+    let resp = serve_view_host(DaemonMode::Production, &format!("/_sui/view/{view_name}"));
     assert!(body_str(&resp).contains("content-v1"), "first prod request must read from disk");
 
     // Re-emit the artifact and advance its mtime — the prod cache MUST revalidate
@@ -165,7 +165,7 @@ fn view_host_prod_ssr_cache_revalidates_on_mtime() {
     let bumped = now + std::time::Duration::from_secs(5);
     filetime::set_file_mtime(&ssr_file, filetime::FileTime::from_system_time(bumped)).unwrap();
 
-    let resp = serve_view_host(DaemonMode::Production, &format!("/view-host/{view_name}"));
+    let resp = serve_view_host(DaemonMode::Production, &format!("/_sui/view/{view_name}"));
     let body = body_str(&resp);
     assert!(
         body.contains("content-v2"),
@@ -190,12 +190,12 @@ fn view_host_dev_bypasses_ssr_cache() {
 
     evict_ssr_cache(view_name);
 
-    let resp = serve_view_host(DaemonMode::Development, &format!("/view-host/{view_name}"));
+    let resp = serve_view_host(DaemonMode::Development, &format!("/_sui/view/{view_name}"));
     assert!(body_str(&resp).contains("dev-v1"), "dev first request reads from disk");
 
     fs::write(&ssr_file, "dev-v2").unwrap();
 
-    let resp = serve_view_host(DaemonMode::Development, &format!("/view-host/{view_name}"));
+    let resp = serve_view_host(DaemonMode::Development, &format!("/_sui/view/{view_name}"));
     let body = body_str(&resp);
     assert!(body.contains("dev-v2"), "dev must bypass cache and read fresh content");
 }
@@ -315,7 +315,6 @@ fn top_level_view_payload_shape() {
     assert_eq!(v["css"], "p { color: red; }");
     assert!(v["scope"].is_object(), "scope should be a JSON object, got {}", v["scope"]);
     assert_eq!(v["moduleUrl"], "/_sui/views/demo/view.js");
-    assert!(v["islands"].as_array().unwrap().is_empty());
 }
 
 #[test]
@@ -369,7 +368,7 @@ fn host_unknown_view_serves_html_404_with_available_views() {
         fs::write(dir.join("index.sui"), "<p>hi</p>").unwrap();
     }
 
-    let resp = serve_view_host(DaemonMode::Development, "/sui/home");
+    let resp = serve_view_host(DaemonMode::Development, "/_sui/view/home");
     assert_eq!(resp.status, 404, "missing view must 404");
     assert!(
         resp.content_type.contains("text/html"),
@@ -381,8 +380,8 @@ fn host_unknown_view_serves_html_404_with_available_views() {
     assert!(body.contains("home"), "must name the requested view; got: {body}");
     assert!(body.contains("href=\"/\""), "must link back to the shell root; got: {body}");
     // Available-views list pulled from the resolver's roots.
-    assert!(body.contains("/sui/counter"), "must list servable views; got: {body}");
-    assert!(body.contains("/sui/dashboard"), "must list servable views; got: {body}");
+    assert!(body.contains("/_sui/view/counter"), "must list servable views; got: {body}");
+    assert!(body.contains("/_sui/view/dashboard"), "must list servable views; got: {body}");
     // The page must NOT leak the JSON error shape the payload endpoint uses.
     assert!(!body.contains("\"view_not_found\""), "must not dump raw JSON; got: {body}");
 }
@@ -412,70 +411,6 @@ fn compile_error_returns_500_with_position() {
     assert_eq!(body["name"], "broken");
     assert!(body["line"].as_u64().unwrap() >= 1);
     assert!(!body["message"].as_str().unwrap().is_empty());
-}
-
-/// Helper: write a `.deck/islands.json` fixture into the project dir so the
-/// view-payload path resolves islands from the marker-derived manifest.
-fn write_islands_manifest(root: &std::path::Path, json: &str) {
-    let deck = root.join(".deck");
-    fs::create_dir_all(&deck).unwrap();
-    fs::write(deck.join("islands.json"), json).unwrap();
-}
-
-#[test]
-fn island_tags_listed() {
-    let tmp = tempfile::tempdir().unwrap();
-    let _g = lock_with_dir(tmp.path());
-    write_islands_manifest(tmp.path(), r#"{"ship-terminal":"ship-terminal"}"#);
-    let view_dir = tmp.path().join(".ship/views/term-view");
-    fs::create_dir_all(&view_dir).unwrap();
-    fs::write(view_dir.join("index.sui"),
-        r#"<div><ship-terminal rows={24} cols={80}></ship-terminal></div>"#).unwrap();
-
-    let resp = serve_view_payload(DaemonMode::Development, "term-view");
-    assert_eq!(resp.status, 200);
-    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
-    let islands = v["islands"].as_array().unwrap();
-    assert_eq!(islands.len(), 1);
-    assert_eq!(islands[0], "ship-terminal");
-}
-
-/// The canvas fix: a view embedding `<sui-canvas>` resolves it as an island
-/// when the marker-derived manifest flags it. Under the old hardcoded
-/// `SUI_ISLANDS` table `sui-canvas` was missing, so it never lazy-loaded.
-#[test]
-fn canvas_resolves_as_island_from_manifest() {
-    let tmp = tempfile::tempdir().unwrap();
-    let _g = lock_with_dir(tmp.path());
-    write_islands_manifest(tmp.path(), r#"{"sui-canvas":"sui-canvas"}"#);
-    let view_dir = tmp.path().join(".ship/views/canvas-view");
-    fs::create_dir_all(&view_dir).unwrap();
-    fs::write(view_dir.join("index.sui"),
-        r#"<div><sui-canvas></sui-canvas></div>"#).unwrap();
-
-    let resp = serve_view_payload(DaemonMode::Development, "canvas-view");
-    assert_eq!(resp.status, 200);
-    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
-    let islands = v["islands"].as_array().unwrap();
-    assert_eq!(islands.len(), 1);
-    assert_eq!(islands[0], "sui-canvas");
-}
-
-/// A used tag absent from the manifest is NOT an island (no separate bundle).
-#[test]
-fn unflagged_tag_is_not_an_island() {
-    let tmp = tempfile::tempdir().unwrap();
-    let _g = lock_with_dir(tmp.path());
-    write_islands_manifest(tmp.path(), r#"{"ship-terminal":"ship-terminal"}"#);
-    let view_dir = tmp.path().join(".ship/views/plain-view");
-    fs::create_dir_all(&view_dir).unwrap();
-    fs::write(view_dir.join("index.sui"),
-        r#"<div><sui-button></sui-button></div>"#).unwrap();
-
-    let resp = serve_view_payload(DaemonMode::Development, "plain-view");
-    assert_eq!(resp.status, 200);
-    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
-    assert!(v["islands"].as_array().unwrap().is_empty());
 }
 
 #[test]

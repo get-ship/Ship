@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-project-switcher> — active-project affordance for the chrome strip.
   Trigger shows the project's identity hue dot + name + caret; clicking opens a

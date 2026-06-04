@@ -85,9 +85,6 @@ impl DeckResponse {
     pub fn html_view(body: impl Into<Vec<u8>>, mode: DaemonMode) -> Self {
         Self::new(200, "text/html; charset=utf-8", CachePolicy::View, mode, body)
     }
-    pub fn text_view(body: impl Into<Vec<u8>>, mode: DaemonMode) -> Self {
-        Self::new(200, "text/plain; charset=utf-8", CachePolicy::View, mode, body)
-    }
     pub fn json_asset(body: impl Into<Vec<u8>>, mode: DaemonMode) -> Self {
         Self::new(200, "application/json; charset=utf-8", CachePolicy::Asset, mode, body)
     }

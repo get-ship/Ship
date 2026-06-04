@@ -17,16 +17,6 @@ pub fn view_module_url(name: &str, sub: Option<&str>) -> String {
     }
 }
 
-/// URL of a view's raw `.sui` template source.
-pub fn view_template_url(name: &str) -> String {
-    format!("/_sui/views/{name}/view.sui")
-}
-
-/// URL of a view's compiled CSS.
-pub fn view_css_url(name: &str) -> String {
-    format!("/_sui/views/{name}/view.css")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -124,8 +124,7 @@ pub async fn bundle_app(
     minify: bool,
     bundle_framework: bool,
     framework_assets_dir: &Path,
-    deck_out_dir: &Path,
-    compiler: &Path,
+    _deck_out_dir: &Path,
 ) -> Result<AppBuild> {
     // Typed route table first (#168): main.ts imports routes.gen.ts, so it must
     // be current before Rolldown reads the graph. No-op for apps with no studio.
@@ -175,9 +174,12 @@ pub async fn bundle_app(
     // re-anchors the remaining `@ship/<pkg>` (e.g. sui-charts, pipelines) to
     // workspace source so the app graph compiles them in-process.
     let app_plugin = AppPlugin { externals };
+    // The app/SPA build keeps the registry model (umbrella) — no per-view
+    // component imports, so its graph stays byte-identical.
     let sui_plugin = crate::rolldown_bundle::SuiPlugin {
         repo_root: repo_root.to_path_buf(),
-        compiler: compiler.to_path_buf(),
+        emit_component_imports: false,
+        component_index: std::sync::Arc::new(std::collections::HashMap::new()),
     };
     let mut bundler = BundlerBuilder::default()
         .with_options(options)
@@ -224,7 +226,7 @@ pub async fn bundle_app(
     let mut framework_assets = 0;
     if bundle_framework {
         let sui_dir = out_dir.join("_sui");
-        std::fs::create_dir_all(sui_dir.join("sui-components"))?;
+        std::fs::create_dir_all(&sui_dir)?;
         for (src, dist_rel) in FRAMEWORK_ASSETS {
             let from = framework_assets_dir.join(src);
             if !from.exists() {
@@ -232,40 +234,6 @@ pub async fn bundle_app(
             }
             std::fs::copy(&from, out_dir.join(dist_rel))?;
             framework_assets += 1;
-        }
-        // Build the chrome aggregate + island bundles into `.deck/sui-components/`
-        // via deck-bundler's own target machinery — the deck-native replacement
-        // for the retired on-disk pre-compile step. `bundle_target`'s SuiPlugin
-        // compiles each `.compiled.js`→sibling `.sui` in its load hook, so no
-        // on-disk pre-compile is needed. A failed target fails the build: no
-        // silent fallback to a stale island (the regression Slice 4a first shipped).
-        {
-            let layout = crate::targets::BundleLayout::new(repo_root.to_path_buf(), None);
-            let staging =
-                std::env::temp_dir().join(format!("deck-app-islands-{}", std::process::id()));
-            for t in layout.all_targets() {
-                if t.out_file.starts_with("sui-components/") {
-                    crate::rolldown_bundle::bundle_target(&layout, &t, compiler, &staging, minify)
-                        .await
-                        .with_context(|| format!("app build: island/chrome target {}", t.name))?;
-                }
-            }
-        }
-
-        let islands = deck_out_dir.join("sui-components");
-        if !islands.exists() {
-            bail!(
-                "app build: bundle_framework: no {} (deck island build produced nothing)",
-                islands.display()
-            );
-        }
-        for entry in std::fs::read_dir(&islands)? {
-            let entry = entry?;
-            let name = entry.file_name();
-            if entry.file_type()?.is_file() && name.to_string_lossy().ends_with(".js") {
-                std::fs::copy(entry.path(), sui_dir.join("sui-components").join(&name))?;
-                framework_assets += 1;
-            }
         }
     }
 
@@ -304,9 +272,7 @@ mod tests {
         write(&r.join("src/chrome/layout.css"), ".a{color:red}\n");
 
         let out = r.join("dist");
-        // No `.sui` in this graph, so the compiler is never invoked — a bogus
-        // path is fine; the SuiPlugin only spawns it on a `.sui`/`.compiled.js` load.
-        let build = bundle_app(r, r, &out, false, false, r, r, Path::new("/nonexistent-sui-compiler"))
+        let build = bundle_app(r, r, &out, false, false, r, r)
             .await
             .expect("bundle_app");
 
@@ -336,10 +302,6 @@ mod tests {
     /// Slice 4a: the shell no longer needs an on-disk pre-compile of its packs.
     #[tokio::test(flavor = "multi_thread")]
     async fn app_build_compiles_sui_entry_in_process() {
-        let compiler = match ship_substrate::locate::walk_for_target_binary("sui-compiler") {
-            Ok(c) => c,
-            Err(_) => return, // sui-compiler not built — skip (matches other compile tests).
-        };
         let root = tempfile::tempdir().unwrap();
         let r = root.path();
         write(
@@ -358,7 +320,7 @@ mod tests {
         write(&r.join("src/chrome/layout.css"), ".a{color:red}\n");
 
         let out = r.join("dist");
-        let build = bundle_app(r, r, &out, false, false, r, r, &compiler)
+        let build = bundle_app(r, r, &out, false, false, r, r)
             .await
             .expect("bundle_app should compile the .sui entry in-process");
 

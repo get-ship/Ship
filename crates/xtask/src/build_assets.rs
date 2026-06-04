@@ -4,8 +4,8 @@
 //! build no longer needs bun for bundling.
 //!
 //! `Bundler::build_all` writes the framework singletons + component umbrella +
-//! catalog to `crates/deck/deck-core/assets` (`assets_dir_for`) and views /
-//! islands to `.deck/`. `deck-core/build.rs` validates the framework set at
+//! catalog to `crates/deck/deck-core/assets` (`assets_dir_for`) and views to
+//! `.deck/`. `deck-core/build.rs` validates the framework set at
 //! cargo-build time. `lucide-icons.json` is committed source (not bundling)
 //! and is regenerated separately via `cargo xtask gen-icons`.
 

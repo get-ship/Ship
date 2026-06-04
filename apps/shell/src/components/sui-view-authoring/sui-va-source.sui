@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-va-source> — Source tab content for the view-authoring dev panel.
   Wraps <ship-code-editor>, loads source for the current view via the

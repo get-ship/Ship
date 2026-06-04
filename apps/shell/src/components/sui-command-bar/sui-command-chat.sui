@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-command-chat> — chat panel for the unified ai mode.
   Always rendered when bar.mode = 'ai'. Body branches:

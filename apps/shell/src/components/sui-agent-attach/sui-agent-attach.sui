@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-agent-attach> — xterm.js attached to a running PTY-backed agent
   session over the daemon's WebSocket bridge.

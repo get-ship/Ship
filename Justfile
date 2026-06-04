@@ -47,8 +47,6 @@ bootstrap:
     # umbrella + islands + marketing/arcade in-process (rolldown). No per-pack
     # pre-compile step — components compile from source on demand.
     cargo run -p xtask --quiet -- build-assets
-    bun run --filter @ship/sui-catalog build
-    bun packages/deck/catalog/src/cli.ts
     just dev-runtime-install
     echo "bootstrap complete — 'just dev' to start the daemon"
 
@@ -322,11 +320,9 @@ build: _sui-compiler-lib
     # out-of-band), so without this step it silently goes stale and bundles
     # compile against an old token registry / lint set. Cheap no-op when fresh.
     cargo build -p sui-compiler
-    echo "[3/6] framework + sui-* bundles + islands + views (cargo xtask build-assets — in-process Rolldown, the only bundler)"
+    echo "[3/6] framework + sui-* bundles + islands + views + catalog (cargo xtask build-assets — in-process Rolldown; the only bundler AND the only catalog producer, → .deck/catalogs/{workspace,published}.json)"
     cargo xtask build-assets
-    echo "[4/6] sui-catalog walk (→ .deck/catalogs/{workspace,published}.json)"
-    bun run --filter @ship/sui-catalog build
-    bun packages/deck/catalog/src/cli.ts
+    echo "[4/6] catalog baked in [3/6] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
     echo "[5/6] cargo build --release (ship-cli + shipd)"
     cargo build --release -p ship-cli -p shipd
     echo "[6/6] verify outputs"

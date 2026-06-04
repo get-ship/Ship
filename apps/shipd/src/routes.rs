@@ -143,14 +143,6 @@ pub enum Route {
     /// @auth public
     SuiCatalogWorkspace,
 
-    /// @route GET "/api/sui/catalog/published"
-    /// @auth public
-    SuiCatalogPublished,
-
-    /// @route GET "/_sui/packs/{pack_id}/{file}"
-    /// @auth public
-    SuiPackAsset { pack_id: String, file: String },
-
     /// @route GET "/_sui/runtime.js"
     /// @auth public
     SuiRuntimeJs,
@@ -175,14 +167,6 @@ pub enum Route {
     /// @auth public
     SuiLiveReloadJs,
 
-    /// @route GET "/_sui/sui-components/{file}"
-    /// @auth public
-    SuiComponentBundle { file: String },
-
-    /// @route GET "/_sui/views/{name}/view.sui"
-    /// @auth public
-    SuiViewTemplate { name: String },
-
     /// @route GET "/_sui/views/{name}/view.js"
     /// @auth public
     SuiViewSetup { name: String },
@@ -191,21 +175,13 @@ pub enum Route {
     /// @auth public
     SuiViewPayload { name: String },
 
-    /// @route GET "/_sui/views/{name}/view.css"
-    /// @auth public
-    SuiViewCss { name: String },
-
     /// @route GET "/_sui/views/{name}/sse"
     /// @auth public
     SuiViewSse { name: String },
 
-    /// @route GET "/view-host"
+    /// @route GET "/_sui/view/{name}"
     /// @auth public
-    SuiViewHost,
-
-    /// @route GET "/sui/{name}"
-    /// @auth public
-    SuiViewHostForName { name: String },
+    SuiViewHost { name: String },
 
     /// @route GET "/_sui/dev/hmr"
     /// @auth public
