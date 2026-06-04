@@ -179,6 +179,33 @@ fn todos_view_has_mutation_binding_for_add_todo() {
     );
 }
 
+/// POST with a body over 64 KB → 413 Payload Too Large.
+/// Without this guard axum buffers the full body before the handler is called;
+/// a sustained POST of moderate-sized bodies is a DoS against the parse loop.
+#[tokio::test(flavor = "multi_thread")]
+async fn mutation_oversized_body_returns_413() {
+    let app = deck_app(default_app_dir());
+    // 65 KB: one byte over the 64 KB limit.
+    let big_body = vec![b'a'; 65 * 1024];
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/_sui/mutation/todos?form=b0")
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(Body::from(big_body))
+                .unwrap(),
+        )
+        .await
+        .expect("response");
+    assert_eq!(
+        resp.status(),
+        StatusCode::PAYLOAD_TOO_LARGE,
+        "body over 64 KB must return 413; got {}",
+        resp.status()
+    );
+}
+
 /// The clock view has exactly one live data source pointing at
 /// `ship.demo.clock()`.
 #[test]

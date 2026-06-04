@@ -187,3 +187,39 @@ fn on_disk_page_sui_resolves() {
         assert!(r.params.is_empty());
     });
 }
+
+#[test]
+fn dotdot_segments_in_sub_path_stripped_before_walk() {
+    // A sub_path like "../../etc/passwd" must not traverse outside the view
+    // root. The ".." segments are filtered during split so they never reach
+    // PathBuf::join and cannot build an escaping path even before the
+    // canonicalize containment guard fires.
+    with_tempdir(|root| {
+        // Create a view that would be hit IF ".." didn't escape.
+        let view_dir = root.join(".ship/views/myview");
+        fs::create_dir_all(&view_dir).unwrap();
+        fs::write(view_dir.join("index.sui"), r#"<p>safe</p>"#).unwrap();
+
+        // Place a "secret" outside the views bucket.
+        let outside = root.join("secret.sui");
+        fs::write(&outside, r#"<p>LEAKED</p>"#).unwrap();
+
+        // The traversal sub_path; after stripping ".." this becomes empty,
+        // which resolves myview's index.sui (the normal path), NOT the outside file.
+        let result = resolve(root, None, "myview", Some("../../secret"));
+        // Either resolves the view (traversal stripped → normal resolution) or
+        // returns a not-found. Either way it must NOT read the outside secret.
+        match &result {
+            Ok(r) => {
+                assert!(
+                    !r.source.contains("LEAKED"),
+                    "traversal must not expose the outside file; got: {}",
+                    r.source
+                );
+            }
+            Err(_) => {
+                // A 404 is also a correct safe response.
+            }
+        }
+    });
+}

@@ -82,7 +82,22 @@ impl DeckResponse {
         Self::new(200, "text/css; charset=utf-8", CachePolicy::View, mode, body)
     }
     pub fn html_view(body: impl Into<Vec<u8>>, mode: DaemonMode) -> Self {
+        // Security headers for HTML responses:
+        // - X-Frame-Options: SAMEORIGIN — prevents the page being embedded in a
+        //   foreign-origin iframe (clickjacking defence).
+        // - X-Content-Type-Options: nosniff — tells browsers to honour the declared
+        //   content-type and not MIME-sniff the body.
+        // - Content-Security-Policy: a minimal self-only policy. Deck inlines
+        //   script (inject_globals) and inline styles may appear in SUI templates,
+        //   so 'unsafe-inline' is needed; the policy still restricts external
+        //   origins so a stored XSS cannot load attacker-controlled scripts.
         Self::new(200, "text/html; charset=utf-8", CachePolicy::View, mode, body)
+            .with_header("X-Frame-Options", "SAMEORIGIN")
+            .with_header("X-Content-Type-Options", "nosniff")
+            .with_header(
+                "Content-Security-Policy",
+                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'",
+            )
     }
     pub fn json_asset(body: impl Into<Vec<u8>>, mode: DaemonMode) -> Self {
         Self::new(200, "application/json; charset=utf-8", CachePolicy::Asset, mode, body)
@@ -135,6 +150,47 @@ pub fn compute_etag(content: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── security headers ──────────────────────────────────────────────────────
+
+    fn header_value<'a>(resp: &'a DeckResponse, name: &str) -> Option<&'a str> {
+        resp.extra_headers.iter().find_map(|(k, v)| {
+            if k.eq_ignore_ascii_case(name) { Some(v.as_str()) } else { None }
+        })
+    }
+
+    #[test]
+    fn html_view_carries_security_headers() {
+        let resp = DeckResponse::html_view("<html></html>", DaemonMode::Development);
+        assert_eq!(
+            header_value(&resp, "X-Frame-Options"),
+            Some("SAMEORIGIN"),
+            "X-Frame-Options must be SAMEORIGIN on HTML responses"
+        );
+        assert_eq!(
+            header_value(&resp, "X-Content-Type-Options"),
+            Some("nosniff"),
+            "X-Content-Type-Options must be nosniff on HTML responses"
+        );
+        let csp = header_value(&resp, "Content-Security-Policy")
+            .expect("Content-Security-Policy must be present on HTML responses");
+        assert!(csp.contains("default-src 'self'"), "CSP must restrict default-src; got: {csp}");
+        assert!(csp.contains("frame-ancestors 'self'"), "CSP must restrict frame-ancestors; got: {csp}");
+    }
+
+    #[test]
+    fn js_asset_does_not_carry_html_security_headers() {
+        let resp = DeckResponse::js_asset("console.log(1)", DaemonMode::Development);
+        // Non-HTML responses do not need X-Frame-Options or CSP.
+        assert!(
+            header_value(&resp, "X-Frame-Options").is_none(),
+            "X-Frame-Options must not appear on non-HTML responses"
+        );
+        assert!(
+            header_value(&resp, "Content-Security-Policy").is_none(),
+            "CSP must not appear on non-HTML responses"
+        );
+    }
 
     #[test]
     fn not_found_dev_surfaces_reason() {

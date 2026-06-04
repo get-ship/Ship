@@ -54,7 +54,7 @@ pub fn resolve(
     let segments: Vec<&str> = sub_path
         .unwrap_or("")
         .split('/')
-        .filter(|s| !s.is_empty())
+        .filter(|s| !s.is_empty() && *s != "..")
         .collect();
 
     let mut attempts: Vec<String> = Vec::new();

@@ -1669,12 +1669,14 @@ dependencies = [
  "deck-bundler",
  "deck-config",
  "deck-core",
+ "futures-util",
  "serde",
  "serde_json",
  "specta",
  "tempfile",
  "tokio",
  "tokio-stream",
+ "tokio-util",
 ]
 
 [[package]]

@@ -206,10 +206,20 @@ pub async fn serve_meta(daemon: Option<Extension<DaemonBuildInfo>>) -> Json<Valu
 /// reimplementation. Host-wired: it needs an `Extension<deck_bundler::Bundler>`;
 /// without one it serves an empty, immediately-idle stream rather than erroring,
 /// so the route is safe to register unconditionally.
-pub async fn serve_bundle_hmr(bundler: Option<Extension<deck_bundler::Bundler>>) -> Response {
+///
+/// The optional `Extension<CancellationToken>` (same pattern as shipd's
+/// sui_hmr.rs) terminates the stream on shutdown so the host's graceful-drain
+/// can complete without waiting for every client to disconnect (#256 class).
+/// Without the extension the stream runs until client disconnect (existing
+/// behaviour; tests don't need to wire a token).
+pub async fn serve_bundle_hmr(
+    bundler: Option<Extension<deck_bundler::Bundler>>,
+    cancel: Option<Extension<tokio_util::sync::CancellationToken>>,
+) -> Response {
     use axum::body::Body;
     use axum::http::{StatusCode, header};
-    use tokio_stream::StreamExt;
+    // futures_util::StreamExt used via fully-qualified path below to disambiguate
+    // from tokio_stream::StreamExt — both provide filter_map and take_until.
     use tokio_stream::wrappers::BroadcastStream;
 
     let sse = || {
@@ -226,22 +236,34 @@ pub async fn serve_bundle_hmr(bundler: Option<Extension<deck_bundler::Bundler>>)
             .unwrap_or_else(|_| Response::new(Body::empty()));
     };
 
-    let stream = BroadcastStream::new(bundler.subscribe_events()).filter_map(|res| {
-        let (name, payload) = match res.ok()? {
-            deck_bundler::BundlerEvent::ModuleChanged { target, out_path, bytes } => (
-                "module-changed",
-                serde_json::json!({ "target": target, "out_path": out_path, "bytes": bytes }),
-            ),
-            deck_bundler::BundlerEvent::CompileError { target, message, line, col, file } => (
-                "compile-error",
-                serde_json::json!({
-                    "target": target, "message": message,
-                    "line": line, "col": col, "file": file,
-                }),
-            ),
-        };
-        Some(Ok::<_, std::io::Error>(format!("event: {name}\ndata: {payload}\n\n")))
-    });
+    let events = futures_util::StreamExt::filter_map(
+        BroadcastStream::new(bundler.subscribe_events()),
+        |res| async move {
+            let (name, payload) = match res.ok()? {
+                deck_bundler::BundlerEvent::ModuleChanged { target, out_path, bytes } => (
+                    "module-changed",
+                    serde_json::json!({ "target": target, "out_path": out_path, "bytes": bytes }),
+                ),
+                deck_bundler::BundlerEvent::CompileError { target, message, line, col, file } => (
+                    "compile-error",
+                    serde_json::json!({
+                        "target": target, "message": message,
+                        "line": line, "col": col, "file": file,
+                    }),
+                ),
+            };
+            Some(Ok::<_, std::io::Error>(format!("event: {name}\ndata: {payload}\n\n")))
+        },
+    );
+
+    // Apply take_until so SIGTERM (via the cancel token) terminates the stream.
+    // When no token is provided the stream runs until client disconnect, which
+    // is the correct behaviour for test hosts and non-shipd deployments.
+    let cancel_token = cancel.map(|e| e.0).unwrap_or_default();
+    let stream = futures_util::StreamExt::take_until(
+        events,
+        async move { cancel_token.cancelled().await },
+    );
 
     sse()
         .body(Body::from_stream(stream))

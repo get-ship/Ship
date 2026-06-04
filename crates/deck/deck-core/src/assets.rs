@@ -128,6 +128,17 @@ pub fn serve_scaffold(
     } else {
         let mut parts = String::from("<script>");
         for (key, raw_value) in &scaffold.inject_globals {
+            // Validate that the key is a safe JS identifier before embedding
+            // it verbatim in the emitted script. An unchecked key like
+            // `x;alert(1)//` would inject arbitrary script on every page load.
+            if !is_valid_js_identifier(key) {
+                tracing::warn!(
+                    scaffold = %scaffold.name,
+                    key = %key,
+                    "inject_globals key is not a valid JS identifier — skipping"
+                );
+                continue;
+            }
             // Substitute $param tokens.
             let resolved = substitute_params(raw_value, params);
             // JSON-encode the value so it is a safe JS string literal.
@@ -169,7 +180,21 @@ pub fn serve_scaffold(
 }
 
 /// Serve a static asset from `<deck_out>/<source>/assets/<file>`.
+///
+/// The `file` parameter comes from the axum path extractor and is
+/// percent-decoded but NOT stripped of `..` segments. Validate it before
+/// constructing the path to prevent directory traversal: a request like
+/// `/space/_assets/../../../etc/passwd` would otherwise escape the assets dir.
 pub fn serve_scaffold_asset(mode: DaemonMode, scaffold: &ScaffoldDecl, file: &str) -> DeckResponse {
+    // Reject path-traversal patterns. Only simple filenames (no slashes, no
+    // leading dots, no ".." components) are valid asset names. This mirrors the
+    // guard already present in serve_sui_chunk.
+    if file.contains("..") || file.contains('/') || file.contains('\\') || file.starts_with('.') {
+        return DeckResponse::not_found(
+            format!("invalid asset path: {file}"),
+            mode,
+        );
+    }
     match read_deck_asset(&format!("{}/assets/{file}", scaffold.source)) {
         Some(body) if file.ends_with(".css") => DeckResponse::css_view(body, mode),
         Some(body) => DeckResponse::js_asset(body, mode),
@@ -206,6 +231,23 @@ pub fn default_space_scaffold() -> ScaffoldDecl {
         asset_prefix: "/space/_assets/".to_string(),
         inject_globals: inject,
     }
+}
+
+/// Validate that `key` is a safe JS identifier: `[A-Za-z_][A-Za-z0-9_]*`.
+///
+/// This is called before using a key verbatim in `window.{key}=...` in the
+/// emitted `<script>` block. An unvalidated key like `x;alert(1)//` would
+/// inject arbitrary script on every page load.
+fn is_valid_js_identifier(key: &str) -> bool {
+    if key.is_empty() {
+        return false;
+    }
+    let mut chars = key.chars();
+    let first = chars.next().unwrap();
+    if !first.is_ascii_alphabetic() && first != '_' {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
 /// Substitute `$<key>` tokens in `value` with matching entries from `params`.
@@ -517,5 +559,107 @@ mod tests {
         assert_eq!(resp.status, 200, "source-fallback must serve the unbuilt scaffold");
         let body = std::str::from_utf8(&resp.body).unwrap();
         assert!(body.contains("sui-root"), "served source HTML, got: {body}");
+    }
+
+    // ── serve_scaffold_asset path validation ─────────────────────────────────
+
+    #[test]
+    fn scaffold_asset_dotdot_rejected() {
+        let scaffold = make_scaffold("test", "/test/_assets/", vec![]);
+        let resp = serve_scaffold_asset(DaemonMode::Development, &scaffold, "../../../etc/passwd");
+        assert_eq!(resp.status, 404, "'..' traversal must be rejected");
+        let body = std::str::from_utf8(&resp.body).unwrap();
+        assert!(body.contains("invalid asset path") || body.contains("404") || body.contains("not found"),
+            "must produce a safe 404; got: {body}");
+    }
+
+    #[test]
+    fn scaffold_asset_slash_in_name_rejected() {
+        let scaffold = make_scaffold("test", "/test/_assets/", vec![]);
+        let resp = serve_scaffold_asset(DaemonMode::Development, &scaffold, "sub/dir/file.js");
+        assert_eq!(resp.status, 404, "slash in filename must be rejected");
+    }
+
+    #[test]
+    fn scaffold_asset_leading_dot_rejected() {
+        let scaffold = make_scaffold("test", "/test/_assets/", vec![]);
+        let resp = serve_scaffold_asset(DaemonMode::Development, &scaffold, ".hidden");
+        assert_eq!(resp.status, 404, "leading dot must be rejected");
+    }
+
+    // ── is_valid_js_identifier ────────────────────────────────────────────────
+
+    #[test]
+    fn valid_js_identifiers_accepted() {
+        assert!(is_valid_js_identifier("DECK_APP_ID"));
+        assert!(is_valid_js_identifier("myVar"));
+        assert!(is_valid_js_identifier("_private"));
+        assert!(is_valid_js_identifier("x"));
+        assert!(is_valid_js_identifier("abc123"));
+    }
+
+    #[test]
+    fn invalid_js_identifiers_rejected() {
+        assert!(!is_valid_js_identifier(""));
+        assert!(!is_valid_js_identifier("0starts_with_digit"));
+        assert!(!is_valid_js_identifier("has-hyphen"));
+        assert!(!is_valid_js_identifier("has space"));
+        assert!(!is_valid_js_identifier("x;alert(1)//"));
+        assert!(!is_valid_js_identifier("$dollar"));
+        assert!(!is_valid_js_identifier("has.dot"));
+    }
+
+    /// A scaffold with an invalid inject_globals key must not emit that key in
+    /// the <script> block. The request that used to allow script injection now
+    /// skips the bad key and either produces an empty inject block or only
+    /// includes valid keys.
+    #[test]
+    fn inject_globals_invalid_key_skipped_not_injected() {
+        use crate::test_lock;
+        let _lock = test_lock::lock();
+        let prev = std::env::var("DECK_PROJECT_DIR").ok();
+
+        let dir = tempfile::tempdir().unwrap();
+        let dot_deck = dir.path().join(".deck").join("safe-scaffold");
+        std::fs::create_dir_all(&dot_deck).unwrap();
+        let html = r#"<!doctype html><html><head></head><body></body></html>"#;
+        std::fs::write(dot_deck.join("index.html"), html).unwrap();
+
+        unsafe { std::env::set_var("DECK_PROJECT_DIR", dir.path()) };
+
+        let mut globals = std::collections::BTreeMap::new();
+        // Invalid key: would inject `alert(1)` if not validated.
+        globals.insert("x;alert(1)//".to_string(), "injected".to_string());
+        // Valid key alongside it — should still appear.
+        globals.insert("SAFE_KEY".to_string(), "safe_value".to_string());
+
+        let scaffold = ScaffoldDecl {
+            name: "test".to_string(),
+            route: "/".to_string(),
+            source: "safe-scaffold".to_string(),
+            asset_prefix: "/test/_assets/".to_string(),
+            inject_globals: globals,
+        };
+        let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[]);
+
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("DECK_PROJECT_DIR", v),
+                None => std::env::remove_var("DECK_PROJECT_DIR"),
+            }
+        }
+
+        assert_eq!(resp.status, 200);
+        let body = std::str::from_utf8(&resp.body).unwrap();
+        // The malicious key must NOT appear in the output.
+        assert!(
+            !body.contains("alert(1)"),
+            "invalid inject_globals key must be stripped; got: {body}"
+        );
+        // The valid key must still be injected.
+        assert!(
+            body.contains("window.SAFE_KEY"),
+            "valid inject_globals key must be injected; got: {body}"
+        );
     }
 }

@@ -326,6 +326,11 @@ struct MutationQuery {
     form: String,
 }
 
+/// Maximum body size for a PE form submission (mirrors shipd's per-route limit).
+/// Without this guard, axum buffers arbitrarily large request bodies before the
+/// handler is invoked. 64 KB is well above any real HTML form.
+const MAX_MUTATION_BODY_BYTES: usize = 64 * 1024;
+
 /// `POST /_sui/mutation/{name}?form=<key>` — PE form submission.
 /// Mirror: `apps/shipd/src/views/sui_mutation.rs` (kernel removed).
 async fn serve_mutation(
@@ -335,6 +340,13 @@ async fn serve_mutation(
     headers: axum::http::HeaderMap,
     body: Bytes,
 ) -> Response {
+    if body.len() > MAX_MUTATION_BODY_BYTES {
+        return Response::builder()
+            .status(StatusCode::PAYLOAD_TOO_LARGE)
+            .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+            .body(Body::from("request body too large"))
+            .unwrap_or_else(|_| Response::new(Body::empty()));
+    }
     if !is_valid_view_name(&name) {
         return not_found(&format!("invalid view name: {name}"));
     }

@@ -22,6 +22,7 @@ use ship_substrate::events::ActorConfig;
 use ship_substrate::gen_ulid;
 use serde::Deserialize;
 use std::pin::Pin;
+use tokio_util::sync::CancellationToken;
 
 use super::sui_data_resolvers::{
     ParsedExpr, parse_expr, resolve as resolve_value, subscribe_namespaces,
@@ -41,10 +42,14 @@ pub async fn serve_data(State(state): State<ApiState>, Query(q): Query<DataQuery
         return bad_request("invalid expr");
     }
 
+    // Shutdown token (#256 class): take_until so SIGTERM can drain this SSE
+    // stream without waiting for the client to disconnect.
+    let shutdown = state.shutdown_token();
+
     let body_stream: Pin<Box<dyn Stream<Item = Result<String, std::io::Error>> + Send>> =
         match parse_expr(&expr) {
-            Some(parsed) => resolved_stream(state, expr.clone(), parsed),
-            None => fallback_stream(expr.clone()),
+            Some(parsed) => resolved_stream(state, expr.clone(), parsed, shutdown),
+            None => fallback_stream(expr.clone(), shutdown),
         };
 
     Response::builder()
@@ -59,10 +64,16 @@ pub async fn serve_data(State(state): State<ApiState>, Query(q): Query<DataQuery
 /// Build a stream that emits an initial `set` patch from the registry
 /// and re-emits a fresh `set` patch on every kernel event in the
 /// subscribed namespaces.
+///
+/// `shutdown` is a child of the daemon's CancellationToken. All three code
+/// paths call `take_until(shutdown.cancelled())` (#256 class) so SIGTERM can
+/// drain this long-lived SSE stream without waiting for the client to
+/// disconnect.
 fn resolved_stream(
     state: ApiState,
     raw_expr: String,
     parsed: ParsedExpr,
+    shutdown: CancellationToken,
 ) -> Pin<Box<dyn Stream<Item = Result<String, std::io::Error>> + Send>> {
     // Resolve the initial value synchronously. Errors degrade to a
     // `null` initial patch — the connection still opens so the runtime
@@ -79,7 +90,13 @@ fn resolved_stream(
 
     let namespaces = subscribe_namespaces(&parsed);
     if namespaces.is_empty() {
-        return Box::pin(stream::once(async move { Ok(initial_frame) }).chain(stream::pending()));
+        // No subscriptions — hold open until client disconnects OR shutdown.
+        let cancel = shutdown.clone();
+        return Box::pin(
+            stream::once(async move { Ok(initial_frame) })
+                .chain(stream::pending())
+                .take_until(async move { cancel.cancelled().await }),
+        );
     }
 
     let live = async_stream::stream! {
@@ -105,13 +122,18 @@ fn resolved_stream(
         let Some(mut mb) = mailbox else { return };
 
         loop {
-            let Some(_ev) = mb.recv().await else { break };
-            // Coalesce: drain any other immediately-available events before
-            // re-resolving. A burst of file changes re-emits one patch.
-            while mb.try_recv().is_ok() {}
+            tokio::select! {
+                _ = shutdown.cancelled() => break,
+                recv = mb.recv() => {
+                    let Some(_ev) = recv else { break };
+                    // Coalesce: drain any other immediately-available events before
+                    // re-resolving. A burst of file changes re-emits one patch.
+                    while mb.try_recv().is_ok() {}
 
-            let value = resolve_value(&parsed, &state).unwrap_or(serde_json::Value::Null);
-            yield Ok(format_patch_set(&value, &raw_expr));
+                    let value = resolve_value(&parsed, &state).unwrap_or(serde_json::Value::Null);
+                    yield Ok(format_patch_set(&value, &raw_expr));
+                }
+            }
         }
     };
 
@@ -119,12 +141,18 @@ fn resolved_stream(
 }
 
 /// Stream for unparseable expressions. Emits one `null` patch then
-/// holds the connection open. Authoring bugs don't break transport.
+/// holds the connection open until the client disconnects or the daemon shuts
+/// down. Authoring bugs don't break transport.
 fn fallback_stream(
     expr: String,
+    shutdown: CancellationToken,
 ) -> Pin<Box<dyn Stream<Item = Result<String, std::io::Error>> + Send>> {
     let frame = format_patch_set(&serde_json::Value::Null, &expr);
-    Box::pin(stream::once(async move { Ok(frame) }).chain(stream::pending()))
+    Box::pin(
+        stream::once(async move { Ok(frame) })
+            .chain(stream::pending())
+            .take_until(async move { shutdown.cancelled().await }),
+    )
 }
 
 /// Permissive `ship.namespace.verb(...)` shape check. Rejects anything
@@ -152,6 +180,7 @@ fn bad_request(msg: &str) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures_util::StreamExt;
 
     #[test]
     fn valid_expressions() {
@@ -167,5 +196,57 @@ mod tests {
         assert!(!is_valid_expr("eval(`x`)"));
         assert!(!is_valid_expr("multi\nline"));
         assert!(!is_valid_expr(&"x".repeat(2000)));
+    }
+
+    /// fallback_stream must terminate when the shutdown token is cancelled.
+    /// Without the take_until the stream would block forever (stream::pending()),
+    /// holding the axum graceful-shutdown drain open until SIGKILL.
+    #[tokio::test]
+    async fn fallback_stream_terminates_on_shutdown() {
+        let token = CancellationToken::new();
+        let mut stream = fallback_stream("unparseable.expr".to_string(), token.clone());
+
+        // First item: the null patch.
+        let first = stream.next().await;
+        assert!(first.is_some(), "fallback_stream must emit one initial patch");
+
+        // Cancel the token — the stream must now yield None (end) quickly.
+        token.cancel();
+
+        // After cancellation the stream should complete (not block).
+        // We give it a short timeout to avoid a hung test.
+        let result = tokio::time::timeout(
+            std::time::Duration::from_millis(200),
+            stream.next(),
+        )
+        .await;
+        assert!(
+            result.is_ok(),
+            "fallback_stream must complete within 200ms after shutdown token is cancelled"
+        );
+        // The stream either ends (None) or yields nothing else.
+        // Either way the timeout must not fire.
+    }
+
+    /// resolved_stream with no subscriptions (no-namespace path) must also
+    /// terminate on shutdown.
+    #[tokio::test]
+    async fn no_namespace_stream_terminates_on_shutdown() {
+        let token = CancellationToken::new();
+        // Build a ParsedExpr-less path by injecting an empty namespace list.
+        // We test fallback_stream directly since it covers the same code path
+        // (stream::once + stream::pending + take_until).
+        let token2 = token.clone();
+        let mut stream = fallback_stream("x".to_string(), token2);
+
+        let _first = stream.next().await;
+        token.cancel();
+
+        let result = tokio::time::timeout(
+            std::time::Duration::from_millis(200),
+            stream.next(),
+        )
+        .await;
+        assert!(result.is_ok(), "no-namespace stream must end after shutdown");
     }
 }

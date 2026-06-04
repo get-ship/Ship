@@ -155,4 +155,51 @@ mod tests {
         // A conflict would otherwise only surface as a daemon-startup panic.
         let _ = router();
     }
+
+    /// serve_bundle_hmr with no bundler must return 200 (empty SSE body) and
+    /// not hang. This is a safety check for the no-bundler path.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn serve_bundle_hmr_no_bundler_returns_200() {
+        use crate::handlers::serve_bundle_hmr;
+
+        let resp = serve_bundle_hmr(None, None).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let ct = resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap();
+        assert!(ct.contains("text/event-stream"), "must be SSE content-type; got {ct}");
+    }
+
+    /// serve_bundle_hmr with a CancellationToken that fires immediately must
+    /// not hang. Before this fix the BroadcastStream had no take_until and would
+    /// block the axum graceful-shutdown drain until every client disconnected.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn serve_bundle_hmr_terminates_on_cancel_token() {
+        use axum::body::to_bytes;
+        use crate::handlers::serve_bundle_hmr;
+        use tokio_util::sync::CancellationToken;
+
+        let token = CancellationToken::new();
+        // Fire the token immediately before the handler even starts reading.
+        token.cancel();
+
+        // serve_bundle_hmr without a bundler (empty stream) — the test gates
+        // that the handler accepts and honours the cancel extension without
+        // panicking.
+        let resp = serve_bundle_hmr(
+            None,
+            Some(Extension(token)),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Consuming the body must complete (not block forever).
+        let result = tokio::time::timeout(
+            std::time::Duration::from_millis(500),
+            to_bytes(resp.into_body(), usize::MAX),
+        )
+        .await;
+        assert!(
+            result.is_ok(),
+            "response body must drain within 500ms after cancel token fires"
+        );
+    }
 }

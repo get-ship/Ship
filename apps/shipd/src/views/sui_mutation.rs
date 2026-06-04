@@ -36,6 +36,14 @@ pub struct MutationQuery {
     pub form: String,
 }
 
+/// Maximum body size for a PE form submission. HTML forms are bounded by the
+/// number of `<input>` elements in the view, which is tiny in practice. A tight
+/// per-route cap prevents a crafted POST from materialising a large
+/// `serde_json::Map` from the URL-encoded parse loop. 64 KB is well above any
+/// real form; the global 50 MB router ceiling is far too permissive for this
+/// endpoint.
+const MAX_MUTATION_BODY_BYTES: usize = 64 * 1024;
+
 /// `POST /_sui/mutation/{name}?form=<key>` — PE form submission.
 pub async fn serve_sui_mutation(
     Path(name): Path<String>,
@@ -44,6 +52,13 @@ pub async fn serve_sui_mutation(
     headers: axum::http::HeaderMap,
     body: Bytes,
 ) -> Response {
+    if body.len() > MAX_MUTATION_BODY_BYTES {
+        return Response::builder()
+            .status(StatusCode::PAYLOAD_TOO_LARGE)
+            .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+            .body(Body::from("request body too large"))
+            .unwrap_or_else(|_| Response::new(Body::empty()));
+    }
     if !is_valid_view_name(&name) {
         return not_found(&format!("invalid view name: {name}"));
     }
@@ -223,6 +238,53 @@ mod tests {
         assert!(result.is_err(), "unknown op must error");
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("unknown_service") || msg.contains("unknown service"));
+    }
+
+    /// A body over MAX_MUTATION_BODY_BYTES must be rejected with 413 before
+    /// any parsing happens. Without this guard a crafted POST could force a
+    /// 50 MB URL-encoded parse into a serde_json::Map.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn oversized_body_rejected_413() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let big_body = Bytes::from(vec![b'a'; MAX_MUTATION_BODY_BYTES + 1]);
+        let resp = serve_sui_mutation(
+            Path("some-view".to_string()),
+            Query(MutationQuery { form: "b0".to_string() }),
+            State(state),
+            HeaderMap::new(),
+            big_body,
+        )
+        .await;
+        assert_eq!(
+            resp.status(),
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "body over {} bytes must return 413",
+            MAX_MUTATION_BODY_BYTES
+        );
+    }
+
+    /// A body exactly at the limit must NOT be rejected (edge case).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn body_at_limit_not_rejected_by_size_check() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        // Body at exactly the max — should pass the size check and hit the
+        // view-not-found path (404), not 413.
+        let at_limit = Bytes::from(vec![b'a'; MAX_MUTATION_BODY_BYTES]);
+        let resp = serve_sui_mutation(
+            Path("does-not-exist".to_string()),
+            Query(MutationQuery { form: "b0".to_string() }),
+            State(state),
+            HeaderMap::new(),
+            at_limit,
+        )
+        .await;
+        assert_ne!(
+            resp.status(),
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "body at exactly the limit must not be rejected for size"
+        );
     }
 
     #[test]
