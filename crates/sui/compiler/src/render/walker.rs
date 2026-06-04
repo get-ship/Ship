@@ -41,12 +41,8 @@ pub(crate) struct Walker<'r> {
     /// walker would have allocated a key. Used by `next_key` to assert
     /// the registry's `b<N>` matches.
     pub(super) reg_idx: usize,
-    /// View name — used to build `/_sui/mutation/<view>?form=<key>` for
-    /// `<form mutation>` elements. Empty string when not in SSR context.
+    /// View name — retained for diagnostics and future per-view SSR hooks.
     pub(super) view_name: String,
-    /// Action/method attrs staged by `emit_attr_marker` for a mutation
-    /// form and drained at the end of `emit_open_tag`.
-    pub(super) pending_form_inject: Vec<(String, String)>,
 }
 
 impl<'r> Walker<'r> {
@@ -62,7 +58,6 @@ impl<'r> Walker<'r> {
             registry,
             reg_idx: 0,
             view_name,
-            pending_form_inject: Vec::new(),
         }
     }
 

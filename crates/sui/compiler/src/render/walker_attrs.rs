@@ -35,7 +35,6 @@ impl<'r> Walker<'r> {
     }
 
     fn emit_open_tag(&mut self, el: &ElementInstr, extra: &[(&str, &str)]) {
-        self.pending_form_inject.clear();
         self.out.push('<');
         self.out.push_str(&el.tag);
 
@@ -43,9 +42,6 @@ impl<'r> Walker<'r> {
         let style_text = self.collect_styles(&el.attrs);
         let first_class_pos = el.attrs.iter().position(is_class_related);
         let first_style_pos = el.attrs.iter().position(is_style_related);
-        let has_static_action = el.attrs.iter().any(|a| {
-            matches!(a, AttrInstr::Static { name, .. } if name == "action")
-        });
 
         for (i, attr) in el.attrs.iter().enumerate() {
             if Some(i) == first_class_pos && !class_text.is_empty() {
@@ -55,12 +51,6 @@ impl<'r> Walker<'r> {
                 self.push_attr("style", &style_text);
             }
             self.emit_attr_marker(attr);
-        }
-        if !has_static_action {
-            let inject = std::mem::take(&mut self.pending_form_inject);
-            for (name, value) in inject {
-                self.push_attr(&name, &value);
-            }
         }
         for (name, value) in extra {
             self.push_attr(name, value);
@@ -179,9 +169,8 @@ impl<'r> Walker<'r> {
             AttrInstr::Mutation { .. } => {
                 let key = self.next_key();
                 self.push_marker("mutation", &key);
-                let action = format!("/_sui/mutation/{}?form={}", self.view_name, key);
-                self.pending_form_inject.push(("action".to_string(), action));
-                self.pending_form_inject.push(("method".to_string(), "post".to_string()));
+                // Action/method are injected by the host (deck-core), not the
+                // compiler. The host owns the /_sui/ URL scheme.
             }
             AttrInstr::Transition { .. } => {
                 // Transitions don't surface in SSR output. They register

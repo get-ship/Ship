@@ -11,6 +11,7 @@ pub mod response;
 pub mod asset_graph;
 pub mod assets;
 pub mod error_page;
+pub mod form_inject;
 pub mod live_wire;
 pub mod meta;
 pub mod mode_html;
@@ -26,6 +27,8 @@ pub mod view_payload;
 mod view_payload_tests;
 #[cfg(test)]
 mod view_payload_shape_tests;
+#[cfg(test)]
+mod view_payload_injection_tests;
 #[cfg(test)]
 mod mode_tests;
 
@@ -53,6 +56,7 @@ pub use assets::{
     serve_sui_live_reload, serve_sui_runtime, serve_sui_sdk_client,
 };
 pub use error_page::view_not_found;
+pub use form_inject::inject_form_actions;
 pub use meta::{serve_meta, DaemonBuildInfo};
 pub use mode_html::{inject_mode_meta, mode_str};
 pub use packs::serve_catalog_workspace;

@@ -29,37 +29,42 @@ fn compile_view(source: &str) -> sui_compiler::CompileError {
     .expect_err("expected error")
 }
 
-/// Parser produces `AttrInstr::Mutation` and render emits the marker + PE attrs.
+/// Parser produces `AttrInstr::Mutation` and render emits only the structural
+/// marker. After 2c the compiler never bakes action= or method= — those are
+/// injected by the host (deck-core) using its own route builders.
 #[test]
-fn form_mutation_renders_marker_and_pe_attrs() {
+fn form_mutation_renders_marker_only_no_url_in_ssr() {
     let src = r#"<form mutation="ship.agents.create"><button type="submit">Go</button></form>"#;
     let html = render_source(src);
     assert!(
         html.contains(r#"mutation="b0""#),
         "expected mutation marker; got: {html:?}"
     );
+    // The compiler must NOT bake /_sui/ URLs into SSR output.
     assert!(
-        html.contains(r#"action="/_sui/mutation/myview?form=b0""#),
-        "expected PE action attr; got: {html:?}"
+        !html.contains("/_sui/"),
+        "compiler SSR must not contain /_sui/ URLs; got: {html:?}"
     );
     assert!(
-        html.contains(r#"method="post""#),
-        "expected method=post; got: {html:?}"
+        !html.contains(r#"method="post""#),
+        "compiler must not emit method=post; host does that; got: {html:?}"
     );
 }
 
-/// A static `action=` on the author's form is preserved — PE inject is skipped.
+/// A static `action=` on the author's form is preserved by the host injector —
+/// the compiler just passes it through as a Static attribute without adding
+/// any mutation-derived action.
 #[test]
-fn form_mutation_respects_existing_action() {
+fn form_mutation_compiler_preserves_author_action_passthrough() {
     let src = r#"<form action="/custom" mutation="ship.agents.create"></form>"#;
     let html = render_source(src);
     assert!(
         html.contains(r#"action="/custom""#),
-        "author action must be preserved; got: {html:?}"
+        "author action must pass through; got: {html:?}"
     );
     assert!(
         !html.contains("/_sui/mutation"),
-        "PE inject must not appear when action is explicit; got: {html:?}"
+        "compiler must not inject /_sui/mutation; got: {html:?}"
     );
 }
 

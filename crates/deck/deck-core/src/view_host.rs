@@ -6,6 +6,7 @@ use std::time::SystemTime;
 use sui_compiler::{bindings, parse, render};
 
 use crate::{DaemonMode, DeckResponse};
+use crate::form_inject::inject_form_actions;
 use crate::resolver::resolve;
 
 const VIEW_HOST_SHELL: &str = include_str!("../assets/view-host.html");
@@ -145,11 +146,15 @@ pub fn serve_view_host(mode: DaemonMode, path: &str) -> DeckResponse {
             } else {
                 load_ssr_from_disk(name).unwrap_or_default()
             };
-            if from_disk.is_empty() {
+            let raw = if from_disk.is_empty() {
                 live_emit_ssr(name).unwrap_or_default()
             } else {
                 from_disk
-            }
+            };
+            // Host-side injection: augment <form mutation="bN"> with the
+            // daemon-relative action URL. Idempotent — safe on pre-baked
+            // .ssr.html artifacts.
+            inject_form_actions(&raw, name)
         })
         .unwrap_or_default();
     let body = VIEW_HOST_SHELL

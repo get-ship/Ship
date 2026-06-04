@@ -4,7 +4,9 @@ pub use deck_host::view_payload::ViewPayload;
 use deck_host::resolver::read_view_artifact;
 
 use crate::{CachePolicy, DaemonMode, DeckResponse};
+use crate::form_inject::inject_form_actions;
 use crate::resolver::resolve;
+use crate::routes::subscribe_url;
 
 pub fn serve_view_payload(mode: DaemonMode, name: &str) -> DeckResponse {
     serve(name, None, mode)
@@ -37,21 +39,37 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
         Some(s) => format!("{name}/{s}"),
         None => name.to_string(),
     };
-    let opts = render::RenderOpts { view_name };
+    let opts = render::RenderOpts { view_name: view_name.clone() };
     let split = match render::render_split(&program, &registry, &opts) {
         Ok(r) => r,
         Err(err) => return compile_error_response(name, &resolved.source, err, mode),
     };
     let css = collect_view_css(name, resolved.source_path.as_deref());
     let module_url = crate::routes::view_module_url(name, sub_path);
-    let html = read_precompiled_ssr(resolved.source_path.as_deref())
+    let raw_html = read_precompiled_ssr(resolved.source_path.as_deref())
         .unwrap_or(split.html);
+    // Host-side injection: bake the daemon-relative mutation action URL into
+    // any <form mutation="bN"> that doesn't already carry an explicit action=.
+    // Idempotent — safe to call on pre-baked .ssr.html artifacts.
+    let html = inject_form_actions(&raw_html, &view_name);
+    // Host-side live-data: inject __subscribe__ from the host URL builder so
+    // the compiler never has to bake a served URL. has_live_data is the signal.
+    let scope = if split.has_live_data {
+        let mut obj = split.init;
+        if let Some(map) = obj.as_object_mut() {
+            map.entry("__subscribe__")
+                .or_insert_with(|| serde_json::Value::String(subscribe_url(&view_name)));
+        }
+        obj
+    } else {
+        split.init
+    };
     let payload = ViewPayload {
         name: name.to_string(),
         sub: sub_path.map(str::to_string),
         html,
         css,
-        scope: split.init,
+        scope,
         module_url,
         params: resolved.params,
     };
