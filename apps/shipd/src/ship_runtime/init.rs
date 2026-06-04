@@ -278,6 +278,7 @@ impl ShipRuntime {
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
             agent_def_kernel: std::sync::OnceLock::new(),
+            agent_reactive: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
             worktree_resolver: default_worktree_resolver(),
         })

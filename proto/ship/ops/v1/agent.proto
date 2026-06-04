@@ -24,6 +24,7 @@ package ship.ops.v1;
 import "ship/ops/v1/ops.proto";
 import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/types.proto";
+import "ship/ops/v1/reactive.proto";
 
 // ── Profile read request messages ──────────────────────────────────────────
 
@@ -69,6 +70,26 @@ message ListSessionsReq {}
 // (vs the generated ChatStateRequest). RUNTIME-scoped read-through view.
 message ChatStateReq {
   string workspace_id = 1;
+}
+
+// ── Watch request message (the ONE reactive surface — #138 / agents-arc E5) ──
+//
+// The single live watch over agent DEFS, replacing the six dropped *Live twins.
+// The local nullary `all` marker mirrors the space.proto Watch precedent (its
+// `registry` arm uses the domain's own request message, not a shared Empty —
+// the package has no shared `google.protobuf.Empty` and a second local
+// `message Empty {}` would collide with collection.proto's in this package).
+message AgentWatchAllReq {}
+
+message AgentWatchReq {
+  oneof scope {
+    // All agents — snapshots {summaries, catalogs}; wakes on the broad config
+    // namespace (skill/mcp/rule/preset edits affect catalogs, not just defs).
+    AgentWatchAllReq all = 1;
+    // One agent — snapshots {detail, wire, settings} for this id; wakes only on
+    // that agent's `agent.def.updated`.
+    string agent_id = 2;
+  }
 }
 
 // ── Typed read responses (S4: kill JsonResponse on the structured reads) ────
@@ -279,9 +300,10 @@ message GrantResult {
   uint64 sessions_upgraded = 4;
 }
 
-// The ONE canonical agent service — profile reads (C0) + Watch-stand-in *Live
-// twins + profile CRUD (C2 gated) + runtime-session/chat reads (C0,
-// RUNTIME-scoped) + orchestration control (C2/C3). Reads are edge-authenticated;
+// The ONE canonical agent service — profile reads (C0) + the unified reactive
+// Watch (replaces the six *Live twins) + profile CRUD (C2 gated) +
+// runtime-session/chat reads (C0, RUNTIME-scoped) + orchestration control
+// (C2/C3). Reads are edge-authenticated;
 // writes + control route through services::command::call (the ONE gate) — this
 // service only routes, never reimplements gating. Per-op blast_radius preserved
 // from the collapsed source services.
@@ -294,10 +316,6 @@ service AgentService {
   }
   rpc Summaries(ListAgentsSummariesRequest) returns (AgentsSummariesResponse) {
     option (ship.ops.v1.description) = "List all agents with display metadata (label, harnesses, tags).";
-    option (ship.ops.v1.capability) = "ship.agents.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc SummariesLive(ListAgentsSummariesRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -326,21 +344,16 @@ service AgentService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  // Live read variants (#138) — full value now + on every `config` event.
-  // KEPT for now (relocated from AgentsService); E5 deletes them when Watch lands.
-  rpc CatalogsLive(ListAgentsCatalogsRequest) returns (stream JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.agents.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc DetailLive(GetAgentDetailRequest) returns (stream JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.agents.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc WireLive(GetAgentWireRequest) returns (stream JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.agents.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc SettingsLive(GetAgentSettingsRequest) returns (stream JsonResponse) {
+  // Watch — the ONE reactive surface over agent DEFS (agents-arc E5), replacing
+  // the six dropped *Live twins (Summaries/Catalogs/Detail/Wire/Settings/
+  // CreateCtx Live). scope=all snapshots {summaries,catalogs} + patches on any
+  // config-namespace change; scope=agent_id snapshots {detail,wire,settings} +
+  // patches only on that agent's `agent.def.updated`. Carries the connection's
+  // bound space_id in its WatchKey so cross-space subscribers don't share a
+  // cohort. CreateCtxLive has NO Watch replacement — it watched templates/
+  // presets/harnesses (static, greenfield UI reads the non-Live CreateCtx).
+  rpc Watch(AgentWatchReq) returns (stream WatchEvent) {
+    option (ship.ops.v1.description) = "Live watch over agent defs — all agents (summaries+catalogs) or one agent (detail+wire+settings).";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -361,10 +374,6 @@ service AgentService {
   }
   rpc CreateCtx(GetAgentCreateCtxRequest) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Convenience: templates + presets + harnesses for the create view.";
-    option (ship.ops.v1.capability) = "ship.agents.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc CreateCtxLive(GetAgentCreateCtxRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

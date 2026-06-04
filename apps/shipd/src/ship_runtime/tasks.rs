@@ -295,6 +295,16 @@ impl ShipRuntime {
         let kernel = std::sync::Arc::new(KernelLog::new(self.kernel.clone()));
         let _ = self.agent_def_kernel.set(kernel.clone());
 
+        // Mount the agent `Watch` reactive registry on the SAME shared kernel —
+        // its resolvers subscribe to this log's broadcast, so every gated-CRUD
+        // `agent.def.updated` NOTIFY (which rides `agent_def_kernel`) re-runs the
+        // affected snapshot. Reuses the existing shared log (no parallel
+        // registry); mirrors how collection/space build a registry from their
+        // scope kernel.
+        let _ = self
+            .agent_reactive
+            .set(std::sync::Arc::new(ship_reactive::ReactiveRegistry::new(kernel.clone())));
+
         // Boot rebuild: index every def file on disk for the project scope.
         let fs = ship_substrate::ports::LocalFsBroker::new();
         if let Err(e) =
@@ -318,6 +328,13 @@ impl ShipRuntime {
     /// broadcast subscription.
     pub fn agent_def_kernel(&self) -> Option<&std::sync::Arc<ship_substrate::ports::KernelLog>> {
         self.agent_def_kernel.get()
+    }
+
+    /// The agent `Watch` reactive registry (agents-arc E5), when the live
+    /// def-index has been mounted. `None` in space-less boot — the Watch RPC
+    /// then returns Unavailable rather than fabricate a registry.
+    pub fn agent_reactive(&self) -> Option<&std::sync::Arc<ship_reactive::ReactiveRegistry>> {
+        self.agent_reactive.get()
     }
 
     /// Persist event to platform.db and deliver through the kernel.

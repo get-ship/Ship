@@ -21,6 +21,7 @@ use ship_ops_rpc::{
     AgentTemplatesResponse, AgentWireResponse, AgentService, AgentsSummariesResponse,
     ChatStateResponse, DispatchResult, GrantResult, HarnessesResponse, JsonResponse,
     PermissionPresetsResponse, ScopedMutation, SessionsListResponse, SteerResult, StopResult,
+    WatchEvent,
 };
 
 use crate::ops_rpc::OpsImpl;
@@ -42,15 +43,6 @@ impl AgentService for OpsImpl {
         _request: ship_ops_rpc::OwnedListAgentsSummariesRequestView,
     ) -> ServiceResult<AgentsSummariesResponse> {
         self.agents_typed_read::<AgentsSummariesResponse>("agents.summaries", Value::Null)
-    }
-
-    #[allow(refining_impl_trait)]
-    async fn summaries_live(
-        &self,
-        _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedListAgentsSummariesRequestView,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        self.live_read("agents.summaries", json!({})).await
     }
 
     async fn detail(
@@ -97,40 +89,26 @@ impl AgentService for OpsImpl {
         self.agents_typed_read::<AgentSettingsResponse>("agents.settings", args)
     }
 
+    // The ONE reactive surface (agents-arc E5) — replaces the six deleted *Live
+    // twins. Decodes the scope oneof, then delegates to the lean stream helper
+    // (key + prefilter + snapshot live in `agent_rpc_helpers`).
     #[allow(refining_impl_trait)]
-    async fn catalogs_live(
+    async fn watch(
         &self,
-        _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedListAgentsCatalogsRequestView,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        self.live_read("agents.catalogs", json!({})).await
-    }
-
-    #[allow(refining_impl_trait)]
-    async fn detail_live(
-        &self,
-        _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedGetAgentDetailRequestView,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        self.live_read("agents.detail", json!({ "id": request.id })).await
-    }
-
-    #[allow(refining_impl_trait)]
-    async fn wire_live(
-        &self,
-        _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedGetAgentWireRequestView,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        self.live_read("agents.wire", json!({ "id": request.id })).await
-    }
-
-    #[allow(refining_impl_trait)]
-    async fn settings_live(
-        &self,
-        _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedGetAgentSettingsRequestView,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        self.live_read("agents.settings", json!({ "id": request.id })).await
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedAgentWatchReqView,
+    ) -> ServiceResult<ServiceStream<WatchEvent>> {
+        use ship_ops_rpc::__buffa::oneof::agent_watch_req::Scope;
+        let scope = match request.to_owned_message().scope {
+            Some(Scope::All(_)) => None,
+            Some(Scope::AgentId(id)) => Some(id),
+            None => {
+                return Err(connectrpc::ConnectError::invalid_argument(
+                    "watch scope is required (all | agent_id)",
+                ));
+            }
+        };
+        self.agent_watch_stream(&ctx, scope)
     }
 
     async fn templates(
@@ -162,16 +140,11 @@ impl AgentService for OpsImpl {
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedGetAgentCreateCtxRequestView,
     ) -> ServiceResult<JsonResponse> {
+        // NOTE (E5): CreateCtxLive is DELETED with NO Watch replacement — it
+        // watched templates/permission-presets/harnesses (built-in + static),
+        // which never change at runtime, so the static `CreateCtx` read suffices
+        // for the greenfield create UI. Intentional, not an oversight.
         self.agents_read_json("agents.create_ctx", Value::Null)
-    }
-
-    #[allow(refining_impl_trait)]
-    async fn create_ctx_live(
-        &self,
-        _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedGetAgentCreateCtxRequestView,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        self.live_read("agents.create_ctx", json!({})).await
     }
 
     // Runtime-scoped reads (C0) — folded from SessionsService + ChatService.
