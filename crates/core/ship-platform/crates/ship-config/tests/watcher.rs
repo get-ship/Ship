@@ -6,7 +6,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use ship_config::watcher::{author_change, author_file_changed};
+use ship_config::watcher::{author_agent_def_updated, author_change, author_file_changed};
 use ship_substrate::db::ensure_db_at;
 use ship_substrate::events::EventFilter;
 use ship_substrate::events::new_isolated_for_test;
@@ -123,5 +123,109 @@ async fn file_changed_deleted_marker_has_empty_hash() {
     let payload: ship_types::payload::ConfigFileChanged =
         serde_json::from_str(&evs[0].payload_json).unwrap();
     assert_eq!(payload.path, "gone.jsonc", "rel path preserved");
+    assert!(payload.content_hash.is_empty(), "missing file → empty hash = deleted marker");
+}
+
+// S1: the evolved agent def notification. `agent.def.updated` is the Format-2,
+// space-stamped, content-hashed event for the agents domain. It is Space-scoped
+// → it routes to the bound space's db, carries {path, content_hash} (NEVER file
+// content), and the hash changes when the file content changes.
+#[tokio::test(flavor = "multi_thread")]
+async fn agent_def_updated_is_space_scoped_with_content_hash() {
+    let (_tmp, ship_dir, kernel) = setup().await;
+    let fs = LocalFsBroker::new();
+    let dir = ship_dir.join("agents");
+    std::fs::create_dir_all(&dir).unwrap();
+    let cap = FsCap::new_unchecked(
+        dir.clone(),
+        FsRoot::Space(PortSpaceId::new("config")),
+        FsMode::ReadWrite,
+    );
+    fs.write_atomic(&cap, "alpha.jsonc", br#"{"agent":{"id":"alpha","name":"Alpha"}}"#)
+        .unwrap();
+    let file = dir.join("alpha.jsonc");
+
+    author_agent_def_updated(&kernel, &fs, &dir, &file, Some(SpaceId::new("sp-1"))).await;
+
+    // agent.def.updated is Space-scoped → it lands in the bound space's db, not
+    // runtime.db.
+    let store =
+        SqliteEventStore::new_at_db_path(&ship_substrate::db::space_db_path(&ship_dir, "sp-1"))
+            .unwrap();
+    let evs = store
+        .query(&EventFilter {
+            event_type: Some(event_types::AGENT_DEF_UPDATED.to_string()),
+            limit: Some(10),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(evs.len(), 1, "one agent.def.updated emitted");
+    assert_eq!(evs[0].entity_id, "alpha.jsonc", "entity is the rel path");
+    let payload: ship_types::payload::AgentDefUpdated =
+        serde_json::from_str(&evs[0].payload_json).unwrap();
+    assert_eq!(payload.path, "alpha.jsonc");
+    assert!(!payload.content_hash.is_empty(), "an existing file carries its content hash");
+    let hash_before = payload.content_hash.clone();
+
+    // Edit the file → the hash carried by the next notification must change.
+    fs.write_atomic(
+        &cap,
+        "alpha.jsonc",
+        br#"{"agent":{"id":"alpha","name":"Alpha Prime"}}"#,
+    )
+    .unwrap();
+    author_agent_def_updated(&kernel, &fs, &dir, &file, Some(SpaceId::new("sp-1"))).await;
+
+    let evs2 = store
+        .query(&EventFilter {
+            event_type: Some(event_types::AGENT_DEF_UPDATED.to_string()),
+            limit: Some(10),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(evs2.len(), 2, "second edit emits a second notification");
+    // Order-independent: across the two notifications, one carries the original
+    // hash and the other carries a NEW hash — the edited content changed it.
+    let hashes: Vec<String> = evs2
+        .iter()
+        .map(|e| {
+            serde_json::from_str::<ship_types::payload::AgentDefUpdated>(&e.payload_json)
+                .unwrap()
+                .content_hash
+        })
+        .collect();
+    assert!(hashes.contains(&hash_before), "the first notification's hash is present");
+    assert!(
+        hashes.iter().any(|h| *h != hash_before),
+        "edited content → a NEW content_hash appears"
+    );
+}
+
+// A removed def file → the notification carries an empty hash (deleted marker),
+// the signal the index uses to drop the row.
+#[tokio::test(flavor = "multi_thread")]
+async fn agent_def_updated_deleted_marker_has_empty_hash() {
+    let (_tmp, ship_dir, kernel) = setup().await;
+    let fs = LocalFsBroker::new();
+    let dir = ship_dir.join("agents");
+    std::fs::create_dir_all(&dir).unwrap();
+    let missing = dir.join("gone.jsonc");
+
+    author_agent_def_updated(&kernel, &fs, &dir, &missing, Some(SpaceId::new("sp-1"))).await;
+
+    let store =
+        SqliteEventStore::new_at_db_path(&ship_substrate::db::space_db_path(&ship_dir, "sp-1"))
+            .unwrap();
+    let evs = store
+        .query(&EventFilter {
+            event_type: Some(event_types::AGENT_DEF_UPDATED.to_string()),
+            limit: Some(10),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(evs.len(), 1, "one agent.def.updated for the deleted file");
+    let payload: ship_types::payload::AgentDefUpdated =
+        serde_json::from_str(&evs[0].payload_json).unwrap();
+    assert_eq!(payload.path, "gone.jsonc");
     assert!(payload.content_hash.is_empty(), "missing file → empty hash = deleted marker");
 }

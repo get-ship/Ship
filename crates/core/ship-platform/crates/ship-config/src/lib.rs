@@ -29,6 +29,7 @@
 //! [`KernelLog`]: ship_substrate::ports::KernelLog
 
 pub mod agents;
+pub mod agents_index;
 pub mod error;
 pub mod overlay;
 pub mod patch;

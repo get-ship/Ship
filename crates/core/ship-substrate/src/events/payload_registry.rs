@@ -1,4 +1,4 @@
-// FILE_CAP_OVERRIDE: 122-event registry — all registrations must be co-located in one
+// FILE_CAP_OVERRIDE: 123-event registry — all registrations must be co-located in one
 // compilation unit so inventory::collect! sees them. No logic present; only static
 // EventRegistration submissions. Split deferred until a second major event family lands.
 
@@ -14,7 +14,7 @@
 //!    and therefore cannot live in the leaf `ship-types` crate.
 //!
 //! After this module compiles, `ship_types::event_registry::registry()` returns all
-//! 122 classified entries. `event_types::ALL` is derived from this registry.
+//! 123 classified entries. `event_types::ALL` is derived from this registry.
 //!
 //! A1 classification ground truth: `.artifacts/specs/space/event-classification.md`
 //! Fail-closed default (undetermined): runtime, durable.
@@ -75,6 +75,9 @@ register_event!("actor.woke", [EventScope::Runtime], Retention::Ephemeral, Stabi
 
 // ── agent.* ─────────────────────────────────────────────────────────────────
 register_event!("agent.changed", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "AgentChanged");
+// Format-2 def change notification — lives in a space's `.ship/agents`, so
+// Space-scoped; a Bucket-2 notification (content NOT carried), so Ephemeral.
+register_event!("agent.def.updated", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "AgentDefUpdated");
 register_event!("agent.grants.provisioned", [EventScope::Account], Retention::Durable, Stability::Stable, "AgentGrantsProvisioned");
 register_event!("agent.task.complete", [EventScope::Space], Retention::Durable, Stability::Stable, "AgentTaskComplete");
 
