@@ -19,13 +19,13 @@ declare -A BUDGETS=(
 )
 
 # Produce the framework bundles via the canonical in-process Rolldown bake
-# (#163) — the same engine the daemon runs. Output lands in deck-core/assets.
+# (#163) — the same engine the daemon runs. Output lands in .deck/framework/.
 cargo run -p deck-cli --quiet -- build-assets >/dev/null 2>&1
 
 failures=0
 echo "sui bundle sizes:"
 for name in "${!BUDGETS[@]}"; do
-  path="crates/deck/deck-core/assets/$name"
+  path=".deck/framework/$name"
   if [ ! -f "$path" ]; then
     echo "  FAIL: $name not produced at $path" >&2
     failures=$((failures + 1))

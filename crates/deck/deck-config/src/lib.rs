@@ -204,7 +204,7 @@ mod tests {
   ],
   "sourceRoots": ["."],
   "watch": ["packages", "apps/shell/src"],
-  "hostAssetsRoot": "apps/shipd/assets",
+  "hostAssetsRoot": ".deck",
   "firstPartyApp": { "root": "apps/shell", "label": "app:shell" }
 }"#;
 
@@ -236,7 +236,7 @@ mod tests {
 
         assert_eq!(cfg.source_roots, vec![PathBuf::from(".")]);
         assert_eq!(cfg.watch, vec![PathBuf::from("packages"), PathBuf::from("apps/shell/src")]);
-        assert_eq!(cfg.host_assets_root, PathBuf::from("apps/shipd/assets"));
+        assert_eq!(cfg.host_assets_root, PathBuf::from(".deck"));
 
         let app = cfg.first_party_app.as_ref().unwrap();
         assert_eq!(app.root, PathBuf::from("apps/shell"));

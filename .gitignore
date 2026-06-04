@@ -145,11 +145,12 @@ test-results/
 apps/shell/qa-evidence/
 
 # deck's OWN baked product — sui-runtime/dom/sdk-client + the primitives
-# umbrella (sui-components.js) + lucide. Generated build outputs consumed by
-# `cargo build -p shipd` via include_str! in crates/deck/deck-core/src/assets.rs
-# (build.rs panics if missing). NOT tracked — produced on demand by:
-#   * `just bootstrap` / `just dev-build-all` (bun packages/deck/bundler/index.ts)
-#   * the in-daemon Bun worker (`~/.ship/runtime/bundler.ts`) in dev mode
+# umbrella (sui-components.js). Canonical bake target is .deck/framework/
+# (covered by the `.deck/` rule below). build.rs copies .deck/framework/sui-*.js
+# → crates/deck/deck-core/assets/ at compile time (the include_str! staging path).
+# The crate-assets *.js copies are build-script-owned artifacts — gitignored here.
+# NOT tracked — produced on demand by:
+#   * `cargo run -p deck-cli -- build-assets` (in-process Rolldown, the only bundler)
 #   * `dispatch.sh`, which bootstraps fresh worktrees from the launching repo
 # `view-host.html` and `live-reload.js` are hand-authored source and stay
 # tracked — they're `include_str!`'d into the crate, not bundler output.
@@ -176,12 +177,9 @@ crates/deck/deck/assets/
 # un-updated runtime bundler never get committed again.
 crates/sui/ship-sui-server/
 
-# Bundle outputs baked into apps/shipd/assets/ — the only tracked file
-# there is view-tokens.css. All .js bundles are gitignored by the blanket.
-# The daemon's `.cache` is gitignored separately.
-apps/shipd/assets/*.js
-apps/shipd/assets/sui-components/
-apps/shipd/assets/views/
+# apps/shipd/assets/ now holds only committed source (view-tokens.css).
+# Consumer bundle outputs (.js) moved to .deck/ (deck.jsonc hostAssetsRoot).
+# The daemon's build cache is still local-only.
 apps/shipd/assets/.cache/
 
 # Legacy shell vendor dir — shell now loads bundles via /api/runtime/assets/*.

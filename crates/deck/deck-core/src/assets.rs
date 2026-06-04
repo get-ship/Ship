@@ -6,9 +6,23 @@ const ASSETS_DIR: &str = env!("CARGO_MANIFEST_DIR");
 /// deck's OWN baked product (sui-runtime/dom/sdk-client + primitives umbrella +
 /// lucide). These ship inside the deck-core crate, like Next shipping its own
 /// runtime. App + user content is NOT here — see `read_deck_asset`.
+///
+/// Used for committed assets (lucide-icons.json, live-reload.js) that remain in
+/// the crate's `assets/` directory. Framework singletons are served by
+/// `read_framework_asset`, which reads from `.deck/framework/` first.
 fn read_asset(rel: &str) -> Option<String> {
     let path = std::path::Path::new(ASSETS_DIR).join("assets").join(rel);
     std::fs::read_to_string(path).ok()
+}
+
+/// Hot-path for the 4 framework singletons (sui-runtime/dom/sdk-client/components).
+/// Reads from `.deck/framework/<name>` — the canonical bake target, which is
+/// updated on every `cargo run -p deck-cli -- build-assets` and by the running
+/// daemon's watch-rebuild. In an installed (no-.deck) deployment the caller falls
+/// back to the embedded `include_str!` constant.
+fn read_framework_asset(name: &str) -> Option<String> {
+    let root = crate::resolver::deck_out_root()?;
+    std::fs::read_to_string(root.join("framework").join(name)).ok()
 }
 
 /// App + user build output, read from the host-supplied `.deck/` tree (deck's
@@ -268,24 +282,31 @@ pub fn serve_shell_asset(mode: DaemonMode, file: &str) -> DeckResponse {
 }
 
 // Framework bundle handlers
+//
+// Hot-path: read from `.deck/framework/` (the canonical bake target, updated
+// on every `build-assets` run and by the daemon's watch-rebuild).
+// Production/installed fallback: the embedded `include_str!` constant (baked
+// into the binary at compile time by build.rs staging `.deck/framework/` →
+// `assets/`). This keeps the daemon self-contained when deployed without a
+// source tree.
 
 pub fn serve_sui_runtime(mode: DaemonMode) -> DeckResponse {
-    let js = read_asset("sui-runtime.js").unwrap_or_else(|| SUI_RUNTIME_JS.to_string());
+    let js = read_framework_asset("sui-runtime.js").unwrap_or_else(|| SUI_RUNTIME_JS.to_string());
     DeckResponse::js_asset(js, mode)
 }
 
 pub fn serve_sui_dom(mode: DaemonMode) -> DeckResponse {
-    let js = read_asset("sui-dom.js").unwrap_or_else(|| SUI_DOM_JS.to_string());
+    let js = read_framework_asset("sui-dom.js").unwrap_or_else(|| SUI_DOM_JS.to_string());
     DeckResponse::js_asset(js, mode)
 }
 
 pub fn serve_sui_sdk_client(mode: DaemonMode) -> DeckResponse {
-    let js = read_asset("sui-sdk-client.js").unwrap_or_else(|| SUI_SDK_CLIENT_JS.to_string());
+    let js = read_framework_asset("sui-sdk-client.js").unwrap_or_else(|| SUI_SDK_CLIENT_JS.to_string());
     DeckResponse::js_asset(js, mode)
 }
 
 pub fn serve_sui_components(mode: DaemonMode) -> DeckResponse {
-    let js = read_asset("sui-components.js").unwrap_or_else(|| SUI_COMPONENTS_JS.to_string());
+    let js = read_framework_asset("sui-components.js").unwrap_or_else(|| SUI_COMPONENTS_JS.to_string());
     DeckResponse::js_asset(js, mode)
 }
 

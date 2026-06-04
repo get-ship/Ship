@@ -6,31 +6,41 @@
 //! bootstraps fresh worktrees by copying from the launching repo (or
 //! rebuilding when that's empty). The framework bundles (sui-runtime,
 //! sui-dom, sui-sdk-client, sui-components) are produced by
-//! `cargo xtask build-assets` — the in-process Rolldown bundler (#163),
-//! the same engine shipd runs in dev mode. The lucide icon set is
-//! committed source (`assets/lucide-icons.json`) — the daemon embeds it
-//! and serves per-icon at `/_sui/icons/{name}.svg`; regenerate after a
-//! lucide-static version bump via `cargo run -p xtask -- gen-icons`.
+//! `cargo run -p deck-cli -- build-assets` and land in `.deck/framework/`.
+//! This build script copies them into `crates/deck/deck-core/assets/` (the
+//! `include_str!` staging path) before the existence/empty guard runs.
+//! The lucide icon set is committed source (`assets/lucide-icons.json`) —
+//! the daemon embeds it and serves per-icon at `/_sui/icons/{name}.svg`;
+//! regenerate after a lucide-static version bump via
+//! `cargo run -p xtask -- gen-icons`.
 //! The workspace catalog is emitted to `.deck/catalogs/workspace.json`
 //! by `build-assets` and read at runtime by `src/packs.rs`.
 //!
-//! What this build script DOES is verify the assets are populated.
-//! Pre-existing failure mode: `cargo build` on a fresh clone wrote
-//! empty placeholders, `include_str!` baked empty bytes, daemon shipped
-//! with empty bundles, top nav vanished at runtime with no warning. We
-//! now panic with a clear message so the failure is immediate and
-//! actionable.
+//! What this build script DOES:
+//! 1. Copy `.deck/framework/sui-*.js` → `assets/sui-*.js` (the staging path
+//!    `include_str!` requires). This keeps the canonical bake target in
+//!    `.deck/framework/` while the Rust compiler still reads a fixed path.
+//! 2. Verify the staged assets are populated (panic with actionable message
+//!    when they are not).
 //!
-//! On a fresh clone without dispatch.sh, run `cargo xtask build-assets`
-//! before `cargo build`. `lucide-icons.json` is committed source — it is
-//! already present in a fresh clone.
+//! Bootstrap contract: run `cargo run -p deck-cli -- build-assets` before
+//! `cargo build`. On fresh worktrees, `dispatch.sh` copies `.deck/framework/`
+//! from the launching repo. `lucide-icons.json` and `live-reload.js` are
+//! committed source — already present in a fresh clone.
 
 use std::fs;
 use std::path::PathBuf;
 
-// deck's OWN baked product only. App/user bundles (views, chrome islands) are
-// no longer here — they build to the project's `.deck/` and are read at runtime
-// (see src/assets.rs::read_deck_asset). deck bakes only the runtime it ships.
+/// Framework singletons that must be baked into the binary.
+/// Sourced from `.deck/framework/`, staged to `assets/` by this script.
+const FRAMEWORK_BUNDLES: &[&str] = &[
+    "sui-runtime.js",
+    "sui-dom.js",
+    "sui-sdk-client.js",
+    "sui-components.js",
+];
+
+/// All assets that must be non-empty before the build proceeds.
 const ASSETS: &[&str] = &[
     "sui-runtime.js",
     "sui-dom.js",
@@ -62,11 +72,33 @@ fn main() {
         .and_then(|p| p.parent())
         .expect("repo root (three levels above crates/deck/deck-core)")
         .to_path_buf();
+    let framework_src = repo_root.join(".deck").join("framework");
 
     fs::create_dir_all(&assets)
         .unwrap_or_else(|e| panic!("build.rs: mkdir assets: {e}"));
 
-    // Verify every required asset exists and is non-empty.
+    // ── Stage: copy .deck/framework/sui-*.js → assets/sui-*.js ───────────────
+    //
+    // The canonical bake target is .deck/framework/ (produced by
+    // `cargo run -p deck-cli -- build-assets`). include_str! requires a
+    // fixed compile-time path inside the crate, so we stage the bytes here.
+    // Only copy when the source exists — on a fresh worktree where dispatch.sh
+    // has already populated .deck/framework/, this is the fast path; if neither
+    // the framework dir nor the staged copy exists, the guard below fires with
+    // the full instructions.
+    if framework_src.exists() {
+        for name in FRAMEWORK_BUNDLES {
+            let src = framework_src.join(name);
+            let dst = assets.join(name);
+            if src.exists() && !file_is_empty(&src) {
+                fs::copy(&src, &dst).unwrap_or_else(|e| {
+                    panic!("build.rs: failed to stage {name} from .deck/framework/: {e}")
+                });
+            }
+        }
+    }
+
+    // ── Guard: verify every required asset exists and is non-empty ────────────
     let mut missing: Vec<&str> = Vec::new();
     let mut empty: Vec<&str> = Vec::new();
     for rel in ASSETS {
@@ -87,16 +119,25 @@ fn main() {
             .join("\n");
         panic!(
             "build.rs: SUI bundle assets are missing or empty.\n{lines}\n\n\
-             Most assets under crates/deck/deck-core/assets/ are gitignored\n\
-             (lucide-icons.json is committed source — present in a fresh clone).\n\
-             On fresh worktrees, dispatch.sh bootstraps the gitignored set;\n\
-             for a standalone cargo build, regenerate by running (in order):\n\n  \
+             Framework bundles are baked to .deck/framework/ by:\n\n  \
              cargo build -p sui-compiler   # the compiler the bundler uses\n  \
              cargo run -p deck-cli -- build-assets   # framework bundles via in-process Rolldown\n\n\
-             then re-run `cargo build`."
+             build.rs then copies them from .deck/framework/ into crates/deck/deck-core/assets/\n\
+             (the include_str! staging path). On fresh worktrees, dispatch.sh bootstraps\n\
+             .deck/framework/ from the launching repo. lucide-icons.json and live-reload.js\n\
+             are committed source — already present in a fresh clone."
         );
     }
 
+    // ── rerun-if-changed: watch .deck/framework/ for the 4 bundles ───────────
+    //
+    // When any of the 4 framework bundles in .deck/framework/ change,
+    // Cargo re-runs build.rs so the staged copies stay in sync.
+    for name in FRAMEWORK_BUNDLES {
+        let fw_path = framework_src.join(name);
+        println!("cargo:rerun-if-changed={}", fw_path.display());
+    }
+    // Also watch the staged copies so a manual edit to assets/ triggers a rebuild.
     for rel in ASSETS {
         println!("cargo:rerun-if-changed=assets/{rel}");
     }

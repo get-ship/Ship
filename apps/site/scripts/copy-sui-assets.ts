@@ -17,10 +17,11 @@ const REPO_ROOT = resolve(SCRIPT_DIR, '../../..');
 const PUBLIC_DIR = join(SCRIPT_DIR, '../public');
 const SITE_STYLES = join(SCRIPT_DIR, '../src/styles');
 // Two source roots, by layer:
-//   * deck's OWN runtime bundles live in deck's crate (baked product).
+//   * deck's OWN runtime bundles (sui-runtime/dom/sdk-client) now live in
+//     .deck/framework/ — the canonical bake target (Recommendation B1).
 //   * the app-focused `sui-marketing.js` is deck *build output* and lives in
 //     the project's `.deck/` (deck's `.next`-equivalent).
-const SUI_ASSETS_DIR = join(REPO_ROOT, 'crates/deck/deck-core/assets');
+const SUI_ASSETS_DIR = join(REPO_ROOT, '.deck', 'framework');
 const DECK_OUT_DIR = join(REPO_ROOT, '.deck');
 const DECK_CHUNKS_DIR = join(DECK_OUT_DIR, 'sui-components');
 const SHIPD_ASSETS_DIR = join(REPO_ROOT, 'apps/shipd/assets');
@@ -69,7 +70,8 @@ for (const { name, from } of SUI_BUNDLES) {
 // breaking <sui-theme-picker>'s palette trigger. (The old monolithic
 // lucide-icons.json copy is dead — nothing fetches it — so we drop it.)
 {
-  const src = join(SUI_ASSETS_DIR, 'lucide-icons.json');
+  // lucide-icons.json is committed source — it stays in the crate's assets/.
+  const src = join(REPO_ROOT, 'crates/deck/deck-core/assets', 'lucide-icons.json');
   if (existsSync(src)) {
     const catalog = JSON.parse(readFileSync(src, 'utf8')) as Record<string, string>;
     const iconsDir = join(PUBLIC_DIR, '_sui/icons');

@@ -329,7 +329,7 @@ build: _sui-compiler-lib
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in crates/deck/deck-core/assets/sui-runtime.js crates/deck/deck-core/assets/sui-components.js .deck/sui-marketing.js .deck/sui-arcade.js .deck/catalogs/workspace.json; do
+    for asset in .deck/framework/sui-runtime.js .deck/framework/sui-components.js .deck/sui-marketing.js .deck/sui-arcade.js .deck/catalogs/workspace.json; do
         if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1

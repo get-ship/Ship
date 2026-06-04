@@ -81,9 +81,6 @@ impl BundleLayout {
         self
     }
 
-    fn deck_own_assets(&self) -> PathBuf {
-        self.out_root.join("crates/deck/deck-core/assets")
-    }
     fn deck_out(&self) -> PathBuf {
         self.out_root.join(".deck")
     }
@@ -92,12 +89,13 @@ impl BundleLayout {
         self.out_root.join(&self.cfg.host_assets_root)
     }
 
-    /// Output dir for a target by name. Deck-own bundles → the crate's assets;
-    /// `views/*` and `sui-components/*` → `.deck/`; everything else →
-    /// `cfg.host_assets_root`.
+    /// Output dir for a target by name. Deck-own framework singletons →
+    /// `.deck/framework/` (the build-script staging path that `build.rs` copies
+    /// into `crates/deck/deck-core/assets/` for `include_str!`); `views/*` and
+    /// `sui-components/*` → `.deck/`; everything else → `cfg.host_assets_root`.
     pub fn assets_dir_for(&self, name: &str) -> PathBuf {
         if DECK_OWN_BUNDLES.contains(&name) {
-            return self.deck_own_assets();
+            return self.deck_out().join("framework");
         }
         if name.starts_with("views/") || name.starts_with("sui-components/") {
             return self.deck_out();
@@ -225,7 +223,6 @@ impl BundleLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use deck_config::DeckConfig;
     use tempfile::tempdir;
 
     fn write(path: &Path, body: &str) {
@@ -233,20 +230,19 @@ mod tests {
         std::fs::write(path, body).unwrap();
     }
 
-    /// Layout with `host_assets_root` matching the Ship workspace convention.
-    fn shipd_layout(repo_root: PathBuf) -> BundleLayout {
-        let mut cfg = DeckConfig::defaults();
-        cfg.host_assets_root = PathBuf::from("apps/shipd/assets");
-        BundleLayout::with_config(repo_root, None, cfg)
-    }
-
     #[test]
     fn assets_dir_routes_by_name() {
-        let l = shipd_layout(PathBuf::from("/repo"));
-        assert_eq!(l.assets_dir_for("sui-runtime"), PathBuf::from("/repo/crates/deck/deck-core/assets"));
+        // Framework singletons land in `.deck/framework/` (build-script staging).
+        let l = BundleLayout::new(PathBuf::from("/repo"), None);
+        assert_eq!(l.assets_dir_for("sui-runtime"), PathBuf::from("/repo/.deck/framework"));
+        assert_eq!(l.assets_dir_for("sui-dom"), PathBuf::from("/repo/.deck/framework"));
+        assert_eq!(l.assets_dir_for("sui-sdk-client"), PathBuf::from("/repo/.deck/framework"));
+        assert_eq!(l.assets_dir_for("sui-components"), PathBuf::from("/repo/.deck/framework"));
+        // Per-component chunks and views land in `.deck/`.
         assert_eq!(l.assets_dir_for("sui-components/sui-rail"), PathBuf::from("/repo/.deck"));
         assert_eq!(l.assets_dir_for("views/git/view"), PathBuf::from("/repo/.deck"));
-        assert_eq!(l.assets_dir_for("ship-something"), PathBuf::from("/repo/apps/shipd/assets"));
+        // Consumer targets (e.g. sui-marketing, sui-arcade) also land in `.deck/`.
+        assert_eq!(l.assets_dir_for("ship-something"), PathBuf::from("/repo/.deck"));
     }
 
     #[test]

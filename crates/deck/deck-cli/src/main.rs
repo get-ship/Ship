@@ -146,13 +146,23 @@ fn build_assets() -> Result<()> {
     rt.block_on(bundler.build_all())
         .map_err(|e| anyhow::anyhow!("build_all failed: {e}"))?;
 
+    // Build the layout once — used for both the framework verify and the
+    // consumer guard below. assets_dir_for("sui-runtime") is now
+    // .deck/framework/ (the canonical bake target per Recommendation B1).
+    let layout = deck_bundler::targets::BundleLayout::with_config(
+        repo_root.clone(),
+        None,
+        cfg,
+    );
+
     // Verify framework bundles are non-empty after the bake. build_all returns
     // Err on per-target failure, but a swallowed empty-write wouldn't surface
     // there — keep this as defense in depth so the daemon can never ship empty
-    // framework bytes.
-    let assets = repo_root.join("crates/deck/deck-core/assets");
+    // framework bytes. Use assets_dir_for("sui-runtime") so the verify path
+    // stays in sync with the bundler's output path (.deck/framework/).
+    let fw_dir = layout.assets_dir_for("sui-runtime");
     for name in FRAMEWORK_BUNDLES {
-        let path = assets.join(name);
+        let path = fw_dir.join(name);
         let len = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
         if len == 0 {
             bail!("framework bundle missing or empty after bake: {}", path.display());
@@ -164,11 +174,6 @@ fn build_assets() -> Result<()> {
     // build.rs guard — verify each is non-empty as defense in depth.
     // Use BundleLayout to derive the exact output path per target (same routing
     // logic the bundler uses) so the guard is always in sync with reality.
-    let layout = deck_bundler::targets::BundleLayout::with_config(
-        repo_root.clone(),
-        None,
-        cfg,
-    );
     for t in layout.consumer_targets() {
         let out_dir = layout.assets_dir_for(&t.name);
         let out_path = out_dir.join(&t.out_file);

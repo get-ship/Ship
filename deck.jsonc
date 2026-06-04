@@ -58,6 +58,6 @@
   ],
   "sourceRoots": ["."],
   "watch": ["packages", "apps/shell/src"],
-  "hostAssetsRoot": "apps/shipd/assets",
+  "hostAssetsRoot": ".deck",
   "firstPartyApp": { "root": "apps/shell", "label": "app:shell" }
 }
