@@ -34,6 +34,18 @@ pub enum IsolationTier {
 }
 
 impl IsolationTier {
+    /// Every tier variant, in strength order. The single authoritative
+    /// enumeration — schema generators and conformance gates derive the
+    /// tier id set from `ALL.map(as_id)` rather than re-listing it. A new
+    /// variant must be appended here or `all_tiers_enumerated` fails.
+    pub const ALL: &'static [Self] = &[
+        Self::None,
+        Self::Process,
+        Self::Container,
+        Self::Vm,
+        Self::Cloud,
+    ];
+
     pub fn as_id(&self) -> &'static str {
         match self {
             Self::None => "none",
@@ -126,6 +138,25 @@ pub enum IsolationStrategy {
 }
 
 impl IsolationStrategy {
+    /// Every strategy variant. The single authoritative enumeration —
+    /// schema generators and conformance gates derive the strategy id set
+    /// from `ALL.map(as_id)` (which yields the serde `rename` ids) rather
+    /// than re-listing it. A new variant must be appended here or
+    /// `all_strategies_enumerated` fails.
+    pub const ALL: &'static [Self] = &[
+        Self::Noop,
+        Self::HarnessNative,
+        Self::SrtWrapper,
+        Self::HarnessSandbox,
+        Self::DockerEngine,
+        Self::YoukiRootless,
+        Self::Wsl2,
+        Self::LimaVm,
+        Self::AppleContainer,
+        Self::Firecracker,
+        Self::FlyMachines,
+    ];
+
     pub fn as_id(&self) -> &'static str {
         match self {
             Self::Noop => "noop",
@@ -239,6 +270,47 @@ mod tests {
         assert!(IsolationTier::Process < IsolationTier::Container);
         assert!(IsolationTier::Container < IsolationTier::Vm);
         assert!(IsolationTier::Vm < IsolationTier::Cloud);
+    }
+
+    #[test]
+    fn all_tiers_enumerated() {
+        // `ALL` must list every variant. The exhaustive match makes adding
+        // a variant a compile error here until it is appended to `ALL`, so
+        // downstream schema/conformance derivations stay complete.
+        for t in IsolationTier::ALL {
+            match t {
+                IsolationTier::None
+                | IsolationTier::Process
+                | IsolationTier::Container
+                | IsolationTier::Vm
+                | IsolationTier::Cloud => {}
+            }
+        }
+        assert_eq!(IsolationTier::ALL.len(), 5);
+    }
+
+    #[test]
+    fn all_strategies_enumerated() {
+        for s in IsolationStrategy::ALL {
+            match s {
+                IsolationStrategy::Noop
+                | IsolationStrategy::HarnessNative
+                | IsolationStrategy::SrtWrapper
+                | IsolationStrategy::HarnessSandbox
+                | IsolationStrategy::DockerEngine
+                | IsolationStrategy::YoukiRootless
+                | IsolationStrategy::Wsl2
+                | IsolationStrategy::LimaVm
+                | IsolationStrategy::AppleContainer
+                | IsolationStrategy::Firecracker
+                | IsolationStrategy::FlyMachines => {}
+            }
+        }
+        assert_eq!(IsolationStrategy::ALL.len(), 11);
+        // `as_id()` yields the serde `rename` id — pin a couple so the
+        // strategy enum set the schema mirrors stays the serialized form.
+        assert_eq!(IsolationStrategy::SrtWrapper.as_id(), "srt");
+        assert_eq!(IsolationStrategy::HarnessSandbox.as_id(), "harness");
     }
 
     #[test]

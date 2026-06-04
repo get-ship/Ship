@@ -111,7 +111,10 @@ pub struct ProfilePermissions {
     pub tools_ask: Vec<String>,
     #[serde(default)]
     pub tools_deny: Vec<String>,
-    /// Claude Code permission mode: "default", "acceptEdits", "plan", "bypassPermissions".
+    /// Permission mode. One of the five authoritative modes (see
+    /// `permissions.schema.json` / `agent.schema.json`): "default", "plan",
+    /// "acceptEdits", "dontAsk", "bypassPermissions". The schema is the
+    /// validating contract; this stays an untyped `Option<String>`.
     #[serde(default)]
     pub default_mode: Option<String>,
 }
@@ -189,7 +192,7 @@ mod tests {
   },
   "skills": { "refs": ["review-pr", "lint-fix", "test-runner"] },
   "mcp": { "servers": ["github", "linear"] },
-  "plugins": { "install": ["eslint-plugin"], "scope": "workspace" },
+  "plugins": { "install": ["eslint-plugin"], "scope": "project" },
   "permissions": {
     "preset": "ship-standard",
     "tools_allow": ["Read", "Grep", "Bash"],
