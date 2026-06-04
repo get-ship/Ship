@@ -11,6 +11,7 @@ pub mod response;
 pub mod asset_graph;
 pub mod assets;
 pub mod error_page;
+pub mod live_wire;
 pub mod meta;
 pub mod mode_html;
 pub mod packs;
@@ -38,6 +39,11 @@ pub(crate) mod test_lock {
 }
 
 pub use response::{CachePolicy, DeckResponse, compute_etag};
+
+pub use live_wire::{
+    PatchElements, PatchElementsMode,
+    format_keepalive, format_patch_elements, format_patch_set, format_patch_signals,
+};
 
 pub use assets::{
     default_shell_scaffold, default_space_scaffold,

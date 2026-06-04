@@ -1746,11 +1746,19 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "deck",
+ "deck-core",
+ "form_urlencoded",
+ "futures-util",
+ "serde",
  "serde_json",
  "ship-substrate",
+ "sui-compiler",
  "tempfile",
  "tokio",
+ "tokio-stream",
+ "tokio-util",
  "tower",
+ "tracing",
 ]
 
 [[package]]
@@ -7920,6 +7928,7 @@ dependencies = [
  "ctor 0.2.9",
  "datastar",
  "deck",
+ "deck-core",
  "form_urlencoded",
  "futures",
  "futures-util",

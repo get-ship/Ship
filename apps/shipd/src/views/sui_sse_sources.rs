@@ -21,7 +21,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::ship_runtime::ApiState;
 use super::sui_data_resolvers::{parse_expr, resolve as resolve_value, subscribe_namespaces};
-use super::sui_patches::format_patch_signals;
+use deck_core::live_wire::{format_keepalive, format_patch_signals};
 use super::git_signal;
 
 /// Keepalive comment interval so proxies don't close idle connections.
@@ -41,7 +41,7 @@ pub(super) async fn keepalive_loop(
         tokio::select! {
             _ = cancel.cancelled() => break,
             _ = ticker.tick() => {
-                if tx.send(Ok(": ship-keepalive\n\n".to_string())).await.is_err() {
+                if tx.send(Ok(format_keepalive().to_string())).await.is_err() {
                     break;
                 }
             }

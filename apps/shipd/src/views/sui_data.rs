@@ -27,6 +27,7 @@ use super::sui_data_resolvers::{
     ParsedExpr, parse_expr, resolve as resolve_value, subscribe_namespaces,
 };
 use crate::ship_runtime::ApiState;
+use deck_core::live_wire::format_patch_set;
 
 #[derive(Debug, Deserialize)]
 pub struct DataQuery {
@@ -74,7 +75,7 @@ fn resolved_stream(
             serde_json::Value::Null
         }
     };
-    let initial_frame = patch_frame(&initial, &raw_expr);
+    let initial_frame = format_patch_set(&initial, &raw_expr);
 
     let namespaces = subscribe_namespaces(&parsed);
     if namespaces.is_empty() {
@@ -110,7 +111,7 @@ fn resolved_stream(
             while mb.try_recv().is_ok() {}
 
             let value = resolve_value(&parsed, &state).unwrap_or(serde_json::Value::Null);
-            yield Ok(patch_frame(&value, &raw_expr));
+            yield Ok(format_patch_set(&value, &raw_expr));
         }
     };
 
@@ -122,20 +123,8 @@ fn resolved_stream(
 fn fallback_stream(
     expr: String,
 ) -> Pin<Box<dyn Stream<Item = Result<String, std::io::Error>> + Send>> {
-    let frame = patch_frame(&serde_json::Value::Null, &expr);
+    let frame = format_patch_set(&serde_json::Value::Null, &expr);
     Box::pin(stream::once(async move { Ok(frame) }).chain(stream::pending()))
-}
-
-fn patch_frame(value: &serde_json::Value, expr: &str) -> String {
-    let payload = serde_json::json!({
-        "op": "set",
-        "value": value,
-        "_expr": expr,
-    });
-    format!(
-        "event: patch\ndata: {}\n\n",
-        serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string())
-    )
 }
 
 /// Permissive `ship.namespace.verb(...)` shape check. Rejects anything

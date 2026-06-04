@@ -53,7 +53,7 @@ use axum::{
 use serde::Serialize;
 
 use super::sui_patch_channel;
-use super::sui_patches::{PatchElements, format_patch_elements};
+use deck_core::live_wire::{PatchElements, format_patch_elements};
 use deck::render_helpers::is_valid_view_name;
 
 /// Response body for a successful patch-elements publish.
@@ -113,7 +113,7 @@ fn error(status: StatusCode, msg: &str) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::views::sui_patches::PatchElementsMode;
+    use deck_core::live_wire::PatchElementsMode;
 
     fn good_patch() -> PatchElements {
         PatchElements {

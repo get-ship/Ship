@@ -16,6 +16,8 @@
 //! 4. Add the HMR SSE route the view-host's live-reload client subscribes to.
 //!    `deck::router()` does NOT provide `/_sui/dev/hmr` — it's host-wired (the
 //!    e2e's 404). We bridge the bundler's event firehose to it directly.
+//! 5. Mount the data port (`data_port::router`) for live-data + mutation
+//!    endpoints backed by the in-memory [`DemoStore`].
 //!
 //! Decoupling gaps surfaced (see README): env config is still process-global
 //! (now `DECK_*`-named with a `SHIP_*` legacy fallback — Fix C);
@@ -24,11 +26,15 @@
 //! resolver's project root.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use axum::routing::get;
 use axum::{Extension, Router};
 use deck::bundler::Bundler;
 use deck::{DaemonMode, router, serve_bundle_hmr};
+
+pub mod data_port;
+pub use data_port::DemoStore;
 
 /// Resolve the daemon mode from the `DECK_DEMO_MODE` environment variable.
 /// `"prod"` or `"production"` → [`DaemonMode::Production`]; anything else
@@ -62,11 +68,19 @@ fn make_bundler(app_dir: &Path) -> Bundler {
 }
 
 /// deck's hosting surface + the two extensions its handlers read + the HMR SSE
-/// route. Shared by both entry points.
-fn build_router(mode: DaemonMode, bundler: Bundler, cfg: std::sync::Arc<deck::config::DeckConfig>) -> Router {
+/// route + the in-memory data port. Shared by both entry points.
+fn build_router(
+    mode: DaemonMode,
+    bundler: Bundler,
+    cfg: Arc<deck::config::DeckConfig>,
+    store: Arc<DemoStore>,
+) -> Router {
     router()
         // The canonical deck-axum HMR handler — no hand-rolled variant here.
         .route("/_sui/dev/hmr", get(serve_bundle_hmr))
+        // Data port: live-data SSE + mutation + data endpoints (ship-free,
+        // in-memory, mirrors shipd handlers with the kernel removed).
+        .merge(data_port::router(store))
         .layer(Extension(mode))
         // DeckConfig Extension — scaffold handlers read scaffold declarations
         // and inject_globals from this. Zero-config hosts (no deck.jsonc) get
@@ -84,8 +98,9 @@ pub fn deck_app(app_dir: PathBuf) -> Router {
 /// Like [`deck_app`] but with an explicit mode — for tests that need to
 /// verify production vs development behavior without reaching into the env.
 pub fn deck_app_with_mode(app_dir: PathBuf, mode: DaemonMode) -> Router {
-    let cfg = std::sync::Arc::new(deck::config::DeckConfig::load(&app_dir));
-    build_router(mode, make_bundler(&app_dir), cfg)
+    let cfg = Arc::new(deck::config::DeckConfig::load(&app_dir));
+    let store = DemoStore::new();
+    build_router(mode, make_bundler(&app_dir), cfg, store)
 }
 
 /// A dev server with the FS watcher running: edit a `.sui` → rebuild the
@@ -93,10 +108,11 @@ pub fn deck_app_with_mode(app_dir: PathBuf, mode: DaemonMode) -> Router {
 /// the watch task. Reads the daemon mode from [`demo_mode`].
 pub async fn deck_dev_server(app_dir: PathBuf) -> Router {
     let mode = demo_mode();
-    let cfg = std::sync::Arc::new(deck::config::DeckConfig::load(&app_dir));
+    let cfg = Arc::new(deck::config::DeckConfig::load(&app_dir));
     let bundler = make_bundler(&app_dir);
     if let Err(e) = bundler.start_watching().await {
         eprintln!("deck-demo: watcher failed to start: {e}");
     }
-    build_router(mode, bundler, cfg)
+    let store = DemoStore::new();
+    build_router(mode, bundler, cfg, store)
 }

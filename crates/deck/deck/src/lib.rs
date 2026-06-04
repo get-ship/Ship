@@ -22,6 +22,14 @@ pub use deck_core::{
     mode_str,
 };
 
+// SSE envelope encoders — single source of truth for the live-data wire protocol.
+// Both shipd and deck-demo (and any future host) call these; no copies.
+pub use deck_core::live_wire::{
+    PatchElements, PatchElementsMode,
+    format_keepalive, format_patch_elements, format_patch_set, format_patch_signals,
+};
+pub use deck_core::live_wire;
+
 // Submodule surfaces consumers reach into directly (shipd, xtask SDK gen).
 //
 // `render_helpers` lives in deck-axum (its `not_found` returns an axum
