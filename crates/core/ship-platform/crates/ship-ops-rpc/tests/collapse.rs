@@ -61,12 +61,19 @@ fn agent_service_exposes_every_folded_rpc() {
         assert!(m.contains(rpc), "AgentService must expose profile write rpc `{rpc}`");
     }
 
-    // ── The 6 *Live twins relocated (E5 deletes them when Watch lands) ──
-    for rpc in [
+    // ── E5: the 6 def-scoped *Live twins are GONE, replaced by ONE Watch ──
+    assert!(
+        m.contains("Watch"),
+        "AgentService must expose the unified reactive Watch (replaces the *Live twins)",
+    );
+    for dead in [
         "SummariesLive", "CatalogsLive", "DetailLive", "WireLive", "SettingsLive",
         "CreateCtxLive",
     ] {
-        assert!(m.contains(rpc), "AgentService must keep relocated *Live twin `{rpc}`");
+        assert!(
+            !m.contains(dead),
+            "E5: def-scoped *Live twin `{dead}` must be deleted (Watch is its successor)",
+        );
     }
 
     // ── Sessions read (folded from SessionsService) ──
@@ -107,4 +114,10 @@ fn folded_rpcs_preserve_their_capability_and_blast_radius() {
     let grant = by_method("Grant");
     assert_eq!(grant.capability, "ship.agents.grant");
     assert_eq!(grant.blast, BlastRadius::C3Critical);
+
+    // E5 Watch — the unified reactive read carries the same policy the dropped
+    // *Live twins did: `ship.agents.read` / C0.
+    let watch = by_method("Watch");
+    assert_eq!(watch.capability, "ship.agents.read");
+    assert_eq!(watch.blast, BlastRadius::C0Read);
 }

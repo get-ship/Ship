@@ -8228,6 +8228,7 @@ dependencies = [
  "ship-ops-rpc",
  "ship-pipelines",
  "ship-platform",
+ "ship-reactive",
  "ship-search",
  "ship-space",
  "ship-substrate",

@@ -36,6 +36,7 @@ ship-account = { path = "../../crates/core/ship-platform/crates/ship-account" }
 compiler = { path = "../../crates/core/ship-platform/crates/compiler" }
 build-info = { path = "../../crates/build-info" }
 ship-ops-rpc = { path = "../../crates/core/ship-platform/crates/ship-ops-rpc" }
+ship-reactive = { path = "../../crates/core/ship-platform/crates/ship-reactive" }
 connectrpc = { version = "0.4", features = ["axum", "client"] }
 # Descriptor decode for the op-policy gate (reads proto custom options).
 buffa = "0.5"

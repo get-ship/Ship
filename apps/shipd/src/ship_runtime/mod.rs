@@ -98,6 +98,15 @@ pub struct ShipRuntime {
     /// never mounts it).
     pub(super) agent_def_kernel:
         std::sync::OnceLock<std::sync::Arc<ship_substrate::ports::KernelLog>>,
+    /// Reactive registry for the unified agent `Watch` (agents-arc E5). Built
+    /// from the SAME shared `agent_def_kernel` the live def-index rides — N
+    /// subscribers on one `WatchKey` share one resolver + one kernel
+    /// subscription. `None` until `start_agent_def_index` mounts the shared
+    /// kernel (space-less boot never mounts it; the Watch RPC then errors
+    /// cleanly). Reuses the existing shared log rather than standing up a
+    /// parallel registry (one-way-to-do-things; mirrors collection/space).
+    pub(super) agent_reactive:
+        std::sync::OnceLock<std::sync::Arc<ship_reactive::ReactiveRegistry>>,
     /// In-process Rolldown bundler (#163) — owned here, lazily started on
     /// first access. `Bundler::start` is synchronous (it locates the
     /// `sui-compiler` binary and sets up channels, no child process), so
