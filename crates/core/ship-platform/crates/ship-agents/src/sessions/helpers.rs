@@ -3,15 +3,15 @@ use chrono::{DateTime, Utc};
 
 // ---- Parsing helpers -------------------------------------------------------
 
-pub(crate) fn parse_datetime(value: &str) -> DateTime<Utc> {
+pub fn parse_datetime(value: &str) -> DateTime<Utc> {
     std::str::FromStr::from_str(value).unwrap_or_else(|_| Utc::now())
 }
 
-pub(crate) fn parse_datetime_opt(value: Option<String>) -> Option<DateTime<Utc>> {
+pub fn parse_datetime_opt(value: Option<String>) -> Option<DateTime<Utc>> {
     value.and_then(|entry| std::str::FromStr::from_str(&entry).ok())
 }
 
-pub(crate) fn normalize_optional_text(value: Option<String>) -> Option<String> {
+pub fn normalize_optional_text(value: Option<String>) -> Option<String> {
     value.and_then(|entry| {
         let trimmed = entry.trim();
         if trimmed.is_empty() {
@@ -22,7 +22,7 @@ pub(crate) fn normalize_optional_text(value: Option<String>) -> Option<String> {
     })
 }
 
-pub(crate) fn normalize_agent_ref(agent: &str) -> Option<String> {
+pub fn normalize_agent_ref(agent: &str) -> Option<String> {
     let trimmed = agent.trim();
     if trimmed.is_empty() {
         None
@@ -31,7 +31,7 @@ pub(crate) fn normalize_agent_ref(agent: &str) -> Option<String> {
     }
 }
 
-pub(crate) fn normalize_harness_ref(harness: &str) -> Option<String> {
+pub fn normalize_harness_ref(harness: &str) -> Option<String> {
     let trimmed = harness.trim().to_ascii_lowercase();
     if trimmed.is_empty() {
         None
@@ -42,7 +42,7 @@ pub(crate) fn normalize_harness_ref(harness: &str) -> Option<String> {
 
 // ---- Branch key ------------------------------------------------------------
 
-pub(crate) fn ensure_branch_key(branch: &str) -> Result<&str> {
+pub fn ensure_branch_key(branch: &str) -> Result<&str> {
     let trimmed = branch.trim();
     if trimmed.is_empty() {
         return Err(anyhow::anyhow!("Workspace branch/key cannot be empty"));
@@ -57,8 +57,7 @@ pub(crate) fn ensure_branch_key(branch: &str) -> Result<&str> {
 /// projection key (`ship_platform::projects::register`) and the
 /// `sessions.space_id` column. The sole domain scope — never a branch slug.
 /// See spec `.artifacts/specs/space/116-event-partition.md`.
-pub(crate) fn space_id_for_ship_dir(ship_dir: &std::path::Path) -> String {
+pub fn space_id_for_ship_dir(ship_dir: &std::path::Path) -> String {
     let root = ship_dir.parent().unwrap_or(ship_dir);
     ship_substrate::home::path_hash(root)
 }
-

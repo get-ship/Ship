@@ -4,7 +4,9 @@ use crate::agents::config::{
 use anyhow::{Result, anyhow};
 use std::path::{Path, PathBuf};
 
-use super::helpers::*;
+// The session helpers folded into the ship-agents crate (agents-arc E4); the
+// compiler bridge stays here (it names `crate::agents::config`, an L1 type).
+use ship_agents::sessions::helpers::*;
 
 // ---- Agent config resolution -----------------------------------------------
 

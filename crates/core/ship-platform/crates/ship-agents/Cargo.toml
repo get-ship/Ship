@@ -22,10 +22,15 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt", "macros"] }
+# Session runtime-instance records (folded `sessions` sub-module): timestamps +
+# TS type generation for the runtime-session shapes.
+chrono = { workspace = true }
+specta = { workspace = true, features = ["chrono", "serde_json"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
 tempfile = { workspace = true }
+chrono = { workspace = true }
 
 [lints]
 workspace = true
