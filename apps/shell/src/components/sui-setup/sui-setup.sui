@@ -240,7 +240,6 @@
                 prop:fill={provider() === p.id}
                 on:click={() => selectProvider(p.id)}>
                 <div class="setup-provider-row">
-                  <sui-provider-blob prop:provider={p.id} size="md" variant="glyph"></sui-provider-blob>
                   <div style="min-width:0">
                     <div class="setup-provider-name">{p.name}</div>
                     <div class="setup-provider-sub">{p.sub}</div>

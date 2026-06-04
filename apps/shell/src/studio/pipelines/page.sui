@@ -66,7 +66,7 @@
             <div class="ship-run-detail">
               {#if run.agent}<sui-avatar size="sm" shape="round" attr:identity-hue={run.agent} attr:name={run.agent}></sui-avatar>{/if}
               {#if run.branch}<code>{run.branch}</code>{/if}
-              {#if run.provider}<sui-provider-blob attr:provider={run.provider} size="sm" variant="glyph"></sui-provider-blob>{/if}
+              {#if run.provider}<sui-chip size="sm">{run.provider}</sui-chip>{/if}
               {#if run.model}<sui-chip size="sm">{run.model}</sui-chip>{/if}
             </div>
             {#if run.blocker}<sui-alert tone="warning" compact>Blocked: {run.blocker}</sui-alert>{/if}

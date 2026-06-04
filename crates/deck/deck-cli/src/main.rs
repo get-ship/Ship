@@ -216,6 +216,11 @@ fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, mini
     let framework_assets_dir = repo_root.join("crates/deck/deck-core/assets");
     let deck_out_dir = repo_root.join(".deck");
 
+    // Load deck.jsonc to pick up `firstPartyApp` (sensible defaults when absent).
+    // The first-party-app config drives the per-tag component resolver: chrome
+    // `.sui` emit `@sui-tag/<tag>` imports that resolve to workspace source.
+    let cfg = deck_bundler::DeckConfig::load(&repo_root);
+
     // The app graph compiles its own `.sui` in-process via the linked
     // sui-compiler crate (#255) — no binary to locate.
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -225,6 +230,7 @@ fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, mini
     let b = rt
         .block_on(deck_bundler::app::bundle_app(
             &repo_root,
+            cfg.first_party_app.as_ref(),
             &shell_root,
             &out_dir,
             minify,

@@ -42,13 +42,12 @@ import '@ship/sui-charts'
 // trigger/output/definition). Same source import + in-process compile path.
 import '@ship/pipelines'
 // Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
-// popover, tooltip, tabs, etc.) — is registered by the eager
-// `/_sui/components.js` umbrella loaded in index.html (its `@ship/ui-components`
-// entry side-effect-imports `@ship/sui-primitives`). That bundle loads in <head>
-// before this module mounts, so a second `import '@ship/sui-primitives/bundle'`
-// here only re-ran every `customElements.define()` as a no-op — the source of
-// ~90 "called twice" warnings. Custom elements upgrade lazily, so there's no
-// need to register them a second time from the shell entry.
+// popover, tooltip, tabs, etc.) — are resolved per-tag from workspace source
+// via the traced app bundle. Each chrome `.sui` emits `@sui-tag/<tag>` imports;
+// the deck-bundler's SuiPlugin resolves those to the component's source `.sui`
+// and compiles them in-process, exactly as the view build does. No second
+// `import '@ship/sui-primitives'` is needed here — the per-tag resolver covers
+// every primitive used by chrome components without an eager umbrella load.
 import { route as createRoute, defineRoutes, setRouterPort } from '@ship/sui-runtime/route'
 import { STUDIO_ROUTE_PATTERNS } from './studio/routes.gen'
 import { chrome, notifyViewUnmount, setHostContext } from '@ship/sui-runtime'

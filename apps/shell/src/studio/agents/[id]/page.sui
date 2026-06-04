@@ -234,7 +234,6 @@
         <div class="detail-providers-list">
           {#for p of providerList() key={p.id}}
             <span class="detail-provider" data-test="provider-row" attr:data-id={p.id}>
-              <sui-provider-blob attr:provider={p.id} size="sm" variant="dot" attr:title={p.label}></sui-provider-blob>
               <span class="detail-provider-name">{p.label}</span>
               {#if p.isDefault}
                 <span class="detail-provider-default" data-test="provider-default">default</span>

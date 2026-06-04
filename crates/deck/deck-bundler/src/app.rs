@@ -117,8 +117,13 @@ fn content_hash(bytes: &[u8]) -> String {
 
 /// Build a SUI SPA app to `out_dir`. `repo_root` is the workspace root (cwd for
 /// module resolution); `shell_root` holds `index.html`, `src/`, `public/`.
+/// `first_party_app` comes from `deck.jsonc` (via `DeckConfig`) and enables the
+/// per-tag component resolver: chrome components resolve their primitive/domain
+/// tags from source via `@sui-tag/<tag>`, exactly as views do. The umbrella
+/// (`/_sui/components.js`) becomes redundant once this traced build is canonical.
 pub async fn bundle_app(
     repo_root: &Path,
+    first_party_app: Option<&deck_config::FirstPartyApp>,
     shell_root: &Path,
     out_dir: &Path,
     minify: bool,
@@ -174,12 +179,15 @@ pub async fn bundle_app(
     // re-anchors the remaining `@ship/<pkg>` (e.g. sui-charts, pipelines) to
     // workspace source so the app graph compiles them in-process.
     let app_plugin = AppPlugin { externals };
-    // The app/SPA build keeps the registry model (umbrella) — no per-view
-    // component imports, so its graph stays byte-identical.
+    // Chrome components resolve their primitive/domain tags from source via
+    // `@sui-tag/<tag>`, the same per-tag resolver the view build uses.
+    // `emit_component_imports: true` causes each compiled `.sui` to emit
+    // `@sui-tag/<tag>` registration imports; `component_index` maps every known
+    // workspace tag to its source `.sui` so those imports resolve correctly.
     let sui_plugin = crate::sui_plugin::SuiPlugin {
         repo_root: repo_root.to_path_buf(),
-        emit_component_imports: false,
-        component_index: std::sync::Arc::new(std::collections::HashMap::new()),
+        emit_component_imports: true,
+        component_index: crate::sui_plugin::component_index(repo_root, first_party_app),
     };
     let mut bundler = BundlerBuilder::default()
         .with_options(options)
@@ -272,7 +280,7 @@ mod tests {
         write(&r.join("src/chrome/layout.css"), ".a{color:red}\n");
 
         let out = r.join("dist");
-        let build = bundle_app(r, r, &out, false, false, r, r)
+        let build = bundle_app(r, None, r, &out, false, false, r, r)
             .await
             .expect("bundle_app");
 
@@ -320,7 +328,7 @@ mod tests {
         write(&r.join("src/chrome/layout.css"), ".a{color:red}\n");
 
         let out = r.join("dist");
-        let build = bundle_app(r, r, &out, false, false, r, r)
+        let build = bundle_app(r, None, r, &out, false, false, r, r)
             .await
             .expect("bundle_app should compile the .sui entry in-process");
 

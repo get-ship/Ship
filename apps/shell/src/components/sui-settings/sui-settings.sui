@@ -418,8 +418,6 @@ sui-input { width: 160px; }
                 {#for p of (settings().value.providers ?? []) key={p.id}}
                   <div class="list-tile list-tile--compact s-prov-tile">
                     <div class="list-tile-row">
-                      <sui-provider-blob provider={p.id} size="sm" variant="glyph"
-                        style={p.available ? '' : 'opacity:0.45;filter:grayscale(1)'}></sui-provider-blob>
                       <span class="list-tile-primary s-prov-name">{p.id}</span>
                       <span class="s-prov-right">
                         <span>{p.available ? 'installed' : 'not found'}</span>
