@@ -11,9 +11,9 @@ use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 use ship_ops_rpc::{
-    AgentDetail, AgentIndexResponse, AgentTemplatesResponse, AgentsService,
-    AgentsSummariesResponse, HarnessesResponse, JsonResponse, PermissionPresetsResponse,
-    ScopedMutation,
+    AgentCatalogsResponse, AgentDetail, AgentDoc, AgentIndexResponse, AgentSettingsResponse,
+    AgentTemplatesResponse, AgentWireResponse, AgentsService, AgentsSummariesResponse,
+    HarnessesResponse, JsonResponse, PermissionPresetsResponse, ScopedMutation,
 };
 
 use crate::auth::AuthContext;
@@ -60,35 +60,35 @@ impl AgentsService for OpsImpl {
         &self,
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedListAgentsCatalogsRequestView,
-    ) -> ServiceResult<JsonResponse> {
-        self.agents_read_json("agents.catalogs", Value::Null)
+    ) -> ServiceResult<AgentCatalogsResponse> {
+        self.agents_typed_read::<AgentCatalogsResponse>("agents.catalogs", Value::Null)
     }
 
     async fn get(
         &self,
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGetAgentRequestView,
-    ) -> ServiceResult<JsonResponse> {
+    ) -> ServiceResult<AgentDoc> {
         let args = json!({ "id": request.id, "scope": request.scope });
-        self.agents_read_json("agents.get", args)
+        self.agents_get_doc(args)
     }
 
     async fn wire(
         &self,
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGetAgentWireRequestView,
-    ) -> ServiceResult<JsonResponse> {
+    ) -> ServiceResult<AgentWireResponse> {
         let args = json!({ "id": request.id });
-        self.agents_read_json("agents.wire", args)
+        self.agents_typed_read::<AgentWireResponse>("agents.wire", args)
     }
 
     async fn settings(
         &self,
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGetAgentSettingsRequestView,
-    ) -> ServiceResult<JsonResponse> {
+    ) -> ServiceResult<AgentSettingsResponse> {
         let args = json!({ "id": request.id });
-        self.agents_read_json("agents.settings", args)
+        self.agents_typed_read::<AgentSettingsResponse>("agents.settings", args)
     }
 
     #[allow(refining_impl_trait)]
@@ -256,6 +256,20 @@ impl OpsImpl {
         let value = crate::services::registry::call(op, &args, self.state())
             .map_err(|e| ConnectError::internal(format!("{op}: {e}")))?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    /// C0 `agents.get` → the opaque-by-design `AgentDoc`. The reader yields
+    /// `{ id, scope, doc }` where `doc` is the arbitrary user def object; we
+    /// keep it opaque by serializing it into the `doc_json` string field
+    /// (same open-payload convention as CollectionItem.data_json). Only the
+    /// id + resolved scope are typed.
+    fn agents_get_doc(&self, args: Value) -> ServiceResult<AgentDoc> {
+        let value = crate::services::registry::call("agents.get", &args, self.state())
+            .map_err(|e| ConnectError::internal(format!("agents.get: {e}")))?;
+        let id = value.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+        let scope = value.get("scope").and_then(Value::as_str).unwrap_or_default().to_string();
+        let doc_json = value.get("doc").map(|d| d.to_string()).unwrap_or_else(|| "null".to_string());
+        Ok(Response::new(AgentDoc { id, scope, doc_json, ..Default::default() }))
     }
 
     /// C1 write → the one gate (`services::command::call`), decoded onto

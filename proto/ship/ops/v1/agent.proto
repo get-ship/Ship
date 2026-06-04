@@ -8,7 +8,6 @@ syntax = "proto3";
 
 package ship.ops.v1;
 
-import "ship/ops/v1/ops.proto";
 import "ship/ops/v1/policy.proto";
 
 // ── Request messages ──────────────────────────────────────────────────────
@@ -45,29 +44,71 @@ message GrantAgentRequest {
   repeated string grants = 2;
 }
 
+// ── Typed control results (S4: kill JsonResponse on the control surface) ────
+//
+// Each result mirrors the structured value the command arm now threads through
+// (`services/command/agent.rs`). Stop/Steer previously handed back a flat JSON
+// STRING (`"stopped: <slug>"`); they now return a structured object so the
+// typed result is a real decode, not a re-wrap.
+
+// Result of agent.dispatch. `session_id` is the id of the emitted
+// `agent.session.started` event; `slug` is the control handle (stop/steer take
+// it); `studio_url` is the URL handle to reach the live session. The remaining
+// fields preserve the dispatch core's structured echo.
+message DispatchResult {
+  string session_id = 1;
+  string slug = 2;
+  string branch = 3;
+  bool resume = 4;
+  string studio_url = 5;
+  optional string billing_warning = 6;
+}
+
+// Result of agent.stop — the slug that was stopped.
+message StopResult {
+  string slug = 1;
+  bool stopped = 2;
+}
+
+// Result of agent.steer — the slug a message was injected into.
+message SteerResult {
+  string slug = 1;
+  bool steered = 2;
+}
+
+// Result of agent.grant (operator approval). `provisioned` is the persisted
+// effective baseline; `sessions_upgraded` counts the live sessions whose grant
+// set was raised in place.
+message GrantResult {
+  string agent = 1;
+  repeated string grants = 2;
+  repeated string provisioned = 3;
+  uint64 sessions_upgraded = 4;
+}
+
 // Agent orchestration — restricted ship-orchestration writes. Capabilities
 // and blast radii mirror the generated CommandOpsService exactly. Writes
 // route through services::command::call (the ONE gate); this service only
 // routes, never reimplements gating.
 service AgentService {
-  rpc Dispatch(DispatchAgentRequest) returns (JsonResponse) {
+  rpc Dispatch(DispatchAgentRequest) returns (DispatchResult) {
     option (ship.ops.v1.description) = "Dispatch a single agent session (the canonical agent command).";
     option (ship.ops.v1.capability) = "ship.runtime.dispatch";
     // Spawns + controls another agent — orchestration. C2: granted to a
     // commander (elevated in the `agent` service), denied to a bare worker.
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
-  rpc Stop(StopAgentRequest) returns (JsonResponse) {
+  rpc Stop(StopAgentRequest) returns (StopResult) {
     option (ship.ops.v1.description) = "Stop a running agent by slug.";
     option (ship.ops.v1.capability) = "ship.agents.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
-  rpc Steer(SteerAgentRequest) returns (JsonResponse) {
+  rpc Steer(SteerAgentRequest) returns (SteerResult) {
     option (ship.ops.v1.description) = "Inject a message into a running agent.";
     option (ship.ops.v1.capability) = "ship.agents.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
-  rpc Grant(GrantAgentRequest) returns (JsonResponse) {
+  rpc Grant(GrantAgentRequest) returns (GrantResult) {
     option (ship.ops.v1.description) = "Grant restricted capabilities to an agent (operator approval). Upgrades the agent's live sessions; the next gated call passes. C3 — operator-only, the human-in-the-loop approval point.";
     option (ship.ops.v1.capability) = "ship.agents.grant";
     // Hands out authority — operator/2FA only, never an agent.

@@ -47,6 +47,94 @@ message ListAgentHarnessesRequest {}
 
 message GetAgentCreateCtxRequest {}
 
+// ── Typed read responses (S4: kill JsonResponse on the structured reads) ────
+//
+// Catalogs / Wire / Settings become field-by-field structured; Get stays
+// opaque-by-design — an agent def doc is arbitrary user JSONC, so the doc body
+// rides as a serialized JSON string (`doc_json`), the same open-payload
+// convention as CollectionItem.data_json / SettingValue.value_json. Only the
+// id + resolved scope around it are typed. These mirror the platform wire
+// structs in `ship-platform/services/agents/*`; the handler maps the existing
+// read output onto them (snake_case aliases on the generated messages decode
+// the registry's snake_case JSON unchanged).
+
+// One picker-catalog row (skill / mcp / rule / preset). Mirrors
+// `view_state::CatalogEntry`.
+message AgentCatalogEntry {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+}
+
+// One tool-pattern autocomplete row. Mirrors `view_state::ToolPatternEntry`.
+message AgentToolPattern {
+  string pattern = 1;
+  string label = 2;
+  string source = 3;
+}
+
+// The picker catalogs shared by the wire + settings panes. Mirrors
+// `view_state::AgentCatalogs`.
+message AgentCatalogsResponse {
+  repeated AgentCatalogEntry skills = 1;
+  repeated AgentCatalogEntry mcp = 2;
+  repeated AgentCatalogEntry rules = 3;
+  repeated AgentCatalogEntry presets = 4;
+  repeated AgentToolPattern tool_patterns = 5;
+}
+
+// The opaque-by-design agent-def read. `doc_json` is the raw def document
+// serialized as a JSON string (a def is arbitrary user JSONC — NOT field-by-
+// field typed); `id` + `scope` ("project" | "user") are the resolved envelope.
+message AgentDoc {
+  string id = 1;
+  string scope = 2;
+  string doc_json = 3;
+}
+
+// A positioned node on the wire canvas. Mirrors `wire::WireNode`.
+message AgentWireNode {
+  string kind = 1;
+  string id = 2;
+  string title = 3;
+  string sub = 4;
+  float x = 5;
+  float y = 6;
+  float w = 7;
+}
+
+// A bezier edge on the wire canvas. Mirrors `wire::WireEdge`.
+message AgentWireEdge {
+  string kind = 1;
+  string id = 2;
+  string path_d = 3;
+  bool dashed = 4;
+}
+
+// Graph payload for the agent-wire canvas. Mirrors `wire::AgentWireCtx`.
+message AgentWireResponse {
+  AgentDetail agent = 1;
+  repeated AgentWireNode nodes = 2;
+  repeated AgentWireEdge edges = 3;
+  AgentCatalogsResponse catalogs = 4;
+}
+
+// One permission-tier radio-card row. Mirrors `settings_view::TierRow`.
+message AgentTierRow {
+  string id = 1;
+  string label = 2;
+  string description = 3;
+  bool selected = 4;
+}
+
+// Tier list + catalogs for the per-agent settings pane. Mirrors
+// `settings_view::AgentSettingsCtx`.
+message AgentSettingsResponse {
+  AgentDetail agent = 1;
+  repeated AgentTierRow tiers = 2;
+  AgentCatalogsResponse catalogs = 3;
+}
+
 // ── Write request messages ────────────────────────────────────────────────
 
 message CreateAgentRequest {
@@ -116,22 +204,22 @@ service AgentsService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Catalogs(ListAgentsCatalogsRequest) returns (JsonResponse) {
+  rpc Catalogs(ListAgentsCatalogsRequest) returns (AgentCatalogsResponse) {
     option (ship.ops.v1.description) = "Catalog rows for the agents list (harnesses, skills, etc.).";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Get(GetAgentRequest) returns (JsonResponse) {
-    option (ship.ops.v1.description) = "Raw agent doc from disk at the requested scope.";
+  rpc Get(GetAgentRequest) returns (AgentDoc) {
+    option (ship.ops.v1.description) = "Raw agent doc from disk at the requested scope (opaque doc_json wrapper).";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Wire(GetAgentWireRequest) returns (JsonResponse) {
+  rpc Wire(GetAgentWireRequest) returns (AgentWireResponse) {
     option (ship.ops.v1.description) = "Graph payload (nodes + edges) for the agent-wire canvas.";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Settings(GetAgentSettingsRequest) returns (JsonResponse) {
+  rpc Settings(GetAgentSettingsRequest) returns (AgentSettingsResponse) {
     option (ship.ops.v1.description) = "Tier list + catalog rows for the per-agent settings pane.";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;

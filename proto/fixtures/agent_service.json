@@ -1,0 +1,65 @@
+{
+  "Dispatch": {
+    "response_ok": {
+      "session_id": "01J9ZK3QF8N2W6X7Y8Z9A0B1C2",
+      "slug": "harbor-7f3a9c",
+      "branch": "job/harbor-7f3a9c",
+      "resume": false,
+      "studio_url": "http://127.0.0.1:4310/sessions/harbor-7f3a9c",
+      "billing_warning": null
+    },
+    "request": {
+      "agent": "test-agent",
+      "spec": "test-spec",
+      "prompt": "test-prompt",
+      "resume": false,
+      "harness": "test-harness",
+      "model": "test-model",
+      "open_tab": false,
+      "invocation": "test-invocation",
+      "keepalive": false,
+      "workspace": "test-workspace",
+      "slug": "test-slug",
+      "branch": "main",
+      "source_spec_path": "test-source_spec_path",
+      "depends_on": [],
+      "vars": {}
+    }
+  },
+  "Stop": {
+    "response_ok": {
+      "slug": "harbor-7f3a9c",
+      "stopped": true
+    },
+    "request": {
+      "slug": "test-slug"
+    }
+  },
+  "Steer": {
+    "response_ok": {
+      "slug": "harbor-7f3a9c",
+      "steered": true
+    },
+    "request": {
+      "slug": "test-slug",
+      "message": "test-message"
+    }
+  },
+  "Grant": {
+    "response_ok": {
+      "agent": "rust-lane",
+      "grants": [
+        "ship.git"
+      ],
+      "provisioned": [
+        "ship.git",
+        "ship.runtime"
+      ],
+      "sessions_upgraded": 1
+    },
+    "request": {
+      "agent": "test-agent",
+      "grants": []
+    }
+  }
+}

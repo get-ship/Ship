@@ -8,9 +8,10 @@
 //! stop/steer → ship.agents.write/C1, grant → ship.agents.grant/C2_ELEVATED.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
-use ship_ops_rpc::{AgentService, JsonResponse};
+use ship_ops_rpc::{AgentService, DispatchResult, GrantResult, SteerResult, StopResult};
 
 use crate::auth::AuthContext;
 use crate::ops_rpc::{command_error_to_connect, OpsImpl};
@@ -22,7 +23,7 @@ impl AgentService for OpsImpl {
         &self,
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedDispatchAgentRequestView,
-    ) -> ServiceResult<JsonResponse> {
+    ) -> ServiceResult<DispatchResult> {
         let mut args = serde_json::Map::new();
         args.insert("agent".to_string(), json!(request.agent));
         args.insert("spec".to_string(), json!(request.spec));
@@ -46,48 +47,50 @@ impl AgentService for OpsImpl {
             vars.insert(k.to_string(), json!(v));
         }
         args.insert("vars".to_string(), Value::Object(vars));
-        self.agent_gated_json(&ctx, "agent.dispatch", Value::Object(args)).await
+        self.agent_gated_typed::<DispatchResult>(&ctx, "agent.dispatch", Value::Object(args)).await
     }
 
     async fn stop(
         &self,
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedStopAgentRequestView,
-    ) -> ServiceResult<JsonResponse> {
+    ) -> ServiceResult<StopResult> {
         let args = json!({ "slug": request.slug });
-        self.agent_gated_json(&ctx, "agent.stop", args).await
+        self.agent_gated_typed::<StopResult>(&ctx, "agent.stop", args).await
     }
 
     async fn steer(
         &self,
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedSteerAgentRequestView,
-    ) -> ServiceResult<JsonResponse> {
+    ) -> ServiceResult<SteerResult> {
         let args = json!({ "slug": request.slug, "message": request.message });
-        self.agent_gated_json(&ctx, "agent.steer", args).await
+        self.agent_gated_typed::<SteerResult>(&ctx, "agent.steer", args).await
     }
 
     async fn grant(
         &self,
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedGrantAgentRequestView,
-    ) -> ServiceResult<JsonResponse> {
+    ) -> ServiceResult<GrantResult> {
         let grants: Vec<_> = request.grants.iter().collect();
         let args = json!({ "agent": request.agent, "grants": grants });
-        self.agent_gated_json(&ctx, "agent.grant", args).await
+        self.agent_gated_typed::<GrantResult>(&ctx, "agent.grant", args).await
     }
 }
 
 impl OpsImpl {
-    /// C1/C2 write → the one gate (`services::command::call`), result wrapped
-    /// as opaque `JsonResponse`. Named `agent_gated_json` to be unique across
-    /// modules (orchestration surface, not profile CRUD).
-    pub(crate) async fn agent_gated_json(
+    /// C1/C2 control write → the one gate (`services::command::call`), decoded
+    /// onto the op's typed result message. The command arms thread STRUCTURED
+    /// values (no JSON-string re-wrap); the proto message's snake_case aliases
+    /// decode that object directly. Named `agent_gated_typed` to be unique
+    /// across modules (orchestration surface, not profile CRUD).
+    pub(crate) async fn agent_gated_typed<T: DeserializeOwned>(
         &self,
         ctx: &RequestContext,
         op: &str,
         args: Value,
-    ) -> ServiceResult<JsonResponse> {
+    ) -> ServiceResult<T> {
         let auth = ctx
             .extensions
             .get::<AuthContext>()
@@ -95,7 +98,9 @@ impl OpsImpl {
         let cmd_ctx = CommandCtx { state: self.state(), auth };
         let value =
             command::call(op, &args, &cmd_ctx).await.map_err(command_error_to_connect)?;
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+        serde_json::from_value::<T>(value)
+            .map(Response::new)
+            .map_err(|e| ConnectError::internal(format!("decode {op} response: {e}")))
     }
 }
 

@@ -1,4 +1,4 @@
-use super::{LaunchOpts, build_dispatch_body, should_launch};
+use super::{LaunchOpts, build_dispatch_body, render_launch, should_launch};
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -319,4 +319,34 @@ fn body_missing_spec_file_errors() {
     o.spec = Some(PathBuf::from("/nonexistent/spec.md"));
     let err = build_dispatch_body(&o, &PathBuf::from("/tmp")).unwrap_err();
     assert!(err.to_string().contains("cannot read spec file"));
+}
+
+// ── S4: the CLI consumes the typed DispatchResult, not a JSON string ───
+
+#[test]
+fn render_launch_reads_typed_slug_and_studio_url() {
+    // The result is the typed proto message — slug/studio_url are read off
+    // struct fields, not parsed out of a JSON blob.
+    let result = ship_ops_rpc::DispatchResult {
+        session_id: "01J9ZK3QF8N2W6X7Y8Z9A0B1C2".into(),
+        slug: "harbor-7f3a9c".into(),
+        studio_url: "http://127.0.0.1:4310/sessions/harbor-7f3a9c".into(),
+        ..Default::default()
+    };
+    let out = render_launch(&result, "foreground-chat");
+    assert!(out.stdout.iter().any(|l| l.contains("harbor-7f3a9c")));
+    assert!(out.stdout.iter().any(|l| l.contains("open in Studio")
+        && l.contains("/sessions/harbor-7f3a9c")));
+    assert!(out.stderr.is_none(), "no billing warning when unset");
+}
+
+#[test]
+fn render_launch_surfaces_billing_warning() {
+    let result = ship_ops_rpc::DispatchResult {
+        slug: "harbor-7f3a9c".into(),
+        billing_warning: Some("API-billed batch — no subscription".into()),
+        ..Default::default()
+    };
+    let out = render_launch(&result, "background-api");
+    assert_eq!(out.stderr.as_deref(), Some("API-billed batch — no subscription"));
 }

@@ -34,6 +34,10 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(SearchResponse),
         v!(AgentIndexResponse), v!(AgentsSummariesResponse), v!(AgentDetail),
         v!(AgentTemplatesResponse), v!(PermissionPresetsResponse), v!(HarnessesResponse),
+        // S4: the four structured reads + the opaque-doc read.
+        v!(AgentCatalogsResponse), v!(AgentWireResponse), v!(AgentSettingsResponse), v!(AgentDoc),
+        // S4: the four typed control results.
+        v!(DispatchResult), v!(StopResult), v!(SteerResult), v!(GrantResult),
         v!(AnalyticsSessionsResponse), v!(AnalyticsSessionResponse),
         v!(AnalyticsToolUsageResponse), v!(AnalyticsSessionTurnsResponse),
         v!(ArtifactsListResponse), v!(ArtifactRecord),
