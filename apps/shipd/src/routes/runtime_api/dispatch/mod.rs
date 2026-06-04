@@ -16,6 +16,8 @@ mod request;
 mod resume;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_typed_result;
 
 pub use request::DispatchRequest;
 use resume::{ResumeResolveError, resolve_resume};

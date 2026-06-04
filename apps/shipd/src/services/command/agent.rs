@@ -78,7 +78,9 @@ pub async fn try_dispatch(
                 .stop(&handle)
                 .await
                 .map_err(|e| CommandError::service(format!("failed to stop agent: {e}")))?;
-            Ok(Some(serde_json::json!(format!("stopped: {slug}"))))
+            // Structured result (S4): the typed StopResult decodes this object
+            // directly — no JSON-string to parse-then-re-wrap.
+            Ok(Some(serde_json::json!({ "slug": slug, "stopped": true })))
         }
         "agent.steer" => {
             let slug = req_str(args, "slug")?;
@@ -95,7 +97,9 @@ pub async fn try_dispatch(
                 .send(handle, &message)
                 .await
                 .map_err(|e| CommandError::service(format!("failed to steer agent: {e}")))?;
-            Ok(Some(serde_json::json!(format!("steered: {slug}"))))
+            // Structured result (S4): the typed SteerResult decodes this object
+            // directly — no JSON-string to parse-then-re-wrap.
+            Ok(Some(serde_json::json!({ "slug": slug, "steered": true })))
         }
         "agent.dispatch" => {
             use ship_substrate::events::agent_session::InvocationMode;

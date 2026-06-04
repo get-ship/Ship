@@ -158,38 +158,42 @@ pub fn run_launch(opts: LaunchOpts) -> Result<()> {
     let path = effective_path(&opts)?;
     let body = build_dispatch_body(&opts, &path)?;
     let mode = mode_label(&opts);
-    let resp = post_dispatch(&body)?;
-
-    let ok = resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
-    if !ok {
-        let err = resp
-            .get("data")
-            .and_then(|d| d.as_str())
-            .unwrap_or("unknown error");
-        bail!("dispatch rejected: {err}");
+    // Typed DispatchResult — consume `session_id` / `slug` / `studio_url`
+    // directly off the message, no JSON-string parse (S4).
+    let result = post_dispatch(&body)?;
+    let lines = render_launch(&result, mode);
+    for line in lines.stdout {
+        println!("{line}");
     }
-
-    let data = resp.get("data");
-    let slug = data
-        .and_then(|d| d.get("slug"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("?");
-    let studio_url = data
-        .and_then(|d| d.get("studio_url"))
-        .and_then(|v| v.as_str());
-    let billing_warning = data
-        .and_then(|d| d.get("billing_warning"))
-        .and_then(|v| v.as_str());
-
-    println!("→ session: {slug} ({mode})");
-    if let Some(url) = studio_url {
-        println!("→ open in Studio: {url}");
-    }
-    println!("→ tail: ship procs --slug {slug}");
-    if let Some(warn) = billing_warning {
+    if let Some(warn) = lines.stderr {
         eprintln!("\n⚠  {warn}");
     }
     Ok(())
+}
+
+/// Rendered operator-facing output of a dispatch, split by stream. Pure over
+/// the typed `DispatchResult` so the typed-result consumption is unit-testable
+/// without a live daemon.
+pub struct LaunchOutput {
+    pub stdout: Vec<String>,
+    pub stderr: Option<String>,
+}
+
+/// Build the launch summary lines from the typed result. Reads `slug` /
+/// `studio_url` / `billing_warning` straight off `DispatchResult` — no JSON.
+pub fn render_launch(result: &ship_ops_rpc::DispatchResult, mode: &str) -> LaunchOutput {
+    let slug = if result.slug.is_empty() { "?" } else { result.slug.as_str() };
+    let mut stdout = vec![format!("→ session: {slug} ({mode})")];
+    if !result.studio_url.is_empty() {
+        stdout.push(format!("→ open in Studio: {}", result.studio_url));
+    }
+    stdout.push(format!("→ tail: ship procs --slug {slug}"));
+    let stderr = result
+        .billing_warning
+        .as_deref()
+        .filter(|w| !w.is_empty())
+        .map(String::from);
+    LaunchOutput { stdout, stderr }
 }
 
 /// Operator-friendly summary of the dispatch axes — one word that
@@ -210,7 +214,9 @@ fn mode_label(opts: &LaunchOpts) -> &'static str {
 
 /// POST the dispatch body to the running daemon, auto-starting if needed.
 /// Translates connection failures into a clear "shipd not running" error.
-fn post_dispatch(body: &serde_json::Value) -> Result<serde_json::Value> {
+/// Returns the typed `DispatchResult` — the typed contract replaces the old
+/// `JsonResponse` blob, so the caller reads `session_id` / `slug` directly.
+fn post_dispatch(body: &serde_json::Value) -> Result<ship_ops_rpc::DispatchResult> {
     use connectrpc::client::{ClientConfig, HttpClient};
     use ship_ops_rpc::{AgentServiceClient, DispatchAgentRequest};
     let (port, token) = crate::daemon::ensure_daemon()
@@ -228,7 +234,18 @@ fn post_dispatch(body: &serde_json::Value) -> Result<serde_json::Value> {
     let resp = rt
         .block_on(client.dispatch(req))
         .map_err(|e| anyhow::anyhow!("dispatch call failed: {e}"))?;
-    serde_json::from_str(&resp.view().json).context("parsing dispatch response")
+    // Read the typed fields off the view and own them — the typed contract
+    // means no `serde_json::from_str` of an opaque blob (S4).
+    let v = resp.view();
+    Ok(ship_ops_rpc::DispatchResult {
+        session_id: v.session_id.to_string(),
+        slug: v.slug.to_string(),
+        branch: v.branch.to_string(),
+        resume: v.resume,
+        studio_url: v.studio_url.to_string(),
+        billing_warning: v.billing_warning.map(|s| s.to_string()),
+        ..Default::default()
+    })
 }
 
 #[cfg(test)]

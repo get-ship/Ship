@@ -12,7 +12,8 @@
 
 use serde_json::Value;
 use ship_ops_rpc::{
-    AgentDetail, AgentsSummariesResponse, AnalyticsSessionsResponse, AnalyticsSessionTurnsResponse,
+    AgentCatalogsResponse, AgentDetail, AgentDoc, AgentSettingsResponse, AgentWireResponse,
+    AgentsSummariesResponse, AnalyticsSessionsResponse, AnalyticsSessionTurnsResponse,
     AnalyticsToolUsageResponse, GitBranchesResponse, GitDiffResponse, GitLogResponse,
     GitOverviewResponse, RuleGetResponse, RulesIndexResponse, StatusBuckets,
 };
@@ -125,6 +126,59 @@ fn agents_detail_parses_permissions() {
     assert_eq!(d.skills.len(), 2);
     assert_eq!(d.permissions.preset, "standard");
     assert!(!d.permissions.tools_allow.is_empty());
+}
+
+// ── S4: the four reads that were JsonResponse become typed ────────────────
+
+#[test]
+fn agents_catalogs_parses_structured_rows() {
+    // Catalogs is now field-by-field structured (skills/mcp/rules/presets +
+    // tool_patterns), not an opaque JSON blob.
+    let c: AgentCatalogsResponse =
+        serde_json::from_value(response_ok(AGENTS, "Catalogs")).expect("parse AgentCatalogsResponse");
+    assert!(!c.skills.is_empty());
+    assert_eq!(c.skills[0].id, "run");
+    assert!(!c.tool_patterns.is_empty());
+    assert_eq!(c.tool_patterns[0].source, "harness");
+}
+
+#[test]
+fn agents_wire_parses_nodes_and_edges() {
+    // Wire is now structured: the typed agent detail + positioned nodes +
+    // bezier edges + the picker catalogs.
+    let w: AgentWireResponse =
+        serde_json::from_value(response_ok(AGENTS, "Wire")).expect("parse AgentWireResponse");
+    assert_eq!(w.agent.id, "rust-lane");
+    assert!(!w.nodes.is_empty());
+    assert_eq!(w.nodes[0].kind, "agent");
+    assert!(!w.edges.is_empty());
+    // Edges count is nodes - 1 (every peripheral wires to the center).
+    assert_eq!(w.edges.len(), w.nodes.len() - 1);
+}
+
+#[test]
+fn agents_settings_parses_tiers() {
+    // Settings is now structured: typed agent detail + the tier triad +
+    // catalogs.
+    let s: AgentSettingsResponse =
+        serde_json::from_value(response_ok(AGENTS, "Settings")).expect("parse AgentSettingsResponse");
+    assert_eq!(s.agent.id, "rust-lane");
+    assert_eq!(s.tiers.len(), 3);
+    assert!(s.tiers.iter().any(|t| t.selected));
+}
+
+#[test]
+fn agents_get_carries_opaque_doc_json() {
+    // Get is opaque-by-design: id + resolved scope are typed; the def body
+    // rides as a serialized JSON string (`doc_json`), NOT field-by-field.
+    let d: AgentDoc =
+        serde_json::from_value(response_ok(AGENTS, "Get")).expect("parse AgentDoc");
+    assert_eq!(d.id, "rust-lane");
+    assert_eq!(d.scope, "project");
+    assert!(!d.doc_json.is_empty());
+    // The string round-trips back to the def object it wrapped.
+    let parsed: Value = serde_json::from_str(&d.doc_json).expect("doc_json is valid JSON");
+    assert!(parsed.get("agent").is_some(), "doc_json carries the raw def under `agent`");
 }
 
 #[test]
