@@ -89,6 +89,12 @@ enum Command {
         /// Suppress emitting the `.ssr.html` static SSR file (e.g. for island bundles).
         #[arg(long)]
         no_ssr: bool,
+        /// Emit `import "@sui-tag/<tag>";` per used custom-element tag so the
+        /// bundler can tree-shake exactly the components a view uses (the
+        /// per-view resolver). The bundler resolves `@sui-tag/<tag>` to the
+        /// component source; default off leaves component loading to the host.
+        #[arg(long)]
+        emit_component_imports: bool,
         /// Path to a CSS file whose contents are prepended as a `<style>`
         /// block. Only valid for component sources (requires --component-name).
         /// Requires `input` to be a single file (not a directory).
@@ -123,9 +129,13 @@ fn main() -> Result<()> {
     install_resource_bounds();
     let cli = Cli::parse();
     match cli.cmd {
-        Command::Build { input, out, clean, mode, no_dts, styles, component_name, no_ssr } => {
-            build(input, out, clean, mode, no_dts, styles, component_name, no_ssr)
-        }
+        Command::Build {
+            input, out, clean, mode, no_dts, styles, component_name, no_ssr,
+            emit_component_imports,
+        } => build(
+            input, out, clean, mode, no_dts, styles, component_name, no_ssr,
+            emit_component_imports,
+        ),
     }
 }
 
@@ -138,6 +148,7 @@ fn build(
     styles: Option<PathBuf>,
     component_name: Option<String>,
     no_ssr: bool,
+    emit_component_imports: bool,
 ) -> Result<()> {
     let mut targets = Vec::new();
     if input.is_dir() {
@@ -228,7 +239,7 @@ fn build(
             (_, Some(name)) => Some(ComponentMeta { name, shadow: true }),
             _ => None,
         };
-        compile_one(&path, out.as_deref(), mode.clone(), no_dts, styles_text.as_deref(), component_meta, no_ssr)?;
+        compile_one(&path, out.as_deref(), mode.clone(), no_dts, styles_text.as_deref(), component_meta, no_ssr, emit_component_imports)?;
     }
     println!("compiled {count} file(s)");
     Ok(())
@@ -290,6 +301,7 @@ fn compile_one(
     styles: Option<&str>,
     component_meta: Option<ComponentMeta>,
     no_ssr: bool,
+    emit_component_imports: bool,
 ) -> Result<()> {
     let source = fs::read_to_string(path)
         .with_context(|| format!("read {}", path.display()))?;
@@ -320,6 +332,7 @@ fn compile_one(
         component_meta,
         emit_dts: !no_dts,
         emit_ssr: !no_ssr,
+        emit_component_imports,
     };
     let result = compile(&source, opts).map_err(|e| {
         let rendered = e.render(&source);

@@ -19,6 +19,7 @@ fn view_opts() -> CompileOpts {
         mode: CompileMode::View,
         emit_dts: true,
         emit_ssr: false,
+        emit_component_imports: false,
         ..Default::default()
     }
 }
@@ -32,6 +33,7 @@ fn component_opts() -> CompileOpts {
         }),
         emit_dts: true,
         emit_ssr: false,
+        emit_component_imports: false,
         ..Default::default()
     }
 }

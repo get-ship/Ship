@@ -18,6 +18,11 @@ pub struct Program {
     pub data: Vec<DataDecl>,
     /// Props declared by top-level `<prop>` directives (component files only).
     pub props: Vec<PropDecl>,
+    /// Host-injected data/ops clients declared by top-level `<client>`
+    /// directives. Each name is legal in `<data source>` + handler scope and
+    /// is provided by the host at mount — the implementor-named replacement
+    /// for the hardcoded ambient `ship`.
+    pub clients: Vec<ClientDecl>,
     /// CSS lifted from top-level `<style>` elements (component files only).
     pub styles: String,
     pub template: Vec<Instr>,

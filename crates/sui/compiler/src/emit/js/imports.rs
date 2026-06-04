@@ -56,5 +56,14 @@ pub(super) fn emit_imports(w: &mut Writer, lowered: &Lowered, opts: &CompileOpts
     if let Some(setup) = &opts.setup_url {
         w.line(&format!("import setup from {};", js_string(setup)));
     }
+    // Per-used-tag component registration imports — the per-view resolver: the
+    // bundler maps `@sui-tag/<tag>` to the component source and tree-shakes it
+    // into the bundle (replacing the umbrella/islands registry). Off by
+    // default; only the bundled path opts in via `emit_component_imports`.
+    if opts.emit_component_imports {
+        for tag in &lowered.used_component_tags {
+            w.line(&format!("import {};", js_string(&format!("@sui-tag/{tag}"))));
+        }
+    }
     w.nl();
 }

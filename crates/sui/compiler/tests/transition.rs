@@ -20,6 +20,7 @@ fn compile_sui(name: &str) -> String {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = compile(&source, opts).expect("compile transition fixture");
     out.js
@@ -77,6 +78,7 @@ fn transition_directive_emits_no_ssr_marker() {
         mode: CompileMode::View,
         source_path: Some(path),
         emit_ssr: true,
+        emit_component_imports: false,
         ..CompileOpts::default()
     };
     let out = compile(&source, opts).expect("compile transition fixture for ssr");
@@ -143,6 +145,7 @@ fn transition_directive_custom_name_resolves_via_scope() {
     let opts = CompileOpts {
         mode: CompileMode::View,
         emit_ssr: false,
+        emit_component_imports: false,
         ..CompileOpts::default()
     };
     // Custom transition names compile (resolve via $scope at run time).

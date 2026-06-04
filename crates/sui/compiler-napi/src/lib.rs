@@ -124,6 +124,7 @@ fn compile_to_result(source: &str, opts_json: &str) -> Result<NapiResult, String
         component_meta,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
 
     Ok(match native_compile(source, opts) {

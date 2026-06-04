@@ -157,6 +157,7 @@ mod tests {
         Program {
             data: vec![],
             props: vec![],
+            clients: vec![],
             styles: String::new(),
             template: vec![],
             source_len: 0,

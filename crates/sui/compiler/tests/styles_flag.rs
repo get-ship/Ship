@@ -41,6 +41,7 @@ fn styles_opt_emits_styles_field_in_component_export() {
             component_meta: Some(ComponentMeta { name: "ship-styled-test".into(), shadow: true }),
             emit_dts: false,
             emit_ssr: false,
+            emit_component_imports: false,
         },
     )
     .expect("compile with styles");
@@ -74,6 +75,7 @@ fn styles_opt_rejects_non_component_source() {
             component_meta: None,
             emit_dts: false,
             emit_ssr: false,
+            emit_component_imports: false,
         },
     )
     .expect_err("must reject styles on non-component source");
@@ -104,6 +106,7 @@ fn styles_opt_merges_with_existing_inline_style_block() {
             component_meta: Some(ComponentMeta { name: "ship-mixed-test".into(), shadow: false }),
             emit_dts: false,
             emit_ssr: false,
+            emit_component_imports: false,
         },
     )
     .expect("compile mixed inline + external styles");

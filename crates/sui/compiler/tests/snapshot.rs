@@ -66,6 +66,7 @@ fn compile_ssr_fixture(name: &str) -> String {
         source_path: Some(path),
         emit_dts: false,
         emit_ssr: true,
+        emit_component_imports: false,
         ..CompileOpts::default()
     };
     let out = compile(&source, opts).expect("compile");
@@ -147,6 +148,7 @@ fn bind_this_button_direct_emits_hydrate_ref() {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = compile(&source, opts).expect("compile");
     // Phase 3b.4: the bind:this leaf is direct-emit — the view's
@@ -216,6 +218,7 @@ fn for_static_body_omits_v_sentinel() {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -274,6 +277,7 @@ fn for_body_referencing_index_refreshes_on_row_reuse() {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = compile(src, opts).expect("compile");
     assert!(
@@ -340,6 +344,7 @@ fn for_static_text_inlines_text_content() {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -369,6 +374,7 @@ fn for_static_attr_inlines_set_attribute() {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -398,6 +404,7 @@ fn for_dynamic_mixed_inlines_only_static() {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -424,6 +431,7 @@ fn for_render_closure_emits_update_field() {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -470,6 +478,7 @@ fn route_view_emits_route_import() {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -496,6 +505,7 @@ fn routeless_view_omits_route_import() {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -523,6 +533,7 @@ fn comment_nodes_not_emitted() {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -546,6 +557,7 @@ fn whitespace_text_nodes_dropped_between_elements() {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     // Inter-element indentation whitespace must be gone.
@@ -577,6 +589,7 @@ fn shadow_tones_emits_adopted_style_sheets_call() {
         }),
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = compile(&source, opts).expect("compile");
     assert!(
@@ -596,6 +609,7 @@ fn shadow_tones_emits_adopted_style_sheets_call() {
         }),
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let light_out = compile(
         &std::fs::read_to_string(fixtures_dir().join("shadow-tones.sui")).unwrap(),
@@ -624,6 +638,7 @@ fn reflect_empty_slot_emits_bind_slot_empty_call() {
         }),
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = compile(&source, opts).expect("compile");
     assert!(
@@ -651,6 +666,7 @@ fn ship_button_emits_cem() {
         component_meta: Some(ComponentMeta { name: "ship-button-test".into(), shadow: false }),
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = compile(&source, opts).expect("compile");
     let cem = out.cem.expect("CEM emitted for component-mode");
@@ -672,6 +688,7 @@ fn schema_emitted_for_each_fixture() {
             component_meta: fx.component_meta.clone(),
             emit_dts: false,
             emit_ssr: false,
+            emit_component_imports: false,
         };
         let out = compile(&source, opts).expect("compile");
         let schema = out.schema.expect("schema emitted");
@@ -733,6 +750,7 @@ fn meta_sidecar_emitted_for_each_fixture() {
             component_meta: fx.component_meta.clone(),
             emit_dts: false,
             emit_ssr: false,
+            emit_component_imports: false,
         };
         let out = compile(&source, opts).expect("compile");
         let meta = out.meta.expect("meta emitted");

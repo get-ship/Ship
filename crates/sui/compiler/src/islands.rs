@@ -6,9 +6,9 @@ use crate::ir::Instr;
 /// the template uses — i.e. every tag containing a `-` (`sui-*` / `ship-*`).
 ///
 /// The compiler deliberately knows NOTHING about islands. Which of these
-/// tags are lazy separate bundles is derived downstream from the bundler's
-/// `<bundle separate />` scan (surfaced as `.deck/islands.json`); deck-core
-/// intersects this used-tag set with that manifest to build `payload.islands`.
+/// tags are lazy separate bundles is derived downstream by the bundler's
+/// per-view tree-shaking resolver; deck-core intersects this used-tag set
+/// with that manifest to build `payload.islands`.
 pub fn collect_used_tags(instrs: &[Instr]) -> BTreeSet<String> {
     let mut found = BTreeSet::new();
     visit(instrs, &mut found);

@@ -132,6 +132,14 @@ pub struct CompileOpts {
     /// (view mode only). Defaults to `true`. Pass `false` (via `--no-ssr`)
     /// to suppress, e.g. for island bundles that have no static skeleton.
     pub emit_ssr: bool,
+    /// Emit a side-effect `import "@sui-tag/<tag>";` for every custom-element
+    /// tag the template uses, so components enter the module's import graph and
+    /// the bundler can tree-shake exactly what a view needs — the per-view
+    /// resolver that replaces the umbrella/islands registry. Pure: the
+    /// specifier is a function of the tag; the bundler's `resolve_id` maps
+    /// `@sui-tag/<tag>` to the component source. Defaults to `false` — the
+    /// registry path is unaffected until the bundler opts in.
+    pub emit_component_imports: bool,
 }
 
 impl Default for CompileOpts {
@@ -144,6 +152,7 @@ impl Default for CompileOpts {
             component_meta: None,
             emit_dts: true,
             emit_ssr: true,
+            emit_component_imports: false,
         }
     }
 }

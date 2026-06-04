@@ -49,6 +49,12 @@ pub struct Lowered {
     /// authors don't have to import them manually. Custom transition
     /// names (anything else) resolve through `$scope`.
     pub transition_builtins: BTreeSet<&'static str>,
+    /// Every custom-element tag the template uses (`sui-*` / `ship-*`).
+    /// Emitted as side-effect `import "@sui-tag/<tag>";` when
+    /// `CompileOpts::emit_component_imports` is set, so components join the
+    /// view's import graph (the per-view resolver). Collected once here; the
+    /// emitter decides whether to write the imports.
+    pub used_component_tags: BTreeSet<String>,
 }
 
 /// Walk the program, build a `Lowered` summary.
@@ -69,6 +75,7 @@ pub fn lower(program: &Program, mode: CompileMode) -> Lowered {
     }
     let mut depth = 0;
     walk_instrs(&program.template, &mut out, is_view, &mut depth);
+    out.used_component_tags = crate::islands::collect_used_tags(&program.template);
     out
 }
 

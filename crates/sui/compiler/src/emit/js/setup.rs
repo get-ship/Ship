@@ -42,6 +42,21 @@ pub(super) fn emit_setup_body(
         }
         w.line("$scope.navigate = navigate;");
     }
+    // Declared `<client>` names: destructure each from `ctx.clients` and seed
+    // `$scope` so a view's `<data source="X.op()">` + inline handlers resolve
+    // bare `X` (the per-view, host-injected data sources — the generalization
+    // of the single `ship`). `ship`/`route`/`navigate` are already seeded above;
+    // components inject clients via their own seam, not this path.
+    if !is_component {
+        for client in &program.clients {
+            let name = client.name.as_str();
+            if name == "ship" || name == "route" || name == "navigate" {
+                continue;
+            }
+            w.line(&format!("const {{ {name} }} = ctx.clients ?? {{}};"));
+            w.line(&format!("$scope.{name} = {name};"));
+        }
+    }
     emit_data_decls(w, program);
     // Pre-seed `$scope.<var> = signal(null)` for every `bind:this={var}`
     // target the template references — including ones inside conditional /

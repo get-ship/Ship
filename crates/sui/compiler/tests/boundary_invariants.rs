@@ -23,6 +23,7 @@ fn view_opts(setup: Option<&str>) -> CompileOpts {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     }
 }
 
@@ -35,6 +36,7 @@ fn component_opts(setup: Option<&str>) -> CompileOpts {
         component_meta: Some(ComponentMeta { name: "sui-x".into(), shadow: true }),
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     }
 }
 

@@ -108,6 +108,7 @@ fn compile_one(path: &Path, repo: &Path) -> Result<String, String> {
         component_meta,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = compile(&source, opts).map_err(|e| {
         let rendered = e.render(&source);
