@@ -131,6 +131,19 @@ impl FsBroker for LocalFsBroker {
         fs::remove_file(path).map_err(Self::map_io)
     }
 
+    fn rename(&self, cap: &FsCap, src_rel: &str, dst_rel: &str) -> Result<(), FsError> {
+        Self::require_writable(cap)?;
+        let src = Self::confine(cap, src_rel)?;
+        let dst = Self::confine(cap, dst_rel)?;
+        if !src.exists() {
+            return Err(FsError::NotFound);
+        }
+        if let Some(dir) = dst.parent() {
+            fs::create_dir_all(dir).map_err(Self::map_io)?;
+        }
+        fs::rename(src, dst).map_err(Self::map_io)
+    }
+
     fn list_dir(&self, cap: &FsCap, rel: &str) -> Result<Vec<PathBuf>, FsError> {
         let path = Self::confine(cap, rel)?;
         let mut out = Vec::new();

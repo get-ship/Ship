@@ -66,10 +66,11 @@ fn read_only_rejects_every_mutating_op() {
     let (rw, _rw_dir) = cap(FsMode::ReadWrite);
     let cap = ro;
 
-    let attempts: [(&str, FsError); 5] = [
+    let attempts: [(&str, FsError); 6] = [
         ("write_atomic", broker.write_atomic(&cap, "file.txt", b"x").unwrap_err()),
         ("create_new", broker.create_new(&cap, "new.txt", b"x").unwrap_err()),
         ("remove", broker.remove(&cap, "file.txt").unwrap_err()),
+        ("rename", broker.rename(&cap, "a.txt", "b.txt").unwrap_err()),
         ("create_dir_all", broker.create_dir_all(&cap, "d").unwrap_err()),
         // link_into requires the *destination* cap to be RW.
         (
@@ -110,6 +111,41 @@ fn create_new_rejects_existing() {
     match broker.create_new(&cap, "once.txt", b"b") {
         Err(FsError::AlreadyExists) => {}
         other => panic!("expected AlreadyExists, got {other:?}"),
+    }
+}
+
+#[test]
+fn rename_moves_within_cap() {
+    // The bottom-boundary move primitive the agent-def write door's trash
+    // semantics ride on: relocate a confined file to another confined rel
+    // path atomically, creating the destination's parent dir.
+    let broker = LocalFsBroker::new();
+    let (cap, _dir) = cap(FsMode::ReadWrite);
+    broker.write_atomic(&cap, "agents/a.jsonc", b"def").unwrap();
+    broker.rename(&cap, "agents/a.jsonc", ".trash/123-a.jsonc").unwrap();
+    assert!(!broker.exists(&cap, "agents/a.jsonc").unwrap());
+    assert_eq!(broker.read(&cap, ".trash/123-a.jsonc").unwrap(), b"def");
+}
+
+#[test]
+fn rename_missing_src_is_not_found() {
+    let broker = LocalFsBroker::new();
+    let (cap, _dir) = cap(FsMode::ReadWrite);
+    match broker.rename(&cap, "agents/missing.jsonc", ".trash/x.jsonc") {
+        Err(FsError::NotFound) => {}
+        other => panic!("expected NotFound renaming a missing src, got {other:?}"),
+    }
+}
+
+#[test]
+fn rename_through_read_only_cap_is_rejected() {
+    let broker = LocalFsBroker::new();
+    let (rw, dir) = cap(FsMode::ReadWrite);
+    broker.write_atomic(&rw, "agents/a.jsonc", b"def").unwrap();
+    let ro = FsCap::new_unchecked(dir.path(), FsRoot::Device, FsMode::ReadOnly);
+    match broker.rename(&ro, "agents/a.jsonc", ".trash/a.jsonc") {
+        Err(FsError::ReadOnlyViolation) => {}
+        other => panic!("expected ReadOnlyViolation, got {other:?}"),
     }
 }
 

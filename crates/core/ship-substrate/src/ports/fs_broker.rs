@@ -91,6 +91,11 @@ pub trait FsBroker: Send + Sync {
     fn create_new(&self, cap: &FsCap, rel: &str, bytes: &[u8]) -> Result<(), FsError>;
     /// Remove a file. Requires a RW cap. Errors if the path is missing.
     fn remove(&self, cap: &FsCap, rel: &str) -> Result<(), FsError>;
+    /// Move `src_rel` to `dst_rel` within the cap, creating the destination's
+    /// parent dir. Requires a RW cap. Errors [`FsError::NotFound`] if the source
+    /// is missing. The move primitive the gated trash-not-hard-delete path rides
+    /// on (relocate a def into `<scope>/.trash/` instead of unlinking it).
+    fn rename(&self, cap: &FsCap, src_rel: &str, dst_rel: &str) -> Result<(), FsError>;
     /// List immediate entries of a directory, as paths relative to the root.
     fn list_dir(&self, cap: &FsCap, rel: &str) -> Result<Vec<PathBuf>, FsError>;
     fn exists(&self, cap: &FsCap, rel: &str) -> Result<bool, FsError>;

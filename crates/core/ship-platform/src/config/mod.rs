@@ -68,7 +68,6 @@ mod discover;
 mod io;
 mod mcp;
 mod merge;
-pub mod agents;
 mod project;
 mod types;
 pub mod watcher;

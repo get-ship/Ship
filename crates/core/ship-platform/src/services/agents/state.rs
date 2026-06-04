@@ -1,14 +1,37 @@
-//! AgentService — state layer. Pure domain logic over the file tree.
+//! AgentService — state layer. Pure domain logic over the agent-def tree.
 //! HTTP handlers in `mod.rs` are axum glue on top.
 //!
 //! Scope model: project wins by default. `?scope=user` forces user scope.
 //! List returns both with a `scope` annotation per entry. Writes go to
 //! the scope supplied by the caller; absent caller scope, project when
 //! available else user.
+//!
+//! Disk boundary (S5b): EVERY agent-def read/write/locate/trash flows through
+//! THE one FsBroker write door (`ship_config::agents_write`) + the S2 reader
+//! (`ship_config::agents`). `FilesService` is used ONLY to resolve a `Scope` to
+//! its `.ship` dir — zero raw `std::fs` on agent-def paths in this module.
 
 use crate::services::files::{Error as FileError, FilesService, Scope};
+use ship_config::agents_write as door;
+use ship_substrate::ports::LocalFsBroker;
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+
+/// The gated disk door every def op rides. `LocalFsBroker` is stateless.
+fn fs() -> LocalFsBroker {
+    LocalFsBroker::new()
+}
+
+impl From<ship_config::error::ConfigError> for Error {
+    fn from(e: ship_config::error::ConfigError) -> Self {
+        use ship_config::error::ConfigError as C;
+        match e {
+            C::NotFound(m) => Self::NotFound(m),
+            C::AlreadyExists(m) => Self::AlreadyExists(m),
+            C::Validation(m) => Self::Parse(m),
+            C::Fs(m) | C::Internal(m) | C::Forbidden(m) => Self::Io(m),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum Error {
@@ -88,32 +111,33 @@ fn validate_id(id: &str) -> Result<(), Error> {
     Ok(())
 }
 
-// ── Path resolution ─────────────────────────────────────────────────
+// ── Path resolution (FsBroker door) ─────────────────────────────────
 
-fn rel_for(id: &str) -> PathBuf { PathBuf::from(format!("agents/{id}.jsonc")) }
-
-/// Locate an agent file across the two scopes (project wins). Returns
-/// the scope that held it and the relative path used to reach it.
-pub fn find(files: &FilesService, id: &str) -> Option<(Scope, PathBuf)> {
-    let rel = rel_for(id);
-    for scope in [Scope::Project, Scope::User] {
-        if files.exists(scope, &rel) {
-            return Some((scope, rel.clone()));
-        }
-        // Tolerate .json (schema permits it).
-        let alt = PathBuf::from(format!("agents/{id}.json"));
-        if files.exists(scope, &alt) {
-            return Some((scope, alt));
-        }
-    }
-    None
+/// Resolve `scope`'s `.ship` dir. `None` when project scope has no discovered
+/// root (`?scope=project` with no enclosing project) — callers treat that as
+/// "scope holds nothing".
+fn scope_dir(files: &FilesService, scope: Scope) -> Option<&std::path::Path> {
+    files.scope_root(scope).ok()
 }
 
-fn find_in_scope(files: &FilesService, scope: Scope, id: &str) -> Option<PathBuf> {
-    let rel = rel_for(id);
-    if files.exists(scope, &rel) { return Some(rel) }
-    let alt = PathBuf::from(format!("agents/{id}.json"));
-    if files.exists(scope, &alt) { return Some(alt) }
+/// `true` when `scope` holds a def for `id` (either ext), via the door's locate.
+fn present_in(files: &FilesService, scope: Scope, id: &str) -> bool {
+    scope_dir(files, scope)
+        .and_then(|dir| door::find_agent_def(&fs(), dir, id).ok().flatten())
+        .is_some()
+}
+
+/// Locate an agent def across the two scopes (project wins). Returns the scope
+/// that held it. The legacy `PathBuf` second tuple element is retained for the
+/// service-layer call shape; it is the agents-relative filename.
+pub fn find(files: &FilesService, id: &str) -> Option<(Scope, std::path::PathBuf)> {
+    for scope in [Scope::Project, Scope::User] {
+        if let Some(dir) = scope_dir(files, scope)
+            && let Ok(Some(leaf)) = door::find_agent_def(&fs(), dir, id)
+        {
+            return Some((scope, std::path::PathBuf::from(format!("agents/{leaf}"))));
+        }
+    }
     None
 }
 
@@ -123,13 +147,11 @@ pub fn list(files: &FilesService) -> Vec<IndexEntry> {
     let mut out: Vec<IndexEntry> = Vec::new();
     let mut seen = std::collections::HashSet::<String>::new();
     for scope in [Scope::Project, Scope::User] {
-        let Ok(entries) = files.list_dir(scope, Path::new("agents")) else { continue };
-        for p in entries {
-            let Some(stem) = p.file_stem().and_then(|s| s.to_str()) else { continue };
-            let ext = p.extension().and_then(|s| s.to_str());
-            if !matches!(ext, Some("jsonc" | "json")) { continue }
-            if !seen.insert(stem.to_string()) { continue }  // project wins
-            out.push(IndexEntry { id: stem.to_string(), scope: scope.into() });
+        let Some(dir) = scope_dir(files, scope) else { continue };
+        let Ok(defs) = ship_config::agents::read_agent_defs(&fs(), dir) else { continue };
+        for d in defs {
+            if !seen.insert(d.id.clone()) { continue }  // project wins
+            out.push(IndexEntry { id: d.id, scope: scope.into() });
         }
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));
@@ -144,15 +166,25 @@ pub fn load_doc(
     explicit_scope: Option<Scope>,
 ) -> Result<(Scope, serde_json::Value), Error> {
     validate_id(id)?;
-    let (scope, rel) = match explicit_scope {
-        Some(s) => {
-            let rel = find_in_scope(files, s, id).ok_or_else(|| Error::NotFound(id.into()))?;
-            (s, rel)
-        }
-        None => find(files, id).ok_or_else(|| Error::NotFound(id.into()))?,
-    };
-    let doc: serde_json::Value = files.read_jsonc(scope, &rel)?;
+    let scope = resolve_holder(files, id, explicit_scope)?;
+    let dir = scope_dir(files, scope).ok_or_else(|| Error::NotFound(id.into()))?;
+    let (_leaf, doc) = door::read_agent_def_value(&fs(), dir, id)?
+        .ok_or_else(|| Error::NotFound(id.into()))?;
     Ok((scope, doc))
+}
+
+/// Resolve which scope holds `id`: the forced scope (must hold it) or the
+/// project-wins default search.
+fn resolve_holder(
+    files: &FilesService,
+    id: &str,
+    explicit_scope: Option<Scope>,
+) -> Result<Scope, Error> {
+    match explicit_scope {
+        Some(s) if present_in(files, s, id) => Ok(s),
+        Some(_) => Err(Error::NotFound(id.into())),
+        None => find(files, id).map(|(s, _)| s).ok_or_else(|| Error::NotFound(id.into())),
+    }
 }
 
 // ── Write ──────────────────────────────────────────────────────────
@@ -168,11 +200,8 @@ pub fn write_doc(
     allow_overwrite: bool,
 ) -> Result<(), Error> {
     validate_id(id)?;
-    let rel = rel_for(id);
-    if !allow_overwrite && files.exists(scope, &rel) {
-        return Err(Error::AlreadyExists(id.into()));
-    }
-    files.write_jsonc(scope, &rel, doc)?;
+    let dir = files.scope_root(scope)?;
+    door::write_agent_def(&fs(), dir, id, doc, allow_overwrite)?;
     Ok(())
 }
 
@@ -183,23 +212,19 @@ pub fn patch_doc(
     patch: &json_patch::Patch,
 ) -> Result<Scope, Error> {
     validate_id(id)?;
-    let (scope, rel) = match explicit_scope {
-        Some(s) => {
-            let rel = find_in_scope(files, s, id).ok_or_else(|| Error::NotFound(id.into()))?;
-            (s, rel)
-        }
-        None => find(files, id).ok_or_else(|| Error::NotFound(id.into()))?,
-    };
-    // We load → ensure parent paths exist for `add` ops → apply → write.
-    // The path-tolerant wrapper keeps templates' one-liners honest: an
-    // `add /skills/refs/-` op succeeds even if `/skills/refs` wasn't
-    // there before. Strictly this bends RFC 6902 (which fails when
-    // ancestors are missing), but it matches user expectations and
-    // avoids every client having to do a GET-then-PUT dance.
-    let mut doc: serde_json::Value = files.read_jsonc(scope, &rel)?;
+    let scope = resolve_holder(files, id, explicit_scope)?;
+    let dir = files.scope_root(scope)?;
+    // Load → ensure parent paths exist for `add` ops → apply → write, all disk
+    // through the door. The path-tolerant wrapper keeps templates' one-liners
+    // honest: an `add /skills/refs/-` op succeeds even if `/skills/refs` wasn't
+    // there before. Strictly this bends RFC 6902 (which fails when ancestors
+    // are missing), but it matches user expectations and avoids every client
+    // having to do a GET-then-PUT dance.
+    let (_leaf, mut doc) = door::read_agent_def_value(&fs(), dir, id)?
+        .ok_or_else(|| Error::NotFound(id.into()))?;
     crate::services::path_tolerant::ensure_paths_for_adds(&mut doc, patch);
     json_patch::patch(&mut doc, patch).map_err(|e| Error::Patch(e.to_string()))?;
-    files.write_jsonc(scope, &rel, &doc)?;
+    door::write_agent_def(&fs(), dir, id, &doc, true)?;
     Ok(scope)
 }
 
@@ -209,14 +234,9 @@ pub fn delete_doc(
     explicit_scope: Option<Scope>,
 ) -> Result<Scope, Error> {
     validate_id(id)?;
-    let (scope, rel) = match explicit_scope {
-        Some(s) => {
-            let rel = find_in_scope(files, s, id).ok_or_else(|| Error::NotFound(id.into()))?;
-            (s, rel)
-        }
-        None => find(files, id).ok_or_else(|| Error::NotFound(id.into()))?,
-    };
-    files.trash(scope, &rel)?;
+    let scope = resolve_holder(files, id, explicit_scope)?;
+    let dir = files.scope_root(scope)?;
+    door::delete_agent_def(&fs(), dir, id)?;
     Ok(scope)
 }
 
@@ -232,26 +252,19 @@ pub fn rename(
     validate_id(new_id)?;
     if id == new_id { return Ok(explicit_scope.unwrap_or(Scope::Project)) }
 
-    let (scope, _rel) = match explicit_scope {
-        Some(s) => {
-            let rel = find_in_scope(files, s, id).ok_or_else(|| Error::NotFound(id.into()))?;
-            (s, rel)
-        }
-        None => find(files, id).ok_or_else(|| Error::NotFound(id.into()))?,
-    };
+    let scope = resolve_holder(files, id, explicit_scope)?;
     // Refuse if the new id collides within the same scope.
-    if find_in_scope(files, scope, new_id).is_some() {
+    if present_in(files, scope, new_id) {
         return Err(Error::AlreadyExists(new_id.into()));
     }
-
-    let (_, doc) = load_doc(files, id, Some(scope))?;
-    // Also update the agent.id field inside the doc when present so the
-    // persisted representation stays consistent with the filename stem.
+    let dir = files.scope_root(scope)?;
+    let (_leaf, doc) = door::read_agent_def_value(&fs(), dir, id)?
+        .ok_or_else(|| Error::NotFound(id.into()))?;
+    // Update the agent.id field inside the doc so the persisted representation
+    // stays consistent with the filename stem. The door writes the new file and
+    // trashes the old (recoverable, not a hard delete).
     let doc = with_agent_id(doc, new_id);
-    write_doc(files, new_id, scope, &doc, false)?;
-    // Remove the old file atomically via trash — safer than deleting
-    // outright in case the caller wants to recover.
-    delete_doc(files, id, Some(scope))?;
+    door::rename_agent_def(&fs(), dir, id, new_id, &doc)?;
     Ok(scope)
 }
 
@@ -264,7 +277,7 @@ pub fn duplicate(
     validate_id(id)?;
     validate_id(new_id)?;
     let (scope, doc) = load_doc(files, id, explicit_scope)?;
-    if find_in_scope(files, scope, new_id).is_some() {
+    if present_in(files, scope, new_id) {
         return Err(Error::AlreadyExists(new_id.into()));
     }
     let doc = with_agent_id(doc, new_id);
@@ -281,7 +294,7 @@ pub fn move_scope(
     validate_id(id)?;
     if from == to { return Ok(()) }
     let (_scope, doc) = load_doc(files, id, Some(from))?;
-    if find_in_scope(files, to, id).is_some() {
+    if present_in(files, to, id) {
         return Err(Error::AlreadyExists(id.into()));
     }
     write_doc(files, id, to, &doc, false)?;

@@ -2,7 +2,6 @@ use super::mcp::{get_mcp_config, save_mcp_config};
 use super::merge::{
     merge_agents, merge_mcp_servers, merge_string_lists, write_project_core_config,
 };
-use super::agents::save_agents_config;
 use super::project::{AgentProfile, ProjectConfig, default_harnesses};
 use super::types::PRIMARY_CONFIG_FILE;
 use ship_substrate::config_doc;
@@ -43,6 +42,36 @@ fn read_project_agents(config_dir: &std::path::Path) -> Result<Vec<AgentProfile>
         .iter()
         .map(project_canonical)
         .collect())
+}
+
+/// Project the platform's nested [`AgentProfile`] to the config crate's flat
+/// write view (`ship_config::types::AgentProfile`) — the platform-managed
+/// fields the batch write door persists. The nested-only fields (`hooks`,
+/// `permissions`, `isolation`) are NOT platform-owned at the file tier and are
+/// preserved on disk by the door's re-save merge, not re-emitted here.
+fn to_config_profile(p: &AgentProfile) -> ship_config::types::AgentProfile {
+    ship_config::types::AgentProfile {
+        id: p.id.clone(),
+        name: p.name.clone(),
+        description: p.description.clone(),
+        role: p.role.clone(),
+        tools_preset: p.tools_preset.clone(),
+        active_tools: p.active_tools.clone(),
+        mcp_servers: p.mcp_servers.clone(),
+        skills: p.skills.clone(),
+        rules: p.rules.clone(),
+        target_agents: p.target_agents.clone(),
+    }
+}
+
+/// Persist the project's agent profiles through THE agent-def write door
+/// (FsBroker batch, ship-config) — the same gated door the per-agent CRUD uses.
+/// `config_dir` is the `.ship` dir the door authors `agents/<id>.jsonc` under.
+fn save_project_agents(config_dir: &std::path::Path, agents: &[AgentProfile]) -> Result<()> {
+    let fs = ship_substrate::ports::LocalFsBroker::new();
+    let mapped: Vec<_> = agents.iter().map(to_config_profile).collect();
+    ship_config::agents_write::save_agents_config(&fs, config_dir, &mapped)?;
+    Ok(())
 }
 
 pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
@@ -139,7 +168,7 @@ pub fn save_config(config: &ProjectConfig, project_dir: Option<PathBuf>) -> Resu
 
     // File-backed catalog state (mcp/skills/rules) is indexed into SQLite for agent refs.
     save_mcp_config(&config_dir, &effective.mcp_servers)?;
-    save_agents_config(&config_dir, &effective.agents)?;
+    save_project_agents(&config_dir, &effective.agents)?;
 
     // Keep ship.jsonc focused on stable project identity only. Project
     // harnesses default via the field's serde default; if the user wants to
