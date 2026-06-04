@@ -14,14 +14,14 @@ import { chromium } from 'playwright'
 const BASE = process.env.SUI_E2E_BASE_URL || 'http://127.0.0.1:9385'
 
 const VIEWS = [
-  '/view-host/counter',
-  '/view-host/sui-demo',
-  '/view-host/demos',
-  '/view-host/demos/conditional-render',
-  '/view-host/demos/iteration',
-  '/view-host/demos/signals-and-derived',
-  '/view-host/demos/lifecycle',
-  '/view-host/demos/match',
+  '/_sui/view/counter',
+  '/_sui/view/sui-demo',
+  '/_sui/view/demos',
+  '/_sui/view/demos/conditional-render',
+  '/_sui/view/demos/iteration',
+  '/_sui/view/demos/signals-and-derived',
+  '/_sui/view/demos/lifecycle',
+  '/_sui/view/demos/match',
 ]
 
 function median(xs) {
@@ -52,7 +52,7 @@ for (const path of VIEWS) {
 console.log('\n=== 1000-cycle mount/unmount soak on counter ===')
 const soakCtx = await browser.newContext()
 const soakPage = await soakCtx.newPage()
-await soakPage.goto(BASE + '/view-host/counter', { waitUntil: 'networkidle' })
+await soakPage.goto(BASE + '/_sui/view/counter', { waitUntil: 'networkidle' })
 
 const soakResult = await soakPage.evaluate(async ({ base, cycles }) => {
   const payload = await fetch(base + '/_sui/views/counter').then((r) => r.json())

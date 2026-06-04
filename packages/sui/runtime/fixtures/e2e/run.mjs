@@ -23,14 +23,14 @@ if (!engine) {
 }
 
 const VIEWS = [
-  { path: '/view-host/counter', sentinel: 'Counter' },
-  { path: '/view-host/sui-demo', sentinel: 'SUI' },
-  { path: '/view-host/demos', sentinel: 'demo' },
-  { path: '/view-host/demos/conditional-render', sentinel: 'conditional' },
-  { path: '/view-host/demos/iteration', sentinel: 'iteration' },
-  { path: '/view-host/demos/signals-and-derived', sentinel: 'signals' },
-  { path: '/view-host/demos/lifecycle', sentinel: 'lifecycle' },
-  { path: '/view-host/demos/match', sentinel: 'match' },
+  { path: '/_sui/view/counter', sentinel: 'Counter' },
+  { path: '/_sui/view/sui-demo', sentinel: 'SUI' },
+  { path: '/_sui/view/demos', sentinel: 'demo' },
+  { path: '/_sui/view/demos/conditional-render', sentinel: 'conditional' },
+  { path: '/_sui/view/demos/iteration', sentinel: 'iteration' },
+  { path: '/_sui/view/demos/signals-and-derived', sentinel: 'signals' },
+  { path: '/_sui/view/demos/lifecycle', sentinel: 'lifecycle' },
+  { path: '/_sui/view/demos/match', sentinel: 'match' },
 ]
 
 const browser = await engine.launch()

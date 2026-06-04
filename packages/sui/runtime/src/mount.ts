@@ -43,12 +43,14 @@ export type ViewPayload<Scope = Record<string, unknown>> =
 export interface SuiLoader {
   /** Resolve a view payload by `name[/sub]` (for the `mount(target, name)` form). */
   fetchView(nameOrPath: string): Promise<ViewPayload>
-  /** Load + register a component island bundle by its custom-element tag. */
-  loadComponent(tag: string): Promise<void>
 }
 
 export interface MountOptions {
   ship?: unknown
+  /** Host-injected named data/ops clients, spread into scope so a view's
+   *  `<data source="X.op()">` + handlers resolve bare `X` (the `<client>`-
+   *  declared map). The implementor-named replacement for the single `ship`. */
+  clients?: Record<string, unknown>
   route?: RouteSignals
   navigate?: (path: string) => void
   /** Host loader for by-name payload fetch + component-island loading. */
@@ -78,6 +80,7 @@ export interface MountHandle<Scope = Record<string, unknown>> {
 
 interface SetupContext {
   ship?: unknown
+  clients?: Record<string, unknown> | undefined
   route?: RouteSignals | undefined
   navigate?: ((path: string) => void) | undefined
   scope?: Record<string, unknown>
@@ -125,13 +128,6 @@ export async function mount<Scope = Record<string, unknown>>(
   //     segment value without depending on client-side path matching.
   seedRouteParams(opts.route, payload.params)
 
-  // 0b. Load any islands this view declares but that aren't registered
-  //     yet. The compiler walks the template and lists every `<sui-*>`
-  //     island bundle in `payload.islands`; the host page only
-  //     bootstraps chrome islands, so view-owned islands (e.g.
-  //     ship-markdown-editor) are pulled here on demand.
-  await loadViewIslands(payload.islands, opts.loader)
-
   // 1. Adopt SSR markup if present (morph in place), else clean-mount.
   //    The view-host shell ships SSR content inside `target` before this
   //    runs; overwriting via `innerHTML = payload.html` would discard it
@@ -167,12 +163,17 @@ export async function mount<Scope = Record<string, unknown>>(
   const navigate = opts.navigate ?? noop
   const baseScope: Record<string, unknown> = {
     ship: opts.ship,
+    clients: opts.clients,
+    // Spread each declared client by name so `<data source="X.op()">` resolves
+    // bare `X`. Before `...built.scope` so author scope still shadows.
+    ...(opts.clients ?? {}),
     route,
     navigate,
     ...built.scope,
   }
   const setupCtx: SetupContext = {
     ship: opts.ship,
+    clients: opts.clients,
     route,
     navigate,
     scope: { ...baseScope },
@@ -383,29 +384,6 @@ function seedRouteParams(
     // overrides its URL-seeded value with the daemon-resolved one.
     route.params[k]?.set(v)
   }
-}
-
-async function loadViewIslands(
-  bundles: string[] | undefined,
-  loader: SuiLoader | undefined,
-): Promise<void> {
-  if (!bundles || bundles.length === 0) return
-  if (typeof customElements === 'undefined') return
-  const pending = bundles.filter((bundle) => !customElements.get(bundle))
-  if (pending.length === 0) return
-  if (!loader) {
-    throw new Error(
-      `[sui/mount] view declares component islands (${pending.join(', ')}) but no ` +
-        `opts.loader was provided — the host must supply a SuiLoader to load them.`,
-    )
-  }
-  await Promise.all(
-    pending.map((bundle) =>
-      loader.loadComponent(bundle).catch((err) => {
-        console.error(`[sui/mount] failed to load component bundle ${bundle}:`, err)
-      }),
-    ),
-  )
 }
 
 async function resolveView(

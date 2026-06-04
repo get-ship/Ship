@@ -38,6 +38,15 @@ export interface LiveSource<T> {
   subscribe: (sig: LiveSignal<T>) => () => void
 }
 
+/**
+ * The value a `<data source>` call yields, mirroring `live()`'s source union:
+ * unwrap a `LiveSource<U>`, await a `Promise<U>`, else the value itself. Used by
+ * the compiler-generated `Scope` to type a `<data>` signal from its declared
+ * `<client>`'s method return — e.g. `feed.clock(): LiveSource<Tick>` ⇒
+ * `LiveValueOf<ReturnType<…>> = Tick`.
+ */
+export type LiveValueOf<R> = R extends LiveSource<infer U> ? U : Awaited<R>
+
 /** Options for `live()`. */
 export interface LiveOpts {
   /**

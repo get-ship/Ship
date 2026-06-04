@@ -185,7 +185,7 @@ export type { DataOpts, DataHandle } from './data'
 export { debounce } from './signal'
 
 export { live, unwrap, unwrapOr } from './live'
-export type { LiveState, LiveSignal, LiveSource, LiveOpts } from './live'
+export type { LiveState, LiveSignal, LiveSource, LiveOpts, LiveValueOf } from './live'
 
 export { wireFormMutation } from './mutation'
 
@@ -197,7 +197,7 @@ export type {
 
 // The framework exports only the host seam. The concrete `ShipSDK` + its
 // data types live in `@ship/sdk-client` — the runtime names no host shape.
-export type { ShipHost } from './ship'
+export type { ShipHost, Clients } from './ship'
 
 export { component, prop } from './component'
 export type { PropDef, ComponentDef, ComponentSetupContext } from './component'

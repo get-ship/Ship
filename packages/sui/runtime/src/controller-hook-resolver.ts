@@ -26,13 +26,15 @@ export function resolveHook(
   ctx: ResolverContext,
   outerScope: Record<string, unknown>,
 ): ResolvedBindings {
-  const hookState = resolveHookState(hook.state, { ship: ctx.ship, ...outerScope })
+  const hookState = resolveHookState(hook.state, { ship: ctx.ship, clients: ctx.clients ?? {}, ...(ctx.clients ?? {}), ...outerScope })
   const stateSignals: Record<string, Signal<unknown>> = {}
   for (const [k, v] of Object.entries(hookState)) {
     stateSignals[k] = signal(v)
   }
   const baseScope: Record<string, unknown> = {
     ship: ctx.ship,
+    clients: ctx.clients ?? {},
+    ...(ctx.clients ?? {}),
     route: ctx.route ?? {},
     navigate: ctx.navigate ?? ((_path: string) => {}),
     ...outerScope,
