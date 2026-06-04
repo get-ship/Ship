@@ -171,11 +171,11 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::SkillsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::PipelinesServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::GitServiceExt::register(svc.clone(), router);
-    // Wave 2 (#89) — agents/agent (profiles + orchestration), config writes
-    // (project/settings/annotation/feedback), and read aggregates
-    // (sessions/workspaces/account/chat/dashboard/events/specs). All additive
-    // beside the generated ReadOps/CommandOps until the GUI flip (#72).
-    let router = ship_ops_rpc::AgentsServiceExt::register(svc.clone(), router);
+    // Wave 2 (#89) — the ONE canonical AgentService (agents-arc E4): profile
+    // CRUD + view reads + runtime-session/chat reads + orchestration control,
+    // collapsed from the historic AgentsService/SessionsService/ChatService split
+    // into a single service + handler. Additive beside the generated
+    // ReadOps/CommandOps until the GUI flip (#72).
     let router = ship_ops_rpc::AgentServiceExt::register(svc.clone(), router);
     // device.* — DeviceService (device.proto): the window-management surface the
     // space carve split out of SpaceService ("space loses window-mgmt → device").
@@ -183,7 +183,6 @@ pub fn router(state: ApiState) -> axum::Router {
     // + legacy `auth::space_window`. Impl in device_rpc on OpsImpl; the mechanism
     // lives in the ship-device crate.
     let router = ship_ops_rpc::DeviceServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::SessionsServiceExt::register(svc.clone(), router);
     // account.* — typed AccountService (account.proto), served by the
     // `ship-account` crate (`AccountWire`). Process-global identity: token at
     // rest under `<daemon_dir>/account.jsonc`, `account.*` + `daemon.owner.*`
@@ -200,7 +199,6 @@ pub fn router(state: ApiState) -> axum::Router {
         }
         None => router,
     };
-    let router = ship_ops_rpc::ChatServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::EventsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::ViewServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::RegistryServiceExt::register(svc.clone(), router);

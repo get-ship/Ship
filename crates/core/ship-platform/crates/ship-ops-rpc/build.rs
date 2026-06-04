@@ -42,14 +42,11 @@ fn main() {
         .arg("ship/ops/v1/skills.proto")
         .arg("ship/ops/v1/pipelines.proto")
         .arg("ship/ops/v1/git.proto")
-        .arg("ship/ops/v1/agents.proto")
         .arg("ship/ops/v1/agent.proto")
         .arg("ship/ops/v1/space.proto")
         .arg("ship/ops/v1/device.proto")
         .arg("ship/ops/v1/settings.proto")
-        .arg("ship/ops/v1/sessions.proto")
         .arg("ship/ops/v1/account.proto")
-        .arg("ship/ops/v1/chat.proto")
         .arg("ship/ops/v1/events.proto")
         .arg("ship/ops/v1/view.proto")
         .arg("ship/ops/v1/registry.proto")
@@ -81,14 +78,11 @@ fn main() {
             "ship/ops/v1/skills.proto",
             "ship/ops/v1/pipelines.proto",
             "ship/ops/v1/git.proto",
-            "ship/ops/v1/agents.proto",
             "ship/ops/v1/agent.proto",
             "ship/ops/v1/space.proto",
             "ship/ops/v1/device.proto",
             "ship/ops/v1/settings.proto",
-            "ship/ops/v1/sessions.proto",
             "ship/ops/v1/account.proto",
-            "ship/ops/v1/chat.proto",
             "ship/ops/v1/events.proto",
             "ship/ops/v1/view.proto",
             "ship/ops/v1/registry.proto",

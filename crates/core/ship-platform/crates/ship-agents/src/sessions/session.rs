@@ -14,7 +14,7 @@ use super::types_session::*;
 
 // ---- Hydration helpers -----------------------------------------------------
 
-pub(super) fn hydrate_session(row: SessionDb) -> Session {
+pub fn hydrate_session(row: SessionDb) -> Session {
     let last_activity_at = parse_datetime_opt(row.last_activity_at);
     let status = row.status.parse().unwrap_or(SessionStatus::Active);
     let liveness = if status == SessionStatus::Active {
@@ -51,14 +51,14 @@ pub(super) fn hydrate_session(row: SessionDb) -> Session {
 
 // ---- Session artifacts -----------------------------------------------------
 
-pub(super) fn session_artifacts_dir(ship_dir: &Path, session_id: &str) -> Option<PathBuf> {
+pub fn session_artifacts_dir(ship_dir: &Path, session_id: &str) -> Option<PathBuf> {
     let slug = project_slug_from_ship_dir(ship_dir);
     let global_dir = get_global_dir().ok()?;
     let root = global_dir.join("projects").join(slug).join("sessions");
     Some(root.join(sanitize_file_name(session_id)))
 }
 
-pub(super) fn persist_session_artifact(
+pub fn persist_session_artifact(
     ship_dir: &Path,
     session: &Session,
     phase: &str,

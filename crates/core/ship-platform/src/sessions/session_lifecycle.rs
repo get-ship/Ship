@@ -10,9 +10,12 @@ use chrono::Utc;
 use std::path::Path;
 
 use super::compile::{compile_session_context, resolve_session_harnesses};
-use super::helpers::*;
-use super::session::{hydrate_session, persist_session_artifact};
-use super::types_session::*;
+// Session record types + hydration + artifacts folded into ship-agents
+// (agents-arc E4); the lifecycle stays here because it drives the L1 compile
+// bridge (`super::compile` names `crate::agents::config`).
+use ship_agents::sessions::helpers::*;
+use ship_agents::sessions::{hydrate_session, persist_session_artifact};
+use ship_agents::sessions::types_session::*;
 use ship_substrate::project::sanitize_file_name;
 
 // ---- Start / end -----------------------------------------------------------

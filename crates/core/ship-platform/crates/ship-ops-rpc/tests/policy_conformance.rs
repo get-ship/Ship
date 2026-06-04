@@ -61,8 +61,10 @@ fn named_c2_orphans_now_resolve() {
         "mcp.create",
         "mcp.delete",
         "skills.create",
-        "agents.create",
-        "agents.delete",
+        // agents-arc E4: AgentsService folded into the ONE AgentService, so the
+        // profile-write proto op-names move from `agents.*` to `agent.*`.
+        "agent.create",
+        "agent.delete",
         "agent.dispatch",
         "agent.stop",
     ] {

@@ -124,4 +124,3 @@ pub struct EndSessionRequest {
     pub tool_calls: Option<i64>,
     pub exit_reason: Option<String>,
 }
-

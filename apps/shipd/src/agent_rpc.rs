@@ -1,24 +1,283 @@
-//! `AgentService` handler — proto-as-SSOT migration of `agent.*` (#89) —
-//! the orchestration surface (dispatch / stop / steer / grant). Mounted
-//! additively beside the generated CommandOps until the GUI flip (#72).
+//! `AgentService` handler — the ONE canonical agent RPC surface (#89,
+//! agents-arc E4). Collapsed from the historic split (AgentsService profile
+//! CRUD + view reads, AgentService orchestration, SessionsService runtime-read,
+//! ChatService chat-read) into this single `impl AgentService for OpsImpl`.
+//! Mounted additively beside the generated ReadOps/CommandOps until the GUI
+//! flip (#72).
 //!
-//! All four ops are C1/C2 writes routed through `services::command::call`
-//! (the ONE gate). Capabilities and blast radii mirror the generated
-//! CommandOpsService exactly: dispatch → ship.runtime.dispatch/C1,
-//! stop/steer → ship.agents.write/C1, grant → ship.agents.grant/C2_ELEVATED.
+//! Three planes meet here, each routed to its existing chokepoint — this handler
+//! only routes, never reimplements gating: profile reads (C0) + runtime-scoped
+//! sessions/chat reads (C0) → `services::registry::call`; profile writes (C2) +
+//! orchestration control (C2/C3) → `services::command::call` (the ONE gate).
+//!
+//! The impl-helper methods (`agents_typed_read`, `agent_gated_typed`, …) live in
+//! `agent_rpc_helpers` to keep this file within the cap — not a parallel handler.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
-use serde::de::DeserializeOwned;
-use serde_json::{Value, json};
+use connectrpc::{RequestContext, ServiceResult, ServiceStream};
+use serde_json::{json, Value};
 
-use ship_ops_rpc::{AgentService, DispatchResult, GrantResult, SteerResult, StopResult};
+use ship_ops_rpc::{
+    AgentCatalogsResponse, AgentDetail, AgentDoc, AgentIndexResponse, AgentSettingsResponse,
+    AgentTemplatesResponse, AgentWireResponse, AgentService, AgentsSummariesResponse,
+    ChatStateResponse, DispatchResult, GrantResult, HarnessesResponse, JsonResponse,
+    PermissionPresetsResponse, ScopedMutation, SessionsListResponse, SteerResult, StopResult,
+};
 
-use crate::auth::AuthContext;
-use crate::ops_rpc::{command_error_to_connect, OpsImpl};
-use crate::services::command::{self, CommandCtx};
+use crate::ops_rpc::OpsImpl;
 
 #[allow(refining_impl_trait)]
 impl AgentService for OpsImpl {
+    // Profile reads (C0) — folded from AgentsService.
+    async fn list(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListAgentsRequestView,
+    ) -> ServiceResult<AgentIndexResponse> {
+        self.agents_typed_read::<AgentIndexResponse>("agents.list", Value::Null)
+    }
+
+    async fn summaries(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListAgentsSummariesRequestView,
+    ) -> ServiceResult<AgentsSummariesResponse> {
+        self.agents_typed_read::<AgentsSummariesResponse>("agents.summaries", Value::Null)
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn summaries_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListAgentsSummariesRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.summaries", json!({})).await
+    }
+
+    async fn detail(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentDetailRequestView,
+    ) -> ServiceResult<AgentDetail> {
+        let args = json!({ "id": request.id });
+        self.agents_typed_read::<AgentDetail>("agents.detail", args)
+    }
+
+    async fn catalogs(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListAgentsCatalogsRequestView,
+    ) -> ServiceResult<AgentCatalogsResponse> {
+        self.agents_typed_read::<AgentCatalogsResponse>("agents.catalogs", Value::Null)
+    }
+
+    async fn get(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentRequestView,
+    ) -> ServiceResult<AgentDoc> {
+        let args = json!({ "id": request.id, "scope": request.scope });
+        self.agents_get_doc(args)
+    }
+
+    async fn wire(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentWireRequestView,
+    ) -> ServiceResult<AgentWireResponse> {
+        let args = json!({ "id": request.id });
+        self.agents_typed_read::<AgentWireResponse>("agents.wire", args)
+    }
+
+    async fn settings(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentSettingsRequestView,
+    ) -> ServiceResult<AgentSettingsResponse> {
+        let args = json!({ "id": request.id });
+        self.agents_typed_read::<AgentSettingsResponse>("agents.settings", args)
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn catalogs_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListAgentsCatalogsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.catalogs", json!({})).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn detail_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentDetailRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.detail", json!({ "id": request.id })).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn wire_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentWireRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.wire", json!({ "id": request.id })).await
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn settings_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetAgentSettingsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.settings", json!({ "id": request.id })).await
+    }
+
+    async fn templates(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListAgentTemplatesRequestView,
+    ) -> ServiceResult<AgentTemplatesResponse> {
+        self.agents_typed_read::<AgentTemplatesResponse>("agents.templates", Value::Null)
+    }
+
+    async fn permission_presets(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListAgentPermissionPresetsRequestView,
+    ) -> ServiceResult<PermissionPresetsResponse> {
+        self.agents_typed_read::<PermissionPresetsResponse>("agents.permission_presets", Value::Null)
+    }
+
+    async fn harnesses(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListAgentHarnessesRequestView,
+    ) -> ServiceResult<HarnessesResponse> {
+        self.agents_typed_read::<HarnessesResponse>("agents.harnesses", Value::Null)
+    }
+
+    async fn create_ctx(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedGetAgentCreateCtxRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        self.agents_read_json("agents.create_ctx", Value::Null)
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn create_ctx_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedGetAgentCreateCtxRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("agents.create_ctx", json!({})).await
+    }
+
+    // Runtime-scoped reads (C0) — folded from SessionsService + ChatService.
+    async fn sessions(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListSessionsReqView,
+    ) -> ServiceResult<SessionsListResponse> {
+        self.agents_typed_read::<SessionsListResponse>("sessions.list", Value::Null)
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn sessions_live(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListSessionsReqView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("sessions.list", json!({})).await
+    }
+
+    async fn chat(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedChatStateReqView,
+    ) -> ServiceResult<ChatStateResponse> {
+        self.agents_typed_read::<ChatStateResponse>("chat.state", chat_args(request.workspace_id))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn chat_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedChatStateReqView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        self.live_read("chat.state", chat_args(request.workspace_id)).await
+    }
+
+    // Profile writes (C2) — folded from AgentsService.
+    async fn create(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedCreateAgentRequestView,
+    ) -> ServiceResult<ScopedMutation> {
+        let args = json!({ "id": request.id, "doc_json": request.doc_json, "scope": request.scope });
+        self.agents_gated_mutation(&ctx, "agents.create", args).await
+    }
+
+    async fn put(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedPutAgentRequestView,
+    ) -> ServiceResult<ScopedMutation> {
+        let args = json!({ "id": request.id, "doc_json": request.doc_json, "scope": request.scope });
+        self.agents_gated_mutation(&ctx, "agents.put", args).await
+    }
+
+    async fn patch(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedPatchAgentRequestView,
+    ) -> ServiceResult<ScopedMutation> {
+        let args =
+            json!({ "id": request.id, "patch_json": request.patch_json, "scope": request.scope });
+        self.agents_gated_mutation(&ctx, "agents.patch", args).await
+    }
+
+    async fn delete(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedDeleteAgentRequestView,
+    ) -> ServiceResult<ScopedMutation> {
+        let args = json!({ "id": request.id, "scope": request.scope });
+        self.agents_gated_mutation(&ctx, "agents.delete", args).await
+    }
+
+    async fn rename(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedRenameAgentRequestView,
+    ) -> ServiceResult<ScopedMutation> {
+        let args = json!({ "id": request.id, "new_id": request.new_id, "scope": request.scope });
+        self.agents_gated_mutation(&ctx, "agents.rename", args).await
+    }
+
+    async fn duplicate(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedDuplicateAgentRequestView,
+    ) -> ServiceResult<ScopedMutation> {
+        let args = json!({
+            "id": request.id, "new_id": request.new_id,
+            "scope": request.scope, "to": request.to,
+        });
+        self.agents_gated_mutation(&ctx, "agents.duplicate", args).await
+    }
+
+    async fn move_scope(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedMoveAgentScopeRequestView,
+    ) -> ServiceResult<ScopedMutation> {
+        let args = json!({ "id": request.id, "from": request.from, "to": request.to });
+        self.agents_gated_mutation(&ctx, "agents.move_scope", args).await
+    }
+
+    // Orchestration control (C2/C3) — typed results.
     async fn dispatch(
         &self,
         ctx: RequestContext,
@@ -79,45 +338,59 @@ impl AgentService for OpsImpl {
     }
 }
 
-impl OpsImpl {
-    /// C1/C2 control write → the one gate (`services::command::call`), decoded
-    /// onto the op's typed result message. The command arms thread STRUCTURED
-    /// values (no JSON-string re-wrap); the proto message's snake_case aliases
-    /// decode that object directly. Named `agent_gated_typed` to be unique
-    /// across modules (orchestration surface, not profile CRUD).
-    pub(crate) async fn agent_gated_typed<T: DeserializeOwned>(
-        &self,
-        ctx: &RequestContext,
-        op: &str,
-        args: Value,
-    ) -> ServiceResult<T> {
-        let auth = ctx
-            .extensions
-            .get::<AuthContext>()
-            .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-        let cmd_ctx = CommandCtx { state: self.state(), auth };
-        let value =
-            command::call(op, &args, &cmd_ctx).await.map_err(command_error_to_connect)?;
-        serde_json::from_value::<T>(value)
-            .map(Response::new)
-            .map_err(|e| ConnectError::internal(format!("decode {op} response: {e}")))
+/// Build the `chat.state` args object, omitting `workspace_id` when empty (the
+/// registry op treats a missing key as "all workspaces").
+fn chat_args(workspace_id: &str) -> Value {
+    let mut args = serde_json::Map::new();
+    if !workspace_id.is_empty() {
+        args.insert("workspace_id".to_string(), json!(workspace_id));
     }
+    Value::Object(args)
 }
 
 #[cfg(test)]
 mod tests {
+    use ship_ops_rpc::BlastRadius;
+
+    fn policy(method: &str) -> &'static crate::ops_rpc::OpPolicy {
+        crate::ops_rpc::policy_for(&format!("ship.ops.v1.AgentService/{method}"))
+            .unwrap_or_else(|| panic!("AgentService/{method} must carry a policy in the descriptor"))
+    }
+
     #[test]
-    fn agent_rpc_op_policy_in_descriptor() {
-        let dispatch = crate::ops_rpc::policy_for("ship.ops.v1.AgentService/Dispatch")
-            .expect("AgentService/Dispatch must carry a policy in the descriptor");
+    fn agent_service_control_policies_in_descriptor() {
+        let dispatch = policy("Dispatch");
         assert_eq!(dispatch.capability, "ship.runtime.dispatch");
         // Dispatch spawns/controls agents — C2 (elevated, granted to commander).
-        assert_eq!(dispatch.blast_radius, ship_ops_rpc::BlastRadius::C2Elevated);
+        assert_eq!(dispatch.blast_radius, BlastRadius::C2Elevated);
 
-        let grant = crate::ops_rpc::policy_for("ship.ops.v1.AgentService/Grant")
-            .expect("AgentService/Grant must carry a policy in the descriptor");
+        let grant = policy("Grant");
         assert_eq!(grant.capability, "ship.agents.grant");
         // Grant hands out authority — C3 (operator/2FA only).
-        assert_eq!(grant.blast_radius, ship_ops_rpc::BlastRadius::C3Critical);
+        assert_eq!(grant.blast_radius, BlastRadius::C3Critical);
+    }
+
+    #[test]
+    fn folded_profile_policies_preserved() {
+        let list = policy("List");
+        assert_eq!(list.capability, "ship.agents.read");
+        assert_eq!(list.blast_radius, BlastRadius::C0Read);
+
+        let create = policy("Create");
+        assert_eq!(create.capability, "ship.agents.write");
+        // Authoring (agent-profile CRUD) is elevated — C2.
+        assert_eq!(create.blast_radius, BlastRadius::C2Elevated);
+    }
+
+    #[test]
+    fn folded_runtime_read_policies_preserved() {
+        // Sessions + Chat folded from their own services keep their capabilities.
+        let sessions = policy("Sessions");
+        assert_eq!(sessions.capability, "ship.sessions.read");
+        assert_eq!(sessions.blast_radius, BlastRadius::C0Read);
+
+        let chat = policy("Chat");
+        assert_eq!(chat.capability, "ship.chat.read");
+        assert_eq!(chat.blast_radius, BlastRadius::C0Read);
     }
 }

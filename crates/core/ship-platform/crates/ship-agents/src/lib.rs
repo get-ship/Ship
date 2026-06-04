@@ -17,6 +17,11 @@
 //! - [`actor`] — `start_agents`: the `service.agents` actor that runs the L0
 //!   router gate then routes the two events above.
 //! - [`ports`] — `AgentPorts`, the injected L0-port bundle.
+//! - [`sessions`] — RUNTIME-scoped session records (#283): the runtime-session
+//!   types + query/progress reads + hydration + on-disk artifacts, folded from
+//!   the historic ship-platform sessions tree (agents-arc E4). L0-clean (names
+//!   only `ship-substrate`); emits the `session.*` namespace, NOT
+//!   `agent.session.*`. Distinct from agent DEFS (space/account config).
 //!
 //! `build_spawn_env` (the pure `SpawnPolicy`-port call) is L0 mechanism — it
 //! names no agent-domain type, only the substrate principal + the L0 port — so
@@ -47,6 +52,10 @@ pub mod actor;
 pub mod cancel;
 pub mod dispatch;
 pub mod ports;
+// Runtime-scoped session records (agents-arc E4 fold) — the L0-clean analytics
+// half of the historic ship-platform sessions tree. RUNTIME-scoped (#283),
+// distinct from agent defs and from the agent.session.* dispatch primitive above.
+pub mod sessions;
 
 pub use actor::{handle_agents_event, start_agents};
 pub use cancel::handle_agent_cancelled;

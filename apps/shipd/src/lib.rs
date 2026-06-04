@@ -39,15 +39,15 @@ pub mod mcp_rpc;
 pub mod skills_rpc;
 pub mod pipelines_rpc;
 pub mod git_rpc;
-pub mod agents_rpc;
+// agent_rpc is the ONE canonical agent handler (agents-arc E4): AgentsService +
+// SessionsService + ChatService folded into the single `impl AgentService`.
 pub mod agent_rpc;
+pub mod agent_rpc_helpers;
 pub mod space_rpc;
 pub mod settings_rpc;
 pub mod device_rpc;
 pub mod device_ports;
-pub mod sessions_rpc;
 pub mod account_rpc;
-pub mod chat_rpc;
 pub mod events_rpc;
 pub mod view_rpc;
 pub mod registry_rpc;

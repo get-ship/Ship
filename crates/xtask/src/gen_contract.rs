@@ -64,17 +64,21 @@ fn domain_catalog() -> Vec<DomainMeta> {
         DomainMeta {
             key: "agents",
             display: "Agents",
-            event_prefixes: vec!["agent."],
-            services: vec!["AgentsService", "AgentService"],
-            description: "Agent-profile semantic core: harness registry, four-way provider-settings merger, skill/rule/permission CRUD, and per-skill variable store.",
+            event_prefixes: vec!["agent.", "session."],
+            // The ONE canonical AgentService (agents-arc E4): the historic
+            // AgentsService / SessionsService / ChatService folded in.
+            services: vec!["AgentService"],
+            description: "Agent semantic core: profile CRUD + view reads, runtime-session + chat reads, and orchestration control (dispatch/stop/steer/grant).",
             coverage_audit_docs: vec![],
         },
         DomainMeta {
             key: "sessions",
             display: "Sessions",
-            event_prefixes: vec!["session.", "hook."],
-            services: vec!["SessionsService"],
-            description: "Session lifecycle facade: start/end/list/progress analytics rollup over actor activity.",
+            // session.* reads folded into AgentService (agents-arc E4); the
+            // session lifecycle + hook.* analytics rollup keep their event domain.
+            event_prefixes: vec!["hook."],
+            services: vec![],
+            description: "Session lifecycle analytics: start/end/list/progress rollup over actor activity (reads served by AgentService).",
             coverage_audit_docs: vec![],
         },
         DomainMeta {
@@ -225,7 +229,8 @@ fn domain_catalog() -> Vec<DomainMeta> {
             key: "studio",
             display: "Studio",
             event_prefixes: vec!["studio.", "human."],
-            services: vec!["ChatService", "DashboardService", "FeedbackService", "AnnotationService"],
+            // chat reads folded into AgentService (agents-arc E4).
+            services: vec!["DashboardService", "FeedbackService", "AnnotationService"],
             description: "Studio UI primitives: chat turns, agent replies, dashboard state, feedback, and annotation events.",
             coverage_audit_docs: vec![".artifacts/specs/module-audits/apps/shipd.md", ".artifacts/specs/module-audits/L1-platform/sessions.md", ".artifacts/specs/module-audits/L0-substrate/ship-substrate.md"],
         },
