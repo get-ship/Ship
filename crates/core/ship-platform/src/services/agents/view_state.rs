@@ -12,7 +12,7 @@ use serde::Serialize;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use crate::services::jsonc::{first_letter, parse_file, resolve_array_field};
+use crate::services::jsonc::{first_letter, resolve_array_field};
 
 // Re-export helpers whose names tests refer to directly (via `super::*`
 // in the sibling tests file). Canonical home is `agents_jsonc`.
@@ -125,15 +125,16 @@ pub(crate) fn scopes_from(
 }
 
 fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
-    let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
+    // THE agent-def reader (FsBroker, ship-config) is the one door — no raw
+    // `std::fs` walk here. It yields `(id, value)` for each def; the summary
+    // is projected from the raw value (fields the nested profile drops, e.g.
+    // `rules.refs`, survive).
+    let fs = ship_substrate::ports::LocalFsBroker::new();
+    let Ok(docs) = ship_config::agents::read_agent_docs_in(&fs, dir) else {
+        return Vec::new();
+    };
     let mut out = Vec::new();
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let ext = path.extension().and_then(|s| s.to_str());
-        if !path.is_file() || !matches!(ext, Some("jsonc" | "json")) {
-            continue;
-        }
-        let Some((id, parsed)) = parse_file(&path) else { continue };
+    for (id, parsed) in docs {
         let Some(agent_obj) = parsed.get("agent") else { continue };
         let name = agent_obj
             .get("name")
@@ -169,13 +170,13 @@ fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
 }
 
 fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
-    for ext in ["jsonc", "json"] {
-        let path = dir.join(format!("{id}.{ext}"));
-        if !path.is_file() {
-            continue;
-        }
-        let (file_id, parsed) = parse_file(&path)?;
-        let Some(agent_obj) = parsed.get("agent") else { continue };
+    // THE agent-def reader (FsBroker, ship-config) is the one door — no raw
+    // `std::fs` lookup here. It resolves `<id>.jsonc` then `<id>.json` and
+    // yields the raw value the detail projects from.
+    let fs = ship_substrate::ports::LocalFsBroker::new();
+    let (file_id, parsed) = ship_config::agents::read_agent_doc_in(&fs, dir, id).ok().flatten()?;
+    {
+        let agent_obj = parsed.get("agent")?;
         let name = agent_obj
             .get("name")
             .and_then(|v| v.as_str())
@@ -234,7 +235,7 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
                 .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
                 .unwrap_or_default(),
         };
-        return Some(AgentDetail {
+        Some(AgentDetail {
             id: file_id,
             name: name.clone(),
             description,
@@ -249,9 +250,8 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             permissions_tier,
             permissions,
             source: source.to_string(),
-        });
+        })
     }
-    None
 }
 
 /// List agents from project (if inside a Ship project) and global scopes.

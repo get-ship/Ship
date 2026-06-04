@@ -11,8 +11,9 @@ use serde::{Deserialize, Serialize};
 ///
 /// The file-canonical nested type (`compiler::AgentProfile`) carries fields this
 /// view does not surface (`harness_settings`, `apps`, `plugins`, `rules.inline`,
-/// hooks). [`crate::agents::get_agents_config`] projects the canonical type into
-/// this shape; the save path preserves the hand-authored canonical fields.
+/// hooks). The gated write path [`crate::agents_write::save_agents_config`]
+/// authors this shape into a canonical file and preserves the hand-authored
+/// canonical fields on re-save.
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct AgentProfile {
     pub id: String,

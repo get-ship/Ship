@@ -1,3 +1,10 @@
+//! The gated agent-def WRITE path (legacy file-tier, S5 door).
+//!
+//! S2 (agents arc) cut the READ half over to THE consolidated reader
+//! (`ship_config::agents`, FsBroker); `config/io.rs` now sources agent profiles
+//! from it. Only the WRITE path remains here — unchanged, raw-fs, deferred to
+//! S5 where it folds onto the gated op + the FsBroker writer.
+
 use super::project::AgentProfile;
 use anyhow::{Context, Result};
 use ship_substrate::fs_util::strip_jsonc_comments;
@@ -5,30 +12,6 @@ use ship_substrate::project::agents_ns;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
-
-/// Project a canonical [`compiler::AgentProfile`] (nested file-format type)
-/// into the platform's flat [`AgentProfile`] (runtime/UI view). This is the
-/// single bridge between the file-canonical schema and the platform's
-/// in-memory shape. Lossy by design — the nested type carries fields the
-/// platform UI does not surface (`harness_settings`, `apps`, `plugins`,
-/// `rules.inline`, etc.).
-fn project_canonical(src: &compiler::AgentProfile) -> AgentProfile {
-    AgentProfile {
-        id: src.agent.id.clone(),
-        name: src.agent.name.clone(),
-        description: src.agent.description.clone(),
-        role: src.agent.role.clone(),
-        tools_preset: src.agent.tools_preset.clone(),
-        active_tools: src.agent.active_tools.clone(),
-        mcp_servers: src.mcp.servers.clone(),
-        skills: src.skills.refs.clone(),
-        rules: Vec::new(),
-        hooks: Vec::new(),
-        permissions: super::types::PermissionConfig::default(),
-        target_agents: Vec::new(),
-        isolation: None,
-    }
-}
 
 /// Strip the optional `NNNN-` numeric prefix and `.md` suffix from a rule
 /// reference so callers see canonical IDs (`rust` rather than `0001-rust.md`).
@@ -45,46 +28,6 @@ fn normalize_rule_external_id(id: &str) -> String {
 
 fn agent_file(ship_dir: &Path, id: &str) -> std::path::PathBuf {
     agents_ns(ship_dir).join(format!("{id}.jsonc"))
-}
-
-pub(super) fn get_agents_config(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
-    let dir = agents_ns(ship_dir);
-    if !dir.exists() {
-        return Ok(Vec::new());
-    }
-    let mut agents = Vec::new();
-    for entry in fs::read_dir(&dir).with_context(|| format!("read {}", dir.display()))? {
-        let entry = entry?;
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        if path.extension().and_then(|e| e.to_str()) != Some("jsonc") {
-            continue;
-        }
-        let raw = fs::read_to_string(&path)
-            .with_context(|| format!("read {}", path.display()))?;
-        let stripped = strip_jsonc_comments(&raw);
-        // Files are authored against the canonical schema (top-level `agent`
-        // block). Parse via `compiler::AgentProfile`, then project to the
-        // platform's flat runtime view.
-        let value: serde_json::Value = serde_json::from_str(&stripped)
-            .with_context(|| format!("parse agent profile {}", path.display()))?;
-        if value.get("agent").is_some() {
-            let canonical: compiler::AgentProfile = serde_json::from_value(value)
-                .with_context(|| format!("parse agent profile {}", path.display()))?;
-            agents.push(project_canonical(&canonical));
-        } else {
-            // Pre-canonical flat shape `{"id": ..., "name": ...}` written by
-            // an older `save_agents_config`. Kept for the round-trip path
-            // until every project re-saves into canonical form.
-            let flat: AgentProfile = serde_json::from_value(value)
-                .with_context(|| format!("parse agent profile {}", path.display()))?;
-            agents.push(flat);
-        }
-    }
-    agents.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(agents)
 }
 
 pub(super) fn save_agents_config(ship_dir: &Path, agents: &[AgentProfile]) -> Result<()> {

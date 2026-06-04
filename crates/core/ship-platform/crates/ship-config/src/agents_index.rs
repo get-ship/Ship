@@ -17,10 +17,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use ship_substrate::ports::{
-    ColumnKind, ColumnSpec, DataStore, FsBroker, FsMode, PrimaryKey, Query, Row, TableSchema,
+    ColumnKind, ColumnSpec, DataStore, FsBroker, PrimaryKey, Query, Row, TableSchema,
 };
 
-use crate::agents::{agent_rel, agents_cap};
+use crate::agents::{read_agent_def, read_agent_defs, AgentDefSource};
 use crate::error::ConfigError;
 
 /// The index table name (per-scope db). Columns mirror [`AgentDefRecord`].
@@ -151,87 +151,6 @@ impl AgentDefIndex {
     }
 }
 
-// ── source record reader (consolidated on the agents.rs cap) ──────────────────
-
-/// One agent def parsed from its file, for the index. THE reader's index-facing
-/// record (it reuses [`crate::agents`]'s `.ship/agents` confinement).
-#[derive(Debug, Clone, PartialEq)]
-pub struct AgentDefSource {
-    pub id: String,
-    pub name: String,
-    pub role: Option<String>,
-    pub tags: Vec<String>,
-    pub harness: Vec<String>,
-    pub path: String,
-    pub content_hash: String,
-}
-
-/// Read one def by file stem (`<stem>.jsonc`). `Ok(None)` when absent (the
-/// deleted case). Via [`FsBroker`] — never `std::fs`.
-pub fn read_agent_def(
-    fs: &dyn FsBroker,
-    ship_dir: &Path,
-    stem: &str,
-) -> Result<Option<AgentDefSource>, ConfigError> {
-    let (cap, agents_dir) = agents_cap(ship_dir, FsMode::ReadOnly);
-    let rel = agent_rel(&agents_dir, stem);
-    let raw = match fs.read(&cap, &rel) {
-        Ok(bytes) => bytes,
-        Err(ship_substrate::ports::FsError::NotFound) => return Ok(None),
-        Err(e) => return Err(e.into()),
-    };
-    Ok(Some(parse_def_source(stem, &raw)?))
-}
-
-/// Read every `<id>.jsonc` under `.ship/agents/` as index source records. Sorted
-/// by id. Missing dir → empty. Via [`FsBroker`] — never `std::fs`.
-pub fn read_agent_defs(
-    fs: &dyn FsBroker,
-    ship_dir: &Path,
-) -> Result<Vec<AgentDefSource>, ConfigError> {
-    let (cap, agents_dir) = agents_cap(ship_dir, FsMode::ReadOnly);
-    let entries = match fs.list_dir(&cap, &agents_dir) {
-        Ok(e) => e,
-        Err(ship_substrate::ports::FsError::NotFound) => return Ok(Vec::new()),
-        Err(e) => return Err(e.into()),
-    };
-    let mut defs = Vec::new();
-    for entry in entries {
-        if entry.extension().and_then(|e| e.to_str()) != Some("jsonc") {
-            continue;
-        }
-        let Some(stem) = entry.file_stem().and_then(|s| s.to_str()) else {
-            continue;
-        };
-        let raw = fs.read(&cap, &entry.to_string_lossy())?;
-        defs.push(parse_def_source(stem, &raw)?);
-    }
-    defs.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(defs)
-}
-
-/// Parse raw def bytes into an [`AgentDefSource`]. Handles the canonical nested
-/// shape (top-level `agent` block) and the legacy flat shape; `content_hash` is
-/// the SHA-256 of the raw bytes regardless of shape.
-fn parse_def_source(stem: &str, raw: &[u8]) -> Result<AgentDefSource, ConfigError> {
-    let content_hash = ship_types::sha256_hex(raw);
-    let text = String::from_utf8_lossy(raw);
-    let value: serde_json::Value = ship_substrate::config_doc::parse_doc(&text)
-        .map_err(|e| ConfigError::Validation(format!("parse agent def {stem}.jsonc: {e}")))?;
-    let agent_obj = value.get("agent").unwrap_or(&value);
-    let id = str_field(agent_obj, "id").unwrap_or_else(|| stem.to_string());
-    let name = str_field(agent_obj, "name").unwrap_or_else(|| id.clone());
-    Ok(AgentDefSource {
-        id,
-        name,
-        role: str_field(agent_obj, "role"),
-        tags: str_array(agent_obj, "tags"),
-        harness: str_array(agent_obj, "harnesses"),
-        path: format!("{stem}.jsonc"),
-        content_hash,
-    })
-}
-
 // ── small helpers ─────────────────────────────────────────────────────────────
 
 fn col(name: &str, kind: ColumnKind, required: bool) -> ColumnSpec {
@@ -262,17 +181,6 @@ fn split_csv(s: &str) -> Vec<String> {
     } else {
         s.split('\n').map(str::to_string).collect()
     }
-}
-
-fn str_field(obj: &serde_json::Value, key: &str) -> Option<String> {
-    obj.get(key).and_then(|v| v.as_str()).map(str::to_string)
-}
-
-fn str_array(obj: &serde_json::Value, key: &str) -> Vec<String> {
-    obj.get(key)
-        .and_then(|v| v.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
-        .unwrap_or_default()
 }
 
 fn row_to_record(row: &Row) -> AgentDefRecord {

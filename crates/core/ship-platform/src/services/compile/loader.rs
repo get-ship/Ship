@@ -333,31 +333,10 @@ pub fn parse_rule(file_name: &str, raw: &str) -> Rule {
 // ── Agent profiles ────────────────────────────────────────────────────────────
 
 fn load_agent_profiles(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
-    let agents_dir = ship_dir.join("agents");
-    if !agents_dir.exists() {
-        return Ok(vec![]);
-    }
-    let mut profiles = Vec::new();
-    for entry in std::fs::read_dir(&agents_dir)?.flatten() {
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        if path.extension().and_then(|s| s.to_str()) != Some("jsonc") {
-            continue;
-        }
-        let content = std::fs::read_to_string(&path)?;
-        match compiler::jsonc::from_jsonc_str::<AgentProfile>(&content) {
-            Ok(profile) => profiles.push(profile),
-            Err(e) => {
-                eprintln!(
-                    "warning: skipping {}: {}",
-                    path.file_name().unwrap_or_default().to_string_lossy(),
-                    e,
-                );
-            }
-        }
-    }
-    profiles.sort_by(|a, b| a.agent.id.cmp(&b.agent.id));
-    Ok(profiles)
+    // THE agent-def reader (FsBroker, ship-config) is the one door for
+    // `.ship/agents/*.jsonc` — no raw `std::fs` walk here. It returns the FULL
+    // nested `compiler::AgentProfile`, sorted by `agent.id`, skipping malformed
+    // files (the same lenient contract this loader had).
+    let fs = ship_substrate::ports::LocalFsBroker::new();
+    Ok(ship_config::agents::read_agent_profiles(&fs, ship_dir)?)
 }

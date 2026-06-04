@@ -1,33 +1,41 @@
-//! Declarative file-tier: the agent-profile projection over `.ship/agents/`.
+//! THE agent-def reader — the one file-access door for `.ship/agents/*.jsonc`.
 //!
-//! THE EVICTION: the pre-carve `config/agents.rs` used raw `std::fs` to walk,
-//! read, write, and prune `.ship/agents/<id>.jsonc`. Here ALL disk goes through
-//! the [`FsBroker`] gated door — confined by an [`FsCap`]. Zero `std::fs`/
-//! `tokio::fs` in this crate (grep-gate invariant).
+//! THE EVICTION: the pre-carve `config/agents.rs` used raw `std::fs` to walk and
+//! read `.ship/agents/<id>.jsonc`. Here ALL disk goes through the [`FsBroker`]
+//! gated door — confined by an [`FsCap`]. Zero `std::fs`/`tokio::fs` in this
+//! crate's read path (grep-gate invariant).
 //!
-//! Files are authored against the canonical schema (`compiler::AgentProfile`,
-//! top-level `agent` block); this module projects that into the platform's flat
-//! runtime view ([`crate::types::AgentProfile`]) and, on save, preserves the
-//! hand-authored canonical fields (`hooks`, `plugins`, `rules.inline`,
-//! `harness_settings`, `apps`).
+//! ONE byte-read serves every granularity (S2 — agents arc, cutover):
+//! - **FULL `compiler::AgentProfile`** (nested) — what the compiler's
+//!   `load_agent_profiles` consumes; NO field loss.
+//! - **raw `serde_json::Value`** — what the daemon view-state projects its
+//!   summaries/detail from (it needs fields the nested type drops, e.g.
+//!   `rules.refs`, `permissions.tier`).
+//! - **SUMMARY [`AgentDefSource`]** — what the read-only index keys on
+//!   (id/name/role/tags/harness/path/content_hash); `harness` is read off the
+//!   raw value because the nested `compiler::AgentProfile` view drops it.
+//!
+//! Files are authored against the canonical schema (top-level `agent` block).
+//! The WRITE path (gated, S5) lives in the sibling [`crate::agents_write`].
 
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use ship_substrate::ports::{FsBroker, FsCap, FsMode, FsRoot};
+use ship_substrate::ports::{FsBroker, FsCap, FsError, FsMode, FsRoot};
 
 use crate::error::ConfigError;
-use crate::types::AgentProfile;
+
+// ── Confinement ────────────────────────────────────────────────────────────────
 
 /// Resolve the cap root + the agents-dir rel path for a `ship_dir`.
 ///
 /// The cap roots at the `ship_dir`'s PARENT (the project/library root), which
-/// reliably exists. The broker's symlink-escape guard canonicalizes the deepest
-/// EXISTING ancestor of a path and rejects anything that escapes the cap root —
-/// so a not-yet-created `.ship/agents` cap root would itself read as an escape.
-/// Rooting at the existing parent and naming `<.ship>/agents` as the rel path
-/// keeps the guard satisfied while still confining to `.ship/agents`. When
-/// `ship_dir` has no parent, the cap roots at `ship_dir` with rel `agents`.
+/// reliably exists, and names `<.ship>/agents` as the rel path. The broker's
+/// symlink-escape guard canonicalizes the deepest EXISTING ancestor of a path
+/// and rejects anything that escapes the cap root — so a not-yet-created
+/// `.ship/agents` cap root would itself read as an escape. Rooting at the
+/// existing parent and naming a two-segment rel keeps the guard satisfied while
+/// still confining to `.ship/agents`. When `ship_dir` has no parent, the cap
+/// roots at `ship_dir` with rel `agents`.
 fn cap_root_and_dir(ship_dir: &Path) -> (PathBuf, String) {
     let ship_name = ship_dir
         .file_name()
@@ -41,13 +49,47 @@ fn cap_root_and_dir(ship_dir: &Path) -> (PathBuf, String) {
     }
 }
 
+/// Resolve the cap root + rel path for an explicit `agents` directory (the
+/// daemon view-state's two scopes, `<ship>/library/agents` and
+/// `<project>/.ship/agents`; the CLI's `<ship>/agents`). Roots the cap at the
+/// agents dir's GRANDPARENT and names a two-segment `<parent>/<leaf>` rel —
+/// the SAME bootstrap-safe rooting [`cap_root_and_dir`] uses, so a not-yet-
+/// created leaf never reads as an escape.
+fn dir_cap_root(agents_dir: &Path) -> (PathBuf, String) {
+    let leaf = agents_dir
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "agents".to_string());
+    match agents_dir.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => {
+            let parent_name = parent
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned());
+            match (parent.parent(), parent_name) {
+                (Some(gp), Some(pn)) if !gp.as_os_str().is_empty() => {
+                    (gp.to_path_buf(), format!("{pn}/{leaf}"))
+                }
+                _ => (parent.to_path_buf(), leaf),
+            }
+        }
+        _ => (agents_dir.to_path_buf(), leaf),
+    }
+}
+
 /// Mint an FsCap rooted at the project/library dir; the agents projection lives
 /// at the returned rel dir under it.
 ///
 /// Bootstrap posture (fs_broker.rs:9-10): until `SpaceContext` minting lands in
 /// Phase 5, the cap is `new_unchecked` — not new debt, the documented seam.
 pub(crate) fn agents_cap(ship_dir: &Path, mode: FsMode) -> (FsCap, String) {
-    let (root, agents_dir) = cap_root_and_dir(ship_dir);
+    cap_for(cap_root_and_dir(ship_dir), mode)
+}
+
+fn dir_agents_cap(agents_dir: &Path, mode: FsMode) -> (FsCap, String) {
+    cap_for(dir_cap_root(agents_dir), mode)
+}
+
+fn cap_for((root, agents_dir): (PathBuf, String), mode: FsMode) -> (FsCap, String) {
     let cap = FsCap::new_unchecked(
         root,
         FsRoot::Space(ship_substrate::ports::SpaceId::new("config")),
@@ -61,376 +103,254 @@ pub(crate) fn agent_rel(agents_dir: &str, id: &str) -> String {
     format!("{agents_dir}/{id}.jsonc")
 }
 
-/// Strip the optional `NNNN-` numeric prefix and `.md` suffix from a rule
-/// reference so callers see canonical IDs (`rust` rather than `0001-rust.md`).
-pub fn normalize_rule_external_id(id: &str) -> String {
-    let normalized = id.trim().trim_end_matches(".md");
-    if let Some((prefix, rest)) = normalized.split_once('-')
-        && !prefix.is_empty()
-        && prefix.chars().all(|ch| ch.is_ascii_digit())
-    {
-        return rest.to_string();
-    }
-    normalized.to_string()
+// ── Raw doc access (one byte-read, one Value parse) ─────────────────────────────
+
+/// One def's raw bytes + parsed value + file stem, off a single read.
+struct DefDoc {
+    stem: String,
+    raw: Vec<u8>,
+    value: serde_json::Value,
 }
 
-/// Project a canonical [`compiler::AgentProfile`] (nested file-format type) into
-/// the platform's flat [`AgentProfile`] (runtime/UI view). Lossy by design — the
-/// nested type carries fields the platform UI does not surface.
-fn project_canonical(src: &compiler::AgentProfile) -> AgentProfile {
-    AgentProfile {
-        id: src.agent.id.clone(),
-        name: src.agent.name.clone(),
-        description: src.agent.description.clone(),
-        role: src.agent.role.clone(),
-        tools_preset: src.agent.tools_preset.clone(),
-        active_tools: src.agent.active_tools.clone(),
-        mcp_servers: src.mcp.servers.clone(),
-        skills: src.skills.refs.clone(),
-        rules: Vec::new(),
-        target_agents: Vec::new(),
-    }
+/// Default def extensions. The canonical authoring format is `.jsonc`; `.json`
+/// is also accepted so legacy/plain-JSON defs still resolve.
+const DEF_EXTS: &[&str] = &["jsonc", "json"];
+
+/// Parse raw def bytes into a JSON value. `None` when the bytes are not valid
+/// JSONC — a malformed def is SKIPPED, never a hard error (the lenient contract
+/// every consumer relied on: one bad file must not break the walk/lookup).
+fn parse_value(raw: &[u8]) -> Option<serde_json::Value> {
+    let text = String::from_utf8_lossy(raw);
+    ship_substrate::config_doc::parse_doc(&text).ok()
 }
 
-/// Read every `<id>.jsonc` under `.ship/agents/`, projecting the canonical
-/// schema (or a legacy-flat shape) into the platform's flat profile. Sorted by
-/// id. Reads via [`FsBroker`] — never `std::fs`.
-pub fn get_agents_config(
+/// Read + parse every def under `agents_dir`, restricted to `exts`, sorted by
+/// stem. Missing dir → empty. Unparseable files are skipped. Via [`FsBroker`] —
+/// never `std::fs`.
+fn read_docs(
     fs: &dyn FsBroker,
-    ship_dir: &Path,
-) -> Result<Vec<AgentProfile>, ConfigError> {
-    let (cap, agents_dir) = agents_cap(ship_dir, FsMode::ReadOnly);
-    // Missing dir → no agents. `list_dir` errors NotFound on a missing dir.
-    let entries = match fs.list_dir(&cap, &agents_dir) {
+    cap: &FsCap,
+    agents_dir: &str,
+    exts: &[&str],
+) -> Result<Vec<DefDoc>, ConfigError> {
+    let entries = match fs.list_dir(cap, agents_dir) {
         Ok(e) => e,
-        Err(ship_substrate::ports::FsError::NotFound) => return Ok(Vec::new()),
+        Err(FsError::NotFound) => return Ok(Vec::new()),
         Err(e) => return Err(e.into()),
     };
-
-    let mut agents = Vec::new();
+    let mut out = Vec::new();
     for entry in entries {
-        if entry.extension().and_then(|e| e.to_str()) != Some("jsonc") {
+        let ext = entry.extension().and_then(|e| e.to_str());
+        if !ext.is_some_and(|e| exts.contains(&e)) {
             continue;
         }
-        // `list_dir` yields paths relative to the cap root (e.g. `.ship/agents/x.jsonc`).
-        let rel = entry.to_string_lossy();
-        let raw = fs.read_string(&cap, &rel)?;
-        let value: serde_json::Value = ship_substrate::config_doc::parse_doc(&raw)
-            .map_err(|e| ConfigError::Validation(format!("parse agent profile {rel}: {e}")))?;
-        if value.get("agent").is_some() {
-            let canonical: compiler::AgentProfile = serde_json::from_value(value)
-                .map_err(|e| ConfigError::Validation(format!("parse agent profile {rel}: {e}")))?;
-            agents.push(project_canonical(&canonical));
-        } else {
-            // Pre-canonical flat shape `{"id": ..., "name": ...}` written by an
-            // older save. Kept for the round-trip path until every project
-            // re-saves into canonical form.
-            let flat: AgentProfile = serde_json::from_value(value)
-                .map_err(|e| ConfigError::Validation(format!("parse agent profile {rel}: {e}")))?;
-            agents.push(flat);
-        }
-    }
-    agents.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(agents)
-}
-
-/// Write each profile to `<id>.jsonc`, pruning files for agents no longer in the
-/// desired set. Preserves hand-authored canonical fields on re-save. Writes via
-/// [`FsBroker`] — never `std::fs`.
-pub fn save_agents_config(
-    fs: &dyn FsBroker,
-    ship_dir: &Path,
-    agents: &[AgentProfile],
-) -> Result<(), ConfigError> {
-    let (cap, agents_dir) = agents_cap(ship_dir, FsMode::ReadWrite);
-    fs.create_dir_all(&cap, &agents_dir)?;
-
-    let keep: HashSet<String> = agents.iter().map(|a| a.id.clone()).collect();
-
-    // Prune files for agents no longer in the desired set.
-    let entries = match fs.list_dir(&cap, &agents_dir) {
-        Ok(e) => e,
-        Err(ship_substrate::ports::FsError::NotFound) => Vec::new(),
-        Err(e) => return Err(e.into()),
-    };
-    for entry in entries {
-        if entry.extension().and_then(|e| e.to_str()) != Some("jsonc") {
-            continue;
-        }
-        let Some(id) = entry.file_stem().and_then(|s| s.to_str()) else {
+        let Some(stem) = entry.file_stem().and_then(|s| s.to_str()) else {
             continue;
         };
-        if !keep.contains(id) {
-            fs.remove(&cap, &agent_rel(&agents_dir, id))?;
+        let raw = fs.read(cap, &entry.to_string_lossy())?;
+        let Some(value) = parse_value(&raw) else {
+            continue;
+        };
+        out.push(DefDoc { stem: stem.to_string(), raw, value });
+    }
+    out.sort_by(|a, b| a.stem.cmp(&b.stem));
+    Ok(out)
+}
+
+/// Read + parse one def by file stem, trying each ext in `exts`. `Ok(None)` when
+/// no file is present (the deleted/absent case) or the file is unparseable.
+fn read_doc(
+    fs: &dyn FsBroker,
+    cap: &FsCap,
+    agents_dir: &str,
+    stem: &str,
+    exts: &[&str],
+) -> Result<Option<DefDoc>, ConfigError> {
+    for ext in exts {
+        let rel = format!("{agents_dir}/{stem}.{ext}");
+        match fs.read(cap, &rel) {
+            Ok(raw) => {
+                return Ok(parse_value(&raw)
+                    .map(|value| DefDoc { stem: stem.to_string(), raw, value }));
+            }
+            Err(FsError::NotFound) => continue,
+            Err(e) => return Err(e.into()),
         }
     }
-
-    for agent in agents {
-        let mut profile = agent.clone();
-        profile.rules = profile
-            .rules
-            .iter()
-            .map(|id| normalize_rule_external_id(id))
-            .collect();
-        let rel = agent_rel(&agents_dir, &agent.id);
-        let existing = fs.read_string(&cap, &rel).ok();
-        let content = render_agent_file(existing.as_deref(), &profile)?;
-        fs.write_atomic(&cap, &rel, content.as_bytes())?;
-    }
-    Ok(())
+    Ok(None)
 }
 
-/// Render an agent profile to JSONC. When `existing` already holds a canonical
-/// nested-shape file, the platform-managed fields are merged in and the
-/// remaining hand-authored content (`hooks`, `plugins`, `rules.inline`,
-/// `harness_settings`, `apps`, schema reference) is preserved. Otherwise the
-/// platform-managed fields are emitted as a minimal canonical nested file.
-fn render_agent_file(existing: Option<&str>, flat: &AgentProfile) -> Result<String, ConfigError> {
-    let parsed: Option<serde_json::Value> = existing
-        .map(ship_substrate::fs_util::strip_jsonc_comments)
-        .and_then(|stripped| serde_json::from_str(&stripped).ok());
+// ── Full nested profile (compiler input) ───────────────────────────────────────
 
-    let canonical_doc = parsed.filter(|v| v.get("agent").is_some());
-
-    if let Some(mut doc) = canonical_doc {
-        merge_flat_into_canonical(&mut doc, flat);
-        let json = serde_json::to_string_pretty(&doc)
-            .map_err(|e| ConfigError::Internal(e.to_string()))?;
-        Ok(format!("{json}\n"))
-    } else {
-        let mut agent_block = serde_json::json!({ "id": flat.id, "name": flat.name });
-        set_meta_fields(&mut agent_block, flat);
-        let canonical = serde_json::json!({
-            "agent": agent_block,
-            "skills": { "refs": flat.skills },
-            "mcp": { "servers": flat.mcp_servers },
-        });
-        let json = serde_json::to_string_pretty(&canonical)
-            .map_err(|e| ConfigError::Internal(e.to_string()))?;
-        Ok(format!("{json}\n"))
+/// Parse a [`DefDoc`]'s value into the FULL nested `compiler::AgentProfile`.
+/// `None` when the doc lacks the canonical top-level `agent` block (the
+/// loader's lenient "skip malformed" contract).
+fn to_profile(doc: &DefDoc) -> Option<compiler::AgentProfile> {
+    if doc.value.get("agent").is_none() {
+        return None;
     }
+    serde_json::from_value(doc.value.clone()).ok()
 }
 
-/// Set the optional/list meta fields on an `agent` JSON block from the flat view.
-fn set_meta_fields(block: &mut serde_json::Value, flat: &AgentProfile) {
-    let Some(a) = block.as_object_mut() else {
-        return;
+/// Read every `<id>.jsonc` under `<ship_dir>/agents/` as FULL nested profiles.
+/// Sorted by `agent.id`. Malformed files are skipped (loader parity). Via
+/// [`FsBroker`] — never `std::fs`.
+pub fn read_agent_profiles(
+    fs: &dyn FsBroker,
+    ship_dir: &Path,
+) -> Result<Vec<compiler::AgentProfile>, ConfigError> {
+    let (cap, agents_dir) = agents_cap(ship_dir, FsMode::ReadOnly);
+    profiles_from(read_docs(fs, &cap, &agents_dir, &["jsonc"])?)
+}
+
+/// Read profiles from an explicit `agents` directory (the daemon view-state's
+/// per-scope dirs). Same nested shape, sorted by `agent.id`.
+pub fn read_agent_profiles_in(
+    fs: &dyn FsBroker,
+    agents_dir: &Path,
+) -> Result<Vec<compiler::AgentProfile>, ConfigError> {
+    let (cap, rel) = dir_agents_cap(agents_dir, FsMode::ReadOnly);
+    profiles_from(read_docs(fs, &cap, &rel, &["jsonc"])?)
+}
+
+fn profiles_from(docs: Vec<DefDoc>) -> Result<Vec<compiler::AgentProfile>, ConfigError> {
+    let mut profiles: Vec<_> = docs.iter().filter_map(to_profile).collect();
+    profiles.sort_by(|a, b| a.agent.id.cmp(&b.agent.id));
+    Ok(profiles)
+}
+
+/// Read a single def's FULL nested profile by stem (project agents dir).
+pub fn read_agent_profile(
+    fs: &dyn FsBroker,
+    ship_dir: &Path,
+    stem: &str,
+) -> Result<Option<compiler::AgentProfile>, ConfigError> {
+    let (cap, agents_dir) = agents_cap(ship_dir, FsMode::ReadOnly);
+    Ok(read_doc(fs, &cap, &agents_dir, stem, &["jsonc"])?.as_ref().and_then(to_profile))
+}
+
+/// Read a single def's FULL nested profile from an explicit file path (the CLI's
+/// `find_agent_file` → `load_agent_profile` seam). `Ok(None)` when absent.
+pub fn read_agent_profile_at(
+    fs: &dyn FsBroker,
+    path: &Path,
+) -> Result<Option<compiler::AgentProfile>, ConfigError> {
+    let Some(parent) = path.parent() else {
+        return Ok(None);
     };
-    if let Some(desc) = &flat.description {
-        a.insert("description".into(), serde_json::Value::String(desc.clone()));
-    }
-    if let Some(role) = &flat.role {
-        a.insert("role".into(), serde_json::Value::String(role.clone()));
-    }
-    if let Some(preset) = &flat.tools_preset {
-        a.insert("tools_preset".into(), serde_json::Value::String(preset.clone()));
-    }
-    if !flat.active_tools.is_empty() {
-        a.insert("active_tools".into(), to_str_array(&flat.active_tools));
-    }
-    if !flat.target_agents.is_empty() {
-        a.insert("harnesses".into(), to_str_array(&flat.target_agents));
-    }
-}
-
-/// Overlay the platform-managed fields of a flat [`AgentProfile`] onto a
-/// canonical nested JSONC document. Fields the platform does not own (`hooks`,
-/// `plugins`, `rules.inline`, `harness_settings`, `apps`) are left untouched.
-fn merge_flat_into_canonical(doc: &mut serde_json::Value, flat: &AgentProfile) {
-    let Some(root) = doc.as_object_mut() else {
-        return;
+    let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+        return Ok(None);
     };
-    let agent_obj = root
-        .entry("agent".to_string())
-        .or_insert_with(|| serde_json::json!({}));
-    if let Some(a) = agent_obj.as_object_mut() {
-        a.insert("id".into(), serde_json::Value::String(flat.id.clone()));
-        a.insert("name".into(), serde_json::Value::String(flat.name.clone()));
-    }
-    set_meta_fields(agent_obj, flat);
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("jsonc");
+    let (cap, rel) = dir_agents_cap(parent, FsMode::ReadOnly);
+    Ok(read_doc(fs, &cap, &rel, stem, &[ext])?.as_ref().and_then(to_profile))
+}
 
-    let skills_obj = root
-        .entry("skills".to_string())
-        .or_insert_with(|| serde_json::json!({}));
-    if let Some(s) = skills_obj.as_object_mut() {
-        s.insert("refs".into(), to_str_array(&flat.skills));
-    }
+// ── Raw docs (daemon view-state projects summaries/detail from these) ───────────
 
-    let mcp_obj = root
-        .entry("mcp".to_string())
-        .or_insert_with(|| serde_json::json!({}));
-    if let Some(m) = mcp_obj.as_object_mut() {
-        m.insert("servers".into(), to_str_array(&flat.mcp_servers));
+/// Read every def under an explicit `agents` dir as `(stem, value)` pairs,
+/// sorted by stem. Accepts `.jsonc` + `.json`. The daemon view-state projects
+/// its summaries/detail from the raw value (fields the nested type drops).
+pub fn read_agent_docs_in(
+    fs: &dyn FsBroker,
+    agents_dir: &Path,
+) -> Result<Vec<(String, serde_json::Value)>, ConfigError> {
+    let (cap, rel) = dir_agents_cap(agents_dir, FsMode::ReadOnly);
+    Ok(read_docs(fs, &cap, &rel, DEF_EXTS)?
+        .into_iter()
+        .map(|d| (d.stem, d.value))
+        .collect())
+}
+
+/// Read one def `(stem, value)` by id from an explicit `agents` dir. Tries
+/// `.jsonc` then `.json`. `Ok(None)` when absent.
+pub fn read_agent_doc_in(
+    fs: &dyn FsBroker,
+    agents_dir: &Path,
+    id: &str,
+) -> Result<Option<(String, serde_json::Value)>, ConfigError> {
+    let (cap, rel) = dir_agents_cap(agents_dir, FsMode::ReadOnly);
+    Ok(read_doc(fs, &cap, &rel, id, DEF_EXTS)?.map(|d| (d.stem, d.value)))
+}
+
+// ── Summary source (read-only index keys on this) ───────────────────────────────
+
+/// One agent def parsed from its file, for the index. The summary granularity:
+/// id/name/role/tags + `harness` (canonical `agent.harnesses`, which the nested
+/// `compiler::AgentProfile` view drops) + the file-identity fields the index
+/// keys on. `content_hash` is the SHA-256 of the raw bytes — the SAME value the
+/// `agent.def.updated` notification carries.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AgentDefSource {
+    pub id: String,
+    pub name: String,
+    pub role: Option<String>,
+    pub tags: Vec<String>,
+    pub harness: Vec<String>,
+    pub path: String,
+    pub content_hash: String,
+}
+
+/// Project a [`DefDoc`] to the index summary. Reads off the same parsed value +
+/// raw bytes (no second read). `harness` comes from the raw value (the nested
+/// profile drops it).
+fn to_source(doc: &DefDoc) -> AgentDefSource {
+    let agent_obj = doc.value.get("agent").unwrap_or(&doc.value);
+    let id = str_field(agent_obj, "id").unwrap_or_else(|| doc.stem.clone());
+    let name = str_field(agent_obj, "name").unwrap_or_else(|| id.clone());
+    AgentDefSource {
+        id,
+        name,
+        role: str_field(agent_obj, "role"),
+        tags: str_array(agent_obj, "tags"),
+        harness: str_array(agent_obj, "harnesses"),
+        path: format!("{}.jsonc", doc.stem),
+        content_hash: ship_types::sha256_hex(&doc.raw),
     }
 }
 
-fn to_str_array(items: &[String]) -> serde_json::Value {
-    serde_json::Value::Array(items.iter().cloned().map(serde_json::Value::String).collect())
+/// Read every `<id>.jsonc` under `<ship_dir>/agents/` as index source records.
+/// Sorted by id. Missing dir → empty. Via [`FsBroker`] — never `std::fs`.
+pub fn read_agent_defs(
+    fs: &dyn FsBroker,
+    ship_dir: &Path,
+) -> Result<Vec<AgentDefSource>, ConfigError> {
+    let (cap, agents_dir) = agents_cap(ship_dir, FsMode::ReadOnly);
+    let mut defs: Vec<_> = read_docs(fs, &cap, &agents_dir, &["jsonc"])?
+        .iter()
+        .map(to_source)
+        .collect();
+    defs.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(defs)
+}
+
+/// Read one def by file stem (`<stem>.jsonc`) as an index source record.
+/// `Ok(None)` when absent (the deleted case). Via [`FsBroker`] — never
+/// `std::fs`.
+pub fn read_agent_def(
+    fs: &dyn FsBroker,
+    ship_dir: &Path,
+    stem: &str,
+) -> Result<Option<AgentDefSource>, ConfigError> {
+    let (cap, agents_dir) = agents_cap(ship_dir, FsMode::ReadOnly);
+    Ok(read_doc(fs, &cap, &agents_dir, stem, &["jsonc"])?
+        .as_ref()
+        .map(to_source))
+}
+
+// ── small value helpers ─────────────────────────────────────────────────────────
+
+fn str_field(obj: &serde_json::Value, key: &str) -> Option<String> {
+    obj.get(key).and_then(|v| v.as_str()).map(str::to_string)
+}
+
+fn str_array(obj: &serde_json::Value, key: &str) -> Vec<String> {
+    obj.get(key)
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use ship_substrate::ports::{FsBroker as _, LocalFsBroker};
-    use tempfile::tempdir;
-
-    /// Returns `(ship_dir, cap, agents_dir)` for direct broker writes in tests.
-    /// Canonicalizes the tempdir root: on WSL/macOS `/tmp` is a symlink, and the
-    /// broker's symlink-escape guard canonicalizes the deepest existing ancestor
-    /// before comparing it to the cap root. Production ship dirs are already
-    /// canonical, so this is a test-fixture concern only.
-    fn ship_dir(tmp: &tempfile::TempDir) -> PathBuf {
-        let base = std::fs::canonicalize(tmp.path()).unwrap();
-        ship_substrate::home::ShipHome::project_ship_dir(base)
-    }
-
-    // ── normalize_rule_external_id ────────────────────────────────────────────
-
-    #[test]
-    fn normalize_strips_nnnn_prefix_and_md_suffix() {
-        assert_eq!(normalize_rule_external_id("0001-rust.md"), "rust");
-        assert_eq!(normalize_rule_external_id("rust"), "rust");
-        assert_eq!(normalize_rule_external_id("rust.md"), "rust");
-        // Non-numeric prefix is preserved.
-        assert_eq!(normalize_rule_external_id("ab-cd"), "ab-cd");
-    }
-
-    // ── EVICTION PROOF: reads go through FsBroker, not std::fs ────────────────
-
-    #[test]
-    fn get_agents_config_reads_canonical_via_fs_broker() {
-        let tmp = tempdir().unwrap();
-        let dir = ship_dir(&tmp);
-        let fs = LocalFsBroker::new();
-        // Author a canonical-shape file through the SAME broker door (no std::fs).
-        let (cap, agents_dir) = agents_cap(&dir, FsMode::ReadWrite);
-        fs.create_dir_all(&cap, &agents_dir).unwrap();
-        let doc = serde_json::json!({
-            "agent": { "id": "alpha", "name": "Alpha", "role": "worker" },
-            "skills": { "refs": ["rust"] },
-            "mcp": { "servers": ["fs"] }
-        });
-        fs.write_atomic(
-            &cap,
-            &agent_rel(&agents_dir, "alpha"),
-            serde_json::to_vec_pretty(&doc).unwrap().as_slice(),
-        )
-        .unwrap();
-
-        let agents = get_agents_config(&fs, &dir).unwrap();
-        assert_eq!(agents.len(), 1);
-        assert_eq!(agents[0].id, "alpha");
-        assert_eq!(agents[0].name, "Alpha");
-        assert_eq!(agents[0].role.as_deref(), Some("worker"));
-        assert_eq!(agents[0].skills, vec!["rust".to_string()]);
-        assert_eq!(agents[0].mcp_servers, vec!["fs".to_string()]);
-    }
-
-    #[test]
-    fn get_agents_config_missing_dir_returns_empty() {
-        let tmp = tempdir().unwrap();
-        let fs = LocalFsBroker::new();
-        // Never created the agents dir.
-        let agents = get_agents_config(&fs, &ship_dir(&tmp)).unwrap();
-        assert!(agents.is_empty());
-    }
-
-    #[test]
-    fn get_agents_config_parses_both_canonical_and_flat_and_sorts() {
-        let tmp = tempdir().unwrap();
-        let dir = ship_dir(&tmp);
-        let fs = LocalFsBroker::new();
-        let (cap, agents_dir) = agents_cap(&dir, FsMode::ReadWrite);
-        fs.create_dir_all(&cap, &agents_dir).unwrap();
-        // canonical (id "z")
-        let canonical = serde_json::json!({ "agent": { "id": "zeta", "name": "Zeta" } });
-        fs.write_atomic(&cap, &agent_rel(&agents_dir, "zeta"), canonical.to_string().as_bytes())
-            .unwrap();
-        // legacy flat (id "a")
-        let flat = serde_json::json!({ "id": "alpha", "name": "Alpha" });
-        fs.write_atomic(&cap, &agent_rel(&agents_dir, "alpha"), flat.to_string().as_bytes())
-            .unwrap();
-
-        let agents = get_agents_config(&fs, &dir).unwrap();
-        assert_eq!(agents.len(), 2);
-        // Sorted by id: alpha before zeta.
-        assert_eq!(agents[0].id, "alpha");
-        assert_eq!(agents[1].id, "zeta");
-    }
-
-    #[test]
-    fn save_agents_config_prunes_dropped_agents() {
-        let tmp = tempdir().unwrap();
-        let dir = ship_dir(&tmp);
-        let fs = LocalFsBroker::new();
-
-        let a = AgentProfile { id: "alpha".into(), name: "Alpha".into(), ..Default::default() };
-        let b = AgentProfile { id: "beta".into(), name: "Beta".into(), ..Default::default() };
-        save_agents_config(&fs, &dir, &[a.clone(), b.clone()]).unwrap();
-        assert_eq!(get_agents_config(&fs, &dir).unwrap().len(), 2);
-
-        // Re-save with only alpha — beta's file must be pruned.
-        save_agents_config(&fs, &dir, &[a]).unwrap();
-        let after = get_agents_config(&fs, &dir).unwrap();
-        assert_eq!(after.len(), 1);
-        assert_eq!(after[0].id, "alpha");
-    }
-
-    #[test]
-    fn save_preserves_hand_authored_canonical_fields_on_resave() {
-        let tmp = tempdir().unwrap();
-        let dir = ship_dir(&tmp);
-        let fs = LocalFsBroker::new();
-        let (cap, agents_dir) = agents_cap(&dir, FsMode::ReadWrite);
-        fs.create_dir_all(&cap, &agents_dir).unwrap();
-
-        // Hand-authored canonical file with fields the platform does NOT own.
-        let authored = serde_json::json!({
-            "agent": { "id": "alpha", "name": "Alpha" },
-            "skills": { "refs": [] },
-            "mcp": { "servers": [] },
-            "hooks": { "stop": "echo bye" },
-            "rules": { "inline": "be careful" },
-            "harness_settings": { "claude": { "model": "opus" } },
-            "apps": { "studio": true }
-        });
-        fs.write_atomic(&cap, &agent_rel(&agents_dir, "alpha"), authored.to_string().as_bytes())
-            .unwrap();
-
-        // Re-save the platform-managed view (changes skills only).
-        let profile = AgentProfile {
-            id: "alpha".into(),
-            name: "Alpha".into(),
-            skills: vec!["rust".into()],
-            ..Default::default()
-        };
-        save_agents_config(&fs, &dir, &[profile]).unwrap();
-
-        // The hand-authored fields must survive the re-save.
-        let raw = fs.read_string(&cap, &agent_rel(&agents_dir, "alpha")).unwrap();
-        let doc: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert_eq!(doc["hooks"]["stop"], "echo bye", "hooks preserved");
-        assert_eq!(doc["rules"]["inline"], "be careful", "rules.inline preserved");
-        assert_eq!(doc["harness_settings"]["claude"]["model"], "opus", "harness_settings preserved");
-        assert_eq!(doc["apps"]["studio"], true, "apps preserved");
-        // And the platform-managed change landed.
-        assert_eq!(doc["skills"]["refs"][0], "rust", "platform field updated");
-    }
-
-    #[test]
-    fn save_normalizes_rule_ids_on_disk() {
-        let tmp = tempdir().unwrap();
-        let dir = ship_dir(&tmp);
-        let fs = LocalFsBroker::new();
-        let profile = AgentProfile {
-            id: "alpha".into(),
-            name: "Alpha".into(),
-            rules: vec!["0001-rust.md".into()],
-            ..Default::default()
-        };
-        // The save path normalizes rule ids; the file must round-trip cleanly.
-        save_agents_config(&fs, &dir, &[profile]).unwrap();
-        let agents = get_agents_config(&fs, &dir).unwrap();
-        assert_eq!(agents.len(), 1);
-    }
-}
+#[path = "agents_tests.rs"]
+mod tests;
