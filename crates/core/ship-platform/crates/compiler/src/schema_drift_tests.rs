@@ -7,7 +7,10 @@
 use serde_json::Value as Json;
 
 fn load_schema(name: &str) -> Json {
-    let path = format!("{}/../../../schemas/{}", env!("CARGO_MANIFEST_DIR"), name);
+    // The compiler crate lives at `crates/core/ship-platform/crates/compiler`
+    // (it was relocated under ship-platform); the canonical schemas sit at the
+    // repo root `schemas/`, five levels up from this crate's manifest dir.
+    let path = format!("{}/../../../../../schemas/{}", env!("CARGO_MANIFEST_DIR"), name);
     let content =
         std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("Schema not found: {}", path));
     serde_json::from_str(&content).unwrap_or_else(|e| panic!("Invalid JSON in {}: {}", name, e))
