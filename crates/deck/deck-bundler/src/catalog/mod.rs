@@ -88,10 +88,11 @@ pub fn build_catalog(
 /// the component compiles into the view bundle.
 ///
 /// SOURCE-MODE (primary): for every workspace package, recursively scan
-/// `<pkg>/src/` for files where the stem equals the parent directory name
-/// (`<X>/<X>.sui`). This is the authoritative component convention and requires
-/// no pre-built CEM. Views (`page.sui`, stem ≠ parent) are excluded by the
-/// guard, so they never leak into the resolver index.
+/// `<pkg>/src/` for `.sui` files whose stem contains a hyphen and is not
+/// "page" or "index" (the HTML custom-element tag-name rule). This is the
+/// authoritative component convention and requires no pre-built CEM. Views
+/// (`page.sui`, `index.sui`) are excluded by the guard and never leak into the
+/// resolver index.
 ///
 /// CEM-MODE (secondary): for any tag NOT already found via source scan, fall
 /// back to the CEM-derived path from `build_catalog` (useful for packages that
@@ -454,12 +455,12 @@ mod tests {
             &root.join("packages/mycomp/package.json"),
             r#"{"name":"@ship/mycomp","private":true}"#,
         );
-        // Component source obeys the convention: stem == parent dir.
+        // Component source: stem "sui-foo" contains a hyphen → detected as Component.
         write(
             &root.join("packages/mycomp/src/sui-foo/sui-foo.sui"),
             "<span class=\"sui-foo-marker\">foo</span>\n",
         );
-        // A view alongside it must NOT appear (stem != parent dir).
+        // A view alongside it must NOT appear (stem "page" has no hyphen).
         write(
             &root.join("packages/mycomp/src/myview/page.sui"),
             "<div>view</div>\n",
@@ -477,10 +478,49 @@ mod tests {
             "resolved path must be the component .sui source; got: {src:?}"
         );
 
-        // The view (stem=page, parent=myview) must NOT be indexed.
+        // The view (stem=page, no hyphen) must NOT be indexed.
         assert!(
             !idx.contains_key("page"),
             "page.sui (view) must not leak into the resolver index"
         );
+    }
+
+    /// GROUPED-DIRECTORY gate: a package with multiple components under one
+    /// parent dir (e.g. `sui-rail/sui-rail.sui`, `sui-rail/sui-rail-item.sui`)
+    /// must register ALL components, not just the stem==parent file.
+    #[test]
+    fn source_mode_grouped_dir_registers_all_components() {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path();
+        write(&root.join("package.json"), r#"{"workspaces":["packages/*"]}"#);
+        write(
+            &root.join("packages/chrome/package.json"),
+            r#"{"name":"@ship/chrome","private":true}"#,
+        );
+        // Three components grouped under one parent dir.
+        write(
+            &root.join("packages/chrome/src/sui-rail/sui-rail.sui"),
+            "<nav class=\"rail\"></nav>\n",
+        );
+        write(
+            &root.join("packages/chrome/src/sui-rail/sui-rail-item.sui"),
+            "<div class=\"rail-item\"></div>\n",
+        );
+        write(
+            &root.join("packages/chrome/src/sui-rail/sui-rail-section.sui"),
+            "<div class=\"rail-section\"></div>\n",
+        );
+        // A view in the same package must not appear.
+        write(
+            &root.join("packages/chrome/src/views/home/page.sui"),
+            "<div>home</div>\n",
+        );
+
+        let idx = tag_source_index(root, None);
+
+        assert!(idx.contains_key("sui-rail"), "sui-rail must be indexed");
+        assert!(idx.contains_key("sui-rail-item"), "sui-rail-item must be indexed");
+        assert!(idx.contains_key("sui-rail-section"), "sui-rail-section must be indexed");
+        assert!(!idx.contains_key("page"), "page.sui must not be indexed");
     }
 }

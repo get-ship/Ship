@@ -29,7 +29,7 @@ fn fixture(root: &Path) {
         &root.join("packages/demo/dist/custom-elements.json"),
         r#"{"schemaVersion":"1","modules":[{"path":"sui-widget.sui","declarations":[{"kind":"class","name":"sui-widget","tagName":"sui-widget","customElement":true,"description":"demo"}]}]}"#,
     );
-    // stem == parent dir → detect_mode compiles this as a Component.
+    // stem "sui-widget" contains a hyphen → detect_mode compiles this as a Component.
     write(
         &root.join("packages/demo/src/sui-widget/sui-widget.sui"),
         "<div class=\"sui-widget-marker\">w</div>\n",

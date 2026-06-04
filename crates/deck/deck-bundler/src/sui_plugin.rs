@@ -28,23 +28,23 @@ const SINGLETONS: [&str; 3] = ["@ship/sui-runtime", "@ship/sui-dom", "@ship/sdk-
 /// convention: never read/written on disk).
 const SUI_TAG_NOOP: &str = "\0sui-tag-noop";
 
-/// Component source roots — a `.sui` under one is a compile-as-component
-/// shortcut (saves the parent-name heuristic a step for deck-own packages).
-/// Host-app component roots are NOT listed here — the naming heuristic
-/// (`stem == parent`) catches them via the `<tag>/<tag>.sui` convention.
-pub(crate) fn detect_mode(abs: &Path, repo_root: &Path) -> (CompileMode, String) {
+/// Detect compile mode for a `.sui` file using the HTML custom-element tag-name
+/// rule: a valid custom element tag MUST contain a hyphen (HTML spec §4.13.3).
+/// Every component `.sui` file uses its stem as the tag name (`sui-button`,
+/// `sui-rail-item`) and therefore contains a hyphen. Every view uses `page.sui`
+/// or `index.sui` — no hyphen. So the rule is exact and path-structure-free:
+///
+///   stem contains `'-'` AND stem ∉ {"page", "index"} → Component
+///   otherwise → View
+///
+/// This replaces the old `stem == parent_dir` heuristic, which missed all
+/// GROUPED-DIRECTORY components (e.g. `sui-rail/sui-rail-item.sui`,
+/// `sui-command-bar/sui-command-chat.sui`) and required a special-case for
+/// `packages/components/ui-components/src`. That shortcut is now subsumed by
+/// this rule (every `.sui` in that tree has a hyphenated stem) and is removed.
+pub(crate) fn detect_mode(abs: &Path, _repo_root: &Path) -> (CompileMode, String) {
     let stem = abs.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
-    // Deck-own component source: always compile as Component.
-    if abs.starts_with(repo_root.join("packages/components/ui-components/src")) {
-        return (CompileMode::Component, stem);
-    }
-    // Generic heuristic: `<tag>/<tag>.sui` → Component; anything else → View.
-    let parent = abs
-        .parent()
-        .and_then(|p| p.file_name())
-        .and_then(|s| s.to_str())
-        .unwrap_or("");
-    let mode = if !stem.is_empty() && stem == parent {
+    let mode = if stem.contains('-') && stem != "page" && stem != "index" {
         CompileMode::Component
     } else {
         CompileMode::View
@@ -253,6 +253,71 @@ impl Plugin for SuiPlugin {
 
     fn register_hook_usage(&self) -> HookUsage {
         HookUsage::ResolveId | HookUsage::Load
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::compile::CompileMode;
+
+    fn fake_root() -> PathBuf {
+        PathBuf::from("/repo")
+    }
+
+    fn detect(path: &str) -> CompileMode {
+        detect_mode(Path::new(path), &fake_root()).0
+    }
+
+    /// GROUPED-DIRECTORY component: stem differs from parent dir but has a hyphen.
+    #[test]
+    fn grouped_dir_component_detected_as_component() {
+        assert_eq!(
+            detect("/repo/apps/shell/src/components/sui-rail/sui-rail-item.sui"),
+            CompileMode::Component,
+            "sui-rail-item.sui must be a Component (hyphenated stem)"
+        );
+    }
+
+    /// Views use page.sui (no hyphen in stem).
+    #[test]
+    fn page_sui_detected_as_view() {
+        assert_eq!(
+            detect("/repo/views/agents/page.sui"),
+            CompileMode::View,
+            "page.sui must be a View"
+        );
+    }
+
+    /// SAME-NAME component: the classic convention still works.
+    #[test]
+    fn same_name_component_detected_as_component() {
+        assert_eq!(
+            detect("/repo/packages/components/sui/primitives/src/sui-button/sui-button.sui"),
+            CompileMode::Component,
+            "sui-button/sui-button.sui must be a Component"
+        );
+    }
+
+    /// index.sui is a view even though it could theoretically have a hyphen
+    /// (no known case, but the exclusion is correct by spec).
+    #[test]
+    fn index_sui_detected_as_view() {
+        assert_eq!(
+            detect("/repo/.ship/views/component-viewer/index.sui"),
+            CompileMode::View,
+            "index.sui must be a View"
+        );
+    }
+
+    /// The stem is returned unchanged as the tag/name.
+    #[test]
+    fn detect_mode_returns_stem_as_tag() {
+        let (_, tag) = detect_mode(
+            Path::new("/repo/apps/shell/src/components/sui-command-bar/sui-command-chat.sui"),
+            &fake_root(),
+        );
+        assert_eq!(tag, "sui-command-chat");
     }
 }
 

@@ -112,10 +112,11 @@ pub fn pack_id_for_name(npm_name: &str) -> String {
     npm_name.to_string()
 }
 
-/// Recursively walk `dir`, collecting `(tag, abs_path)` pairs where the file
-/// stem equals its parent directory name — i.e. `<X>/<X>.sui`. This is the
-/// source-mode component convention; views (`page.sui`, stem ≠ parent) are
-/// excluded by the guard. `dist`, `node_modules`, `.git`, and `target` are
+/// Recursively walk `dir`, collecting `(tag, abs_path)` pairs for component
+/// `.sui` files. A `.sui` is a component iff its stem contains a hyphen and is
+/// neither "page" nor "index" — the HTML custom-element tag-name rule (HTML spec
+/// §4.13.3 requires a hyphen). Views use `page.sui` or `index.sui` and are
+/// excluded by this guard. `dist`, `node_modules`, `.git`, and `target` are
 /// skipped for speed.
 fn scan_sui_components(dir: &Path, out: &mut Vec<(String, PathBuf)>) {
     const SKIP: [&str; 5] = ["node_modules", "dist", "target", ".git", ".deck"];
@@ -132,13 +133,8 @@ fn scan_sui_components(dir: &Path, out: &mut Vec<(String, PathBuf)>) {
             if p.extension().and_then(|x| x.to_str()) != Some("sui") {
                 continue;
             }
-            // Guard: stem must equal the parent directory name.
-            let parent_name = p
-                .parent()
-                .and_then(|par| par.file_name())
-                .and_then(|n| n.to_str())
-                .unwrap_or("");
-            if stem == parent_name {
+            // Guard: stem must contain a hyphen and not be "page" or "index".
+            if stem.contains('-') && stem != "page" && stem != "index" {
                 out.push((stem.to_string(), p));
             }
         }
@@ -146,8 +142,9 @@ fn scan_sui_components(dir: &Path, out: &mut Vec<(String, PathBuf)>) {
 }
 
 /// Return all `(tag, abs_path)` component pairs discovered by source scan of
-/// `pkg_root/src/`. Only `<X>/<X>.sui` files (stem == parent dir) are
-/// returned; views and other files are excluded by the guard.
+/// `pkg_root/src/`. Only `.sui` files whose stem contains a hyphen and is not
+/// "page" or "index" are returned; views and other files are excluded by the
+/// guard.
 pub fn source_tags_for_package(pkg_root: &Path) -> Vec<(String, PathBuf)> {
     let src = pkg_root.join("src");
     if !src.is_dir() {
