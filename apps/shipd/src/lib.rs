@@ -278,6 +278,10 @@ pub async fn run_network(
     daemon::human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
     rt.start_hook_engine().await;
     rt.start_config_watcher();
+    // Live agent-def index (agents arc S5): build the read-only index from the
+    // def files at boot, then keep it live on `agent.def.updated`. Shares the
+    // gated-write NOTIFY's `KernelLog` so op-writes re-index deterministically.
+    rt.start_agent_def_index().await;
 
     // leak-193 diagnostics. When `SHIP_LEAK_DIAG=1`, log a periodic snapshot
     // of process RSS alongside every in-process container whose unbounded

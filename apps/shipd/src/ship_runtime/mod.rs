@@ -90,6 +90,14 @@ pub struct ShipRuntime {
     pub(super) hook_engine: std::sync::OnceLock<std::sync::Arc<ship_platform::triggers::engine::HookEngine>>,
     /// Declarative-tier config watcher (Phase 4) — emits domain.changed events.
     pub(super) config_watcher: std::sync::OnceLock<ship_platform::config::ConfigWatcher>,
+    /// Shared event-log handle for the live agent-def index (agents arc S5).
+    /// Set by `start_agent_def_index`: the boot rebuild + the change consumer +
+    /// the gated-write NOTIFY all ride THIS one `KernelLog` so the op-emit and
+    /// the consumer's `subscribe()` share a broadcast (each `KernelLog::new`
+    /// owns its own channel). `None` until the index is mounted (space-less boot
+    /// never mounts it).
+    pub(super) agent_def_kernel:
+        std::sync::OnceLock<std::sync::Arc<ship_substrate::ports::KernelLog>>,
     /// In-process Rolldown bundler (#163) — owned here, lazily started on
     /// first access. `Bundler::start` is synchronous (it locates the
     /// `sui-compiler` binary and sets up channels, no child process), so
