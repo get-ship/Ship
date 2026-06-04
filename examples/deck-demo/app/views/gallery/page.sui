@@ -1,0 +1,7 @@
+<div class="gallery-demo">
+  <h1>Gallery</h1>
+  <p>Using the shared demo-chip component:</p>
+  <demo-chip>gallery-item-1</demo-chip>
+  <demo-chip>gallery-item-2</demo-chip>
+  <demo-chip>gallery-item-3</demo-chip>
+</div>

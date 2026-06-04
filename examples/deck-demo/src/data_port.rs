@@ -147,6 +147,9 @@ pub async fn resolve_demo(chain: &str, args: &Value, store: &DemoStore) -> Resul
             item.done = !item.done;
             Ok(json!({ "done": item.done }))
         }
+        // `demo.boom` always returns an error — used by views/boom to exercise
+        // the {#while-error} error-recovery branch without white-screening.
+        "demo.boom" => Err("demo.boom: intentional error for the error-boundary showcase".to_string()),
         _ => Err(format!("unknown_service: demo resolver has no op `{chain}`")),
     }
 }
@@ -282,7 +285,7 @@ async fn run_live_source(
         Ok(v) => json!({"kind": "ok", "value": v}),
         Err(e) => {
             tracing::warn!(chain = %chain, error = %e, "data_port: initial resolve failed");
-            json!({"kind": "loading"})
+            json!({"kind": "error", "message": e})
         }
     };
     let frame = format_patch_signals(&data_name, &initial_value);
@@ -302,7 +305,7 @@ async fn run_live_source(
                         while bump_rx.try_recv().is_ok() {}
                         let value = match resolve_demo(&chain, &args, &store).await {
                             Ok(v) => json!({"kind": "ok", "value": v}),
-                            Err(_) => json!({"kind": "loading"}),
+                            Err(e) => json!({"kind": "error", "message": e}),
                         };
                         let frame = format_patch_signals(&data_name, &value);
                         if tx.send(Ok(frame)).await.is_err() {
