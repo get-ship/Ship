@@ -20,6 +20,15 @@ fn read_deck_asset(rel: &str) -> Option<String> {
     std::fs::read_to_string(root.join(rel)).ok()
 }
 
+/// Project SOURCE (not built output), read from the project root directly. The
+/// dev/source fallback for scaffolds: when a scaffold has no built
+/// `.deck/<source>/` artifact yet, serve its authored `<source>/index.html` in
+/// place — the same built-or-source fallback `view.rs` uses for view modules.
+fn read_source_asset(rel: &str) -> Option<String> {
+    let root = crate::resolver::resolve_project_root()?;
+    std::fs::read_to_string(root.join(rel)).ok()
+}
+
 const SUI_RUNTIME_JS: &str = include_str!("../assets/sui-runtime.js");
 const SUI_DOM_JS: &str = include_str!("../assets/sui-dom.js");
 const SUI_SDK_CLIENT_JS: &str = include_str!("../assets/sui-sdk-client.js");
@@ -93,14 +102,17 @@ pub fn resolve_view_js(name: &str) -> Option<String> {
 ///   `inject_globals` entry, substituting `$<param>` tokens from `params`.
 /// - Injects the daemon-mode meta tag via `inject_mode_meta`.
 ///
-/// Returns a styled 404 when the built index.html is missing — the host should
-/// have run the scaffold's build step first.
+/// Reads the built `.deck/<source>/index.html`; in dev (no build artifact yet)
+/// falls back to the authored source `<source>/index.html`. Returns a styled
+/// 404 only when neither exists.
 pub fn serve_scaffold(
     mode: DaemonMode,
     scaffold: &ScaffoldDecl,
     params: &[(&str, &str)],
 ) -> DeckResponse {
-    let Some(html) = read_deck_asset(&format!("{}/index.html", scaffold.source)) else {
+    let Some(html) = read_deck_asset(&format!("{}/index.html", scaffold.source))
+        .or_else(|| read_source_asset(&format!("{}/index.html", scaffold.source)))
+    else {
         return DeckResponse::not_found(
             format!(
                 "scaffold '{}' not built (missing {}/index.html)",
@@ -462,5 +474,48 @@ mod tests {
         assert!(body.contains("/space/_assets/main.js"), "expected rewritten asset href in: {body}");
         // Global injected with substituted id.
         assert!(body.contains("window.DECK_APP_ID=\"my-space\""), "expected injected global in: {body}");
+    }
+
+    /// serve_scaffold falls back to the authored SOURCE `<source>/index.html`
+    /// when there is no built `.deck/<source>/` artifact — the dev/source path
+    /// (mirrors view.rs). Gates the fallback so the demo (and any host) never
+    /// needs to commit a `.deck/` artifact to serve a scaffold.
+    #[test]
+    fn serve_scaffold_falls_back_to_source_when_unbuilt() {
+        use crate::test_lock;
+        let _lock = test_lock::lock();
+        let prev = std::env::var("DECK_PROJECT_DIR").ok();
+
+        let dir = tempfile::tempdir().unwrap();
+        // SOURCE location: <root>/my-scaffold/index.html — NOT under .deck/.
+        let src_dir = dir.path().join("my-scaffold");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("index.html"),
+            r#"<!doctype html><html><head></head><body><div id="sui-root"></div></body></html>"#,
+        )
+        .unwrap();
+        // Deliberately NO .deck/my-scaffold — only the source exists.
+        unsafe { std::env::set_var("DECK_PROJECT_DIR", dir.path()) };
+
+        let scaffold = ScaffoldDecl {
+            name: "space".to_string(),
+            route: "/space/{id}".to_string(),
+            source: "my-scaffold".to_string(),
+            asset_prefix: "/space/_assets/".to_string(),
+            inject_globals: std::collections::BTreeMap::new(),
+        };
+        let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[("id", "x")]);
+
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("DECK_PROJECT_DIR", v),
+                None => std::env::remove_var("DECK_PROJECT_DIR"),
+            }
+        }
+
+        assert_eq!(resp.status, 200, "source-fallback must serve the unbuilt scaffold");
+        let body = std::str::from_utf8(&resp.body).unwrap();
+        assert!(body.contains("sui-root"), "served source HTML, got: {body}");
     }
 }

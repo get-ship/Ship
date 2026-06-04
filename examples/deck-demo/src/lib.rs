@@ -30,6 +30,16 @@ use axum::{Extension, Router};
 use deck::bundler::Bundler;
 use deck::{DaemonMode, router, serve_bundle_hmr};
 
+/// Resolve the daemon mode from the `DECK_DEMO_MODE` environment variable.
+/// `"prod"` or `"production"` → [`DaemonMode::Production`]; anything else
+/// (including absent) → [`DaemonMode::Development`].
+pub fn demo_mode() -> DaemonMode {
+    match std::env::var("DECK_DEMO_MODE").as_deref() {
+        Ok("prod") | Ok("production") => DaemonMode::Production,
+        _ => DaemonMode::Development,
+    }
+}
+
 /// This crate's example app: `app/views/<name>/page.sui`.
 pub fn default_app_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("app")
@@ -53,11 +63,11 @@ fn make_bundler(app_dir: &Path) -> Bundler {
 
 /// deck's hosting surface + the two extensions its handlers read + the HMR SSE
 /// route. Shared by both entry points.
-fn build_router(bundler: Bundler, cfg: std::sync::Arc<deck::config::DeckConfig>) -> Router {
+fn build_router(mode: DaemonMode, bundler: Bundler, cfg: std::sync::Arc<deck::config::DeckConfig>) -> Router {
     router()
         // The canonical deck-axum HMR handler — no hand-rolled variant here.
         .route("/_sui/dev/hmr", get(serve_bundle_hmr))
-        .layer(Extension(DaemonMode::Development))
+        .layer(Extension(mode))
         // DeckConfig Extension — scaffold handlers read scaffold declarations
         // and inject_globals from this. Zero-config hosts (no deck.jsonc) get
         // built-in defaults and degrade gracefully.
@@ -66,19 +76,27 @@ fn build_router(bundler: Bundler, cfg: std::sync::Arc<deck::config::DeckConfig>)
 }
 
 /// A ready router with NO filesystem watcher (read-only host / tests).
+/// Reads the daemon mode from [`demo_mode`] (`DECK_DEMO_MODE` env var).
 pub fn deck_app(app_dir: PathBuf) -> Router {
+    deck_app_with_mode(app_dir, demo_mode())
+}
+
+/// Like [`deck_app`] but with an explicit mode — for tests that need to
+/// verify production vs development behavior without reaching into the env.
+pub fn deck_app_with_mode(app_dir: PathBuf, mode: DaemonMode) -> Router {
     let cfg = std::sync::Arc::new(deck::config::DeckConfig::load(&app_dir));
-    build_router(make_bundler(&app_dir), cfg)
+    build_router(mode, make_bundler(&app_dir), cfg)
 }
 
 /// A dev server with the FS watcher running: edit a `.sui` → rebuild the
 /// affected target → push an HMR event. Async because `start_watching` spawns
-/// the watch task.
+/// the watch task. Reads the daemon mode from [`demo_mode`].
 pub async fn deck_dev_server(app_dir: PathBuf) -> Router {
+    let mode = demo_mode();
     let cfg = std::sync::Arc::new(deck::config::DeckConfig::load(&app_dir));
     let bundler = make_bundler(&app_dir);
     if let Err(e) = bundler.start_watching().await {
         eprintln!("deck-demo: watcher failed to start: {e}");
     }
-    build_router(bundler, cfg)
+    build_router(mode, bundler, cfg)
 }
