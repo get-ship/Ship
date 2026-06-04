@@ -35,4 +35,8 @@ export function loadHeavyChrome(): void {
   //   <sui-devtools-components slot="components">
   // Bundled in one chunk (loaded together, always used together).
   void import('../components/sui-devtools/index')
+  // Rail family — sui-rail, sui-rail-item, sui-rail-section — picker preview + studio-mounted.
+  void import('../components/sui-rail/index')
+  // View-authoring family — sui-va-* edit-mode surfaces + transitively sui-component-picker.
+  void import('../components/sui-view-authoring/index')
 }

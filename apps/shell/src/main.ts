@@ -45,9 +45,12 @@ import '@ship/pipelines'
 // popover, tooltip, tabs, etc.) — are resolved per-tag from workspace source
 // via the traced app bundle. Each chrome `.sui` emits `@sui-tag/<tag>` imports;
 // the deck-bundler's SuiPlugin resolves those to the component's source `.sui`
-// and compiles them in-process, exactly as the view build does. No second
-// `import '@ship/sui-primitives'` is needed here — the per-tag resolver covers
-// every primitive used by chrome components without an eager umbrella load.
+// and compiles them in-process, exactly as the view build does. Chrome
+// components trace their own primitives per-tag and need no umbrella import
+// here. The full primitives pack (@ship/sui-primitives) is loaded only in the
+// edit-mode picker chunk (sui-view-authoring/index.ts), where sui-component-picker
+// acts as a catalog browser and previews primitives via innerHTML template strings
+// that the per-tag resolver cannot trace.
 import { route as createRoute, defineRoutes, setRouterPort } from '@ship/sui-runtime/route'
 import { STUDIO_ROUTE_PATTERNS } from './studio/routes.gen'
 import { chrome, notifyViewUnmount, setHostContext } from '@ship/sui-runtime'

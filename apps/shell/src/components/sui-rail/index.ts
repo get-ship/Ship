@@ -1,7 +1,6 @@
-// `<sui-rail>` separate bundle. The shell's `sui-chrome.js` aggregate
-// loads first and registers every non-separate chrome tag globally
-// (including `<sui-view-picker>`), so this bundle only needs to
-// register its own rail/-item/-section tags.
+// Rail family — code-split chunk of the app bundle, loaded via load-heavy-chrome.
+// Side-effect-registers sui-rail, sui-rail-item, and sui-rail-section; used by
+// the edit-mode component-picker preview and mounted internally by studio.
 
 import './sui-rail.compiled.js'
 import './sui-rail-item.compiled.js'

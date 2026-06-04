@@ -68,23 +68,13 @@
     }
   </script>
 
-  <!-- /_sui/components.js — @ship/ui-components umbrella: domain
-       components (git-diff, pipeline-*, log-stream, provider-blob,
-       auth-dialog, graph-canvas) plus primitives (@ship/sui-primitives)
-       as side-effect imports that call customElements.define(). Loaded
-       via an inline IIFE so Vite's import-analysis doesn't try to resolve
-       this daemon-served URL as a local module. The shell chrome
-       (light set + heavy set) is now registered via the TRACED app bundle:
-       apps/shell/src/main.ts → src/components (barrel, static) and
-       src/chrome/load-heavy-chrome.ts (dynamic code-split chunks). -->
-  <script>
-    (function () {
-      var s = document.createElement('script');
-      s.type = 'module';
-      s.src = '/_sui/components.js';
-      document.head.appendChild(s);
-    })();
-  </script>
+  <!-- The shell registers every component it needs through the TRACED app
+       bundle — there is no eager /_sui/components.js umbrella. Chrome
+       components resolve their primitives per-tag from source (the per-view
+       resolver); the heavy/edit-mode families load as code-split chunks via
+       src/chrome/load-heavy-chrome.ts; each daemon-served view carries its
+       own per-view component registrations. The /_sui/components.js endpoint
+       still exists for apps/spaces + examples/deck-demo. -->
 
   <!-- Bootstrap @ship/sui-runtime onto window before main.ts runs. The
        IIFE-injected script is opaque to Vite's import-analysis (which
