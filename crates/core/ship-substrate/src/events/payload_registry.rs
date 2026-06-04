@@ -277,7 +277,6 @@ register_event!("view.changed", [EventScope::Space], Retention::Ephemeral, Stabi
 register_event!("workspace.created", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "WorkspaceCreated");
 register_event!("workspace.activated", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "WorkspaceActivated");
 register_event!("workspace.archived", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "WorkspaceArchived");
-register_event!("project.changed", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "ProjectChanged");
 register_event!("daemon.crashed", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonCrashed");
 register_event!("daemon.pidfile_acquired", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonPidfileAcquired");
 register_event!("daemon.pidfile_stale_taken", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonPidfileStaleTaken");
@@ -286,4 +285,3 @@ register_event!("process.orphaned", [EventScope::Runtime], Retention::Durable, S
 register_event!("skill.started", [EventScope::Runtime], Retention::Ephemeral, Stability::Deprecated, "SkillStarted");
 register_event!("skill.completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Deprecated, "SkillCompleted");
 register_event!("skill.failed", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "SkillFailed");
-register_event!("skill.attached_to_session", [EventScope::Runtime], Retention::Ephemeral, Stability::Deprecated, "SkillAttachedToSession");
