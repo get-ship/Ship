@@ -16,8 +16,12 @@
 //!   `agent.session.cancelled`.
 //! - [`actor`] — `start_agents`: the `service.agents` actor that runs the L0
 //!   router gate then routes the two events above.
-//! - [`spawn_env`] — `build_spawn_env`, the pure `SpawnPolicy`-port call.
 //! - [`ports`] — `AgentPorts`, the injected L0-port bundle.
+//!
+//! `build_spawn_env` (the pure `SpawnPolicy`-port call) is L0 mechanism — it
+//! names no agent-domain type, only the substrate principal + the L0 port — so
+//! it lives in `ship_runner::build_spawn_env`, the one home both this crate's
+//! dispatch primitive and the pipeline orchestrator call.
 //!
 //! ## Layering
 //!
@@ -43,10 +47,8 @@ pub mod actor;
 pub mod cancel;
 pub mod dispatch;
 pub mod ports;
-pub mod spawn_env;
 
 pub use actor::{handle_agents_event, start_agents};
 pub use cancel::handle_agent_cancelled;
 pub use dispatch::handle_agent_session_started;
 pub use ports::AgentPorts;
-pub use spawn_env::build_spawn_env;

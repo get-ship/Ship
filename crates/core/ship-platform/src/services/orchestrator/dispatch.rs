@@ -19,11 +19,11 @@ use crate::services::dispatch_ports::{SessionContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-// `build_spawn_env` (the pure `SpawnPolicy`-port call) carved into the L1
-// ship-agents crate (agents-arc S3b). The remaining pipeline-dispatch paths
-// here call it through the ship-platform facade (`services::agent_sessions`) —
-// one home, no parallel copy, no direct crate reach-up from the orchestrator.
-use crate::services::agent_sessions::build_spawn_env;
+// `build_spawn_env` is L0 mechanism — it names no agent-domain type, only the
+// substrate principal + the L0 `SpawnPolicy` port — so it lives in
+// `ship_runner::build_spawn_env`. The pipeline-dispatch paths here call it
+// directly from L0 (`ship_runner::build_spawn_env(...)`), never through the
+// agents facade: no laundered pipelines→agents coupling.
 
 use super::emit::{
     emit_pipeline_run_dispatched, emit_pipeline_run_dispatched_with_meta, emit_pipeline_run_failed, emit_process_spawned,
@@ -146,7 +146,7 @@ pub async fn dispatch_pipeline_run_internal(
         spec_path: payload.spec_path.clone(),
         spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: build_spawn_env(slug, agent, octx.spawn_policy.as_ref()).await,
+        env: ship_runner::build_spawn_env(slug, agent, octx.spawn_policy.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: launch_harness.clone(),
@@ -621,7 +621,7 @@ async fn dispatch_first_run_step_inner(
         spec_path: payload.spec_path.clone(),
         spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: build_spawn_env(slug, &payload.agent, octx.spawn_policy.as_ref()).await,
+        env: ship_runner::build_spawn_env(slug, &payload.agent, octx.spawn_policy.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: payload.harness.clone(),

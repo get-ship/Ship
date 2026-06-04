@@ -7,6 +7,12 @@
 //! `SHIP_DAEMON_URL`. The role/token resolution lives entirely inside the impl
 //! (`ConfigSpawnPolicy` in L1) — this crate never names config / auth /
 //! agent-role types, only the principal and the port.
+//!
+//! This is L0 mechanism, not agent-domain: it constructs only the substrate
+//! principal ([`Authority::Agent`]) and calls the L0 [`SpawnPolicy`] port. It
+//! names NO agent-domain type, so it lives in `ship-runner` and every caller
+//! (the L1 agents crate's dispatch primitive and the pipeline orchestrator)
+//! reaches it through one home — no laundered pipelines→agents coupling.
 
 use std::collections::HashMap;
 

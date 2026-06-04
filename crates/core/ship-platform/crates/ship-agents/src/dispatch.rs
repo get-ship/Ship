@@ -13,6 +13,7 @@
 
 use std::sync::Arc;
 
+use ship_runner::build_spawn_env;
 use ship_runner::emit::{emit_process_spawned, persist_and_route};
 use ship_runner::exit_handler::{self, ExitVocabulary};
 use ship_runner::router::DISPATCH_GATE;
@@ -25,7 +26,6 @@ use ship_substrate::services::dispatch_ports::{LaunchProfile, SessionContext};
 use tokio::sync::Mutex;
 
 use crate::ports::AgentPorts;
-use crate::spawn_env::build_spawn_env;
 
 type Kernel = Arc<Mutex<ship_substrate::events::KernelRouter>>;
 
