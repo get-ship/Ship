@@ -75,6 +75,7 @@ impl ShipRuntime {
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
+            agent_def_kernel: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
             worktree_resolver: default_worktree_resolver(),
         }
@@ -148,6 +149,7 @@ impl ShipRuntime {
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
+            agent_def_kernel: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
             worktree_resolver: default_worktree_resolver(),
         }

@@ -63,6 +63,7 @@ pub trait DiskBackedConfig: Sized + Default + Serialize + DeserializeOwned {
         }
     }
 }
+pub mod agent_index;
 mod discover;
 mod io;
 mod mcp;
@@ -101,6 +102,14 @@ pub use ship_config::agents::{
     read_agent_doc_in, read_agent_docs_in, read_agent_profile, read_agent_profile_at,
     read_agent_profiles, read_agent_profiles_in,
 };
+
+// THE read-only def index + the gated-write post-NOTIFY (agents arc S5). The
+// index is built FROM the def files (one-way) and kept live by the
+// `agent_index` consumer; the NOTIFY fires `agent.def.updated` after a gated
+// def write so op-writes re-index deterministically (not via the inotify
+// watcher). Re-exported so the daemon mounts both through the one config door.
+pub use ship_config::agents_index::{AgentDefIndex, AgentDefQuery, AgentDefRecord};
+pub use ship_config::agents_write::notify_agent_def_saved;
 
 pub use io::{get_config, get_effective_config, save_config};
 

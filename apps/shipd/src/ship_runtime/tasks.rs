@@ -252,6 +252,74 @@ impl ShipRuntime {
         }
     }
 
+    /// Mount the live agent-def index (agents arc S5). Builds the read-only
+    /// index over the active project space's `space.db` from the def files at
+    /// boot, then spawns the change consumer that keeps it live on
+    /// `agent.def.updated`. Both — plus the gated-write NOTIFY — ride ONE shared
+    /// `KernelLog` (`agent_def_kernel`) so the op-emit and the consumer's
+    /// `subscribe()` share a broadcast. No-op when the daemon booted space-less
+    /// (no workspace) or when already mounted. Idempotent.
+    pub async fn start_agent_def_index(&self) {
+        use ship_substrate::data::DataService;
+        use ship_substrate::ports::{KernelLog, SingleBackendDataStore};
+
+        if self.agent_def_kernel.get().is_some() {
+            return;
+        }
+        let Some(workspace) = self.workspace_dir.clone() else {
+            tracing::info!("agent-def index: no workspace — skipping live mount");
+            return;
+        };
+        let project_ship_dir = ship_substrate::ShipHome::project_ship_dir(&workspace);
+        let space_id = ship_substrate::home::path_hash(&workspace);
+
+        // The index read-model lives in the active space's per-scope db.
+        let space_db = ship_substrate::db::space_db_path(&project_ship_dir, &space_id);
+        let data_svc = match DataService::open_at(&space_db) {
+            Ok(svc) => svc,
+            Err(e) => {
+                tracing::warn!("agent-def index: open space.db failed: {e}");
+                return;
+            }
+        };
+        let store = std::sync::Arc::new(SingleBackendDataStore::new(data_svc, &space_id));
+        let index = std::sync::Arc::new(ship_platform::config::AgentDefIndex::new(store));
+        if let Err(e) = index.ensure_table().await {
+            tracing::warn!("agent-def index: ensure_table failed: {e}");
+            return;
+        }
+
+        // ONE shared KernelLog for emit + subscribe. Set it before spawning so
+        // the gated-write NOTIFY (`agent_def_kernel()`) routes through the same
+        // channel the consumer reads.
+        let kernel = std::sync::Arc::new(KernelLog::new(self.kernel.clone()));
+        let _ = self.agent_def_kernel.set(kernel.clone());
+
+        // Boot rebuild: index every def file on disk for the project scope.
+        let fs = ship_substrate::ports::LocalFsBroker::new();
+        if let Err(e) =
+            ship_platform::config::agent_index::build_def_index(&index, &fs, &project_ship_dir, "project").await
+        {
+            tracing::warn!("agent-def index: boot rebuild failed: {e}");
+        }
+
+        // Spawn the live consumer over the shared KernelLog's broadcast.
+        ship_platform::config::agent_index::spawn_def_index_consumer(
+            index,
+            kernel.subscribe(),
+            project_ship_dir,
+            "project".to_string(),
+        );
+        tracing::info!("agent-def index: live mount started (space {space_id})");
+    }
+
+    /// The shared `KernelLog` the live agent-def index rides, when mounted. The
+    /// gated-write NOTIFY emits through this so the change reaches the consumer's
+    /// broadcast subscription.
+    pub fn agent_def_kernel(&self) -> Option<&std::sync::Arc<ship_substrate::ports::KernelLog>> {
+        self.agent_def_kernel.get()
+    }
+
     /// Persist event to platform.db and deliver through the kernel.
     ///
     /// Delegates to `KernelRouter::emit` — the single write path. A successful

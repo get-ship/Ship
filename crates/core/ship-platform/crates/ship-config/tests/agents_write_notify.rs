@@ -83,9 +83,7 @@ async fn gated_write_then_notify_emits_one_def_updated_with_new_hash() {
 
     // The post-write NOTIFY emits exactly one agent.def.updated carrying the
     // NEW content hash — never file content (Bucket-2).
-    notify_agent_def_saved(&kernel, &fs, &dir, "alpha", Some(space.clone()))
-        .await
-        .unwrap();
+    notify_agent_def_saved(&kernel, &fs, &dir, "alpha", Some(space.clone())).await;
 
     let events = def_events(&dir, "sp-1");
     assert_eq!(events.len(), 1, "exactly one agent.def.updated per gated write");
@@ -108,9 +106,7 @@ async fn edit_then_notify_carries_a_changed_hash() {
         &[AgentProfile { id: "alpha".into(), name: "Alpha".into(), ..Default::default() }],
     )
     .unwrap();
-    notify_agent_def_saved(&kernel, &fs, &dir, "alpha", Some(space.clone()))
-        .await
-        .unwrap();
+    notify_agent_def_saved(&kernel, &fs, &dir, "alpha", Some(space.clone())).await;
     let hash_before = def_events(&dir, "sp-1")[0].content_hash.clone();
 
     // Re-save with a changed name → new file content → the notify hash changes.
@@ -120,9 +116,7 @@ async fn edit_then_notify_carries_a_changed_hash() {
         &[AgentProfile { id: "alpha".into(), name: "Alpha Prime".into(), ..Default::default() }],
     )
     .unwrap();
-    notify_agent_def_saved(&kernel, &fs, &dir, "alpha", Some(space))
-        .await
-        .unwrap();
+    notify_agent_def_saved(&kernel, &fs, &dir, "alpha", Some(space)).await;
 
     let events = def_events(&dir, "sp-1");
     assert_eq!(events.len(), 2, "the edit emits a second notification");
@@ -152,9 +146,7 @@ async fn delete_then_notify_carries_empty_hash_marker() {
 
     // The notify for the now-absent file carries an empty hash — the marker the
     // read-only index uses to drop the row.
-    notify_agent_def_saved(&kernel, &fs, &dir, "gone", Some(space))
-        .await
-        .unwrap();
+    notify_agent_def_saved(&kernel, &fs, &dir, "gone", Some(space)).await;
 
     let events = def_events(&dir, "sp-1");
     assert_eq!(events.len(), 1, "one agent.def.updated for the deleted def");

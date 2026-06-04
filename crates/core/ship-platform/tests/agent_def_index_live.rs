@@ -17,17 +17,22 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ship_platform::config::agent_index::{apply_def_updated, build_def_index};
 use ship_config::agents_index::{AgentDefIndex, AgentDefQuery};
+use ship_config::agents_write::{notify_agent_def_saved, save_agents_config};
+use ship_config::types::AgentProfile;
+use ship_platform::config::agent_index::{apply_def_updated, build_def_index, spawn_def_index_consumer};
 use ship_substrate::data::DataService;
+use ship_substrate::db::ensure_db_at;
+use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::home::ShipHome;
 use ship_substrate::ports::{
-    DataStore, FsCap, FsMode, FsRoot, LocalFsBroker, SingleBackendDataStore,
+    DataStore, FsBroker, FsCap, FsMode, FsRoot, KernelLog, LocalFsBroker, SingleBackendDataStore,
     SpaceId as PortSpaceId,
 };
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types;
 use ship_types::payload::AgentDefUpdated;
+use ship_types::SpaceId;
 
 /// Canonical project `.ship` dir under a fresh tempdir (canonicalized for the
 /// FsBroker symlink-escape guard, as in the S1 index proofs).
@@ -215,4 +220,53 @@ async fn apply_ignores_non_def_events() {
     let rows = index.query(AgentDefQuery::default()).await.unwrap();
     assert_eq!(rows.len(), 1, "a non-def event leaves the index unchanged");
     assert_eq!(rows[0].id, "alpha");
+}
+
+// ── Test 6: end-to-end — gated write → emit → spawned consumer → row appears ───
+//
+// The full producer→index loop the daemon mounts, exercised WITHOUT the shipd
+// boot wall: ONE shared KernelLog carries the gated-write NOTIFY to the spawned
+// consumer's broadcast subscription, which re-reads the def and upserts the row.
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn write_then_emit_then_spawned_consumer_indexes_the_row() {
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = ship_dir(&tmp);
+    std::fs::create_dir_all(&dir).unwrap();
+    ensure_db_at(&dir).unwrap();
+    let fs = LocalFsBroker::new();
+
+    // The index over the space db + the shared KernelLog both producers ride.
+    let index = Arc::new(make_index(&dir).await);
+    let kernel = Arc::new(KernelLog::new(new_isolated_for_test(dir.clone()).unwrap()));
+
+    // Spawn the live consumer subscribed to the shared log.
+    let _handle = spawn_def_index_consumer(
+        index.clone(),
+        kernel.subscribe(),
+        dir.clone(),
+        "project".to_string(),
+    );
+
+    // A gated FsBroker write, then the deterministic post-write NOTIFY through
+    // the SAME log the consumer reads.
+    save_agents_config(
+        &fs,
+        &dir,
+        &[AgentProfile { id: "live".into(), name: "Live".into(), ..Default::default() }],
+    )
+    .unwrap();
+    notify_agent_def_saved(&kernel, &fs, &dir, "live", Some(SpaceId::new("idx-test"))).await;
+
+    // The consumer applies asynchronously — poll briefly for the row to land.
+    let mut found = false;
+    for _ in 0..40 {
+        let rows = index.query(AgentDefQuery::default()).await.unwrap();
+        if rows.iter().any(|r| r.id == "live") {
+            found = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    assert!(found, "the spawned consumer indexed the def after the gated write emit");
 }

@@ -10,8 +10,10 @@
 
 use std::collections::HashSet;
 use std::path::Path;
+use std::sync::Arc;
 
-use ship_substrate::ports::{FsBroker, FsMode};
+use ship_substrate::ports::{FsBroker, FsMode, KernelLog};
+use ship_types::SpaceId;
 
 use crate::agents::{agent_rel, agents_cap};
 use crate::error::ConfigError;
@@ -74,6 +76,28 @@ pub fn save_agents_config(
         fs.write_atomic(&cap, &rel, content.as_bytes())?;
     }
     Ok(())
+}
+
+/// Post-write NOTIFY (S5): after a gated def-file write, emit ONE
+/// `agent.def.updated {path, content_hash}` for `<id>.jsonc` so the read-only
+/// index re-reads and stays live — deterministically, NOT via the inotify
+/// watcher. The hash is read off the just-written file through the SAME FsBroker
+/// door the writer uses (an absent file → empty hash = the deleted marker the
+/// index drops the row on). Space-scoped (the def lives in a space's `.ship`).
+///
+/// This composes the existing watcher authorship ([`crate::watcher`]) onto the
+/// write door — one event shape for both producers, so a double-emit (op +
+/// watcher) is harmless at the idempotent index. The writer itself is untouched.
+pub async fn notify_agent_def_saved(
+    kernel: &Arc<KernelLog>,
+    fs: &dyn FsBroker,
+    ship_dir: &Path,
+    id: &str,
+    space: Option<SpaceId>,
+) {
+    let agents_dir = ship_substrate::project::agents_ns(ship_dir);
+    let file = agents_dir.join(format!("{id}.jsonc"));
+    crate::watcher::author_agent_def_updated(kernel, fs, &agents_dir, &file, space).await;
 }
 
 /// Render an agent profile to JSONC. When `existing` already holds a canonical
