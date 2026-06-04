@@ -3,7 +3,7 @@
 //! This is the entry point for all `job.*` and `step.*` events flowing
 //! through the orchestrator.
 
-use ship_runner::router::{extract_slug, terminal_guard, Admit, DISPATCH_GATE};
+use ship_runner::router::{extract_slug, terminal_guard, Admit};
 use ship_substrate::events::pipeline::{PipelineStepDoneDeclaredPayload, PipelineStepObservedPayload};
 use ship_substrate::events::EventEnvelope;
 use ship_types::event_types as et;
@@ -32,8 +32,12 @@ pub async fn start_orchestrator(
     let actor_id = "service.orchestrator".to_string();
     // Subscribes to two namespaces:
     //   - `pipeline.*` for composition lifecycle (multi-step pipeline runs)
-    //   - `agent.session.*` for the dispatch primitive (single-agent
-    //     sessions, including those composed within pipelines)
+    //   - `agent.session.*` to advance COMPOSED pipeline sessions only — the
+    //     orchestrator reacts to `agent.session.completed/failed` keyed on the
+    //     `parent_pipeline_run_id` path. It NO LONGER spawns or cancels: the
+    //     bare `agent.session.started` / `agent.session.cancelled` handling
+    //     carved into the `service.agents` actor (agents-arc S3b), which is the
+    //     SOLE actor that acts on those two events (no-double-spawn invariant).
     // The router below switches on the event type to pick the handler.
     let config = ship_substrate::events::ActorConfig {
         namespace: actor_id.clone(),
@@ -75,25 +79,12 @@ pub async fn start_orchestrator(
     let kr = kernel.clone();
     let mut mb = mailbox;
     while let Some(envelope) = mb.recv().await {
-        // `agent.session.started` does slow per-session prep (git worktree
-        // add + harness spawn). Run it OFF the mailbox so one slow dispatch
-        // doesn't stall every other event (pre-fix, a burst of dispatches
-        // serialized and a single dispatch could take tens of seconds to
-        // spawn). DISPATCH_GATE bounds concurrency so we don't spawn a
-        // thundering herd of harness processes; the worktree-add step is
-        // separately serialized (GitWorktreeIsolation::WORKTREE_LOCK).
-        // Other event types stay inline — they're fast and order-sensitive
-        // (advancement, cancel, completion).
-        if envelope.event_type == "agent.session.started" {
-            let kr2 = kr.clone();
-            let octx2 = octx.clone();
-            tokio::spawn(async move {
-                let _permit = DISPATCH_GATE.acquire().await;
-                handle_orchestrator_event(&kr2, &envelope, &octx2).await;
-            });
-        } else {
-            handle_orchestrator_event(&kr, &envelope, &octx).await;
-        }
+        // All events the orchestrator still acts on are fast and
+        // order-sensitive (advancement, completion, merge, the composed
+        // step.observed/done_declared bookkeeping). The slow off-mailbox
+        // `agent.session.started` prep moved to `service.agents` (S3b), which
+        // owns its own DISPATCH_GATE detachment — nothing left here needs it.
+        handle_orchestrator_event(&kr, &envelope, &octx).await;
     }
     tracing::info!("job-dispatch: mailbox closed");
 }
@@ -119,20 +110,13 @@ pub async fn handle_orchestrator_event(
     }
 
     match envelope.event_type.as_str() {
-        // The agent-session dispatch primitive — owns the spawn /
-        // register / exit-handler-attach atom. Both bare `ship use`
-        // and pipeline steps (when phase 5 lands) flow through here.
-        "agent.session.started" => super::dispatch::handle_agent_session_started(
-            kernel, envelope, octx,
-        ).await,
+        // `agent.session.started` / `agent.session.cancelled` are owned solely
+        // by the `service.agents` actor (agents-arc S3b). The orchestrator no
+        // longer spawns or cancels — it keeps `agent.session.completed/failed`
+        // (below) only to advance COMPOSED pipeline sessions.
         "pipeline.run.started" => handle_pipeline_run_started(kernel, envelope, octx).await,
         "pipeline.run.updated" => handle_pipeline_run_updated(kernel, envelope).await,
         et::PIPELINE_RUN_CANCELLED => handle_cancelled(kernel, envelope, octx).await,
-        // Bare agent-session cancel. handle_cancelled is slug-keyed
-        // and harness-agnostic — it kills via the registry handle and
-        // emits process.killed, identical to a pipeline-run cancel. The
-        // payload carries `slug`, so the same handler drives both.
-        "agent.session.cancelled" => handle_cancelled(kernel, envelope, octx).await,
         "pipeline.run.completed" => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.completed");
             let slug = extract_slug(envelope);

@@ -10,6 +10,7 @@ pub use ship_substrate::services::server_session::{self};
 
 // L1 service actors.
 pub mod orchestrator;
+pub mod agent_sessions;
 pub mod process_registry;
 pub mod harness_adapter;
 pub mod harnesses;

@@ -1,0 +1,499 @@
+//! Behavior tests for the carved agent-session domain.
+//!
+//! These follow the units down from the orchestrator: the bare dispatch path
+//! (`handle_agent_session_started`), the no-double-spawn skip for composed
+//! sessions, the spawn-env port wiring, and the agent-cancel decision
+//! (`handle_agent_cancelled`). All run against the public `ship-agents` surface
+//! with port test-doubles — no pipeline-DAG state, no `crate::projections`.
+
+use async_trait::async_trait;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex as StdMutex};
+use tokio::sync::Mutex;
+
+use ship_agents::ports::AgentPorts;
+use ship_runner::dedup::EventDedup;
+use ship_substrate::events::agent_session::{
+    event_types as agent_event_types, AgentSessionStartedPayload, InvocationMode,
+};
+use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
+use ship_substrate::events::process::event_types as process_event_types;
+use ship_substrate::events::process::ProcessKilledPayload;
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::services::dispatch_ports::{
+    AgentPlatform, Authority, ExecutorHandle, IsolationStrategy, ProcessRegistryPort,
+    ProjectionReader, SessionContext, SessionExecutor, SpawnPolicy,
+};
+
+// ── Port doubles ────────────────────────────────────────────────────────────
+
+struct OkIsolation(PathBuf);
+
+#[async_trait]
+impl IsolationStrategy for OkIsolation {
+    async fn prepare(&self, _: &SessionContext) -> anyhow::Result<PathBuf> {
+        std::fs::create_dir_all(&self.0).ok();
+        Ok(self.0.clone())
+    }
+    async fn cleanup(&self, _: &SessionContext) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
+/// Records the SessionContext it was asked to spawn, then errors so dispatch
+/// skips post-spawn work (it still emits agent.session.failed, but the test
+/// asserts on the captured ctx, not on the spawn succeeding).
+#[derive(Clone, Default)]
+struct Captured {
+    harness: Option<String>,
+    model: Option<String>,
+    branch: String,
+    env: HashMap<String, String>,
+    spec_path: String,
+}
+
+struct RecordingExecutor {
+    captured: Arc<StdMutex<Option<Captured>>>,
+    spawn_calls: Arc<AtomicUsize>,
+}
+
+#[async_trait]
+impl SessionExecutor for RecordingExecutor {
+    async fn spawn(&self, ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
+        self.spawn_calls.fetch_add(1, Ordering::SeqCst);
+        *self.captured.lock().unwrap() = Some(Captured {
+            harness: ctx.launch.harness.clone(),
+            model: ctx.launch.model.clone(),
+            branch: ctx.branch.clone(),
+            env: ctx.env.clone(),
+            spec_path: ctx.spec_path.clone(),
+        });
+        Err(anyhow::anyhow!("recording executor: refusing to spawn"))
+    }
+    async fn is_alive(&self, _: &ExecutorHandle) -> bool {
+        true
+    }
+    async fn stop(&self, _: &ExecutorHandle) -> anyhow::Result<()> {
+        Ok(())
+    }
+    async fn send(&self, _: &ExecutorHandle, _: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
+/// Executor that records stop() calls — used by the cancel test.
+struct StoppingExecutor {
+    stop_calls: Arc<AtomicUsize>,
+}
+
+#[async_trait]
+impl SessionExecutor for StoppingExecutor {
+    async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> {
+        Err(anyhow::anyhow!("not used"))
+    }
+    async fn is_alive(&self, _: &ExecutorHandle) -> bool {
+        true
+    }
+    async fn stop(&self, _: &ExecutorHandle) -> anyhow::Result<()> {
+        self.stop_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+    async fn send(&self, _: &ExecutorHandle, _: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
+struct TestPlatform {
+    worktrees: PathBuf,
+    cleanup_calls: Arc<AtomicUsize>,
+}
+
+#[async_trait]
+impl AgentPlatform for TestPlatform {
+    fn worktrees_dir(&self) -> PathBuf {
+        self.worktrees.clone()
+    }
+    fn compile_agent_config(&self, _: &std::path::Path, _: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+    async fn graceful_agent_exit(&self, _: &str, _: Option<&str>) {}
+    async fn cleanup_job(&self, _: &str, _: &str) {
+        self.cleanup_calls.fetch_add(1, Ordering::SeqCst);
+    }
+    fn git_merge(&self, _: &str) -> anyhow::Result<bool> {
+        Ok(true)
+    }
+    async fn cleanup_orphaned_worktrees(&self) {}
+}
+
+struct NoopRegistry;
+
+#[async_trait]
+impl ProcessRegistryPort for NoopRegistry {
+    async fn register(&self, _: &str, _: ExecutorHandle) {}
+    async fn unregister(&self, _: &str) {}
+}
+
+/// Registry seeded with one (slug → handle) entry. `take` drains it once.
+struct SeededRegistry {
+    handle: Mutex<Option<ExecutorHandle>>,
+}
+
+#[async_trait]
+impl ProcessRegistryPort for SeededRegistry {
+    async fn register(&self, _: &str, _: ExecutorHandle) {}
+    async fn unregister(&self, _: &str) {}
+    async fn take(&self, _: &str) -> Option<ExecutorHandle> {
+        self.handle.lock().await.take()
+    }
+}
+
+/// SpawnPolicy double that injects a sentinel token so the test can prove the
+/// dispatch path threads the `Authority::Agent` principal through the port.
+struct TokenSpawnPolicy;
+
+#[async_trait]
+impl SpawnPolicy for TokenSpawnPolicy {
+    async fn spawn_env(&self, principal: &Authority, actor_id: &str) -> HashMap<String, String> {
+        let mut env = HashMap::new();
+        env.insert("SHIP_ACTOR_ID".to_string(), actor_id.to_string());
+        if let Authority::Agent { id } = principal {
+            env.insert("SHIP_AGENT_PRINCIPAL".to_string(), id.clone());
+        }
+        env
+    }
+}
+
+/// ProjectionReader double — nothing is terminal, so the gate always admits.
+struct NeverTerminal;
+
+#[async_trait]
+impl ProjectionReader for NeverTerminal {
+    async fn known_dispatch_slugs(&self) -> Vec<String> {
+        vec![]
+    }
+    async fn is_run_terminal(&self, _: &str) -> bool {
+        false
+    }
+}
+
+// ── Harness ─────────────────────────────────────────────────────────────────
+
+fn agents_actor_config() -> ActorConfig {
+    ActorConfig {
+        namespace: "service.agents".to_string(),
+        write_namespaces: vec!["agent.session.".to_string(), "process.".to_string()],
+        read_namespaces: vec![],
+        subscribe_namespaces: vec!["agent.session.".to_string()],
+        see_directed_events: false,
+    }
+}
+
+fn started_payload(
+    session_id: &str,
+    slug: &str,
+    harness: Option<&str>,
+    model: Option<&str>,
+    parent: Option<&str>,
+) -> AgentSessionStartedPayload {
+    AgentSessionStartedPayload {
+        session_id: session_id.into(),
+        slug: slug.into(),
+        agent: "rust-lane".into(),
+        harness: harness.map(str::to_string),
+        model: model.map(str::to_string),
+        workspace: slug.into(),
+        branch: format!("job/{slug}"),
+        source_spec_path: None,
+        open_tab: false,
+        invocation: InvocationMode::Print,
+        keepalive: false,
+        prompt: None,
+        spec: None,
+        resume: false,
+        resume_session_id: None,
+        depends_on: None,
+        vars: None,
+        baseline_sha: None,
+        parent_pipeline_run_id: parent.map(str::to_string),
+    }
+}
+
+fn ports_with(
+    isolation: Arc<dyn IsolationStrategy>,
+    executor: Arc<dyn SessionExecutor>,
+    registry: Arc<dyn ProcessRegistryPort>,
+    platform: Arc<dyn AgentPlatform>,
+) -> AgentPorts {
+    AgentPorts {
+        isolation,
+        executor,
+        platform,
+        registry,
+        spawn_policy: Arc::new(TokenSpawnPolicy),
+        projections: Arc::new(NeverTerminal),
+        event_dedup: Arc::new(EventDedup::new()),
+    }
+}
+
+fn kernel_with_actor() -> Arc<Mutex<KernelRouter>> {
+    let base = ship_substrate::project::get_global_dir().unwrap();
+    let mut router = KernelRouter::new(base).unwrap();
+    router
+        .spawn_actor("service.agents", agents_actor_config())
+        .unwrap();
+    Arc::new(Mutex::new(router))
+}
+
+fn find_dispatched(session_id: &str) -> bool {
+    ship_substrate::db::events::list_all_events()
+        .ok()
+        .map(|events| {
+            events.iter().any(|e| {
+                e.entity_id == session_id
+                    && e.event_type == agent_event_types::AGENT_SESSION_DISPATCHED
+            })
+        })
+        .unwrap_or(false)
+}
+
+fn find_process_killed(slug: &str) -> Option<ProcessKilledPayload> {
+    ship_substrate::db::events::list_all_events()
+        .ok()?
+        .into_iter()
+        .find_map(|e| {
+            if e.entity_id == slug && e.event_type == process_event_types::PROCESS_KILLED {
+                serde_json::from_str(&e.payload_json).ok()
+            } else {
+                None
+            }
+        })
+}
+
+/// Run handle_agents_event on a started envelope and return the captured spawn
+/// context. handle_agent_session_started detaches the prep onto a task, so we
+/// give it a moment to run before reading the capture.
+async fn dispatch_and_capture(
+    kernel: &Arc<Mutex<KernelRouter>>,
+    ports: &AgentPorts,
+    captured: &Arc<StdMutex<Option<Captured>>>,
+    payload: &AgentSessionStartedPayload,
+) -> Option<Captured> {
+    let envelope =
+        EventEnvelope::new(agent_event_types::AGENT_SESSION_STARTED, &payload.session_id, payload)
+            .unwrap()
+            .with_actor_id("test");
+    ship_agents::handle_agents_event(kernel, &envelope, ports).await;
+    // The detached prep task runs under DISPATCH_GATE; poll briefly.
+    for _ in 0..50 {
+        if captured.lock().unwrap().is_some() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    captured.lock().unwrap().clone()
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn bare_session_dispatch_threads_harness_model_branch_and_spawn_env() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let kernel = kernel_with_actor();
+    let captured = Arc::new(StdMutex::new(None));
+    let spawn_calls = Arc::new(AtomicUsize::new(0));
+    let ports = ports_with(
+        Arc::new(OkIsolation(tmp.path().join("worktrees/sess-1"))),
+        Arc::new(RecordingExecutor {
+            captured: captured.clone(),
+            spawn_calls: spawn_calls.clone(),
+        }),
+        Arc::new(NoopRegistry),
+        Arc::new(TestPlatform {
+            worktrees: tmp.path().join("worktrees"),
+            cleanup_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+    );
+
+    let payload = started_payload("s-bare-1", "sess-1", Some("codex"), Some("gpt-5-codex"), None);
+    let got = dispatch_and_capture(&kernel, &ports, &captured, &payload)
+        .await
+        .expect("executor.spawn called");
+
+    assert_eq!(got.harness.as_deref(), Some("codex"), "harness threads into LaunchProfile");
+    assert_eq!(got.model.as_deref(), Some("gpt-5-codex"), "model threads into LaunchProfile");
+    assert_eq!(got.branch, "job/sess-1", "branch threads from payload");
+    assert_eq!(got.spec_path, ".artifacts/job-spec.md", "bare session uses the job-spec path");
+    // The Authority::Agent principal must reach the SpawnPolicy port verbatim.
+    assert_eq!(
+        got.env.get("SHIP_AGENT_PRINCIPAL").map(String::as_str),
+        Some("rust-lane"),
+        "Authority::Agent principal flows through build_spawn_env into the port"
+    );
+    assert_eq!(
+        got.env.get("SHIP_ACTOR_ID").map(String::as_str),
+        Some("sess-1"),
+        "target slug threads as the actor id"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn composed_session_is_not_spawned_here() {
+    // The no-double-spawn invariant: a session carrying parent_pipeline_run_id
+    // is owned by the pipeline composer. service.agents must NOT spawn it.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let kernel = kernel_with_actor();
+    let captured = Arc::new(StdMutex::new(None));
+    let spawn_calls = Arc::new(AtomicUsize::new(0));
+    let ports = ports_with(
+        Arc::new(OkIsolation(tmp.path().join("worktrees/sess-2"))),
+        Arc::new(RecordingExecutor {
+            captured: captured.clone(),
+            spawn_calls: spawn_calls.clone(),
+        }),
+        Arc::new(NoopRegistry),
+        Arc::new(TestPlatform {
+            worktrees: tmp.path().join("worktrees"),
+            cleanup_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+    );
+
+    let payload = started_payload("s-comp-1", "sess-2", None, None, Some("run-parent-1"));
+    let envelope = EventEnvelope::new(
+        agent_event_types::AGENT_SESSION_STARTED,
+        &payload.session_id,
+        &payload,
+    )
+    .unwrap()
+    .with_actor_id("test");
+    ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
+    // Give any (erroneously) detached task a chance to run.
+    tokio::time::sleep(std::time::Duration::from_millis(80)).await;
+
+    assert_eq!(
+        spawn_calls.load(Ordering::SeqCst),
+        0,
+        "composed session (parent_pipeline_run_id set) must not be spawned by service.agents"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dispatch_emits_agent_session_dispatched_on_success() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let kernel = kernel_with_actor();
+    // Executor that returns a handle so the dispatch reaches the dispatched emit.
+    struct OkExecutor;
+    #[async_trait]
+    impl SessionExecutor for OkExecutor {
+        async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> {
+            Ok(ExecutorHandle { pid: Some(99), inner: Box::new(()) })
+        }
+        async fn is_alive(&self, _: &ExecutorHandle) -> bool {
+            true
+        }
+        async fn stop(&self, _: &ExecutorHandle) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn send(&self, _: &ExecutorHandle, _: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    let ports = ports_with(
+        Arc::new(OkIsolation(tmp.path().join("worktrees/sess-3"))),
+        Arc::new(OkExecutor),
+        Arc::new(NoopRegistry),
+        Arc::new(TestPlatform {
+            worktrees: tmp.path().join("worktrees"),
+            cleanup_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+    );
+
+    let payload = started_payload("s-disp-1", "sess-3", None, None, None);
+    let envelope = EventEnvelope::new(
+        agent_event_types::AGENT_SESSION_STARTED,
+        &payload.session_id,
+        &payload,
+    )
+    .unwrap()
+    .with_actor_id("test");
+    ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
+    // Poll for the detached prep to emit dispatched.
+    let mut ok = false;
+    for _ in 0..50 {
+        if find_dispatched("s-disp-1") {
+            ok = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert!(ok, "agent.session.dispatched emitted after a successful spawn");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cancel_stops_registered_handle_and_emits_process_killed() {
+    let kernel = kernel_with_actor();
+    let stop_calls = Arc::new(AtomicUsize::new(0));
+    let cleanup_calls = Arc::new(AtomicUsize::new(0));
+    let registry = Arc::new(SeededRegistry {
+        handle: Mutex::new(Some(ExecutorHandle { pid: Some(42), inner: Box::new(()) })),
+    });
+    let ports = ports_with(
+        Arc::new(OkIsolation(PathBuf::from("/tmp"))),
+        Arc::new(StoppingExecutor { stop_calls: stop_calls.clone() }),
+        registry,
+        Arc::new(TestPlatform {
+            worktrees: PathBuf::from("/tmp/test-worktrees"),
+            cleanup_calls: cleanup_calls.clone(),
+        }),
+    );
+
+    let slug = "cancel-1";
+    let payload = serde_json::json!({
+        "session_id": "s-cancel-1",
+        "slug": slug,
+        "reason": "operator test",
+    });
+    let envelope = EventEnvelope::new(agent_event_types::AGENT_SESSION_CANCELLED, "s-cancel-1", &payload)
+        .unwrap()
+        .with_actor_id("test");
+
+    ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
+
+    assert_eq!(stop_calls.load(Ordering::SeqCst), 1, "executor.stop called once via L0 teardown");
+    assert_eq!(cleanup_calls.load(Ordering::SeqCst), 1, "platform.cleanup_job called once");
+    let killed = find_process_killed(slug).expect("process.killed emitted");
+    assert_eq!(killed.slug, slug);
+    assert_eq!(killed.pid, Some(42));
+    assert_eq!(killed.reason, "cancellation");
+    assert_eq!(killed.actor, "operator");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cancel_without_handle_still_cleans_and_emits() {
+    let kernel = kernel_with_actor();
+    let cleanup_calls = Arc::new(AtomicUsize::new(0));
+    let ports = ports_with(
+        Arc::new(OkIsolation(PathBuf::from("/tmp"))),
+        Arc::new(StoppingExecutor { stop_calls: Arc::new(AtomicUsize::new(0)) }),
+        Arc::new(NoopRegistry),
+        Arc::new(TestPlatform {
+            worktrees: PathBuf::from("/tmp/test-worktrees"),
+            cleanup_calls: cleanup_calls.clone(),
+        }),
+    );
+
+    let slug = "cancel-2";
+    let payload = serde_json::json!({ "session_id": "s-cancel-2", "slug": slug });
+    let envelope = EventEnvelope::new(agent_event_types::AGENT_SESSION_CANCELLED, "s-cancel-2", &payload)
+        .unwrap()
+        .with_actor_id("test");
+
+    ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
+
+    assert_eq!(cleanup_calls.load(Ordering::SeqCst), 1, "cleanup still runs on a registry miss");
+    let killed = find_process_killed(slug).expect("process.killed emitted");
+    assert_eq!(killed.pid, None, "no handle → pid None in the audit event");
+}

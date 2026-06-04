@@ -1,0 +1,99 @@
+//! The agent-cancel decision — `service.agents`' handling of
+//! `agent.session.cancelled`.
+//!
+//! Stop the running harness, tear down its worktree/tmux, and emit
+//! `process.killed` for audit. The projection has already transitioned the
+//! session to Cancelled via the transition table; this decision's job is to
+//! stop the running work.
+//!
+//! The teardown MECHANISM is the L0 runner's slug-keyed primitive
+//! ([`ship_runner::stop_by_slug`] / [`ship_runner::stop_handle`]). The branch
+//! used for cleanup is derived as `job/<slug>` — the dispatch convention for
+//! bare agent sessions (worktrees + branch are slug-derived; the same fallback
+//! the orchestrator's `handle_cleanup` uses). That keeps this decision off
+//! `crate::projections`, so the crate depends on L0 alone.
+//!
+//! Distinct from the orchestrator's pipeline-run cancel (which additionally
+//! walks fanout lanes and reads the jobs projection for the branch). The agent
+//! cancel is slug-keyed and harness-agnostic.
+
+use std::sync::Arc;
+
+use ship_runner::emit::persist_and_route;
+use ship_substrate::events::process::{event_types as process_event_types, ProcessKilledPayload};
+use ship_substrate::events::EventEnvelope;
+use tokio::sync::Mutex;
+
+use crate::ports::AgentPorts;
+
+type Kernel = Arc<Mutex<ship_substrate::events::KernelRouter>>;
+
+/// Handle `agent.session.cancelled`. Reads `slug` from the payload, stops the
+/// process via the L0 teardown core, cleans up the worktree/tmux/branch, and
+/// emits `process.killed`.
+pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, ports: &AgentPorts) {
+    let payload: serde_json::Value =
+        serde_json::from_str(&envelope.payload_json).unwrap_or_default();
+    let slug = match payload["slug"].as_str() {
+        Some(s) if !s.is_empty() => s.to_string(),
+        _ => {
+            tracing::warn!(
+                entity_id = %envelope.entity_id,
+                "agent-session-cancel: cancelled missing slug — skipping process kill"
+            );
+            return;
+        }
+    };
+
+    // Registry first (fast path), via the L0 slug-keyed teardown primitive. On a
+    // registry miss, try the executor's resume path — best effort — and stop the
+    // recovered handle through the same L0 teardown core.
+    let pid = if let Some(pid) = ship_runner::stop_by_slug(
+        kernel,
+        &ports.registry,
+        &ports.executor,
+        &slug,
+        "cancellation",
+        "operator",
+    )
+    .await
+    {
+        pid
+    } else if let Some(handle) = ports.executor.resume_handle(&slug, None, None).await {
+        ship_runner::stop_handle(kernel, &ports.executor, &slug, handle, "cancellation", "operator")
+            .await
+    } else {
+        // No handle to stop — but a dispatch for this slug may be spawning right
+        // now (cancel raced the spawn). Drop a tombstone so the in-flight
+        // dispatch tears the child down after it registers instead of leaking
+        // it. Also covers a cancel processed entirely before the dispatch
+        // handler runs.
+        ports.registry.mark_cancelled(&slug).await;
+        tracing::info!(slug, "agent-session-cancel: no live handle found; tombstoned for in-flight spawn, proceeding to cleanup");
+        None
+    };
+
+    // Tear down worktree + tmux + branch. Bare agent-session branches follow
+    // the `job/<slug>` dispatch convention; `cleanup_job` keys the worktree/tmux
+    // by slug and uses the branch only to delete it.
+    let branch = format!("job/{slug}");
+    ports.platform.cleanup_job(&slug, &branch).await;
+
+    // Emit process.killed for audit.
+    let killed = ProcessKilledPayload {
+        slug: slug.clone(),
+        pid,
+        signal: "SIGTERM+SIGKILL".into(),
+        reason: "cancellation".into(),
+        actor: "operator".into(),
+    };
+    match EventEnvelope::new(process_event_types::PROCESS_KILLED, &slug, &killed) {
+        Ok(env) => {
+            let env = env.with_actor_id("service.agents");
+            persist_and_route(kernel, env, &slug, None).await;
+        }
+        Err(e) => {
+            tracing::warn!(slug, "agent-session-cancel: failed to build process.killed envelope: {e}");
+        }
+    }
+}

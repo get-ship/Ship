@@ -12,7 +12,11 @@
 //!
 //! - **`ship-runner` (here, L0):** mechanism — mailbox-loop primitives, event
 //!   dedup, terminal-state guard, dispatch-concurrency gate, exit-signal
-//!   routing, the kernel-emit plumbing, harness invocation-mode resolution.
+//!   routing, the kernel-emit plumbing, harness invocation-mode resolution, and
+//!   the spawn-env builder (`build_spawn_env`): it constructs only the substrate
+//!   `Authority::Agent` principal and calls the L0 `SpawnPolicy` port, naming no
+//!   agent-domain type — so both the L1 agents dispatch primitive and the
+//!   pipeline orchestrator call it from this one L0 home.
 //! - **`ship-supervisor` (L0):** per-process OS lifecycle — executors,
 //!   isolation, terminal launching, graceful exit. A distinct concern.
 //! - **`ship-platform` (L1):** policy — the pipeline DAG, fanout aggregation,
@@ -28,12 +32,14 @@ pub mod exit_handler;
 pub mod invocation;
 pub mod observe;
 pub mod router;
+pub mod spawn_env;
 pub mod teardown;
 
 pub use dedup::{EventDedup, Seen};
 pub use emit::{EventSink, KernelEventSink, persist_and_route};
 pub use exit_handler::ExitVocabulary;
 pub use invocation::resolve_step_invocation;
+pub use spawn_env::build_spawn_env;
 pub use observe::{resolve_head_sha, scan_agent_log_tail, scan_git_evidence, strip_ansi};
 pub use router::{extract_slug, is_operator_event, terminal_guard, RouterGate, DISPATCH_GATE};
 pub use teardown::{stop_by_slug, stop_handle};

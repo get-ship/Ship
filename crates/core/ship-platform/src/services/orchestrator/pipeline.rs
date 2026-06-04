@@ -293,7 +293,7 @@ async fn advance_pipeline_inner(
                     spec_path: job.spec_path.clone(),
                     spec_content: None,
                     work_dir: worktree_path.clone(),
-                    env: super::dispatch::build_spawn_env(&slug, agent, octx.spawn_policy.as_ref()).await,
+                    env: ship_runner::build_spawn_env(&slug, agent, octx.spawn_policy.as_ref()).await,
                     exit_tx: Some(exit_tx),
                     launch: LaunchProfile {
                         harness: step.harness.clone(),

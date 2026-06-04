@@ -1,41 +1,29 @@
-//! Initial job dispatch — prepares isolation, spawns the first agent step.
+//! Initial pipeline-run dispatch — prepares isolation, spawns the first step.
 //!
-//! Also handles pipelines whose first step is `run:` (skips agent spawning).
+//! Also handles pipelines whose first step is `run:` (skips agent spawning),
+//! and emits the composed-step agent_session observability pair so pipeline
+//! steps share the agent_sessions read model with bare dispatches.
 //!
-//! Two entry points:
-//!   - `handle_pipeline_run_started` → pipeline composition (multi-step pipelines).
-//!     Dispatches the first step; subsequent steps run via advance_pipeline.
-//!   - `handle_agent_session_started` → the dispatch PRIMITIVE. Owns the
-//!     spawn / register / exit-handler-attach atom for bare single-agent
-//!     dispatches (and, when phase 5 lands, every pipeline step too).
+//! The bare `agent.session` dispatch primitive (`handle_agent_session_started`)
+//! carved into the L1 `ship-agents` crate (agents-arc S3b) — see the marker
+//! comment below. This module is now the pipeline-composition half only;
+//! `handle_pipeline_run_started` is its entry point.
 
 use ship_substrate::events::agent_session::{
     event_types as agent_session_event_types, AgentSessionCompletedPayload,
     AgentSessionDispatchedPayload, AgentSessionFailedPayload, AgentSessionStartedPayload,
-    InvocationMode,
 };
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::{PipelineRunStartedPayload, StepType};
-use crate::services::dispatch_ports::{Authority, SessionContext, LaunchProfile, SpawnPolicy};
+use crate::services::dispatch_ports::{SessionContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-/// Build the spawn env for a daemon-spawned agent via the domain-free
-/// [`SpawnPolicy`] port: the runner names the principal it acts as
-/// (`Authority::Agent { id }` for `agent`) and the target `slug`; the policy
-/// impl resolves `SHIP_ACTOR_ID` plus, when the host issues them, a scoped
-/// `SHIP_TOKEN` + `SHIP_DAEMON_URL`.
-///
-/// The role/token resolution moved into the impl (`spawn_policy::ConfigSpawnPolicy`)
-/// — the runner no longer names config / auth / agent-role types here.
-pub(super) async fn build_spawn_env(
-    slug: &str,
-    agent: &str,
-    spawn_policy: &dyn SpawnPolicy,
-) -> std::collections::HashMap<String, String> {
-    let principal = Authority::Agent { id: agent.to_string() };
-    spawn_policy.spawn_env(&principal, slug).await
-}
+// `build_spawn_env` is L0 mechanism — it names no agent-domain type, only the
+// substrate principal + the L0 `SpawnPolicy` port — so it lives in
+// `ship_runner::build_spawn_env`. The pipeline-dispatch paths here call it
+// directly from L0 (`ship_runner::build_spawn_env(...)`), never through the
+// agents facade: no laundered pipelines→agents coupling.
 
 use super::emit::{
     emit_pipeline_run_dispatched, emit_pipeline_run_dispatched_with_meta, emit_pipeline_run_failed, emit_process_spawned,
@@ -158,7 +146,7 @@ pub async fn dispatch_pipeline_run_internal(
         spec_path: payload.spec_path.clone(),
         spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: build_spawn_env(slug, agent, octx.spawn_policy.as_ref()).await,
+        env: ship_runner::build_spawn_env(slug, agent, octx.spawn_policy.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: launch_harness.clone(),
@@ -331,265 +319,24 @@ pub async fn dispatch_pipeline_run_internal(
     emit_pipeline_run_dispatched(kernel, &payload.pipeline_run_id, &worktree_path, slug).await;
 }
 
-// ── Agent-session primitive ─────────────────────────────────────────
+// ── Agent-session dispatch primitive — CARVED to `ship-agents` (S3b) ─────────
 //
-// New in the agent-primitive inversion. Owns dispatch for bare agent
-// sessions (and, when phase 5 lands, every pipeline step too). Parallel
-// to `dispatch_pipeline_run_internal` above; the two will reconverge once the
-// pipeline runner emits agent.session.started per step.
-
-/// Entry point for `agent.session.started` events. Resolves
-/// dependencies, prepares the worktree, spawns the harness, registers
-/// the process, attaches the exit handler, and emits
-/// `agent.session.dispatched`.
-pub async fn handle_agent_session_started(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    envelope: &ship_substrate::events::EventEnvelope,
-    octx: &OrchestratorContext,
-) {
-    let payload: AgentSessionStartedPayload = match serde_json::from_str(&envelope.payload_json) {
-        Ok(p) => p,
-        Err(e) => {
-            tracing::warn!("agent-session-dispatch: malformed payload: {e}");
-            return;
-        }
-    };
-
-    // Pipeline-composed sessions: the pipeline runner spawns the
-    // harness itself (it has step-monitor concerns this handler
-    // doesn't cover — gates, retries, output promotion, fanout). The
-    // agent.session.started emitted by the composer is purely for
-    // observability — it populates agent_sessions so bare and
-    // composed dispatches share one read model. Skip the spawn here
-    // to avoid double-spawn.
-    if payload.parent_pipeline_run_id.is_some() {
-        tracing::debug!(
-            slug = payload.slug, session_id = payload.session_id,
-            parent = ?payload.parent_pipeline_run_id,
-            "agent-session-dispatch: composed by pipeline — skip spawn (composer owns it)"
-        );
-        return;
-    }
-
-    if let Some(deps) = &payload.depends_on
-        && !deps.is_empty()
-    {
-        // Dependencies are session slugs. Pending-dispatch (the
-        // equivalent of `dispatch_ready_pending_jobs` for sessions)
-        // will pick this up once parents complete. For now we just
-        // skip — the session record is in Pending status and the
-        // pending dispatcher (a phase-5 addition) will surface it.
-        tracing::info!(
-            slug = payload.slug, session_id = payload.session_id,
-            deps = ?deps,
-            "agent-session-dispatch: deferring until dependencies complete"
-        );
-        return;
-    }
-
-    // Dispatch OFF the mailbox loop. The orchestrator router is a single
-    // sequential mailbox loop (`router.rs`: `while let Some(env) =
-    // mb.recv().await { handle_job_event(...).await }`). Sandbox prep for
-    // Tier 2+ runs synchronously inside `executor.spawn` (docker run +
-    // sidecar-up — seconds; minutes for VM boot in Tranche C), so awaiting
-    // it here would stall EVERY other session/pipeline event for the whole
-    // prep. We detach the dispatch+prep into a task instead: the mailbox
-    // returns immediately, and the session row stays in its post-`started`
-    // Pending state until this task emits `agent.session.dispatched` (or
-    // `.failed`) — exactly the observable "preparing sandbox" window we
-    // want, without a fake "running".
-    //
-    // Concurrency tradeoff (deliberate): this trades strict sequential
-    // dispatch for per-session concurrency. Safe because (a) event dedup +
-    // the terminal-state guard already ran synchronously in
-    // `handle_job_event` BEFORE this point, and (b) sessions are mutually
-    // independent (a sandbox is a per-project trust domain). Pipeline-
-    // composed sessions never reach here (returned above).
-    //
-    // KNOWN LIMITATION (follow-up): a cancel arriving *during* prep does not
-    // hard-abort this task — the projection flips the row to Cancelled but
-    // the actor may still spawn, then is stoppable via the normal registry
-    // path. The window is small for container prep. A JoinHandle-stash +
-    // `agent.session.cancelled` router arm (true abort + SandboxOwner
-    // teardown) lands with the Tranche C VM work, where prep is long enough
-    // for abort to matter. Today's blocking path couldn't cancel during prep
-    // either (mailbox was stalled), so this is not a regression.
-    let kernel = kernel.clone();
-    let octx = octx.clone();
-    tokio::spawn(async move {
-        dispatch_agent_session_internal(&kernel, &payload, &octx).await;
-    });
-}
-
-async fn dispatch_agent_session_internal(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    payload: &AgentSessionStartedPayload,
-    octx: &OrchestratorContext,
-) {
-    let slug = &payload.slug;
-    let branch = &payload.branch;
-
-    tracing::info!(
-        slug, branch, agent = payload.agent, session_id = payload.session_id,
-        invocation = ?payload.invocation, keepalive = payload.keepalive,
-        "agent-session-dispatch: dispatching"
-    );
-
-    // A cancel processed before this dispatch ran leaves a tombstone (the
-    // cancel found no handle to stop). Bail before spawning anything — the
-    // projection has already marked the session cancelled.
-    if octx.registry.take_if_cancelled(slug).await {
-        tracing::info!(slug, "agent-session-dispatch: session already cancelled — skipping spawn");
-        return;
-    }
-
-    // The agent-session payload carries invocation directly — it's the
-    // source of truth for how the executor launches the harness.
-    // RoutingExecutor routes Pty → TmuxWindow/Process, Print → Process,
-    // Stream → Server. `keepalive` is orthogonal (forces Process +
-    // build_interactive).
-    let invocation = payload.invocation;
-
-    let session_ctx = SessionContext {
-        pipeline_run_id: payload.session_id.clone(), // routes use session_id as the pipeline_run_id-shape ulid
-        slug: slug.clone(),
-        agent: payload.agent.clone(),
-        branch: branch.clone(),
-        spec_path: ".artifacts/job-spec.md".to_string(),
-        spec_content: payload.spec.clone(),
-        work_dir: octx.platform.worktrees_dir().join(slug),
-        env: build_spawn_env(slug, &payload.agent, octx.spawn_policy.as_ref()).await,
-        exit_tx: None,
-        launch: LaunchProfile {
-            harness: payload.harness.clone(),
-            model: payload.model.clone(),
-            persist_session: true,
-            resume_session: payload.resume_session_id.clone(),
-            ..Default::default()
-        },
-        step: None,
-        invocation,
-        keepalive: payload.keepalive,
-    };
-
-    let worktree_path = match octx.isolation.prepare(&session_ctx).await {
-        Ok(p) => p,
-        Err(e) => {
-            tracing::error!(slug, "agent-session-dispatch: isolation prepare failed: {e}");
-            emit_agent_session_failed(
-                kernel,
-                &payload.session_id,
-                slug,
-                &format!("isolation prepare failed: {e}"),
-                None,
-                "isolation_prepare",
-            )
-            .await;
-            return;
-        }
-    };
-
-    let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-    let session_ctx_with_dir = SessionContext {
-        work_dir: worktree_path.clone(),
-        exit_tx: Some(exit_tx),
-        ..session_ctx
-    };
-
-    let handle = match octx.executor.spawn(&session_ctx_with_dir).await {
-        Ok(h) => h,
-        Err(e) => {
-            tracing::error!(slug, "agent-session-dispatch: executor spawn failed: {e}");
-            emit_agent_session_failed(
-                kernel,
-                &payload.session_id,
-                slug,
-                &format!("executor spawn failed: {e}"),
-                None,
-                "executor_spawn",
-            )
-            .await;
-            return;
-        }
-    };
-    // Capture PID before moving the handle into the registry so the
-    // dispatched event can carry it.
-    let pid = handle.pid;
-
-    let executor_kind = match invocation {
-        InvocationMode::Pty => "pty",
-        InvocationMode::Print => "process",
-        InvocationMode::Stream => "stream",
-    };
-    let cmd_label = payload.harness.as_deref().unwrap_or("claude");
-    let resolved_harness = cmd_label.to_string();
-    emit_process_spawned(
-        kernel,
-        slug,
-        &payload.session_id,
-        pid,
-        cmd_label,
-        &[],
-        &[],
-        &worktree_path.to_string_lossy(),
-        executor_kind,
-        None,
-    )
-    .await;
-
-    octx.registry.register(slug, handle).await;
-
-    // Close the cancel-during-spawn window: if a cancel landed while we were
-    // spawning (it found no handle and tombstoned the slug), tear the child
-    // down now instead of leaving it orphaned. register-then-check is
-    // race-free because the registry mutex serializes our register() against
-    // the cancel's take().
-    if octx.registry.take_if_cancelled(slug).await {
-        if let Some(h) = octx.registry.take(slug).await {
-            tracing::info!(slug, "agent-session-dispatch: cancel raced the spawn — stopping just-spawned child");
-            if let Err(e) = octx.executor.stop(&h).await {
-                tracing::warn!(slug, "agent-session-dispatch: post-spawn cancel stop failed: {e}");
-            }
-        }
-        return;
-    }
-
-    // Start the exit handler under the agent-session vocabulary — emits
-    // agent.session.{completed,failed} keyed on session_id (not the
-    // pipeline.run.* keyed on pipeline_run_id the PipelineRun vocabulary
-    // emits). One L0 mechanism, two vocabularies. The pipeline composer
-    // (phase 5) sits on top of these events to advance multi-step pipelines.
-    super::exit_handler::start(
-        kernel.clone(),
-        octx.registry.clone(),
-        super::exit_handler::ExitVocabulary::AgentSession {
-            session_id: payload.session_id.clone(),
-        },
-        exit_rx,
-    );
-
-    // Emit agent.session.dispatched — flips the projection's status
-    // to Dispatched and tells observers the harness is live.
-    emit_agent_session_dispatched(
-        kernel,
-        &payload.session_id,
-        slug,
-        &worktree_path.to_string_lossy(),
-        &resolved_harness,
-        payload.model.as_deref(),
-        pid,
-    )
-    .await;
-}
+// `handle_agent_session_started` + `dispatch_agent_session_internal` (the bare
+// agent.session prep/spawn) moved into the L1 `ship-agents` crate, which the
+// new `service.agents` actor drives. orchestrator no longer subscribes to or
+// acts on `agent.session.started` / `agent.session.cancelled` — it keeps
+// `agent.session.completed/failed` only to advance composed pipeline sessions
+// (the `parent_pipeline_run_id` path below). The composed-session emit helpers
+// that the pipeline DAG still needs stay here.
 
 /// Emit the observability pair (started + dispatched) for a pipeline
 /// step's agent session. Composed sessions share the agent_sessions
 /// read model with bare dispatches; `parent_pipeline_run_id` ties the
-/// session to its pipeline run, and the composer (not this handler)
-/// owns the spawn — `handle_agent_session_started` skips events with
-/// that field set. The session slug is `<run_slug>::<step_id>` so it
-/// stays unique under the agent_sessions.slug constraint (the job slug
-/// is reused across all steps).
+/// session to its pipeline run, and the composer (not the agents actor)
+/// owns the spawn — the agents actor's `handle_agent_session_started`
+/// skips events with that field set. The session slug is
+/// `<run_slug>::<step_id>` so it stays unique under the agent_sessions.slug
+/// constraint (the job slug is reused across all steps).
 /// Run-level context shared by every composed step of a pipeline.
 /// Built from a `PipelineRun` (advance_pipeline path) or directly from
 /// a `PipelineRunStartedPayload` (first-step dispatch path) — both
@@ -874,7 +621,7 @@ async fn dispatch_first_run_step_inner(
         spec_path: payload.spec_path.clone(),
         spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: build_spawn_env(slug, &payload.agent, octx.spawn_policy.as_ref()).await,
+        env: ship_runner::build_spawn_env(slug, &payload.agent, octx.spawn_policy.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: payload.harness.clone(),

@@ -1,0 +1,31 @@
+[package]
+name = "ship-agents"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Agent-session orchestration (L1) — the bare agent.session dispatch primitive (prep/spawn), the agent-cancel decision, and the `service.agents` actor. Depends only on L0 substrate + runner ports; drives the L0 runner mechanism, never reaches into the pipeline DAG."
+
+[dependencies]
+# L0 substrate: kernel router, event envelope + agent.session/process payloads,
+# the domain-free dispatch ports (SpawnPolicy / ProjectionReader / RunnerPorts).
+ship-substrate = { path = "../../../ship-substrate" }
+# L0 runner mechanism: router gate (terminal_guard / RouterGate / DISPATCH_GATE),
+# event dedup, slug-keyed teardown (stop_by_slug / stop_handle), exit handler,
+# kernel-emit helpers. Agents drives this mechanism.
+ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }
+# L0 primitive types: Authority principal for the SpawnPolicy seam.
+ship-types = { path = "../../../ship-substrate/crates/ship-types" }
+
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt", "macros"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
