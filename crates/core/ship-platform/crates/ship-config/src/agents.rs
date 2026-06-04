@@ -89,6 +89,39 @@ fn dir_agents_cap(agents_dir: &Path, mode: FsMode) -> (FsCap, String) {
     cap_for(dir_cap_root(agents_dir), mode)
 }
 
+/// Mint a cap over a whole `.ship` SCOPE dir (project `.ship` or user
+/// `library`/`.ship`), returning the cap + the scope dir's name as a rel
+/// PREFIX. The WRITE door uses this — unlike [`agents_cap`] (which roots at the
+/// agents subdir) the write path also relocates trashed defs into the SIBLING
+/// `<scope>/.trash/`, so the cap must span both `<prefix>/agents/` and
+/// `<prefix>/.trash/`. Rooted at the scope dir's PARENT (which reliably exists,
+/// bootstrap-safe) with the scope name as the rel prefix — the same posture the
+/// reader's [`cap_for`] uses, so a not-yet-created `.ship` never reads as an
+/// escape. When `scope_dir` has no parent the cap roots at it with an empty
+/// prefix.
+pub(crate) fn scope_cap(scope_dir: &Path, mode: FsMode) -> (FsCap, String) {
+    let name = scope_dir
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| ship_substrate::home::ShipHome::ship_dir_name().to_string());
+    match scope_dir.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => {
+            cap_for((parent.to_path_buf(), name), mode)
+        }
+        _ => cap_for((scope_dir.to_path_buf(), String::new()), mode),
+    }
+}
+
+/// Join a rel PREFIX (from [`scope_cap`]) with a `<sub>/<leaf>` tail, collapsing
+/// an empty prefix.
+pub(crate) fn under_prefix(prefix: &str, tail: &str) -> String {
+    if prefix.is_empty() {
+        tail.to_string()
+    } else {
+        format!("{prefix}/{tail}")
+    }
+}
+
 fn cap_for((root, agents_dir): (PathBuf, String), mode: FsMode) -> (FsCap, String) {
     let cap = FsCap::new_unchecked(
         root,

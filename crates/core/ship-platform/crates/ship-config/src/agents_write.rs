@@ -1,23 +1,158 @@
-//! The gated agent-def WRITE path (S5 door).
+//! THE agent-def WRITE door — the one file-access door for authoring
+//! `.ship/agents/<id>.jsonc` def files. Mirrors the S2 reader ([`crate::agents`])
+//! on the write side.
 //!
-//! Authoring `.ship/agents/<id>.jsonc` through the [`FsBroker`] gated door —
-//! confined by the SAME [`FsCap`] the reader uses ([`crate::agents`]). The save
-//! preserves the hand-authored canonical fields (`hooks`, `plugins`,
-//! `rules.inline`, `harness_settings`, `apps`) on re-save.
+//! All disk flows through the [`FsBroker`] gated door, confined by an [`FsCap`]
+//! ([`scope_cap`], `FsMode::ReadWrite`). Zero `std::fs`/`tokio::fs` on the agent-
+//! def write path (grep-gate invariant). Two granularities share the one door:
+//! - the **per-agent opaque-value CRUD** ([`write_agent_def`] / [`delete_agent_def`]
+//!   / [`rename_agent_def`] / [`read_agent_def_value`] / [`find_agent_def`]) — what
+//!   the daemon's `AgentsService` state layer (S5b) routes every create/put/patch/
+//!   delete/rename/duplicate/move-scope through; and
+//! - the **typed flat-profile BATCH** ([`save_agents_config`]) — what `config/io.rs`
+//!   reconciles a whole project's `agents` set through. Both preserve the hand-
+//!   authored canonical fields (`hooks`, `plugins`, `rules.inline`,
+//!   `harness_settings`, `apps`) on re-save.
 //!
-//! This is the not-yet-wired write surface the gated op (S5) drives; the read
-//! cutover (S2) left it here, untouched, when it split the reader out.
+//! Delete is trash-not-hard-delete: a removed def is relocated into the sibling
+//! `<scope>/.trash/` (recoverable), via the [`FsBroker::rename`] move primitive.
+//! The post-write NOTIFY ([`notify_agent_def_saved`], S5) fires at the gate so
+//! the read-only index stays live.
 
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use ship_substrate::ports::{FsBroker, FsMode, KernelLog};
+use ship_substrate::ports::{FsBroker, FsError, FsMode, KernelLog};
 use ship_types::SpaceId;
 
-use crate::agents::{agent_rel, agents_cap};
+use crate::agents::{agent_rel, agents_cap, scope_cap, under_prefix};
 use crate::error::ConfigError;
 use crate::types::AgentProfile;
+
+/// Accepted def extensions, canonical first. `.json` is tolerated so a
+/// hand-authored plain-JSON def still resolves on read/locate/delete.
+const DEF_EXTS: &[&str] = &["jsonc", "json"];
+
+// ── Per-agent opaque-value door (THE agent-def write surface) ────────────────────
+//
+// These functions are the ONE write/locate/read-for-write path for a single
+// `.ship/agents/<id>.jsonc` def. Every disk op flows through the [`FsBroker`]
+// gated door, confined by [`scope_cap`] to the SCOPE dir (project `.ship` or
+// user `library`/`.ship`) so the trash relocation (`<scope>/.trash/`) stays
+// inside the same cap. Docs are opaque `serde_json::Value` — the CRUD layer is
+// shape-agnostic, exactly like the legacy raw-fs path it replaces. Zero
+// `std::fs`/`tokio::fs` (grep-gate invariant).
+
+/// Locate the def for `id` under `<scope>/agents/`, returning the matched
+/// agents-relative filename (`<id>.jsonc` or `<id>.json`). `Ok(None)` when no
+/// file is present (the absent/deleted case).
+pub fn find_agent_def(
+    fs: &dyn FsBroker,
+    scope_dir: &Path,
+    id: &str,
+) -> Result<Option<String>, ConfigError> {
+    let (cap, prefix) = scope_cap(scope_dir, FsMode::ReadOnly);
+    for ext in DEF_EXTS {
+        let leaf = format!("{id}.{ext}");
+        let rel = under_prefix(&prefix, &format!("agents/{leaf}"));
+        if fs.exists(&cap, &rel)? {
+            return Ok(Some(leaf));
+        }
+    }
+    Ok(None)
+}
+
+/// Read + parse a def's opaque value, paired with the matched agents-relative
+/// filename. `Ok(None)` when no file is present. Errors only on real I/O; a
+/// malformed file surfaces a [`ConfigError::Validation`] so a read-modify-write
+/// (patch) never silently drops content.
+pub fn read_agent_def_value(
+    fs: &dyn FsBroker,
+    scope_dir: &Path,
+    id: &str,
+) -> Result<Option<(String, serde_json::Value)>, ConfigError> {
+    let (cap, prefix) = scope_cap(scope_dir, FsMode::ReadOnly);
+    for ext in DEF_EXTS {
+        let leaf = format!("{id}.{ext}");
+        let rel = under_prefix(&prefix, &format!("agents/{leaf}"));
+        match fs.read_string(&cap, &rel) {
+            Ok(raw) => {
+                let stripped = ship_substrate::fs_util::strip_jsonc_comments(&raw);
+                let value = serde_json::from_str(&stripped)
+                    .map_err(|e| ConfigError::Validation(e.to_string()))?;
+                return Ok(Some((leaf, value)));
+            }
+            Err(FsError::NotFound) => continue,
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Ok(None)
+}
+
+/// Write `doc` to `<scope>/agents/<id>.jsonc` atomically. With
+/// `allow_overwrite == false` the write refuses an existing def in EITHER
+/// extension and returns [`ConfigError::AlreadyExists`] (the create contract);
+/// PUT/upsert callers pass `true`. Creates the agents dir on first write.
+pub fn write_agent_def(
+    fs: &dyn FsBroker,
+    scope_dir: &Path,
+    id: &str,
+    doc: &serde_json::Value,
+    allow_overwrite: bool,
+) -> Result<(), ConfigError> {
+    if !allow_overwrite && find_agent_def(fs, scope_dir, id)?.is_some() {
+        return Err(ConfigError::AlreadyExists(id.to_string()));
+    }
+    let (cap, prefix) = scope_cap(scope_dir, FsMode::ReadWrite);
+    fs.create_dir_all(&cap, &under_prefix(&prefix, "agents"))?;
+    let body = serde_json::to_string_pretty(doc)
+        .map_err(|e| ConfigError::Internal(e.to_string()))?;
+    let rel = under_prefix(&prefix, &format!("agents/{id}.jsonc"));
+    fs.write_atomic(&cap, &rel, body.as_bytes())?;
+    Ok(())
+}
+
+/// Soft-delete the def for `id`: relocate `<scope>/agents/<id>.<ext>` to
+/// `<scope>/.trash/<unix_secs>-<id>.<ext>` (trash-not-hard-delete, the semantics
+/// the legacy `FilesService::trash` provided). [`ConfigError::NotFound`] when no
+/// file is present.
+pub fn delete_agent_def(
+    fs: &dyn FsBroker,
+    scope_dir: &Path,
+    id: &str,
+) -> Result<(), ConfigError> {
+    let Some(leaf) = find_agent_def(fs, scope_dir, id)? else {
+        return Err(ConfigError::NotFound(id.to_string()));
+    };
+    let (cap, prefix) = scope_cap(scope_dir, FsMode::ReadWrite);
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let src = under_prefix(&prefix, &format!("agents/{leaf}"));
+    let dst = under_prefix(&prefix, &format!(".trash/{ts}-{leaf}"));
+    fs.rename(&cap, &src, &dst)?;
+    Ok(())
+}
+
+/// Rename a def within a scope: write `doc` to `<new_id>.jsonc` (refusing an
+/// existing `new_id`) then trash `<old_id>`. The caller supplies the doc already
+/// reconciled to `new_id` (so `agent.id` tracks the filename). The two-step
+/// (create-new + trash-old) keeps the old content recoverable in `.trash/`,
+/// matching the legacy rename.
+pub fn rename_agent_def(
+    fs: &dyn FsBroker,
+    scope_dir: &Path,
+    old_id: &str,
+    new_id: &str,
+    doc: &serde_json::Value,
+) -> Result<(), ConfigError> {
+    write_agent_def(fs, scope_dir, new_id, doc, false)?;
+    delete_agent_def(fs, scope_dir, old_id)?;
+    Ok(())
+}
 
 /// Strip the optional `NNNN-` numeric prefix and `.md` suffix from a rule
 /// reference so callers see canonical IDs (`rust` rather than `0001-rust.md`).
@@ -189,105 +324,5 @@ fn to_str_array(items: &[String]) -> serde_json::Value {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::agents::read_agent_profiles;
-    use ship_substrate::ports::LocalFsBroker;
-    use std::path::PathBuf;
-    use tempfile::tempdir;
-
-    /// Returns `ship_dir` for direct broker writes in tests. Canonicalizes the
-    /// tempdir root: on WSL/macOS `/tmp` is a symlink, and the broker's
-    /// symlink-escape guard canonicalizes the deepest existing ancestor before
-    /// comparing it to the cap root. Production ship dirs are already canonical.
-    fn ship_dir(tmp: &tempfile::TempDir) -> PathBuf {
-        let base = std::fs::canonicalize(tmp.path()).unwrap();
-        ship_substrate::home::ShipHome::project_ship_dir(base)
-    }
-
-    #[test]
-    fn normalize_strips_nnnn_prefix_and_md_suffix() {
-        assert_eq!(normalize_rule_external_id("0001-rust.md"), "rust");
-        assert_eq!(normalize_rule_external_id("rust"), "rust");
-        assert_eq!(normalize_rule_external_id("rust.md"), "rust");
-        // Non-numeric prefix is preserved.
-        assert_eq!(normalize_rule_external_id("ab-cd"), "ab-cd");
-    }
-
-    #[test]
-    fn save_agents_config_prunes_dropped_agents() {
-        let tmp = tempdir().unwrap();
-        let dir = ship_dir(&tmp);
-        let fs = LocalFsBroker::new();
-
-        let a = AgentProfile { id: "alpha".into(), name: "Alpha".into(), ..Default::default() };
-        let b = AgentProfile { id: "beta".into(), name: "Beta".into(), ..Default::default() };
-        save_agents_config(&fs, &dir, &[a.clone(), b.clone()]).unwrap();
-        // Read back through THE reader — the save wrote canonical-shape files.
-        assert_eq!(read_agent_profiles(&fs, &dir).unwrap().len(), 2);
-
-        // Re-save with only alpha — beta's file must be pruned.
-        save_agents_config(&fs, &dir, &[a]).unwrap();
-        let after = read_agent_profiles(&fs, &dir).unwrap();
-        assert_eq!(after.len(), 1);
-        assert_eq!(after[0].agent.id, "alpha");
-    }
-
-    #[test]
-    fn save_preserves_hand_authored_canonical_fields_on_resave() {
-        let tmp = tempdir().unwrap();
-        let dir = ship_dir(&tmp);
-        let fs = LocalFsBroker::new();
-        let (cap, agents_dir) = agents_cap(&dir, FsMode::ReadWrite);
-        fs.create_dir_all(&cap, &agents_dir).unwrap();
-
-        // Hand-authored canonical file with fields the platform does NOT own.
-        let authored = serde_json::json!({
-            "agent": { "id": "alpha", "name": "Alpha" },
-            "skills": { "refs": [] },
-            "mcp": { "servers": [] },
-            "hooks": { "stop": "echo bye" },
-            "rules": { "inline": "be careful" },
-            "harness_settings": { "claude": { "model": "opus" } },
-            "apps": { "studio": true }
-        });
-        fs.write_atomic(&cap, &agent_rel(&agents_dir, "alpha"), authored.to_string().as_bytes())
-            .unwrap();
-
-        // Re-save the platform-managed view (changes skills only).
-        let profile = AgentProfile {
-            id: "alpha".into(),
-            name: "Alpha".into(),
-            skills: vec!["rust".into()],
-            ..Default::default()
-        };
-        save_agents_config(&fs, &dir, &[profile]).unwrap();
-
-        // The hand-authored fields must survive the re-save.
-        let raw = fs.read_string(&cap, &agent_rel(&agents_dir, "alpha")).unwrap();
-        let doc: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert_eq!(doc["hooks"]["stop"], "echo bye", "hooks preserved");
-        assert_eq!(doc["rules"]["inline"], "be careful", "rules.inline preserved");
-        assert_eq!(doc["harness_settings"]["claude"]["model"], "opus", "harness_settings preserved");
-        assert_eq!(doc["apps"]["studio"], true, "apps preserved");
-        // And the platform-managed change landed.
-        assert_eq!(doc["skills"]["refs"][0], "rust", "platform field updated");
-    }
-
-    #[test]
-    fn save_normalizes_rule_ids_on_disk() {
-        let tmp = tempdir().unwrap();
-        let dir = ship_dir(&tmp);
-        let fs = LocalFsBroker::new();
-        let profile = AgentProfile {
-            id: "alpha".into(),
-            name: "Alpha".into(),
-            rules: vec!["0001-rust.md".into()],
-            ..Default::default()
-        };
-        // The save path normalizes rule ids; the file must round-trip cleanly.
-        save_agents_config(&fs, &dir, &[profile]).unwrap();
-        let agents = read_agent_profiles(&fs, &dir).unwrap();
-        assert_eq!(agents.len(), 1);
-    }
-}
+#[path = "agents_write_tests.rs"]
+mod tests;

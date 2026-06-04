@@ -115,6 +115,15 @@ impl FilesService {
         }
     }
 
+    /// The `.ship` scope-root dir for `scope` (project's `.ship` or the user
+    /// `.ship`). [`Error::ScopeUnavailable`] when project scope has no
+    /// discovered root. Domains that route disk through a substrate port (the
+    /// agent-def write door) resolve the scope→dir here, then hand the dir to
+    /// the gated broker.
+    pub fn scope_root(&self, scope: Scope) -> Result<&Path, Error> {
+        self.root(scope)
+    }
+
     /// Resolve a relative path against a scope root, rejecting escapes.
     /// Accepts non-existent paths so writes can create new files; only
     /// the parent chain is path-canonicalised for validation.
