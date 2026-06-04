@@ -10,6 +10,7 @@ name = "deck_bundler"
 path = "src/lib.rs"
 
 [dependencies]
+deck-config = { path = "../deck-config" }
 ship-substrate = { path = "../../core/ship-substrate" }
 
 serde = { workspace = true }

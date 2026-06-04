@@ -19,7 +19,7 @@ interface SuiRuntime {
 type SpaceWindow = Window & {
   __suiRuntime?: SuiRuntime
   __suiRuntimeReady?: Promise<SuiRuntime>
-  __SHIP_APP_ID__?: string
+  DECK_APP_ID?: string
   __SHIP_DAEMON_URL__?: string
 }
 
@@ -32,11 +32,11 @@ function daemonBase(): string {
 }
 
 // The space this window was launched for. The hub opens a window per space via
-// `open_space(app_id)` → `--app=<id>` → planted on `__SHIP_APP_ID__`. The `?app=`
-// query param is the browser/dev-addressable fallback (a space is reachable by
-// URL, not only by native launch).
+// `open_space(app_id)` → `--app=<id>` → planted on `DECK_APP_ID` by the
+// daemon scaffold injection. The `?app=` query param is the browser/dev-
+// addressable fallback (a space is reachable by URL, not only by native launch).
 const appId =
-  w.__SHIP_APP_ID__ ?? new URLSearchParams(location.search).get('app') ?? ''
+  w.DECK_APP_ID ?? new URLSearchParams(location.search).get('app') ?? ''
 
 const ship: ShipSDK = createClient({ baseUrl: daemonBase() })
 

@@ -10,7 +10,7 @@ mod scaffold;
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -49,6 +49,13 @@ enum Command {
         #[arg(long)]
         no_minify: bool,
     },
+
+    /// Bake all framework + consumer bundles via the in-process Rolldown
+    /// bundler. Reads deck.jsonc for consumer targets; framework singletons
+    /// are hardcoded in deck-bundler. Honesty guards verify every framework
+    /// bundle is non-empty after the bake — a silently-failed target cannot
+    /// ship empty bytes.
+    BuildAssets,
 }
 
 #[derive(Subcommand)]
@@ -110,7 +117,76 @@ fn run() -> Result<()> {
         Command::Build { shell_root, out, bundle_framework, no_minify } => {
             build(shell_root, out, bundle_framework, !no_minify)
         }
+        Command::BuildAssets => build_assets(),
     }
+}
+
+/// The framework bundles deck-core/build.rs bakes via `include_str!`. Verified
+/// non-empty after the bake so a silently-failed target cannot ship empty bytes
+/// (the failure mode build.rs guards — top nav vanishing with no warning).
+const FRAMEWORK_BUNDLES: &[&str] = &[
+    "sui-runtime.js",
+    "sui-dom.js",
+    "sui-sdk-client.js",
+    "sui-components.js",
+];
+
+fn build_assets() -> Result<()> {
+    let cwd = std::env::current_dir().context("cwd")?;
+    let repo_root = find_repo_root(&cwd)?;
+
+    let home = ship_substrate::ShipHome::from_env();
+    let cfg = deck_bundler::DeckConfig::load(&repo_root);
+    let bundler = deck_bundler::Bundler::start(&home, repo_root.clone(), None, cfg.clone());
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("build tokio runtime")?;
+    rt.block_on(bundler.build_all())
+        .map_err(|e| anyhow::anyhow!("build_all failed: {e}"))?;
+
+    // Verify framework bundles are non-empty after the bake. build_all returns
+    // Err on per-target failure, but a swallowed empty-write wouldn't surface
+    // there — keep this as defense in depth so the daemon can never ship empty
+    // framework bytes.
+    let assets = repo_root.join("crates/deck/deck-core/assets");
+    for name in FRAMEWORK_BUNDLES {
+        let path = assets.join(name);
+        let len = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        if len == 0 {
+            bail!("framework bundle missing or empty after bake: {}", path.display());
+        }
+        println!("  {name}: {len} bytes");
+    }
+
+    // Consumer guard: the .deck/ bundles declared in deck.jsonc have no
+    // build.rs guard — verify each is non-empty as defense in depth.
+    // Use BundleLayout to derive the exact output path per target (same routing
+    // logic the bundler uses) so the guard is always in sync with reality.
+    let layout = deck_bundler::targets::BundleLayout::with_config(
+        repo_root.clone(),
+        None,
+        cfg,
+    );
+    for t in layout.consumer_targets() {
+        let out_dir = layout.assets_dir_for(&t.name);
+        let out_path = out_dir.join(&t.out_file);
+        let len = std::fs::metadata(&out_path).map(|m| m.len()).unwrap_or(0);
+        if len == 0 {
+            bail!(
+                "consumer bundle missing or empty after bake: {} \
+                 (target `{}` failed — check bundler logs)",
+                out_path.display(),
+                t.name
+            );
+        }
+        println!("  {}: {len} bytes", t.name);
+    }
+
+    println!("deck build-assets: bundles baked via in-process Rolldown");
+    println!("note: lucide-icons.json is committed source; regen via `cargo xtask gen-icons`");
+    Ok(())
 }
 
 /// Resolve the Cargo workspace root from `start`. It's the cwd for module

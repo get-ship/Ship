@@ -250,7 +250,7 @@ type WindowWithSui = Window & {
   // context → '' → same-origin relative URLs (the vite proxy resolves them).
   __SHIP_DAEMON_URL__?: string
   // The space this window was launched for (`--app=<id>`); undefined = the hub.
-  __SHIP_APP_ID__?: string
+  DECK_APP_ID?: string
 }
 
 function escapeHtml(s: string): string {

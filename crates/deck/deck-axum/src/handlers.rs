@@ -3,6 +3,8 @@
 //! `axum::response::Response` via [`into_axum`](crate::into_axum). No
 //! hosting logic lives here — it all sits in `deck-core`.
 
+use std::sync::Arc;
+
 use axum::{
     Extension, Json,
     extract::{OriginalUri, Path, Query},
@@ -10,6 +12,7 @@ use axum::{
 };
 use serde_json::Value;
 
+use deck_config::DeckConfig;
 use deck_core::{DaemonBuildInfo, DaemonMode, ViewSetupQuery};
 
 use crate::{into_axum, mode_from_ext};
@@ -90,31 +93,85 @@ pub async fn serve_view_host(
     into_axum(deck_core::serve_view_host(mode_from_ext(mode), uri.path()))
 }
 
-// ── Space scaffold handlers ───────────────────────────────────────────────────
+// ── Scaffold handlers ─────────────────────────────────────────────────────────
+//
+// Both the shell (`/`) and space (`/space/{id}`) routes read their scaffold
+// declaration from the host-supplied `Extension<Arc<DeckConfig>>`. When the
+// extension is absent (zero-config hosts / deck-demo with no scaffolds) the
+// handlers fall back to the built-in defaults so a host with no `deck.jsonc`
+// still serves correctly.
+//
+// No matching scaffold in the config → styled 404 (never a panic).
 
+/// Resolve the scaffold for the given route name from config, or return the
+/// built-in default for that name (provided by `fallback()`).
+fn resolve_scaffold<'a, F>(
+    cfg: Option<&'a DeckConfig>,
+    name: &str,
+    fallback: F,
+) -> std::borrow::Cow<'a, deck_config::ScaffoldDecl>
+where
+    F: FnOnce() -> deck_config::ScaffoldDecl,
+{
+    if let Some(cfg) = cfg {
+        if !cfg.scaffolds.is_empty() {
+            if let Some(sc) = cfg.scaffolds.iter().find(|s| s.name == name) {
+                return std::borrow::Cow::Borrowed(sc);
+            }
+            // Config present with scaffolds but no match → caller gets a
+            // not-found response; return the fallback so the 404 message makes
+            // sense, but the host-configured case is flagged via the absence of
+            // the source artifact anyway.
+        }
+    }
+    std::borrow::Cow::Owned(fallback())
+}
+
+/// `GET /space/{id}` — serve the space scaffold with `DECK_APP_ID` injected.
 pub async fn serve_space(
     mode: Option<Extension<DaemonMode>>,
+    cfg: Option<Extension<Arc<DeckConfig>>>,
     Path(id): Path<String>,
 ) -> Response {
-    into_axum(deck_core::serve_space(mode_from_ext(mode), &id))
+    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
+    let scaffold = resolve_scaffold(cfg_ref, "space", deck_core::default_space_scaffold);
+    into_axum(deck_core::serve_scaffold(
+        mode_from_ext(mode),
+        &scaffold,
+        &[("id", &id)],
+    ))
 }
 
+/// `GET /space/_assets/{file}` — space scaffold static assets.
 pub async fn serve_space_asset(
     mode: Option<Extension<DaemonMode>>,
+    cfg: Option<Extension<Arc<DeckConfig>>>,
     Path(file): Path<String>,
 ) -> Response {
-    into_axum(deck_core::serve_space_asset(mode_from_ext(mode), &file))
+    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
+    let scaffold = resolve_scaffold(cfg_ref, "space", deck_core::default_space_scaffold);
+    into_axum(deck_core::serve_scaffold_asset(mode_from_ext(mode), &scaffold, &file))
 }
 
-pub async fn serve_shell(mode: Option<Extension<DaemonMode>>) -> Response {
-    into_axum(deck_core::serve_shell(mode_from_ext(mode)))
+/// `GET /` — serve the shell scaffold (the Ship platform app).
+pub async fn serve_shell(
+    mode: Option<Extension<DaemonMode>>,
+    cfg: Option<Extension<Arc<DeckConfig>>>,
+) -> Response {
+    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
+    let scaffold = resolve_scaffold(cfg_ref, "shell", deck_core::default_shell_scaffold);
+    into_axum(deck_core::serve_scaffold(mode_from_ext(mode), &scaffold, &[]))
 }
 
+/// `GET /shell/_assets/{file}` — shell scaffold static assets.
 pub async fn serve_shell_asset(
     mode: Option<Extension<DaemonMode>>,
+    cfg: Option<Extension<Arc<DeckConfig>>>,
     Path(file): Path<String>,
 ) -> Response {
-    into_axum(deck_core::serve_shell_asset(mode_from_ext(mode), &file))
+    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
+    let scaffold = resolve_scaffold(cfg_ref, "shell", deck_core::default_shell_scaffold);
+    into_axum(deck_core::serve_scaffold_asset(mode_from_ext(mode), &scaffold, &file))
 }
 
 // ── View-payload handlers ─────────────────────────────────────────────────────

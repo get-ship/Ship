@@ -33,6 +33,7 @@ use ship_substrate::ShipHome;
 pub use proto::BundleManifest;
 use asset_graph::write_asset_graph;
 use targets::{BundleLayout, BundleTarget};
+pub use deck_config::DeckConfig;
 
 /// Unsolicited events emitted while watching.
 #[derive(Debug, Clone)]
@@ -56,6 +57,7 @@ pub enum BundlerError {
 pub struct Bundler {
     repo_root: PathBuf,
     workspace: Option<PathBuf>,
+    cfg: DeckConfig,
     staging: PathBuf,
     event_tx: broadcast::Sender<BundlerEvent>,
     watching: Arc<AtomicBool>,
@@ -76,15 +78,17 @@ pub struct Bundler {
 
 impl Bundler {
     /// Start the in-process bundler. `repo_root` is the monorepo/source root;
-    /// `workspace` the user-project (if distinct). The compiler is the linked
-    /// `sui-compiler` crate, compiled in-process (#255) — no binary to locate,
-    /// no installed-vs-local drift.
-    pub fn start(_home: &ShipHome, repo_root: PathBuf, workspace: Option<PathBuf>) -> Self {
+    /// `workspace` the user-project (if distinct); `cfg` is the parsed
+    /// `deck.jsonc` (caller calls `DeckConfig::load(repo_root)` first).
+    /// The compiler is the linked `sui-compiler` crate, compiled in-process
+    /// (#255) — no binary to locate, no installed-vs-local drift.
+    pub fn start(_home: &ShipHome, repo_root: PathBuf, workspace: Option<PathBuf>, cfg: DeckConfig) -> Self {
         let (event_tx, _) = broadcast::channel(128);
         let staging = std::env::temp_dir().join(format!("ship-bundle-{}", std::process::id()));
         Self {
             repo_root,
             workspace,
+            cfg,
             staging,
             event_tx,
             watching: Arc::new(AtomicBool::new(false)),
@@ -94,7 +98,7 @@ impl Bundler {
     }
 
     fn layout(&self) -> BundleLayout {
-        BundleLayout::new(self.repo_root.clone(), self.workspace.clone())
+        BundleLayout::with_config(self.repo_root.clone(), self.workspace.clone(), self.cfg.clone())
     }
 
     /// One long-lived `all_targets()` snapshot, computed on first use and
@@ -294,7 +298,7 @@ impl Bundler {
     }
 
     fn refresh_catalog(&self, layout: &BundleLayout) {
-        match catalog::build_catalog(&layout.repo_root) {
+        match catalog::build_catalog(&layout.repo_root, layout.cfg.first_party_app.as_ref()) {
             Ok(ws) => {
                 let dir = layout.repo_root.join(".deck/catalogs");
                 let _ = std::fs::create_dir_all(&dir);
@@ -343,6 +347,9 @@ impl Bundler {
     }
     pub(crate) fn workspace(&self) -> Option<&std::path::Path> {
         self.workspace.as_deref()
+    }
+    pub(crate) fn cfg_watch(&self) -> &[std::path::PathBuf] {
+        &self.cfg.watch
     }
     pub(crate) fn watching_flag(&self) -> &AtomicBool {
         &self.watching

@@ -1655,6 +1655,7 @@ version = "0.1.0"
 dependencies = [
  "deck-axum",
  "deck-bundler",
+ "deck-config",
  "deck-core",
  "deck-host",
  "specta",
@@ -1666,6 +1667,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "deck-bundler",
+ "deck-config",
  "deck-core",
  "serde",
  "serde_json",
@@ -1680,6 +1682,7 @@ name = "deck-bundler"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "deck-config",
  "libc",
  "notify",
  "rolldown",
@@ -1706,10 +1709,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "deck-config"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
 name = "deck-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "deck-bundler",
+ "deck-config",
  "deck-host",
  "filetime",
  "notify",

@@ -1,4 +1,5 @@
 use crate::{DaemonMode, DeckResponse};
+use deck_config::ScaffoldDecl;
 
 const ASSETS_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
@@ -71,62 +72,145 @@ pub fn resolve_view_js(name: &str) -> Option<String> {
     read_deck_asset(&format!("views/{name}/view.js"))
 }
 
-// ── Space + shell scaffolds (apps/spaces → .deck/space-scaffold;
-//                              apps/shell → .deck/hub-scaffold) ──────────────
+// ── Scaffold serving ──────────────────────────────────────────────────────────
 //
-// A Tauri `--app=<id>` window navigates to `/space/<id>`; the no-`--app`
-// (shell) window navigates to the daemon root `/`. The daemon serves both as
-// SAME-ORIGIN HTML so the scaffold's `/_sui` + Connect resolve to this daemon
-// with no proxy/origin-injection. Spaces plant a launched id; the shell
-// plants nothing (the `home` space is the implicit context). Each scaffold's
-// hashed asset refs are rewritten to `/{space,shell}/_assets/`.
+// A `ScaffoldDecl` (from `deck.jsonc` or built-in defaults) describes one HTML
+// shell: which built artifact to load (`source`), where its hashed assets are
+// re-rooted (`asset_prefix`), and which `window.<key>=<value>` globals to
+// inject (`inject_globals`). This single function handles every scaffold route
+// (shell `GET /`, space `GET /space/{id}`, etc.).
+//
+// `params` are route-param substitutions — e.g. `&[("id", "my-space")]` lets
+// the config value `"$id"` resolve to the actual route param. Any `$key` token
+// in an `inject_globals` value is replaced with the matching param.
 
-pub fn serve_space(mode: DaemonMode, id: &str) -> DeckResponse {
-    let Some(html) = read_deck_asset("space-scaffold/index.html") else {
-        return DeckResponse::not_found("space scaffold not built (run apps/spaces build)", mode);
-    };
-    // JSON-encode the id so it is a safe string literal in the injected script.
-    let id_js = serde_json::to_string(id).unwrap_or_else(|_| "\"\"".to_string());
-    let inject = format!("<script>window.__SHIP_APP_ID__ = {id_js};</script>");
-    let html = html
-        .replacen("<head>", &format!("<head>{inject}"), 1)
-        .replace("\"/assets/", "\"/space/_assets/");
-    let html = crate::mode_html::inject_mode_meta(&html, mode);
-    DeckResponse::html_view(html, mode)
-}
-
-pub fn serve_space_asset(mode: DaemonMode, file: &str) -> DeckResponse {
-    match read_deck_asset(&format!("space-scaffold/assets/{file}")) {
-        Some(body) if file.ends_with(".css") => DeckResponse::css_view(body, mode),
-        Some(body) => DeckResponse::js_asset(body, mode),
-        None => DeckResponse::not_found(format!("space asset not found: {file}"), mode),
-    }
-}
-
-/// `GET /` — the shell scaffold (apps/shell), the Ship platform app. Tauri's
-/// window loads the daemon root so the shell loads SAME-ORIGIN — `/_sui` +
-/// Connect resolve to this daemon with no proxy, the same model as
-/// `/space/<id>`. The shell IS the platform root; spaces get their own
-/// windows at `/space/<id>`. Shell assets are served at `/shell/_assets/`
-/// (symmetric with `/space/_assets/`).
-pub fn serve_shell(mode: DaemonMode) -> DeckResponse {
-    let Some(html) = read_deck_asset("hub-scaffold/index.html") else {
+/// Serve an HTML scaffold defined by a `ScaffoldDecl`.
+///
+/// - Reads the built index.html from `<deck_out>/<source>/index.html`.
+/// - Rewrites `"/assets/` → `"<asset_prefix>` so Vite-hashed asset hrefs
+///   resolve under the scaffold's dedicated asset route.
+/// - Injects one `<script>window.<key>=<value>;</script>` per
+///   `inject_globals` entry, substituting `$<param>` tokens from `params`.
+/// - Injects the daemon-mode meta tag via `inject_mode_meta`.
+///
+/// Returns a styled 404 when the built index.html is missing — the host should
+/// have run the scaffold's build step first.
+pub fn serve_scaffold(
+    mode: DaemonMode,
+    scaffold: &ScaffoldDecl,
+    params: &[(&str, &str)],
+) -> DeckResponse {
+    let Some(html) = read_deck_asset(&format!("{}/index.html", scaffold.source)) else {
         return DeckResponse::not_found(
-            "shell scaffold not built (missing hub-scaffold/index.html asset)",
+            format!(
+                "scaffold '{}' not built (missing {}/index.html)",
+                scaffold.name, scaffold.source
+            ),
             mode,
         );
     };
-    let html = html.replace("\"/assets/", "\"/shell/_assets/");
+
+    // Build the globals injection block.
+    let inject = if scaffold.inject_globals.is_empty() {
+        String::new()
+    } else {
+        let mut parts = String::from("<script>");
+        for (key, raw_value) in &scaffold.inject_globals {
+            // Substitute $param tokens.
+            let resolved = substitute_params(raw_value, params);
+            // JSON-encode the value so it is a safe JS string literal.
+            let js_value =
+                serde_json::to_string(&resolved).unwrap_or_else(|_| "\"\"".to_string());
+            parts.push_str(&format!("window.{key}={js_value};"));
+        }
+        parts.push_str("</script>");
+        parts
+    };
+
+    // Rewrite asset hrefs: Vite emits `href="/assets/..."` — reroot under the
+    // scaffold's dedicated asset prefix so assets from different scaffolds don't
+    // collide. The prefix in `deck.jsonc` ends with `/`, so `"/assets/` →
+    // `"<prefix>` gives `"/shell/_assets/"` etc.
+    let prefix = if scaffold.asset_prefix.is_empty() {
+        "/assets/".to_string()
+    } else {
+        scaffold.asset_prefix.trim_end_matches('/').to_string() + "/"
+    };
+
+    let html = html.replace("\"/assets/", &format!("\"{prefix}"));
+
+    // Inject globals before `</head>` so the JS variables are available as
+    // early as possible.  Fall back to `<head>` insertion when `</head>` is
+    // absent (malformed scaffold).
+    let html = if !inject.is_empty() {
+        if html.contains("</head>") {
+            html.replace("</head>", &format!("{inject}</head>"))
+        } else {
+            html.replacen("<head>", &format!("<head>{inject}"), 1)
+        }
+    } else {
+        html
+    };
+
     let html = crate::mode_html::inject_mode_meta(&html, mode);
     DeckResponse::html_view(html, mode)
 }
 
-pub fn serve_shell_asset(mode: DaemonMode, file: &str) -> DeckResponse {
-    match read_deck_asset(&format!("hub-scaffold/assets/{file}")) {
+/// Serve a static asset from `<deck_out>/<source>/assets/<file>`.
+pub fn serve_scaffold_asset(mode: DaemonMode, scaffold: &ScaffoldDecl, file: &str) -> DeckResponse {
+    match read_deck_asset(&format!("{}/assets/{file}", scaffold.source)) {
         Some(body) if file.ends_with(".css") => DeckResponse::css_view(body, mode),
         Some(body) => DeckResponse::js_asset(body, mode),
-        None => DeckResponse::not_found(format!("shell asset not found: {file}"), mode),
+        None => DeckResponse::not_found(
+            format!("scaffold '{}' asset not found: {file}", scaffold.name),
+            mode,
+        ),
     }
+}
+
+/// Default `ScaffoldDecl` for the shell (hub). Used as a fallback when no
+/// `deck.jsonc` scaffolds entry matches, so a zero-config host still serves.
+pub fn default_shell_scaffold() -> ScaffoldDecl {
+    use std::collections::BTreeMap;
+    ScaffoldDecl {
+        name: "shell".to_string(),
+        route: "/".to_string(),
+        source: "hub-scaffold".to_string(),
+        asset_prefix: "/shell/_assets/".to_string(),
+        inject_globals: BTreeMap::new(),
+    }
+}
+
+/// Default `ScaffoldDecl` for a space window. Used as a fallback when no
+/// `deck.jsonc` scaffolds entry matches.
+pub fn default_space_scaffold() -> ScaffoldDecl {
+    use std::collections::BTreeMap;
+    let mut inject = BTreeMap::new();
+    inject.insert("DECK_APP_ID".to_string(), "$id".to_string());
+    ScaffoldDecl {
+        name: "space".to_string(),
+        route: "/space/{id}".to_string(),
+        source: "space-scaffold".to_string(),
+        asset_prefix: "/space/_assets/".to_string(),
+        inject_globals: inject,
+    }
+}
+
+/// Substitute `$<key>` tokens in `value` with matching entries from `params`.
+fn substitute_params(value: &str, params: &[(&str, &str)]) -> String {
+    let mut out = value.to_string();
+    for (key, replacement) in params {
+        out = out.replace(&format!("${key}"), replacement);
+    }
+    out
+}
+
+pub fn serve_space_asset(mode: DaemonMode, file: &str) -> DeckResponse {
+    serve_scaffold_asset(mode, &default_space_scaffold(), file)
+}
+
+pub fn serve_shell_asset(mode: DaemonMode, file: &str) -> DeckResponse {
+    serve_scaffold_asset(mode, &default_shell_scaffold(), file)
 }
 
 // Framework bundle handlers
@@ -264,5 +348,119 @@ mod tests {
     fn icon_empty_name_rejected() {
         let resp = serve_sui_icon(DaemonMode::Development, "");
         assert_eq!(resp.status, 404);
+    }
+
+    // ── serve_scaffold ────────────────────────────────────────────────────────
+
+    /// Build a minimal ScaffoldDecl in-memory for tests.
+    fn make_scaffold(
+        name: &str,
+        asset_prefix: &str,
+        inject_globals: Vec<(&str, &str)>,
+    ) -> ScaffoldDecl {
+        use std::collections::BTreeMap;
+        let mut globals = BTreeMap::new();
+        for (k, v) in inject_globals {
+            globals.insert(k.to_string(), v.to_string());
+        }
+        ScaffoldDecl {
+            name: name.to_string(),
+            route: "/".to_string(),
+            source: "nonexistent-scaffold".to_string(),
+            asset_prefix: asset_prefix.to_string(),
+            inject_globals: globals,
+        }
+    }
+
+    #[test]
+    fn serve_scaffold_missing_source_returns_404() {
+        let scaffold = make_scaffold("test", "/test/_assets/", vec![]);
+        let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[]);
+        assert_eq!(resp.status, 404);
+        let body = std::str::from_utf8(&resp.body).unwrap();
+        // Styled 404, not raw text — should contain HTML.
+        assert!(body.contains("nonexistent-scaffold") || body.contains("404") || body.contains("not found"),
+            "404 body should mention the scaffold source: {body}");
+    }
+
+    #[test]
+    fn substitute_params_replaces_dollar_token() {
+        assert_eq!(substitute_params("$id", &[("id", "my-space")]), "my-space");
+        assert_eq!(substitute_params("prefix-$id-suffix", &[("id", "x")]), "prefix-x-suffix");
+        assert_eq!(substitute_params("no-token", &[("id", "x")]), "no-token");
+        // Unknown token stays as-is (no panic, no empty string).
+        assert_eq!(substitute_params("$other", &[("id", "x")]), "$other");
+    }
+
+    #[test]
+    fn substitute_params_multiple_tokens() {
+        let result = substitute_params("$a/$b", &[("a", "hello"), ("b", "world")]);
+        assert_eq!(result, "hello/world");
+    }
+
+    #[test]
+    fn default_space_scaffold_has_deck_app_id_global() {
+        let scaffold = default_space_scaffold();
+        assert_eq!(scaffold.inject_globals.get("DECK_APP_ID").map(String::as_str), Some("$id"));
+        assert_eq!(scaffold.source, "space-scaffold");
+        assert_eq!(scaffold.asset_prefix, "/space/_assets/");
+    }
+
+    #[test]
+    fn default_shell_scaffold_has_no_globals() {
+        let scaffold = default_shell_scaffold();
+        assert!(scaffold.inject_globals.is_empty());
+        assert_eq!(scaffold.source, "hub-scaffold");
+        assert_eq!(scaffold.asset_prefix, "/shell/_assets/");
+    }
+
+    /// serve_scaffold with a real (tmpdir) HTML source rewrites asset hrefs
+    /// and injects globals. Uses the env-var resolver (no caching — the resolver
+    /// reads DECK_PROJECT_DIR on every call). The env var is restored after the
+    /// test so other tests that rely on it being absent are not affected.
+    #[test]
+    fn serve_scaffold_rewrites_assets_and_injects_globals() {
+        use crate::test_lock;
+        let _lock = test_lock::lock();
+
+        // Capture the previous value so we can restore it after the test.
+        let prev = std::env::var("DECK_PROJECT_DIR").ok();
+
+        let dir = tempfile::tempdir().unwrap();
+        // deck_out_root() = DECK_PROJECT_DIR/.deck
+        let dot_deck = dir.path().join(".deck");
+        let scaffold_dir = dot_deck.join("my-scaffold");
+        std::fs::create_dir_all(&scaffold_dir).unwrap();
+        let html = r#"<!doctype html><html><head></head><body><script src="/assets/main.js"></script></body></html>"#;
+        std::fs::write(scaffold_dir.join("index.html"), html).unwrap();
+
+        // Point the resolver at the tmpdir.
+        unsafe { std::env::set_var("DECK_PROJECT_DIR", dir.path()) };
+
+        let mut globals = std::collections::BTreeMap::new();
+        globals.insert("DECK_APP_ID".to_string(), "$id".to_string());
+        let scaffold = ScaffoldDecl {
+            name: "space".to_string(),
+            route: "/space/{id}".to_string(),
+            source: "my-scaffold".to_string(),
+            asset_prefix: "/space/_assets/".to_string(),
+            inject_globals: globals,
+        };
+        let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[("id", "my-space")]);
+
+        // Restore env before asserting — a panic below still cleans up.
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("DECK_PROJECT_DIR", v),
+                None => std::env::remove_var("DECK_PROJECT_DIR"),
+            }
+        }
+
+        assert_eq!(resp.status, 200);
+        let body = std::str::from_utf8(&resp.body).unwrap();
+        // Asset href rewritten.
+        assert!(body.contains("/space/_assets/main.js"), "expected rewritten asset href in: {body}");
+        // Global injected with substituted id.
+        assert!(body.contains("window.DECK_APP_ID=\"my-space\""), "expected injected global in: {body}");
     }
 }

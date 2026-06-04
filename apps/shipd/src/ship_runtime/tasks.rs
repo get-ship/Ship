@@ -29,9 +29,12 @@ impl ShipRuntime {
                 .clone()
                 .or_else(|| std::env::current_dir().ok())
                 .unwrap_or_else(|| self.ship_dir.clone());
+            // Load deck.jsonc from the repo root — the single source of truth
+            // for consumer bundle targets, watch dirs, and host_assets_root.
+            let cfg = deck::config::DeckConfig::load(&repo_root);
             // In-process Rolldown bundler (#163) — no worker script, no child
             // process. Bundles `repo_root`'s built-ins + the user `workspace`.
-            deck::bundler::Bundler::start(&home, repo_root, workspace)
+            deck::bundler::Bundler::start(&home, repo_root, workspace, cfg)
         })
     }
 

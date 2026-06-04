@@ -59,9 +59,10 @@ pub async fn setup_handler() -> Response {
 /// ("no view named home"). The shell IS the platform root — no `/hub`.
 pub async fn index_handler(
     mode: Option<axum::Extension<deck::DaemonMode>>,
+    cfg: Option<axum::Extension<std::sync::Arc<deck::config::DeckConfig>>>,
 ) -> Response {
     if has_any_workspace() {
-        deck::serve_shell(mode).await
+        deck::serve_shell(mode, cfg).await
     } else {
         redirect("/setup")
     }
@@ -109,7 +110,7 @@ mod tests {
         // Fresh install (no workspace) -> redirect to /setup; configured ->
         // serve the shell HTML at / (or a not-built fallback). It must NEVER
         // redirect to /sui/home, which is not a daemon view (the bug we fixed).
-        let resp = index_handler(None).await;
+        let resp = index_handler(None, None).await;
         if resp.status() == StatusCode::SEE_OTHER {
             let loc = resp.headers().get(header::LOCATION).unwrap().to_str().unwrap();
             assert_eq!(loc, "/setup", "fresh-install redirect must be /setup, never /sui/home");

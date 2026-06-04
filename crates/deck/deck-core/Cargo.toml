@@ -14,6 +14,7 @@ default = []
 specta = ["dep:specta", "deck-host/specta"]
 
 [dependencies]
+deck-config = { path = "../deck-config" }
 deck-host = { path = "../deck-host" }
 sui-compiler = { path = "../../sui/compiler" }
 sui-signals = { path = "../../sui/signals" }
@@ -29,6 +30,8 @@ notify = { workspace = true }
 tempfile = "3"
 
 [dev-dependencies]
+deck-bundler = { path = "../deck-bundler" }
+deck-config = { path = "../deck-config" }
 tempfile = "3"
 filetime = "0.2"
 tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread"] }

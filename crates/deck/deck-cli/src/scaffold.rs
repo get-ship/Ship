@@ -201,7 +201,7 @@ pub fn run_component(tag: String, want_controller: bool) -> Result<()> {
     println!("[scaffold] created packages/components/sui/primitives/src/{tag}/");
     println!("[scaffold] next steps:");
     println!("  1. Edit {tag}.sui — props, styles, template body, parity comment");
-    println!("  2. Run: cargo run -p xtask -- build-assets");
+    println!("  2. Run: cargo run -p deck-cli -- build-assets");
     println!("     (deck compiles the .sui in-process and rebakes");
     println!("      deck-core/assets/sui-components.js so the daemon serves it)");
     Ok(())

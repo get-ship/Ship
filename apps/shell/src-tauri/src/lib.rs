@@ -116,7 +116,7 @@ pub fn run() {
                 // also read it server-side from the scaffold; this is a belt-and-
                 // suspenders for any pre-navigate code paths).
                 let id_js = app_id.clone().unwrap_or_default();
-                let _ = window.eval(format!("window.__SHIP_APP_ID__ = {id_js:?};"));
+                let _ = window.eval(format!("window.DECK_APP_ID = {id_js:?};"));
             }
             Ok(())
         })

@@ -26,7 +26,7 @@
 //! already present in a fresh clone.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 // deck's OWN baked product only. App/user bundles (views, chrome islands) are
 // no longer here — they build to the project's `.deck/` and are read at runtime
@@ -39,11 +39,15 @@ const ASSETS: &[&str] = &[
     "lucide-icons.json",
 ];
 
+// Deck's OWN source roots — the JS/TS that deck's framework singletons are
+// built from. Host-app source roots (e.g. apps/shell/src) are NOT listed
+// here: they are runtime cfg (`deck.jsonc`) and cannot be read in a build
+// script. The bake writes host assets at runtime; build.rs need not track
+// them for rerun invalidation.
 const COARSE_SOURCE_ROOTS: &[&str] = &[
     "packages/sui/runtime/src",
     "packages/sui/dom/src",
     "packages/components/ui-components/src",
-    "apps/shell/src/components",
     "packages/deck/sdk-client/src",
 ];
 
@@ -87,8 +91,8 @@ fn main() {
              (lucide-icons.json is committed source — present in a fresh clone).\n\
              On fresh worktrees, dispatch.sh bootstraps the gitignored set;\n\
              for a standalone cargo build, regenerate by running (in order):\n\n  \
-             cargo build -p sui-compiler   # the binary the bundler spawns\n  \
-             cargo xtask build-assets   # framework bundles via in-process Rolldown\n\n\
+             cargo build -p sui-compiler   # the compiler the bundler uses\n  \
+             cargo run -p deck-cli -- build-assets   # framework bundles via in-process Rolldown\n\n\
              then re-run `cargo build`."
         );
     }
@@ -97,24 +101,10 @@ fn main() {
         println!("cargo:rerun-if-changed=assets/{rel}");
     }
 
-    let cache_dir = repo_root.join("apps/shipd/assets/.cache");
-    if cache_dir.exists()
-        && let Ok(entries) = fs::read_dir(&cache_dir) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.extension().and_then(|s| s.to_str()) != Some("json") {
-                    continue;
-                }
-                if let Ok(inputs) = read_inputs(&p) {
-                    for input in inputs {
-                        let abs = repo_root.join(&input);
-                        if abs.exists() {
-                            println!("cargo:rerun-if-changed={}", abs.display());
-                        }
-                    }
-                }
-            }
-        }
+    // The `.deck/.cache` dir (written by the bake at runtime) could drive
+    // fine-grained rerun hints, but build.rs cannot know the host's
+    // `host_assets_root` — that is runtime config. Use the coarse source
+    // roots below instead; cargo will re-check on any source change.
 
     for root in COARSE_SOURCE_ROOTS {
         let abs = repo_root.join(root);
@@ -124,33 +114,6 @@ fn main() {
     }
 }
 
-fn file_is_empty(p: &Path) -> bool {
+fn file_is_empty(p: &std::path::Path) -> bool {
     fs::metadata(p).map(|m| m.len() == 0).unwrap_or(true)
-}
-
-fn read_inputs(path: &Path) -> Result<Vec<String>, String> {
-    // Manifest shape: { "inputs": [ "rel/path", ... ] }. Avoid pulling
-    // serde_json into the build-script dep graph — parse the array
-    // crudely. Build script doesn't run in adversarial contexts.
-    let s = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    let key = "\"inputs\"";
-    let after_key = s.find(key).ok_or("no inputs key")?;
-    let arr_start = s[after_key..].find('[').ok_or("no [ after inputs")? + after_key;
-    let arr_end = s[arr_start..].find(']').ok_or("no ] for inputs")? + arr_start;
-    let arr = &s[arr_start + 1..arr_end];
-    let mut out = Vec::new();
-    for raw in arr.split(',') {
-        let trimmed = raw.trim();
-        if trimmed.len() < 2 {
-            continue;
-        }
-        let unquoted = trimmed
-            .trim_start_matches('"')
-            .trim_end_matches('"')
-            .to_string();
-        if !unquoted.is_empty() {
-            out.push(unquoted);
-        }
-    }
-    Ok(out)
 }

@@ -63,7 +63,7 @@ pub async fn bundle_target(
     // app builds leave component_index empty (no `@sui-tag` imports emitted).
     let emit_component_imports = target.name.starts_with("views/");
     let index = if emit_component_imports {
-        component_index(&layout.repo_root)
+        component_index(&layout.repo_root, layout.cfg.first_party_app.as_ref())
     } else {
         Arc::new(HashMap::new())
     };

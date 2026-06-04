@@ -1,33 +1,25 @@
-//! `cargo xtask build-assets` — bake the framework bundles via the in-process
-//! Rolldown bundler, the same engine the daemon runs. Replaces the retired
-//! `bun packages/deck/bundler/index.ts --all` bake (#163), so the contributor
-//! build no longer needs bun for bundling.
+//! `cargo xtask build-assets` — thin shim to `cargo run -p deck-cli -- build-assets`.
 //!
-//! `Bundler::build_all` writes the framework singletons + component umbrella +
-//! catalog to `crates/deck/deck-core/assets` (`assets_dir_for`) and views to
-//! `.deck/`. `deck-core/build.rs` validates the framework set at
-//! cargo-build time. `lucide-icons.json` is committed source (not bundling)
-//! and is regenerated separately via `cargo xtask gen-icons`.
+//! The bake logic (bundler invocation + honesty guards) now lives in
+//! `deck-cli`'s `build-assets` subcommand. This file keeps the xtask entry
+//! point alive for backward compat (Justfile / CI / dispatch.sh all use
+//! `cargo xtask build-assets`) but delegates immediately so there is a single
+//! implementation.
 
 use std::path::Path;
 
-use anyhow::{Context, Result, bail};
-use deck::bundler::Bundler;
-use ship_substrate::ShipHome;
-
-/// The framework bundles `deck-core/build.rs` bakes via `include_str!`. Verified
-/// non-empty after the bake so a silently-failed target can't ship empty bytes
-/// (the failure mode build.rs guards — top nav vanishing with no warning).
-const FRAMEWORK_BUNDLES: &[&str] = &[
-    "sui-runtime.js",
-    "sui-dom.js",
-    "sui-sdk-client.js",
-    "sui-components.js",
-];
+use anyhow::{Context, Result};
 
 pub fn run(repo_root: &Path) -> Result<()> {
-    let home = ShipHome::from_env();
-    let bundler = Bundler::start(&home, repo_root.to_path_buf(), None);
+    // Invoke `deck build-assets` in-process via the same build machinery
+    // deck-cli uses. Using `std::process::Command` here would be clean but
+    // would require the deck binary to be pre-built. Instead re-use the
+    // deck_bundler + deck_config crates directly — same deps the CLI uses —
+    // so `cargo xtask build-assets` doesn't need a separate `cargo build -p
+    // deck-cli` step in the bootstrap.
+    let home = ship_substrate::ShipHome::from_env();
+    let cfg = deck::config::DeckConfig::load(repo_root);
+    let bundler = deck::bundler::Bundler::start(&home, repo_root.to_path_buf(), None, cfg.clone());
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -36,51 +28,45 @@ pub fn run(repo_root: &Path) -> Result<()> {
     rt.block_on(bundler.build_all())
         .map_err(|e| anyhow::anyhow!("build_all failed: {e}"))?;
 
-    // build_all now returns Err if any target failed (#262), so the bail above
-    // already covers per-target failures. Keep this as defense in depth: verify
-    // the framework bundles actually landed non-empty before declaring the bake
-    // good (catches an empty-but-"successful" write that no Err would flag).
+    // Framework-bundle honesty guard: non-empty after bake, or fail loud.
+    const FRAMEWORK_BUNDLES: &[&str] = &[
+        "sui-runtime.js",
+        "sui-dom.js",
+        "sui-sdk-client.js",
+        "sui-components.js",
+    ];
     let assets = repo_root.join("crates/deck/deck-core/assets");
     for name in FRAMEWORK_BUNDLES {
         let path = assets.join(name);
         let len = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
         if len == 0 {
-            bail!("framework bundle missing or empty after bake: {}", path.display());
+            anyhow::bail!("framework bundle missing or empty after bake: {}", path.display());
         }
         println!("  {name}: {len} bytes");
     }
 
-    // The lean `sui-marketing.js` (apps/site's mounted `<sui-*>` subset) is a
-    // Virtual aggregate that lands in `.deck/`, not deck-core/assets. It has no
-    // build.rs guard, so even though build_all now returns Err on target failure
-    // (#262), an empty-but-not-errored bundle would still slip past. Guard it
-    // here as defense in depth, same as the
-    // framework set — non-empty after bake, or fail loud.
-    let marketing = repo_root.join(".deck/sui-marketing.js");
-    let marketing_len = std::fs::metadata(&marketing).map(|m| m.len()).unwrap_or(0);
-    if marketing_len == 0 {
-        bail!(
-            "sui-marketing bundle missing or empty after bake: {} \
-             (the sui-marketing Virtual target failed — check `bundler: target failed` logs)",
-            marketing.display()
-        );
+    // Consumer-bundle honesty guard: every target declared in deck.jsonc must
+    // land non-empty. Uses BundleLayout for exact output-path routing, keeping
+    // this guard in sync with the bundler's own routing logic.
+    let layout = deck::bundler::targets::BundleLayout::with_config(
+        repo_root.to_path_buf(),
+        None,
+        cfg,
+    );
+    for t in layout.consumer_targets() {
+        let out_dir = layout.assets_dir_for(&t.name);
+        let out_path = out_dir.join(&t.out_file);
+        let len = std::fs::metadata(&out_path).map(|m| m.len()).unwrap_or(0);
+        if len == 0 {
+            anyhow::bail!(
+                "consumer bundle missing or empty after bake: {} \
+                 (target `{}` failed — check bundler logs)",
+                out_path.display(),
+                t.name
+            );
+        }
+        println!("  {}: {len} bytes", t.name);
     }
-    println!("  sui-marketing.js: {marketing_len} bytes");
-
-    // `sui-arcade.js` is the marketing site's heavy lazy chunk (pixi +
-    // arcade-engine). Like `sui-marketing.js` it's a `.deck/` target with no
-    // build.rs guard — a swallowed per-target failure would ship a stale bundle
-    // to the site and the games would silently break. Guard it here too.
-    let arcade = repo_root.join(".deck/sui-arcade.js");
-    let arcade_len = std::fs::metadata(&arcade).map(|m| m.len()).unwrap_or(0);
-    if arcade_len == 0 {
-        bail!(
-            "sui-arcade bundle missing or empty after bake: {} \
-             (the sui-arcade target failed — check `bundler: target failed` logs)",
-            arcade.display()
-        );
-    }
-    println!("  sui-arcade.js: {arcade_len} bytes");
 
     println!("build-assets: framework bundles + catalog baked via in-process Rolldown");
     println!("note: lucide-icons.json is committed source; regen via `cargo xtask gen-icons`");

@@ -14,6 +14,7 @@ default = []
 specta = ["dep:specta", "deck-core/specta"]
 
 [dependencies]
+deck-config = { path = "../deck-config" }
 deck-core = { path = "../deck-core" }
 deck-bundler = { path = "../deck-bundler" }
 

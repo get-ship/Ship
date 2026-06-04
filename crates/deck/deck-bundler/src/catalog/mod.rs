@@ -53,7 +53,14 @@ pub fn stringify_catalog(doc: &CatalogDocument) -> String {
 }
 
 /// Build the workspace catalog for a repo — every component, sorted by tagName.
-pub fn build_catalog(repo_root: &Path) -> Result<CatalogDocument, String> {
+///
+/// `first_party_app` is the optional embedded host app (e.g. `apps/shell` →
+/// `app:shell` from `deck.jsonc`). When `None`, the shell-local CEM projection
+/// does not apply — suitable for zero-config hosts.
+pub fn build_catalog(
+    repo_root: &Path,
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+) -> Result<CatalogDocument, String> {
     let packages = discover_workspace_packages(repo_root)?;
 
     let mut all: Vec<CatalogEntry> = Vec::new();
@@ -62,7 +69,7 @@ pub fn build_catalog(repo_root: &Path) -> Result<CatalogDocument, String> {
             all.extend(entries_from_packaged_manifest(repo_root, pkg));
         }
     }
-    all.extend(entries_from_sui_out(repo_root, &packages));
+    all.extend(entries_from_sui_out(repo_root, &packages, first_party_app));
 
     all.sort_by(|a, b| a.tagName.cmp(&b.tagName));
     // Dedup by tagName, first wins (packaged entries precede sui-out ones).
@@ -81,9 +88,12 @@ pub fn build_catalog(repo_root: &Path) -> Result<CatalogDocument, String> {
 /// the component compiles into the view bundle. Derived from the same CEM walk
 /// that drives catalog enumeration — one source of truth. A tag whose source
 /// can't be located is simply absent; the resolver then falls back to external.
-pub fn tag_source_index(repo_root: &Path) -> std::collections::HashMap<String, PathBuf> {
+pub fn tag_source_index(
+    repo_root: &Path,
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+) -> std::collections::HashMap<String, PathBuf> {
     let mut out = std::collections::HashMap::new();
-    let Ok(workspace) = build_catalog(repo_root) else {
+    let Ok(workspace) = build_catalog(repo_root, first_party_app) else {
         return out;
     };
     for e in workspace.entries {
@@ -168,7 +178,11 @@ fn entries_from_packaged_manifest(repo_root: &Path, pkg: &WorkspacePackage) -> V
     out
 }
 
-fn entries_from_sui_out(repo_root: &Path, packages: &[WorkspacePackage]) -> Vec<CatalogEntry> {
+fn entries_from_sui_out(
+    repo_root: &Path,
+    packages: &[WorkspacePackage],
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+) -> Vec<CatalogEntry> {
     let root = repo_root.join(SUI_OUT);
     if !root.exists() {
         return vec![];
@@ -182,6 +196,15 @@ fn entries_from_sui_out(repo_root: &Path, packages: &[WorkspacePackage]) -> Vec<
         packages.iter().map(|p| (rel_unix(repo_root, &p.root), p)).collect();
     packaged_roots.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
 
+    // First-party app root prefix for the shell-local CEM projection. Derived
+    // from `deck.jsonc firstPartyApp.root`; absent in zero-config hosts so the
+    // projection simply doesn't apply (no host-app assumption here).
+    let fpa_root_prefix = first_party_app.as_ref().map(|fpa| {
+        let r = fpa.root.to_string_lossy().replace('\\', "/");
+        if r.ends_with('/') { r } else { format!("{r}/") }
+    });
+    let fpa_label = first_party_app.as_ref().map(|fpa| fpa.label.as_str());
+
     let mut out = Vec::new();
     for cem_abs in &cem_files {
         let source_path = source_path_for_cem(repo_root, cem_abs);
@@ -193,9 +216,13 @@ fn entries_from_sui_out(repo_root: &Path, packages: &[WorkspacePackage]) -> Vec<
         let Some(cem) = read_json(cem_abs) else { continue };
         let Some(modules) = cem["modules"].as_array() else { continue };
 
-        let is_shell_local = source_path.starts_with("apps/shell/");
-        let origin = if is_shell_local {
-            origin_for_non_packaged_source(&source_path)
+        // When the source lives under the configured first-party app root, use
+        // the configured label (e.g. `app:shell`) — no hardcoded path.
+        let is_first_party_local = fpa_root_prefix
+            .as_deref()
+            .is_some_and(|prefix| source_path.starts_with(prefix));
+        let origin = if is_first_party_local {
+            fpa_label.unwrap_or("app:unknown").to_string()
         } else {
             owning
                 .map(|(_, p)| p.name.clone())
@@ -259,12 +286,10 @@ fn source_path_for_cem(repo_root: &Path, cem_abs: &Path) -> String {
     format!("{dir}{stem}.sui")
 }
 
-/// Origin tag for a non-packaged source. `apps/shell/` → `app:shell`;
-/// `views/<name>/` → `view:<name>`; else `workspace:<first-seg>`.
+/// Origin tag for a non-packaged source. `views/<name>/` → `view:<name>`;
+/// else `workspace:<first-seg>`. First-party app labelling is done by the
+/// caller via the configured `firstPartyApp` — no path literal here.
 fn origin_for_non_packaged_source(norm: &str) -> String {
-    if norm.starts_with("apps/shell/") {
-        return "app:shell".to_string();
-    }
     if let Some(rest) = norm.strip_prefix("views/") {
         if let Some(name) = rest.split('/').next().filter(|s| !s.is_empty()) {
             return format!("view:{name}");
@@ -321,13 +346,18 @@ mod tests {
             r#"{"name":"@ship/charts","customElements":"dist/custom-elements.json"}"#,
         );
         write(&root.join("packages/charts/dist/custom-elements.json"), &cem("sui-bar"));
-        // A shell-local component in the sui-out mirror → app:shell, private.
+        // A shell-local component in the sui-out mirror → app:shell (via configured firstPartyApp).
         write(
             &root.join(".ship/sui-out/apps/shell/src/sui-x/sui-x.custom-elements.json"),
             &cem("sui-x"),
         );
 
-        let workspace = build_catalog(root).unwrap();
+        // Configured first-party app: apps/shell → app:shell.
+        let fpa = deck_config::FirstPartyApp {
+            root: std::path::PathBuf::from("apps/shell"),
+            label: "app:shell".to_string(),
+        };
+        let workspace = build_catalog(root, Some(&fpa)).unwrap();
 
         let ws_tags: Vec<&str> = workspace.entries.iter().map(|e| e.tagName.as_str()).collect();
         assert_eq!(ws_tags, vec!["sui-bar", "sui-x"], "sorted, both present");
@@ -339,6 +369,23 @@ mod tests {
         let x = workspace.entries.iter().find(|e| e.tagName == "sui-x").unwrap();
         assert_eq!(x.package, "app:shell");
         assert!(x.private);
+    }
+
+    #[test]
+    fn aggregates_sui_out_zero_config() {
+        // Without firstPartyApp, apps/shell components fall through to
+        // origin_for_non_packaged_source → workspace:apps (not app:shell).
+        let tmp = tempdir().unwrap();
+        let root = tmp.path();
+        write(&root.join("package.json"), r#"{"workspaces":[]}"#);
+        write(
+            &root.join(".ship/sui-out/apps/shell/src/sui-x/sui-x.custom-elements.json"),
+            &cem("sui-x"),
+        );
+        let workspace = build_catalog(root, None).unwrap();
+        let x = workspace.entries.iter().find(|e| e.tagName == "sui-x").unwrap();
+        // No firstPartyApp configured — origin falls back to workspace:<first-seg>.
+        assert_eq!(x.package, "workspace:apps");
     }
 
     #[test]
@@ -354,7 +401,7 @@ mod tests {
         // The CEM implies source packages/charts/src/sui-bar/sui-bar.sui — write it.
         write(&root.join("packages/charts/src/sui-bar/sui-bar.sui"), "<div>bar</div>\n");
 
-        let idx = tag_source_index(root);
+        let idx = tag_source_index(root, None);
         // Invariant: an indexed tag points at an EXISTING `.sui` source.
         let src = idx.get("sui-bar").expect("a tag with a real source is indexed");
         assert!(src.is_file());

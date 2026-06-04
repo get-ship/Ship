@@ -45,32 +45,40 @@ fn make_bundler(app_dir: &Path) -> Bundler {
     }
     let home = ship_substrate::ShipHome::from_env();
     // repo_root == app_dir so bundle output (`<root>/.deck`) lands where the
-    // resolver reads it (`SHIP_DEV_PROJECT_DIR/.deck`).
-    Bundler::start(&home, app_dir.to_path_buf(), None)
+    // resolver reads it (`SHIP_DEV_PROJECT_DIR/.deck`). Zero-config host:
+    // no deck.jsonc — use defaults (no consumer targets, .deck output root).
+    let cfg = deck::config::DeckConfig::load(app_dir);
+    Bundler::start(&home, app_dir.to_path_buf(), None, cfg)
 }
 
 /// deck's hosting surface + the two extensions its handlers read + the HMR SSE
 /// route. Shared by both entry points.
-fn build_router(bundler: Bundler) -> Router {
+fn build_router(bundler: Bundler, cfg: std::sync::Arc<deck::config::DeckConfig>) -> Router {
     router()
         // The canonical deck-axum HMR handler — no hand-rolled variant here.
         .route("/_sui/dev/hmr", get(serve_bundle_hmr))
         .layer(Extension(DaemonMode::Development))
+        // DeckConfig Extension — scaffold handlers read scaffold declarations
+        // and inject_globals from this. Zero-config hosts (no deck.jsonc) get
+        // built-in defaults and degrade gracefully.
+        .layer(Extension(cfg))
         .layer(Extension(bundler))
 }
 
 /// A ready router with NO filesystem watcher (read-only host / tests).
 pub fn deck_app(app_dir: PathBuf) -> Router {
-    build_router(make_bundler(&app_dir))
+    let cfg = std::sync::Arc::new(deck::config::DeckConfig::load(&app_dir));
+    build_router(make_bundler(&app_dir), cfg)
 }
 
 /// A dev server with the FS watcher running: edit a `.sui` → rebuild the
 /// affected target → push an HMR event. Async because `start_watching` spawns
 /// the watch task.
 pub async fn deck_dev_server(app_dir: PathBuf) -> Router {
+    let cfg = std::sync::Arc::new(deck::config::DeckConfig::load(&app_dir));
     let bundler = make_bundler(&app_dir);
     if let Err(e) = bundler.start_watching().await {
         eprintln!("deck-demo: watcher failed to start: {e}");
     }
-    build_router(bundler)
+    build_router(bundler, cfg)
 }

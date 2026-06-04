@@ -40,9 +40,19 @@ pub(crate) async fn run(b: &Bundler) {
             roots.push(ws.to_path_buf());
         }
     }
+    // Conventional view roots (always watched).
+    let conventional: &[&str] = &["packages", "views", ".ship/views"];
+    // cfg.watch supplies the host-specific extras (replaces the old hardcoded
+    // `apps/shell/src` literal). Zero-config hosts get no extras, which is fine.
+    let cfg_watch = b.cfg_watch();
     let watch_dirs: Vec<PathBuf> = roots
         .iter()
-        .flat_map(|r| ["packages", "views", ".ship/views", "apps/shell/src"].map(|d| r.join(d)))
+        .flat_map(|r| {
+            let mut dirs: Vec<PathBuf> = conventional.iter().map(|d| r.join(d)).collect();
+            // cfg.watch paths are relative to the repo root.
+            dirs.extend(cfg_watch.iter().map(|d| b.repo_root().join(d)));
+            dirs
+        })
         .filter(|p| p.exists())
         .collect();
     if watch_dirs.is_empty() {

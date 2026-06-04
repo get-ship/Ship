@@ -82,7 +82,7 @@ pub async fn bundle_views(
     let plugin = SuiPlugin {
         repo_root: layout.repo_root.clone(),
         emit_component_imports: true,
-        component_index: component_index(&layout.repo_root),
+        component_index: component_index(&layout.repo_root, layout.cfg.first_party_app.as_ref()),
     };
     {
         let mut bundler = BundlerBuilder::default()

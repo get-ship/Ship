@@ -18,6 +18,7 @@ members = [
     "crates/sui/lint",
     "crates/sui/lsp",
     "crates/sui/signals",
+    "crates/deck/deck-config",
     "crates/deck/deck-host",
     "crates/deck/deck-bundler",
     "crates/deck/deck-cli",

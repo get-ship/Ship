@@ -17,6 +17,8 @@ use rolldown::plugin::{
 };
 use rolldown_common::{ModuleType, ResolvedExternal};
 
+use deck_config::FirstPartyApp;
+
 use crate::compile::{compile_sui, CompileMode};
 
 const SINGLETONS: [&str; 3] = ["@ship/sui-runtime", "@ship/sui-dom", "@ship/sdk-client"];
@@ -26,14 +28,17 @@ const SINGLETONS: [&str; 3] = ["@ship/sui-runtime", "@ship/sui-dom", "@ship/sdk-
 /// convention: never read/written on disk).
 const SUI_TAG_NOOP: &str = "\0sui-tag-noop";
 
-/// Component source roots — a `.sui` under one is a custom element; else view.
+/// Component source roots — a `.sui` under one is a compile-as-component
+/// shortcut (saves the parent-name heuristic a step for deck-own packages).
+/// Host-app component roots are NOT listed here — the naming heuristic
+/// (`stem == parent`) catches them via the `<tag>/<tag>.sui` convention.
 pub(crate) fn detect_mode(abs: &Path, repo_root: &Path) -> (CompileMode, String) {
     let stem = abs.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
-    for rel in ["packages/components/ui-components/src", "apps/shell/src/components"] {
-        if abs.starts_with(repo_root.join(rel)) {
-            return (CompileMode::Component, stem);
-        }
+    // Deck-own component source: always compile as Component.
+    if abs.starts_with(repo_root.join("packages/components/ui-components/src")) {
+        return (CompileMode::Component, stem);
     }
+    // Generic heuristic: `<tag>/<tag>.sui` → Component; anything else → View.
     let parent = abs
         .parent()
         .and_then(|p| p.file_name())
@@ -255,7 +260,14 @@ impl Plugin for SuiPlugin {
 /// lookup). The CEM walk is process-stable; build once per repo root and share.
 /// A component added mid-process isn't picked up until restart — until then its
 /// tag resolves to a virtual no-op.
-pub(crate) fn component_index(repo_root: &Path) -> Arc<HashMap<String, PathBuf>> {
+///
+/// `first_party_app` comes from `deck.jsonc` and drives the shell-local CEM
+/// projection (which app root gets a special origin label). `None` in
+/// zero-config hosts — the projection simply doesn't apply.
+pub(crate) fn component_index(
+    repo_root: &Path,
+    first_party_app: Option<&FirstPartyApp>,
+) -> Arc<HashMap<String, PathBuf>> {
     static CACHE: OnceLock<Mutex<HashMap<PathBuf, Arc<HashMap<String, PathBuf>>>>> =
         OnceLock::new();
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
@@ -263,7 +275,7 @@ pub(crate) fn component_index(repo_root: &Path) -> Arc<HashMap<String, PathBuf>>
     if let Some(idx) = guard.get(repo_root) {
         return idx.clone();
     }
-    let idx = Arc::new(crate::catalog::tag_source_index(repo_root));
+    let idx = Arc::new(crate::catalog::tag_source_index(repo_root, first_party_app));
     guard.insert(repo_root.to_path_buf(), idx.clone());
     idx
 }

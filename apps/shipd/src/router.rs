@@ -9,6 +9,8 @@ use axum::{
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
+use deck::config::DeckConfig;
+
 use crate::{
     auth, project_api, services, ship_runtime,
     sessions, views,
@@ -293,10 +295,21 @@ pub fn build_router(
             .layer(axum::Extension(shutdown_ct.child_token()));
         root = root.merge(hmr_routes);
     }
+    // Load deck.jsonc from the workspace root (same root the bundler uses).
+    // Falls back to defaults when absent so a zero-config host works unchanged.
+    let repo_root = rt.workspace_dir()
+        .map(|p| p.to_path_buf())
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| rt.ship_dir().to_path_buf());
+    let deck_cfg = Arc::new(DeckConfig::load(&repo_root));
+
     root
         // Daemon-mode Extension — Sui handlers read it via
         // `Option<Extension<DaemonMode>>` without router-state plumbing.
         .layer(axum::Extension(daemon_mode))
+        // DeckConfig Extension — scaffold handlers (serve_shell, serve_space)
+        // read scaffold declarations + inject_globals from this.
+        .layer(axum::Extension(deck_cfg))
         // Bundler Extension (#167) — deck's view.js handler builds an unbuilt
         // view in-process via Rolldown on a cache miss (controller inlined, no
         // bun). The same instance the watcher drives.

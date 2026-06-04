@@ -8,6 +8,8 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use deck_config::DeckConfig;
+
 /// Deck's OWN runtime bundles — baked into the deck-core crate (like Next
 /// shipping its own runtime). Everything else under `sui-`/`views/` is app/user
 /// content and goes to `.deck/`.
@@ -44,15 +46,33 @@ pub struct BundleLayout {
     /// redirect for tests / out-of-tree builds so output never clobbers
     /// committed assets.
     pub out_root: PathBuf,
+    /// Parsed `deck.jsonc` — consumer bundle targets + watch dirs + host assets
+    /// root. Defaults to `DeckConfig::defaults()` for zero-config hosts.
+    pub cfg: DeckConfig,
 }
 
 impl BundleLayout {
+    /// Construct loading `deck.jsonc` from `repo_root` (the normal default).
+    /// Falls back to [`DeckConfig::defaults`] when the file is absent, so
+    /// zero-config hosts (deck-demo, integration test tempdirs) work without
+    /// a manifest.
     pub fn new(repo_root: PathBuf, workspace_root: Option<PathBuf>) -> Self {
+        let cfg = DeckConfig::load(&repo_root);
+        Self::with_config(repo_root, workspace_root, cfg)
+    }
+
+    /// Construct with an explicit [`DeckConfig`] (the normal shipd/bake path —
+    /// caller already called `DeckConfig::load` once; avoids a double read).
+    pub fn with_config(
+        repo_root: PathBuf,
+        workspace_root: Option<PathBuf>,
+        cfg: DeckConfig,
+    ) -> Self {
         let source_roots = match &workspace_root {
             Some(ws) if *ws != repo_root => vec![repo_root.clone(), ws.clone()],
             _ => vec![repo_root.clone()],
         };
-        Self { out_root: repo_root.clone(), repo_root, source_roots }
+        Self { out_root: repo_root.clone(), repo_root, source_roots, cfg }
     }
 
     /// Redirect output under `out_root` (sources still resolve from `repo_root`).
@@ -67,13 +87,14 @@ impl BundleLayout {
     fn deck_out(&self) -> PathBuf {
         self.out_root.join(".deck")
     }
-    fn lit_assets(&self) -> PathBuf {
-        self.out_root.join("apps/shipd/assets")
+    /// Host-owned assets root, derived from `cfg.host_assets_root`.
+    fn host_assets(&self) -> PathBuf {
+        self.out_root.join(&self.cfg.host_assets_root)
     }
 
     /// Output dir for a target by name. Deck-own bundles → the crate's assets;
-    /// `views/*` and `sui-components/sui-chrome` → `.deck/`; everything else →
-    /// `apps/shipd/assets`.
+    /// `views/*` and `sui-components/*` → `.deck/`; everything else →
+    /// `cfg.host_assets_root`.
     pub fn assets_dir_for(&self, name: &str) -> PathBuf {
         if DECK_OWN_BUNDLES.contains(&name) {
             return self.deck_own_assets();
@@ -81,17 +102,21 @@ impl BundleLayout {
         if name.starts_with("views/") || name.starts_with("sui-components/") {
             return self.deck_out();
         }
-        self.lit_assets()
+        self.host_assets()
     }
 
-    /// All targets: the static framework + aggregates, plus view bundles.
+    /// All targets: framework singletons + consumer targets from cfg + view bundles.
     pub fn all_targets(&self) -> Vec<BundleTarget> {
-        let mut out = self.static_targets();
+        let mut out = self.framework_singletons();
+        out.extend(self.consumer_targets());
         out.extend(self.discover_view_bundles());
         out
     }
 
-    fn static_targets(&self) -> Vec<BundleTarget> {
+    /// Deck's OWN framework singletons — always built, hardcoded, never in
+    /// deck.jsonc. These are the 4 runtime primitives deck ships with itself
+    /// (like Next.js shipping its own runtime).
+    fn framework_singletons(&self) -> Vec<BundleTarget> {
         let r = |rel: &str| self.repo_root.join(rel);
         vec![
             BundleTarget {
@@ -118,52 +143,23 @@ impl BundleLayout {
                 externals: vec!["@ship/sui-runtime".into()],
                 out_file: "sui-components.js".into(),
             },
-            BundleTarget {
-                name: "sui-components/sui-chrome".into(),
-                entry: TargetEntry::Real(r("apps/shell/src/components/index.ts")),
-                externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
-                out_file: "sui-components/sui-chrome.js".into(),
-            },
-            BundleTarget {
-                name: "sui-marketing".into(),
-                // Membership is TRACED, not declared here: the site-owned entry
-                // `apps/site/src/marketing/marketing-bundle.ts` side-effect-imports
-                // each marketing tag, and rolldown follows that import graph. Add
-                // or remove a tag THERE — never in this Rust file.
-                entry: TargetEntry::Real(r("apps/site/src/marketing/marketing-bundle.ts")),
-                externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
-                out_file: "sui-marketing.js".into(),
-            },
-            BundleTarget {
-                // The arcade pack — the heavy lazy chunk for the marketing
-                // site's `<sui-stage>` games. The pack's `index.ts`
-                // side-effect-registers every `<sui-*>` arcade tag (stage,
-                // sprite, shape, collider, emitter, input, sfx, hud) and pulls
-                // the pixi + arcade-engine graph. Unlike the framework
-                // singletons, pixi + arcade-engine get BUNDLED here (this is the
-                // ~800 KB lazy chunk); only the runtime singletons stay external
-                // (forced by `SINGLETONS` in rolldown_bundle.rs — one instance).
-                name: "sui-arcade".into(),
-                entry: TargetEntry::Real(r("packages/components/ship/arcade/src/index.ts")),
-                externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
-                out_file: "sui-arcade.js".into(),
-            },
-            BundleTarget {
-                // The pdf pack — a lazy chunk wrapping the pdf.js (`pdfjs-dist`)
-                // engine. The pack's `index.ts` side-effect-registers `<ship-pdf>`
-                // and bundles BOTH the engine AND the pdf.js worker module
-                // (`pdfjs-dist/build/pdf.worker.mjs`) — the worker registers a
-                // main-thread `WorkerMessageHandler` (`globalThis.pdfjsWorker`)
-                // that pdf.js uses with no separate URL / fetch / CDN, so the pack
-                // renders offline / same-origin. Like arcade, the engine is
-                // BUNDLED (this is the heavy chunk) and only the runtime singletons
-                // stay external.
-                name: "sui-pdf".into(),
-                entry: TargetEntry::Real(r("packages/components/ship/pdf/src/index.ts")),
-                externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
-                out_file: "sui-pdf.js".into(),
-            },
         ]
+    }
+
+    /// Consumer bundle targets from `deck.jsonc`. The logical name drives
+    /// `assets_dir_for` routing (e.g. `sui-components/*` → `.deck/`,
+    /// anything else → `host_assets_root`).
+    pub fn consumer_targets(&self) -> Vec<BundleTarget> {
+        self.cfg.targets.iter().map(|t| {
+            let entry = TargetEntry::Real(self.repo_root.join(&t.entry));
+            let out_file = t.out_file.clone().unwrap_or_else(|| format!("{}.js", t.name));
+            BundleTarget {
+                name: t.name.clone(),
+                entry,
+                externals: t.externals.clone(),
+                out_file,
+            }
+        }).collect()
     }
 
     /// One bundle per discovered view. Two layouts under each source root:
@@ -229,6 +225,7 @@ impl BundleLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use deck_config::DeckConfig;
     use tempfile::tempdir;
 
     fn write(path: &Path, body: &str) {
@@ -236,9 +233,16 @@ mod tests {
         std::fs::write(path, body).unwrap();
     }
 
+    /// Layout with `host_assets_root` matching the Ship workspace convention.
+    fn shipd_layout(repo_root: PathBuf) -> BundleLayout {
+        let mut cfg = DeckConfig::defaults();
+        cfg.host_assets_root = PathBuf::from("apps/shipd/assets");
+        BundleLayout::with_config(repo_root, None, cfg)
+    }
+
     #[test]
     fn assets_dir_routes_by_name() {
-        let l = BundleLayout::new(PathBuf::from("/repo"), None);
+        let l = shipd_layout(PathBuf::from("/repo"));
         assert_eq!(l.assets_dir_for("sui-runtime"), PathBuf::from("/repo/crates/deck/deck-core/assets"));
         assert_eq!(l.assets_dir_for("sui-components/sui-rail"), PathBuf::from("/repo/.deck"));
         assert_eq!(l.assets_dir_for("views/git/view"), PathBuf::from("/repo/.deck"));
