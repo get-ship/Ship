@@ -216,12 +216,6 @@ pub enum Route {
     /// @auth scope ReadRuns
     PipelineRunLogStream { slug: String },
 
-    // ── Chat (command-bar send) ──────────────────────────────────────────
-
-    /// @route POST "/api/v1/chat/send"
-    /// @auth scope ManageRuns
-    ChatSend,
-
     // ── Generic view serving ─────────────────────────────────────────────
 
     /// @route GET "/api/v1/ship/schema"

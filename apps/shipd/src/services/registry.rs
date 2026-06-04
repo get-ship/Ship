@@ -119,7 +119,6 @@ pub mod artifacts;
 pub mod sessions;
 pub mod actors;
 pub mod mesh;
-pub mod chat;
 pub mod git;
 pub mod workspaces;
 pub mod diagnostics;
@@ -169,9 +168,6 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
         return Ok(value);
     }
     if let Some(value) = mesh::try_dispatch(name, args, state, &files)? {
-        return Ok(value);
-    }
-    if let Some(value) = chat::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
     if let Some(value) = git::try_dispatch(name, args, state, &files)? {

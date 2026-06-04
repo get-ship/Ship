@@ -1,6 +1,6 @@
 //! Agent-watch integration proof (agents-arc E5) — drives the ship-reactive
 //! infra (ReactiveRegistry + Resolver + diff + fanout) with the SAME prefilter
-//! shape the shipd `AgentService.Watch` handler uses, against a real KernelLog.
+//! shape the shipd `AgentsService.Watch` handler uses, against a real KernelLog.
 //!
 //! ship-reactive cannot depend on ship-platform (cycle), so the agent prefilter
 //! PREDICATES are unit-tested in ship-platform (`services::agents::watch`); this

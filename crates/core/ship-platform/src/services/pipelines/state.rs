@@ -4,7 +4,7 @@
 //! only supported format — legacy YAML files at the same name are
 //! ignored by the loader.
 //!
-//! Scope model: project wins by default, exactly as AgentService.
+//! Scope model: project wins by default, exactly as AgentsService.
 
 use crate::services::files::{Error as FileError, FilesService, Scope};
 use serde::Serialize;

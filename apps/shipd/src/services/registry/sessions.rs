@@ -1,11 +1,13 @@
-//! Single-source `sessions.*` ops — descriptors + dispatch via `ship_ops!`.
+//! Single-source `agents.sessions` op — descriptor + dispatch via `ship_ops!`.
+//! The live agent-session/dispatch index, served as an AgentsService method
+//! (agents-arc E6: `sessions.list → agents.sessions`).
 
 use super::wire::SessionsListResponse;
 
 ship_ops! {
     SESSIONS_OPS;
     {
-        name: "sessions.list",
+        name: "agents.sessions",
         desc: "All live PTY sessions (agent chats, pipeline runs, shells) — Mission Control data.",
         perm: "ship.sessions.read",
         args: &[],

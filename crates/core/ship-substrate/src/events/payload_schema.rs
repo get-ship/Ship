@@ -185,7 +185,6 @@ fn schema_for_event_type(
         "mesh.send.failed" => Some(check::<MeshSendFailed>),
         "mesh.status" => Some(check::<MeshStatus>),
         "pipeline.step.retry" => Some(check::<PipelineStepRetry>),
-        "studio.message" => Some(check::<StudioMessage>),
         "sync.push.failed" => Some(check::<SyncPushFailed>),
         "sync.started" => Some(check::<SyncStarted>),
         "sync.stopped" => Some(check::<SyncStopped>),

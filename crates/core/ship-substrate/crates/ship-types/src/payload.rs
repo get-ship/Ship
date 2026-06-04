@@ -740,14 +740,6 @@ pub struct StudioFeedbackCreated {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct StudioMessage {
-    pub session_id: String,
-    pub text: String,
-    #[serde(default)]
-    pub role: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct StudioChatTurn {
     pub session_id: String,
     pub text: String,

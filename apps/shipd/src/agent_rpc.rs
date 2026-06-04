@@ -1,13 +1,13 @@
-//! `AgentService` handler — the ONE canonical agent RPC surface (#89,
-//! agents-arc E4). Collapsed from the historic split (AgentsService profile
-//! CRUD + view reads, AgentService orchestration, SessionsService runtime-read,
-//! ChatService chat-read) into this single `impl AgentService for OpsImpl`.
-//! Mounted additively beside the generated ReadOps/CommandOps until the GUI
-//! flip (#72).
+//! `AgentsService` handler — the ONE canonical agent RPC surface (#89,
+//! agents-arc E4/E6). Collapsed from the historic split (profile CRUD + view
+//! reads, orchestration, SessionsService runtime-read) into this single
+//! `impl AgentsService for OpsImpl`. Mounted additively beside the generated
+//! ReadOps/CommandOps until the GUI flip (#72). Plural by convention (E6 reverted
+//! E4's outlier singular rename); chat was gutted in E6.
 //!
 //! Three planes meet here, each routed to its existing chokepoint — this handler
 //! only routes, never reimplements gating: profile reads (C0) + runtime-scoped
-//! sessions/chat reads (C0) → `services::registry::call`; profile writes (C2) +
+//! sessions reads (C0) → `services::registry::call`; profile writes (C2) +
 //! orchestration control (C2/C3) → `services::command::call` (the ONE gate).
 //!
 //! The impl-helper methods (`agents_typed_read`, `agent_gated_typed`, …) live in
@@ -18,8 +18,8 @@ use serde_json::{json, Value};
 
 use ship_ops_rpc::{
     AgentCatalogsResponse, AgentDetail, AgentDoc, AgentIndexResponse, AgentSettingsResponse,
-    AgentTemplatesResponse, AgentWireResponse, AgentService, AgentsSummariesResponse,
-    ChatStateResponse, DispatchResult, GrantResult, HarnessesResponse, JsonResponse,
+    AgentTemplatesResponse, AgentWireResponse, AgentsService, AgentsSummariesResponse,
+    DispatchResult, GrantResult, HarnessesResponse, JsonResponse,
     PermissionPresetsResponse, ScopedMutation, SessionsListResponse, SteerResult, StopResult,
     WatchEvent,
 };
@@ -27,7 +27,7 @@ use ship_ops_rpc::{
 use crate::ops_rpc::OpsImpl;
 
 #[allow(refining_impl_trait)]
-impl AgentService for OpsImpl {
+impl AgentsService for OpsImpl {
     // Profile reads (C0) — folded from AgentsService.
     async fn list(
         &self,
@@ -147,13 +147,13 @@ impl AgentService for OpsImpl {
         self.agents_read_json("agents.create_ctx", Value::Null)
     }
 
-    // Runtime-scoped reads (C0) — folded from SessionsService + ChatService.
+    // Runtime-scoped reads (C0) — folded from SessionsService.
     async fn sessions(
         &self,
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedListSessionsReqView,
     ) -> ServiceResult<SessionsListResponse> {
-        self.agents_typed_read::<SessionsListResponse>("sessions.list", Value::Null)
+        self.agents_typed_read::<SessionsListResponse>("agents.sessions", Value::Null)
     }
 
     #[allow(refining_impl_trait)]
@@ -162,27 +162,10 @@ impl AgentService for OpsImpl {
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedListSessionsReqView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        self.live_read("sessions.list", json!({})).await
+        self.live_read("agents.sessions", json!({})).await
     }
 
-    async fn chat(
-        &self,
-        _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedChatStateReqView,
-    ) -> ServiceResult<ChatStateResponse> {
-        self.agents_typed_read::<ChatStateResponse>("chat.state", chat_args(request.workspace_id))
-    }
-
-    #[allow(refining_impl_trait)]
-    async fn chat_live(
-        &self,
-        _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedChatStateReqView,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        self.live_read("chat.state", chat_args(request.workspace_id)).await
-    }
-
-    // Profile writes (C2) — folded from AgentsService.
+    // Profile writes (C2) — folded from the profile CRUD surface.
     async fn create(
         &self,
         ctx: RequestContext,
@@ -311,23 +294,13 @@ impl AgentService for OpsImpl {
     }
 }
 
-/// Build the `chat.state` args object, omitting `workspace_id` when empty (the
-/// registry op treats a missing key as "all workspaces").
-fn chat_args(workspace_id: &str) -> Value {
-    let mut args = serde_json::Map::new();
-    if !workspace_id.is_empty() {
-        args.insert("workspace_id".to_string(), json!(workspace_id));
-    }
-    Value::Object(args)
-}
-
 #[cfg(test)]
 mod tests {
     use ship_ops_rpc::BlastRadius;
 
     fn policy(method: &str) -> &'static crate::ops_rpc::OpPolicy {
-        crate::ops_rpc::policy_for(&format!("ship.ops.v1.AgentService/{method}"))
-            .unwrap_or_else(|| panic!("AgentService/{method} must carry a policy in the descriptor"))
+        crate::ops_rpc::policy_for(&format!("ship.ops.v1.AgentsService/{method}"))
+            .unwrap_or_else(|| panic!("AgentsService/{method} must carry a policy in the descriptor"))
     }
 
     #[test]
@@ -357,13 +330,9 @@ mod tests {
 
     #[test]
     fn folded_runtime_read_policies_preserved() {
-        // Sessions + Chat folded from their own services keep their capabilities.
+        // Sessions folded from SessionsService keeps its capability.
         let sessions = policy("Sessions");
         assert_eq!(sessions.capability, "ship.sessions.read");
         assert_eq!(sessions.blast_radius, BlastRadius::C0Read);
-
-        let chat = policy("Chat");
-        assert_eq!(chat.capability, "ship.chat.read");
-        assert_eq!(chat.blast_radius, BlastRadius::C0Read);
     }
 }

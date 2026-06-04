@@ -154,7 +154,7 @@ fn print_help() {
     eprintln!("  gen-types             Regenerate packages/deck/sdk/src/generated.ts");
     eprintln!("  gen-types --check     Verify generated file is up-to-date (CI)");
     eprintln!("  gen-sdk               Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
-    eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/theme.json");
+    eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/fixture-seed.json");
     eprintln!("  gen-icons             Bake lucide-icons.json from node_modules/lucide-static");
     eprintln!("  lint-layers           Verify substrate/platform/application boundaries (Cargo dep level)");
     eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");

@@ -1,5 +1,5 @@
 //! Agent-def Watch prefilters + scope keys — the pure, testable half of the
-//! unified reactive `AgentService.Watch` (agents-arc E5).
+//! unified reactive `AgentsService.Watch` (agents-arc E5).
 //!
 //! The shipd `watch()` handler composes three pieces: a `ReactiveRegistry`
 //! (ship-reactive, owns the event loop + diff + fanout), a snapshot closure

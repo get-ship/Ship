@@ -1,37 +1,20 @@
-//! Fixtures for the small daemon-assembled domains: chat, sessions,
+//! Fixtures for the small daemon-assembled domains: sessions,
 //! artifacts, workspaces, settings.
 
 use serde_json::{json, Value};
 
 use crate::services::registry::wire::{
-    ArtifactsListResponse, ChatStateResponse, SessionsListResponse,
+    ArtifactsListResponse, SessionsListResponse,
     WorkspaceActiveResponse, WorkspaceRow, WorkspacesListResponse,
 };
 use crate::services::settings::view_state::{
     AboutInfo, FeatureFlag, ProviderRow, SelectOption, SettingsCtx, TerminalConfig,
 };
-use crate::views::chat_state::{ChatMessage, Sender};
 use ship_artifacts::types::ArtifactRecord;
 use ship_platform::services::sessions::types::{SessionKind, SessionMeta, SessionStatus};
 
 fn fixed_dt() -> chrono::DateTime<chrono::Utc> {
     chrono::DateTime::from_timestamp(1_767_225_600, 0).expect("valid timestamp")
-}
-
-fn chat() -> ChatStateResponse {
-    ChatStateResponse {
-        workspace_id: "ws-default".to_string(),
-        messages: vec![ChatMessage {
-            id: "evt-1".to_string(),
-            sender: Sender::Agent,
-            content: "Migration complete.".to_string(),
-            detail: None,
-            timestamp: "09:04".to_string(),
-            event_type: "studio.chat_turn".to_string(),
-            workspace_id: "ws-default".to_string(),
-        }],
-        total: 1,
-    }
 }
 
 fn sessions() -> SessionsListResponse {
@@ -142,8 +125,7 @@ pub fn examples() -> Vec<(&'static str, Value)> {
         serde_json::to_value(t).expect("example serializes")
     }
     vec![
-        ("chat.state", v(chat())),
-        ("sessions.list", v(sessions())),
+        ("agents.sessions", v(sessions())),
         ("artifacts.list", v(artifacts())),
         ("workspaces.list", v(workspaces())),
         ("workspaces.active", v(WorkspaceActiveResponse { id: Some("ws-default".to_string()) })),

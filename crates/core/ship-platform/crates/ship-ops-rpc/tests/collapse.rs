@@ -1,11 +1,10 @@
-//! Contract test for E4 — the agent surface collapse.
+//! Contract test for E4/E6 — the agent surface collapse.
 //!
-//! Asserts the ONE canonical `AgentService` is the sole agent RPC surface: it
-//! carries every folded RPC (the AgentsService profile reads/writes, the
-//! Sessions read, the Chat read), and the three folded services
-//! (`AgentsService`, `SessionsService`, `ChatService`) no longer exist in the
-//! descriptor set. Reads the embedded `FILE_DESCRIPTOR_SET` (proto SSOT), so it
-//! fails RED until the protos are merged + regenerated.
+//! Asserts the ONE canonical `AgentsService` (plural, agents-arc E6) is the sole
+//! agent RPC surface: it carries every folded RPC (profile reads/writes + the
+//! Sessions read), and the folded services (`SessionsService`, `ChatService`) no
+//! longer exist in the descriptor set. Chat was gutted entirely in E6. Reads the
+//! embedded `FILE_DESCRIPTOR_SET` (proto SSOT).
 
 use std::collections::BTreeSet;
 
@@ -28,43 +27,43 @@ fn services() -> BTreeSet<String> {
 #[test]
 fn folded_services_are_gone() {
     let svcs = services();
-    for dead in ["AgentsService", "SessionsService", "ChatService"] {
+    for dead in ["AgentService", "SessionsService", "ChatService"] {
         assert!(
             !svcs.contains(dead),
-            "{dead} must be collapsed into AgentService and removed from the proto",
+            "{dead} must be collapsed into AgentsService and removed from the proto",
         );
     }
-    assert!(svcs.contains("AgentService"), "the ONE AgentService must survive");
+    assert!(svcs.contains("AgentsService"), "the ONE AgentsService must survive");
 }
 
 #[test]
 fn agent_service_exposes_every_folded_rpc() {
-    let m = methods_of("AgentService");
+    let m = methods_of("AgentsService");
 
     // ── Control (the pre-collapse AgentService surface) ──
     for rpc in ["Dispatch", "Stop", "Steer", "Grant"] {
-        assert!(m.contains(rpc), "AgentService must keep control rpc `{rpc}`");
+        assert!(m.contains(rpc), "AgentsService must keep control rpc `{rpc}`");
     }
 
-    // ── Profile reads (folded from AgentsService) ──
+    // ── Profile reads ──
     for rpc in [
         "List", "Summaries", "Detail", "Catalogs", "Get", "Wire", "Settings",
         "Templates", "PermissionPresets", "Harnesses", "CreateCtx",
     ] {
-        assert!(m.contains(rpc), "AgentService must expose profile read rpc `{rpc}`");
+        assert!(m.contains(rpc), "AgentsService must expose profile read rpc `{rpc}`");
     }
 
-    // ── Profile writes (folded from AgentsService) ──
+    // ── Profile writes ──
     for rpc in [
         "Create", "Put", "Patch", "Delete", "Rename", "Duplicate", "MoveScope",
     ] {
-        assert!(m.contains(rpc), "AgentService must expose profile write rpc `{rpc}`");
+        assert!(m.contains(rpc), "AgentsService must expose profile write rpc `{rpc}`");
     }
 
     // ── E5: the 6 def-scoped *Live twins are GONE, replaced by ONE Watch ──
     assert!(
         m.contains("Watch"),
-        "AgentService must expose the unified reactive Watch (replaces the *Live twins)",
+        "AgentsService must expose the unified reactive Watch (replaces the *Live twins)",
     );
     for dead in [
         "SummariesLive", "CatalogsLive", "DetailLive", "WireLive", "SettingsLive",
@@ -77,12 +76,13 @@ fn agent_service_exposes_every_folded_rpc() {
     }
 
     // ── Sessions read (folded from SessionsService) ──
-    assert!(m.contains("Sessions"), "AgentService must expose the Sessions read");
-    assert!(m.contains("SessionsLive"), "AgentService must keep the relocated SessionsLive twin");
+    assert!(m.contains("Sessions"), "AgentsService must expose the Sessions read");
+    assert!(m.contains("SessionsLive"), "AgentsService must keep the relocated SessionsLive twin");
 
-    // ── Chat read (folded from ChatService) ──
-    assert!(m.contains("Chat"), "AgentService must expose the Chat read");
-    assert!(m.contains("ChatLive"), "AgentService must keep the relocated ChatLive twin");
+    // ── E6: chat was gutted entirely (no Chat/ChatLive RPC) ──
+    for dead in ["Chat", "ChatLive"] {
+        assert!(!m.contains(dead), "E6: chat rpc `{dead}` must be gutted");
+    }
 }
 
 #[test]
@@ -91,19 +91,14 @@ fn folded_rpcs_preserve_their_capability_and_blast_radius() {
     let by_method = |method: &str| {
         read_policies()
             .into_iter()
-            .find(|p| p.service == "AgentService" && p.method == method)
-            .unwrap_or_else(|| panic!("AgentService/{method} missing from descriptor"))
+            .find(|p| p.service == "AgentsService" && p.method == method)
+            .unwrap_or_else(|| panic!("AgentsService/{method} missing from descriptor"))
     };
 
     // Sessions read keeps `ship.sessions.read` / C0.
     let sessions = by_method("Sessions");
     assert_eq!(sessions.capability, "ship.sessions.read");
     assert_eq!(sessions.blast, BlastRadius::C0Read);
-
-    // Chat read keeps `ship.chat.read` / C0.
-    let chat = by_method("Chat");
-    assert_eq!(chat.capability, "ship.chat.read");
-    assert_eq!(chat.blast, BlastRadius::C0Read);
 
     // A folded profile write keeps `ship.agents.write` / C2.
     let create = by_method("Create");

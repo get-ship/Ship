@@ -1,54 +1,70 @@
 {
-  "List": {
+  "Catalogs": {
     "response_ok": {
-      "items": [
+      "skills": [
         {
-          "id": "rust-lane",
-          "scope": "project"
+          "id": "run",
+          "name": "Run",
+          "description": "Launch and drive the app."
         },
         {
-          "id": "code-reviewer",
-          "scope": "project"
+          "id": "verify",
+          "name": "Verify"
+        }
+      ],
+      "mcp": [
+        {
+          "id": "ship",
+          "name": "Ship"
+        }
+      ],
+      "rules": [
+        {
+          "id": "no-placeholders",
+          "name": "no-placeholders"
+        }
+      ],
+      "presets": [
+        {
+          "id": "ship-standard",
+          "name": "ship-standard",
+          "description": "Human confirms risky actions before they run."
+        }
+      ],
+      "tool_patterns": [
+        {
+          "pattern": "Read",
+          "label": "Read",
+          "source": "harness"
+        },
+        {
+          "pattern": "Bash(cargo *)",
+          "label": "Bash cargo",
+          "source": "bash"
         }
       ]
-    },
-    "request": {}
+    }
   },
-  "Summaries": {
+  "Create": {
     "response_ok": {
-      "items": [
-        {
-          "id": "rust-lane",
-          "name": "Rust Lane",
-          "description": "Full Rust implementation lane — compiler, runtime, MCP server.",
-          "skills_count": 2,
-          "mcp_count": 1,
-          "rules_count": 4,
-          "letter": "R",
-          "source": "project",
-          "tags": [
-            "implementation"
-          ],
-          "active": true
-        },
-        {
-          "id": "code-reviewer",
-          "name": "Code Reviewer",
-          "description": "Reviews diffs for security, correctness, and architecture drift.",
-          "skills_count": 3,
-          "mcp_count": 1,
-          "rules_count": 2,
-          "letter": "C",
-          "source": "project",
-          "tags": [
-            "review",
-            "workflow"
-          ],
-          "active": false
-        }
-      ]
+      "id": "rust-lane",
+      "scope": "project"
     },
-    "request": {}
+    "request": {
+      "id": "test-id",
+      "doc_json": "test-doc_json",
+      "scope": "test-scope"
+    }
+  },
+  "Delete": {
+    "response_ok": {
+      "id": "code-reviewer",
+      "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "scope": "test-scope"
+    }
   },
   "Detail": {
     "response_ok": {
@@ -94,52 +110,44 @@
       "id": "test-id"
     }
   },
-  "Catalogs": {
+  "Dispatch": {
     "response_ok": {
-      "skills": [
-        {
-          "id": "run",
-          "name": "Run",
-          "description": "Launch and drive the app."
-        },
-        {
-          "id": "verify",
-          "name": "Verify"
-        }
-      ],
-      "mcp": [
-        {
-          "id": "ship",
-          "name": "Ship"
-        }
-      ],
-      "rules": [
-        {
-          "id": "no-placeholders",
-          "name": "no-placeholders"
-        }
-      ],
-      "presets": [
-        {
-          "id": "ship-standard",
-          "name": "ship-standard",
-          "description": "Human confirms risky actions before they run."
-        }
-      ],
-      "tool_patterns": [
-        {
-          "pattern": "Read",
-          "label": "Read",
-          "source": "harness"
-        },
-        {
-          "pattern": "Bash(cargo *)",
-          "label": "Bash cargo",
-          "source": "bash"
-        }
-      ]
+      "session_id": "01J9ZK3QF8N2W6X7Y8Z9A0B1C2",
+      "slug": "harbor-7f3a9c",
+      "branch": "job/harbor-7f3a9c",
+      "resume": false,
+      "studio_url": "http://127.0.0.1:4310/sessions/harbor-7f3a9c",
+      "billing_warning": null
     },
-    "request": {}
+    "request": {
+      "agent": "test-agent",
+      "spec": "test-spec",
+      "prompt": "test-prompt",
+      "resume": false,
+      "harness": "test-harness",
+      "model": "test-model",
+      "open_tab": false,
+      "invocation": "test-invocation",
+      "keepalive": false,
+      "workspace": "test-workspace",
+      "slug": "test-slug",
+      "branch": "main",
+      "source_spec_path": "test-source_spec_path",
+      "depends_on": [],
+      "vars": {}
+    }
+  },
+  "Duplicate": {
+    "response_ok": {
+      "id": "rust-lane-copy",
+      "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "new_id": "test-new_id",
+      "scope": "test-scope",
+      "to": "test-to"
+    }
   },
   "Get": {
     "response_ok": {
@@ -150,6 +158,304 @@
     "request": {
       "id": "test-id",
       "scope": "test-scope"
+    }
+  },
+  "Grant": {
+    "response_ok": {
+      "agent": "rust-lane",
+      "grants": [
+        "ship.git"
+      ],
+      "provisioned": [
+        "ship.git",
+        "ship.runtime"
+      ],
+      "sessions_upgraded": 1
+    },
+    "request": {
+      "agent": "test-agent",
+      "grants": []
+    }
+  },
+  "Harnesses": {
+    "response_ok": {
+      "items": [
+        "claude",
+        "claude-code",
+        "shell"
+      ]
+    }
+  },
+  "List": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "rust-lane",
+          "scope": "project"
+        },
+        {
+          "id": "code-reviewer",
+          "scope": "project"
+        }
+      ]
+    }
+  },
+  "MoveScope": {
+    "response_ok": {
+      "id": "rust-lane",
+      "scope": "user"
+    },
+    "request": {
+      "id": "test-id",
+      "from": "test-from",
+      "to": "test-to"
+    }
+  },
+  "Patch": {
+    "response_ok": {
+      "id": "rust-lane",
+      "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "patch_json": "test-patch_json",
+      "scope": "test-scope"
+    }
+  },
+  "PermissionPresets": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "standard",
+          "label": "Standard",
+          "description": "Read + write within the workspace."
+        },
+        {
+          "id": "readonly",
+          "label": "Read-only",
+          "description": "Read access only — no writes."
+        },
+        {
+          "id": "elevated",
+          "label": "Elevated",
+          "description": "Includes network and system calls."
+        }
+      ]
+    }
+  },
+  "Put": {
+    "response_ok": {
+      "id": "rust-lane",
+      "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "doc_json": "test-doc_json",
+      "scope": "test-scope"
+    }
+  },
+  "Rename": {
+    "response_ok": {
+      "id": "rust-lane-v2",
+      "scope": "project"
+    },
+    "request": {
+      "id": "test-id",
+      "new_id": "test-new_id",
+      "scope": "test-scope"
+    }
+  },
+  "Sessions": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "sess-rust-lane-1",
+          "kind": "agent",
+          "workspace_id": "harbor",
+          "agent_id": "rust-lane",
+          "harness": "claude",
+          "pid": 12345,
+          "status": "exited",
+          "log_path": ".ship/logs/sess-rust-lane-1.log",
+          "spawned_at": "2026-05-24T18:00:00Z",
+          "last_activity": "2026-05-24T18:30:00Z",
+          "exit_code": 0,
+          "harness_session_id": "sess-rust-lane-1"
+        }
+      ]
+    }
+  },
+  "Settings": {
+    "response_ok": {
+      "agent": {
+        "id": "rust-lane",
+        "name": "Rust Lane",
+        "description": "Full Rust implementation lane — compiler, runtime, MCP server.",
+        "letter": "R",
+        "icon": "hammer",
+        "version": "1.0.0",
+        "tags": [
+          "implementation"
+        ],
+        "skills": [
+          "run",
+          "verify"
+        ],
+        "mcp_servers": [
+          "ship"
+        ],
+        "rules": [
+          "no-placeholders"
+        ],
+        "inline_rules": "Prefer minimal diffs. Test first.",
+        "permissions_tier": "standard",
+        "permissions": {
+          "preset": "standard",
+          "tools_allow": [
+            "Bash(cargo *)"
+          ],
+          "tools_ask": [],
+          "tools_deny": []
+        },
+        "source": "project"
+      },
+      "tiers": [
+        {
+          "id": "standard",
+          "label": "Standard",
+          "description": "Human confirms risky actions before they run.",
+          "selected": true
+        },
+        {
+          "id": "autonomous",
+          "label": "Autonomous",
+          "description": "Agent acts end-to-end; safety rails still apply.",
+          "selected": false
+        },
+        {
+          "id": "read-only",
+          "label": "Read Only",
+          "description": "Agent inspects and reports. No writes.",
+          "selected": false
+        }
+      ],
+      "catalogs": {
+        "skills": [],
+        "mcp": [],
+        "rules": [],
+        "presets": [
+          {
+            "id": "ship-standard",
+            "name": "ship-standard",
+            "description": "Human confirms risky actions before they run."
+          }
+        ],
+        "tool_patterns": [
+          {
+            "pattern": "Read",
+            "label": "Read",
+            "source": "harness"
+          }
+        ]
+      }
+    },
+    "request": {
+      "id": "test-id"
+    }
+  },
+  "Steer": {
+    "response_ok": {
+      "slug": "harbor-7f3a9c",
+      "steered": true
+    },
+    "request": {
+      "slug": "test-slug",
+      "message": "test-message"
+    }
+  },
+  "Stop": {
+    "response_ok": {
+      "slug": "harbor-7f3a9c",
+      "stopped": true
+    },
+    "request": {
+      "slug": "test-slug"
+    }
+  },
+  "Summaries": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "rust-lane",
+          "name": "Rust Lane",
+          "description": "Full Rust implementation lane — compiler, runtime, MCP server.",
+          "skills_count": 2,
+          "mcp_count": 1,
+          "rules_count": 4,
+          "letter": "R",
+          "source": "project",
+          "tags": [
+            "implementation"
+          ],
+          "active": true
+        },
+        {
+          "id": "code-reviewer",
+          "name": "Code Reviewer",
+          "description": "Reviews diffs for security, correctness, and architecture drift.",
+          "skills_count": 3,
+          "mcp_count": 1,
+          "rules_count": 2,
+          "letter": "C",
+          "source": "project",
+          "tags": [
+            "review",
+            "workflow"
+          ],
+          "active": false
+        }
+      ]
+    }
+  },
+  "Templates": {
+    "response_ok": {
+      "items": [
+        {
+          "id": "implementer",
+          "label": "Implementer",
+          "description": "Full implementation lane for a feature or fix.",
+          "letter": "I",
+          "hue": "blue",
+          "skill_ids": [
+            "run",
+            "verify"
+          ],
+          "permission_preset": "standard"
+        },
+        {
+          "id": "reviewer",
+          "label": "Reviewer",
+          "description": "Reviews diffs and surfaces correctness issues.",
+          "letter": "R",
+          "hue": "green",
+          "skill_ids": [
+            "code-review"
+          ],
+          "permission_preset": "readonly"
+        }
+      ]
+    }
+  },
+  "Watch": {
+    "response_ok": {
+      "patches": {
+        "patches": [
+          {
+            "op": "PATCH_OP_SET",
+            "value": "eyJzcGFjZXMiOltdfQ=="
+          }
+        ]
+      }
     }
   },
   "Wire": {
@@ -236,223 +542,6 @@
     },
     "request": {
       "id": "test-id"
-    }
-  },
-  "Settings": {
-    "response_ok": {
-      "agent": {
-        "id": "rust-lane",
-        "name": "Rust Lane",
-        "description": "Full Rust implementation lane — compiler, runtime, MCP server.",
-        "letter": "R",
-        "icon": "hammer",
-        "version": "1.0.0",
-        "tags": [
-          "implementation"
-        ],
-        "skills": [
-          "run",
-          "verify"
-        ],
-        "mcp_servers": [
-          "ship"
-        ],
-        "rules": [
-          "no-placeholders"
-        ],
-        "inline_rules": "Prefer minimal diffs. Test first.",
-        "permissions_tier": "standard",
-        "permissions": {
-          "preset": "standard",
-          "tools_allow": [
-            "Bash(cargo *)"
-          ],
-          "tools_ask": [],
-          "tools_deny": []
-        },
-        "source": "project"
-      },
-      "tiers": [
-        {
-          "id": "standard",
-          "label": "Standard",
-          "description": "Human confirms risky actions before they run.",
-          "selected": true
-        },
-        {
-          "id": "autonomous",
-          "label": "Autonomous",
-          "description": "Agent acts end-to-end; safety rails still apply.",
-          "selected": false
-        },
-        {
-          "id": "read-only",
-          "label": "Read Only",
-          "description": "Agent inspects and reports. No writes.",
-          "selected": false
-        }
-      ],
-      "catalogs": {
-        "skills": [],
-        "mcp": [],
-        "rules": [],
-        "presets": [
-          {
-            "id": "ship-standard",
-            "name": "ship-standard",
-            "description": "Human confirms risky actions before they run."
-          }
-        ],
-        "tool_patterns": [
-          {
-            "pattern": "Read",
-            "label": "Read",
-            "source": "harness"
-          }
-        ]
-      }
-    },
-    "request": {
-      "id": "test-id"
-    }
-  },
-  "Templates": {
-    "response_ok": {
-      "items": [
-        {
-          "id": "implementer",
-          "label": "Implementer",
-          "description": "Full implementation lane for a feature or fix.",
-          "letter": "I",
-          "hue": "blue",
-          "skill_ids": [
-            "run",
-            "verify"
-          ],
-          "permission_preset": "standard"
-        },
-        {
-          "id": "reviewer",
-          "label": "Reviewer",
-          "description": "Reviews diffs and surfaces correctness issues.",
-          "letter": "R",
-          "hue": "green",
-          "skill_ids": [
-            "code-review"
-          ],
-          "permission_preset": "readonly"
-        }
-      ]
-    },
-    "request": {}
-  },
-  "PermissionPresets": {
-    "response_ok": {
-      "items": [
-        {
-          "id": "standard",
-          "label": "Standard",
-          "description": "Read + write within the workspace."
-        },
-        {
-          "id": "readonly",
-          "label": "Read-only",
-          "description": "Read access only — no writes."
-        },
-        {
-          "id": "elevated",
-          "label": "Elevated",
-          "description": "Includes network and system calls."
-        }
-      ]
-    },
-    "request": {}
-  },
-  "Harnesses": {
-    "response_ok": {
-      "items": [
-        "claude",
-        "claude-code",
-        "shell"
-      ]
-    },
-    "request": {}
-  },
-  "Create": {
-    "response_ok": {
-      "id": "rust-lane",
-      "scope": "project"
-    },
-    "request": {
-      "id": "test-id",
-      "doc_json": "test-doc_json",
-      "scope": "test-scope"
-    }
-  },
-  "Put": {
-    "response_ok": {
-      "id": "rust-lane",
-      "scope": "project"
-    },
-    "request": {
-      "id": "test-id",
-      "doc_json": "test-doc_json",
-      "scope": "test-scope"
-    }
-  },
-  "Patch": {
-    "response_ok": {
-      "id": "rust-lane",
-      "scope": "project"
-    },
-    "request": {
-      "id": "test-id",
-      "patch_json": "test-patch_json",
-      "scope": "test-scope"
-    }
-  },
-  "Delete": {
-    "response_ok": {
-      "id": "code-reviewer",
-      "scope": "project"
-    },
-    "request": {
-      "id": "test-id",
-      "scope": "test-scope"
-    }
-  },
-  "Rename": {
-    "response_ok": {
-      "id": "rust-lane-v2",
-      "scope": "project"
-    },
-    "request": {
-      "id": "test-id",
-      "new_id": "test-new_id",
-      "scope": "test-scope"
-    }
-  },
-  "Duplicate": {
-    "response_ok": {
-      "id": "rust-lane-copy",
-      "scope": "project"
-    },
-    "request": {
-      "id": "test-id",
-      "new_id": "test-new_id",
-      "scope": "test-scope",
-      "to": "test-to"
-    }
-  },
-  "MoveScope": {
-    "response_ok": {
-      "id": "rust-lane",
-      "scope": "user"
-    },
-    "request": {
-      "id": "test-id",
-      "from": "test-from",
-      "to": "test-to"
     }
   }
 }

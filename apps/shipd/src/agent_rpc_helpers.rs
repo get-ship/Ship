@@ -1,4 +1,4 @@
-//! `impl OpsImpl` helpers for the canonical `AgentService` handler
+//! `impl OpsImpl` helpers for the canonical `AgentsService` handler
 //! (`agent_rpc.rs`). Extracted to keep the handler within the file cap — this is
 //! NOT a parallel handler, just the shared read/write/gate plumbing.
 //!

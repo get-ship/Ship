@@ -8,7 +8,7 @@
 //! guard the gateway's `auth_service.json` contract test provides.
 //!
 //! These fixtures are also the realistic seed corpus for fuzzing and the
-//! design-handoff reference (see proto/fixtures/theme.json).
+//! design-handoff reference (see proto/fixtures/fixture-seed.json).
 
 use serde_json::Value;
 use ship_ops_rpc::{

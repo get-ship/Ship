@@ -1,4 +1,4 @@
-//! AgentService — state layer. Pure domain logic over the agent-def tree.
+//! AgentsService — state layer. Pure domain logic over the agent-def tree.
 //! HTTP handlers in `mod.rs` are axum glue on top.
 //!
 //! Scope model: project wins by default. `?scope=user` forces user scope.

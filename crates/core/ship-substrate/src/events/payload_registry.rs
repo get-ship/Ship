@@ -255,7 +255,6 @@ register_event!("space.setting.changed", [EventScope::Space], Retention::Durable
 register_event!("studio.annotation.created", [EventScope::Space], Retention::Durable, Stability::Stable, "StudioAnnotationCreated");
 register_event!("studio.chat_turn", [EventScope::Space], Retention::Durable, Stability::Stable, "StudioChatTurn");
 register_event!("studio.feedback.created", [EventScope::Space], Retention::Durable, Stability::Stable, "StudioFeedbackCreated");
-register_event!("studio.message", [EventScope::Space], Retention::Durable, Stability::Stable, "StudioMessage");
 register_event!("studio.reply", [EventScope::Space], Retention::Durable, Stability::Stable, "StudioReply");
 
 // ── supervisor.* ────────────────────────────────────────────────────────────

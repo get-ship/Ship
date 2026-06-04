@@ -1,12 +1,12 @@
-//! Contract tests for the typed AGENT CONTROL results (`AgentService`):
+//! Contract tests for the typed AGENT CONTROL results (`AgentsService`):
 //! Dispatch / Stop / Steer / Grant (S4). Each was a `JsonResponse` blob; the
 //! fixture now decodes into a real message. The TS Connect client asserts the
-//! inverse against the same `agent_service.json` file.
+//! inverse against the same `agents_service.json` file.
 
 use serde_json::Value;
 use ship_ops_rpc::{DispatchResult, GrantResult, SteerResult, StopResult};
 
-const AGENT: &str = include_str!("../../../../../../proto/fixtures/agent_service.json");
+const AGENT: &str = include_str!("../../../../../../proto/fixtures/agents_service.json");
 
 fn response_ok(fixtures_json: &str, method: &str) -> Value {
     let v: Value = serde_json::from_str(fixtures_json).expect("fixtures parse");

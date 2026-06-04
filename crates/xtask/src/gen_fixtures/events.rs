@@ -254,7 +254,6 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         // ── Studio events ────────────────────────────────────────────────────
         "StudioAnnotationCreated" => json!({ "annotation_id": "test-annotation", "session_id": "test-session", "text": "test annotation" }),
         "StudioFeedbackCreated" => json!({ "feedback_id": "test-feedback", "rating": 5, "comment": "great" }),
-        "StudioMessage" => json!({ "session_id": "test-session", "text": "hello world" }),
         "StudioChatTurn" => json!({ "session_id": "test-session", "text": "tell me about this code" }),
         "StudioReply" => json!({ "actor_id": "test-actor", "text": "here is the analysis" }),
 

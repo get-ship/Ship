@@ -354,8 +354,8 @@ mod tests {
     #[test]
     fn emits_optional_args_with_optional_arg_object() {
         let out = emit().expect("emit succeeds");
-        // `chat.state` takes only optional args; the `args` parameter itself should be optional.
-        assert!(out.contains("state(args?: { workspace_id?: string; })"), "expected all-optional shape");
+        // `collections.state` takes only optional args; the `args` parameter itself should be optional.
+        assert!(out.contains("state(args?: { active?: string; })"), "expected all-optional shape");
     }
 
     #[test]

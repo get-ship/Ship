@@ -173,11 +173,6 @@ pub const STUDIO_ANNOTATION_CREATED: &str = "studio.annotation.created";
 /// A1: space, durable.
 pub const STUDIO_FEEDBACK_CREATED: &str = "studio.feedback.created";
 
-/// Studio — a generic message was emitted from a studio session.
-/// `entity_id` is the session id.
-/// A1: space, durable.
-pub const STUDIO_MESSAGE: &str = "studio.message";
-
 /// Sync — a push to the remote sync target failed.
 /// A1: device, durable.
 pub const SYNC_PUSH_FAILED: &str = "sync.push.failed";
@@ -366,7 +361,6 @@ pub const ALL: &[&str] = &[
     // studio
     STUDIO_ANNOTATION_CREATED,
     STUDIO_FEEDBACK_CREATED,
-    STUDIO_MESSAGE,
     // sync
     SYNC_PUSH_FAILED,
     SYNC_STARTED,

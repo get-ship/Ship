@@ -19,7 +19,6 @@ pub mod source_api;
 pub mod write_api;
 pub mod stream;
 pub mod state;
-pub mod chat_state;
 // Daemon-coupled SUI handlers — still here because they reach into
 // ApiState, services::registry, auth, and scopes (all daemon-internal).
 // Moving them needs a `ship-runtime` extraction first; tracked separately.
