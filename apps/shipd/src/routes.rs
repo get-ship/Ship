@@ -195,7 +195,7 @@ pub enum Route {
     SuiData,
 
     /// @route POST "/_sui/mutation/{name}"
-    /// @auth public
+    /// @auth handler
     SuiMutation { name: String },
 
     /// @route POST "/_sui/views/{name}/patch-elements"

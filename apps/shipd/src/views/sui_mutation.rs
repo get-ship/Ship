@@ -9,16 +9,23 @@
 //! 2. Compiles the view source to locate the binding whose key matches;
 //!    reads the `ship.X.Y` SDK chain from the binding's `expr`.
 //! 3. Parses the URL-encoded form body into a JSON object.
-//! 4. Calls `registry::call(chain_without_ship_prefix, &args, state)`.
+//! 4. Calls `command::call(chain_without_ship_prefix, &args, ctx)` —
+//!    the ONE capability gate (#78). Was `registry::call` (read dispatch)
+//!    before the registry cut (#5); that was a silent-broken write
+//!    endpoint because no read op owned the mutation chain.
 //! 5. On success: HTTP 303 to `Referer` (or `/`).
 //! 6. On error: HTTP 303 to `Referer?_sui_error=<msg>` (simple flash).
 //!
-//! Only SDK operations registered in the service registry work via PE.
-//! JS-attached mutations bypass this endpoint and call the SDK directly.
+//! The route declares `@auth handler`; the auth middleware populates
+//! `AuthContext` in request extensions and the per-route auth layer
+//! passes through. `command::call` enforces the per-op blast radius
+//! (the gate). Only SDK operations registered in the mutation catalog
+//! work via PE; JS-attached mutations bypass this endpoint and call
+//! the SDK directly.
 
 use axum::{
     body::{Body, Bytes},
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query, State},
     http::{StatusCode, header},
     response::Response,
 };
@@ -27,8 +34,9 @@ use serde_json::Value;
 use sui_compiler::{bindings, keys::BindingKind, parse};
 
 use deck::render_helpers::{is_valid_view_name, not_found, render_view_source};
+use crate::auth::AuthContext;
+use crate::services::command::{self, CommandCtx};
 use crate::ship_runtime::ApiState;
-use crate::services::registry;
 
 #[derive(Debug, Deserialize)]
 pub struct MutationQuery {
@@ -41,6 +49,7 @@ pub async fn serve_sui_mutation(
     Path(name): Path<String>,
     Query(q): Query<MutationQuery>,
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     headers: axum::http::HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -62,11 +71,12 @@ pub async fn serve_sui_mutation(
         }
     };
 
-    let registry_name = chain.strip_prefix("ship.").unwrap_or(&chain);
+    let op_name = chain.strip_prefix("ship.").unwrap_or(&chain);
     let args = parse_form_body(&body);
     let referer = referer_url(&headers);
+    let ctx = CommandCtx { state: &state, auth: &auth };
 
-    match registry::call(registry_name, &args, &state) {
+    match command::call(op_name, &args, &ctx).await {
         Ok(_) => redirect_303(&referer),
         Err(e) => {
             let msg = e.to_string();
@@ -135,12 +145,12 @@ fn redirect_error(referer: &str, msg: &str) -> Response {
 fn percent_encode(s: &str) -> String {
     form_urlencoded::byte_serialize(s.as_bytes()).collect()
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::extract::State;
+    use axum::extract::{Extension, State};
     use axum::http::HeaderMap;
+    use ship_substrate::events::CallerKind;
     use tempfile::TempDir;
 
     fn make_api_state(dir: &TempDir) -> ApiState {
@@ -153,8 +163,24 @@ mod tests {
         std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
     }
 
+    /// Test auth: CLI/daemon-style caller with `Scope::Full` so the gate
+    /// (which an unknown-op test never reaches) doesn't false-fail before
+    /// the dispatch chain reports `unknown_command`. Operator-cred stays
+    /// `false` — no S6 elevation here.
+    fn make_test_auth() -> AuthContext {
+        AuthContext {
+            caller_kind: CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            space_id: None,
+            session_id: None,
+            scopes: vec![crate::auth::Scope::Full],
+            grants: vec![],
+            operator_cred: false,
+        }
+    }
+
     /// A form key that matches no mutation binding resolves to `None`,
-    /// which the handler turns into a 404 mentioning the missing key.
     #[test]
     fn missing_form_key_resolves_none() {
         let src = r#"<form mutation="ship.known.op"></form>"#;
@@ -182,25 +208,27 @@ mod tests {
     async fn unknown_view_404() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
+        let auth = make_test_auth();
         let resp = serve_sui_mutation(
             Path("does-not-exist".to_string()),
             Query(MutationQuery { form: "b0".to_string() }),
             State(state),
+            Extension(auth),
             HeaderMap::new(),
             Bytes::new(),
         )
         .await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
-
-    /// Unknown SDK chain → registry returns error → 303 to error URL.
+    /// Unknown SDK chain → command dispatch returns error → 303 to error URL.
     #[tokio::test(flavor = "multi_thread")]
     async fn unknown_chain_redirects_to_error() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
+        let auth = make_test_auth();
 
         // Build a minimal view with a mutation binding pointing at an
-        // unknown chain so the registry dispatch fails.
+        // unknown chain so the command dispatch fails.
         let src = r#"<form mutation="ship.unknown.op"></form>"#;
         let program = parse::parse(src).expect("parse");
         let reg = bindings::build(&program);
@@ -211,18 +239,19 @@ mod tests {
             .key
             .clone();
 
-        // Inject the view source into helpers — we can't do that since it
-        // only embeds known views. Instead call resolve_mutation_chain
-        // directly to verify the chain resolution, then call dispatch path.
+        // resolve_mutation_chain resolves the chain. We then drive
+        // command::call directly with the same op name to confirm the
+        // error path (unknown op → "unknown command").
         let chain = resolve_mutation_chain(src, &key).expect("chain found");
         assert_eq!(chain, "ship.unknown.op");
 
-        // Call registry dispatch directly to confirm error path.
+        let op_name = chain.strip_prefix("ship.").unwrap_or(&chain);
         let args = Value::Object(Default::default());
-        let result = registry::call("unknown.op", &args, &state);
+        let ctx = CommandCtx { state: &state, auth: &auth };
+        let result = command::call(op_name, &args, &ctx).await;
         assert!(result.is_err(), "unknown op must error");
         let msg = result.unwrap_err().to_string();
-        assert!(msg.contains("unknown_service") || msg.contains("unknown service"));
+        assert!(msg.contains("unknown"), "expected unknown-command error, got: {msg}");
     }
 
     #[test]

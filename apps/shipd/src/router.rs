@@ -141,16 +141,13 @@ pub fn build_router(
         // those paths; shipd no longer hand-lists them here.
         .ship_public_route(Route::SuiViewSse_template(), views::sui_sse::serve_sui_sse)
         .ship_public_route(Route::SuiData, views::sui_data::serve_data)
-        .ship_public_route(
-            Route::SuiMutation_template(),
-            views::sui_mutation::serve_sui_mutation,
-        )
-        // NOTE: `SuiPatchElements` is intentionally NOT registered here —
-        // its handler requires `Scope::Full` and extracts
-        // `Extension<AuthContext>`, so it must sit behind the auth
-        // middleware. A public registration left that extension
-        // unfulfilled and every POST 500'd. It is registered in
-        // `build_ship_routes` (the authenticated group) instead.
+        // NOTE: `SuiMutation` is intentionally NOT registered here — it is a
+        // C1/C2 write endpoint and routes through `services::command::call`
+        // (the ONE capability gate). The auth_middleware must run first to
+        // populate `AuthContext` in request extensions; a public
+        // registration left that extension unfulfilled and every mutation
+        // POST silently 500'd. It is registered in `build_ship_routes`
+        // (the authenticated group) below.
         .ship_public_route(Route::SuiSource_template(), views::sui_source::serve_sui_source)
         // The HMR route (SuiDevHmr) is NOT wired here — it stays
         // development-only and is merged into `root` inside the
@@ -412,6 +409,17 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListSessionsAcrossProjects, runtime_api::list_sessions_across_projects)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
+        // `POST /_sui/mutation/{name}` — PE form submit. C1/C2 write
+        // endpoint; routes through `services::command::call` (the ONE
+        // capability gate). Authenticated (enforces via the gate, not
+        // scope — `@auth handler`); the rest of the `/_sui/*` surface is
+        // public and lives in `public_routes`. The handler takes the
+        // router state (`ApiState = Arc<ShipRuntime>`), so it composes
+        // cleanly into this stateful group.
+        .ship_route(
+            Route::SuiMutation_template(),
+            views::sui_mutation::serve_sui_mutation,
+        )
         // `POST /_sui/views/{name}/patch-elements` — agent-push DOM patches.
         // Authenticated (requires `Scope::Full`); the rest of the `/_sui/*`
         // surface is public and lives in `public_routes`. The handler takes
