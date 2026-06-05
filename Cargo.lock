@@ -7885,6 +7885,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-kv"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "sqlx",
+ "tracing",
+]
+
+[[package]]
 name = "ship-ops-rpc"
 version = "0.1.0"
 dependencies = [
@@ -7980,6 +7993,7 @@ dependencies = [
  "ship-host",
  "ship-isolation",
  "ship-kernel",
+ "ship-kv",
  "ship-pipelines",
  "ship-runner",
  "ship-substrate",

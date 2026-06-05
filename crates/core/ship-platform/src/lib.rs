@@ -8,7 +8,7 @@ pub mod isolation;
 pub mod isolation_ops;
 pub mod sandbox;
 pub mod triggers;
-pub mod kv;
+pub use ship_kv as kv;
 pub mod projections;
 pub mod projects;
 pub mod registry;

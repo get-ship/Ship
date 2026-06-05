@@ -39,6 +39,7 @@ ship-runner = { path = "../ship-substrate/crates/ship-runner" }
 # through this agents crate (no laundered pipelines→agents coupling). No cycle:
 # ship-agents depends on ship-substrate/ship-runner/ship-types, not ship-platform.
 ship-agents = { path = "crates/ship-agents" }
+ship-kv = { path = "crates/ship-kv" }
 ship-gateway-client = { path = "crates/ship-gateway-client" }
 # Isolation types + recommender. Default-features off — youki and
 # sidecar backends stay opt-in (the daemon's feature flags layer them in).
