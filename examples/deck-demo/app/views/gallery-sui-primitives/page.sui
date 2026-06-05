@@ -586,6 +586,411 @@
       <sui-autocomplete name="demo-ac" placeholder="Search fruits…" suggestions='["Apple","Apricot","Banana","Blueberry","Cherry","Date"]' size="md"></sui-autocomplete>
     </div>
   </section>
+
+  <!-- ── OVERLAYS ─────────────────────────────────────────────────────────── -->
+
+  <!-- sui-dialog -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-dialog</h2>
+    <div class="gsp-row gsp-wrap">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">Modal dialog — size=md, backdrop=default</p>
+        <sui-button variant="outline" size="sm" on:click={() => dialogOpen.set(true)}>Open dialog</sui-button>
+        <sui-dialog prop:open={dialogOpen()}>
+          <span slot="header">Confirm action</span>
+          Are you sure you want to proceed? This cannot be undone.
+          <span slot="footer">
+            <sui-button variant="outline" size="sm" on:click={() => dialogOpen.set(false)}>Cancel</sui-button>
+            <sui-button variant="solid" tone="primary" size="sm" on:click={() => dialogOpen.set(false)}>Confirm</sui-button>
+          </span>
+        </sui-dialog>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-alert-dialog -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-alert-dialog</h2>
+    <div class="gsp-row gsp-wrap">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">Destructive confirm dialog with built-in cancel/confirm footer</p>
+        <sui-button variant="outline" tone="destructive" size="sm" on:click={() => alertDialogOpen.set(true)}>Delete item</sui-button>
+        <sui-alert-dialog
+          prop:open={alertDialogOpen()}
+          tone="destructive"
+          confirm-label="Delete"
+          cancel-label="Keep it"
+        >
+          <span slot="title">Delete this item?</span>
+          This action is permanent and cannot be reversed. All associated data will be removed.
+        </sui-alert-dialog>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-drawer -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-drawer</h2>
+    <div class="gsp-row gsp-wrap">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">Side-sheet panel — side=right, size=md</p>
+        <sui-button variant="outline" size="sm" on:click={() => drawerOpen.set(true)}>Open drawer</sui-button>
+        <sui-drawer prop:open={drawerOpen()} side="right" size="md">
+          <span slot="title">Settings</span>
+          <span slot="description">Adjust your workspace preferences.</span>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <sui-field>
+              <sui-label slot="label">Theme</sui-label>
+              <sui-select name="drawer-theme"><option value="light">Light</option><option value="dark">Dark</option></sui-select>
+            </sui-field>
+            <sui-field>
+              <sui-label slot="label">Language</sui-label>
+              <sui-select name="drawer-lang"><option value="en">English</option><option value="es">Español</option></sui-select>
+            </sui-field>
+          </div>
+          <span slot="footer">
+            <sui-button variant="outline" size="sm" on:click={() => drawerOpen.set(false)}>Cancel</sui-button>
+            <sui-button variant="solid" tone="primary" size="sm" on:click={() => drawerOpen.set(false)}>Save</sui-button>
+          </span>
+        </sui-drawer>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-popover -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-popover</h2>
+    <div class="gsp-row gsp-wrap">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">Anchor-positioned popover — placement=bottom</p>
+        <sui-popover placement="bottom">
+          <sui-button slot="trigger" variant="outline" size="sm">Open popover</sui-button>
+          <div style="padding:var(--space-3);max-width:220px">
+            <strong style="font-size:var(--text-sm)">Popover content</strong>
+            <p style="font-size:var(--text-xs);color:var(--muted-foreground);margin:var(--space-1) 0 0">
+              Click outside or press Escape to dismiss. Uses native popover API for top-layer rendering.
+            </p>
+          </div>
+        </sui-popover>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-dropdown-menu -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-dropdown-menu</h2>
+    <div class="gsp-row gsp-wrap">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">Trigger-anchored menu with ARIA role=menu + keyboard navigation</p>
+        <sui-dropdown-menu>
+          <sui-button slot="trigger" variant="outline" size="sm">
+            Actions
+            <sui-icon slot="trailing" name="chevron-down" size="xs"></sui-icon>
+          </sui-button>
+          <sui-menu-item value="edit">Edit</sui-menu-item>
+          <sui-menu-item value="duplicate">Duplicate</sui-menu-item>
+          <sui-menu-separator></sui-menu-separator>
+          <sui-menu-item value="delete" tone="destructive">Delete</sui-menu-item>
+        </sui-dropdown-menu>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-hover-card -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-hover-card</h2>
+    <div class="gsp-row gsp-wrap">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">Hover-triggered rich content overlay — placement=bottom, delay=300ms</p>
+        <sui-hover-card placement="bottom" show-delay="300" hide-delay="150">
+          <sui-button slot="trigger" variant="ghost" size="sm">
+            <sui-avatar name="Alice Hart" size="sm" tone="primary"></sui-avatar>
+            Alice Hart
+          </sui-button>
+          <div>
+            <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2)">
+              <sui-avatar name="Alice Hart" size="md" tone="primary"></sui-avatar>
+              <div>
+                <div style="font-weight:var(--font-weight-semibold);font-size:var(--text-sm)">Alice Hart</div>
+                <div style="font-size:var(--text-xs);color:var(--muted-foreground)">Senior Engineer</div>
+              </div>
+            </div>
+            <p style="font-size:var(--text-xs);color:var(--muted-foreground);margin:0">
+              Joined 2023 · 142 contributions · Rust, TypeScript
+            </p>
+          </div>
+        </sui-hover-card>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-context-menu -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-context-menu</h2>
+    <div class="gsp-row gsp-wrap">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">Right-click triggered overlay menu — positioned at cursor via show(x,y)</p>
+        <sui-context-menu>
+          <div slot="trigger" class="gsp-context-zone">Right-click this area</div>
+          <sui-menu-item value="open">Open</sui-menu-item>
+          <sui-menu-item value="rename">Rename</sui-menu-item>
+          <sui-menu-separator></sui-menu-separator>
+          <sui-menu-item value="copy">Copy path</sui-menu-item>
+          <sui-menu-separator></sui-menu-separator>
+          <sui-menu-item value="delete" tone="destructive">Move to trash</sui-menu-item>
+        </sui-context-menu>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── OPAQUE-JSON-PROP ──────────────────────────────────────────────────── -->
+
+  <!-- sui-combobox -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-combobox</h2>
+    <div class="gsp-row gsp-wrap">
+      <div class="gsp-card" style="max-width:320px">
+        <p class="gsp-card-desc">Single-select with type-to-filter — options via JSON</p>
+        <sui-combobox
+          name="demo-combo"
+          placeholder="Search framework…"
+          options='[{"value":"react","label":"React"},{"value":"vue","label":"Vue"},{"value":"svelte","label":"Svelte"},{"value":"solid","label":"SolidJS"},{"value":"sui","label":"SUI (Ship)"}]'
+          size="md"
+        ></sui-combobox>
+      </div>
+      <div class="gsp-card" style="max-width:280px">
+        <p class="gsp-card-desc">Pre-selected value · size=sm</p>
+        <sui-combobox
+          name="demo-combo2"
+          value="sui"
+          options='[{"value":"react","label":"React"},{"value":"vue","label":"Vue"},{"value":"sui","label":"SUI (Ship)"}]'
+          size="sm"
+          tone="primary"
+        ></sui-combobox>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-calendar -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-calendar</h2>
+    <div class="gsp-col">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">Month view with 3 events — focus-date=2026-06-05</p>
+        <sui-calendar
+          view="month"
+          focus-date="2026-06-05"
+          events='[{"id":"e1","title":"Team standup","start":"2026-06-03T09:00:00","end":"2026-06-03T09:30:00","tone":"primary"},{"id":"e2","title":"Design review","start":"2026-06-10T14:00:00","end":"2026-06-10T15:00:00","tone":"info"},{"id":"e3","title":"Ship launch","start":"2026-06-20T12:00:00","end":"2026-06-20T13:00:00","tone":"success"}]'
+        ></sui-calendar>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-tree -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-tree</h2>
+    <div class="gsp-row gsp-wrap">
+      <div class="gsp-card" style="min-width:240px">
+        <p class="gsp-card-desc">Hierarchical tree — selectable=single, show-guides</p>
+        <sui-tree
+          label="File system"
+          selectable="single"
+          show-guides
+          nodes='[{"id":"src","label":"src","children":[{"id":"comp","label":"components","children":[{"id":"btn","label":"sui-button.sui"},{"id":"card","label":"sui-card.sui"}]},{"id":"views","label":"views","children":[{"id":"pg","label":"page.sui"},{"id":"ct","label":"controller.ts"}]}]},{"id":"tests","label":"tests"}]'
+        ></sui-tree>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-tree-view / sui-tree-item — already covered above but was a thin static stub; a full grid follows -->
+  <!-- sui-tree-grid -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-tree-grid</h2>
+    <div class="gsp-col">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">Hierarchical tree-grid (role=treegrid) — columns with Name, Size, Kind</p>
+        <sui-tree-grid
+          label="Artifact tree"
+          selectable="single"
+          nodes='[{"id":"dist","label":"dist","size":"2.4 MB","kind":"dir","children":[{"id":"main","label":"main.js","size":"1.1 MB","kind":"js"},{"id":"css","label":"style.css","size":"42 KB","kind":"css"},{"id":"assets","label":"assets","size":"1.2 MB","kind":"dir","children":[{"id":"logo","label":"logo.svg","size":"4 KB","kind":"svg"}]}]},{"id":"pkg","label":"package.json","size":"1.8 KB","kind":"json"}]'
+          columns='[{"id":"label","header":"Name","accessorKey":"label"},{"id":"size","header":"Size","accessorKey":"size"},{"id":"kind","header":"Kind","accessorKey":"kind"}]'
+        ></sui-tree-grid>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-sheet -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-sheet</h2>
+    <div class="gsp-col">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">Spreadsheet primitive — 2-D cell space with A1 addressing and formula bar</p>
+        <sui-sheet
+          label="Budget sheet"
+          show-headers
+          show-gridlines
+          show-formula-bar
+          workbook='{"sheets":[{"id":"sheet1","name":"Q2 Budget","cells":{"A1":{"v":"Category"},"B1":{"v":"Budget"},"C1":{"v":"Spent"},"A2":{"v":"Engineering"},"B2":{"v":50000},"C2":{"v":42300},"A3":{"v":"Design"},"B3":{"v":20000},"C3":{"v":18750},"A4":{"v":"Marketing"},"B4":{"v":15000},"C4":{"v":9200}}}]}'
+          style="height:220px"
+        ></sui-sheet>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── INFRA/COMPANION ───────────────────────────────────────────────────── -->
+
+  <!-- sui-portal -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-portal</h2>
+    <div class="gsp-row gsp-wrap">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">
+          Teleports slotted children into a different DOM location (stacking-context escape).
+          The portal below appends a labelled marker to <code>body</code> — inspect the
+          DOM to confirm it lives outside this view's mount point.
+        </p>
+        <sui-portal target="body">
+          <div class="gsp-portal-marker" data-portal-demo aria-hidden="true">
+            [sui-portal demo — this node lives in &lt;body&gt;, not in the gallery mount]
+          </div>
+        </sui-portal>
+        <p class="gsp-card-note">Portal active — check DevTools &gt; Elements for the marker in &lt;body&gt;.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-toast-container -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-toast-container / sui-toast-host</h2>
+    <div class="gsp-row gsp-wrap">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">
+          <code>sui-toast-container</code> is the fixed-position stacking host.
+          <code>sui-toast-host</code> wraps it and listens for <code>ship:notify</code> events.
+          Click the button to dispatch a notify event — the host shows the toast.
+        </p>
+        <sui-toast-host position="bottom-right"></sui-toast-host>
+        <div class="gsp-row gsp-wrap">
+          <sui-button variant="outline" size="sm" on:click={() => showSuccessToast()}>
+            Show success toast
+          </sui-button>
+          <sui-button variant="outline" size="sm" on:click={() => showErrorToast()}>
+            Show error toast
+          </sui-button>
+          <sui-button variant="outline" size="sm" on:click={() => showInfoToast()}>
+            Show info toast
+          </sui-button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-tab-panel -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-tab-panel (inside sui-tabs)</h2>
+    <div class="gsp-col">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">
+          <code>sui-tab-panel</code> is the companion panel element driven by the parent
+          <code>sui-tabs</code> controller. Each panel shows when its <code>name</code>
+          matches the active tab.
+        </p>
+        <sui-tabs active="tp1" variant="underline">
+          <sui-tab name="tp1" label="Overview"></sui-tab>
+          <sui-tab name="tp2" label="Details"></sui-tab>
+          <sui-tab name="tp3" label="History"></sui-tab>
+          <sui-tab-panel name="tp1">
+            <div class="gsp-panel-content">
+              Overview panel — rendered when the Overview tab is active.
+              Uses <code>animation: sui-tab-panel-fade</code> on transition.
+            </div>
+          </sui-tab-panel>
+          <sui-tab-panel name="tp2">
+            <div class="gsp-panel-content">
+              Details panel — secondary content rendered on demand.
+            </div>
+          </sui-tab-panel>
+          <sui-tab-panel name="tp3">
+            <div class="gsp-panel-content">
+              History panel — lazy content until the user navigates here.
+            </div>
+          </sui-tab-panel>
+        </sui-tabs>
+      </div>
+    </div>
+  </section>
+
+  <!-- sui-error-boundary -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-error-boundary</h2>
+    <div class="gsp-col">
+      <div class="gsp-card">
+        <p class="gsp-card-desc">
+          Render-fault isolation. Toggle the switch to simulate a subtree error;
+          the boundary catches it and shows the fallback. Click Retry to recover.
+        </p>
+        <div class="gsp-row" style="margin-bottom:var(--space-3)">
+          <sui-switch name="demo-eb-trigger" prop:checked={triggerError()} on:change={(e) => triggerError.set(e.detail.checked)} label="Trigger subtree error"></sui-switch>
+        </div>
+        <sui-error-boundary fallback-text="The widget threw an error — click Retry to recover.">
+          {#if triggerError()}
+            <div class="gsp-error-thrower">This subtree is broken (error boundary will catch)</div>
+          {:else}
+            <div class="gsp-panel-content" style="color:var(--success-foreground,var(--success))">
+              Subtree is healthy. Toggle the switch above to simulate a fault.
+            </div>
+          {/if}
+        </sui-error-boundary>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── #263-BLOCKED ──────────────────────────────────────────────────────── -->
+
+  <!-- sui-board / sui-draw / sui-media-av / sui-media-image / sui-media-csv -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">Blocked by #263 — production-compile gap</h2>
+    <div class="gsp-col">
+
+      <div class="gsp-blocked-card">
+        <div class="gsp-blocked-header">
+          <code>sui-board</code>
+          <span class="gsp-blocked-badge">blocked by #263 — production-compile gap</span>
+        </div>
+        <p class="gsp-blocked-desc">
+          <code>sui-board</code> uses <code>Set.prototype.has()</code> inside template
+          expressions, which the real (native) SUI compiler rejects. Passes jsdom tests;
+          fails <code>cargo run -p sui-compiler -- build</code>. Tracked in #263.
+        </p>
+      </div>
+
+      <div class="gsp-blocked-card">
+        <div class="gsp-blocked-header">
+          <code>sui-draw</code>
+          <span class="gsp-blocked-badge">blocked by #263 — production-compile gap</span>
+        </div>
+        <p class="gsp-blocked-desc">
+          <code>sui-draw</code> uses <code>Set.prototype.has()</code> inside template
+          expressions, which the real (native) SUI compiler rejects. Passes jsdom tests;
+          fails <code>cargo run -p sui-compiler -- build</code>. Tracked in #263.
+        </p>
+      </div>
+
+      <div class="gsp-blocked-card">
+        <div class="gsp-blocked-header">
+          <code>sui-media-av</code> / <code>sui-media-image</code> / <code>sui-media-csv</code>
+          <span class="gsp-blocked-badge">blocked by #263 — production-compile gap</span>
+        </div>
+        <p class="gsp-blocked-desc">
+          All three <code>sui-media-*</code> components use <code>bind:this</code> on
+          non-root elements inside conditional branches, which the real compiler rejects.
+          The gallery-sui-media view covers the scalar-attr surface of these components
+          (no expressions involving the blocked patterns). Tracked in #263.
+        </p>
+      </div>
+
+    </div>
+  </section>
 </div>
 
 <style>
@@ -632,5 +1037,101 @@
   }
   .gsp-wrap {
     flex-wrap: wrap;
+  }
+
+  /* ── Overlay / infra card chrome ───────────────────────────────── */
+  .gsp-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-1);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-width: 200px;
+  }
+
+  .gsp-card-desc {
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .gsp-card-note {
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    font-style: italic;
+    margin: 0;
+  }
+
+  .gsp-context-zone {
+    padding: var(--space-4) var(--space-6);
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-md);
+    text-align: center;
+    font-size: var(--text-sm);
+    color: var(--muted-foreground);
+    user-select: none;
+    cursor: context-menu;
+  }
+
+  .gsp-portal-marker {
+    display: none;
+  }
+
+  .gsp-panel-content {
+    padding: var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--muted-foreground);
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+  }
+
+  .gsp-error-thrower {
+    display: none;
+  }
+
+  /* ── #263 blocked card ──────────────────────────────────────────── */
+  .gsp-blocked-card {
+    border: 1px solid color-mix(in oklch, var(--destructive) 30%, var(--border));
+    border-radius: var(--radius-md);
+    background: color-mix(in oklch, var(--destructive) 5%, var(--background));
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .gsp-blocked-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+
+  .gsp-blocked-header code {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--foreground);
+  }
+
+  .gsp-blocked-badge {
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--destructive-foreground, var(--destructive));
+    background: color-mix(in oklch, var(--destructive) 12%, var(--background));
+    border: 1px solid color-mix(in oklch, var(--destructive) 30%, transparent);
+    border-radius: var(--radius-full);
+    padding: 2px var(--space-2);
+    white-space: nowrap;
+  }
+
+  .gsp-blocked-desc {
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    margin: 0;
+    line-height: 1.6;
   }
 </style>
