@@ -24,9 +24,6 @@ pub use agents::skill;
 pub use agents::skill_paths;
 pub use agents::skill_vars;
 
-#[cfg(feature = "unstable")]
-pub mod sync;
-
 #[cfg(test)]
 pub mod testutil;
 

@@ -7734,6 +7734,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-cloud"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "serde",
+ "serde_json",
+ "ship-gateway-client",
+ "ship-substrate",
+ "ship-types",
+ "tempfile",
+ "tracing",
+ "ureq",
+]
+
+[[package]]
 name = "ship-collection"
 version = "0.1.0"
 dependencies = [
@@ -7974,6 +7990,7 @@ dependencies = [
  "ship-agents",
  "ship-analytics",
  "ship-artifacts",
+ "ship-cloud",
  "ship-collection",
  "ship-config",
  "ship-gateway-client",

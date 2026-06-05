@@ -1,21 +1,24 @@
-/// Integration tests — sync wire-format invariants.
-///
-/// Covers the canonical wire-format contracts identified in the audit:
-///
-/// 1. `x-project-id` header model — space_id must NOT appear in PushRequest body
-/// 2. EventEnvelope field layout round-trips correctly through PushRequest JSON
-/// 3. `sync.push.completed` payload shape — F4 fix: uses `events_pushed` + `duration_ms`
-///    (not `accepted`; the PushResponse.accepted field is the transport ack count,
-///    but the event payload uses the canonical field names from SyncPushCompleted)
-/// 4. PullResponse envelope body preserves all EventEnvelope fields intact
-/// 5. `elevated` flag survives round-trip through PushRequest → JSON
-///
-/// All tests are pure ser/de — no filesystem, no network, no tempdir needed.
+//! Integration tests — sync wire-format invariants.
+//!
+//! Covers the canonical wire-format contracts identified in the audit:
+//!
+//! 1. `x-project-id` header model — space_id must NOT appear in PushRequest body
+//! 2. EventEnvelope field layout round-trips correctly through PushRequest JSON
+//! 3. `sync.push.completed` payload shape — F4 fix: uses `events_pushed` + `duration_ms`
+//!    (not `accepted`; the PushResponse.accepted field is the transport ack count,
+//!    but the event payload uses the canonical field names from SyncPushCompleted)
+//! 4. PullResponse envelope body preserves all EventEnvelope fields intact
+//! 5. `elevated` flag survives round-trip through PushRequest → JSON
+//!
+//! All tests are pure ser/de — no filesystem, no network, no tempdir needed.
+//!
+//! Originally nested under `ship-platform/src/sync/tests/integration_wire_format.rs`;
+//! carved into a top-level integration test for `ship-cloud`.
+
 use chrono::Utc;
 use ship_substrate::events::EventEnvelope;
+use ship_cloud::types::{PullResponse, PushRequest, PushResponse};
 use ship_types::payload::SyncPushCompleted;
-
-use crate::sync::types::{PullResponse, PushRequest, PushResponse};
 
 fn elevated_envelope(id: &str, event_type: &str) -> EventEnvelope {
     EventEnvelope {

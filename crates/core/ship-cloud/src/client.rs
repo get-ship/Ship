@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 
 use ship_substrate::events::EventEnvelope;
-use crate::sync::types::{PullResponse, PushRequest, PushResponse};
+use crate::types::{PullResponse, PushRequest, PushResponse};
 
 pub struct SyncClient {
     base_url: String,
@@ -20,9 +20,12 @@ impl SyncClient {
 
     /// Return the normalised base URL. Test-only — surfaces the private field
     /// so integration tests outside this file can assert URL shaping without
-    /// making live HTTP calls.
-    #[cfg(test)]
-    pub(crate) fn base_url(&self) -> &str {
+    /// Return the normalised base URL. Test-only — surfaces the private field
+    /// so the integration tests in `tests/integration_client.rs` can assert
+    /// URL shaping without making live HTTP calls. `pub` rather than
+    /// `#[cfg(test)]` because integration tests live in a separate crate;
+    /// keeping the doc comment signals intent to human readers.
+    pub fn base_url(&self) -> &str {
         &self.base_url
     }
 

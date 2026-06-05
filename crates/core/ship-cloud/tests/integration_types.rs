@@ -1,18 +1,22 @@
-/// Integration tests — PushRequest, PushResponse, PullResponse contracts.
-///
-/// Covers:
-/// - PushRequest serialises events correctly, space_id in envelope body
-/// - PushResponse deserialises accepted count + cursor
-/// - PullResponse deserialises event list + cursor
-/// - PullResponse with empty events list
-/// - PushResponse cursor field is the canonical advancement token
-/// - EventEnvelope round-trip through PushRequest → JSON → back
-///
-/// These are pure ser/de tests — no filesystem, no network. Hermetic.
+//! Integration tests — PushRequest, PushResponse, PullResponse contracts.
+//!
+//! Covers:
+//! - PushRequest serialises events correctly, space_id in envelope body
+//! - PushResponse deserialises accepted count + cursor
+//! - PullResponse deserialises event list + cursor
+//! - PullResponse with empty events list
+//! - PushResponse cursor field is the canonical advancement token
+//! - EventEnvelope round-trip through PushRequest → JSON → back
+//!
+//! These are pure ser/de tests — no filesystem, no network. Hermetic.
+//!
+//! Originally nested under `ship-platform/src/sync/tests/integration_types.rs`;
+//! carved into a top-level integration test for `ship-cloud` so the
+//! wire-format contract is enforced at the crate boundary.
+
 use chrono::Utc;
 use ship_substrate::events::EventEnvelope;
-
-use crate::sync::types::{PullResponse, PushRequest, PushResponse};
+use ship_cloud::types::{PullResponse, PushRequest, PushResponse};
 
 fn sample_envelope(id: &str, event_type: &str, space_id: &str) -> EventEnvelope {
     EventEnvelope {

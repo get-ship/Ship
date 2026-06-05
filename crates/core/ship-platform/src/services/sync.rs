@@ -6,7 +6,12 @@
 //!
 //! Pull (routing received events to subscribed actors) is Phase 2 — it requires
 //! kernel access from within the service task, which doesn't exist yet.
-
+//!
+//! Carve note (c7-cloud): the underlying `SyncClient` and the push/pull
+//! request/response types moved to the `ship-cloud` crate. This file keeps
+//! only the `ServiceHandler` actor and the cursor-push loop — it depends on
+//! `ServiceHandler` from `ship_substrate`, which doesn't belong in
+//! `ship-cloud`. The transport types come back through `ship_cloud::*`.
 use std::time::Duration;
 
 use anyhow::Result;
@@ -15,7 +20,7 @@ use ship_substrate::db::cursors;
 use ship_substrate::events::{ActorStore, EventEnvelope, query_events_since};
 use ship_types::payload::SyncPushCompleted;
 use crate::services::ServiceHandler;
-use crate::sync::{PushResponse, SyncClient};
+use ship_cloud::{PushResponse, SyncClient};
 
 const PUSH_SCOPE_PREFIX: &str = "push:platform";
 
