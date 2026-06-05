@@ -21,6 +21,7 @@ pub mod git;
 pub mod home;
 pub mod isolation;
 pub mod locate;
+pub mod toolchain;
 pub mod log;
 pub mod persistence;
 pub mod project;

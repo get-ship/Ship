@@ -22,9 +22,16 @@ pub mod projects;
 pub mod registry;
 pub mod services;
 pub mod sessions;
-pub mod toolchain;
+// View-authoring + compile services. Carved out to the `ship-views` crate
+// in a later step (c5-views); kept here for now and re-exported from
+// ship-views when that lands.
 pub mod view_authoring;
 
+// Toolchain is an L0 concern (binary management infra — ensure/install/update
+// of the bundled `sui-compiler`). It lives in `ship_substrate::toolchain` and
+// is re-exported here for back-compat with downstream callers that import
+// `ship_platform::toolchain::*`.
+pub use ship_substrate::toolchain;
 // Module aliases — sub-paths of agents that callers reference at crate root.
 pub use agents::permissions;
 pub use agents::rule;
