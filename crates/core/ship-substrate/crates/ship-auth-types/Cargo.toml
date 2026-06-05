@@ -1,0 +1,20 @@
+[package]
+name = "ship-auth-types"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L0 auth primitives — session/registry types, role→scope tables, kernel-verified peer identity. Pure types + token minting; no projection reads, no event-store writes. Sits below ship-platform and unblocks a handful of carves that need the kernel-attested auth surface without taking on platform's policy."
+
+[dependencies]
+ship-types = { path = "../ship-types" }
+ship-host = { path = "../ship-host" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true, features = ["sync", "macros", "rt", "time"] }
+getrandom = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

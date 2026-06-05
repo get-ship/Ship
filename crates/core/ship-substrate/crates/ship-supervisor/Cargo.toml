@@ -4,10 +4,13 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 description = "OS-level agent supervision — executors, isolation, terminal launching, graceful exit. Consumes the platform's orchestrator traits and provides the concrete daemon-side implementations."
-
 [dependencies]
 ship-substrate = { path = "../.." }
 ship-platform = { path = "../../../ship-platform" }
+# L0 auth primitives (P2 carve). The supervisor mints per-process agent
+# tokens through this seam — the role→scope tables and `DaemonSession`
+# constructor live here, not in the L1 platform.
+ship-auth-types = { path = "../ship-auth-types" }
 # Pipeline runtime (orchestrator + PipelinesService carved out of
 # ship-platform — agents-arc P3 cut). The supervisor wires up the
 # `OrchestratorContext` for the runner and reaches into the pipeline

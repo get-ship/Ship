@@ -24,6 +24,7 @@ ship-account = { path = "crates/ship-account" }
 # ship-ops-rpc, none of which depend on ship-platform.
 ship-config = { path = "crates/ship-config" }
 ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
+ship-auth-types = { path = "../ship-substrate/crates/ship-auth-types" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines", features = ["specta"] }
 # L0 runner mechanism (agents-arc S2). The orchestrator MECHANISM (router gate,
