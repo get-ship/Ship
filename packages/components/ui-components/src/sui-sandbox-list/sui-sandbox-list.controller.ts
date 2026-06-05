@@ -17,11 +17,10 @@ interface SandboxView {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     const body = host.shadowRoot?.getElementById('body')
     if (!body) return
 
-    if ((scope.autoFetch() ?? 'true') === 'false') return
+    if ((state.autoFetch ?? 'true') === 'false') return
 
     renderLoading(body)
 

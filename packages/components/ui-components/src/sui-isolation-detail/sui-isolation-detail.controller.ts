@@ -20,8 +20,6 @@ const REASON_LABEL: Record<string, string> = {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
-
     // Show the reason row when reason is non-empty. SUI's template
     // ternaries don't reliably evaluate inside JSX-style branches in
     // this compiler version, so we toggle CSS display from the
@@ -29,13 +27,13 @@ export default controller<Scope>({
     const stopReason = effect(() => {
       const row = host.shadowRoot?.querySelector<HTMLElement>('.reason-row')
       if (!row) return
-      row.style.display = scope.reason() ? 'flex' : 'none'
+      row.style.display = state.reason ? 'flex' : 'none'
     })
 
     // Auto-fetch when tier is unknown — same pattern as
     // <sui-isolation-badge>. Views that already hold the data pass
     // it via attributes and skip the round-trip.
-    if (scope.tier() === 'unknown') {
+    if (state.tier === 'unknown') {
       void fetchIsolationStatus()
         .then((status) => {
           if (!status) return

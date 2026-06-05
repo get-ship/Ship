@@ -14,11 +14,10 @@ interface VerifyResult {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     const body = host.shadowRoot?.getElementById('body')
     if (!body) return
 
-    if ((scope.autoFetch() ?? 'true') === 'false') {
+    if ((state.autoFetch ?? 'true') === 'false') {
       // Views supplying data via slot/childlist do their own render;
       // we just observe.
       return

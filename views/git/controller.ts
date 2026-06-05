@@ -46,6 +46,9 @@ function errMessage(err: unknown): string {
 
 const SUBJECT_RE = /^([a-z]+(?:\([^)]+\))?!?):\s*(.+)$/
 
+/** A commit enriched with its presentation fields for the history row. */
+type HistoryRow = GitCommit & { scopePrefix: string; subjectRest: string; initial: string }
+
 function parseCommitSubject(subject: string): { prefix: string; rest: string } {
   const m = subject.match(SUBJECT_RE)
   return m ? { prefix: `${m[1]}:`, rest: m[2] } : { prefix: '', rest: subject }
@@ -184,13 +187,21 @@ export default controller({
       stagedCount, unstagedCount, canCommit, fileGroups,
       activeBranch, diffFiles, diffReady, diffIsWorking,
       overviewErrMsg, isNoRepo,
-      parseCommitSubject, getAuthorInitial,
     }
   },
 
   use: (s) => ({
-    commitFilter: useFilteredList<GitCommit>(
-      () => unwrapOr(s.overview, EMPTY_OVERVIEW).commits,
+    // Source is enriched BEFORE filtering so each row carries its presentation
+    // fields (scope prefix, subject remainder, author initial) as plain data.
+    // Templates can only do zero-arg reads — no call-with-args — so this parsing
+    // can't live in page.sui; the history row reads c.scopePrefix / c.subjectRest
+    // / c.initial directly off the filtered list.
+    commitFilter: useFilteredList<HistoryRow>(
+      () =>
+        unwrapOr(s.overview, EMPTY_OVERVIEW).commits.map((c) => {
+          const parsed = parseCommitSubject(c.subject)
+          return { ...c, scopePrefix: parsed.prefix, subjectRest: parsed.rest, initial: getAuthorInitial(c.author) }
+        }),
       (c, q) => {
         if (!q) return true
         const needle = q.toLowerCase()

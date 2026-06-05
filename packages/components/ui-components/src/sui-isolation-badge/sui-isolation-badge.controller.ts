@@ -12,12 +12,11 @@ const TIER_LABELS: Record<string, string> = {
 
 export default controller<Scope>({
   mount(state, host) {
-    const scope = state as unknown as Scope
     if (!host.hasAttribute('role')) host.setAttribute('role', 'status')
 
     // Auto-fetch when tier is unknown — components that already have
     // the data pass it via attributes and skip this round-trip.
-    if (scope.tier() === 'unknown') {
+    if (state.tier === 'unknown') {
       void fetchIsolationStatus()
         .then((status) => {
           if (!status) return
@@ -33,9 +32,9 @@ export default controller<Scope>({
 
     // Keep the accessible label in sync with whichever fields are set.
     const stopAria = effect(() => {
-      const tier = scope.tier()
-      const strategy = scope.strategy()
-      const downgraded = scope.downgraded() === 'true'
+      const tier = state.tier
+      const strategy = state.strategy
+      const downgraded = state.downgraded === 'true'
       let label = TIER_LABELS[tier] ?? TIER_LABELS.unknown
       if (strategy) label += ` (${strategy})`
       if (downgraded) label += ' — downgraded'
