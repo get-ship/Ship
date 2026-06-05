@@ -28,15 +28,12 @@ mod annotations;
 mod artifacts;
 mod collections;
 mod git;
-mod mcp;
 mod mesh;
-mod permissions;
 mod pipelines;
 mod settings;
 mod skills;
 mod pipeline;
 mod project;
-mod rules;
 mod surfaces;
 mod views;
 
@@ -182,15 +179,6 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = project::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = rules::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = mcp::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = permissions::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = artifacts::try_dispatch(name, args, ctx).await? {
@@ -489,112 +477,6 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn rules_create_is_default_c1_and_writes_through_the_service() {
-        let harness = crate::test_harness::TestDaemon::new().await;
-        // A worker agent (no grants): rules is a default workspace domain, so
-        // the gate allows it — and it actually creates via RulesService.
-        let auth = AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Mcp,
-            agent_id: Some("worker-1".to_string()),
-            workspace_id: None,
-            space_id: None,
-            session_id: None,
-            scopes: vec![],
-            grants: vec![],
-            operator_cred: false,
-        };
-        let ctx = CommandCtx { state: &harness.state, auth: &auth };
-        // user scope writes to the test's TempDir user root (isolated); project
-        // scope would resolve to the cwd repo, so it's deliberately user here.
-        let args = serde_json::json!({
-            "id": "test-fixture-rule", "content": "# Fixture\nBody.", "scope": "user"
-        });
-        let created = call("rules.create", &args, &ctx).await.expect("worker may create a rule");
-        assert_eq!(created["ok"], true);
-        // The read side sees it (read at user scope, same TempDir root).
-        let got = crate::services::registry::call(
-            "rules.get",
-            &serde_json::json!({ "id": "test-fixture-rule", "scope": "user" }),
-            &harness.state,
-        )
-        .expect("rule readable after create");
-        assert!(got["body"].as_str().unwrap_or("").contains("Fixture"));
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn mcp_create_is_restricted_and_writes_through_for_authoring() {
-        let harness = crate::test_harness::TestDaemon::new().await;
-        let args = serde_json::json!({
-            "id": "fixture-server",
-            "server_json": "{\"command\":\"ship\",\"args\":[\"mcp\",\"serve\"]}",
-            "scope": "user"
-        });
-
-        // A worker (no grants): mcp is restricted (ship-authoring), so the gate
-        // denies it before any write — registering a server expands agent tools.
-        let worker = AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Mcp,
-            agent_id: Some("worker-1".to_string()),
-            workspace_id: None,
-            space_id: None,
-            session_id: None,
-            scopes: vec![],
-            grants: vec![],
-            operator_cred: false,
-        };
-        let err = call("mcp.create", &args, &CommandCtx { state: &harness.state, auth: &worker })
-            .await
-            .unwrap_err();
-        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
-
-        // The operator cred clears the gate and the write lands (user scope =
-        // the test's isolated TempDir root), echoing the typed {id, scope} shape.
-        let op = crate::test_harness::TestDaemon::operator_auth();
-        let created = call("mcp.create", &args, &CommandCtx { state: &harness.state, auth: &op })
-            .await
-            .expect("operator may register an mcp server");
-        assert_eq!(created["id"], "fixture-server");
-        assert_eq!(created["scope"], "user");
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn permissions_create_is_c2_operator_only() {
-        let harness = crate::test_harness::TestDaemon::new().await;
-        let args = serde_json::json!({
-            "id": "fixture-preset",
-            "preset_json": "{\"allow\":[\"Read(*)\"]}",
-            "scope": "user"
-        });
-
-        // Even a designer holding the ship-authoring grant is denied: editing the
-        // security policy is C2, which no grant clears — only the operator.
-        let designer = AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Mcp,
-            agent_id: Some("designer-1".to_string()),
-            workspace_id: None,
-            space_id: None,
-            session_id: None,
-            scopes: vec![],
-            grants: vec!["ship-authoring".to_string()],
-            operator_cred: false,
-        };
-        let err =
-            call("permissions.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
-                .await
-                .unwrap_err();
-        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
-
-        // The operator cred clears C2 and the write lands.
-        let op = crate::test_harness::TestDaemon::operator_auth();
-        let created =
-            call("permissions.create", &args, &CommandCtx { state: &harness.state, auth: &op })
-                .await
-                .expect("operator may write a permission preset");
-        assert_eq!(created["id"], "fixture-preset");
-        assert_eq!(created["scope"], "user");
     }
 
     #[test]

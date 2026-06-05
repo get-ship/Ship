@@ -109,9 +109,6 @@ pub mod fixtures;
 
 pub mod agents;
 pub mod skills;
-pub mod rules;
-pub mod mcp;
-pub mod permissions;
 pub mod pipelines;
 pub mod settings;
 pub mod collections;
@@ -138,15 +135,6 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
         return Ok(value);
     }
     if let Some(value) = skills::try_dispatch(name, args, state, &files)? {
-        return Ok(value);
-    }
-    if let Some(value) = rules::try_dispatch(name, args, state, &files)? {
-        return Ok(value);
-    }
-    if let Some(value) = mcp::try_dispatch(name, args, state, &files)? {
-        return Ok(value);
-    }
-    if let Some(value) = permissions::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
     if let Some(value) = pipelines::try_dispatch(name, args, state, &files)? {

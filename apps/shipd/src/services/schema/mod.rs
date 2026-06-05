@@ -51,7 +51,7 @@ pub static OPS: LazyLock<Vec<OpDescriptor>> = LazyLock::new(build_ops);
 
 /// Domain emit order — matches the original `OPS` array exactly.
 const DOMAIN_ORDER: &[&str] = &[
-    "agents", "skills", "rules", "mcp", "permissions", "pipelines", "git",
+    "agents", "skills", "pipelines", "git",
     "settings", "collections", "artifacts", "sessions", "workspaces",
 ];
 
@@ -60,9 +60,8 @@ fn build_ops() -> Vec<OpDescriptor> {
     // Migrated per-domain slices (one declaration per op → descriptor + dispatch).
     let migrated: &[(&str, &[OpDescriptor])] = &[
         ("agents", reg::agents::AGENTS_OPS),
-        ("rules", reg::rules::RULES_OPS),
-        ("mcp", reg::mcp::MCP_OPS),
-        ("permissions", reg::permissions::PERMISSIONS_OPS),
+        
+        
         ("sessions", reg::sessions::SESSIONS_OPS),
         ("artifacts", reg::artifacts::ARTIFACTS_OPS),
         ("skills", reg::skills::SKILLS_OPS),

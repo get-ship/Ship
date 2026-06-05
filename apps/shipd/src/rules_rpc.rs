@@ -11,17 +11,17 @@
 //! lives in `ship_platform::services::rules` — shipd only wires the trait to it.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
-use serde_json::json;
 
 use ship_ops_rpc::{
     IndexEntry, RuleGetResponse, RulesIndexResponse, RulesService, ScopedMutation,
 };
 use ship_platform::services::files::Scope;
+use ship_platform::services::rules::service::{CreateArgs, PutArgs};
 use ship_platform::services::rules::state;
 
 use crate::auth::AuthContext;
-use crate::ops_rpc::{command_error_to_connect, OpsImpl};
-use crate::services::command::{self, CommandCtx};
+use crate::ops_rpc::OpsImpl;
+use crate::services::gate::{self, Decision};
 
 /// Parse the optional `scope` string ("project" | "user"); empty walks scopes.
 fn parse_scope(scope: &str) -> Result<Option<Scope>, ConnectError> {
@@ -83,8 +83,14 @@ impl RulesService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedCreateRuleRequestView,
     ) -> ServiceResult<ScopedMutation> {
-        let args = json!({ "id": request.id, "content": request.content, "scope": request.scope });
-        self.gated_mutation(&ctx, "rules.create", args).await
+        self.gate(&ctx, "rules.create")?;
+        let scope = parse_scope(request.scope)?;
+        let resolved = self
+            .state()
+            .rules()
+            .create(CreateArgs { id: request.id.to_string(), content: request.content.to_string(), scope })
+            .map_err(rules_err)?;
+        Ok(Response::new(scoped(request.id, resolved)))
     }
 
     async fn put(
@@ -92,8 +98,14 @@ impl RulesService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedPutRuleRequestView,
     ) -> ServiceResult<ScopedMutation> {
-        let args = json!({ "id": request.id, "content": request.content, "scope": request.scope });
-        self.gated_mutation(&ctx, "rules.put", args).await
+        self.gate(&ctx, "rules.put")?;
+        let scope = parse_scope(request.scope)?;
+        let resolved = self
+            .state()
+            .rules()
+            .put(PutArgs { id: request.id.to_string(), content: request.content.to_string(), scope })
+            .map_err(rules_err)?;
+        Ok(Response::new(scoped(request.id, resolved)))
     }
 
     async fn delete(
@@ -101,30 +113,47 @@ impl RulesService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedDeleteRuleRequestView,
     ) -> ServiceResult<ScopedMutation> {
-        let args = json!({ "id": request.id, "scope": request.scope });
-        self.gated_mutation(&ctx, "rules.delete", args).await
+        self.gate(&ctx, "rules.delete")?;
+        let scope = parse_scope(request.scope)?;
+        let resolved = self.state().rules().delete(request.id, scope).map_err(rules_err)?;
+        Ok(Response::new(scoped(request.id, resolved)))
     }
 }
 
+/// `state::Error` → ConnectError (not-found vs internal).
+fn rules_err(e: state::Error) -> ConnectError {
+    match e {
+        state::Error::NotFound(m) => ConnectError::not_found(m),
+        other => ConnectError::internal(other.to_string()),
+    }
+}
+
+/// Build the `ScopedMutation` reply from the resolved write scope.
+fn scoped(id: &str, resolved: Scope) -> ScopedMutation {
+    let scope = match resolved {
+        Scope::Project => "project",
+        Scope::User => "user",
+    }
+    .to_string();
+    ScopedMutation { id: id.to_string(), scope, ..Default::default() }
+}
+
 impl OpsImpl {
-    /// Run a write op through the one gate (`services::command::call`) and decode
-    /// its JSON projection onto `ScopedMutation`. Shared by every `rules.*`
-    /// mutation; the gate reads the op's blast/domain from the descriptor set.
-    async fn gated_mutation(
-        &self,
-        ctx: &RequestContext,
-        op: &str,
-        args: serde_json::Value,
-    ) -> ServiceResult<ScopedMutation> {
+    /// Inline capability gate: resolve the op's blast from the proto policy
+    /// (the SSOT) and apply `gate::decide` — the same enforcement the deleted
+    /// `command::call` did, now at the transport handler (#94).
+    pub(crate) fn gate(&self, ctx: &RequestContext, op: &str) -> Result<(), ConnectError> {
         let auth = ctx
             .extensions
             .get::<AuthContext>()
             .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-        let cmd_ctx = CommandCtx { state: self.state(), auth };
-        let value = command::call(op, &args, &cmd_ctx).await.map_err(command_error_to_connect)?;
-        let msg = serde_json::from_value::<ScopedMutation>(value)
-            .map_err(|e| ConnectError::internal(format!("decode {op} response: {e}")))?;
-        Ok(Response::new(msg))
+        let pol = crate::services::op_policy::policy_for(op)
+            .ok_or_else(|| ConnectError::internal(format!("no policy for {op}")))?;
+        let caller = gate::caller_from_auth(auth);
+        match gate::decide(pol.blast, gate::service_of(op), &caller) {
+            Decision::Deny(m) => Err(ConnectError::permission_denied(m.to_string())),
+            _ => Ok(()),
+        }
     }
 }
 

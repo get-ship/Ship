@@ -11,18 +11,15 @@
 //! reimplement or weaken gating.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
-use serde_json::json;
-
 use ship_ops_rpc::{
     IndexEntry, JsonResponse, PermissionsIndexResponse, PermissionsService, ScopedMutation,
     ToolPattern, ToolPatternsResponse,
 };
 use ship_platform::services::files::Scope;
+use ship_platform::services::permissions::service::{CreateArgs, PutArgs};
 use ship_platform::services::permissions::state;
 
-use crate::auth::AuthContext;
-use crate::ops_rpc::{command_error_to_connect, OpsImpl};
-use crate::services::command::{self, CommandCtx};
+use crate::ops_rpc::OpsImpl;
 
 fn parse_scope(scope: &str) -> Result<Option<Scope>, ConnectError> {
     match scope {
@@ -42,24 +39,32 @@ fn scope_str(s: state::ScopeTag) -> String {
     }
 }
 
-/// Route a write op through the one gate (`services::command::call`) and decode
-/// its JSON projection onto `ScopedMutation`. Free function so it doesn't
-/// conflict with the same-shaped helper on `OpsImpl` in `rules_rpc`.
-async fn gated_mutation(
-    state: &crate::ship_runtime::ApiState,
-    ctx: &RequestContext,
-    op: &str,
-    args: serde_json::Value,
-) -> ServiceResult<ScopedMutation> {
-    let auth = ctx
-        .extensions
-        .get::<AuthContext>()
-        .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-    let cmd_ctx = CommandCtx { state, auth };
-    let value = command::call(op, &args, &cmd_ctx).await.map_err(command_error_to_connect)?;
-    let msg = serde_json::from_value::<ScopedMutation>(value)
-        .map_err(|e| ConnectError::internal(format!("decode {op} response: {e}")))?;
-    Ok(Response::new(msg))
+/// Parse a required JSON-string arg into a `Value`.
+fn parse_json(raw: &str, key: &str) -> Result<serde_json::Value, ConnectError> {
+    serde_json::from_str(raw)
+        .map_err(|e| ConnectError::invalid_argument(format!("`{key}` is not valid JSON: {e}")))
+}
+
+/// `state::Error` → ConnectError.
+fn perms_err(e: state::Error) -> ConnectError {
+    match e {
+        state::Error::NotFound(m) => ConnectError::not_found(m),
+        state::Error::AlreadyExists(m)
+        | state::Error::BadId(m)
+        | state::Error::Parse(m)
+        | state::Error::Patch(m) => ConnectError::invalid_argument(m),
+        other => ConnectError::internal(other.to_string()),
+    }
+}
+
+/// Build the `ScopedMutation` reply from the resolved write scope.
+fn scoped(id: &str, resolved: Scope) -> ScopedMutation {
+    let scope = match resolved {
+        Scope::Project => "project",
+        Scope::User => "user",
+    }
+    .to_string();
+    ScopedMutation { id: id.to_string(), scope, ..Default::default() }
 }
 
 #[allow(refining_impl_trait)]
@@ -119,9 +124,15 @@ impl PermissionsService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedCreatePermissionRequestView,
     ) -> ServiceResult<ScopedMutation> {
-        let args =
-            json!({ "id": request.id, "preset_json": request.preset_json, "scope": request.scope });
-        gated_mutation(self.state(), &ctx, "permissions.create", args).await
+        self.gate(&ctx, "permissions.create")?;
+        let preset = parse_json(request.preset_json, "preset_json")?;
+        let scope = parse_scope(request.scope)?;
+        let resolved = self
+            .state()
+            .permissions()
+            .create(CreateArgs { id: request.id.to_string(), preset, scope })
+            .map_err(perms_err)?;
+        Ok(Response::new(scoped(request.id, resolved)))
     }
 
     async fn put(
@@ -129,9 +140,15 @@ impl PermissionsService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedPutPermissionRequestView,
     ) -> ServiceResult<ScopedMutation> {
-        let args =
-            json!({ "id": request.id, "preset_json": request.preset_json, "scope": request.scope });
-        gated_mutation(self.state(), &ctx, "permissions.put", args).await
+        self.gate(&ctx, "permissions.put")?;
+        let preset = parse_json(request.preset_json, "preset_json")?;
+        let scope = parse_scope(request.scope)?;
+        let resolved = self
+            .state()
+            .permissions()
+            .put(PutArgs { id: request.id.to_string(), preset, scope })
+            .map_err(perms_err)?;
+        Ok(Response::new(scoped(request.id, resolved)))
     }
 
     async fn patch(
@@ -139,9 +156,13 @@ impl PermissionsService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedPatchPermissionRequestView,
     ) -> ServiceResult<ScopedMutation> {
-        let args =
-            json!({ "id": request.id, "patch_json": request.patch_json, "scope": request.scope });
-        gated_mutation(self.state(), &ctx, "permissions.patch", args).await
+        self.gate(&ctx, "permissions.patch")?;
+        let patch: json_patch::Patch = serde_json::from_str(request.patch_json)
+            .map_err(|e| ConnectError::invalid_argument(format!("bad patch shape: {e}")))?;
+        let scope = parse_scope(request.scope)?;
+        let resolved =
+            self.state().permissions().patch(request.id, scope, &patch).map_err(perms_err)?;
+        Ok(Response::new(scoped(request.id, resolved)))
     }
 
     async fn delete(
@@ -149,8 +170,10 @@ impl PermissionsService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedDeletePermissionRequestView,
     ) -> ServiceResult<ScopedMutation> {
-        let args = json!({ "id": request.id, "scope": request.scope });
-        gated_mutation(self.state(), &ctx, "permissions.delete", args).await
+        self.gate(&ctx, "permissions.delete")?;
+        let scope = parse_scope(request.scope)?;
+        let resolved = self.state().permissions().delete(request.id, scope).map_err(perms_err)?;
+        Ok(Response::new(scoped(request.id, resolved)))
     }
 }
 

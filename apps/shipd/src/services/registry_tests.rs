@@ -207,18 +207,6 @@ fn file_backed_list_ops_wire_identical_to_anonymous_json() {
 }
 
 #[test]
-fn permissions_tool_patterns_shape_preserved() {
-    let state = temp_state();
-    let v = call("permissions.tool_patterns", &json!({}), &state).expect("tool_patterns ok");
-    let patterns = v.get("patterns").and_then(|p| p.as_array()).expect("patterns[]");
-    // Harness builtins + curated bash shapes are always present.
-    assert!(patterns.len() >= 19, "expected harness + bash rows, got {}", patterns.len());
-    let first = patterns.first().unwrap();
-    assert_eq!(first["pattern"], "Read");
-    assert_eq!(first["source"], "harness");
-}
-
-#[test]
 fn file_backed_get_missing_is_not_found() {
     let state = temp_state();
     for op in ["rules.get", "mcp.get", "permissions.get"] {
