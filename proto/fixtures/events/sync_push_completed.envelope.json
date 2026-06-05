@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "sync.push.completed",
-    "scope": "device",
+    "scope": "runtime",
     "retention": "ephemeral",
     "stability": "stable",
     "payload_type": "SyncPushCompleted",

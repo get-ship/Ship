@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "daemon.pidfile_stale_taken",
-    "scope": "device",
+    "scope": "runtime",
     "retention": "durable",
     "stability": "deprecated",
     "payload_type": "DaemonPidfileStaleTaken",

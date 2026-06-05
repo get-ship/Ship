@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "event": "agent.def.updated",
+    "scope": "space",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "AgentDefUpdated",
+    "needs_author": false
+  },
+  "envelope": {
+    "id": "01JTEST000000000000000EVENT",
+    "event_type": "agent.def.updated",
+    "entity_id": "test-entity-id",
+    "actor_id": "test-actor-id",
+    "space_id": "test-space-id",
+    "occurred_at": "2026-01-01T00:00:00Z",
+    "payload": {
+      "_note": "NEEDS_AUTHOR: AgentDefUpdated — auto-stub not possible; hand-author this fixture",
+      "_payload_type": "AgentDefUpdated"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "mesh.message",
-    "scope": "device",
+    "scope": "runtime",
     "retention": "ephemeral",
     "stability": "stable",
     "payload_type": "MeshMessage",

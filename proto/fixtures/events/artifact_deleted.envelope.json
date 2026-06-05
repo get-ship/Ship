@@ -16,7 +16,7 @@
     "occurred_at": "2026-01-01T00:00:00Z",
     "payload": {
       "id": "test-artifact-id",
-      "scope": "space"
+      "scope": "project"
     }
   }
 }

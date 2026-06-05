@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "skill.changed",
-    "scope": "space",
+    "scope": "runtime",
     "retention": "ephemeral",
     "stability": "stable",
     "payload_type": "SkillChanged",

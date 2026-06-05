@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "daemon.crashed",
-    "scope": "device",
+    "scope": "runtime",
     "retention": "durable",
     "stability": "deprecated",
     "payload_type": "DaemonCrashed",

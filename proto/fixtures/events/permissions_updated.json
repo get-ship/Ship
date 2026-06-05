@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "permissions.updated",
-    "scope": "space",
+    "scope": "runtime",
     "retention": "durable",
     "stability": "stable",
     "payload_type": "PermissionsUpdated",

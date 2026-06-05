@@ -28,7 +28,8 @@
       "q": "test-q",
       "kinds": [],
       "limit": 0,
-      "cursor": "test-cursor"
+      "cursor": "test-cursor",
+      "scope": "test-scope"
     }
   }
 }

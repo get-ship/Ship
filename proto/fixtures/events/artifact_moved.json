@@ -8,8 +8,17 @@
     "needs_author": false
   },
   "payload": {
-    "id": "test-artifact-id",
-    "from_scope": "space",
-    "to_scope": "account"
+    "old_id": "test-artifact-id",
+    "from_scope": "run",
+    "to_scope": "project",
+    "new": {
+      "id": "test-artifact-id-2",
+      "scope": "project",
+      "name": "test-artifact.md",
+      "mime": "text/markdown",
+      "size": 1024,
+      "path": "blobs/test-artifact-id-2",
+      "created_at": "2026-01-01T00:00:00Z"
+    }
   }
 }

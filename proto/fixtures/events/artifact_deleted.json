@@ -9,6 +9,6 @@
   },
   "payload": {
     "id": "test-artifact-id",
-    "scope": "space"
+    "scope": "project"
   }
 }

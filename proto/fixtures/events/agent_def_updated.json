@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "agent.def.updated",
+    "scope": "space",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "AgentDefUpdated",
+    "needs_author": false
+  },
+  "payload": {
+    "_note": "NEEDS_AUTHOR: AgentDefUpdated — auto-stub not possible; hand-author this fixture",
+    "_payload_type": "AgentDefUpdated"
+  }
+}
