@@ -16,7 +16,6 @@ pub mod process_registry;
 pub mod harness_adapter;
 pub mod harnesses;
 pub mod line_accumulator;
-pub mod watcher;
 // Cloud-sync service actor (uses `SyncClient` from `ship-cloud` via the
 // `unstable` feature gate). The handler itself stays in this crate because
 // it implements `ServiceHandler` from substrate; only the transport moves

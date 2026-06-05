@@ -2,14 +2,23 @@
 //!
 //! Watches paths and globs specified in file-source triggers and emits
 //! `external.file.<hook_name>` events when filesystem events occur.
+//!
+//! The boring notify mechanism lives in the substrate [`FsWatch`] port; this
+//! adapter owns the genuinely trigger-domain logic: per-entry glob matching,
+//! per-entry debounce, and kernel-event authorship. Each distinct watch
+//! directory gets its own [`FsWatch`] subscription (rooted at that dir);
+//! coalescing is left to the port-OFF (`debounce: None`) so the per-entry
+//! [`TriggerDebounce`] keeps exact trigger semantics.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use notify::{EventKind, RecursiveMode, Watcher};
 use serde_json::json;
+use ship_substrate::ports::{
+    ChangeKind, FsCap, FsMode, FsRoot, FsWatch, LocalFsWatch, SpaceId, WatchOpts,
+};
 use tokio::sync::mpsc::UnboundedSender;
 
 use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};
@@ -17,7 +26,7 @@ use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};
 use super::super::def::{FileEventKind, HookDef, TriggerSourceDef};
 use super::TriggerSource;
 
-/// Message sent from notify callback to the file source task.
+/// Message forwarded from a per-dir [`FsWatch`] receiver to the file source task.
 struct FsEvent {
     path: PathBuf,
     kind: FileEventKind,
@@ -56,6 +65,20 @@ struct FileTriggerEntry {
     debounce: TriggerDebounce,
 }
 
+/// Holds the per-dir forwarder tasks for the active watch set. Dropping it aborts
+/// them, dropping each [`FsWatch`] receiver and tearing the watches down.
+struct WatchSet {
+    tasks: Vec<tokio::task::JoinHandle<()>>,
+}
+
+impl Drop for WatchSet {
+    fn drop(&mut self) {
+        for t in &self.tasks {
+            t.abort();
+        }
+    }
+}
+
 pub struct FileSource {
     ship_dir: PathBuf,
     reload_tx: Mutex<Option<UnboundedSender<Vec<HookDef>>>>,
@@ -92,7 +115,7 @@ async fn file_source_task(
 ) {
     let (fs_tx, mut fs_rx) = tokio::sync::mpsc::unbounded_channel::<FsEvent>();
 
-    let mut _watcher_handle: Option<notify::RecommendedWatcher> = None;
+    let mut _watch_set: Option<WatchSet> = None;
     let mut entries: Vec<FileTriggerEntry> = Vec::new();
 
     loop {
@@ -101,9 +124,9 @@ async fn file_source_task(
 
             new_defs = reload_rx.recv() => {
                 let Some(defs) = new_defs else { break };
-                // Rebuild watcher and entries from the new definitions.
+                // Rebuild watches and entries from the new definitions.
                 let tx = fs_tx.clone();
-                (_watcher_handle, entries) = rebuild_watcher(defs, tx, &ship_dir);
+                (_watch_set, entries) = rebuild_watches(defs, tx, &ship_dir);
             }
 
             event = fs_rx.recv() => {
@@ -114,37 +137,24 @@ async fn file_source_task(
     }
 }
 
-fn rebuild_watcher(
+/// Map a substrate [`ChangeKind`] to the trigger-domain [`FileEventKind`].
+fn map_kind(kind: ChangeKind) -> FileEventKind {
+    match kind {
+        ChangeKind::Create => FileEventKind::Created,
+        ChangeKind::Modify => FileEventKind::Modified,
+        ChangeKind::Remove => FileEventKind::Deleted,
+    }
+}
+
+fn rebuild_watches(
     defs: Vec<HookDef>,
     fs_tx: UnboundedSender<FsEvent>,
     ship_dir: &Path,
-) -> (Option<notify::RecommendedWatcher>, Vec<FileTriggerEntry>) {
-    let fs_tx = Arc::new(fs_tx);
-
-    let tx_clone = fs_tx.clone();
-    let mut watcher = match notify::recommended_watcher(
-        move |res: notify::Result<notify::Event>| {
-            let Ok(ev) = res else { return };
-            let kind = match ev.kind {
-                EventKind::Create(_) => FileEventKind::Created,
-                EventKind::Modify(_) => FileEventKind::Modified,
-                EventKind::Remove(_) => FileEventKind::Deleted,
-                _ => return,
-            };
-            for path in ev.paths {
-                let _ = tx_clone.send(FsEvent { path, kind: kind.clone() });
-            }
-        },
-    ) {
-        Ok(w) => w,
-        Err(e) => {
-            tracing::warn!("file-source: failed to create watcher: {e}");
-            return (None, Vec::new());
-        }
-    };
-
+) -> (Option<WatchSet>, Vec<FileTriggerEntry>) {
+    let watch = LocalFsWatch::new();
     let mut entries = Vec::new();
-    let mut watched_paths: HashMap<PathBuf, bool> = HashMap::new();
+    let mut tasks: Vec<tokio::task::JoinHandle<()>> = Vec::new();
+    let mut watched_dirs: HashMap<PathBuf, bool> = HashMap::new();
 
     for def in defs {
         let Some(TriggerSourceDef::File(ref fdef)) = def.trigger.source else {
@@ -153,27 +163,21 @@ fn rebuild_watcher(
         let watch_path = resolve_path(&fdef.watch, ship_dir);
         // Determine the directory to watch (parent if path is a file glob).
         let watch_dir = if fdef.watch.contains('*') || fdef.watch.contains('?') {
-            watch_path
-                .parent()
-                .unwrap_or(&watch_path)
-                .to_path_buf()
+            watch_path.parent().unwrap_or(&watch_path).to_path_buf()
         } else {
             watch_path.clone()
         };
 
-        if let std::collections::hash_map::Entry::Vacant(slot) = watched_paths.entry(watch_dir.clone()) {
-            let mode = if fdef.watch.contains("**") {
-                RecursiveMode::Recursive
-            } else {
-                RecursiveMode::NonRecursive
-            };
-            if watch_dir.exists()
-                && let Err(e) = watcher.watch(&watch_dir, mode)
-            {
-                tracing::warn!(
-                    path = %watch_dir.display(),
-                    "file-source: watch failed: {e}"
-                );
+        if let std::collections::hash_map::Entry::Vacant(slot) =
+            watched_dirs.entry(watch_dir.clone())
+        {
+            if watch_dir.exists() {
+                let recursive = fdef.watch.contains("**");
+                if let Some(task) =
+                    spawn_dir_forwarder(&watch, &watch_dir, recursive, fs_tx.clone())
+                {
+                    tasks.push(task);
+                }
             }
             slot.insert(true);
         }
@@ -185,7 +189,48 @@ fn rebuild_watcher(
         });
     }
 
-    (Some(watcher), entries)
+    (Some(WatchSet { tasks }), entries)
+}
+
+/// Subscribe one watch directory through the substrate port and forward each
+/// delta (expanded to absolute paths, one [`FsEvent`] per touched path) onto the
+/// shared file-source channel. Debounce stays OFF here — the per-entry
+/// [`TriggerDebounce`] owns coalescing.
+fn spawn_dir_forwarder(
+    watch: &LocalFsWatch,
+    watch_dir: &Path,
+    recursive: bool,
+    fs_tx: UnboundedSender<FsEvent>,
+) -> Option<tokio::task::JoinHandle<()>> {
+    let cap = FsCap::new_unchecked(
+        watch_dir.to_path_buf(),
+        FsRoot::Space(SpaceId::new("triggers")),
+        FsMode::ReadOnly,
+    );
+    let opts = if recursive {
+        WatchOpts::recursive(None)
+    } else {
+        WatchOpts::non_recursive(None)
+    };
+    let mut rx = match watch.watch(&cap, ".", opts) {
+        Ok(rx) => rx,
+        Err(e) => {
+            tracing::warn!(path = %watch_dir.display(), "file-source: watch failed: {e}");
+            return None;
+        }
+    };
+    let root = watch_dir.to_path_buf();
+    Some(tokio::spawn(async move {
+        while let Some(delta) = rx.recv().await {
+            let kind = map_kind(delta.kind);
+            for rel in delta.rel {
+                let path = root.join(rel);
+                if fs_tx.send(FsEvent { path, kind: kind.clone() }).is_err() {
+                    return;
+                }
+            }
+        }
+    }))
 }
 
 async fn handle_fs_event(
@@ -247,10 +292,7 @@ fn resolve_path(watch: &str, ship_dir: &Path) -> PathBuf {
         p.to_path_buf()
     } else {
         // Resolve relative to the project root (parent of .ship/).
-        ship_dir
-            .parent()
-            .unwrap_or(ship_dir)
-            .join(watch)
+        ship_dir.parent().unwrap_or(ship_dir).join(watch)
     }
 }
 

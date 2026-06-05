@@ -1,65 +1,92 @@
 //! Declarative-tier config watcher — registers the six built-in `.ship/`
-//! domains (agents, skills, views, pipelines, rules, collections) against
-//! the generic [`crate::services::watcher::WatcherService`].
+//! domains (agents, skills, views, pipelines, rules, collections) against the
+//! substrate filesystem-watch port ([`FsWatch`]).
 //!
-//! Both user-scope (`~/.ship/library/`) and project-scope
-//! (`<workspace>/.ship/`) dirs are watched when present. Each domain has its
-//! own debounce so a burst of file writes emits exactly one event per
-//! domain. Watchers are RAII via the returned [`WatcherService`].
+//! Both user-scope (`~/.ship/library/`) and project-scope (`<workspace>/.ship/`)
+//! dirs are watched when present. Each domain has its own debounce so a burst of
+//! file writes emits exactly one event per domain. The port owns the boring
+//! mechanism (notify wiring + kind filtering + debounce coalescing); this module
+//! owns what is config's: scope resolution and kernel-event AUTHORSHIP.
+//!
+//! Watchers are RAII via the returned [`ConfigWatcher`]: dropping it aborts every
+//! consumer task, which drops its [`FsDelta`] receiver and tears down the
+//! underlying substrate watch.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Result;
-use notify::RecursiveMode;
 use tokio::sync::Mutex;
 
 use crate::config::resolve_watcher_debounce;
-use crate::services::watcher::{PathChangedSignal, WatcherService, WatcherSpec};
 use ship_substrate::ShipHome;
 use ship_substrate::events::EmitContext;
 use ship_substrate::events::kernel_router::KernelRouter;
-use ship_substrate::ports::{FsBroker, FsCap, FsMode, FsRoot, LocalFsBroker};
+use ship_substrate::ports::{
+    FsBroker, FsCap, FsDelta, FsMode, FsRoot, FsWatch, LocalFsBroker, LocalFsWatch, WatchOpts,
+};
 use ship_types::SpaceId;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types;
 use ship_types::payload::{AgentDefUpdated, ConfigChanged, ConfigFileChanged};
 
-/// Re-export so existing call sites that imported `config::ConfigWatcher`
-/// continue to work — the type is the generic [`WatcherService`].
-pub type ConfigWatcher = WatcherService;
+/// RAII handle holding every config-domain consumer task. Dropping it aborts the
+/// tasks, dropping each [`FsDelta`] receiver and tearing down the substrate watch
+/// behind it.
+pub struct ConfigWatcher {
+    tasks: Vec<tokio::task::JoinHandle<()>>,
+}
+
+impl ConfigWatcher {
+    fn new() -> Self {
+        Self { tasks: Vec::new() }
+    }
+
+    fn push(&mut self, task: tokio::task::JoinHandle<()>) {
+        self.tasks.push(task);
+    }
+}
+
+impl Drop for ConfigWatcher {
+    fn drop(&mut self) {
+        for task in &self.tasks {
+            task.abort();
+        }
+    }
+}
 
 struct DomainCfg {
     dir_name: &'static str,
     event_type: &'static str,
-    recursive: RecursiveMode,
+    recursive: bool,
 }
 
 const DOMAINS: &[DomainCfg] = &[
     DomainCfg {
         dir_name: "agents",
         event_type: event_types::AGENT_CHANGED,
-        recursive: RecursiveMode::NonRecursive,
+        recursive: false,
     },
     DomainCfg {
         dir_name: "skills",
         event_type: event_types::SKILL_CHANGED,
-        recursive: RecursiveMode::Recursive,
+        recursive: true,
     },
     DomainCfg {
         dir_name: "views",
         event_type: event_types::VIEW_CHANGED,
-        recursive: RecursiveMode::Recursive,
+        recursive: true,
     },
     DomainCfg {
         dir_name: "pipelines",
         event_type: event_types::PIPELINE_CHANGED,
-        recursive: RecursiveMode::NonRecursive,
+        recursive: false,
     },
     DomainCfg {
         dir_name: "rules",
         event_type: event_types::RULE_CHANGED,
-        recursive: RecursiveMode::NonRecursive,
+        recursive: false,
     },
     // Collections — `.ship/collections/<id>.jsonc` defines a queryable
     // bucket schema. The collection schema is lazy-loaded on every
@@ -72,7 +99,7 @@ const DOMAINS: &[DomainCfg] = &[
     DomainCfg {
         dir_name: "collections",
         event_type: event_types::COLLECTION_CHANGED,
-        recursive: RecursiveMode::NonRecursive,
+        recursive: false,
     },
 ];
 
@@ -82,7 +109,7 @@ pub fn spawn_config_watcher(
     kernel: Arc<Mutex<KernelRouter>>,
     ship_dir: PathBuf,
     workspace_dir: Option<PathBuf>,
-) -> Result<WatcherService> {
+) -> Result<ConfigWatcher> {
     let library_dir = ShipHome::at(ship_dir).library_dir();
 
     // Project-scope config events are Space-scoped (registry: config.changed /
@@ -94,7 +121,7 @@ pub fn spawn_config_watcher(
         .map(|root| SpaceId::new(ship_substrate::home::path_hash(root)));
     let project_ship_dir = workspace_dir.map(ShipHome::project_ship_dir);
 
-    let mut service = WatcherService::new();
+    let mut watcher = ConfigWatcher::new();
     let debounce = resolve_watcher_debounce();
 
     for domain in DOMAINS {
@@ -107,71 +134,90 @@ pub fn spawn_config_watcher(
         if !user_dir.exists() {
             let _ = std::fs::create_dir_all(&user_dir);
         }
-        let rx = service.register(WatcherSpec {
-            dir: user_dir,
-            recursive: domain.recursive,
-            debounce,
-        })?;
-        spawn_domain_consumer(&mut service, kernel.clone(), rx, domain, None);
+        spawn_domain_watch(&mut watcher, kernel.clone(), user_dir, domain, None, debounce);
 
         // Project scope (only when a workspace is attached).
         if let Some(ref pd) = project_ship_dir {
             let proj_dir = pd.join(domain.dir_name);
-            match service.register(WatcherSpec {
-                dir: proj_dir.clone(),
-                recursive: domain.recursive,
+            spawn_domain_watch(
+                &mut watcher,
+                kernel.clone(),
+                proj_dir,
+                domain,
+                project_space.clone(),
                 debounce,
-            }) {
-                Ok(rx) => spawn_domain_consumer(
-                    &mut service,
-                    kernel.clone(),
-                    rx,
-                    domain,
-                    project_space.clone(),
-                ),
-                Err(e) => tracing::warn!(
-                    "config watcher: could not watch {}: {e}",
-                    proj_dir.display()
-                ),
-            }
+            );
         }
     }
 
-    Ok(service)
+    Ok(watcher)
 }
 
-/// Spawn the consumer loop that authors config events from a watcher's
-/// debounced [`PathChangedSignal`] stream, and adopt it into the service's RAII
-/// lifetime. The config service — not the watcher — owns event authorship: it
-/// names the domain `event_type`, sets the `subject`/`entity_id`, and mints the
-/// scope binding from the resolved `space`.
-fn spawn_domain_consumer(
-    service: &mut WatcherService,
+/// Open an [`FsWatch`] subscription on `dir` and spawn the consumer that authors
+/// config events from the raw [`FsDelta`] stream. No-op if `dir` doesn't exist or
+/// the watch fails to attach (logged). The cap is rooted AT the domain dir so the
+/// delta `rel` paths are already relative to the domain — exactly what the
+/// authorship needs.
+fn spawn_domain_watch(
+    watcher: &mut ConfigWatcher,
     kernel: Arc<Mutex<KernelRouter>>,
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<PathChangedSignal>,
+    dir: PathBuf,
     domain: &'static DomainCfg,
     space: Option<SpaceId>,
+    debounce: Duration,
 ) {
+    if !dir.exists() {
+        return;
+    }
+    let cap = FsCap::new_unchecked(
+        dir.clone(),
+        FsRoot::Space(ship_substrate::ports::SpaceId::new("config")),
+        FsMode::ReadOnly,
+    );
+    let opts = if domain.recursive {
+        WatchOpts::recursive(Some(debounce))
+    } else {
+        WatchOpts::non_recursive(Some(debounce))
+    };
+    let rx = match LocalFsWatch::new().watch(&cap, ".", opts) {
+        Ok(rx) => rx,
+        Err(e) => {
+            tracing::warn!("config watcher: could not watch {}: {e}", dir.display());
+            return;
+        }
+    };
+    watcher.push(spawn_domain_consumer(kernel, rx, domain, dir, space));
+}
+
+/// Spawn the consumer loop that authors config events from a domain's raw
+/// [`FsDelta`] stream. The config service — not the watcher — owns event
+/// authorship: it names the domain `event_type`, sets the `subject`/`entity_id`,
+/// and mints the scope binding from the resolved `space`.
+fn spawn_domain_consumer(
+    kernel: Arc<Mutex<KernelRouter>>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<FsDelta>,
+    domain: &'static DomainCfg,
+    dir: PathBuf,
+    space: Option<SpaceId>,
+) -> tokio::task::JoinHandle<()> {
     let event_type = domain.event_type;
     let subject = domain.dir_name.to_string();
-    // S1 (agents-arc): the per-file authorship now branches by domain inside
+    // S1 (agents-arc): the per-file authorship branches by domain inside
     // `author_file_changed` — the agents domain emits the fine-grained,
-    // space-stamped, content-hashed `agent.def.updated` (the Format-2 def
-    // notification the read-only index re-reads on); other domains keep the
-    // generic `config.file_changed`. The hash read goes through the FsBroker door
-    // (no raw `std::fs`).
+    // space-stamped, content-hashed `agent.def.updated`; other domains keep the
+    // generic `config.file_changed`. The hash read goes through the FsBroker
+    // door (no raw `std::fs`).
     let fs = LocalFsBroker::new();
-    let task = tokio::spawn(async move {
-        while let Some(signal) = rx.recv().await {
+    tokio::spawn(async move {
+        while let Some(delta) = rx.recv().await {
             // Coarse domain signal — existing consumers (compile invalidation).
             author_change(&kernel, event_type, &subject, space.clone()).await;
             // Fine-grained per-file events — Format-2 reactivity / sync.
-            for path in &signal.paths {
-                author_file_changed(&kernel, &fs, &subject, &signal.dir, path, space.clone()).await;
+            for rel in &delta.rel {
+                author_file_changed(&kernel, &fs, &subject, &dir, rel, space.clone()).await;
             }
         }
-    });
-    service.push_task(task);
+    })
 }
 
 /// Author the coarse `<domain>.changed` config event with the SAME
@@ -208,34 +254,34 @@ async fn author_change(
 /// domain emits the generic `config.file_changed` (Runtime-scoped). Both carry
 /// `{path, content_hash}` and NEVER file content. The hash read goes through the
 /// FsBroker door (no raw `std::fs`); a read failure = empty hash = "deleted"
-/// marker.
+/// marker. `rel` is already relative to the domain dir (the substrate watch is
+/// rooted there).
 async fn author_file_changed(
     kernel: &Arc<Mutex<KernelRouter>>,
     fs: &dyn FsBroker,
     domain: &str,
-    dir: &Path,
-    path: &Path,
+    dir: &std::path::Path,
+    rel: &str,
     space: Option<SpaceId>,
 ) {
-    let rel = path.strip_prefix(dir).unwrap_or(path).to_string_lossy().to_string();
     let cap = FsCap::new_unchecked(
         dir.to_path_buf(),
         FsRoot::Space(ship_substrate::ports::SpaceId::new("config")),
         FsMode::ReadOnly,
     );
     // Empty hash on read failure = a "deleted" marker (file gone).
-    let content_hash = fs.read(&cap, &rel).map(|b| ship_types::sha256_hex(&b)).unwrap_or_default();
+    let content_hash = fs.read(&cap, rel).map(|b| ship_types::sha256_hex(&b)).unwrap_or_default();
 
     let (event_type, payload_json) = if domain == "agents" {
-        let p = AgentDefUpdated { path: rel.clone(), content_hash };
+        let p = AgentDefUpdated { path: rel.to_string(), content_hash };
         (event_types::AGENT_DEF_UPDATED, serde_json::to_value(&p))
     } else {
-        let p = ConfigFileChanged { domain: domain.to_string(), path: rel.clone(), content_hash };
+        let p = ConfigFileChanged { domain: domain.to_string(), path: rel.to_string(), content_hash };
         (event_types::CONFIG_FILE_CHANGED, serde_json::to_value(&p))
     };
     let envelope = match payload_json
         .map_err(|e| e.to_string())
-        .and_then(|p| EventEnvelope::new(event_type, &rel, &p).map_err(|e| e.to_string()))
+        .and_then(|p| EventEnvelope::new(event_type, rel, &p).map_err(|e| e.to_string()))
     {
         Ok(e) => e,
         Err(e) => {
@@ -257,7 +303,6 @@ mod tests {
     use ship_substrate::events::EventFilter;
     use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
     use std::path::Path;
-    use std::time::Duration;
     use tempfile::tempdir;
     use crate::testutil::init_project;
 
@@ -316,80 +361,16 @@ mod tests {
 
         // Fine-grained per-file event for the AGENTS domain — S1 evolves this to
         // `agent.def.updated` (Space-scoped → bound space's db), not the generic
-        // config.file_changed. (The non-agents `config.file_changed` path is
-        // proved in `ship-config/tests/watcher.rs`.) The hash read goes through
-        // the FsBroker.
+        // config.file_changed. The hash read goes through the FsBroker. `rel` is
+        // the file path relative to the domain dir (cap root).
         let dir = ship_dir.join("agents");
         std::fs::create_dir_all(&dir).unwrap();
-        let file = dir.join("x.jsonc");
-        std::fs::write(&file, "{}").unwrap();
-        author_file_changed(&kernel, &fs, "agents", &dir, &file, Some(SpaceId::new("sp-1"))).await;
+        std::fs::write(dir.join("x.jsonc"), "{}").unwrap();
+        author_file_changed(&kernel, &fs, "agents", &dir, "x.jsonc", Some(SpaceId::new("sp-1"))).await;
         assert_eq!(
             count_events(&ship_substrate::db::space_db_path(&ship_dir, "sp-1"), event_types::AGENT_DEF_UPDATED),
             1,
             "agents domain authors agent.def.updated into the space db"
-        );
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[ignore = "flaky on WSL2/CI — notify inotify watch fails with ENFILE under parallel test load"]
-    async fn agent_file_write_emits_agent_changed() {
-        let (_tmp, ship_dir, kernel) = setup().await;
-        let _watcher =
-            spawn_config_watcher(kernel.clone(), ship_dir.clone(), None).unwrap();
-
-        let agents_dir = ShipHome::at(ship_dir.clone()).library_dir().join("agents");
-        std::fs::create_dir_all(&agents_dir).unwrap();
-        std::fs::write(agents_dir.join("test.jsonc"), r#"{"id":"test"}"#).unwrap();
-
-        tokio::time::sleep(Duration::from_millis(500)).await;
-
-        assert!(
-            count_events(&ship_dir, event_types::AGENT_CHANGED) > 0,
-            "expected agent.changed event after writing agent config"
-        );
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[ignore = "flaky on WSL2/CI — notify inotify watch fails with ENFILE under parallel test load"]
-    async fn skill_dir_write_emits_skill_changed() {
-        let (_tmp, ship_dir, kernel) = setup().await;
-        let _watcher =
-            spawn_config_watcher(kernel.clone(), ship_dir.clone(), None).unwrap();
-
-        let skill_dir =
-            ShipHome::at(ship_dir.clone()).library_dir().join("skills/my-skill");
-        std::fs::create_dir_all(&skill_dir).unwrap();
-        std::fs::write(skill_dir.join("SKILL.md"), "# my-skill\n").unwrap();
-
-        tokio::time::sleep(Duration::from_millis(500)).await;
-
-        assert!(
-            count_events(&ship_dir, event_types::SKILL_CHANGED) > 0,
-            "expected skill.changed event"
-        );
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[ignore = "flaky on WSL2/CI — notify inotify watch fails with ENFILE under parallel test load"]
-    async fn rapid_writes_coalesce_to_one_event() {
-        let (_tmp, ship_dir, kernel) = setup().await;
-        let _watcher =
-            spawn_config_watcher(kernel.clone(), ship_dir.clone(), None).unwrap();
-
-        let agents_dir = ShipHome::at(ship_dir.clone()).library_dir().join("agents");
-        std::fs::create_dir_all(&agents_dir).unwrap();
-
-        for i in 0..5u8 {
-            std::fs::write(agents_dir.join(format!("agent{i}.jsonc")), "{}").unwrap();
-        }
-
-        tokio::time::sleep(Duration::from_millis(600)).await;
-
-        assert_eq!(
-            count_events(&ship_dir, event_types::AGENT_CHANGED),
-            1,
-            "5 rapid writes should produce exactly 1 debounced event"
         );
     }
 }

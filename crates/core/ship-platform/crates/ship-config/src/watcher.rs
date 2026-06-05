@@ -6,12 +6,12 @@
 //! with raw `std::fs::read`. Here the hash read goes through the [`FsBroker`]
 //! gated door (empty hash on read failure = deleted marker, behavior preserved).
 //!
-//! The inotify primitive itself (the `WatcherService` in ship-platform that
-//! spawns `notify` watchers and feeds a debounced path-changed signal) is a
-//! collaborator OUT OF SCOPE for this crate — config registers domains against
-//! it, it does not absorb it. This module owns only the authorship the watcher
-//! drives, which is what the keystone test exercises directly with a synthetic
-//! signal (no inotify, not flaky).
+//! The inotify primitive itself (the substrate `FsWatch` port that wraps
+//! `notify` and feeds a debounced delta stream) is a collaborator OUT OF SCOPE
+//! for this crate — config subscribes domains against it, it does not absorb it.
+//! This module owns only the authorship the watch drives, which is what the
+//! keystone test exercises directly with a synthetic signal (no inotify, not
+//! flaky).
 
 use std::path::Path;
 use std::sync::Arc;
