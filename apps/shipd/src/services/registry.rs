@@ -112,7 +112,6 @@ pub mod skills;
 pub mod pipelines;
 pub mod settings;
 pub mod collections;
-pub mod artifacts;
 pub mod sessions;
 pub mod actors;
 pub mod mesh;
@@ -144,9 +143,6 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
         return Ok(value);
     }
     if let Some(value) = collections::try_dispatch(name, args, state, &files)? {
-        return Ok(value);
-    }
-    if let Some(value) = artifacts::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
     if let Some(value) = sessions::try_dispatch(name, args, state, &files)? {

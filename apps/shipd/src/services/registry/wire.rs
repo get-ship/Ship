@@ -30,8 +30,11 @@ pub struct SessionsListResponse {
     pub items: Vec<SessionMeta>,
 }
 
-/// Wire shape of `ship.artifacts.list()`.
+/// Wire shape of `ship.artifacts.list()`. Unused by the typed `ArtifactsService`
+/// handler (it builds the proto `ArtifactsListResponse` directly), but kept
+/// here as a reference shape for the specta TS surface.
 #[derive(Serialize)]
+#[allow(dead_code)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ArtifactsListResponse {
     pub items: Vec<ArtifactRecord>,

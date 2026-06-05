@@ -1,18 +1,16 @@
 //! Fixtures for the small daemon-assembled domains: sessions,
-//! artifacts, workspaces, settings.
+//! workspaces, settings.
 
 use serde_json::{json, Value};
 
 use crate::services::registry::wire::{
-    ArtifactsListResponse, SessionsListResponse,
+    SessionsListResponse,
     WorkspaceActiveResponse, WorkspaceRow, WorkspacesListResponse,
 };
 use crate::services::settings::view_state::{
     AboutInfo, FeatureFlag, ProviderRow, SelectOption, SettingsCtx, TerminalConfig,
 };
-use ship_artifacts::types::ArtifactRecord;
 use ship_platform::services::sessions::types::{SessionKind, SessionMeta, SessionStatus};
-
 fn fixed_dt() -> chrono::DateTime<chrono::Utc> {
     chrono::DateTime::from_timestamp(1_767_225_600, 0).expect("valid timestamp")
 }
@@ -36,26 +34,6 @@ fn sessions() -> SessionsListResponse {
     }
 }
 
-fn artifacts() -> ArtifactsListResponse {
-    let rec = ArtifactRecord {
-        id: "art-1".to_string(),
-        name: "report.md".to_string(),
-        mime: "text/markdown".to_string(),
-        size: 2048,
-        path: "artifacts/report.md".to_string(),
-        scope: "project".to_string(),
-        space_id: Some("ws-default".to_string()),
-        run_id: Some("typed-ops-a1b2c3d".to_string()),
-        user_id: None,
-        content_hash: Some("sha256:abc123".to_string()),
-        expires_at: None,
-        owner_actor: Some("rust-lane".to_string()),
-        collection_id: None,
-        item_id: None,
-        created_at: "2026-01-01T09:00:00Z".to_string(),
-    };
-    ArtifactsListResponse { items: vec![rec], count: 1, scope: "project".to_string() }
-}
 
 fn workspaces() -> WorkspacesListResponse {
     WorkspacesListResponse {
@@ -126,7 +104,6 @@ pub fn examples() -> Vec<(&'static str, Value)> {
     }
     vec![
         ("agents.sessions", v(sessions())),
-        ("artifacts.list", v(artifacts())),
         ("workspaces.list", v(workspaces())),
         ("workspaces.active", v(WorkspaceActiveResponse { id: Some("ws-default".to_string()) })),
         ("settings.state", v(SettingsCtx::example())),

@@ -53,7 +53,6 @@ fn launch_view_ops_are_registered() {
         "agents.summaries",
         "skills.list",
         "collections.list",
-        "artifacts.list",
     ] {
         assert!(
             n.contains(&required),
@@ -95,15 +94,6 @@ fn collections_list_returns_user_schema_items() {
     }
 }
 
-#[test]
-#[ignore = "doomed: registry dispatch-by-string apparatus (census #5) is slated for deletion; registry stays red until the cut, not fixed. See .artifacts/gate-triage-2.md cluster A"]
-fn artifacts_list_returns_empty_when_unused() {
-    let state = temp_state();
-    let v = call("artifacts.list", &json!({}), &state).expect("artifacts.list ok");
-    let items = v.get("items").and_then(|i| i.as_array()).expect("items array");
-    assert_eq!(items.len(), 0, "fresh daemon has no artifacts");
-    assert_eq!(v.get("scope").and_then(|s| s.as_str()), Some("project"));
-}
 
 #[test]
 fn skills_list_returns_array() {

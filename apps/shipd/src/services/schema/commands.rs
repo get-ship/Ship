@@ -45,43 +45,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
     // call. JSON-valued args travel as JSON-string args (server_json/patch_json).
     // ── permissions (preset config; reads are permissions.list/get) ─
     // C2 (operator-only): a preset IS the security policy governing agents, so
-    // ── artifacts (metadata mutations; bytes move on serving routes) ─
-    CommandDescriptor {
-        name: "artifacts.patch",
-        description: "Patch an artifact's metadata (name / owner / expiry).",
-        args: &[
-            ArgDescriptor { name: "id", kind: "string", required: true },
-            ArgDescriptor { name: "name", kind: "string?", required: false },
-            ArgDescriptor { name: "owner_actor", kind: "string?", required: false },
-            ArgDescriptor { name: "expires_at", kind: "string?", required: false },
-        ],
-        permission: "ship.artifacts.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "ArtifactRecord",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "artifacts.promote",
-        description: "Promote an artifact to a target scope (run → project).",
-        args: &[
-            ArgDescriptor { name: "id", kind: "string", required: true },
-            ArgDescriptor { name: "target_scope", kind: "string", required: true },
-            ArgDescriptor { name: "run_id", kind: "string?", required: false },
-        ],
-        permission: "ship.artifacts.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "ArtifactRecord",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "artifacts.delete",
-        description: "Soft-delete an artifact by id.",
-        args: &[ArgDescriptor { name: "id", kind: "string", required: true }],
-        permission: "ship.artifacts.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "Deletion",
-        sensitive: false,
-    },
+    // agents never edit it. JSON args travel as JSON-string (preset_json/patch_json).
     // ── skills (authoring; restricted ship-authoring) ─────────────
     CommandDescriptor {
         name: "skills.create",
