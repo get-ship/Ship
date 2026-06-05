@@ -14,8 +14,8 @@
     "./hover": "./src/hover.ts"
   },
   "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "bun test test/",
+    "test:watch": "bun test --watch test/"
   },
   "dependencies": {
     "@ship/sui-compiler-wasm": "workspace:*"
