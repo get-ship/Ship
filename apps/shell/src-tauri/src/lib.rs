@@ -14,6 +14,8 @@ mod auth;
 mod daemon;
 mod launcher;
 
+use std::time::Duration;
+
 use tauri::Manager;
 
 /// The space/app this runtime instance was launched for, from `--app=<id>` (or
@@ -57,6 +59,25 @@ fn resolve_daemon_port() -> Option<u16> {
     None
 }
 
+/// The path the webview lands on: a `--app=<id>` window opens its space; the hub
+/// window opens `/` (or `SHIP_SHELL_TARGET` for dev — point straight at an
+/// internal view while the hub's default route is still being wired).
+fn target_path(app_id: &Option<String>) -> String {
+    match app_id {
+        Some(id) => format!("/space/{id}"),
+        None => std::env::var("SHIP_SHELL_TARGET")
+            .ok()
+            .filter(|s| s.starts_with('/'))
+            .unwrap_or_else(|| "/".to_string()),
+    }
+}
+
+/// The loopback URL to navigate to once the daemon is reachable — actively
+/// starting it if it's down — or `None` while it isn't yet.
+fn connect_url(app_id: &Option<String>) -> Option<String> {
+    resolve_daemon_port().map(|port| format!("http://127.0.0.1:{port}{}", target_path(app_id)))
+}
+
 /// Build and run the shell. Registers the revived plugin set (updater / dialog /
 /// process / opener) and the shell's native command surface, then launches the
 /// `main` window the SUI frontend is served into. When launched with `--app`,
@@ -80,43 +101,53 @@ pub fn run() {
                 // Both hub + space windows load DAEMON-served scaffolds —
                 // same-origin so `/_sui` + Connect resolve to the daemon with no
                 // proxy, dev == prod. The bundled `frontendDist` (apps/shell/src-tauri/
-                // bootstrap/) is a one-page "Connecting…" placeholder; this navigate
-                // fires before paint and replaces it. Discover the daemon port via the
-                // native command (lifecycle is Tauri's, not the webview's).
-                let target = match &app_id {
-                    Some(id) => {
-                        let _ = window.set_title(&format!("Ship — {id}"));
-                        format!("/space/{id}")
-                    }
-                    // Hub by default; `SHIP_SHELL_TARGET` overrides the landing
-                    // path for dev — point the window straight at an internal view
-                    // (e.g. `/component-viewer`) while the hub's default `home`
-                    // route is still being wired by window-actors.
-                    None => std::env::var("SHIP_SHELL_TARGET")
-                        .ok()
-                        .filter(|s| s.starts_with('/'))
-                        .unwrap_or_else(|| "/".to_string()),
-                };
-                // Discover → start → navigate, bounded. `daemon_status` is
-                // read-only and never starts anything, so on a cold launch
-                // (port is None) we must call `daemon_start` (it already polls
-                // ~5s for the handshake) or the webview hangs on the bootstrap
-                // "Connecting…" forever. Retry the whole loop a few times so a
-                // slow or racing daemon launch self-heals; on final failure
-                // navigate to the bootstrap's in-page `#error`/retry state
-                // rather than leaving the placeholder up indefinitely.
-                if let Some(port) = resolve_daemon_port() {
-                    if let Ok(url) = format!("http://127.0.0.1:{port}{target}").parse() {
-                        let _ = window.navigate(url);
-                    }
-                } else if let Ok(url) = "index.html#error".parse() {
-                    let _ = window.navigate(url);
+                // bootstrap/) is a one-page "Connecting…" placeholder; the navigate
+                // below replaces it once the daemon is reachable.
+                if let Some(id) = &app_id {
+                    let _ = window.set_title(&format!("Ship — {id}"));
                 }
                 // Plant the launched app id for the frontend to route on (spaces
                 // also read it server-side from the scaffold; this is a belt-and-
-                // suspenders for any pre-navigate code paths).
+                // suspenders for any pre-navigate code paths). Synchronous, before
+                // any navigate.
                 let id_js = app_id.clone().unwrap_or_default();
                 let _ = window.eval(format!("window.DECK_APP_ID = {id_js:?};"));
+
+                // Connect OFF the setup thread so the bootstrap paints
+                // immediately, and KEEP watching so a slow- or late-starting
+                // daemon self-heals — the window navigates the moment the daemon
+                // is reachable instead of stranding the user on "Connecting…"
+                // with a one-shot that already fired. Only after a generous
+                // window with no daemon at all do we surface the in-bootstrap
+                // `#error` state.
+                let win = window.clone();
+                let app_id = app_id.clone();
+                std::thread::spawn(move || {
+                    // Active: discover, or start it + poll (bounded in resolve).
+                    if let Some(url) = connect_url(&app_id) {
+                        if let Ok(u) = url.parse() {
+                            let _ = win.navigate(u);
+                        }
+                        return;
+                    }
+                    // Passive self-heal: the active start didn't land a handshake;
+                    // keep watching (~40s, read-only) for a daemon to appear — a
+                    // slow handshake or one started out-of-band — before giving up.
+                    for _ in 0..20 {
+                        std::thread::sleep(Duration::from_secs(2));
+                        if let Some(port) = crate::daemon::daemon_status().port {
+                            let url =
+                                format!("http://127.0.0.1:{port}{}", target_path(&app_id));
+                            if let Ok(u) = url.parse() {
+                                let _ = win.navigate(u);
+                            }
+                            return;
+                        }
+                    }
+                    if let Ok(u) = "index.html#error".parse() {
+                        let _ = win.navigate(u);
+                    }
+                });
             }
             Ok(())
         })
