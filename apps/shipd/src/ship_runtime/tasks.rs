@@ -170,7 +170,7 @@ impl ShipRuntime {
             "sandbox-reaper",
             move || async move {
                 loop {
-                    let dispatcher = ship_platform::sandbox::dispatcher();
+                    let dispatcher = ship_device::sandbox::dispatcher();
                     let now = chrono::Utc::now();
                     let candidates = dispatcher.reap_candidates(now).await;
                     for id in candidates {

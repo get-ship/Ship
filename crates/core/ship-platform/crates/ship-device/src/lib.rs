@@ -1,5 +1,5 @@
-//! `ship-device` — the device/isolation + window service over substrate ports (L1).
-//!
+//! `ship-device` — the device domain: isolation-execution sandbox bookkeeping
+//! + window management over substrate ports (L1).
 //! The space carve split window management out of the space service into this
 //! device topic (the space service "loses window-mgmt → device"). This crate
 //! owns the window-management *mechanism* the daemon used to hold inline:
@@ -21,6 +21,7 @@
 
 pub mod error;
 pub mod ports;
+pub mod sandbox;
 pub mod windows;
 
 pub use error::{DeviceError, DeviceErrorKind};

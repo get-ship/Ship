@@ -1,6 +1,6 @@
 //! `/api/v1/sandboxes/*` — sandbox registry inspection.
 //!
-//! Read-only surface backed by `ship_platform::sandbox::dispatcher()`.
+//! Read-only surface backed by `ship_device::sandbox::dispatcher()`.
 //! Lets users (and the UI) see which sandboxes exist, what tier
 //! they're at, which actors are inside, and whether the idle reap
 //! clock is armed. No write endpoints today — sandbox lifecycle is
@@ -11,7 +11,7 @@ use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoRespons
 use serde::Serialize;
 
 use crate::routes::rest_api::{ApiState, MeshResponse};
-use ship_platform::sandbox::{self, RuntimeEndpoint, SandboxState};
+use ship_device::sandbox::{self, RuntimeEndpoint, SandboxState};
 
 #[derive(Serialize)]
 struct SandboxView {
@@ -103,7 +103,7 @@ pub async fn sandbox_get(
     let dispatcher = sandbox::dispatcher();
     let registry = dispatcher.registry();
     let reg = registry.read().await;
-    let sandbox_id = ship_platform::sandbox::SandboxId(id.clone());
+    let sandbox_id = ship_device::sandbox::SandboxId(id.clone());
     let Some(sandbox) = reg.get(&sandbox_id) else {
         return (
             StatusCode::NOT_FOUND,

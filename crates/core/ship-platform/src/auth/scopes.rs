@@ -504,7 +504,7 @@ pub type SessionRegistry = Arc<Mutex<HashMap<String, DaemonSession>>>;
 /// it through [`session_registry`] to mint a per-process token for a
 /// sandboxed actor — the token is minted in the ephemeral spawn path, so
 /// it never crosses the event-persistence boundary. Mirrors the
-/// `sandbox::dispatcher()` singleton: the spawn path needs the one
+/// `ship_device::sandbox::dispatcher()` singleton: the spawn path needs the one
 /// process-wide authority without threading a handle through every layer.
 static SESSION_REGISTRY: std::sync::OnceLock<SessionRegistry> = std::sync::OnceLock::new();
 

@@ -1,3 +1,12 @@
+// ── Device-domain re-exports (back-compat) ───────────────────────────────────
+// The sandbox module moved from this crate to `ship-device` as part of the
+// supervisor→platform cycle break (c2-sandbox-device). Re-export its public
+// surface here so downstream callers (`apps/shipd`, the supervisor) can keep
+// importing `ship_platform::sandbox::*` until they migrate in lockstep.
+pub use ship_device::sandbox::{
+    dispatcher, RuntimeEndpoint, Sandbox, SandboxDispatcher, SandboxError,
+    SandboxId, SandboxLifetime, SandboxName, SandboxRegistry, SandboxState,
+};
 // ── L1 modules (agent/collection domain layer) ────────────────────────────────
 pub mod agents;
 pub mod auth;
@@ -6,7 +15,6 @@ pub mod config;
 pub mod hooks;
 pub mod isolation;
 pub mod isolation_ops;
-pub mod sandbox;
 pub mod triggers;
 pub mod kv;
 pub mod projections;
