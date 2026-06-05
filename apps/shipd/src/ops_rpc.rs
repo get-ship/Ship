@@ -347,9 +347,11 @@ mod tests {
 
     #[test]
     fn ported_read_op_carries_its_policy() {
-        // account.state ported as a per-op method keeps its own proto policy.
-        let p = policy_for("ship.ops.v1.ReadOpsService/AccountState")
-            .expect("AccountState policy must be present");
+        // account.state keeps its own proto policy on the canonical per-domain
+        // service. The `ReadOpsService` umbrella was retired (#78) — per-domain
+        // Connect is the SSOT, so the policy resolves via `AccountService/State`.
+        let p = policy_for("ship.ops.v1.AccountService/State")
+            .expect("AccountService/State policy must be present");
         assert_eq!(p.capability, "ship.account.read");
         assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C0Read);
     }

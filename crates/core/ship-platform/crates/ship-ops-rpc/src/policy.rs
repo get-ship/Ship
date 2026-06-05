@@ -40,7 +40,7 @@ impl BlastRadius {
     pub fn from_descriptor(s: &str) -> Self {
         match s {
             "C0_SAFE" | "C0_READ" => Self::C0Read,
-            "C1_WORKSPACE" => Self::C1Space,
+            "C1_WORKSPACE" | "C1_SPACE" => Self::C1Space,
             "C2_ELEVATED" => Self::C2Elevated,
             "C3_CRITICAL" => Self::C3Critical,
             _ => Self::C3Critical,

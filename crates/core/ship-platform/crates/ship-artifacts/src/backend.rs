@@ -63,7 +63,14 @@ impl BlobBackend for LocalFsBackend {
         match std::fs::read(&path) {
             Ok(b) => Ok(b),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                Err(anyhow::anyhow!("blob missing: {}", path.display()))
+                // Preserve the NotFound kind so callers can distinguish a
+                // missing blob (record exists, bytes gone → 404) from a real
+                // IO failure (→ 500).
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("blob missing: {}", path.display()),
+                )
+                .into())
             }
             Err(e) => Err(e.into()),
         }

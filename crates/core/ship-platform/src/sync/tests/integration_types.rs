@@ -31,6 +31,9 @@ fn sample_envelope(id: &str, event_type: &str, space_id: &str) -> EventEnvelope 
         target_actor_id: None,
         elevated: true,
         created_at: Utc::now(),
+        author_account_id: None,
+        author_device_id: None,
+        signature: None,
     }
 }
 

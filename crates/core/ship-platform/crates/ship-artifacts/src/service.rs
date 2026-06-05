@@ -145,7 +145,18 @@ impl ArtifactService {
                 let blob_id = record.path.split('/').next_back().unwrap_or(&record.id);
                 self.backend.get(&from_scope, blob_id)
             })
-            .map_err(|e| ArtifactError::Blob(e.to_string()))?;
+            .map_err(|e| {
+                // Record exists but the blob bytes are gone → NotFound (404),
+                // not an internal error (500). A real IO failure stays Blob.
+                let missing = e
+                    .downcast_ref::<std::io::Error>()
+                    .is_some_and(|io| io.kind() == std::io::ErrorKind::NotFound);
+                if missing {
+                    ArtifactError::NotFound(format!("artifact '{id}' blob missing"))
+                } else {
+                    ArtifactError::Blob(e.to_string())
+                }
+            })?;
         Ok((record, bytes))
     }
 

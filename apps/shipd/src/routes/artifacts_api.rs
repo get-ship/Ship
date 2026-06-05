@@ -73,13 +73,13 @@ async fn require_record(
     }
 }
 
-fn parse_scope(scope_str: &str, run_id: Option<&str>, project_slug: &str) -> Result<ArtifactScope, String> {
+fn parse_scope(scope_str: &str, run_id: Option<&str>, space_id: &str) -> Result<ArtifactScope, String> {
     match scope_str {
         "run" => {
             let rid = run_id.ok_or("run_id required for scope=run")?;
-            Ok(ArtifactScope::Run { space_id: project_slug.to_string(), run_id: rid.to_string() })
+            Ok(ArtifactScope::Run { space_id: space_id.to_string(), run_id: rid.to_string() })
         }
-        "project" => Ok(ArtifactScope::Project { space_id: project_slug.to_string() }),
+        "project" => Ok(ArtifactScope::Project { space_id: space_id.to_string() }),
         other => Err(format!("invalid scope '{other}'; must be run|project")),
     }
 }
@@ -105,8 +105,21 @@ pub async fn upload_artifact(
         return err(StatusCode::FORBIDDEN, "insufficient scope for artifact write");
     }
 
-    let project_slug = state.project_slug().unwrap_or_default();
-    let scope = match parse_scope(scope_str, q.run_id.as_deref(), &project_slug) {
+    // The event's space partition must match the active artifact context's
+    // space, otherwise the `ArtifactProjection` writes the row to a different
+    // `space.db` than the read path queries and the just-stored artifact
+    // looks like a 404 on download. Use the active space id; the
+    // `state.project_slug()` (human-readable) is NOT the partition key.
+    let space_id = match state.artifact_ctx() {
+        Some(ctx) => ctx.space_id().as_str().to_string(),
+        None => {
+            return err_owned(
+                StatusCode::CONFLICT,
+                "no active space: artifacts are unavailable in space-less mode".to_string(),
+            )
+        }
+    };
+    let scope = match parse_scope(scope_str, q.run_id.as_deref(), &space_id) {
         Ok(s) => s,
         Err(e) => return err_owned(StatusCode::BAD_REQUEST, e),
     };
