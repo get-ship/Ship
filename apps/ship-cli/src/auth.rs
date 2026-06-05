@@ -267,12 +267,17 @@ pub fn run_auth_revoke(token: Option<&str>, all: bool) -> Result<()> {
 /// logout is just the daemon's `AccountService.Logout` (revoke gateway key +
 /// clear local token). There is no CLI-side `credentials.jsonc` mirror to wipe
 /// (retired in S5).
+///
+/// Idempotent: when there is no local token AND the daemon is unreachable,
+/// there is nothing to revoke — print "Not logged in." and exit 0. A live
+/// daemon is only required when there IS a token to clear.
 pub fn run_logout() -> Result<()> {
-    let (port, daemon_token) = daemon_connect().map_err(|_| {
-        anyhow::anyhow!(
-            "daemon is not running — start it with `ship daemon start`, then `ship logout`"
-        )
-    })?;
+    let home = ship_substrate::ShipHome::from_env();
+    if !home.account_token_path().exists() && daemon_connect().is_err() {
+        println!("Not logged in.");
+        return Ok(());
+    }
+    let (port, daemon_token) = daemon_connect().map_err(|e| e)?;
 
     use connectrpc::client::{ClientConfig, HttpClient};
     use ship_ops_rpc::{AccountServiceClient, LogoutRequest};

@@ -181,11 +181,27 @@ pub fn find_agent_file(agent_id: &str, project_root: &Path) -> Option<PathBuf> {
 /// retired. The schema matches `schemas/agent.schema.json` and is
 /// expressed by [`compiler::AgentProfile`]. Reads through THE agent-def reader
 /// (FsBroker, ship-config via ship-platform) — never raw `std::fs`.
+/// Load an agent profile from a single file. JSONC only — TOML has been
+/// retired. The schema matches `schemas/agent.schema.json` and is
+/// expressed by [`compiler::AgentProfile`]. Reads through THE agent-def reader
+/// (FsBroker, ship-config via ship-platform) — never raw `std::fs`.
+///
+/// On parse/schema failure (the file is present but the JSONC doesn't fit the
+/// agent schema), the error names the file, says it isn't valid agent config,
+/// and points the user at JSONC syntax + the top-level `agent` block — never
+/// a raw serde/jsonc trace.
 pub(crate) fn load_agent_profile(path: &Path) -> Result<AgentProfile> {
     let fs = ship_substrate::ports::LocalFsBroker::new();
-    ship_platform::config::read_agent_profile_at(&fs, path)
-        .map_err(|e| anyhow::anyhow!("read agent file {}: {}", path.display(), e))?
-        .ok_or_else(|| anyhow::anyhow!("invalid or missing agent JSONC at {}", path.display()))
+    match ship_platform::config::read_agent_profile_at(&fs, path) {
+        Ok(Some(profile)) => Ok(profile),
+        Ok(None) => Err(anyhow::anyhow!(
+            "agent config at {} is not valid agent config. \
+             Check JSONC syntax (comments, trailing commas, unmatched braces) \
+             and that the top-level `agent` block matches schemas/agent.schema.json.",
+            path.display()
+        )),
+        Err(e) => Err(anyhow::anyhow!("read agent file {}: {}", path.display(), e)),
+    }
 }
 
 /// List agent IDs available in .ship/agents/ (for error messages). Sourced
