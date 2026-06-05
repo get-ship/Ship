@@ -15,7 +15,7 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use crate::kv::KvNamespace;
+use ship_kv::KvNamespace;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
@@ -120,7 +120,7 @@ pub fn get_skill_vars(ship_dir: &Path, skill_id: &str) -> Result<Option<HashMap<
             StorageHint::Local => kv_ns_local(&ctx, skill_id),
             StorageHint::Project => kv_ns_project(&ctx, skill_id),
         };
-        if let Ok(Some(val)) = crate::kv::get(ns, name) {
+        if let Ok(Some(val)) = ship_kv::get(ns, name) {
             merged.insert(name.clone(), val);
         }
     }
@@ -142,13 +142,13 @@ pub fn set_skill_var(ship_dir: &Path, skill_id: &str, key: &str, value: Value) -
     let ctx = context_key(ship_dir);
     match meta.storage_hint {
         StorageHint::Global => {
-            crate::kv::set(kv_ns_global(skill_id), key, &value)?;
+            ship_kv::set(kv_ns_global(skill_id), key, &value)?;
         }
         StorageHint::Local => {
-            crate::kv::set(kv_ns_local(&ctx, skill_id), key, &value)?;
+            ship_kv::set(kv_ns_local(&ctx, skill_id), key, &value)?;
         }
         StorageHint::Project => {
-            crate::kv::set(kv_ns_project(&ctx, skill_id), key, &value)?;
+            ship_kv::set(kv_ns_project(&ctx, skill_id), key, &value)?;
         }
     }
     Ok(())
@@ -169,9 +169,9 @@ pub fn delete_skill_var(ship_dir: &Path, skill_id: &str, key: &str) -> Result<bo
         StorageHint::Local => kv_ns_local(&ctx, skill_id),
         StorageHint::Project => kv_ns_project(&ctx, skill_id),
     };
-    let had = crate::kv::get(ns.clone(), key)?.is_some();
+    let had = ship_kv::get(ns.clone(), key)?.is_some();
     if had {
-        crate::kv::delete(ns, key)?;
+        ship_kv::delete(ns, key)?;
     }
     Ok(had)
 }
@@ -186,8 +186,8 @@ pub fn reset_skill_vars(ship_dir: &Path, skill_id: &str) -> Result<bool> {
         kv_ns_local(&ctx, skill_id),
         kv_ns_project(&ctx, skill_id),
     ] {
-        for k in crate::kv::list_keys(ns.clone())? {
-            crate::kv::delete(ns.clone(), &k)?;
+        for k in ship_kv::list_keys(ns.clone())? {
+            ship_kv::delete(ns.clone(), &k)?;
             removed = true;
         }
     }
@@ -287,7 +287,7 @@ mod tests {
         let (_tmp, ship_dir) = setup();
         write_vars_json(&ship_dir, "commit", VARS_JSON);
         set_skill_var(&ship_dir, "commit", "commit_style", json!("gitmoji")).unwrap();
-        let val = crate::kv::get(KvNamespace::SkillVarsGlobal("commit".to_string()), "commit_style")
+        let val = ship_kv::get(KvNamespace::SkillVarsGlobal("commit".to_string()), "commit_style")
             .unwrap()
             .unwrap();
         assert_eq!(val, json!("gitmoji"));
@@ -299,7 +299,7 @@ mod tests {
         write_vars_json(&ship_dir, "commit", VARS_JSON);
         set_skill_var(&ship_dir, "commit", "verbose_mode", json!(true)).unwrap();
         let ctx = context_key(&ship_dir);
-        let val = crate::kv::get(kv_ns_project(&ctx, "commit"), "verbose_mode")
+        let val = ship_kv::get(kv_ns_project(&ctx, "commit"), "verbose_mode")
             .unwrap()
             .unwrap();
         assert_eq!(val, json!(true));
@@ -313,7 +313,7 @@ mod tests {
         write_vars_json(&ship_dir, "commit", VARS_JSON);
         set_skill_var(&ship_dir, "commit", "local_override", json!("mine")).unwrap();
         let ctx = context_key(&ship_dir);
-        let val = crate::kv::get(kv_ns_local(&ctx, "commit"), "local_override")
+        let val = ship_kv::get(kv_ns_local(&ctx, "commit"), "local_override")
             .unwrap()
             .unwrap();
         assert_eq!(val, json!("mine"));
