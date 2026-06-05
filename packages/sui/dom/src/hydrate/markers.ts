@@ -1,6 +1,6 @@
 // Single-pass scan for every author-syntax binding marker attribute
-// (`on:*`, `attr:*`, `attr-dynamic`, `class:*`, `style:*`, `bind:*`,
-// `mutation`) AND every control-flow boundary wrapper element
+// (`on:*`, `attr:*`, `attr-dynamic`, `class:*`, `style:*`, `prop:*`,
+// `bind:*`, `mutation`) AND every control-flow boundary wrapper element
 // (`<sui-if|sui-for|sui-match|sui-await|sui-while-loading|sui-while-error key="bN">`)
 // under `root`. Returns a map from binding key (`bN`) → the SSR'd
 // element carrying the marker.
@@ -39,6 +39,7 @@ export function collectElementMarkers(root: Node): Record<string, Element> {
         name === 'attr-dynamic' ||
         name.startsWith('class:') ||
         name.startsWith('style:') ||
+        name.startsWith('prop:') ||
         name.startsWith('bind:') ||
         name === 'mutation'
       ) {
