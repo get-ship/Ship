@@ -8,7 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
-use ship_substrate::ShipHome;
+use crate::home::ShipHome;
 
 use super::ensure::{ToolchainError, ensure_present};
 
@@ -64,7 +64,7 @@ fn locate_sui_compiler(explicit: Option<&Path>) -> Result<PathBuf, InstallError>
         }
         return Ok(p.to_path_buf());
     }
-    ship_substrate::locate::walk_for_target_binary("sui-compiler")
+    crate::locate::walk_for_target_binary("sui-compiler")
         .map_err(InstallError::MissingSuiCompiler)
 }
 
