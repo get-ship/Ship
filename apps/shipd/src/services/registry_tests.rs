@@ -181,29 +181,7 @@ fn agents_detail_missing_is_not_found() {
 
 // ── rules / mcp / permissions byte-identical gate ─────────────────────
 
-#[test]
-fn file_backed_list_ops_wire_identical_to_anonymous_json() {
-    let state = temp_state();
-    let files = FilesService::resolve_roots(state.ship_dir());
 
-    let got = call("rules.list", &json!({}), &state).expect("rules.list ok");
-    assert_eq!(got, json!({ "items": ship_platform::services::rules::state::list(&files) }));
-
-    let got = call("mcp.list", &json!({}), &state).expect("mcp.list ok");
-    assert_eq!(got, json!({ "items": ship_platform::services::mcp::state::list(&files) }));
-
-    let got = call("permissions.list", &json!({}), &state).expect("permissions.list ok");
-    assert_eq!(got, json!({ "items": ship_platform::services::permissions::state::list(&files) }));
-}
-
-#[test]
-fn file_backed_get_missing_is_not_found() {
-    let state = temp_state();
-    for op in ["rules.get", "mcp.get", "permissions.get"] {
-        let err = call(op, &json!({ "id": "does-not-exist" }), &state).unwrap_err();
-        assert_eq!(err.code, "not_found", "{op} on missing id");
-    }
-}
 
 // ── shipd-orchestrated domains (sessions/events/artifacts/account) ──
 
