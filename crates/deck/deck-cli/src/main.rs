@@ -92,6 +92,16 @@ enum Scaffold {
 }
 
 fn main() {
+    // Surface bundler diagnostics (e.g. a view referencing a component whose
+    // pack isn't declared in `deck.jsonc packs`) to stderr. Honors RUST_LOG;
+    // floors at `warn` so the diagnostic always shows even when unset.
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn"));
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_writer(std::io::stderr)
+        .without_time()
+        .try_init();
     if let Err(e) = run() {
         eprintln!("deck: {e:#}");
         std::process::exit(1);
@@ -231,6 +241,7 @@ fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, mini
         .block_on(deck_bundler::app::bundle_app(
             &repo_root,
             cfg.first_party_app.as_ref(),
+            &cfg.packs,
             &shell_root,
             &out_dir,
             minify,

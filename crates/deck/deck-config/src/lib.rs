@@ -99,6 +99,18 @@ pub struct DeckConfig {
     pub host_assets_root: PathBuf,
     /// First-party application embedded in this host, if any.
     pub first_party_app: Option<FirstPartyApp>,
+    /// Declared component packs (per-project component scope).
+    ///
+    /// When present and non-empty, component resolution is SCOPED to ONLY these
+    /// packs: the per-view resolver's tag index is filtered down to tags a
+    /// declared pack provides (matched by `package.json` `name`, e.g.
+    /// `"@ship/sui-primitives"`). A tag from an undeclared pack resolves to a
+    /// no-op (it never bundles) and the build emits an author diagnostic naming
+    /// the tag and the pack that provides it. When absent or empty, resolution
+    /// is GLOBAL — every workspace pack's tags are resolvable (zero behavior
+    /// change for existing projects).
+    #[serde(default)]
+    pub packs: Vec<String>,
 }
 
 impl Default for DeckConfig {
@@ -118,6 +130,7 @@ impl DeckConfig {
             watch: Vec::new(),
             host_assets_root: PathBuf::from(".deck"),
             first_party_app: None,
+            packs: Vec::new(),
         }
     }
 
@@ -256,6 +269,26 @@ mod tests {
         assert!(d.watch.is_empty());
         assert_eq!(d.host_assets_root, PathBuf::from(".deck"));
         assert!(d.first_party_app.is_none());
+        assert!(d.packs.is_empty(), "defaults declare no packs → global resolution");
+    }
+
+    /// `packs` is optional and additive — an absent field parses to empty,
+    /// which the bundler reads as "global" (every workspace pack resolvable).
+    #[test]
+    fn packs_absent_parses_to_empty() {
+        let cfg: DeckConfig =
+            serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(EXAMPLE_JSONC))
+                .expect("example deck.jsonc must parse");
+        assert!(cfg.packs.is_empty(), "no packs field ⇒ empty ⇒ global behavior");
+    }
+
+    /// A declared `packs` array parses into the scoped set.
+    #[test]
+    fn packs_present_parses_declared_set() {
+        let json = r#"{ "packs": ["@ship/sui-primitives", "deck-demo-app"] }"#;
+        let cfg: DeckConfig =
+            serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(json)).unwrap();
+        assert_eq!(cfg.packs, vec!["@ship/sui-primitives", "deck-demo-app"]);
     }
 
     #[test]

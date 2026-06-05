@@ -15,6 +15,7 @@ ship-substrate = { path = "../../core/ship-substrate" }
 clap = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [lints]
 workspace = true

@@ -4,7 +4,6 @@
 //! The SUI resolve/load plugin lives in `sui_plugin.rs`; this module owns the
 //! target-to-bundle driver and its integration tests.
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -13,7 +12,7 @@ use rolldown::{BundlerBuilder, BundlerOptions, InputItem, OutputFormat};
 
 use super::proto::BundleManifest;
 use super::targets::{BundleLayout, BundleTarget, TargetEntry};
-use crate::sui_plugin::{SuiPlugin, component_index};
+use crate::sui_plugin::{ResolverIndex, SuiPlugin, component_index};
 
 /// Build one target with Rolldown. Output written under `assets_dir_for`;
 /// returns the manifest. `staging` holds generated virtual-aggregate entries.
@@ -62,15 +61,20 @@ pub async fn bundle_target(
     // crate, so there is no compiler-version drift to gate around. Framework/
     // app builds leave component_index empty (no `@sui-tag` imports emitted).
     let emit_component_imports = target.name.starts_with("views/");
-    let index = if emit_component_imports {
-        component_index(&layout.repo_root, layout.cfg.first_party_app.as_ref())
+    let resolver = if emit_component_imports {
+        component_index(
+            &layout.repo_root,
+            layout.cfg.first_party_app.as_ref(),
+            &layout.cfg.packs,
+        )
     } else {
-        Arc::new(HashMap::new())
+        ResolverIndex::empty()
     };
     let plugin = SuiPlugin {
         repo_root: layout.repo_root.clone(),
         emit_component_imports,
-        component_index: index,
+        component_index: resolver.index,
+        shadowed_tags: resolver.shadowed,
     };
     // The bundler + its oxc module graph live in `bundler` and are dropped at
     // the end of this scope. Wrap the build/write in an inner block so the

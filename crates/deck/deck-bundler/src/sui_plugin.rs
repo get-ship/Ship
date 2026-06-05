@@ -81,6 +81,28 @@ pub(crate) struct SuiPlugin {
     /// `<tag>` → component source `.sui`, for resolving `@sui-tag/<tag>`.
     /// Empty when `emit_component_imports` is false.
     pub(crate) component_index: Arc<HashMap<String, PathBuf>>,
+    /// `<tag>` → providing-pack name, for every tag a declared-`packs` scope
+    /// EXCLUDES. Empty under global resolution. When a built view references one
+    /// of these tags, the resolver no-ops it AND warns the author (naming the
+    /// pack to declare).
+    pub(crate) shadowed_tags: Arc<HashMap<String, String>>,
+}
+
+/// The per-view resolver's lookup tables, built once per `(repo_root, packs)`.
+/// `index` resolves `@sui-tag/<tag>` to component source; `shadowed` explains a
+/// tag a declared scope excluded (empty under global resolution).
+#[derive(Clone)]
+pub(crate) struct ResolverIndex {
+    pub(crate) index: Arc<HashMap<String, PathBuf>>,
+    pub(crate) shadowed: Arc<HashMap<String, String>>,
+}
+
+impl ResolverIndex {
+    /// Empty resolver — for builds that emit no `@sui-tag` imports (framework/
+    /// app non-view targets).
+    pub(crate) fn empty() -> Self {
+        Self { index: Arc::new(HashMap::new()), shadowed: Arc::new(HashMap::new()) }
+    }
 }
 
 impl SuiPlugin {
@@ -120,10 +142,36 @@ impl Plugin for SuiPlugin {
         if let Some(tag) = spec.strip_prefix("@sui-tag/") {
             return Ok(Some(match self.component_index.get(tag) {
                 Some(src) => HookResolveIdOutput::from_id(src.to_string_lossy().to_string()),
-                // Unknown tag (view-private, or no CEM yet): resolve to a shared
-                // empty module — a harmless no-op. NOT external, which would
-                // leave an unresolvable `@sui-tag/<tag>` specifier in the served view.
-                None => HookResolveIdOutput::from_id(SUI_TAG_NOOP.to_string()),
+                None => {
+                    // A scoped-out tag (exists in the workspace, but its pack is
+                    // not in this project's declared `packs`) gets an author
+                    // diagnostic — it would otherwise vanish silently. A tag the
+                    // workspace doesn't provide at all (view-private, HTML, typo)
+                    // is not shadowed and stays a quiet no-op.
+                    if let Some(pack) = self.shadowed_tags.get(tag) {
+                        let view = args
+                            .importer
+                            .map(|i| {
+                                Path::new(i)
+                                    .strip_prefix(&self.repo_root)
+                                    .unwrap_or(Path::new(i))
+                                    .display()
+                                    .to_string()
+                            })
+                            .unwrap_or_else(|| "<entry>".to_string());
+                        tracing::warn!(
+                            tag,
+                            pack,
+                            view,
+                            "deck: `{tag}` is provided by pack `{pack}`, not declared in \
+                             deck.jsonc `packs` — it will not render. Add `{pack}` to `packs`."
+                        );
+                    }
+                    // Resolve to a shared empty module — a harmless no-op. NOT
+                    // external, which would leave an unresolvable
+                    // `@sui-tag/<tag>` specifier in the served view.
+                    HookResolveIdOutput::from_id(SUI_TAG_NOOP.to_string())
+                }
             }));
         }
         // `*.compiled.js` → virtual id; `load` compiles the sibling `.sui`. The
@@ -319,6 +367,66 @@ mod tests {
         );
         assert_eq!(tag, "sui-command-chat");
     }
+
+    fn write(path: &Path, body: &str) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, body).unwrap();
+    }
+
+    /// Two-pack fixture: a declared primitives pack + an undeclared agents pack.
+    fn two_pack_fixture() -> tempfile::TempDir {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        write(&root.join("package.json"), r#"{"workspaces":["packages/*"]}"#);
+        write(
+            &root.join("packages/primitives/package.json"),
+            r#"{"name":"@ship/sui-primitives"}"#,
+        );
+        write(
+            &root.join("packages/primitives/src/sui-button/sui-button.sui"),
+            "<button><slot></slot></button>\n",
+        );
+        write(&root.join("packages/agents/package.json"), r#"{"name":"@ship/agents"}"#);
+        write(
+            &root.join("packages/agents/src/ship-agent-card/ship-agent-card.sui"),
+            "<article><slot></slot></article>\n",
+        );
+        tmp
+    }
+
+    /// `component_index` assembles BOTH halves: a declared scope yields a scoped
+    /// index (declared tag in, undeclared tag out) and a shadowed map naming the
+    /// excluded tag's pack — the data the resolver's author diagnostic reads.
+    #[test]
+    fn component_index_scoped_carries_index_and_shadowed() {
+        let tmp = two_pack_fixture();
+        let root = tmp.path();
+        let declared: Vec<String> = vec!["@ship/sui-primitives".into()];
+
+        let scoped = component_index(root, None, &declared);
+        assert!(scoped.index.contains_key("sui-button"), "declared tag resolves");
+        assert!(
+            !scoped.index.contains_key("ship-agent-card"),
+            "undeclared tag is excluded from the index"
+        );
+        assert_eq!(
+            scoped.shadowed.get("ship-agent-card").map(String::as_str),
+            Some("@ship/agents"),
+            "excluded tag is shadowed with its providing pack (for the diagnostic)"
+        );
+    }
+
+    /// Global (empty `packs`): every tag resolves and nothing is shadowed, so
+    /// the diagnostic never fires — zero behavior change for existing projects.
+    #[test]
+    fn component_index_global_resolves_all_and_shadows_nothing() {
+        let tmp = two_pack_fixture();
+        let root = tmp.path();
+        let global = component_index(root, None, &[]);
+        assert!(global.index.contains_key("sui-button"));
+        assert!(global.index.contains_key("ship-agent-card"));
+        assert!(global.shadowed.is_empty(), "global scope shadows nothing");
+    }
 }
 
 /// Cached `<tag>` → source `.sui` index for a repo (the per-view resolver's
@@ -329,18 +437,35 @@ mod tests {
 /// `first_party_app` comes from `deck.jsonc` and drives the shell-local CEM
 /// projection (which app root gets a special origin label). `None` in
 /// zero-config hosts — the projection simply doesn't apply.
+///
+/// `packs` is the project's declared component scope (`deck.jsonc packs`). When
+/// non-empty the index is restricted to those packs (per-project access
+/// control) and `shadowed` carries every excluded tag → its pack for author
+/// diagnostics; when empty the index is global and nothing is shadowed. The
+/// cache is keyed by `(repo_root, packs)` so two projects sharing a repo root
+/// but declaring different packs don't collide.
 pub(crate) fn component_index(
     repo_root: &Path,
     first_party_app: Option<&FirstPartyApp>,
-) -> Arc<HashMap<String, PathBuf>> {
-    static CACHE: OnceLock<Mutex<HashMap<PathBuf, Arc<HashMap<String, PathBuf>>>>> =
-        OnceLock::new();
+    packs: &[String],
+) -> ResolverIndex {
+    type CacheKey = (PathBuf, Vec<String>);
+    static CACHE: OnceLock<Mutex<HashMap<CacheKey, ResolverIndex>>> = OnceLock::new();
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let key: CacheKey = (repo_root.to_path_buf(), packs.to_vec());
     let mut guard = cache.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some(idx) = guard.get(repo_root) {
+    if let Some(idx) = guard.get(&key) {
         return idx.clone();
     }
-    let idx = Arc::new(crate::catalog::tag_source_index(repo_root, first_party_app));
-    guard.insert(repo_root.to_path_buf(), idx.clone());
-    idx
+    let scope = if packs.is_empty() { None } else { Some(packs) };
+    let resolver = ResolverIndex {
+        index: Arc::new(crate::catalog::tag_source_index_scoped(
+            repo_root,
+            first_party_app,
+            scope,
+        )),
+        shadowed: Arc::new(crate::catalog::shadowed_tags(repo_root, first_party_app, packs)),
+    };
+    guard.insert(key, resolver.clone());
+    resolver
 }

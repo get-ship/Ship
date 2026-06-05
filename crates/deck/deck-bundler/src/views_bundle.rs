@@ -79,10 +79,16 @@ pub async fn bundle_views(
         ..Default::default()
     };
 
+    let resolver = component_index(
+        &layout.repo_root,
+        layout.cfg.first_party_app.as_ref(),
+        &layout.cfg.packs,
+    );
     let plugin = SuiPlugin {
         repo_root: layout.repo_root.clone(),
         emit_component_imports: true,
-        component_index: component_index(&layout.repo_root, layout.cfg.first_party_app.as_ref()),
+        component_index: resolver.index,
+        shadowed_tags: resolver.shadowed,
     };
     {
         let mut bundler = BundlerBuilder::default()

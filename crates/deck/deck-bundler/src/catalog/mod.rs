@@ -14,7 +14,10 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use serde_json::{Value, json};
 
-pub use workspace::{WorkspacePackage, discover_workspace_packages, pack_id_for_name};
+pub use workspace::{
+    WorkspacePackage, discover_workspace_packages, discover_workspace_packages_scoped,
+    pack_id_for_name,
+};
 use workspace::{read_json, source_tags_for_package};
 
 const SUI_OUT: &str = ".ship/sui-out";
@@ -61,7 +64,18 @@ pub fn build_catalog(
     repo_root: &Path,
     first_party_app: Option<&deck_config::FirstPartyApp>,
 ) -> Result<CatalogDocument, String> {
-    let packages = discover_workspace_packages(repo_root)?;
+    build_catalog_scoped(repo_root, first_party_app, None)
+}
+
+/// Scoped variant of [`build_catalog`]. When `packs` is a non-empty declared
+/// set, only those packs' components are aggregated; `None`/empty preserves the
+/// global behavior.
+pub fn build_catalog_scoped(
+    repo_root: &Path,
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+    packs: Option<&[String]>,
+) -> Result<CatalogDocument, String> {
+    let packages = discover_workspace_packages_scoped(repo_root, packs)?;
 
     let mut all: Vec<CatalogEntry> = Vec::new();
     for pkg in &packages {
@@ -106,10 +120,26 @@ pub fn tag_source_index(
     repo_root: &Path,
     first_party_app: Option<&deck_config::FirstPartyApp>,
 ) -> std::collections::HashMap<String, PathBuf> {
+    tag_source_index_scoped(repo_root, first_party_app, None)
+}
+
+/// Scoped variant of [`tag_source_index`] — per-project component access control.
+///
+/// When `packs` declares a non-empty set, the index is built ONLY from those
+/// packs (both the source scan and the CEM fallback are scoped). A tag provided
+/// solely by an undeclared pack is therefore absent → the resolver emits a
+/// `@sui-tag` no-op for it (the component never bundles), and the bundler warns
+/// the author (see [`shadowed_tags`]). When `packs` is `None`/empty the behavior
+/// is identical to [`tag_source_index`] (global).
+pub fn tag_source_index_scoped(
+    repo_root: &Path,
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+    packs: Option<&[String]>,
+) -> std::collections::HashMap<String, PathBuf> {
     let mut out = std::collections::HashMap::new();
 
-    // ── primary: source scan of every workspace package ───────────────────
-    if let Ok(packages) = discover_workspace_packages(repo_root) {
+    // ── primary: source scan of every (declared) workspace package ────────
+    if let Ok(packages) = discover_workspace_packages_scoped(repo_root, packs) {
         for pkg in &packages {
             for (tag, abs_path) in source_tags_for_package(&pkg.root) {
                 if abs_path.is_file() {
@@ -120,7 +150,7 @@ pub fn tag_source_index(
     }
 
     // ── secondary: CEM-derived paths for anything source scan missed ───────
-    if let Ok(workspace) = build_catalog(repo_root, first_party_app) {
+    if let Ok(workspace) = build_catalog_scoped(repo_root, first_party_app, packs) {
         for e in workspace.entries {
             if out.contains_key(&e.tagName) {
                 continue; // source-mode already resolved this tag
@@ -136,6 +166,43 @@ pub fn tag_source_index(
     }
 
     out
+}
+
+/// Global map: every workspace component tag → its owning pack's `package.json`
+/// `name`. First pack to provide a tag wins (discovery is name-sorted, stable).
+/// Source-scan only — the authoritative component convention — so a tag's pack
+/// attribution matches exactly what a declared scope filters on.
+pub fn tag_pack_index(repo_root: &Path) -> std::collections::HashMap<String, String> {
+    let mut out = std::collections::HashMap::new();
+    if let Ok(packages) = discover_workspace_packages(repo_root) {
+        for pkg in &packages {
+            for (tag, _path) in source_tags_for_package(&pkg.root) {
+                out.entry(tag).or_insert_with(|| pkg.name.clone());
+            }
+        }
+    }
+    out
+}
+
+/// Tags a declared-`packs` scope EXCLUDES → `tag → owning-pack name`.
+///
+/// Every workspace component tag whose owning pack is not in the resolved scope.
+/// Empty when `packs` is empty (global scope excludes nothing). This powers the
+/// author diagnostic the bundler emits when a built view references a scoped-out
+/// tag: "`<tag>` is provided by `<pack>`, which you didn't declare."
+pub fn shadowed_tags(
+    repo_root: &Path,
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+    packs: &[String],
+) -> std::collections::HashMap<String, String> {
+    if packs.is_empty() {
+        return std::collections::HashMap::new();
+    }
+    let scoped = tag_source_index_scoped(repo_root, first_party_app, Some(packs));
+    tag_pack_index(repo_root)
+        .into_iter()
+        .filter(|(tag, _)| !scoped.contains_key(tag))
+        .collect()
 }
 
 fn arr_or_empty(v: &Value) -> Value {
@@ -522,5 +589,131 @@ mod tests {
         assert!(idx.contains_key("sui-rail-item"), "sui-rail-item must be indexed");
         assert!(idx.contains_key("sui-rail-section"), "sui-rail-section must be indexed");
         assert!(!idx.contains_key("page"), "page.sui must not be indexed");
+    }
+
+    /// Three-pack fixture mirroring a real project shape:
+    ///   - `@ship/sui-primitives` exports `sui-button`
+    ///   - `deck-demo-app` exports `demo-chip` (the project's own component)
+    ///   - `@ship/agents` exports `ship-agent-card`
+    fn three_pack_fixture() -> tempfile::TempDir {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path();
+        write(&root.join("package.json"), r#"{"workspaces":["packages/*"]}"#);
+
+        write(
+            &root.join("packages/primitives/package.json"),
+            r#"{"name":"@ship/sui-primitives","private":false}"#,
+        );
+        write(
+            &root.join("packages/primitives/src/sui-button/sui-button.sui"),
+            "<button class=\"sui-button-marker\"><slot></slot></button>\n",
+        );
+
+        write(
+            &root.join("packages/demo/package.json"),
+            r#"{"name":"deck-demo-app","private":true}"#,
+        );
+        write(
+            &root.join("packages/demo/src/demo-chip/demo-chip.sui"),
+            "<span class=\"demo-chip-marker\"><slot></slot></span>\n",
+        );
+
+        write(
+            &root.join("packages/agents/package.json"),
+            r#"{"name":"@ship/agents","private":false}"#,
+        );
+        write(
+            &root.join("packages/agents/src/ship-agent-card/ship-agent-card.sui"),
+            "<article class=\"ship-agent-card-marker\"><slot></slot></article>\n",
+        );
+
+        tmp
+    }
+
+    /// Per-project component access control: a project that declares only the
+    /// primitives pack and its own components (NOT `@ship/agents`) gets:
+    ///   (a) declared-pack + own tags still resolve;
+    ///   (b) the undeclared-pack tag does NOT resolve → the resolver no-ops it;
+    ///   (c) global (no scope) resolves all three — before/after evidence.
+    #[test]
+    fn scoped_resolution_enforces_declared_pack_access() {
+        let tmp = three_pack_fixture();
+        let root = tmp.path();
+
+        // (c) BEFORE — global resolution: every workspace pack's tags resolve.
+        let global = tag_source_index(root, None);
+        let mut global_tags: Vec<&str> = global.keys().map(String::as_str).collect();
+        global_tags.sort_unstable();
+        assert_eq!(global_tags, vec!["demo-chip", "ship-agent-card", "sui-button"]);
+
+        // The project declares a PARTIAL pack set (deck.jsonc `packs`).
+        let declared: Vec<String> = vec!["@ship/sui-primitives".into(), "deck-demo-app".into()];
+        let scoped = tag_source_index_scoped(root, None, Some(&declared));
+
+        // (a) declared-pack tag resolves to a real .sui source; own tag resolves.
+        let btn = scoped
+            .get("sui-button")
+            .expect("declared primitives tag must resolve under scope");
+        assert!(btn.is_file());
+        assert!(btn.ends_with("packages/primitives/src/sui-button/sui-button.sui"));
+        assert!(scoped.contains_key("demo-chip"), "the project's own tag resolves");
+
+        // (b) undeclared-pack tag is ABSENT → resolver no-ops it (access denied).
+        assert!(
+            !scoped.contains_key("ship-agent-card"),
+            "undeclared @ship/agents tag must NOT resolve → @sui-tag no-op"
+        );
+
+        // (c) AFTER — scoped index is exactly the declared two.
+        let mut scoped_tags: Vec<&str> = scoped.keys().map(String::as_str).collect();
+        scoped_tags.sort_unstable();
+        assert_eq!(scoped_tags, vec!["demo-chip", "sui-button"]);
+    }
+
+    /// Additive guarantee: an empty declared set is treated as "no scope" →
+    /// identical to global, so existing zero-`packs` projects are unaffected.
+    #[test]
+    fn empty_packs_is_global() {
+        let tmp = three_pack_fixture();
+        let root = tmp.path();
+        let empty: Vec<String> = Vec::new();
+        let scoped = tag_source_index_scoped(root, None, Some(&empty));
+        let global = tag_source_index(root, None);
+        assert_eq!(scoped.len(), global.len(), "empty packs ⇒ identical to global");
+        assert!(scoped.contains_key("ship-agent-card"), "empty scope resolves all");
+    }
+
+    /// The author diagnostic's data: a scoped-out tag is attributed to the pack
+    /// that provides it, so the bundler can say "`<tag>` is from `<pack>`".
+    #[test]
+    fn shadowed_tags_attributes_excluded_tag_to_its_pack() {
+        let tmp = three_pack_fixture();
+        let root = tmp.path();
+        let declared: Vec<String> = vec!["@ship/sui-primitives".into(), "deck-demo-app".into()];
+
+        let shadowed = shadowed_tags(root, None, &declared);
+        // Only the undeclared pack's tag is shadowed — named with its pack.
+        assert_eq!(
+            shadowed.get("ship-agent-card").map(String::as_str),
+            Some("@ship/agents"),
+            "excluded tag must carry its providing pack for the diagnostic"
+        );
+        assert!(!shadowed.contains_key("sui-button"), "declared tag is not shadowed");
+        assert!(!shadowed.contains_key("demo-chip"), "own tag is not shadowed");
+
+        // Global scope shadows nothing (no diagnostic noise when unscoped).
+        assert!(shadowed_tags(root, None, &[]).is_empty(), "empty packs ⇒ nothing shadowed");
+    }
+
+    /// Declaring a pack that doesn't exist in the workspace contributes no tags
+    /// (silently absent at the discovery layer). A view that then references a
+    /// real tag from an *undeclared* pack is what surfaces the author diagnostic.
+    #[test]
+    fn declaring_unknown_pack_yields_no_tags() {
+        let tmp = three_pack_fixture();
+        let root = tmp.path();
+        let declared: Vec<String> = vec!["@ship/does-not-exist".into()];
+        let scoped = tag_source_index_scoped(root, None, Some(&declared));
+        assert!(scoped.is_empty(), "unknown declared pack contributes nothing");
     }
 }
