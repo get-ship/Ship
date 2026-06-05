@@ -50,10 +50,18 @@ bootstrap:
     just dev-runtime-install
     echo "bootstrap complete — 'just dev' to start the daemon"
 
-# Build + stash + start the dev daemon for this worktree.
+# Build + stash + start the dev daemon for this worktree (headless / browser dev).
 [group('daily')]
 dev:
     @scripts/dev/start.sh
+
+# The whole desktop loop in ONE command: rebuild the hub scaffold, ensure the
+# dev daemon, build + launch the native shell window. Always rebuilds the
+# scaffold so a stale `.deck/hub-scaffold` can't silently blank the shell.
+# Pass `--app=<id>` to open a space window. Daemon-only loop: `just dev`.
+[group('daily')]
+shell *ARGS:
+    @scripts/dev/shell.sh {{ARGS}}
 
 # Force a one-shot rebuild of every asset bundle served by the daemon
 # (sui-runtime, sui-dom, sui-components, islands, views/*).
