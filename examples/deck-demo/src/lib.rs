@@ -28,6 +28,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use axum::http::{StatusCode, header};
+use axum::response::Response;
 use axum::routing::get;
 use axum::{Extension, Router};
 use deck::bundler::Bundler;
@@ -67,6 +69,27 @@ fn make_bundler(app_dir: &Path) -> Bundler {
     Bundler::start(&home, app_dir.to_path_buf(), None, cfg)
 }
 
+/// Design tokens + all six themes, concatenated — matches what shipd serves at
+/// /api/assets/view-tokens.css so view-host.html's existing `<link>` resolves.
+///
+/// The view-host requests this URL for every SUI view it mounts. Deck-axum has
+/// no `/api/assets/*` handler (tokens are a Ship concern there), so we wire it
+/// directly in the deck-demo host rather than patching deck-core.
+const VIEW_TOKENS_CSS: &str = concat!(
+    include_str!("../../../packages/sui/tokens/src/tokens.css"),
+    "\n",
+    include_str!("../../../packages/sui/tokens/src/themes.css"),
+);
+
+async fn serve_view_tokens() -> Response {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/css; charset=utf-8")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .body(axum::body::Body::from(VIEW_TOKENS_CSS))
+        .unwrap()
+}
+
 /// deck's hosting surface + the two extensions its handlers read + the HMR SSE
 /// route + the in-memory data port. Shared by both entry points.
 fn build_router(
@@ -76,6 +99,9 @@ fn build_router(
     store: Arc<DemoStore>,
 ) -> Router {
     router()
+        // Tokens + themes — view-host.html requests /api/assets/view-tokens.css.
+        // Deck has no /api/assets/* route; the deck-demo host wires it directly.
+        .route("/api/assets/view-tokens.css", get(serve_view_tokens))
         // The canonical deck-axum HMR handler — no hand-rolled variant here.
         .route("/_sui/dev/hmr", get(serve_bundle_hmr))
         // Data port: live-data SSE + mutation + data endpoints (ship-free,

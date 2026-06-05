@@ -1,0 +1,636 @@
+<!-- FILE_CAP_OVERRIDE: gallery instantiates all 50+ sui/primitives — one card each; cannot be split without losing the gallery contract -->
+<div class="gsp">
+  <header class="gsp-head">
+    <h1>sui/primitives gallery</h1>
+    <p class="gsp-sub">Real component instantiations — one card per primitive, representative prop combos.</p>
+  </header>
+
+  <!-- Accordion -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-accordion</h2>
+    <div class="gsp-row">
+      <sui-accordion type="single" value="a1">
+        <sui-accordion-item value="a1">
+          <span slot="trigger">What is SUI?</span>
+          SUI is the declarative template and reactive runtime that powers Ship views.
+        </sui-accordion-item>
+        <sui-accordion-item value="a2">
+          <span slot="trigger">Multiple sections</span>
+          Open me independently — single mode keeps only one open.
+        </sui-accordion-item>
+        <sui-accordion-item value="a3" disabled>
+          <span slot="trigger">Disabled item</span>
+          This body is unreachable.
+        </sui-accordion-item>
+      </sui-accordion>
+    </div>
+  </section>
+
+  <!-- Alert -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-alert</h2>
+    <div class="gsp-col">
+      <sui-alert tone="info">
+        <span slot="title">Info</span>
+        This is an informational alert.
+      </sui-alert>
+      <sui-alert tone="success">
+        <span slot="title">Success</span>
+        Operation completed.
+      </sui-alert>
+      <sui-alert tone="warning" dismissible>
+        <span slot="title">Warning</span>
+        Check your configuration.
+      </sui-alert>
+      <sui-alert tone="destructive">
+        <span slot="title">Error</span>
+        Something went wrong.
+      </sui-alert>
+      <sui-alert tone="muted">
+        <span slot="title">Note</span>
+        Muted tone for subtle notices.
+      </sui-alert>
+    </div>
+  </section>
+
+  <!-- Avatar -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-avatar</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-avatar name="Alice Hart" size="xs"></sui-avatar>
+      <sui-avatar name="Bob Ray" size="sm" tone="primary"></sui-avatar>
+      <sui-avatar name="Carol Wei" size="md" tone="success"></sui-avatar>
+      <sui-avatar name="David Ko" size="lg" tone="warning"></sui-avatar>
+      <sui-avatar name="Eva Moor" size="xl" tone="destructive"></sui-avatar>
+      <sui-avatar initials="ZP" size="md" shape="square" tone="accent"></sui-avatar>
+      <sui-avatar icon-slug="user" size="md" tone="muted"></sui-avatar>
+    </div>
+  </section>
+
+  <!-- Badge -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-badge</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-badge tone="default" variant="solid">Solid</sui-badge>
+      <sui-badge tone="primary" variant="soft">Primary</sui-badge>
+      <sui-badge tone="info" variant="outline">Info</sui-badge>
+      <sui-badge tone="success" variant="soft">Success</sui-badge>
+      <sui-badge tone="warning" variant="soft">Warning</sui-badge>
+      <sui-badge tone="destructive" variant="solid">Error</sui-badge>
+      <sui-badge tone="accent" variant="soft" pill>Pill</sui-badge>
+      <sui-badge tone="muted" size="sm">sm</sui-badge>
+      <sui-badge tone="muted" size="lg">lg</sui-badge>
+    </div>
+  </section>
+
+  <!-- Button -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-button</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-button variant="default">Default</sui-button>
+      <sui-button variant="solid" tone="primary">Solid primary</sui-button>
+      <sui-button variant="soft" tone="success">Soft success</sui-button>
+      <sui-button variant="outline" tone="warning">Outline warning</sui-button>
+      <sui-button variant="ghost" tone="destructive">Ghost destructive</sui-button>
+      <sui-button variant="solid" tone="primary" size="xs">xs</sui-button>
+      <sui-button variant="solid" tone="primary" size="sm">sm</sui-button>
+      <sui-button variant="solid" tone="primary" size="lg">lg</sui-button>
+      <sui-button variant="solid" tone="primary" disabled>Disabled</sui-button>
+      <sui-button variant="solid" tone="primary" loading>Loading</sui-button>
+      <sui-button variant="default">
+        <sui-icon slot="leading" name="star"></sui-icon>With icon
+      </sui-button>
+    </div>
+  </section>
+
+  <!-- Card -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-card</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-card style="width:200px">
+        <span slot="header">Default card</span>
+        Content in the default slot.
+        <span slot="footer">Footer</span>
+      </sui-card>
+      <sui-card tone="primary" variant="outline" style="width:200px">
+        <span slot="header">Outline primary</span>
+        Outline variant with primary tone.
+      </sui-card>
+      <sui-card tone="success" accent-bar="static" status-rail style="width:200px">
+        <span slot="header">Status rail</span>
+        Accent bar + status rail active.
+      </sui-card>
+      <sui-card tone="info" fill padding="lg" style="width:200px">
+        Fill + large padding.
+      </sui-card>
+    </div>
+  </section>
+
+  <!-- Checkbox -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-checkbox</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-checkbox label="Default"></sui-checkbox>
+      <sui-checkbox label="Checked" checked></sui-checkbox>
+      <sui-checkbox label="Indeterminate" indeterminate></sui-checkbox>
+      <sui-checkbox label="Disabled" disabled></sui-checkbox>
+      <sui-checkbox label="Primary" tone="primary" checked></sui-checkbox>
+      <sui-checkbox label="Large" size="lg" checked></sui-checkbox>
+    </div>
+  </section>
+
+  <!-- Chip -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-chip</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-chip>Default</sui-chip>
+      <sui-chip tone="primary" variant="solid">Solid</sui-chip>
+      <sui-chip tone="success" variant="outline">Outline</sui-chip>
+      <sui-chip tone="accent" selected>Selected</sui-chip>
+      <sui-chip tone="muted" removable>Removable</sui-chip>
+      <sui-chip tone="warning" disabled>Disabled</sui-chip>
+    </div>
+  </section>
+
+  <!-- Cluster + Stack layout primitives -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-cluster / sui-stack</h2>
+    <div class="gsp-col">
+      <sui-cluster gap="3" align="center">
+        <sui-badge tone="primary">A</sui-badge>
+        <sui-badge tone="success">B</sui-badge>
+        <sui-badge tone="accent">C</sui-badge>
+      </sui-cluster>
+      <sui-stack gap="2">
+        <sui-badge tone="info">Stack item 1</sui-badge>
+        <sui-badge tone="warning">Stack item 2</sui-badge>
+        <sui-badge tone="destructive">Stack item 3</sui-badge>
+      </sui-stack>
+    </div>
+  </section>
+
+  <!-- Code -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-code</h2>
+    <div class="gsp-col">
+      <sui-code lang="ts">const x = signal(0);</sui-code>
+      <sui-code lang="ts">const y = derived(() => x() * 2);</sui-code>
+    </div>
+  </section>
+
+  <!-- Collapsible -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-collapsible</h2>
+    <div class="gsp-row">
+      <sui-collapsible>
+        <sui-button slot="trigger" variant="outline" size="sm">Toggle details</sui-button>
+        <div style="padding:8px 0">Revealed content when expanded.</div>
+      </sui-collapsible>
+    </div>
+  </section>
+
+  <!-- Empty state + Error state -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-empty-state / sui-error-state</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-empty-state variant="default" size="sm">
+        <sui-icon slot="icon" name="inbox"></sui-icon>
+        <span slot="title">Nothing here yet</span>
+        Start by creating a new item.
+        <sui-button slot="action" tone="primary" variant="solid" size="sm">Create</sui-button>
+      </sui-empty-state>
+      <sui-empty-state variant="inline" size="sm" tone="muted">
+        <span slot="title">No results</span>
+        Adjust your filters.
+      </sui-empty-state>
+      <sui-error-state title="Load failed" size="sm" icon="alert-circle">
+        Connection timed out.
+        <sui-button slot="action" variant="outline" size="sm">Retry</sui-button>
+      </sui-error-state>
+    </div>
+  </section>
+
+  <!-- Field + Label -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-field / sui-label / sui-input / sui-textarea</h2>
+    <div class="gsp-col" style="max-width:360px">
+      <sui-field>
+        <sui-label slot="label" required>Name</sui-label>
+        <sui-input type="text" placeholder="Enter your name" name="demo-name"></sui-input>
+        <span slot="hint">Used for display only.</span>
+      </sui-field>
+      <sui-field invalid>
+        <sui-label slot="label">Email</sui-label>
+        <sui-input type="email" placeholder="user@example.com" invalid name="demo-email"></sui-input>
+        <span slot="error">Enter a valid email address.</span>
+      </sui-field>
+      <sui-field>
+        <sui-label slot="label">Notes</sui-label>
+        <sui-textarea placeholder="Add notes…" rows="3" name="demo-notes"></sui-textarea>
+      </sui-field>
+    </div>
+  </section>
+
+  <!-- Icon -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-icon</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-icon name="star" size="xs"></sui-icon>
+      <sui-icon name="star" size="sm"></sui-icon>
+      <sui-icon name="star" size="md"></sui-icon>
+      <sui-icon name="star" size="lg"></sui-icon>
+      <sui-icon name="star" size="xl"></sui-icon>
+      <sui-icon name="check-circle" tone="success" size="md"></sui-icon>
+      <sui-icon name="alert-triangle" tone="warning" size="md"></sui-icon>
+      <sui-icon name="x-circle" tone="destructive" size="md"></sui-icon>
+      <sui-icon name="info" tone="info" size="md"></sui-icon>
+    </div>
+  </section>
+
+  <!-- Link -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-link</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-link href="#">Default link</sui-link>
+      <sui-link href="#" variant="underline" tone="primary">Underline primary</sui-link>
+      <sui-link href="#" variant="subtle" tone="muted">Subtle muted</sui-link>
+      <sui-link href="https://example.com" external>External</sui-link>
+    </div>
+  </section>
+
+  <!-- Navigation menu -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-navigation-menu</h2>
+    <div class="gsp-row">
+      <sui-navigation-menu value="home">
+        <sui-navigation-item value="home" active>Home</sui-navigation-item>
+        <sui-navigation-item value="docs">Docs</sui-navigation-item>
+        <sui-navigation-item value="api">API</sui-navigation-item>
+        <sui-navigation-item value="disabled" disabled>Disabled</sui-navigation-item>
+      </sui-navigation-menu>
+    </div>
+  </section>
+
+  <!-- Pagination -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-pagination</h2>
+    <div class="gsp-col">
+      <sui-pagination page="1" total="150" page-size="10"></sui-pagination>
+      <sui-pagination page="3" total="150" page-size="25" page-size-options="10,25,50"></sui-pagination>
+    </div>
+  </section>
+
+  <!-- Radio group -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-radio-group / sui-radio</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-radio-group name="demo-radio" value="b" label="Size">
+        <sui-radio value="a">Small</sui-radio>
+        <sui-radio value="b">Medium</sui-radio>
+        <sui-radio value="c">Large</sui-radio>
+      </sui-radio-group>
+      <sui-radio-group name="demo-radio2" value="x" label="Tones" tone="primary">
+        <sui-radio value="x" tone="primary">Primary</sui-radio>
+        <sui-radio value="y" tone="success">Success</sui-radio>
+        <sui-radio value="z" disabled>Disabled</sui-radio>
+      </sui-radio-group>
+    </div>
+  </section>
+
+  <!-- Select + Combobox -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-select</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-select name="demo-select" size="sm">
+        <option value="">Pick one…</option>
+        <option value="a">Alpha</option>
+        <option value="b">Beta</option>
+      </sui-select>
+      <sui-select name="demo-select2" size="md" tone="info">
+        <option value="">Info tone</option>
+        <option value="a">Option A</option>
+      </sui-select>
+      <sui-select name="demo-select3" size="lg" invalid>
+        <option value="">Invalid state</option>
+      </sui-select>
+      <sui-select name="demo-select4" disabled>
+        <option value="">Disabled</option>
+      </sui-select>
+    </div>
+  </section>
+
+  <!-- Separator -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-separator</h2>
+    <div class="gsp-col">
+      <sui-separator orientation="horizontal"></sui-separator>
+      <sui-separator orientation="horizontal" variant="dashed" tone="muted"></sui-separator>
+      <sui-separator orientation="horizontal" tone="primary"></sui-separator>
+    </div>
+  </section>
+
+  <!-- Skeleton -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-skeleton</h2>
+    <div class="gsp-col" style="max-width:300px">
+      <sui-skeleton shape="text" size="md"></sui-skeleton>
+      <sui-skeleton shape="line" size="sm" style="width:60%"></sui-skeleton>
+      <sui-skeleton shape="block" size="lg"></sui-skeleton>
+      <sui-skeleton shape="circle" size="md"></sui-skeleton>
+    </div>
+  </section>
+
+  <!-- Slider -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-slider</h2>
+    <div class="gsp-col" style="max-width:320px">
+      <sui-slider name="demo-slider" value="40" min="0" max="100" label="Volume"></sui-slider>
+      <sui-slider name="demo-slider2" value="60" tone="primary" size="lg" label="Primary large"></sui-slider>
+      <sui-slider name="demo-slider3" value="20" disabled label="Disabled"></sui-slider>
+    </div>
+  </section>
+
+  <!-- Spinner -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-spinner</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-spinner size="xs"></sui-spinner>
+      <sui-spinner size="sm" tone="primary"></sui-spinner>
+      <sui-spinner size="md" tone="success"></sui-spinner>
+      <sui-spinner size="lg" tone="warning"></sui-spinner>
+    </div>
+  </section>
+
+  <!-- Status dot -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-status-dot</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-status-dot tone="success" label="Online"></sui-status-dot>
+      <sui-status-dot tone="warning" pulse label="Pending"></sui-status-dot>
+      <sui-status-dot tone="destructive" label="Error"></sui-status-dot>
+      <sui-status-dot tone="muted" label="Offline"></sui-status-dot>
+      <sui-status-dot tone="info" size="sm" label="Small"></sui-status-dot>
+    </div>
+  </section>
+
+  <!-- Switch -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-switch</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-switch name="demo-sw1" label="Default"></sui-switch>
+      <sui-switch name="demo-sw2" checked label="Checked"></sui-switch>
+      <sui-switch name="demo-sw3" tone="primary" checked label="Primary"></sui-switch>
+      <sui-switch name="demo-sw4" tone="success" checked size="lg" label="Success lg"></sui-switch>
+      <sui-switch name="demo-sw5" disabled label="Disabled"></sui-switch>
+    </div>
+  </section>
+
+  <!-- Tabs -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-tabs</h2>
+    <div class="gsp-col">
+      <sui-tabs active="tab1" variant="underline">
+        <sui-tab name="tab1" label="Overview"></sui-tab>
+        <sui-tab name="tab2" label="Settings"></sui-tab>
+        <sui-tab name="tab3" label="Logs" count="12"></sui-tab>
+        <sui-tab name="tab4" label="Disabled" disabled></sui-tab>
+      </sui-tabs>
+      <sui-tabs active="p1" variant="pill" tone="primary">
+        <sui-tab name="p1" label="Alpha"></sui-tab>
+        <sui-tab name="p2" label="Beta"></sui-tab>
+      </sui-tabs>
+      <sui-tabs active="e1" variant="enclosed" size="sm">
+        <sui-tab name="e1" label="Code"></sui-tab>
+        <sui-tab name="e2" label="Preview"></sui-tab>
+      </sui-tabs>
+    </div>
+  </section>
+
+  <!-- Timeline -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-timeline</h2>
+    <div class="gsp-row">
+      <sui-timeline>
+        <sui-timeline-item tone="success" at="2026-06-01">
+          <span slot="title">Deployed</span>
+          Release shipped to production.
+        </sui-timeline-item>
+        <sui-timeline-item tone="info" at="2026-05-30">
+          <span slot="title">Review passed</span>
+          All checks green.
+        </sui-timeline-item>
+        <sui-timeline-item tone="muted" at="2026-05-28">
+          <span slot="title">PR opened</span>
+          Initial draft created.
+        </sui-timeline-item>
+      </sui-timeline>
+    </div>
+  </section>
+
+  <!-- Toast -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-toast (static preview)</h2>
+    <div class="gsp-col" style="max-width:380px">
+      <sui-toast tone="info">
+        <span slot="title">Info toast</span>
+        Something happened you should know about.
+      </sui-toast>
+      <sui-toast tone="success" show-progress>
+        <span slot="title">Success</span>
+        File uploaded successfully.
+      </sui-toast>
+      <sui-toast tone="destructive" dismissible>
+        <span slot="title">Error</span>
+        Upload failed — try again.
+      </sui-toast>
+    </div>
+  </section>
+
+  <!-- Toggle group -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-toggle-group</h2>
+    <div class="gsp-col">
+      <sui-toggle-group type="single" value="b" variant="outline" name="demo-tg1">
+        <sui-toggle value="a">Left</sui-toggle>
+        <sui-toggle value="b">Center</sui-toggle>
+        <sui-toggle value="c">Right</sui-toggle>
+      </sui-toggle-group>
+      <sui-toggle-group type="multiple" variant="segmented" name="demo-tg2">
+        <sui-toggle value="bold" variant="segmented">Bold</sui-toggle>
+        <sui-toggle value="italic" variant="segmented">Italic</sui-toggle>
+        <sui-toggle value="under" variant="segmented">Underline</sui-toggle>
+      </sui-toggle-group>
+    </div>
+  </section>
+
+  <!-- Tooltip -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-tooltip</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-tooltip placement="top">
+        <sui-button variant="outline">Hover me (top)</sui-button>
+        <span slot="content">Tooltip on top</span>
+      </sui-tooltip>
+      <sui-tooltip placement="bottom">
+        <sui-button variant="outline">Bottom</sui-button>
+        <span slot="content">Tooltip on bottom</span>
+      </sui-tooltip>
+      <sui-tooltip placement="right">
+        <sui-button variant="outline">Right</sui-button>
+        <span slot="content">Tooltip on right</span>
+      </sui-tooltip>
+    </div>
+  </section>
+
+  <!-- Tree view -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-tree-view</h2>
+    <div class="gsp-row">
+      <sui-tree-view>
+        <sui-tree-item label="src" expanded>
+          <sui-tree-item label="components" leaf>
+            <sui-icon slot="icon" name="folder" size="sm"></sui-icon>
+          </sui-tree-item>
+          <sui-tree-item label="views" expanded>
+            <sui-tree-item label="page.sui" leaf></sui-tree-item>
+            <sui-tree-item label="controller.ts" leaf></sui-tree-item>
+          </sui-tree-item>
+        </sui-tree-item>
+        <sui-tree-item label="tests" leaf></sui-tree-item>
+      </sui-tree-view>
+    </div>
+  </section>
+
+  <!-- Scroll area -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-scroll-area</h2>
+    <div class="gsp-row">
+      <sui-scroll-area orientation="vertical" style="height:120px;width:300px;border:1px solid var(--border);border-radius:var(--radius-md)">
+        <div style="padding:8px">
+          <p>Line 1</p><p>Line 2</p><p>Line 3</p><p>Line 4</p>
+          <p>Line 5</p><p>Line 6</p><p>Line 7</p><p>Line 8</p>
+        </div>
+      </sui-scroll-area>
+    </div>
+  </section>
+
+  <!-- JSON view -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-json-view</h2>
+    <div class="gsp-row">
+      <sui-json-view data='{"name":"SUI","version":1,"stable":true}' depth="2" expanded></sui-json-view>
+    </div>
+  </section>
+
+  <!-- Markdown -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-markdown</h2>
+    <div class="gsp-row" style="max-width:500px">
+      <sui-markdown value="## Hello from **Markdown**&#10;&#10;- Item one&#10;- Item two&#10;- `code` inline"></sui-markdown>
+    </div>
+  </section>
+
+  <!-- Diff -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-diff</h2>
+    <div class="gsp-row">
+      <sui-diff from="const x = 1;" to="const x = 2;"></sui-diff>
+    </div>
+  </section>
+
+  <!-- Table (slot mode) -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-table (slot mode)</h2>
+    <div class="gsp-row">
+      <sui-table variant="slot" label="Demo table" hoverable>
+        <tr slot="head"><th>Name</th><th>Role</th><th>Status</th></tr>
+        <tr><td>Alice</td><td>Engineer</td><td><sui-badge tone="success" variant="soft" size="sm">Active</sui-badge></td></tr>
+        <tr><td>Bob</td><td>Designer</td><td><sui-badge tone="warning" variant="soft" size="sm">Away</sui-badge></td></tr>
+        <tr><td>Carol</td><td>PM</td><td><sui-badge tone="muted" variant="soft" size="sm">Offline</sui-badge></td></tr>
+      </sui-table>
+    </div>
+  </section>
+
+  <!-- Color picker -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-color-picker</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-color-picker name="demo-color1" value="#3b82f6"></sui-color-picker>
+      <sui-color-picker name="demo-color2" value="#22c55e" size="sm"></sui-color-picker>
+      <sui-color-picker name="demo-color3" value="#ef4444" size="lg" tone="primary"></sui-color-picker>
+    </div>
+  </section>
+
+  <!-- Date picker -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-date-picker</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-date-picker name="demo-date1" placeholder="YYYY-MM-DD"></sui-date-picker>
+      <sui-date-picker name="demo-date2" value="2026-06-05" tone="primary" size="sm"></sui-date-picker>
+    </div>
+  </section>
+
+  <!-- File upload -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-file-upload</h2>
+    <div class="gsp-col" style="max-width:360px">
+      <sui-file-upload accept="image/*,application/pdf" tone="primary"></sui-file-upload>
+      <sui-file-upload multiple accept=".json,.csv" tone="muted"></sui-file-upload>
+    </div>
+  </section>
+
+  <!-- Autocomplete -->
+  <section class="gsp-section">
+    <h2 class="gsp-label">sui-autocomplete</h2>
+    <div class="gsp-row gsp-wrap">
+      <sui-autocomplete name="demo-ac" placeholder="Search fruits…" suggestions='["Apple","Apricot","Banana","Blueberry","Cherry","Date"]' size="md"></sui-autocomplete>
+    </div>
+  </section>
+</div>
+
+<style>
+  .gsp {
+    padding: var(--space-6);
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .gsp-head {
+    margin-bottom: var(--space-8);
+  }
+  .gsp-head h1 {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-bold);
+    margin: 0 0 var(--space-2);
+  }
+  .gsp-sub {
+    color: var(--muted-foreground);
+    margin: 0;
+  }
+  .gsp-section {
+    margin-bottom: var(--space-8);
+  }
+  .gsp-label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 var(--space-3);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .gsp-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+  .gsp-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .gsp-wrap {
+    flex-wrap: wrap;
+  }
+</style>
