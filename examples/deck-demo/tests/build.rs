@@ -38,6 +38,7 @@ async fn spa_build_emits_hashed_bundle_and_rewrites_html() {
     // bundle_framework = false: the SPA mode where a host/daemon serves /_sui/*.
     let build = bundle_app(
         &spa, // repo_root (cwd for module resolution; framework is external)
+        None, // first_party_app — external island-free app, no first-party pack
         &spa, // shell_root (index.html + src/)
         out.path(),
         false, // minify
@@ -90,6 +91,7 @@ async fn self_contained_build_ships_singletons_for_island_free_app() {
     // repo_root = the SPA dir (an island-free app root) + bundle_framework=true.
     let build = bundle_app(
         &spa,
+        None, // first_party_app
         &spa,
         out.path(),
         false, // minify
