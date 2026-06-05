@@ -24,7 +24,7 @@ pub struct ShipdPlatform {
     pub kernel: Arc<Mutex<KernelRouter>>,
     /// Daemon session-token registry — mint_session_token inserts a scoped
     /// token here so the agent's daemon-hosted MCP calls authenticate.
-    pub session_registry: ship_platform::auth::scopes::SessionRegistry,
+    pub session_registry: ship_auth_types::SessionRegistry,
     /// Daemon base URL (e.g. `http://127.0.0.1:8080`) injected as
     /// `$SHIP_DAEMON_URL`. Empty string when the daemon URL is unknown.
     pub daemon_base_url: String,
@@ -91,7 +91,7 @@ impl AgentPlatform for ShipdPlatform {
     }
 
     async fn mint_session_token(&self, agent_id: &str, role: Option<&str>) -> Option<String> {
-        use ship_platform::auth::scopes::{DaemonSession, generate_session_token, scopes_for_role};
+        use ship_auth_types::{DaemonSession, generate_session_token, scopes_for_role};
         let token = match generate_session_token() {
             Ok(t) => t,
             Err(e) => {
@@ -103,6 +103,7 @@ impl AgentPlatform for ShipdPlatform {
             token: token.clone(),
             agent_id: agent_id.to_string(),
             scopes: scopes_for_role(role),
+            // L1 (projection-aware): keep on ship-platform's L1 path.
             grants: ship_platform::auth::scopes::resolve_grants(agent_id, role),
             workspace_id: None,
             // Agent sessions carry no resolved space — keyed `None` at emit,

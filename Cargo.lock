@@ -7690,6 +7690,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-auth-types"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "getrandom 0.2.17",
+ "serde",
+ "serde_json",
+ "ship-host",
+ "ship-types",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "ship-cli"
 version = "0.2.0"
 dependencies = [
@@ -7987,6 +8001,7 @@ dependencies = [
  "ship-agents",
  "ship-analytics",
  "ship-artifacts",
+ "ship-auth-types",
  "ship-collection",
  "ship-config",
  "ship-gateway-client",
@@ -8191,6 +8206,7 @@ dependencies = [
  "portable-pty",
  "serde",
  "serde_json",
+ "ship-auth-types",
  "ship-isolation",
  "ship-pipeline-runtime",
  "ship-platform",
