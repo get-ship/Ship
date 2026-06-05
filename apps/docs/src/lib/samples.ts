@@ -477,22 +477,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   ],
 
   /* Pipeline composites --------------------------------------------- */
-  'sui-pipeline-step-def': [
-    {
-      label: 'Definition row',
-      raw: `<sui-pipeline-step-def name="review" step-type="agent" agent="Claude" prompt="Review the PR"></sui-pipeline-step-def>`,
-    },
-  ],
-  'sui-pipeline-definition': [
-    {
-      label: 'Definition',
-      raw: `<sui-pipeline-definition name="release">
-  <sui-pipeline-step-def name="collect" step-type="run" agent="git log"></sui-pipeline-step-def>
-  <sui-pipeline-step-def name="review" step-type="agent" agent="Claude"></sui-pipeline-step-def>
-  <sui-pipeline-step-def name="merge" step-type="merge"></sui-pipeline-step-def>
-</sui-pipeline-definition>`,
-    },
-  ],
   'sui-pipeline-run': [
     {
       label: 'Run #214',

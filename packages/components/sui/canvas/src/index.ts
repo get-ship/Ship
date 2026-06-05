@@ -10,6 +10,7 @@
 import './sui-canvas/sui-canvas.compiled.js'
 import './sui-board/sui-board.compiled.js'
 import './sui-draw/sui-draw.compiled.js'
+import './sui-graph-canvas/sui-graph-canvas.compiled.js'
 
 export { createCanvas } from './engine/create-canvas'
 export { createBoardModel } from './sui-board/engine/board-model'

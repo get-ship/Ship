@@ -13,3 +13,4 @@
 import './ship-agents-table/ship-agents-table.compiled.js'
 import './ship-agent-card/ship-agent-card.compiled.js'
 import './ship-agent-thread/ship-agent-thread.compiled.js'
+import './sui-harness-blob/sui-harness-blob.compiled.js'

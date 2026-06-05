@@ -11,5 +11,6 @@
 // dependency the host registers via `import '@ship/sui-primitives'`.
 import './ship-approval-card/ship-approval-card.compiled.js'
 import './ship-capability-request/ship-capability-request.compiled.js'
+import './sui-auth-dialog/sui-auth-dialog.compiled.js'
 
 export type { AuthorityRequest } from './ship-approval-card/ship-approval-card.controller'
