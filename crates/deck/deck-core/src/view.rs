@@ -80,27 +80,12 @@ fn compile_view_js(name: &str, resolved: &ResolvedView, mode: DaemonMode) -> Dec
     )
 }
 
-pub(crate) fn is_valid_view_name(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-    let segments: Vec<&str> = s.split('/').collect();
-    if segments.len() > 8 {
-        return false;
-    }
-    for seg in segments {
-        if seg.is_empty() || seg.len() > 64 {
-            return false;
-        }
-        if seg == ".." || seg.starts_with('.') || seg.starts_with('-') {
-            return false;
-        }
-        if !seg.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
-            return false;
-        }
-    }
-    true
-}
+// The view-name validator is a single source of truth in deck-host so the
+// render/payload path (here) and the SSE/mutation handlers share one rule. This
+// path used to carry its own (lenient) copy while the re-exported deck-host one
+// was stricter — a view could render + be handed a subscribe/action URL the
+// SSE/mutation path then rejected. Delegate down to the one canonical rule.
+pub(crate) use deck_host::render_helpers::is_valid_view_name;
 
 #[cfg(test)]
 mod tests {

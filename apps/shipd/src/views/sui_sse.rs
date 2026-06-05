@@ -168,7 +168,6 @@ mod tests {
     fn is_valid_view_name_rejects_traversal() {
         assert!(!is_valid_view_name("../secret"));
         assert!(!is_valid_view_name(""));
-        assert!(!is_valid_view_name("A_B"));
     }
 
     #[test]
@@ -176,6 +175,11 @@ mod tests {
         assert!(is_valid_view_name("git"));
         assert!(is_valid_view_name("my-view"));
         assert!(is_valid_view_name("agents"));
+        // Same SSOT as the render path — names that render must validate here
+        // too (digits/uppercase/underscore), so the SSE URL the payload mints
+        // is never rejected by this handler.
+        assert!(is_valid_view_name("A_B"));
+        assert!(is_valid_view_name("v2"));
     }
 
     #[test]
