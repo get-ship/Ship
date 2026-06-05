@@ -483,7 +483,7 @@ where
     >,
 {
     let project_key = ctx.work_dir.to_string_lossy().to_string();
-    let dispatcher = ship_platform::sandbox::dispatcher();
+    let dispatcher = ship_device::sandbox::dispatcher();
     let isolation_profile = ship_isolation::tier::IsolationProfile {
         tier: Some(tier),
         strategy: Some(strategy),
@@ -507,7 +507,7 @@ where
     // Reuse the running sidecar's endpoint if the project already prepared
     // a sandbox; else boot a fresh one via `prepare`.
     let existing = dispatcher.endpoint_for(&sandbox_id).await.and_then(|e| match e {
-        ship_platform::sandbox::RuntimeEndpoint::Remote { addr, .. } => Some(addr),
+        ship_device::sandbox::RuntimeEndpoint::Remote { addr, .. } => Some(addr),
         _ => None,
     });
     let endpoint = if let Some(addr) = existing {
@@ -927,7 +927,7 @@ impl SessionExecutor for ProcessExecutor {
                 strategy: Some(d.resolved.strategy),
                 policy: None,
             };
-            let dispatcher = ship_platform::sandbox::dispatcher();
+            let dispatcher = ship_device::sandbox::dispatcher();
             match dispatcher
                 .ensure_default_sandbox(project_key, isolation_profile)
                 .await
@@ -1117,7 +1117,7 @@ impl SessionExecutor for ProcessExecutor {
             // Detach from sandbox registry. Non-fatal on error so a
             // dispatcher hiccup never blocks the exit signal that
             // downstream consumers (job lifecycle, telemetry) need.
-            if let Err(e) = ship_platform::sandbox::dispatcher()
+            if let Err(e) = ship_device::sandbox::dispatcher()
                 .notify_actor_exit(&handle_for_exit.actor_id)
                 .await
             {

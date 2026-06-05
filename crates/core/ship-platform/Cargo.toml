@@ -9,6 +9,11 @@ description = "L1 platform primitives — agents, collections, artifacts, trigge
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
 ship-host = { path = "../ship-substrate/crates/ship-host" }
+# Device domain — the isolation-execution sandbox (moved from this crate
+# as part of the supervisor→platform cycle break, c2-sandbox-device) plus
+# the window-management service. Re-exported below for back-compat with
+# downstream callers that still import `ship_platform::sandbox::*`.
+ship-device = { path = "crates/ship-device" }
 ship-analytics = { path = "crates/ship-analytics" }
 # Sibling L1 crates (live under this crate's `crates/` dir). The internal
 # platform consumers (triggers, view_authoring, orchestrator) call into the

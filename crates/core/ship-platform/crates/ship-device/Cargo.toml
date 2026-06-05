@@ -8,14 +8,20 @@ description = "DeviceService — window management + device/isolation surface ov
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
-
+# Isolation types + recommender. The sandbox module (sandbox/dispatcher.rs)
+# consumes `ship_isolation::tier::{IsolationProfile, IsolationTier}` to
+# route actor spawns; default-features off keeps the youki / sidecar
+# backends opt-in (the daemon's feature flags layer them in).
+ship-isolation = { path = "../../../ship-isolation", default-features = false }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+chrono = { workspace = true }
+nanoid = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt"] }
+tracing = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }

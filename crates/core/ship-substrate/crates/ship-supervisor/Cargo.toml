@@ -11,6 +11,12 @@ ship-platform = { path = "../../../ship-platform" }
 # tokens through this seam — the role→scope tables and `DaemonSession`
 # constructor live here, not in the L1 platform.
 ship-auth-types = { path = "../ship-auth-types" }
+# Device domain — isolation-execution sandbox bookkeeping. The supervisor's
+# per-spawn path consults `ship_device::sandbox::dispatcher()` to ensure
+# the project's default sandbox exists, register actors, and notify on
+# exit. Moved here from `ship_platform::sandbox` as part of the
+# supervisor→platform cycle break (c2-sandbox-device).
+ship-device = { path = "../../../ship-platform/crates/ship-device" }
 # Pipeline runtime (orchestrator + PipelinesService carved out of
 # ship-platform — agents-arc P3 cut). The supervisor wires up the
 # `OrchestratorContext` for the runner and reaches into the pipeline

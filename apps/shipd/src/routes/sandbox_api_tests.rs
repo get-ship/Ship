@@ -51,7 +51,7 @@ fn container_profile() -> IsolationProfile {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sandbox_list_includes_registered_sandbox() {
-    let dispatcher = ship_platform::sandbox::dispatcher();
+    let dispatcher = ship_device::sandbox::dispatcher();
     let project = format!("test-list-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
     let id = dispatcher
         .ensure_default_sandbox(&project, container_profile())
@@ -89,7 +89,7 @@ async fn sandbox_list_includes_registered_sandbox() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sandbox_get_returns_individual_sandbox() {
-    let dispatcher = ship_platform::sandbox::dispatcher();
+    let dispatcher = ship_device::sandbox::dispatcher();
     let project = format!("test-get-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
     let id = dispatcher
         .ensure_default_sandbox(&project, container_profile())
@@ -130,7 +130,7 @@ async fn sandbox_get_unknown_id_returns_404() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sandbox_list_actors_reflects_register_calls() {
-    let dispatcher = ship_platform::sandbox::dispatcher();
+    let dispatcher = ship_device::sandbox::dispatcher();
     let project = format!("test-actors-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
     let id = dispatcher
         .ensure_default_sandbox(&project, container_profile())
