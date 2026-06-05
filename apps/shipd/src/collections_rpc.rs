@@ -2,21 +2,26 @@
 //! (#89), mounted additively beside the generated ReadOps/CommandOps until the
 //! GUI flip (#72).
 //!
-//! Collections are the data plane (sqlite-backed). Reads are C0 and carry opaque
-//! JSON, so they route through the sync read registry and wrap the result in
-//! `JsonResponse`. Writes are C1 and route through `services::command::call`
-//! (the ONE gate); item writes decode the typed `CollectionItem` / `Deletion`,
-//! schema writes stay `JsonResponse`.
+//! Writes (C1) gate inline via `OpsImpl::gate` (proto policy + `gate::decide`)
+//! and call the platform `ship-collection` crate directly — no more
+//! `services::command::call` string dispatch. The typed `CollectionItem` /
+//! `Deletion` responses are built from the crate's return, never round-tripped
+//! through `serde_json::from_value` on the apparatus path.
+//!
+//! Reads (C0) still route through the sync read registry: the four read ops
+//! (`collections.state/list/detail/items`) compose view-shapes here in shipd
+//! (built-in + file-overlay schema merge, per-collection status summary, etc.)
+//! that the platform crate doesn't project. The read-side registry stays as
+//! the assembly layer for that composition; deleting the slice would force
+//! the composition into the handler and lose the daemon-local projection
+//! boundary. See job-spec: "flag it, don't force a bad move".
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
-use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 
 use ship_ops_rpc::{CollectionItem, CollectionsService, Deletion, JsonResponse};
 
-use crate::auth::AuthContext;
-use crate::ops_rpc::{command_error_to_connect, OpsImpl};
-use crate::services::command::{self, CommandCtx};
+use crate::ops_rpc::OpsImpl;
 
 #[allow(refining_impl_trait)]
 impl CollectionsService for OpsImpl {
@@ -94,12 +99,13 @@ impl CollectionsService for OpsImpl {
         request: ship_ops_rpc::OwnedGetCollectionItemReqView,
     ) -> ServiceResult<JsonResponse> {
         // No read-registry op exists for the single-item GET, so call the
-        // platform service directly (as the old REST handler did) and mirror
-        // its `{ ok, data }` envelope. The service error maps to Connect codes.
-        let item = self
+        // platform service directly and mirror its `{ ok, data }` envelope.
+        // The service error maps to Connect codes.
+        let svc = self
             .state()
             .collections()
-            .map_err(|e| ConnectError::failed_precondition(e.to_string()))?
+            .map_err(|e| ConnectError::failed_precondition(e.to_string()))?;
+        let item = svc
             .get_item(request.collection, request.id)
             .await
             .map_err(ConnectError::from)?;
@@ -112,12 +118,19 @@ impl CollectionsService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedCreateCollectionItemRequestView,
     ) -> ServiceResult<CollectionItem> {
-        let args = json!({
-            "collection": request.collection,
-            "data_json": request.data_json,
-            "id": request.id,
-        });
-        self.collections_typed_write("collections.create_item", args, &ctx).await
+        self.gate(&ctx, "collections.create_item")?;
+        let svc = self
+            .state()
+            .collections()
+            .map_err(|e| ConnectError::failed_precondition(e.to_string()))?;
+        // The service mints the item id; the caller's `id` is ignored (kept on
+        // the wire for protocol compatibility, matches the prior `services::command::collections`).
+        let data = parse_data(request.data_json, "data_json")?;
+        let item = svc
+            .create_item(request.collection, &data)
+            .await
+            .map_err(collections_err)?;
+        Ok(Response::new(item_record_to_proto(&item)))
     }
 
     async fn update_item(
@@ -125,12 +138,17 @@ impl CollectionsService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedUpdateCollectionItemRequestView,
     ) -> ServiceResult<CollectionItem> {
-        let args = json!({
-            "collection": request.collection,
-            "id": request.id,
-            "data_json": request.data_json,
-        });
-        self.collections_typed_write("collections.update_item", args, &ctx).await
+        self.gate(&ctx, "collections.update_item")?;
+        let svc = self
+            .state()
+            .collections()
+            .map_err(|e| ConnectError::failed_precondition(e.to_string()))?;
+        let data = parse_data(request.data_json, "data_json")?;
+        let item = svc
+            .update_item(request.collection, request.id, &data)
+            .await
+            .map_err(collections_err)?;
+        Ok(Response::new(item_record_to_proto(&item)))
     }
 
     async fn delete_item(
@@ -138,8 +156,15 @@ impl CollectionsService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedDeleteCollectionItemRequestView,
     ) -> ServiceResult<Deletion> {
-        let args = json!({ "collection": request.collection, "id": request.id });
-        self.collections_typed_write("collections.delete_item", args, &ctx).await
+        self.gate(&ctx, "collections.delete_item")?;
+        let svc = self
+            .state()
+            .collections()
+            .map_err(|e| ConnectError::failed_precondition(e.to_string()))?;
+        svc.delete_item(request.collection, request.id)
+            .await
+            .map_err(collections_err)?;
+        Ok(Response::new(Deletion { id: request.id.to_string(), deleted: true, ..Default::default() }))
     }
 
     async fn create_schema(
@@ -147,8 +172,20 @@ impl CollectionsService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedCreateCollectionSchemaRequestView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({ "schema_json": request.schema_json });
-        self.collections_json_write("collections.create_schema", args, &ctx).await
+        self.gate(&ctx, "collections.create_schema")?;
+        let svc = self
+            .state()
+            .collections()
+            .map_err(|e| ConnectError::failed_precondition(e.to_string()))?;
+        // Parse to recover the id; the service re-parses + persists.
+        let doc = ship_collection::schema::parse_schema_doc(request.schema_json.as_bytes())
+            .map_err(collections_err)?;
+        let id = doc.id.clone();
+        svc.create_schema(&id, request.schema_json.as_bytes())
+            .await
+            .map_err(collections_err)?;
+        let value = json!({ "ok": true, "collection": id });
+        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
 
     async fn update_schema(
@@ -156,56 +193,59 @@ impl CollectionsService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedUpdateCollectionSchemaRequestView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({ "collection": request.collection, "schema_json": request.schema_json });
-        self.collections_json_write("collections.update_schema", args, &ctx).await
+        self.gate(&ctx, "collections.update_schema")?;
+        let svc = self
+            .state()
+            .collections()
+            .map_err(|e| ConnectError::failed_precondition(e.to_string()))?;
+        svc.update_schema(request.collection, request.schema_json.as_bytes())
+            .await
+            .map_err(collections_err)?;
+        let value = json!({ "ok": true, "collection": request.collection });
+        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
 }
 
 impl OpsImpl {
-    /// C0 read → sync registry dispatch, wrapped as opaque JSON.
+    /// C0 read → sync registry dispatch, wrapped as opaque JSON. The read-side
+    /// registry stays — see module doc on the composition it owns.
     fn collections_read(&self, op: &str, args: Value) -> ServiceResult<JsonResponse> {
         let value = crate::services::registry::call(op, &args, self.state())
             .map_err(|e| ConnectError::internal(format!("{op}: {e}")))?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
+}
 
-    /// C1 write → the one gate, decoding the typed result (`CollectionItem` /
-    /// `Deletion`).
-    async fn collections_typed_write<T: DeserializeOwned>(
-        &self,
-        op: &str,
-        args: Value,
-        ctx: &RequestContext,
-    ) -> ServiceResult<T> {
-        let value = self.collections_call(op, args, ctx).await?;
-        let msg = serde_json::from_value::<T>(value)
-            .map_err(|e| ConnectError::internal(format!("decode {op} response: {e}")))?;
-        Ok(Response::new(msg))
+/// Validate a JSON-string arg and pass the bytes through.
+fn parse_data(raw: &str, key: &str) -> Result<Vec<u8>, ConnectError> {
+    serde_json::from_str::<Value>(raw)
+        .map_err(|e| ConnectError::invalid_argument(format!("`{key}` is not valid JSON: {e}")))?;
+    Ok(raw.as_bytes().to_vec())
+}
+
+/// `CollectionError` → `ConnectError` (not-found vs bad-args vs internal).
+fn collections_err(e: ship_collection::error::CollectionError) -> ConnectError {
+    use ship_collection::error::CollectionError;
+    match e {
+        CollectionError::NotFound(m) => ConnectError::not_found(m),
+        CollectionError::ReservedId(m)
+        | CollectionError::Validation(m)
+        | CollectionError::UnsupportedQuery(m) => ConnectError::invalid_argument(m),
+        other => ConnectError::internal(other.to_string()),
     }
+}
 
-    /// C1 write whose result is opaque JSON (schema writes).
-    async fn collections_json_write(
-        &self,
-        op: &str,
-        args: Value,
-        ctx: &RequestContext,
-    ) -> ServiceResult<JsonResponse> {
-        let value = self.collections_call(op, args, ctx).await?;
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
-    }
-
-    /// Shared gated dispatch for collections writes.
-    async fn collections_call(
-        &self,
-        op: &str,
-        args: Value,
-        ctx: &RequestContext,
-    ) -> Result<Value, ConnectError> {
-        let auth = ctx
-            .extensions
-            .get::<AuthContext>()
-            .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-        let cmd_ctx = CommandCtx { state: self.state(), auth };
-        command::call(op, &args, &cmd_ctx).await.map_err(command_error_to_connect)
+/// Project a `ItemRecord` (the crate's typed row) into the wire `CollectionItem`.
+/// `data_json` is the `serde_json::Value::Object` re-serialized as a string.
+fn item_record_to_proto(item: &ship_collection::types::ItemRecord) -> CollectionItem {
+    let data_json = serde_json::Value::Object(item.data.clone()).to_string();
+    CollectionItem {
+        id: item.id.clone(),
+        collection: item.collection.clone(),
+        data_json,
+        created_by: None,
+        created_at: item.created_at.clone(),
+        updated_at: item.updated_at.clone(),
+        ..Default::default()
     }
 }

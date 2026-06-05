@@ -45,7 +45,6 @@ pub const COMMANDS: &[CommandDescriptor] = &[
     // call. JSON-valued args travel as JSON-string args (server_json/patch_json).
     // ── permissions (preset config; reads are permissions.list/get) ─
     // C2 (operator-only): a preset IS the security policy governing agents, so
-    // agents never edit it. JSON args travel as JSON-string (preset_json/patch_json).
     // ── artifacts (metadata mutations; bytes move on serving routes) ─
     CommandDescriptor {
         name: "artifacts.patch",
@@ -81,66 +80,6 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         permission: "ship.artifacts.write",
         blast_radius: "C1_WORKSPACE",
         response_type: "Deletion",
-        sensitive: false,
-    },
-    // ── collections (item CRUD; reads are get_item/query_items) ────
-    CommandDescriptor {
-        name: "collections.create_item",
-        description: "Create an item in a collection (id auto-generated if omitted).",
-        args: &[
-            ArgDescriptor { name: "collection", kind: "string", required: true },
-            ArgDescriptor { name: "data_json", kind: "string", required: true },
-            ArgDescriptor { name: "id", kind: "string?", required: false },
-        ],
-        permission: "ship.collections.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "CollectionItem",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "collections.update_item",
-        description: "Replace a collection item's data by id.",
-        args: &[
-            ArgDescriptor { name: "collection", kind: "string", required: true },
-            ArgDescriptor { name: "id", kind: "string", required: true },
-            ArgDescriptor { name: "data_json", kind: "string", required: true },
-        ],
-        permission: "ship.collections.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "CollectionItem",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "collections.delete_item",
-        description: "Delete a collection item by id.",
-        args: &[
-            ArgDescriptor { name: "collection", kind: "string", required: true },
-            ArgDescriptor { name: "id", kind: "string", required: true },
-        ],
-        permission: "ship.collections.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "Deletion",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "collections.create_schema",
-        description: "Define a new collection (nested CollectionSchema as schema_json).",
-        args: &[ArgDescriptor { name: "schema_json", kind: "string", required: true }],
-        permission: "ship.collections.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "collections.update_schema",
-        description: "Replace a collection's schema (nested CollectionSchema as schema_json).",
-        args: &[
-            ArgDescriptor { name: "collection", kind: "string", required: true },
-            ArgDescriptor { name: "schema_json", kind: "string", required: true },
-        ],
-        permission: "ship.collections.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
         sensitive: false,
     },
     // ── skills (authoring; restricted ship-authoring) ─────────────

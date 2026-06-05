@@ -26,7 +26,6 @@ mod agent;
 mod agents;
 mod annotations;
 mod artifacts;
-mod collections;
 mod git;
 mod mesh;
 mod pipelines;
@@ -182,9 +181,6 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = artifacts::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = collections::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = skills::try_dispatch(name, args, ctx).await? {
