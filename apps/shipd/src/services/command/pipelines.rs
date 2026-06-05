@@ -11,8 +11,8 @@
 use serde_json::Value;
 
 use ship_platform::services::files::Scope;
-use ship_platform::services::pipelines::service::PutArgs;
-use ship_platform::services::pipelines::state;
+use ship_pipeline_runtime::pipelines::service::PutArgs;
+use ship_pipeline_runtime::pipelines::state;
 
 use super::{req_str, CommandCtx, CommandError};
 

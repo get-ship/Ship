@@ -15,7 +15,7 @@ use std::time::Duration;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use ship_platform::services::orchestrator::exit_handler;
+use ship_pipeline_runtime::orchestrator::exit_handler;
 
 use ship_platform::services::process_registry::{ProcessRegistry, SharedRegistry};
 

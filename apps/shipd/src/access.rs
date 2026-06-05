@@ -25,7 +25,7 @@ use ship_platform::services::agents::service::AgentsService;
 use ship_platform::services::git::service::GitService;
 use ship_platform::services::mcp::service::McpService;
 use ship_platform::services::permissions::service::PermissionsService;
-use ship_platform::services::pipelines::service::PipelinesService;
+use ship_pipeline_runtime::pipelines::service::PipelinesService;
 use ship_platform::services::rules::service::RulesService;
 use ship_platform::services::skills::service::SkillsService;
 use crate::ship_runtime::ShipRuntime;

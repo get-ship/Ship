@@ -3,7 +3,7 @@
 //! Constructs the concrete executor / isolation / platform impls, builds the
 //! `OrchestratorContext` (pipeline-DAG actor) and the `AgentPorts` bundle
 //! (agent-session actor), then starts both actors. All event handling delegates
-//! to `ship_platform::services::orchestrator::router` (pipelines) and
+//! to `ship_pipeline_runtime::orchestrator::router` (pipelines) and
 //! `ship_platform::services::agent_sessions::start_agents` (agent sessions).
 //!
 //! The two actors share ONE `ConfigSpawnPolicy` instance (cloned into both
@@ -15,7 +15,7 @@
 
 use ship_platform::services::agent_sessions::{start_agents, AgentPorts};
 use ship_platform::services::dispatch_ports::{SessionExecutor, SpawnPolicy};
-use ship_platform::services::orchestrator::OrchestratorContext;
+use ship_pipeline_runtime::orchestrator::OrchestratorContext;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -35,7 +35,7 @@ pub struct DispatchHandle {
     pub executor: Arc<dyn SessionExecutor>,
     /// Shared with OrchestratorContext — allows API handlers to send
     /// activity signals (e.g. TurnEnded from Stop hook) to step monitors.
-    pub activity_txs: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<ship_platform::services::orchestrator::StepActivity>>>>,
+    pub activity_txs: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<ship_pipeline_runtime::orchestrator::StepActivity>>>>,
 }
 
 /// Subscribe to `job.*` kernel events and dispatch jobs to worktrees.
@@ -81,10 +81,10 @@ pub async fn subscribe_job_events(
     let registry_port: Arc<dyn ship_platform::services::dispatch_ports::ProcessRegistryPort> =
         Arc::new(SharedRegistry(registry.clone()));
     let spawn_policy: Arc<dyn SpawnPolicy> = Arc::new(
-        ship_platform::services::orchestrator::spawn_policy::ConfigSpawnPolicy::new(platform.clone()),
+        ship_pipeline_runtime::orchestrator::spawn_policy::ConfigSpawnPolicy::new(platform.clone()),
     );
     let projections: Arc<dyn ship_platform::services::dispatch_ports::ProjectionReader> =
-        Arc::new(ship_platform::services::orchestrator::projection_reader::ProjectionsReader);
+        Arc::new(ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader);
 
     let octx = Arc::new(OrchestratorContext {
         isolation: isolation.clone(),
@@ -97,7 +97,7 @@ pub async fn subscribe_job_events(
         done_flags: Arc::new(Mutex::new(HashMap::new())),
         activity_txs: activity_txs.clone(),
         run_locks: Arc::new(Mutex::new(HashMap::new())),
-        event_dedup: Arc::new(ship_platform::services::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_pipeline_runtime::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
     });
@@ -115,12 +115,12 @@ pub async fn subscribe_job_events(
         registry: registry_port,
         spawn_policy,
         projections,
-        event_dedup: Arc::new(ship_platform::services::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_pipeline_runtime::orchestrator::dedup::EventDedup::new()),
     });
 
     let kr = kernel.clone();
     ship_substrate::task_health::spawn_monitored(health_registry, "job-orchestrator", async move {
-        ship_platform::services::orchestrator::router::start_orchestrator(kr, octx).await;
+        ship_pipeline_runtime::orchestrator::router::start_orchestrator(kr, octx).await;
     });
 
     let kr_agents = kernel.clone();

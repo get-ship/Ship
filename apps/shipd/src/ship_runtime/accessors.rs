@@ -96,7 +96,7 @@ impl ShipRuntime {
 
     /// `PipelinesService` accessor — definition CRUD; dispatch / cancel /
     /// runs still go through `runtime_api`.
-    pub fn pipelines(&self) -> &dyn ship_platform::services::pipelines::service::PipelinesService {
+    pub fn pipelines(&self) -> &dyn ship_pipeline_runtime::pipelines::service::PipelinesService {
         &*self.pipelines
     }
 
@@ -104,7 +104,7 @@ impl ShipRuntime {
     /// that need to hold the handle independently of the runtime borrow.
     pub fn pipelines_arc(
         &self,
-    ) -> Arc<dyn ship_platform::services::pipelines::service::PipelinesService> {
+    ) -> Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService> {
         self.pipelines.clone()
     }
 

@@ -271,7 +271,7 @@ impl ShipRuntime {
             mcp: ship_platform::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
             skills: ship_platform::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
             agents: ship_platform::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
-            pipelines: ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
+            pipelines: ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
             git: ship_platform::services::git::service::GitServiceImpl::arc(global_dir.clone()),
             workspace_dir,
             started_at: std::time::Instant::now(),

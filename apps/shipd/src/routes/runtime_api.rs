@@ -38,7 +38,7 @@ pub struct SessionsQuery {
 pub(super) fn resolve_project_head_sha() -> Option<String> {
     let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
-    ship_platform::services::orchestrator::git_helpers::resolve_head_sha(project_root)
+    ship_pipeline_runtime::orchestrator::git_helpers::resolve_head_sha(project_root)
 }
 
 /// GET /api/v1/sessions/active-across-projects

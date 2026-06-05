@@ -20,7 +20,7 @@ impl ShipRuntime {
         let skills = ship_platform::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
         let agents = ship_platform::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
-            ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
+            ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
         // Test fixture binds a concrete space (`test-space`) — there is no daemon
         // home space / `global` partition to fall back onto (S2). Production boot
@@ -95,7 +95,7 @@ impl ShipRuntime {
         let skills = ship_platform::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
         let agents = ship_platform::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
-            ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
+            ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
         // Test fixture binds a concrete space (`test-space`) — there is no daemon
         // home space / `global` partition to fall back onto (S2). Production boot

@@ -4,9 +4,10 @@
 //! worktree creation, terminal launching, harness-specific signal
 //! handling, graceful shutdown).
 //!
-//! The orchestrator in `ship_platform::services::orchestrator` makes all
-//! dispatch / advancement decisions through a small set of injected
-//! traits — `SessionExecutor`, `IsolationStrategy`, `AgentPlatform`,
+//! The orchestrator in the `ship-pipeline-runtime` crate (carved out of
+//! `ship-platform`'s `services::orchestrator` per the P3 pipeline cut)
+//! makes all dispatch / advancement decisions through a small set of
+//! injected traits — `SessionExecutor`, `IsolationStrategy`, `AgentPlatform`,
 //! `ProcessRegistryPort`. This crate provides the concrete
 //! implementations the daemon uses to fulfill those traits.
 //!

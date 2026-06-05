@@ -19,7 +19,5 @@
 //!   — re-exports of the L0 `ship-runner` mechanism so the historic
 //!   `services::orchestrator::emit::*` import paths keep working.
 
-#![allow(unused_imports)] // temporary during carve
-
 pub mod orchestrator;
 pub mod pipelines;

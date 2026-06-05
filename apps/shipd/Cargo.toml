@@ -23,6 +23,7 @@ ship-platform = { path = "../../crates/core/ship-platform" }
 ship-isolation = { path = "../../crates/core/ship-isolation", default-features = false }
 ship-host = { path = "../../crates/core/ship-substrate/crates/ship-host" }
 ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }
+ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
 ship-supervisor = { path = "../../crates/core/ship-substrate/crates/ship-supervisor" }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-platform/crates/ship-analytics" }

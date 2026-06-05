@@ -9,7 +9,7 @@ use crate::services::pipelines::summaries::SummariesCtx;
 use crate::services::pipelines::view_state::BranchStats;
 use crate::services::registry::wire::{PipelineGetResponse, PipelinesIndexResponse};
 use crate::views::state::{Filter, PipelineDef};
-use ship_platform::services::pipelines::state::{IndexEntry, ScopeTag};
+use ship_pipeline_runtime::pipelines::state::{IndexEntry, ScopeTag};
 
 fn step_view() -> StepView {
     StepView {

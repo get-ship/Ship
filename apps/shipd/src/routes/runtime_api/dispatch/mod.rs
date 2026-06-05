@@ -228,7 +228,7 @@ pub(crate) async fn dispatch_one(
     pipeline_run_id: &str,
 ) -> (StatusCode, Json<MeshResponse>) {
     let payload =
-        match ship_platform::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
+        match ship_pipeline_runtime::orchestrator::pipeline_loader::ensure_pipeline(payload) {
             Ok(p) => p,
             Err(e) => {
                 return (

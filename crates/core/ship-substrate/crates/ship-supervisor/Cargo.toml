@@ -8,6 +8,11 @@ description = "OS-level agent supervision — executors, isolation, terminal lau
 [dependencies]
 ship-substrate = { path = "../.." }
 ship-platform = { path = "../../../ship-platform" }
+# Pipeline runtime (orchestrator + PipelinesService carved out of
+# ship-platform — agents-arc P3 cut). The supervisor wires up the
+# `OrchestratorContext` for the runner and reaches into the pipeline
+# isolation helper.
+ship-pipeline-runtime = { path = "../../../../ship-pipeline-runtime" }
 # L0 runner mechanism (agents-arc S2). The supervisor emits process/executor
 # lifecycle events through the runner's kernel-emit helpers — an L0-to-L0 reach
 # that replaces the historic up-reach into `ship_platform::…::orchestrator::emit`

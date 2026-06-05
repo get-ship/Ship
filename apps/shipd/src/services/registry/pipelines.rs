@@ -7,8 +7,8 @@ use crate::services::pipelines::history::HistoryCtx;
 use crate::services::pipelines::run_detail::RunDetailCtx;
 use crate::services::pipelines::summaries::SummariesCtx as PipelinesSummariesCtx;
 
-use ship_platform::services::pipelines::state;
-use ship_platform::services::pipelines::state::ScopeTag;
+use ship_pipeline_runtime::pipelines::state;
+use ship_pipeline_runtime::pipelines::state::ScopeTag;
 
 ship_ops! {
     PIPELINES_OPS;

@@ -182,12 +182,12 @@ impl DiagnosticSnapshot for HealthTasksDiag {
 
 /// Pipelines service snapshot — counts registered pipeline definitions.
 pub struct PipelinesDiag {
-    service: Arc<dyn ship_platform::services::pipelines::service::PipelinesService>,
+    service: Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService>,
 }
 
 impl PipelinesDiag {
     pub fn new(
-        service: Arc<dyn ship_platform::services::pipelines::service::PipelinesService>,
+        service: Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService>,
     ) -> Self {
         Self { service }
     }
@@ -290,7 +290,7 @@ pub fn build_registry(state: &ApiState) -> DiagnosticRegistry {
 
     // 7. Pipeline definitions.
     {
-        let pipelines_arc: Arc<dyn ship_platform::services::pipelines::service::PipelinesService> =
+        let pipelines_arc: Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService> =
             state.pipelines_arc();
         reg.register(Arc::new(PipelinesDiag::new(pipelines_arc)));
     }

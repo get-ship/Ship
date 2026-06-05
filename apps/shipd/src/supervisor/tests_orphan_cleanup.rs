@@ -20,7 +20,7 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 /// Startup sequence must include orphan cleanup.
 #[test]
 fn startup_includes_orphan_cleanup() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/router.rs");
     assert!(
         source.contains("cleanup_orphaned_worktrees"),
         "startup must call cleanup_orphaned_worktrees to remove stale disk state"

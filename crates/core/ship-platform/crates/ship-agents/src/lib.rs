@@ -1,9 +1,10 @@
 //! `ship-agents` — agent-session orchestration (L1).
 //!
 //! Owns the bare `agent.session` dispatch primitive carved out of the historic
-//! `ship-platform::services::orchestrator` (agents-arc S3b). The pipeline-DAG
-//! half (advance / sweep / replay / fanout / gate / promote / merge) stays in
-//! the orchestrator for S4.
+//! orchestrator (agents-arc S3b). The pipeline-DAG half (advance / sweep /
+//! replay / fanout / gate / promote / merge) was carved out of `ship-platform`
+//! along with `ship_platform::services::orchestrator` into the
+//! `ship-pipeline-runtime` crate (P3 pipeline cut).
 //!
 //! ## What lives here
 //!
@@ -34,8 +35,7 @@
 //! domain-free dispatch ports), `ship-runner` (router gate, dedup, teardown,
 //! exit handler, kernel-emit), `ship-types` (the `Authority` principal). It
 //! drives the L0 runner mechanism and never reaches into `ship-platform`'s
-//! pipeline orchestrator, `crate::config`, `crate::auth`, or
-//! `crate::projections`.
+//! `crate::config`, `crate::auth`, or `crate::projections`.
 //!
 //! Two concrete impls the agent path needs stay in L1 (ship-platform) and are
 //! injected here through their L0 ports, exactly as the runner-ports keystone

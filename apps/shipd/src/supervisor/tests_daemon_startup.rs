@@ -23,7 +23,7 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 /// The startup sequence exists and runs three phases.
 #[test]
 fn startup_runs_three_reconciliation_phases() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/router.rs");
     assert!(
         source.contains("reconcile_dispatched") || source.contains("reconcile"),
         "startup must reconcile dispatched jobs"
@@ -42,7 +42,7 @@ fn startup_runs_three_reconciliation_phases() {
 /// If we dispatch first, we might exceed MAX_CONCURRENT.
 #[test]
 fn reconcile_before_dispatch_in_startup_order() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/router.rs");
     let reconcile_pos = source.find("reconcile_dispatched")
         .or_else(|| source.find("reconcile"));
     let dispatch_pos = source.find("dispatch_ready_pending");
@@ -67,7 +67,7 @@ fn reconcile_before_dispatch_in_startup_order() {
 /// Reconciliation scans for dispatched jobs in the projection.
 #[test]
 fn reconciliation_scans_dispatched_jobs() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
     assert!(
         source.contains("PipelineRunStatus::Dispatched"),
         "reconciliation must filter for Dispatched status jobs"
@@ -79,7 +79,7 @@ fn reconciliation_scans_dispatched_jobs() {
 /// is gone.
 #[test]
 fn reconciliation_uses_resume_handle() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
     assert!(
         source.contains("resume_handle"),
         "reconciliation must rehydrate a live handle via resume_handle"
@@ -90,7 +90,7 @@ fn reconciliation_uses_resume_handle() {
 /// event. The liveness sweep owns the terminal-state decision.
 #[test]
 fn dead_process_emits_session_destroyed() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
     assert!(
         source.contains("emit_executor_session_destroyed"),
         "no-live-process must emit executor.session_destroyed on reconcile"
@@ -109,7 +109,7 @@ fn dead_process_emits_session_destroyed() {
 #[test]
 #[ignore]
 fn reconcile_does_not_emit_step_failed() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
     assert!(
         !source.contains("PIPELINE_STEP_FAILED"),
         "reconcile must not emit PIPELINE_STEP_FAILED — observation only"
@@ -128,7 +128,7 @@ fn reconcile_does_not_emit_step_failed() {
 /// session/window simply isn't there.
 #[test]
 fn session_destroyed_uses_external_cause() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
     assert!(
         source.contains("DestructionCause::External"),
         "reconcile must record cause = External (unobserved vanishment)"
@@ -169,7 +169,7 @@ fn stale_completions_are_detected() {
 /// Replay logic exists and filters for completed status.
 #[test]
 fn replay_filters_completed_jobs() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
     assert!(
         source.contains("PipelineRunStatus::Completed"),
         "replay must filter for Completed status jobs"
@@ -179,7 +179,7 @@ fn replay_filters_completed_jobs() {
 /// Replay must call advance_pipeline to continue stalled pipelines.
 #[test]
 fn replay_advances_pipeline() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
     assert!(
         source.contains("advance_pipeline"),
         "replay must call advance_pipeline for stale completed jobs"
@@ -196,7 +196,7 @@ fn replay_advances_pipeline() {
 /// Pending dispatch respects concurrency limits.
 #[test]
 fn pending_dispatch_respects_concurrency() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/pending.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/pending.rs");
     assert!(
         source.contains("MAX_CONCURRENT") && source.contains("slots"),
         "pending job dispatch must respect concurrency limits"
@@ -206,7 +206,7 @@ fn pending_dispatch_respects_concurrency() {
 /// Pending dispatch checks dependency resolution.
 #[test]
 fn pending_dispatch_checks_dependencies() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/pending.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/pending.rs");
     assert!(
         source.contains("depends_on") || source.contains("deps"),
         "pending job dispatch must check dependency resolution"
@@ -223,7 +223,7 @@ fn pending_dispatch_checks_dependencies() {
 /// Live process re-attachment registers in ProcessRegistry.
 #[test]
 fn live_process_registered_in_registry() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
     assert!(
         source.contains("registry.register") && source.contains("resume_handle"),
         "live processes must be re-registered in ProcessRegistry after resume_handle"
