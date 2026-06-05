@@ -7901,6 +7901,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-pipeline-runtime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "json-patch 4.2.0",
+ "minijinja",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "ship-artifacts",
+ "ship-pipelines",
+ "ship-platform",
+ "ship-runner",
+ "ship-substrate",
+ "ship-types",
+ "specta",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ship-pipelines"
 version = "0.1.0"
 dependencies = [

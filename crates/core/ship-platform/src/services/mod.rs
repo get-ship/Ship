@@ -8,8 +8,9 @@ pub use ship_substrate::services::human_gateway::{self};
 pub use ship_substrate::services::process_tree_probe::{self};
 pub use ship_substrate::services::server_session::{self};
 
-// L1 service actors.
-pub mod orchestrator;
+// L1 service actors. The pipeline runtime (orchestrator + PipelinesService)
+// carved out to the `ship-pipeline-runtime` crate (P3 carve); only the
+// agents-actor / harnesses / registry live here.
 pub mod agent_sessions;
 pub mod process_registry;
 pub mod harness_adapter;
@@ -32,7 +33,7 @@ pub mod jsonc;
 pub mod mcp;
 pub mod agents;
 pub mod permissions;
-pub mod pipelines;
+// pipelines service carved out to ship-pipeline-runtime crate
 pub mod skills;
 pub mod path_tolerant;
 pub mod rules;
