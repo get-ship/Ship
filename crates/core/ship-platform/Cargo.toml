@@ -47,6 +47,12 @@ ship-runner = { path = "../ship-substrate/crates/ship-runner" }
 ship-agents = { path = "crates/ship-agents" }
 ship-kv = { path = "crates/ship-kv" }
 ship-gateway-client = { path = "crates/ship-gateway-client" }
+# Cloud sync transport — `SyncClient` + `PushRequest`/`PushResponse`/`PullResponse`
+# live in the `ship-cloud` crate. The wrapping `services::sync::SyncServiceHandler`
+# stays here (it needs the platform-local `ServiceHandler` from substrate) but
+# its transport types are now the `ship_cloud` re-exports. unstable-gated to
+# match the service's own feature gate.
+ship-cloud = { path = "../ship-cloud", optional = true }
 # Isolation types + recommender. Default-features off — youki and
 # sidecar backends stay opt-in (the daemon's feature flags layer them in).
 ship-isolation = { path = "../ship-isolation", default-features = false }
@@ -102,7 +108,7 @@ include_dir = "0.7"
 libc = { workspace = true }
 
 [features]
-unstable = ["ship-substrate/unstable"]
+unstable = ["ship-substrate/unstable", "dep:ship-cloud"]
 # Enable derive(Type) on public data structs in the migrated services
 # (rules/mcp/skills/agents/pipelines/git/permissions/...) so xtask can
 # emit TypeScript bindings via `cargo xtask gen-types`. Off by default.

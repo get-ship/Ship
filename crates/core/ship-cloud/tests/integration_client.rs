@@ -1,12 +1,18 @@
-/// Integration tests — SyncClient construction and URL shaping.
-///
-/// These tests do not make live HTTP calls. They exercise the constructor
-/// and verify the URL-building logic for all four HTTP methods by inspecting
-/// the normalised base URL via `SyncClient::base_url()` (a `#[cfg(test)]`
-/// accessor added to surface the private field without cracking the type open).
-///
-/// No tempdir / init_project is needed — SyncClient carries no filesystem state.
-use crate::sync::SyncClient;
+//! Integration tests — SyncClient construction and URL shaping.
+//!
+//! These tests do not make live HTTP calls. They exercise the constructor
+//! and verify the URL-building logic for all four HTTP methods by inspecting
+//! the normalised base URL via `SyncClient::base_url()` (a `#[cfg(test)]`
+//! accessor added to surface the private field without cracking the type open).
+//!
+//! No tempdir / init_project is needed — SyncClient carries no filesystem state.
+//!
+//! Originally nested under `ship-platform/src/sync/tests/integration_client.rs`
+//! as a child module of the platform crate's `sync` module. Carved into a
+//! top-level integration test in `ship-cloud` so the test exercises the
+//! crate's public API directly — no `crate::sync::*` paths leaking in.
+
+use ship_cloud::SyncClient;
 
 // ── Constructor ───────────────────────────────────────────────────────────────
 

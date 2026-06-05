@@ -17,10 +17,12 @@ pub mod harness_adapter;
 pub mod harnesses;
 pub mod line_accumulator;
 pub mod watcher;
-
+// Cloud-sync service actor (uses `SyncClient` from `ship-cloud` via the
+// `unstable` feature gate). The handler itself stays in this crate because
+// it implements `ServiceHandler` from substrate; only the transport moves
+// out.
 #[cfg(feature = "unstable")]
 pub mod sync;
-
 // L1 domain services (method-oriented; mr-02 surface). Each is a trait
 // + Impl pair that file-backed domain operations (rules, permissions,
 // mcp, skills, agents, ...) consume. FilesService is the foundational
