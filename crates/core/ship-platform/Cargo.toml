@@ -96,7 +96,6 @@ tracing = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 globset = "0.4"
 minijinja = { workspace = true }
-notify = { workspace = true }
 cron = "0.12"
 sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 jsonschema = { version = "0.46", default-features = false }

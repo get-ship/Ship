@@ -40,6 +40,7 @@ home = { workspace = true }
 reqwest = { workspace = true, features = ["json", "rustls-tls"] }
 sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 serde_yaml = { workspace = true }
+notify = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { workspace = true }

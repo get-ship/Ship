@@ -214,13 +214,13 @@ pub struct ConfigWatcherDiag;
 impl DiagnosticSnapshot for ConfigWatcherDiag {
     fn name(&self) -> &'static str { "config_watcher" }
     fn snapshot(&self) -> Value {
-        // NOTE: ship_platform::config::WatcherService (ConfigWatcher alias) holds
-        // a notify::RecommendedWatcher internally. That watcher's pending-event
-        // queue is not exposed via a public API; a future change to the watcher
-        // struct can add a counter and wire it here.
+        // NOTE: ship_platform::config::ConfigWatcher subscribes to the substrate
+        // FsWatch port; the underlying notify watcher's pending-event queue is not
+        // exposed via a public API. A future change to the port can add a counter
+        // and wire it here.
         json!({
             "bytes_estimated": 0,
-            "note": "pending event count not available from notify watcher API",
+            "note": "pending event count not available from fs-watch port",
         })
     }
 }
