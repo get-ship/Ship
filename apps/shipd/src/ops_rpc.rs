@@ -495,6 +495,8 @@ pub fn router(state: ApiState) -> axum::Router {
                     .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
                 match op.as_str() {
                     "pipelines.dispatch" => {
+                        use ship_pipeline_runtime::run_core::{PipelineRunRequest, RunPipelineCoreError, run_pipeline_core};
+                        use crate::pipeline_ports::PipelineDispatchAdapter;
                         let opt = |k: &str| {
                             args.get(k).and_then(|v| v.as_str())
                                 .filter(|s| !s.is_empty())
@@ -509,7 +511,7 @@ pub fn router(state: ApiState) -> axum::Router {
                                     .collect()
                             })
                             .unwrap_or_default();
-                        let req = crate::routes::runtime_api::PipelineRunRequest {
+                        let req = PipelineRunRequest {
                             pipeline: args.get("pipeline").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                             spec: opt("spec"),
                             vars: if vars.is_empty() { None } else { Some(vars) },
@@ -520,26 +522,40 @@ pub fn router(state: ApiState) -> axum::Router {
                             auto: args.get("auto").and_then(|v| v.as_bool()).unwrap_or(false),
                             source_spec_path: opt("source_spec_path"),
                         };
-                        let resp = crate::routes::runtime_api::run_pipeline(
-                            axum::extract::State(st.clone()),
-                            axum::Extension(auth),
-                            axum::Json(req),
-                        )
-                        .await
-                        .into_response();
-                        axum_response_to_value(resp).await
+                        // Scope gate: require CreateRuns (same as the HTTP handler).
+                        use crate::auth::Scope;
+                        let _ = &auth; // scope check via auth fields
+                        if !auth.scopes.iter().any(|s| matches!(s, Scope::Full | Scope::CreateRuns)) {
+                            return Err(ConnectError::permission_denied("requires CreateRuns scope"));
+                        }
+                        let port = PipelineDispatchAdapter::new(st.clone());
+                        run_pipeline_core(&port, req).await
+                            .map(|outcome| serde_json::json!({
+                                "pipeline_run_id": outcome.pipeline_run_id,
+                                "slug": outcome.slug,
+                                "branch": outcome.branch,
+                                "resume": outcome.resume,
+                            }))
+                            .map_err(|e| match e {
+                                RunPipelineCoreError::NotFound(m) => ConnectError::not_found(m),
+                                RunPipelineCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                                RunPipelineCoreError::Internal(m) => ConnectError::internal(m),
+                            })
                     }
                     "pipelines.end_turn" => {
+                        use ship_pipeline_runtime::run_core::{EndTurnCoreError, EndTurnRequest, end_turn_core};
+                        use crate::pipeline_ports::{PipelineDispatchAdapter, TurnSignalAdapter};
                         let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                        let req = crate::routes::runtime_api::jobs::TurnEndRequest { slug };
-                        let resp = crate::routes::runtime_api::end_job(
-                            axum::extract::State(st.clone()),
-                            axum::Extension(auth),
-                            axum::Json(req),
-                        )
-                        .await
-                        .into_response();
-                        axum_response_to_value(resp).await
+                        let dispatch_port = PipelineDispatchAdapter::new(st.clone());
+                        let signal_port = TurnSignalAdapter::new(st.clone());
+                        end_turn_core(&dispatch_port, &signal_port, EndTurnRequest { slug })
+                            .await
+                            .map(|msg| serde_json::json!(msg))
+                            .map_err(|e| match e {
+                                EndTurnCoreError::NotFound(m) => ConnectError::not_found(m),
+                                EndTurnCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                                EndTurnCoreError::Internal(m) => ConnectError::internal(m),
+                            })
                     }
                     "pipeline.update_status" => {
                         let pipeline_run_id = args.get("pipeline_run_id").and_then(|v| v.as_str()).unwrap_or("").to_string();

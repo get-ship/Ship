@@ -128,7 +128,8 @@ pub use jobs::{
     CancelJobRequest, EventSummary, PipelineRunDetailResponse, TurnEndRequest,
     cancel_job, end_job, get_job_detail, list_jobs,
 };
-pub use pipeline_run::{PipelineRunRequest, run_pipeline};
+pub use pipeline_run::run_pipeline;
+pub use ship_pipeline_runtime::run_core::PipelineRunRequest;
 
 // Helpers re-exported for the in-file test mod below.
 #[cfg(test)]

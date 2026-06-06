@@ -19,9 +19,12 @@
 //!   — re-exports of the L0 `ship-runner` mechanism so the historic
 //!   `services::orchestrator::emit::*` import paths keep working.
 
+pub mod log_stream;
 pub mod orchestrator;
+pub mod pipeline_ports;
 pub mod pipelines;
 pub mod projections;
+pub mod run_core;
 pub mod wire;
 
 use std::sync::Once;
