@@ -70,7 +70,7 @@ pub async fn try_dispatch(
             let store = runtime_store(ctx.state);
             let kernel = kernel_log(ctx.state);
             let _ = SpaceId::new(id.to_string()); // assert non-empty
-            let record = registry::activate(&*store, &kernel, id)
+            let record = registry::activate(&*store, &kernel, &id)
                 .await
                 .map_err(|e| {
                     let msg = e.to_string();
