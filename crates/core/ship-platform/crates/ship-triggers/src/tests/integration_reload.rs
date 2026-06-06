@@ -5,7 +5,7 @@
 /// the new definition, and an empty reload clears all triggers.
 use serde_json::json;
 use ship_substrate::events::EventEnvelope;
-use crate::triggers::engine::HookEngine;
+use crate::engine::HookEngine;
 
 use super::integration_engine::{
     diff, recent_hook_events, test_kernel, tmp_ship_dir, write_hook,

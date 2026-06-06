@@ -30,6 +30,7 @@ pub mod query;
 pub mod services;
 pub mod supervisor;
 pub mod trash;
+pub mod path_layout;
 
 pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
 

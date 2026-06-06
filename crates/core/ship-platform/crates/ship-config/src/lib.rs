@@ -41,4 +41,5 @@ pub mod watcher;
 pub mod wire;
 
 pub use service::{ResolvedSetting, SettingScope, SettingsCtx, SettingsService};
+pub use settings::resolve_hooks_max_depth;
 pub use wire::SettingsWire;

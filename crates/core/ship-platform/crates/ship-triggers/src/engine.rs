@@ -9,19 +9,19 @@ use serde_json::{Value, json};
 use tokio::sync::{Mutex, RwLock};
 
 use ship_substrate::events::{ActorConfig, EventEnvelope, KernelRouter};
-use crate::services::ServiceHandler;
+use ship_substrate::services::ServiceHandler;
 
 use super::actions::{ActionCtx, dispatch};
 use super::def::{HookAction, HookDef};
 use super::filter;
 use super::render;
 use super::sources::SourceManager;
-use crate::config::resolve_hooks_max_depth;
+use ship_config::resolve_hooks_max_depth;
 
 // Historical hook chain depth (events emitted by a hook carry a depth
 // marker; at depth ≥ this value, hooks are not executed). The runtime
 // value is resolved from the `hooks.max_depth` KV setting (default 3) via
-// `crate::config::resolve_hooks_max_depth`.
+// `ship_config::resolve_hooks_max_depth`.
 
 /// Per-hook / per-event context passed to each action while an action list
 /// runs.
@@ -100,7 +100,7 @@ impl HookEngine {
         // Load triggers from the composed overlay (local + dep exports) when the
         // space has deps; raw `.ship/` otherwise. The watcher still watches the
         // local dir for hot-reload — dep triggers are static (from the cache).
-        let root = crate::registry::compose::composed_root_for(&self.ship_dir);
+        let root = ship_substrate::path_layout::composed_root_for(&self.ship_dir);
         let report = super::loader::load_triggers_dir(&root);
         let mut map = HashMap::with_capacity(report.hooks.len());
         for hook in report.hooks {
@@ -289,7 +289,7 @@ pub async fn spawn_hook_service(
         see_directed_events: false,
     };
     let mut router = kernel.lock().await;
-    crate::services::spawn_service(&mut router, "service.hooks", config, service)
+    ship_substrate::services::spawn_service(&mut router, "service.hooks", config, service)
         .map_err(|e| anyhow!("failed to spawn hook service: {e}"))?;
     Ok(engine)
 }

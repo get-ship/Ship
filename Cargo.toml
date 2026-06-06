@@ -27,6 +27,7 @@ members = [
     "crates/core/ship-platform/crates/ship-space",
     "crates/core/ship-platform/crates/ship-device",
     "crates/core/ship-platform/crates/ship-config",
+    "crates/core/ship-platform/crates/ship-triggers",
     "crates/core/ship-platform/crates/ship-account",
     "crates/core/ship-platform/crates/ship-agents",
     "crates/core/ship-platform/crates/ship-kv",

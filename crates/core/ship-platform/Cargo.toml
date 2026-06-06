@@ -29,6 +29,7 @@ ship-account = { path = "crates/ship-account" }
 # No cycle: ship-config depends on ship-substrate/ship-types/ship-reactive/
 # ship-ops-rpc, none of which depend on ship-platform.
 ship-config = { path = "crates/ship-config" }
+ship-triggers = { path = "crates/ship-triggers" }
 ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
 ship-auth-types = { path = "../ship-substrate/crates/ship-auth-types" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
