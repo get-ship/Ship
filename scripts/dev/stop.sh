@@ -6,7 +6,3 @@ cd "$(dirname "$0")/../.."
 
 ship=$(ship_bin)
 "$ship" daemon stop
-
-# Reap the per-worktree vite tracked by shell-start.sh. Its call site here
-# was dropped in the same merge that lost the _lib.sh vite definitions.
-kill_vite

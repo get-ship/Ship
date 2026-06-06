@@ -55,13 +55,6 @@ bootstrap:
 dev:
     @scripts/dev/start.sh
 
-# Frontend dev server for shell (vite). Proxies /api, /_sui, /sui, /view-host
-# to the daemon — `just dev` must already be running. vite.config.ts writes
-# its pid to <daemon_dir>/vite.pid so `just dev-stop` can reap it.
-[group('daily')]
-shell-dev:
-    @bun run --filter shell dev
-
 # The whole desktop loop in ONE command: rebuild the hub scaffold, ensure the
 # dev daemon, build + launch the native shell window. Always rebuilds the
 # scaffold so a stale `.deck/hub-scaffold` can't silently blank the shell.
