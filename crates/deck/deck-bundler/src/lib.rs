@@ -7,7 +7,6 @@
 //! broadcast channel for HMR. Output lands in `assets_dir_for` (sui-out/dist).
 
 pub mod app;
-mod arena;
 mod asset_graph;
 pub mod catalog;
 pub mod routes;
@@ -33,7 +32,7 @@ use ship_substrate::ShipHome;
 pub use proto::BundleManifest;
 use asset_graph::write_asset_graph;
 use targets::{BundleLayout, BundleTarget};
-pub use deck_config::DeckConfig;
+pub use deck_config::{DeckConfig, TargetKind};
 
 /// Unsolicited events emitted while watching.
 #[derive(Debug, Clone)]
@@ -249,6 +248,16 @@ impl Bundler {
     /// abort the others — the catalog still needs refreshing), but per-target
     /// failures are collected and surfaced as `Err` so a caller (the asset
     /// bake, CI) cannot mistake a partial bake for a clean one.
+    ///
+    /// Dev loop skip-lazy gate: when the env var `DECK_DEV_SKIP_LAZY=1` is
+    /// set, every consumer target whose `kind: lazy-pack` in deck.jsonc is
+    /// skipped during the build. The dev loop page never imports the arcade
+    /// or PDF packs (Pixi.js + pdfjs-dist together are ~4 MB of JS that the
+    /// browser heap retains even though no view references them; this is the
+    /// 400 MB dev-loop reading measured 2026-06-06). Production builds
+    /// (`cargo xtask build-assets` for the dist, or any consumer that
+    /// explicitly wants the full asset graph) leave the env var unset and
+    /// every target emits as before.
     pub async fn build_all(&self) -> Result<(), BundlerError> {
         let layout = self.layout();
         let mut failed: Vec<String> = Vec::new();
@@ -259,10 +268,30 @@ impl Bundler {
         // per-target. `build_all` is the bake path (xtask build-assets), so the
         // larger multi-entry graph is a one-shot peak, not a daemon-resident cost.
         let mut views: Vec<BundleTarget> = Vec::new();
+        let skip_lazy = std::env::var("DECK_DEV_SKIP_LAZY")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
         // Reuse the cached snapshot instead of re-walking every `.sui` (#256).
         for t in self.targets_snapshot().iter() {
             if t.name.starts_with("views/") {
                 views.push(t.clone());
+                continue;
+            }
+            // Dev-loop skip: if the env gate is on AND this target's kind
+            // in deck.jsonc is `lazy-pack`, skip it. Look up the cfg to
+            // discover the kind (BundleTarget does not carry the kind field
+            // — that's scope-2 cleanup, see .artifacts/2026-06-07-deck-
+            // architecture-review.md).
+            if skip_lazy
+                && self.cfg.targets.iter().any(|c| {
+                    c.name == t.name
+                        && matches!(c.kind, deck_config::TargetKind::LazyPack)
+                })
+            {
+                tracing::info!(
+                    target = %t.name,
+                    "build_all: skipping lazy-pack target (DECK_DEV_SKIP_LAZY=1)"
+                );
                 continue;
             }
             if let Err(e) =
@@ -296,7 +325,6 @@ impl Bundler {
             })
         }
     }
-
     fn refresh_catalog(&self, layout: &BundleLayout) {
         match catalog::build_catalog(&layout.repo_root, layout.cfg.first_party_app.as_ref()) {
             Ok(ws) => {

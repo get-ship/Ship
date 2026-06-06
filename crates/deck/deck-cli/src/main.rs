@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand};
+use deck_bundler::TargetKind;
 
 #[derive(Parser)]
 #[command(name = "deck", about = "The deck framework CLI", version)]
@@ -183,7 +184,30 @@ fn build_assets() -> Result<()> {
     // build.rs guard — verify each is non-empty as defense in depth.
     // Use BundleLayout to derive the exact output path per target (same routing
     // logic the bundler uses) so the guard is always in sync with reality.
+    //
+    // Dev-loop skip: when DECK_DEV_SKIP_LAZY=1, the same lazy-pack targets
+    // the bundler skipped above are also skipped by the guard (otherwise
+    // a successful dev build would always fail the guard for the skipped
+    // targets). The bundler's skip log is the ground truth for what was
+    // skipped.
+    let skip_lazy = std::env::var("DECK_DEV_SKIP_LAZY")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    // consumer_targets() returns BundleTarget (no kind field); the kind
+    // lives on cfg.targets. Look it up by name for the skip check.
     for t in layout.consumer_targets() {
+        let kind_is_lazy = layout
+            .cfg
+            .targets
+            .iter()
+            .any(|c| c.name == t.name && matches!(c.kind, TargetKind::LazyPack));
+        if skip_lazy && kind_is_lazy {
+            println!(
+                "  {}: skipped (DECK_DEV_SKIP_LAZY=1, kind=lazy-pack)",
+                t.name
+            );
+            continue;
+        }
         let out_dir = layout.assets_dir_for(&t.name);
         let out_path = out_dir.join(&t.out_file);
         let len = std::fs::metadata(&out_path).map(|m| m.len()).unwrap_or(0);
