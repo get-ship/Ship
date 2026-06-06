@@ -46,7 +46,6 @@ fn read_source_asset(rel: &str) -> Option<String> {
 const SUI_RUNTIME_JS: &str = include_str!("../assets/sui-runtime.js");
 const SUI_DOM_JS: &str = include_str!("../assets/sui-dom.js");
 const SUI_SDK_CLIENT_JS: &str = include_str!("../assets/sui-sdk-client.js");
-const SUI_COMPONENTS_JS: &str = include_str!("../assets/sui-components.js");
 const SUI_LUCIDE_ICONS_JSON: &str = include_str!("../assets/lucide-icons.json");
 const LIVE_RELOAD_JS: &str = include_str!("../assets/live-reload.js");
 
@@ -61,16 +60,14 @@ const ICON_ALIASES: &[(&str, &str)] = &[
 ];
 
 /// Parse the embedded `lucide-icons.json` into a `name -> inner-svg-fragment`
-/// map once at first access. Holds the deserialized map in a `OnceLock` so
-/// every `/_sui/icons/{name}.svg` request is a single HashMap lookup.
-fn icon_map() -> &'static std::collections::HashMap<String, String> {
-    use std::sync::OnceLock;
-    static MAP: OnceLock<std::collections::HashMap<String, String>> = OnceLock::new();
-    MAP.get_or_init(|| {
+/// map once at first access. `LazyLock` keeps the deserialized map
+/// alongside its initializer — no separate `get_or_init` accessor needed
+/// and no missing-init path.
+static ICON_MAP: std::sync::LazyLock<std::collections::HashMap<String, String>> =
+    std::sync::LazyLock::new(|| {
         serde_json::from_str(SUI_LUCIDE_ICONS_JSON)
             .expect("deck-core lucide-icons.json failed to deserialize at startup")
-    })
-}
+    });
 
 fn alias_for(name: &str) -> Option<&'static str> {
     ICON_ALIASES.iter().find_map(|(k, v)| (*k == name).then_some(*v))
@@ -304,12 +301,7 @@ pub fn serve_sui_sdk_client(mode: DaemonMode) -> DeckResponse {
     let js = read_framework_asset("sui-sdk-client.js").unwrap_or_else(|| SUI_SDK_CLIENT_JS.to_string());
     DeckResponse::js_asset(js, mode)
 }
-
-pub fn serve_sui_components(mode: DaemonMode) -> DeckResponse {
-    let js = read_framework_asset("sui-components.js").unwrap_or_else(|| SUI_COMPONENTS_JS.to_string());
-    DeckResponse::js_asset(js, mode)
-}
-
+/// `GET /_sui/icons/{name}.svg` — one lucide icon, served standalone. Replaces
 /// `GET /_sui/icons/{name}.svg` — one lucide icon, served standalone. Replaces
 /// the retired whole-blob `/_sui/lucide-icons.json` endpoint (~410 KB fetched
 /// once on first mount). Per-icon serving hands the browser HTTP cache the
@@ -329,14 +321,14 @@ pub fn serve_sui_icon(mode: DaemonMode, name: &str) -> DeckResponse {
     {
         return DeckResponse::not_found("invalid icon name", mode);
     }
-    let resolved = if icon_map().contains_key(name) {
+    let resolved = if ICON_MAP.contains_key(name) {
         name
     } else if let Some(via) = alias_for(name) {
         via
     } else {
         return DeckResponse::not_found(format!("icon not in lucide set: {name}"), mode);
     };
-    let inner = icon_map().get(resolved).expect("resolved name in map");
+    let inner = ICON_MAP.get(resolved).expect("resolved name in map");
     // Canonical lucide attrs — kept in lockstep with `makeSvg()` in
     // sui-icon.controller.ts so client (CDN-src mode) + daemon (named mode)
     // render identically.

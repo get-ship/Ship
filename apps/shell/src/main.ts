@@ -22,34 +22,20 @@ import { createClient, setShipClient, type ShipSDK } from '@ship/sdk-client'
 import { ops } from './ops'
 import './components'
 import { loadHeavyChrome } from './chrome/load-heavy-chrome'
-// Charts pack — single workspace import registers every <sui-*-chart>,
-// <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
-// before the first view mounts. Charts moved out of @ship/ui-components
-// into @ship/sui-charts (packages/components/sui/charts/) as the first pack
-// extracted under the multi-pack architecture; consumers depend on the
-// pack via standard workspace deps, exactly the same shape any future
-// first- or third-party pack will use.
-//
-// Imported from SOURCE (`src/index.ts`), not a prebuilt `/bundle` artifact:
-// the app build (deck-cli) compiles the pack's `.sui` → `.compiled.js`
-// in-process via the shared SuiPlugin (the same hooks the view/component
-// build uses), so no separate pre-compile step is needed. The package main
-// side-effect-registers every `<sui-*-chart>`, `<sui-sparkline>`,
-// `<sui-donut>`, `<sui-gauge>`, `<sui-meter>`, `<sui-heatmap>` before the
-// first view mounts. See ADR one-bundler-entry-traced (Slice 4a).
-import '@ship/sui-charts'
-// Pipelines pack — sui-pipeline-* primitives (card/dag/step/run/history/
-// trigger/output/definition). Same source import + in-process compile path.
-import '@ship/pipelines'
+// Domain packs — each side-effect-registers its custom elements. The pack
+// main compiles in-process via the shared SuiPlugin and tree-shakes
+// per-tag from the traced app bundle. This is the multi-pack architecture:
+// the shell's first-party chrome imports a workspace pack via the same
+// shape a third-party pack will use. The umbrella bundle
+// (packages/components/ui-components) is gone — each pack loads its
+// own elements directly.
+import '@ship/sui-charts' // <sui-*-chart>, <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
+import '@ship/pipelines' // <sui-pipeline-{card,dag,step,run,history,trigger,output,definition}>
+import '@ship/sui-canvas' // <sui-canvas>, <sui-graph-canvas>
+import '@ship/agents' // ship-agents-* (table, card, etc.)
+import '@ship/authority' // ship-authority-* (approval card, capability modal)
 // Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
 // popover, tooltip, tabs, etc.) — are resolved per-tag from workspace source
-// via the traced app bundle. Each chrome `.sui` emits `@sui-tag/<tag>` imports;
-// the deck-bundler's SuiPlugin resolves those to the component's source `.sui`
-// and compiles them in-process, exactly as the view build does. Chrome
-// components trace their own primitives per-tag and need no umbrella import
-// here. The full primitives pack (@ship/sui-primitives) is loaded only in the
-// edit-mode picker chunk (sui-view-authoring/index.ts), where sui-component-picker
-// acts as a catalog browser and previews primitives via innerHTML template strings
 // that the per-tag resolver cannot trace.
 import { route as createRoute, defineRoutes, setRouterPort } from '@ship/sui-runtime/route'
 import { DYNAMIC_ROUTE_PATTERNS } from './routes.gen'

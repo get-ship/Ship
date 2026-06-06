@@ -11,6 +11,9 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@ship/sui-canvas": "workspace:*",
+    "@ship/agents": "workspace:*",
+    "@ship/authority": "workspace:*",
     "@ship/sui-charts": "workspace:*",
     "@ship/code": "workspace:*",
     "@ship/deck-host": "workspace:*",
@@ -21,7 +24,6 @@
     "@ship/sdk-client": "workspace:*",
     "@ship/sui-dom": "workspace:*",
     "@ship/tokens": "workspace:*",
-    "@ship/ui-components": "workspace:*",
     "@ship/sui-lsp-browser": "workspace:*",
     "@ship/sui-runtime": "workspace:*"
   },

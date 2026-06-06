@@ -127,26 +127,6 @@ mod tests {
         }
     }
 
-    /// Bundle the REAL sui-components umbrella + a view through Rolldown into a
-    /// scratch out_root; assert full-size, runtime external, valid.
-    #[tokio::test(flavor = "multi_thread")]
-    async fn rolldown_bundles_real_umbrella() {
-        let repo = repo_root();
-        let scratch = tempfile::tempdir().unwrap();
-        let staging = tempfile::tempdir().unwrap();
-        let layout =
-            BundleLayout::new(repo, None).with_out_root(scratch.path().to_path_buf());
-
-        let targets = layout.all_targets();
-        let umbrella = targets.iter().find(|t| t.name == "sui-components").unwrap();
-        let m = bundle_target(&layout, umbrella, staging.path(), true)
-            .await
-            .expect("umbrella should bundle");
-        assert!(m.bytes > 200_000, "umbrella full-size, got {}", m.bytes);
-        let body = std::fs::read_to_string(&m.out_path).unwrap();
-        assert!(body.contains("@ship/sui-runtime"), "runtime kept external");
-    }
-
     /// The `sui-marketing` bundle is now TRACED from the site-owned entry
     /// `apps/site/src/marketing/marketing-bundle.ts` (no hardcoded source list).
     /// Rolldown must follow that import graph and register exactly the marketing

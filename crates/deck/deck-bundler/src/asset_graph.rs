@@ -61,13 +61,13 @@ fn content_hash(bytes: &[u8]) -> String {
 }
 
 /// Classify a target by its logical name — the same buckets the serve layer
-/// routes on. `sui-components/<name>` (e.g. sui-chrome) is a framework bundle;
-/// the bare `sui-*` singletons are framework; `views/*` are views; anything
-/// else is an app bundle.
+/// routes on. The bare `sui-*` singletons are framework; `views/*` are views;
+/// anything else is an app bundle. (Per-tag `sui-components/<name>` chunks
+/// are `framework` too — they share the `sui-` prefix.)
 fn asset_kind(name: &str) -> &'static str {
     if name.starts_with("views/") {
         "view"
-    } else if name.starts_with("sui-") || name.starts_with("sui-components/") {
+    } else if name.starts_with("sui-") {
         "framework"
     } else {
         "bundle"

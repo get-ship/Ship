@@ -212,13 +212,12 @@ impl Plugin for SuiPlugin {
             };
             for d in &cands {
                 // The 3-bucket component reorg (#219) nests first-party
-                // component packages two levels deep under `packages/components/
-                // {sui,ship,ui-components}/<pkg>`. Without these 2-level
-                // umbrellas the resolver can't find e.g. @ship/sui-primitives
-                // (packages/components/sui/primitives), leaves the import bare,
-                // and the served umbrella (`/_sui/components.js`) fails to load
-                // with "Failed to resolve module specifier @ship/sui-primitives"
-                // → no <sui-*> primitive registers.
+                // The 2-bucket component reorg (#219) nests first-party
+                // component packages two levels deep under
+                // `packages/components/{sui,ship}/<pkg>`. The `sui/`
+                // bucket is for primitives; `ship/` is for domain packs.
+                // The per-tag resolver scans both. (There is no umbrella
+                // bundle — chrome is per-tag tree-shaking only.)
                 for umbrella in [
                     "",
                     "sui",
@@ -226,7 +225,6 @@ impl Plugin for SuiPlugin {
                     "components",
                     "components/sui",
                     "components/ship",
-                    "components/ui-components",
                 ] {
                     let pkg = if umbrella.is_empty() {
                         self.repo_root.join("packages").join(d)

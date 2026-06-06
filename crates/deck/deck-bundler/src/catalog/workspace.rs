@@ -191,3 +191,27 @@ pub fn source_tags_for_package(pkg_root: &Path) -> Vec<(String, PathBuf)> {
     scan_sui_components(&src, &mut out);
     out
 }
+
+/// Build a `<tag>` → source `.sui` index from a registry-composed root's
+/// `components/` tree — the per-space component layer.
+///
+/// This is the monorepo-decoupled discovery: instead of reading the root
+/// `package.json` workspaces, scan the `components/` dir of a space's composed
+/// root (`ship_platform::registry::compose::composed_root_for`), which holds
+/// each declared dep's components namespaced as
+/// `components/<pkg.path>/<tag>/<tag>.sui`. The same custom-element hyphen rule
+/// applies (component iff hyphenated stem ∉ {page,index}), so views never leak.
+/// First tag wins on collision (byte-stable: WalkDir is lexical).
+pub fn composed_component_index(composed_root: &Path) -> std::collections::HashMap<String, PathBuf> {
+    let mut out = std::collections::HashMap::new();
+    let components = composed_root.join("components");
+    if !components.is_dir() {
+        return out;
+    }
+    let mut pairs = Vec::new();
+    scan_sui_components(&components, &mut pairs);
+    for (tag, path) in pairs {
+        out.entry(tag).or_insert(path);
+    }
+    out
+}

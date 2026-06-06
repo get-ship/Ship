@@ -12,7 +12,7 @@ pub mod render_helpers;
 pub use handlers::{
     serve_bundle_hmr, serve_catalog_workspace, serve_shell, serve_shell_asset,
     serve_meta,
-    serve_sui_chunk, serve_sui_components, serve_sui_dom, serve_sui_icon,
+    serve_sui_chunk, serve_sui_dom, serve_sui_icon,
     serve_sui_live_reload, serve_space, serve_space_asset, serve_sui_runtime,
     serve_sui_sdk_client, serve_sui_view_setup,
     serve_view_host, serve_view_payload, serve_view_payload_subpath,
@@ -78,10 +78,9 @@ pub fn router() -> Router {
     Router::new()
         .route("/_sui/runtime.js", get(serve_sui_runtime))
         .route("/_sui/dom.js", get(serve_sui_dom))
-        .route("/_sui/sdk-client.js", get(serve_sui_sdk_client))
-        .route("/_sui/components.js", get(serve_sui_components))
         .route("/_sui/icons/{file}", get(serve_sui_icon))
         .route("/_sui/live-reload.js", get(serve_sui_live_reload))
+
         // Shared chunks from the multi-entry view build (#267), served
         // content-addressed from `.deck/` root. The exact singleton routes
         // above win for `/_sui/runtime.js` etc.; this catches hashed chunks.

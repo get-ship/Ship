@@ -37,7 +37,6 @@ const FRAMEWORK_BUNDLES: &[&str] = &[
     "sui-runtime.js",
     "sui-dom.js",
     "sui-sdk-client.js",
-    "sui-components.js",
 ];
 
 /// All assets that must be non-empty before the build proceeds.
@@ -45,7 +44,6 @@ const ASSETS: &[&str] = &[
     "sui-runtime.js",
     "sui-dom.js",
     "sui-sdk-client.js",
-    "sui-components.js",
     "lucide-icons.json",
 ];
 
@@ -57,7 +55,6 @@ const ASSETS: &[&str] = &[
 const COARSE_SOURCE_ROOTS: &[&str] = &[
     "packages/sui/runtime/src",
     "packages/sui/dom/src",
-    "packages/components/ui-components/src",
     "packages/deck/sdk-client/src",
 ];
 

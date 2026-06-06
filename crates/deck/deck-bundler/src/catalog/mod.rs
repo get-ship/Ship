@@ -15,8 +15,8 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 pub use workspace::{
-    WorkspacePackage, discover_workspace_packages, discover_workspace_packages_scoped,
-    pack_id_for_name,
+    WorkspacePackage, composed_component_index, discover_workspace_packages,
+    discover_workspace_packages_scoped, pack_id_for_name,
 };
 use workspace::{read_json, source_tags_for_package};
 
@@ -703,6 +703,40 @@ mod tests {
 
         // Global scope shadows nothing (no diagnostic noise when unscoped).
         assert!(shadowed_tags(root, None, &[]).is_empty(), "empty packs ⇒ nothing shadowed");
+    }
+
+    /// Monorepo-decoupled discovery: scan a registry-composed root's
+    /// `components/` tree (`components/<pkg.path>/<tag>/<tag>.sui`) — the shape
+    /// `compose::materialize_space` produces. The dep'd component resolves; a
+    /// view alongside it does not leak; a non-present tag is absent.
+    #[test]
+    fn composed_root_components_resolve_from_dep_namespace() {
+        let tmp = tempdir().unwrap();
+        let composed = tmp.path();
+        // Mirror compose output: components/<pkg.path>/<tag>/<tag>.sui
+        write(
+            &composed.join("components/github.com/acme/agents/ship-agent-card/ship-agent-card.sui"),
+            "<article><slot></slot></article>\n",
+        );
+        // A view that happens to sit in the tree must NOT be indexed (no hyphen).
+        write(&composed.join("components/github.com/acme/agents/page.sui"), "<div>v</div>\n");
+
+        let idx = composed_component_index(composed);
+        let src = idx
+            .get("ship-agent-card")
+            .expect("dep'd component resolves from the composed root");
+        assert!(src.is_file());
+        assert!(src.ends_with("ship-agent-card/ship-agent-card.sui"));
+        assert!(!idx.contains_key("page"), "view must not leak into the index");
+        assert!(!idx.contains_key("sui-nope"), "non-present tag is absent");
+    }
+
+    /// A composed root with no `components/` layer (depless space) → empty index,
+    /// no panic.
+    #[test]
+    fn composed_root_without_components_is_empty() {
+        let tmp = tempdir().unwrap();
+        assert!(composed_component_index(tmp.path()).is_empty());
     }
 
     /// Declaring a pack that doesn't exist in the workspace contributes no tags

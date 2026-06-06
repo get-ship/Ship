@@ -35,11 +35,10 @@ use rolldown_common::{ChunkFilenamesOutputOption, ResolvedExternal};
 /// Lucide icons are NOT here — the daemon serves them per-icon from its embedded
 /// set at `/_sui/icons/{name}.svg`. Static-only deploys without a daemon use
 /// `<sui-icon src=…>` (CDN escape hatch).
-const FRAMEWORK_ASSETS: [(&str, &str); 4] = [
+const FRAMEWORK_ASSETS: [(&str, &str); 3] = [
     ("sui-runtime.js", "_sui/runtime.js"),
     ("sui-dom.js", "_sui/dom.js"),
     ("sui-sdk-client.js", "_sui/sdk-client.js"),
-    ("sui-components.js", "_sui/components.js"),
 ];
 
 pub struct AppBuild {

@@ -12,8 +12,11 @@ use deck_config::DeckConfig;
 
 /// Deck's OWN runtime bundles — baked into the deck-core crate (like Next
 /// shipping its own runtime). Everything else under `sui-`/`views/` is app/user
-/// content and goes to `.deck/`.
-const DECK_OWN_BUNDLES: [&str; 4] = ["sui-runtime", "sui-dom", "sui-sdk-client", "sui-components"];
+/// content and goes to `.deck/`. Chrome components are NOT here — the
+/// per-tag tree-shaking resolver (the `sui-components/<name>` prefix in
+/// `assets_dir_for` + the `@sui-tag/<tag>` virtual import in `sui_plugin.rs`)
+/// is the canonical way chrome loads. There is no umbrella.
+const DECK_OWN_BUNDLES: [&str; 3] = ["sui-runtime", "sui-dom", "sui-sdk-client"];
 
 /// A target's entry: a real on-disk module, or a synthetic aggregate that
 /// imports each `source` by absolute path (the build phase generates the entry).
@@ -135,12 +138,6 @@ impl BundleLayout {
                 externals: vec!["@ship/sui-runtime".into()],
                 out_file: "sui-sdk-client.js".into(),
             },
-            BundleTarget {
-                name: "sui-components".into(),
-                entry: TargetEntry::Real(r("packages/components/ui-components/src/index.ts")),
-                externals: vec!["@ship/sui-runtime".into()],
-                out_file: "sui-components.js".into(),
-            },
         ]
     }
 
@@ -237,8 +234,9 @@ mod tests {
         assert_eq!(l.assets_dir_for("sui-runtime"), PathBuf::from("/repo/.deck/framework"));
         assert_eq!(l.assets_dir_for("sui-dom"), PathBuf::from("/repo/.deck/framework"));
         assert_eq!(l.assets_dir_for("sui-sdk-client"), PathBuf::from("/repo/.deck/framework"));
-        assert_eq!(l.assets_dir_for("sui-components"), PathBuf::from("/repo/.deck/framework"));
-        // Per-component chunks and views land in `.deck/`.
+        // Per-tag chrome (`sui-components/<name>`) lands in `.deck/`.
+        // (The umbrella `sui-components` target no longer exists — chrome
+        // is per-tag tree-shaking only.)
         assert_eq!(l.assets_dir_for("sui-components/sui-rail"), PathBuf::from("/repo/.deck"));
         assert_eq!(l.assets_dir_for("views/git/view"), PathBuf::from("/repo/.deck"));
         // Consumer targets (e.g. sui-marketing, sui-arcade) also land in `.deck/`.

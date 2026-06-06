@@ -138,7 +138,6 @@ const FRAMEWORK_BUNDLES: &[&str] = &[
     "sui-runtime.js",
     "sui-dom.js",
     "sui-sdk-client.js",
-    "sui-components.js",
 ];
 
 fn build_assets() -> Result<()> {

@@ -52,7 +52,7 @@ pub use assets::{
     default_shell_scaffold, default_space_scaffold,
     resolve_view_js, serve_scaffold, serve_scaffold_asset,
     serve_shell_asset, serve_space_asset,
-    serve_sui_chunk, serve_sui_components, serve_sui_dom, serve_sui_icon,
+    serve_sui_chunk, serve_sui_dom, serve_sui_icon,
     serve_sui_live_reload, serve_sui_runtime, serve_sui_sdk_client,
 };
 pub use error_page::view_not_found;
