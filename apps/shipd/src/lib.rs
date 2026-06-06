@@ -32,10 +32,10 @@ pub mod diag_rpc;
 pub mod runtime_rpc;
 pub mod pipelines_rpc;
 pub mod git_rpc;
-// agent_rpc is the ONE canonical agent handler (agents-arc E4/E6): profile CRUD +
-// SessionsService folded into the single `impl AgentsService` (chat gutted, E6).
+// agent_rpc: policy + gate conformance tests for AgentsService.
+// The impl AgentsService for OpsImpl is deleted — AgentsWire (ship-agents) is now
+// the sole handler, mounted via AgentsServiceExt::register in ops_rpc.rs.
 pub mod agent_rpc;
-pub mod agent_rpc_helpers;
 pub mod space_rpc;
 pub mod settings_rpc;
 pub mod device_ports;

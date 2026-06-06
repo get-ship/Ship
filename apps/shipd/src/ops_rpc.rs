@@ -284,7 +284,7 @@ pub fn router(state: ApiState) -> axum::Router {
         });
     let git_wire = Arc::new(ship_git::wire::GitWire::new(
         state.git_arc(),
-        gate,
+        gate.clone(),
         git_kernel,
         git_write,
         git_annotations,
@@ -292,12 +292,226 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::GitServiceExt::register(git_wire, router);
     // pipelines.* (runtime + config).
     let router = ship_ops_rpc::PipelinesServiceExt::register(svc.clone(), router);
-    // Wave 2 (#89) — the ONE canonical AgentsService (agents-arc E4/E6): profile
-    // CRUD + view reads + runtime-session reads + orchestration control,
-    // collapsed from the historic AgentsService/SessionsService split into a
-    // single service + handler (chat gutted in E6). Additive beside the generated
-    // ReadOps/CommandOps until the GUI flip (#72).
-    let router = ship_ops_rpc::AgentsServiceExt::register(svc.clone(), router);
+    // agents.* + agent.* — crate-owned AgentsWire (ship-agents).
+    // Replaces `impl AgentsService for OpsImpl` in agent_rpc.rs (deleted).
+    // All 23 methods: profile reads (C0) + runtime reads (C0) + profile writes (C2)
+    // + orchestration control (C2/C3) + Watch stream. agent.grant keeps its C3 gate.
+    let agents_kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));
+    let agents_sessions_state = state.clone();
+    // SessionsFn returns the raw items list as a Value — the wire wraps it in {"items": ...}.
+    let agents_sessions_fn: ship_agents::services::agents::rpc_wire::SessionsFn =
+        Arc::new(move || {
+            let items = agents_sessions_state.pty_sessions().list();
+            serde_json::to_value(items).unwrap_or(serde_json::Value::Array(vec![]))
+        });
+    let notify_saved_state = state.clone();
+    let notify_saved_fn: ship_agents::services::agents::rpc_wire::NotifySavedFn =
+        Arc::new(move |id: String, scope_str: String| {
+            let st = notify_saved_state.clone();
+            Box::pin(async move {
+                use ship_files::files::Scope;
+                use ship_substrate::ShipHome;
+                use ship_types::SpaceId;
+                use ship_substrate::ports::{KernelLog, LocalFsBroker};
+                let scope = match scope_str.as_str() {
+                    "project" => Scope::Project,
+                    _ => Scope::User,
+                };
+                let (ship_dir, space) = match scope {
+                    Scope::Project => {
+                        let Some(ws) = st.workspace_dir() else { return };
+                        let space = SpaceId::new(ship_substrate::home::path_hash(ws));
+                        (ShipHome::project_ship_dir(ws), Some(space))
+                    }
+                    Scope::User => (st.ship_dir().to_path_buf(), None),
+                };
+                let kernel = match st.agent_def_kernel() {
+                    Some(shared) => shared.clone(),
+                    None => Arc::new(KernelLog::new(st.kernel().clone())),
+                };
+                let fs = LocalFsBroker::new();
+                ship_platform::config::notify_agent_def_saved(
+                    &kernel, &fs, &ship_dir, &id, space,
+                )
+                .await;
+            })
+        });
+    let dispatch_state = state.clone();
+    let dispatch_fn: ship_agents::services::agents::rpc_wire::DispatchFn =
+        Arc::new(move |args: serde_json::Value, ctx: connectrpc::RequestContext| {
+            let st = dispatch_state.clone();
+            Box::pin(async move {
+                use crate::routes::runtime_api::dispatch::DispatchRequest;
+                use ship_substrate::events::agent_session::InvocationMode;
+                let invocation = match args.get("invocation").and_then(|v| v.as_str()) {
+                    Some("print") => InvocationMode::Print,
+                    Some("stream") => InvocationMode::Stream,
+                    _ => InvocationMode::Pty,
+                };
+                let depends_on = {
+                    let v: Vec<String> = args.get("depends_on")
+                        .and_then(|v| v.as_array())
+                        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+                        .unwrap_or_default();
+                    (!v.is_empty()).then_some(v)
+                };
+                let vars: std::collections::HashMap<String, String> = args
+                    .get("vars")
+                    .and_then(|v| v.as_object())
+                    .map(|m| {
+                        m.iter()
+                            .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let vars = (!vars.is_empty()).then_some(vars);
+                fn opt_str(v: &serde_json::Value, key: &str) -> Option<String> {
+                    v.get(key).and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string)
+                }
+                let dreq = DispatchRequest {
+                    agent: args.get("agent").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    spec: opt_str(&args, "spec"),
+                    prompt: opt_str(&args, "prompt"),
+                    resume: args.get("resume").and_then(|v| v.as_bool()).unwrap_or(false),
+                    harness: opt_str(&args, "harness"),
+                    model: opt_str(&args, "model"),
+                    open_tab: args.get("open_tab").and_then(|v| v.as_bool()).unwrap_or(true),
+                    invocation,
+                    keepalive: args.get("keepalive").and_then(|v| v.as_bool()).unwrap_or(true),
+                    workspace: opt_str(&args, "workspace"),
+                    slug: opt_str(&args, "slug"),
+                    branch: opt_str(&args, "branch"),
+                    source_spec_path: opt_str(&args, "source_spec_path"),
+                    depends_on,
+                    vars,
+                };
+                // Enforce per-project workspace isolation (same as the REST handler).
+                let auth = ctx
+                    .extensions
+                    .get::<crate::auth::AuthContext>()
+                    .cloned()
+                    .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
+                if let Some(msg) =
+                    crate::auth::identity::mcp_workspace_violation(&auth, dreq.workspace.as_deref())
+                {
+                    return Err(ConnectError::permission_denied(msg));
+                }
+                let (status, axum::Json(mesh)) =
+                    crate::routes::runtime_api::dispatch::dispatch_agent_session_core(&st, dreq)
+                        .await;
+                if status.is_success() {
+                    Ok(mesh.data)
+                } else if status.is_client_error() {
+                    Err(ConnectError::invalid_argument(mesh.data.to_string()))
+                } else {
+                    Err(ConnectError::internal(mesh.data.to_string()))
+                }
+            })
+        });
+    let stop_state = state.clone();
+    let stop_fn: ship_agents::services::agents::rpc_wire::StopFn =
+        Arc::new(move |slug: String| {
+            let st = stop_state.clone();
+            Box::pin(async move {
+                let dh = st.dispatch_handle()
+                    .ok_or_else(|| ConnectError::internal("dispatch service not initialized"))?;
+                let handle = {
+                    let mut reg = dh.registry.lock().await;
+                    reg.take(&slug)
+                }
+                .ok_or_else(|| {
+                    ConnectError::not_found(format!("no running agent with slug '{slug}'"))
+                })?;
+                dh.executor
+                    .stop(&handle)
+                    .await
+                    .map_err(|e| ConnectError::internal(format!("failed to stop agent: {e}")))?;
+                Ok(serde_json::json!({ "slug": slug, "stopped": true }))
+            })
+        });
+    let steer_state = state.clone();
+    let steer_fn: ship_agents::services::agents::rpc_wire::SteerFn =
+        Arc::new(move |slug: String, message: String| {
+            let st = steer_state.clone();
+            Box::pin(async move {
+                let dh = st.dispatch_handle()
+                    .ok_or_else(|| ConnectError::internal("dispatch service not initialized"))?;
+                let reg = dh.registry.lock().await;
+                let handle = reg.get(&slug).ok_or_else(|| {
+                    ConnectError::not_found(format!("no running agent with slug '{slug}'"))
+                })?;
+                dh.executor
+                    .send(handle, &message)
+                    .await
+                    .map_err(|e| ConnectError::internal(format!("failed to steer agent: {e}")))?;
+                Ok(serde_json::json!({ "slug": slug, "steered": true }))
+            })
+        });
+    let grant_state = state.clone();
+    let grant_fn: ship_agents::services::agents::rpc_wire::GrantFn =
+        Arc::new(move |agent: String, new_grants: Vec<String>, ctx: connectrpc::RequestContext| {
+            let st = grant_state.clone();
+            Box::pin(async move {
+                // C3 gate already enforced by the AgentsWire gate closure before this runs.
+                // Extract approver agent_id from the auth context injected by the middleware.
+                let auth = ctx
+                    .extensions
+                    .get::<crate::auth::AuthContext>()
+                    .cloned()
+                    .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
+                let mut baseline: std::collections::BTreeSet<String> =
+                    ship_agents::services::permissions::projection::provisioned_grants_for(&agent)
+                        .ok()
+                        .flatten()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect();
+                let mut upgraded = 0usize;
+                {
+                    let mut reg = st.session_registry().lock().await;
+                    for session in reg.values_mut() {
+                        if session.agent_id == agent {
+                            baseline.extend(session.grants.iter().cloned());
+                            for g in &new_grants {
+                                if !session.grants.contains(g) {
+                                    session.grants.push(g.clone());
+                                }
+                            }
+                            upgraded += 1;
+                        }
+                    }
+                }
+                baseline.extend(new_grants.iter().cloned());
+                let provisioned: Vec<String> = baseline.into_iter().collect();
+                ship_auth::scopes::provision_grants(
+                    &agent,
+                    &provisioned,
+                    "operator",
+                    auth.agent_id.as_deref(),
+                )
+                .map_err(|e| ConnectError::internal(format!("failed to persist grants: {e}")))?;
+                Ok(serde_json::json!({
+                    "agent": agent,
+                    "grants": new_grants,
+                    "provisioned": provisioned,
+                    "sessions_upgraded": upgraded,
+                }))
+            })
+        });
+    let agents_wire = Arc::new(ship_agents::services::agents::AgentsWire::new(
+        state.agents_arc(),
+        state.ship_dir().to_path_buf(),
+        agents_kernel,
+        gate,
+        agents_sessions_fn,
+        notify_saved_fn,
+        dispatch_fn,
+        stop_fn,
+        steer_fn,
+        grant_fn,
+        state.agent_reactive().cloned(),
+    ));
+    let router = ship_ops_rpc::AgentsServiceExt::register(agents_wire, router);
     // account.* — typed AccountService (account.proto), served by the
     // `ship-account` crate (`AccountWire`). Process-global identity: token at
     // rest under `<daemon_dir>/account.jsonc`, `account.*` + `daemon.owner.*`

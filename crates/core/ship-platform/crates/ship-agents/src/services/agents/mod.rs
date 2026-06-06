@@ -4,6 +4,7 @@
 //! `apps/shipd/src/services/agents/mod.rs`.
 
 pub mod create;
+pub mod rpc_wire;
 pub mod service;
 pub mod settings_view;
 pub mod state;
@@ -13,3 +14,5 @@ pub mod watch;
 pub mod fixtures;
 pub mod wire;
 pub mod wire_types;
+
+pub use rpc_wire::AgentsWire;
