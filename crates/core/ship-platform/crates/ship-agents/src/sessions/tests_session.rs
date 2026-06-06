@@ -201,9 +201,9 @@ let err = start_session(
         let ship_dir = crate::testutil::init_project(tmp.path())?;
 
         // Clear project-level harnesses so the default fallback kicks in.
-        let mut config = crate::config::get_config(Some(ship_dir.clone()))?;
+        let mut config = ship_config::project::get_config(Some(ship_dir.clone()))?;
         config.harnesses = vec![];
-        crate::config::save_config(&config, Some(ship_dir.clone()))?;
+        ship_config::project::save_config(&config, Some(ship_dir.clone()))?;
 
 // Harness resolution falls back to "claude" by design (agents/config.rs
         // resolution priority level 4). Session start should succeed.
