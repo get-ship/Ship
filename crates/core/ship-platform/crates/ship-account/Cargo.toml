@@ -12,7 +12,9 @@ ship-gateway-client = { path = "../ship-gateway-client" }
 ship-ops-rpc = { path = "../ship-ops-rpc" }
 
 async-trait = { workspace = true }
+axum = { workspace = true }
 connectrpc = { version = "0.4", features = ["axum"] }
+reqwest = { workspace = true, features = ["json"] }
 buffa = { version = "0.5" }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
