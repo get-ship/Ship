@@ -1,8 +1,27 @@
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
-fn main() -> anyhow::Result<()> {
-    let args: Vec<String> = std::env::args().collect();
+// jemalloc global allocator. Replaces the glibc malloc_trim(0) FFI the
+// bundler was calling per build (the band-aid lived in
+// crates/deck/deck-bundler/src/arena.rs, deleted as part of cut 4).
+// jemalloc returns freed arenas to the OS by default — no per-build
+// trim required. The earlier glibc leak would have manifested in the
+// daemon's RSS after sustained build/watch cycles; jemalloc keeps the
+// heap trimmed. (musl, macOS, and Windows manage their heaps differently
+// and don't strand freed arenas the same way; jemalloc is glibc-specific
+// in the sense that it's only needed on glibc, but it runs fine on
+// every target — the import is no-op on non-glibc.)
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
+fn main() -> anyhow::Result<()> {
+    // Install the crash hook FIRST — before any work, before tracing,
+    // before tokio. If a panic unwinds at any point during startup
+    // (the bundle-watcher startup, the HMR firehose registration, an
+    // actor spawn), the hook fires and writes a JSON crash file we
+    // can post-mortem read. Tracing's async file layer can lose the
+    // final entries on a panic; the sync write below is reliable.
+    install_panic_hook();
+    let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         print_help();
         return Ok(());
@@ -117,4 +136,66 @@ OPTIONS:
     -h, --help                     Print this help
 "
     );
+}
+
+/// Install a panic hook that writes a JSON crash file before the
+/// process exits. The hook fires on every panic, on every thread
+/// (the default `std::panic::take_hook` only fires on the
+/// panicking thread; we call it from our hook to preserve the
+/// abort behavior). The crash file is at
+/// `<ship_dir>/logs/shipd.crash.json` — `ship_dir` is the
+/// `.ship/machine/daemons/<hash>/` dir for the active daemon.
+/// We resolve it lazily on the first panic (the env / cwd may
+/// not be set up before the first call).
+///
+/// The hook also calls `std::process::abort()` after writing —
+/// this skips the normal unwind cleanup, which can hang on
+/// poisoned mutexes from a tokio-rt-worker panic. The crash
+/// file is the artifact we want; let the process die fast.
+fn install_panic_hook() {
+    use std::io::Write as _;
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        // Resolve ship_dir at panic time. Lazy: env / cwd may not
+        // be ready at install_hook time. Best-effort; if any of
+        // these calls panic themselves we just print to stderr.
+        let payload = serde_json::json!({
+            "schema": "shipd.crash/1",
+            "ts": chrono::Utc::now().to_rfc3339(),
+            "pid": std::process::id(),
+            "panicked_at": info.location().map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column())),
+            "panic_message": info.payload().downcast_ref::<&'static str>().map(|s| s.to_string())
+                .or_else(|| info.payload().downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "<non-string panic payload>".to_string()),
+            "backtrace": std::backtrace::Backtrace::force_capture().to_string(),
+        });
+        // Try to write to shipd.crash.json. If anything goes wrong
+        // (no ship_dir, no perm, etc.) fall back to stderr. The
+        // crash is the artifact — get it onto disk even if we have
+        // to do it badly.
+        if let Ok(global_dir) = ship_substrate::project::get_global_dir() {
+            let logs_dir = ship_substrate::ShipHome::at(global_dir)
+                .machine_dir()
+                .join("logs");
+            let _ = std::fs::create_dir_all(&logs_dir);
+            let crash_path = logs_dir.join("shipd.crash.json");
+            // Open with truncate so we always see the latest crash.
+            if let Ok(mut f) = std::fs::File::create(&crash_path) {
+                let _ = f.write_all(payload.to_string().as_bytes());
+                let _ = f.sync_all();
+            }
+            eprintln!("[shipd-crash] wrote {}", crash_path.display());
+        } else {
+            eprintln!("[shipd-crash] {}", payload);
+        }
+        // Run the default hook (prints the panic site + aborts).
+        // `unwind_safe` boundary: the hook runs after the unwinder
+        // has marked the thread as panicking; we don't try to grab
+        // any locks or do anything that could re-panic.
+        default_hook(info);
+        // Belt and suspenders: if the default hook somehow returns
+        // (it usually calls `abort()` itself), abort here so the
+        // process dies instead of returning to the panic site.
+        std::process::abort();
+    }));
 }

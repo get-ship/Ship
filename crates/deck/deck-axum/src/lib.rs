@@ -78,6 +78,7 @@ pub fn router() -> Router {
     Router::new()
         .route("/_sui/runtime.js", get(serve_sui_runtime))
         .route("/_sui/dom.js", get(serve_sui_dom))
+        .route("/_sui/sdk-client.js", get(serve_sui_sdk_client))
         .route("/_sui/icons/{file}", get(serve_sui_icon))
         .route("/_sui/live-reload.js", get(serve_sui_live_reload))
 
