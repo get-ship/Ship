@@ -13,6 +13,7 @@
 #[cfg(test)]
 pub mod testutil;
 
+pub mod active_agent;
 pub mod actor;
 pub mod agent_domain;
 pub mod cancel;

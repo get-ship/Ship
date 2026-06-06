@@ -1,14 +1,8 @@
-//! Platform config facade — re-exports from `ship-config` crate (SSOT) plus
-//! the thin platform-specific items that depend on platform internals
-//! (`crud` → services::compile, `watcher` → spawn loop, `discover` → fs walk).
+//! Platform config facade — thin re-export shim over `ship-config` (SSOT).
 //!
-//! ALL type/settings/agent definitions live in the `ship-config` crate. This
-//! module is a thin shim for the items that cannot move there due to
-//! platform-internal dependencies (services::compile, KernelRouter spawn loop).
-
-mod crud;
-mod discover;
-pub mod watcher;
+//! All logic previously in the `crud`, `discover`, and `watcher` sub-modules
+//! has been relocated to the `ship-config` crate. This shim re-exports the
+//! full public surface so existing callers continue to compile unchanged.
 
 #[cfg(test)]
 mod tests_boundaries;
@@ -72,11 +66,8 @@ pub use ship_config::local;
 // Space settings projection
 pub use ship_config::projection::SpaceSettingsProjection;
 
-// Platform-specific
-pub use crud::{
-    add_mcp_server, ensure_standard_dirs,
-    get_active_agent, list_mcp_servers,
-    remove_mcp_server,
-};
-pub use discover::discover_projects;
-pub use watcher::{spawn_config_watcher, ConfigWatcher};
+// Relocated from platform-internal crud/discover/watcher
+pub use ship_config::crud::{add_mcp_server, ensure_standard_dirs, list_mcp_servers, remove_mcp_server};
+pub use ship_agents::active_agent::get_active_agent;
+pub use ship_config::discover::discover_projects;
+pub use ship_config::watcher::{spawn_config_watcher, ConfigWatcher};
