@@ -92,7 +92,7 @@ pub fn spawn_session_sweeper(registry: SessionRegistry) -> tokio::task::JoinHand
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::scopes::{DaemonSession, Scope};
+    use crate::scopes::{DaemonSession, Scope};
     use std::collections::HashMap;
     use std::sync::Arc;
     use tokio::sync::Mutex;

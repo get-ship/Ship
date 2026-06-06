@@ -6,7 +6,7 @@
 /// - `pid_authorizes` enforcement — bound token, unbound token, no-pid transport
 /// - `scopes_for_role` and `grants_for_role` per CallerKind shape
 /// - `McpAuth::allows` with Full and specific scopes
-use crate::auth::scopes::{
+use crate::scopes::{
     DaemonSession, McpAuth, Scope, grants_for_role, scopes_for_role,
     space_window_session, space_window_scopes, generate_session_token,
     is_session_token,

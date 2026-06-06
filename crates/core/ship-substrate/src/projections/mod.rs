@@ -11,6 +11,7 @@ pub mod actor;
 pub mod artifact;
 pub mod async_projection;
 pub mod collection;
+pub mod grants;
 pub mod process;
 pub mod registry;
 mod session;
@@ -27,6 +28,10 @@ pub use actor::ActorProjection;
 pub use artifact::ArtifactProjection;
 pub use async_projection::{AsyncProjection, spawn_projection};
 pub use collection::CollectionProjection;
+pub use grants::{
+    ProvisionedGrantsProjection, ProvisionedGrantsRow, provisioned_grants_for,
+    provisioned_grants_for_at, provisioned_row,
+};
 pub use process::{ProcessRecord, ProcessStatus, load_processes};
 pub use registry::{EventBus, Projection};
 pub use session::SessionProjection;

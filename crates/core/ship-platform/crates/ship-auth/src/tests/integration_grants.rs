@@ -12,9 +12,9 @@ use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 use ship_types::event_types::AGENT_GRANTS_PROVISIONED;
 use tempfile::tempdir;
 
-use crate::auth::grant_diff::{has_pending, pending_grants};
-use crate::auth::scopes::{provision_grants, resolve_grants_at};
-use crate::testutil::init_project;
+use crate::grant_diff::{has_pending, pending_grants};
+use crate::scopes::{provision_grants, resolve_grants_at};
+use crate::testutil::init_auth;
 
 fn query_events(event_type: &str) -> Vec<ship_types::envelope::EventEnvelope> {
     // auth.session.* / daemon.owner.* / agent.grants.* are Account-scoped → account.db.
@@ -41,7 +41,7 @@ fn sv(items: &[&str]) -> Vec<String> {
 #[test]
 fn auth_grants_provision_emits_agent_grants_provisioned() {
     let tmp = tempdir().unwrap();
-    init_project(tmp.path()).unwrap();
+    init_auth(tmp.path()).unwrap();
 
     provision_grants("agent-emit-test", &sv(&["ship-orchestration"]), "operator", Some("op-1"))
         .unwrap();
@@ -58,7 +58,7 @@ fn auth_grants_provision_emits_agent_grants_provisioned() {
 #[test]
 fn auth_grants_resolve_falls_back_to_role_when_no_provisioned_record() {
     let tmp = tempdir().unwrap();
-    init_project(tmp.path()).unwrap();
+    init_auth(tmp.path()).unwrap();
 
     // No provisioned record → role baseline (commander → ["agent"]).
     let grants = resolve_grants_at(tmp.path(), "fresh-agent", Some("commander"));
@@ -68,7 +68,7 @@ fn auth_grants_resolve_falls_back_to_role_when_no_provisioned_record() {
 #[test]
 fn auth_grants_resolve_worker_role_baseline_is_empty() {
     let tmp = tempdir().unwrap();
-    init_project(tmp.path()).unwrap();
+    init_auth(tmp.path()).unwrap();
 
     let grants = resolve_grants_at(tmp.path(), "w-agent", Some("worker"));
     assert!(grants.is_empty(), "worker role baseline has no elevated services");
@@ -76,7 +76,7 @@ fn auth_grants_resolve_worker_role_baseline_is_empty() {
 
 #[test]
 fn auth_grants_resolve_provisioned_record_overrides_role() {
-    use crate::services::permissions::projection::ProvisionedGrantsProjection;
+    use ship_substrate::projections::grants::ProvisionedGrantsProjection;
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::projections::registry::Projection;
 
@@ -100,7 +100,7 @@ fn auth_grants_resolve_provisioned_record_overrides_role() {
 
 #[test]
 fn auth_grants_resolve_provisioned_empty_set_overrides_role() {
-    use crate::services::permissions::projection::ProvisionedGrantsProjection;
+    use ship_substrate::projections::grants::ProvisionedGrantsProjection;
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::projections::registry::Projection;
 
@@ -168,7 +168,7 @@ fn auth_grants_pending_deduplicates_and_sorts_output() {
 
 #[test]
 fn auth_grants_provision_latest_write_wins() {
-    use crate::services::permissions::projection::ProvisionedGrantsProjection;
+    use ship_substrate::projections::grants::ProvisionedGrantsProjection;
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::projections::registry::Projection;
 

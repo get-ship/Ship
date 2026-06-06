@@ -17,16 +17,16 @@ use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 use ship_types::event_types::{AUTH_SESSION_CREATED, AUTH_SESSION_REVOKED};
 use tempfile::tempdir;
 
-use crate::auth::scopes::{
+use crate::scopes::{
     DaemonSession, Scope, SessionRegistry, generate_session_token, persist_session,
     remove_persisted_session,
 };
-use crate::auth::session::{
+use crate::session::{
     BROWSER_SESSION_TTL_SECS, COOKIE_NAME, generate_browser_session_id, is_browser_session_id,
     issue_browser_session, issue_browser_session_with_ttl, lookup_browser_session,
     parse_session_cookie,
 };
-use crate::testutil::init_project;
+use crate::testutil::init_auth;
 
 fn empty_registry() -> SessionRegistry {
     Arc::new(Mutex::new(HashMap::new()))
@@ -196,7 +196,7 @@ fn auth_session_is_expired_past_expiry_is_expired() {
 #[test]
 fn auth_session_persist_emits_auth_session_created() {
     let tmp = tempdir().unwrap();
-    init_project(tmp.path()).unwrap();
+    init_auth(tmp.path()).unwrap();
 
     let token = generate_session_token().unwrap();
     let session = persisted_session(&token);
@@ -212,7 +212,7 @@ fn auth_session_persist_emits_auth_session_created() {
 #[test]
 fn auth_session_persist_skips_ephemeral_session() {
     let tmp = tempdir().unwrap();
-    init_project(tmp.path()).unwrap();
+    init_auth(tmp.path()).unwrap();
 
     let pre = query_events(AUTH_SESSION_CREATED).len();
 
@@ -229,7 +229,7 @@ fn auth_session_persist_skips_ephemeral_session() {
 #[test]
 fn auth_session_revoke_emits_auth_session_revoked() {
     let tmp = tempdir().unwrap();
-    init_project(tmp.path()).unwrap();
+    init_auth(tmp.path()).unwrap();
 
     let token = generate_session_token().unwrap();
     // Persist first so the revoke has a meaningful entity.

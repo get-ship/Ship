@@ -1,0 +1,31 @@
+[package]
+name = "ship-auth"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Auth policy crate — session lifecycle, attestation, pairing, and grant resolution (L1). Carved from ship-platform/src/auth. Depends only on L0 (ship-substrate, ship-auth-types, ship-types)."
+
+[dependencies]
+ship-substrate = { path = "../../../ship-substrate" }
+ship-auth-types = { path = "../../../ship-substrate/crates/ship-auth-types" }
+ship-types = { path = "../../../ship-substrate/crates/ship-types" }
+
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+chrono = { workspace = true }
+jsonwebtoken = "9"
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls"] }
+getrandom = { workspace = true }
+reqwest = { workspace = true, features = ["json", "rustls-tls"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
+ship-substrate = { path = "../../../ship-substrate" }
+ship-types = { path = "../../../ship-substrate/crates/ship-types" }
+
+[lints]
+workspace = true
