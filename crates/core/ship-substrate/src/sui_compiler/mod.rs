@@ -1,7 +1,7 @@
-//! `~/.ship/runtime/` toolchain orchestration.
+//! `~/.ship/runtime/` sui-compiler provisioning.
 //!
 //! - `ensure` — existence + executability checks.
-//! - `install` — populate the toolchain dir from local sources. Since #163 the
+//! - `install` — populate the runtime dir from local sources. Since #163 the
 //!   daemon bundles in-process via Rolldown, so the only component is the
 //!   sui-compiler binary. Future revisions may fetch from a CDN.
 
