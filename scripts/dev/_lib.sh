@@ -81,6 +81,31 @@ build_sha() {
     git rev-parse --short=8 HEAD 2>/dev/null || echo "unknown"
 }
 
+# Path to the vite.pid file for the current daemon dir. shell-start.sh
+# records the per-worktree vite PID here so dev-stop can reap it.
+vite_pid_file() {
+    echo "$(daemon_dir)/vite.pid"
+}
+
+# Kill the vite process recorded for the current daemon dir and remove the
+# pid file. No-op when nothing is tracked or the process is already gone.
+kill_vite() {
+    local pf pid kd
+    pf=$(vite_pid_file)
+    [ -f "$pf" ] || return 0
+    pid=$(cat "$pf")
+    rm -f "$pf"
+    [ -n "$pid" ] || return 0
+    if kill -0 "$pid" 2>/dev/null; then
+        kill "$pid" 2>/dev/null || true
+        kd=$(( $(date +%s) + 3 ))
+        while kill -0 "$pid" 2>/dev/null && [ "$(date +%s)" -lt "$kd" ]; do
+            sleep 0.1
+        done
+        kill -9 "$pid" 2>/dev/null || true
+        echo "vite: killed pid $pid"
+    fi
+}
 # Stop the dev daemon serving the current daemon dir.
 #
 # `start.sh` launches `shipd` directly — not under `ship daemon supervise` —

@@ -20,20 +20,44 @@
 
 import { createClient, setShipClient, type ShipSDK } from '@ship/sdk-client'
 import { ops } from './ops'
-import './components'
-import { loadHeavyChrome } from './chrome/load-heavy-chrome'
+// Chrome registration: the per-tag resolver is the only path. Every
+// chrome element used in a view's page.sui HTML fires its
+// @sui-tag/<tag> virtual import when the view mounts, and the
+// resolver maps the tag to the chrome's source. The static
+// 'import ./components' path was the redundant one — cut 4
+// of 5 removed it. (The 9 heavy-chrome elements — nav-top,
+// command-bar, launcher, panel-dock, account-menu, project-
+// switcher, devtools, rail, view-authoring — live in the same
+// dir, re-imported by the chrome's consumer `.sui` files. The
+// bundler's per-tag resolver finds them via @sui-tag/<tag>
+// imports inside the chrome that needs them.)
+// Domain packs — each side-effect-registers its custom elements. The pack
 // Domain packs — each side-effect-registers its custom elements. The pack
 // main compiles in-process via the shared SuiPlugin and tree-shakes
 // per-tag from the traced app bundle. This is the multi-pack architecture:
 // the shell's first-party chrome imports a workspace pack via the same
 // shape a third-party pack will use. The umbrella bundle
-// (packages/components/ui-components) is gone — each pack loads its
 // own elements directly.
-import '@ship/sui-charts' // <sui-*-chart>, <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
-import '@ship/pipelines' // <sui-pipeline-{card,dag,step,run,history,trigger,output,definition}>
-import '@ship/sui-canvas' // <sui-canvas>, <sui-graph-canvas>
-import '@ship/agents' // ship-agents-* (table, card, etc.)
-import '@ship/authority' // ship-authority-* (approval card, capability modal)
+// VITE-DEV-OUT: all four side-effect pack imports below require the deck
+// bundler to resolve `*.compiled.js` relative imports — the source
+// `index.ts` of each pack imports `./<tag>/<tag>.compiled.js`, files that
+// are produced on the fly by the deck in-process rolldown plugin and
+// cached to `.ship/sui-out/`. Vite is generic and can't do that. Drop
+// them on the vite-dev path; the deck path keeps them. The home view's
+// compiled module references none of these tags (verified: `grep -c
+// "sui-.*-chart\|sui-pipeline\|sui-canvas\|sui-board\|sui-draw\|sui-graph-canvas\|ship-agent\|ship-approval\|ship-capability" home.js` → 0).
+// import '@ship/sui-charts' // <sui-*-chart>, <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
+// import '@ship/pipelines' // <sui-pipeline-{card,dag,step,run,history,trigger,output,definition}>
+// VITE-DEV-OUT: the 3 packs below require the deck bundler to resolve
+// `*.compiled.js` relative imports (sui-canvas, agents, authority are
+// generated on-the-fly by the deck in-process rolldown plugin). Vite
+// is generic and can't do that. Drop them from the vite-dev path;
+// the deck path (production + daemon-served dev) keeps them. The
+// home view's compiled module doesn't use any of the tags they
+// register (verified: `grep -E "sui-canvas|sui-board|sui-draw|..." home.js` → 0).
+// import '@ship/sui-canvas' // <sui-canvas>, <sui-graph-canvas>
+// import '@ship/agents' // ship-agents-* (table, card, etc.)
+// import '@ship/authority' // ship-authority-* (approval card, capability modal)
 // Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
 // popover, tooltip, tabs, etc.) — are resolved per-tag from workspace source
 // that the per-tag resolver cannot trace.
@@ -74,10 +98,12 @@ function injectTokenStyles(): void {
   document.head.appendChild(link)
 }
 injectTokenStyles()
-// Kick off heavy chrome chunk fetches immediately — fire-and-forget.
-// Custom elements upgrade lazily when their chunk lands; does not block
-// first paint. Mirrors the old /_sui/sui-components/<tag>.js island IIFE.
-loadHeavyChrome()
+
+// (Cut 3 of 5: the `loadHeavyChrome()` call that kicked off the
+// code-split heavy-chrome fetches is gone. The 9 chrome elements
+// load synchronously via the @ship/shell-chrome side-effect import
+// above; deck's per-tag resolver finds them at
+// packages/components/ship/shell-chrome/src/<name>/<name>.sui.)
 
 // Single SDK client instance, shared across every mounted view.
 const shipClient: ShipSDK = createClient({ baseUrl: daemonBase() })

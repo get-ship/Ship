@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Reap the daemon for a worktree, then remove it.
-# Accepts a path suffix (e.g. "job/some-lane") or exact worktree path.
+# Reap daemon + vite for a worktree, then remove it.
+# Accepts a path suffix (e.g. "job/vite-isolation") or exact worktree path.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 . scripts/dev/_lib.sh
@@ -55,6 +55,20 @@ if [ -d "$machine/daemons" ]; then
                 done
                 kill -9 "$pid" 2>/dev/null || true
                 echo "worktree-remove: killed daemon $pid"
+            fi
+        fi
+
+        vite_pf="$dir/vite.pid"
+        if [ -f "$vite_pf" ]; then
+            vpid=$(cat "$vite_pf")
+            if [ -n "$vpid" ] && kill -0 "$vpid" 2>/dev/null; then
+                kill "$vpid" 2>/dev/null || true
+                kd=$(( $(date +%s) + 3 ))
+                while kill -0 "$vpid" 2>/dev/null && [ "$(date +%s)" -lt "$kd" ]; do
+                    sleep 0.1
+                done
+                kill -9 "$vpid" 2>/dev/null || true
+                echo "worktree-remove: killed vite $vpid"
             fi
         fi
 
