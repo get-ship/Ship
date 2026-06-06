@@ -8,6 +8,7 @@ use serde::Deserialize;
 
 mod soft_delete;
 pub mod tool_gate;
+pub mod http_ingress;
 
 #[cfg(test)]
 mod hooks_tests;

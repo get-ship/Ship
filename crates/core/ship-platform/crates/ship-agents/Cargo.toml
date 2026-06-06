@@ -29,6 +29,8 @@ ship-kv = { path = "../ship-kv" }
 compiler = { path = "../compiler", features = ["specta"] }
 jsonschema = { version = "0.46", default-features = false }
 
+ulid = "1"
+
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

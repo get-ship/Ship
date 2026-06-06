@@ -76,15 +76,17 @@ pub type SteerFn =
 pub type GrantFn =
     Arc<dyn Fn(String, Vec<String>, RequestContext) -> BoxFuture<Result<Value, ConnectError>> + Send + Sync>;
 
-/// Async post-feedback closure: (event_json, ctx) → Result<id_string, ConnectError>.
-/// Captures `ApiState` (kernel, view_sessions, FeedbackGuard) from shipd.
-pub type PostFeedbackFn =
-    Arc<dyn Fn(String, RequestContext) -> BoxFuture<Result<String, ConnectError>> + Send + Sync>;
-
-/// Async post-annotation closure: (event_json, ctx) → Result<id_string, ConnectError>.
-/// Captures `ApiState` (kernel, collections, view_sessions) from shipd.
-pub type PostAnnotationFn =
-    Arc<dyn Fn(String, RequestContext) -> BoxFuture<Result<String, ConnectError>> + Send + Sync>;
+/// Extracts feedback/annotation auth info from a ConnectRPC `RequestContext`.
+/// Shipd implements this; ship-agents calls it to get the emit context and agent
+/// id without importing the shipd `AuthContext` type.
+pub trait FeedbackAuthPort: Send + Sync {
+    /// Returns `(agent_id, emit_ctx)` or `ConnectError::unauthenticated` if the
+    /// auth extension is missing from the context.
+    fn extract(
+        &self,
+        ctx: &RequestContext,
+    ) -> Result<(Option<String>, ship_substrate::events::validator::EmitContext), ConnectError>;
+}
 
 // ── Wire struct ───────────────────────────────────────────────────────────────
 
@@ -101,8 +103,9 @@ pub struct AgentsWire {
     steer_fn:         SteerFn,
     grant_fn:         GrantFn,
     agent_reactive:   Option<Arc<ReactiveRegistry>>,
-    post_feedback_fn: PostFeedbackFn,
-    post_annotation_fn: PostAnnotationFn,
+    feedback_auth:    Arc<dyn FeedbackAuthPort>,
+    view_broadcast:   Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
+    collection:       Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
 }
 
 impl AgentsWire {
@@ -119,8 +122,9 @@ impl AgentsWire {
         steer_fn:         SteerFn,
         grant_fn:         GrantFn,
         agent_reactive:   Option<Arc<ReactiveRegistry>>,
-        post_feedback_fn: PostFeedbackFn,
-        post_annotation_fn: PostAnnotationFn,
+        feedback_auth:    Arc<dyn FeedbackAuthPort>,
+        view_broadcast:   Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
+        collection:       Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
     ) -> Self {
         Self {
             svc,
@@ -134,8 +138,9 @@ impl AgentsWire {
             steer_fn,
             grant_fn,
             agent_reactive,
-            post_feedback_fn,
-            post_annotation_fn,
+            feedback_auth,
+            view_broadcast,
+            collection,
         }
     }
 }
@@ -785,8 +790,21 @@ impl AgentsServiceTrait for AgentsWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedPostFeedbackRequestView,
     ) -> ServiceResult<ship_ops_rpc::PostFeedbackResponse> {
-        let event_json = request.event_json.to_string();
-        let id = (self.post_feedback_fn)(event_json, ctx).await?;
+        let ev: ship_substrate::events::feedback::FeedbackEvent =
+            serde_json::from_str(&request.event_json)
+                .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
+        let (agent_id, emit_ctx) = self.feedback_auth.extract(&ctx)?;
+        let guard = crate::services::agents::feedback::shared_guard();
+        let id = crate::services::agents::feedback::post_feedback(
+            &self.kernel,
+            emit_ctx,
+            self.view_broadcast.as_ref(),
+            guard,
+            agent_id.as_deref(),
+            ev,
+        )
+        .await
+        .map_err(|e| feedback_err_to_connect(e))?;
         Ok(Response::new(ship_ops_rpc::PostFeedbackResponse { id, ..Default::default() }))
     }
 
@@ -795,8 +813,59 @@ impl AgentsServiceTrait for AgentsWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedPostAnnotationRequestView,
     ) -> ServiceResult<ship_ops_rpc::PostAnnotationResponse> {
-        let event_json = request.event_json.to_string();
-        let id = (self.post_annotation_fn)(event_json, ctx).await?;
+        let ev: ship_substrate::events::annotation::AnnotationEvent =
+            serde_json::from_str(&request.event_json)
+                .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
+        let (_agent_id, emit_ctx) = self.feedback_auth.extract(&ctx)?;
+        let id = crate::services::agents::annotation::post_annotation(
+            &self.kernel,
+            emit_ctx,
+            self.view_broadcast.as_ref(),
+            self.collection.as_ref(),
+            ev,
+        )
+        .await
+        .map_err(|e| annotation_err_to_connect(e))?;
         Ok(Response::new(ship_ops_rpc::PostAnnotationResponse { id, ..Default::default() }))
+    }
+}
+
+fn feedback_err_to_connect(e: crate::services::agents::feedback::FeedbackError) -> ConnectError {
+    use crate::services::agents::feedback::FeedbackError;
+    match e {
+        FeedbackError::RateLimited => ConnectError::resource_exhausted(e.to_string()),
+        FeedbackError::ViewNotFound(_) => ConnectError::not_found(e.to_string()),
+        FeedbackError::InvalidId
+        | FeedbackError::SelectorRequired
+        | FeedbackError::RectForbidden
+        | FeedbackError::RectRequired
+        | FeedbackError::RectInvalid
+        | FeedbackError::NoteTooLarge
+        | FeedbackError::SelectionTooLarge
+        | FeedbackError::DuplicateId => ConnectError::invalid_argument(e.to_string()),
+        FeedbackError::SerializeFailed(_) | FeedbackError::EmitFailed(_) => {
+            ConnectError::internal(e.to_string())
+        }
+    }
+}
+
+fn annotation_err_to_connect(e: crate::services::agents::annotation::AnnotationError) -> ConnectError {
+    use crate::services::agents::annotation::AnnotationError;
+    match e {
+        AnnotationError::SelectorRequired
+        | AnnotationError::RectInvalid
+        | AnnotationError::NoteTooLarge
+        | AnnotationError::SelectionTooLarge => ConnectError::invalid_argument(e.to_string()),
+        AnnotationError::Collection(ref ce) => match ce {
+            crate::services::agents::annotation::CollectionError::NoActiveSpace(_) => {
+                ConnectError::failed_precondition(e.to_string())
+            }
+            crate::services::agents::annotation::CollectionError::PersistFailed(_) => {
+                ConnectError::internal(e.to_string())
+            }
+        },
+        AnnotationError::SerializeFailed(_) | AnnotationError::EmitFailed(_) => {
+            ConnectError::internal(e.to_string())
+        }
     }
 }
