@@ -5,6 +5,7 @@
 
 pub mod diff;
 pub mod read;
+pub mod rest_handlers;
 pub mod service;
 pub mod state;
 pub mod wire;

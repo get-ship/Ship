@@ -455,16 +455,24 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListProjectAgents_template(), project_api::list_agents)
         // GitService — canonical `/api/v1/git/*` surface. Consolidates the
         // old workspace- and project-scoped git endpoints into one.
-        .ship_route(Route::GitStage, git_api::stage_handler)
-        .ship_route(Route::GitUnstage, git_api::unstage_handler)
-        .ship_route(Route::GitCommit, git_api::commit_handler)
-        .ship_route(Route::GitPush, git_api::push_handler)
-        .ship_route(Route::GitFetch, git_api::fetch_handler)
-        .ship_route(Route::GitPull, git_api::pull_handler)
-        .ship_route(Route::GitCheckout, git_api::checkout_handler)
-        .ship_route(Route::GitBranchCreate, git_api::branch_create_handler)
-        .ship_route(Route::GitBranchDelete, git_api::branch_delete_handler)
-        .ship_route(Route::GitInit, git_api::init_handler)
+        // Write handlers live in `ship_git::rest_handlers`; they take
+        // `State<Arc<dyn GitService>>` and are mounted via a state-scoped
+        // sub-router. The SSE handler is daemon-edge (ViewSse) and keeps
+        // `State<ApiState>`.
+        .merge(
+            Router::<std::sync::Arc<dyn ship_git::service::GitService>>::new()
+                .ship_route(Route::GitStage, git_api::stage_handler)
+                .ship_route(Route::GitUnstage, git_api::unstage_handler)
+                .ship_route(Route::GitCommit, git_api::commit_handler)
+                .ship_route(Route::GitPush, git_api::push_handler)
+                .ship_route(Route::GitFetch, git_api::fetch_handler)
+                .ship_route(Route::GitPull, git_api::pull_handler)
+                .ship_route(Route::GitCheckout, git_api::checkout_handler)
+                .ship_route(Route::GitBranchCreate, git_api::branch_create_handler)
+                .ship_route(Route::GitBranchDelete, git_api::branch_delete_handler)
+                .ship_route(Route::GitInit, git_api::init_handler)
+                .with_state(rt.git_arc()),
+        )
         .ship_route(Route::GitSse, git_api::sse_handler)
         .ship_route(Route::EmitEvent, project_api::emit_event)
         // Artifacts platform (three-scope)
