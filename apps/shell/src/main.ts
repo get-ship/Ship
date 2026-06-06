@@ -39,7 +39,7 @@ import '@ship/authority' // ship-authority-* (approval card, capability modal)
 // that the per-tag resolver cannot trace.
 import { route as createRoute, defineRoutes, setRouterPort } from '@ship/sui-runtime/route'
 import { DYNAMIC_ROUTE_PATTERNS } from './routes.gen'
-import { chrome, notifyViewUnmount, setHostContext } from '@ship/sui-runtime'
+import { chrome, mount, notifyViewUnmount, setHostContext } from '@ship/sui-runtime'
 import type { SuiLoader, ViewPayload } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
@@ -49,20 +49,6 @@ import { initEditModeChrome, setEditModeView, toggleEditMode, toggleAnnotationMo
 import { bridgeDockTerminal, disposeDockTerminal } from './chrome/terminal-bridge'
 import { registerKeymap } from './chrome/keymap'
 
-interface MountFn {
-  (
-    target: HTMLElement,
-    payload: unknown,
-    opts?: {
-      cssScope?: 'adjacent' | 'document-head' | 'none'
-      ship?: ShipSDK
-      loader?: SuiLoader
-      module?: unknown
-      route?: unknown
-      navigate?: (path: string) => void
-    },
-  ): Promise<{ dispose(): void; element: HTMLElement; scope: Record<string, unknown> }>
-}
 
 // The daemon's base origin. Empty in a browser/vite context (same-origin; the
 // vite proxy forwards /api + /_sui + Connect to the daemon). In the proxy-less
@@ -217,19 +203,14 @@ function publishScope(scope: Record<string, unknown> | null): void {
   window.__suiCurrentScope = scope
   document.dispatchEvent(new CustomEvent('sui:scope:change', { detail: { scope } }))
 }
-
-interface SuiRuntime {
-  mount: MountFn
-}
-
-// Window globals set by index.html's IIFE bootstrap. Cast at the call
-// sites to avoid `declare global` in a non-ambient module file.
+// Window globals planted by the Tauri host (pre-load init script) and the
+// daemon's HTML scaffold. Cast at the call sites to avoid `declare
+// global` in a non-ambient module file. (The shell imports the SUI
 type WindowWithSui = Window & {
-  __suiRuntime?: SuiRuntime
-  __suiRuntimeReady?: Promise<SuiRuntime>
-  // Planted by the Tauri host (pre-load init script) so the proxy-less webview
-  // targets the daemon's absolute loopback origin. Undefined in a browser/vite
-  // context → '' → same-origin relative URLs (the vite proxy resolves them).
+  // Planted by the Tauri host (pre-load init script) so the proxy-less
+  // webview targets the daemon's absolute loopback origin. Undefined in a
+  // browser/vite context → '' → same-origin relative URLs (the vite
+  // proxy resolves them).
   __SHIP_DAEMON_URL__?: string
   // The space this window was launched for (`--app=<id>`); undefined = the hub.
   DECK_APP_ID?: string
@@ -312,11 +293,19 @@ function confineEnabled(): boolean {
 const confinedCache = new Map<string, Promise<unknown>>()
 
 // Build the confined module for a daemon-served view: fetch its compiled source,
-// endow the SHARED runtime (window.__suiRuntime — the importmap instance, NOT a
-// second copy, so signals stay one universe per #149) + dom + policy-gated
-// ship/route/navigate + the real document, and confine under lockdown. Returns
-// undefined on any failure (incl. non-daemon views like bundled studio, whose
-// view.js 404s) → caller falls back to the normal unconfined path.
+// endow the SHARED runtime (the importmap's @ship/sui-runtime module
+// instance, NOT a second copy, so signals stay one universe per #149)
+// + dom + policy-gated ship/route/navigate + the real document, and
+// confine under lockdown. Returns undefined on any failure (incl. non-
+// daemon views like bundled studio, whose view.js 404s) → caller
+// falls back to the normal unconfined path.
+//
+// The runtime is imported as a namespace import here so the SES
+// endowments pass the SAME module instance that `mount` (line 42)
+// uses — the importmap resolves both to /_sui/runtime.js.
+import * as runtimeNs from '@ship/sui-runtime'
+const suiRuntime = runtimeNs as unknown as Record<string, unknown>
+
 function confinedModuleFor(viewName: string): Promise<unknown> {
   const cached = confinedCache.get(viewName)
   if (cached) return cached
@@ -334,9 +323,8 @@ async function buildConfinedModule(viewName: string): Promise<unknown> {
     const res = await fetch(`${daemonBase()}/_sui/views/${viewName}/view.js`, { credentials: 'same-origin' })
     if (!res.ok) return undefined
     const source = await res.text()
-    const w = window as WindowWithSui
     const endow = buildViewEndowments({
-      runtime: (w.__suiRuntime ?? {}) as unknown as Record<string, unknown>,
+      runtime: suiRuntime,
       dom: dom as unknown as Record<string, unknown>,
       ship: shipClient,
       route: routeSignals,
@@ -369,9 +357,10 @@ async function mountRoute(pathname: string, opts: { module?: unknown } = {}): Pr
     return showLanding(slot)
   }
 
-  const w = window as WindowWithSui
-  const runtime = await (w.__suiRuntimeReady ?? Promise.resolve(w.__suiRuntime))
-  if (!runtime?.mount) throw new Error('shell: SUI runtime did not load')
+  // The runtime is imported directly from @ship/sui-runtime via the
+  // importmap (see the top of main.ts) — the importmap is the single
+  // source of truth, no window.__suiRuntime indirection. The earlier
+  // IIFE bootstrap that put the runtime on window has been removed.
 
   // Reserve the viewId before the try so the catch can release it on a failed
   // mount — declaring it inside try left `nextViewId` out of scope in catch,
@@ -403,7 +392,7 @@ async function mountRoute(pathname: string, opts: { module?: unknown } = {}): Pr
     // CSS-loss flicker on every navigation, especially under load.)
     const previous = currentHandle
     const previousViewId = currentViewId
-    const handle = await runtime.mount(slot, pathname, {
+    const handle = await mount(slot, pathname, {
       cssScope: 'adjacent',
       // SUI views call `ship.<domain>.<op>()` inside `<data live>`
       // declarations. Without a `ship` SDK client wired to ctx,
@@ -424,7 +413,7 @@ async function mountRoute(pathname: string, opts: { module?: unknown } = {}): Pr
       // HMR path passes a cache-busted, freshly-imported view module so
       // dynamic-import doesn't return the cached old module and leave the
       // rebuilt .sui stale until a hard reload.
-      ...(moduleOverride !== undefined ? { module: moduleOverride } : {}),
+      ...(moduleOverride !== undefined ? { module: moduleOverride as never } : {}),
     })
 
     // Race guard for rapid navigation: if a later mountRoute already

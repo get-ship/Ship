@@ -76,28 +76,11 @@
        own per-view component registrations. The /_sui/components.js endpoint
        still exists for apps/spaces + examples/deck-demo. -->
 
-  <!-- Bootstrap @ship/sui-runtime onto window before main.ts runs. The
-       IIFE-injected script is opaque to Vite's import-analysis (which
-       would otherwise rewrite the bare specifier or append `?import`,
-       creating a SECOND runtime instance separate from the one compiled
-       view modules import). The browser's importmap resolves the bare
-       specifier to /_sui/runtime.js — same URL view modules use — so
-       all SUI code shares ONE runtime universe.
-
-       `window.__suiRuntimeReady` is the gate main.ts awaits before
-       calling mount(). Same pattern as apps/shell. -->
-  <script>
-    (function () {
-      window.__suiRuntimeReady = new Promise(function (res) {
-        var s = document.createElement('script');
-        s.type = 'module';
-        s.textContent =
-          "import * as r from '@ship/sui-runtime'; window.__suiRuntime = r; window.dispatchEvent(new Event('sui-runtime-ready'));";
-        document.head.appendChild(s);
-        window.addEventListener('sui-runtime-ready', function () { res(window.__suiRuntime); }, { once: true });
-      });
-    })();
-  </script>
+  <!-- main.ts imports @ship/sui-runtime directly via the importmap. The
+       prior IIFE bootstrap (which injected a module script to put the
+       runtime on window.__suiRuntime) was redundant: the importmap is
+       the single source of truth, and main.ts is the only consumer that
+       calls runtime.mount(). One module URL, one runtime instance. -->
 </head>
 <body>
   <div id="ship-app">
