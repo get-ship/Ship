@@ -1,0 +1,21 @@
+[package]
+name = "ship-files"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L1 filesystem helpers — FilesService (scoped JSONC read/write/patch/trash), jsonc utilities, path-tolerant RFC-6902 support, and bounded line accumulator. Depends only on L0 substrate + std; carries NO ship-platform dependency."
+
+[dependencies]
+ship-substrate = { path = "../../../ship-substrate" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+# RFC 6902 JSON Patch — FilesService.patch_jsonc + path_tolerant.ensure_paths_for_adds
+json-patch = "4"
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
