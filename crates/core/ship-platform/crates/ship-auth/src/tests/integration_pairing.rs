@@ -9,11 +9,11 @@
 /// - attempt-count lockout (code grinding prevention)
 /// - dev-mode flag set/clear
 /// - `paired_session_scopes` returns Full
-use crate::auth::pairing::{
+use crate::pairing::{
     ClaimResult, ConfirmError, InitError, PairingRegistry, INIT_RATE_PER_MINUTE, MAX_CONFIRM_ATTEMPTS,
     MAX_PENDING, paired_session_scopes, set_dev_mode, is_dev_mode,
 };
-use crate::auth::scopes::Scope;
+use crate::scopes::Scope;
 
 // ── Happy path ────────────────────────────────────────────────────────────────
 

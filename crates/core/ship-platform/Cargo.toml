@@ -19,6 +19,7 @@ ship-analytics = { path = "crates/ship-analytics" }
 # platform consumers (triggers, view_authoring, orchestrator) call into the
 # async collection/artifact services over substrate ports. No cycle — the new
 # crates depend on ship-substrate/ship-types, not on ship-platform.
+ship-auth = { path = "crates/ship-auth" }
 ship-collection = { path = "crates/ship-collection" }
 ship-artifacts = { path = "crates/ship-artifacts" }
 ship-views = { path = "crates/ship-views" }

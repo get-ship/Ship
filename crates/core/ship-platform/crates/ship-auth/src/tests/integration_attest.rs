@@ -11,11 +11,11 @@ use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 use ship_types::event_types::{DAEMON_OWNER_BOUND, DAEMON_OWNER_UNBOUND};
 use tempfile::tempdir;
 
-use crate::auth::attest::{
+use crate::attest::{
     AttestationConfig, DEFAULT_ATTESTATION_ISSUER, DEFAULT_ATTESTATION_JWKS_URL,
     clear_daemon_owner, daemon_owner, set_daemon_owner,
 };
-use crate::testutil::init_project;
+use crate::testutil::init_auth;
 
 fn query_events(event_type: &str) -> Vec<ship_types::envelope::EventEnvelope> {
     // daemon.owner.* is Account-scoped → account.db.
@@ -64,7 +64,7 @@ fn auth_attest_config_defaults_decouple_issuer_from_jwks_host() {
 #[test]
 fn auth_attest_set_daemon_owner_round_trips() {
     let tmp = tempdir().unwrap();
-    init_project(tmp.path()).unwrap();
+    init_auth(tmp.path()).unwrap();
 
     set_daemon_owner("user-round-trip").unwrap();
     assert_eq!(daemon_owner().as_deref(), Some("user-round-trip"));
@@ -73,7 +73,7 @@ fn auth_attest_set_daemon_owner_round_trips() {
 #[test]
 fn auth_attest_set_daemon_owner_emits_daemon_owner_bound() {
     let tmp = tempdir().unwrap();
-    init_project(tmp.path()).unwrap();
+    init_auth(tmp.path()).unwrap();
 
     set_daemon_owner("user-emit-bound").unwrap();
 
@@ -89,7 +89,7 @@ fn auth_attest_set_daemon_owner_emits_daemon_owner_bound() {
 #[test]
 fn auth_attest_clear_daemon_owner_emits_daemon_owner_unbound() {
     let tmp = tempdir().unwrap();
-    init_project(tmp.path()).unwrap();
+    init_auth(tmp.path()).unwrap();
 
     set_daemon_owner("user-to-clear").unwrap();
     clear_daemon_owner().unwrap();
@@ -104,7 +104,7 @@ fn auth_attest_clear_daemon_owner_emits_daemon_owner_unbound() {
 #[test]
 fn auth_attest_clear_daemon_owner_noop_when_not_bound() {
     let tmp = tempdir().unwrap();
-    init_project(tmp.path()).unwrap();
+    init_auth(tmp.path()).unwrap();
 
     // No binding — clear is a no-op (returns Ok without emitting).
     let pre = query_events(DAEMON_OWNER_UNBOUND).len();
@@ -116,7 +116,7 @@ fn auth_attest_clear_daemon_owner_noop_when_not_bound() {
 #[test]
 fn auth_attest_set_twice_replaces_binding() {
     let tmp = tempdir().unwrap();
-    init_project(tmp.path()).unwrap();
+    init_auth(tmp.path()).unwrap();
 
     set_daemon_owner("user-first").unwrap();
     set_daemon_owner("user-second").unwrap();

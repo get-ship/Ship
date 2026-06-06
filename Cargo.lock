@@ -7690,6 +7690,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-auth"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "getrandom 0.2.17",
+ "jsonwebtoken",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "ship-auth-types",
+ "ship-substrate",
+ "ship-types",
+ "sqlx",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ship-auth-types"
 version = "0.1.0"
 dependencies = [
@@ -8021,6 +8041,7 @@ dependencies = [
  "ship-agents",
  "ship-analytics",
  "ship-artifacts",
+ "ship-auth",
  "ship-auth-types",
  "ship-cloud",
  "ship-collection",

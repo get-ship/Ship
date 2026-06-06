@@ -12,7 +12,7 @@
 //!   via an `agent.grants.provisioned` event.
 //! - `persist_session` / `remove_persisted_session` — write session
 //!   lifecycle events.
-//! - `hydrate_sessions` — read `crate::auth::projection::list_active_sessions`
+//! - `hydrate_sessions` — read `crate::projection::list_active_sessions`
 //!   and seed the in-memory registry.
 //! - `resolve_grants` / `resolve_grants_at` / `resolve_from` — read
 //!   `crate::services::permissions::projection` to compute the effective
@@ -31,7 +31,7 @@ pub use ship_auth_types::{
 ///
 /// `auth.session.*` and `daemon.owner.*` are Account-owned → they land in
 /// account.db, the db the `auth_sessions` / `daemon_owner` projections read.
-pub(crate) fn account_store(
+pub fn account_store(
 ) -> anyhow::Result<ship_substrate::persistence::event_store::SqliteEventStore> {
     ship_substrate::persistence::event_store::SqliteEventStore::new_for_scope(
         &ship_substrate::project::get_global_dir()?,
@@ -48,7 +48,7 @@ pub(crate) fn account_store(
 /// keeps un-provisioned agents (and dev-mode pairs) working exactly as before.
 /// The provisioned record, once present, fully replaces the role default.
 pub fn resolve_grants(agent_id: &str, role: Option<&str>) -> Vec<String> {
-    resolve_from(crate::services::permissions::projection::provisioned_grants_for(agent_id), agent_id, role)
+    resolve_from(ship_substrate::projections::grants::provisioned_grants_for(agent_id), agent_id, role)
 }
 
 /// Test/`_at` variant of [`resolve_grants`] against a specific home dir.
@@ -58,7 +58,7 @@ pub fn resolve_grants_at(
     role: Option<&str>,
 ) -> Vec<String> {
     resolve_from(
-        crate::services::permissions::projection::provisioned_grants_for_at(home, agent_id),
+        ship_substrate::projections::grants::provisioned_grants_for_at(home, agent_id),
         agent_id,
         role,
     )
@@ -202,7 +202,7 @@ pub fn remove_persisted_session(token: &str) {
 /// Load all non-expired sessions from the projection into the in-memory
 /// registry. Expired rows are skipped.
 pub async fn hydrate_sessions(registry: &SessionRegistry) {
-    let rows = match crate::auth::projection::list_active_sessions() {
+    let rows = match crate::projection::list_active_sessions() {
         Ok(rows) => rows,
         Err(e) => {
             tracing::warn!("session hydrate: list failed: {e}");
@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn resolve_grants_provisioned_record_overrides_role() {
         use ship_substrate::events::EventEnvelope;
-        use crate::services::permissions::projection::ProvisionedGrantsProjection;
+        use ship_substrate::projections::grants::ProvisionedGrantsProjection;
         use ship_substrate::projections::registry::Projection;
 
         let tmp = tempfile::tempdir().unwrap();
