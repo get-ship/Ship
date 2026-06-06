@@ -809,85 +809,9 @@ pub fn router(state: ApiState) -> axum::Router {
                 }))
             })
         });
-    // post_feedback_fn: wraps feedback_api::post_feedback_core (validated, rate-limited,
-    // deduped). The shared guard (process-global) is carried by the closure.
-    let feedback_state = state.clone();
-    let post_feedback_fn: ship_agents::services::agents::rpc_wire::PostFeedbackFn =
-        Arc::new(move |event_json: String, ctx: connectrpc::RequestContext| {
-            let st = feedback_state.clone();
-            Box::pin(async move {
-                let ev: ship_substrate::events::feedback::FeedbackEvent =
-                    serde_json::from_str(&event_json).map_err(|e| {
-                        ConnectError::invalid_argument(format!("event_json: {e}"))
-                    })?;
-                let auth = ctx
-                    .extensions
-                    .get::<crate::auth::AuthContext>()
-                    .cloned()
-                    .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-                let guard = crate::routes::feedback_api::shared_guard();
-                let resp =
-                    crate::routes::feedback_api::post_feedback_core(&st, &auth, guard, ev).await;
-                if resp.status().is_success() {
-                    let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
-                        .await
-                        .map_err(|e| ConnectError::internal(e.to_string()))?;
-                    let v: serde_json::Value = serde_json::from_slice(&bytes)
-                        .map_err(|e| ConnectError::internal(e.to_string()))?;
-                    Ok(v.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string())
-                } else {
-                    let status = resp.status();
-                    let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
-                        .await
-                        .map_err(|e| ConnectError::internal(e.to_string()))?;
-                    let msg = String::from_utf8_lossy(&bytes).into_owned();
-                    if status.is_client_error() {
-                        Err(ConnectError::invalid_argument(msg))
-                    } else {
-                        Err(ConnectError::internal(msg))
-                    }
-                }
-            })
-        });
-    // post_annotation_fn: wraps annotations_api::post_annotation_core
-    // (validates, persists to collections, emits studio.annotation.created).
-    let annotation_state = state.clone();
-    let post_annotation_fn: ship_agents::services::agents::rpc_wire::PostAnnotationFn =
-        Arc::new(move |event_json: String, ctx: connectrpc::RequestContext| {
-            let st = annotation_state.clone();
-            Box::pin(async move {
-                let ev: ship_substrate::events::annotation::AnnotationEvent =
-                    serde_json::from_str(&event_json).map_err(|e| {
-                        ConnectError::invalid_argument(format!("event_json: {e}"))
-                    })?;
-                let auth = ctx
-                    .extensions
-                    .get::<crate::auth::AuthContext>()
-                    .cloned()
-                    .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-                let resp =
-                    crate::routes::annotations_api::post_annotation_core(&st, &auth, ev).await;
-                if resp.status().is_success() {
-                    let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
-                        .await
-                        .map_err(|e| ConnectError::internal(e.to_string()))?;
-                    let v: serde_json::Value = serde_json::from_slice(&bytes)
-                        .map_err(|e| ConnectError::internal(e.to_string()))?;
-                    Ok(v.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string())
-                } else {
-                    let status = resp.status();
-                    let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
-                        .await
-                        .map_err(|e| ConnectError::internal(e.to_string()))?;
-                    let msg = String::from_utf8_lossy(&bytes).into_owned();
-                    if status.is_client_error() {
-                        Err(ConnectError::invalid_argument(msg))
-                    } else {
-                        Err(ConnectError::internal(msg))
-                    }
-                }
-            })
-        });
+    let feedback_auth = Arc::new(crate::agent_event_ports::FeedbackAuthAdapter);
+    let view_broadcast = Arc::new(crate::agent_event_ports::ViewBroadcastAdapter::new(state.clone()));
+    let collection = Arc::new(crate::agent_event_ports::CollectionPersistAdapter::new(state.clone()));
     let agents_wire = Arc::new(ship_agents::services::agents::AgentsWire::new(
         state.agents_arc(),
         state.ship_dir().to_path_buf(),
@@ -900,8 +824,9 @@ pub fn router(state: ApiState) -> axum::Router {
         steer_fn,
         grant_fn,
         state.agent_reactive().cloned(),
-        post_feedback_fn,
-        post_annotation_fn,
+        feedback_auth,
+        view_broadcast,
+        collection,
     ));
     let router = ship_ops_rpc::AgentsServiceExt::register(agents_wire, router);
     // account.* — typed AccountService (account.proto), served by the
