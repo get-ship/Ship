@@ -27,7 +27,7 @@ pub struct Identity {
     #[serde(default)]
     pub tags: Vec<String>,
 }
-fn default_version() -> String {
+pub(crate) fn default_version() -> String {
     "0.1.0".into()
 }
 

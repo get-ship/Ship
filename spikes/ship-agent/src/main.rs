@@ -15,6 +15,7 @@ mod agent_loop;
 mod auth;
 mod gate;
 mod gateway;
+mod loader;
 mod module_loader;
 mod runtime;
 mod sdkgen;
@@ -23,7 +24,6 @@ mod spec;
 mod spine;
 mod dtsgen;
 mod lsp;
-
 use std::sync::Arc;
 
 use serde_json::{json, Value};
