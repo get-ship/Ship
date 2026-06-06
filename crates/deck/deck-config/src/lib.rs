@@ -171,15 +171,16 @@ mod tests {
     use std::path::PathBuf;
 
     /// Minimal example deck.jsonc that exercises all declared fields.
+    /// The shell-chrome target was removed 2026-06-06: cut 1 deleted
+    /// `apps/shell/src/components/index.ts`, and the per-tag resolver in
+    /// `sui_plugin.rs` already covers shell chrome via the catalog's
+    /// tag-source walk — the chrome target was dead. The `targets` list
+    /// is now 3 (marketing, arcade, pdf); tests in this file assert that
+    /// count. The chrome sources still live in `apps/shell/src/components/`
+    /// and views pick them up via `@sui-tag/<tag>`.
     const EXAMPLE_JSONC: &str = r#"{
   // Consumer bundle targets (NOT the framework singletons).
   "targets": [
-    {
-      "name": "sui-components/sui-chrome",
-      "kind": "component-pack",
-      "entry": "apps/shell/src/components/index.ts",
-      "externals": ["@ship/sui-runtime", "@ship/sui-dom"]
-    },
     {
       "name": "sui-marketing",
       "kind": "component-pack",
@@ -227,19 +228,12 @@ mod tests {
             serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(EXAMPLE_JSONC))
                 .expect("example deck.jsonc must parse");
 
-        assert_eq!(cfg.targets.len(), 4);
+        assert_eq!(cfg.targets.len(), 3);
 
-        let chrome = &cfg.targets[0];
-        assert_eq!(chrome.name, "sui-components/sui-chrome");
-        assert_eq!(chrome.kind, TargetKind::ComponentPack);
-        assert_eq!(chrome.entry, PathBuf::from("apps/shell/src/components/index.ts"));
-        assert_eq!(chrome.externals, vec!["@ship/sui-runtime", "@ship/sui-dom"]);
-        assert!(chrome.out_file.is_none());
-
-        let arcade = &cfg.targets[2];
+        let arcade = &cfg.targets[1];
         assert_eq!(arcade.kind, TargetKind::LazyPack);
 
-        let pdf = &cfg.targets[3];
+        let pdf = &cfg.targets[2];
         assert_eq!(pdf.out_file.as_deref(), Some("sui-pdf.js"));
 
         assert_eq!(cfg.scaffolds.len(), 2);
@@ -251,7 +245,7 @@ mod tests {
         assert_eq!(cfg.watch, vec![PathBuf::from("packages"), PathBuf::from("apps/shell/src")]);
         assert_eq!(cfg.host_assets_root, PathBuf::from(".deck"));
 
-        let app = cfg.first_party_app.as_ref().unwrap();
+         let app = cfg.first_party_app.as_ref().unwrap();
         assert_eq!(app.root, PathBuf::from("apps/shell"));
         assert_eq!(app.label, "app:shell");
     }

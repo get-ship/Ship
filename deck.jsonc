@@ -10,13 +10,6 @@
   // (shipd calls DeckConfig::load). Never read per-request.
   "targets": [
     {
-      // Shell component pack — sui-chrome tags used by the hub/space scaffolds.
-      "name": "sui-components/sui-chrome",
-      "kind": "component-pack",
-      "entry": "apps/shell/src/components/index.ts",
-      "externals": ["@ship/sui-runtime", "@ship/sui-dom"]
-    },
-    {
       // Marketing site component pack — subset of sui-* tags used on the
       // landing page. Entry traces the import graph; add/remove tags there.
       "name": "sui-marketing",
