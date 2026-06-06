@@ -22,7 +22,7 @@ use tempfile::TempDir;
 use tokio::sync::Mutex;
 
 use ship_supervisor::platform::MockPlatform;
-use ship_platform::services::process_registry::{ProcessRegistry, SharedRegistry};
+use ship_substrate::services::process_registry::{ProcessRegistry, SharedRegistry};
 
 // ── Mock infrastructure ─────────────────────────────────────────────────────
 

@@ -16,7 +16,7 @@ use tokio::sync::Mutex;
 
 use ship_pipeline_runtime::orchestrator::exit_handler;
 
-use ship_platform::services::process_registry::{ProcessRegistry, SharedRegistry};
+use ship_substrate::services::process_registry::{ProcessRegistry, SharedRegistry};
 
 // ── Test executors ───────────────────────────────────────────────────────────
 

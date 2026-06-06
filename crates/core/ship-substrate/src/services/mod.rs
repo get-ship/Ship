@@ -31,6 +31,7 @@ use crate::events::{ActorStore, EventEnvelope, Mailbox};
 pub mod mesh;
 pub mod human_gateway;
 pub mod dispatch_ports;
+pub mod process_registry;
 pub mod process_tree_probe;
 pub mod server_session;
 #[cfg(test)]

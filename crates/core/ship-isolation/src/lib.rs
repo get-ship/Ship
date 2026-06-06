@@ -19,6 +19,8 @@
 
 pub mod backends;
 pub mod capabilities;
+pub mod decision;
+pub mod decision_ops;
 pub mod harness;
 pub mod helpers;
 pub mod net;

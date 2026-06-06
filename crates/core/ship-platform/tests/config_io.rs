@@ -1,4 +1,7 @@
-use super::*;
+use ship_platform::config::{
+    AgentLayerConfig, AgentProfile, McpServerConfig, McpServerType, ProjectConfig,
+    PRIMARY_CONFIG_FILE, get_config, save_config,
+};
 use std::collections::HashMap;
 use std::fs;
 use tempfile::tempdir;
@@ -42,60 +45,21 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
     save_config(&config, Some(ship_dir.clone()))?;
 
     let ship_config = fs::read_to_string(ship_dir.join(PRIMARY_CONFIG_FILE))?;
-    assert!(
-        !ship_config.contains("\"agents\""),
-        "ship.jsonc must not persist agent definitions"
-    );
-    assert!(
-        !ship_config.contains("mcp_servers"),
-        "ship.jsonc must not persist MCP servers"
-    );
-    assert!(
-        !ship_config.contains("\"agent\""),
-        "ship.jsonc must not persist agent block"
-    );
-    assert!(
-        !ship_config.contains("\"harnesses\""),
-        "ship.jsonc must not persist harnesses"
-    );
-    assert!(
-        !ship_config.contains("active_agent"),
-        "ship.jsonc must not persist active_agent"
-    );
-    assert!(
-        !ship_config.contains("statuses"),
-        "ship.jsonc must not persist statuses"
-    );
-    assert!(
-        !ship_config.contains("\"git\""),
-        "ship.jsonc must not persist git policy"
-    );
-    assert!(
-        !ship_config.contains("\"ai\""),
-        "ship.jsonc must not persist ai block"
-    );
-    assert!(
-        !ship_config.contains("namespaces"),
-        "ship.jsonc must not persist namespace claims"
-    );
+    assert!(!ship_config.contains("\"agents\""), "ship.jsonc must not persist agent definitions");
+    assert!(!ship_config.contains("mcp_servers"), "ship.jsonc must not persist MCP servers");
+    assert!(!ship_config.contains("\"agent\""), "ship.jsonc must not persist agent block");
+    assert!(!ship_config.contains("\"harnesses\""), "ship.jsonc must not persist harnesses");
+    assert!(!ship_config.contains("active_agent"), "ship.jsonc must not persist active_agent");
+    assert!(!ship_config.contains("statuses"), "ship.jsonc must not persist statuses");
+    assert!(!ship_config.contains("\"git\""), "ship.jsonc must not persist git policy");
+    assert!(!ship_config.contains("\"ai\""), "ship.jsonc must not persist ai block");
+    assert!(!ship_config.contains("namespaces"), "ship.jsonc must not persist namespace claims");
 
-    // Legacy per-agent TOML config is no longer read or written — the
-    // loader path was removed in the home-layout restructure.
-
-    // Harnesses live in ship.jsonc (file-canonical) — already asserted above
-    // by virtue of being absent from the KV store.
-
-    // Verify agent profile written as a per-id .jsonc under .ship/agents/
     let agent_path = ship_substrate::project::agents_ns(&ship_dir).join("planning.jsonc");
-    assert!(
-        agent_path.is_file(),
-        "expected agent profile at {}",
-        agent_path.display()
-    );
+    assert!(agent_path.is_file(), "expected agent profile at {}", agent_path.display());
     let agent_raw = fs::read_to_string(&agent_path)?;
     let agent_json: serde_json::Value =
         serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&agent_raw))?;
-    // Canonical schema: top-level `agent` block.
     assert_eq!(agent_json["agent"]["id"], "planning");
     assert_eq!(agent_json["agent"]["name"], "Planning");
 
@@ -134,13 +98,7 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     };
 
     save_config(&config, Some(ship_dir.clone()))?;
-    // Harnesses are file-canonical and not persisted by save_config — write
-    // ship.jsonc directly to round-trip them. (Agents and MCP servers are
-    // sidecar-canonical and DO round-trip through save_config.)
-    fs::write(
-        ship_dir.join("ship.jsonc"),
-        "{\"harnesses\": [\"cursor\"]}\n",
-    )?;
+    fs::write(ship_dir.join("ship.jsonc"), "{\"harnesses\": [\"cursor\"]}\n")?;
     let loaded = get_config(Some(ship_dir))?;
 
     assert_eq!(loaded.harnesses, vec!["cursor".to_string()]);

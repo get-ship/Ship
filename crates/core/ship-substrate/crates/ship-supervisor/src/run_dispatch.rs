@@ -23,8 +23,8 @@ use tokio::sync::Mutex;
 
 use super::adapters;
 use super::platform::ShipdPlatform;
-pub(crate) use ship_platform::services::process_registry::ProcessRegistry;
-use ship_platform::services::process_registry::SharedRegistry;
+pub(crate) use ship_substrate::services::process_registry::ProcessRegistry;
+use ship_substrate::services::process_registry::SharedRegistry;
 
 /// Handle returned by `subscribe_job_events` — gives the shutdown path
 /// access to the process registry and executor for graceful shutdown.

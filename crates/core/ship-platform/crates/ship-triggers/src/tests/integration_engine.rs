@@ -100,7 +100,7 @@ fn write_schema(ship_dir: &Path, id: &str) {
 /// trigger insert into a file-authored collection validates + lands.
 fn hydrated_registry(ship_dir: &Path) -> Arc<ship_collection::projection::SchemaRegistry> {
     let registry = Arc::new(ship_collection::projection::SchemaRegistry::new());
-    ship_platform::registry::collection_schemas::hydrate_registry(&registry, ship_dir, None);
+    ship_store::collection_schemas::hydrate_registry(&registry, ship_dir, None);
     registry
 }
 

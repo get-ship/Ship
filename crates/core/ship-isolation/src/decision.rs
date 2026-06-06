@@ -1,4 +1,4 @@
-//! Platform-side isolation glue.
+//! Platform-side isolation decision layer.
 //!
 //! Reads the user's `isolation.*` settings (from `daemon_settings`),
 //! resolves the typed `IsolationProfile`, probes host capabilities, and
@@ -14,12 +14,11 @@
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use ship_isolation::capabilities::{Capabilities, HostOs};
-use ship_isolation::recommender::{RecommendInput, RecommenderError, ResolvedIsolation, recommend};
-use ship_isolation::settings::{UserDefaults, parse_allow_tier_0, user_profile};
-use ship_isolation::tier::IsolationProfile;
-
-use crate::config::{get_setting, set_setting};
+use ship_substrate::db::daemon_settings;
+use crate::capabilities::{Capabilities, HostOs};
+use crate::recommender::{RecommendInput, RecommenderError, ResolvedIsolation, recommend};
+use crate::settings::{UserDefaults, parse_allow_tier_0, user_profile};
+use crate::tier::IsolationProfile;
 
 /// Cache key for the serialized `Capabilities` snapshot.
 const CAPS_KEY: &str = "isolation.capabilities_cached";
@@ -37,14 +36,14 @@ pub struct IsolationDecision {
 /// Read or compute the host capability snapshot. First call (or after
 /// `rescan_capabilities`) runs `Capabilities::probe()` and caches it.
 pub fn cached_capabilities() -> Result<Capabilities> {
-    if let Some(serde_json::Value::String(s)) = get_setting(CAPS_KEY)? {
+    if let Some(serde_json::Value::String(s)) = daemon_settings::get(CAPS_KEY)? {
         if let Ok(parsed) = serde_json::from_str::<Capabilities>(&s) {
             return Ok(parsed);
         }
     }
     let probed = Capabilities::probe();
     let serialized = serde_json::to_string(&probed)?;
-    let _ = set_setting(CAPS_KEY, serde_json::Value::String(serialized));
+    let _ = daemon_settings::set(CAPS_KEY, &serde_json::Value::String(serialized));
     Ok(probed)
 }
 
@@ -52,7 +51,7 @@ pub fn cached_capabilities() -> Result<Capabilities> {
 pub fn rescan_capabilities() -> Result<Capabilities> {
     let probed = Capabilities::probe();
     let serialized = serde_json::to_string(&probed)?;
-    let _ = set_setting(CAPS_KEY, serde_json::Value::String(serialized));
+    let _ = daemon_settings::set(CAPS_KEY, &serde_json::Value::String(serialized));
     Ok(probed)
 }
 
@@ -161,7 +160,7 @@ pub fn decide_for_agent(
     agent_id: &str,
     run_override: Option<&IsolationProfile>,
 ) -> Result<IsolationDecision, IsolationDecisionError> {
-    let agent_override = match crate::config::get_config(Some(ship_dir.to_path_buf())) {
+    let agent_override = match ship_config::project::get_config(Some(ship_dir.to_path_buf())) {
         Ok(cfg) => cfg
             .agents
             .iter()
@@ -193,8 +192,8 @@ pub fn decide_for_agent(
 /// Read the nested per-strategy settings blob. Returns defaults when
 /// the key isn't set; only returns an error on actual DB failure.
 pub fn strategies_settings()
--> Result<ship_isolation::strategies_config::StrategiesSettings> {
-    let raw = get_setting(ship_isolation::strategies_config::SETTINGS_KEY)?;
+-> Result<crate::strategies_config::StrategiesSettings> {
+    let raw = daemon_settings::get(crate::strategies_config::SETTINGS_KEY)?;
     match raw {
         Some(value) => Ok(serde_json::from_value(value).unwrap_or_default()),
         None => Ok(Default::default()),
@@ -205,14 +204,14 @@ pub fn strategies_settings()
 /// semantics; emits no kernel event (callers that want one use
 /// set_setting_and_emit directly).
 pub fn set_strategies_settings(
-    value: &ship_isolation::strategies_config::StrategiesSettings,
+    value: &crate::strategies_config::StrategiesSettings,
 ) -> Result<()> {
     let json = serde_json::to_value(value)?;
-    set_setting(ship_isolation::strategies_config::SETTINGS_KEY, json)
+    daemon_settings::set(crate::strategies_config::SETTINGS_KEY, &json)
 }
 
 fn string_setting(key: &str) -> Result<Option<String>> {
-    Ok(match get_setting(key)? {
+    Ok(match daemon_settings::get(key)? {
         Some(serde_json::Value::String(s)) => Some(s),
         Some(serde_json::Value::Bool(b)) => Some(b.to_string()),
         Some(v) => Some(v.to_string()),
@@ -275,11 +274,11 @@ mod tests {
         let parsed = parse_agent_override(Some(&raw)).unwrap().unwrap();
         assert_eq!(
             parsed.tier,
-            Some(ship_isolation::tier::IsolationTier::Container)
+            Some(crate::tier::IsolationTier::Container)
         );
         assert_eq!(
             parsed.strategy,
-            Some(ship_isolation::tier::IsolationStrategy::DockerEngine)
+            Some(crate::tier::IsolationStrategy::DockerEngine)
         );
     }
 

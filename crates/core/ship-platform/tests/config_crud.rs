@@ -1,9 +1,10 @@
-use super::*;
-use crate::testutil::init_project;
+use ship_platform::config::{
+    McpServerConfig, McpServerType,
+    add_mcp_server, list_mcp_servers, remove_mcp_server,
+};
+use ship_platform::testutil::init_project;
 use std::collections::HashMap;
 use tempfile::tempdir;
-
-// ── MCP server CRUD ────────────────────────────────────────────────────────
 
 #[test]
 fn add_and_list_mcp_server() -> anyhow::Result<()> {
@@ -73,16 +74,6 @@ fn duplicate_mcp_server_rejected() -> anyhow::Result<()> {
     assert!(result.unwrap_err().to_string().contains("already exists"));
     Ok(())
 }
-
-// Hook CRUD removed — `config.hooks` was parallel dead data.
-// Real triggers live as `.ship/triggers/<id>.jsonc` files and the trigger engine
-// reads them via the Phase 4 watcher.
-
-// ── Mode CRUD ──────────────────────────────────────────────────────────────
-
-// Tests for add_agent / remove_agent / set_active_agent removed
-// alongside the dead `ship mode` chain. Rebuild when a real
-// active-agent UX lands.
 
 #[test]
 fn mcp_server_type_serialization_round_trips() -> anyhow::Result<()> {
