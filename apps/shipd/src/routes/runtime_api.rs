@@ -15,95 +15,37 @@ use axum::extract::Path;
 use ship_substrate::events::EventEnvelope;
 #[cfg(test)]
 use ship_substrate::events::pipeline::event_types;
-use serde::Deserialize;
 
 use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 use crate::wire::MeshResponse;
 
-// ---- Query params ----
-
-#[derive(Deserialize)]
-pub struct SessionsQuery {
-    pub workspace_id: Option<String>,
-}
-
-// ---- Handlers ----
-
-/// Resolve HEAD SHA of the active project root. Used at `job.created` time
-/// to capture the pipeline's baseline — the point every future worktree
-/// branches from, and the `from` end of gate diff evaluation. `None` when
-/// the project dir can't be resolved or git fails; gates fall back to the
-/// step-local start SHA in that case.
-pub(super) fn resolve_project_head_sha() -> Option<String> {
-    let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
-    let project_root = project_ship.parent()?;
-    ship_pipeline_runtime::orchestrator::git_helpers::resolve_head_sha(project_root)
-}
-
 /// GET /api/v1/sessions/active-across-projects
 ///
-/// Returns the running sessions visible across every space the
-/// daemon knows about, each row labeled with `space_id` + space
-/// `name`. Chrome consumes this to surface "N agents running in other
-/// spaces" without forcing it to fan-out per-space queries.
+/// Thin transport shell — delegates to
+/// `ship_substrate::runtime_reads::list_active_sessions_with_projects`.
 pub async fn list_sessions_across_projects(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> impl IntoResponse {
-    let sessions = match ship_substrate::db::session_drain::list_active_sessions() {
-        Ok(rows) => rows,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(e.to_string()),
-                }),
-            )
-                .into_response();
-        }
-    };
-
-    // Index spaces so we can attach a display name per session without
-    // hitting the registry on every row.
-    let by_id: std::collections::HashMap<String, ship_substrate::db::projects::SpaceRecord> =
-        ship_substrate::db::projects::list_active()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|p| (p.id.clone(), p))
-            .collect();
-
-    let data: Vec<serde_json::Value> = sessions
-        .into_iter()
-        .map(|s| {
-            let project_name = s
-                .space_id
-                .as_deref()
-                .and_then(|id| by_id.get(id))
-                .map(|p| p.name.clone());
-            serde_json::json!({
-                "id": s.id,
-                "workspace_id": s.workspace_id,
-                "branch": s.branch,
-                "space_id": s.space_id,
-                "project_name": project_name,
-                "status": s.status,
-                "agent_id": s.agent_id,
-                "started_at": s.started_at,
-                "last_activity_at": s.last_activity_at,
-                "goal": s.goal,
-            })
-        })
-        .collect();
-    (
-        StatusCode::OK,
-        Json(MeshResponse {
-            ok: true,
-            data: serde_json::json!({ "sessions": data }),
-        }),
-    )
-        .into_response()
+    match ship_substrate::runtime_reads::list_active_sessions_with_projects() {
+        Ok(data) => (
+            StatusCode::OK,
+            Json(MeshResponse {
+                ok: true,
+                data: serde_json::json!({ "sessions": data }),
+            }),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(e),
+            }),
+        )
+            .into_response(),
+    }
 }
 
 

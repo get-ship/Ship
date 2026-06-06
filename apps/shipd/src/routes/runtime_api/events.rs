@@ -1,4 +1,7 @@
 //! Split off from runtime_api.rs (mr-04 follow-up).
+//!
+//! `poll_events_core` lives in `ship_substrate::runtime_reads`; this module
+//! re-exports it for backwards-compatibility and owns the SSE transport adapter.
 
 use axum::{
     extract::State,
@@ -9,6 +12,9 @@ use ship_substrate::events::ActorConfig;
 use serde::Deserialize;
 
 use crate::routes::rest_api::ApiState;
+
+// Re-export so `events_rpc.rs` and any existing callers continue to resolve.
+pub use ship_substrate::runtime_reads::poll_events_core;
 
 #[derive(Deserialize)]
 pub struct EventsPollQuery {
@@ -22,58 +28,10 @@ pub struct EventsPollQuery {
     pub limit: Option<usize>,
 }
 
-/// Cursor-walk poll core, shared by the REST handler and `EventsService.Poll`
-/// (#141). Reads the most recent events ascending and filters in memory by
-/// `since_id` cursor, namespace prefix, and slug (envelope `entity_id` or
-/// payload `"slug"`). Returns `{ "events": [...] }`.
-pub fn poll_events_core(
-    ship_dir: &std::path::Path,
-    since_id: Option<&str>,
-    slug: Option<&str>,
-    namespace: Option<&str>,
-    limit: usize,
-) -> Result<serde_json::Value, String> {
-    let limit = limit.min(2000);
-    // The read targets the Runtime partition (`runtime.db`);
-    // `list_recent_events_at` ensures that scope db's schema itself. No
-    // platform.db touch — events live in the per-scope partitions post-4d.
-    let events = ship_substrate::db::events::list_recent_events_at(ship_dir, 5_000)
-        .map_err(|e| e.to_string())?;
-
-    let filtered: Vec<_> = events
-        .into_iter()
-        .filter(|e| match since_id {
-            Some(c) => e.id.as_str() > c,
-            None => true,
-        })
-        .filter(|e| match namespace {
-            Some(prefix) => e.event_type.starts_with(&format!("{prefix}.")),
-            None => true,
-        })
-        .filter(|e| match slug {
-            Some(s) => {
-                if e.entity_id == s {
-                    return true;
-                }
-                serde_json::from_str::<serde_json::Value>(&e.payload_json)
-                    .ok()
-                    .and_then(|v| v["slug"].as_str().map(str::to_string))
-                    .map(|p| p == s)
-                    .unwrap_or(false)
-            }
-            None => true,
-        })
-        .take(limit)
-        .collect();
-
-    Ok(serde_json::json!({ "events": filtered }))
-}
-
-// `ActorGuard` moved to `ship_runtime` (alongside `SharedKernel`) so
-// views can use it without violating the module DAG (views → routes is
-// banned by check-module-dag).
-
 /// GET /api/v1/runtime/events — SSE stream of all kernel events.
+///
+/// The SSE transport (kernel actor spawn, mailbox drain, ActorGuard cleanup)
+/// is genuine daemon infrastructure — kept here as a thin transport wrapper.
 pub async fn event_stream(
     State(state): State<ApiState>,
 ) -> Result<Sse<impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>>>, (StatusCode, String)> {
