@@ -7,7 +7,6 @@ use axum::{
     response::Response,
 };
 use std::sync::Arc;
-use tokio_util::sync::CancellationToken;
 
 use deck::config::DeckConfig;
 
@@ -36,11 +35,10 @@ pub fn build_router(
     session_registry: auth::SessionRegistry,
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
-    shutdown_ct: CancellationToken,
     daemon_mode: deck::DaemonMode,
 ) -> Router {
     use crate::routes::{Route, ShipRouterExt};
-    // Internal MCP server retired (#75): agents use the ConnectRPC op surface
+    // Internal MCP server retired (#75):
     // via `ship ops` + capability-skills; external MCP clients use the
     // standalone `apps/mcp` adapter. The registry browser (`mcp_registry`) and
     // the `mcp.*` catalog reads stay.
@@ -278,9 +276,16 @@ pub fn build_router(
     // SSE stream is cancelled on shutdown via a child of the daemon token
     // (#256) so it can't hold the graceful-shutdown drain open past SIGTERM.
     if daemon_mode == deck::DaemonMode::Development {
+        // The HMR firehose is short-lived (SSE per client; closed by
+        // network when the daemon shuts down). Cut 5: drop the
+        // axum::Extension(shutdown_ct.child_token()) layer — the audit
+        // identified this as the line that crashed the dev daemon
+        // (3 historical panics at apps/shipd/src/router.rs:283 in the
+        // log; axum::Extension doesn't satisfy tower's layer
+        // requirement, and the shutdown token is overkill for a
+        // short-lived SSE stream anyway).
         let hmr_routes: Router<()> = Router::new()
-            .ship_public_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr)
-            .layer(axum::Extension(shutdown_ct.child_token()));
+            .ship_public_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr);
         root = root.merge(hmr_routes);
     }
     // Load deck.jsonc from the workspace root (same root the bundler uses).

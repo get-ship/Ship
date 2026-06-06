@@ -15,6 +15,8 @@ fn install_test_platform_defaults() {
     ship_platform::install_defaults();
 }
 
+#[cfg(test)]
+mod compose_component_seam;
 pub mod access;
 pub mod sessions;
 pub mod auth;
@@ -482,7 +484,6 @@ pub async fn run_network(
         session_registry,
         pairing_registry,
         attestation_verifier,
-        ct.child_token(),
         daemon_mode,
     );
     // Bind the listener with collision retry. On EADDRINUSE we increment
