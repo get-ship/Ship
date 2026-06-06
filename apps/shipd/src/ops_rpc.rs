@@ -647,78 +647,8 @@ pub fn router(state: ApiState) -> axum::Router {
                 .await;
             })
         });
-    let dispatch_state = state.clone();
-    let dispatch_fn: ship_agents::services::agents::rpc_wire::DispatchFn =
-        Arc::new(move |args: serde_json::Value, ctx: connectrpc::RequestContext| {
-            let st = dispatch_state.clone();
-            Box::pin(async move {
-                use crate::routes::runtime_api::dispatch::DispatchRequest;
-                use ship_substrate::events::agent_session::InvocationMode;
-                let invocation = match args.get("invocation").and_then(|v| v.as_str()) {
-                    Some("print") => InvocationMode::Print,
-                    Some("stream") => InvocationMode::Stream,
-                    _ => InvocationMode::Pty,
-                };
-                let depends_on = {
-                    let v: Vec<String> = args.get("depends_on")
-                        .and_then(|v| v.as_array())
-                        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
-                        .unwrap_or_default();
-                    (!v.is_empty()).then_some(v)
-                };
-                let vars: std::collections::HashMap<String, String> = args
-                    .get("vars")
-                    .and_then(|v| v.as_object())
-                    .map(|m| {
-                        m.iter()
-                            .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                let vars = (!vars.is_empty()).then_some(vars);
-                fn opt_str(v: &serde_json::Value, key: &str) -> Option<String> {
-                    v.get(key).and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string)
-                }
-                let dreq = DispatchRequest {
-                    agent: args.get("agent").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    spec: opt_str(&args, "spec"),
-                    prompt: opt_str(&args, "prompt"),
-                    resume: args.get("resume").and_then(|v| v.as_bool()).unwrap_or(false),
-                    harness: opt_str(&args, "harness"),
-                    model: opt_str(&args, "model"),
-                    open_tab: args.get("open_tab").and_then(|v| v.as_bool()).unwrap_or(true),
-                    invocation,
-                    keepalive: args.get("keepalive").and_then(|v| v.as_bool()).unwrap_or(true),
-                    workspace: opt_str(&args, "workspace"),
-                    slug: opt_str(&args, "slug"),
-                    branch: opt_str(&args, "branch"),
-                    source_spec_path: opt_str(&args, "source_spec_path"),
-                    depends_on,
-                    vars,
-                };
-                // Enforce per-project workspace isolation (same as the REST handler).
-                let auth = ctx
-                    .extensions
-                    .get::<crate::auth::AuthContext>()
-                    .cloned()
-                    .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-                if let Some(msg) =
-                    crate::auth::identity::mcp_workspace_violation(&auth, dreq.workspace.as_deref())
-                {
-                    return Err(ConnectError::permission_denied(msg));
-                }
-                let (status, axum::Json(mesh)) =
-                    crate::routes::runtime_api::dispatch::dispatch_agent_session_core(&st, dreq)
-                        .await;
-                if status.is_success() {
-                    Ok(mesh.data)
-                } else if status.is_client_error() {
-                    Err(ConnectError::invalid_argument(mesh.data.to_string()))
-                } else {
-                    Err(ConnectError::internal(mesh.data.to_string()))
-                }
-            })
-        });
+    let dispatch_port: std::sync::Arc<dyn ship_agents::services::agents::dispatch_core::AgentDispatchPort> =
+        Arc::new(crate::agent_event_ports::AgentDispatchAdapter::new(state.clone()));
     let stop_state = state.clone();
     let stop_fn: ship_agents::services::agents::rpc_wire::StopFn =
         Arc::new(move |slug: String| {
@@ -819,7 +749,7 @@ pub fn router(state: ApiState) -> axum::Router {
         gate,
         agents_sessions_fn,
         notify_saved_fn,
-        dispatch_fn,
+        dispatch_port,
         stop_fn,
         steer_fn,
         grant_fn,
