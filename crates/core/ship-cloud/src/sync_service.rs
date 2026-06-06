@@ -6,21 +6,15 @@
 //!
 //! Pull (routing received events to subscribed actors) is Phase 2 — it requires
 //! kernel access from within the service task, which doesn't exist yet.
-//!
-//! Carve note (c7-cloud): the underlying `SyncClient` and the push/pull
-//! request/response types moved to the `ship-cloud` crate. This file keeps
-//! only the `ServiceHandler` actor and the cursor-push loop — it depends on
-//! `ServiceHandler` from `ship_substrate`, which doesn't belong in
-//! `ship-cloud`. The transport types come back through `ship_cloud::*`.
 use std::time::Duration;
 
 use anyhow::Result;
 
 use ship_substrate::db::cursors;
 use ship_substrate::events::{ActorStore, EventEnvelope, query_events_since};
+use ship_substrate::services::ServiceHandler;
 use ship_types::payload::SyncPushCompleted;
-use crate::services::ServiceHandler;
-use ship_cloud::{PushResponse, SyncClient};
+use crate::{PushResponse, SyncClient};
 
 const PUSH_SCOPE_PREFIX: &str = "push:platform";
 
@@ -189,7 +183,7 @@ impl ServiceHandler for SyncServiceHandler {
 mod tests {
     use super::*;
     use ship_substrate::db::{block_on, open_db_at, open_runtime_db, runtime_db_path};
-    use crate::testutil::init_project;
+    use ship_substrate::testutil::init_project_minimal;
     use tempfile::tempdir;
 
     /// The runtime.db path under the test's thread-local global ship-dir. The
@@ -231,7 +225,7 @@ mod tests {
 
     fn setup_global_db() -> tempfile::TempDir {
         let tmp = tempdir().unwrap();
-        init_project(tmp.path()).unwrap();
+        init_project_minimal(tmp.path()).unwrap();
         // Ensure the runtime.db events schema exists at the thread-local global dir.
         let _ = open_runtime_db(&ship_substrate::project::get_global_dir().unwrap()).unwrap();
         tmp

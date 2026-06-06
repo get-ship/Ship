@@ -4,13 +4,6 @@
 
 pub mod agent_sessions;
 pub mod process_registry;
-// Cloud-sync service actor (uses `SyncClient` from `ship-cloud` via the
-// `unstable` feature gate). The handler itself stays in this crate because
-// it implements `ServiceHandler` from substrate; only the transport moves
-// out.
-#[cfg(feature = "unstable")]
-pub mod sync;
-
 pub mod git;
 
 /// Aggregated `ship.<domain>.<op>` → example-JSON pairs across every domain

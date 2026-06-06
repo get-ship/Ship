@@ -10,8 +10,6 @@ use tokio::sync::mpsc;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::{ActorStore, EventEnvelope, Mailbox};
 use ship_substrate::services::{ServiceHandle, ServiceHandler, spawn_service, run_service};
-#[cfg(feature = "unstable")]
-use crate::services::sync::{SyncConfig, SyncServiceHandler};
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -160,24 +158,3 @@ async fn spawn_service_wires_actor_and_task() {
     assert!(calls.contains(&"on_stop".to_string()));
 }
 
-// ── SyncConfig ────────────────────────────────────────────────────────────────
-
-#[cfg(feature = "unstable")]
-#[test]
-fn sync_config_defaults() {
-    let cfg = SyncConfig::default();
-    assert_eq!(cfg.push_interval_secs, 30);
-    assert_eq!(cfg.push_threshold, 50);
-    assert_eq!(cfg.endpoint, "https://api.getship.dev");
-}
-
-#[cfg(feature = "unstable")]
-#[test]
-fn sync_handler_tick_interval_from_config() {
-    let cfg = SyncConfig {
-        push_interval_secs: 45,
-        ..SyncConfig::default()
-    };
-    let handler = SyncServiceHandler::new(cfg);
-    assert_eq!(handler.tick_interval(), Some(Duration::from_secs(45)));
-}
