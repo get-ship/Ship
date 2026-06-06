@@ -8,6 +8,7 @@
 pub mod projection;
 pub mod service;
 pub mod state;
+pub mod wire;
 pub mod wire_types;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
@@ -15,3 +16,5 @@ pub mod fixtures;
 pub use projection::{
     ProvisionedGrantsProjection, ProvisionedGrantsRow, provisioned_grants_for, provisioned_row,
 };
+
+pub use wire::PermissionsWire;

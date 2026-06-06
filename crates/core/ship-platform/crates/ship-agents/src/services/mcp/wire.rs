@@ -1,19 +1,39 @@
-//! `McpService` handler — the second MIGRATED domain under proto-as-SSOT
-//! (#89). Authored proto (`mcp.proto`) → generated `McpService` trait →
-//! this thin impl, mounted additively beside the generated ReadOps/CommandOps
-//! that still serve `mcp.*` until the GUI flip (#72).
+//! ConnectRPC wire layer for `McpService`.
 //!
-//! Reads (C0) call the platform `McpService` directly. Writes (C1) route
-//! through `services::command::call` — the ONE capability gate.
+//! `McpWire<G>` holds an `Arc<dyn McpService>` and a gate closure.
+//! It implements `ship_ops_rpc::McpService` so shipd can mount it via
+//! `McpServiceExt::register`, replacing the `impl McpService for OpsImpl`
+//! that lived in `apps/shipd/src/mcp_rpc.rs`.
+
+use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
-
-use ship_ops_rpc::{IndexEntry, JsonResponse, McpIndexResponse, McpService, ScopedMutation};
 use ship_files::files::Scope;
-use ship_agents::services::mcp::service::{CreateArgs, PutArgs};
-use ship_agents::services::mcp::state;
 
-use crate::ops_rpc::OpsImpl;
+use ship_ops_rpc::{
+    IndexEntry, JsonResponse, McpIndexResponse, McpService as McpServiceTrait, ScopedMutation,
+};
+
+use crate::services::mcp::service::McpService;
+use crate::services::mcp::service::{CreateArgs, PutArgs};
+use crate::services::mcp::state;
+
+/// Gate closure: given request context + op name, return Ok or PermissionDenied.
+pub type GateFn = Arc<dyn Fn(&RequestContext, &str) -> Result<(), ConnectError> + Send + Sync>;
+
+/// ConnectRPC wire for `McpService`.
+pub struct McpWire {
+    svc: Arc<dyn McpService>,
+    gate: GateFn,
+}
+
+impl McpWire {
+    pub fn new(svc: Arc<dyn McpService>, gate: GateFn) -> Self {
+        Self { svc, gate }
+    }
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 fn parse_scope(scope: &str) -> Result<Option<Scope>, ConnectError> {
     match scope {
@@ -33,16 +53,42 @@ fn scope_str(s: state::ScopeTag) -> String {
     }
 }
 
+fn mcp_err(e: state::Error) -> ConnectError {
+    match e {
+        state::Error::NotFound(m) => ConnectError::not_found(m),
+        state::Error::AlreadyExists(m)
+        | state::Error::BadId(m)
+        | state::Error::Parse(m)
+        | state::Error::Patch(m) => ConnectError::invalid_argument(m),
+        other => ConnectError::internal(other.to_string()),
+    }
+}
+
+fn parse_json(raw: &str, key: &str) -> Result<serde_json::Value, ConnectError> {
+    serde_json::from_str(raw)
+        .map_err(|e| ConnectError::invalid_argument(format!("`{key}` is not valid JSON: {e}")))
+}
+
+fn scoped(id: &str, resolved: Scope) -> ScopedMutation {
+    let scope = match resolved {
+        Scope::Project => "project",
+        Scope::User => "user",
+    }
+    .to_string();
+    ScopedMutation { id: id.to_string(), scope, ..Default::default() }
+}
+
+// ── Trait implementation ──────────────────────────────────────────────────────
+
 #[allow(refining_impl_trait)]
-impl McpService for OpsImpl {
+impl McpServiceTrait for McpWire {
     async fn list(
         &self,
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedListMcpRequestView,
     ) -> ServiceResult<McpIndexResponse> {
         let items = self
-            .state()
-            .mcp()
+            .svc
             .list()
             .into_iter()
             .map(|e| IndexEntry { id: e.id, scope: scope_str(e.scope), ..Default::default() })
@@ -56,7 +102,7 @@ impl McpService for OpsImpl {
         request: ship_ops_rpc::OwnedGetMcpRequestView,
     ) -> ServiceResult<JsonResponse> {
         let scope = parse_scope(request.scope)?;
-        let entry = self.state().mcp().get(request.id, scope).map_err(|e| match e {
+        let entry = self.svc.get(request.id, scope).map_err(|e| match e {
             state::Error::NotFound(m) => ConnectError::not_found(m),
             other => ConnectError::internal(other.to_string()),
         })?;
@@ -70,12 +116,11 @@ impl McpService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedCreateMcpRequestView,
     ) -> ServiceResult<ScopedMutation> {
-        self.gate(&ctx, "mcp.create")?;
+        (self.gate)(&ctx, "mcp.create")?;
         let server = parse_json(request.server_json, "server_json")?;
         let scope = parse_scope(request.scope)?;
         let resolved = self
-            .state()
-            .mcp()
+            .svc
             .create(CreateArgs { id: request.id.to_string(), server, scope })
             .map_err(mcp_err)?;
         Ok(Response::new(scoped(request.id, resolved)))
@@ -86,12 +131,11 @@ impl McpService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedPutMcpRequestView,
     ) -> ServiceResult<ScopedMutation> {
-        self.gate(&ctx, "mcp.put")?;
+        (self.gate)(&ctx, "mcp.put")?;
         let server = parse_json(request.server_json, "server_json")?;
         let scope = parse_scope(request.scope)?;
         let resolved = self
-            .state()
-            .mcp()
+            .svc
             .put(PutArgs { id: request.id.to_string(), server, scope })
             .map_err(mcp_err)?;
         Ok(Response::new(scoped(request.id, resolved)))
@@ -102,11 +146,11 @@ impl McpService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedPatchMcpRequestView,
     ) -> ServiceResult<ScopedMutation> {
-        self.gate(&ctx, "mcp.patch")?;
+        (self.gate)(&ctx, "mcp.patch")?;
         let patch: json_patch::Patch = serde_json::from_str(request.patch_json)
             .map_err(|e| ConnectError::invalid_argument(format!("bad patch shape: {e}")))?;
         let scope = parse_scope(request.scope)?;
-        let resolved = self.state().mcp().patch(request.id, scope, &patch).map_err(mcp_err)?;
+        let resolved = self.svc.patch(request.id, scope, &patch).map_err(mcp_err)?;
         Ok(Response::new(scoped(request.id, resolved)))
     }
 
@@ -115,52 +159,9 @@ impl McpService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedDeleteMcpRequestView,
     ) -> ServiceResult<ScopedMutation> {
-        self.gate(&ctx, "mcp.delete")?;
+        (self.gate)(&ctx, "mcp.delete")?;
         let scope = parse_scope(request.scope)?;
-        let resolved = self.state().mcp().delete(request.id, scope).map_err(mcp_err)?;
+        let resolved = self.svc.delete(request.id, scope).map_err(mcp_err)?;
         Ok(Response::new(scoped(request.id, resolved)))
-    }
-}
-
-/// Parse a required JSON-string arg into a `Value`.
-fn parse_json(raw: &str, key: &str) -> Result<serde_json::Value, ConnectError> {
-    serde_json::from_str(raw)
-        .map_err(|e| ConnectError::invalid_argument(format!("`{key}` is not valid JSON: {e}")))
-}
-
-/// `state::Error` → ConnectError.
-fn mcp_err(e: state::Error) -> ConnectError {
-    match e {
-        state::Error::NotFound(m) => ConnectError::not_found(m),
-        state::Error::AlreadyExists(m)
-        | state::Error::BadId(m)
-        | state::Error::Parse(m)
-        | state::Error::Patch(m) => ConnectError::invalid_argument(m),
-        other => ConnectError::internal(other.to_string()),
-    }
-}
-
-/// Build the `ScopedMutation` reply from the resolved write scope.
-fn scoped(id: &str, resolved: Scope) -> ScopedMutation {
-    let scope = match resolved {
-        Scope::Project => "project",
-        Scope::User => "user",
-    }
-    .to_string();
-    ScopedMutation { id: id.to_string(), scope, ..Default::default() }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn scope_parses_and_renders_round_trip() {
-        assert_eq!(parse_scope("").unwrap(), None);
-        assert_eq!(parse_scope("project").unwrap(), Some(Scope::Project));
-        assert_eq!(parse_scope("user").unwrap(), Some(Scope::User));
-        assert!(parse_scope("bogus").is_err());
-        assert_eq!(scope_str(state::ScopeTag::Project), "project");
-        assert_eq!(scope_str(state::ScopeTag::User), "user");
     }
 }

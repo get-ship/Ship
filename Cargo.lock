@@ -7636,10 +7636,12 @@ name = "ship-agents"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-stream",
  "async-trait",
  "base64 0.22.1",
  "chrono",
  "compiler",
+ "connectrpc",
  "futures-util",
  "globset",
  "home",
@@ -7662,6 +7664,7 @@ dependencies = [
  "ship-harnesses",
  "ship-kernel",
  "ship-kv",
+ "ship-ops-rpc",
  "ship-platform",
  "ship-runner",
  "ship-store",
