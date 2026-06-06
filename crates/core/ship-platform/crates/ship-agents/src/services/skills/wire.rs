@@ -423,4 +423,103 @@ impl SkillsServiceTrait for SkillsWire {
         let json = serde_json::json!({ "deleted": deleted }).to_string();
         Ok(Response::new(JsonResponse { json, ..Default::default() }))
     }
+
+    async fn scaffold(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedSkillScaffoldReqView,
+    ) -> ServiceResult<ship_ops_rpc::SkillScaffoldResponse> {
+        (self.gate)(&ctx, "skills.scaffold")?;
+        let name = request.name;
+        let shape = request.shape;
+        let purpose = if request.purpose.is_empty() { None } else { Some(request.purpose) };
+
+        if !is_valid_id(name) {
+            return Err(ConnectError::invalid_argument("name must be kebab-case (a-z0-9-, max 48 chars)"));
+        }
+        const SKILL_SHAPES: &[&str] = &["task", "reference", "workflow"];
+        if !SKILL_SHAPES.contains(&shape) {
+            return Err(ConnectError::invalid_argument(format!(
+                "unknown shape '{}' (expected one of: {})",
+                shape,
+                SKILL_SHAPES.join(", "),
+            )));
+        }
+
+        let skills_dir = self.ship_dir.join("skills");
+        std::fs::create_dir_all(&skills_dir)
+            .map_err(|e| ConnectError::internal(format!("create skills dir: {e}")))?;
+        let target_dir = skills_dir.join(name);
+        if target_dir.exists() {
+            return Err(ConnectError::already_exists(format!("skill '{}' already exists", name)));
+        }
+        std::fs::create_dir_all(&target_dir)
+            .map_err(|e| ConnectError::internal(format!("create skill dir: {e}")))?;
+
+        let skill_md = target_dir.join("SKILL.md");
+        let body = render_skill_md(name, shape, purpose.as_deref());
+        std::fs::write(&skill_md, body).map_err(|e| {
+            let _ = std::fs::remove_dir_all(&target_dir);
+            ConnectError::internal(format!("write SKILL.md: {e}"))
+        })?;
+
+        Ok(Response::new(ship_ops_rpc::SkillScaffoldResponse {
+            route: format!("/skills/{name}"),
+            path: skill_md.display().to_string(),
+            ..Default::default()
+        }))
+    }
+}
+
+// ── Scaffold helpers ──────────────────────────────────────────────────────────
+
+const KEBAB: &str = "abcdefghijklmnopqrstuvwxyz0123456789-";
+
+fn is_valid_id(name: &str) -> bool {
+    if name.is_empty() || name.len() > 48 {
+        return false;
+    }
+    if !name.starts_with(|c: char| c.is_ascii_lowercase()) {
+        return false;
+    }
+    name.chars().all(|c| KEBAB.contains(c))
+}
+
+fn title_case(name: &str) -> String {
+    name.split('-')
+        .map(|s| {
+            let mut c = s.chars();
+            match c.next() {
+                Some(f) => f.to_ascii_uppercase().to_string() + c.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn render_skill_md(name: &str, shape: &str, purpose: Option<&str>) -> String {
+    let title = title_case(name);
+    let description = purpose
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            format!("{title} ({shape} skill). Replace this with one line describing when to use it.")
+        });
+    let body = match shape {
+        "task" => format!(
+            "# {title}\n\n## When to use\n\n## What it does\n\n## Inputs and outputs\n"
+        ),
+        "reference" => format!(
+            "# {title}\n\n## Overview\n\n## Key concepts\n\n## Examples\n"
+        ),
+        "workflow" => format!(
+            "# {title}\n\n## Steps\n\n1.\n2.\n3.\n\n## Verification\n"
+        ),
+        _ => format!("# {title}\n"),
+    };
+    format!(
+        "---\nname: {name}\nstable-id: {name}\ndescription: {description}\ntags: []\nauthors: []\n---\n\n{body}"
+    )
 }

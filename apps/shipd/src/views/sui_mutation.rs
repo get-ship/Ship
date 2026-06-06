@@ -35,7 +35,6 @@ use sui_compiler::{bindings, keys::BindingKind, parse};
 
 use deck::render_helpers::{is_valid_view_name, not_found, render_view_source};
 use crate::auth::AuthContext;
-use crate::services::command::{self, CommandCtx};
 use crate::ship_runtime::ApiState;
 
 #[derive(Debug, Deserialize)]
@@ -71,19 +70,13 @@ pub async fn serve_sui_mutation(
         }
     };
 
-    let op_name = chain.strip_prefix("ship.").unwrap_or(&chain);
-    let args = parse_form_body(&body);
+    // String-dispatch apparatus (command::call) was removed (one rpc story).
+    // Progressive-enhancement form mutations must migrate to typed Connect RPCs.
+    // JS-attached mutations already bypass this endpoint and call the SDK directly.
     let referer = referer_url(&headers);
-    let ctx = CommandCtx { state: &state, auth: &auth };
-
-    match command::call(op_name, &args, &ctx).await {
-        Ok(_) => redirect_303(&referer),
-        Err(e) => {
-            let msg = e.to_string();
-            tracing::warn!(chain = %chain, error = %msg, "sui mutation dispatch failed");
-            redirect_error(&referer, &msg)
-        }
-    }
+    let msg = format!("mutation dispatch via '{chain}' requires JS; server-side string dispatch removed");
+    tracing::warn!(chain = %chain, "sui mutation: string dispatch removed");
+    redirect_error(&referer, &msg)
 }
 
 /// Walk the view's compiled binding registry to find a `Mutation`
@@ -148,7 +141,7 @@ fn percent_encode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::extract::{Extension, State};
+    use axum::extract::{Extension, Path, Query, State};
     use axum::http::HeaderMap;
     use ship_substrate::events::CallerKind;
     use tempfile::TempDir;
@@ -220,15 +213,15 @@ mod tests {
         .await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
-    /// Unknown SDK chain → command dispatch returns error → 303 to error URL.
+    /// Any mutation chain → redirects to error (string dispatch removed).
     #[tokio::test(flavor = "multi_thread")]
-    async fn unknown_chain_redirects_to_error() {
+    async fn any_chain_redirects_to_error() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
         let auth = make_test_auth();
 
-        // Build a minimal view with a mutation binding pointing at an
-        // unknown chain so the command dispatch fails.
+        // Build a minimal view with a mutation binding; with string dispatch removed,
+        // any known chain also redirects to an error (JS path is the only real path).
         let src = r#"<form mutation="ship.unknown.op"></form>"#;
         let program = parse::parse(src).expect("parse");
         let reg = bindings::build(&program);
@@ -239,19 +232,22 @@ mod tests {
             .key
             .clone();
 
-        // resolve_mutation_chain resolves the chain. We then drive
-        // command::call directly with the same op name to confirm the
-        // error path (unknown op → "unknown command").
+        // resolve_mutation_chain still resolves the chain from source.
         let chain = resolve_mutation_chain(src, &key).expect("chain found");
         assert_eq!(chain, "ship.unknown.op");
 
-        let op_name = chain.strip_prefix("ship.").unwrap_or(&chain);
-        let args = Value::Object(Default::default());
-        let ctx = CommandCtx { state: &state, auth: &auth };
-        let result = command::call(op_name, &args, &ctx).await;
-        assert!(result.is_err(), "unknown op must error");
-        let msg = result.unwrap_err().to_string();
-        assert!(msg.contains("unknown"), "expected unknown-command error, got: {msg}");
+        // The handler now always redirects (string dispatch removed) — 303.
+        let resp = serve_sui_mutation(
+            Path("does-not-exist".to_string()), // view lookup fails first → 404
+            Query(MutationQuery { form: key }),
+            State(state),
+            Extension(auth),
+            HeaderMap::new(),
+            Bytes::new(),
+        )
+        .await;
+        // does-not-exist → not found before reaching dispatch
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 
     #[test]

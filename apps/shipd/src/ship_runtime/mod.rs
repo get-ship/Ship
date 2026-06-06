@@ -53,10 +53,6 @@ pub struct ShipRuntime {
     pub(super) session_registry: SessionRegistry,
     /// Health registry for supervised background tasks.
     pub(super) health_registry: HealthRegistry,
-    /// Diagnostic registry — aggregates per-subsystem `DiagnosticSnapshot`
-    /// impls. Built lazily via `diag_registry()` / `set_diag_registry()`
-    /// after the dispatch handle is set (supervisor snapshot depends on it).
-    pub(super) diag_registry: std::sync::OnceLock<ship_substrate::diagnostics::DiagnosticRegistry>,
     /// Active-space `SpaceContext` for collections, bound to the active space's
     /// per-scope `spaces/<id>/space.db`. `None` when the daemon booted space-less
     /// (no discoverable project); the `collections()` accessor then errors cleanly

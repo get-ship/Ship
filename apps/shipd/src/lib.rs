@@ -28,7 +28,7 @@ pub mod project_api;
 pub mod routes;
 pub mod router;
 pub mod ops_rpc;
-pub mod diag_rpc;
+// diag_rpc: deleted — diagnostics.snapshot op cut; DiagnosticRegistry apparatus removed.
 pub mod runtime_rpc;
 pub mod pipelines_rpc;
 pub mod git_rpc;
@@ -253,9 +253,7 @@ pub async fn run_network(
     if let Some(dh) = run_mgr.dispatch_handle {
         rt.set_dispatch_handle(dh);
     }
-    // Build the diagnostic registry now that the dispatch handle (supervisor
-    // process registry) is populated. All subsystem Arcs are cloned cheaply.
-    rt.set_diag_registry(diag_rpc::build_registry(&rt));
+    // diagnostics.snapshot op deleted — no DiagnosticRegistry to build.
     // Start the abandoned session scanner.
     rt.session_scanner().await;
     // Start the artifact GC loop (runs now then every hour).

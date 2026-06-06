@@ -76,37 +76,51 @@ pub type SteerFn =
 pub type GrantFn =
     Arc<dyn Fn(String, Vec<String>, RequestContext) -> BoxFuture<Result<Value, ConnectError>> + Send + Sync>;
 
+/// Async post-feedback closure: (event_json, ctx) → Result<id_string, ConnectError>.
+/// Captures `ApiState` (kernel, view_sessions, FeedbackGuard) from shipd.
+pub type PostFeedbackFn =
+    Arc<dyn Fn(String, RequestContext) -> BoxFuture<Result<String, ConnectError>> + Send + Sync>;
+
+/// Async post-annotation closure: (event_json, ctx) → Result<id_string, ConnectError>.
+/// Captures `ApiState` (kernel, collections, view_sessions) from shipd.
+pub type PostAnnotationFn =
+    Arc<dyn Fn(String, RequestContext) -> BoxFuture<Result<String, ConnectError>> + Send + Sync>;
+
 // ── Wire struct ───────────────────────────────────────────────────────────────
 
 /// ConnectRPC wire for `AgentsService`.
 pub struct AgentsWire {
-    svc:            Arc<dyn AgentsService>,
-    ship_dir:       PathBuf,
-    kernel:         Arc<KernelLog>,
-    gate:           GateFn,
-    sessions_fn:    SessionsFn,
-    notify_saved:   NotifySavedFn,
-    dispatch_fn:    DispatchFn,
-    stop_fn:        StopFn,
-    steer_fn:       SteerFn,
-    grant_fn:       GrantFn,
-    agent_reactive: Option<Arc<ReactiveRegistry>>,
+    svc:              Arc<dyn AgentsService>,
+    ship_dir:         PathBuf,
+    kernel:           Arc<KernelLog>,
+    gate:             GateFn,
+    sessions_fn:      SessionsFn,
+    notify_saved:     NotifySavedFn,
+    dispatch_fn:      DispatchFn,
+    stop_fn:          StopFn,
+    steer_fn:         SteerFn,
+    grant_fn:         GrantFn,
+    agent_reactive:   Option<Arc<ReactiveRegistry>>,
+    post_feedback_fn: PostFeedbackFn,
+    post_annotation_fn: PostAnnotationFn,
 }
 
 impl AgentsWire {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        svc:            Arc<dyn AgentsService>,
-        ship_dir:       PathBuf,
-        kernel:         Arc<KernelLog>,
-        gate:           GateFn,
-        sessions_fn:    SessionsFn,
-        notify_saved:   NotifySavedFn,
-        dispatch_fn:    DispatchFn,
-        stop_fn:        StopFn,
-        steer_fn:       SteerFn,
-        grant_fn:       GrantFn,
-        agent_reactive: Option<Arc<ReactiveRegistry>>,
+        svc:              Arc<dyn AgentsService>,
+        ship_dir:         PathBuf,
+        kernel:           Arc<KernelLog>,
+        gate:             GateFn,
+        sessions_fn:      SessionsFn,
+        notify_saved:     NotifySavedFn,
+        dispatch_fn:      DispatchFn,
+        stop_fn:          StopFn,
+        steer_fn:         SteerFn,
+        grant_fn:         GrantFn,
+        agent_reactive:   Option<Arc<ReactiveRegistry>>,
+        post_feedback_fn: PostFeedbackFn,
+        post_annotation_fn: PostAnnotationFn,
     ) -> Self {
         Self {
             svc,
@@ -120,6 +134,8 @@ impl AgentsWire {
             steer_fn,
             grant_fn,
             agent_reactive,
+            post_feedback_fn,
+            post_annotation_fn,
         }
     }
 }
@@ -760,5 +776,27 @@ impl AgentsServiceTrait for AgentsWire {
             }
         };
         Ok(Response::new(Box::pin(stream)))
+    }
+
+    // ── Canvas / observation ─────────────────────────────────────────────────
+
+    async fn post_feedback(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedPostFeedbackRequestView,
+    ) -> ServiceResult<ship_ops_rpc::PostFeedbackResponse> {
+        let event_json = request.event_json.to_string();
+        let id = (self.post_feedback_fn)(event_json, ctx).await?;
+        Ok(Response::new(ship_ops_rpc::PostFeedbackResponse { id, ..Default::default() }))
+    }
+
+    async fn post_annotation(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedPostAnnotationRequestView,
+    ) -> ServiceResult<ship_ops_rpc::PostAnnotationResponse> {
+        let event_json = request.event_json.to_string();
+        let id = (self.post_annotation_fn)(event_json, ctx).await?;
+        Ok(Response::new(ship_ops_rpc::PostAnnotationResponse { id, ..Default::default() }))
     }
 }
