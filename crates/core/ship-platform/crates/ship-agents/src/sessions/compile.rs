@@ -1,12 +1,10 @@
-use crate::agents::config::{
+use crate::agent_domain::config::{
     ProviderSettings, resolve_harness_settings_with_agent_override,
 };
 use anyhow::{Result, anyhow};
 use std::path::{Path, PathBuf};
 
-// The session helpers folded into the ship-agents crate (agents-arc E4); the
-// compiler bridge stays here (it names `crate::agents::config`, an L1 type).
-use ship_agents::sessions::helpers::*;
+use super::helpers::*;
 
 // ---- Agent config resolution -----------------------------------------------
 
