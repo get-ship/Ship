@@ -51,8 +51,6 @@ fn launch_view_ops_are_registered() {
     let n = names();
     for required in [
         "agents.summaries",
-        "skills.list",
-        "collections.list",
     ] {
         assert!(
             n.contains(&required),
@@ -73,33 +71,6 @@ fn temp_state() -> crate::ship_runtime::ApiState {
     // ApiState reference paths under it.
     std::mem::forget(dir);
     std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
-}
-
-#[test]
-#[ignore = "doomed: registry dispatch-by-string apparatus (census #5) is slated for deletion; registry stays red until the cut, not fixed. See .artifacts/gate-triage-2.md cluster A"]
-fn collections_list_returns_user_schema_items() {
-    let state = temp_state();
-    let v = call("collections.list", &json!({}), &state).expect("collections.list ok");
-    let items = v.get("items").and_then(|i| i.as_array()).expect("items array");
-    // Built-in user schemas always present (feedback / annotations etc.).
-    assert!(!items.is_empty(), "collections.list must include built-ins");
-    let first = items.first().unwrap();
-    assert!(first.get("id").is_some(), "items have id");
-    assert!(first.get("fields").and_then(|f| f.as_array()).is_some(), "items have fields[]");
-    if let Some(fields) = first.get("fields").and_then(|f| f.as_array())
-        && let Some(f0) = fields.first()
-    {
-        assert!(f0.get("name").is_some(), "field record has name");
-        assert!(f0.get("type").is_some(), "field record has type");
-    }
-}
-
-
-#[test]
-fn skills_list_returns_array() {
-    let state = temp_state();
-    let v = call("skills.list", &json!({}), &state).expect("skills.list ok");
-    assert!(v.get("items").and_then(|i| i.as_array()).is_some(), "skills.list returns items[]");
 }
 
 // ── agents byte-identical gate ────────────────────────────────────────
@@ -199,42 +170,6 @@ fn sessions_events_wire_identical_to_anonymous_json() {
 
 // ── remaining domains: structural / byte-identical smoke ──────────────
 
-#[test]
-#[ignore = "doomed: registry dispatch-by-string apparatus (census #5) is slated for deletion; registry stays red until the cut, not fixed. See .artifacts/gate-triage-2.md cluster A"]
-fn skills_pipelines_specs_list_shapes_preserved() {
-    let state = temp_state();
-    for op in ["skills.list", "pipelines.list", "specs.list", "collections.list"] {
-        let v = call(op, &json!({}), &state).unwrap_or_else(|e| panic!("{op}: {e}"));
-        assert!(v.get("items").and_then(|i| i.as_array()).is_some(), "{op} has items[]");
-    }
-}
-
-#[test]
-fn skills_summaries_has_rail_fields() {
-    let state = temp_state();
-    let v = call("skills.summaries", &json!({}), &state).expect("skills.summaries ok");
-    for key in ["items", "filtered", "groups", "kind_counts", "tags", "total", "q"] {
-        assert!(v.get(key).is_some(), "skills.summaries missing `{key}`");
-    }
-    assert_eq!(v["active_kind"], "all");
-}
-
-#[test]
-#[ignore = "doomed: registry dispatch-by-string apparatus (census #5) is slated for deletion; registry stays red until the cut, not fixed. See .artifacts/gate-triage-2.md cluster A"]
-fn git_and_dashboard_and_settings_dispatch() {
-    let state = temp_state();
-    // git ops resolve against the worktree (the repo this test runs in).
-    let log = call("git.log", &json!({ "limit": 1 }), &state).expect("git.log ok");
-    assert!(log.get("commits").and_then(|c| c.as_array()).is_some());
-
-    let dash = call("dashboard.state", &json!({}), &state).expect("dashboard.state ok");
-    for key in ["stats", "recent_runs", "events", "agents", "collections"] {
-        assert!(dash.get(key).is_some(), "dashboard.state missing `{key}`");
-    }
-
-    let settings = call("settings.state", &json!({}), &state).expect("settings.state ok");
-    assert!(settings.is_object(), "settings.state is an object");
-}
 
 #[test]
 fn workspaces_active_shape_preserved() {

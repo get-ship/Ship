@@ -25,12 +25,7 @@ mod actor;
 mod agent;
 mod agents;
 mod annotations;
-mod git;
 mod mesh;
-mod pipelines;
-mod settings;
-mod skills;
-mod pipeline;
 mod project;
 mod surfaces;
 mod views;
@@ -167,28 +162,13 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
             }
         }
     }
-    if let Some(value) = pipeline::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = pipelines::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = settings::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
     if let Some(value) = project::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = skills::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = agents::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = git::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = agent::try_dispatch(name, args, ctx).await? {
@@ -292,29 +272,7 @@ pub(crate) async fn response_to_value(
 mod tests {
     use super::*;
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn pipeline_update_status_dispatches_through_the_registry() {
-        let harness = crate::test_harness::TestDaemon::new().await;
-        // The operator cred clears the gate (S6): mint it, don't rely on the
-        // (now non-elevated) CLI transport.
-        let auth = crate::test_harness::TestDaemon::operator_auth();
-        let ctx = CommandCtx { state: &harness.state, auth: &auth };
-        let args = serde_json::json!({
-            "pipeline_run_id": "run-cmd-test",
-            "status": "gate_passed",
-        });
-        let value = call("pipeline.update_status", &args, &ctx)
-            .await
-            .expect("gate_passed has no required extra fields");
-        assert_eq!(value["pipeline_run_id"], "run-cmd-test");
-        assert_eq!(value["status"], "gate_passed");
-
-        // Unknown command falls through to a structured error.
-        let err = call("pipeline.nope", &args, &ctx).await.unwrap_err();
-        assert_eq!(err.code, "unknown_command");
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn gate_denies_ungranted_agent_a_restricted_command() {
         let harness = crate::test_harness::TestDaemon::new().await;
         // A worker-role MCP agent: no orchestration grant, not the operator.
@@ -519,48 +477,7 @@ mod tests {
         assert_eq!(msg.created_by, None);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn skills_create_is_restricted_to_ship_authoring() {
-        let harness = crate::test_harness::TestDaemon::new().await;
-        let args = serde_json::json!({ "id": "fixture-skill", "scope": "user" });
-
-        // A worker (no grants) can't author a skill — skills are capability
-        // groups, gated behind the ship-authoring grant.
-        let worker = AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Mcp,
-            agent_id: Some("worker-1".to_string()),
-            workspace_id: None,
-            space_id: None,
-            session_id: None,
-            scopes: vec![],
-            grants: vec![],
-            operator_cred: false,
-        };
-        let err = call("skills.create", &args, &CommandCtx { state: &harness.state, auth: &worker })
-            .await
-            .unwrap_err();
-        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
-
-        // A designer holding ship-authoring clears the gate and writes through.
-        let designer = AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Mcp,
-            agent_id: Some("designer-1".to_string()),
-            workspace_id: None,
-            space_id: None,
-            session_id: None,
-            scopes: vec![],
-            grants: vec!["skills".to_string()],
-            operator_cred: false,
-        };
-        let created =
-            call("skills.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
-                .await
-                .expect("the `skills` capability clears the gate and the skill is created");
-        assert_eq!(created["id"], "fixture-skill");
-        assert_eq!(created["scope"], "user");
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn agents_create_needs_authoring_not_orchestration_grant() {
         let harness = crate::test_harness::TestDaemon::new().await;
         let args = serde_json::json!({
