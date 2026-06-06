@@ -32,6 +32,7 @@ impl ViewToolPort for ViewToolAdapter {
             .bundler()
             .build(target)
             .await
+            .map(|_| ())
             .map_err(|e| match e {
                 deck::bundler::BundlerError::NoCompiler => BundlerBuildError::NoCompiler,
                 deck::bundler::BundlerError::UnknownTarget(t) => {
