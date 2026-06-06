@@ -240,7 +240,7 @@ mod tests {
             grantable.extend(grants_for_role(role));
         }
         // Operational domains (#95) are operator-surface, never agent-grantable.
-        let operational = |s: &str| matches!(s, "actor" | "mesh" | "meta" | "permissions");
+        let operational = |s: &str| matches!(s, "meta" | "permissions");
         for cmd in crate::services::schema::COMMANDS {
             if BlastRadius::from_descriptor(cmd.blast_radius) != BlastRadius::C2Elevated {
                 continue;

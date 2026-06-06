@@ -340,45 +340,6 @@ pub const COMMANDS: &[CommandDescriptor] = &[
     // self-gated wires that bypass the command dispatch table.
     // project.add + project.activate retired — SpaceService.Add / .Activate
     // (ship-space) are the SSOT; they route through the ConnectRPC wire.
-    // ── mesh ──────────────────────────────────────────────────────
-    CommandDescriptor {
-        name: "mesh.send",
-        description: "Send a directed mesh message to another actor (caller-as-self).",
-        args: &[
-            ArgDescriptor { name: "from", kind: "string", required: true },
-            ArgDescriptor { name: "to", kind: "string", required: true },
-            ArgDescriptor { name: "body_json", kind: "string?", required: false },
-        ],
-        permission: "ship.mesh.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "mesh.broadcast",
-        description: "Broadcast a mesh message (optional capability filter; caller-as-self).",
-        args: &[
-            ArgDescriptor { name: "from", kind: "string", required: true },
-            ArgDescriptor { name: "body_json", kind: "string?", required: false },
-            ArgDescriptor { name: "capability_filter", kind: "string?", required: false },
-        ],
-        permission: "ship.mesh.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "mesh.status",
-        description: "Update the caller's own mesh liveness status (caller-as-self).",
-        args: &[
-            ArgDescriptor { name: "agent_id", kind: "string", required: true },
-            ArgDescriptor { name: "status", kind: "string", required: true },
-        ],
-        permission: "ship.mesh.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
     // ── git (caller's worktree) ───────────────────────────────────
     CommandDescriptor {
         name: "git.push",
@@ -508,27 +469,6 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         args: &[ArgDescriptor { name: "slug", kind: "string", required: true }],
         permission: "ship.agents.write",
         blast_radius: "C2_ELEVATED",
-        response_type: "",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "actor.input",
-        description: "Deliver a text turn to a live actor's mailbox (operator/debug).",
-        args: &[
-            ArgDescriptor { name: "actor_id", kind: "string", required: true },
-            ArgDescriptor { name: "text", kind: "string", required: true },
-        ],
-        permission: "ship.actor.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "actor.kill_tree",
-        description: "Stop an actor and its descendants (operator/debug).",
-        args: &[ArgDescriptor { name: "actor_id", kind: "string", required: true }],
-        permission: "ship.actor.write",
-        blast_radius: "C1_WORKSPACE",
         response_type: "",
         sensitive: false,
     },

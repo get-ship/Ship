@@ -122,17 +122,3 @@ fn agents_detail_missing_is_not_found() {
     assert!(result.is_none(), "unknown agent id must return None");
 }
 
-// ── remaining domains: structural / byte-identical smoke ──────────────
-
-#[test]
-fn actors_and_mesh_dispatch_but_absent_from_catalog() {
-    // Both are dispatchable read ops but intentionally NOT in the schema
-    // catalog — `names()` must not advertise them (byte-identical schema).
-    let n = names();
-    assert!(!n.contains(&"actors.list"), "actors.list must stay out of OPS");
-    assert!(!n.contains(&"mesh.snapshot"), "mesh.snapshot must stay out of OPS");
-
-    let state = temp_state();
-    let actors = call("actors.list", &json!({}), &state).expect("actors.list ok");
-    assert!(actors.get("items").and_then(|i| i.as_array()).is_some());
-}

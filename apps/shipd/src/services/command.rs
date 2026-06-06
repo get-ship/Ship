@@ -21,9 +21,7 @@ use serde_json::Value;
 use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 
-mod actor;
 mod annotations;
-mod mesh;
 mod surfaces;
 
 /// Ambient context for a command: the runtime + the authenticated caller
@@ -103,8 +101,7 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
     // Blast radius is resolved [`blast_for`]: proto first — the single source
     // (#67 a), read from the compiled FileDescriptorSet via `op_policy` keyed by
     // the canonical op name — then the hand-authored `COMMANDS.blast_radius` for
-    // commands not yet on a per-domain proto service (`actor.*`, `mesh.*`,
-    // `project.*`, `create.surface`, …). Either way a *known* command always
+    // commands not yet on a per-domain proto service (`project.*`, `create.surface`, …). Either way a *known* command always
     // resolves to a tier and is gated.
     //
     // FAIL CLOSED (#314): the previous gate ran `if let Some(pol) =
@@ -158,12 +155,6 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
             }
         }
     }
-    if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = actor::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
     if let Some(value) = surfaces::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
@@ -182,8 +173,8 @@ fn is_known_command(name: &str) -> bool {
 
 /// The blast radius the gate enforces for `name`. Proto is the single source
 /// (#67 a) — read by op name from the embedded descriptor; for commands not yet
-/// on a per-domain proto service (`actor.*`, `mesh.*`, `project.*`,
-/// `create.surface`, `annotation.post`, `feedback.post`) the hand-authored
+/// on a per-domain proto service (`project.*`, `create.surface`,
+/// `annotation.post`, `feedback.post`) the hand-authored
 /// `COMMANDS.blast_radius` is the declared authority (it is exactly what
 /// `gen-ops` would project into proto). `None` only for a name that is neither
 /// in proto nor in `COMMANDS` — a truly unknown op, which the gate ignores so it

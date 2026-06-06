@@ -345,23 +345,13 @@ async fn build_header_middleware(
 fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     Router::new()
-        // Mesh / actors
-        .ship_route(Route::MeshRegister, rest_api::mesh_register)
-        .ship_route(Route::MeshSend, rest_api::mesh_send)
-        .ship_route(Route::MeshBroadcast, rest_api::mesh_broadcast)
-        .ship_route(Route::MeshDiscover, rest_api::mesh_discover)
-        .ship_route(Route::MeshStatusUpdate, rest_api::mesh_status_update)
-        .ship_route(Route::MeshEvents_template(), rest_api::mesh_events)
+        // Actor reads (L0 kernel — not the deprecated mesh.* op surface)
         .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
         .ship_route(Route::EventRoute, actor_api::event_route)
         .ship_route(Route::ListActors, actors_api::list_actors_handler)
         .ship_route(Route::ListMesh, actors_api::list_mesh_handler)
         .ship_route(Route::GetActor_template(), actors_api::get_actor_handler)
         .ship_route(Route::ActorEvents_template(), actors_api::list_actor_events_handler)
-        .ship_route(Route::ActorInput_template(), actors_api::actor_input_handler)
-        .ship_route(Route::MeshSnapshot, actors_api::mesh_snapshot_handler)
-        .ship_route(Route::MeshEventsStream, actors_api::mesh_events_handler)
-        .ship_route(Route::KillTree_template(), actors_api::kill_tree_handler)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Isolation reads are served by the proto IsolationService
