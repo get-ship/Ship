@@ -31,6 +31,8 @@
 pub mod agents;
 pub mod agents_index;
 pub mod agents_write;
+pub mod crud;
+pub mod discover;
 pub mod error;
 pub mod library;
 pub mod local;

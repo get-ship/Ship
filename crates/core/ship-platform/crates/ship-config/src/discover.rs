@@ -1,6 +1,6 @@
-use ship_config::project::ProjectDiscovery;
-use ship_substrate::project::SHIP_DIR_NAME;
+use crate::project::ProjectDiscovery;
 use anyhow::Result;
+use ship_substrate::project::SHIP_DIR_NAME;
 use std::path::PathBuf;
 
 pub fn discover_projects(root: PathBuf) -> Result<Vec<ProjectDiscovery>> {
