@@ -100,7 +100,7 @@ impl SpawnPolicy for NoopSpawnPolicy {
 #[cfg(test)]
 mod role_tests {
     use super::*;
-    use ship_platform::auth::scopes::{scopes_for_role, Scope};
+    use ship_auth::scopes::{scopes_for_role, Scope};
     use ship_platform::config::AgentProfile;
 
     fn cfg_with(id: &str, role: Option<&str>) -> ProjectConfig {

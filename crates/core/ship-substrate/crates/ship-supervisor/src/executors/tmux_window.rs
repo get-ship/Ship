@@ -15,10 +15,10 @@
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use ship_platform::services::dispatch_ports::{
+use ship_substrate::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
-use ship_platform::services::harness_adapter::adapter_for_or_default;
+use ship_harnesses::harness_adapter::adapter_for_or_default;
 
 /// Job executor that runs each pipeline step inside a tmux window.
 pub(crate) struct TmuxWindowExecutor;

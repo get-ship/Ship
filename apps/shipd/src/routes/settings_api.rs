@@ -36,12 +36,12 @@ fn cached_harnesses() -> Vec<ProviderStatus> {
             return cached.clone();
         }
     }
-    let harnesses: Vec<ProviderStatus> = ship_platform::agents::harnesses::HARNESSES
+    let harnesses: Vec<ProviderStatus> = ship_agents::agent_domain::harnesses::HARNESSES
         .iter()
         .map(|d| {
-            let available = ship_platform::agents::harnesses::detect_binary(d.binary);
+            let available = ship_agents::agent_domain::harnesses::detect_binary(d.binary);
             let version = if available {
-                ship_platform::agents::harnesses::detect_version(d.binary)
+                ship_agents::agent_domain::harnesses::detect_version(d.binary)
             } else {
                 None
             };

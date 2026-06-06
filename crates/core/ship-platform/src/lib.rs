@@ -1,42 +1,9 @@
-// ── Device-domain re-exports (back-compat) ───────────────────────────────────
-// The sandbox module moved from this crate to `ship-device` as part of the
-// supervisor→platform cycle break (c2-sandbox-device). Re-export its public
-// surface here so downstream callers (`apps/shipd`, the supervisor) can keep
-// importing `ship_platform::sandbox::*` until they migrate in lockstep.
-pub use ship_device::sandbox::{
-    dispatcher, RuntimeEndpoint, Sandbox, SandboxDispatcher, SandboxError,
-    SandboxId, SandboxLifetime, SandboxName, SandboxRegistry, SandboxState,
-};
 // ── L1 modules (agent/collection domain layer) ────────────────────────────────
-pub mod agents;
-pub mod auth;
 pub mod commands;
 pub mod config;
-pub mod hooks;
 pub mod isolation;
 pub mod isolation_ops;
-/// Reactive trigger engine — re-exported from the `ship-triggers` L1 crate.
-pub use ship_triggers as triggers;
-pub use ship_kv as kv;
-pub mod registry;
 pub mod services;
-pub mod sessions;
-// View-authoring + compile services. Carved out to the `ship-views` crate
-// in a later step (c5-views); kept here for now and re-exported from
-// ship-views when that lands.
-pub use ship_views::view_authoring;
-
-// Toolchain is an L0 concern (binary management infra — ensure/install/update
-// of the bundled `sui-compiler`). It lives in `ship_substrate::toolchain` and
-// is re-exported here for back-compat with downstream callers that import
-// `ship_platform::toolchain::*`.
-pub use ship_substrate::toolchain;
-// Module aliases — sub-paths of agents that callers reference at crate root.
-pub use agents::permissions;
-pub use agents::rule;
-pub use agents::skill;
-pub use agents::skill_paths;
-pub use agents::skill_vars;
 
 #[cfg(test)]
 pub mod testutil;
@@ -56,21 +23,21 @@ fn install_defaults_inner() {
             // pulls from those homes. The pipeline-run projection registers
             // separately from `ship-pipeline-runtime` (it depends on this
             // crate, so it can't be referenced from here).
-            Box::new(services::compile::CompileStateProjection),
+            Box::new(ship_agents::services::compile::CompileStateProjection),
             Box::new(ship_substrate::db::projects::ProjectsProjection),
             // Per-space settings overlay (event-sourced fold of
             // `space.setting.changed`). The live overlay read is owned by the
             // ship-space crate's own DataStore-backed table (`SpaceService.Info`);
             // this projection materializes the same events for the event history.
             Box::new(config::SpaceSettingsProjection),
-            Box::new(auth::AuthSessionsProjection),
-            Box::new(auth::DaemonOwnerProjection),
+            Box::new(ship_auth::AuthSessionsProjection),
+            Box::new(ship_auth::DaemonOwnerProjection),
             // Per-agent approved grant baseline the mint path reads.
-            Box::new(services::permissions::ProvisionedGrantsProjection),
+            Box::new(ship_agents::services::permissions::ProvisionedGrantsProjection),
             // Agent-session primitive — sibling of pipeline runs. Tracks
             // single-agent dispatches (bare ship use, MCP dispatch,
             // pipeline-step sessions).
-            Box::new(services::sessions::AgentSessionProjection),
+            Box::new(ship_agents::services::sessions::AgentSessionProjection),
             // ship-analytics — folds hook.* into rollup tables. Lives
             // in its own crate (queries, cost, mining) so downstream
             // dashboard / billing / harness-mining work has a home

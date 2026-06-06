@@ -13,7 +13,7 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::store::{EventStore, SqliteEventStore};
 use ship_substrate::events::EventEnvelope;
 use ship_pipeline_runtime::projections::pipeline_run::{load_pipeline_runs_at, PipelineRunStatus};
-use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor};
+use ship_substrate::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor};
 use ship_pipeline_runtime::orchestrator::OrchestratorContext;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -200,7 +200,7 @@ async fn pipeline_advances_through_all_steps() {
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
         registry: Arc::new(SharedRegistry(Arc::new(Mutex::new(ProcessRegistry::new())))),
-        probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_substrate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         spawn_policy: Arc::new(ship_pipeline_runtime::orchestrator::spawn_policy::NoopSpawnPolicy),
         projections: Arc::new(ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -454,7 +454,7 @@ async fn run_step_advances_to_agent_step() {
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
         registry: Arc::new(SharedRegistry(Arc::new(Mutex::new(ProcessRegistry::new())))),
-        probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_substrate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         spawn_policy: Arc::new(ship_pipeline_runtime::orchestrator::spawn_policy::NoopSpawnPolicy),
         projections: Arc::new(ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -546,7 +546,7 @@ async fn first_step_run_executes_without_agent() {
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
         registry: Arc::new(SharedRegistry(Arc::new(Mutex::new(ProcessRegistry::new())))),
-        probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_substrate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         spawn_policy: Arc::new(ship_pipeline_runtime::orchestrator::spawn_policy::NoopSpawnPolicy),
         projections: Arc::new(ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),

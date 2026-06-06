@@ -40,7 +40,7 @@ impl ProjectState {
                 return ProjectState::default();
             }
         };
-        match ship_platform::services::compile::projection::load(&space_id) {
+        match ship_agents::services::compile::projection::load(&space_id) {
             Ok(Some(row)) => ProjectState {
                 active_agent: row.active_agent,
                 compiled_at: Some(row.compiled_at),

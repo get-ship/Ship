@@ -11,7 +11,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use ship_platform::triggers::sources::webhook::{WebhookResult, WebhookSource};
+use ship_triggers::sources::webhook::{WebhookResult, WebhookSource};
 use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::Mutex;

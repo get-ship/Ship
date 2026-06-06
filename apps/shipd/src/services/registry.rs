@@ -18,7 +18,7 @@
 use serde_json::Value;
 
 use crate::ship_runtime::ApiState;
-use ship_platform::services::files::{FilesService, Scope};
+use ship_files::files::{FilesService, Scope};
 
 /// Structured error returned from a registry call. Rendered verbatim
 /// into the template as an `{error, message}` object (per spec §11.3

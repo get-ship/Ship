@@ -414,7 +414,7 @@ pub(crate) async fn emit_composed_session_terminal(
     exit_code: Option<i32>,
 ) {
     let session_slug = format!("{run_slug}::{step_name}");
-    let session = match ship_platform::services::sessions::projection::load_session_by_slug(&session_slug) {
+    let session = match ship_agents::services::sessions::projection::load_session_by_slug(&session_slug) {
         Ok(Some(s)) => s,
         _ => return,
     };

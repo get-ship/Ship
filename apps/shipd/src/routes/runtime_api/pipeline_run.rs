@@ -86,7 +86,7 @@ pub async fn run_pipeline(
             // Composed overlay (local + dep pipelines) when the space has deps;
             // raw `.ship/` otherwise — dispatch can run a dep-shipped pipeline.
             let pipelines_dir =
-                ship_platform::registry::compose::composed_root_for(&ship).join("pipelines");
+                ship_store::compose::composed_root_for(&ship).join("pipelines");
             if pipelines_dir.is_dir() {
                 let candidate = pipelines_dir.join(format!("{}.jsonc", req.pipeline));
                 if candidate.exists() {

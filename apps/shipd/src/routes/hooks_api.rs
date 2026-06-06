@@ -268,7 +268,7 @@ fn broadcast_tool_use(
             if s.len() > 400 { s.chars().take(400).collect() } else { s }
         })
         .unwrap_or_default();
-    let ev = ship_platform::services::harness_adapter::HarnessEvent::ToolUse {
+    let ev = ship_harnesses::harness_adapter::HarnessEvent::ToolUse {
         tool: tool.to_string(),
         input_preview,
     };

@@ -48,7 +48,7 @@ pub fn view_search_dirs() -> Vec<ViewSearchDir> {
         // local views, never the composed cache.
         let project_ship = ship_substrate::ShipHome::project_ship_dir(&workspace);
         out.push(ViewSearchDir {
-            path: ship_platform::registry::compose::composed_root_for(&project_ship).join("views"),
+            path: ship_store::compose::composed_root_for(&project_ship).join("views"),
             source: "project",
         });
     }

@@ -266,7 +266,7 @@ mod tests {
             workspace_id: None,
             space_id: None,
             session_id: None,
-            scopes: ship_platform::auth::scopes::scopes_for_role(Some("worker")),
+            scopes: ship_auth::scopes::scopes_for_role(Some("worker")),
             grants: vec![],
             operator_cred: false,
         };
@@ -334,7 +334,7 @@ mod tests {
             space_id: None,
             session_id: None,
             scopes: vec![],
-            grants: ship_platform::auth::scopes::grants_for_role(Some("commander")),
+            grants: ship_auth::scopes::grants_for_role(Some("commander")),
             operator_cred: false,
         };
         let ctx = CommandCtx { state: &harness.state, auth: &auth };

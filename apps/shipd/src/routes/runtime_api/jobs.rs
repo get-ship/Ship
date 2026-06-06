@@ -360,7 +360,7 @@ async fn cancel_agent_session(
     slug: &str,
     req: CancelJobRequest,
 ) -> (StatusCode, Json<MeshResponse>) {
-    use ship_platform::services::sessions::projection::load_session_by_slug_at;
+    use ship_agents::services::sessions::projection::load_session_by_slug_at;
     use ship_substrate::events::agent_session::{
         event_types as agent_event_types, AgentSessionCancelledPayload,
     };

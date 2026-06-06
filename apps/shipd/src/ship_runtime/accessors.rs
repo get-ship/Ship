@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use ship_platform::services::mesh::SharedMeshRegistry;
+use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
 use crate::supervisor::run_dispatch::DispatchHandle;
 
@@ -68,29 +68,29 @@ impl ShipRuntime {
     /// `RulesService` accessor — pilot for the modular-runtime spec 02
     /// service-layer pattern. HTTP handlers in `services::rules::*`
     /// call through this rather than reaching into runtime state.
-    pub fn rules(&self) -> &dyn ship_platform::services::rules::service::RulesService {
+    pub fn rules(&self) -> &dyn ship_agents::services::rules::service::RulesService {
         &*self.rules
     }
 
     /// `PermissionsService` accessor — second mr-02 pilot.
     pub fn permissions(
         &self,
-    ) -> &dyn ship_platform::services::permissions::service::PermissionsService {
+    ) -> &dyn ship_agents::services::permissions::service::PermissionsService {
         &*self.permissions
     }
 
     /// `McpService` accessor — third mr-02 pilot.
-    pub fn mcp(&self) -> &dyn ship_platform::services::mcp::service::McpService {
+    pub fn mcp(&self) -> &dyn ship_agents::services::mcp::service::McpService {
         &*self.mcp
     }
 
     /// `SkillsService` accessor.
-    pub fn skills(&self) -> &dyn ship_platform::services::skills::service::SkillsService {
+    pub fn skills(&self) -> &dyn ship_agents::services::skills::service::SkillsService {
         &*self.skills
     }
 
     /// `AgentsService` accessor.
-    pub fn agents(&self) -> &dyn ship_platform::services::agents::service::AgentsService {
+    pub fn agents(&self) -> &dyn ship_agents::services::agents::service::AgentsService {
         &*self.agents
     }
 

@@ -379,12 +379,12 @@ async fn mesh_discover_via_router() {
         let mut reg = daemon.state.mesh_registry().write().await;
         reg.insert(
             "agent.discoverable".into(),
-            ship_platform::services::mesh::MeshEntry {
+            ship_substrate::services::mesh::MeshEntry {
                 agent_id: "agent.discoverable".into(),
                 label: "agent.discoverable".into(),
                 capabilities: vec!["rust".into()],
                 registered_at: chrono::Utc::now(),
-                status: ship_platform::services::mesh::AgentStatus::Active,
+                status: ship_substrate::services::mesh::AgentStatus::Active,
             },
         );
     }

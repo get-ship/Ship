@@ -1,6 +1,6 @@
 //! MeshManager — owns the mesh service and shared registry.
 
-use ship_platform::services::mesh::SharedMeshRegistry;
+use ship_substrate::services::mesh::SharedMeshRegistry;
 
 /// Manages the mesh service and its shared registry.
 pub struct MeshManager {

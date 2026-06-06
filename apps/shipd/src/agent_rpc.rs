@@ -419,7 +419,7 @@ mod tests {
     /// `agent_rpc_helpers::agent_control_write`, called after the gate clears).
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn agent_grant_upgrades_live_session_and_persists_baseline() {
-        use ship_platform::auth::scopes::DaemonSession;
+        use ship_auth::scopes::DaemonSession;
         let harness = crate::test_harness::TestDaemon::new().await;
         let token = "sess-grant-test-rpc";
         {
@@ -447,7 +447,7 @@ mod tests {
         // Inline the domain logic that was in command/agent.rs — the same logic
         // now lives in agent_rpc_helpers::agent_control_write.
         let mut baseline: std::collections::BTreeSet<String> =
-            ship_platform::services::permissions::projection::provisioned_grants_for("worker-y")
+            ship_agents::services::permissions::projection::provisioned_grants_for("worker-y")
                 .ok()
                 .flatten()
                 .unwrap_or_default()
@@ -475,11 +475,11 @@ mod tests {
         }
         baseline.extend(new_grants.iter().cloned());
         let provisioned: Vec<String> = baseline.into_iter().collect();
-        ship_platform::auth::scopes::provision_grants(
+        ship_auth::scopes::provision_grants(
             "worker-y", &provisioned, "operator", op.agent_id.as_deref(),
         ).expect("provision_grants must succeed");
         assert_eq!(
-            ship_platform::services::permissions::projection::provisioned_grants_for("worker-y")
+            ship_agents::services::permissions::projection::provisioned_grants_for("worker-y")
                 .unwrap(),
             Some(vec!["ship-orchestration".to_string()]),
             "operator approval must persist the provisioned baseline"
@@ -490,8 +490,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn agents_create_designer_grant_writes_through() {
         let harness = crate::test_harness::TestDaemon::new().await;
-        use ship_platform::services::agents::service::CreateArgs;
-        use ship_platform::services::files::Scope;
+        use ship_agents::services::agents::service::CreateArgs;
+        use ship_files::files::Scope;
         let doc: serde_json::Value = serde_json::from_str("{\"role\":\"worker\"}").unwrap();
         let resolved = harness.state
             .agents()

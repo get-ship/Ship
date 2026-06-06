@@ -124,8 +124,8 @@ pub fn collect_types() -> TypeCollection {
 
     // workspace/types_session.rs (the workspace primitive retired; only
     // session-shaped types remain)
-    c.register::<ship_platform::sessions::Session>();
-    c.register::<ship_platform::sessions::SessionStatus>();
+    c.register::<ship_agents::sessions::Session>();
+    c.register::<ship_agents::sessions::SessionStatus>();
 
     c
 }
@@ -157,32 +157,32 @@ pub fn collect_framework_types() -> TypeCollection {
     c.register::<shipd::views::resolve::ManifestRail>();
 
     // view-authoring — contract types shared with the chrome edit-mode UI.
-    c.register::<ship_platform::view_authoring::CompileError>();
-    c.register::<ship_platform::view_authoring::SnapshotMeta>();
-    c.register::<ship_platform::view_authoring::ViewReadSourceRequest>();
-    c.register::<ship_platform::view_authoring::ViewReadSourceResponse>();
-    c.register::<ship_platform::view_authoring::ViewWriteSourceRequest>();
-    c.register::<ship_platform::view_authoring::ViewWriteSourceResponse>();
-    c.register::<ship_platform::view_authoring::ViewCompileCheckRequest>();
-    c.register::<ship_platform::view_authoring::ViewCompileCheckResponse>();
-    c.register::<ship_platform::view_authoring::ViewCollectionsSchemaRequest>();
-    c.register::<ship_platform::view_authoring::ViewListSiblingsRequest>();
-    c.register::<ship_platform::view_authoring::SiblingView>();
-    c.register::<ship_platform::view_authoring::ViewListSiblingsResponse>();
-    c.register::<ship_platform::view_authoring::ViewThemeTokensRequest>();
-    c.register::<ship_platform::view_authoring::ViewThemeTokensResponse>();
-    c.register::<ship_platform::view_authoring::ViewPreviewSnapshotRequest>();
-    c.register::<ship_platform::view_authoring::ViewPreviewSnapshotResponse>();
-    c.register::<ship_platform::view_authoring::AnnotationKind>();
-    c.register::<ship_platform::view_authoring::ViewAnnotateRequest>();
-    c.register::<ship_platform::view_authoring::ViewAnnotateResponse>();
-    c.register::<ship_platform::view_authoring::ViewListSnapshotsRequest>();
-    c.register::<ship_platform::view_authoring::ViewListSnapshotsResponse>();
-    c.register::<ship_platform::view_authoring::ViewRestoreSnapshotRequest>();
-    c.register::<ship_platform::view_authoring::ViewRestoreSnapshotResponse>();
-    c.register::<ship_platform::view_authoring::ViewEditModeEnterRequest>();
-    c.register::<ship_platform::view_authoring::ViewEditModeExitRequest>();
-    c.register::<ship_platform::view_authoring::ViewEditModeAck>();
+    c.register::<ship_views::view_authoring::CompileError>();
+    c.register::<ship_views::view_authoring::SnapshotMeta>();
+    c.register::<ship_views::view_authoring::ViewReadSourceRequest>();
+    c.register::<ship_views::view_authoring::ViewReadSourceResponse>();
+    c.register::<ship_views::view_authoring::ViewWriteSourceRequest>();
+    c.register::<ship_views::view_authoring::ViewWriteSourceResponse>();
+    c.register::<ship_views::view_authoring::ViewCompileCheckRequest>();
+    c.register::<ship_views::view_authoring::ViewCompileCheckResponse>();
+    c.register::<ship_views::view_authoring::ViewCollectionsSchemaRequest>();
+    c.register::<ship_views::view_authoring::ViewListSiblingsRequest>();
+    c.register::<ship_views::view_authoring::SiblingView>();
+    c.register::<ship_views::view_authoring::ViewListSiblingsResponse>();
+    c.register::<ship_views::view_authoring::ViewThemeTokensRequest>();
+    c.register::<ship_views::view_authoring::ViewThemeTokensResponse>();
+    c.register::<ship_views::view_authoring::ViewPreviewSnapshotRequest>();
+    c.register::<ship_views::view_authoring::ViewPreviewSnapshotResponse>();
+    c.register::<ship_views::view_authoring::AnnotationKind>();
+    c.register::<ship_views::view_authoring::ViewAnnotateRequest>();
+    c.register::<ship_views::view_authoring::ViewAnnotateResponse>();
+    c.register::<ship_views::view_authoring::ViewListSnapshotsRequest>();
+    c.register::<ship_views::view_authoring::ViewListSnapshotsResponse>();
+    c.register::<ship_views::view_authoring::ViewRestoreSnapshotRequest>();
+    c.register::<ship_views::view_authoring::ViewRestoreSnapshotResponse>();
+    c.register::<ship_views::view_authoring::ViewEditModeEnterRequest>();
+    c.register::<ship_views::view_authoring::ViewEditModeExitRequest>();
+    c.register::<ship_views::view_authoring::ViewEditModeAck>();
 
     c
 }
@@ -207,8 +207,8 @@ pub fn collect_ship_data_types() -> TypeCollection {
     c.register::<ship_platform::services::git::diff::ParsedDiff>();
 
     // agents — summary list payload.
-    c.register::<ship_platform::services::agents::view_state::AgentSummary>();
-    c.register::<ship_platform::services::agents::view_state::AgentsSummariesResponse>();
+    c.register::<ship_agents::services::agents::view_state::AgentSummary>();
+    c.register::<ship_agents::services::agents::view_state::AgentsSummariesResponse>();
 
     // account — Ship Cloud account state for the chrome chip.
     c.register::<ship_account::types::AccountState>();
@@ -220,7 +220,7 @@ pub fn collect_ship_data_types() -> TypeCollection {
 
     // skills — index row. `#[specta(rename = "SkillIndexEntry")]` on the Rust
     // struct disambiguates it from the other domains' IndexEntry.
-    c.register::<ship_platform::services::skills::state::IndexEntry>();
+    c.register::<ship_agents::services::skills::state::IndexEntry>();
 
     // collections — list row + field record (was hand-written in ship-sdk.ts);
     // pulls in CollectionFieldRecord as a nested type.

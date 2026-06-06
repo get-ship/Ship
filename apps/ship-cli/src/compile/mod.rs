@@ -32,7 +32,7 @@ pub struct CompileOptions<'a> {
 }
 
 pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
-    use ship_platform::services::compile as svc;
+    use ship_agents::services::compile as svc;
 
     let extra_skills = opts.extra_skills.clone();
 

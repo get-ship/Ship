@@ -57,8 +57,8 @@ fn temp_state() -> crate::ship_runtime::ApiState {
 // proving the domain logic still works. They are the replacement coverage for the
 // former registry dispatch tests.
 
-use ship_platform::services::agents::{create, state as agents_state, view_state};
-use ship_platform::services::files::FilesService;
+use ship_agents::services::agents::{create, state as agents_state, view_state};
+use ship_files::files::FilesService;
 
 #[test]
 fn agents_list_domain_fn_returns_items_key() {
@@ -101,8 +101,8 @@ fn agents_get_response_serializes_like_anonymous_json() {
     // `agents.get`'s success shape needs an agent on disk; prove the named
     // wrapper is wire-identical to the old `json!({id, scope, doc})` at the
     // serialization boundary instead.
-    use ship_platform::services::agents::state::ScopeTag;
-    use ship_platform::services::agents::wire_types::AgentGetResponse;
+    use ship_agents::services::agents::state::ScopeTag;
+    use ship_agents::services::agents::wire_types::AgentGetResponse;
     let doc = json!({ "agent": { "name": "X" } });
     let typed = AgentGetResponse {
         id: "x".to_string(),

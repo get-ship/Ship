@@ -28,10 +28,10 @@ pub struct RegistryWindowSessions<'a> {
 #[async_trait]
 impl WindowSessions for RegistryWindowSessions<'_> {
     async fn mint_window_session(&self, space_id: &str, pid: u32) -> Result<String> {
-        let token = ship_platform::auth::scopes::generate_session_token()
+        let token = ship_auth::scopes::generate_session_token()
             .map_err(|e| anyhow!(e.to_string()))?;
         let session =
-            ship_platform::auth::scopes::space_window_session(space_id, pid, token.clone());
+            ship_auth::scopes::space_window_session(space_id, pid, token.clone());
         self.registry.lock().await.insert(token.clone(), session);
         Ok(token)
     }

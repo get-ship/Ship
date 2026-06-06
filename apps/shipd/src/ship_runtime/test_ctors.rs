@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use ship_platform::services::mesh::SharedMeshRegistry;
+use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
 
 use super::{ShipRuntime, RuntimeConfig, SharedKernel, WorktreeResolver, default_worktree_resolver};
@@ -15,10 +15,10 @@ impl ShipRuntime {
     pub fn new_test(ship_dir: std::path::PathBuf, kernel: SharedKernel) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
-        let rules = ship_platform::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
-        let mcp = ship_platform::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
-        let skills = ship_platform::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
-        let agents = ship_platform::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        let rules = ship_agents::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
+        let mcp = ship_agents::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let skills = ship_agents::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
+        let agents = ship_agents::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
             ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
@@ -34,9 +34,9 @@ impl ShipRuntime {
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
-        let permissions: std::sync::Arc<dyn ship_platform::services::permissions::service::PermissionsService> =
+        let permissions: std::sync::Arc<dyn ship_agents::services::permissions::service::PermissionsService> =
             std::sync::Arc::new(
-                ship_platform::services::permissions::service::PermissionsServiceImpl::with_roots(
+                ship_agents::services::permissions::service::PermissionsServiceImpl::with_roots(
                     ship_dir.clone(),
                     None,
                     mcp.clone(),
@@ -90,10 +90,10 @@ impl ShipRuntime {
     ) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
-        let rules = ship_platform::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
-        let mcp = ship_platform::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
-        let skills = ship_platform::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
-        let agents = ship_platform::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        let rules = ship_agents::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
+        let mcp = ship_agents::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let skills = ship_agents::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
+        let agents = ship_agents::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
             ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
@@ -109,9 +109,9 @@ impl ShipRuntime {
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
-        let permissions: std::sync::Arc<dyn ship_platform::services::permissions::service::PermissionsService> =
+        let permissions: std::sync::Arc<dyn ship_agents::services::permissions::service::PermissionsService> =
             std::sync::Arc::new(
-                ship_platform::services::permissions::service::PermissionsServiceImpl::with_roots(
+                ship_agents::services::permissions::service::PermissionsServiceImpl::with_roots(
                     ship_dir.clone(),
                     None,
                     mcp.clone(),

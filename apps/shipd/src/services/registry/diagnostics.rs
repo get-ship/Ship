@@ -9,7 +9,7 @@ pub fn try_dispatch(
     name: &str,
     _args: &Value,
     state: &ApiState,
-    _files: &ship_platform::services::files::FilesService,
+    _files: &ship_files::files::FilesService,
 ) -> Result<Option<Value>, RegistryError> {
     match name {
         "diagnostics.snapshot" => {

@@ -32,7 +32,7 @@ pub(crate) use tmux_window::TmuxWindowExecutor;
 /// which callers (e.g. the agent-session WebSocket attach route) treat as
 /// "not PTY-attachable" and respond with `409 Conflict`.
 pub fn pty_actor_handle(
-    eh: &ship_platform::services::dispatch_ports::ExecutorHandle,
+    eh: &ship_substrate::services::dispatch_ports::ExecutorHandle,
 ) -> Option<ship_substrate::supervisor::ActorHandle> {
     process::ProcessState::actor_handle_from(&eh.inner)
 }
@@ -57,7 +57,7 @@ pub(crate) fn real_spawn_guard() -> std::sync::MutexGuard<'static, ()> {
 pub fn pty_executor_handle_for_test(
     slug: &str,
     actor: ship_substrate::supervisor::ActorHandle,
-) -> ship_platform::services::dispatch_ports::ExecutorHandle {
+) -> ship_substrate::services::dispatch_ports::ExecutorHandle {
     process::ProcessState::executor_handle_for_test(slug, actor)
 }
 

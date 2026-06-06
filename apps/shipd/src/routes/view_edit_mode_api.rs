@@ -16,7 +16,7 @@ use axum::{
 };
 
 use crate::auth::{AuthContext};
-use ship_platform::view_authoring::{self, ViewEditModeAck};
+use ship_views::view_authoring::{self, ViewEditModeAck};
 
 pub fn is_valid_view_name_pub(name: &str) -> bool {
     is_valid_view_name(name)

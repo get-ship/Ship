@@ -57,7 +57,7 @@ macro_rules! ship_ops {
             name: &str,
             args: &::serde_json::Value,
             state: &$crate::ship_runtime::ApiState,
-            files: &::ship_platform::services::files::FilesService,
+            files: &::ship_files::files::FilesService,
         ) -> ::std::result::Result<
             ::std::option::Option<::serde_json::Value>,
             $crate::services::registry::RegistryError,
@@ -68,7 +68,7 @@ macro_rules! ship_ops {
                         let run: fn(
                             &::serde_json::Value,
                             &$crate::ship_runtime::ApiState,
-                            &::ship_platform::services::files::FilesService,
+                            &::ship_files::files::FilesService,
                         ) -> ::std::result::Result<
                             $ret,
                             $crate::services::registry::RegistryError,

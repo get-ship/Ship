@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use crate::paths::mcp_path;
 
-pub use ship_platform::services::compile::{McpEntry, McpFile};
+pub use ship_agents::services::compile::{McpEntry, McpFile};
 
 pub fn add_http(id: &str, name: Option<String>, url: &str) -> Result<()> {
     let path = mcp_path();

@@ -291,7 +291,7 @@ fn parse_type_ref(variant: &str, kind: &str, src: &str) -> TypeRef {
 /// Parse `@auth public|scope <Scope>|handler`. The annotation is
 /// mandatory — a missing `@auth` line panics with the offending variant
 /// name. The accepted Scope identifiers are the variants of
-/// `ship_platform::auth::scopes::Scope`; we accept any plain identifier
+/// `ship_auth::scopes::Scope`; we accept any plain identifier
 /// here and let `rustc` catch unknown scopes at compile time of the
 /// generated match arm.
 ///

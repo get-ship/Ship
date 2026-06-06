@@ -9,9 +9,9 @@
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 
 use ship_ops_rpc::{IndexEntry, JsonResponse, McpIndexResponse, McpService, ScopedMutation};
-use ship_platform::services::files::Scope;
-use ship_platform::services::mcp::service::{CreateArgs, PutArgs};
-use ship_platform::services::mcp::state;
+use ship_files::files::Scope;
+use ship_agents::services::mcp::service::{CreateArgs, PutArgs};
+use ship_agents::services::mcp::state;
 
 use crate::ops_rpc::OpsImpl;
 
