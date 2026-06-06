@@ -108,7 +108,6 @@ pub mod wire;
 pub mod fixtures;
 
 pub mod agents;
-pub mod skills;
 pub mod pipelines;
 pub mod collections;
 pub mod sessions;
@@ -129,9 +128,6 @@ pub mod diagnostics;
 pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, RegistryError> {
     let files = FilesService::resolve_roots(state.ship_dir());
     if let Some(value) = agents::try_dispatch(name, args, state, &files)? {
-        return Ok(value);
-    }
-    if let Some(value) = skills::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
     if let Some(value) = pipelines::try_dispatch(name, args, state, &files)? {

@@ -51,7 +51,6 @@ fn launch_view_ops_are_registered() {
     let n = names();
     for required in [
         "agents.summaries",
-        "skills.list",
         "collections.list",
     ] {
         assert!(
@@ -95,12 +94,6 @@ fn collections_list_returns_user_schema_items() {
 }
 
 
-#[test]
-fn skills_list_returns_array() {
-    let state = temp_state();
-    let v = call("skills.list", &json!({}), &state).expect("skills.list ok");
-    assert!(v.get("items").and_then(|i| i.as_array()).is_some(), "skills.list returns items[]");
-}
 
 // ── agents byte-identical gate ────────────────────────────────────────
 //
@@ -198,26 +191,6 @@ fn sessions_events_wire_identical_to_anonymous_json() {
 }
 
 // ── remaining domains: structural / byte-identical smoke ──────────────
-
-#[test]
-#[ignore = "doomed: registry dispatch-by-string apparatus (census #5) is slated for deletion; registry stays red until the cut, not fixed. See .artifacts/gate-triage-2.md cluster A"]
-fn skills_pipelines_specs_list_shapes_preserved() {
-    let state = temp_state();
-    for op in ["skills.list", "pipelines.list", "specs.list", "collections.list"] {
-        let v = call(op, &json!({}), &state).unwrap_or_else(|e| panic!("{op}: {e}"));
-        assert!(v.get("items").and_then(|i| i.as_array()).is_some(), "{op} has items[]");
-    }
-}
-
-#[test]
-fn skills_summaries_has_rail_fields() {
-    let state = temp_state();
-    let v = call("skills.summaries", &json!({}), &state).expect("skills.summaries ok");
-    for key in ["items", "filtered", "groups", "kind_counts", "tags", "total", "q"] {
-        assert!(v.get(key).is_some(), "skills.summaries missing `{key}`");
-    }
-    assert_eq!(v["active_kind"], "all");
-}
 
 
 #[test]
