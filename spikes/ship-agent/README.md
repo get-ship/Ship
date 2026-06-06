@@ -58,6 +58,7 @@ agent_loop.rs ─ run_step: rig drives the model turn
 | Surface | `sdkgen.rs` + `dtsgen.rs` (shared registry), `module_loader.rs` | scoped SDK (JS + types) from `proto∩grant`; deny-by-default imports |
 | Execution | `runtime.rs`, `script_executor.rs` | deno_core isolate; the `!Send` VM-thread bridge |
 | Intelligence | `lsp.rs`, `agent_loop.rs` | dual-LSP-fed verify; rig loop + the two tools |
+| Events | `events.rs` | `AgentEvent` vocabulary (serde, internally-tagged); `EventSink` trait + `CollectingSink` / `TerminalSink`; `LoopItem` mirror + pure `translate` fn |
 
 ## Invariants (must always hold)
 
