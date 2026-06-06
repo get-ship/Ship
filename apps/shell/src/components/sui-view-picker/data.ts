@@ -80,9 +80,9 @@ export async function fetchViews(_url?: string): Promise<ApiView[]> {
 
 export async function fetchProject(_url?: string): Promise<Project | null> {
   try {
-    const body = JSON.parse((await ops.project.listProjects({})).json) as { projects?: Project[]; active?: string }
-    const list = body.projects ?? []
-    return list.find((p) => p.id === body.active) ?? list[0] ?? null
+    const resp = await ops.space.list({})
+    const list = resp.spaces.map((s) => ({ id: s.id, name: s.name, path: s.path }))
+    return list.find((p) => p.id === resp.activeId) ?? list[0] ?? null
   } catch { return null }
 }
 
@@ -90,16 +90,19 @@ export async function fetchProject(_url?: string): Promise<Project | null> {
  *  view+project picker (per Task #54 — single popover for both). */
 export async function fetchProjects(_url?: string): Promise<{ projects: Project[]; activeId: string | null }> {
   try {
-    const body = JSON.parse((await ops.project.listProjects({})).json) as { projects?: Project[]; active?: string }
-    return { projects: body.projects ?? [], activeId: body.active ?? null }
+    const resp = await ops.space.list({})
+    return {
+      projects: resp.spaces.map((s) => ({ id: s.id, name: s.name, path: s.path })),
+      activeId: resp.activeId ?? null,
+    }
   } catch { return { projects: [], activeId: null } }
 }
 
-/** POST /api/v1/projects/<id>/activate — switches the daemon's active
- *  project. Returns true on success so the caller can refresh state. */
+/** Switch the daemon's active space. Returns true on success so the caller
+ *  can refresh state. */
 export async function switchProject(id: string): Promise<boolean> {
   try {
-    await ops.project.activate({ id })
+    await ops.space.activate({ id })
     return true
   } catch { return false }
 }

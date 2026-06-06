@@ -170,17 +170,6 @@ fn sessions_events_wire_identical_to_anonymous_json() {
 
 // ── remaining domains: structural / byte-identical smoke ──────────────
 
-
-#[test]
-fn workspaces_active_shape_preserved() {
-    let state = temp_state();
-    let v = call("workspaces.active", &json!({}), &state).expect("workspaces.active ok");
-    assert!(v.as_object().map(|o| o.contains_key("id")).unwrap_or(false), "has id key");
-    let list = call("workspaces.list", &json!({}), &state).expect("workspaces.list ok");
-    assert!(list.get("items").and_then(|i| i.as_array()).is_some(), "list has items[]");
-    assert!(list.as_object().unwrap().contains_key("active"), "list has active key");
-}
-
 #[test]
 fn actors_and_mesh_dispatch_but_absent_from_catalog() {
     // Both are dispatchable read ops but intentionally NOT in the schema

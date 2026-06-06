@@ -142,35 +142,6 @@ pub struct GitDiffResponse {
     pub parsed: ParsedDiff,
 }
 
-// ── workspaces ────────────────────────────────────────────────────────
-
-/// One project-registry row for the workspaces view.
-#[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct WorkspaceRow {
-    pub id: String,
-    pub name: String,
-    pub path: String,
-    pub created_at: Value,
-    pub last_seen_at: Value,
-    pub active: bool,
-}
-
-/// Wire shape of `ship.workspaces.list()`.
-#[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct WorkspacesListResponse {
-    pub items: Vec<WorkspaceRow>,
-    pub active: Option<String>,
-}
-
-/// Wire shape of `ship.workspaces.active()`.
-#[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct WorkspaceActiveResponse {
-    pub id: Option<String>,
-}
-
 // ── collections ───────────────────────────────────────────────────────
 
 /// One field row in a collection summary. Single Rust source for the TS

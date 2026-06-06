@@ -1,12 +1,8 @@
-//! Fixtures for the small daemon-assembled domains: sessions,
-//! workspaces, settings.
+//! Fixtures for the small daemon-assembled domains: sessions, settings.
 
-use serde_json::{json, Value};
+use serde_json::Value;
 
-use crate::services::registry::wire::{
-    SessionsListResponse,
-    WorkspaceActiveResponse, WorkspaceRow, WorkspacesListResponse,
-};
+use crate::services::registry::wire::SessionsListResponse;
 use crate::services::settings::view_state::{
     AboutInfo, FeatureFlag, ProviderRow, SelectOption, SettingsCtx, TerminalConfig,
 };
@@ -34,20 +30,6 @@ fn sessions() -> SessionsListResponse {
     }
 }
 
-
-fn workspaces() -> WorkspacesListResponse {
-    WorkspacesListResponse {
-        items: vec![WorkspaceRow {
-            id: "ws-default".to_string(),
-            name: "ship".to_string(),
-            path: "/home/dev/ship".to_string(),
-            created_at: json!("2026-01-01T08:00:00Z"),
-            last_seen_at: json!("2026-01-01T09:04:12Z"),
-            active: true,
-        }],
-        active: Some("ws-default".to_string()),
-    }
-}
 
 impl SettingsCtx {
     pub fn example() -> Self {
@@ -104,8 +86,6 @@ pub fn examples() -> Vec<(&'static str, Value)> {
     }
     vec![
         ("agents.sessions", v(sessions())),
-        ("workspaces.list", v(workspaces())),
-        ("workspaces.active", v(WorkspaceActiveResponse { id: Some("ws-default".to_string()) })),
         ("settings.state", v(SettingsCtx::example())),
     ]
 }

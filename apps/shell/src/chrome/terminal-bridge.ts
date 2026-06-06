@@ -46,7 +46,7 @@ async function getActiveWorkspaceId(): Promise<string> {
   // shell still spawns in a sensible place. Pre-fix, a missing active
   // project caused the whole spawn to short-circuit silently.
   try {
-    const id = (await ops.project.activeProject({})).id
+    const id = (await ops.space.active({})).active?.id
     if (id) return id
   } catch { /* network error → fall through */ }
   return 'default'

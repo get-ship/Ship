@@ -79,9 +79,9 @@ export default controller({
       s.bar.spawning.set(true)
       s.bar.spawnError.set(null)
       try {
-        const workspace_id = await ops.project
-          .activeProject({})
-          .then((r) => r.id)
+        const workspace_id = await ops.space
+          .active({})
+          .then((r) => r.active?.id)
           .catch(() => undefined)
         if (!workspace_id) {
           s.bar.spawnError.set('No active project — cannot spawn session.')

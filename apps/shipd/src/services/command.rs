@@ -26,7 +26,6 @@ mod agent;
 mod agents;
 mod annotations;
 mod mesh;
-mod project;
 mod surfaces;
 
 /// Ambient context for a command: the runtime + the authenticated caller
@@ -160,9 +159,6 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
                 );
             }
         }
-    }
-    if let Some(value) = project::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
     }
     if let Some(value) = agents::try_dispatch(name, args, ctx).await? {
         return Ok(value);
