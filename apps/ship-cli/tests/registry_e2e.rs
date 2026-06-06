@@ -202,14 +202,19 @@ fn install_writes_lock_with_correct_package_entry() {
 
 #[test]
 fn workspace_state_active_profile_round_trip() {
-    use ship_platform::projects::init_project;
     use ship_platform::kv;
     use ship_substrate::db;
 
     let tmp = TempDir::new().unwrap();
-    // Use init_project so ship.toml gets a stable unique nanoid — avoids
-    // the "tmp-test-test" slug collision that would occur with a hardcoded id.
-    let _ship_dir = init_project(tmp.path()).expect("init_project must succeed");
+    // Bootstrap a minimal .ship/ with ship.toml (stable unique id) so kv
+    // namespace resolution doesn't collide between tests.
+    ship_platform::install_defaults();
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+    std::fs::create_dir_all(&ship_dir).expect("create ship dir");
+    let id = ship_substrate::gen_nanoid();
+    std::fs::write(ship_dir.join("ship.jsonc"), format!("{{\"id\": \"{id}\"}}\n"))
+        .expect("write ship.jsonc");
+    let _ship_dir = ship_dir;
 
     db::ensure_kv_db().expect("ensure_kv_db must succeed");
 

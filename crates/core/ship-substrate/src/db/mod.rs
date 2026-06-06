@@ -19,6 +19,7 @@ pub mod actor_events;
 pub mod cursors;
 pub mod hook_events;
 pub mod daemon_settings;
+pub mod projects;
 pub mod envelope;
 pub mod events;
 pub mod integrity;

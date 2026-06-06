@@ -1,29 +1,41 @@
-//! `projects` projection — the daemon's registry of project paths.
+//! Sync read helpers for the `projects` projection table + the event-sourced
+//! `ProjectsProjection` that materialises it.
 //!
-//! Materialized from `project.registered` / `project.seen` / `project.archived`
-//! events. CLI `ship status` and Studio's project switcher read here.
+//! The `projects` table is the daemon's machine-wide record of known space
+//! paths. It is written by `ship-space` (via the DataStore port + KernelLog)
+//! and materialised here from `project.registered / seen / archived` events.
+//! All reads are sync (sqlx + block_on) so they can be used in sync contexts
+//! (op closures, the space-id resolver, the SpaceRegistry impl).
+//!
+//! No write path lives here. All mutations go through `ship_space::registry`.
 
 use anyhow::Result;
-use sqlx::{Row, SqliteConnection};
+use sqlx::Row as _;
+use sqlx::SqliteConnection;
 
-use ship_substrate::db::block_on;
-use ship_substrate::projections::registry::Projection;
+use crate::db::{block_on, open_runtime_db};
+use crate::project::get_global_dir;
+use crate::projections::registry::Projection;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types::{PROJECT_ARCHIVED, PROJECT_REGISTERED, PROJECT_SEEN};
 use ship_types::payload::{ProjectArchived, ProjectRegistered, ProjectSeen};
 
-/// Read model row for the `projects` table.
-#[derive(Debug, Clone)]
-pub struct ProjectRow {
+/// Public-facing registry record.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SpaceRecord {
     pub id: String,
     pub path: String,
     pub name: String,
-    pub label: Option<String>,
     pub created_at: String,
     pub last_seen_at: String,
-    pub archived_at: Option<String>,
 }
 
+/// Event-sourced materialiser for the `projects` table.
+///
+/// Folds `project.registered / seen / archived` events (Runtime-scoped, live
+/// in `runtime.db`) into the `projects` sqlx table. The ship-space crate is
+/// the sole writer of those events; this projection is the sole writer of the
+/// read-side `projects` table rows.
 pub struct ProjectsProjection;
 
 impl Projection for ProjectsProjection {
@@ -108,71 +120,61 @@ fn apply_archived(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<
     Ok(())
 }
 
-/// List all live (non-archived) projects, sorted by last_seen_at desc.
-pub fn list_active() -> Result<Vec<ProjectRow>> {
+fn open_projects_conn() -> Result<SqliteConnection> {
+    let ship_dir = get_global_dir()?;
+    open_runtime_db(&ship_dir)
+}
+
+fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> SpaceRecord {
+    SpaceRecord {
+        id: row.get(0),
+        path: row.get(1),
+        name: row.get(2),
+        created_at: row.get(3),
+        last_seen_at: row.get(4),
+    }
+}
+
+/// List all live (non-archived) spaces, sorted by `last_seen_at` desc.
+pub fn list_active() -> Result<Vec<SpaceRecord>> {
     let mut conn = open_projects_conn()?;
     let rows = block_on(async {
         sqlx::query(
-            "SELECT id, path, name, label, created_at, last_seen_at, archived_at \
+            "SELECT id, path, name, created_at, last_seen_at \
              FROM projects WHERE archived_at IS NULL ORDER BY last_seen_at DESC",
         )
         .fetch_all(&mut conn)
         .await
     })?;
-    Ok(rows.into_iter().map(row_to_project).collect())
+    Ok(rows.iter().map(row_to_record).collect())
 }
 
-/// Lookup by id.
-pub fn get(id: &str) -> Result<Option<ProjectRow>> {
+/// Look up a single project row by id.
+pub fn get(id: &str) -> Result<Option<SpaceRecord>> {
     let mut conn = open_projects_conn()?;
     let row = block_on(async {
         sqlx::query(
-            "SELECT id, path, name, label, created_at, last_seen_at, archived_at \
+            "SELECT id, path, name, created_at, last_seen_at \
              FROM projects WHERE id = ?",
         )
         .bind(id)
         .fetch_optional(&mut conn)
         .await
     })?;
-    Ok(row.map(row_to_project))
+    Ok(row.as_ref().map(row_to_record))
 }
 
-/// Lookup by path.
-pub fn find_by_path(path: &str) -> Result<Option<ProjectRow>> {
+/// Look up a project by filesystem path.
+pub fn find_by_path(path: &str) -> Result<Option<SpaceRecord>> {
     let mut conn = open_projects_conn()?;
     let row = block_on(async {
         sqlx::query(
-            "SELECT id, path, name, label, created_at, last_seen_at, archived_at \
+            "SELECT id, path, name, created_at, last_seen_at \
              FROM projects WHERE path = ?",
         )
         .bind(path)
         .fetch_optional(&mut conn)
         .await
     })?;
-    Ok(row.map(row_to_project))
-}
-
-/// Open the per-machine `runtime.db` for the projects registry.
-///
-/// The `projects` table is the daemon's machine-wide record of known project
-/// paths — read by id/path with no space in hand, and the source the
-/// `space_id` resolver itself consults. It is therefore Runtime-owned (the
-/// `project.registered/seen/archived` registry events were reclassified to
-/// `{Runtime}` in Phase 4d; a space-partitioned registry could not bootstrap
-/// space-id resolution). See `payload_registry.rs`.
-fn open_projects_conn() -> Result<sqlx::SqliteConnection> {
-    let ship_dir = ship_substrate::project::get_global_dir()?;
-    ship_substrate::db::open_runtime_db(&ship_dir)
-}
-
-fn row_to_project(row: sqlx::sqlite::SqliteRow) -> ProjectRow {
-    ProjectRow {
-        id: row.get(0),
-        path: row.get(1),
-        name: row.get(2),
-        label: row.try_get(3).ok(),
-        created_at: row.get(4),
-        last_seen_at: row.get(5),
-        archived_at: row.try_get(6).ok(),
-    }
+    Ok(row.as_ref().map(row_to_record))
 }

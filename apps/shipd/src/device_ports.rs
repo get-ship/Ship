@@ -9,7 +9,7 @@
 //!     mechanism the retired space-window seam used, now sole-owned here against
 //!     the device crate's `WindowSessions` trait.
 //!   - [`ProjectsSpaceRegistry`] — validates a window's target space against the
-//!     `projects` projection (an L1 read model the device crate does not own).
+//!     `projects` projection table (Runtime-scoped, written by ship-space).
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -51,7 +51,7 @@ pub struct ProjectsSpaceRegistry;
 
 impl SpaceRegistry for ProjectsSpaceRegistry {
     fn space_exists(&self, space_id: &str) -> Result<bool> {
-        Ok(ship_platform::projects::projection::get(space_id)
+        Ok(ship_substrate::db::projects::get(space_id)
             .map_err(|e| anyhow!(e.to_string()))?
             .is_some())
     }
