@@ -15,7 +15,8 @@ pub mod config;
 pub mod hooks;
 pub mod isolation;
 pub mod isolation_ops;
-pub mod triggers;
+/// Reactive trigger engine — re-exported from the `ship-triggers` L1 crate.
+pub use ship_triggers as triggers;
 pub use ship_kv as kv;
 pub mod projects;
 pub mod registry;

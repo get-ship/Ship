@@ -5,7 +5,7 @@
 /// own event; and that an empty trigger set produces no actions.
 use serde_json::{Value, json};
 use ship_substrate::events::EventEnvelope;
-use crate::triggers::engine::HookEngine;
+use crate::engine::HookEngine;
 
 use super::integration_engine::{
     diff, recent_hook_events, test_kernel, tmp_ship_dir, write_hook,

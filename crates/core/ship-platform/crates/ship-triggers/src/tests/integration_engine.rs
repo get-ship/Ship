@@ -10,9 +10,9 @@ use tempfile::TempDir;
 use tokio::sync::Mutex;
 
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use crate::triggers::engine::HookEngine;
-use crate::triggers::filter;
-use crate::config::resolve_hooks_max_depth;
+use crate::engine::HookEngine;
+use crate::filter;
+use ship_config::resolve_hooks_max_depth;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -100,7 +100,7 @@ fn write_schema(ship_dir: &Path, id: &str) {
 /// trigger insert into a file-authored collection validates + lands.
 fn hydrated_registry(ship_dir: &Path) -> Arc<ship_collection::projection::SchemaRegistry> {
     let registry = Arc::new(ship_collection::projection::SchemaRegistry::new());
-    crate::registry::collection_schemas::hydrate_registry(&registry, ship_dir, None);
+    ship_platform::registry::collection_schemas::hydrate_registry(&registry, ship_dir, None);
     registry
 }
 

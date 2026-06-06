@@ -10,12 +10,12 @@ use tokio::sync::Mutex;
 
 use super::TriggerSource;
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use crate::triggers::def::{
+use crate::def::{
     CronSourceDef, FileEventKind, FileSourceDef, HookDef, HookTrigger, TriggerSourceDef,
     WebhookSourceDef,
 };
-use crate::triggers::engine::HookEngine;
-use crate::triggers::loader::{load_triggers_dir, parse_hook, validate_hook};
+use crate::engine::HookEngine;
+use crate::loader::{load_triggers_dir, parse_hook, validate_hook};
 
 // ── Test helpers ─────────────────────────────────────────────────────────────
 

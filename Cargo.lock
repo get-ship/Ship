@@ -8056,6 +8056,7 @@ dependencies = [
  "ship-runner",
  "ship-store",
  "ship-substrate",
+ "ship-triggers",
  "ship-types",
  "ship-views",
  "specta",
@@ -8231,6 +8232,7 @@ dependencies = [
  "async-trait",
  "bytes",
  "chrono",
+ "compiler",
  "futures-util",
  "home",
  "indexmap 2.14.0",
@@ -8283,6 +8285,28 @@ dependencies = [
  "ship-pipeline-runtime",
  "ship-platform",
  "ship-runner",
+ "ship-substrate",
+ "ship-types",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "ship-triggers"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "cron",
+ "globset",
+ "jsonschema",
+ "minijinja",
+ "serde",
+ "serde_json",
+ "ship-collection",
+ "ship-config",
+ "ship-platform",
  "ship-substrate",
  "ship-types",
  "tempfile",

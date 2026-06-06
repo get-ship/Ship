@@ -2,8 +2,8 @@
 ///
 /// Covers: parse_hook roundtrip, validate_hook gating, load_triggers_dir error
 /// accumulation, legacy-hooks-dir isolation, and extension filtering.
-use crate::triggers::def::HookActionType;
-use crate::triggers::loader;
+use crate::def::HookActionType;
+use crate::loader;
 
 use super::integration_engine::{tmp_ship_dir, write_hook};
 

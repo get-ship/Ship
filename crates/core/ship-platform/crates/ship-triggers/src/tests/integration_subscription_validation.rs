@@ -5,7 +5,7 @@
 /// - F2 regression: subscribing to a nonexistent event must fail cleanly
 /// - Registered events (pipeline.run.failed, skill.changed, rule.changed) pass
 /// - Source-based triggers bypass registry lookup entirely
-use crate::triggers::loader;
+use crate::loader;
 
 use super::integration_engine::{tmp_ship_dir, write_hook};
 
