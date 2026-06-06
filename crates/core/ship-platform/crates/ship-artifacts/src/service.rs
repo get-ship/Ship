@@ -16,7 +16,7 @@ use ship_types::payload::{
     ArtifactCreated, ArtifactDeleted, ArtifactMoved, ArtifactUpdated,
 };
 
-use crate::backend::{BlobBackend, LocalFsBackend};
+use crate::backend::{BlobBackend, SubstrateBlobBackend};
 use crate::error::ArtifactError;
 use crate::helpers::{emit_ctx, new_ulid, now_rfc3339};
 use ship_types::sha256_hex;
@@ -38,7 +38,7 @@ impl ArtifactService {
     pub fn new(ctx: Arc<SpaceContext>, global_dir: std::path::PathBuf) -> Self {
         Self {
             ctx,
-            backend: Arc::new(LocalFsBackend::new(global_dir)),
+            backend: Arc::new(SubstrateBlobBackend::new(global_dir)),
             scope_locks: StdMutex::new(HashMap::new()),
         }
     }
@@ -87,11 +87,8 @@ impl ArtifactService {
 
         let rel_path = match find_by_hash(self.ctx.data(), scope, &content_hash).await? {
             Some(existing) => existing,
-            None => {
-                self.backend.put(scope, &id, bytes)
-                    .map_err(|e| ArtifactError::Blob(e.to_string()))?;
-                self.backend.rel_path(scope, &id)
-            }
+            None => self.backend.put(scope, bytes)
+                .map_err(|e| ArtifactError::Blob(e.to_string()))?,
         };
 
         let record = ArtifactRecord {
@@ -125,7 +122,8 @@ impl ArtifactService {
         )
         .map_err(|e| ArtifactError::Internal(e.to_string()))?;
         if let Err(e) = self.ctx.kernel().emit(envelope, &emit_ctx(scope.space_id())).await {
-            let _ = self.backend.delete(scope, &id);
+            let blob_key = record.path.split('/').next_back().unwrap_or(&record.id);
+            let _ = self.backend.delete(scope, blob_key);
             return Err(ArtifactError::from(e));
         }
 
@@ -138,13 +136,9 @@ impl ArtifactService {
             ArtifactError::NotFound(format!("artifact '{id}' not found"))
         })?;
         let from_scope = record_to_scope(&record)?;
-        let bytes = self.backend.get(&from_scope, &record.id)
-            .or_else(|_| {
-                // Path may be a dedup alias; try reading from the stored path directly.
-                // Extract the blob id from the last segment of the stored path.
-                let blob_id = record.path.split('/').next_back().unwrap_or(&record.id);
-                self.backend.get(&from_scope, blob_id)
-            })
+        // The blob key is the last segment of the stored path (the content hash).
+        let blob_key = record.path.split('/').next_back().unwrap_or(&record.id);
+        let bytes = self.backend.get(&from_scope, blob_key)
             .map_err(|e| {
                 // Record exists but the blob bytes are gone → NotFound (404),
                 // not an internal error (500). A real IO failure stays Blob.
@@ -256,11 +250,8 @@ impl ArtifactService {
 
         let rel_path = match find_by_hash(self.ctx.data(), &target_scope, &content_hash).await? {
             Some(existing) => existing,
-            None => {
-                self.backend.put(&target_scope, &new_id, &bytes)
-                    .map_err(|e| ArtifactError::Blob(e.to_string()))?;
-                self.backend.rel_path(&target_scope, &new_id)
-            }
+            None => self.backend.put(&target_scope, &bytes)
+                .map_err(|e| ArtifactError::Blob(e.to_string()))?,
         };
 
         let now = now_rfc3339();
@@ -302,7 +293,8 @@ impl ArtifactService {
         )
         .map_err(|e| ArtifactError::Internal(e.to_string()))?;
         if let Err(e) = self.ctx.kernel().emit(envelope, &emit_ctx(target_scope.space_id())).await {
-            let _ = self.backend.delete(&target_scope, &new_id);
+            let new_blob_key = new_record.path.split('/').next_back().unwrap_or(&new_id);
+            let _ = self.backend.delete(&target_scope, new_blob_key);
             return Err(ArtifactError::from(e));
         }
 
