@@ -29,7 +29,7 @@ fn parse_jsonc(jsonc: &str) -> anyhow::Result<SchemaDoc> {
 /// Reads from the composed overlay (local + dep-exported schemas) when the space
 /// has deps; the raw `.ship/` otherwise (depless = identical).
 pub fn load_schemas(ship_dir: &Path) -> anyhow::Result<Vec<SchemaDoc>> {
-    let root = crate::registry::compose::composed_root_for(ship_dir);
+    let root = crate::compose::composed_root_for(ship_dir);
     let schemas_dir = root.join("collections");
     if !schemas_dir.is_dir() {
         return Ok(vec![]);

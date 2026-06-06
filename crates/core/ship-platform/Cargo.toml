@@ -47,6 +47,7 @@ ship-runner = { path = "../ship-substrate/crates/ship-runner" }
 # ship-agents depends on ship-substrate/ship-runner/ship-types, not ship-platform.
 ship-agents = { path = "crates/ship-agents" }
 ship-kv = { path = "crates/ship-kv" }
+ship-store = { path = "crates/ship-store" }
 ship-gateway-client = { path = "crates/ship-gateway-client" }
 # Cloud sync transport — `SyncClient` + `PushRequest`/`PushResponse`/`PullResponse`
 # live in the `ship-cloud` crate. The wrapping `services::sync::SyncServiceHandler`

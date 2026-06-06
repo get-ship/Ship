@@ -8033,6 +8033,7 @@ dependencies = [
  "ship-kv",
  "ship-pipelines",
  "ship-runner",
+ "ship-store",
  "ship-substrate",
  "ship-types",
  "ship-views",
@@ -8178,6 +8179,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-store"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "compiler",
+ "flate2",
+ "home",
+ "indexmap 2.14.0",
+ "jsonwebtoken",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2",
+ "ship-collection",
+ "ship-substrate",
+ "tar",
+ "tempfile",
+ "tracing",
+ "ureq",
+ "walkdir",
+]
+
+[[package]]
 name = "ship-substrate"
 version = "0.1.0"
 dependencies = [
@@ -8215,6 +8240,7 @@ dependencies = [
  "tokio",
  "tracing",
  "ulid",
+ "walkdir",
 ]
 
 [[package]]

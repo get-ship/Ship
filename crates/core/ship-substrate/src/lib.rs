@@ -26,6 +26,7 @@ pub mod log;
 pub mod persistence;
 pub mod project;
 pub mod projections;
+pub mod security;
 pub mod query;
 pub mod services;
 pub mod supervisor;

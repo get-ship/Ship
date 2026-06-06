@@ -10,7 +10,7 @@ use tempfile::tempdir;
 
 use compiler::lockfile::{LockPackage, ShipLock};
 
-use crate::registry::compose::{composed_root_for, materialize_space};
+use crate::compose::{composed_root_for, materialize_space};
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
