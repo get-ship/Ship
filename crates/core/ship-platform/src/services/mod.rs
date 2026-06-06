@@ -18,7 +18,9 @@ pub mod process_registry;
 // consumers in this crate and in shipd keep compiling without change.
 pub use ship_harnesses::harness_adapter;
 pub use ship_harnesses::harnesses;
-pub mod line_accumulator;
+// line_accumulator, files, jsonc, path_tolerant carved into ship-files (pre-C8d).
+// Re-exported here so all existing `crate::services::{…}::*` consumers keep compiling.
+pub use ship_files::line_accumulator;
 // Cloud-sync service actor (uses `SyncClient` from `ship-cloud` via the
 // `unstable` feature gate). The handler itself stays in this crate because
 // it implements `ServiceHandler` from substrate; only the transport moves
@@ -31,15 +33,15 @@ pub mod sync;
 // path-scoped JSONC read/write helper; the rest follow as their HTTP
 // shims stay in shipd (apps/shipd/src/services/<domain>/mod.rs).
 pub mod compile;
-pub mod files;
+pub use ship_files::files;
+pub use ship_files::jsonc;
+pub use ship_files::path_tolerant;
 pub mod git;
-pub mod jsonc;
 pub mod mcp;
 pub mod agents;
 pub mod permissions;
 // pipelines service carved out to ship-pipeline-runtime crate
 pub mod skills;
-pub mod path_tolerant;
 pub mod rules;
 pub mod sessions;
 

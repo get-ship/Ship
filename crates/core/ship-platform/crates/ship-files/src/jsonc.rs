@@ -15,7 +15,7 @@ pub fn strip_jsonc(input: &str) -> String {
     ship_substrate::fs_util::strip_jsonc_comments(input)
 }
 
-pub(crate) fn first_letter(s: &str) -> String {
+pub fn first_letter(s: &str) -> String {
     s.chars()
         .next()
         .map(|c| c.to_ascii_uppercase().to_string())
@@ -23,7 +23,7 @@ pub(crate) fn first_letter(s: &str) -> String {
 }
 
 
-pub(crate) fn extract_str_array(v: &serde_json::Value) -> Vec<String> {
+pub fn extract_str_array(v: &serde_json::Value) -> Vec<String> {
     v.as_array()
         .map(|arr| {
             arr.iter()
@@ -39,7 +39,7 @@ pub(crate) fn extract_str_array(v: &serde_json::Value) -> Vec<String> {
 ///
 /// The `nested_keys` parameter lists candidate sub-keys to inspect when the
 /// top-level value is an object; the first one that contains an array wins.
-pub(crate) fn resolve_array_field(
+pub fn resolve_array_field(
     obj: &serde_json::Value,
     top_keys: &[&str],
     nested_keys: &[&str],

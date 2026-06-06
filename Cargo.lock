@@ -7873,6 +7873,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-files"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "json-patch 4.2.0",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "tempfile",
+]
+
+[[package]]
 name = "ship-gateway-client"
 version = "0.1.0"
 dependencies = [
@@ -8065,6 +8077,7 @@ dependencies = [
  "ship-collection",
  "ship-config",
  "ship-device",
+ "ship-files",
  "ship-gateway-client",
  "ship-harnesses",
  "ship-host",
