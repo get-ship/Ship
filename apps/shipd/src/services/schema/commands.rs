@@ -523,38 +523,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "",
         sensitive: false,
     },
-    // ── surfaces (authoring) ──────────────────────────────────────
-    CommandDescriptor {
-        name: "create.surface",
-        description: "Scaffold a new surface (view | skill).",
-        args: &[
-            ArgDescriptor { name: "surface", kind: "string", required: true },
-            ArgDescriptor { name: "name", kind: "string", required: true },
-            ArgDescriptor { name: "shape", kind: "string", required: true },
-            ArgDescriptor { name: "purpose", kind: "string?", required: false },
-        ],
-        permission: "ship.surfaces.write",
-        blast_radius: "C2_ELEVATED",
-        response_type: "",
-        sensitive: false,
-    },
-    // ── canvas / observation ──────────────────────────────────────
-    CommandDescriptor {
-        name: "annotation.post",
-        description: "Post an annotation (canvas/observation).",
-        args: &[ArgDescriptor { name: "event_json", kind: "string", required: true }],
-        permission: "ship.annotations.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "feedback.post",
-        description: "Post feedback (canvas/observation; rate-limited).",
-        args: &[ArgDescriptor { name: "event_json", kind: "string", required: true }],
-        permission: "ship.feedback.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
 ];
+// create.surface, annotation.post, feedback.post removed:
+// rehomed to ViewService::Scaffold, AgentsService::PostAnnotation,
+// AgentsService::PostFeedback (crate-owned wires, one rpc story).

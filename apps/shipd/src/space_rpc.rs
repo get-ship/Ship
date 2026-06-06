@@ -71,9 +71,9 @@ fn resolve_target(ctx: &connectrpc::RequestContext, state: &ApiState) -> TargetS
         .extensions
         .get::<crate::auth::AuthContext>()
         .and_then(|a| a.space_id.clone());
-    let global_settings =
-        crate::services::registry::call("settings.state", &serde_json::Value::Null, state)
-            .unwrap_or(serde_json::Value::Null);
+    // settings.state op removed with the string-dispatch apparatus; the
+    // settings overlay is read directly by the crate-owned SettingsWire.
+    let global_settings = serde_json::Value::Null;
     let settings_store = match space_id.as_deref() {
         Some(id) => space_store(state, id),
         None => runtime_store(state),

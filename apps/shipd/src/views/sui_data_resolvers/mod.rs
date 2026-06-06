@@ -15,7 +15,6 @@
 //! coarse subscription as we narrow the wake-up surface.
 
 use crate::ship_runtime::ApiState;
-use crate::services::registry;
 use serde_json::Value;
 
 /// A parsed `ship.<domain>.<op>(<args>)` expression. Owns its strings
@@ -55,10 +54,15 @@ pub fn parse_expr(expr: &str) -> Option<ParsedExpr> {
 /// (positional args, identifier-only args, JS expressions) is rejected
 /// — clients are expected to substitute identifiers and serialize a
 /// JSON literal before opening the SSE channel.
-pub fn resolve(parsed: &ParsedExpr, state: &ApiState) -> Result<Value, String> {
-    let args = parse_args(&parsed.args)?;
-    registry::call(&parsed.registry_name, &args, state)
-        .map_err(|e| format!("{e}"))
+/// Resolve a `ship.*` expression. Registry string-dispatch was removed (one rpc story);
+/// this returns an error for any expression — the SSE `data live` endpoint surfaces
+/// it as a 400. Clients should migrate to typed Connect RPCs.
+pub fn resolve(parsed: &ParsedExpr, _state: &ApiState) -> Result<Value, String> {
+    let _ = parse_args(&parsed.args)?; // still validate args syntax
+    Err(format!(
+        "registry dispatch removed: use typed Connect RPC for '{}'",
+        parsed.registry_name
+    ))
 }
 
 /// Parse the argument string of a `ship.<x>(...)` expression into a

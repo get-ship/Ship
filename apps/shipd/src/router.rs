@@ -14,8 +14,8 @@ use crate::{
     sessions, views,
 };
 use crate::routes::{
-    actor_api, actors_api, annotations_api,
-    artifacts_api, create_api, feedback_api, git_api,
+    actor_api, actors_api,
+    artifacts_api, git_api,
     hooks_api, human_webhook, logs_api,
     registry_api, rest_api, runtime_api,
     sandbox_api, sdk_manifest, settings_api, themes_api,
@@ -211,7 +211,6 @@ pub fn build_router(
         async move { session::issue_session_handler(reg, auth.0).await }
     };
 
-    let feedback_guard = feedback_api::FeedbackGuard::new();
     let registry_state = mcp_registry::McpRegistryState::new();
 
     // MCP registry proxy is a public, read-only endpoint — match the
@@ -242,7 +241,6 @@ pub fn build_router(
             crate::ops_rpc::router(rt.clone())
                 .layer(axum::middleware::from_fn(auth::project_authority_middleware)),
         )
-        .layer(axum::Extension(feedback_guard))
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with
         // auth) so requests must carry a valid bearer before short-circuit.
@@ -380,7 +378,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Views — list + source now served by DiscoveryService (Connect, #139).
         .ship_route(Route::ShipSchema, services::schema::serve_schema)
         .ship_route(Route::ListViewFiles_template(), views::files_api::list_view_files)
-        .ship_route(Route::CreateSurface_template(), create_api::create_surface)
         .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
         .ship_route(Route::WriteViewManifestApi_template(), views::write_api::write_view_manifest)
         .ship_route(Route::ForkView_template(), views::write_api::fork_view)
@@ -425,9 +422,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::SignalViewSession_template(), view_sessions_api::signal_session)
         .ship_route(Route::CloseViewSession_template(), view_sessions_api::close_session)
         .ship_route(Route::SubscribeViewSession_template(), view_sessions_api::subscribe_session)
-        // Feedback ingress
-        .ship_route(Route::PostFeedback, feedback_api::post_feedback)
-        .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
         // View authoring — chrome edit-mode handshake + agent tool dispatch.
         .ship_route(Route::EnterViewEditMode_template(), view_edit_mode_api::enter_edit_mode)
         .ship_route(Route::ExitViewEditMode_template(), view_edit_mode_api::exit_edit_mode)

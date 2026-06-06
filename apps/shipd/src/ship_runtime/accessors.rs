@@ -245,19 +245,6 @@ impl ShipRuntime {
         &self.health_registry
     }
 
-    /// Store a pre-built diagnostic registry. Called once after the dispatch
-    /// handle is set so the supervisor snapshot has a live process registry.
-    /// Idempotent — a second call is a no-op.
-    pub fn set_diag_registry(&self, reg: ship_substrate::diagnostics::DiagnosticRegistry) {
-        let _ = self.diag_registry.set(reg);
-    }
-
-    /// Return the diagnostic registry. Returns `None` before
-    /// `set_diag_registry` is called (i.e., before full startup).
-    pub fn diag_registry(&self) -> Option<&ship_substrate::diagnostics::DiagnosticRegistry> {
-        self.diag_registry.get()
-    }
-
     pub fn view_sessions(&self) -> &crate::views::session::SharedViewSessionRegistry {
         &self.view_sessions
     }

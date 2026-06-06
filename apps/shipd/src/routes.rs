@@ -43,12 +43,7 @@ pub mod agent_sessions_attach;
 #[cfg(test)]
 mod agent_sessions_attach_tests;
 pub mod mcp_registry;
-pub mod annotations_api;
 pub mod artifacts_api;
-pub mod create_api;
-#[cfg(test)]
-mod create_api_tests;
-pub mod feedback_api;
 pub mod git_api;
 pub mod hooks_api;
 pub mod human_webhook;
@@ -225,10 +220,6 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     ListViewFiles { name: String },
 
-    /// @route POST "/api/v1/create/{surface}"
-    /// @auth scope CreateRuns
-    CreateSurface { surface: String },
-
     /// @route PUT "/api/v1/views/{name}/template"
     /// @auth scope WriteWorkspace
     WriteViewTemplate { name: String },
@@ -326,18 +317,6 @@ pub enum Route {
     /// @route GET "/api/v1/view-sessions/{id}"
     /// @auth scope ReadWorkspace
     SubscribeViewSession { id: String },
-
-    // ── Feedback (agent-designed feedback ingress) ────────────────────────
-
-    /// @route POST "/api/v1/feedback"
-    /// @auth scope LogProgress
-    PostFeedback,
-
-    // ── Annotations (canvas overlay wire format) ─────────────────────────
-
-    /// @route POST "/api/v1/annotations"
-    /// @auth scope LogProgress
-    PostAnnotation,
 
     // ── Runtime listings ─────────────────────────────────────────────────
 
