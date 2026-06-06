@@ -612,35 +612,35 @@
         ]
       }
     },
-    "collection.create_item": {
+    "collections.create_item": {
       "id": "note-checkout-notes",
       "collection": "notes",
       "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
       "created_at": "2026-05-24T18:35:00Z",
       "updated_at": "2026-05-24T18:35:00Z"
     },
-    "collection.create_schema": {
+    "collections.create_schema": {
       "id": "notes",
       "schema_json": "eyJ0aXRsZSI6Ik5vdGVzIiwiZmllbGRzIjpbeyJuYW1lIjoidGl0bGUiLCJ0eXBlIjoic3RyaW5nIn1dfQ==",
       "item_count": 0
     },
-    "collection.delete_item": {
+    "collections.delete_item": {
       "id": "note-checkout-notes",
       "deleted": true
     },
-    "collection.get": {
+    "collections.get": {
       "id": "notes",
       "schema_json": "eyJ0aXRsZSI6Ik5vdGVzIiwiZmllbGRzIjpbeyJuYW1lIjoidGl0bGUiLCJ0eXBlIjoic3RyaW5nIn1dfQ==",
       "item_count": 3
     },
-    "collection.get_item": {
+    "collections.get_item": {
       "id": "note-checkout-notes",
       "collection": "notes",
       "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
       "created_at": "2026-05-24T18:35:00Z",
       "updated_at": "2026-05-24T18:35:00Z"
     },
-    "collection.list": {
+    "collections.list": {
       "collections": [
         {
           "id": "notes",
@@ -654,7 +654,7 @@
         }
       ]
     },
-    "collection.query_items": {
+    "collections.query_items": {
       "items": [
         {
           "id": "note-checkout-notes",
@@ -666,19 +666,19 @@
       ],
       "next_cursor": "dGVzdC1jdXJzb3I="
     },
-    "collection.update_item": {
+    "collections.update_item": {
       "id": "note-checkout-notes",
       "collection": "notes",
       "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
       "created_at": "2026-05-24T18:35:00Z",
       "updated_at": "2026-05-24T19:00:00Z"
     },
-    "collection.update_schema": {
+    "collections.update_schema": {
       "id": "notes",
       "schema_json": "eyJ0aXRsZSI6Ik5vdGVzIiwiZmllbGRzIjpbeyJuYW1lIjoidGl0bGUiLCJ0eXBlIjoic3RyaW5nIn1dfQ==",
       "item_count": 3
     },
-    "collection.watch": {
+    "collections.watch": {
       "patches": {
         "patches": [
           {
@@ -687,26 +687,6 @@
           }
         ]
       }
-    },
-    "collections.create_item": {
-      "id": "note-checkout-notes",
-      "collection": "notes",
-      "data_json": "{\"title\":\"Checkout service notes\",\"content\":\"Auth via JWT; idempotency key on POST /checkout.\",\"tags\":[\"engineering\"],\"category\":\"engineering\"}",
-      "created_by": "rust-lane",
-      "created_at": "2026-05-24T18:35:00Z",
-      "updated_at": "2026-05-24T18:35:00Z"
-    },
-    "collections.delete_item": {
-      "id": "note-checkout-notes",
-      "deleted": true
-    },
-    "collections.update_item": {
-      "id": "note-checkout-notes",
-      "collection": "notes",
-      "data_json": "{\"title\":\"Checkout service notes\",\"content\":\"Auth via JWT; idempotency key on POST /checkout. Also: rate-limit at gateway.\",\"tags\":[\"engineering\"],\"category\":\"engineering\"}",
-      "created_by": "rust-lane",
-      "created_at": "2026-05-24T18:35:00Z",
-      "updated_at": "2026-05-24T19:00:00Z"
     },
     "events.list": {
       "groups": [

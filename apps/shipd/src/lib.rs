@@ -33,8 +33,6 @@ pub mod analytics_rpc;
 pub mod isolation_rpc;
 pub mod runtime_rpc;
 pub mod rules_rpc;
-pub mod artifacts_rpc;
-pub mod collections_rpc;
 pub mod permissions_rpc;
 pub mod mcp_rpc;
 pub mod skills_rpc;

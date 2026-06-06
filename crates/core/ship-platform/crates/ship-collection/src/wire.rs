@@ -1,8 +1,8 @@
-//! ConnectRPC wire layer for `CollectionService`.
+//! ConnectRPC wire layer for `CollectionsService`.
 //!
 //! `CollectionWire<F>` wraps the service with a per-request context factory.
-//! It implements the generated `ship_ops_rpc::CollectionService` trait so
-//! shipd can mount it via `CollectionServiceExt::register`.
+//! It implements the generated `ship_ops_rpc::CollectionsService` trait so
+//! shipd can mount it via `CollectionsServiceExt::register`.
 
 use std::sync::Arc;
 
@@ -12,7 +12,7 @@ use ship_substrate::events::EventFilter;
 use ship_substrate::ports::{KernelLog, SpaceContext};
 
 use ship_ops_rpc::{
-    CollectionDetail, CollectionList, CollectionService as CollectionServiceTrait,
+    CollectionDetail, CollectionList, CollectionsService as CollectionServiceTrait,
     CollectionSummary, Deletion, Item, ItemPage, WatchEvent,
 };
 

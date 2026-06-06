@@ -158,10 +158,9 @@ pub fn router(state: ApiState) -> axum::Router {
     // rules.proto. The generated ReadOps/CommandOps still serve rules.* too,
     // until the GUI flip (#72) re-points clients and retires the old path.
     let router = ship_ops_rpc::RulesServiceExt::register(svc.clone(), router);
-    // artifacts.* — typed-return migration (ArtifactRecord / Deletion), additive.
-    let router = ship_ops_rpc::ArtifactsServiceExt::register(svc.clone(), router);
-    // collections.* — data plane; reads opaque JSON, item writes typed. Additive.
-    let router = ship_ops_rpc::CollectionsServiceExt::register(svc.clone(), router);
+    // artifacts.* is served exclusively by the typed `ship-artifacts` wire mounted
+    // below (active-space bound). No OpsImpl ArtifactsService mount — the wire is
+    // the sole handler. collections.* is likewise served by the typed CollectionWire.
     // permissions.* — C2_ELEVATED writes (operator-only via the command gate). Additive.
     let router = ship_ops_rpc::PermissionsServiceExt::register(svc.clone(), router);
     // mcp.* — external MCP server config CRUD, additive.
@@ -217,9 +216,10 @@ pub fn router(state: ApiState) -> axum::Router {
     // three space-scoped wires are skipped — their RPCs then return Unimplemented
     // rather than fabricate a partition. Mounted only when a space is active.
     //
-    // collection.* v2 — CollectionService (collection.proto). Mounted with the
-    // active-space SpaceContext + the ONE shared schema registry (C-2 §3.1 / UD-7)
-    // so a wire-created schema is visible to the internal trigger/view callers.
+    // collections.* — the SOLE CollectionsService (collections.proto), the typed
+    // crate-owned guts. Mounted with the active-space SpaceContext + the ONE shared
+    // schema registry (C-2 §3.1 / UD-7) so a wire-created schema is visible to the
+    // internal trigger/view callers.
     let router = match state.collection_ctx() {
         Some(collection_ctx) => {
             let collection_kernel = collection_ctx.kernel.clone();
@@ -229,7 +229,7 @@ pub fn router(state: ApiState) -> axum::Router {
                 collection_schemas,
                 move |_ctx: &connectrpc::RequestContext| collection_ctx.clone(),
             ));
-            ship_ops_rpc::CollectionServiceExt::register(collection_wire, router)
+            ship_ops_rpc::CollectionsServiceExt::register(collection_wire, router)
         }
         None => router,
     };
