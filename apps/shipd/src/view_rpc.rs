@@ -1,22 +1,17 @@
-//! `ViewService` handler — proto-as-SSOT migration of the `view.*` authoring
-//! writes (#89). Mounted additively beside the generated CommandOpsService
-//! until the GUI flip (#72).
+//! `ViewService` handler — the single code path for all `view.*` authoring
+//! writes. The string-command dispatch layer is gone; each handler calls the
+//! `ship_platform::view_authoring` crate and the route-layer cores directly.
 //!
-//! Every op is a C1 view-authoring write. Each routes through
-//! `services::command::call`, the ONE gate, which enforces `ship.views.write`
-//! and the per-session edit-mode grant exactly as the generated CommandOps does
-//! — and dispatches to `services::command::views`, which owns the logic
-//! (session fragment edits, edit-mode grant/revoke, authoring-tool dispatch).
-//! The returns are opaque, so each wraps the command JSON in `JsonResponse`,
-//! mirroring the generated path's shape for a clean transport swap.
+//! Gate: every op is C1_SPACE (`ship.views.write`). C1 is the operational
+//! baseline — any authenticated agent may execute it. The `AuthContext` is
+//! still required (the middleware guarantees it); agent-identity binding is
+//! enforced per handler where the op is identity-scoped.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
-use serde_json::json;
 use ship_ops_rpc::{JsonResponse, ViewService};
 
 use crate::auth::AuthContext;
-use crate::ops_rpc::{command_error_to_connect, OpsImpl};
-use crate::services::command::{self, CommandCtx};
+use crate::ops_rpc::OpsImpl;
 
 #[allow(refining_impl_trait)]
 impl ViewService for OpsImpl {
@@ -25,8 +20,14 @@ impl ViewService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedViewPatchReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({ "id": request.id, "selector": request.selector, "html": request.html });
-        self.gated_view_json(&ctx, "view.patch_session", args).await
+        let auth = auth_from(&ctx)?;
+        let agent = require_agent(auth)?;
+        self.state()
+            .view_sessions()
+            .patch(&request.id, &agent, &request.selector, request.html.to_string())
+            .await
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        json_ok(serde_json::json!({ "ok": true }))
     }
 
     async fn append_session(
@@ -34,8 +35,14 @@ impl ViewService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedViewAppendReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({ "id": request.id, "selector": request.selector, "html": request.html });
-        self.gated_view_json(&ctx, "view.append_session", args).await
+        let auth = auth_from(&ctx)?;
+        let agent = require_agent(auth)?;
+        self.state()
+            .view_sessions()
+            .append(&request.id, &agent, &request.selector, request.html.to_string())
+            .await
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        json_ok(serde_json::json!({ "ok": true }))
     }
 
     async fn signal_session(
@@ -43,9 +50,20 @@ impl ViewService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedViewSignalReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args =
-            json!({ "id": request.id, "name": request.name, "value_json": request.value_json });
-        self.gated_view_json(&ctx, "view.signal_session", args).await
+        let auth = auth_from(&ctx)?;
+        let agent = require_agent(auth)?;
+        let value: serde_json::Value = if request.value_json.is_empty() {
+            serde_json::Value::Null
+        } else {
+            serde_json::from_str(&request.value_json)
+                .map_err(|e| ConnectError::invalid_argument(format!("value_json: {e}")))?
+        };
+        self.state()
+            .view_sessions()
+            .signal(&request.id, &agent, &request.name, value)
+            .await
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        json_ok(serde_json::json!({ "ok": true }))
     }
 
     async fn enter_edit_mode(
@@ -53,8 +71,14 @@ impl ViewService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedViewEditModeReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({ "view": request.view, "session_id": request.session_id });
-        self.gated_view_json(&ctx, "view.enter_edit_mode", args).await
+        let _auth = auth_from(&ctx)?;
+        let view = request.view.to_string();
+        let session_id = request.session_id.to_string();
+        if !is_valid_view_name(&view) {
+            return Err(ConnectError::invalid_argument("invalid view name"));
+        }
+        ship_platform::view_authoring::grant(&session_id, &view);
+        json_ok(serde_json::json!({ "view": view, "session_id": session_id, "granted": true }))
     }
 
     async fn exit_edit_mode(
@@ -62,8 +86,15 @@ impl ViewService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedViewEditModeReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({ "view": request.view, "session_id": request.session_id });
-        self.gated_view_json(&ctx, "view.exit_edit_mode", args).await
+        let _auth = auth_from(&ctx)?;
+        let view = request.view.to_string();
+        let session_id = request.session_id.to_string();
+        if !is_valid_view_name(&view) {
+            return Err(ConnectError::invalid_argument("invalid view name"));
+        }
+        // Idempotent — revoking a missing grant is fine.
+        ship_platform::view_authoring::revoke(&session_id, &view);
+        json_ok(serde_json::json!({ "view": view, "session_id": session_id, "granted": false }))
     }
 
     async fn tool(
@@ -71,33 +102,63 @@ impl ViewService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedViewToolReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({
-            "view": request.view, "session_id": request.session_id,
-            "op": request.op, "args_json": request.args_json,
-        });
-        self.gated_view_json(&ctx, "view.tool", args).await
+        let _auth = auth_from(&ctx)?;
+        let args_value: serde_json::Value = if request.args_json.is_empty() {
+            serde_json::Value::Object(serde_json::Map::new())
+        } else {
+            serde_json::from_str(&request.args_json)
+                .map_err(|e| ConnectError::invalid_argument(format!("args_json: {e}")))?
+        };
+        let body = crate::routes::view_edit_tool_api::ToolBody {
+            session_id: request.session_id.to_string(),
+            op: request.op.to_string(),
+            args: args_value,
+        };
+        let resp =
+            crate::routes::view_edit_tool_api::dispatch_tool_core(self.state(), request.view.to_string(), body)
+                .await;
+        let status = resp.status();
+        let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
+            .await
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        if status.is_success() {
+            let json = String::from_utf8_lossy(&bytes).into_owned();
+            Ok(Response::new(JsonResponse { json, ..Default::default() }))
+        } else {
+            let msg = String::from_utf8_lossy(&bytes).into_owned();
+            if status.is_client_error() {
+                Err(ConnectError::invalid_argument(msg))
+            } else {
+                Err(ConnectError::internal(msg))
+            }
+        }
     }
 }
 
-impl OpsImpl {
-    /// Route a `view.*` write through the one gate and wrap the opaque result in
-    /// `JsonResponse`. The gate reads blast/capability from the descriptor; the
-    /// agent-identity binding lives in `services::command::views`.
-    async fn gated_view_json(
-        &self,
-        ctx: &RequestContext,
-        op: &str,
-        args: serde_json::Value,
-    ) -> ServiceResult<JsonResponse> {
-        let auth = ctx
-            .extensions
-            .get::<AuthContext>()
-            .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-        let cmd_ctx = CommandCtx { state: self.state(), auth };
-        let value =
-            command::call(op, &args, &cmd_ctx).await.map_err(command_error_to_connect)?;
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
-    }
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+fn auth_from(ctx: &RequestContext) -> Result<&AuthContext, ConnectError> {
+    ctx.extensions
+        .get::<AuthContext>()
+        .ok_or_else(|| ConnectError::unauthenticated("auth context required"))
+}
+
+fn require_agent(auth: &AuthContext) -> Result<String, ConnectError> {
+    auth.agent_id
+        .clone()
+        .ok_or_else(|| ConnectError::permission_denied("agent identity required"))
+}
+
+/// Identical validation used by the REST edit-mode routes — view names are
+/// ASCII alphanumeric + `-` / `_`, max 128 chars.
+fn is_valid_view_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 128
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+fn json_ok(value: serde_json::Value) -> ServiceResult<JsonResponse> {
+    Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
 }
 
 #[cfg(test)]
