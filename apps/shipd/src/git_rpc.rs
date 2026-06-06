@@ -1,12 +1,11 @@
 //! `GitService` handler — proto-as-SSOT migration of `git.*` (#89), mounted
 //! additively beside the generated ReadOps/CommandOps until the GUI flip (#72).
 //!
-//! Reads (C0) route through the sync read registry (`registry::call`). Writes
-//! (C1) route through `services::command::call`, the ONE gate.
+//! Reads (C0) call ship-git crate functions directly. Writes (C1) route
+//! through `services::command::call`, the ONE gate.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
-use serde::de::DeserializeOwned;
-use serde_json::json;
+use serde_json::Value;
 
 use ship_ops_rpc::{
     GitBranchesResponse, GitDiffResponse, GitLogResponse, GitOverviewResponse, GitService,
@@ -24,7 +23,17 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedGitStatusReqView,
     ) -> ServiceResult<StatusBuckets> {
-        self.read_git_typed("git.status", serde_json::Value::Null)
+        let ws = None::<&str>;
+        let report = self
+            .state()
+            .git()
+            .status(ws)
+            .map_err(|e| ConnectError::internal(format!("git.status: {e}")))?;
+        let value = serde_json::to_value(&report)
+            .map_err(|e| ConnectError::internal(format!("git.status serialize: {e}")))?;
+        serde_json::from_value::<StatusBuckets>(value)
+            .map_err(|e| ConnectError::internal(format!("git.status decode: {e}")))
+            .map(Response::new)
     }
 
     async fn log(
@@ -32,12 +41,17 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitLogReqView,
     ) -> ServiceResult<GitLogResponse> {
-        let args = if request.limit != 0 {
-            json!({ "limit": request.limit })
-        } else {
-            serde_json::Value::Null
-        };
-        self.read_git_typed("git.log", args)
+        let limit = if request.limit != 0 { request.limit as usize } else { 50 };
+        let commits = self
+            .state()
+            .git()
+            .log(None, None, limit)
+            .map_err(|e| ConnectError::internal(format!("git.log: {e}")))?;
+        let value = serde_json::to_value(&commits)
+            .map_err(|e| ConnectError::internal(format!("git.log serialize: {e}")))?;
+        serde_json::from_value::<GitLogResponse>(serde_json::json!({ "commits": value }))
+            .map_err(|e| ConnectError::internal(format!("git.log decode: {e}")))
+            .map(Response::new)
     }
 
     async fn branches(
@@ -45,7 +59,24 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedGitBranchesReqView,
     ) -> ServiceResult<GitBranchesResponse> {
-        self.read_git_typed("git.branches", serde_json::Value::Null)
+        let git = self.state().git();
+        let branches = git
+            .branches(None)
+            .map_err(|e| ConnectError::internal(format!("git.branches: {e}")))?;
+        let (ahead, behind) = branches
+            .iter()
+            .find(|b| b.active)
+            .map(|b| (b.ahead, b.behind))
+            .unwrap_or((0, 0));
+        let value = serde_json::to_value(&branches)
+            .map_err(|e| ConnectError::internal(format!("git.branches serialize: {e}")))?;
+        serde_json::from_value::<GitBranchesResponse>(serde_json::json!({
+            "branches": value,
+            "ahead": ahead,
+            "behind": behind,
+        }))
+        .map_err(|e| ConnectError::internal(format!("git.branches decode: {e}")))
+        .map(Response::new)
     }
 
     async fn overview(
@@ -53,14 +84,13 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitOverviewReqView,
     ) -> ServiceResult<GitOverviewResponse> {
-        let mut args = serde_json::Map::new();
-        if !request.workspace_id.is_empty() {
-            args.insert("workspace_id".to_string(), json!(request.workspace_id));
-        }
-        if request.limit != 0 {
-            args.insert("limit".to_string(), json!(request.limit));
-        }
-        self.read_git_typed("git.overview", serde_json::Value::Object(args))
+        let ws = request.workspace_id.as_deref().filter(|s| !s.is_empty());
+        let limit = if request.limit != 0 { request.limit as usize } else { 20 };
+        let value = git_overview_value(self.state(), ws, limit)
+            .map_err(|e| ConnectError::internal(format!("git.overview: {e}")))?;
+        serde_json::from_value::<GitOverviewResponse>(value)
+            .map_err(|e| ConnectError::internal(format!("git.overview decode: {e}")))
+            .map(Response::new)
     }
 
     #[allow(refining_impl_trait)]
@@ -69,14 +99,17 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitOverviewReqView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        let mut args = serde_json::Map::new();
-        if !request.workspace_id.is_empty() {
-            args.insert("workspace_id".to_string(), json!(request.workspace_id));
-        }
-        if request.limit != 0 {
-            args.insert("limit".to_string(), json!(request.limit));
-        }
-        self.live_read("git.overview", serde_json::Value::Object(args)).await
+        let ws = request
+            .workspace_id
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+        let limit = if request.limit != 0 { request.limit as usize } else { 20 };
+        self.live_read_with(move |st| {
+            let ws_ref = ws.as_deref();
+            git_overview_value(st, ws_ref, limit).unwrap_or(Value::Null)
+        })
+        .await
     }
 
     #[allow(refining_impl_trait)]
@@ -85,12 +118,17 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitDiffReqView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        let mut args = serde_json::Map::new();
-        args.insert("commit".to_string(), json!(request.commit));
-        if !request.workspace_id.is_empty() {
-            args.insert("workspace_id".to_string(), json!(request.workspace_id));
-        }
-        self.live_read("git.diff", serde_json::Value::Object(args)).await
+        let commit = request.commit.clone();
+        let ws = request
+            .workspace_id
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+        self.live_read_with(move |st| {
+            let ws_ref = ws.as_deref();
+            git_diff_value(st, ws_ref, &commit).unwrap_or(Value::Null)
+        })
+        .await
     }
 
     #[allow(refining_impl_trait)]
@@ -99,12 +137,17 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitAnnotationsReqView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        let mut args = serde_json::Map::new();
-        args.insert("file".to_string(), json!(request.file));
-        if !request.workspace_id.is_empty() {
-            args.insert("workspace_id".to_string(), json!(request.workspace_id));
-        }
-        self.live_read("git.annotations", serde_json::Value::Object(args)).await
+        let file = request.file.clone();
+        let ws = request
+            .workspace_id
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+        self.live_read_with(move |st| {
+            let ws_ref = ws.as_deref();
+            git_annotations_value(st, ws_ref, &file)
+        })
+        .await
     }
 
     async fn diff(
@@ -112,12 +155,12 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitDiffReqView,
     ) -> ServiceResult<GitDiffResponse> {
-        let mut args = serde_json::Map::new();
-        args.insert("commit".to_string(), json!(request.commit));
-        if !request.workspace_id.is_empty() {
-            args.insert("workspace_id".to_string(), json!(request.workspace_id));
-        }
-        self.read_git_typed("git.diff", serde_json::Value::Object(args))
+        let ws = request.workspace_id.as_deref().filter(|s| !s.is_empty());
+        let value = git_diff_value(self.state(), ws, &request.commit)
+            .map_err(|e| ConnectError::internal(format!("git.diff: {e}")))?;
+        serde_json::from_value::<GitDiffResponse>(value)
+            .map_err(|e| ConnectError::internal(format!("git.diff decode: {e}")))
+            .map(Response::new)
     }
 
     async fn annotations(
@@ -125,18 +168,11 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitAnnotationsReqView,
     ) -> ServiceResult<JsonResponse> {
-        let mut args = serde_json::Map::new();
-        args.insert("file".to_string(), json!(request.file));
-        if !request.workspace_id.is_empty() {
-            args.insert("workspace_id".to_string(), json!(request.workspace_id));
-        }
-        let value = crate::services::registry::call(
-            "git.annotations",
-            &serde_json::Value::Object(args),
-            self.state(),
-        )
-        .map_err(|e| ConnectError::internal(format!("git.annotations: {e}")))?;
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+        let ws = request.workspace_id.as_deref().filter(|s| !s.is_empty());
+        let value = git_annotations_value(self.state(), ws, &request.file);
+        let json = serde_json::to_string(&value)
+            .map_err(|e| ConnectError::internal(format!("git.annotations serialize: {e}")))?;
+        Ok(Response::new(JsonResponse { json, ..Default::default() }))
     }
 
     async fn push(
@@ -145,12 +181,12 @@ impl GitService for OpsImpl {
         request: ship_ops_rpc::OwnedGitPushReqView,
     ) -> ServiceResult<JsonResponse> {
         let mut args = serde_json::Map::new();
-        args.insert("workspace_id".to_string(), json!(request.workspace_id));
-        args.insert("remote".to_string(), json!(request.remote));
+        args.insert("workspace_id".to_string(), serde_json::json!(request.workspace_id));
+        args.insert("remote".to_string(), serde_json::json!(request.remote));
         if let Some(f) = request.force {
-            args.insert("force".to_string(), json!(f));
+            args.insert("force".to_string(), serde_json::json!(f));
         }
-        self.gated_git_write("git.push", serde_json::Value::Object(args), &ctx).await
+        self.gated_git_write("git.push", Value::Object(args), &ctx).await
     }
 
     async fn fetch(
@@ -158,7 +194,7 @@ impl GitService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitFetchReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({ "workspace_id": request.workspace_id, "remote": request.remote });
+        let args = serde_json::json!({ "workspace_id": request.workspace_id, "remote": request.remote });
         self.gated_git_write("git.fetch", args, &ctx).await
     }
 
@@ -167,7 +203,7 @@ impl GitService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitPullReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({ "workspace_id": request.workspace_id, "remote": request.remote });
+        let args = serde_json::json!({ "workspace_id": request.workspace_id, "remote": request.remote });
         self.gated_git_write("git.pull", args, &ctx).await
     }
 
@@ -176,7 +212,7 @@ impl GitService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitStageReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({
+        let args = serde_json::json!({
             "workspace_id": request.workspace_id,
             "paths": request.paths.iter().collect::<Vec<_>>(),
         });
@@ -188,7 +224,7 @@ impl GitService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitUnstageReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({
+        let args = serde_json::json!({
             "workspace_id": request.workspace_id,
             "paths": request.paths.iter().collect::<Vec<_>>(),
         });
@@ -200,7 +236,7 @@ impl GitService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitCommitReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({
+        let args = serde_json::json!({
             "workspace_id": request.workspace_id,
             "message": request.message,
             "author": request.author,
@@ -213,7 +249,7 @@ impl GitService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitCheckoutReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({ "workspace_id": request.workspace_id, "refname": request.refname });
+        let args = serde_json::json!({ "workspace_id": request.workspace_id, "refname": request.refname });
         self.gated_git_write("git.checkout", args, &ctx).await
     }
 
@@ -223,12 +259,12 @@ impl GitService for OpsImpl {
         request: ship_ops_rpc::OwnedGitBranchCreateReqView,
     ) -> ServiceResult<JsonResponse> {
         let mut args = serde_json::Map::new();
-        args.insert("workspace_id".to_string(), json!(request.workspace_id));
-        args.insert("name".to_string(), json!(request.name));
+        args.insert("workspace_id".to_string(), serde_json::json!(request.workspace_id));
+        args.insert("name".to_string(), serde_json::json!(request.name));
         if let Some(c) = request.checkout {
-            args.insert("checkout".to_string(), json!(c));
+            args.insert("checkout".to_string(), serde_json::json!(c));
         }
-        self.gated_git_write("git.branch_create", serde_json::Value::Object(args), &ctx).await
+        self.gated_git_write("git.branch_create", Value::Object(args), &ctx).await
     }
 
     async fn branch_delete(
@@ -237,12 +273,12 @@ impl GitService for OpsImpl {
         request: ship_ops_rpc::OwnedGitBranchDeleteReqView,
     ) -> ServiceResult<JsonResponse> {
         let mut args = serde_json::Map::new();
-        args.insert("workspace_id".to_string(), json!(request.workspace_id));
-        args.insert("name".to_string(), json!(request.name));
+        args.insert("workspace_id".to_string(), serde_json::json!(request.workspace_id));
+        args.insert("name".to_string(), serde_json::json!(request.name));
         if let Some(f) = request.force {
-            args.insert("force".to_string(), json!(f));
+            args.insert("force".to_string(), serde_json::json!(f));
         }
-        self.gated_git_write("git.branch_delete", serde_json::Value::Object(args), &ctx).await
+        self.gated_git_write("git.branch_delete", Value::Object(args), &ctx).await
     }
 
     async fn init(
@@ -250,24 +286,83 @@ impl GitService for OpsImpl {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitInitReqView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({ "workspace_id": request.workspace_id });
+        let args = serde_json::json!({ "workspace_id": request.workspace_id });
         self.gated_git_write("git.init", args, &ctx).await
     }
 }
 
-impl OpsImpl {
-    fn read_git_typed<T: DeserializeOwned>(&self, op: &str, args: serde_json::Value) -> ServiceResult<T> {
-        let value = crate::services::registry::call(op, &args, self.state())
-            .map_err(|e| ConnectError::internal(format!("{op}: {e}")))?;
-        serde_json::from_value::<T>(value)
-            .map_err(|e| ConnectError::internal(format!("{op} decode: {e}")))
-            .map(Response::new)
-    }
+// ── git read helpers ─────────────────────────────────────────────────────────
 
+/// Build the git.overview JSON value from ship-git crate calls.
+fn git_overview_value(
+    state: &crate::ship_runtime::ApiState,
+    workspace_id: Option<&str>,
+    limit: usize,
+) -> Result<Value, String> {
+    let git = state.git();
+    let status = git.status(workspace_id).map_err(|e| e.to_string())?;
+    let commits = git.log(workspace_id, None, limit).map_err(|e| e.to_string())?;
+    let branches = git.branches(workspace_id).map_err(|e| e.to_string())?;
+    let (ahead, behind) = branches
+        .iter()
+        .find(|b| b.active)
+        .map(|b| (b.ahead, b.behind))
+        .unwrap_or((0, 0));
+    serde_json::to_value(serde_json::json!({
+        "workspace_id": workspace_id,
+        "branch": status.branch,
+        "head_short": status.head,
+        "clean": status.clean,
+        "total_changed": status.total,
+        "staged": status.staged,
+        "modified": status.modified,
+        "untracked": status.untracked,
+        "commits": commits,
+        "branches": branches,
+        "ahead": ahead,
+        "behind": behind,
+    }))
+    .map_err(|e| e.to_string())
+}
+
+/// Build the git.diff JSON value from ship-git crate calls.
+fn git_diff_value(
+    state: &crate::ship_runtime::ApiState,
+    workspace_id: Option<&str>,
+    commit: &str,
+) -> Result<Value, String> {
+    let report = state.git().diff(workspace_id, Some(commit), None).map_err(|e| e.to_string())?;
+    let is_working = report.commit.eq_ignore_ascii_case("WORKING");
+    let short_sha: String = report.commit.chars().take(7).collect();
+    let parsed = ship_git::diff::parse_unified_diff(&report.diff);
+    serde_json::to_value(serde_json::json!({
+        "sha": report.commit,
+        "short_sha": short_sha,
+        "is_working": is_working,
+        "diff_text": report.diff,
+        "parsed": parsed,
+    }))
+    .map_err(|e| e.to_string())
+}
+
+/// Build the git.annotations JSON value from ship-git crate calls.
+fn git_annotations_value(
+    state: &crate::ship_runtime::ApiState,
+    workspace_id: Option<&str>,
+    file: &str,
+) -> Value {
+    let kernel = state.kernel().clone();
+    let ship_dir = state.ship_dir().to_path_buf();
+    let annotations =
+        ship_git::annotations::load_file_annotations(kernel, &ship_dir, file, workspace_id);
+    serde_json::to_value(&annotations).unwrap_or(Value::Null)
+}
+
+impl OpsImpl {
     async fn gated_git_write(
         &self,
         op: &str,
-        args: serde_json::Value,
+        args: Value,
         ctx: &RequestContext,
     ) -> ServiceResult<JsonResponse> {
         let auth = ctx
