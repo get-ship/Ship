@@ -176,7 +176,12 @@ pub async fn run_network(
             unsafe {
                 std::env::set_var("SHIP_FIRST_PARTY_VIEWS", &fp_root);
             }
+            tracing::info!(path = %fp_root.display(), "shipd: SHIP_FIRST_PARTY_VIEWS set");
+        } else {
+            tracing::warn!(path = %fp_root.display(), "shipd: SHIP_FIRST_PARTY_VIEWS not set; first-party root missing");
         }
+    } else {
+        tracing::warn!("shipd: worktree_root is None; SHIP_FIRST_PARTY_VIEWS not set");
     }
 
     // One-time hint for the worktree footgun: if `ProjectRoot::discover`

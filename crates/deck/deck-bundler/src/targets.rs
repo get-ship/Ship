@@ -157,16 +157,28 @@ impl BundleLayout {
         }).collect()
     }
 
-    /// One bundle per discovered view. Two layouts under each source root:
-    /// `views/<name>/page.sui` and `.ship/views/<name>/index.sui`. First-seen
-    /// wins (repo_root before workspace; `views/` before `.ship/views/`).
+    /// One bundle per discovered view. Four layouts under each source root:
+    /// - `<root>/views/<name>/page.sui` — top-level app views.
+    /// - `<root>/.ship/views/<name>/index.sui` — project-scoped views.
+    /// - `<root>/apps/shell/src/<name>/page.sui` — the shell's first-party
+    ///   fs-routed pages (home, activity, account, library, setup, settings,
+    ///   canvas). The shell's chrome lives at apps/shell/src/components/;
+    ///   its pages live at apps/shell/src/<name>/.
+    /// - `<root>/apps/shell/src/<name>/<sub>/page.sui` — the shell's nested
+    ///   pages (currently just `studio/<sub>/page.sui`, the studio sub-app).
+    /// First-seen wins (repo_root before workspace; views/ before
+    /// .ship/views/ before apps/shell/src).
     fn discover_view_bundles(&self) -> Vec<BundleTarget> {
         let mut out = Vec::new();
         let mut seen = HashSet::new();
         let mut candidates: Vec<(PathBuf, &str)> = Vec::new();
         for root in &self.source_roots {
+            // User-facing views (the standard convention).
             candidates.push((root.join("views"), "page.sui"));
             candidates.push((root.join(".ship").join("views"), "index.sui"));
+            // The shell's first-party fs-routed pages. Studio's nested
+            // sub-tree falls out of the recursive read_dir below.
+            candidates.push((root.join("apps").join("shell").join("src"), "page.sui"));
         }
         for (dir, leaf) in candidates {
             let Ok(entries) = std::fs::read_dir(&dir) else { continue };
