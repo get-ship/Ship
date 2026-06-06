@@ -471,7 +471,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
                 .ship_route(Route::GitBranchCreate, git_api::branch_create_handler)
                 .ship_route(Route::GitBranchDelete, git_api::branch_delete_handler)
                 .ship_route(Route::GitInit, git_api::init_handler)
-                .with_state(rt.git_arc()),
+                .with_state(st.git_arc()),
         )
         .ship_route(Route::GitSse, git_api::sse_handler)
         .ship_route(Route::EmitEvent, project_api::emit_event)
