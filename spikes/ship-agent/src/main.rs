@@ -12,6 +12,7 @@
 //! wire to this same `gateway.call`. The gate does not move.
 
 mod agent_loop;
+mod skills;
 mod provider;
 mod auth;
 mod session;
