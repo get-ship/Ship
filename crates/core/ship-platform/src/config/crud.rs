@@ -1,5 +1,4 @@
-use super::io::{get_config, save_config};
-use super::project::{AgentProfile, McpServerConfig};
+use ship_config::project::{get_config, save_config, AgentProfile, McpServerConfig};
 use anyhow::{Result, anyhow};
 use std::path::PathBuf;
 

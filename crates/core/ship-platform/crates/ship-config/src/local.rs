@@ -15,7 +15,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use ship_substrate::ShipHome;
-use crate::config::DiskBackedConfig;
+
+use crate::DiskBackedConfig;
 
 /// Machine-local user settings.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -55,7 +56,7 @@ pub struct Dispatch {
     pub confirm: Option<bool>,
 }
 
-impl crate::config::DiskBackedConfig for LocalSettings {
+impl DiskBackedConfig for LocalSettings {
     fn path_at(home: &ShipHome) -> PathBuf {
         home.local_path()
     }

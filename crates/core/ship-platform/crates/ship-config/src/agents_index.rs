@@ -17,11 +17,86 @@ use std::path::Path;
 use std::sync::Arc;
 
 use ship_substrate::ports::{
-    ColumnKind, ColumnSpec, DataStore, FsBroker, PrimaryKey, Query, Row, TableSchema,
+    ColumnKind, ColumnSpec, DataStore, FsBroker, LocalFsBroker, PrimaryKey, Query, Row,
+    TableSchema,
 };
+use tokio::sync::broadcast;
+use tokio::task::JoinHandle;
+use ship_types::envelope::EventEnvelope;
+use ship_types::event_types;
+use ship_types::payload::AgentDefUpdated;
 
 use crate::agents::{read_agent_def, read_agent_defs, AgentDefSource};
 use crate::error::ConfigError;
+
+/// Boot rebuild for one scope: read every def file via the reader and upsert its
+/// index row. One-way (files → index), read-only over the files. Called at
+/// daemon boot for each active space's `.ship` dir.
+pub async fn build_def_index(
+    index: &AgentDefIndex,
+    fs: &dyn FsBroker,
+    ship_dir: &Path,
+    scope: &str,
+) -> anyhow::Result<()> {
+    index.reindex_dir(fs, ship_dir, scope).await.map_err(Into::into)
+}
+
+/// Apply one `agent.def.updated` notification to the index. Non-matching event
+/// types are ignored (the spawned actor relies on this filter). The path is read
+/// from the payload; the index then RE-READS the file (`reindex_path`): present →
+/// upsert, absent → drop. The payload `content_hash` is advisory — the row's hash
+/// is computed from the re-read, so a stale/lying payload can't poison the index.
+pub async fn apply_def_updated(
+    index: &AgentDefIndex,
+    fs: &dyn FsBroker,
+    ship_dir: &Path,
+    scope: &str,
+    event: &EventEnvelope,
+) -> anyhow::Result<()> {
+    if event.event_type != event_types::AGENT_DEF_UPDATED {
+        return Ok(());
+    }
+    let payload: AgentDefUpdated = serde_json::from_str(&event.payload_json)?;
+    index
+        .reindex_path(fs, ship_dir, scope, &payload.path)
+        .await
+        .map_err(Into::into)
+}
+
+/// Spawn the long-lived index consumer: read `agent.def.updated` events off the
+/// kernel-log broadcast and apply each to the index. Returns when the channel
+/// closes. Errors are logged, never panic (one bad event must not kill the
+/// consumer); a `Lagged` gap is logged and skipped — the next boot rebuild
+/// reconciles any window missed under burst.
+pub fn spawn_def_index_consumer(
+    index: Arc<AgentDefIndex>,
+    mut rx: broadcast::Receiver<EventEnvelope>,
+    ship_dir: std::path::PathBuf,
+    scope: String,
+) -> JoinHandle<()> {
+    let fs = LocalFsBroker::new();
+    tokio::spawn(async move {
+        loop {
+            match rx.recv().await {
+                Ok(event) => {
+                    if event.event_type != event_types::AGENT_DEF_UPDATED {
+                        continue;
+                    }
+                    if let Err(e) = apply_def_updated(&index, &fs, &ship_dir, &scope, &event).await {
+                        tracing::warn!(
+                            "agent-def-index: apply error for {}: {e}",
+                            event.entity_id
+                        );
+                    }
+                }
+                Err(broadcast::error::RecvError::Lagged(n)) => {
+                    tracing::warn!("agent-def-index: lagged by {n} events, continuing");
+                }
+                Err(broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    })
+}
 
 /// The index table name (per-scope db). Columns mirror [`AgentDefRecord`].
 const TABLE: &str = "agent_def_index";
