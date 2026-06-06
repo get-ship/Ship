@@ -7,10 +7,6 @@
 //! projection tables. Callers (session lifecycle, supervisor, etc.)
 //! consume the returned values and decide whether to emit events.
 //!
-//! As of slice 06, git invocations elsewhere in the runtime
-//! (project.rs, registry/resolver.rs, services/orchestrator/gate_rules.rs,
-//! home/daemon.rs) remain in place — they're isolated "use git for X"
-//! cases, not coherent enough to gather into one trait yet. The
 //! `ExecutionContext` port sketched in
 //! `.artifacts/specs/workspace-retirement/decisions.md` is the eventual
 //! destination for the worktree-management subset; deferred until a
@@ -25,6 +21,38 @@ pub struct GitMetrics {
     pub files_changed: Option<i64>,
     pub lines_added: Option<i64>,
     pub lines_removed: Option<i64>,
+}
+
+/// Resolve the HEAD commit SHA in `work_dir`. Returns `None` if git fails,
+/// the directory is not a repo, or the output is empty.
+pub fn resolve_head_sha(work_dir: &Path) -> Option<String> {
+    Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(work_dir)
+        .output()
+        .ok()
+        .and_then(|o| {
+            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if s.is_empty() { None } else { Some(s) }
+        })
+}
+
+/// Compute the file paths changed between `start_sha` and HEAD (`start_sha..HEAD`).
+/// Returns an empty list if git fails — callers' `require_changed` rules naturally
+/// fail with an empty path list.
+pub fn diff_paths(work_dir: &Path, start_sha: &str) -> Vec<String> {
+    let out = Command::new("git")
+        .args(["diff", "--name-only", &format!("{start_sha}..HEAD")])
+        .current_dir(work_dir)
+        .output();
+    match out {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout)
+            .lines()
+            .filter(|l| !l.is_empty())
+            .map(str::to_string)
+            .collect(),
+        _ => Vec::new(),
+    }
 }
 
 /// Collect dirty-tree metrics by shelling out to `git diff --stat HEAD`.

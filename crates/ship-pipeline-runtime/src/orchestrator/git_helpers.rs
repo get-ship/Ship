@@ -14,15 +14,7 @@
 /// - **Step start:** capture the worktree's HEAD → `PipelineStepObservedPayload.start_sha`.
 ///   This tracks commits made within a single step (used by `compute_verdict`).
 pub fn resolve_head_sha(work_dir: &std::path::Path) -> Option<String> {
-    std::process::Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .current_dir(work_dir)
-        .output()
-        .ok()
-        .and_then(|o| {
-            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            if s.is_empty() { None } else { Some(s) }
-        })
+    ship_substrate::git::resolve_head_sha(work_dir)
 }
 
 /// Pick the SHA that defines the "from" end of a gate's diff range.
