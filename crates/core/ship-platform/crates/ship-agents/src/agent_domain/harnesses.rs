@@ -156,9 +156,12 @@ pub fn detect_binary(binary: &str) -> bool {
 }
 
 /// Returns the version string from `<binary> --version` (first line), or None.
+///
+/// The subprocess is bounded via `ship_substrate::spawn_bounded` (2 GB / 30 s)
+/// so a misbehaving harness binary cannot take down the daemon.
 pub fn detect_version(binary: &str) -> Option<String> {
     let command = resolve_binary_path(binary).unwrap_or_else(|| PathBuf::from(binary));
-    let out = std::process::Command::new(command)
+    let out = ship_substrate::spawn_bounded::Cmd::new(command)
         .arg("--version")
         .output()
         .ok()?;

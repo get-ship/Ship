@@ -60,7 +60,7 @@ pub(crate) fn resolve_session_context_root(
 
 /// Ensure harness config files exist in the project root before session launch.
 ///
-/// Runs `ship compile` as a subprocess — best-effort. Compilation errors are
+/// Calls the compile service in-process — best-effort. Compilation errors are
 /// logged as warnings but do not block session start (configs may already exist
 /// from a prior compile run). Returns the resolved harness list.
 pub(crate) fn compile_session_context(
@@ -77,23 +77,20 @@ pub(crate) fn compile_session_context(
     let context_root = resolve_session_context_root(ship_dir, cwd);
     let project_root = ship_dir.parent().unwrap_or(ship_dir);
 
-    let mut cmd = std::process::Command::new("ship");
-    cmd.arg("compile")
-        .arg("--path")
-        .arg(project_root)
-        .current_dir(&context_root);
-    match cmd.output() {
-        Ok(output) if output.status.success() => {}
-        Ok(output) => {
-            tracing::warn!(
-                "ship compile failed for session on branch '{}': {}",
-                branch,
-                String::from_utf8_lossy(&output.stderr).trim()
-            );
-        }
+    match crate::services::compile::compile_project(&crate::services::compile::CompileOptions {
+        project_root: project_root.to_path_buf(),
+        output_root: Some(context_root),
+        harness: None,
+        active_agent: agent_id,
+        extra_skills: Vec::new(),
+        plugins_installed: Vec::new(),
+        scoped_launch: false,
+        dry_run: false,
+    }) {
+        Ok(_) => {}
         Err(e) => {
-            tracing::debug!(
-                "ship binary not found at session start for branch '{}': {}",
+            tracing::warn!(
+                "compile failed for session on branch '{}': {}",
                 branch,
                 e
             );
