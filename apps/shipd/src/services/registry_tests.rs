@@ -51,7 +51,6 @@ fn launch_view_ops_are_registered() {
     let n = names();
     for required in [
         "agents.summaries",
-        "collections.list",
     ] {
         assert!(
             n.contains(&required),
@@ -73,27 +72,6 @@ fn temp_state() -> crate::ship_runtime::ApiState {
     std::mem::forget(dir);
     std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
 }
-
-#[test]
-#[ignore = "doomed: registry dispatch-by-string apparatus (census #5) is slated for deletion; registry stays red until the cut, not fixed. See .artifacts/gate-triage-2.md cluster A"]
-fn collections_list_returns_user_schema_items() {
-    let state = temp_state();
-    let v = call("collections.list", &json!({}), &state).expect("collections.list ok");
-    let items = v.get("items").and_then(|i| i.as_array()).expect("items array");
-    // Built-in user schemas always present (feedback / annotations etc.).
-    assert!(!items.is_empty(), "collections.list must include built-ins");
-    let first = items.first().unwrap();
-    assert!(first.get("id").is_some(), "items have id");
-    assert!(first.get("fields").and_then(|f| f.as_array()).is_some(), "items have fields[]");
-    if let Some(fields) = first.get("fields").and_then(|f| f.as_array())
-        && let Some(f0) = fields.first()
-    {
-        assert!(f0.get("name").is_some(), "field record has name");
-        assert!(f0.get("type").is_some(), "field record has type");
-    }
-}
-
-
 
 // ── agents byte-identical gate ────────────────────────────────────────
 //
