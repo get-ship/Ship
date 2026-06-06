@@ -29,7 +29,7 @@ pub mod terminal_launcher;
 /// through the supervisor namespace — that's where the responsibility
 /// for stopping spawned processes conceptually lives, even though the
 /// implementation is in platform.
-pub use ship_platform::services::process_registry::graceful_shutdown;
+pub use ship_substrate::services::process_registry::graceful_shutdown;
 
 /// Returns the substrate `ActorHandle` for an `ExecutorHandle` registered
 /// by `ProcessExecutor` (PTY-backed). Tmux- and server-mode executors

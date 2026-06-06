@@ -7,7 +7,7 @@ use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::KernelRouter;
 use ship_substrate::services::dispatch_ports::{AgentPlatform, SessionExecutor};
 use ship_runner::emit::emit_executor_session_destroyed;
-use ship_platform::services::process_registry::ProcessRegistry;
+use ship_substrate::services::process_registry::ProcessRegistry;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;

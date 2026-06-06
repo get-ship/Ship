@@ -1,19 +1,20 @@
 //! Operations the wizard / settings UI needs that go beyond
 //! `decide()` — recommendations, preview, verify, init.
 //!
-//! Lives next to `isolation.rs` to keep that file at the cap. The
+//! Lives next to `decision.rs` to keep that file at the cap. The
 //! shipd endpoints in `apps/shipd/src/routes/isolation_api.rs` are
 //! thin wrappers over these functions.
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use ship_isolation::capabilities::HostOs;
-use ship_isolation::recommender::{
+use ship_substrate::db::daemon_settings;
+use crate::capabilities::HostOs;
+use crate::recommender::{
     RecommendInput, ResolvedIsolation, default_tier_for_os, recommend,
 };
-use ship_isolation::tier::{IsolationProfile, IsolationStrategy, IsolationTier};
+use crate::tier::{IsolationProfile, IsolationStrategy, IsolationTier};
 
-use crate::isolation::{
+use crate::decision::{
     IsolationDecision, IsolationDecisionError, cached_capabilities, decide, user_isolation_profile,
 };
 
@@ -251,20 +252,19 @@ pub struct InitResult {
 }
 
 pub fn init(req: InitRequest) -> Result<InitResult> {
-    use crate::config::set_setting;
     let mut applied = Vec::new();
 
     if let Some(tier) = req.tier.as_deref() {
-        set_setting(
+        daemon_settings::set(
             "isolation.default_tier",
-            serde_json::Value::String(tier.to_string()),
+            &serde_json::Value::String(tier.to_string()),
         )?;
         applied.push(format!("isolation.default_tier = {tier}"));
     }
     if let Some(strategy) = req.strategy.as_deref() {
-        set_setting(
+        daemon_settings::set(
             "isolation.default_strategy",
-            serde_json::Value::String(strategy.to_string()),
+            &serde_json::Value::String(strategy.to_string()),
         )?;
         applied.push(format!("isolation.default_strategy = {strategy}"));
     }
@@ -280,15 +280,15 @@ pub fn init(req: InitRequest) -> Result<InitResult> {
                 verify,
             });
         }
-        set_setting(
+        daemon_settings::set(
             "isolation.enforce",
-            serde_json::Value::String("true".into()),
+            &serde_json::Value::String("true".into()),
         )?;
         applied.push("isolation.enforce = true".into());
     } else if let Some(false) = req.enforce {
-        set_setting(
+        daemon_settings::set(
             "isolation.enforce",
-            serde_json::Value::String("false".into()),
+            &serde_json::Value::String("false".into()),
         )?;
         applied.push("isolation.enforce = false".into());
     }
@@ -319,7 +319,7 @@ fn strategies_for_tier(tier: IsolationTier, os: HostOs) -> Vec<IsolationStrategy
     }
 }
 
-fn unavailable_reason(strategy: IsolationStrategy, caps: &ship_isolation::Capabilities) -> String {
+fn unavailable_reason(strategy: IsolationStrategy, caps: &crate::Capabilities) -> String {
     match strategy {
         IsolationStrategy::Noop => "always available".into(),
         IsolationStrategy::HarnessNative => {

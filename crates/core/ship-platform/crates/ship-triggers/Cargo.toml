@@ -27,8 +27,8 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros", "test-util"
 tempfile = { workspace = true }
 serde_json = { workspace = true }
 ship-substrate = { path = "../../../ship-substrate" }
-# hydrate_registry is used only in integration tests — dev-dep only.
-ship-platform = { path = "../.." }
+# hydrate_registry lives in ship-store; consumed only in integration tests.
+ship-store = { path = "../ship-store" }
 
 [lints]
 workspace = true

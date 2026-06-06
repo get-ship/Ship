@@ -119,6 +119,8 @@ include_dir = "0.7"
 libc = { workspace = true }
 
 [features]
+# Expose testutil module for integration tests and external test consumers.
+testutil = []
 unstable = ["ship-substrate/unstable", "dep:ship-cloud", "ship-cloud/unstable"]
 # Enable derive(Type) on public data structs in the migrated services
 # (rules/mcp/skills/agents/pipelines/git/permissions/...) so xtask can

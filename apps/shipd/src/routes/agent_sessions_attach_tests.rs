@@ -13,7 +13,7 @@ use futures_util::{SinkExt, StreamExt};
 use ship_substrate::services::dispatch_ports::{
     ExecutorHandle, SessionContext, SessionExecutor,
 };
-use ship_platform::services::process_registry::ProcessRegistry;
+use ship_substrate::services::process_registry::ProcessRegistry;
 use ship_substrate::supervisor::{ActorKind, ActorProfile, TransportKind, spawn_actor};
 use ship_supervisor::{run_dispatch::DispatchHandle, pty_executor_handle_for_test};
 use tempfile::TempDir;

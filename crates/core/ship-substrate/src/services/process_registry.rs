@@ -9,7 +9,7 @@
 
 use async_trait::async_trait;
 use futures_util::future::join_all;
-use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};
+use crate::events::{EmitContext, EventEnvelope, KernelRouter};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -21,7 +21,7 @@ use tokio::sync::Mutex;
 /// never dispatches can't accumulate.
 const CANCEL_TOMBSTONE_TTL: Duration = Duration::from_secs(120);
 
-use ship_substrate::services::dispatch_ports::{ExecutorHandle, SessionExecutor, ProcessRegistryPort};
+use crate::services::dispatch_ports::{ExecutorHandle, SessionExecutor, ProcessRegistryPort};
 
 /// Tracks spawned agent processes by slug → handle mapping.
 pub struct ProcessRegistry {
@@ -203,7 +203,7 @@ pub async fn graceful_shutdown(
     executor: Arc<dyn SessionExecutor>,
 ) {
     let envelope = match EventEnvelope::new(
-        ship_substrate::events::types::event_types::SUPERVISOR_SHUTTING_DOWN,
+        crate::events::types::event_types::SUPERVISOR_SHUTTING_DOWN,
         "supervisor",
         &serde_json::json!({
             "agent_count": registry.len(),
