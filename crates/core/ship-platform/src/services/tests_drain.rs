@@ -11,7 +11,7 @@ use tempfile::tempdir;
 use tokio::sync::mpsc;
 
 use ship_substrate::events::{ActorStore, EventEnvelope, Mailbox};
-use crate::services::{run_service, HealthStatus, ServiceHandler};
+use ship_substrate::services::{run_service, HealthStatus, ServiceHandler};
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 

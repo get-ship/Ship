@@ -11,7 +11,7 @@
 
 // Pure auth primitives live in `ship_platform::auth`. These re-exports
 // preserve the `crate::auth::{attest,pairing}` paths the daemon uses.
-pub use ship_platform::auth::{attest, pairing};
+pub use ship_auth::{attest, pairing};
 pub mod identity;
 /// Host unix socket — per-agent peer-credential auth. Unix-only: relies on
 /// `SO_PEERCRED` and `UnixListener`. Windows uses a named-pipe path (future).

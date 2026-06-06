@@ -18,6 +18,8 @@ ship-collection = { path = "../core/ship-platform/crates/ship-collection" }
 # Account value types (AccountState / MeView) for the deck SDK TS codegen.
 ship-account = { path = "../core/ship-platform/crates/ship-account", features = ["specta"] }
 ship-platform = { path = "../core/ship-platform", features = ["specta"] }
+ship-agents = { path = "../core/ship-platform/crates/ship-agents" }
+ship-views = { path = "../core/ship-platform/crates/ship-views" }
 ship-pipeline-runtime = { path = "../ship-pipeline-runtime", features = ["specta"] }
 ship-types = { path = "../core/ship-substrate/crates/ship-types", features = ["specta"] }
 deck = { path = "../deck/deck", features = ["specta"] }

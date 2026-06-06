@@ -6,7 +6,7 @@ use crate::services::registry::wire::SessionsListResponse;
 use crate::services::settings::view_state::{
     AboutInfo, FeatureFlag, ProviderRow, SelectOption, SettingsCtx, TerminalConfig,
 };
-use ship_platform::services::sessions::types::{SessionKind, SessionMeta, SessionStatus};
+use ship_agents::services::sessions::types::{SessionKind, SessionMeta, SessionStatus};
 fn fixed_dt() -> chrono::DateTime<chrono::Utc> {
     chrono::DateTime::from_timestamp(1_767_225_600, 0).expect("valid timestamp")
 }

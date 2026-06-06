@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use ship_platform::services::files::{FilesService, Scope};
+use ship_files::files::{FilesService, Scope};
 use super::state;
 
 /// Body shape returned by `PipelinesService::get`. `format` is the

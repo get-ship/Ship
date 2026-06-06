@@ -3,7 +3,7 @@
 //! Executors are harness-agnostic process managers. They receive a
 //! HarnessAdapter and delegate all harness-specific behavior to it.
 
-use ship_platform::services::harness_adapter::{adapter_for, adapter_for_or_default};
+use ship_harnesses::harness_adapter::{adapter_for, adapter_for_or_default};
 
 // ── Source helpers ───────────────────────────────────────────────────────────
 

@@ -11,6 +11,10 @@ ship-platform = { path = "../../../ship-platform" }
 # tokens through this seam — the role→scope tables and `DaemonSession`
 # constructor live here, not in the L1 platform.
 ship-auth-types = { path = "../ship-auth-types" }
+ship-agents = { path = "../../../ship-platform/crates/ship-agents" }
+ship-auth = { path = "../../../ship-platform/crates/ship-auth" }
+ship-files = { path = "../../../ship-platform/crates/ship-files" }
+ship-harnesses = { path = "../../../ship-platform/crates/ship-harnesses" }
 # Device domain — isolation-execution sandbox bookkeeping. The supervisor's
 # per-spawn path consults `ship_device::sandbox::dispatcher()` to ensure
 # the project's default sandbox exists, register actors, and notify on

@@ -6,7 +6,7 @@
 //!
 //! Scope model: project wins by default, exactly as AgentsService.
 
-use ship_platform::services::files::{Error as FileError, FilesService, Scope};
+use ship_files::files::{Error as FileError, FilesService, Scope};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
@@ -196,7 +196,7 @@ pub fn patch_doc(
     let json = ship_substrate::fs_util::strip_jsonc_comments(&raw);
     let mut doc: serde_json::Value =
         serde_json::from_str(&json).map_err(|e| Error::Parse(e.to_string()))?;
-    ship_platform::services::path_tolerant::ensure_paths_for_adds(&mut doc, patch);
+    ship_files::path_tolerant::ensure_paths_for_adds(&mut doc, patch);
     json_patch::patch(&mut doc, patch).map_err(|e| Error::Patch(e.to_string()))?;
     files.write_jsonc(scope, &rel, &doc)?;
     Ok(scope)

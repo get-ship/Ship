@@ -22,7 +22,7 @@ use axum::{
     response::{IntoResponse, Response},
     serve::IncomingStream,
 };
-use ship_platform::auth::peer_identity::{self, PeerIdentity};
+use ship_auth::peer_identity::{self, PeerIdentity};
 use tokio::net::UnixListener;
 use tokio_util::sync::CancellationToken;
 
@@ -50,7 +50,7 @@ impl Connected<IncomingStream<'_, UnixListener>> for PeerCredInfo {
 
 /// Kernel-verified peer pid of the connection, threaded into request extensions
 /// so `auth_middleware`'s token branch can bind a session to its process
-/// ([`ship_platform::auth::scopes::DaemonSession::pid_authorizes`]). `None` when
+/// ([`ship_auth::scopes::DaemonSession::pid_authorizes`]). `None` when
 /// the transport can't attest a pid (TCP, where this middleware doesn't run) —
 /// a pid-bound session then fails closed.
 #[derive(Clone, Copy, Debug)]
@@ -64,7 +64,7 @@ fn presents_session_token(req: &axum::extract::Request<Body>) -> bool {
         .get("authorization")
         .and_then(|v| v.to_str().ok())
         .and_then(|h| h.strip_prefix("Bearer "))
-        .map(ship_platform::auth::scopes::is_session_token)
+        .map(ship_auth::scopes::is_session_token)
         .unwrap_or(false)
 }
 
@@ -98,7 +98,7 @@ pub async fn peer_cred_auth_middleware(
     // (looking up the agent's declared role for the fallback path) is a follow-up;
     // `None` already yields the provisioned set for any provisioned agent.
     let grants = match &identity {
-        PeerIdentity::Agent(id) => ship_platform::auth::scopes::resolve_grants(id, None),
+        PeerIdentity::Agent(id) => ship_auth::scopes::resolve_grants(id, None),
         _ => Vec::new(),
     };
     match auth_context_from_peer(&identity, None, grants) {

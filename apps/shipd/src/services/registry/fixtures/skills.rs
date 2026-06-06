@@ -6,10 +6,10 @@ use serde_json::{json, Value};
 use crate::services::registry::wire::{
     SkillFileResponse, SkillsIndexResponse, SkillsSummariesResponse,
 };
-use ship_platform::services::skills::state::{
+use ship_agents::services::skills::state::{
     IndexEntry, ScopeTag, SkillDetail as RawSkillDetail,
 };
-use ship_platform::services::skills::view_state::{SkillDetail, SkillKind, SkillSummary};
+use ship_agents::services::skills::view_state::{SkillDetail, SkillKind, SkillSummary};
 
 impl SkillsIndexResponse {
     pub fn example() -> Self {

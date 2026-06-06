@@ -47,7 +47,7 @@ const TEST_TOKEN: &str = "a01b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c
 // ── Pid-bound session token enforcement (space window) ───────────────────
 
 use crate::auth::peer_socket::PeerPid;
-use ship_platform::auth::scopes::{operator_session, space_window_session};
+use ship_auth::scopes::{operator_session, space_window_session};
 
 /// Handler that reports whether the resolved caller is operator-class — the S6
 /// end-to-end probe (the operator cred is the SOLE elevation source).
@@ -58,7 +58,7 @@ async fn operator_probe(axum::Extension(auth): axum::Extension<AuthContext>) -> 
 /// Router serving `/whoami` (operator probe) behind the real bearer middleware,
 /// pre-seeded with `session` and injecting `peer_pid` like the UDS peer-cred layer.
 async fn operator_router(
-    session: ship_platform::auth::scopes::DaemonSession,
+    session: ship_auth::scopes::DaemonSession,
     peer_pid: Option<u32>,
 ) -> Router {
     let token = Arc::new(TEST_TOKEN.to_string());
@@ -138,7 +138,7 @@ async fn daemon_token_is_not_operator() {
 /// and whose outer layer injects `peer_pid` into request extensions (modelling
 /// the UDS peer-cred layer). `peer_pid = None` models TCP (no attested pid).
 async fn router_with_pid_bound_session(
-    session: ship_platform::auth::scopes::DaemonSession,
+    session: ship_auth::scopes::DaemonSession,
     peer_pid: Option<u32>,
 ) -> Router {
     let token = Arc::new(TEST_TOKEN.to_string());

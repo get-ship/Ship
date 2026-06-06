@@ -20,6 +20,14 @@ path = "src/main.rs"
 [dependencies]
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
+ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
+ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
+ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
+ship-harnesses = { path = "../../crates/core/ship-platform/crates/ship-harnesses" }
+ship-kv = { path = "../../crates/core/ship-platform/crates/ship-kv" }
+ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
+ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
+ship-views = { path = "../../crates/core/ship-platform/crates/ship-views" }
 ship-isolation = { path = "../../crates/core/ship-isolation", default-features = false }
 ship-host = { path = "../../crates/core/ship-substrate/crates/ship-host" }
 ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }

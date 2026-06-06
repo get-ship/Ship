@@ -6,7 +6,7 @@
 
 use async_trait::async_trait;
 use ship_substrate::events::kernel_router::KernelRouter;
-use ship_platform::services::dispatch_ports::{
+use ship_substrate::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
 use std::sync::Arc;

@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 
 use compiler::manifest::ShipManifest;
-use ship_platform::registry::hash::{ExportHashes, compute_export_hashes};
+use ship_store::hash::{ExportHashes, compute_export_hashes};
 
 /// Filter manifest exports to a single export path.
 ///

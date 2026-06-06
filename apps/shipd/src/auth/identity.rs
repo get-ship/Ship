@@ -11,8 +11,8 @@
 
 use axum::{Json, http::StatusCode, response::{IntoResponse, Response}};
 use serde_json::json;
-use ship_platform::auth::peer_identity::PeerIdentity;
-use ship_platform::auth::scopes::scopes_for_role;
+use ship_auth::peer_identity::PeerIdentity;
+use ship_auth::scopes::scopes_for_role;
 use ship_substrate::events::CallerKind;
 
 use crate::auth::{AuthContext, Scope};

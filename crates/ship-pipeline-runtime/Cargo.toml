@@ -23,6 +23,10 @@ ship-types = { path = "../core/ship-substrate/crates/ship-types" }
 # crate is a DOWNSTREAM consumer of `ship-platform`; `ship-platform` does
 # not depend on us, so no cycle.
 ship-platform = { path = "../core/ship-platform" }
+ship-agents = { path = "../core/ship-platform/crates/ship-agents" }
+ship-auth = { path = "../core/ship-platform/crates/ship-auth" }
+ship-files = { path = "../core/ship-platform/crates/ship-files" }
+ship-store = { path = "../core/ship-platform/crates/ship-store" }
 # L1 artifacts service — fanout/step_io use ArtifactService + ArtifactScope
 # (typed artifact metadata) for step-input/output wiring.
 ship-artifacts = { path = "../core/ship-platform/crates/ship-artifacts" }

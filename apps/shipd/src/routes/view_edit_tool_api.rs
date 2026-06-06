@@ -20,7 +20,7 @@ use std::sync::Arc;
 use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use ship_artifacts::service::ArtifactService;
-use ship_platform::view_authoring::{self, CompileError, ViewAnnotateResponse, ViewCompileCheckResponse,
+use ship_views::view_authoring::{self, CompileError, ViewAnnotateResponse, ViewCompileCheckResponse,
     ViewListSnapshotsResponse, ViewPreviewSnapshotResponse, ViewReadSourceResponse,
     ViewRestoreSnapshotResponse, ViewWriteSourceResponse};
 

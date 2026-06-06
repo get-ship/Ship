@@ -8,16 +8,16 @@
 //! capability gate (`gate::decide`) exactly as the generated CommandOpsService
 //! does; this keeps a single enforcement point until the transport-level gate
 //! (#94) lets per-domain handlers gate inline. The query/mutation logic itself
-//! lives in `ship_platform::services::rules` — shipd only wires the trait to it.
+//! lives in `ship_agents::services::rules` — shipd only wires the trait to it.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 
 use ship_ops_rpc::{
     IndexEntry, RuleGetResponse, RulesIndexResponse, RulesService, ScopedMutation,
 };
-use ship_platform::services::files::Scope;
-use ship_platform::services::rules::service::{CreateArgs, PutArgs};
-use ship_platform::services::rules::state;
+use ship_files::files::Scope;
+use ship_agents::services::rules::service::{CreateArgs, PutArgs};
+use ship_agents::services::rules::state;
 
 use crate::auth::AuthContext;
 use crate::ops_rpc::OpsImpl;

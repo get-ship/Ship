@@ -5,7 +5,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::KernelRouter;
-use ship_platform::services::dispatch_ports::{AgentPlatform, SessionExecutor};
+use ship_substrate::services::dispatch_ports::{AgentPlatform, SessionExecutor};
 use ship_runner::emit::emit_executor_session_destroyed;
 use ship_platform::services::process_registry::ProcessRegistry;
 use std::path::{Path, PathBuf};
@@ -104,7 +104,7 @@ impl AgentPlatform for ShipdPlatform {
             agent_id: agent_id.to_string(),
             scopes: scopes_for_role(role),
             // L1 (projection-aware): keep on ship-platform's L1 path.
-            grants: ship_platform::auth::scopes::resolve_grants(agent_id, role),
+            grants: ship_auth::scopes::resolve_grants(agent_id, role),
             workspace_id: None,
             // Agent sessions carry no resolved space — keyed `None` at emit,
             // never a fabricated home/global space (S2 home-space kill). See

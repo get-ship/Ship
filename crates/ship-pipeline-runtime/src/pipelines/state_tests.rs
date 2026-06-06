@@ -1,7 +1,7 @@
 //! PipelineService state tests. Pure logic over temp dirs.
 
 use crate::pipelines::state::*;
-use ship_platform::services::files::{FilesService, Scope};
+use ship_files::files::{FilesService, Scope};
 use std::path::Path;
 use tempfile::tempdir;
 

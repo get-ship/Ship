@@ -13,7 +13,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use compiler::manifest::ShipManifest;
-use ship_platform::registry::{
+use ship_store::{
     PackageCache,
     install::{InstallOptions, resolve_and_fetch},
     types::{Dependency, ShipManifest as RegistryManifest},

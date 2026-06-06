@@ -15,9 +15,9 @@ use ship_ops_rpc::{
     IndexEntry, JsonResponse, PermissionsIndexResponse, PermissionsService, ScopedMutation,
     ToolPattern, ToolPatternsResponse,
 };
-use ship_platform::services::files::Scope;
-use ship_platform::services::permissions::service::{CreateArgs, PutArgs};
-use ship_platform::services::permissions::state;
+use ship_files::files::Scope;
+use ship_agents::services::permissions::service::{CreateArgs, PutArgs};
+use ship_agents::services::permissions::state;
 
 use crate::ops_rpc::OpsImpl;
 

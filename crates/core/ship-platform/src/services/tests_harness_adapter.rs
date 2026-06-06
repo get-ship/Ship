@@ -1,7 +1,7 @@
 //! Tests for the harness adapter registry and trait contract.
 
-use crate::services::dispatch_ports::LaunchProfile;
-use crate::services::harness_adapter::{adapter_for, adapter_for_or_default};
+use ship_substrate::services::dispatch_ports::LaunchProfile;
+use ship_harnesses::harness_adapter::{adapter_for, adapter_for_or_default};
 
 fn default_profile() -> LaunchProfile {
     LaunchProfile { persist_session: true, ..Default::default() }

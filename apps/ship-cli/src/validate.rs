@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::path::Path;
 
 use crate::profile::load_agent_profile;
-use ship_platform::services::compile::{load_permission_preset, load_skills, McpEntry, McpFile};
+use ship_agents::services::compile::{load_permission_preset, load_skills, McpEntry, McpFile};
 use crate::profile::find_agent_file;
 
 #[cfg(test)]

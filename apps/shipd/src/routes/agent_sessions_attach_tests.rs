@@ -10,7 +10,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use axum::{Router, routing::get};
 use futures_util::{SinkExt, StreamExt};
-use ship_platform::services::dispatch_ports::{
+use ship_substrate::services::dispatch_ports::{
     ExecutorHandle, SessionContext, SessionExecutor,
 };
 use ship_platform::services::process_registry::ProcessRegistry;

@@ -28,7 +28,7 @@ pub use init::default_worktree_resolver;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ship_platform::services::mesh::SharedMeshRegistry;
+use ship_substrate::services::mesh::SharedMeshRegistry;
 use crate::auth::SessionRegistry;
 use ship_substrate::task_health::HealthRegistry;
 use crate::supervisor::run_dispatch::DispatchHandle;
@@ -87,7 +87,7 @@ pub struct ShipRuntime {
     /// Wall-clock instant the daemon process started — used for uptime.
     pub(super) started_at: std::time::Instant,
     /// Hook engine (external source adapters + hot-reload watcher).
-    pub(super) hook_engine: std::sync::OnceLock<std::sync::Arc<ship_platform::triggers::engine::HookEngine>>,
+    pub(super) hook_engine: std::sync::OnceLock<std::sync::Arc<ship_triggers::engine::HookEngine>>,
     /// Declarative-tier config watcher (Phase 4) — emits domain.changed events.
     pub(super) config_watcher: std::sync::OnceLock<ship_platform::config::ConfigWatcher>,
     /// Shared event-log handle for the live agent-def index (agents arc S5).
@@ -118,16 +118,16 @@ pub struct ShipRuntime {
     /// service-layer pattern. HTTP handlers in `services::rules` go
     /// through this trait so the cloud worker / browser embed / unit
     /// tests can swap implementations without standing up an HTTP server.
-    pub(super) rules: std::sync::Arc<dyn ship_platform::services::rules::service::RulesService>,
+    pub(super) rules: std::sync::Arc<dyn ship_agents::services::rules::service::RulesService>,
     /// `PermissionsService` impl — second mr-02 pilot, includes the
     /// cross-domain `tool_patterns` composition.
-    pub(super) permissions: std::sync::Arc<dyn ship_platform::services::permissions::service::PermissionsService>,
+    pub(super) permissions: std::sync::Arc<dyn ship_agents::services::permissions::service::PermissionsService>,
     /// `McpService` impl — third mr-02 pilot.
-    pub(super) mcp: std::sync::Arc<dyn ship_platform::services::mcp::service::McpService>,
+    pub(super) mcp: std::sync::Arc<dyn ship_agents::services::mcp::service::McpService>,
     /// `SkillsService` impl — fourth mr-02 migration.
-    pub(super) skills: std::sync::Arc<dyn ship_platform::services::skills::service::SkillsService>,
+    pub(super) skills: std::sync::Arc<dyn ship_agents::services::skills::service::SkillsService>,
     /// `AgentsService` impl — fifth mr-02 migration.
-    pub(super) agents: std::sync::Arc<dyn ship_platform::services::agents::service::AgentsService>,
+    pub(super) agents: std::sync::Arc<dyn ship_agents::services::agents::service::AgentsService>,
     /// `PipelinesService` impl — sixth mr-02 migration (definition CRUD only;
     /// dispatch / cancel / runs still flow through `runtime_api`).
     pub(super) pipelines: std::sync::Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService>,

@@ -462,7 +462,7 @@ pub async fn run_network(
     // Install the process-wide registry handle so the host-side spawn path
     // (supervisor) can mint per-process tokens for sandboxed actors without
     // threading a registry through the event→orchestrator→executor chain.
-    ship_platform::auth::scopes::set_session_registry(session_registry.clone());
+    ship_auth::scopes::set_session_registry(session_registry.clone());
     // Install the daemon's reachable origin so the spawn path can inject
     // SHIP_DAEMON_URL into sandboxed actors (rewritten to a
     // container-reachable host for Tier 2+). Same boot-install pattern as

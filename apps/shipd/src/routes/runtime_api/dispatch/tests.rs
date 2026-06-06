@@ -247,7 +247,7 @@ fn dispatch_request_rejects_pipeline_field() {
     );
 }
 
-use ship_platform::services::harnesses::session_file::write_session_file;
+use ship_harnesses::harnesses::session_file::write_session_file;
 
 #[test]
 fn load_session_file_missing_returns_400() {

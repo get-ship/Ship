@@ -20,15 +20,15 @@ use ship_substrate::events::EventFilter;
 use crate::auth::AuthContext;
 use crate::ops_rpc::OpsImpl;
 use crate::services::gate;
-use ship_platform::services::agents::watch as agent_watch;
+use ship_agents::services::agents::watch as agent_watch;
 
 // ── Read helpers ─────────────────────────────────────────────────────────────
 
 impl OpsImpl {
     /// C0: `agents.list` — index entries.
     pub(crate) fn agents_list(&self) -> ServiceResult<ship_ops_rpc::AgentIndexResponse> {
-        use ship_platform::services::agents::state;
-        use ship_platform::services::files::FilesService;
+        use ship_agents::services::agents::state;
+        use ship_files::files::FilesService;
         let files = FilesService::resolve_roots(self.state().ship_dir());
         let items = state::list(&files);
         serde_json::from_value::<ship_ops_rpc::AgentIndexResponse>(json!({ "items": items }))
@@ -38,7 +38,7 @@ impl OpsImpl {
 
     /// C0: `agents.summaries`.
     pub(crate) fn agents_summaries(&self) -> ServiceResult<ship_ops_rpc::AgentsSummariesResponse> {
-        use ship_platform::services::agents::view_state;
+        use ship_agents::services::agents::view_state;
         let items = view_state::list_agents(self.state().ship_dir());
         serde_json::from_value::<ship_ops_rpc::AgentsSummariesResponse>(json!({ "items": items }))
             .map(Response::new)
@@ -47,7 +47,7 @@ impl OpsImpl {
 
     /// C0: `agents.detail`.
     pub(crate) fn agents_detail(&self, id: &str) -> ServiceResult<ship_ops_rpc::AgentDetail> {
-        use ship_platform::services::agents::view_state;
+        use ship_agents::services::agents::view_state;
         let detail = view_state::load_agent(self.state().ship_dir(), id)
             .ok_or_else(|| ConnectError::not_found(format!("agent `{id}`")))?;
         serde_json::from_value::<ship_ops_rpc::AgentDetail>(
@@ -60,7 +60,7 @@ impl OpsImpl {
 
     /// C0: `agents.catalogs`.
     pub(crate) fn agents_catalogs(&self) -> ServiceResult<ship_ops_rpc::AgentCatalogsResponse> {
-        use ship_platform::services::agents::view_state;
+        use ship_agents::services::agents::view_state;
         let catalogs = view_state::list_agent_catalogs(self.state().ship_dir());
         serde_json::from_value::<ship_ops_rpc::AgentCatalogsResponse>(
             serde_json::to_value(catalogs)
@@ -75,8 +75,8 @@ impl OpsImpl {
     /// serializing into `doc_json` (same open-payload convention as
     /// CollectionItem.data_json).
     pub(crate) fn agents_get_doc(&self, args: Value) -> ServiceResult<AgentDoc> {
-        use ship_platform::services::agents::state::{self, ScopeTag};
-        use ship_platform::services::files::FilesService;
+        use ship_agents::services::agents::state::{self, ScopeTag};
+        use ship_files::files::FilesService;
         let id = args.get("id").and_then(|v| v.as_str()).unwrap_or_default();
         let scope = parse_scope_opt(&args);
         let files = FilesService::resolve_roots(self.state().ship_dir());
@@ -99,7 +99,7 @@ impl OpsImpl {
 
     /// C0: `agents.wire`.
     pub(crate) fn agents_wire(&self, id: &str) -> ServiceResult<ship_ops_rpc::AgentWireResponse> {
-        use ship_platform::services::agents::wire;
+        use ship_agents::services::agents::wire;
         let ctx = wire::build(id, self.state().ship_dir())
             .ok_or_else(|| ConnectError::not_found(format!("agent `{id}`")))?;
         serde_json::from_value::<ship_ops_rpc::AgentWireResponse>(
@@ -115,7 +115,7 @@ impl OpsImpl {
         &self,
         id: &str,
     ) -> ServiceResult<ship_ops_rpc::AgentSettingsResponse> {
-        use ship_platform::services::agents::settings_view;
+        use ship_agents::services::agents::settings_view;
         let ctx = settings_view::build(id, self.state().ship_dir())
             .ok_or_else(|| ConnectError::not_found(format!("agent `{id}`")))?;
         serde_json::from_value::<ship_ops_rpc::AgentSettingsResponse>(
@@ -130,7 +130,7 @@ impl OpsImpl {
     pub(crate) fn agents_templates(
         &self,
     ) -> ServiceResult<ship_ops_rpc::AgentTemplatesResponse> {
-        use ship_platform::services::agents::create;
+        use ship_agents::services::agents::create;
         serde_json::from_value::<ship_ops_rpc::AgentTemplatesResponse>(
             json!({ "items": create::builtin_templates() }),
         )
@@ -142,7 +142,7 @@ impl OpsImpl {
     pub(crate) fn agents_permission_presets(
         &self,
     ) -> ServiceResult<ship_ops_rpc::PermissionPresetsResponse> {
-        use ship_platform::services::agents::create;
+        use ship_agents::services::agents::create;
         serde_json::from_value::<ship_ops_rpc::PermissionPresetsResponse>(
             json!({ "items": create::builtin_permission_presets() }),
         )
@@ -152,7 +152,7 @@ impl OpsImpl {
 
     /// C0: `agents.harnesses`.
     pub(crate) fn agents_harnesses(&self) -> ServiceResult<ship_ops_rpc::HarnessesResponse> {
-        use ship_platform::services::agents::create;
+        use ship_agents::services::agents::create;
         serde_json::from_value::<ship_ops_rpc::HarnessesResponse>(
             json!({ "items": create::builtin_harnesses() }),
         )
@@ -162,7 +162,7 @@ impl OpsImpl {
 
     /// C0: `agents.create_ctx`.
     pub(crate) fn agents_create_ctx(&self) -> ServiceResult<JsonResponse> {
-        use ship_platform::services::agents::create;
+        use ship_agents::services::agents::create;
         let ctx = create::build_create_ctx();
         let json_str = serde_json::to_string(&ctx)
             .map_err(|e| ConnectError::internal(format!("agents.create_ctx serialize: {e}")))?;
@@ -378,10 +378,10 @@ impl OpsImpl {
 
 // ── Scope parse helper ────────────────────────────────────────────────────────
 
-fn parse_scope_opt(args: &Value) -> Option<ship_platform::services::files::Scope> {
+fn parse_scope_opt(args: &Value) -> Option<ship_files::files::Scope> {
     match args.get("scope").and_then(|v| v.as_str()) {
-        Some("project") => Some(ship_platform::services::files::Scope::Project),
-        Some("user") => Some(ship_platform::services::files::Scope::User),
+        Some("project") => Some(ship_files::files::Scope::Project),
+        Some("user") => Some(ship_files::files::Scope::User),
         _ => None,
     }
 }
@@ -389,11 +389,11 @@ fn parse_scope_opt(args: &Value) -> Option<ship_platform::services::files::Scope
 fn parse_scope_res(
     args: &Value,
     key: &str,
-) -> Result<Option<ship_platform::services::files::Scope>, ConnectError> {
+) -> Result<Option<ship_files::files::Scope>, ConnectError> {
     match args.get(key).and_then(|v| v.as_str()) {
         None | Some("") => Ok(None),
-        Some("project") => Ok(Some(ship_platform::services::files::Scope::Project)),
-        Some("user") => Ok(Some(ship_platform::services::files::Scope::User)),
+        Some("project") => Ok(Some(ship_files::files::Scope::Project)),
+        Some("user") => Ok(Some(ship_files::files::Scope::User)),
         Some(other) => Err(ConnectError::invalid_argument(format!(
             "`{key}` must be 'project' or 'user', got `{other}`"
         ))),
@@ -403,7 +403,7 @@ fn parse_scope_res(
 fn req_scope(
     args: &Value,
     key: &str,
-) -> Result<ship_platform::services::files::Scope, ConnectError> {
+) -> Result<ship_files::files::Scope, ConnectError> {
     parse_scope_res(args, key)?
         .ok_or_else(|| ConnectError::invalid_argument(format!("`{key}` is required (project|user)")))
 }
@@ -436,9 +436,9 @@ async fn agents_profile_write(
     state: &crate::ship_runtime::ApiState,
     auth: &AuthContext,
 ) -> Result<Value, ConnectError> {
-    use ship_platform::services::agents::service::{CreateArgs, DuplicateArgs, PutArgs};
-    use ship_platform::services::agents::state::{self, ScopeTag};
-    use ship_platform::services::files::Scope;
+    use ship_agents::services::agents::service::{CreateArgs, DuplicateArgs, PutArgs};
+    use ship_agents::services::agents::state::{self, ScopeTag};
+    use ship_files::files::Scope;
     use ship_substrate::ports::{KernelLog, LocalFsBroker};
     use ship_substrate::ShipHome;
     use ship_types::SpaceId;
@@ -582,7 +582,7 @@ async fn agent_control_write(
             let agent = req_str_arg(args, "agent")?.to_string();
             let new_grants = str_array_arg(args, "grants");
             let mut baseline: std::collections::BTreeSet<String> =
-                ship_platform::services::permissions::projection::provisioned_grants_for(&agent)
+                ship_agents::services::permissions::projection::provisioned_grants_for(&agent)
                     .ok()
                     .flatten()
                     .unwrap_or_default()
@@ -605,7 +605,7 @@ async fn agent_control_write(
             }
             baseline.extend(new_grants.iter().cloned());
             let provisioned: Vec<String> = baseline.into_iter().collect();
-            ship_platform::auth::scopes::provision_grants(
+            ship_auth::scopes::provision_grants(
                 &agent,
                 &provisioned,
                 "operator",
@@ -726,33 +726,33 @@ fn agent_scope_snapshot(state: &crate::ship_runtime::ApiState, id: &str) -> Valu
 }
 
 fn agents_summaries_value(state: &crate::ship_runtime::ApiState) -> Value {
-    use ship_platform::services::agents::view_state;
+    use ship_agents::services::agents::view_state;
     let items = view_state::list_agents(state.ship_dir());
     serde_json::to_value(json!({ "items": items })).unwrap_or(Value::Null)
 }
 
 fn agents_catalogs_value(state: &crate::ship_runtime::ApiState) -> Value {
-    use ship_platform::services::agents::view_state;
+    use ship_agents::services::agents::view_state;
     serde_json::to_value(view_state::list_agent_catalogs(state.ship_dir()))
         .unwrap_or(Value::Null)
 }
 
 fn agents_detail_value(state: &crate::ship_runtime::ApiState, id: &str) -> Value {
-    use ship_platform::services::agents::view_state;
+    use ship_agents::services::agents::view_state;
     view_state::load_agent(state.ship_dir(), id)
         .and_then(|d| serde_json::to_value(d).ok())
         .unwrap_or(Value::Null)
 }
 
 fn agents_wire_value(state: &crate::ship_runtime::ApiState, id: &str) -> Value {
-    use ship_platform::services::agents::wire;
+    use ship_agents::services::agents::wire;
     wire::build(id, state.ship_dir())
         .and_then(|w| serde_json::to_value(w).ok())
         .unwrap_or(Value::Null)
 }
 
 fn agents_settings_value(state: &crate::ship_runtime::ApiState, id: &str) -> Value {
-    use ship_platform::services::agents::settings_view;
+    use ship_agents::services::agents::settings_view;
     settings_view::build(id, state.ship_dir())
         .and_then(|s| serde_json::to_value(s).ok())
         .unwrap_or(Value::Null)

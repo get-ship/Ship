@@ -29,7 +29,7 @@ use compiler::types::agent_profile::{
 };
 use serde_json::Value;
 use ship_isolation::{IsolationStrategy, IsolationTier};
-use ship_platform::services::harness_adapter::capabilities;
+use ship_harnesses::harness_adapter::capabilities;
 
 /// Load + parse the canonical agent schema from the repo root. The test
 /// crate's `CARGO_MANIFEST_DIR` is `crates/core/ship-platform`; the schema

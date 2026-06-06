@@ -21,7 +21,7 @@ use tokio::sync::Mutex;
 /// never dispatches can't accumulate.
 const CANCEL_TOMBSTONE_TTL: Duration = Duration::from_secs(120);
 
-use crate::services::dispatch_ports::{ExecutorHandle, SessionExecutor, ProcessRegistryPort};
+use ship_substrate::services::dispatch_ports::{ExecutorHandle, SessionExecutor, ProcessRegistryPort};
 
 /// Tracks spawned agent processes by slug → handle mapping.
 pub struct ProcessRegistry {

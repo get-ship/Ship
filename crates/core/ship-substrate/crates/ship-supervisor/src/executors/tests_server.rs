@@ -17,9 +17,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use ship_platform::services::dispatch_ports::{ExecutorHandle, SessionContext, SessionExecutor, LaunchProfile};
-use ship_platform::services::harness_adapter::capabilities;
-use ship_platform::services::server_session::StubSession;
+use ship_substrate::services::dispatch_ports::{ExecutorHandle, SessionContext, SessionExecutor, LaunchProfile};
+use ship_harnesses::harness_adapter::capabilities;
+use ship_substrate::services::server_session::StubSession;
 
 use super::routing::{RouteKind, RoutingExecutor, ServerSessionRegistry};
 use super::server::ServerExecutor;
@@ -45,7 +45,7 @@ fn fresh_ctx(harness: Option<&str>) -> SessionContext {
         },
         exit_tx: None,
         step: None,
-        invocation: ship_platform::services::dispatch_ports::InvocationMode::Print,
+        invocation: ship_substrate::services::dispatch_ports::InvocationMode::Print,
         keepalive: false,
     }
 }

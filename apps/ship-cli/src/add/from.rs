@@ -192,20 +192,20 @@ fn scan_bundle_security(bundle: &TransferBundle) -> Result<()> {
     for (skill_id, skill) in &bundle.skills {
         for (path, content) in &skill.files {
             let filename = format!("skills/{skill_id}/{path}");
-            let findings = ship_platform::config::security::scan_text(content, &filename);
+            let findings = ship_substrate::security::scan_text(content, &filename);
             all_findings.extend(findings);
         }
     }
 
     for (i, rule) in bundle.agent.rules.iter().enumerate() {
-        let findings = ship_platform::config::security::scan_text(rule, &format!("rule[{i}]"));
+        let findings = ship_substrate::security::scan_text(rule, &format!("rule[{i}]"));
         all_findings.extend(findings);
     }
 
-    if ship_platform::config::security::has_critical(&all_findings) {
+    if ship_substrate::security::has_critical(&all_findings) {
         let critical: Vec<String> = all_findings
             .iter()
-            .filter(|f| f.severity == ship_platform::config::security::Severity::Critical)
+            .filter(|f| f.severity == ship_substrate::security::Severity::Critical)
             .map(|f| f.to_string())
             .collect();
         anyhow::bail!(
@@ -215,7 +215,7 @@ fn scan_bundle_security(bundle: &TransferBundle) -> Result<()> {
         );
     }
 
-    let (_, warnings, _) = ship_platform::config::security::summarize(&all_findings);
+    let (_, warnings, _) = ship_substrate::security::summarize(&all_findings);
     if warnings > 0 {
         eprintln!(
             "warning: {} suspicious Unicode character(s) found in bundle (non-blocking)",

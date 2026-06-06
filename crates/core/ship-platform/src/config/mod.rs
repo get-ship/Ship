@@ -6,8 +6,6 @@
 //! module is a thin shim for the items that cannot move there due to
 //! platform-internal dependencies (services::compile, KernelRouter spawn loop).
 
-pub mod security;
-
 mod crud;
 mod discover;
 pub mod watcher;

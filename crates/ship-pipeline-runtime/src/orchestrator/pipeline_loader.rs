@@ -115,7 +115,7 @@ pub(crate) fn load_pipeline_file(name: &str) -> Result<Option<(Pipeline, Pipelin
             // Read pipelines from the composed overlay (local base + dep exports)
             // when the space has deps; the raw `.ship/` otherwise (depless spaces
             // resolve to `ship_dir` unchanged — behavior-preserving).
-            let root = ship_platform::registry::compose::composed_root_for(&ship_dir);
+            let root = ship_store::compose::composed_root_for(&ship_dir);
             let path = root.join("pipelines").join(format!("{name}.jsonc"));
             if !path.exists() {
                 return Ok(None);

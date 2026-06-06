@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use ship_substrate::events::EmitContext;
-use ship_platform::services::mesh::SharedMeshRegistry;
+use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
 
 use super::{ShipRuntime, RuntimeConfig, AppMetadata, WorktreeResolver};
@@ -130,7 +130,7 @@ impl ShipRuntime {
             // is absent; the platform.db schema migration (which drops the
             // drained legacy tables) is gated on the same `.exists()` so a fresh
             // install never materializes a dead platform.db.
-            ship_platform::kv::migrate_from_platform_db(&dir)
+            ship_kv::migrate_from_platform_db(&dir)
                 .context("kv migration from platform.db")?;
             if ship_substrate::db::platform_db_path(&dir).exists() {
                 ship_substrate::db::ensure_db_at(&dir)?;
@@ -196,7 +196,7 @@ impl ShipRuntime {
                 workspace_dir.clone(),
             )
             .ok();
-            ship_platform::registry::collection_schemas::hydrate_registry(
+            ship_store::collection_schemas::hydrate_registry(
                 &schemas,
                 global_dir,
                 project_ship.as_deref(),
@@ -254,24 +254,24 @@ impl ShipRuntime {
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
-            rules: ship_platform::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
+            rules: ship_agents::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
             permissions: {
                 // PermissionsServiceImpl needs an Arc<dyn McpService> for
                 // tool_patterns; build the same impl the runtime exposes
                 // so HTTP and trait-to-trait paths see one catalog.
                 let mcp_for_perms =
-                    ship_platform::services::mcp::service::McpServiceImpl::arc(global_dir.clone());
+                    ship_agents::services::mcp::service::McpServiceImpl::arc(global_dir.clone());
                 std::sync::Arc::new(
-                    ship_platform::services::permissions::service::PermissionsServiceImpl::with_roots(
+                    ship_agents::services::permissions::service::PermissionsServiceImpl::with_roots(
                         global_dir.clone(),
                         None,
                         mcp_for_perms,
                     ),
                 )
             },
-            mcp: ship_platform::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
-            skills: ship_platform::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
-            agents: ship_platform::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
+            mcp: ship_agents::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
+            skills: ship_agents::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
+            agents: ship_agents::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
             pipelines: ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
             git: ship_platform::services::git::service::GitServiceImpl::arc(global_dir.clone()),
             workspace_dir,

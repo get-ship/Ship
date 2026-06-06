@@ -1,6 +1,6 @@
 //! `ViewService` handler — the single code path for all `view.*` authoring
 //! writes. The string-command dispatch layer is gone; each handler calls the
-//! `ship_platform::view_authoring` crate and the route-layer cores directly.
+//! `ship_views::view_authoring` crate and the route-layer cores directly.
 //!
 //! Gate: every op is C1_SPACE (`ship.views.write`). C1 is the operational
 //! baseline — any authenticated agent may execute it. The `AuthContext` is
@@ -77,7 +77,7 @@ impl ViewService for OpsImpl {
         if !is_valid_view_name(&view) {
             return Err(ConnectError::invalid_argument("invalid view name"));
         }
-        ship_platform::view_authoring::grant(&session_id, &view);
+        ship_views::view_authoring::grant(&session_id, &view);
         json_ok(serde_json::json!({ "view": view, "session_id": session_id, "granted": true }))
     }
 
@@ -93,7 +93,7 @@ impl ViewService for OpsImpl {
             return Err(ConnectError::invalid_argument("invalid view name"));
         }
         // Idempotent — revoking a missing grant is fine.
-        ship_platform::view_authoring::revoke(&session_id, &view);
+        ship_views::view_authoring::revoke(&session_id, &view);
         json_ok(serde_json::json!({ "view": view, "session_id": session_id, "granted": false }))
     }
 

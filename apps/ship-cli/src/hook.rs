@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use ship_platform::hooks::{
+use ship_agents::hooks::{
     handle_after_tool, handle_before_tool, handle_session_end, handle_session_start, tool_gate,
 };
 use std::io::Read;

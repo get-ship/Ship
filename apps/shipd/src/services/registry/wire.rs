@@ -16,9 +16,9 @@ use ship_artifacts::types::ArtifactRecord;
 use ship_platform::services::git::diff::ParsedDiff;
 use ship_platform::services::git::state::{BranchSummary, CommitSummary, StatusFile};
 use ship_pipeline_runtime::pipelines::state as pipelines_state;
-use ship_platform::services::sessions::types::SessionMeta;
-use ship_platform::services::skills::state as skills_state;
-use ship_platform::services::skills::view_state::SkillSummary;
+use ship_agents::services::sessions::types::SessionMeta;
+use ship_agents::services::skills::state as skills_state;
+use ship_agents::services::skills::view_state::SkillSummary;
 use ship_substrate::projections::actor::ActorRow;
 
 // ── sessions / events / artifacts ──────────────────────────────────────

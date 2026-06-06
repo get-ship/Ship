@@ -154,7 +154,7 @@ mod tests {
         // own elevated set) but is structurally incapable of C3. Build the
         // AuthContext exactly as the bearer middleware does from the minted
         // session, then run it through the real gate.
-        let session = ship_platform::auth::scopes::space_window_session(
+        let session = ship_auth::scopes::space_window_session(
             "acme-space",
             4242,
             "ship_sess_win".to_string(),
@@ -234,7 +234,7 @@ mod tests {
         // We check the grantable union (what `grants_for_role` confers), which
         // covers command-only authoring domains (`view`/`create`) the read-derived
         // registry doesn't carry.
-        use ship_platform::auth::scopes::grants_for_role;
+        use ship_auth::scopes::grants_for_role;
         let mut grantable: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
         for role in [Some("commander"), Some("designer"), Some("contributor")] {
             grantable.extend(grants_for_role(role));

@@ -193,7 +193,7 @@ pub async fn handle_cancelled(
         .flatten()
         .map(|j| j.branch)
         .or_else(|| {
-            ship_platform::services::sessions::projection::load_session_by_slug(&slug)
+            ship_agents::services::sessions::projection::load_session_by_slug(&slug)
                 .ok()
                 .flatten()
                 .map(|s| s.branch)

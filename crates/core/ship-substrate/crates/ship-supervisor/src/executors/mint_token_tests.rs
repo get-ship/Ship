@@ -3,7 +3,7 @@
 //! The security contract — a sandboxed agent gets a *scoped* per-process token,
 //! never the daemon/Full token — is enforced at two layers:
 //!
-//!   1. `ship_platform::auth::scopes` proves `mint_session` yields non-Full
+//!   1. `ship_auth::scopes` proves `mint_session` yields non-Full
 //!      scopes and `drop_session` revokes them (its own unit tests).
 //!   2. Here we pin the supervisor seam: `mint_scoped_token` injects that
 //!      minted token into `LaunchCommand.env["SHIP_TOKEN"]` and the value is
@@ -13,8 +13,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use ship_platform::auth::scopes::{self, Scope};
-use ship_platform::services::dispatch_ports::{LaunchCommand, LaunchProfile, SessionContext};
+use ship_auth::scopes::{self, Scope};
+use ship_substrate::services::dispatch_ports::{LaunchCommand, LaunchProfile, SessionContext};
 
 use super::process::mint_scoped_token;
 
@@ -32,7 +32,7 @@ fn ctx_for(agent: &str) -> SessionContext {
         launch: LaunchProfile::default(),
         exit_tx: None,
         step: None,
-        invocation: ship_platform::services::dispatch_ports::InvocationMode::Print,
+        invocation: ship_substrate::services::dispatch_ports::InvocationMode::Print,
         keepalive: false,
     }
 }

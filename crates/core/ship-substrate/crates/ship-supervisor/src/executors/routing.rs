@@ -28,9 +28,9 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::KernelRouter;
-use ship_platform::services::dispatch_ports::{ExecutorHandle, InvocationMode, SessionContext, SessionExecutor};
-use ship_platform::services::harness_adapter::adapter_for_or_default;
-use ship_platform::services::server_session::ServerSession;
+use ship_substrate::services::dispatch_ports::{ExecutorHandle, InvocationMode, SessionContext, SessionExecutor};
+use ship_harnesses::harness_adapter::adapter_for_or_default;
+use ship_substrate::services::server_session::ServerSession;
 use tokio::sync::Mutex;
 
 use super::{ProcessExecutor, ServerExecutor, TmuxWindowExecutor};

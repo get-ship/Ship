@@ -28,11 +28,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::process::{event_types as proc_events, ProcessKilledPayload};
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use ship_platform::services::dispatch_ports::{
+use ship_substrate::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor, LaunchCommand, LaunchProfile,
 };
 use ship_runner::emit::persist_and_route;
-use ship_platform::services::harness_adapter::{adapter_for_or_default, HarnessAdapter};
+use ship_harnesses::harness_adapter::{adapter_for_or_default, HarnessAdapter};
 use ship_substrate::supervisor::{spawn_actor, ActorHandle, ActorKind, ActorProfile, TransportKind};
 
 /// Default prompt injected when the caller didn't supply one.
@@ -422,9 +422,9 @@ pub(crate) async fn mint_scoped_token(
     ctx: &SessionContext,
     launch: &mut LaunchCommand,
 ) -> Option<String> {
-    match ship_platform::auth::scopes::session_registry() {
+    match ship_auth::scopes::session_registry() {
         Some(registry) => {
-            match ship_platform::auth::scopes::mint_session(
+            match ship_auth::scopes::mint_session(
                 &registry,
                 ctx.agent.clone(),
                 None,
@@ -993,7 +993,7 @@ impl SessionExecutor for ProcessExecutor {
             // renders a newline-less TUI on the alternate screen. An
             // unbounded accumulator would grow at the full PTY output rate
             // (shipd-leak-193). The accumulator drops un-terminated overflow.
-            let mut acc = ship_platform::services::line_accumulator::LineAccumulator::new();
+            let mut acc = ship_files::line_accumulator::LineAccumulator::new();
             let mut session_written = false;
             let mut hooks_session_synthed = false;
             loop {
@@ -1004,11 +1004,11 @@ impl SessionExecutor for ProcessExecutor {
                                 let Some(ev) = adapter.parse_output(&line) else {
                                     continue;
                                 };
-                                use ship_platform::services::harness_adapter::HarnessEvent;
+                                use ship_harnesses::harness_adapter::HarnessEvent;
                                 match ev {
                                     HarnessEvent::SessionStarted { session_id } => {
                                         if !session_written {
-                                            if let Err(e) = ship_platform::services::harnesses::session_file::write_session_file(
+                                            if let Err(e) = ship_harnesses::harnesses::session_file::write_session_file(
                                                 &work_dir_for_session,
                                                 &harness_for_session,
                                                 &session_id,
@@ -1131,9 +1131,9 @@ impl SessionExecutor for ProcessExecutor {
             // Drop the per-process scoped token so it stops validating the
             // instant the actor exits — central, immediate revocation.
             if let (Some(token), Some(registry)) =
-                (&minted_token, ship_platform::auth::scopes::session_registry())
+                (&minted_token, ship_auth::scopes::session_registry())
             {
-                ship_platform::auth::scopes::drop_session(&registry, token).await;
+                ship_auth::scopes::drop_session(&registry, token).await;
             }
 
             if let Some(tx) = exit_tx {

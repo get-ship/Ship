@@ -161,7 +161,7 @@ pub async fn session_message(
     // respawn (kill + spawn fresh — not yet implemented; falls through
     // to the legacy per-turn path).
     if let Some(entry) = state.actor_sessions().get(&id) {
-        use ship_platform::services::harness_adapter::{adapter_for, PushMechanism};
+        use ship_harnesses::harness_adapter::{adapter_for, PushMechanism};
         let harness = entry
             .meta_snapshot()
             .harness
@@ -236,7 +236,7 @@ pub async fn session_message(
                 .flatten()
                 .and_then(|a| a.harness)
                 .unwrap_or_default();
-            use ship_platform::services::harness_adapter::{adapter_for, PushMechanism};
+            use ship_harnesses::harness_adapter::{adapter_for, PushMechanism};
             let mechanism = adapter_for(&harness)
                 .map(|a| a.caps().push_mechanism)
                 .unwrap_or(PushMechanism::Respawn);
@@ -321,7 +321,7 @@ pub async fn session_reply(
     // In-memory broadcast for SSE consumers tailing the session's
     // parsed-event stream. Check both registries so reply works
     // regardless of which substrate owns the session.
-    let ev = ship_platform::services::harness_adapter::HarnessEvent::Message { text };
+    let ev = ship_harnesses::harness_adapter::HarnessEvent::Message { text };
     if let Some(entry) = state.actor_sessions().get(&id) {
         if let Some(tx) = entry.event_tx.as_ref() {
             let _ = tx.send(ev);

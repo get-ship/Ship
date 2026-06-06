@@ -21,13 +21,13 @@ use std::sync::Arc;
 pub use ship_substrate::access::{ConfigAccess, KernelAccess, MeshAccess, SharedKernel};
 
 use crate::auth::SessionRegistry;
-use ship_platform::services::agents::service::AgentsService;
+use ship_agents::services::agents::service::AgentsService;
 use ship_platform::services::git::service::GitService;
-use ship_platform::services::mcp::service::McpService;
-use ship_platform::services::permissions::service::PermissionsService;
+use ship_agents::services::mcp::service::McpService;
+use ship_agents::services::permissions::service::PermissionsService;
 use ship_pipeline_runtime::pipelines::service::PipelinesService;
-use ship_platform::services::rules::service::RulesService;
-use ship_platform::services::skills::service::SkillsService;
+use ship_agents::services::rules::service::RulesService;
+use ship_agents::services::skills::service::SkillsService;
 use crate::ship_runtime::ShipRuntime;
 
 /// Per-domain service surface. Each migrated mr-02 service appears here
@@ -110,7 +110,7 @@ impl KernelAccess for ShipRuntime {
 }
 
 impl MeshAccess for ShipRuntime {
-    fn mesh_registry(&self) -> &ship_platform::services::mesh::SharedMeshRegistry {
+    fn mesh_registry(&self) -> &ship_substrate::services::mesh::SharedMeshRegistry {
         ShipRuntime::mesh_registry(self)
     }
 }

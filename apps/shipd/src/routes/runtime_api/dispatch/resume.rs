@@ -9,7 +9,7 @@ use axum::http::StatusCode;
 pub(super) struct ResumeOutcome {
     pub slug: String,
     pub branch: String,
-    pub session: ship_platform::services::harnesses::session_file::SessionFile,
+    pub session: ship_harnesses::harnesses::session_file::SessionFile,
 }
 
 #[derive(Debug)]
@@ -70,8 +70,8 @@ pub(super) fn load_and_validate_session_file(
     work_dir: &std::path::Path,
     slug: &str,
     requested_harness: Option<&str>,
-) -> Result<ship_platform::services::harnesses::session_file::SessionFile, ResumeResolveError> {
-    let session_file = ship_platform::services::harnesses::session_file::read_session_file(work_dir)
+) -> Result<ship_harnesses::harnesses::session_file::SessionFile, ResumeResolveError> {
+    let session_file = ship_harnesses::harnesses::session_file::read_session_file(work_dir)
         .map_err(|e| ResumeResolveError::Status {
             status: StatusCode::BAD_REQUEST,
             message: format!("resume: failed to read session file: {e}"),
@@ -99,12 +99,12 @@ pub(super) fn load_and_validate_session_file(
     // Verify the adapter actually supports resume before promising the
     // caller it'll work. Cursor will fail here; the dispatch path
     // then never hands off to the executor.
-    let adapter = ship_platform::services::harness_adapter::adapter_for(&session_file.harness)
+    let adapter = ship_harnesses::harness_adapter::adapter_for(&session_file.harness)
         .map_err(|e| ResumeResolveError::Status {
             status: StatusCode::BAD_REQUEST,
             message: format!("resume: {e}"),
         })?;
-    let profile = ship_platform::services::dispatch_ports::LaunchProfile {
+    let profile = ship_substrate::services::dispatch_ports::LaunchProfile {
         harness: Some(session_file.harness.clone()),
         persist_session: true,
         ..Default::default()

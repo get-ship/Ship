@@ -3,7 +3,7 @@
 //! Full HTTP-level tests live with the integration suite; these cover the
 //! pure helpers + the capability-gate behavior.
 
-use ship_platform::view_authoring;
+use ship_views::view_authoring;
 
 #[test]
 fn unknown_op_rejected_by_dispatch_string_match() {

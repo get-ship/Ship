@@ -158,7 +158,7 @@ pub async fn spawn_session(
             // go through the supervisor primitive + ActorRegistry. The
             // push_mechanism (channel / stdin / respawn) is decided at
             // send-time; the spawn shape is identical regardless.
-            if let Ok(adapter) = ship_platform::services::harness_adapter::adapter_for(harness)
+            if let Ok(adapter) = ship_harnesses::harness_adapter::adapter_for(harness)
                 && adapter.caps().persistent_session {
                     let append = lifecycle::load_agent_rules(&work_dir, agent_id);
                     return match super::super::agent_actor::spawn_or_attach(

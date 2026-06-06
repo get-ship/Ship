@@ -1,7 +1,7 @@
 //! HTTP-coupled scope helpers + `/api/session/register` handler.
 //!
 //! Pure scope policy + session-registry primitives moved to
-//! `ship_platform::auth::scopes`. This file holds only the bits that
+//! `ship_auth::scopes`. This file holds only the bits that
 //! depend on axum / shipd-side `AuthContext`.
 
 use axum::http::StatusCode;
@@ -9,13 +9,13 @@ use serde_json::json;
 
 // Re-export the platform's policy primitives so existing
 // `crate::auth::scopes::Scope` import paths continue to resolve.
-pub use ship_platform::auth::scopes::{
+pub use ship_auth::scopes::{
     DaemonSession, McpAuth, RequiredAuth, Scope, SessionRegistry, drop_session,
     generate_session_token, hydrate_sessions, is_session_token, mint_session, persist_session,
     remove_persisted_session,
     scopes_for_role,
 };
-pub use ship_platform::auth::sweeper::spawn_session_sweeper;
+pub use ship_auth::sweeper::spawn_session_sweeper;
 
 use axum::body::Body;
 use axum::extract::Request;
@@ -173,7 +173,7 @@ pub async fn session_register(
     // manually here rather than via `mint_session` so session_register gets the
     // provisioned grants, not just the role defaults.
     let scopes = scopes_for_role(effective_role);
-    let grants = ship_platform::auth::scopes::resolve_grants(&req.agent_id, effective_role);
+    let grants = ship_auth::scopes::resolve_grants(&req.agent_id, effective_role);
     let token = match generate_session_token() {
         Ok(t) => t,
         Err(e) => {
