@@ -28,7 +28,6 @@ mod annotations;
 mod mesh;
 mod project;
 mod surfaces;
-mod views;
 
 /// Ambient context for a command: the runtime + the authenticated caller
 /// (identity + emit context). The write-side analog of passing `&ApiState` to
@@ -178,9 +177,6 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = surfaces::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = views::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = annotations::try_dispatch(name, args, ctx).await? {
