@@ -6,10 +6,12 @@ publish = false
 description = "Agent domain (L1) — agent-session dispatch, agent-domain policy/resolver/skill/import, hooks engine, and L1 service wrappers (agents/mcp/rules/permissions/skills/sessions/compile). Carved from ship-platform (C8 keystone)."
 
 [dependencies]
-# RPC wire layer (ConnectRPC trait impls for rules/mcp/permissions/skills)
+# RPC wire layer (ConnectRPC trait impls for rules/mcp/permissions/skills/agents)
 ship-ops-rpc = { path = "../ship-ops-rpc" }
+ship-reactive = { path = "../ship-reactive" }
 connectrpc = { version = "0.4", features = ["axum"] }
 async-stream = "0.3"
+buffa = "0.5"
 # L0 substrate
 ship-substrate = { path = "../../../ship-substrate" }
 # L0 git capability — git2-backed; single git implementation.

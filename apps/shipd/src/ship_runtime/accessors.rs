@@ -120,6 +120,13 @@ impl ShipRuntime {
         &*self.agents
     }
 
+    /// `AgentsService` as a cloned `Arc` — for the crate-owned `AgentsWire`.
+    pub fn agents_arc(
+        &self,
+    ) -> std::sync::Arc<dyn ship_agents::services::agents::service::AgentsService> {
+        self.agents.clone()
+    }
+
     /// `PipelinesService` accessor — definition CRUD; dispatch / cancel /
     /// runs still go through `runtime_api`.
     pub fn pipelines(&self) -> &dyn ship_pipeline_runtime::pipelines::service::PipelinesService {
