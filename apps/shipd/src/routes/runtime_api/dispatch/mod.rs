@@ -5,8 +5,7 @@
 //! enforces the MCP workspace guard (transport-boundary auth concern) then
 //! delegates to the domain core via `AgentDispatchPort`.
 //!
-//! `dispatch_one` remains here for `pipeline_run.rs` (Batch B target) which
-//! needs it until pipeline dispatch moves to ship-pipeline-runtime.
+//! `dispatch_one` has moved to `ship_pipeline_runtime::run_core::dispatch_one`.
 
 pub mod request;
 pub mod resume;
@@ -26,8 +25,6 @@ use axum::{
 use ship_agents::services::agents::dispatch_core::{
     AgentDispatchPort, DispatchCoreError, dispatch_agent_session_core,
 };
-use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::pipeline::{PipelineRunStartedPayload, event_types};
 
 use crate::agent_event_ports::AgentDispatchAdapter;
 use crate::auth::AuthContext;
@@ -86,63 +83,3 @@ pub async fn dispatch_agent_session(
     }
 }
 
-/// Shared dispatch primitive — builds the `pipeline.run.started` envelope
-/// from `payload`, runs `ensure_pipeline` (so multi-step callers get their
-/// DAG validated/interpolated), persists + routes it, and returns the
-/// standard `MeshResponse` body.
-///
-/// Callable from the pipeline-run endpoint. Stays here until Batch B moves
-/// pipeline dispatch into ship-pipeline-runtime.
-pub(crate) async fn dispatch_one(
-    state: &ApiState,
-    payload: PipelineRunStartedPayload,
-    pipeline_run_id: &str,
-) -> (StatusCode, Json<MeshResponse>) {
-    let payload =
-        match ship_pipeline_runtime::orchestrator::pipeline_loader::ensure_pipeline(payload) {
-            Ok(p) => p,
-            Err(e) => {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(MeshResponse { ok: false, data: serde_json::json!(e) }),
-                );
-            }
-        };
-
-    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, pipeline_run_id, &payload)
-        .map(|e| e.with_actor_id("studio"))
-    {
-        Ok(e) => e,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(e.to_string()),
-                }),
-            );
-        }
-    };
-
-    match state.persist_and_route(&envelope).await {
-        Ok(()) => (
-            StatusCode::OK,
-            Json(MeshResponse {
-                ok: true,
-                data: serde_json::json!({
-                    "pipeline_run_id": pipeline_run_id,
-                    "slug": payload.slug,
-                    "branch": payload.branch,
-                    "resume": payload.resume,
-                }),
-            }),
-        ),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(e.to_string()),
-            }),
-        ),
-    }
-}
