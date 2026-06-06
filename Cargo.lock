@@ -7935,6 +7935,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-git"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "git2",
+ "serde",
+ "serde_json",
+ "ship-collection",
+ "ship-substrate",
+ "specta",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ship-harnesses"
 version = "0.1.0"
 dependencies = [
@@ -8116,6 +8134,7 @@ dependencies = [
  "ship-device",
  "ship-files",
  "ship-gateway-client",
+ "ship-git",
  "ship-harnesses",
  "ship-host",
  "ship-isolation",
@@ -8469,6 +8488,7 @@ dependencies = [
  "ship-config",
  "ship-device",
  "ship-files",
+ "ship-git",
  "ship-harnesses",
  "ship-host",
  "ship-isolation",

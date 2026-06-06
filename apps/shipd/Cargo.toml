@@ -37,6 +37,7 @@ ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-platform/crates/ship-analytics" }
 ship-search = { path = "../../crates/core/ship-platform/crates/ship-search" }
 ship-collection = { path = "../../crates/core/ship-platform/crates/ship-collection" }
+ship-git = { path = "../../crates/core/ship-git" }
 ship-artifacts = { path = "../../crates/core/ship-platform/crates/ship-artifacts" }
 ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
 ship-device = { path = "../../crates/core/ship-platform/crates/ship-device" }
@@ -111,7 +112,7 @@ specta = { workspace = true, features = ["chrono", "serde_json"], optional = tru
 
 [features]
 unstable = ["ship-platform/unstable"]
-specta = ["dep:specta", "deck/specta", "ship-artifacts/specta", "ship-pipeline-runtime/specta"]
+specta = ["dep:specta", "deck/specta", "ship-artifacts/specta", "ship-pipeline-runtime/specta", "ship-git/specta"]
 # Compile the `example()` fixture constructors for the daemon-side wire
 # shapes so `cargo xtask gen-fixtures` can serialize them to committed JSON.
 # Forwards to ship-platform/fixtures so shared builders (e.g.
