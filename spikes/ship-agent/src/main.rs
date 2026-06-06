@@ -18,6 +18,7 @@ mod gateway;
 mod module_loader;
 mod runtime;
 mod sdkgen;
+mod script_executor;
 mod spec;
 mod spine;
 mod dtsgen;
@@ -188,9 +189,29 @@ async fn main() -> anyhow::Result<()> {
         rig::test_utils::MockTurn::text("Read the leads collection."),
     ]);
     let gw = Arc::new(InProcessGateway);
-    match agent_loop::run_step(model, &spec, gw, auth.clone(), "How many leads?").await {
+    // The VM thread (the !Send bridge) — shared by run_script across runs.
+    let executor = Arc::new(script_executor::ScriptExecutor::spawn(Arc::new(InProcessGateway)));
+    match agent_loop::run_step(model, &spec, gw, auth.clone(), executor.clone(), "How many leads?").await {
         Ok(out) => println!("[slice1.6] agent final: {}\n", out.text),
         Err(e) => println!("[slice1.6] ERROR: {e}\n"),
+    }
+
+    // 10b. Slice 3 (bridge): CODE-MODE in the loop. The mock model calls the
+    //      `run_script` tool; the JS runs on the dedicated VM thread (deno_core
+    //      is !Send), imports the scoped SDK, and its ops still pass the gate —
+    //      proving code-mode composes inside rig's Send loop.
+    println!("--- slice 3: code-mode in the loop (run_script via VM-thread bridge) ---");
+    let coder = rig::test_utils::MockCompletionModel::new([
+        rig::test_utils::MockTurn::tool_call(
+            "1",
+            "run_script",
+            json!({ "src": "import { collections } from \"ship\"; const r = await collections.read({ collection: \"leads\" }); Deno.core.ops.op_emit(r);" }),
+        ),
+        rig::test_utils::MockTurn::text("Computed via code-mode."),
+    ]);
+    match agent_loop::run_step(coder, &spec, Arc::new(InProcessGateway), auth.clone(), executor, "summarize leads").await {
+        Ok(out) => println!("[slice3] agent final: {}\n", out.text),
+        Err(e) => println!("[slice3] ERROR: {e}\n"),
     }
 
     // 11. Slice 4: the post-edit verify gate (LSP seam). Routing is total: a

@@ -23,6 +23,7 @@ use serde_json::{json, Value};
 
 use crate::auth::AuthContext;
 use crate::gateway::{Gateway, GatewayError};
+use crate::script_executor::ScriptExecutor;
 use crate::spec::AgentSpec;
 use crate::spine::SpineError;
 
@@ -91,28 +92,81 @@ impl Tool for ShipOpTool {
     }
 }
 
-/// Run an agent to completion: rig drives the turn loop; our `ShipOpTool` makes
-/// every effect pass the gate + spine. Headless; returns a structured result.
+/// Code-mode tool: the model writes JS that imports the scoped `ship` SDK. Runs
+/// on the dedicated VM thread (the `!Send` bridge) so it composes inside rig's
+/// `Send` loop. Best for composition/computation; ship_op is for single atoms.
+pub struct RunScriptTool {
+    pub executor: Arc<ScriptExecutor>,
+    pub grants: Vec<String>,
+    pub auth: AuthContext,
+}
+
+#[derive(Deserialize)]
+pub struct ScriptArgs {
+    src: String,
+}
+
+impl Tool for RunScriptTool {
+    const NAME: &'static str = "run_script";
+    type Error = SpineError;
+    type Args = ScriptArgs;
+    type Output = String;
+
+    async fn definition(&self, _prompt: String) -> ToolDefinition {
+        ToolDefinition {
+            name: Self::NAME.into(),
+            description: "Run JavaScript that imports the scoped `ship` SDK (only granted ops are \
+                          importable; the gate still enforces). Returns values the script emits. \
+                          Prefer this for multi-step work; use ship_op for a single op."
+                .into(),
+            parameters: json!({
+                "type": "object",
+                "properties": { "src": { "type": "string", "description": "ES module source; import from \"ship\"" } },
+                "required": ["src"]
+            }),
+        }
+    }
+
+    async fn call(&self, a: ScriptArgs) -> Result<String, SpineError> {
+        let emitted = self
+            .executor
+            .run(a.src, self.grants.clone(), self.auth.clone())
+            .await
+            .map_err(|e| SpineError::Execute(e.to_string()))?;
+        Ok(serde_json::to_string(&emitted).unwrap_or_else(|_| "[]".into()))
+    }
+}
+
+/// Run an agent to completion: rig drives the turn loop; our tools make every
+/// effect pass the gate + spine. `ship_op` is the atomic path; `run_script` is
+/// code-mode via the VM-thread bridge. Headless; returns a structured result.
 pub async fn run_step<M>(
     model: M,
     spec: &AgentSpec,
     gateway: Arc<dyn Gateway>,
     auth: AuthContext,
+    executor: Arc<ScriptExecutor>,
     input: &str,
 ) -> anyhow::Result<AgentOutput>
 where
     M: CompletionModel + 'static,
 {
     let preamble = if spec.disposition.rules.is_empty() {
-        "You are a Ship agent. Use the ship_op tool to call gated ops. \
-         If an op returns { denied }, adjust — do not pretend it succeeded."
+        "You are a Ship agent. Use ship_op for a single gated op, or run_script for \
+         multi-step work via the ship SDK. If an op returns { denied }, adjust — \
+         do not pretend it succeeded."
     } else {
         &spec.disposition.rules
     };
 
     let agent = AgentBuilder::new(model)
         .preamble(preamble)
-        .tool(ShipOpTool { gateway, auth })
+        .tool(ShipOpTool { gateway, auth: auth.clone() })
+        .tool(RunScriptTool {
+            executor,
+            grants: spec.capability.grants.clone(),
+            auth,
+        })
         .build();
 
     let text = agent
@@ -183,8 +237,9 @@ mod tests {
             MockTurn::text("done"),
         ]);
         let spec = AgentSpec::demo("t", "mock", &["collections"]);
+        let exec = Arc::new(ScriptExecutor::spawn(Arc::new(InProcessGateway)));
 
-        let out = run_step(model, &spec, gw, auth(&["collections"]), "read the leads")
+        let out = run_step(model, &spec, gw, auth(&["collections"]), exec, "read the leads")
             .await
             .expect("loop should complete");
 
@@ -195,5 +250,60 @@ mod tests {
             seen.lock().unwrap().iter().any(|op| op == "collections.read"),
             "the model's tool call must route through the gateway"
         );
+    }
+
+    // ── the !Send bridge: code-mode runs on the VM thread, gated, and the
+    //    tool future is Send (it compiles as a rig tool at all) ──────────────
+    #[tokio::test]
+    async fn run_script_tool_executes_js_through_gate_off_thread() {
+        let exec = Arc::new(ScriptExecutor::spawn(Arc::new(InProcessGateway)));
+        let tool = RunScriptTool {
+            executor: exec,
+            grants: vec!["collections".into()],
+            auth: auth(&["collections"]),
+        };
+        // JS imports the scoped SDK (granted) AND raw-calls an ungranted op.
+        let src = r#"
+            import { collections } from "ship";
+            const granted = await collections.read({});
+            const raw_ungranted = await Deno.core.ops.op_ship_call("mcp.create", {});
+            Deno.core.ops.op_emit({ granted, raw_ungranted });
+        "#
+        .to_string();
+        let out = tool
+            .call(ScriptArgs { src })
+            .await
+            .expect("script should run on the VM thread")
+            .to_lowercase();
+        // The gate ran on the dedicated thread: the granted op is clean, the
+        // ungranted raw op is denied (GatewayError Display is "DENIED: ...").
+        assert!(out.contains("denied"), "ungranted op must be gate-denied in code-mode");
+    }
+
+    // The model drives code-mode end to end: a run_script tool call executes JS
+    // through the bridge and the loop completes.
+    #[tokio::test]
+    async fn loop_drives_code_mode_via_run_script() {
+        let exec = Arc::new(ScriptExecutor::spawn(Arc::new(InProcessGateway)));
+        let model = MockCompletionModel::new([
+            MockTurn::tool_call(
+                "1",
+                "run_script",
+                json!({ "src": "import { collections } from \"ship\"; const r = await collections.read({}); Deno.core.ops.op_emit(r);" }),
+            ),
+            MockTurn::text("counted the leads"),
+        ]);
+        let spec = AgentSpec::demo("t", "mock", &["collections"]);
+        let out = run_step(
+            model,
+            &spec,
+            Arc::new(InProcessGateway),
+            auth(&["collections"]),
+            exec,
+            "how many leads?",
+        )
+        .await
+        .expect("code-mode loop should complete");
+        assert!(out.text.contains("counted"));
     }
 }
