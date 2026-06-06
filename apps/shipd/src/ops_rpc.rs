@@ -310,6 +310,8 @@ pub fn router(state: ApiState) -> axum::Router {
                         .filter(|s| !s.is_empty()).map(str::to_string),
                     pipeline: args.get("pipeline").and_then(|v| v.as_str())
                         .filter(|s| !s.is_empty()).map(str::to_string),
+                    q: args.get("q").and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty()).map(str::to_string),
                 };
                 let active_tab = args.get("active_tab").and_then(|v| v.as_str())
                     .filter(|s| !s.is_empty()).map(str::to_string);
