@@ -21,8 +21,14 @@ chrono = { workspace = true }
 ureq = { workspace = true, features = ["json"] }
 tracing = { workspace = true }
 
+[features]
+# Enables SyncServiceHandler — the ServiceHandler actor that drives the push
+# cycle. Requires ship-substrate's unstable feature for the services runtime.
+unstable = ["ship-substrate/unstable"]
+
 [dev-dependencies]
 tempfile = { workspace = true }
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls"] }
 
 [lints]
 workspace = true

@@ -7809,6 +7809,7 @@ dependencies = [
  "ship-gateway-client",
  "ship-substrate",
  "ship-types",
+ "sqlx",
  "tempfile",
  "tracing",
  "ureq",
