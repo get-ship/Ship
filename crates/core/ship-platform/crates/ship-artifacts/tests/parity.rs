@@ -145,8 +145,10 @@ async fn parity_project_scope_blob_path_contains_blobs() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn parity_run_scope_blob_path_contains_runs() {
+async fn parity_run_scope_blob_path_contains_space() {
     // Origin: artifacts_backend_run_scope_blob_path_layout
+    // The substrate LocalFsBlobStore partitions by space only; run granularity
+    // is a metadata-layer concern. Path layout: spaces/<space_id>/blobs/<prefix>/<hash>.
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
     let ctx = make_ctx_for(&tmp, kernel, "p");
@@ -158,11 +160,11 @@ async fn parity_run_scope_blob_path_contains_runs() {
         .await
         .unwrap();
     assert!(
-        record.path.contains("/runs/") || record.path.contains("runs"),
-        "run scope blob path must contain 'runs': {}",
+        record.path.contains("/blobs/") || record.path.contains("blobs"),
+        "run scope blob path must contain 'blobs': {}",
         record.path
     );
-    assert!(record.path.contains("r1"), "must contain run_id in path: {}", record.path);
+    assert!(record.path.contains('p'), "must contain space_id in path: {}", record.path);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
