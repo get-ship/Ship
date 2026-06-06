@@ -11,7 +11,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, Lines, 
 use tokio::sync::oneshot;
 
 use super::codex_session::CodexSession;
-use crate::services::server_session::{ServerSession, SessionEvent};
+use ship_substrate::services::server_session::{ServerSession, SessionEvent};
 
 type FakeReader = Lines<BufReader<ReadHalf<DuplexStream>>>;
 type FakeWriter = WriteHalf<DuplexStream>;

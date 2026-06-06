@@ -7,7 +7,7 @@
 
 use serde_json::Value;
 
-use crate::services::server_session::SessionEvent;
+use ship_substrate::services::server_session::SessionEvent;
 
 /// Locate the end of the next SSE frame (double-newline). Returns the
 /// byte index **up to but not including** the separator so the caller

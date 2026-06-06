@@ -48,6 +48,10 @@ ship-runner = { path = "../ship-substrate/crates/ship-runner" }
 # through this agents crate (no laundered pipelines→agents coupling). No cycle:
 # ship-agents depends on ship-substrate/ship-runner/ship-types, not ship-platform.
 ship-agents = { path = "crates/ship-agents" }
+# Harness adapter registry + concrete adapters (claude/codex/cursor/opencode/pi).
+# Carved here so ship-agents (and future L2 consumers) can depend on harnesses
+# without pulling in all of ship-platform. Re-exported below for back-compat.
+ship-harnesses = { path = "crates/ship-harnesses" }
 ship-kv = { path = "crates/ship-kv" }
 ship-store = { path = "crates/ship-store" }
 ship-gateway-client = { path = "crates/ship-gateway-client" }

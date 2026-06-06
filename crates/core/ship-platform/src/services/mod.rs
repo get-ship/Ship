@@ -13,8 +13,11 @@ pub use ship_substrate::services::server_session::{self};
 // agents-actor / harnesses / registry live here.
 pub mod agent_sessions;
 pub mod process_registry;
-pub mod harness_adapter;
-pub mod harnesses;
+// Harness adapter registry + concrete adapters carved into ship-harnesses (L1).
+// Re-exported here so existing `crate::services::{harness_adapter,harnesses}::…`
+// consumers in this crate and in shipd keep compiling without change.
+pub use ship_harnesses::harness_adapter;
+pub use ship_harnesses::harnesses;
 pub mod line_accumulator;
 // Cloud-sync service actor (uses `SyncClient` from `ship-cloud` via the
 // `unstable` feature gate). The handler itself stays in this crate because

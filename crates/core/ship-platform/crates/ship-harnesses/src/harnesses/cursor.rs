@@ -4,8 +4,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use crate::services::harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent};
+use ship_substrate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
+use ship_runner::harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent};
 
 pub struct CursorAdapter;
 
@@ -28,7 +28,7 @@ impl HarnessAdapter for CursorAdapter {
             hooks: true,
             session_resume: false,
             persistent_session: true,
-            push_mechanism: super::super::harness_adapter::PushMechanism::Stdin,
+            push_mechanism: ship_runner::harness_adapter::PushMechanism::Stdin,
         }
     }
 
