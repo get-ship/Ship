@@ -13,8 +13,8 @@ import {
   openAccountBilling,
   readAccountIdentity,
 } from '@ship/sdk-client'
-import { ops, ship } from '../../ops'
-import type { Scope } from './sui-settings.sui'
+import { ops, ship } from '../ops'
+import type { Scope } from './page.sui'
 
 function flashSaved(sig: Signal<boolean>, ms = 1600): void {
   sig.set(true)

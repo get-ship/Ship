@@ -20,13 +20,13 @@ import './sui-view-chrome/sui-view-chrome.compiled.js'
 import './sui-brand-mark/sui-brand-mark.compiled.js'
 import './sui-shell-bottom/sui-shell-bottom.compiled.js'
 import './sui-blank-canvas/sui-blank-canvas.compiled.js'
-import './sui-home/sui-home.compiled.js'
-import './sui-activity/sui-activity.compiled.js'
-import './sui-account/sui-account.compiled.js'
-import './sui-library/sui-library.compiled.js'
-import './sui-setup/sui-setup.compiled.js'
-import './sui-settings/sui-settings.compiled.js'
-import './sui-canvas-app/sui-canvas-app.compiled.js'
+// Chrome surfaces (home, activity, account, library, setup, settings,
+// canvas) are now fs-routed pages at apps/shell/src/<name>/page.sui,
+// mounted by the shell via the same runtime.mount() path as daemon
+// views. They are NOT custom elements anymore — no .compiled.js,
+// no registration, no per-chrome .sui in components/. The studio
+// rail below stays as a custom element because the studio deck
+// drops <sui-studio-rail> as a tag inside its page.sui files.
 import './sui-help-overlay/sui-help-overlay.compiled.js'
 // Studio rail — reused by every studio deck route (views/studio/**). Eager
 // so on-demand-compiled nested leaves can drop the tag without importing it.

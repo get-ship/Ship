@@ -5,8 +5,8 @@
 import { controller, derived, live, unwrapOr, chrome } from '@ship/sui-runtime'
 import type { LiveSignal, LiveSource, ViewScope } from '@ship/sui-runtime'
 import type { GitOverview } from '@ship/sdk-client'
-import { ship } from '../../ops'
-import type { Scope } from './sui-home.sui'
+import { ship } from '../ops'
+import type { Scope } from './page.sui'
 
 interface DashStats { active: number; history: number }
 interface DashAgent { id: string; name?: string; description?: string; letter?: string }

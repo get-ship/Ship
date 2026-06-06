@@ -112,7 +112,7 @@ chunks, builds apps and views, writes the asset graph, and watches for HMR.
 | Catalog aggregation | `.deck/catalogs/workspace.json` | `crates/deck/deck-bundler/src/catalog/mod.rs::build_catalog` | Walks packaged + sui-out CEMs into the workspace catalog, sorted + deduped by tag. |
 | Tag → source index | (per-view resolver feed) | `crates/deck/deck-bundler/src/catalog/mod.rs::tag_source_index` | Maps every component tag to its source `.sui` from the same CEM walk. |
 | Workspace discovery | (catalog input) | `crates/deck/deck-bundler/src/catalog/workspace.rs::discover_workspace_packages` | Expands `package.json` workspace globs into the package set the catalog walks. |
-| Routes codegen | `src/studio/routes.gen.ts` | `crates/deck/deck-bundler/src/routes.rs::generate_routes` | Emits the typed dynamic-route table from the app's `[param]` view tree (write-if-changed). |
+| Routes codegen | `src/routes.gen.ts` | `crates/deck/deck-bundler/src/routes.rs::generate_routes` | Walks every `[param]` dir under the shell's `src/` and emits the typed `RouteShape[]` the runtime registers via `defineRoutes` (write-if-changed). |
 | Targets / layout | (target set) | `crates/deck/deck-bundler/src/targets.rs::BundleLayout` | Framework singletons + consumer targets + discovered views, and where each output lands. |
 
 ## Config (`deck-config`)
