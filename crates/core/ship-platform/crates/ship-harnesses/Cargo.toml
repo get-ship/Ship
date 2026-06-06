@@ -1,0 +1,28 @@
+[package]
+name = "ship-harnesses"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L1 harness registry — concrete adapter structs (claude/codex/cursor/opencode/pi) + resolver helpers (adapter_for, capabilities, REGISTRY). Depends only on L0 substrate + runner; carries NO ship-platform dependency."
+
+[dependencies]
+# L0 substrate: dispatch_ports (LaunchCommand/LaunchProfile) + server_session trait.
+ship-substrate = { path = "../../../ship-substrate" }
+# L0 runner mechanism: HarnessAdapter trait + HarnessCapabilities/HarnessEvent/ResumeError types.
+ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }
+
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync", "macros", "process", "io-util", "time"] }
+tracing = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true, features = ["json", "rustls-tls"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+
+[lints]
+workspace = true

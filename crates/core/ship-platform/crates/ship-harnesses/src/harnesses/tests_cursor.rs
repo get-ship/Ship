@@ -1,7 +1,7 @@
 //! Tests for CursorAdapter — the Cursor CLI harness adapter.
 
-use crate::services::dispatch_ports::LaunchProfile;
-use crate::services::harness_adapter::{HarnessAdapter, HarnessEvent};
+use ship_substrate::services::dispatch_ports::LaunchProfile;
+use ship_runner::harness_adapter::{HarnessAdapter, HarnessEvent};
 use super::CursorAdapter;
 
 fn default_profile() -> LaunchProfile {
@@ -189,7 +189,7 @@ fn caps_match_declared() {
 
 #[test]
 fn build_resume_args_returns_unsupported() {
-    use crate::services::harness_adapter::ResumeError;
+    use ship_runner::harness_adapter::ResumeError;
     let adapter = CursorAdapter;
     let err = adapter
         .build_resume_args("my-job", "any-id", &default_profile())

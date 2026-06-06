@@ -3,8 +3,8 @@
 //! (pi.dev/docs/latest/json). Live-stream verification needs a Pi install
 //! + provider API key; these pin the mapping against the documented shapes.
 
-use crate::services::dispatch_ports::LaunchProfile;
-use crate::services::harness_adapter::{HarnessAdapter, HarnessEvent};
+use ship_substrate::services::dispatch_ports::LaunchProfile;
+use ship_runner::harness_adapter::{HarnessAdapter, HarnessEvent};
 use super::PiAdapter;
 
 fn default_profile() -> LaunchProfile {
@@ -75,7 +75,7 @@ fn resume_uses_session_flag() {
 
 #[test]
 fn resume_rejects_empty_session_id() {
-    use crate::services::harness_adapter::ResumeError;
+    use ship_runner::harness_adapter::ResumeError;
     let err = PiAdapter
         .build_resume_args("s", "  ", &default_profile())
         .expect_err("empty session id must error");

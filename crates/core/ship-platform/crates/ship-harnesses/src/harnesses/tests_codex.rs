@@ -1,7 +1,7 @@
 //! Tests for CodexAdapter — the Codex CLI harness adapter.
 
-use crate::services::dispatch_ports::LaunchProfile;
-use crate::services::harness_adapter::HarnessAdapter;
+use ship_substrate::services::dispatch_ports::LaunchProfile;
+use ship_runner::harness_adapter::HarnessAdapter;
 use super::CodexAdapter;
 
 fn default_profile() -> LaunchProfile {
@@ -136,7 +136,7 @@ fn parse_output_returns_none_for_non_json() {
 
 #[test]
 fn parse_output_extracts_session_id_from_thread_started() {
-    use crate::services::harness_adapter::HarnessEvent;
+    use ship_runner::harness_adapter::HarnessEvent;
     let adapter = CodexAdapter;
     // `codex exec --json` emits a `thread.started` event up front with the
     // thread_id; that's the id resume targets.
@@ -151,7 +151,7 @@ fn parse_output_extracts_session_id_from_thread_started() {
 
 #[test]
 fn parse_output_extracts_turn_usage_from_turn_completed() {
-    use crate::services::harness_adapter::HarnessEvent;
+    use ship_runner::harness_adapter::HarnessEvent;
     let adapter = CodexAdapter;
     // Shape per codex-rs/exec/src/exec_events.rs::TurnCompletedEvent.
     // cached_input_tokens maps to cache_read_tokens; codex doesn't
@@ -213,7 +213,7 @@ fn build_resume_args_emits_exec_resume() {
 
 #[test]
 fn build_resume_args_rejects_empty_session_id() {
-    use crate::services::harness_adapter::ResumeError;
+    use ship_runner::harness_adapter::ResumeError;
     let adapter = CodexAdapter;
     let err = adapter
         .build_resume_args("my-job", "", &default_profile())

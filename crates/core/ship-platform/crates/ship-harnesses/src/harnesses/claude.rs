@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use crate::services::harness_adapter::{
+use ship_substrate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
+use ship_runner::harness_adapter::{
     HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError,
 };
 
@@ -126,7 +126,7 @@ impl HarnessAdapter for ClaudeAdapter {
             // job corrects it now that build_resume_args is wired.
             session_resume: true,
             persistent_session: true,
-            push_mechanism: super::super::harness_adapter::PushMechanism::Channel,
+            push_mechanism: ship_runner::harness_adapter::PushMechanism::Channel,
         }
     }
 

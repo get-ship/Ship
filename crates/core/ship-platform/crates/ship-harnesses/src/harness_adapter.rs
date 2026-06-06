@@ -3,7 +3,7 @@
 //! The trait/types live in `ship_runner::harness_adapter` (L0). This module
 //! owns the REGISTRY slice that references the concrete adapter structs and
 //! exposes the resolver helpers (`adapter_for`, `capabilities`). It re-exports
-//! all L0 types so existing `crate::services::harness_adapter::*` consumers
+//! all L0 types so existing `ship_harnesses::harness_adapter::*` consumers
 //! continue to compile without change.
 
 pub use ship_runner::harness_adapter::{
@@ -17,11 +17,11 @@ pub use ship_runner::harness_adapter::{
 /// sized unit structs, so this is a `&'static` slice of const-promoted refs
 /// with no allocation.
 const REGISTRY: &[&dyn HarnessAdapter] = &[
-    &super::harnesses::claude::ClaudeAdapter,
-    &super::harnesses::codex::CodexAdapter,
-    &super::harnesses::cursor::CursorAdapter,
-    &super::harnesses::opencode::OpenCodeAdapter,
-    &super::harnesses::pi::PiAdapter,
+    &crate::harnesses::claude::ClaudeAdapter,
+    &crate::harnesses::codex::CodexAdapter,
+    &crate::harnesses::cursor::CursorAdapter,
+    &crate::harnesses::opencode::OpenCodeAdapter,
+    &crate::harnesses::pi::PiAdapter,
 ];
 
 /// Comma-separated list of canonical harness ids, for error messages.
@@ -64,10 +64,6 @@ mod adapter_for_tests {
 
     #[test]
     fn all_harnesses_advertise_persistent_session() {
-        // Every TUI agent CLI is a long-lived REPL we can hold across
-        // turns. If a new harness lands without persistent_session=true,
-        // it'd quietly fall to the legacy per-turn-respawn path; this
-        // test pins the parity contract.
         for name in ["claude", "codex", "cursor", "opencode", "pi"] {
             let adapter = adapter_for(name).unwrap();
             assert!(
@@ -79,8 +75,6 @@ mod adapter_for_tests {
 
     #[test]
     fn push_mechanism_per_harness() {
-        // Pin which mechanism each harness uses. Drift in this map is
-        // a behavior change — surface it in review.
         use PushMechanism::*;
         let expected: &[(&str, PushMechanism)] = &[
             ("claude", Channel),
@@ -135,10 +129,6 @@ mod adapter_for_tests {
 
     #[test]
     fn binary_defaults_to_id_except_cursor() {
-        // The PATH pre-flight + server-session spawn look up binary(), not
-        // id(). cursor diverges (id "cursor", executable "cursor-agent");
-        // every other harness's binary is its id. Drift here is a dispatch
-        // bug (rejecting an installed harness), so pin it.
         for (id, _) in capabilities() {
             let want = if id == "cursor" { "cursor-agent" } else { id };
             assert_eq!(adapter_for(id).unwrap().binary(), want, "binary() wrong for {id}");
@@ -147,11 +137,6 @@ mod adapter_for_tests {
 
     #[test]
     fn registry_is_single_source_of_truth() {
-        // adapter_for, capabilities(), and the Known: error string all derive
-        // from REGISTRY. Pin the invariant: every id capabilities() reports
-        // resolves back through adapter_for to an adapter with that id, and
-        // shows up in the unknown-harness error list. Adding a harness to the
-        // slice satisfies all three at once — no parallel list to forget.
         let known = adapter_for("definitely-not-a-harness")
             .err()
             .expect("unknown harness must error");
@@ -170,9 +155,6 @@ mod adapter_for_tests {
 
     #[test]
     fn codex_declares_server_mode() {
-        // Opencode's server_mode is currently off pending OpenCodeSession
-        // rewrite to match the new `{parts:[...]}` / prompt_async API.
-        // See `opencode.rs::caps` comment.
         let caps = capabilities();
         let server_capable: Vec<&str> = caps
             .iter()

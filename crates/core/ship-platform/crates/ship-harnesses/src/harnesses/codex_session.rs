@@ -23,7 +23,7 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader
 use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-use crate::services::server_session::{ServerSession, SessionEvent};
+use ship_substrate::services::server_session::{ServerSession, SessionEvent};
 
 /// Boxed transport halves used inside `CodexSession`. Tests inject
 /// in-memory duplex streams; `spawn` supplies the child's stdio.

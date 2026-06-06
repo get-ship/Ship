@@ -8,8 +8,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use crate::services::harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError};
+use ship_substrate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
+use ship_runner::harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError};
 
 /// Shared headless arg prefix: non-interactive (`--print`) + JSON event
 /// stream (`--mode json`). Verified against pi v0.75.4.
@@ -50,7 +50,7 @@ impl HarnessAdapter for PiAdapter {
             // also -c/-r). Verified in `pi --help` v0.75.4.
             session_resume: true,
             persistent_session: true,
-            push_mechanism: super::super::harness_adapter::PushMechanism::Stdin,
+            push_mechanism: ship_runner::harness_adapter::PushMechanism::Stdin,
         }
     }
 

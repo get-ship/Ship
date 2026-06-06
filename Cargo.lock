@@ -7889,6 +7889,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-harnesses"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "ship-runner",
+ "ship-substrate",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ship-host"
 version = "0.1.0"
 dependencies = [
@@ -8048,6 +8065,7 @@ dependencies = [
  "ship-config",
  "ship-device",
  "ship-gateway-client",
+ "ship-harnesses",
  "ship-host",
  "ship-isolation",
  "ship-kernel",
