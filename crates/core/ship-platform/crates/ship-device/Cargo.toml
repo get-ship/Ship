@@ -13,6 +13,8 @@ ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 # route actor spawns; default-features off keeps the youki / sidecar
 # backends opt-in (the daemon's feature flags layer them in).
 ship-isolation = { path = "../../../ship-isolation", default-features = false }
+ship-ops-rpc = { path = "../ship-ops-rpc" }
+connectrpc = { version = "0.4", features = ["axum"] }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }

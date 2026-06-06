@@ -26,6 +26,7 @@ pub mod mining;
 pub mod projection;
 pub mod queries;
 pub mod service;
+pub mod wire;
 
 #[cfg(test)]
 mod tests_projection;

@@ -7,6 +7,7 @@ pub mod diff;
 pub mod read;
 pub mod service;
 pub mod state;
+pub mod wire;
 pub mod write;
 
 #[cfg(test)]

@@ -18,6 +18,7 @@
 //! See `docs/strategy.md` for the design intent.
 
 pub mod backends;
+pub mod wire;
 pub mod capabilities;
 pub mod decision;
 pub mod decision_ops;

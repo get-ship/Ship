@@ -139,6 +139,12 @@ impl ShipRuntime {
         &*self.git
     }
 
+    /// Arc clone of the `GitService` — for crate-owned wires that need to hold
+    /// the service independently of the runtime borrow.
+    pub fn git_arc(&self) -> std::sync::Arc<dyn ship_git::service::GitService> {
+        self.git.clone()
+    }
+
     /// Build a `CollectionService` over the active-space `SpaceContext` + the
     /// shared schema registry. Cheap + stateless-but-for-ctx — constructed per
     /// call (C-2 §3.1). Errors cleanly when the daemon is space-less (no active
