@@ -75,6 +75,7 @@ impl CollectionPersistPort for CollectionPersistAdapter {
         }
         svc.create_item("annotations", row_bytes)
             .await
+            .map(|_| ())
             .map_err(|e| CollectionError::PersistFailed(e.to_string()))
     }
 }
