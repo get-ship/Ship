@@ -14,11 +14,14 @@ ship-artifacts = { path = "../ship-artifacts" }
 connectrpc = { version = "0.4", features = ["axum"] }
 ship-ops-rpc = { path = "../ship-ops-rpc" }
 
+deck = { path = "../../../../deck/deck" }
+async-trait = { workspace = true }
+chrono = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 indexmap = { workspace = true }
-tokio = { workspace = true, features = ["sync", "rt"] }
+tokio = { workspace = true, features = ["sync", "rt", "time"] }
 # Optional: derive(specta::Type) on the view wire types so the daemon's
 # specta-gated TS surface can embed them. Off by default.
 specta = { workspace = true, features = ["chrono", "serde_json"], optional = true }

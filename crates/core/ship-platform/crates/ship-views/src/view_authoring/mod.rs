@@ -11,6 +11,7 @@
 
 pub mod capability;
 pub mod snapshot;
+pub mod tool_dispatch;
 pub mod types;
 
 #[cfg(test)]

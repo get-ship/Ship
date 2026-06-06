@@ -5,5 +5,9 @@
 //! edit-mode capability registry. Depends only on substrate ports and the
 //! collection/artifact services — no reach back into ship-platform.
 
+pub mod sdk_manifest;
+pub mod themes_contrast;
 pub mod view_authoring;
+pub mod view_errors;
+pub mod view_ports;
 pub mod wire;

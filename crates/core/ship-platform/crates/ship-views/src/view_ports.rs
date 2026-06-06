@@ -1,0 +1,77 @@
+//! Port traits for daemon-specific capabilities consumed by ship-views domain logic.
+//!
+//! Follows the same pattern as `apps/shipd/src/agent_event_ports.rs` and
+//! `pipeline_ports.rs`. ship-views declares the trait; shipd implements it in
+//! `apps/shipd/src/view_ports.rs` and injects the concrete adapter via the
+//! `ViewWire` closures or direct state passing.
+//!
+//! # Traits
+//!
+//! - `ViewToolPort` — capabilities needed by `view_authoring::tool_dispatch`.
+//!   Covers: bundler (compile-check), space-context construction (for snapshot
+//!   ops), collections access, project slug, theme CSS resolution, and
+//!   annotation SSE broadcast.
+
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use async_trait::async_trait;
+use ship_substrate::ports::SpaceContext;
+
+// ── ViewToolPort ──────────────────────────────────────────────────────────────
+
+/// Errors returned by bundler compile operations via `ViewToolPort`.
+#[derive(Debug)]
+pub enum BundlerBuildError {
+    /// Build produced structured diagnostics.
+    Bundle { message: String, file: Option<String>, line: Option<u32>, col: Option<u32> },
+    /// Target name is not registered with the bundler.
+    UnknownTarget(String),
+    /// The sui-compiler binary is absent from the system.
+    NoCompiler,
+}
+
+impl std::fmt::Display for BundlerBuildError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bundle { message, .. } => write!(f, "{message}"),
+            Self::UnknownTarget(t) => write!(f, "unknown bundler target: {t}"),
+            Self::NoCompiler => write!(f, "sui-compiler not found; run `ship runtime install`"),
+        }
+    }
+}
+
+/// Capabilities the view-authoring tool dispatch needs from shipd.
+#[async_trait]
+pub trait ViewToolPort: Send + Sync {
+    /// Compile a bundler target (e.g. `"views/{name}/view"`). Returns an
+    /// opaque error on failure so the caller can extract diagnostic fields.
+    async fn build_view(&self, target: &str) -> Result<(), BundlerBuildError>;
+
+    /// Build a `SpaceContext` over the active project's data-store for `space`.
+    /// Used by snapshot and list-snapshot operations.
+    fn space_context(&self, space: &str) -> Arc<SpaceContext>;
+
+    /// The daemon's `ship_dir` — base for artifact blob paths.
+    fn ship_dir(&self) -> PathBuf;
+
+    /// `CollectionService` over the active space. Returns `Err` when no active
+    /// space is set on the daemon.
+    fn collections(&self) -> anyhow::Result<ship_collection::service::CollectionService>;
+
+    /// Active project slug (used as `space_id` for snapshot scoping).
+    fn project_slug(&self) -> Option<String>;
+
+    /// Resolved active-theme CSS — parses custom properties for `theme_tokens`.
+    fn resolve_theme_css(&self) -> String;
+
+    /// Publish an annotation SSE frame to the per-view channel.
+    async fn publish_annotation(&self, view_name: &str, payload: serde_json::Value);
+
+    /// Publish an annotation-clear SSE frame.
+    async fn publish_annotation_clear(&self, view_name: &str, payload: serde_json::Value);
+
+    /// Schedule a deferred annotation-clear broadcast (fires after the compile
+    /// succeeds so agent UI pins don't linger past the edit they referenced).
+    fn schedule_annotation_clear(&self, view_name: String);
+}

@@ -38,6 +38,7 @@ pub mod git_rpc;
 pub mod agent_rpc;
 pub mod agent_event_ports;
 pub mod pipeline_ports;
+pub mod view_ports;
 pub mod space_rpc;
 pub mod settings_rpc;
 pub mod device_ports;
