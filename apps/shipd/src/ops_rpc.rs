@@ -290,8 +290,254 @@ pub fn router(state: ApiState) -> axum::Router {
         git_annotations,
     ));
     let router = ship_ops_rpc::GitServiceExt::register(git_wire, router);
-    // pipelines.* (runtime + config).
-    let router = ship_ops_rpc::PipelinesServiceExt::register(svc.clone(), router);
+    // pipelines.* — crate-owned PipelinesWire (ship-pipeline-runtime).
+    // Replaces `impl PipelinesService for OpsImpl` in pipelines_rpc.rs (deleted).
+    // Reads (C0): list/get call the crate service directly; summaries/run/history
+    // go through the read_fn closure (shipd view helpers). Writes (C1): all config
+    // + runtime writes go through the write_fn closure (shipd route cores + gated
+    // command calls). Live-read streams go through the live_read_fn closure (shipd
+    // kernel subscriber loop).
+    let pipelines_state_for_read = state.clone();
+    let pipelines_read_fn: ship_pipeline_runtime::wire::ReadFn = Arc::new(move |op, args| {
+        match op {
+            "pipelines.summaries" => {
+                use crate::services::pipelines::summaries;
+                use crate::views::state::Filter;
+                let filter = Filter {
+                    agent: args.get("agent").and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty()).map(str::to_string),
+                    status: args.get("status").and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty()).map(str::to_string),
+                    pipeline: args.get("pipeline").and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty()).map(str::to_string),
+                };
+                let active_tab = args.get("active_tab").and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty()).map(str::to_string);
+                let ctx = summaries::build(pipelines_state_for_read.ship_dir(), filter, active_tab);
+                serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
+            }
+            "pipelines.run" => {
+                use crate::services::pipelines::run_detail;
+                let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("");
+                let ctx = run_detail::build(slug, pipelines_state_for_read.ship_dir());
+                serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
+            }
+            "pipelines.history" => {
+                use crate::services::pipelines::history;
+                let q = args.get("q").and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty()).map(str::to_string);
+                let pipeline = args.get("pipeline").and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty()).map(str::to_string);
+                let offset = args.get("offset").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(50) as usize;
+                let ctx = history::build(pipelines_state_for_read.ship_dir(), q, pipeline, offset, limit);
+                serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
+            }
+            _ => serde_json::Value::Null,
+        }
+    });
+    let pipelines_state_for_live = state.clone();
+    let pipelines_svc_for_live = svc.clone();
+    let pipelines_live_fn: ship_pipeline_runtime::wire::LiveReadFn = Arc::new(move |op, args| {
+        let st = pipelines_state_for_live.clone();
+        let svc = pipelines_svc_for_live.clone();
+        Box::pin(async move {
+            // Build a temporary OpsImpl-equivalent live_read using the kernel.
+            use connectrpc::{ConnectError, Response, ServiceResult, ServiceStream};
+            use ship_substrate::events::ActorConfig;
+            use ship_ops_rpc::JsonResponse;
+            let resolve: Box<dyn Fn(&crate::ship_runtime::ApiState) -> serde_json::Value + Send + Sync> = match op {
+                "pipelines.summaries" => {
+                    Box::new(move |st| {
+                        use crate::services::pipelines::summaries;
+                        use crate::views::state::Filter;
+                        let ctx = summaries::build(st.ship_dir(), Filter::default(), None);
+                        serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
+                    })
+                }
+                "pipelines.run" => {
+                    let slug = args.get("slug").and_then(|v| v.as_str())
+                        .unwrap_or("").to_string();
+                    Box::new(move |st| {
+                        use crate::services::pipelines::run_detail;
+                        let ctx = run_detail::build(&slug, st.ship_dir());
+                        serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
+                    })
+                }
+                "pipelines.history" => {
+                    let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(50) as usize;
+                    let offset = args.get("offset").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                    let pipeline = args.get("pipeline").and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty()).map(str::to_string);
+                    let q = args.get("q").and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty()).map(str::to_string);
+                    Box::new(move |st| {
+                        use crate::services::pipelines::history;
+                        let ctx = history::build(st.ship_dir(), q.clone(), pipeline.clone(), offset, limit);
+                        serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
+                    })
+                }
+                _ => Box::new(|_| serde_json::Value::Null),
+            };
+            let initial = resolve(&st);
+            let actor_id = format!("live-read-{}", ship_substrate::gen_ulid());
+            let config = ActorConfig {
+                namespace: actor_id.clone(),
+                write_namespaces: vec![],
+                read_namespaces: vec![],
+                subscribe_namespaces: vec!["config".to_string()],
+                see_directed_events: false,
+            };
+            let mailbox = {
+                let mut kernel = st.kernel().lock().await;
+                kernel
+                    .spawn_actor(&actor_id, config)
+                    .map(|(_store, mb)| mb)
+                    .map_err(|e| ConnectError::internal(e.to_string()))?
+            };
+            let guard = crate::ship_runtime::ActorGuard { actor_id, kernel: st.kernel().clone() };
+            let stream = async_stream::stream! {
+                let _guard = guard;
+                let mut mb = mailbox;
+                if let Ok(json) = serde_json::to_string(&initial) {
+                    yield Ok::<JsonResponse, ConnectError>(JsonResponse { json, ..Default::default() });
+                }
+                while let Some(_ev) = mb.recv().await {
+                    while mb.try_recv().is_ok() {}
+                    let value = resolve(&st);
+                    if let Ok(json) = serde_json::to_string(&value) {
+                        yield Ok(JsonResponse { json, ..Default::default() });
+                    }
+                }
+            };
+            Ok(Response::new(Box::pin(stream) as ServiceStream<JsonResponse>))
+        })
+    });
+    let pipelines_state_for_write = state.clone();
+    let pipelines_write_fn: ship_pipeline_runtime::wire::WriteFn =
+        Arc::new(move |op: String, args: serde_json::Value, ctx: connectrpc::RequestContext| {
+            let st = pipelines_state_for_write.clone();
+            Box::pin(async move {
+                use axum::response::IntoResponse;
+                let auth = ctx
+                    .extensions
+                    .get::<crate::auth::AuthContext>()
+                    .cloned()
+                    .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
+                match op.as_str() {
+                    "pipelines.dispatch" => {
+                        let opt = |k: &str| {
+                            args.get(k).and_then(|v| v.as_str())
+                                .filter(|s| !s.is_empty())
+                                .map(str::to_string)
+                        };
+                        let vars: std::collections::HashMap<String, String> = args
+                            .get("vars")
+                            .and_then(|v| v.as_object())
+                            .map(|m| {
+                                m.iter()
+                                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        let req = crate::routes::runtime_api::PipelineRunRequest {
+                            pipeline: args.get("pipeline").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                            spec: opt("spec"),
+                            vars: if vars.is_empty() { None } else { Some(vars) },
+                            harness: opt("harness"),
+                            model: opt("model"),
+                            workspace: opt("workspace"),
+                            slug: opt("slug"),
+                            auto: args.get("auto").and_then(|v| v.as_bool()).unwrap_or(false),
+                            source_spec_path: opt("source_spec_path"),
+                        };
+                        let resp = crate::routes::runtime_api::run_pipeline(
+                            axum::extract::State(st.clone()),
+                            axum::Extension(auth),
+                            axum::Json(req),
+                        )
+                        .await
+                        .into_response();
+                        crate::services::command::response_to_value(resp)
+                            .await
+                            .map_err(crate::ops_rpc::command_error_to_connect)
+                    }
+                    "pipelines.end_turn" => {
+                        let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let req = crate::routes::runtime_api::jobs::TurnEndRequest { slug };
+                        let resp = crate::routes::runtime_api::end_job(
+                            axum::extract::State(st.clone()),
+                            axum::Extension(auth),
+                            axum::Json(req),
+                        )
+                        .await
+                        .into_response();
+                        crate::services::command::response_to_value(resp)
+                            .await
+                            .map_err(crate::ops_rpc::command_error_to_connect)
+                    }
+                    "pipeline.update_status" => {
+                        let pipeline_run_id = args.get("pipeline_run_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let body = crate::project_api::RunStatusReq {
+                            status: args.get("status").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                            worktree: args.get("worktree").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
+                            pid: args.get("pid").and_then(|v| v.as_u64()).map(|n| n as u32),
+                            gate_agent: args.get("gate_agent").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
+                            blocker: args.get("blocker").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
+                            error: args.get("error").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
+                        };
+                        crate::project_api::jobs_status::update_job_status_core(&st, &pipeline_run_id, body)
+                            .await
+                            .map_err(|(status, msg)| {
+                                use axum::http::StatusCode;
+                                if status == StatusCode::NOT_FOUND {
+                                    ConnectError::not_found(msg)
+                                } else if status.is_client_error() {
+                                    ConnectError::invalid_argument(msg)
+                                } else {
+                                    ConnectError::internal(msg)
+                                }
+                            })
+                    }
+                    "pipeline.step_done" => {
+                        let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let outputs: std::collections::BTreeMap<String, String> =
+                            args.get("outputs").and_then(|v| v.as_object())
+                                .map(|m| {
+                                    m.iter()
+                                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                                        .collect()
+                                })
+                                .unwrap_or_default();
+                        let body = crate::project_api::StepDoneReq {
+                            summary: args.get("summary").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
+                            outputs,
+                        };
+                        crate::project_api::jobs_status::step_done_core(&st, &slug, body)
+                            .await
+                            .map_err(|(status, msg)| {
+                                use axum::http::StatusCode;
+                                if status == StatusCode::NOT_FOUND {
+                                    ConnectError::not_found(msg)
+                                } else if status.is_client_error() {
+                                    ConnectError::invalid_argument(msg)
+                                } else {
+                                    ConnectError::internal(msg)
+                                }
+                            })
+                    }
+                    _ => Err(ConnectError::internal(format!("unknown pipelines write op: {op}"))),
+                }
+            })
+        });
+    let pipelines_wire = Arc::new(ship_pipeline_runtime::wire::PipelinesWire::new(
+        state.pipelines_arc(),
+        gate.clone(),
+        pipelines_read_fn,
+        pipelines_live_fn,
+        pipelines_write_fn,
+    ));
+    let router = ship_ops_rpc::PipelinesServiceExt::register(pipelines_wire, router);
     // agents.* + agent.* — crate-owned AgentsWire (ship-agents).
     // Replaces `impl AgentsService for OpsImpl` in agent_rpc.rs (deleted).
     // All 23 methods: profile reads (C0) + runtime reads (C0) + profile writes (C2)
@@ -529,7 +775,86 @@ pub fn router(state: ApiState) -> axum::Router {
         None => router,
     };
     let router = ship_ops_rpc::EventsServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::ViewServiceExt::register(svc.clone(), router);
+    // view.* — crate-owned ViewWire (ship-views).
+    // Replaces `impl ViewService for OpsImpl` in view_rpc.rs (deleted).
+    // Session writes (patch/append/signal) capture view_sessions; edit-mode
+    // grant/revoke call ship_views::view_authoring directly (no daemon state);
+    // tool dispatch captures ApiState via the tool_fn closure.
+    let view_sessions_for_patch = state.view_sessions().clone();
+    let view_patch_fn: ship_views::wire::PatchFn =
+        Arc::new(move |id, agent, selector, html| {
+            let vs = view_sessions_for_patch.clone();
+            Box::pin(async move {
+                vs.patch(&id, &agent, &selector, html)
+                    .await
+                    .map_err(|e| ConnectError::internal(e.to_string()))
+            })
+        });
+    let view_sessions_for_append = state.view_sessions().clone();
+    let view_append_fn: ship_views::wire::AppendFn =
+        Arc::new(move |id, agent, selector, html| {
+            let vs = view_sessions_for_append.clone();
+            Box::pin(async move {
+                vs.append(&id, &agent, &selector, html)
+                    .await
+                    .map_err(|e| ConnectError::internal(e.to_string()))
+            })
+        });
+    let view_sessions_for_signal = state.view_sessions().clone();
+    let view_signal_fn: ship_views::wire::SignalFn =
+        Arc::new(move |id, agent, name, value| {
+            let vs = view_sessions_for_signal.clone();
+            Box::pin(async move {
+                vs.signal(&id, &agent, &name, value)
+                    .await
+                    .map_err(|e| ConnectError::internal(e.to_string()))
+            })
+        });
+    let view_state_for_tool = state.clone();
+    let view_tool_fn: ship_views::wire::ToolFn =
+        Arc::new(move |view, session_id, op, args| {
+            let st = view_state_for_tool.clone();
+            Box::pin(async move {
+                let body = crate::routes::view_edit_tool_api::ToolBody {
+                    session_id,
+                    op,
+                    args,
+                };
+                let resp = crate::routes::view_edit_tool_api::dispatch_tool_core(
+                    &st, view, body,
+                )
+                .await;
+                let status = resp.status();
+                let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
+                    .await
+                    .map_err(|e| ConnectError::internal(e.to_string()))?;
+                if status.is_success() {
+                    Ok(String::from_utf8_lossy(&bytes).into_owned())
+                } else {
+                    let msg = String::from_utf8_lossy(&bytes).into_owned();
+                    if status.is_client_error() {
+                        Err(ConnectError::invalid_argument(msg))
+                    } else {
+                        Err(ConnectError::internal(msg))
+                    }
+                }
+            })
+        });
+    let view_agent_fn: ship_views::wire::AgentFn =
+        Arc::new(|ctx: &connectrpc::RequestContext| {
+            ctx.extensions
+                .get::<crate::auth::AuthContext>()
+                .and_then(|a| a.agent_id.clone())
+                .ok_or_else(|| ConnectError::permission_denied("agent identity required"))
+        });
+    let view_wire = Arc::new(ship_views::wire::ViewWire::new(
+        view_agent_fn,
+        view_patch_fn,
+        view_append_fn,
+        view_signal_fn,
+        view_tool_fn,
+    ));
+    let router = ship_ops_rpc::ViewServiceExt::register(view_wire, router);
     let router = ship_ops_rpc::RegistryServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::SuiServiceExt::register(svc.clone(), router);
     // search — ShipdSearchWire (search_rpc.rs) branches on the request scope:

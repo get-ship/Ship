@@ -6,3 +6,4 @@
 //! collection/artifact services — no reach back into ship-platform.
 
 pub mod view_authoring;
+pub mod wire;

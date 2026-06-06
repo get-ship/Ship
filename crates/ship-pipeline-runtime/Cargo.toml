@@ -32,6 +32,9 @@ ship-store = { path = "../core/ship-platform/crates/ship-store" }
 # L1 artifacts service — fanout/step_io use ArtifactService + ArtifactScope
 # (typed artifact metadata) for step-input/output wiring.
 ship-artifacts = { path = "../core/ship-platform/crates/ship-artifacts" }
+# ConnectRPC wire layer (wire.rs) — implements PipelinesService for shipd mount.
+connectrpc = { version = "0.4", features = ["axum"] }
+ship-ops-rpc = { path = "../core/ship-platform/crates/ship-ops-rpc" }
 
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

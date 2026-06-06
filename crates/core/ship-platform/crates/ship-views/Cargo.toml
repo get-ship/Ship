@@ -10,6 +10,9 @@ ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-collection = { path = "../ship-collection" }
 ship-artifacts = { path = "../ship-artifacts" }
+# ConnectRPC wire layer (wire.rs) — implements ViewService for shipd mount.
+connectrpc = { version = "0.4", features = ["axum"] }
+ship-ops-rpc = { path = "../ship-ops-rpc" }
 
 anyhow = { workspace = true }
 serde = { workspace = true }

@@ -22,6 +22,7 @@
 pub mod orchestrator;
 pub mod pipelines;
 pub mod projections;
+pub mod wire;
 
 use std::sync::Once;
 
