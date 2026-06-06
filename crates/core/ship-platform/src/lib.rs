@@ -1,5 +1,4 @@
 // ── L1 modules (agent/collection domain layer) ────────────────────────────────
-pub mod commands;
 pub mod config;
 pub mod isolation;
 pub mod isolation_ops;
@@ -49,5 +48,4 @@ fn install_defaults_inner() {
         let path_str = path.to_string_lossy();
         ship_substrate::db::projects::find_by_path(&path_str).ok().flatten().map(|p| p.id)
     }));
-    commands::seed_builtins();
 }

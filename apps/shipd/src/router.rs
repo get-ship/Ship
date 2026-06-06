@@ -15,7 +15,7 @@ use crate::{
 };
 use crate::routes::{
     actor_api, actors_api, annotations_api,
-    artifacts_api, commands_api, create_api, feedback_api, git_api,
+    artifacts_api, create_api, feedback_api, git_api,
     hooks_api, human_webhook, logs_api,
     registry_api, rest_api, runtime_api,
     sandbox_api, sdk_manifest, settings_api, themes_api,
@@ -497,8 +497,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             routing::head(artifacts_api::head_artifact),
         )
         .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
-        // Command bar registry
-        .ship_route(Route::ListCommands, commands_api::list_commands)
         // SDK manifest (read-side)
         .ship_route(Route::ViewMeta_template(), sdk_manifest::get_view_meta)
         .ship_route(Route::SdkRoot, sdk_manifest::get_sdk_root)
