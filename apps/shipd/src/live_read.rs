@@ -33,6 +33,30 @@ impl OpsImpl {
         let resolve = move |st: &crate::ship_runtime::ApiState| -> Value {
             crate::services::registry::call(registry_name, &args, st).unwrap_or(Value::Null)
         };
+        self.live_read_inner(state, resolve).await
+    }
+
+    /// Open a live read backed by an arbitrary resolver function rather than
+    /// the string-dispatch registry. Used by git read handlers that call
+    /// ship-git directly.
+    pub(crate) async fn live_read_with<F>(
+        &self,
+        resolve: F,
+    ) -> ServiceResult<ServiceStream<JsonResponse>>
+    where
+        F: Fn(&crate::ship_runtime::ApiState) -> Value + Send + Sync + 'static,
+    {
+        self.live_read_inner(self.state().clone(), resolve).await
+    }
+
+    async fn live_read_inner<F>(
+        &self,
+        state: crate::ship_runtime::ApiState,
+        resolve: F,
+    ) -> ServiceResult<ServiceStream<JsonResponse>>
+    where
+        F: Fn(&crate::ship_runtime::ApiState) -> Value + Send + Sync + 'static,
+    {
 
         let initial = resolve(&state);
 
