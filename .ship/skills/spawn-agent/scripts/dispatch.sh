@@ -39,6 +39,7 @@ SHIP_AGENT_MODEL="${SHIP_AGENT_MODEL:-}"
 SHIP_PROVIDER_CLI="${SHIP_PROVIDER_CLI:-}"
 EXTRA_SKILLS=()
 BATCH_NAME=""
+NOBOOTSTRAP=false
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -55,6 +56,7 @@ while [[ $# -gt 0 ]]; do
     --confirm)  CONFIRM=1; shift ;;
     --batch)    BATCH_NAME="$2"; shift 2 ;;
     --harness)  SHIP_PROVIDER_CLI="$2"; shift 2 ;;
+    --no-bootstrap) NOBOOTSTRAP=true; shift ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
@@ -67,6 +69,7 @@ if [[ -z "$SLUG" || -z "$AGENT" || -z "$SPEC_FILE" ]]; then
   echo "  --no-open         Print launch command instead of opening terminal" >&2
   echo "  --confirm         Show spec and ask y/n before launching" >&2
   echo "  --harness <cli>   Provider CLI to launch: claude (default) | omp | codex | ..." >&2
+  echo "  --no-bootstrap    Skip build-env provisioning (deps/bundles); for self-contained jobs" >&2
   echo "  --dry-run         Show what would happen" >&2
   exit 1
 fi
@@ -215,7 +218,9 @@ echo "MCP config verified: $MCP_JSON"
 # Fresh worktrees ship empty node_modules and missing generated assets. Pre-stage
 # them here so the agent doesn't hit `bun install` (which can rewrite the
 # lockfile if there's drift) or a Rust build that include_str!s missing bundles.
-if [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
+if [[ "$NOBOOTSTRAP" == true ]]; then
+  echo "Skipping build-env provisioning (--no-bootstrap)"
+elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
   echo "Installing dependencies (bun install --frozen-lockfile)"
   if ! (cd "$WORKTREE_PATH" && bun install --frozen-lockfile 2>&1 | tail -5); then
     echo "Warning: bun install --frozen-lockfile failed; agent may need to fix lockfile drift" >&2
