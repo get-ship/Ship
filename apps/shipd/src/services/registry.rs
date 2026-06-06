@@ -107,8 +107,6 @@ pub mod wire;
 #[cfg(feature = "fixtures")]
 pub mod fixtures;
 
-pub mod actors;
-pub mod mesh;
 pub mod diagnostics;
 
 // ── Dispatch ─────────────────────────────────────────────────────────
@@ -122,12 +120,6 @@ pub mod diagnostics;
 ///   - Err(e) — name belongs but the call errored; return verbatim
 pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, RegistryError> {
     let files = FilesService::resolve_roots(state.ship_dir());
-    if let Some(value) = actors::try_dispatch(name, args, state, &files)? {
-        return Ok(value);
-    }
-    if let Some(value) = mesh::try_dispatch(name, args, state, &files)? {
-        return Ok(value);
-    }
     if let Some(value) = diagnostics::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }

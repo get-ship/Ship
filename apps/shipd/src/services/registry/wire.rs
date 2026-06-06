@@ -19,7 +19,6 @@ use ship_pipeline_runtime::pipelines::state as pipelines_state;
 use ship_agents::services::sessions::types::SessionMeta;
 use ship_agents::services::skills::state as skills_state;
 use ship_agents::services::skills::view_state::SkillSummary;
-use ship_substrate::projections::actor::ActorRow;
 
 // ── sessions / events / artifacts ──────────────────────────────────────
 
@@ -209,21 +208,3 @@ pub struct CollectionsStateResponse {
     pub total_items: usize,
 }
 
-// ── actors / mesh (dispatchable but intentionally absent from OPS) ─────
-
-/// Wire shape of `ship.actors.list()`.
-#[derive(Serialize)]
-pub struct ActorsListResponse {
-    pub items: Vec<ActorRow>,
-}
-
-/// Wire shape of `ship.mesh.snapshot()` — kernel actors + processes +
-/// integrations. The rows are heterogeneous, daemon-assembled objects, kept as
-/// `Value` so the payload is byte-identical to the prior hand-built `json!`.
-#[derive(Serialize)]
-pub struct MeshSnapshotResponse {
-    pub actors: Vec<Value>,
-    pub processes: Vec<Value>,
-    pub integrations: Vec<Value>,
-    pub counts: Value,
-}

@@ -478,31 +478,7 @@ pub enum Route {
     // Workspace-scoped artifact status/promote removed — callers get 404.
     // Use the unified /api/artifacts/* surface instead.
 
-    // ── Mesh / actors ────────────────────────────────────────────────────
-
-    /// @route POST "/api/v1/mesh/register"
-    /// @auth scope MeshSend
-    MeshRegister,
-
-    /// @route POST "/api/v1/mesh/send"
-    /// @auth scope MeshSend
-    MeshSend,
-
-    /// @route POST "/api/v1/mesh/broadcast"
-    /// @auth scope MeshBroadcast
-    MeshBroadcast,
-
-    /// @route GET "/api/v1/mesh/discover"
-    /// @auth scope ReadWorkspace
-    MeshDiscover,
-
-    /// @route POST "/api/v1/mesh/status"
-    /// @auth scope MeshSend
-    MeshStatusUpdate,
-
-    /// @route GET "/api/v1/mesh/events/{agent_id}"
-    /// @auth scope ReadWorkspace
-    MeshEvents { agent_id: String },
+    // ── Actor kernel reads (L0 — not the deprecated mesh.* op surface) ─────
 
     /// @route POST "/api/v1/actor/spawn"
     /// @auth scope MeshSend
@@ -527,22 +503,6 @@ pub enum Route {
     /// @route GET "/api/v1/actors/{actor_id}/events"
     /// @auth scope ReadWorkspace
     ActorEvents { actor_id: String },
-
-    /// @route POST "/api/v1/actors/{actor_id}/input"
-    /// @auth scope MeshSend
-    ActorInput { actor_id: String },
-
-    /// @route GET "/api/v1/mesh/snapshot"
-    /// @auth scope ReadWorkspace
-    MeshSnapshot,
-
-    /// @route GET "/api/v1/mesh/events"
-    /// @auth scope ReadWorkspace
-    MeshEventsStream,
-
-    /// @route POST "/api/v1/actors/{actor_id}/kill-tree"
-    /// @auth scope MeshSend
-    KillTree { actor_id: String },
 
     // ── Artifacts ────────────────────────────────────────────────────────
     // The list/upload/download/metadata/patch/delete handlers compute the

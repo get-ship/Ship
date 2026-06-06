@@ -9,7 +9,6 @@
 // `jsonc` keeps the agent-config-specific helpers (parse_file, resolve_array_field,
 // first_letter); strip_jsonc delegates to ship_substrate::fs_util::strip_jsonc_comments.
 
-pub mod actor_control;
 pub mod command;
 pub mod gate;
 pub mod op_policy;
