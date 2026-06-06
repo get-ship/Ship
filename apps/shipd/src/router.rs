@@ -492,7 +492,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // SDK manifest (read-side)
         .ship_route(Route::ViewMeta_template(), sdk_manifest::get_view_meta)
         .ship_route(Route::SdkRoot, sdk_manifest::get_sdk_root)
-        .ship_route(Route::SdkQuery, sdk_manifest::query_sdk)
+        .ship_route(Route::SdkQuery, sdk_manifest::query_sdk_handler)
         // Client-side view error capture — GET/POST/DELETE on one path,
         // merged into a single MethodRouter (axum panics on duplicate paths
         // across `.route()` calls). Canonical path comes from the Route enum
