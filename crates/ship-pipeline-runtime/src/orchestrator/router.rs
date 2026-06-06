@@ -295,7 +295,7 @@ async fn maybe_auto_merge(
 ) -> bool {
     let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
     let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or(envelope.entity_id.as_str()).to_string();
-    let Some(job) = ship_platform::projections::pipeline_run::load_pipeline_run_by_id(&pipeline_run_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&pipeline_run_id)
         .ok()
         .flatten()
     else {
@@ -328,7 +328,7 @@ async fn check_and_fail_missing_outputs(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     declared: &PipelineStepDoneDeclaredPayload,
 ) {
-    let Some(job) = ship_platform::projections::pipeline_run::load_pipeline_run_by_id(&declared.pipeline_run_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&declared.pipeline_run_id)
         .ok()
         .flatten()
     else {
@@ -355,7 +355,7 @@ async fn run_promotes_for_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &PipelineStepObservedPayload,
 ) {
-    let Some(job) = ship_platform::projections::pipeline_run::load_pipeline_run_by_id(&payload.pipeline_run_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.pipeline_run_id)
         .ok()
         .flatten()
     else {
@@ -378,7 +378,7 @@ async fn evaluate_step_gate(
 ) -> Option<String> {
     use super::gate_rules::{diff_paths, evaluate, GateOutcome};
 
-    let job = ship_platform::projections::pipeline_run::load_pipeline_run_by_id(&payload.pipeline_run_id)
+    let job = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.pipeline_run_id)
         .ok()
         .flatten()?;
     let pipeline = job.steps.as_ref()?;

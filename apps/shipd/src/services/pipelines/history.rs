@@ -1,7 +1,7 @@
 //! `pipelines.history(limit?, offset?, q?, pipeline?)` — paginated
 //! history rows for the dedicated history view.
 
-use ship_platform::projections::pipeline_run::PipelineRun;
+use ship_pipeline_runtime::projections::pipeline_run::PipelineRun;
 use serde::Serialize;
 use std::collections::BTreeSet;
 use std::path::Path;

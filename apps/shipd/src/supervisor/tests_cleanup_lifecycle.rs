@@ -9,7 +9,7 @@
 
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
+use ship_pipeline_runtime::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or("test");

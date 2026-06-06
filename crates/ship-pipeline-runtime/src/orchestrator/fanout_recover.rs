@@ -26,7 +26,7 @@ use tokio::sync::Mutex;
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::KernelRouter;
-use ship_platform::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
+use crate::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use crate::orchestrator::OrchestratorContext;
 use ship_runner::emit::persist_and_route;
 use crate::orchestrator::fanout_aggregate::emit_failed_marker;
@@ -154,7 +154,7 @@ pub async fn reconcile_fanout_lanes(
         return;
     }
 
-    let jobs = match ship_platform::projections::pipeline_run::load_pipeline_runs() {
+    let jobs = match crate::projections::pipeline_run::load_pipeline_runs() {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("fanout-recover: failed to load jobs projection: {e}");

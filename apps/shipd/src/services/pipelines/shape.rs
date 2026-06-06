@@ -5,7 +5,7 @@
 //! These types are serialized straight into the registry op payloads
 //! that `.ship/views/pipelines/*` templates consume.
 
-use ship_platform::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
+use ship_pipeline_runtime::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use serde::Serialize;
 use std::path::PathBuf;
 

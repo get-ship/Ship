@@ -8,7 +8,7 @@ use ship_substrate::events::supervisor::{
     SweepCompletedPayload, SweepStartedPayload,
 };
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::pipeline_run::{load_pipeline_runs, PipelineRun, PipelineRunStatus};
+use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRun, PipelineRunStatus};
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;

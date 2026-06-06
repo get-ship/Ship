@@ -24,7 +24,7 @@ pub async fn try_dispatch(
             // Effective baseline starts from any existing provisioned record, so
             // persisting never *narrows* an agent below what it already holds.
             let mut baseline: std::collections::BTreeSet<String> =
-                ship_platform::projections::provisioned_grants_for(&agent)
+                ship_platform::services::permissions::projection::provisioned_grants_for(&agent)
                     .ok()
                     .flatten()
                     .unwrap_or_default()

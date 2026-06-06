@@ -25,6 +25,7 @@ ship-ops-rpc = { path = "../../crates/core/ship-platform/crates/ship-ops-rpc" }
 connectrpc = { version = "0.4", features = ["client"] }
 http = "1"
 ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }
+ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 anyhow = { workspace = true }
 serde = { workspace = true }

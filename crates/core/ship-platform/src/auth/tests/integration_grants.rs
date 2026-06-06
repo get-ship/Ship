@@ -76,7 +76,7 @@ fn auth_grants_resolve_worker_role_baseline_is_empty() {
 
 #[test]
 fn auth_grants_resolve_provisioned_record_overrides_role() {
-    use crate::projections::provisioned_grants::ProvisionedGrantsProjection;
+    use crate::services::permissions::projection::ProvisionedGrantsProjection;
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::projections::registry::Projection;
 
@@ -100,7 +100,7 @@ fn auth_grants_resolve_provisioned_record_overrides_role() {
 
 #[test]
 fn auth_grants_resolve_provisioned_empty_set_overrides_role() {
-    use crate::projections::provisioned_grants::ProvisionedGrantsProjection;
+    use crate::services::permissions::projection::ProvisionedGrantsProjection;
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::projections::registry::Projection;
 
@@ -168,7 +168,7 @@ fn auth_grants_pending_deduplicates_and_sorts_output() {
 
 #[test]
 fn auth_grants_provision_latest_write_wins() {
-    use crate::projections::provisioned_grants::ProvisionedGrantsProjection;
+    use crate::services::permissions::projection::ProvisionedGrantsProjection;
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::projections::registry::Projection;
 

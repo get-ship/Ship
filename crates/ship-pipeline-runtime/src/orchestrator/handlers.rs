@@ -81,11 +81,11 @@ pub async fn handle_cleanup(
     let slug = if !payload_slug.is_empty() {
         payload_slug.to_string()
     } else {
-        ship_platform::projections::pipeline_run::load_pipeline_run_by_id(pipeline_run_id)
+        crate::projections::pipeline_run::load_pipeline_run_by_id(pipeline_run_id)
             .ok()
             .flatten()
             .or_else(|| {
-                ship_platform::projections::pipeline_run::load_pipeline_run_by_id(&envelope.entity_id)
+                crate::projections::pipeline_run::load_pipeline_run_by_id(&envelope.entity_id)
                     .ok()
                     .flatten()
             })
@@ -115,7 +115,7 @@ pub async fn finalize_pipeline_if_done(
         None => return,
     };
 
-    let job = match ship_platform::projections::pipeline_run::load_pipeline_run_by_id(&pipeline_run_id) {
+    let job = match crate::projections::pipeline_run::load_pipeline_run_by_id(&pipeline_run_id) {
         Ok(Some(j)) => j,
         _ => return,
     };
@@ -188,12 +188,12 @@ pub async fn handle_cancelled(
     // Branch for cleanup: pipeline runs carry it on the jobs row; bare
     // agent sessions carry it on the agent_sessions row. Try jobs first,
     // fall back to the session projection (agent.session.cancelled).
-    let branch = ship_platform::projections::pipeline_run::load_pipeline_run_by_slug(&slug)
+    let branch = crate::projections::pipeline_run::load_pipeline_run_by_slug(&slug)
         .ok()
         .flatten()
         .map(|j| j.branch)
         .or_else(|| {
-            ship_platform::projections::agent_session::load_session_by_slug(&slug)
+            ship_platform::services::sessions::projection::load_session_by_slug(&slug)
                 .ok()
                 .flatten()
                 .map(|s| s.branch)

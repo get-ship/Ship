@@ -51,7 +51,7 @@ pub struct ProjectsSpaceRegistry;
 
 impl SpaceRegistry for ProjectsSpaceRegistry {
     fn space_exists(&self, space_id: &str) -> Result<bool> {
-        Ok(ship_platform::projections::projects::get(space_id)
+        Ok(ship_platform::projects::projection::get(space_id)
             .map_err(|e| anyhow!(e.to_string()))?
             .is_some())
     }

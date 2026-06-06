@@ -21,3 +21,20 @@
 
 pub mod orchestrator;
 pub mod pipelines;
+pub mod projections;
+
+use std::sync::Once;
+
+static INSTALL_PROJECTIONS: Once = Once::new();
+
+/// Register the pipeline-run projection with the substrate event bus. Each
+/// domain contributes its own projections through the shared substrate API;
+/// this is the pipeline domain's contribution. Idempotent — call once at app
+/// startup, alongside `ship_platform::install_defaults`.
+pub fn install_projections() {
+    INSTALL_PROJECTIONS.call_once(|| {
+        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
+            vec![Box::new(projections::PipelineRunProjection)]
+        }));
+    });
+}

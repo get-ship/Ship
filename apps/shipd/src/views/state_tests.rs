@@ -3,7 +3,7 @@
 
 use super::{filter_and_sort, partition_runs, status_token, Filter, RunCategory};
 use chrono::{TimeZone, Utc};
-use ship_platform::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
+use ship_pipeline_runtime::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use std::collections::HashMap;
 
 fn mk(slug: &str, agent: &str, status: PipelineRunStatus, ts_secs: i64) -> PipelineRun {

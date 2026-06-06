@@ -69,8 +69,13 @@ mod io;
 mod mcp;
 mod merge;
 mod project;
+// `space_settings` projection — co-located with the config module
+// so a future crate-carve takes it along.
+pub mod projection;
 mod types;
 pub mod watcher;
+
+pub use projection::SpaceSettingsProjection;
 
 #[cfg(test)]
 mod tests_boundaries;

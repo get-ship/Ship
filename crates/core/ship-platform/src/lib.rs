@@ -17,7 +17,6 @@ pub mod isolation;
 pub mod isolation_ops;
 pub mod triggers;
 pub use ship_kv as kv;
-pub mod projections;
 pub mod projects;
 pub mod registry;
 pub mod services;
@@ -46,25 +45,32 @@ pub mod testutil;
 /// once at application startup, before constructing any `SqliteEventStore`.
 /// Idempotent — second and later calls are silently ignored.
 pub fn install_defaults() {
+    static INSTALLED: std::sync::Once = std::sync::Once::new();
+    INSTALLED.call_once(install_defaults_inner);
+}
+
+fn install_defaults_inner() {
     ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
         vec![
-            Box::new(projections::CompileStateProjection),
-            Box::new(projections::ProjectsProjection),
+            // Each projection now lives with its domain; the assembly point
+            // pulls from those homes. The pipeline-run projection registers
+            // separately from `ship-pipeline-runtime` (it depends on this
+            // crate, so it can't be referenced from here).
+            Box::new(services::compile::CompileStateProjection),
+            Box::new(projects::ProjectsProjection),
             // Per-space settings overlay (event-sourced fold of
             // `space.setting.changed`). The live overlay read is owned by the
             // ship-space crate's own DataStore-backed table (`SpaceService.Info`);
             // this projection materializes the same events for the event history.
-            Box::new(projections::SpaceSettingsProjection),
-            Box::new(projections::AuthSessionsProjection),
-            Box::new(projections::DaemonOwnerProjection),
+            Box::new(config::SpaceSettingsProjection),
+            Box::new(auth::AuthSessionsProjection),
+            Box::new(auth::DaemonOwnerProjection),
             // Per-agent approved grant baseline the mint path reads.
-            Box::new(projections::ProvisionedGrantsProjection),
-            Box::new(projections::PipelineRunProjection),
-            // Agent-session primitive — sibling of jobs. Tracks
+            Box::new(services::permissions::ProvisionedGrantsProjection),
+            // Agent-session primitive — sibling of pipeline runs. Tracks
             // single-agent dispatches (bare ship use, MCP dispatch,
-            // pipeline-step sessions). jobs now scopes to pipeline
-            // composition runs only.
-            Box::new(projections::AgentSessionProjection),
+            // pipeline-step sessions).
+            Box::new(services::sessions::AgentSessionProjection),
             // ship-analytics — folds hook.* into rollup tables. Lives
             // in its own crate (queries, cost, mining) so downstream
             // dashboard / billing / harness-mining work has a home
