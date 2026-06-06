@@ -2,7 +2,7 @@
 // in apps/shell, not views/): the shell renders it at `/`. Owns its dock; the
 // shell hides the status strip for it. Data comes over @ship/sdk-client live
 // sources (chrome has no `ctx.ship` the way daemon-served views do).
-import { controller, derived, live, signal, unwrapOr, chrome, type LiveState } from '@ship/sui-runtime'
+import { controller, derived, live, unwrapOr, chrome } from '@ship/sui-runtime'
 import type { LiveSignal, LiveSource, ViewScope } from '@ship/sui-runtime'
 import type { GitOverview } from '@ship/sdk-client'
 import { ship } from '../ops'
@@ -36,15 +36,8 @@ const initialOf = (a: DashAgent): string => (a.letter ?? (a.name ?? a.id).slice(
 
 export default controller({
   scope: (_ctx: ViewScope<Scope>) => {
-    // LEAK FIX 2026-06-06: replaced live() with signal() to bypass a
-    // SpiderMoney-specific buffer retention in the Connect server-stream
-    // iterator. The leak does NOT reproduce in V8 (Chromium) — only in
-    // SpiderMonkey (Firefox). The real fix is in the runtime's
-    // `liveStream` (packages/deck/sdk-client/src/live-stream.ts:22); for
-    // now, this workaround unblocks the dev loop. See
-    // .artifacts/2026-06-06-leak-hunt.md for the measurement + follow-up.
-    const dash = signal<LiveState<DashState>>({ kind: 'ok', value: EMPTY_DASH }) as unknown as LiveSignal<DashState>
-    const git = signal<LiveState<GitOverview>>({ kind: 'ok', value: EMPTY_GIT }) as unknown as LiveSignal<GitOverview>
+    const dash = live(() => ship.dashboard.state() as LiveSource<DashState>)
+    const git = live(() => ship.git.overview())
     const navigate = (path: string): void => chrome.navigate(path)
     const goNav = (event: Event, path: string): void => { event.preventDefault(); chrome.navigate(path) }
 
