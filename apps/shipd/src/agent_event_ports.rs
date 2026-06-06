@@ -1,17 +1,21 @@
-//! Shipd implementations of the ship-agents port traits for feedback and annotation.
+//! Shipd implementations of the ship-agents port traits for feedback, annotation,
+//! and agent dispatch.
 //!
-//! These glue the shipd `ViewSessionRegistry` and `CollectionService` to the
-//! abstract ports that `AgentsWire` consumes. Keeps the domain logic in
-//! `ship-agents` while shipd provides the concrete runtime state.
+//! These glue the shipd `ViewSessionRegistry`, `CollectionService`, and kernel
+//! state to the abstract ports that `AgentsWire` and `dispatch_agent_session_core`
+//! consume. Keeps the domain logic in `ship-agents` while shipd provides the
+//! concrete runtime state.
 
 use async_trait::async_trait;
 use connectrpc::{ConnectError, RequestContext};
 use ship_agents::services::agents::annotation::{CollectionError, CollectionPersistPort};
+use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
 use ship_agents::services::agents::feedback::{ViewBroadcastError, ViewBroadcastPort};
 use ship_agents::services::agents::rpc_wire::FeedbackAuthPort;
-use ship_substrate::events::CallerKind;
+use ship_substrate::events::{CallerKind, EventEnvelope};
 use ship_substrate::events::validator::EmitContext;
 
+use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 use crate::views::session::SessionError;
 
@@ -77,6 +81,45 @@ impl CollectionPersistPort for CollectionPersistAdapter {
             .await
             .map(|_| ())
             .map_err(|e| CollectionError::PersistFailed(e.to_string()))
+    }
+}
+
+// ── AgentDispatchPort ─────────────────────────────────────────────────────────
+
+/// Adapter bridging shipd's `ApiState` to the `AgentDispatchPort` declared in
+/// ship-agents. Provides the three daemon-specific capabilities the dispatch
+/// core needs without importing `ApiState` into the domain crate.
+pub struct AgentDispatchAdapter {
+    state: ApiState,
+}
+
+impl AgentDispatchAdapter {
+    pub fn new(state: ApiState) -> Self {
+        Self { state }
+    }
+}
+
+#[async_trait]
+impl AgentDispatchPort for AgentDispatchAdapter {
+    async fn persist_and_route(&self, envelope: &EventEnvelope) -> anyhow::Result<()> {
+        self.state.persist_and_route(envelope).await
+    }
+
+    fn daemon_origin(&self) -> String {
+        self.state.daemon_origin()
+    }
+
+    fn worktrees_dir(&self) -> std::path::PathBuf {
+        ship_supervisor::helpers::worktrees_dir()
+    }
+
+    fn check_workspace_violation(
+        &self,
+        ctx: &RequestContext,
+        claimed_workspace: Option<&str>,
+    ) -> Option<String> {
+        let auth = ctx.extensions.get::<AuthContext>()?;
+        crate::auth::identity::mcp_workspace_violation(auth, claimed_workspace)
     }
 }
 

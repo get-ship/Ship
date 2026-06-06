@@ -36,6 +36,10 @@ use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
 use ship_substrate::events::EventFilter;
 use ship_substrate::ports::KernelLog;
 
+use crate::services::agents::dispatch_core::{
+    AgentDispatchPort, DispatchCoreError, dispatch_agent_session_core,
+};
+use crate::services::agents::dispatch_request::DispatchRequest;
 use crate::services::agents::service::AgentsService;
 use crate::services::agents::{state, view_state};
 use crate::services::agents::watch as agent_watch;
@@ -55,12 +59,6 @@ pub type SessionsFn = Arc<dyn Fn() -> Value + Send + Sync>;
 /// Signature: (id: String, scope_str: String) where scope_str is "project" | "user".
 pub type NotifySavedFn =
     Arc<dyn Fn(String, String) -> BoxFuture<()> + Send + Sync>;
-
-/// Async dispatch closure: serialised request args (JSON) + request context →
-/// Result<DispatchResult JSON, ConnectError>. Shipd wires this to
-/// `dispatch_agent_session_core`.
-pub type DispatchFn =
-    Arc<dyn Fn(Value, RequestContext) -> BoxFuture<Result<Value, ConnectError>> + Send + Sync>;
 
 /// Async stop closure: (slug) → Result<StopResult JSON, ConnectError>.
 pub type StopFn =
@@ -98,7 +96,7 @@ pub struct AgentsWire {
     gate:             GateFn,
     sessions_fn:      SessionsFn,
     notify_saved:     NotifySavedFn,
-    dispatch_fn:      DispatchFn,
+    dispatch_port:    Arc<dyn AgentDispatchPort>,
     stop_fn:          StopFn,
     steer_fn:         SteerFn,
     grant_fn:         GrantFn,
@@ -117,7 +115,7 @@ impl AgentsWire {
         gate:             GateFn,
         sessions_fn:      SessionsFn,
         notify_saved:     NotifySavedFn,
-        dispatch_fn:      DispatchFn,
+        dispatch_port:    Arc<dyn AgentDispatchPort>,
         stop_fn:          StopFn,
         steer_fn:         SteerFn,
         grant_fn:         GrantFn,
@@ -133,7 +131,7 @@ impl AgentsWire {
             gate,
             sessions_fn,
             notify_saved,
-            dispatch_fn,
+            dispatch_port,
             stop_fn,
             steer_fn,
             grant_fn,
@@ -628,34 +626,73 @@ impl AgentsServiceTrait for AgentsWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedDispatchAgentRequestView,
     ) -> ServiceResult<DispatchResult> {
+        use ship_substrate::events::agent_session::InvocationMode;
         (self.gate)(&ctx, "agent.dispatch")?;
-        let mut args = serde_json::Map::new();
-        args.insert("agent".to_string(), json!(request.agent));
-        args.insert("spec".to_string(), json!(request.spec));
-        args.insert("prompt".to_string(), json!(request.prompt));
-        if let Some(b) = request.resume { args.insert("resume".to_string(), json!(b)); }
-        args.insert("harness".to_string(), json!(request.harness));
-        args.insert("model".to_string(), json!(request.model));
-        if let Some(b) = request.open_tab { args.insert("open_tab".to_string(), json!(b)); }
-        args.insert("invocation".to_string(), json!(request.invocation));
-        if let Some(b) = request.keepalive { args.insert("keepalive".to_string(), json!(b)); }
-        args.insert("workspace".to_string(), json!(request.workspace));
-        args.insert("slug".to_string(), json!(request.slug));
-        args.insert("branch".to_string(), json!(request.branch));
-        args.insert("source_spec_path".to_string(), json!(request.source_spec_path));
-        args.insert(
-            "depends_on".to_string(),
-            json!(request.depends_on.iter().collect::<Vec<_>>()),
-        );
-        let mut vars = serde_json::Map::new();
-        for (k, v) in request.vars.iter() {
-            vars.insert(k.to_string(), json!(v));
+
+        // Per-project workspace isolation: MCP session bound to project A cannot
+        // dispatch into project B. Trusted (CLI/SDK) callers pass through.
+        let claimed_workspace = if request.workspace.is_empty() {
+            None
+        } else {
+            Some(request.workspace)
+        };
+        if let Some(msg) = self.dispatch_port.check_workspace_violation(&ctx, claimed_workspace) {
+            return Err(ConnectError::permission_denied(msg));
         }
-        args.insert("vars".to_string(), Value::Object(vars));
-        let result = (self.dispatch_fn)(Value::Object(args), ctx).await?;
-        serde_json::from_value::<DispatchResult>(result)
-            .map(Response::new)
-            .map_err(|e| ConnectError::internal(format!("decode agent.dispatch response: {e}")))
+
+        fn opt_str(s: &str) -> Option<String> {
+            if s.is_empty() { None } else { Some(s.to_string()) }
+        }
+
+        let invocation = match request.invocation {
+            "print" => InvocationMode::Print,
+            "stream" => InvocationMode::Stream,
+            _ => InvocationMode::Pty,
+        };
+        let depends_on = {
+            let v: Vec<String> = request.depends_on.iter().map(|s| s.to_string()).collect();
+            (!v.is_empty()).then_some(v)
+        };
+        let vars: std::collections::HashMap<String, String> = request.vars
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        let vars = (!vars.is_empty()).then_some(vars);
+
+        let dreq = DispatchRequest {
+            agent: request.agent.to_string(),
+            spec: opt_str(request.spec),
+            prompt: opt_str(request.prompt),
+            resume: request.resume.unwrap_or(false),
+            harness: opt_str(request.harness),
+            model: opt_str(request.model),
+            open_tab: request.open_tab.unwrap_or(true),
+            invocation,
+            keepalive: request.keepalive.unwrap_or(true),
+            workspace: claimed_workspace.map(str::to_string),
+            slug: opt_str(request.slug),
+            branch: opt_str(request.branch),
+            source_spec_path: opt_str(request.source_spec_path),
+            depends_on,
+            vars,
+        };
+
+        let outcome = dispatch_agent_session_core(self.dispatch_port.as_ref(), dreq)
+            .await
+            .map_err(|e| match e {
+                DispatchCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                DispatchCoreError::Internal(m) => ConnectError::internal(m),
+            })?;
+
+        Ok(Response::new(DispatchResult {
+            session_id: outcome.session_id,
+            slug: outcome.slug,
+            branch: outcome.branch,
+            resume: outcome.resume,
+            studio_url: outcome.studio_url,
+            billing_warning: outcome.billing_warning,
+            ..Default::default()
+        }))
     }
 
     async fn stop(
