@@ -112,11 +112,9 @@ pub fn build_router(
         // so deck owns the full /_sui/* namespace. The DaemonBuildInfo
         // extension is injected at the root layer below so every deck
         // handler that needs it (serve_meta) finds it via Option<Extension<…>>.
-        // Shared static assets — no user-specific data, safe to serve unauth.
         .ship_public_route(Route::AssetViewTokensCss, views::serve_view_tokens)
         .ship_public_route(Route::AssetThemeCss, views::serve_theme_css)
         .ship_public_route(Route::ListThemes, views::serve_themes_list)
-        // SUI state-aware endpoints (sse/data/mutation/source) extract
         // `State<ApiState>`, so they live HERE, behind the
         // `with_state(rt.clone())` at the bottom of this builder.
         //
@@ -144,13 +142,18 @@ pub fn build_router(
         // development-only and is merged into `root` inside the
         // `daemon_mode == Development` block further below.
         // First-run flow — both routes are unauthenticated so a fresh
-        // install can reach the setup wizard before any browser is paired.
         .ship_public_route(Route::Index, views::setup::index_handler)
         .ship_public_route(Route::Setup, views::setup::setup_handler)
-        // SUI state-using handlers (sui_sse, sui_data, sui_mutation,
-        // sui_agent_push) extract `State<ApiState>`. Bind the state here
+        // Shell public assets at root paths: /ship-logo.svg, /favicon.ico, etc.
+        // The shell's index.html references these at the root, not under
+        // /shell/_assets/, so deck's scaffold asset handler doesn't catch them.
+        // serve_shell_static reads from apps/shell/public/<file> via a
+        // hard-coded allowlist (see apps/shipd/src/views/static_assets.rs).
+        // Registered AFTER Index/Setup so /setup and / keep their existing
+        // handlers — the {file} is the catch-all single-segment path.
+        .route("/{file}", axum::routing::get(views::static_assets::serve_shell_static))
+        // SUI state-using handlers (sui_sse, sui_data, sui_mutation, sui_agent_push) extract `State<ApiState>`. Bind the state here
         // so the resulting `Router<()>` merges cleanly with the root
-        // `Router::new()` at the bottom of this builder.
         .with_state(rt.clone());
 
     let auth_token = token;

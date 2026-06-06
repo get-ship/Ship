@@ -44,12 +44,12 @@ pub mod session;
 pub mod session_types;
 pub mod sanitize;
 
+pub mod static_assets;
 pub mod assets;
 pub mod discovery;
+pub mod resolve;
 pub mod error_overlay;
 pub mod handlers;
-pub mod resolve;
-
 #[cfg(test)]
 #[path = "views/views_tests.rs"]
 mod views_tests;

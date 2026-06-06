@@ -96,7 +96,14 @@ impl DeckResponse {
             .with_header("X-Content-Type-Options", "nosniff")
             .with_header(
                 "Content-Security-Policy",
-                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'",
+                // font-src + style-src need to allow Google Fonts because
+                // the shell's index.html loads Syne / DM Sans / JetBrains
+                // Mono from fonts.googleapis.com. Without these, the design
+                // system falls back to system fonts and the page looks
+                // visually broken (icons tied to those families disappear).
+                // We could self-host, but for the dev loop a CSP allow is
+                // the smallest fix. img-src 'self' data: stays tight.
+                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'",
             )
     }
     pub fn json_asset(body: impl Into<Vec<u8>>, mode: DaemonMode) -> Self {
