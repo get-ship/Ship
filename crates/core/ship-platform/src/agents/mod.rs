@@ -1,35 +1,13 @@
-pub mod config;
-pub mod import;
-pub mod permissions;
-pub mod harnesses;
-pub mod rule;
-pub mod skill;
-pub mod skill_paths;
-pub mod skill_vars;
+//! Agent-domain — re-exported from the `ship-agents` crate (C8 keystone).
+//! All logic moved to `ship_agents::agent_domain`. This shim keeps the
+//! `crate::agents::*` paths working for the handful of callers that still
+//! reference `ship_platform::agents::*`.
 
-#[cfg(test)]
-pub mod tests;
-
-/// Open a Runtime-scope store for the agent-file audit emits
-/// (`rule.* / permissions.* / skill.*`).
-///
-/// These CRUD helpers take a `ship_dir` but no `space_id` and have no
-/// read-back projection; per the Phase-4d resolution of the §6.3 question
-/// they are emitted as a Runtime audit stream in `runtime.db` (the families
-/// were reclassified to `{Runtime}` to match — see `payload_registry.rs`).
-pub(crate) fn runtime_audit_store(
-) -> anyhow::Result<ship_substrate::persistence::event_store::SqliteEventStore> {
-    ship_substrate::persistence::event_store::SqliteEventStore::new_for_scope(
-        &ship_substrate::project::get_global_dir()?,
-        ship_types::event_registry::EventScope::Runtime,
-        None,
-    )
-}
-
-/// The audit emits' writer binding. `rule.* / permissions.* / skill.*` are
-/// Runtime-scoped daemon audit events with no space at the call site, so the
-/// daemon-internal binding (device id, no account, no space) is the
-/// authoritative non-space binding `enforce_scope` stamps the Runtime key from.
-pub(crate) fn runtime_audit_binding() -> ship_types::ScopeBinding {
-    ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk)
-}
+pub use ship_agents::agent_domain::config;
+pub use ship_agents::agent_domain::harnesses;
+pub use ship_agents::agent_domain::import;
+pub use ship_agents::agent_domain::permissions;
+pub use ship_agents::agent_domain::rule;
+pub use ship_agents::agent_domain::skill;
+pub use ship_agents::agent_domain::skill_paths;
+pub use ship_agents::agent_domain::skill_vars;
