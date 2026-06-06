@@ -1,4 +1,10 @@
-//! Split off from runtime_api.rs (mr-04 follow-up).
+//! Job list, detail, cancel, and end-turn handlers.
+//!
+//! Pure read helpers (`list_processes_at`, `load_recent_events_by_type`,
+//! `drift_active_for_slug`, `truncate`) have moved to
+//! `ship_substrate::runtime_reads`. This module re-exports them for
+//! backwards-compat with `runtime_rpc.rs` and `daemon.rs` callers, then
+//! owns the pipeline-runtime-dependent `annotate_job` and the HTTP handlers.
 
 use axum::{
     Extension, Json,
@@ -12,6 +18,11 @@ use serde::Deserialize;
 
 use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
+
+// Re-exports so existing callers resolve without source changes.
+pub use ship_substrate::runtime_reads::{
+    drift_active_for_slug, list_processes_at, load_recent_events_by_type, truncate,
+};
 
 
 /// GET /api/v1/runtime/jobs
@@ -55,6 +66,10 @@ pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
 }
 
 /// Annotate a job with `process_state` + `notes` for `ship jobs`.
+///
+/// Kept in shipd (not ship-substrate) because it depends on
+/// `ship_pipeline_runtime::projections::pipeline_run::PipelineRun`, which
+/// ship-substrate cannot import.
 pub(crate) fn annotate_job(
     job: &ship_pipeline_runtime::projections::pipeline_run::PipelineRun,
     processes: &[ship_substrate::projections::process::ProcessRecord],
@@ -96,74 +111,6 @@ pub(crate) fn annotate_job(
         map.insert("notes".into(), serde_json::json!(notes));
     }
     obj
-}
-
-/// True if the most recent supervisor.drift_detected for `slug` is newer
-/// than any subsequent supervisor.coherence_restored — i.e. the drift has
-/// not yet been resolved by a sweep action.
-pub(crate) fn drift_active_for_slug(slug: &str, events: &[ship_substrate::events::EventEnvelope]) -> bool {
-    let mut latest_drift: Option<chrono::DateTime<chrono::Utc>> = None;
-    let mut latest_restored: Option<chrono::DateTime<chrono::Utc>> = None;
-    for e in events {
-        if e.entity_id != slug {
-            continue;
-        }
-        match e.event_type.as_str() {
-            "supervisor.drift_detected" => {
-                latest_drift = Some(latest_drift.map_or(e.created_at, |d| d.max(e.created_at)));
-            }
-            "supervisor.coherence_restored" => {
-                latest_restored =
-                    Some(latest_restored.map_or(e.created_at, |d| d.max(e.created_at)));
-            }
-            _ => {}
-        }
-    }
-    match (latest_drift, latest_restored) {
-        (Some(d), Some(r)) => d > r,
-        (Some(_), None) => true,
-        _ => false,
-    }
-}
-
-pub(crate) fn truncate(s: &str, max: usize) -> String {
-    let chars: Vec<char> = s.chars().collect();
-    if chars.len() <= max {
-        s.to_string()
-    } else {
-        chars[..max.saturating_sub(1)].iter().collect::<String>() + "…"
-    }
-}
-
-/// Project process events from an explicit ship_dir without going through
-/// the global db_path. Mirrors `load_pipeline_runs_at` for jobs.
-pub(crate) fn list_processes_at(
-    ship_dir: &std::path::Path,
-    slug: Option<&str>,
-) -> anyhow::Result<Vec<ship_substrate::projections::process::ProcessRecord>> {
-    // Reads the Runtime partition (`runtime.db`); `list_recent_events_at`
-    // ensures that scope db's schema. No platform.db touch (per-scope, post-4d).
-    let events = ship_substrate::db::events::list_recent_events_at(ship_dir, 50_000)?;
-    let mut records = ship_substrate::projections::process::project(&events);
-    if let Some(s) = slug {
-        records.retain(|r| r.slug == s);
-    }
-    Ok(records)
-}
-
-/// Filter recent events by event_type set, against an explicit ship_dir.
-pub(crate) fn load_recent_events_by_type(
-    ship_dir: &std::path::Path,
-    types: &[&str],
-    limit: usize,
-) -> anyhow::Result<Vec<ship_substrate::events::EventEnvelope>> {
-    // Reads the Runtime partition (`runtime.db`); `list_recent_events_at`
-    // ensures that scope db's schema. No platform.db touch (per-scope, post-4d).
-    let events = ship_substrate::db::events::list_recent_events_at(ship_dir, limit)?;
-    Ok(events
-        .into_iter()
-        .filter(|e| types.contains(&e.event_type.as_str()))
-        .collect())
 }
 
 // ---- Job detail response types ----
@@ -269,6 +216,9 @@ pub(crate) fn default_cancel_reason() -> String {
 /// POST /api/v1/runtime/jobs/{slug}/cancel — emit `job.cancelled` for the
 /// job with this slug. Idempotent: returns 409 with the current status
 /// when the job is already in a terminal state, and emits no event.
+///
+/// Gate: cancel is a write — preserved here in the route; it must not be
+/// collapsed into the pure read surface in ship-substrate.
 pub async fn cancel_job(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
