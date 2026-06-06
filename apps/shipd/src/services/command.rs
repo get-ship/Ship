@@ -27,7 +27,6 @@ mod agents;
 mod annotations;
 mod mesh;
 mod pipelines;
-mod settings;
 mod skills;
 mod pipeline;
 mod project;
@@ -170,9 +169,6 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = pipelines::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = settings::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = project::try_dispatch(name, args, ctx).await? {
