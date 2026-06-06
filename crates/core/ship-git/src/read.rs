@@ -271,6 +271,97 @@ pub fn load_working_diff(root: &Path) -> String {
     }
 }
 
+/// Resolve the HEAD commit SHA in `root`. Returns `None` if the directory is
+/// not a repository or HEAD is unborn.
+pub fn resolve_head_sha(root: &Path) -> Option<String> {
+    let repo = open_repo(root).ok()?;
+    let head = repo.head().ok()?;
+    head.target().map(|oid| oid.to_string())
+}
+
+/// Compute the file paths changed between `start_sha` and HEAD.
+/// Returns an empty list when `start_sha` is invalid or the repo cannot be
+/// opened — callers' `require_changed` gate rules naturally fail with an
+/// empty path list.
+pub fn diff_paths(root: &Path, start_sha: &str) -> Vec<String> {
+    let repo = match open_repo(root) {
+        Ok(r) => r,
+        Err(_) => return Vec::new(),
+    };
+    let from_oid = match git2::Oid::from_str(start_sha) {
+        Ok(o) => o,
+        Err(_) => return Vec::new(),
+    };
+    let from_commit = match repo.find_commit(from_oid) {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    let from_tree = match from_commit.tree() {
+        Ok(t) => t,
+        Err(_) => return Vec::new(),
+    };
+    let to_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
+    let diff = match repo.diff_tree_to_tree(
+        Some(&from_tree),
+        to_tree.as_ref(),
+        Some(&mut DiffOptions::new()),
+    ) {
+        Ok(d) => d,
+        Err(_) => return Vec::new(),
+    };
+    let mut paths = Vec::new();
+    diff.foreach(
+        &mut |delta, _| {
+            if let Some(p) = delta.new_file().path() {
+                paths.push(p.to_string_lossy().into_owned());
+            } else if let Some(p) = delta.old_file().path() {
+                paths.push(p.to_string_lossy().into_owned());
+            }
+            true
+        },
+        None,
+        None,
+        None,
+    )
+    .ok();
+    paths
+}
+
+/// Per-session diff metrics derived from the working-tree diff vs HEAD.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct GitMetrics {
+    pub files_changed: Option<i64>,
+    pub lines_added: Option<i64>,
+    pub lines_removed: Option<i64>,
+}
+
+/// Collect dirty-tree metrics using git2 (equivalent to `git diff --stat HEAD`).
+/// Returns `Default` (all None) on any failure — non-repo dirs are non-errors.
+pub fn collect_metrics(root: &Path) -> GitMetrics {
+    let repo = match open_repo(root) {
+        Ok(r) => r,
+        Err(_) => return GitMetrics::default(),
+    };
+    let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
+    let mut opts = DiffOptions::new();
+    let diff = match repo.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut opts)) {
+        Ok(d) => d,
+        Err(_) => return GitMetrics::default(),
+    };
+    let stats = match diff.stats() {
+        Ok(s) => s,
+        Err(_) => return GitMetrics::default(),
+    };
+    let files = stats.files_changed();
+    let added = stats.insertions();
+    let removed = stats.deletions();
+    GitMetrics {
+        files_changed: if files > 0 { Some(files as i64) } else { None },
+        lines_added: if added > 0 { Some(added as i64) } else { None },
+        lines_removed: if removed > 0 { Some(removed as i64) } else { None },
+    }
+}
+
 pub fn load_commit_diff(root: &Path, sha: &str) -> String {
     let repo = match open_repo(root) {
         Ok(r) => r,

@@ -9,6 +9,8 @@ description = "L1 pipeline runtime — CRUD over the pipeline spec tree plus the
 [dependencies]
 # L0 — events, ports, projections registry, persistence, fs_util.
 ship-substrate = { path = "../core/ship-substrate" }
+# L0 git capability — git2-backed; single git implementation.
+ship-git = { path = "../core/ship-git" }
 # L0 data — pure-logic pipeline spec types (no fs/process/tokio).
 ship-pipelines = { path = "../core/ship-substrate/crates/ship-pipelines", features = ["specta"] }
 # L0 mechanism — kernel-emit plumbing, event dedup, exit-signal routing,

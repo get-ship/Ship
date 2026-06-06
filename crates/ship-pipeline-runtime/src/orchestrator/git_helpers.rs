@@ -14,7 +14,7 @@
 /// - **Step start:** capture the worktree's HEAD → `PipelineStepObservedPayload.start_sha`.
 ///   This tracks commits made within a single step (used by `compute_verdict`).
 pub fn resolve_head_sha(work_dir: &std::path::Path) -> Option<String> {
-    ship_substrate::git::resolve_head_sha(work_dir)
+    ship_git::read::resolve_head_sha(work_dir)
 }
 
 /// Pick the SHA that defines the "from" end of a gate's diff range.

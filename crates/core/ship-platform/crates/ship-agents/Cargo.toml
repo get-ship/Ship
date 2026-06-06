@@ -8,6 +8,8 @@ description = "Agent domain (L1) — agent-session dispatch, agent-domain policy
 [dependencies]
 # L0 substrate
 ship-substrate = { path = "../../../ship-substrate" }
+# L0 git capability — git2-backed; single git implementation.
+ship-git = { path = "../../../ship-git" }
 ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
