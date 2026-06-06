@@ -51,6 +51,16 @@ pub mod sandbox_api;
 #[cfg(test)]
 mod sandbox_api_tests;
 pub mod logs_api;
+// NOTE: feedback_api/annotations_api keep their *_core fns alive for the
+// AgentsService PostFeedback/PostAnnotation wires (ops_rpc closures call them).
+// The REST route handlers here are unmounted/dead — routes-cull relocates the
+// core logic into ship-agents and drops these shells.
+pub mod feedback_api;
+#[cfg(test)]
+mod feedback_api_tests;
+pub mod annotations_api;
+#[cfg(test)]
+mod annotations_api_tests;
 pub mod registry_api;
 pub mod rest_api;
 pub mod runtime_api;
