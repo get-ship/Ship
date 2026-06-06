@@ -17,6 +17,7 @@ sidecar-mode = ["dep:reqwest"]
 ship-substrate = { path = "../ship-substrate" }
 ship-sidecar-proto = { path = "../ship-sidecar-proto" }
 ship-config = { path = "../ship-platform/crates/ship-config" }
+ship-ops-rpc = { path = "../ship-platform/crates/ship-ops-rpc" }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }

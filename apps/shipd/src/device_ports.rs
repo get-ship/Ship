@@ -44,6 +44,37 @@ impl WindowSessions for RegistryWindowSessions<'_> {
     }
 }
 
+/// Owned (cloned) registry — use this when the sessions adapter needs to be
+/// stored in an `Arc` for a crate-owned wire (the borrowed variant can't be
+/// 'static). The `SessionRegistry` is an `Arc<Mutex<_>>` so clone is cheap.
+pub struct OwnedRegistryWindowSessions {
+    registry: SessionRegistry,
+}
+
+impl OwnedRegistryWindowSessions {
+    pub fn new(registry: SessionRegistry) -> Self {
+        Self { registry }
+    }
+}
+
+#[async_trait]
+impl WindowSessions for OwnedRegistryWindowSessions {
+    async fn mint_window_session(&self, space_id: &str, pid: u32) -> Result<String> {
+        let token = ship_auth::scopes::generate_session_token()
+            .map_err(|e| anyhow!(e.to_string()))?;
+        let session = ship_auth::scopes::space_window_session(space_id, pid, token.clone());
+        self.registry.lock().await.insert(token.clone(), session);
+        Ok(token)
+    }
+
+    async fn revoke_window_session(&self, space_id: &str, pid: u32) -> bool {
+        let mut reg = self.registry.lock().await;
+        let before = reg.len();
+        reg.retain(|_, s| !(s.space_id.as_deref() == Some(space_id) && s.pid == Some(pid)));
+        before != reg.len()
+    }
+}
+
 /// `projects`-projection-backed space-existence check. A window's `register`
 /// validates its explicit target against this before binding — a window can't
 /// conjure a space.

@@ -144,15 +144,26 @@ impl StreamService for OpsImpl {
 /// are gated identically on every transport — REST and Connect — rather than
 /// once per surface. Reads are C0 (authenticated at the edge). This is the "one
 /// gate" of `.artifacts/auth-gate-synthesis.md`.
+/// Extract the kernel-attested pid from a request context.
+/// `PeerPid` is inserted only over the Unix host socket (SO_PEERCRED); TCP and
+/// non-Unix builds always return `None`, which the device crate refuses at the
+/// `register_window` call site (a window token is meaningless without a pid).
+fn pid_from_ctx(ctx: &connectrpc::RequestContext) -> Option<u32> {
+    #[cfg(unix)]
+    {
+        ctx.extensions.get::<crate::auth::peer_socket::PeerPid>().and_then(|p| p.0)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = ctx;
+        None
+    }
+}
+
 pub fn router(state: ApiState) -> axum::Router {
     let svc = Arc::new(OpsImpl { state: state.clone() });
     let router = OpsServiceExt::register(svc.clone(), connectrpc::Router::new());
     let router = StreamServiceExt::register(svc.clone(), router);
-    // Hand-authored proto-as-SSOT domains (impls in analytics_rpc / runtime_rpc).
-    // C0 reads, edge-authenticated like the other reads.
-    let router = ship_ops_rpc::AnalyticsServiceExt::register(svc.clone(), router);
-    // isolation.* — capability probe + recommender reads (impl in isolation_rpc).
-    let router = ship_ops_rpc::IsolationServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::RuntimeServiceExt::register(svc.clone(), router);
 
     // ── Gate closure shared by all four crate-owned wires ──────────────────────
@@ -211,25 +222,82 @@ pub fn router(state: ApiState) -> axum::Router {
         state.skills_arc(),
         state.ship_dir().to_path_buf(),
         skills_kernel,
-        gate,
+        gate.clone(),
     ));
     let router = ship_ops_rpc::SkillsServiceExt::register(skills_wire, router);
-    // pipelines.* (runtime + config),
-    // git.* — all additive beside the generated ReadOps/CommandOps until #72.
+    // analytics.* — crate-owned AnalyticsWire (ship-analytics).
+    // Replaces impl AnalyticsService for OpsImpl in analytics_rpc.rs (deleted).
+    // All four ops are C0 reads; the wire reaches analytics data through
+    // ship-analytics' service module (no raw DB in this file — SF-4 preserved).
+    let analytics_wire = Arc::new(ship_analytics::wire::AnalyticsWire);
+    let router = ship_ops_rpc::AnalyticsServiceExt::register(analytics_wire, router);
+    // isolation.* — crate-owned IsolationWire (ship-isolation).
+    // Replaces impl IsolationService for OpsImpl in isolation_rpc.rs (deleted).
+    // All ops are C0 reads; the wire calls ship_isolation::decision / decision_ops.
+    let isolation_wire = Arc::new(ship_isolation::wire::IsolationWire);
+    let router = ship_ops_rpc::IsolationServiceExt::register(isolation_wire, router);
+    // device.* — crate-owned DeviceWire (ship-device).
+    // Replaces impl DeviceService for OpsImpl in device_rpc.rs (deleted).
+    // C0 reads + C3 writes (operator-only); ports injected from shipd.
+    let device_gate = gate.clone();
+    let device_sessions: std::sync::Arc<dyn ship_device::WindowSessions> =
+        Arc::new(crate::device_ports::OwnedRegistryWindowSessions::new(state.session_registry().clone()));
+    let device_space_reg: std::sync::Arc<dyn ship_device::SpaceRegistry> =
+        Arc::new(crate::device_ports::ProjectsSpaceRegistry);
+    let device_pid: ship_device::wire::PidFn = Arc::new(pid_from_ctx);
+    let device_space_fn: ship_device::wire::SpaceFn = Arc::new(|ctx: &connectrpc::RequestContext| {
+        ctx.extensions
+            .get::<crate::auth::AuthContext>()
+            .and_then(|a| a.space_id.clone())
+    });
+    let device_wire = Arc::new(ship_device::wire::DeviceWire::new(
+        device_gate,
+        device_sessions,
+        device_space_reg,
+        device_pid,
+        device_space_fn,
+    ));
+    let router = ship_ops_rpc::DeviceServiceExt::register(device_wire, router);
+    // git.* — crate-owned GitWire (ship-git).
+    // Replaces impl GitService for OpsImpl in git_rpc.rs (deleted).
+    // C0 reads + C1 writes (via command::call write_dispatch closure).
+    let git_kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));
+    let git_state_for_write = state.clone();
+    let git_write: ship_git::wire::WriteFn = Arc::new(move |op, args, ctx| {
+        let st = git_state_for_write.clone();
+        Box::pin(async move {
+            let auth = ctx
+                .extensions
+                .get::<crate::auth::AuthContext>()
+                .cloned()
+                .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
+            let cmd_ctx = crate::services::command::CommandCtx { state: &st, auth: &auth };
+            crate::services::command::call(&op, &args, &cmd_ctx)
+                .await
+                .map_err(crate::ops_rpc::command_error_to_connect)
+        })
+    });
+    let git_state_for_ann = state.clone();
+    let git_annotations: ship_git::wire::AnnotationsFn =
+        Arc::new(move |workspace_id: Option<&str>, file: &str| {
+            crate::git_rpc::git_annotations_value(&git_state_for_ann, workspace_id, file)
+        });
+    let git_wire = Arc::new(ship_git::wire::GitWire::new(
+        state.git_arc(),
+        gate,
+        git_kernel,
+        git_write,
+        git_annotations,
+    ));
+    let router = ship_ops_rpc::GitServiceExt::register(git_wire, router);
+    // pipelines.* (runtime + config).
     let router = ship_ops_rpc::PipelinesServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::GitServiceExt::register(svc.clone(), router);
     // Wave 2 (#89) — the ONE canonical AgentsService (agents-arc E4/E6): profile
     // CRUD + view reads + runtime-session reads + orchestration control,
     // collapsed from the historic AgentsService/SessionsService split into a
     // single service + handler (chat gutted in E6). Additive beside the generated
     // ReadOps/CommandOps until the GUI flip (#72).
     let router = ship_ops_rpc::AgentsServiceExt::register(svc.clone(), router);
-    // device.* — DeviceService (device.proto): the window-management surface the
-    // space carve split out of SpaceService ("space loses window-mgmt → device").
-    // RegisterWindow replaces the retired `/api/space-window/register` REST route
-    // + legacy `auth::space_window`. Impl in device_rpc on OpsImpl; the mechanism
-    // lives in the ship-device crate.
-    let router = ship_ops_rpc::DeviceServiceExt::register(svc.clone(), router);
     // account.* — typed AccountService (account.proto), served by the
     // `ship-account` crate (`AccountWire`). Process-global identity: token at
     // rest under `<daemon_dir>/account.jsonc`, `account.*` + `daemon.owner.*`

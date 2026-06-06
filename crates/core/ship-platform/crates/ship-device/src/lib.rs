@@ -23,6 +23,7 @@ pub mod error;
 pub mod ports;
 pub mod sandbox;
 pub mod windows;
+pub mod wire;
 
 pub use error::{DeviceError, DeviceErrorKind};
 pub use ports::{SpaceRegistry, WindowSessions};
