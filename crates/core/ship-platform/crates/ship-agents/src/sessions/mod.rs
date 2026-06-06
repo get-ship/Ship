@@ -13,7 +13,7 @@
 //!
 //! The compiler-bound half (the harness-resolving `compile` bridge + the
 //! `start_session`/`end_session` lifecycle that drives it) stays in
-//! ship-platform — it names `crate::agents::config`, an L1 type ship-agents
+//! ship-platform — it names `crate::agent_domain::config`, an L1 type ship-agents
 //! must not depend on — and calls into this module for the shared types,
 //! helpers, hydration, and artifact persistence.
 

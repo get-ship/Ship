@@ -126,7 +126,7 @@ specta = ["ship-views/specta"]
 # Compile `example()` constructors on the view-state types so a fixtures
 # generator (and the sandboxed designer's committed JSON) can be produced
 # from the real structs. Off by default; on under `cfg(test)` automatically.
-fixtures = []
+fixtures = ["ship-agents/fixtures"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

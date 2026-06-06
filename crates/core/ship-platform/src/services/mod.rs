@@ -32,24 +32,27 @@ pub mod sync;
 // mcp, skills, agents, ...) consume. FilesService is the foundational
 // path-scoped JSONC read/write helper; the rest follow as their HTTP
 // shims stay in shipd (apps/shipd/src/services/<domain>/mod.rs).
-pub mod compile;
+// Domain services carved into ship-agents (C8 keystone).
+// Re-exported here so existing `crate::services::{compile,mcp,agents,permissions,skills,rules,sessions}::…`
+// consumers in ship-platform itself and in shipd keep compiling without change.
+pub use ship_agents::services::compile;
 pub use ship_files::files;
 pub use ship_files::jsonc;
 pub use ship_files::path_tolerant;
 pub mod git;
-pub mod mcp;
-pub mod agents;
-pub mod permissions;
+pub use ship_agents::services::mcp;
+pub use ship_agents::services::agents;
+pub use ship_agents::services::permissions;
 // pipelines service carved out to ship-pipeline-runtime crate
-pub mod skills;
-pub mod rules;
-pub mod sessions;
+pub use ship_agents::services::skills;
+pub use ship_agents::services::rules;
+pub use ship_agents::services::sessions;
 
 /// Aggregated `ship.<domain>.<op>` → example-JSON pairs across every domain
 /// migrated to the typed-op single source. Drives `cargo xtask gen-fixtures`,
 /// which writes one committed JSON file per entry. Behind the `fixtures`
 /// feature (the `example()` constructors compile only then or under test).
-#[cfg(any(test, feature = "fixtures"))]
+#[cfg(feature = "fixtures")]
 pub fn data_op_examples() -> Vec<(&'static str, serde_json::Value)> {
     let mut out: Vec<(&'static str, serde_json::Value)> = Vec::new();
     out.extend(agents::fixtures::examples());

@@ -3,34 +3,62 @@ name = "ship-agents"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Agent-session orchestration (L1) — the bare agent.session dispatch primitive (prep/spawn), the agent-cancel decision, and the `service.agents` actor. Depends only on L0 substrate + runner ports; drives the L0 runner mechanism, never reaches into the pipeline DAG."
+description = "Agent domain (L1) — agent-session dispatch, agent-domain policy/resolver/skill/import, hooks engine, and L1 service wrappers (agents/mcp/rules/permissions/skills/sessions/compile). Carved from ship-platform (C8 keystone)."
 
 [dependencies]
-# L0 substrate: kernel router, event envelope + agent.session/process payloads,
-# the domain-free dispatch ports (SpawnPolicy / ProjectionReader / RunnerPorts).
+# L0 substrate
 ship-substrate = { path = "../../../ship-substrate" }
-# L0 runner mechanism: router gate (terminal_guard / RouterGate / DISPATCH_GATE),
-# event dedup, slug-keyed teardown (stop_by_slug / stop_handle), exit handler,
-# kernel-emit helpers. Agents drives this mechanism.
 ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }
-# L0 primitive types: Authority principal for the SpawnPolicy seam.
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
+ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
+# L1 crates (carved siblings, no cycle)
+ship-config = { path = "../ship-config" }
+ship-harnesses = { path = "../ship-harnesses" }
+ship-files = { path = "../ship-files" }
+ship-store = { path = "../ship-store" }
+ship-kv = { path = "../ship-kv" }
+# compiler crate (the engine; services/compile is only the wrapper)
+compiler = { path = "../compiler", features = ["specta"] }
+jsonschema = { version = "0.46", default-features = false }
 
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-tokio = { workspace = true, features = ["sync", "rt", "macros"] }
-# Session runtime-instance records (folded `sessions` sub-module): timestamps +
-# TS type generation for the runtime-session shapes.
+tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "time", "macros", "process", "io-util"] }
 chrono = { workspace = true }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
+indexmap = { workspace = true, features = ["serde"] }
+nanoid = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true, features = ["preserve_order"] }
+home = { workspace = true }
+thiserror = { workspace = true }
+shell-words = { workspace = true }
+futures-util = { workspace = true }
+walkdir = "2.3"
+globset = "0.4"
+minijinja = { workspace = true }
+sha2 = { workspace = true }
+base64 = { workspace = true }
+semver = { workspace = true, features = ["serde"] }
+tempfile = { workspace = true }
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
+portable-pty = "0.9"
+include_dir = "0.7"
+# RFC 6902 JSON Patch
+json-patch = "4"
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time", "test-util"] }
 tempfile = { workspace = true }
 chrono = { workspace = true }
+ship-platform = { path = "../.." }
+
+[features]
+fixtures = []
+specta = []
 
 [lints]
 workspace = true
