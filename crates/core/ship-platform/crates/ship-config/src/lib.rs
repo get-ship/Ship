@@ -34,6 +34,7 @@ pub mod agents_write;
 pub mod error;
 pub mod overlay;
 pub mod patch;
+pub mod project;
 pub mod service;
 pub mod settings;
 pub mod types;

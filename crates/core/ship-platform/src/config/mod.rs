@@ -67,7 +67,6 @@ pub mod agent_index;
 mod discover;
 mod io;
 mod mcp;
-mod merge;
 mod project;
 // `space_settings` projection — co-located with the config module
 // so a future crate-carve takes it along.
