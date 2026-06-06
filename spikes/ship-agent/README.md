@@ -53,6 +53,7 @@ agent_loop.rs ─ run_step: rig drives the model turn
 | Concern | Modules | Role |
 |---|---|---|
 | Definition | `spec.rs`, `auth.rs`, `loader.rs` | four-facet agent + the credential it presents + `.ship/agents/<id>.jsonc` → `AgentSpec` projection |
+| Sessions | `session.rs` | multi-turn `Session` + `HistoryStore` seam (`InMemoryHistoryStore` stub) + `CompactionPolicy` (lossless projection; `KeepRecent` impl) |
 | Enforcement | `gateway.rs` → `gate.rs` → `spine.rs` | one door, one gate, post-verify |
 | Surface | `sdkgen.rs` + `dtsgen.rs` (shared registry), `module_loader.rs` | scoped SDK (JS + types) from `proto∩grant`; deny-by-default imports |
 | Execution | `runtime.rs`, `script_executor.rs` | deno_core isolate; the `!Send` VM-thread bridge |

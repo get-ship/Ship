@@ -13,6 +13,7 @@
 
 mod agent_loop;
 mod auth;
+mod session;
 mod gate;
 mod gateway;
 mod loader;
