@@ -26,8 +26,6 @@ mod agent;
 mod agents;
 mod annotations;
 mod mesh;
-mod pipelines;
-mod pipeline;
 mod project;
 mod surfaces;
 mod views;
@@ -164,12 +162,6 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
             }
         }
     }
-    if let Some(value) = pipeline::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = pipelines::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
     if let Some(value) = project::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
@@ -280,29 +272,7 @@ pub(crate) async fn response_to_value(
 mod tests {
     use super::*;
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn pipeline_update_status_dispatches_through_the_registry() {
-        let harness = crate::test_harness::TestDaemon::new().await;
-        // The operator cred clears the gate (S6): mint it, don't rely on the
-        // (now non-elevated) CLI transport.
-        let auth = crate::test_harness::TestDaemon::operator_auth();
-        let ctx = CommandCtx { state: &harness.state, auth: &auth };
-        let args = serde_json::json!({
-            "pipeline_run_id": "run-cmd-test",
-            "status": "gate_passed",
-        });
-        let value = call("pipeline.update_status", &args, &ctx)
-            .await
-            .expect("gate_passed has no required extra fields");
-        assert_eq!(value["pipeline_run_id"], "run-cmd-test");
-        assert_eq!(value["status"], "gate_passed");
-
-        // Unknown command falls through to a structured error.
-        let err = call("pipeline.nope", &args, &ctx).await.unwrap_err();
-        assert_eq!(err.code, "unknown_command");
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn gate_denies_ungranted_agent_a_restricted_command() {
         let harness = crate::test_harness::TestDaemon::new().await;
         // A worker-role MCP agent: no orchestration grant, not the operator.
