@@ -5,7 +5,6 @@
 //!
 //! Covers every structurally-fixed `ship.*` data op assembled in the daemon.
 
-mod collections;
 mod git;
 mod pipelines;
 mod skills;
@@ -20,7 +19,6 @@ pub fn examples() -> Vec<(&'static str, Value)> {
     out.extend(skills::examples());
     out.extend(git::examples());
     out.extend(pipelines::examples());
-    out.extend(collections::examples());
     out
 }
 
