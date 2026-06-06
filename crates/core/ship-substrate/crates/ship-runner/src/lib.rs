@@ -29,6 +29,7 @@
 pub mod dedup;
 pub mod emit;
 pub mod exit_handler;
+pub mod harness_adapter;
 pub mod invocation;
 pub mod observe;
 pub mod router;
@@ -43,3 +44,6 @@ pub use spawn_env::build_spawn_env;
 pub use observe::{resolve_head_sha, scan_agent_log_tail, scan_git_evidence, strip_ansi};
 pub use router::{extract_slug, is_operator_event, terminal_guard, RouterGate, DISPATCH_GATE};
 pub use teardown::{stop_by_slug, stop_handle};
+pub use harness_adapter::{
+    HarnessAdapter, HarnessCapabilities, HarnessEvent, PushMechanism, ResumeError,
+};
