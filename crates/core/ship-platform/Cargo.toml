@@ -63,6 +63,7 @@ ship-gateway-client = { path = "crates/ship-gateway-client" }
 # stays here (it needs the platform-local `ServiceHandler` from substrate) but
 # its transport types are now the `ship_cloud` re-exports. unstable-gated to
 # match the service's own feature gate.
+ship-git = { path = "../ship-git" }
 ship-cloud = { path = "../ship-cloud", optional = true }
 # Isolation types + recommender. Default-features off — youki and
 # sidecar backends stay opt-in (the daemon's feature flags layer them in).
@@ -122,7 +123,7 @@ unstable = ["ship-substrate/unstable", "dep:ship-cloud", "ship-cloud/unstable"]
 # Enable derive(Type) on public data structs in the migrated services
 # (rules/mcp/skills/agents/pipelines/git/permissions/...) so xtask can
 # emit TypeScript bindings via `cargo xtask gen-types`. Off by default.
-specta = ["ship-views/specta", "ship-agents/specta"]
+specta = ["ship-views/specta", "ship-agents/specta", "ship-git/specta"]
 # Compile `example()` constructors on the view-state types so a fixtures
 # generator (and the sandboxed designer's committed JSON) can be produced
 # from the real structs. Off by default; on under `cfg(test)` automatically.
