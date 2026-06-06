@@ -10,9 +10,14 @@ pub mod attest;
 pub mod grant_diff;
 pub mod pairing;
 pub mod peer_identity;
+pub mod projection;
 pub mod scopes;
 pub mod session;
 pub mod sweeper;
+
+pub use projection::{
+    AuthSessionRow, AuthSessionsProjection, DaemonOwnerProjection, DaemonOwnerRow,
+};
 
 #[cfg(test)]
 mod tests;

@@ -12,7 +12,7 @@ use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::store::{EventStore, SqliteEventStore};
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::pipeline_run::{load_pipeline_runs_at, PipelineRunStatus};
+use ship_pipeline_runtime::projections::pipeline_run::{load_pipeline_runs_at, PipelineRunStatus};
 use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor};
 use ship_pipeline_runtime::orchestrator::OrchestratorContext;
 use std::path::PathBuf;

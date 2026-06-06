@@ -75,8 +75,8 @@ pub fn collect_types() -> TypeCollection {
     // ── Daemon / runtime types ─────────────────────────────────────────────
 
     // projections/job.rs
-    c.register::<ship_platform::projections::pipeline_run::PipelineRun>();
-    c.register::<ship_platform::projections::pipeline_run::PipelineRunStatus>();
+    c.register::<ship_pipeline_runtime::projections::pipeline_run::PipelineRun>();
+    c.register::<ship_pipeline_runtime::projections::pipeline_run::PipelineRunStatus>();
 
     // events/job.rs (job event payloads)
     c.register::<ship_substrate::events::pipeline::PipelineRunStartedPayload>();

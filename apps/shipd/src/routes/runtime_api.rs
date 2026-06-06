@@ -307,9 +307,9 @@ mod tests {
         .into_response();
         assert_eq!(response.status(), StatusCode::OK);
 
-        let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir()).unwrap();
+        let jobs = ship_pipeline_runtime::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir()).unwrap();
         let job = jobs.get(&pipeline_run_id).unwrap();
-        assert_eq!(job.status, ship_platform::projections::pipeline_run::PipelineRunStatus::Cancelled);
+        assert_eq!(job.status, ship_pipeline_runtime::projections::pipeline_run::PipelineRunStatus::Cancelled);
 
         // Confirm the cancelled event actually landed.
         let events = ship_substrate::db::events::query_recent_events_for_entity_at(

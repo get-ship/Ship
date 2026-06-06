@@ -5,7 +5,7 @@
 
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::event_types;
-use ship_platform::projections::pipeline_run::{PipelineRunStatus, project};
+use ship_pipeline_runtime::projections::pipeline_run::{PipelineRunStatus, project};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     EventEnvelope::new(event_type, "test-entity", &payload).unwrap()

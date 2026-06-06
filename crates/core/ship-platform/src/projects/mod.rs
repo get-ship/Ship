@@ -21,7 +21,9 @@ use std::path::Path;
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::home::path_hash;
 use ship_substrate::persistence::event_store::SqliteEventStore;
-use crate::projections::projects;
+pub mod projection;
+pub use projection::{ProjectRow, ProjectsProjection};
+use projection as projects;
 
 /// Open the Runtime-scope store for the daemon-wide project registry.
 ///

@@ -846,7 +846,7 @@ fn daemon_repair_migrations(reset: bool) -> Result<()> {
 }
 
 fn daemon_cleanup() -> Result<()> {
-    use ship_platform::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
+    use ship_pipeline_runtime::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 
     let jobs = load_pipeline_runs().context("failed to load job projection")?;
 

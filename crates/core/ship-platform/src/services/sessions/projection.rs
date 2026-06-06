@@ -525,5 +525,5 @@ fn open_default_conn() -> Result<SqliteConnection> {
 }
 
 #[cfg(test)]
-#[path = "agent_session_tests.rs"]
+#[path = "projection_tests.rs"]
 mod tests;

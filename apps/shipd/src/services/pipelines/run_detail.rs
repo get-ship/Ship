@@ -89,7 +89,7 @@ fn event_summary(env: &ship_substrate::events::EventEnvelope) -> String {
 }
 
 pub fn build(slug: &str, ship_dir: &Path) -> Option<RunDetailCtx> {
-    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(ship_dir).ok()?;
+    let jobs = ship_pipeline_runtime::projections::pipeline_run::load_pipeline_runs_at(ship_dir).ok()?;
     let job = jobs.values().find(|j| j.slug == slug)?;
     let run = to_run_view(job, true);
     // pipeline.step.* are Runtime-scoped → read the run's step events from runtime.db.

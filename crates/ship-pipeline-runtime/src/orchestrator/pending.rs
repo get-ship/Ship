@@ -2,7 +2,7 @@
 //!
 //! Called on startup and after job.completed/job.merged to unblock queued jobs.
 
-use ship_platform::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
+use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use ship_substrate::events::pipeline::{event_types, PipelineStepObservedPayload, StepTrigger, StepVerdict};
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
+use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 use ship_substrate::services::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,

@@ -49,6 +49,7 @@ use std::path::PathBuf;
 /// `SqliteEventStore` is constructed.
 fn try_init_kernel_router() {
     ship_platform::install_defaults();
+    ship_pipeline_runtime::install_projections();
     if let Ok(dir) = ship_substrate::project::get_global_dir() {
         let _ = ship_substrate::events::init_kernel_router(dir);
     }
@@ -74,6 +75,7 @@ fn main() {
     // Install platform projection factory + supervisor hooks before any
     // SqliteEventStore is constructed downstream. Idempotent.
     ship_platform::install_defaults();
+    ship_pipeline_runtime::install_projections();
     let _log_guard = logging::init();
     let cli = Cli::parse();
     if let Err(e) = dispatch(cli.command) {

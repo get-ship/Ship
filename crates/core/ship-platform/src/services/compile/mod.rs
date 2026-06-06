@@ -11,6 +11,9 @@ pub mod agent;
 pub mod loader;
 pub mod mcp_allowlist;
 pub mod permissions;
+// `project_compile_state` projection — co-located with the compile service
+// so a future crate-carve takes it along.
+pub mod projection;
 pub mod skill_parser;
 
 #[cfg(test)]
@@ -19,6 +22,7 @@ mod tests;
 pub use loader::{load_library, load_permission_preset, McpEntry, McpFile};
 pub use permissions::PermissionPreset;
 pub use skill_parser::load_skills;
+pub use projection::{CompileStateProjection, ProjectCompileState};
 
 use anyhow::{Context, Result};
 use compiler::CompileOutput;

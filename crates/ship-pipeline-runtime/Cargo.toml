@@ -39,6 +39,12 @@ chrono = { workspace = true }
 tempfile = { workspace = true }
 json-patch = "4"
 minijinja = { workspace = true }
+# SQL-backed `pipeline_run` projection (relocated here from the
+# ship-platform projections grab-bag — the pipeline domain owns its read
+# model now). Same feature set ship-platform uses.
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
+# `pipeline_run` view types derive `specta::Type` for the TS client codegen.
+specta = { workspace = true, features = ["chrono", "serde_json"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
@@ -49,11 +55,7 @@ default = []
 # Enable derive(Type) on the `PipelinesService` view types so xtask can emit
 # TypeScript bindings via `cargo xtask gen-types`. Off by default; on
 # automatically under `cfg(test)`. Mirrors the flag in `ship-platform`.
-specta = ["dep:specta", "ship-pipelines/specta"]
-
-[dependencies.specta]
-workspace = true
-optional = true
+specta = ["ship-pipelines/specta"]
 
 [lints]
 workspace = true

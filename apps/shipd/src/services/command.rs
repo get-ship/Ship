@@ -449,7 +449,7 @@ mod tests {
         // #85: the approval also persists a provisioned baseline, so a future
         // re-dispatch (re-mint) reads it instead of falling back to the role.
         assert_eq!(
-            ship_platform::projections::provisioned_grants_for("worker-x").unwrap(),
+            ship_platform::services::permissions::projection::provisioned_grants_for("worker-x").unwrap(),
             Some(vec!["ship-orchestration".to_string()]),
             "operator approval must persist the provisioned baseline"
         );

@@ -117,6 +117,7 @@ impl ShipRuntime {
         // Install platform-level projections + supervisor hooks before
         // any SqliteEventStore is constructed.
         ship_platform::install_defaults();
+        ship_pipeline_runtime::install_projections();
 
         let dir = global_dir.clone();
         let kernel = tokio::task::spawn_blocking(move || {

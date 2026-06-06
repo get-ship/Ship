@@ -414,7 +414,7 @@ pub(crate) async fn emit_composed_session_terminal(
     exit_code: Option<i32>,
 ) {
     let session_slug = format!("{run_slug}::{step_name}");
-    let session = match ship_platform::projections::agent_session::load_session_by_slug(&session_slug) {
+    let session = match ship_platform::services::sessions::projection::load_session_by_slug(&session_slug) {
         Ok(Some(s)) => s,
         _ => return,
     };
@@ -546,8 +546,8 @@ async fn dispatch_first_fanout_step(
 /// real projection is owned by the kernel and updated independently.
 fn pipeline_run_from_payload(
     payload: &PipelineRunStartedPayload,
-) -> ship_platform::projections::pipeline_run::PipelineRun {
-    use ship_platform::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
+) -> crate::projections::pipeline_run::PipelineRun {
+    use crate::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
     let now = chrono::Utc::now();
     PipelineRun {
         pipeline_run_id: payload.pipeline_run_id.clone(),

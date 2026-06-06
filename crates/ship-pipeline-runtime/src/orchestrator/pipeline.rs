@@ -5,7 +5,7 @@
 
 use ship_substrate::events::pipeline::StepType;
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::pipeline_run::load_pipeline_runs_at;
+use crate::projections::pipeline_run::load_pipeline_runs_at;
 use ship_substrate::services::dispatch_ports::{SessionContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -72,17 +72,17 @@ async fn advance_pipeline_inner(
                     return false;
                 }
             },
-            None => ship_platform::projections::pipeline_run::load_pipeline_run_by_id(entity_id)
+            None => crate::projections::pipeline_run::load_pipeline_run_by_id(entity_id)
                 .ok()
                 .flatten()
                 .or_else(|| {
                     (!payload_job_id.is_empty())
-                        .then(|| ship_platform::projections::pipeline_run::load_pipeline_run_by_id(payload_job_id).ok().flatten())
+                        .then(|| crate::projections::pipeline_run::load_pipeline_run_by_id(payload_job_id).ok().flatten())
                         .flatten()
                 })
                 .or_else(|| {
                     (!payload_slug.is_empty())
-                        .then(|| ship_platform::projections::pipeline_run::load_pipeline_run_by_slug(payload_slug).ok().flatten())
+                        .then(|| crate::projections::pipeline_run::load_pipeline_run_by_slug(payload_slug).ok().flatten())
                         .flatten()
                 }),
         };
@@ -118,7 +118,7 @@ async fn advance_pipeline_inner(
                 return false;
             }
         },
-        None => match ship_platform::projections::pipeline_run::load_pipeline_run_by_id(&pipeline_run_id) {
+        None => match crate::projections::pipeline_run::load_pipeline_run_by_id(&pipeline_run_id) {
             Ok(Some(j)) => j,
             Ok(None) => {
                 tracing::warn!(pipeline_run_id, "pipeline: job disappeared between lock acquire and reload");
