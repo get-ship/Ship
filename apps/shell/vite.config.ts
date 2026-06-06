@@ -43,7 +43,7 @@ function repoRoot(): string {
 // Mirrors the importmap in `index.html`. Returning a servable URL as `external`
 // (not the bare specifier — vite can't load that in serve mode) leaves the
 // import for the browser, which fetches it through the proxy.
-function suiRuntimeToDaemonUrl(): Plugin {
+function suiRuntimeToDaemonUrl(daemonUrl: string): Plugin {
   const rt = suiRuntimeJs();
   const MAP: Record<string, string> = {
     "@ship/sui-runtime": rt,
@@ -59,7 +59,10 @@ function suiRuntimeToDaemonUrl(): Plugin {
     enforce: "pre",
     resolveId(id) {
       const url = MAP[id];
-      return url ? { id: url, external: true } : null;
+      // Return an ABSOLUTE URL to the daemon (not a relative path) so the
+      // browser fetches it from the daemon directly, and vite's
+      // pre-transform scanner doesn't try to load it as a local file.
+      return url ? { id: daemonUrl + url, external: true } : null;
     },
   };
 }
@@ -184,7 +187,14 @@ export default defineConfig(({ mode }) => {
     // The shell's index.html lives in this dir; the `dev` script in
     // package.json cd's here. `__dirname`-based aliases below stay correct
     // either way.
-    plugins: [vitePidPlugin(daemonDir), suiRuntimeToDaemonUrl()],
+    plugins: [
+      vitePidPlugin(daemonDir),
+      // Capture the daemon URL at config time. The `proxyForDaemon` helper
+      // re-reads it per request (so the proxy survives a daemon restart);
+      // for the runtime-resolution plugin, one URL at config-time is fine —
+      // if the daemon moves, restart vite.
+      suiRuntimeToDaemonUrl(currentDaemonUrl()),
+    ],
     // The SUI runtime specifiers resolve to daemon `/_sui/*` URLs (see
     // The SUI runtime specifiers resolve to daemon `/_sui/*` URLs (see
     // suiRuntimeToDaemonUrl); keep vite's dep pre-scanner from reading them off
