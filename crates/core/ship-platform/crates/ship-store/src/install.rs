@@ -30,7 +30,7 @@ pub struct InstallResult {
     /// Transitive capability surface of the resolved dep tree (#119): the union
     /// of exported skills' `requires`/`grants` and the `unmet` set the operator
     /// must approve. Advisory; surfaced by `ship install`/`add`.
-    pub capabilities: crate::registry::dep_skills::TransitiveCapabilities,
+    pub capabilities: crate::dep_skills::TransitiveCapabilities,
 }
 
 /// Resolve all dependencies in `manifest`, populate the cache, and return the
@@ -154,7 +154,7 @@ pub fn resolve_and_fetch(
     // #119: compute the transitive capability surface for the caller to surface
     // for approval. Advisory — never fail the install over it.
     let capabilities =
-        crate::registry::dep_skills::transitive_capabilities(lock_path, Some(cache.root()))
+        crate::dep_skills::transitive_capabilities(lock_path, Some(cache.root()))
             .unwrap_or_default();
 
     Ok(InstallResult {

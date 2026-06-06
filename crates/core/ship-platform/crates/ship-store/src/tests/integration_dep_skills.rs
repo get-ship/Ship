@@ -8,7 +8,7 @@ use tempfile::tempdir;
 
 use compiler::lockfile::{LockPackage, ShipLock};
 
-use crate::registry::dep_skills::{
+use crate::dep_skills::{
     cache_skill_path, hash_from_lock, is_dep_ref, parse_dep_ref, resolve_dep_skill,
 };
 

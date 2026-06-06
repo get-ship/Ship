@@ -5,7 +5,7 @@
 use std::fs;
 use tempfile::tempdir;
 
-use crate::registry::cache::PackageCache;
+use crate::cache::PackageCache;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

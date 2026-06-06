@@ -10,7 +10,7 @@
 //! `compute_tree_hash` → verify the publisher attestation over that hash. On
 //! any failure the directory is wiped, so unverified content never reaches the
 //! cache. The caller (the daemon fetch op) extracts into a temp dir, calls
-//! this, then on success hands the dir to [`crate::registry::cache::PackageCache::store`]
+//! this, then on success hands the dir to [`crate::cache::PackageCache::store`]
 //! (which re-hashes to the identical tree hash).
 
 use std::path::Path;

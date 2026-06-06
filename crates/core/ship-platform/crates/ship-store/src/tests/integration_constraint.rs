@@ -8,8 +8,8 @@ use std::collections::HashMap;
 
 use compiler::lockfile::{LockPackage, ShipLock};
 
-use crate::registry::constraint::{VersionConstraint, normalize_version, parse_constraint};
-use crate::registry::types::{Dependency, ShipManifest, SyncStatus, diff_manifest_against_lock};
+use crate::constraint::{VersionConstraint, normalize_version, parse_constraint};
+use crate::types::{Dependency, ShipManifest, SyncStatus, diff_manifest_against_lock};
 
 // ── parse_constraint — integration coverage ───────────────────────────────────
 

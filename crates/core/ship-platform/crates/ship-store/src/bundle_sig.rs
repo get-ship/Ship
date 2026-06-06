@@ -3,7 +3,7 @@
 //! A **bundle attestation** is a detached EdDSA JWT signed by the *publisher*
 //! key. Its claim binds a package coordinate (`path`, `version`) to the
 //! content hash of the bundle tarball (`sha256`, the same hashing as
-//! [`crate::registry::hash`]). Verification proves the tarball came from a
+//! [`crate::hash`]). Verification proves the tarball came from a
 //! trusted publisher and was not tampered with in transit.
 //!
 //! This module is the pure, offline-testable core: given the computed tarball

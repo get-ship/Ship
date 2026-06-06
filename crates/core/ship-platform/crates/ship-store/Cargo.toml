@@ -1,0 +1,33 @@
+[package]
+name = "ship-store"
+version = "0.1.0"
+edition = "2024"
+license-file = "LICENSE"
+publish = false
+description = "Ship package registry — dependency resolver, content-addressed cache, compose, install, schema loaders. Depends on L0 only; no cycle back into ship-platform."
+
+[dependencies]
+ship-substrate = { path = "../../../ship-substrate" }
+ship-collection = { path = "../ship-collection" }
+compiler = { path = "../compiler" }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+semver = { workspace = true, features = ["serde"] }
+sha2 = { workspace = true }
+base64 = { workspace = true }
+tempfile = { workspace = true }
+ureq = { workspace = true, features = ["json"] }
+jsonwebtoken = "9"
+walkdir = "2.3"
+tracing = { workspace = true }
+home = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
+flate2 = "1"
+tar = "0.4"
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

@@ -6,7 +6,7 @@
 use std::fs;
 use tempfile::tempdir;
 
-use crate::registry::hash::{compute_export_hashes, compute_file_hash, compute_tree_hash};
+use crate::hash::{compute_export_hashes, compute_file_hash, compute_tree_hash};
 
 // ── compute_tree_hash — cross-boundary properties ─────────────────────────────
 
