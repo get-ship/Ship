@@ -25,7 +25,6 @@ mod actor;
 mod agent;
 mod agents;
 mod annotations;
-mod git;
 mod mesh;
 mod pipelines;
 mod settings;
@@ -186,9 +185,6 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
         return Ok(value);
     }
     if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = git::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = agent::try_dispatch(name, args, ctx).await? {

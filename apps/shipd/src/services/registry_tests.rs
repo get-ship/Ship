@@ -219,22 +219,6 @@ fn skills_summaries_has_rail_fields() {
     assert_eq!(v["active_kind"], "all");
 }
 
-#[test]
-#[ignore = "doomed: registry dispatch-by-string apparatus (census #5) is slated for deletion; registry stays red until the cut, not fixed. See .artifacts/gate-triage-2.md cluster A"]
-fn git_and_dashboard_and_settings_dispatch() {
-    let state = temp_state();
-    // git ops resolve against the worktree (the repo this test runs in).
-    let log = call("git.log", &json!({ "limit": 1 }), &state).expect("git.log ok");
-    assert!(log.get("commits").and_then(|c| c.as_array()).is_some());
-
-    let dash = call("dashboard.state", &json!({}), &state).expect("dashboard.state ok");
-    for key in ["stats", "recent_runs", "events", "agents", "collections"] {
-        assert!(dash.get(key).is_some(), "dashboard.state missing `{key}`");
-    }
-
-    let settings = call("settings.state", &json!({}), &state).expect("settings.state ok");
-    assert!(settings.is_object(), "settings.state is an object");
-}
 
 #[test]
 fn workspaces_active_shape_preserved() {
