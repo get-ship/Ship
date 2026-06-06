@@ -70,7 +70,7 @@ async function updateCrossProjectIndicator(statusBar: HTMLElement | null): Promi
   if (!statusBar) return
   let activeId: string | null = null
   try {
-    activeId = (await ops.project.activeProject({})).id ?? null
+    activeId = (await ops.space.active({})).active?.id ?? null
   } catch { /* every running session counts as "elsewhere" when we can't read active */ }
 
   let sessions: CrossSession[] = []
@@ -139,7 +139,7 @@ function onCrossIndicatorClick(byProject: Map<string, { name: string; count: num
   // that things run elsewhere."
   if (byProject.size === 1) {
     const id = byProject.keys().next().value as string
-    void ops.project.activate({ id })
+    void ops.space.activate({ id })
     return
   }
   const summary = Array.from(byProject.values())

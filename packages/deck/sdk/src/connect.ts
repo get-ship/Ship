@@ -41,6 +41,7 @@ import { SessionsService } from "./gen/ship/ops/v1/sessions_pb.js";
 import { SettingsService, SettingScope } from "./gen/ship/ops/v1/settings_pb.js";
 import type { Setting, SettingList } from "./gen/ship/ops/v1/settings_pb.js";
 import { SkillsService } from "./gen/ship/ops/v1/skills_pb.js";
+import { SpaceService } from "./gen/ship/ops/v1/space_pb.js";
 import { SpecsService } from "./gen/ship/ops/v1/specs_pb.js";
 import { ViewService } from "./gen/ship/ops/v1/view_pb.js";
 import { ViewErrorsService } from "./gen/ship/ops/v1/view_errors_pb.js";
@@ -85,6 +86,7 @@ export interface ShipConnectClient {
   sessions: Client<typeof SessionsService>;
   settings: Client<typeof SettingsService>;
   skills: Client<typeof SkillsService>;
+  space: Client<typeof SpaceService>;
   specs: Client<typeof SpecsService>;
   view: Client<typeof ViewService>;
   viewErrors: Client<typeof ViewErrorsService>;
@@ -135,6 +137,7 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
     sessions: createClient(SessionsService, transport),
     settings: createClient(SettingsService, transport),
     skills: createClient(SkillsService, transport),
+    space: createClient(SpaceService, transport),
     specs: createClient(SpecsService, transport),
     view: createClient(ViewService, transport),
     viewErrors: createClient(ViewErrorsService, transport),
@@ -169,6 +172,7 @@ export {
   SettingsService,
   SettingScope,
   SkillsService,
+  SpaceService,
   SpecsService,
   ViewService,
   ViewErrorsService,

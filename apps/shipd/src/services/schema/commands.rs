@@ -338,28 +338,8 @@ pub const COMMANDS: &[CommandDescriptor] = &[
     // the per-space override write is now SpaceService.SetSetting (ship-space)
     // and the window close is DeviceService.CloseWindow (ship-device), both
     // self-gated wires that bypass the command dispatch table.
-    // ── project ───────────────────────────────────────────────────
-    CommandDescriptor {
-        name: "project.add",
-        description: "Register a directory as a project (ensures its .ship/ exists).",
-        args: &[
-            ArgDescriptor { name: "path", kind: "string", required: true },
-            ArgDescriptor { name: "name", kind: "string?", required: false },
-        ],
-        permission: "ship.space.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "ProjectRecord",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "project.activate",
-        description: "Switch the daemon's active project.",
-        args: &[ArgDescriptor { name: "id", kind: "string", required: true }],
-        permission: "ship.space.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
+    // project.add + project.activate retired — SpaceService.Add / .Activate
+    // (ship-space) are the SSOT; they route through the ConnectRPC wire.
     // ── mesh ──────────────────────────────────────────────────────
     CommandDescriptor {
         name: "mesh.send",

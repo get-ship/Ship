@@ -27,11 +27,9 @@ async function fetchViews(): Promise<ApiView[]> {
 
 async function fetchProject(): Promise<Project | null> {
   try {
-    const body = JSON.parse((await ops.project.listProjects({})).json) as {
-      projects: Project[]
-      active?: string
-    }
-    return body.projects.find((p) => p.id === body.active) ?? body.projects[0] ?? null
+    const resp = await ops.space.list({})
+    const list = resp.spaces.map((s) => ({ id: s.id, name: s.name, path: s.path }))
+    return list.find((p) => p.id === resp.activeId) ?? list[0] ?? null
   } catch { return null }
 }
 

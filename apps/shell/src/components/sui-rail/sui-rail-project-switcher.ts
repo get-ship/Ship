@@ -16,11 +16,6 @@ export interface Project {
   label?: string
 }
 
-interface ProjectsResponse {
-  projects: Project[]
-  active?: string
-}
-
 const POPOVER_STYLES = `
 .sui-rail-project-popover {
   position: fixed;
@@ -126,9 +121,9 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
 
   const loadProjects = async (): Promise<void> => {
     try {
-      const body = JSON.parse((await ops.project.listProjects({})).json) as ProjectsResponse
-      projects.set(body.projects ?? [])
-      activeProjectId.set(body.active ?? null)
+      const resp = await ops.space.list({})
+      projects.set(resp.spaces.map((s) => ({ id: s.id, name: s.name, path: s.path })))
+      activeProjectId.set(resp.activeId ?? null)
     } catch { /* leave previous state */ }
   }
 
@@ -139,7 +134,7 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
     activeProjectId.set(id)
     closePopover()
     try {
-      await ops.project.activate({ id })
+      await ops.space.activate({ id })
       // The kernel-bus `project.switched` event drives the chrome's
       // view-remount + status-bar refresh path; chrome subscribes in
       // shell/src/main.ts. Keep the legacy DOM event so any existing
@@ -156,7 +151,7 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
     const path = window.prompt('Path to project directory:')
     if (!path) return
     try {
-      await ops.project.add({ path, name: '' })
+      await ops.space.add({ path, name: '' })
       await loadProjects()
       chrome.notify({ tone: 'success', title: 'Project added.' })
     } catch (e) {
