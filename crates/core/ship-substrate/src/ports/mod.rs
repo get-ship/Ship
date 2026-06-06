@@ -9,6 +9,7 @@ pub mod local_fs_watch;
 pub mod s3_blob_store;
 pub mod single_backend;
 pub mod space_context;
+pub mod step_executor;
 
 #[cfg(test)]
 mod tests_blob;
@@ -29,3 +30,4 @@ pub use local_fs_watch::LocalFsWatch;
 pub use s3_blob_store::{BlobBackendConfig, S3BlobStore};
 pub use single_backend::SingleBackendDataStore;
 pub use space_context::{SpaceContext, SpaceId};
+pub use step_executor::{StepExecutor, StepExecutorError, StepOutput};

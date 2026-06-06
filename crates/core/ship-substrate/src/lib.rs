@@ -39,7 +39,7 @@ pub use ports::{
     ByteStream, ColumnKind, ColumnSpec, CountQuery, Cursor, DataStore, DataStoreError, FilterOp,
     FsBroker, FsCap, FsError, FsMode, FsRoot, KernelLog, LocalFsBlobStore, LocalFsBroker,
     Predicate, PrimaryKey, Query, QueryResult, Row, S3BlobStore, SingleBackendDataStore, Sort,
-    SpaceContext, SpaceId, TableSchema,
+    SpaceContext, SpaceId, StepExecutor, StepExecutorError, StepOutput, TableSchema,
 };
 
 pub use events::{
