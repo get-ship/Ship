@@ -8035,6 +8035,7 @@ dependencies = [
  "ship-runner",
  "ship-substrate",
  "ship-types",
+ "ship-views",
  "specta",
  "sqlx",
  "sysinfo",
@@ -8255,6 +8256,23 @@ dependencies = [
  "specta",
  "thiserror 2.0.18",
  "ulid",
+]
+
+[[package]]
+name = "ship-views"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "indexmap 2.14.0",
+ "serde",
+ "serde_json",
+ "ship-artifacts",
+ "ship-collection",
+ "ship-substrate",
+ "ship-types",
+ "specta",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]

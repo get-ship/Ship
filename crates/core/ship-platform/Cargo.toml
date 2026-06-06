@@ -21,6 +21,7 @@ ship-analytics = { path = "crates/ship-analytics" }
 # crates depend on ship-substrate/ship-types, not on ship-platform.
 ship-collection = { path = "crates/ship-collection" }
 ship-artifacts = { path = "crates/ship-artifacts" }
+ship-views = { path = "crates/ship-views" }
 ship-account = { path = "crates/ship-account" }
 # Unified settings keystone (S4). The RUNTIME-scope Rust settings API
 # (`ship_config::settings`) is the single source of truth for daemon launch
@@ -111,7 +112,7 @@ unstable = ["ship-substrate/unstable", "dep:ship-cloud"]
 # Enable derive(Type) on public data structs in the migrated services
 # (rules/mcp/skills/agents/pipelines/git/permissions/...) so xtask can
 # emit TypeScript bindings via `cargo xtask gen-types`. Off by default.
-specta = []
+specta = ["ship-views/specta"]
 # Compile `example()` constructors on the view-state types so a fixtures
 # generator (and the sandboxed designer's committed JSON) can be produced
 # from the real structs. Off by default; on under `cfg(test)` automatically.

@@ -24,7 +24,7 @@ pub mod sessions;
 // View-authoring + compile services. Carved out to the `ship-views` crate
 // in a later step (c5-views); kept here for now and re-exported from
 // ship-views when that lands.
-pub mod view_authoring;
+pub use ship_views::view_authoring;
 
 // Toolchain is an L0 concern (binary management infra — ensure/install/update
 // of the bundled `sui-compiler`). It lives in `ship_substrate::toolchain` and
