@@ -19,7 +19,7 @@ use std::time::Duration;
 use anyhow::Result;
 use tokio::sync::Mutex;
 
-use crate::config::resolve_watcher_debounce;
+use ship_config::settings::resolve_watcher_debounce;
 use ship_substrate::ShipHome;
 use ship_substrate::events::EmitContext;
 use ship_substrate::events::kernel_router::KernelRouter;

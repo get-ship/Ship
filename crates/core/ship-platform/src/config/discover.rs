@@ -1,4 +1,4 @@
-use super::project::ProjectDiscovery;
+use ship_config::project::ProjectDiscovery;
 use ship_substrate::project::SHIP_DIR_NAME;
 use anyhow::Result;
 use std::path::PathBuf;

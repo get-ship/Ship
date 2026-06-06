@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use ship_substrate::ShipHome;
 
+use crate::DiskBackedConfig;
+
 /// Portable user settings.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -36,7 +38,7 @@ pub struct Cloud {
     pub base_url: Option<String>,
 }
 
-impl crate::config::DiskBackedConfig for LibrarySettings {
+impl DiskBackedConfig for LibrarySettings {
     fn path_at(home: &ShipHome) -> PathBuf {
         home.settings_path()
     }
@@ -45,7 +47,7 @@ impl crate::config::DiskBackedConfig for LibrarySettings {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::DiskBackedConfig;
+    use crate::DiskBackedConfig;
     use tempfile::TempDir;
 
     #[test]
