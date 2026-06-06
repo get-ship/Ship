@@ -6,3 +6,6 @@
 pub mod service;
 pub mod state;
 pub mod view_state;
+pub mod wire;
+
+pub use wire::SkillsWire;

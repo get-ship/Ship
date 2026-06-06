@@ -89,6 +89,32 @@ impl ShipRuntime {
         &*self.skills
     }
 
+    /// `RulesService` as a cloned `Arc` — for wire mounts that need to own the handle.
+    pub fn rules_arc(
+        &self,
+    ) -> Arc<dyn ship_agents::services::rules::service::RulesService> {
+        self.rules.clone()
+    }
+
+    /// `McpService` as a cloned `Arc` — for wire mounts.
+    pub fn mcp_arc(&self) -> Arc<dyn ship_agents::services::mcp::service::McpService> {
+        self.mcp.clone()
+    }
+
+    /// `PermissionsService` as a cloned `Arc` — for wire mounts.
+    pub fn permissions_arc(
+        &self,
+    ) -> Arc<dyn ship_agents::services::permissions::service::PermissionsService> {
+        self.permissions.clone()
+    }
+
+    /// `SkillsService` as a cloned `Arc` — for wire mounts.
+    pub fn skills_arc(
+        &self,
+    ) -> Arc<dyn ship_agents::services::skills::service::SkillsService> {
+        self.skills.clone()
+    }
+
     /// `AgentsService` accessor.
     pub fn agents(&self) -> &dyn ship_agents::services::agents::service::AgentsService {
         &*self.agents

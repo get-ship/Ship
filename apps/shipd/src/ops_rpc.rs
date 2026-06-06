@@ -154,20 +154,68 @@ pub fn router(state: ApiState) -> axum::Router {
     // isolation.* — capability probe + recommender reads (impl in isolation_rpc).
     let router = ship_ops_rpc::IsolationServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::RuntimeServiceExt::register(svc.clone(), router);
-    // First MIGRATED domain (#89): rules.* served additively from the authored
-    // rules.proto. The generated ReadOps/CommandOps still serve rules.* too,
-    // until the GUI flip (#72) re-points clients and retires the old path.
-    let router = ship_ops_rpc::RulesServiceExt::register(svc.clone(), router);
+
+    // ── Gate closure shared by all four crate-owned wires ──────────────────────
+    // Reads the blast from the proto descriptor (the ONE policy source) and runs
+    // gate::decide — the same enforcement that command::call did, now at the
+    // transport handler for crate-owned wires (#94).
+    let gate: ship_agents::services::rules::wire::GateFn = Arc::new({
+        move |ctx: &RequestContext, op: &str| {
+            let auth = ctx
+                .extensions
+                .get::<crate::auth::AuthContext>()
+                .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
+            let pol = crate::services::op_policy::policy_for(op)
+                .ok_or_else(|| ConnectError::internal(format!("no policy for {op}")))?;
+            let caller = crate::services::gate::caller_from_auth(auth);
+            match crate::services::gate::decide(
+                pol.blast,
+                crate::services::gate::service_of(op),
+                &caller,
+            ) {
+                crate::services::gate::Decision::Deny(m) => {
+                    Err(ConnectError::permission_denied(m.to_string()))
+                }
+                _ => Ok(()),
+            }
+        }
+    });
+
+    // rules.* — crate-owned RulesWire (ship-agents). Replaces impl RulesService for OpsImpl.
+    let rules_wire = Arc::new(ship_agents::services::rules::RulesWire::new(
+        state.rules_arc(),
+        gate.clone(),
+    ));
+    let router = ship_ops_rpc::RulesServiceExt::register(rules_wire, router);
     // artifacts.* is served exclusively by the typed `ship-artifacts` wire mounted
     // below (active-space bound). No OpsImpl ArtifactsService mount — the wire is
     // the sole handler. collections.* is likewise served by the typed CollectionWire.
-    // permissions.* — C2_ELEVATED writes (operator-only via the command gate). Additive.
-    let router = ship_ops_rpc::PermissionsServiceExt::register(svc.clone(), router);
-    // mcp.* — external MCP server config CRUD, additive.
-    let router = ship_ops_rpc::McpServiceExt::register(svc.clone(), router);
-    // skills.* (restricted ship-authoring writes), pipelines.* (runtime + config),
+    // permissions.* — C2_ELEVATED writes (operator-only via the command gate).
+    // Crate-owned PermissionsWire (ship-agents). Replaces impl PermissionsService for OpsImpl.
+    let permissions_wire = Arc::new(ship_agents::services::permissions::PermissionsWire::new(
+        state.permissions_arc(),
+        gate.clone(),
+    ));
+    let router = ship_ops_rpc::PermissionsServiceExt::register(permissions_wire, router);
+    // mcp.* — external MCP server config CRUD.
+    // Crate-owned McpWire (ship-agents). Replaces impl McpService for OpsImpl.
+    let mcp_wire = Arc::new(ship_agents::services::mcp::McpWire::new(
+        state.mcp_arc(),
+        gate.clone(),
+    ));
+    let router = ship_ops_rpc::McpServiceExt::register(mcp_wire, router);
+    // skills.* (restricted ship-authoring writes + view reads + live streams).
+    // Crate-owned SkillsWire (ship-agents). Replaces impl SkillsService for OpsImpl.
+    let skills_kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));
+    let skills_wire = Arc::new(ship_agents::services::skills::SkillsWire::new(
+        state.skills_arc(),
+        state.ship_dir().to_path_buf(),
+        skills_kernel,
+        gate,
+    ));
+    let router = ship_ops_rpc::SkillsServiceExt::register(skills_wire, router);
+    // pipelines.* (runtime + config),
     // git.* — all additive beside the generated ReadOps/CommandOps until #72.
-    let router = ship_ops_rpc::SkillsServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::PipelinesServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::GitServiceExt::register(svc.clone(), router);
     // Wave 2 (#89) — the ONE canonical AgentsService (agents-arc E4/E6): profile

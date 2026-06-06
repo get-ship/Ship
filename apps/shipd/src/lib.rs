@@ -32,10 +32,6 @@ pub mod diag_rpc;
 pub mod analytics_rpc;
 pub mod isolation_rpc;
 pub mod runtime_rpc;
-pub mod rules_rpc;
-pub mod permissions_rpc;
-pub mod mcp_rpc;
-pub mod skills_rpc;
 pub mod pipelines_rpc;
 pub mod git_rpc;
 // agent_rpc is the ONE canonical agent handler (agents-arc E4/E6): profile CRUD +
