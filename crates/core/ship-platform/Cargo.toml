@@ -122,7 +122,7 @@ unstable = ["ship-substrate/unstable", "dep:ship-cloud"]
 # Enable derive(Type) on public data structs in the migrated services
 # (rules/mcp/skills/agents/pipelines/git/permissions/...) so xtask can
 # emit TypeScript bindings via `cargo xtask gen-types`. Off by default.
-specta = ["ship-views/specta"]
+specta = ["ship-views/specta", "ship-agents/specta"]
 # Compile `example()` constructors on the view-state types so a fixtures
 # generator (and the sandboxed designer's committed JSON) can be produced
 # from the real structs. Off by default; on under `cfg(test)` automatically.
