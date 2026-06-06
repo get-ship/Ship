@@ -120,6 +120,13 @@ pub(crate) fn ops_for(service: &str) -> Option<ServiceDef> {
                 returns: None,
             }],
         }),
+        "lsp" => Some(ServiceDef {
+            name: "lsp",
+            ops: &[
+                OpDef { name: "diagnostics", args: None, returns: None },
+                OpDef { name: "hover", args: None, returns: None },
+            ],
+        }),
         _ => None,
     }
 }
