@@ -59,6 +59,7 @@ agent_loop.rs ─ run_step: rig drives the model turn
 | Execution | `runtime.rs`, `script_executor.rs` | deno_core isolate; the `!Send` VM-thread bridge |
 | Intelligence | `lsp.rs`, `agent_loop.rs` | dual-LSP-fed verify; rig loop + the two tools |
 | Events | `events.rs` | `AgentEvent` vocabulary (serde, internally-tagged); `EventSink` trait + `CollectingSink` / `TerminalSink`; `LoopItem` mirror + pure `translate` fn |
+| Customization | `skills.rs` | skill discovery (`root/*/SKILL.md`), frontmatter parse, catalog injection, on-demand body load |
 
 ## Invariants (must always hold)
 

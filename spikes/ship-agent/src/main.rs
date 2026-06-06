@@ -13,6 +13,7 @@
 
 mod agent_loop;
 mod events;
+mod skills;
 mod provider;
 mod auth;
 mod session;
