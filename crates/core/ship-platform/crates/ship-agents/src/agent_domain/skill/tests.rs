@@ -1,7 +1,6 @@
 use super::*;
 use super::install::{
-    find_skill_source_dir, looks_like_skills_cli_command, parse_skills_install_source,
-    validate_skill_install_request,
+    find_skill_source_dir, parse_skills_install_source, validate_skill_install_request,
 };
 use super::storage::skill_dir;
 use ship_substrate::fs_util::write_atomic;
@@ -234,24 +233,6 @@ Body.
     }
 
     #[test]
-    fn install_skill_accepts_skills_command_source() -> Result<()> {
-        validate_skill_install_request(
-            "npx -y skills add vercel-labs/agent-skills@vercel-react-best-practices",
-            "vercel-react-best-practices",
-        )?;
-        Ok(())
-    }
-
-    #[test]
-    fn install_skill_accepts_skills_command_without_explicit_id() -> Result<()> {
-        validate_skill_install_request(
-            "npx -y skills add vercel-labs/agent-skills@vercel-react-best-practices",
-            "",
-        )?;
-        Ok(())
-    }
-
-    #[test]
     fn install_skill_accepts_skill_id_source() -> Result<()> {
         validate_skill_install_request(
             "vercel-labs/agent-skills@vercel-react-best-practices",
@@ -261,12 +242,11 @@ Body.
     }
 
     #[test]
-    fn parse_skills_install_source_extracts_package_and_skill_from_command() -> Result<()> {
-        let (package, skill) = parse_skills_install_source(
-            "npx -y skills add vercel-labs/agent-skills --skill web-design-guidelines --yes",
+    fn install_skill_accepts_shorthand_without_explicit_id() -> Result<()> {
+        validate_skill_install_request(
+            "vercel-labs/agent-skills@vercel-react-best-practices",
+            "",
         )?;
-        assert_eq!(package, "vercel-labs/agent-skills");
-        assert_eq!(skill.as_deref(), Some("web-design-guidelines"));
         Ok(())
     }
 
@@ -288,10 +268,10 @@ Body.
     }
 
     #[test]
-    fn install_skill_rejects_non_skills_command_source() {
+    fn install_skill_rejects_whitespace_source() {
         let err =
             validate_skill_install_request("curl https://example.com/skill.sh", "skill-creator")
-                .expect_err("non-skills command should be rejected");
+                .expect_err("whitespace in source should be rejected");
         assert!(err.to_string().contains("Unsupported source"));
     }
 
@@ -313,15 +293,6 @@ Body.
             err.to_string()
                 .contains("Git URL sources are not supported")
         );
-    }
-
-    #[test]
-    fn skills_command_detector_requires_add_and_skills_tokens() {
-        assert!(looks_like_skills_cli_command(
-            "npx -y skills add vercel-labs/agent-skills@vercel-react-best-practices"
-        ));
-        assert!(!looks_like_skills_cli_command("npx -y skills list"));
-        assert!(!looks_like_skills_cli_command("echo skills add"));
     }
 
     // ── canonical SKILL.md schema enforcement ───────────────────────────────

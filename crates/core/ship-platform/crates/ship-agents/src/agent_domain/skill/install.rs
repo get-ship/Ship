@@ -1,16 +1,14 @@
-//! Skill install plumbing — skills.sh CLI wrapper + legacy migration + validation.
+//! Skill install plumbing — registry install + validation.
 
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command as ProcessCommand;
+use std::path::Path;
+#[cfg(test)]
+use std::path::PathBuf;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use super::storage::{
-    ensure_project_skills_storage, ensure_user_skills_storage, parse_skill_spec,
-};
+use super::storage::{ensure_project_skills_storage, ensure_user_skills_storage};
 use super::types::{Skill, is_valid_skill_name};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
@@ -18,31 +16,6 @@ use super::types::{Skill, is_valid_skill_name};
 pub enum SkillInstallScope {
     Project,
     User,
-}
-
-pub(super) fn looks_like_skills_cli_command(raw: &str) -> bool {
-    let tokens = raw
-        .split_whitespace()
-        .map(|token| token.to_ascii_lowercase())
-        .collect::<Vec<_>>();
-    if tokens.is_empty() {
-        return false;
-    }
-    let starts_like_command = matches!(
-        tokens.first().map(String::as_str),
-        Some("skills") | Some("skills.sh") | Some("npx")
-    );
-    if !starts_like_command {
-        return false;
-    }
-    let has_add = tokens.iter().any(|token| token == "add");
-    let has_skills = tokens.iter().any(|token| {
-        token == "skills"
-            || token == "skills.sh"
-            || token == "@skills/cli"
-            || token.ends_with("/skills")
-    });
-    has_add && has_skills
 }
 
 pub(super) fn validate_skill_install_request(source: &str, skill_id: &str) -> Result<()> {
@@ -54,12 +27,17 @@ pub(super) fn validate_skill_install_request(source: &str, skill_id: &str) -> Re
     if source.contains('\n') || source.contains('\r') {
         return Err(anyhow!("source must be a single-line value"));
     }
-    let is_skills_command =
-        source.contains(char::is_whitespace) && looks_like_skills_cli_command(source);
+    if source.contains(char::is_whitespace) {
+        return Err(anyhow!(
+            "Unsupported source '{}'. Provide a skill ID (e.g. owner/repo@skill-id).",
+            source
+        ));
+    }
     if skill_id.is_empty() {
-        if !is_skills_command {
+        // Allow owner/repo@skill-id shorthand — skill ID embedded in source.
+        if !source.contains('@') {
             return Err(anyhow!(
-                "Skill ID is required when source is not a skills.sh command."
+                "Skill ID is required when source does not embed one (owner/repo@skill-id)."
             ));
         }
     } else if !is_valid_skill_name(skill_id) {
@@ -68,35 +46,16 @@ pub(super) fn validate_skill_install_request(source: &str, skill_id: &str) -> Re
             skill_id
         ));
     }
-    if source.contains(char::is_whitespace) && !looks_like_skills_cli_command(source) {
-        return Err(anyhow!(
-            "Unsupported source '{}'. Provide either a skills.sh command (`npx skills add ...`) or a skill ID.",
-            source
-        ));
-    }
-    if !source.contains(char::is_whitespace)
-        && (source.contains("://")
-            || source.contains("github.com")
-            || source.starts_with("git@")
-            || source.ends_with(".git"))
+    if source.contains("://")
+        || source.contains("github.com")
+        || source.starts_with("git@")
+        || source.ends_with(".git")
     {
         return Err(anyhow!(
-            "Git URL sources are not supported. Use a skills.sh command or a skill ID."
+            "Git URL sources are not supported. Use a skill ID (e.g. owner/repo@skill-id)."
         ));
     }
     Ok(())
-}
-
-pub(super) fn format_command_failure(output: &std::process::Output) -> String {
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    if !stderr.is_empty() {
-        return stderr;
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if !stdout.is_empty() {
-        return stdout;
-    }
-    "command exited with no diagnostic output".to_string()
 }
 
 pub(super) fn parse_skills_install_source(source: &str) -> Result<(String, Option<String>)> {
@@ -106,9 +65,7 @@ pub(super) fn parse_skills_install_source(source: &str) -> Result<(String, Optio
     }
 
     // Shorthand: owner/repo@skill-id
-    if !trimmed.contains(char::is_whitespace)
-        && let Some((repo, skill)) = trimmed.split_once('@')
-    {
+    if let Some((repo, skill)) = trimmed.split_once('@') {
         let repo = repo.trim();
         let skill = skill.trim();
         if repo.contains('/') && !skill.is_empty() {
@@ -116,137 +73,10 @@ pub(super) fn parse_skills_install_source(source: &str) -> Result<(String, Optio
         }
     }
 
-    if !looks_like_skills_cli_command(trimmed) {
-        return Ok((trimmed.to_string(), None));
-    }
-
-    let tokens = trimmed.split_whitespace().collect::<Vec<_>>();
-    let add_index = tokens
-        .iter()
-        .position(|token| token.eq_ignore_ascii_case("add"))
-        .ok_or_else(|| anyhow!("skills.sh command is missing `add`"))?;
-
-    let mut package: Option<String> = None;
-    let mut parsed_skill: Option<String> = None;
-    let mut index = add_index + 1;
-    while index < tokens.len() {
-        let token = tokens[index];
-        let lower = token.to_ascii_lowercase();
-
-        if lower == "--skill" || lower == "-s" {
-            if let Some(next) = tokens.get(index + 1)
-                && !next.starts_with('-')
-            {
-                parsed_skill = Some((*next).to_string());
-            }
-            index += 2;
-            continue;
-        }
-
-        if let Some(value) = lower.strip_prefix("--skill=")
-            && !value.is_empty()
-        {
-            parsed_skill = Some(value.to_string());
-            index += 1;
-            continue;
-        }
-
-        if token.starts_with('-') {
-            // Known flags that take a value.
-            let consumes_value = matches!(lower.as_str(), "--agent" | "-a");
-            if consumes_value
-                && let Some(next) = tokens.get(index + 1)
-                && !next.starts_with('-')
-            {
-                index += 2;
-                continue;
-            }
-            index += 1;
-            continue;
-        }
-
-        if package.is_none() {
-            package = Some(token.to_string());
-        }
-        index += 1;
-    }
-
-    let package = package.ok_or_else(|| anyhow!("skills.sh command is missing package source"))?;
-    Ok((package, parsed_skill))
+    Ok((trimmed.to_string(), None))
 }
 
-fn run_skills_install_command(
-    source: &str,
-    skill_id: &str,
-    workspace_dir: &Path,
-    home_dir: &Path,
-) -> Result<()> {
-    let (package_source, parsed_skill) = parse_skills_install_source(source)?;
-
-    // Normalize to a deterministic, non-interactive install:
-    // - `--yes`: no prompts
-    // - `--copy`: avoid symlink installs
-    // - `--agent codex`: install only the codex/.agents surface
-    let mut command = ProcessCommand::new("npx");
-    command
-        .arg("-y")
-        .arg("skills")
-        .arg("add")
-        .arg(&package_source)
-        .arg("--yes")
-        .arg("--copy")
-        .arg("--agent")
-        .arg("codex");
-    let requested_skill = if !skill_id.trim().is_empty() {
-        Some(skill_id.trim().to_string())
-    } else {
-        parsed_skill
-    };
-    if let Some(skill) = requested_skill
-        && !skill.trim().is_empty()
-    {
-        command.arg("--skill").arg(skill.trim());
-    }
-
-    command.current_dir(workspace_dir);
-    command.env("HOME", home_dir);
-    command.env("USERPROFILE", home_dir);
-    command.env("XDG_CONFIG_HOME", home_dir.join(".config"));
-    command.env("XDG_CACHE_HOME", home_dir.join(".cache"));
-
-    let output = match command.output() {
-        Ok(output) => output,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            return Err(anyhow!(
-                "skills.sh install requires Node.js (`npx`) on PATH."
-            ));
-        }
-        Err(err) => return Err(err).with_context(|| "Failed to run `skills.sh` installer command"),
-    };
-    if !output.status.success() {
-        return Err(anyhow!(
-            "Failed to install skill via skills.sh CLI: {}",
-            format_command_failure(&output)
-        ));
-    }
-    Ok(())
-}
-
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    fs::create_dir_all(dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let source_path = entry.path();
-        let target_path = dst.join(entry.file_name());
-        if source_path.is_dir() {
-            copy_dir_recursive(&source_path, &target_path)?;
-        } else {
-            fs::copy(&source_path, &target_path)?;
-        }
-    }
-    Ok(())
-}
-
+#[cfg(test)]
 pub(super) fn find_skill_source_dir(search_root: &Path, skill_id: &str) -> Result<PathBuf> {
     let mut discovered = Vec::<(String, PathBuf)>::new();
 
@@ -261,8 +91,6 @@ pub(super) fn find_skill_source_dir(search_root: &Path, skill_id: &str) -> Resul
         if !file_type.is_file() && !file_type.is_symlink() {
             continue;
         }
-        // skills.sh may install SKILL.md as symlinks under agent directories.
-        // Accept symlinked files as long as they resolve to a readable file path.
         if file_type.is_symlink() && !entry.path().is_file() {
             continue;
         }
@@ -325,48 +153,22 @@ pub(super) fn find_skill_source_dir(search_root: &Path, skill_id: &str) -> Resul
 }
 
 fn install_skill_from_source_into_dir(
-    dest_root: &Path,
+    _dest_root: &Path,
     source: &str,
     skill_id: &str,
-    force: bool,
+    _force: bool,
 ) -> Result<Skill> {
     validate_skill_install_request(source, skill_id)?;
 
-    let tmp_root = std::env::temp_dir().join(format!("ship-skill-install-{}", ship_substrate::gen_nanoid()));
-    fs::create_dir_all(&tmp_root)?;
-    struct CleanupGuard(PathBuf);
-    impl Drop for CleanupGuard {
-        fn drop(&mut self) {
-            let _ = fs::remove_dir_all(&self.0);
-        }
-    }
-    let _cleanup = CleanupGuard(tmp_root.clone());
+    let (package_source, _parsed_skill) = parse_skills_install_source(source)?;
 
-    let install_workspace = tmp_root.join("workspace");
-    let install_home = tmp_root.join("home");
-    fs::create_dir_all(&install_workspace)?;
-    fs::create_dir_all(&install_home)?;
-
-    run_skills_install_command(source, skill_id, &install_workspace, &install_home)?;
-
-    let source_dir = find_skill_source_dir(&tmp_root, skill_id)?;
-    let source_skill = parse_skill_spec(&source_dir)?;
-
-    fs::create_dir_all(dest_root)?;
-    let destination_dir = dest_root.join(&source_skill.id);
-    if destination_dir.exists() {
-        if !force {
-            return Err(anyhow!(
-                "Skill '{}' already exists at {} (use --force to overwrite)",
-                source_skill.id,
-                destination_dir.display()
-            ));
-        }
-        fs::remove_dir_all(&destination_dir)?;
-    }
-
-    copy_dir_recursive(&source_dir, &destination_dir)?;
-    parse_skill_spec(&destination_dir)
+    // Registry download is not yet implemented. The skills.sh/npx path has
+    // been removed (no Node in production). Wire up registry fetch here.
+    Err(anyhow!(
+        "Skill registry install is not yet implemented. \
+         Copy the skill directory into .ship/skills/ or skills/ manually. \
+         Source: '{package_source}'."
+    ))
 }
 
 pub fn install_skill_from_source(

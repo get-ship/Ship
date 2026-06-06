@@ -73,4 +73,4 @@ The runtime loads `SKILL.md` via `crates/core/ship-platform/src/agents/skill/sto
 4. On validation failure, returns an error of the form `Invalid SKILL.md frontmatter in <path>:` followed by a list of `/<field>` paths and constraint failures.
 5. On success, deserializes into the loader's typed frontmatter struct and applies cross-field rules (e.g. `name` must match the directory id).
 
-This is the contract that governs every committed `docs/ship-*/SKILL.md` and any user- or agent-authored skill installed via `skills.sh`.
+This is the contract that governs every committed `docs/ship-*/SKILL.md` and any user- or agent-authored skill installed via the skill registry.
