@@ -18,7 +18,6 @@ pub mod isolation_ops;
 /// Reactive trigger engine — re-exported from the `ship-triggers` L1 crate.
 pub use ship_triggers as triggers;
 pub use ship_kv as kv;
-pub mod projects;
 pub mod registry;
 pub mod services;
 pub mod sessions;
@@ -58,7 +57,7 @@ fn install_defaults_inner() {
             // separately from `ship-pipeline-runtime` (it depends on this
             // crate, so it can't be referenced from here).
             Box::new(services::compile::CompileStateProjection),
-            Box::new(projects::ProjectsProjection),
+            Box::new(ship_substrate::db::projects::ProjectsProjection),
             // Per-space settings overlay (event-sourced fold of
             // `space.setting.changed`). The live overlay read is owned by the
             // ship-space crate's own DataStore-backed table (`SpaceService.Info`);
@@ -80,7 +79,8 @@ fn install_defaults_inner() {
         ]
     }));
     ship_substrate::supervisor::install_space_id_resolver(Box::new(|path| {
-        projects::find_by_path(path).ok().flatten().map(|p| p.id)
+        let path_str = path.to_string_lossy();
+        ship_substrate::db::projects::find_by_path(&path_str).ok().flatten().map(|p| p.id)
     }));
     commands::seed_builtins();
 }

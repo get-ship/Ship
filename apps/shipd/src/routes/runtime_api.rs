@@ -43,10 +43,10 @@ pub(super) fn resolve_project_head_sha() -> Option<String> {
 
 /// GET /api/v1/sessions/active-across-projects
 ///
-/// Returns the running sessions visible across every project the
-/// daemon knows about, each row labeled with `space_id` + project
+/// Returns the running sessions visible across every space the
+/// daemon knows about, each row labeled with `space_id` + space
 /// `name`. Chrome consumes this to surface "N agents running in other
-/// projects" without forcing it to fan-out per-project queries.
+/// spaces" without forcing it to fan-out per-space queries.
 pub async fn list_sessions_across_projects(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -65,10 +65,10 @@ pub async fn list_sessions_across_projects(
         }
     };
 
-    // Index projects so we can attach a display name per session without
+    // Index spaces so we can attach a display name per session without
     // hitting the registry on every row.
-    let by_id: std::collections::HashMap<String, ship_platform::projects::ProjectRecord> =
-        ship_platform::projects::list()
+    let by_id: std::collections::HashMap<String, ship_substrate::db::projects::SpaceRecord> =
+        ship_substrate::db::projects::list_active()
             .unwrap_or_default()
             .into_iter()
             .map(|p| (p.id.clone(), p))

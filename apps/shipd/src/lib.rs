@@ -409,8 +409,9 @@ pub async fn run_network(
         });
     }
 
-    // Register the launch-time project (if any) into the project registry so the
-    // launcher / shell sees it on first list. Idempotent.
+    // Register the launch-time project (if any) into the space registry so the
+    // launcher / shell sees it on first list. Idempotent — ship-space emits
+    // `project.seen` if already known.
     //
     // A discoverable project root IS the active space; the daemon has no separate
     // "home space" to stamp into a process-global (S2 home-space kill). The active
@@ -418,10 +419,20 @@ pub async fn run_network(
     // `ship_substrate::project::resolve_active_space`. With no discoverable
     // project the daemon boots space-less. See spec
     // `.artifacts/specs/space/116-event-partition.md`.
-    if let Some(root) = project_root.as_ref()
-        && let Err(e) = ship_platform::projects::register(root.path(), None)
-    {
-        tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
+    if let Some(root) = project_root.as_ref() {
+        use ship_substrate::ports::{KernelLog, SingleBackendDataStore};
+        use ship_substrate::data::DataService;
+        let runtime_db = ship_substrate::db::runtime_db_path(&global_dir);
+        let store = {
+            let svc = DataService::open_at(&runtime_db).expect("data service over runtime.db");
+            std::sync::Arc::new(SingleBackendDataStore::new(svc, "runtime"))
+                as std::sync::Arc<dyn ship_substrate::ports::DataStore>
+        };
+        let kernel = std::sync::Arc::new(KernelLog::new(rt.kernel().clone()));
+        let canonical = std::fs::canonicalize(root.path()).unwrap_or_else(|_| root.path().to_path_buf());
+        if let Err(e) = ship_space::registry::add(&*store, &kernel, &canonical, None).await {
+            tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
+        }
     }
 
     let token = match auth::read_token(&daemon_dir) {

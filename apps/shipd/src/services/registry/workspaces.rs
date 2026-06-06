@@ -1,7 +1,7 @@
 //! Single-source `workspaces.*` ops — descriptors + dispatch via `ship_ops!`.
 //!
 //! Surfaces the project registry through the `_sui/data` SSE plane. Two
-//! registries feed the list: the event-sourced `ship_platform::projects`
+//! registries feed the list: the event-sourced `ship_substrate::db::projects`
 //! (preferred) and the legacy `~/.ship/projects.json` (fallback for installs
 //! where the projection is empty). Legacy entries get `path_hash`-derived ids
 //! so they line up with the event-sourced keying scheme.
@@ -27,7 +27,7 @@ ship_ops! {
         ret: WorkspacesListResponse,
         run: |_args, _state, _files| {
             let active = active_id();
-            let records = ship_platform::projects::list()
+            let records = ship_substrate::db::projects::list_active()
                 .map_err(|e| RegistryError::service(e.to_string()))?;
             let mut seen_paths: HashSet<String> = HashSet::new();
             let mut items: Vec<WorkspaceRow> = records
