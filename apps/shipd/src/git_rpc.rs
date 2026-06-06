@@ -84,7 +84,7 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitOverviewReqView,
     ) -> ServiceResult<GitOverviewResponse> {
-        let ws = request.workspace_id.as_deref().filter(|s| !s.is_empty());
+        let ws = Some(request.workspace_id).filter(|s| !s.is_empty());
         let limit = if request.limit != 0 { request.limit as usize } else { 20 };
         let value = git_overview_value(self.state(), ws, limit)
             .map_err(|e| ConnectError::internal(format!("git.overview: {e}")))?;
@@ -99,9 +99,7 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitOverviewReqView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        let ws = request
-            .workspace_id
-            .as_deref()
+        let ws = Some(request.workspace_id)
             .filter(|s| !s.is_empty())
             .map(str::to_string);
         let limit = if request.limit != 0 { request.limit as usize } else { 20 };
@@ -119,9 +117,7 @@ impl GitService for OpsImpl {
         request: ship_ops_rpc::OwnedGitDiffReqView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
         let commit = request.commit.clone();
-        let ws = request
-            .workspace_id
-            .as_deref()
+        let ws = Some(request.workspace_id)
             .filter(|s| !s.is_empty())
             .map(str::to_string);
         self.live_read_with(move |st| {
@@ -138,9 +134,7 @@ impl GitService for OpsImpl {
         request: ship_ops_rpc::OwnedGitAnnotationsReqView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
         let file = request.file.clone();
-        let ws = request
-            .workspace_id
-            .as_deref()
+        let ws = Some(request.workspace_id)
             .filter(|s| !s.is_empty())
             .map(str::to_string);
         self.live_read_with(move |st| {
@@ -155,7 +149,7 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitDiffReqView,
     ) -> ServiceResult<GitDiffResponse> {
-        let ws = request.workspace_id.as_deref().filter(|s| !s.is_empty());
+        let ws = Some(request.workspace_id).filter(|s| !s.is_empty());
         let value = git_diff_value(self.state(), ws, &request.commit)
             .map_err(|e| ConnectError::internal(format!("git.diff: {e}")))?;
         serde_json::from_value::<GitDiffResponse>(value)
@@ -168,7 +162,7 @@ impl GitService for OpsImpl {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGitAnnotationsReqView,
     ) -> ServiceResult<JsonResponse> {
-        let ws = request.workspace_id.as_deref().filter(|s| !s.is_empty());
+        let ws = Some(request.workspace_id).filter(|s| !s.is_empty());
         let value = git_annotations_value(self.state(), ws, &request.file);
         let json = serde_json::to_string(&value)
             .map_err(|e| ConnectError::internal(format!("git.annotations serialize: {e}")))?;
