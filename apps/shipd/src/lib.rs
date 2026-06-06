@@ -329,7 +329,19 @@ pub async fn run_network(
         let mut events = bundler.subscribe_events();
         let mode = daemon_mode;
         tokio::spawn(async move {
-            if let Err(e) = bundler.start_watching().await {
+            // SHIP_NO_WATCH=1 disables the file-watcher loop. The bundler
+            // stops emitting ModuleChanged events; the forwarder task below
+            // still runs and can deliver CompileError if something else
+            // produces one, but the rebuild-on-save cascade is killed.
+            // Used to debug a 2 GB Firefox / 90% CPU symptom: hypothesis is
+            // the bundler's watch loop is in a feedback cycle with the
+            // per-tag resolver's chunk emit, causing the browser's
+            // sui:view:compiled SSE handler to `await import(blob)`
+            // continuously and the JS nursery to fill.
+            let watch_disabled = std::env::var("SHIP_NO_WATCH").as_deref() == Ok("1");
+            if watch_disabled {
+                tracing::warn!("shipd: SHIP_NO_WATCH=1 — bundler file watcher disabled");
+            } else if let Err(e) = bundler.start_watching().await {
                 tracing::warn!("bundler: could not start file watching: {e}");
             }
             loop {
