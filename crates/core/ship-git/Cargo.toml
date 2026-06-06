@@ -4,11 +4,10 @@ version = "0.1.0"
 edition = "2024"
 license-file = "LICENSE"
 publish = false
-description = "Git domain — repository operations, status, diffs, annotations. Carved from ship-platform/services/git."
+description = "Git domain — repository operations, status, diffs. git2-backed L0 capability."
 
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
-ship-collection = { path = "../ship-platform/crates/ship-collection" }
 
 git2 = "0.19"
 serde = { workspace = true }

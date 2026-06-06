@@ -339,17 +339,104 @@ fn git_diff_value(
     .map_err(|e| e.to_string())
 }
 
-/// Build the git.annotations JSON value from ship-git crate calls.
+/// Build the git.annotations JSON value.
+///
+/// The annotations feature queries the built-in `annotations` collection for
+/// comments pinned to diff lines in the git view. Relocated from
+/// `ship_git::annotations` during the L0 collapse (ship-collection dep removed
+/// from ship-git). shipd already depends on both ship-git and ship-collection,
+/// so this is the natural L1 home.
 fn git_annotations_value(
     state: &crate::ship_runtime::ApiState,
     workspace_id: Option<&str>,
     file: &str,
 ) -> Value {
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+    use ship_collection::builtin::annotations_schema;
+    use ship_collection::projection::SchemaRegistry;
+    use ship_collection::service::CollectionService;
+    use ship_substrate::ports::{
+        KernelLog, Predicate, Query, SingleBackendDataStore, Sort, SpaceContext, SpaceId,
+    };
+    use serde::Serialize;
+
+    #[derive(Clone, Serialize)]
+    struct GitAnnotation {
+        id: String,
+        selector: String,
+        note: Option<String>,
+        intent: Option<String>,
+        author_kind: String,
+        created_at: String,
+    }
+    type AnnotationsByLine = BTreeMap<String, Vec<GitAnnotation>>;
+
     let kernel = state.kernel().clone();
     let ship_dir = state.ship_dir().to_path_buf();
-    let annotations =
-        ship_git::annotations::load_file_annotations(kernel, &ship_dir, file, workspace_id);
-    serde_json::to_value(&annotations).unwrap_or(Value::Null)
+
+    let data_svc = match ship_substrate::data::DataService::open(&ship_dir) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(error = %e, "failed to open data store for git annotations");
+            return Value::Null;
+        }
+    };
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, "global"));
+    let kernel_log = Arc::new(KernelLog::new(kernel));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new("global"), store, kernel_log));
+    let registry = SchemaRegistry::new();
+    registry.insert(annotations_schema());
+    let svc = CollectionService { ctx, schemas: Arc::new(registry) };
+
+    let view_id = match workspace_id.filter(|s| !s.is_empty() && *s != "project") {
+        Some(id) => format!("git:{id}"),
+        None => "git".to_string(),
+    };
+    let q = Query {
+        table: format!("collection_annotations"),
+        filters: vec![
+            Predicate::eq("file_path", serde_json::Value::String(file.to_string())),
+            Predicate::eq("view_id", serde_json::Value::String(view_id)),
+        ],
+        sort: Some(Sort { column: "created_at".into(), descending: false }),
+        limit: 200,
+        after: None,
+    };
+
+    let items = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(svc.query_items_by_query(q))
+    });
+    let items = match items {
+        Ok((rows, _)) => rows,
+        Err(e) => {
+            tracing::warn!(error = %e, file, "failed to load git annotations");
+            return Value::Null;
+        }
+    };
+
+    let mut out: AnnotationsByLine = BTreeMap::new();
+    for item in items {
+        let data = &item.data;
+        let selector = match data.get("selector").and_then(|v| v.as_str()) {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        let annotation = GitAnnotation {
+            id: item.id.clone(),
+            selector: selector.clone(),
+            note: data.get("note").and_then(|v| v.as_str()).map(str::to_string),
+            intent: data.get("intent").and_then(|v| v.as_str()).map(str::to_string),
+            author_kind: data
+                .get("author_kind")
+                .and_then(|v| v.as_str())
+                .unwrap_or("human")
+                .to_string(),
+            created_at: item.created_at.clone(),
+        };
+        out.entry(selector).or_default().push(annotation);
+    }
+    serde_json::to_value(&out).unwrap_or(Value::Null)
 }
 
 impl OpsImpl {

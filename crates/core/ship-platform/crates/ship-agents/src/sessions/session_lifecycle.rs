@@ -4,7 +4,6 @@ use ship_substrate::db::session_events::{
     update_session_with_ended_event,
 };
 use ship_substrate::events::types::{SessionAttached, SessionEnded, SessionStarted};
-use ship_substrate::git;
 use anyhow::{Result, anyhow};
 use chrono::Utc;
 use std::path::Path;
@@ -131,7 +130,7 @@ pub fn end_session(
 
     // Collect git metrics best-effort — failure doesn't prevent session end.
     let project_dir = ship_dir.parent().unwrap_or(ship_dir);
-    let git_metrics = git::collect_metrics(project_dir);
+    let git_metrics = ship_git::read::collect_metrics(project_dir);
     let files_changed = request.files_changed.or(git_metrics.files_changed);
     let lines_added = request.lines_added.or(git_metrics.lines_added);
     let lines_removed = request.lines_removed.or(git_metrics.lines_removed);
