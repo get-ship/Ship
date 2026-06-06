@@ -67,11 +67,17 @@ pub async fn bundle_views(
         dir: Some(out_dir.to_string_lossy().to_string()),
         format: Some(OutputFormat::Esm),
         minify: Some(production.into()),
-        // A module imported by ≥2 view entries → one shared chunk: the cross-view
-        // dedup that replaces the umbrella. `min_size: 0` so even tiny shared
-        // components hoist (correctness over chunk-count tuning).
+        // `min_share_count: 1` (was 2): hoist every shared module into its
+        // own chunk. With 2, a primitive used by exactly one view got inlined
+        // into that view, and used-by-many primitives could still produce
+        // content-different chunks (rolldown's per-usage import-order
+        // content hash differs from the source's standalone hash). With 1,
+        // every shared dep is hoisted to a single content-addressed chunk
+        // regardless of how many views use it. See
+        // .artifacts/2026-06-06-spaces-isolation.md for the duplication
+        // evidence (35 sui-pagination-*.js chunks pre-fix).
         manual_code_splitting: Some(ManualCodeSplittingOptions {
-            min_share_count: Some(2),
+            min_share_count: Some(1),
             min_size: Some(0.0),
             min_module_size: Some(0.0),
             ..Default::default()
@@ -100,7 +106,10 @@ pub async fn bundle_views(
             .write()
             .await
             .map_err(|e| anyhow!("rolldown write(views multi-entry): {e:?}"))?;
-    }
-    crate::arena::trim_arenas();
+    // (cut 4: arena.rs deleted; the malloc_trim(0) call here was the
+    // glibc band-aid. shipd now uses jemalloc, which returns freed
+    // arenas to the OS by default.)
     Ok(())
+
+}
 }

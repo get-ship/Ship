@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use rolldown::{BundlerBuilder, BundlerOptions, InputItem, OutputFormat};
+use rolldown_common::ManualCodeSplittingOptions;
 
 use super::proto::BundleManifest;
 use super::targets::{BundleLayout, BundleTarget, TargetEntry};
@@ -52,6 +53,19 @@ pub async fn bundle_target(
         dir: Some(out_dir.to_string_lossy().to_string()),
         format: Some(OutputFormat::Esm),
         minify: Some(production.into()),
+        // Hoist every shared module into its own chunk (mirrors the multi-view
+        // build in views_bundle.rs). Without this the single-view path uses
+        // rolldown's default per-entry split, which produces 1 chunk per shared
+        // primitive *per consumer* — N chunks for `sui-pagination` where 1
+        // would do. Each duplicate chunk's `customElements.define()` adds a no-op
+        // "called twice" warning at runtime; cumulative heap retention is the
+        // 1.5 GB Firefox OOM. See .artifacts/2026-06-06-spaces-isolation.md.
+        manual_code_splitting: Some(ManualCodeSplittingOptions {
+            min_share_count: Some(1),
+            min_size: Some(0.0),
+            min_module_size: Some(0.0),
+            ..Default::default()
+        }),
         ..Default::default()
     };
 
@@ -77,24 +91,21 @@ pub async fn bundle_target(
         shadowed_tags: resolver.shadowed,
     };
     // The bundler + its oxc module graph live in `bundler` and are dropped at
-    // the end of this scope. Wrap the build/write in an inner block so the
-    // transient arenas are released BEFORE the `malloc_trim` below — otherwise
-    // the graph is still alive when we trim and nothing is reclaimed.
+    // the end of this scope. Earlier this called malloc_trim(0) via
+    // crate::arena::trim_arenas() to return the freed arenas to glibc
+    // (cut 4: arena.rs deleted; shipd now uses jemalloc, which returns
+    // freed arenas to the OS by default — no trim required).
     {
         let mut bundler = BundlerBuilder::default()
             .with_options(options)
             .with_plugins(vec![Arc::new(plugin)])
             .build()
             .map_err(|e| anyhow!("rolldown build({}): {e:?}", target.name))?;
-
         bundler
             .write()
             .await
             .map_err(|e| anyhow!("rolldown write({}): {e:?}", target.name))?;
     }
-    // Return the freed module-graph arenas to the OS so repeated builds don't
-    // ratchet RSS up under glibc (#256). No-op off glibc.
-    crate::arena::trim_arenas();
 
     let out_path = out_dir.join(&target.out_file);
     let bytes = std::fs::metadata(&out_path).map(|m| m.len() as usize).unwrap_or(0);
