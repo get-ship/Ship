@@ -22,8 +22,6 @@ use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 
 mod actor;
-mod agent;
-mod agents;
 mod annotations;
 mod mesh;
 mod surfaces;
@@ -160,13 +158,7 @@ pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Valu
             }
         }
     }
-    if let Some(value) = agents::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
     if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
-        return Ok(value);
-    }
-    if let Some(value) = agent::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     if let Some(value) = actor::try_dispatch(name, args, ctx).await? {
@@ -359,52 +351,14 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn agent_grant_upgrades_live_session_and_is_operator_only() {
-        use ship_platform::auth::scopes::DaemonSession;
+    async fn agent_grant_is_operator_only_via_gate() {
+        // Gate conformance: agent.grant is C3 (operator-only). A non-operator
+        // agent is denied at the gate before dispatch. The operator path + live
+        // session upgrade + provisioned baseline is tested in agent_rpc.rs
+        // (where the Connect handler is the SSOT for this op).
         let harness = crate::test_harness::TestDaemon::new().await;
-        // A live worker session with no restricted grants.
-        let token = "sess-grant-test";
-        {
-            let mut reg = harness.state.session_registry().lock().await;
-            reg.insert(
-                token.to_string(),
-                DaemonSession {
-                    token: token.to_string(),
-                    agent_id: "worker-x".to_string(),
-                    scopes: vec![],
-                    grants: vec![],
-                    workspace_id: None,
-                    space_id: None,
-                    pid: None,
-                    created_at: std::time::Instant::now(),
-                    expires_at_unix: None,
-                    ephemeral: true,
-                    is_operator_cred: false,
-                },
-            );
-        }
         let args = serde_json::json!({ "agent": "worker-x", "grants": ["ship-orchestration"] });
 
-        // Operator approves → the live session is upgraded. Operator authority
-        // comes SOLELY from a verified operator cred (S6) — mint it.
-        let op = crate::test_harness::TestDaemon::operator_auth();
-        let v = call("agent.grant", &args, &CommandCtx { state: &harness.state, auth: &op })
-            .await
-            .expect("operator may grant");
-        assert_eq!(v["sessions_upgraded"], 1);
-        {
-            let reg = harness.state.session_registry().lock().await;
-            assert!(reg.get(token).unwrap().grants.iter().any(|g| g == "ship-orchestration"));
-        }
-        // #85: the approval also persists a provisioned baseline, so a future
-        // re-dispatch (re-mint) reads it instead of falling back to the role.
-        assert_eq!(
-            ship_platform::services::permissions::projection::provisioned_grants_for("worker-x").unwrap(),
-            Some(vec!["ship-orchestration".to_string()]),
-            "operator approval must persist the provisioned baseline"
-        );
-
-        // A non-operator agent calling agent.grant is denied (C2 gate).
         let agent = AuthContext {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some("x".to_string()),
@@ -418,7 +372,11 @@ mod tests {
         let err = call("agent.grant", &args, &CommandCtx { state: &harness.state, auth: &agent })
             .await
             .unwrap_err();
-        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+        assert_eq!(
+            err.status,
+            axum::http::StatusCode::FORBIDDEN,
+            "non-operator must be denied at the gate for agent.grant (C3)"
+        );
     }
 
     #[test]
@@ -470,7 +428,10 @@ mod tests {
     }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn agents_create_needs_authoring_not_orchestration_grant() {
+    async fn agents_create_gate_denies_wrong_grant() {
+        // Gate conformance: agents.create requires the `agents` service grant (C2).
+        // Orchestration grant does NOT confer authoring. The "allowed + creates"
+        // path is tested in agent_rpc.rs (Connect handler is the SSOT).
         let harness = crate::test_harness::TestDaemon::new().await;
         let args = serde_json::json!({
             "id": "fixture-agent",
@@ -478,9 +439,8 @@ mod tests {
             "scope": "user"
         });
 
-        // A commander holds ship-orchestration (dispatch/steer) — but authoring a
-        // profile is ship-authoring. The singular/plural prefix split means the
-        // orchestration grant does NOT clear agents.create.
+        // A commander holds ship-orchestration — but authoring is ship-authoring.
+        // The singular/plural prefix split means orchestration does NOT clear agents.create.
         let commander = AuthContext {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some("commander-1".to_string()),
@@ -495,25 +455,11 @@ mod tests {
             call("agents.create", &args, &CommandCtx { state: &harness.state, auth: &commander })
                 .await
                 .unwrap_err();
-        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
-
-        // A designer holds ship-authoring → cleared, writes through.
-        let designer = AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Mcp,
-            agent_id: Some("designer-1".to_string()),
-            workspace_id: None,
-            space_id: None,
-            session_id: None,
-            scopes: vec![],
-            grants: vec!["agents".to_string()],
-            operator_cred: false,
-        };
-        let created =
-            call("agents.create", &args, &CommandCtx { state: &harness.state, auth: &designer })
-                .await
-                .expect("the `agents` capability clears agents.create");
-        assert_eq!(created["id"], "fixture-agent");
-        assert_eq!(created["scope"], "user");
+        assert_eq!(
+            err.status,
+            axum::http::StatusCode::FORBIDDEN,
+            "orchestration grant must NOT clear the agents.create gate"
+        );
     }
 
     #[test]

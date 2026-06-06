@@ -13,7 +13,6 @@ pub mod types;
 mod commands;
 
 pub use types::{OpDescriptor, ArgDescriptor, CommandDescriptor};
-pub(crate) use types::PROJECT_SCOPE;
 pub use commands::COMMANDS;
 
 use std::sync::LazyLock;
@@ -50,18 +49,11 @@ pub fn schema_catalog() -> serde_json::Value {
 pub static OPS: LazyLock<Vec<OpDescriptor>> = LazyLock::new(build_ops);
 
 /// Domain emit order — matches the original `OPS` array exactly.
-const DOMAIN_ORDER: &[&str] = &[
-    "agents",
-    "sessions",
-];
+const DOMAIN_ORDER: &[&str] = &[];
 
 fn build_ops() -> Vec<OpDescriptor> {
-    use crate::services::registry as reg;
     // Migrated per-domain slices (one declaration per op → descriptor + dispatch).
-    let migrated: &[(&str, &[OpDescriptor])] = &[
-        ("agents", reg::agents::AGENTS_OPS),
-        ("sessions", reg::sessions::SESSIONS_OPS),
-    ];
+    let migrated: &[(&str, &[OpDescriptor])] = &[];
     let mut ops: Vec<OpDescriptor> = Vec::new();
     for domain in DOMAIN_ORDER {
         if let Some((_, slice)) = migrated.iter().find(|(d, _)| d == domain) {
