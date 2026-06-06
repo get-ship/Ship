@@ -19,6 +19,7 @@ mod runtime;
 mod sdkgen;
 mod spec;
 mod spine;
+mod dtsgen;
 
 use std::sync::Arc;
 
