@@ -19,3 +19,4 @@ thiserror = "2"
 async-trait = "0.1"
 deno_core = "0.403.0"
 deno_error = "0.7"
+rig = { version = "0.38.1", path = "../../../../rig/crates/rig-core", package = "rig-core", features = ["test-utils"] }

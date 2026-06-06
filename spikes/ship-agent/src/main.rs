@@ -11,6 +11,7 @@
 //! Slice 1.5 layers deno_core on top: a V8 isolate whose single bound op is a
 //! wire to this same `gateway.call`. The gate does not move.
 
+mod agent_loop;
 mod auth;
 mod gate;
 mod gateway;
@@ -170,6 +171,25 @@ async fn main() -> anyhow::Result<()> {
     match runtime::run_module(gw, auth.clone(), spec.capability.grants.clone(), evil_src).await {
         Ok(_) => println!("[slice2] ✖ FORBIDDEN import was allowed — deny-by-default FAILED\n"),
         Err(e) => println!("[slice2] ✓ blocked: {e}\n"),
+    }
+
+    // 10. Slice 1.6: the boring loop. A MOCK model (no API key) is scripted to
+    //     call `ship_op` then answer — proving a model turn drives a gated,
+    //     verified op through the one door. Swap the mock for a BYOK provider
+    //     model and the same `run_step` runs a real turn.
+    println!("--- slice 1.6: model loop (mock) -> ship_op -> one door ---");
+    let model = rig::test_utils::MockCompletionModel::new([
+        rig::test_utils::MockTurn::tool_call(
+            "1",
+            "ship_op",
+            json!({ "op": "collections.read", "args": { "collection": "leads" } }),
+        ),
+        rig::test_utils::MockTurn::text("Read the leads collection."),
+    ]);
+    let gw = Arc::new(InProcessGateway);
+    match agent_loop::run_step(model, &spec, gw, auth.clone(), "How many leads?").await {
+        Ok(out) => println!("[slice1.6] agent final: {}\n", out.text),
+        Err(e) => println!("[slice1.6] ERROR: {e}\n"),
     }
 
     Ok(())
