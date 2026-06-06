@@ -45,6 +45,7 @@ impl InProcessGateway {
     fn blast_of(op: &str) -> Option<Blast> {
         Some(match op {
             "collections.read" | "collections.get" | "collections.items" => Blast::C0Safe,
+            "lsp.diagnostics" | "lsp.hover" => Blast::C0Safe, // read-only analysis — baseline
             "collections.put" | "collections.patch" | "collections.delete" => Blast::C1Space,
             "mcp.create" | "mcp.put" | "mcp.delete" => Blast::C2Elevated,
             "runtime.dispatch" => Blast::C2Elevated,

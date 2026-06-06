@@ -21,6 +21,7 @@ mod sdkgen;
 mod spec;
 mod spine;
 mod dtsgen;
+mod lsp;
 
 use std::sync::Arc;
 
@@ -191,6 +192,20 @@ async fn main() -> anyhow::Result<()> {
         Ok(out) => println!("[slice1.6] agent final: {}\n", out.text),
         Err(e) => println!("[slice1.6] ERROR: {e}\n"),
     }
+
+    // 11. Slice 4: the post-edit verify gate (LSP seam). Routing is total: a
+    //     `.ts` path goes to the TS backend, a `.sui` path to the SUI backend.
+    //     The stub backends report no diagnostics, so a clean edit verifies.
+    //     When a real backend reports an error, the same call returns
+    //     `SpineError::Unverified` and the edit is refused, not accepted.
+    println!("--- slice 4: post-edit verify gate (LSP seam) ---");
+    for path in ["views/foo/controller.ts", "views/foo/page.sui", "weird.xyz"] {
+        match lsp::verify_edit(path, "const x: number = 1;") {
+            Ok(()) => println!("[slice4] {path} -> ACCEPTED (clean)"),
+            Err(e) => println!("[slice4] {path} -> REFUSED: {e}"),
+        }
+    }
+    println!();
 
     Ok(())
 }
