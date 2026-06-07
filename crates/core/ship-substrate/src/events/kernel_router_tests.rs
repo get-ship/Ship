@@ -11,16 +11,16 @@ fn runtime_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     }
 }
 
-fn ev(event_type: &str) -> EventEnvelope {
+pub(super) fn ev(event_type: &str) -> EventEnvelope {
     EventEnvelope::new(event_type, "entity-1", &serde_json::json!({})).unwrap()
 }
 
-fn studio_config() -> ActorConfig {
+pub(super) fn studio_config() -> ActorConfig {
     ActorConfig {
         namespace: "studio".into(),
         write_namespaces: vec!["studio.".into()],
@@ -30,7 +30,7 @@ fn studio_config() -> ActorConfig {
     }
 }
 
-fn setup() -> (tempfile::TempDir, KernelRouter) {
+pub(super) fn setup() -> (tempfile::TempDir, KernelRouter) {
     let tmp = tempdir().unwrap();
     let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
     (tmp, router)
@@ -196,7 +196,7 @@ async fn kernel_store_receives_system_events() {
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     // Verify via raw SQL — kernel store has the event.
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     let count: i64 = block_on(async {
         sqlx::query_scalar(
             "SELECT COUNT(*) FROM events WHERE id = ?",

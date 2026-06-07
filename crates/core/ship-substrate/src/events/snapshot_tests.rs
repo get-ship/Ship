@@ -30,7 +30,7 @@ fn ev(id: &str, event_type: &str) -> EventEnvelope {
 }
 
 fn kernel_event_count(router: &KernelRouter, event_type: &str) -> i64 {
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     block_on(async {
         sqlx::query_scalar("SELECT COUNT(*) FROM events WHERE event_type = ?")
             .bind(event_type)
@@ -201,7 +201,7 @@ async fn restored_actor_receives_new_messages() {
     let ctx = crate::events::validator::EmitContext {
         caller_kind: crate::events::validator::CallerKind::Runtime,
         skill_id: None,
-        space_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     };
     router.emit(inbox_event.clone(), &ctx).await.unwrap();

@@ -10,10 +10,10 @@ use std::time::Duration;
 use async_trait::async_trait;
 use axum::{Router, routing::get};
 use futures_util::{SinkExt, StreamExt};
-use ship_platform::services::dispatch_ports::{
+use ship_substrate::services::dispatch_ports::{
     ExecutorHandle, SessionContext, SessionExecutor,
 };
-use ship_platform::services::process_registry::ProcessRegistry;
+use ship_substrate::services::process_registry::ProcessRegistry;
 use ship_substrate::supervisor::{ActorKind, ActorProfile, TransportKind, spawn_actor};
 use ship_supervisor::{run_dispatch::DispatchHandle, pty_executor_handle_for_test};
 use tempfile::TempDir;
@@ -71,6 +71,7 @@ async fn spawn_server() -> (TempDir, std::net::SocketAddr, Arc<Mutex<ProcessRegi
         session_id: None,
         scopes: vec![Scope::Full],
         grants: vec![],
+        operator_cred: false,
     };
 
     let app = Router::new()

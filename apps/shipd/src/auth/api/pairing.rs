@@ -101,6 +101,8 @@ pub async fn pair_init(
             created_at: std::time::Instant::now(),
             expires_at_unix: None,
             ephemeral: true,
+            // A paired Studio session is not a pid-attested operator cred (S6).
+            is_operator_cred: false,
         };
         tracing::warn!(
             "dev-mode: auto-paired browser client {:?}",
@@ -169,6 +171,8 @@ pub async fn pair_confirm(
                 created_at: std::time::Instant::now(),
                 expires_at_unix: Some(expires_at_unix),
                 ephemeral: false,
+                // A paired Studio session is not a pid-attested operator cred (S6).
+                is_operator_cred: false,
             };
             crate::auth::scopes::persist_session(&session);
             session_registry.lock().await.insert(session.token.clone(), session);

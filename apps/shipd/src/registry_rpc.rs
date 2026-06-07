@@ -19,7 +19,7 @@ impl RegistryService for OpsImpl {
         let payload: serde_json::Value = serde_json::from_str(request.payload_json)
             .map_err(|e| ConnectError::invalid_argument(format!("payload_json: {e}")))?;
         let (status, body) =
-            crate::routes::registry_api::publish_to_gateway(payload)
+            ship_account::publish_to_gateway(payload)
                 .await
                 .map_err(|(_s, msg)| ConnectError::internal(msg))?;
         if !status.is_success() {

@@ -69,7 +69,7 @@ pub async fn index_handler(
 }
 
 fn has_any_workspace() -> bool {
-    ship_platform::projects::list()
+    ship_substrate::db::projects::list_active()
         .map(|projects| !projects.is_empty())
         .unwrap_or(false)
 }

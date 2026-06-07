@@ -1,5 +1,6 @@
 ---
 name: spawn-agent
+audience: internal
 stable-id: spawn-agent
 description: Dispatch a job to a specialist agent in a git worktree. Write the spec, create the worktree, launch the agent.
 tags: [commander, dispatch, worktree]

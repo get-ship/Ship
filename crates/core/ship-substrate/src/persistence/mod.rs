@@ -1,10 +1,17 @@
 pub mod actor_store;
 pub mod event_store;
+pub mod partitioned_sink;
+#[cfg(test)]
+mod append_enforce_tests;
+#[cfg(test)]
+mod partitioned_sink_tests;
+#[cfg(test)]
+mod partition_property_tests;
+#[cfg(test)]
+mod tx_atomicity_tests;
 pub mod snapshot;
-
-#[cfg(feature = "unstable")]
-pub mod cursor;
 
 pub use actor_store::ActorStore;
 pub use event_store::{EventStore, SqliteEventStore};
+pub use partitioned_sink::PartitionedSink;
 pub use snapshot::ActorSnapshot;

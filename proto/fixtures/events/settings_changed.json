@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "settings.changed",
+    "scope": "runtime",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "SettingChanged",
+    "needs_author": false
+  },
+  "payload": {
+    "_note": "NEEDS_AUTHOR: SettingChanged — auto-stub not possible; hand-author this fixture",
+    "_payload_type": "SettingChanged"
+  }
+}

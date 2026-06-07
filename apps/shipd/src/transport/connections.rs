@@ -167,7 +167,10 @@ impl Drop for ConnectionGuard {
                 let ctx = ship_substrate::events::EmitContext {
                     caller_kind: ship_substrate::events::CallerKind::Mcp,
                     skill_id: None,
-                    space_id: None,
+                    binding: ship_types::ScopeBinding::daemon_internal(
+                        None,
+                        ship_types::Authority::Sdk,
+                    ),
                     session_id: None,
                 };
                 if let Err(e) = kernel.lock().await.emit(env, &ctx).await {
@@ -189,8 +192,8 @@ static MESH_SPAWNED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
 pub async fn spawn_mesh_service(
     kernel: &Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
     health_registry: &ship_substrate::task_health::HealthRegistry,
-) -> Result<ship_platform::services::mesh::SharedMeshRegistry> {
-    let registry: ship_platform::services::mesh::SharedMeshRegistry =
+) -> Result<ship_substrate::services::mesh::SharedMeshRegistry> {
+    let registry: ship_substrate::services::mesh::SharedMeshRegistry =
         Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
 
     if MESH_SPAWNED.set(()).is_err() {
@@ -207,14 +210,14 @@ pub async fn spawn_mesh_service(
         subscribe_namespaces: vec!["mesh.".to_string()],
         see_directed_events: false,
     };
-    let handler: Box<dyn ship_platform::services::ServiceHandler> = Box::new(
-        ship_platform::services::mesh::MeshService::with_shared_registry(
+    let handler: Box<dyn ship_substrate::services::ServiceHandler> = Box::new(
+        ship_substrate::services::mesh::MeshService::with_shared_registry(
             outbox_tx,
             registry.clone(),
         ),
     );
 
-    ship_platform::services::spawn_service(
+    ship_substrate::services::spawn_service(
         &mut *kernel.lock().await,
         "service.mesh",
         mesh_config,
@@ -228,7 +231,7 @@ pub async fn spawn_mesh_service(
         let ctx = ship_substrate::events::EmitContext {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             skill_id: None,
-            space_id: None,
+            binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
             session_id: None,
         };
         while let Some(event) = outbox_rx.recv().await {

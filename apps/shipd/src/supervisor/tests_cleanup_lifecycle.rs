@@ -9,7 +9,7 @@
 
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
+use ship_pipeline_runtime::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or("test");
@@ -26,7 +26,7 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 /// The cleanup handler receives the event and acts on it.
 #[test]
 fn cleanup_handler_exists_for_merged_events() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/handlers.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/handlers.rs");
     assert!(
         source.contains("job_cleanup") || source.contains("handle_cleanup"),
         "a cleanup handler must exist for merged job events"
@@ -36,8 +36,8 @@ fn cleanup_handler_exists_for_merged_events() {
 /// The orchestrator event router must route job.merged to cleanup.
 #[test]
 fn run_merged_routes_to_cleanup() {
-    // Orchestration logic moved to ship_platform::services::orchestrator::router
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
+    // Orchestration logic moved to ship_pipeline_runtime::orchestrator::router
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/router.rs");
     assert!(
         source.contains("PIPELINE_RUN_MERGED"),
         "orchestrator router must handle pipeline.run.merged events"
@@ -51,7 +51,7 @@ fn run_merged_routes_to_cleanup() {
 /// Cleanup must remove the process registry entry.
 #[test]
 fn run_merged_unregisters_from_process_registry() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/router.rs");
     assert!(
         source.contains("unregister"),
         "job.merged handler must unregister from process registry"
@@ -63,7 +63,7 @@ fn run_merged_unregisters_from_process_registry() {
 /// and tmux session cleanup independently.
 #[test]
 fn cleanup_delegates_to_platform() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/handlers.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/handlers.rs");
     assert!(
         source.contains("cleanup_job"),
         "cleanup must delegate to platform.cleanup_job for resource cleanup"
@@ -74,7 +74,7 @@ fn cleanup_delegates_to_platform() {
 /// for post-mortem investigation.
 #[test]
 fn run_failed_does_not_trigger_cleanup() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/router.rs");
     // Find the job.failed handler and verify it doesn't call cleanup
     let lines: Vec<&str> = source.lines().collect();
     let failed_handler = lines.iter().enumerate()
@@ -102,7 +102,7 @@ fn run_failed_does_not_trigger_cleanup() {
 #[test]
 fn cleanup_tolerates_missing_worktree() {
     // remove_worktree in helpers.rs should check existence first
-    let source = include_str!("../../../../crates/core/ship-supervisor/src/helpers.rs");
+    let source = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/helpers.rs");
     assert!(
         source.contains("exists()"),
         "remove_worktree must check if worktree exists before removal"
@@ -113,7 +113,7 @@ fn cleanup_tolerates_missing_worktree() {
 #[test]
 fn cleanup_tolerates_missing_branch() {
     // delete_branch should not propagate errors for non-existent branches
-    let source = include_str!("../../../../crates/core/ship-supervisor/src/helpers.rs");
+    let source = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/helpers.rs");
     // The function logs but doesn't error on missing branches
     assert!(
         source.contains("may not exist"),

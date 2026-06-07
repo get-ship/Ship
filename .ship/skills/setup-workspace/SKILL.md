@@ -1,5 +1,6 @@
 ---
 name: setup-workspace
+audience: internal
 stable-id: setup-workspace
 description: Configure a multi-agent terminal environment. Reads pod.md layout, opens one tab/window per agent in their worktree.
 tags: [environment, terminal, workflow, setup]

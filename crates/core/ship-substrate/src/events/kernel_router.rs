@@ -3,39 +3,25 @@
 //! `ship_kernel::KernelRouter` owns the pure routing state: actor mailboxes,
 //! namespace subscriptions, and sink-based persistence. This wrapper adds:
 //!
-//! - `base_dir` / `kernel_store_path` for filesystem helpers (WAL flush,
-//!   mailbox-overflow events)
+//! - `base_dir` + the held `PartitionedSink` for filesystem helpers (per-scope
+//!   WAL flush, mailbox-overflow events)
 //! - Runtime validators that carry `EmitContext` (caller kind, skill ID, etc.)
 //! - `spawn_actor` → returns `(ActorStore, Mailbox)` instead of just `Mailbox`
 //! - `emit` / `route` with `EmitContext`-aware validation and write-namespace
 //!   enforcement
-//! - `unstable` feature extras: `actor_meta`, `event_log`, `actor_cursors`,
-//!   `spawn_actor_with_permissions*`, scope-filtered delivery
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-#[cfg(feature = "unstable")]
-use std::sync::Mutex;
-#[cfg(feature = "unstable")]
-use tokio::sync::mpsc;
 
 use anyhow::{Result, anyhow};
 
 use crate::errors::KernelError;
+use crate::persistence::PartitionedSink;
 use crate::persistence::actor_store::ActorStore;
-use crate::persistence::event_store::SqliteEventStore;
 use ship_types::envelope::EventEnvelope;
 use ship_kernel::Mailbox;
 use crate::events::validator::{EmitContext, EventValidator};
-
-#[cfg(feature = "unstable")]
-use crate::events::kernel_security::ActorMeta;
-#[cfg(feature = "unstable")]
-use crate::events::replay_log::ReplayLog;
-
-#[cfg(feature = "unstable")]
-pub use ship_kernel::router::MAILBOX_CAPACITY;
 
 pub use ship_types::ActorConfig;
 
@@ -87,10 +73,12 @@ impl RateCounter {
 /// - `EmitContext`-aware validators (namespace, reserved-namespace, elevated)
 /// - `ActorStore` construction on `spawn_actor`
 /// - Write-namespace enforcement for non-trusted callers
-/// - `unstable` scope/permission features
 pub struct KernelRouter {
     pub(crate) base_dir: PathBuf,
-    pub(crate) kernel_store_path: PathBuf,
+    /// The scope-routed sink the kernel persists through. Held here (in
+    /// addition to `inner`'s `Arc<dyn EventSink>`) so shutdown can flush WAL
+    /// across exactly the per-scope dbs the sink has mounted.
+    sink: Arc<PartitionedSink>,
     validators: Vec<Box<dyn EventValidator>>,
     /// Pure kernel router — owns mailboxes, actor_configs, subscriptions, sink.
     pub(crate) inner: ship_kernel::KernelRouter,
@@ -98,48 +86,33 @@ pub struct KernelRouter {
     /// (`event.actor_id`) and target (`event.target_actor_id`) so the
     /// mesh view can show "events received" parity with "events emitted."
     rate_counters: std::sync::Mutex<HashMap<String, RateCounter>>,
-    #[cfg(feature = "unstable")]
-    pub(crate) actor_meta: HashMap<String, ActorMeta>,
-    #[cfg(feature = "unstable")]
-    pub(crate) event_log: Mutex<ReplayLog>,
-    #[cfg(feature = "unstable")]
-    pub(crate) actor_cursors: HashMap<String, usize>,
-    /// Sender channels for actors spawned via spawn_actor_with_permissions.
-    /// These actors have custom mailboxes with cursor-based replay that bypass
-    /// inner's delivery mechanism. Kept here for scope-filtered delivery in the
-    /// unstable path.
-    #[cfg(feature = "unstable")]
-    pub(crate) unstable_senders: HashMap<String, mpsc::Sender<EventEnvelope>>,
 }
 
 impl KernelRouter {
     pub fn new(base_dir: PathBuf) -> Result<Self> {
-        // Ensure platform.db exists — single event log for the whole runtime.
+        // The root ship-home dir must exist. We eagerly provision runtime.db —
+        // the kernel's primary (Runtime) scope db that backs actors, sessions,
+        // and process state — so direct `ActorStore` reads/writes and the
+        // session table are usable before the sink's first lazy persist. The
+        // Space/Account dbs stay lazy (provisioned on first persist of their
+        // scope). No boot-time `platform.db` ensure — the kernel no longer
+        // writes it.
         if !base_dir.exists() {
             std::fs::create_dir_all(&base_dir)?;
         }
-        crate::db::ensure_db_at(&base_dir)?;
-        let kernel_store_path = crate::db::platform_db_path(&base_dir);
-        #[cfg(feature = "unstable")]
-        crate::persistence::cursor::init_cursor_table(&kernel_store_path)?;
+        crate::db::ensure_events_db_at_path(&crate::db::runtime_db_path(&base_dir))?;
 
-        let sink = Arc::new(SqliteEventStore::new_at(&base_dir)?);
-        let inner = ship_kernel::KernelRouter::new(sink);
+        // Scope-routed sink (the held Phase-4 swap): every emitted event lands
+        // in its scope's db — `runtime.db` / `account.db` / `spaces/<id>/space.db`.
+        let sink = Arc::new(PartitionedSink::new(base_dir.clone()));
+        let inner = ship_kernel::KernelRouter::new(sink.clone());
 
         Ok(Self {
             base_dir,
-            kernel_store_path,
+            sink,
             validators: Vec::new(),
             inner,
             rate_counters: std::sync::Mutex::new(HashMap::new()),
-            #[cfg(feature = "unstable")]
-            actor_meta: HashMap::new(),
-            #[cfg(feature = "unstable")]
-            event_log: Mutex::new(ReplayLog::default()),
-            #[cfg(feature = "unstable")]
-            actor_cursors: HashMap::new(),
-            #[cfg(feature = "unstable")]
-            unstable_senders: HashMap::new(),
         })
     }
 
@@ -157,12 +130,10 @@ impl KernelRouter {
         actor_id: &str,
         config: ActorConfig,
     ) -> Result<(ActorStore, Mailbox), KernelError> {
-        // Every actor queries the shared platform.db events table filtered
-        // by its own actor_id. No per-actor file is created.
-        let db_path = crate::db::platform_db_path(&self.base_dir);
-
-        #[cfg(feature = "unstable")]
-        self.actor_cursors.remove(actor_id);
+        // Actors are Runtime-scoped: every actor queries the shared
+        // `runtime.db` events table filtered by its own actor_id. No per-actor
+        // file is created.
+        let db_path = crate::db::runtime_db_path(&self.base_dir);
 
         let write_ns = config.write_namespaces.clone();
         let read_ns = config.read_namespaces.clone();
@@ -193,7 +164,18 @@ impl KernelRouter {
         self.inner.refine_actor(actor_id, config).map_err(Into::into)
     }
 
-    /// Persist an event to platform.db and deliver it to subscribed mailboxes.
+    /// Persist an event and deliver it to subscribed mailboxes.
+    ///
+    /// Scope enforcement is now UNIVERSAL across both live write transports:
+    /// this kernel-routed `emit` path and the off-kernel direct-append path
+    /// ([`crate::persistence::SqliteEventStore::append_enforced`]) BOTH funnel
+    /// through the same `ship_types::stamp_author` + `ship_types::enforce_scope`
+    /// primitives before persist. The off-kernel db-helpers
+    /// (`db::*_events`, `log`) and the platform CRUD/audit emitters call
+    /// `append_enforced` (which stamps the row, then delivers exactly that
+    /// enforced envelope), so `deliver()` only ever pushes an already-enforced,
+    /// already-persisted event. The raw `EventStore::append` is the persist
+    /// primitive (sink + tests), not a live emit API.
     ///
     /// Every event is:
     ///   1. Validated (namespace checks, permission checks, EmitContext-aware)
@@ -203,11 +185,17 @@ impl KernelRouter {
     /// If persistence fails, the event is not delivered and the caller gets
     /// an Err. If delivery to a particular mailbox fails (closed, full), the
     /// event is already durable — a future replay or sweep can redeliver.
-    pub async fn emit(&self, event: EventEnvelope, ctx: &EmitContext) -> Result<()> {
+    pub async fn emit(&self, mut event: EventEnvelope, ctx: &EmitContext) -> Result<()> {
         for v in &self.validators {
             v.validate(&event, ctx).map_err(|e| anyhow!("{e}"))?;
         }
         self.enforce_write_namespaces(&event, ctx)?;
+
+        // Author + scope chokepoint: stamp author identity, then stamp-or-reject
+        // the scope key from the authoritative binding. Runs BEFORE persist so a
+        // rejected (cross-space / space-unbound) event is never half-written.
+        ship_types::stamp_author(&mut event, &ctx.binding);
+        ship_types::enforce_scope(&mut event, &ctx.binding).map_err(|e| anyhow!("{e}"))?;
 
         // Bump per-actor rate counters before delivery — best-effort,
         // mutex contention is bounded (six 10s buckets, single hashmap
@@ -224,26 +212,8 @@ impl KernelRouter {
                 }
         }
 
-        #[cfg(feature = "unstable")]
-        self.enforce_emit_permissions(&event, ctx)?;
-
-        #[cfg(feature = "unstable")]
-        {
-            // Persist via inner.persist() so the projection bus fires
-            // (raw_append bypasses it and leaves SQL projections stale).
-            // inner.route() would also push to kernel mailboxes — we
-            // skip that because unstable owns scope-filtered delivery
-            // via deliver_with_scope.
-            self.inner.persist(&event)?;
-            self.event_log.lock().unwrap_or_else(|e| e.into_inner()).append(event.clone());
-            return self.deliver_with_scope(&event).await;
-        }
-
-        #[cfg(not(feature = "unstable"))]
-        {
-            // inner.route() = persist via sink + deliver to mailboxes.
-            self.inner.route(event).await
-        }
+        // inner.route() = persist via sink + deliver to mailboxes.
+        self.inner.route(event).await
     }
 
     /// Deliver an already-persisted event to actor mailboxes.
@@ -335,35 +305,35 @@ impl KernelRouter {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .len();
-        #[cfg(feature = "unstable")]
-        {
-            let log = self.event_log.lock().unwrap_or_else(|e| e.into_inner());
-            format!(
-                "kernel: actors={actors} sub_edges={subs} rate_counters={rate_counters} \
-                 event_log_phys={} event_log_bytes={} event_log_logical={} actor_meta={} actor_cursors={} unstable_senders={}",
-                log.len(),
-                log.retained_bytes(),
-                log.logical_len(),
-                self.actor_meta.len(),
-                self.actor_cursors.len(),
-                self.unstable_senders.len(),
-            )
-        }
-        #[cfg(not(feature = "unstable"))]
-        {
-            format!("kernel: actors={actors} sub_edges={subs} rate_counters={rate_counters}")
-        }
+        format!("kernel: actors={actors} sub_edges={subs} rate_counters={rate_counters}")
     }
 
-    pub fn kernel_store_path(&self) -> &Path {
-        &self.kernel_store_path
+    /// The Runtime-scope event db (`runtime.db`) — where the kernel routes
+    /// actor/session/process lifecycle events. Tests and the actor snapshot
+    /// path read it directly; the per-scope sink writes Space/Account events to
+    /// their own dbs (see `flush_wal_all_scopes`).
+    pub fn kernel_store_path(&self) -> PathBuf {
+        crate::db::runtime_db_path(&self.base_dir)
     }
 
-    /// Path for an actor's events. In the single-event-log architecture this
-    /// always returns platform.db — actor isolation is by `actor_id` column,
-    /// not by file.
+    /// Checkpoint the WAL across every per-scope db the sink has mounted
+    /// (`runtime.db`, `account.db`, each touched `spaces/<id>/space.db`). Called
+    /// at shutdown so no scope's write-ahead log is left un-truncated. Replaces
+    /// the former single-`platform.db` flush, which only ever covered one of
+    /// several scope dbs.
+    pub fn flush_wal_all_scopes(&self) -> Result<()> {
+        for path in self.sink.opened_db_paths() {
+            if path.exists() {
+                flush_wal(&path)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Path for an actor's events. Actors are Runtime-scoped, so this returns
+    /// `runtime.db` — actor isolation is by `actor_id` column, not by file.
     pub(crate) fn actor_db_path(&self, _actor_id: &str) -> PathBuf {
-        crate::db::platform_db_path(&self.base_dir)
+        crate::db::runtime_db_path(&self.base_dir)
     }
 
     /// Enforce write namespace permissions.

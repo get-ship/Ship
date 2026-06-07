@@ -27,56 +27,58 @@ EVENT_TYPE_UNSPECIFIED = 0;
   EVENT_TYPE_AUTH_SESSION_CREATED = 17;
   EVENT_TYPE_AUTH_SESSION_EXPIRED = 18;
   EVENT_TYPE_AUTH_SESSION_REVOKED = 19;
-  EVENT_TYPE_COLLECTION_ITEM_CREATED = 20;
-  EVENT_TYPE_COLLECTION_ITEM_DELETED = 21;
-  EVENT_TYPE_COLLECTION_ITEM_UPDATED = 22;
-  EVENT_TYPE_COMPILE_COMPLETED = 23;
-  EVENT_TYPE_CONFIG_CHANGED = 24;
-  EVENT_TYPE_CONFIG_FILE_CHANGED = 25;
-  EVENT_TYPE_DAEMON_OWNER_BOUND = 26;
-  EVENT_TYPE_DAEMON_OWNER_UNBOUND = 27;
-  EVENT_TYPE_HUMAN_RESPONSE = 28;
-  EVENT_TYPE_PERMISSIONS_UPDATED = 29;
-  EVENT_TYPE_PIPELINE_CHANGED = 30;
-  EVENT_TYPE_PIPELINE_GATE_FAILED = 31;
-  EVENT_TYPE_PIPELINE_GATE_PASSED = 32;
-  EVENT_TYPE_PIPELINE_GATE_REQUESTED = 33;
-  EVENT_TYPE_PIPELINE_RUN_BLOCKED = 34;
-  EVENT_TYPE_PIPELINE_RUN_CANCELLED = 35;
-  EVENT_TYPE_PIPELINE_RUN_COMPLETED = 36;
-  EVENT_TYPE_PIPELINE_RUN_DISPATCHED = 37;
-  EVENT_TYPE_PIPELINE_RUN_FAILED = 38;
-  EVENT_TYPE_PIPELINE_RUN_MERGED = 39;
-  EVENT_TYPE_PIPELINE_RUN_STARTED = 40;
-  EVENT_TYPE_PIPELINE_RUN_UPDATED = 41;
-  EVENT_TYPE_PIPELINE_STEP_COMPLETED = 42;
-  EVENT_TYPE_PIPELINE_STEP_DONE_DECLARED = 43;
-  EVENT_TYPE_PIPELINE_STEP_FAILED = 44;
-  EVENT_TYPE_PIPELINE_STEP_OBSERVED = 45;
-  EVENT_TYPE_PIPELINE_STEP_OUTPUT = 46;
-  EVENT_TYPE_PIPELINE_STEP_RETRY = 47;
-  EVENT_TYPE_PIPELINE_STEP_SPAWN_FAILED = 48;
-  EVENT_TYPE_PIPELINE_STEP_STARTED = 49;
-  EVENT_TYPE_PROJECT_ARCHIVED = 50;
-  EVENT_TYPE_PROJECT_LOG = 51;
-  EVENT_TYPE_PROJECT_REGISTERED = 52;
-  EVENT_TYPE_PROJECT_SEEN = 53;
-  EVENT_TYPE_PROJECT_SWITCHED = 54;
-  EVENT_TYPE_RULE_CHANGED = 55;
-  EVENT_TYPE_RULE_CREATED = 56;
-  EVENT_TYPE_RULE_DELETED = 57;
-  EVENT_TYPE_RULE_UPDATED = 58;
-  EVENT_TYPE_SKILL_CHANGED = 59;
-  EVENT_TYPE_SKILL_CREATED = 60;
-  EVENT_TYPE_SKILL_DELETED = 61;
-  EVENT_TYPE_SKILL_UPDATED = 62;
-  EVENT_TYPE_SPACE_SETTING_CHANGED = 63;
-  EVENT_TYPE_STUDIO_ANNOTATION_CREATED = 64;
-  EVENT_TYPE_STUDIO_CHAT_TURN = 65;
-  EVENT_TYPE_STUDIO_FEEDBACK_CREATED = 66;
-  EVENT_TYPE_STUDIO_MESSAGE = 67;
-  EVENT_TYPE_STUDIO_REPLY = 68;
-  EVENT_TYPE_VIEW_CHANGED = 69;
+  EVENT_TYPE_COLLECTION_CREATED = 20;
+  EVENT_TYPE_COLLECTION_ITEM_CREATED = 21;
+  EVENT_TYPE_COLLECTION_ITEM_DELETED = 22;
+  EVENT_TYPE_COLLECTION_ITEM_UPDATED = 23;
+  EVENT_TYPE_COLLECTION_SCHEMA_CHANGED = 24;
+  EVENT_TYPE_COMPILE_COMPLETED = 25;
+  EVENT_TYPE_CONFIG_CHANGED = 26;
+  EVENT_TYPE_CONFIG_FILE_CHANGED = 27;
+  EVENT_TYPE_DAEMON_OWNER_BOUND = 28;
+  EVENT_TYPE_DAEMON_OWNER_UNBOUND = 29;
+  EVENT_TYPE_HUMAN_RESPONSE = 30;
+  EVENT_TYPE_PERMISSIONS_UPDATED = 31;
+  EVENT_TYPE_PIPELINE_CHANGED = 32;
+  EVENT_TYPE_PIPELINE_GATE_FAILED = 33;
+  EVENT_TYPE_PIPELINE_GATE_PASSED = 34;
+  EVENT_TYPE_PIPELINE_GATE_REQUESTED = 35;
+  EVENT_TYPE_PIPELINE_RUN_BLOCKED = 36;
+  EVENT_TYPE_PIPELINE_RUN_CANCELLED = 37;
+  EVENT_TYPE_PIPELINE_RUN_COMPLETED = 38;
+  EVENT_TYPE_PIPELINE_RUN_DISPATCHED = 39;
+  EVENT_TYPE_PIPELINE_RUN_FAILED = 40;
+  EVENT_TYPE_PIPELINE_RUN_MERGED = 41;
+  EVENT_TYPE_PIPELINE_RUN_STARTED = 42;
+  EVENT_TYPE_PIPELINE_RUN_UPDATED = 43;
+  EVENT_TYPE_PIPELINE_STEP_COMPLETED = 44;
+  EVENT_TYPE_PIPELINE_STEP_DONE_DECLARED = 45;
+  EVENT_TYPE_PIPELINE_STEP_FAILED = 46;
+  EVENT_TYPE_PIPELINE_STEP_OBSERVED = 47;
+  EVENT_TYPE_PIPELINE_STEP_OUTPUT = 48;
+  EVENT_TYPE_PIPELINE_STEP_RETRY = 49;
+  EVENT_TYPE_PIPELINE_STEP_SPAWN_FAILED = 50;
+  EVENT_TYPE_PIPELINE_STEP_STARTED = 51;
+  EVENT_TYPE_PROJECT_ARCHIVED = 52;
+  EVENT_TYPE_PROJECT_LOG = 53;
+  EVENT_TYPE_PROJECT_REGISTERED = 54;
+  EVENT_TYPE_PROJECT_SEEN = 55;
+  EVENT_TYPE_PROJECT_SWITCHED = 56;
+  EVENT_TYPE_RULE_CHANGED = 57;
+  EVENT_TYPE_RULE_CREATED = 58;
+  EVENT_TYPE_RULE_DELETED = 59;
+  EVENT_TYPE_RULE_UPDATED = 60;
+  EVENT_TYPE_SKILL_CHANGED = 61;
+  EVENT_TYPE_SKILL_CREATED = 62;
+  EVENT_TYPE_SKILL_DELETED = 63;
+  EVENT_TYPE_SKILL_UPDATED = 64;
+  EVENT_TYPE_SPACE_SETTING_CHANGED = 65;
+  EVENT_TYPE_STUDIO_ANNOTATION_CREATED = 66;
+  EVENT_TYPE_STUDIO_CHAT_TURN = 67;
+  EVENT_TYPE_STUDIO_FEEDBACK_CREATED = 68;
+  EVENT_TYPE_STUDIO_MESSAGE = 69;
+  EVENT_TYPE_STUDIO_REPLY = 70;
+  EVENT_TYPE_VIEW_CHANGED = 71;
 }
 
 // Tagged union of all wire-tier event payloads.
@@ -101,56 +103,58 @@ oneof payload {
     AuthSessionCreatedMsg auth_session_created = 17;
     AuthSessionExpiredMsg auth_session_expired = 18;
     AuthSessionRevokedMsg auth_session_revoked = 19;
-    CollectionItemCreatedMsg collection_item_created = 20;
-    CollectionItemDeletedMsg collection_item_deleted = 21;
-    CollectionItemUpdatedMsg collection_item_updated = 22;
-    CompileCompletedMsg compile_completed = 23;
-    ConfigChangedMsg config_changed = 24;
-    ConfigFileChangedMsg config_file_changed = 25;
-    DaemonOwnerBoundMsg daemon_owner_bound = 26;
-    DaemonOwnerUnboundMsg daemon_owner_unbound = 27;
-    HumanResponseMsg human_response = 28;
-    PermissionsUpdatedMsg permissions_updated = 29;
-    PipelineChangedMsg pipeline_changed = 30;
-    PipelineGateFailedMsg pipeline_gate_failed = 31;
-    PipelineGatePassedMsg pipeline_gate_passed = 32;
-    PipelineGateRequestedMsg pipeline_gate_requested = 33;
-    PipelineRunBlockedMsg pipeline_run_blocked = 34;
-    PipelineRunCancelledMsg pipeline_run_cancelled = 35;
-    PipelineRunCompletedMsg pipeline_run_completed = 36;
-    PipelineRunDispatchedMsg pipeline_run_dispatched = 37;
-    PipelineRunFailedMsg pipeline_run_failed = 38;
-    PipelineRunMergedMsg pipeline_run_merged = 39;
-    PipelineRunStartedMsg pipeline_run_started = 40;
-    PipelineRunUpdatedMsg pipeline_run_updated = 41;
-    PipelineStepCompletedMsg pipeline_step_completed = 42;
-    PipelineStepDoneDeclaredMsg pipeline_step_done_declared = 43;
-    PipelineStepFailedMsg pipeline_step_failed = 44;
-    PipelineStepObservedMsg pipeline_step_observed = 45;
-    PipelineStepOutputMsg pipeline_step_output = 46;
-    PipelineStepRetryMsg pipeline_step_retry = 47;
-    PipelineStepSpawnFailedMsg pipeline_step_spawn_failed = 48;
-    PipelineStepStartedMsg pipeline_step_started = 49;
-    ProjectArchivedMsg project_archived = 50;
-    ProjectLogMsg project_log = 51;
-    ProjectRegisteredMsg project_registered = 52;
-    ProjectSeenMsg project_seen = 53;
-    ProjectSwitchedMsg project_switched = 54;
-    RuleChangedMsg rule_changed = 55;
-    RuleCreatedMsg rule_created = 56;
-    RuleDeletedMsg rule_deleted = 57;
-    RuleUpdatedMsg rule_updated = 58;
-    SkillChangedMsg skill_changed = 59;
-    SkillCreatedMsg skill_created = 60;
-    SkillDeletedMsg skill_deleted = 61;
-    SkillUpdatedMsg skill_updated = 62;
-    SpaceSettingChangedMsg space_setting_changed = 63;
-    StudioAnnotationCreatedMsg studio_annotation_created = 64;
-    StudioChatTurnMsg studio_chat_turn = 65;
-    StudioFeedbackCreatedMsg studio_feedback_created = 66;
-    StudioMessageMsg studio_message = 67;
-    StudioReplyMsg studio_reply = 68;
-    ViewChangedMsg view_changed = 69;
+    CollectionCreatedMsg collection_created = 20;
+    CollectionItemCreatedMsg collection_item_created = 21;
+    CollectionItemDeletedMsg collection_item_deleted = 22;
+    CollectionItemUpdatedMsg collection_item_updated = 23;
+    CollectionSchemaChangedMsg collection_schema_changed = 24;
+    CompileCompletedMsg compile_completed = 25;
+    ConfigChangedMsg config_changed = 26;
+    ConfigFileChangedMsg config_file_changed = 27;
+    DaemonOwnerBoundMsg daemon_owner_bound = 28;
+    DaemonOwnerUnboundMsg daemon_owner_unbound = 29;
+    HumanResponseMsg human_response = 30;
+    PermissionsUpdatedMsg permissions_updated = 31;
+    PipelineChangedMsg pipeline_changed = 32;
+    PipelineGateFailedMsg pipeline_gate_failed = 33;
+    PipelineGatePassedMsg pipeline_gate_passed = 34;
+    PipelineGateRequestedMsg pipeline_gate_requested = 35;
+    PipelineRunBlockedMsg pipeline_run_blocked = 36;
+    PipelineRunCancelledMsg pipeline_run_cancelled = 37;
+    PipelineRunCompletedMsg pipeline_run_completed = 38;
+    PipelineRunDispatchedMsg pipeline_run_dispatched = 39;
+    PipelineRunFailedMsg pipeline_run_failed = 40;
+    PipelineRunMergedMsg pipeline_run_merged = 41;
+    PipelineRunStartedMsg pipeline_run_started = 42;
+    PipelineRunUpdatedMsg pipeline_run_updated = 43;
+    PipelineStepCompletedMsg pipeline_step_completed = 44;
+    PipelineStepDoneDeclaredMsg pipeline_step_done_declared = 45;
+    PipelineStepFailedMsg pipeline_step_failed = 46;
+    PipelineStepObservedMsg pipeline_step_observed = 47;
+    PipelineStepOutputMsg pipeline_step_output = 48;
+    PipelineStepRetryMsg pipeline_step_retry = 49;
+    PipelineStepSpawnFailedMsg pipeline_step_spawn_failed = 50;
+    PipelineStepStartedMsg pipeline_step_started = 51;
+    ProjectArchivedMsg project_archived = 52;
+    ProjectLogMsg project_log = 53;
+    ProjectRegisteredMsg project_registered = 54;
+    ProjectSeenMsg project_seen = 55;
+    ProjectSwitchedMsg project_switched = 56;
+    RuleChangedMsg rule_changed = 57;
+    RuleCreatedMsg rule_created = 58;
+    RuleDeletedMsg rule_deleted = 59;
+    RuleUpdatedMsg rule_updated = 60;
+    SkillChangedMsg skill_changed = 61;
+    SkillCreatedMsg skill_created = 62;
+    SkillDeletedMsg skill_deleted = 63;
+    SkillUpdatedMsg skill_updated = 64;
+    SpaceSettingChangedMsg space_setting_changed = 65;
+    StudioAnnotationCreatedMsg studio_annotation_created = 66;
+    StudioChatTurnMsg studio_chat_turn = 67;
+    StudioFeedbackCreatedMsg studio_feedback_created = 68;
+    StudioMessageMsg studio_message = 69;
+    StudioReplyMsg studio_reply = 70;
+    ViewChangedMsg view_changed = 71;
   }
 }
 
@@ -283,6 +287,12 @@ message AuthSessionRevokedMsg {
   string reason = 1;
 }
 
+// space / durable — collection.created
+message CollectionCreatedMsg {
+  string collection_id = 1;
+  string schema_json = 2;
+}
+
 // space / durable — collection.item_created
 message CollectionItemCreatedMsg {
   string collection_id = 1;
@@ -300,6 +310,12 @@ message CollectionItemDeletedMsg {
 message CollectionItemUpdatedMsg {
   string collection_id = 1;
   string item_id = 2;
+}
+
+// space / durable — collection.schema.changed
+message CollectionSchemaChangedMsg {
+  string collection_id = 1;
+  string schema_json = 2;
 }
 
 // space / durable — compile.completed

@@ -1,0 +1,111 @@
+// `device.*` — the device/isolation + window service, hand-authored under
+// proto-as-SSOT (#89). The space carve split window management out of the space
+// surface into this device topic ("the space service loses window-mgmt →
+// device"). This is the SOLE window surface — the legacy SpaceService window
+// RPCs (WindowIntent/WindowList/CloseWindow + the `register_space_window` REST
+// route) were retired in the space cutover.
+//
+// The daemon is the brain: it owns window liveness (via the actor projection),
+// each window's kernel-attested pid, and the pid-bound C2 token; it can decide
+// focus-vs-spawn, enumerate windows, register a launched window, and revoke a
+// window's authority. It CANNOT spawn an OS window (no handle) — the shell
+// adaptor does that — but it holds the kill switch.
+//
+// Message names take a `Device` prefix (and `RegisterWindow*` for the genuinely
+// new register RPC) so nothing collides with the generated commands.gen.proto /
+// reads.gen.proto / space.proto / types.proto declarations in this same
+// `ship.ops.v1` package. There are NO `*Live` streaming twins and NO
+// Workspace/Project vestiges — this is the clean window surface.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+
+// Focus-vs-spawn decision for opening a window onto a space. The daemon MEDIATES
+// (it owns window liveness via the actor projection); the shell adaptor EXECUTES
+// (only it can spawn/focus an OS window). The shell's `open` calls this first:
+// `focus` + actor_id ⟹ raise the existing window; `spawn` ⟹ create one (then
+// RegisterWindow). The daemon never spawns — it decides.
+message DeviceWindowIntentRequest {
+  string space_id = 1;
+}
+message DeviceWindowIntentResponse {
+  // "focus" when a live window for the space exists, else "spawn".
+  string decision = 1;
+  // The live window's actor id to raise (set only when decision == "focus").
+  optional string actor_id = 2;
+}
+
+// Enumerate the window actors the daemon knows about.
+message DeviceWindowListRequest {}
+message DeviceWindowInfo {
+  string actor_id = 1;
+  optional string space_id = 2;
+  optional int64 pid = 3;
+  bool live = 4;
+}
+message DeviceWindowListResponse {
+  repeated DeviceWindowInfo windows = 1;
+}
+
+// Register a launched window + mint its pid-bound, C2-capped session. The window
+// self-spawns (process-per-app), connects over the host unix socket, and calls
+// this once at startup. The kernel-attested pid comes from the connection's
+// SO_PEERCRED (threaded into the transport), never from this body — a process
+// can't claim another's pid to the kernel; the field carries no pid. `space_id`
+// MAY name a registered space the window opens onto; omitting it binds the
+// connection's active space. There is NO daemon home space and NO `global`
+// fallback (S2): if no `space_id` is given and the connection has no active
+// space, registration is refused. An unregistered space id is refused too (a
+// window can't conjure a space). Operator-only.
+message RegisterWindowRequest {
+  optional string space_id = 1;
+}
+message RegisterWindowResponse {
+  // The bearer token the webview presents on every Connect call.
+  string session_token = 1;
+  // The registered window actor's id.
+  string actor_id = 2;
+  // The space the window was bound to.
+  string space_id = 3;
+}
+
+// Close a window: revoke its pid-bound token (instant authority cut) and close
+// the window actor's lifecycle. The shell destroys the OS frame; revocation
+// neuters the webview regardless. Operator-only.
+message DeviceCloseWindowRequest {
+  string actor_id = 1;
+}
+message DeviceCloseWindowResponse {
+  bool closed = 1;
+  bool token_revoked = 2;
+}
+
+// The device/window control surface. Reads (C0) decide focus-vs-spawn and
+// enumerate windows. RegisterWindow (C3, operator-only) turns a launched window
+// into a pid-bound C2 session — the pid is kernel-attested at the transport.
+// CloseWindow (C3, operator-only) revokes a window's token and closes its
+// lifecycle; a space shell (C2) structurally cannot close another window.
+service DeviceService {
+  rpc WindowIntent(DeviceWindowIntentRequest) returns (DeviceWindowIntentResponse) {
+    option (ship.ops.v1.capability) = "ship.space.read";
+    option (ship.ops.v1.description) = "Focus-vs-spawn decision for opening a window (the shell adaptor executes it).";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc WindowList(DeviceWindowListRequest) returns (DeviceWindowListResponse) {
+    option (ship.ops.v1.capability) = "ship.space.read";
+    option (ship.ops.v1.description) = "Enumerate window actors the daemon knows about (actor id, space, pid, live).";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc RegisterWindow(RegisterWindowRequest) returns (RegisterWindowResponse) {
+    option (ship.ops.v1.capability) = "ship.space.write";
+    option (ship.ops.v1.description) = "Register a launched window and mint its pid-bound, C2-capped session (operator-only; pid is kernel-attested).";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C3_CRITICAL;
+  }
+  rpc CloseWindow(DeviceCloseWindowRequest) returns (DeviceCloseWindowResponse) {
+    option (ship.ops.v1.capability) = "ship.space.write";
+    option (ship.ops.v1.description) = "Revoke a window's pid-bound token and close its lifecycle (operator-only).";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C3_CRITICAL;
+  }
+}

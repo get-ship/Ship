@@ -25,11 +25,11 @@ const EMIT_SITES_PATH: &str =
 
 const EMIT_ROOTS: &[&str] = &[
     "crates/core/ship-substrate/src",
-    "crates/core/ship-kernel/src",
-    "crates/core/ship-supervisor/src",
+    "crates/core/ship-substrate/crates/ship-kernel/src",
+    "crates/core/ship-substrate/crates/ship-supervisor/src",
     "crates/core/ship-platform/src",
-    "crates/core/ship-analytics/src",
-    "crates/core/ship-host/src",
+    "crates/core/ship-platform/crates/ship-analytics/src",
+    "crates/core/ship-substrate/crates/ship-host/src",
     "apps/shipd/src",
     "apps/ship-cli/src",
 ];
@@ -64,7 +64,7 @@ struct EmitSite {
 
 pub fn run(repo_root: &Path, check: bool) -> Result<()> {
     let event_types_src = repo_root
-        .join("crates/core/ship-types/src/event_types/mod.rs");
+        .join("crates/core/ship-substrate/crates/ship-types/src/event_types/mod.rs");
     let (const_map, all_set) = load_event_types(&event_types_src)?;
 
     let emit_sites = collect_emit_sites(repo_root, &const_map, &all_set)?;

@@ -6,7 +6,7 @@
 
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
+use ship_pipeline_runtime::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or("test");
@@ -52,7 +52,7 @@ fn completed(pipeline_run_id: &str) -> EventEnvelope {
 /// The dispatch replay module must enforce a concurrency limit.
 #[test]
 fn concurrency_limit_is_enforced() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/pending.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/pending.rs");
     assert!(
         source.contains("MAX_CONCURRENT"),
         "dispatch_replay must define a MAX_CONCURRENT limit"
@@ -62,7 +62,7 @@ fn concurrency_limit_is_enforced() {
 /// The concurrency check must count currently dispatched jobs.
 #[test]
 fn concurrency_counts_dispatched_jobs() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/pending.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/pending.rs");
     assert!(
         source.contains("Dispatched") && source.contains("running_count"),
         "concurrency check must count jobs in Dispatched status"

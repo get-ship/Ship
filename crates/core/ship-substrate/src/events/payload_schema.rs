@@ -78,19 +78,20 @@ fn schema_for_event_type(
         "config.changed" => Some(check::<ConfigChanged>),
         "config.file_changed" => Some(check::<ConfigFileChanged>),
         "space.setting.changed" => Some(check::<SpaceSettingChanged>),
+        "settings.changed" => Some(check::<SettingChanged>),
         "agent.changed" => Some(check::<ConfigChanged>),
+        // Format-2 def notification — typed {path, content_hash} payload.
+        "agent.def.updated" => Some(check::<AgentDefUpdated>),
         "skill.changed" => Some(check::<ConfigChanged>),
         "view.changed" => Some(check::<ConfigChanged>),
         "pipeline.changed" => Some(check::<ConfigChanged>),
         "rule.changed" => Some(check::<ConfigChanged>),
-        "project.changed" => Some(check::<ConfigChanged>),
         // project
         "project.log" => Some(check::<ProjectLog>),
         // skill
         "skill.started" => Some(check::<SkillStarted>),
         "skill.completed" => Some(check::<SkillCompleted>),
         "skill.failed" => Some(check::<SkillFailed>),
-        ship_types::event_types::SKILL_ATTACHED_TO_SESSION => Some(check::<SkillAttachedToSession>),
         // process
         "process.spawned" => Some(check::<crate::events::process::ProcessSpawnedPayload>),
         "process.exited" => Some(check::<crate::events::process::ProcessExitedPayload>),
@@ -182,7 +183,6 @@ fn schema_for_event_type(
         "mesh.send.failed" => Some(check::<MeshSendFailed>),
         "mesh.status" => Some(check::<MeshStatus>),
         "pipeline.step.retry" => Some(check::<PipelineStepRetry>),
-        "studio.message" => Some(check::<StudioMessage>),
         "sync.push.failed" => Some(check::<SyncPushFailed>),
         "sync.started" => Some(check::<SyncStarted>),
         "sync.stopped" => Some(check::<SyncStopped>),
@@ -199,7 +199,7 @@ mod tests {
         EmitContext {
             caller_kind: kind,
             skill_id: None,
-            space_id: None,
+            binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
             session_id: None,
         }
     }

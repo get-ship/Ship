@@ -1,5 +1,6 @@
 ---
 name: ship-runtime
+audience: public
 stable-id: ship-runtime
 description: >-
   The `runtime` capability (1 ops). Call any op over ConnectRPC with

@@ -3,13 +3,28 @@
 use anyhow::{Result, anyhow};
 use chrono::Utc;
 
-use crate::persistence::actor_store::{ActorStore, raw_append};
+use crate::persistence::actor_store::ActorStore;
 use ship_types::envelope::EventEnvelope;
 use crate::events::kernel_router::{KernelRouter, flush_wal};
 use ship_kernel::Mailbox;
 use crate::persistence::snapshot::{ActorSnapshot, event_stats};
 
 impl KernelRouter {
+    /// Persist a lifecycle event through the projection bus without mailbox
+    /// delivery.
+    ///
+    /// `inner.persist` runs the canonical `SqliteEventStore` append — event row
+    /// + projection dispatch in one transaction — so `actor.crashed` and the
+    /// `kernel.actor.*` events keep the `actors` projection in sync. We do NOT
+    /// use `inner.route`/`emit`: these events fire as the actor is being torn
+    /// down (crash, suspend) or before it is re-registered (restore), so its
+    /// mailbox is gone — delivery would fail or race. Persist-via-bus gives the
+    /// durable, projected write these events need; mailbox delivery is
+    /// deliberately skipped.
+    fn persist_lifecycle(&self, event: &EventEnvelope) -> Result<()> {
+        self.inner.persist(event)
+    }
+
     /// Handle actor crash: close mailbox, emit `actor.crashed` event, clean up
     /// subscriptions. The actor's event store is retained for debugging.
     pub fn handle_actor_crash(&mut self, actor_id: &str, reason: &str) -> Result<()> {
@@ -41,10 +56,7 @@ impl KernelRouter {
             "actor_id": actor_id,
             "reason": reason,
         });
-        raw_append(
-            &self.kernel_store_path,
-            &EventEnvelope::new("actor.crashed", actor_id, &payload)?,
-        )?;
+        self.persist_lifecycle(&EventEnvelope::new("actor.crashed", actor_id, &payload)?)?;
 
         let db_path = self.actor_db_path(actor_id);
         if db_path.exists() {
@@ -82,10 +94,7 @@ impl KernelRouter {
             "last_event_id": snap.last_event_id,
             "size_bytes": snap.db_bytes.len(),
         });
-        raw_append(
-            &self.kernel_store_path,
-            &EventEnvelope::new("kernel.actor.snapshot", actor_id, &payload)?,
-        )?;
+        self.persist_lifecycle(&EventEnvelope::new("kernel.actor.snapshot", actor_id, &payload)?)?;
         Ok(snap)
     }
 
@@ -96,10 +105,7 @@ impl KernelRouter {
             "actor_id": actor_id,
             "reason": "suspend_requested",
         });
-        raw_append(
-            &self.kernel_store_path,
-            &EventEnvelope::new("kernel.actor.suspended", actor_id, &payload)?,
-        )?;
+        self.persist_lifecycle(&EventEnvelope::new("kernel.actor.suspended", actor_id, &payload)?)?;
         Ok(snap)
     }
 
@@ -119,10 +125,7 @@ impl KernelRouter {
             "actor_id": &actor_id,
             "event_count": event_count,
         });
-        raw_append(
-            &self.kernel_store_path,
-            &EventEnvelope::new("kernel.actor.restored", &actor_id, &payload)?,
-        )?;
+        self.persist_lifecycle(&EventEnvelope::new("kernel.actor.restored", &actor_id, &payload)?)?;
         Ok(result)
     }
 }

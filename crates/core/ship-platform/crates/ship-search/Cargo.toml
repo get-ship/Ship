@@ -1,0 +1,23 @@
+[package]
+name = "ship-search"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Unified entity search: ranks hits across views, collections, items, agents, skills, sessions, artifacts. Pure scoring over caller-provided snapshots via the SearchContext trait."
+
+[dependencies]
+async-trait = { workspace = true }
+chrono = { workspace = true }
+futures-util = { workspace = true }
+serde = { workspace = true }
+base64 = { workspace = true }
+serde_json = { workspace = true }
+ship-ops-rpc = { path = "../ship-ops-rpc" }
+connectrpc = { version = "0.4", features = ["axum"] }
+buffa = { version = "0.5" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

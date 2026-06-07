@@ -42,10 +42,10 @@ mod tests {
         assert_eq!(data["mime"], "text/plain");
         assert_eq!(data["size"], 8);
         assert!(data["id"].as_str().unwrap().len() >= 8);
-        // Stored relative path includes `blobs/<prefix>/<id>`. For
-        // project-scoped uploads (the default) the prefix is the
-        // project slug; covered explicitly by the
-        // blob_stored_under_project_slug test.
+        // Stored relative path includes `blobs/<prefix>/<id>`. The blob
+        // namespace is the active space id (the event's space partition,
+        // matching what the read ctx queries); see
+        // `blob_stored_under_project_slug` for the on-disk shape.
         assert!(
             data["path"].as_str().unwrap().contains("blobs/"),
             "expected blobs/ in path, got {}",

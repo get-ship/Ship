@@ -17,7 +17,7 @@ The canonical schema lives at [`schemas/skill.schema.json`](https://github.com/g
 
 | Field | Type | Constraint | Notes |
 |-|-|-|-|
-| `name` | string | kebab-case, 1-64 chars, must equal the directory name | `docs/ship-triggers/SKILL.md` requires `name: ship-triggers` |
+| `name` | string | kebab-case, 1-64 chars, must equal the directory name | `.ship/skills/ship-docs/SKILL.md` requires `name: ship-docs` |
 | `stable-id` | string | kebab-case, 1-64 chars | Stable storage key for variable state. Survives directory renames. By convention equals `name`. |
 | `description` | string | 1-1024 chars | One sentence. Front-load with "Use when..." for reliable trigger matching. |
 | `tags` | array of kebab strings | non-empty | Discovery labels. |
@@ -73,4 +73,4 @@ The runtime loads `SKILL.md` via `crates/core/ship-platform/src/agents/skill/sto
 4. On validation failure, returns an error of the form `Invalid SKILL.md frontmatter in <path>:` followed by a list of `/<field>` paths and constraint failures.
 5. On success, deserializes into the loader's typed frontmatter struct and applies cross-field rules (e.g. `name` must match the directory id).
 
-This is the contract that governs every committed `docs/ship-*/SKILL.md` and any user- or agent-authored skill installed via `skills.sh`.
+This is the contract that governs every committed `docs/ship-*/SKILL.md` and any user- or agent-authored skill installed via the skill registry.

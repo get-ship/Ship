@@ -6,18 +6,25 @@
 //! - `pull:platform:{space_id}` — sync pull cursor per project
 //! - `projection:{name}` — per-projection rebuild cursor
 //!
-//! Living in platform.db (next to the event log) means cursor advances can
-//! be transactional with event reads/writes when needed.
+//! Living in runtime.db (next to the Runtime-scope event log + the actor /
+//! session / pipeline projections these cursors track) means cursor advances
+//! can be transactional with event reads/writes when needed.
 
 use anyhow::Result;
 use sqlx::Row;
 
-use crate::db::{block_on, ensure_db, open_db};
+use crate::db::block_on;
+
+/// Open the `cursors`-table db. Cursors are Runtime-scope projection/sync
+/// bookmarks → runtime.db, co-located with the projection tables they track
+/// (the bus advances them through the same per-scope conn on dispatch).
+fn open_cursors_db() -> Result<sqlx::SqliteConnection> {
+    crate::db::open_runtime_db(&crate::project::get_global_dir()?)
+}
 
 /// Get the last-applied event id for a named cursor.
 pub fn get(name: &str) -> Result<Option<String>> {
-    ensure_db()?;
-    let mut conn = open_db()?;
+    let mut conn = open_cursors_db()?;
     let row = block_on(async {
         sqlx::query("SELECT last_event_id FROM cursors WHERE name = ?")
             .bind(name)
@@ -29,8 +36,7 @@ pub fn get(name: &str) -> Result<Option<String>> {
 
 /// Upsert a cursor. `updated_at` is set to now() automatically.
 pub fn set(name: &str, last_event_id: &str) -> Result<()> {
-    ensure_db()?;
-    let mut conn = open_db()?;
+    let mut conn = open_cursors_db()?;
     block_on(async {
         sqlx::query(
             "INSERT INTO cursors (name, last_event_id, updated_at)
@@ -49,8 +55,7 @@ pub fn set(name: &str, last_event_id: &str) -> Result<()> {
 
 /// Delete a cursor. No-op if it doesn't exist.
 pub fn delete(name: &str) -> Result<()> {
-    ensure_db()?;
-    let mut conn = open_db()?;
+    let mut conn = open_cursors_db()?;
     block_on(async {
         sqlx::query("DELETE FROM cursors WHERE name = ?")
             .bind(name)
@@ -69,7 +74,7 @@ mod tests {
     fn setup() -> tempfile::TempDir {
         let tmp = tempdir().unwrap();
         init_project(tmp.path()).unwrap();
-        ensure_db().unwrap();
+        // cursors live in runtime.db now; get/set/delete self-provision it.
         tmp
     }
 

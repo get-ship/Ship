@@ -105,19 +105,50 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         }),
 
         // ── Artifact events ──────────────────────────────────────────────────
+        // Metadata is event-sourced (ADR D6/D7): these payloads are
+        // projection-complete (`ArtifactProjection` materializes the row).
         "ArtifactCreated" => json!({
             "id": "test-artifact-id",
-            "scope": "space",
+            "scope": "project",
             "name": "test-artifact.md",
             "mime": "text/markdown",
-            "size": 1024
+            "size": 1024,
+            "path": "blobs/test-artifact-id",
+            "created_at": "2026-01-01T00:00:00Z"
         }),
-        "ArtifactMoved" => json!({ "id": "test-artifact-id", "from_scope": "space", "to_scope": "account" }),
-        "ArtifactDeleted" => json!({ "id": "test-artifact-id", "scope": "space" }),
+        "ArtifactMoved" => json!({
+            "old_id": "test-artifact-id",
+            "from_scope": "run",
+            "to_scope": "project",
+            "new": {
+                "id": "test-artifact-id-2",
+                "scope": "project",
+                "name": "test-artifact.md",
+                "mime": "text/markdown",
+                "size": 1024,
+                "path": "blobs/test-artifact-id-2",
+                "created_at": "2026-01-01T00:00:00Z"
+            }
+        }),
+        "ArtifactDeleted" => json!({ "id": "test-artifact-id", "scope": "project" }),
 
         // ── Collection events ────────────────────────────────────────────────
-        "CollectionItemCreated" => json!({ "collection_id": "test-collection", "item_id": "test-item" }),
-        "CollectionItemUpdated" => json!({ "collection_id": "test-collection", "item_id": "test-item" }),
+        // item_created/updated are projection-complete: they carry the full
+        // item / patch data + timestamps so `CollectionProjection` rebuilds the
+        // row from the event alone (event-sourced, no read-back).
+        "CollectionItemCreated" => json!({
+            "collection_id": "test-collection",
+            "item_id": "test-item",
+            "data": { "title": "test" },
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }),
+        "CollectionItemUpdated" => json!({
+            "collection_id": "test-collection",
+            "item_id": "test-item",
+            "data": { "title": "updated" },
+            "updated_at": "2026-01-01T00:00:00Z"
+        }),
         "CollectionItemDeleted" => json!({ "collection_id": "test-collection", "item_id": "test-item" }),
 
         // ── Compile events ───────────────────────────────────────────────────
@@ -189,7 +220,6 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "ProjectArchived" => json!({ "archived_at": "2026-01-01T00:00:00Z" }),
         "ProjectSwitched" => json!({ "space_id": "test-space", "name": "test", "path": "/home/user/projects/test", "at": "2026-01-01T00:00:00Z" }),
         "ProjectLog" => json!({ "action": "test-action", "details": "test details" }),
-        "ProjectChanged" => json!({ "path": ".ship/project.jsonc", "content_hash": "sha256-test" }),
         "WorkspaceCreated" => json!({ "workspace_id": "test-workspace" }),
 
         // ── Rule events ──────────────────────────────────────────────────────
@@ -218,12 +248,10 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "SkillStarted" => json!({ "skill_id": "test-skill" }),
         "SkillCompleted" => json!({ "skill_id": "test-skill", "duration_ms": 1234 }),
         "SkillFailed" => json!({ "skill_id": "test-skill", "error": "test failure" }),
-        "SkillAttachedToSession" => json!({ "skill_id": "test-skill", "run_id": "test-run", "session_id": "test-session", "mode": "library", "reused": false }),
 
         // ── Studio events ────────────────────────────────────────────────────
         "StudioAnnotationCreated" => json!({ "annotation_id": "test-annotation", "session_id": "test-session", "text": "test annotation" }),
         "StudioFeedbackCreated" => json!({ "feedback_id": "test-feedback", "rating": 5, "comment": "great" }),
-        "StudioMessage" => json!({ "session_id": "test-session", "text": "hello world" }),
         "StudioChatTurn" => json!({ "session_id": "test-session", "text": "tell me about this code" }),
         "StudioReply" => json!({ "actor_id": "test-actor", "text": "here is the analysis" }),
 
@@ -285,7 +313,7 @@ fn collect_all_events() -> Vec<EventEntry> {
     let mut events: Vec<EventEntry> = registry()
         .map(|d| EventEntry {
             name: d.name,
-            scope: d.scope,
+            scope: d.primary_scope(),
             retention: d.retention,
             stability: d.stability,
             payload_type: d.payload_type_name,
@@ -296,11 +324,7 @@ fn collect_all_events() -> Vec<EventEntry> {
 }
 
 fn scope_str(scope: &EventScope) -> &'static str {
-    match scope {
-        EventScope::Space => "space",
-        EventScope::Account => "account",
-        EventScope::Device => "device",
-    }
+    scope.as_str()
 }
 
 fn retention_str(retention: &Retention) -> &'static str {

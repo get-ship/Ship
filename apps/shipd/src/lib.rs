@@ -13,6 +13,7 @@
 #[ctor::ctor]
 fn install_test_platform_defaults() {
     ship_platform::install_defaults();
+    ship_pipeline_runtime::install_projections();
 }
 
 #[cfg(test)]
@@ -29,35 +30,27 @@ pub mod project_api;
 pub mod routes;
 pub mod router;
 pub mod ops_rpc;
-pub mod diag_rpc;
-pub mod analytics_rpc;
+// diag_rpc: deleted — diagnostics.snapshot op cut; DiagnosticRegistry apparatus removed.
 pub mod runtime_rpc;
-pub mod view_errors_rpc;
-pub mod rules_rpc;
-pub mod artifacts_rpc;
-pub mod collections_rpc;
-pub mod permissions_rpc;
-pub mod mcp_rpc;
-pub mod skills_rpc;
 pub mod pipelines_rpc;
 pub mod git_rpc;
-pub mod agents_rpc;
+// agent_rpc: policy + gate conformance tests for AgentsService.
+// The impl AgentsService for OpsImpl is deleted — AgentsWire (ship-agents) is now
+// the sole handler, mounted via AgentsServiceExt::register in ops_rpc.rs.
 pub mod agent_rpc;
+pub mod agent_event_ports;
+pub mod pipeline_ports;
+pub mod view_ports;
 pub mod space_rpc;
 pub mod settings_rpc;
-pub mod annotation_rpc;
-pub mod feedback_rpc;
-pub mod sessions_rpc;
+pub mod device_ports;
 pub mod account_rpc;
-pub mod chat_rpc;
-pub mod dashboard_rpc;
 pub mod events_rpc;
-pub mod specs_rpc;
 pub mod view_rpc;
-pub mod create_rpc;
-pub mod discovery_rpc;
 pub mod registry_rpc;
 pub mod sui_rpc;
+pub mod search_context;
+pub mod search_rpc;
 pub mod live_read;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
@@ -270,9 +263,7 @@ pub async fn run_network(
     if let Some(dh) = run_mgr.dispatch_handle {
         rt.set_dispatch_handle(dh);
     }
-    // Build the diagnostic registry now that the dispatch handle (supervisor
-    // process registry) is populated. All subsystem Arcs are cloned cheaply.
-    rt.set_diag_registry(diag_rpc::build_registry(&rt));
+    // diagnostics.snapshot op deleted — no DiagnosticRegistry to build.
     // Start the abandoned session scanner.
     rt.session_scanner().await;
     // Start the artifact GC loop (runs now then every hour).
@@ -280,9 +271,17 @@ pub async fn run_network(
     // Start the window-reaper loop (closes the log lifecycle of crashed
     // shell windows that never deregistered; every 30s).
     rt.start_window_reaper();
+    // Sandbox reaper: idle-past-timeout sandboxes get marked Stopped.
+    // Per-sandbox backend teardown folds in once SandboxOwner moves
+    // from per-actor to per-sandbox.
+    rt.start_sandbox_reaper();
     daemon::human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
     rt.start_hook_engine().await;
     rt.start_config_watcher();
+    // Live agent-def index (agents arc S5): build the read-only index from the
+    // def files at boot, then keep it live on `agent.def.updated`. Shares the
+    // gated-write NOTIFY's `KernelLog` so op-writes re-index deterministically.
+    rt.start_agent_def_index().await;
 
     // leak-193 diagnostics. When `SHIP_LEAK_DIAG=1`, log a periodic snapshot
     // of process RSS alongside every in-process container whose unbounded
@@ -424,17 +423,28 @@ pub async fn run_network(
         })
     };
 
-    // Register the launch-time project (if any) into the project registry
-    // so the launcher / shell sees it on first list. Idempotent.
+    // Register the launch-time project (if any) into the space registry so the
+    // launcher / shell sees it on first list. Idempotent — ship-space emits
+    // `project.seen` if already known.
     //
-    // A daemon serves exactly one project = one space. Stamp the daemon's
-    // space identity (path-hash of the project root, matching the `projects`
-    // projection key) into the process-global so the per-request emit path
-    // carries the SPACE id on `space_id`, never the branch slug. See spec
+    // A discoverable project root IS the active space; the daemon has no separate
+    // "home space" to stamp into a process-global (S2 home-space kill). The active
+    // space is resolved per-request / at boot from the probe path via
+    // `ship_substrate::project::resolve_active_space`. With no discoverable
+    // project the daemon boots space-less. See spec
     // `.artifacts/specs/space/116-event-partition.md`.
     if let Some(root) = project_root.as_ref() {
-        ship_substrate::project::set_daemon_space_id_from_root(root.path());
-        if let Err(e) = ship_platform::projects::register(root.path(), None) {
+        use ship_substrate::ports::{KernelLog, SingleBackendDataStore};
+        use ship_substrate::data::DataService;
+        let runtime_db = ship_substrate::db::runtime_db_path(&global_dir);
+        let store = {
+            let svc = DataService::open_at(&runtime_db).expect("data service over runtime.db");
+            std::sync::Arc::new(SingleBackendDataStore::new(svc, "runtime"))
+                as std::sync::Arc<dyn ship_substrate::ports::DataStore>
+        };
+        let kernel = std::sync::Arc::new(KernelLog::new(rt.kernel().clone()));
+        let canonical = std::fs::canonicalize(root.path()).unwrap_or_else(|_| root.path().to_path_buf());
+        if let Err(e) = ship_space::registry::add(&*store, &kernel, &canonical, None).await {
             tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
         }
     }
@@ -471,6 +481,15 @@ pub async fn run_network(
     rt.set_shutdown_token(ct.child_token());
 
     let session_registry = rt.session_registry().clone();
+    // Install the process-wide registry handle so the host-side spawn path
+    // (supervisor) can mint per-process tokens for sandboxed actors without
+    // threading a registry through the event→orchestrator→executor chain.
+    ship_auth::scopes::set_session_registry(session_registry.clone());
+    // Install the daemon's reachable origin so the spawn path can inject
+    // SHIP_DAEMON_URL into sandboxed actors (rewritten to a
+    // container-reachable host for Tier 2+). Same boot-install pattern as
+    // the session registry above.
+    ship_platform::isolation::set_daemon_origin(rt.daemon_origin());
     // Hydrate any persisted paired sessions from a previous daemon lifetime.
     // Dev mode starts fresh — don't carry prior sessions across dev restarts.
     if !dev {
@@ -634,6 +653,15 @@ pub async fn run_network(
     } else {
         0
     };
+
+    // Reap all sandboxes so a clean restart doesn't orphan backend
+    // containers. Each reap fires the SandboxOwner shutdown
+    // (docker rm / youki delete). Best-effort — a reap failure here
+    // shouldn't block shutdown.
+    let sandboxes_reaped = ship_device::sandbox::dispatcher().reap_all().await;
+    if sandboxes_reaped > 0 {
+        tracing::info!(sandboxes_reaped, "reaped sandboxes on shutdown");
+    }
     let uptime_secs = rt.uptime().as_secs();
     rt.shutdown().await;
     emit_daemon_event(
@@ -673,14 +701,23 @@ fn emit_daemon_event<P: serde::Serialize>(
             return;
         }
     };
-    let store = match SqliteEventStore::new_at(global_dir) {
+    // daemon.* is Runtime-scoped → write runtime.db (not the dead platform.db).
+    let store = match SqliteEventStore::new_for_scope(
+        global_dir,
+        ship_substrate::events::EventScope::Runtime,
+        None,
+    ) {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("shipd: cannot open event store for {event_type}: {e}");
             return;
         }
     };
-    if let Err(e) = store.append(&envelope) {
+    // Enforced write: daemon.* is Runtime-scoped and this path may run with no
+    // live kernel/session, so stamp + enforce from the daemon-internal (Runtime)
+    // binding before persist.
+    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+    if let Err(e) = store.append_enforced(&envelope, &binding) {
         tracing::warn!("shipd: cannot append {event_type}: {e}");
     }
 }

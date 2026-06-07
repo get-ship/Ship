@@ -2,21 +2,24 @@
 //!
 //! These functions bypass the operational session row write so tests can
 //! exercise event-only transaction semantics without needing a real session.
+//! The write lands in the Runtime scope db (`runtime.db`) — the same db the
+//! atomicity test installs its sentinel trigger on — so this is a self-contained
+//! runtime.db round trip, never the dead platform.db.
 
 use anyhow::{Context, Result};
 use chrono::Utc;
 use ulid::Ulid;
 
-use crate::db::{block_on, open_db};
+use crate::db::{block_on, open_runtime_db};
 use crate::events::types::event_types;
 use crate::events::types::SessionStarted;
 
 const EVENT_INSERT: &str =
     "INSERT INTO events \
      (id, event_type, entity_id, actor, payload_json, version, \
-      causation_id, space_id, session_id, \
+      causation_id, scope, scope_key, session_id, \
       actor_id, parent_actor_id, elevated, created_at) \
-     VALUES (?, ?, ?, 'ship', ?, 1, NULL, ?, ?, ?, ?, ?, ?)";
+     VALUES (?, ?, ?, 'ship', ?, 1, NULL, 'space', ?, ?, ?, ?, ?, ?)";
 
 /// Emit only a `session.started` event (no session row write).
 ///
@@ -33,7 +36,7 @@ pub fn insert_session_started_event(
     let session_id = session_id.to_string();
     let workspace_id = workspace_id.to_string();
 
-    let mut conn = open_db()?;
+    let mut conn = open_runtime_db(&crate::project::get_global_dir()?)?;
     block_on(async {
         sqlx::query("BEGIN IMMEDIATE").execute(&mut conn).await?;
 

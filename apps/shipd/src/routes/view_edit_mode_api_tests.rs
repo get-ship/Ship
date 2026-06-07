@@ -1,7 +1,7 @@
 //! Integration tests for `/api/v1/views/{name}/edit-mode/{enter|exit}` and
 //! the capability-gated tool dispatch.
 
-use ship_platform::view_authoring::{self, ViewEditCapability};
+use ship_views::view_authoring::{self, ViewEditCapability};
 
 fn unique_id(prefix: &str) -> String {
     format!("{prefix}-{}", ship_substrate::gen_ulid())

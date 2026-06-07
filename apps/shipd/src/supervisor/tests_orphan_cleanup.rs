@@ -6,7 +6,7 @@
 
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
+use ship_pipeline_runtime::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or("test");
@@ -20,7 +20,7 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 /// Startup sequence must include orphan cleanup.
 #[test]
 fn startup_includes_orphan_cleanup() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
+    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/router.rs");
     assert!(
         source.contains("cleanup_orphaned_worktrees"),
         "startup must call cleanup_orphaned_worktrees to remove stale disk state"
@@ -30,7 +30,7 @@ fn startup_includes_orphan_cleanup() {
 /// Orphan cleanup function exists in orphan_cleanup module.
 #[test]
 fn orphan_cleanup_function_exists() {
-    let source = include_str!("../../../../crates/core/ship-supervisor/src/orphan_cleanup.rs");
+    let source = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/orphan_cleanup.rs");
     assert!(
         source.contains("cleanup_orphaned_worktrees"),
         "orphan_cleanup must provide a cleanup_orphaned_worktrees function"
@@ -41,7 +41,7 @@ fn orphan_cleanup_function_exists() {
 /// Active (Dispatched, Pending) jobs must never be cleaned up.
 #[test]
 fn orphan_cleanup_filters_terminal_states_only() {
-    let source = include_str!("../../../../crates/core/ship-supervisor/src/orphan_cleanup.rs");
+    let source = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/orphan_cleanup.rs");
     assert!(
         source.contains("PipelineRunStatus::Merged") && source.contains("PipelineRunStatus::Failed"),
         "orphan cleanup must filter for Merged and Failed jobs only"
@@ -51,7 +51,7 @@ fn orphan_cleanup_filters_terminal_states_only() {
 /// Orphan cleanup calls cleanup_orphan for consistent cleanup behavior.
 #[test]
 fn orphan_cleanup_delegates_to_cleanup_orphan() {
-    let source = include_str!("../../../../crates/core/ship-supervisor/src/orphan_cleanup.rs");
+    let source = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/orphan_cleanup.rs");
     assert!(
         source.contains("cleanup_orphan"),
         "orphan cleanup must call cleanup_orphan for consistent cleanup behavior"

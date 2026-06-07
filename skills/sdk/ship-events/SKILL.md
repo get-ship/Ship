@@ -1,5 +1,6 @@
 ---
 name: ship-events
+audience: public
 stable-id: ship-events
 description: >-
   The `events` capability (1 ops). Call any op over ConnectRPC with

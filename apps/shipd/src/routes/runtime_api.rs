@@ -15,95 +15,37 @@ use axum::extract::Path;
 use ship_substrate::events::EventEnvelope;
 #[cfg(test)]
 use ship_substrate::events::pipeline::event_types;
-use serde::Deserialize;
 
 use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 use crate::wire::MeshResponse;
 
-// ---- Query params ----
-
-#[derive(Deserialize)]
-pub struct SessionsQuery {
-    pub workspace_id: Option<String>,
-}
-
-// ---- Handlers ----
-
-/// Resolve HEAD SHA of the active project root. Used at `job.created` time
-/// to capture the pipeline's baseline — the point every future worktree
-/// branches from, and the `from` end of gate diff evaluation. `None` when
-/// the project dir can't be resolved or git fails; gates fall back to the
-/// step-local start SHA in that case.
-pub(super) fn resolve_project_head_sha() -> Option<String> {
-    let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
-    let project_root = project_ship.parent()?;
-    ship_platform::services::orchestrator::git_helpers::resolve_head_sha(project_root)
-}
-
 /// GET /api/v1/sessions/active-across-projects
 ///
-/// Returns the running sessions visible across every project the
-/// daemon knows about, each row labeled with `space_id` + project
-/// `name`. Chrome consumes this to surface "N agents running in other
-/// projects" without forcing it to fan-out per-project queries.
+/// Thin transport shell — delegates to
+/// `ship_substrate::runtime_reads::list_active_sessions_with_projects`.
 pub async fn list_sessions_across_projects(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> impl IntoResponse {
-    let sessions = match ship_substrate::db::session_drain::list_active_sessions() {
-        Ok(rows) => rows,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(e.to_string()),
-                }),
-            )
-                .into_response();
-        }
-    };
-
-    // Index projects so we can attach a display name per session without
-    // hitting the registry on every row.
-    let by_id: std::collections::HashMap<String, ship_platform::projects::ProjectRecord> =
-        ship_platform::projects::list()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|p| (p.id.clone(), p))
-            .collect();
-
-    let data: Vec<serde_json::Value> = sessions
-        .into_iter()
-        .map(|s| {
-            let project_name = s
-                .space_id
-                .as_deref()
-                .and_then(|id| by_id.get(id))
-                .map(|p| p.name.clone());
-            serde_json::json!({
-                "id": s.id,
-                "workspace_id": s.workspace_id,
-                "branch": s.branch,
-                "space_id": s.space_id,
-                "project_name": project_name,
-                "status": s.status,
-                "agent_id": s.agent_id,
-                "started_at": s.started_at,
-                "last_activity_at": s.last_activity_at,
-                "goal": s.goal,
-            })
-        })
-        .collect();
-    (
-        StatusCode::OK,
-        Json(MeshResponse {
-            ok: true,
-            data: serde_json::json!({ "sessions": data }),
-        }),
-    )
-        .into_response()
+    match ship_substrate::runtime_reads::list_active_sessions_with_projects() {
+        Ok(data) => (
+            StatusCode::OK,
+            Json(MeshResponse {
+                ok: true,
+                data: serde_json::json!({ "sessions": data }),
+            }),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(e),
+            }),
+        )
+            .into_response(),
+    }
 }
 
 
@@ -128,7 +70,8 @@ pub use jobs::{
     CancelJobRequest, EventSummary, PipelineRunDetailResponse, TurnEndRequest,
     cancel_job, end_job, get_job_detail, list_jobs,
 };
-pub use pipeline_run::{PipelineRunRequest, run_pipeline};
+pub use pipeline_run::run_pipeline;
+pub use ship_pipeline_runtime::run_core::PipelineRunRequest;
 
 // Helpers re-exported for the in-file test mod below.
 #[cfg(test)]
@@ -164,6 +107,9 @@ mod tests {
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
+            // The operator stand-in: a verified operator cred clears the gate
+            // (a bare CLI no longer does — S6).
+            operator_cred: true,
         })
     }
 
@@ -176,6 +122,7 @@ mod tests {
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
+            operator_cred: true,
         }
     }
 
@@ -232,11 +179,11 @@ mod tests {
             spec_content: None,
             step_specs: None,
             headless: false,
-            keepalive: false,
             prompt: None,
             resume: false,
             resume_session_id: None,
             baseline_sha: None,
+            keepalive: false,
         };
         let envelope = ship_substrate::events::EventEnvelope::new(
             ship_substrate::events::pipeline::event_types::PIPELINE_RUN_STARTED,
@@ -303,13 +250,13 @@ mod tests {
         .into_response();
         assert_eq!(response.status(), StatusCode::OK);
 
-        let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir()).unwrap();
+        let jobs = ship_pipeline_runtime::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir()).unwrap();
         let job = jobs.get(&pipeline_run_id).unwrap();
-        assert_eq!(job.status, ship_platform::projections::pipeline_run::PipelineRunStatus::Cancelled);
+        assert_eq!(job.status, ship_pipeline_runtime::projections::pipeline_run::PipelineRunStatus::Cancelled);
 
         // Confirm the cancelled event actually landed.
         let events = ship_substrate::db::events::query_recent_events_for_entity_at(
-            &ship_substrate::db::platform_db_path(state.ship_dir()),
+            &ship_substrate::db::runtime_db_path(state.ship_dir()),
             &pipeline_run_id, 20,
         )
         .unwrap();
@@ -348,7 +295,7 @@ mod tests {
 
         // Make sure no job.cancelled was emitted (idempotent no-op).
         let events = ship_substrate::db::events::query_recent_events_for_entity_at(
-            &ship_substrate::db::platform_db_path(state.ship_dir()),
+            &ship_substrate::db::runtime_db_path(state.ship_dir()),
             &pipeline_run_id, 20,
         )
         .unwrap();
@@ -529,13 +476,17 @@ mod tests {
             payload_json: "{}".into(),
             version: 1,
             causation_id: None,
-            space_id: None,
+            scope: ship_substrate::events::EventScope::Runtime,
+            scope_key: None,
             session_id: None,
             actor_id: None,
             parent_actor_id: None,
             target_actor_id: None,
             elevated: false,
             created_at: ts,
+            author_account_id: None,
+            author_device_id: None,
+            signature: None,
         };
         let events = vec![
             mk("supervisor.drift_detected", drift_ts),
@@ -554,13 +505,17 @@ mod tests {
             payload_json: "{}".into(),
             version: 1,
             causation_id: None,
-            space_id: None,
+            scope: ship_substrate::events::EventScope::Runtime,
+            scope_key: None,
             session_id: None,
             actor_id: None,
             parent_actor_id: None,
             target_actor_id: None,
             elevated: false,
             created_at: chrono::Utc::now(),
+            author_account_id: None,
+            author_device_id: None,
+            signature: None,
         };
         let events = vec![mk("supervisor.drift_detected")];
         assert!(drift_active_for_slug("slug", &events));

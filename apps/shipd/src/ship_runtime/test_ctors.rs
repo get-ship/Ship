@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use ship_platform::services::mesh::SharedMeshRegistry;
+use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
 
 use super::{ShipRuntime, RuntimeConfig, SharedKernel, WorktreeResolver, default_worktree_resolver};
@@ -15,38 +15,33 @@ impl ShipRuntime {
     pub fn new_test(ship_dir: std::path::PathBuf, kernel: SharedKernel) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
-        let rules = ship_platform::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
-        let mcp = ship_platform::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
-        let skills = ship_platform::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
-        let agents = ship_platform::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        let rules = ship_agents::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
+        let mcp = ship_agents::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let skills = ship_agents::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
+        let agents = ship_agents::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
-            ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
+            ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
-        let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
-            Arc::new(tokio::sync::Mutex::new(None));
-        let collections =
-            ship_platform::services::collections::service::CollectionsServiceImpl::arc(
-                ship_dir.clone(),
-                kernel.clone(),
-                data_service.clone(),
-            );
-        let artifacts = ship_platform::services::artifacts::service::ArtifactsServiceImpl::arc(
-            ship_dir.clone(),
-            kernel.clone(),
-            data_service.clone(),
-        );
+        // Test fixture binds a concrete space (`test-space`) — there is no daemon
+        // home space / `global` partition to fall back onto (S2). Production boot
+        // leaves these `None` in space-less mode.
+        let collection_ctx =
+            Some(super::init::build_space_db_context_arc(kernel.clone(), &ship_dir, "test-space"));
+        let artifact_ctx =
+            Some(super::init::build_space_db_context_arc(kernel.clone(), &ship_dir, "test-space"));
+        let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
+        let global_blob_dir = ship_dir.clone();
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
-        let permissions: std::sync::Arc<dyn ship_platform::services::permissions::service::PermissionsService> =
+        let permissions: std::sync::Arc<dyn ship_agents::services::permissions::service::PermissionsService> =
             std::sync::Arc::new(
-                ship_platform::services::permissions::service::PermissionsServiceImpl::with_roots(
+                ship_agents::services::permissions::service::PermissionsServiceImpl::with_roots(
                     ship_dir.clone(),
                     None,
                     mcp.clone(),
                 ),
             );
-        let account = test_account_service(&ship_dir);
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -61,8 +56,10 @@ impl ShipRuntime {
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
-            diag_registry: std::sync::OnceLock::new(),
-            data_service,
+            collection_ctx,
+            artifact_ctx,
+            schemas,
+            global_blob_dir,
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
@@ -73,13 +70,12 @@ impl ShipRuntime {
             agents,
             pipelines,
             git,
-            collections,
-            artifacts,
-            account: account.clone(),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
+            agent_def_kernel: std::sync::OnceLock::new(),
+            agent_reactive: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
             worktree_resolver: default_worktree_resolver(),
             shutdown_token: std::sync::OnceLock::new(),
@@ -94,38 +90,33 @@ impl ShipRuntime {
     ) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
-        let rules = ship_platform::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
-        let mcp = ship_platform::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
-        let skills = ship_platform::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
-        let agents = ship_platform::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        let rules = ship_agents::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
+        let mcp = ship_agents::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let skills = ship_agents::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
+        let agents = ship_agents::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
-            ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
+            ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
-        let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
-            Arc::new(tokio::sync::Mutex::new(None));
-        let collections =
-            ship_platform::services::collections::service::CollectionsServiceImpl::arc(
-                ship_dir.clone(),
-                kernel.clone(),
-                data_service.clone(),
-            );
-        let artifacts = ship_platform::services::artifacts::service::ArtifactsServiceImpl::arc(
-            ship_dir.clone(),
-            kernel.clone(),
-            data_service.clone(),
-        );
+        // Test fixture binds a concrete space (`test-space`) — there is no daemon
+        // home space / `global` partition to fall back onto (S2). Production boot
+        // leaves these `None` in space-less mode.
+        let collection_ctx =
+            Some(super::init::build_space_db_context_arc(kernel.clone(), &ship_dir, "test-space"));
+        let artifact_ctx =
+            Some(super::init::build_space_db_context_arc(kernel.clone(), &ship_dir, "test-space"));
+        let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
+        let global_blob_dir = ship_dir.clone();
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
-        let permissions: std::sync::Arc<dyn ship_platform::services::permissions::service::PermissionsService> =
+        let permissions: std::sync::Arc<dyn ship_agents::services::permissions::service::PermissionsService> =
             std::sync::Arc::new(
-                ship_platform::services::permissions::service::PermissionsServiceImpl::with_roots(
+                ship_agents::services::permissions::service::PermissionsServiceImpl::with_roots(
                     ship_dir.clone(),
                     None,
                     mcp.clone(),
                 ),
             );
-        let account = test_account_service(&ship_dir);
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -140,8 +131,10 @@ impl ShipRuntime {
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
-            diag_registry: std::sync::OnceLock::new(),
-            data_service,
+            collection_ctx,
+            artifact_ctx,
+            schemas,
+            global_blob_dir,
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
@@ -152,13 +145,12 @@ impl ShipRuntime {
             agents,
             pipelines,
             git,
-            collections,
-            artifacts,
-            account: account.clone(),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
+            agent_def_kernel: std::sync::OnceLock::new(),
+            agent_reactive: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
             worktree_resolver: default_worktree_resolver(),
             shutdown_token: std::sync::OnceLock::new(),
@@ -177,19 +169,4 @@ impl ShipRuntime {
         rt.worktree_resolver = worktree_resolver;
         rt
     }
-}
-
-/// Synthesise an `AccountService` for unit tests. Uses a tempdir-shaped
-/// fake token store rooted at `ship_dir` (tests don't write to it) and a
-/// localhost gateway URL so client construction succeeds without DNS.
-fn test_account_service(
-    ship_dir: &std::path::Path,
-) -> std::sync::Arc<ship_platform::account::AccountService> {
-    let store = std::sync::Arc::new(
-        ship_platform::account::FileTokenStore::for_daemon_dir(ship_dir),
-    );
-    std::sync::Arc::new(
-        ship_platform::account::AccountService::new(store, "http://127.0.0.1:1")
-            .expect("test account service ctor"),
-    )
 }

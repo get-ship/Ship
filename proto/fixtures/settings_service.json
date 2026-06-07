@@ -1,12 +1,57 @@
 {
-  "Set": {
+  "Get": {
     "response_ok": {
-      "key": "theme",
-      "value_json": "\"dark\""
+      "key": "ui.theme",
+      "value_json": "ImRhcmsi",
+      "scope": "SETTING_SCOPE_ACCOUNT",
+      "is_default": false
     },
     "request": {
       "key": "test-key",
-      "value_json": "test-value_json"
+      "scope": "test-scope"
+    }
+  },
+  "List": {
+    "response_ok": {
+      "settings": [
+        {
+          "key": "ui.theme",
+          "value_json": "ImRhcmsi",
+          "scope": "SETTING_SCOPE_ACCOUNT",
+          "is_default": false
+        }
+      ]
+    },
+    "request": {
+      "scope": "test-scope"
+    }
+  },
+  "Set": {
+    "response_ok": {
+      "key": "ui.theme",
+      "value_json": "ImRhcmsi",
+      "scope": "SETTING_SCOPE_ACCOUNT",
+      "is_default": false
+    },
+    "request": {
+      "key": "test-key",
+      "value_json": "test-value_json",
+      "scope": "test-scope"
+    }
+  },
+  "Watch": {
+    "response_ok": {
+      "patches": {
+        "patches": [
+          {
+            "op": "PATCH_OP_SET",
+            "value": "eyJzZXR0aW5ncyI6e319"
+          }
+        ]
+      }
+    },
+    "request": {
+      "scope": "test-scope"
     }
   }
 }

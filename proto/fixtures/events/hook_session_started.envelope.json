@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "hook.session_started",
-    "scope": "device",
+    "scope": "runtime",
     "retention": "ephemeral",
     "stability": "stable",
     "payload_type": "HookSessionStartedPayload",

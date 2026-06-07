@@ -30,11 +30,7 @@ fn is_needs_author(v: &serde_json::Value) -> bool {
 }
 
 fn scope_str(s: &EventScope) -> &'static str {
-    match s {
-        EventScope::Space => "space",
-        EventScope::Account => "account",
-        EventScope::Device => "device",
-    }
+    s.as_str()
 }
 
 fn retention_str(r: &Retention) -> &'static str {
@@ -96,7 +92,7 @@ fn event_fixtures_roundtrip_and_metadata() {
             let fixture_stability = meta.get("stability").and_then(|v| v.as_str()).unwrap_or("");
 
             let reg = registry_map[def.name];
-            let expected_scope = scope_str(&reg.scope);
+            let expected_scope = scope_str(&reg.primary_scope());
             let expected_retention = retention_str(&reg.retention);
             let expected_stability = stability_str(&reg.stability);
 
@@ -198,6 +194,10 @@ fn op_fixtures_roundtrip() {
     // Check per-method entries exist and have response_ok
     for p in &policies {
         if is_non_domain_service(&p.service) { continue; }
+        // DeviceService is unfinished (#130) — its rpcs are typed but have no
+        // validators/fixtures yet (gen-fixtures skips it via is_non_fixture_service).
+        // Skip until the device-window service lands; then this re-arms.
+        if p.service == "DeviceService" { continue; }
         if p.output_type.is_empty() || p.output_type == "JsonResponse" { continue; }
         let svc = snake(&p.service);
         let path = fixtures_dir.join(format!("{svc}.json"));

@@ -1,7 +1,11 @@
-//! Tests for S5 and S6: projection rebuild from events, rebuild idempotency.
+//! Tests for S5 and S6: per-scope projection rebuild from events, rebuild
+//! idempotency. After the Phase-4 storage partition `rebuild_projections`
+//! replays each scope db's own log into its own projections, so these tests
+//! write through the Runtime scope store (`runtime.db`) and rebuild from there.
 
-use crate::db::{ensure_db_at, rebuild};
+use crate::db::rebuild;
 use ship_types::envelope::EventEnvelope;
+use ship_types::event_registry::EventScope;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
 use crate::testutil::init_project_minimal as init_project;
@@ -10,7 +14,8 @@ use tempfile::tempdir;
 fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
     let tmp = tempdir().unwrap();
     let ship_dir = init_project(tmp.path()).unwrap();
-    ensure_db_at(&ship_dir).unwrap();
+    // Provision the Runtime scope db the rebuild path reads from.
+    crate::db::ensure_events_db_at_path(&crate::db::runtime_db_path(&ship_dir)).unwrap();
     (tmp, ship_dir)
 }
 
@@ -47,7 +52,7 @@ fn workspace_archived_event(branch: &str) -> EventEnvelope {
 #[test]
 fn rebuild_replays_events_without_panic() {
     let (_tmp, ship_dir) = setup();
-    let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+    let store = SqliteEventStore::new_for_scope(&ship_dir, EventScope::Runtime, None).unwrap();
 
     // Workspace projection is now a no-op (events still flow through);
     // verify rebuild completes cleanly with workspace events present.

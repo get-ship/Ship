@@ -1,5 +1,6 @@
 ---
 name: ship-ops
+audience: public
 stable-id: ship-ops
 description: >-
   The `ops` capability (1 ops). Call any op over ConnectRPC with

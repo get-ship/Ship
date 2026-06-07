@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "workspace.activated",
-    "scope": "device",
+    "scope": "runtime",
     "retention": "durable",
     "stability": "deprecated",
     "payload_type": "WorkspaceActivated",

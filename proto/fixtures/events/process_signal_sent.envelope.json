@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "process.signal_sent",
-    "scope": "device",
+    "scope": "runtime",
     "retention": "ephemeral",
     "stability": "stable",
     "payload_type": "ProcessSignalSentPayload",

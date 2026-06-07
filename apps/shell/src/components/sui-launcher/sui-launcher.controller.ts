@@ -1,25 +1,20 @@
 import { chrome, controller, effect, signal, bindNativeEvent } from '@ship/sui-runtime'
 import type { Scope } from './sui-launcher.sui'
 import { type ApiView, type Project, humanize, renderHead, renderFoot, renderBody } from './render'
-import { ops } from '../../ops'
+import { ops, readSetting, writeSetting } from '../../ops'
 
 const SETTING_KEY = 'shell.rail.pinned'
 const DEFAULT_PINS = ['dashboard', 'pipelines', 'agents', 'skills', 'git']
 
 async function fetchPins(): Promise<string[]> {
-  try {
-    const body = JSON.parse((await ops.settings.state({})).json) as {
-      data?: Record<string, unknown>
-    }
-    const raw = body.data?.[SETTING_KEY]
-    if (Array.isArray(raw) && raw.every((v) => typeof v === 'string')) return raw as string[]
-    return DEFAULT_PINS
-  } catch { return DEFAULT_PINS }
+  const raw = await readSetting<unknown>(SETTING_KEY)
+  if (Array.isArray(raw) && raw.every((v) => typeof v === 'string')) return raw as string[]
+  return DEFAULT_PINS
 }
 
 async function savePins(pins: string[]): Promise<void> {
   try {
-    await ops.settings.set({ key: SETTING_KEY, valueJson: JSON.stringify(pins) })
+    await writeSetting(SETTING_KEY, pins)
   } catch { /* best-effort */ }
 }
 
@@ -32,11 +27,9 @@ async function fetchViews(): Promise<ApiView[]> {
 
 async function fetchProject(): Promise<Project | null> {
   try {
-    const body = JSON.parse((await ops.project.listProjects({})).json) as {
-      projects: Project[]
-      active?: string
-    }
-    return body.projects.find((p) => p.id === body.active) ?? body.projects[0] ?? null
+    const resp = await ops.space.list({})
+    const list = resp.spaces.map((s) => ({ id: s.id, name: s.name, path: s.path }))
+    return list.find((p) => p.id === resp.activeId) ?? list[0] ?? null
   } catch { return null }
 }
 

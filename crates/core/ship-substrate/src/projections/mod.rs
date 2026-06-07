@@ -8,7 +8,10 @@
 //! and rebuilt from the event log at any time via [`rebuild`].
 
 pub mod actor;
+pub mod artifact;
 pub mod async_projection;
+pub mod collection;
+pub mod grants;
 pub mod process;
 pub mod registry;
 mod session;
@@ -22,28 +25,42 @@ mod tests_daemon_events;
 mod tests_session;
 
 pub use actor::ActorProjection;
+pub use artifact::ArtifactProjection;
 pub use async_projection::{AsyncProjection, spawn_projection};
+pub use collection::CollectionProjection;
+pub use grants::{
+    ProvisionedGrantsProjection, ProvisionedGrantsRow, provisioned_grants_for,
+    provisioned_grants_for_at, provisioned_row,
+};
 pub use process::{ProcessRecord, ProcessStatus, load_processes};
 pub use registry::{EventBus, Projection};
 pub use session::SessionProjection;
 pub use spawn::{ProjectionHandle, spawn_with_failure_counter};
 
-use std::sync::OnceLock;
+use std::sync::Mutex;
 
 /// Factory that produces additional projections to register on the default
-/// event bus. Set at application startup by higher-layer crates (typically
-/// `ship_platform::install_default_projections`); read by
-/// `SqliteEventStore::default_bus`.
+/// event bus. Registered at application startup by each higher-layer domain
+/// (platform, pipeline-runtime, …); read by `SqliteEventStore::default_bus`.
 type ExtraProjectionsFactory = Box<dyn Fn() -> Vec<Box<dyn Projection>> + Send + Sync>;
-static EXTRA_PROJECTIONS: OnceLock<ExtraProjectionsFactory> = OnceLock::new();
+static EXTRA_PROJECTIONS: Mutex<Vec<ExtraProjectionsFactory>> = Mutex::new(Vec::new());
 
-/// Install a factory for additional projections beyond the substrate L0
-/// defaults. Idempotent — second and later calls are silently ignored.
-/// Call this once at app startup before any `SqliteEventStore` is constructed.
+/// Register a factory for additional projections beyond the substrate L0
+/// defaults. Each domain contributes its own projections through this single
+/// API; the substrate composes every registered factory at bus-construction
+/// time. Call at app startup before any `SqliteEventStore` is constructed.
 pub fn install_extra_projections_factory(factory: ExtraProjectionsFactory) {
-    let _ = EXTRA_PROJECTIONS.set(factory);
+    EXTRA_PROJECTIONS
+        .lock()
+        .expect("extra-projections registry poisoned")
+        .push(factory);
 }
 
 pub fn extra_projections() -> Vec<Box<dyn Projection>> {
-    EXTRA_PROJECTIONS.get().map(|f| f()).unwrap_or_default()
+    EXTRA_PROJECTIONS
+        .lock()
+        .expect("extra-projections registry poisoned")
+        .iter()
+        .flat_map(|f| f())
+        .collect()
 }

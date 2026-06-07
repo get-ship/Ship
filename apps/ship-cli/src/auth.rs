@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::mpsc;
 
-use crate::config::{Credentials, DiskBackedConfig, ShipConfig};
+use crate::config::ShipConfig;
 
 // PKCE state (verifier + challenge generation) moved to the daemon's
 // AccountService in `crates/core/ship-platform/src/account/service.rs`.
@@ -52,7 +52,7 @@ fn parse_code_from_request(request: &str) -> Option<String> {
 ///      there's no legacy credentials.jsonc mirror (#79 retired).
 pub fn run_login() -> Result<()> {
     use connectrpc::client::{ClientConfig, HttpClient};
-    use ship_ops_rpc::{AccountServiceClient, LoginCompleteReq, LoginReq};
+    use ship_ops_rpc::{AccountServiceClient, LoginCompleteRequest, LoginRequest};
     let (daemon_port, daemon_token) = daemon_connect()?;
 
     // AccountService.Login{,Complete} (Connect) replace POST /api/v1/account/login
@@ -73,18 +73,13 @@ pub fn run_login() -> Result<()> {
 
     // 1. Start the login via daemon — daemon generates PKCE + returns
     //    the browser URL pointing at the gateway with our redirect_uri.
-    let start: serde_json::Value = {
+    let (state_id, browser_url) = {
         let resp = rt
-            .block_on(account.login(LoginReq { redirect_uri, ..Default::default() }))
+            .block_on(account.login(LoginRequest { redirect_uri, ..Default::default() }))
             .map_err(|e| anyhow::anyhow!("account login failed: {e}"))?;
-        serde_json::from_str(&resp.view().json).context("parsing login response")?
+        let started = resp.view();
+        (started.state_id.to_string(), started.browser_url.to_string())
     };
-    let state_id = start.get("state_id").and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow::anyhow!("daemon /account/login: missing state_id"))?
-        .to_string();
-    let browser_url = start.get("browser_url").and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow::anyhow!("daemon /account/login: missing browser_url"))?
-        .to_string();
 
     println!("Opening browser for login...");
     println!("  {}", browser_url);
@@ -120,19 +115,16 @@ pub fn run_login() -> Result<()> {
     // 3. Daemon exchanges the code, stores the API key, binds the daemon
     //    owner. The daemon holds the token — publish/convert read it from the
     //    daemon now, so there's no Credentials mirror (the #79 bridge is gone).
-    let complete: serde_json::Value = {
+    let user_id = {
         let resp = rt
-            .block_on(account.login_complete(LoginCompleteReq {
+            .block_on(account.login_complete(LoginCompleteRequest {
                 state_id,
                 code,
                 ..Default::default()
             }))
             .map_err(|e| anyhow::anyhow!("account login complete failed: {e}"))?;
-        serde_json::from_str(&resp.view().json).context("parsing login-complete response")?
+        resp.view().user_id.to_string()
     };
-    let user_id = complete.get("user_id").and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow::anyhow!("daemon account.login_complete: missing user_id"))?
-        .to_string();
 
     println!("Logged in as {user_id}. Daemon stored token + bound to this account.");
     Ok(())
@@ -269,45 +261,61 @@ pub fn run_auth_revoke(token: Option<&str>, all: bool) -> Result<()> {
     Ok(())
 }
 
-/// `ship logout` — clear the daemon's stored token + the legacy CLI mirror.
+/// `ship logout` — clear the daemon's stored token.
+///
+/// The daemon owns the SINGLE token doc (`machine/daemon/account.jsonc`), so
+/// logout is just the daemon's `AccountService.Logout` (revoke gateway key +
+/// clear local token). There is no CLI-side `credentials.jsonc` mirror to wipe
+/// (retired in S5).
+///
+/// Idempotent: when there is no local token AND the daemon is unreachable,
+/// there is nothing to revoke — print "Not logged in." and exit 0. A live
+/// daemon is only required when there IS a token to clear.
 pub fn run_logout() -> Result<()> {
-    // Best-effort daemon clear — if daemon isn't running we still want
-    // to nuke the local mirror so the user isn't stuck in a half-state.
-    let mut daemon_cleared = false;
-    if let Ok((port, daemon_token)) = daemon_connect() {
-        use connectrpc::client::{ClientConfig, HttpClient};
-        use ship_ops_rpc::{AccountServiceClient, LogoutReq};
-        // AccountService.Logout (Connect) replaces POST /api/v1/account/logout.
-        if let Ok(uri) = format!("http://127.0.0.1:{port}").parse::<http::Uri>() {
-            let config = ClientConfig::new(uri)
-                .default_header("authorization", format!("Bearer {daemon_token}"));
-            let client = AccountServiceClient::new(HttpClient::plaintext(), config);
-            if let Ok(rt) = tokio::runtime::Runtime::new() {
-                daemon_cleared = rt.block_on(client.logout(LogoutReq::default())).is_ok();
-            }
-        }
-    }
-
-    let mut creds = Credentials::load();
-    let had_legacy = creds.account_token().is_some();
-    if had_legacy {
-        creds.account = None;
-        creds.save()?;
-    }
-
-    if !daemon_cleared && !had_legacy {
+    let home = ship_substrate::ShipHome::from_env();
+    if !home.account_token_path().exists() && daemon_connect().is_err() {
         println!("Not logged in.");
         return Ok(());
     }
-    println!("Logged out.");
+    let (port, daemon_token) = daemon_connect().map_err(|e| e)?;
+
+    use connectrpc::client::{ClientConfig, HttpClient};
+    use ship_ops_rpc::{AccountServiceClient, LogoutRequest};
+    // AccountService.Logout (Connect) revokes the gateway key + clears the
+    // daemon's stored token. `had_token=false` means there was nothing to clear.
+    let uri = format!("http://127.0.0.1:{port}")
+        .parse::<http::Uri>()
+        .context("building daemon URI")?;
+    let config =
+        ClientConfig::new(uri).default_header("authorization", format!("Bearer {daemon_token}"));
+    let client = AccountServiceClient::new(HttpClient::plaintext(), config);
+    let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
+    let result = rt
+        .block_on(client.logout(LogoutRequest::default()))
+        .map_err(|e| anyhow::anyhow!("logout failed: {e}"))?;
+
+    if result.view().had_token {
+        println!("Logged out.");
+    } else {
+        println!("Not logged in.");
+    }
     Ok(())
 }
 
-/// Fetch account state over the Connect `AccountService` (the typed op surface
-/// that replaces `GET /api/v1/account/state`). Mirrors the `ship meta` pattern.
-fn fetch_account_state(port: u16, token: &str) -> Result<serde_json::Value> {
+/// Coarse account snapshot the CLI renders for `ship whoami`. Mirrors the typed
+/// `AccountState` wire status; carries the `user_id` only when logged in.
+enum AccountSnapshot {
+    LoggedOut,
+    Pending,
+    LoggedIn { user_id: String },
+}
+
+/// Fetch account state over the typed Connect `AccountService` (account.proto).
+/// Mirrors the `ship meta` pattern.
+fn fetch_account_state(port: u16, token: &str) -> Result<AccountSnapshot> {
     use connectrpc::client::{ClientConfig, HttpClient};
-    use ship_ops_rpc::{AccountServiceClient, GetAccountStateReq};
+    use ship_ops_rpc::account_state::Status;
+    use ship_ops_rpc::{AccountServiceClient, StateRequest};
     let uri: http::Uri =
         format!("http://127.0.0.1:{port}").parse().context("building daemon URI")?;
     let config =
@@ -315,9 +323,14 @@ fn fetch_account_state(port: u16, token: &str) -> Result<serde_json::Value> {
     let client = AccountServiceClient::new(HttpClient::plaintext(), config);
     let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
     let resp = rt
-        .block_on(client.state(GetAccountStateReq::default()))
+        .block_on(client.state(StateRequest::default()))
         .map_err(|e| anyhow::anyhow!("account.state call failed: {e}"))?;
-    serde_json::from_str(&resp.view().json).context("parsing account.state json")
+    let view = resp.view();
+    Ok(match view.status.as_known() {
+        Some(Status::LOGGED_IN) => AccountSnapshot::LoggedIn { user_id: view.user_id.to_string() },
+        Some(Status::PENDING) => AccountSnapshot::Pending,
+        _ => AccountSnapshot::LoggedOut,
+    })
 }
 
 /// `ship whoami` — query the daemon for current account state.
@@ -339,21 +352,18 @@ pub fn run_whoami() -> Result<()> {
     Ok(())
 }
 
-fn print_account_state(state: &serde_json::Value) {
-    let kind = state.get("state").and_then(|v| v.as_str()).unwrap_or("logged_out");
-    match kind {
-        "logged_in" => {
+fn print_account_state(state: &AccountSnapshot) {
+    match state {
+        AccountSnapshot::LoggedIn { user_id } => {
             print_local_identity();
-            if let Some(uid) = state.get("user_id").and_then(|v| v.as_str()) {
-                println!("user_id: {uid}");
-            }
+            println!("user_id: {user_id}");
             println!("authenticated");
         }
-        "pending" => {
+        AccountSnapshot::Pending => {
             print_local_identity();
             println!("login in progress — return to the browser tab and complete it");
         }
-        _ => {
+        AccountSnapshot::LoggedOut => {
             print_local_identity();
             println!("Not logged in.");
         }

@@ -5,7 +5,7 @@
 //! These types are serialized straight into the registry op payloads
 //! that `.ship/views/pipelines/*` templates consume.
 
-use ship_platform::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
+use ship_pipeline_runtime::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -241,7 +241,7 @@ pub fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
         let ship = ship_substrate::ShipHome::project_ship_dir(&walker);
         // Composed overlay (local + dep pipelines) when the space has deps; raw
         // `.ship/` otherwise — parity with pipeline_loader's load path.
-        let dir = ship_platform::registry::compose::composed_root_for(&ship).join("pipelines");
+        let dir = ship_store::compose::composed_root_for(&ship).join("pipelines");
         if dir.is_dir() {
             for ext in ["yaml", "yml", "jsonc", "json"] {
                 let cand = dir.join(format!("{name}.{ext}"));
@@ -258,9 +258,9 @@ pub fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
 }
 
 pub fn harnesses_on_path() -> Vec<String> {
-    ship_platform::agents::harnesses::HARNESSES
+    ship_agents::agent_domain::harnesses::HARNESSES
         .iter()
-        .filter(|d| ship_platform::agents::harnesses::detect_binary(d.binary))
+        .filter(|d| ship_agents::agent_domain::harnesses::detect_binary(d.binary))
         .map(|d| d.id.to_string())
         .collect()
 }

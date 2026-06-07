@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "hook.tool_use_completed",
-    "scope": "device",
+    "scope": "runtime",
     "retention": "ephemeral",
     "stability": "stable",
     "payload_type": "HookToolUseCompletedPayload",

@@ -15,7 +15,6 @@
 #
 # See:
 #   crates/core/ship-substrate/migrations/README.md
-#   docs/ship-runtime/references/docs/migrations.md
 
 set -u
 

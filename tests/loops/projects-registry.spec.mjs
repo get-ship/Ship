@@ -17,6 +17,10 @@
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { guardProdHome } from "./_prod-guard.mjs";
+
+// Refuse to mutate the operator's prod daemon (~/.ship) on direct runs.
+guardProdHome();
 
 const BASE = process.env.SHIPD_URL ?? "http://localhost:9315";
 const TOKEN = process.env.TOKEN;

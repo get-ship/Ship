@@ -1,8 +1,8 @@
-//! `ship runtime ...` — thin transport over `ship_platform::toolchain::*`.
+//! `ship runtime ...` — thin transport over `ship_substrate::sui_compiler::*`.
 //!
-//! All policy lives in `ship-platform`; this file only translates clap
-//! enums into call arguments and prints results. New behaviors belong in
-//! `crates/core/ship-platform/src/toolchain/` so the MCP transport can reuse
+//! All policy lives in `ship_substrate::sui_compiler`; this file only translates
+//! clap enums into call arguments and prints results. New behaviors belong
+//! alongside the substrate sui_compiler module so the MCP transport can reuse
 //! them without duplicating logic.
 
 use std::path::PathBuf;
@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 
 use ship_substrate::ShipHome;
-use ship_platform::toolchain::{InstallOptions, ensure_present, install, update};
+use ship_substrate::sui_compiler::{InstallOptions, ensure_present, install, update};
 
 pub fn run_install(sui_compiler: Option<PathBuf>) -> Result<()> {
     let home = ShipHome::from_env();

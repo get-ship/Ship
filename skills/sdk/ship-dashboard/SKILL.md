@@ -1,5 +1,6 @@
 ---
 name: ship-dashboard
+audience: public
 stable-id: ship-dashboard
 description: >-
   The `dashboard` capability (1 ops). Call any op over ConnectRPC with

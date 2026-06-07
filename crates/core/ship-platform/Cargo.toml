@@ -8,13 +8,67 @@ description = "L1 platform primitives — agents, collections, artifacts, trigge
 
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
-ship-host = { path = "../ship-host" }
-ship-analytics = { path = "../ship-analytics" }
-ship-kernel = { path = "../ship-kernel" }
-ship-types = { path = "../ship-types" }
-ship-pipelines = { path = "../ship-pipelines", features = ["specta"] }
-ship-gateway-client = { path = "../ship-gateway-client" }
-compiler = { path = "../compiler", features = ["specta"] }
+ship-host = { path = "../ship-substrate/crates/ship-host" }
+# Device domain — the isolation-execution sandbox (moved from this crate
+# as part of the supervisor→platform cycle break, c2-sandbox-device) plus
+# the window-management service. Re-exported below for back-compat with
+# downstream callers that still import `ship_platform::sandbox::*`.
+ship-device = { path = "crates/ship-device" }
+ship-analytics = { path = "crates/ship-analytics" }
+# Sibling L1 crates (live under this crate's `crates/` dir). The internal
+# platform consumers (triggers, view_authoring, orchestrator) call into the
+# async collection/artifact services over substrate ports. No cycle — the new
+# crates depend on ship-substrate/ship-types, not on ship-platform.
+ship-auth = { path = "crates/ship-auth" }
+ship-collection = { path = "crates/ship-collection" }
+ship-artifacts = { path = "crates/ship-artifacts" }
+ship-views = { path = "crates/ship-views" }
+ship-account = { path = "crates/ship-account" }
+# Unified settings keystone (S4). The RUNTIME-scope Rust settings API
+# (`ship_config::settings`) is the single source of truth for daemon launch
+# defaults — the legacy in-tree settings module was unified into it.
+# No cycle: ship-config depends on ship-substrate/ship-types/ship-reactive/
+# ship-ops-rpc, none of which depend on ship-platform.
+ship-config = { path = "crates/ship-config" }
+ship-triggers = { path = "crates/ship-triggers" }
+ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
+ship-auth-types = { path = "../ship-substrate/crates/ship-auth-types" }
+ship-types = { path = "../ship-substrate/crates/ship-types" }
+ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines", features = ["specta"] }
+# L0 runner mechanism (agents-arc S2). The orchestrator MECHANISM (router gate,
+# event dedup, exit-signal routing, kernel-emit plumbing, invocation-mode
+# resolution) lives here; ship-platform keeps only the policy and drives the
+# mechanism through the runner ports. No cycle: ship-runner depends on
+# ship-substrate/ship-types, not on ship-platform.
+ship-runner = { path = "../ship-substrate/crates/ship-runner" }
+# Agent-session orchestration (agents-arc S3b). The bare agent.session dispatch
+# primitive + the `service.agents` actor live here, depending on L0 alone. The
+# SpawnPolicy-port call (`build_spawn_env`) is L0 mechanism and lives in
+# `ship_runner` — the pipeline-dispatch path calls it from L0 directly, never
+# through this agents crate (no laundered pipelines→agents coupling). No cycle:
+# ship-agents depends on ship-substrate/ship-runner/ship-types, not ship-platform.
+ship-agents = { path = "crates/ship-agents" }
+# Harness adapter registry + concrete adapters (claude/codex/cursor/opencode/pi).
+# Carved here so ship-agents (and future L2 consumers) can depend on harnesses
+# without pulling in all of ship-platform. Re-exported below for back-compat.
+ship-harnesses = { path = "crates/ship-harnesses" }
+# FilesService + jsonc/path_tolerant/line_accumulator carved here so downstream
+# crates (ship-agents, …) can import them without pulling in all of ship-platform.
+ship-files = { path = "crates/ship-files" }
+ship-kv = { path = "crates/ship-kv" }
+ship-store = { path = "crates/ship-store" }
+ship-gateway-client = { path = "crates/ship-gateway-client" }
+# Cloud sync transport — `SyncClient` + `PushRequest`/`PushResponse`/`PullResponse`
+# live in the `ship-cloud` crate. The wrapping `services::sync::SyncServiceHandler`
+# stays here (it needs the platform-local `ServiceHandler` from substrate) but
+# its transport types are now the `ship_cloud` re-exports. unstable-gated to
+# match the service's own feature gate.
+ship-git = { path = "../ship-git" }
+ship-cloud = { path = "../ship-cloud", optional = true }
+# Isolation types + recommender. Default-features off — youki and
+# sidecar backends stay opt-in (the daemon's feature flags layer them in).
+ship-isolation = { path = "../ship-isolation", default-features = false }
+compiler = { path = "crates/compiler", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde_yaml = { workspace = true }
@@ -51,11 +105,9 @@ tar = "0.4"
 rmp-serde = "1"
 portable-pty = "0.9"
 tracing = { workspace = true }
-sea-query = { version = "0.32.7", features = ["backend-sqlite"] }
 indexmap = { workspace = true, features = ["serde"] }
 globset = "0.4"
 minijinja = { workspace = true }
-notify = { workspace = true }
 cron = "0.12"
 sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 jsonschema = { version = "0.46", default-features = false }
@@ -67,15 +119,17 @@ include_dir = "0.7"
 libc = { workspace = true }
 
 [features]
-unstable = ["ship-substrate/unstable"]
+# Expose testutil module for integration tests and external test consumers.
+testutil = []
+unstable = ["ship-substrate/unstable", "dep:ship-cloud", "ship-cloud/unstable"]
 # Enable derive(Type) on public data structs in the migrated services
 # (rules/mcp/skills/agents/pipelines/git/permissions/...) so xtask can
 # emit TypeScript bindings via `cargo xtask gen-types`. Off by default.
-specta = []
+specta = ["ship-views/specta", "ship-agents/specta", "ship-git/specta"]
 # Compile `example()` constructors on the view-state types so a fixtures
 # generator (and the sandboxed designer's committed JSON) can be produced
 # from the real structs. Off by default; on under `cfg(test)` automatically.
-fixtures = []
+fixtures = ["ship-agents/fixtures"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

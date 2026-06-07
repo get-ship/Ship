@@ -11,8 +11,8 @@ pub async fn spawn_human_gateway(
     health_registry: &task_health::HealthRegistry,
 ) {
     use ship_substrate::events::ActorConfig;
-    use ship_platform::services::human_gateway::{HumanGatewayService, TelegramAdapter};
-    use ship_platform::services::spawn_service;
+    use ship_substrate::services::human_gateway::{HumanGatewayService, TelegramAdapter};
+    use ship_substrate::services::spawn_service;
     use std::sync::Arc as StdArc;
 
     let adapter = match TelegramAdapter::from_env() {
@@ -36,7 +36,7 @@ pub async fn spawn_human_gateway(
         see_directed_events: false,
     };
 
-    let handler: Box<dyn ship_platform::services::ServiceHandler> = Box::new(
+    let handler: Box<dyn ship_substrate::services::ServiceHandler> = Box::new(
         HumanGatewayService::new(StdArc::new(adapter), outbox_tx),
     );
 
@@ -54,7 +54,7 @@ pub async fn spawn_human_gateway(
         let ctx = ship_substrate::events::EmitContext {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             skill_id: None,
-            space_id: None,
+            binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
             session_id: None,
         };
         while let Some(event) = outbox_rx.recv().await {

@@ -30,6 +30,22 @@
       "offset": 0
     }
   },
+  "Watch": {
+    "response_ok": {
+      "patches": {
+        "patches": [
+          {
+            "op": "PATCH_OP_SET",
+            "value": "eyJpdGVtcyI6W119"
+          }
+        ]
+      }
+    },
+    "request": {
+      "scope": "test-scope",
+      "mime": "test-mime"
+    }
+  },
   "Patch": {
     "response_ok": {
       "id": "artifact-checkout-audit",

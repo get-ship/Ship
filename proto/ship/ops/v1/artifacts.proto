@@ -12,7 +12,7 @@ package ship.ops.v1;
 
 import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/types.proto";
-import "ship/ops/v1/ops.proto";
+import "ship/ops/v1/reactive.proto";
 
 message ListArtifactsRequest {
   string scope = 1;
@@ -44,6 +44,12 @@ message DeleteArtifactRequest {
   string id = 1;
 }
 
+// Watch scope: all artifacts, or filtered by scope/mime.
+message ArtifactsWatchReq {
+  string scope = 1;
+  string mime = 2;
+}
+
 // Artifact metadata records + lifecycle. Reads are C0; metadata mutations are
 // C1 workspace writes, gated through the one gate (services::command::call),
 // which also enforces the per-artifact scope ACL.
@@ -53,23 +59,24 @@ service ArtifactsService {
     option (ship.ops.v1.capability) = "ship.artifacts.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc ListLive(ListArtifactsRequest) returns (stream JsonResponse) {
+  rpc Watch(ArtifactsWatchReq) returns (stream WatchEvent) {
+    option (ship.ops.v1.description) = "Live watch — typed patch stream for artifact metadata changes.";
     option (ship.ops.v1.capability) = "ship.artifacts.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc Patch(PatchArtifactRequest) returns (ArtifactRecord) {
     option (ship.ops.v1.description) = "Patch an artifact's metadata (name / owner / expiry).";
     option (ship.ops.v1.capability) = "ship.artifacts.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Promote(PromoteArtifactRequest) returns (ArtifactRecord) {
     option (ship.ops.v1.description) = "Promote an artifact to a target scope (run → project → user).";
     option (ship.ops.v1.capability) = "ship.artifacts.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Delete(DeleteArtifactRequest) returns (Deletion) {
     option (ship.ops.v1.description) = "Soft-delete an artifact by id.";
     option (ship.ops.v1.capability) = "ship.artifacts.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 }

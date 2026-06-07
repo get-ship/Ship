@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "rule.deleted",
-    "scope": "space",
+    "scope": "runtime",
     "retention": "durable",
     "stability": "stable",
     "payload_type": "RuleDeleted",

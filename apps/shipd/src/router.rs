@@ -15,11 +15,11 @@ use crate::{
     sessions, views,
 };
 use crate::routes::{
-    account_api, actor_api, actors_api, annotations_api,
-    artifacts_api, commands_api, create_api, feedback_api, git_api,
+    actor_api, actors_api,
+    artifacts_api, git_api,
     hooks_api, human_webhook, logs_api,
     registry_api, rest_api, runtime_api,
-    sdk_manifest, search_api, settings_api, themes_api,
+    sandbox_api, sdk_manifest, settings_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
 };
@@ -127,16 +127,13 @@ pub fn build_router(
         // those paths; shipd no longer hand-lists them here.
         .ship_public_route(Route::SuiViewSse_template(), views::sui_sse::serve_sui_sse)
         .ship_public_route(Route::SuiData, views::sui_data::serve_data)
-        .ship_public_route(
-            Route::SuiMutation_template(),
-            views::sui_mutation::serve_sui_mutation,
-        )
-        // NOTE: `SuiPatchElements` is intentionally NOT registered here —
-        // its handler requires `Scope::Full` and extracts
-        // `Extension<AuthContext>`, so it must sit behind the auth
-        // middleware. A public registration left that extension
-        // unfulfilled and every POST 500'd. It is registered in
-        // `build_ship_routes` (the authenticated group) instead.
+        // NOTE: `SuiMutation` is intentionally NOT registered here — it is a
+        // C1/C2 write endpoint and routes through `services::command::call`
+        // (the ONE capability gate). The auth_middleware must run first to
+        // populate `AuthContext` in request extensions; a public
+        // registration left that extension unfulfilled and every mutation
+        // POST silently 500'd. It is registered in `build_ship_routes`
+        // (the authenticated group) below.
         .ship_public_route(Route::SuiSource_template(), views::sui_source::serve_sui_source)
         // The HMR route (SuiDevHmr) is NOT wired here — it stays
         // development-only and is merged into `root` inside the
@@ -163,7 +160,6 @@ pub fn build_router(
     let pair_confirm_sessions = auth_registry.clone();
     let list_sessions_registry = auth_registry.clone();
     let revoke_sessions_registry = auth_registry.clone();
-    let space_window_registry = auth_registry.clone();
     let pair_confirm_routes = Router::new()
         .route(
             "/auth/pair/confirm",
@@ -193,30 +189,12 @@ pub fn build_router(
             body: axum::Json<auth::SessionRegisterRequest>,
         | {
             auth::session_register(register_registry, auth_ext, body)
-        }))
-        // Space window registration (FE ask 1): the launched window calls this
-        // over the host socket at startup → registers its window actor + mints
-        // its pid-bound, C2-capped session. `PeerPid` is present only on the
-        // UDS (peer-cred layer); absent over TCP → the handler refuses (a
-        // window token is meaningless without a kernel-attested pid).
-        .route("/api/space-window/register", axum::routing::post(move |
-            auth_ext: axum::Extension<auth::AuthContext>,
-            peer_pid: Option<axum::Extension<auth::peer_socket::PeerPid>>,
-            query: axum::extract::Query<std::collections::HashMap<String, String>>,
-        | {
-            let reg = space_window_registry.clone();
-            async move {
-                use axum::response::IntoResponse;
-                let pid = peer_pid.and_then(|p| (p.0).0);
-                // Optional `?space_id=` targets a specific registered space;
-                // omitted ⟹ the daemon's home space.
-                let target = query.get("space_id").map(String::as_str);
-                match auth::space_window::register_space_window(&reg, &auth_ext.0, pid, target).await {
-                    Ok(resp) => axum::Json(resp).into_response(),
-                    Err((status, msg)) => (status, msg).into_response(),
-                }
-            }
         }));
+    // Space-window registration retired: the launched window now calls
+    // `DeviceService.RegisterWindow` (device.proto, Connect) over the host
+    // socket — same pid-bound C2 mint, kernel-attested pid from `PeerPid`,
+    // operator-only at the transport. The legacy `/api/space-window/register`
+    // REST route + `auth::space_window` were removed in the space cutover.
 
     let session_issue_registry = auth_registry.clone();
     let session_issue_handler = move |auth: axum::Extension<auth::AuthContext>| {
@@ -224,13 +202,7 @@ pub fn build_router(
         async move { session::issue_session_handler(reg, auth.0).await }
     };
 
-    let feedback_guard = feedback_api::FeedbackGuard::new();
     let registry_state = mcp_registry::McpRegistryState::new();
-
-    // Account service is owned by ShipRuntime; expose it as an Extension
-    // so REST handlers (`account_api::*`) can extract it. The read-op
-    // registry reaches the same Arc via `rt.account()`.
-    let account_service = rt.account().clone();
 
     // MCP registry proxy is a public, read-only endpoint — match the
     // original Cloudflare Worker handler's "no auth required" contract
@@ -251,9 +223,15 @@ pub fn build_router(
         .nest("/api", webhook_routes)
         // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
         // auth_middleware below so the gate sees AuthContext. See ops_rpc.
-        .merge(crate::ops_rpc::router(rt.clone()))
-        .layer(axum::Extension(feedback_guard))
-        .layer(axum::Extension(account_service))
+        // The authority-projection layer runs INSIDE auth_middleware (it's
+        // applied here, so auth wraps it): it reads the populated AuthContext and
+        // stamps the resolved `ship_types::Authority` into the request, so
+        // crate-owned Connect wires (ship-account) gate on the shared authority
+        // without coupling to shipd's AuthContext (S6 operator-cred gate).
+        .merge(
+            crate::ops_rpc::router(rt.clone())
+                .layer(axum::middleware::from_fn(auth::project_authority_middleware)),
+        )
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with
         // auth) so requests must carry a valid bearer before short-circuit.
@@ -392,24 +370,21 @@ async fn build_header_middleware(
 fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     Router::new()
-        // Mesh / actors
-        .ship_route(Route::MeshSend, rest_api::mesh_send)
-        .ship_route(Route::MeshBroadcast, rest_api::mesh_broadcast)
-        .ship_route(Route::MeshDiscover, rest_api::mesh_discover)
-        .ship_route(Route::MeshStatusUpdate, rest_api::mesh_status_update)
-        .ship_route(Route::MeshEvents_template(), rest_api::mesh_events)
+        // Actor reads (L0 kernel — not the deprecated mesh.* op surface)
         .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
         .ship_route(Route::EventRoute, actor_api::event_route)
         .ship_route(Route::ListActors, actors_api::list_actors_handler)
         .ship_route(Route::ListMesh, actors_api::list_mesh_handler)
         .ship_route(Route::GetActor_template(), actors_api::get_actor_handler)
         .ship_route(Route::ActorEvents_template(), actors_api::list_actor_events_handler)
-        .ship_route(Route::ActorInput_template(), actors_api::actor_input_handler)
-        .ship_route(Route::MeshSnapshot, actors_api::mesh_snapshot_handler)
-        .ship_route(Route::MeshEventsStream, actors_api::mesh_events_handler)
-        .ship_route(Route::KillTree_template(), actors_api::kill_tree_handler)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
+        // Isolation reads are served by the proto IsolationService
+        // (ship.ops.v1) — the one op-surface path. The former
+        // /api/v1/isolation/* REST routes were removed to avoid a parallel
+        // path; init's gated-op migration lands at the connect cutover.
+        .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
+        .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
         // Runtime
         .ship_route(Route::StopAgent_template(), runtime_api::stop_agent)
         .ship_route(Route::SteerAgent_template(), runtime_api::steer_agent)
@@ -430,7 +405,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Views — list + source now served by DiscoveryService (Connect, #139).
         .ship_route(Route::ShipSchema, services::schema::serve_schema)
         .ship_route(Route::ListViewFiles_template(), views::files_api::list_view_files)
-        .ship_route(Route::CreateSurface_template(), create_api::create_surface)
         .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
         .ship_route(Route::WriteViewManifestApi_template(), views::write_api::write_view_manifest)
         .ship_route(Route::ForkView_template(), views::write_api::fork_view)
@@ -449,6 +423,17 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListSessionsAcrossProjects, runtime_api::list_sessions_across_projects)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
+        // `POST /_sui/mutation/{name}` — PE form submit. C1/C2 write
+        // endpoint; routes through `services::command::call` (the ONE
+        // capability gate). Authenticated (enforces via the gate, not
+        // scope — `@auth handler`); the rest of the `/_sui/*` surface is
+        // public and lives in `public_routes`. The handler takes the
+        // router state (`ApiState = Arc<ShipRuntime>`), so it composes
+        // cleanly into this stateful group.
+        .ship_route(
+            Route::SuiMutation_template(),
+            views::sui_mutation::serve_sui_mutation,
+        )
         // `POST /_sui/views/{name}/patch-elements` — agent-push DOM patches.
         // Authenticated (requires `Scope::Full`); the rest of the `/_sui/*`
         // surface is public and lives in `public_routes`. The handler takes
@@ -464,14 +449,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::SignalViewSession_template(), view_sessions_api::signal_session)
         .ship_route(Route::CloseViewSession_template(), view_sessions_api::close_session)
         .ship_route(Route::SubscribeViewSession_template(), view_sessions_api::subscribe_session)
-        // Feedback ingress
-        .ship_route(Route::PostFeedback, feedback_api::post_feedback)
-        .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
-        // Account — gateway-mediated; CallerKind::Cli only (MCP denied)
-        .ship_route(Route::StartAccountLogin, account_api::start_login)
-        .ship_route(Route::CompleteAccountLogin, account_api::complete_login)
-        .ship_route(Route::GetAccountState, account_api::get_state)
-        .ship_route(Route::LogoutAccount, account_api::logout)
         // View authoring — chrome edit-mode handshake + agent tool dispatch.
         .ship_route(Route::EnterViewEditMode_template(), view_edit_mode_api::enter_edit_mode)
         .ship_route(Route::ExitViewEditMode_template(), view_edit_mode_api::exit_edit_mode)
@@ -482,7 +459,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Registry — gateway proxy. The daemon attaches the user's API key
         // and forwards to the gateway. CLI never talks to the gateway.
         .ship_route(Route::Publish, registry_api::publish)
-        // AgentService — generic CRUD + lifecycle. First-party and
+        // AgentsService — generic CRUD + lifecycle. First-party and
         // third-party views use this surface equally.
         // PipelineService — CRUD + run ops. Dispatch / cancel / log-stream
         // wrap the existing kernel-backed handlers so the write paths stay
@@ -493,7 +470,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // SkillService — service-shaped CRUD + file tree + vars. Replaces
         // the project-scoped skill endpoints that used to hang off
         // /api/v1/projects/{id}/skills/*.
-        .ship_route(Route::ChatSend, services::chat::send_message)
         // Specs REST
         // Events / projections
         .ship_route(Route::EventStream, runtime_api::event_stream)
@@ -506,16 +482,24 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListProjectAgents_template(), project_api::list_agents)
         // GitService — canonical `/api/v1/git/*` surface. Consolidates the
         // old workspace- and project-scoped git endpoints into one.
-        .ship_route(Route::GitStage, git_api::stage_handler)
-        .ship_route(Route::GitUnstage, git_api::unstage_handler)
-        .ship_route(Route::GitCommit, git_api::commit_handler)
-        .ship_route(Route::GitPush, git_api::push_handler)
-        .ship_route(Route::GitFetch, git_api::fetch_handler)
-        .ship_route(Route::GitPull, git_api::pull_handler)
-        .ship_route(Route::GitCheckout, git_api::checkout_handler)
-        .ship_route(Route::GitBranchCreate, git_api::branch_create_handler)
-        .ship_route(Route::GitBranchDelete, git_api::branch_delete_handler)
-        .ship_route(Route::GitInit, git_api::init_handler)
+        // Write handlers live in `ship_git::rest_handlers`; they take
+        // `State<Arc<dyn GitService>>` and are mounted via a state-scoped
+        // sub-router. The SSE handler is daemon-edge (ViewSse) and keeps
+        // `State<ApiState>`.
+        .merge(
+            Router::<std::sync::Arc<dyn ship_git::service::GitService>>::new()
+                .ship_route(Route::GitStage, git_api::stage_handler)
+                .ship_route(Route::GitUnstage, git_api::unstage_handler)
+                .ship_route(Route::GitCommit, git_api::commit_handler)
+                .ship_route(Route::GitPush, git_api::push_handler)
+                .ship_route(Route::GitFetch, git_api::fetch_handler)
+                .ship_route(Route::GitPull, git_api::pull_handler)
+                .ship_route(Route::GitCheckout, git_api::checkout_handler)
+                .ship_route(Route::GitBranchCreate, git_api::branch_create_handler)
+                .ship_route(Route::GitBranchDelete, git_api::branch_delete_handler)
+                .ship_route(Route::GitInit, git_api::init_handler)
+                .with_state(st.git_arc()),
+        )
         .ship_route(Route::GitSse, git_api::sse_handler)
         .ship_route(Route::EmitEvent, project_api::emit_event)
         // Artifacts platform (three-scope)
@@ -532,14 +516,10 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             routing::head(artifacts_api::head_artifact),
         )
         .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
-        // Command bar registry
-        .ship_route(Route::ListCommands, commands_api::list_commands)
-        // Unified search — cmdk find mode consumer.
-        .ship_route(Route::SearchAll, search_api::search)
         // SDK manifest (read-side)
         .ship_route(Route::ViewMeta_template(), sdk_manifest::get_view_meta)
         .ship_route(Route::SdkRoot, sdk_manifest::get_sdk_root)
-        .ship_route(Route::SdkQuery, sdk_manifest::query_sdk)
+        .ship_route(Route::SdkQuery, sdk_manifest::query_sdk_handler)
         // Client-side view error capture — GET/POST/DELETE on one path,
         // merged into a single MethodRouter (axum panics on duplicate paths
         // across `.route()` calls). Canonical path comes from the Route enum

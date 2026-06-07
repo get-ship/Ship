@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "pipeline.step.output",
-    "scope": "space",
+    "scope": "runtime",
     "retention": "ephemeral",
     "stability": "stable",
     "payload_type": "PipelineStepOutputPayload",
@@ -12,7 +12,7 @@
     "event_type": "pipeline.step.output",
     "entity_id": "test-entity-id",
     "actor_id": "test-actor-id",
-    "space_id": "test-space-id",
+    "space_id": "",
     "occurred_at": "2026-01-01T00:00:00Z",
     "payload": {
       "pipeline_run_id": "test-run-id",

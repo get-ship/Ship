@@ -37,6 +37,9 @@ fn full_auth() -> AuthContext {
         session_id: None,
         scopes: vec![Scope::Full],
         grants: vec![],
+        // pair_confirm gates on Scope::Full (the daemon-token bootstrap), not the
+        // operator path — no operator cred required.
+        operator_cred: false,
     }
 }
 
@@ -49,6 +52,7 @@ fn no_auth() -> AuthContext {
         session_id: None,
         scopes: vec![Scope::ReadWorkspace],
         grants: vec![],
+        operator_cred: false,
     }
 }
 
@@ -204,6 +208,7 @@ async fn persisted_session_survives_hydrate() {
         created_at: std::time::Instant::now(),
         expires_at_unix: Some(chrono::Utc::now().timestamp() + 3600),
         ephemeral: false,
+        is_operator_cred: false,
     };
     auth::persist_session(&session);
 
@@ -234,6 +239,7 @@ async fn expired_session_is_purged_on_hydrate() {
         created_at: std::time::Instant::now(),
         expires_at_unix: Some(chrono::Utc::now().timestamp() - 3600),
         ephemeral: false,
+        is_operator_cred: false,
     };
     auth::persist_session(&session);
 
@@ -262,6 +268,7 @@ async fn ephemeral_session_not_persisted() {
         created_at: std::time::Instant::now(),
         expires_at_unix: None,
         ephemeral: true,
+        is_operator_cred: false,
     };
     auth::persist_session(&session);
 

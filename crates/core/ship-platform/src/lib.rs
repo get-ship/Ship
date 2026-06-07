@@ -1,57 +1,151 @@
 // ── L1 modules (agent/collection domain layer) ────────────────────────────────
-pub mod account;
-pub mod agents;
-pub mod artifacts;
-pub mod auth;
-pub mod collections;
-pub mod commands;
-pub mod config;
-pub mod hooks;
-pub mod triggers;
-pub mod kv;
-pub mod projections;
-pub mod projects;
-pub mod registry;
-pub mod search;
-pub mod services;
-pub mod sessions;
-pub mod toolchain;
-pub mod view_authoring;
 
-// Module aliases — sub-paths of agents that callers reference at crate root.
-pub use agents::permissions;
-pub use agents::rule;
-pub use agents::skill;
-pub use agents::skill_paths;
-pub use agents::skill_vars;
+/// Platform config facade — thin re-export shim over `ship-config` (SSOT).
+pub mod config {
+    // Core trait
+    pub use ship_config::DiskBackedConfig;
 
-#[cfg(feature = "unstable")]
-pub mod sync;
+    // Types (live in ship_config::project, not ::types)
+    pub use ship_config::project::{
+        AgentLayerConfig, HookConfig, HookTrigger, PermissionConfig,
+    };
+    pub use ship_substrate::project::PRIMARY_CONFIG_FILE;
 
-#[cfg(test)]
+    // Project config
+    pub use ship_config::project::{
+        AgentProfile, HarnessProjectOverrides, McpConfig, McpSection, McpServerConfig,
+        McpServerType, ProjectConfig, ProjectDiscovery,
+    };
+
+    // MCP
+    pub use ship_config::project::get_mcp_config;
+
+    // IO
+    pub use ship_config::project::{get_config, get_effective_config, save_config};
+
+    // Agent def readers
+    pub use ship_config::agents::{
+        read_agent_doc_in, read_agent_docs_in, read_agent_profile, read_agent_profile_at,
+        read_agent_profiles, read_agent_profiles_in,
+    };
+
+    // Agent def index + consumer
+    pub use ship_config::agents_index::{
+        AgentDefIndex, AgentDefQuery, AgentDefRecord,
+        apply_def_updated, build_def_index, spawn_def_index_consumer,
+    };
+    pub use ship_config::agents_write::notify_agent_def_saved;
+    pub mod agent_index {
+        pub use ship_config::agents_index::{
+            apply_def_updated, build_def_index, spawn_def_index_consumer,
+        };
+    }
+
+    // Settings
+    pub use ship_config::settings::{
+        get_all_settings, get_setting, get_setting_u64_or, resolve_bool, resolve_git_log_limit,
+        resolve_hooks_max_depth, resolve_str, resolve_watcher_debounce, set_setting,
+        set_setting_and_emit, setting_default,
+    };
+
+    // File-backed config types
+    pub use ship_config::library::LibrarySettings;
+    pub use ship_config::local::{worktrees_dir, LocalSettings};
+    pub use ship_config::library;
+    pub use ship_config::local;
+
+    // Space settings projection
+    pub use ship_config::projection::SpaceSettingsProjection;
+
+    // Relocated from platform-internal crud/discover/watcher
+    pub use ship_config::crud::{add_mcp_server, ensure_standard_dirs, list_mcp_servers, remove_mcp_server};
+    pub use ship_agents::active_agent::get_active_agent;
+    pub use ship_config::discover::discover_projects;
+    pub use ship_config::watcher::{spawn_config_watcher, ConfigWatcher};
+}
+
+/// Isolation decision layer — moved to ship-isolation crate (SSOT).
+pub mod isolation {
+    pub use ship_isolation::decision::*;
+}
+
+/// Isolation ops (wizard/UI) — moved to ship-isolation crate (SSOT).
+pub mod isolation_ops {
+    pub use ship_isolation::decision_ops::*;
+}
+
+/// Service infrastructure — in-process registry + git re-export + fixtures.
+pub mod services {
+    /// Agent-session orchestration re-export (C8b fold).
+    pub mod agent_sessions {
+        pub use ship_agents::{
+            handle_agent_cancelled, handle_agent_session_started, handle_agents_event,
+            start_agents, AgentPorts,
+        };
+    }
+
+    /// Process registry — moved to ship-substrate (SSOT).
+    pub mod process_registry {
+        pub use ship_substrate::services::process_registry::*;
+    }
+
+    /// Re-exported from `ship-git` for back-compat with downstream callers
+    /// that still import `ship_platform::services::git::*`.
+    pub use ship_git as git;
+
+    /// Aggregated `ship.<domain>.<op>` → example-JSON pairs across every
+    /// domain migrated to the typed-op single source. Drives
+    /// `cargo xtask gen-fixtures`. Behind the `fixtures` feature.
+    #[cfg(feature = "fixtures")]
+    pub fn data_op_examples() -> Vec<(&'static str, serde_json::Value)> {
+        let mut out: Vec<(&'static str, serde_json::Value)> = Vec::new();
+        out.extend(ship_agents::services::agents::fixtures::examples());
+        out.extend(ship_agents::services::rules::fixtures::examples());
+        out.extend(ship_agents::services::mcp::fixtures::examples());
+        out.extend(ship_agents::services::permissions::fixtures::examples());
+        // account.* — the AccountState enum lives in the `ship-account` crate;
+        // a fresh daemon is logged out.
+        out.push((
+            "account.state",
+            serde_json::to_value(ship_account::types::AccountState::LoggedOut)
+                .expect("AccountState serializes"),
+        ));
+        out
+    }
+}
+
 pub mod testutil;
 
 /// Install the platform-level projection set and substrate hooks. Call
 /// once at application startup, before constructing any `SqliteEventStore`.
 /// Idempotent — second and later calls are silently ignored.
 pub fn install_defaults() {
+    static INSTALLED: std::sync::Once = std::sync::Once::new();
+    INSTALLED.call_once(install_defaults_inner);
+}
+
+fn install_defaults_inner() {
     ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
         vec![
-            Box::new(projections::CompileStateProjection),
-            Box::new(projections::ProjectsProjection),
-            // Per-space settings overlay (event-sourced), layered over the
-            // global daemon settings by `SpaceService.Info`.
-            Box::new(projections::SpaceSettingsProjection),
-            Box::new(projections::AuthSessionsProjection),
-            Box::new(projections::DaemonOwnerProjection),
+            // Each projection now lives with its domain; the assembly point
+            // pulls from those homes. The pipeline-run projection registers
+            // separately from `ship-pipeline-runtime` (it depends on this
+            // crate, so it can't be referenced from here).
+            Box::new(ship_agents::services::compile::CompileStateProjection),
+            Box::new(ship_substrate::db::projects::ProjectsProjection),
+            // Per-space settings overlay (event-sourced fold of
+            // `space.setting.changed`). The live overlay read is owned by the
+            // ship-space crate's own DataStore-backed table (`SpaceService.Info`);
+            // this projection materializes the same events for the event history.
+            Box::new(config::SpaceSettingsProjection),
+            Box::new(ship_auth::AuthSessionsProjection),
+            Box::new(ship_auth::DaemonOwnerProjection),
             // Per-agent approved grant baseline the mint path reads.
-            Box::new(projections::ProvisionedGrantsProjection),
-            Box::new(projections::PipelineRunProjection),
-            // Agent-session primitive — sibling of jobs. Tracks
+            Box::new(ship_agents::services::permissions::ProvisionedGrantsProjection),
+            // Agent-session primitive — sibling of pipeline runs. Tracks
             // single-agent dispatches (bare ship use, MCP dispatch,
-            // pipeline-step sessions). jobs now scopes to pipeline
-            // composition runs only.
-            Box::new(projections::AgentSessionProjection),
+            // pipeline-step sessions).
+            Box::new(ship_agents::services::sessions::AgentSessionProjection),
             // ship-analytics — folds hook.* into rollup tables. Lives
             // in its own crate (queries, cost, mining) so downstream
             // dashboard / billing / harness-mining work has a home
@@ -60,7 +154,7 @@ pub fn install_defaults() {
         ]
     }));
     ship_substrate::supervisor::install_space_id_resolver(Box::new(|path| {
-        projects::find_by_path(path).ok().flatten().map(|p| p.id)
+        let path_str = path.to_string_lossy();
+        ship_substrate::db::projects::find_by_path(&path_str).ok().flatten().map(|p| p.id)
     }));
-    commands::seed_builtins();
 }

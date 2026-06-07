@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use ship_platform::services::mesh::SharedMeshRegistry;
+use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
 use crate::supervisor::run_dispatch::DispatchHandle;
 
@@ -86,35 +86,68 @@ impl ShipRuntime {
     /// `RulesService` accessor — pilot for the modular-runtime spec 02
     /// service-layer pattern. HTTP handlers in `services::rules::*`
     /// call through this rather than reaching into runtime state.
-    pub fn rules(&self) -> &dyn ship_platform::services::rules::service::RulesService {
+    pub fn rules(&self) -> &dyn ship_agents::services::rules::service::RulesService {
         &*self.rules
     }
 
     /// `PermissionsService` accessor — second mr-02 pilot.
     pub fn permissions(
         &self,
-    ) -> &dyn ship_platform::services::permissions::service::PermissionsService {
+    ) -> &dyn ship_agents::services::permissions::service::PermissionsService {
         &*self.permissions
     }
 
     /// `McpService` accessor — third mr-02 pilot.
-    pub fn mcp(&self) -> &dyn ship_platform::services::mcp::service::McpService {
+    pub fn mcp(&self) -> &dyn ship_agents::services::mcp::service::McpService {
         &*self.mcp
     }
 
     /// `SkillsService` accessor.
-    pub fn skills(&self) -> &dyn ship_platform::services::skills::service::SkillsService {
+    pub fn skills(&self) -> &dyn ship_agents::services::skills::service::SkillsService {
         &*self.skills
     }
 
+    /// `RulesService` as a cloned `Arc` — for wire mounts that need to own the handle.
+    pub fn rules_arc(
+        &self,
+    ) -> Arc<dyn ship_agents::services::rules::service::RulesService> {
+        self.rules.clone()
+    }
+
+    /// `McpService` as a cloned `Arc` — for wire mounts.
+    pub fn mcp_arc(&self) -> Arc<dyn ship_agents::services::mcp::service::McpService> {
+        self.mcp.clone()
+    }
+
+    /// `PermissionsService` as a cloned `Arc` — for wire mounts.
+    pub fn permissions_arc(
+        &self,
+    ) -> Arc<dyn ship_agents::services::permissions::service::PermissionsService> {
+        self.permissions.clone()
+    }
+
+    /// `SkillsService` as a cloned `Arc` — for wire mounts.
+    pub fn skills_arc(
+        &self,
+    ) -> Arc<dyn ship_agents::services::skills::service::SkillsService> {
+        self.skills.clone()
+    }
+
     /// `AgentsService` accessor.
-    pub fn agents(&self) -> &dyn ship_platform::services::agents::service::AgentsService {
+    pub fn agents(&self) -> &dyn ship_agents::services::agents::service::AgentsService {
         &*self.agents
+    }
+
+    /// `AgentsService` as a cloned `Arc` — for the crate-owned `AgentsWire`.
+    pub fn agents_arc(
+        &self,
+    ) -> std::sync::Arc<dyn ship_agents::services::agents::service::AgentsService> {
+        self.agents.clone()
     }
 
     /// `PipelinesService` accessor — definition CRUD; dispatch / cancel /
     /// runs still go through `runtime_api`.
-    pub fn pipelines(&self) -> &dyn ship_platform::services::pipelines::service::PipelinesService {
+    pub fn pipelines(&self) -> &dyn ship_pipeline_runtime::pipelines::service::PipelinesService {
         &*self.pipelines
     }
 
@@ -122,7 +155,7 @@ impl ShipRuntime {
     /// that need to hold the handle independently of the runtime borrow.
     pub fn pipelines_arc(
         &self,
-    ) -> Arc<dyn ship_platform::services::pipelines::service::PipelinesService> {
+    ) -> Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService> {
         self.pipelines.clone()
     }
 
@@ -131,25 +164,61 @@ impl ShipRuntime {
         &*self.git
     }
 
-    /// `CollectionsService` accessor — db-bound CRUD + query.
-    pub fn collections(
-        &self,
-    ) -> &dyn ship_platform::services::collections::service::CollectionsService {
-        &*self.collections
+    /// Arc clone of the `GitService` — for crate-owned wires that need to hold
+    /// the service independently of the runtime borrow.
+    pub fn git_arc(&self) -> std::sync::Arc<dyn ship_git::service::GitService> {
+        self.git.clone()
     }
 
-    /// `ArtifactsService` accessor — db-bound CRUD + scope promotion.
-    pub fn artifacts(
-        &self,
-    ) -> &dyn ship_platform::services::artifacts::service::ArtifactsService {
-        &*self.artifacts
+    /// Build a `CollectionService` over the active-space `SpaceContext` + the
+    /// shared schema registry. Cheap + stateless-but-for-ctx — constructed per
+    /// call (C-2 §3.1). Errors cleanly when the daemon is space-less (no active
+    /// space) rather than fabricate a `global` partition (S2 home-space kill).
+    pub fn collections(&self) -> anyhow::Result<ship_collection::service::CollectionService> {
+        let ctx = self.collection_ctx.clone().ok_or_else(|| {
+            anyhow::anyhow!("no active space: collections are unavailable in space-less mode")
+        })?;
+        Ok(ship_collection::service::CollectionService {
+            ctx,
+            schemas: self.schemas.clone(),
+        })
     }
 
-    /// `AccountService` accessor — gateway-bearer token store + PKCE
-    /// state for in-flight logins. Shared between REST routes and the
-    /// read-op registry.
-    pub fn account(&self) -> &Arc<ship_platform::account::AccountService> {
-        &self.account
+    /// Build an `ArtifactService` over the active-space `SpaceContext` + blob
+    /// root. Errors cleanly when the daemon is space-less.
+    pub fn artifacts(&self) -> anyhow::Result<ship_artifacts::service::ArtifactService> {
+        let ctx = self.artifact_ctx.clone().ok_or_else(|| {
+            anyhow::anyhow!("no active space: artifacts are unavailable in space-less mode")
+        })?;
+        Ok(ship_artifacts::service::ArtifactService::new(
+            ctx,
+            self.global_blob_dir.clone(),
+        ))
+    }
+
+    /// The shared collection schema registry (C-2 UD-7) — used by the wire mount
+    /// and any caller that needs the same registry instance.
+    pub fn collection_schemas(
+        &self,
+    ) -> Arc<ship_collection::projection::SchemaRegistry> {
+        self.schemas.clone()
+    }
+
+    /// The active-space collection `SpaceContext` — used by the wire mount.
+    /// `None` when the daemon booted space-less; the wire mount is skipped.
+    pub fn collection_ctx(&self) -> Option<Arc<ship_substrate::ports::SpaceContext>> {
+        self.collection_ctx.clone()
+    }
+
+    /// The active-space artifact `SpaceContext` — used by the wire mount + GC
+    /// sweep. `None` when the daemon booted space-less.
+    pub fn artifact_ctx(&self) -> Option<Arc<ship_substrate::ports::SpaceContext>> {
+        self.artifact_ctx.clone()
+    }
+
+    /// Blob root for artifacts (global ship dir).
+    pub fn global_blob_dir(&self) -> &std::path::Path {
+        &self.global_blob_dir
     }
 
     pub fn mesh_registry(&self) -> &SharedMeshRegistry {
@@ -190,39 +259,8 @@ impl ShipRuntime {
         &self.session_registry
     }
 
-    /// Get or lazily create the shared DataService for collections.
-    ///
-    /// On first call, registers built-in collections (currently `artifacts`)
-    /// so they are guaranteed present without requiring a schema file.
-    pub async fn data_service(&self) -> anyhow::Result<tokio::sync::MutexGuard<'_, Option<ship_substrate::data::DataService>>> {
-        ship_platform::services::data::ensure_data_service(&self.data_service, &self.ship_dir).await
-    }
-
-    /// Arc handle to the shared `DataService` mutex — passed to service
-    /// impls (`CollectionsService`, `ArtifactsService`) so they can lock
-    /// the same mutex the runtime holds. Lazy-init is shared via
-    /// `ensure_data_service`.
-    pub fn data_service_arc(
-        &self,
-    ) -> Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> {
-        self.data_service.clone()
-    }
-
     pub fn health_registry(&self) -> &HealthRegistry {
         &self.health_registry
-    }
-
-    /// Store a pre-built diagnostic registry. Called once after the dispatch
-    /// handle is set so the supervisor snapshot has a live process registry.
-    /// Idempotent — a second call is a no-op.
-    pub fn set_diag_registry(&self, reg: ship_substrate::diagnostics::DiagnosticRegistry) {
-        let _ = self.diag_registry.set(reg);
-    }
-
-    /// Return the diagnostic registry. Returns `None` before
-    /// `set_diag_registry` is called (i.e., before full startup).
-    pub fn diag_registry(&self) -> Option<&ship_substrate::diagnostics::DiagnosticRegistry> {
-        self.diag_registry.get()
     }
 
     pub fn view_sessions(&self) -> &crate::views::session::SharedViewSessionRegistry {

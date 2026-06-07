@@ -21,15 +21,13 @@ use std::sync::Arc;
 pub use ship_substrate::access::{ConfigAccess, KernelAccess, MeshAccess, SharedKernel};
 
 use crate::auth::SessionRegistry;
-use ship_platform::services::agents::service::AgentsService;
-use ship_platform::services::artifacts::service::ArtifactsService;
-use ship_platform::services::collections::service::CollectionsService;
+use ship_agents::services::agents::service::AgentsService;
 use ship_platform::services::git::service::GitService;
-use ship_platform::services::mcp::service::McpService;
-use ship_platform::services::permissions::service::PermissionsService;
-use ship_platform::services::pipelines::service::PipelinesService;
-use ship_platform::services::rules::service::RulesService;
-use ship_platform::services::skills::service::SkillsService;
+use ship_agents::services::mcp::service::McpService;
+use ship_agents::services::permissions::service::PermissionsService;
+use ship_pipeline_runtime::pipelines::service::PipelinesService;
+use ship_agents::services::rules::service::RulesService;
+use ship_agents::services::skills::service::SkillsService;
 use crate::ship_runtime::ShipRuntime;
 
 /// Per-domain service surface. Each migrated mr-02 service appears here
@@ -44,8 +42,13 @@ pub trait ServicesAccess: Send + Sync {
     fn agents(&self) -> &dyn AgentsService;
     fn pipelines(&self) -> &dyn PipelinesService;
     fn git(&self) -> &dyn GitService;
-    fn collections(&self) -> &dyn CollectionsService;
-    fn artifacts(&self) -> &dyn ArtifactsService;
+    /// Build a `CollectionService` over the active-space `SpaceContext` + shared
+    /// schema registry (C-2 §3.1). Errors cleanly when the daemon is space-less
+    /// (no active space) rather than fabricate a `global` partition (S2).
+    fn collections(&self) -> anyhow::Result<ship_collection::service::CollectionService>;
+    /// Build an `ArtifactService` over the active-space `SpaceContext` + blob
+    /// root. Errors cleanly when the daemon is space-less.
+    fn artifacts(&self) -> anyhow::Result<ship_artifacts::service::ArtifactService>;
 }
 
 /// Auth + session registry surface. Today this is just the scoped
@@ -92,10 +95,10 @@ impl ServicesAccess for ShipRuntime {
     fn git(&self) -> &dyn GitService {
         ShipRuntime::git(self)
     }
-    fn collections(&self) -> &dyn CollectionsService {
+    fn collections(&self) -> anyhow::Result<ship_collection::service::CollectionService> {
         ShipRuntime::collections(self)
     }
-    fn artifacts(&self) -> &dyn ArtifactsService {
+    fn artifacts(&self) -> anyhow::Result<ship_artifacts::service::ArtifactService> {
         ShipRuntime::artifacts(self)
     }
 }
@@ -107,7 +110,7 @@ impl KernelAccess for ShipRuntime {
 }
 
 impl MeshAccess for ShipRuntime {
-    fn mesh_registry(&self) -> &ship_platform::services::mesh::SharedMeshRegistry {
+    fn mesh_registry(&self) -> &ship_substrate::services::mesh::SharedMeshRegistry {
         ShipRuntime::mesh_registry(self)
     }
 }

@@ -44,7 +44,7 @@ impl TestDaemon {
         // Create an isolated registry — do NOT use spawn_mesh_service which
         // uses a process-global OnceLock and returns disconnected registries
         // on second+ call.
-        let mesh_registry: ship_platform::services::mesh::SharedMeshRegistry =
+        let mesh_registry: ship_substrate::services::mesh::SharedMeshRegistry =
             Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
 
         let api_state: ApiState = Arc::new(
@@ -56,26 +56,6 @@ impl TestDaemon {
         );
 
         let api_routes = Router::new()
-            .route(
-                "/mesh/send",
-                axum::routing::post(crate::routes::rest_api::mesh_send),
-            )
-            .route(
-                "/mesh/broadcast",
-                axum::routing::post(crate::routes::rest_api::mesh_broadcast),
-            )
-            .route(
-                "/mesh/discover",
-                axum::routing::get(crate::routes::rest_api::mesh_discover),
-            )
-            .route(
-                "/mesh/status",
-                axum::routing::post(crate::routes::rest_api::mesh_status_update),
-            )
-            .route(
-                "/mesh/events/{agent_id}",
-                axum::routing::get(crate::routes::rest_api::mesh_events),
-            )
             .route(
                 "/actor/spawn",
                 axum::routing::post(crate::routes::actor_api::actor_spawn),
@@ -116,13 +96,6 @@ impl TestDaemon {
             .with_state(api_state.clone());
 
 
-        let search_routes = Router::new()
-            .route(
-                "/search",
-                axum::routing::get(crate::routes::search_api::search),
-            )
-            .with_state(api_state.clone());
-
         // Inject a default CLI AuthContext so handlers can extract it.
         // Mount under /api/v1 to match the production router (apps/shipd/
         // src/router.rs); the test paths in artifacts_api_tests and
@@ -133,7 +106,6 @@ impl TestDaemon {
             .nest("/api/v1", capabilities_routes)
             .nest("/api/v1", artifacts_routes)
             .nest("/api/v1", runtime_routes)
-            .nest("/api/v1", search_routes)
             .layer(axum::Extension(default_auth));
 
         Self {
@@ -144,7 +116,29 @@ impl TestDaemon {
         }
     }
 
-    /// Create a CLI AuthContext (trusted, default for tests).
+    /// A verified **operator-cred** AuthContext — the elevated default for
+    /// tests that exercise operator-only behavior (S6, #124). Mirrors the bearer
+    /// middleware's operator-session branch: `operator_cred: true` is the SOLE
+    /// elevation source. Use this where a test previously relied on
+    /// `CallerKind::Cli` to mean operator.
+    pub fn operator_auth() -> AuthContext {
+        AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            space_id: None,
+            session_id: None,
+            scopes: vec![crate::auth::Scope::Full],
+            grants: vec![],
+            // THE elevation source: a verified operator cred.
+            operator_cred: true,
+        }
+    }
+
+    /// A bare CLI AuthContext — the CLI transport carries `Scope::Full` for the
+    /// dying REST axis but grants NO operator elevation (S6): `operator_cred`
+    /// stays `false`, so the gate denies C2/C3. For operator behavior use
+    /// [`operator_auth`](Self::operator_auth).
     pub fn cli_auth() -> AuthContext {
         AuthContext {
             caller_kind: ship_substrate::events::CallerKind::Cli,
@@ -154,6 +148,7 @@ impl TestDaemon {
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
+            operator_cred: false,
         }
     }
 
@@ -167,6 +162,7 @@ impl TestDaemon {
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
+            operator_cred: false,
         }
     }
 
@@ -316,53 +312,4 @@ impl TestDaemon {
         self.router.clone().oneshot(req).await.unwrap()
     }
 
-    /// Register an agent via POST /api/v1/actor/spawn — the canonical
-    /// actor-registration surface (register-or-refine). Spawns the actor in
-    /// the kernel with the standard mesh namespaces and stashes its mailbox,
-    /// matching what the retired `mesh/register` shim did.
-    pub async fn register_agent(&self, agent_id: &str, caps: &[&str]) -> TestResponse {
-        self.post(
-            "/api/v1/actor/spawn",
-            &serde_json::json!({
-                "actor_id": agent_id,
-                "config": {
-                    "namespace": agent_id,
-                    "write_namespaces": ["mesh."],
-                    "read_namespaces": ["mesh."],
-                    "subscribe_namespaces": ["mesh."],
-                    "see_directed_events": false,
-                },
-                "capabilities": caps,
-            }),
-        )
-        .await
-    }
-
-    /// Send a mesh message via POST /api/v1/mesh/send.
-    pub async fn mesh_send(
-        &self,
-        from: &str,
-        to: &str,
-        body: serde_json::Value,
-    ) -> TestResponse {
-        self.post(
-            "/api/v1/mesh/send",
-            &serde_json::json!({ "from": from, "to": to, "body": body }),
-        )
-        .await
-    }
-
-    /// Broadcast via POST /api/v1/mesh/broadcast.
-    pub async fn mesh_broadcast(
-        &self,
-        from: &str,
-        body: serde_json::Value,
-        cap_filter: Option<&str>,
-    ) -> TestResponse {
-        let mut payload = serde_json::json!({ "from": from, "body": body });
-        if let Some(cap) = cap_filter {
-            payload["capability_filter"] = serde_json::json!(cap);
-        }
-        self.post("/api/v1/mesh/broadcast", &payload).await
-    }
 }

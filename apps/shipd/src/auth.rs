@@ -11,7 +11,7 @@
 
 // Pure auth primitives live in `ship_platform::auth`. These re-exports
 // preserve the `crate::auth::{attest,pairing}` paths the daemon uses.
-pub use ship_platform::auth::{attest, pairing};
+pub use ship_auth::{attest, pairing};
 pub mod identity;
 /// Host unix socket — per-agent peer-credential auth. Unix-only: relies on
 /// `SO_PEERCRED` and `UnixListener`. Windows uses a named-pipe path (future).
@@ -19,7 +19,6 @@ pub mod identity;
 pub mod peer_socket;
 pub mod scopes;
 pub mod session;
-pub mod space_window;
 
 #[cfg(test)]
 mod auth_tests;
@@ -37,6 +36,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use ship_substrate::events::CallerKind;
+use ship_types::{Authority, ScopeBinding, SpaceId, local_device_id};
 
 /// Constant-time token comparison to prevent timing attacks.
 /// XORs all bytes and checks the accumulator — execution time is
@@ -57,6 +57,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 pub use crate::auth::identity::enforce_mcp_identity;
+pub use crate::auth::identity::enforce_mcp_workspace;
 
 // Re-export scope model from the split-out module.
 pub use crate::auth::scopes::{
@@ -75,10 +76,10 @@ pub struct AuthContext {
     pub workspace_id: Option<String>,
     /// The space this request belongs to (path-hash space identity), carried
     /// from the authenticated session. A space-window session carries its OWN
-    /// space here; operator/agent/daemon-token requests leave it `None` and fall
-    /// back to the daemon's home space (`daemon_space_id()`) at emit. This is the
-    /// per-connection space source that replaces the process-global on the emit
-    /// path. See spec `.artifacts/specs/space/128-multi-space-emit.md`.
+    /// space here; operator/agent/daemon-token requests leave it `None`, which
+    /// the binding keys as `None` (Phase 2 fail-soft — no home-space fallback on
+    /// the emit path). This is the per-connection space source. See spec
+    /// `.artifacts/specs/space/128-multi-space-emit.md`.
     pub space_id: Option<String>,
     pub session_id: Option<String>,
     /// Granted scopes for this request. Daemon token gets `[Full]`.
@@ -87,53 +88,83 @@ pub struct AuthContext {
     /// session's provisioned set. Empty for the operator (cleared by is_operator)
     /// and for agents with no restricted domains. Distinct from `scopes`.
     pub grants: Vec<String>,
+    /// True iff this connection presented a **verified operator cred** — the
+    /// SOLE source of operator authority (S6, #124). Set ONLY when a
+    /// pid-attested operator session (`DaemonSession::is_operator_cred`) cleared
+    /// `pid_authorizes` in the bearer middleware. The CLI transport, the daemon
+    /// token, the browser cookie, and the local peer-uid grant NO elevation —
+    /// they leave this `false`. `binding()` derives `Authority::Operator` from
+    /// THIS flag, never from `caller_kind`. A cloud-issued operator cred can
+    /// later set it through its own verified minter without touching the gate.
+    pub operator_cred: bool,
 }
 
 impl AuthContext {
-    /// Convert to the runtime's `EmitContext` preserving the caller's identity.
+    /// Mint the authoritative [`ScopeBinding`] for this verified session — the
+    /// SOLE session→binding constructor (auth-is-the-sole-minter, #196). The
+    /// home-space fallback dies here: a session with no resolvable space keys
+    /// `None` (the intended P2 fail-soft; P3 rejects).
     ///
-    /// `space_id` is the request's space: the session-carried space when the
-    /// caller is a space window, else the daemon's home space (`daemon_space_id()`)
-    /// as a fallback. This is the per-connection space source — one shipd serves
-    /// many spaces, so the emit space follows the session, not a process-global.
-    /// NOT the legacy `workspace_id` branch slug. See spec
-    /// `.artifacts/specs/space/128-multi-space-emit.md`.
-    pub fn to_emit_context(&self) -> ship_substrate::events::EmitContext {
+    /// Authority derivation (S6 elevation-source kill, #124): `Operator` is
+    /// granted SOLELY when the connection carries a verified operator cred
+    /// (`operator_cred`, set only by a pid-attested operator session that
+    /// cleared `pid_authorizes`). The CLI transport, the daemon token, the
+    /// browser cookie, and the local peer-uid no longer confer operator. An SDK
+    /// token is capped at `Sdk` and is NEVER `Operator` (#207).
+    fn binding(&self) -> ScopeBinding {
+        // NO home-space fallback — the global pseudo-space is gone (S2).
+        let space = self.space_id.clone().map(SpaceId::new);
+        let authority = if self.operator_cred {
+            // THE one elevation source — a verified operator cred.
+            Authority::Operator
+        } else if self.caller_kind == CallerKind::Sdk {
+            // Capped: the on-disk SDK token is never operator-class.
+            Authority::Sdk
+        } else if let Some(sid) = space.clone() {
+            Authority::Space { space_id: sid }
+        } else if let Some(id) = self.agent_id.clone() {
+            Authority::Agent { id }
+        } else {
+            Authority::Sdk
+        };
+        // FLAG: server-auth — device_id is a per-install placeholder, account
+        // is anonymous until the server-auth arc lands.
+        ScopeBinding::from_session(local_device_id(), None, space, authority)
+    }
+
+    /// Convert to the runtime's `EmitContext`, carrying the session's minted
+    /// binding. `kind` is the emitting `CallerKind` — session-originated emits
+    /// pass the caller's own kind; daemon-mediated emits pass
+    /// `CallerKind::Runtime` (the daemon is a trusted intermediary that may
+    /// reach reserved namespaces while still carrying the caller's binding).
+    pub fn to_emit_context(&self, kind: CallerKind) -> ship_substrate::events::EmitContext {
         ship_substrate::events::EmitContext {
-            caller_kind: self.caller_kind.clone(),
+            caller_kind: kind,
             skill_id: None,
-            space_id: self
-                .space_id
-                .clone()
-                .or_else(ship_substrate::project::daemon_space_id),
+            binding: self.binding(),
             session_id: self.session_id.clone(),
         }
+    }
+
+    /// Whether this caller is operator-class — the named replacement for the
+    /// `Scope::Full` / `is_operator` conflation at the gate. Reads SOLELY the
+    /// verified operator cred (S6): true iff `operator_cred` flipped
+    /// `Authority::Operator` in [`binding`](Self::binding).
+    pub fn is_operator(&self) -> bool {
+        *self.binding().authority() == Authority::Operator
+    }
+
+    /// The caller's resolved [`Authority`]. shipd projects this into Connect
+    /// request extensions so crate-owned wires (e.g. `ship-account`) can gate on
+    /// the shared `ship_types::Authority` without coupling to shipd's
+    /// `AuthContext`. The SOLE authority derivation is [`binding`](Self::binding).
+    pub fn authority(&self) -> Authority {
+        self.binding().authority().clone()
     }
 
     /// Check whether this caller has the given scope.
     pub fn has_scope(&self, scope: Scope) -> bool {
         scope.is_granted_by(&self.scopes)
-    }
-
-    /// Create an emit context for daemon-mediated operations.
-    ///
-    /// The daemon is a trusted intermediary: it validates the caller's identity
-    /// and permissions, then emits events on their behalf using `CallerKind::Runtime`.
-    /// This allows the daemon to emit to reserved namespaces (mesh.*, job.*, etc.)
-    /// while still carrying the caller's workspace/session context.
-    pub fn to_daemon_emit_context(&self) -> ship_substrate::events::EmitContext {
-        ship_substrate::events::EmitContext {
-            caller_kind: CallerKind::Runtime,
-            skill_id: None,
-            // Session-carried space when present (space window), else the
-            // daemon's home space. Not the branch-slug workspace_id. See spec
-            // `.artifacts/specs/space/128-multi-space-emit.md`.
-            space_id: self
-                .space_id
-                .clone()
-                .or_else(ship_substrate::project::daemon_space_id),
-            session_id: self.session_id.clone(),
-        }
     }
 }
 
@@ -248,6 +279,9 @@ pub async fn auth_middleware(
                             session_id: None,
                             scopes: session.scopes.clone(),
                             grants: session.grants.clone(),
+                            // A browser cookie is NOT a pid-attested operator
+                            // cred — it grants no elevation (S6).
+                            operator_cred: false,
                         };
                         req.extensions_mut().insert(auth);
                         return next.run(req).await;
@@ -309,10 +343,13 @@ pub async fn auth_middleware(
         let registry = session_registry.lock().await;
         return match registry.get(token) {
             Some(session) => {
-                // Pid-binding: a space window token is bound to its registering
-                // process. The kernel pid arrives via the peer-cred layer
-                // (UDS only); on TCP it's absent → a bound token fails closed.
-                // An unbound session (CLI/agent/legacy) is not pid-restricted.
+                // Pid-binding: a pid-bound token (a space window OR an operator
+                // cred, S6 #124) is bound to its registering process. The kernel
+                // pid arrives via the peer-cred layer (UDS only); on TCP it's
+                // absent → a bound token fails closed. An unbound session
+                // (agent/legacy) is not pid-restricted. This check runs BEFORE the
+                // operator cred is carried below, so an operator cred reaching the
+                // AuthContext has a verified pid.
                 let peer_pid = req
                     .extensions()
                     .get::<crate::auth::peer_socket::PeerPid>()
@@ -341,6 +378,12 @@ pub async fn auth_middleware(
                     scopes: session.scopes.clone(),
                     // The minted restricted grants — the gate's grant axis.
                     grants: session.grants.clone(),
+                    // Operator authority comes SOLELY from a pid-attested
+                    // operator cred (S6). `pid_authorizes` was already enforced
+                    // above, so an operator-cred session that reaches here has a
+                    // verified pid — carry the elevation. Every other session
+                    // (space window, agent, paired Studio) leaves this `false`.
+                    operator_cred: session.is_operator_cred,
                 };
                 drop(registry);
                 req.extensions_mut().insert(auth);
@@ -358,7 +401,10 @@ pub async fn auth_middleware(
     }
 
     let (caller_kind, scopes) = if is_daemon_token(token) {
-        // The daemon token is the operator's human-bootstrap credential.
+        // The daemon token is a local bootstrap credential carrying the dying
+        // REST `Scope::Full` axis. It is NOT a pid-attested operator cred (S6):
+        // `CallerKind::Cli` is a transport label only — it grants NO elevation.
+        // Operator authority comes solely from a pid-attested operator session.
         (CallerKind::Cli, vec![Scope::Full])
     } else if token.starts_with("ship_") {
         (CallerKind::Sdk, vec![Scope::Full])
@@ -379,14 +425,17 @@ pub async fn auth_middleware(
         caller_kind,
         agent_id,
         workspace_id,
-        // Daemon/SDK (operator) tokens carry no session space; emits fall back
-        // to the daemon's home space.
+        // Daemon/SDK tokens carry no session space; emits key None (no
+        // home-space fallback on the emit path, S2).
         space_id: None,
         session_id,
         scopes,
-        // Daemon/SDK tokens are operator-class (is_operator clears the gate);
-        // no restricted grants needed on this path.
+        // No restricted grants on this path.
         grants: vec![],
+        // The daemon/SDK token is NOT a pid-attested operator cred (S6): it
+        // grants no operator authority. The dying `Scope::Full` it carries
+        // clears the REST route-auth axis only, never the gate's operator path.
+        operator_cred: false,
     };
 
     req.extensions_mut().insert(auth);
@@ -398,6 +447,25 @@ fn header_string(req: &Request<Body>, name: &str) -> Option<String> {
         .get(name)
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string())
+}
+
+/// Project the authenticated caller's resolved [`Authority`] into the request
+/// extensions, so crate-owned Connect wires (e.g. `ship-account`) can gate on
+/// the shared `ship_types::Authority` without depending on shipd's
+/// `AuthContext`. Mirrors how `settings_rpc` passes `is_operator` into
+/// `ship-config`: the authority is resolved in shipd (the SOLE minter) and
+/// handed across the crate boundary as the shared type. Runs INSIDE
+/// `auth_middleware` (which has already populated `AuthContext`); a request with
+/// no `AuthContext` inserts nothing, and the wire fails closed (unauthenticated).
+pub async fn project_authority_middleware(mut req: Request<Body>, next: Next) -> Response {
+    if let Some(authority) = req
+        .extensions()
+        .get::<AuthContext>()
+        .map(AuthContext::authority)
+    {
+        req.extensions_mut().insert(authority);
+    }
+    next.run(req).await
 }
 
 /// Determine if a token is the local daemon token (64-char hex).

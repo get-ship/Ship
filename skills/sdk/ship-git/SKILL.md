@@ -1,5 +1,6 @@
 ---
 name: ship-git
+audience: public
 stable-id: ship-git
 description: >-
   The `git` capability (16 ops). Call any op over ConnectRPC with

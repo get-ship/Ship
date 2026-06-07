@@ -2,7 +2,7 @@
 // drag-pin/unpin state machine. Split from render.ts so each module
 // stays under the 300-line engineering cap.
 
-import { ops } from '../../ops'
+import { ops, readSetting, writeSetting } from '../../ops'
 
 export interface ApiView {
   name: string
@@ -51,24 +51,14 @@ export function partition(args: { views: ApiView[]; pins: string[]; filter: stri
 }
 
 export async function fetchPins(_settingsUrl: string, key: string): Promise<string[]> {
-  try {
-    const body = JSON.parse((await ops.settings.state({})).json) as { data?: Record<string, unknown> }
-    const raw = body.data?.[key]
-    if (typeof raw === 'string') {
-      try {
-        const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed) && parsed.every((v) => typeof v === 'string')) return parsed as string[]
-      } catch { /* default */ }
-    } else if (Array.isArray(raw) && raw.every((v) => typeof v === 'string')) {
-      return raw as string[]
-    }
-    return DEFAULT_PINS
-  } catch { return DEFAULT_PINS }
+  const raw = await readSetting<unknown>(key)
+  if (Array.isArray(raw) && raw.every((v) => typeof v === 'string')) return raw as string[]
+  return DEFAULT_PINS
 }
 
 export async function savePins(_settingsUrl: string, key: string, pins: string[]): Promise<void> {
   try {
-    await ops.settings.set({ key, valueJson: JSON.stringify(pins) })
+    await writeSetting(key, pins)
   } catch { /* fire-and-forget */ }
 }
 
@@ -90,9 +80,9 @@ export async function fetchViews(_url?: string): Promise<ApiView[]> {
 
 export async function fetchProject(_url?: string): Promise<Project | null> {
   try {
-    const body = JSON.parse((await ops.project.listProjects({})).json) as { projects?: Project[]; active?: string }
-    const list = body.projects ?? []
-    return list.find((p) => p.id === body.active) ?? list[0] ?? null
+    const resp = await ops.space.list({})
+    const list = resp.spaces.map((s) => ({ id: s.id, name: s.name, path: s.path }))
+    return list.find((p) => p.id === resp.activeId) ?? list[0] ?? null
   } catch { return null }
 }
 
@@ -100,16 +90,19 @@ export async function fetchProject(_url?: string): Promise<Project | null> {
  *  view+project picker (per Task #54 — single popover for both). */
 export async function fetchProjects(_url?: string): Promise<{ projects: Project[]; activeId: string | null }> {
   try {
-    const body = JSON.parse((await ops.project.listProjects({})).json) as { projects?: Project[]; active?: string }
-    return { projects: body.projects ?? [], activeId: body.active ?? null }
+    const resp = await ops.space.list({})
+    return {
+      projects: resp.spaces.map((s) => ({ id: s.id, name: s.name, path: s.path })),
+      activeId: resp.activeId ?? null,
+    }
   } catch { return { projects: [], activeId: null } }
 }
 
-/** POST /api/v1/projects/<id>/activate — switches the daemon's active
- *  project. Returns true on success so the caller can refresh state. */
+/** Switch the daemon's active space. Returns true on success so the caller
+ *  can refresh state. */
 export async function switchProject(id: string): Promise<boolean> {
   try {
-    await ops.project.activate({ id })
+    await ops.space.activate({ id })
     return true
   } catch { return false }
 }

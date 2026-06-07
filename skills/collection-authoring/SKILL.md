@@ -1,5 +1,6 @@
 ---
 name: collection-authoring
+audience: public
 stable-id: collection-authoring
 description: Hands-on guide to writing a collection schema for Ship. Covers the schema file shape, field-type selection, filterable/required/indexed flags, naming conventions, testing the schema against the API, and common patterns. Pair with ship-collections (reference).
 tags: [collections, schema, extension-authoring, jsonc]
@@ -56,7 +57,7 @@ Drop the file in `.ship/collections/`, hit `POST /api/collections/todo/items`, d
 | `object` | Structured blob — metadata, config, nested payloads | Not filterable past the top level. If you need to query inside, promote to its own collection. |
 | `file` | File reference | Stores a file ID; resolve via the files API. |
 
-For the authoritative storage mapping + full operator list see `docs/ship-collections/references/docs/schemas.md` and `querying.md`.
+Collection schemas are declared as JSONC under `.ship/collections/`; the collections query layer validates field operators at runtime — that is the source of truth for the storage mapping.
 
 ## Field-level options
 

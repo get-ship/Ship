@@ -858,12 +858,9 @@ void updateStatus()
 // shell-bottom carries the workspace name as a prop.
 async function syncProject(): Promise<void> {
   try {
-    const body = JSON.parse((await ops.project.listProjects({})).json) as {
-      projects?: Array<{ id: string; name?: string; label?: string }>
-      active?: string
-    }
-    const proj = body.projects?.find((p) => p.id === body.active) ?? null
-    const name = proj?.label || proj?.name || ''
+    const resp = await ops.space.list({})
+    const proj = resp.spaces.find((s) => s.id === resp.activeId) ?? null
+    const name = proj?.name || ''
     if (shellBottom) shellBottom.setAttribute('workspace', name)
     // Provide the active project to the runtime via the HostContext seam so
     // per-project runtime state (e.g. edit-mode keys) scopes correctly —

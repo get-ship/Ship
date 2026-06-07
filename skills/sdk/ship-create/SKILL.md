@@ -1,5 +1,6 @@
 ---
 name: ship-create
+audience: public
 stable-id: ship-create
 description: >-
   The `create` capability (1 ops). Call any op over ConnectRPC with

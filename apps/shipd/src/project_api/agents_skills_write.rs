@@ -1,8 +1,8 @@
 //! Write endpoints for skill files / vars under workspace-scoped `.ship/`.
 //!
 //! Mutations resolve the worktree first, then delegate to
-//! `ship_platform::services::skills::state` (file ops) or
-//! `ship_platform::agents::skill_vars` (per-skill vars). No raw `std::fs`
+//! `ship_agents::services::skills::state` (file ops) or
+//! `ship_agents::agent_domain::skill_vars` (per-skill vars). No raw `std::fs`
 //! calls in this layer; path-safety + JSONC handling live in platform.
 //!
 //! Phase 16 removed the legacy `POST /api/v1/projects/{id}/agents`
@@ -19,8 +19,8 @@ use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 use super::{err_response, ok_response};
 
-use ship_platform::services::files::{FilesService, Scope as FsScope};
-use ship_platform::services::skills::state as skills_state;
+use ship_files::files::{FilesService, Scope as FsScope};
+use ship_agents::services::skills::state as skills_state;
 
 // ── Request bodies ────────────────────────────────────────────────────────────
 
@@ -85,7 +85,7 @@ pub async fn get_skill_vars(
 
     validate_skill_id(&skill_id)?;
 
-    let vars = ship_platform::agents::skill_vars::get_skill_vars(&ship_dir, &skill_id)
+    let vars = ship_agents::agent_domain::skill_vars::get_skill_vars(&ship_dir, &skill_id)
         .map_err(|e| {
             err_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -124,7 +124,7 @@ pub async fn set_skill_var(
             )
         })?;
 
-    ship_platform::agents::skill_vars::set_skill_var(&ship_dir, &skill_id, &key, value).map_err(|e| {
+    ship_agents::agent_domain::skill_vars::set_skill_var(&ship_dir, &skill_id, &key, value).map_err(|e| {
         let msg = e.to_string();
         if msg.contains("unknown variable") || msg.contains("no assets/vars.json") {
             err_response(StatusCode::NOT_FOUND, &msg)
@@ -146,9 +146,9 @@ fn validate_skill_id(skill_id: &str) -> Result<(), (StatusCode, Json<MeshRespons
 }
 
 fn skills_err_to_http(
-    e: ship_platform::services::skills::state::Error,
+    e: ship_agents::services::skills::state::Error,
 ) -> (StatusCode, Json<MeshResponse>) {
-    use ship_platform::services::skills::state::Error;
+    use ship_agents::services::skills::state::Error;
     match e {
         Error::NotFound(msg) => err_response(StatusCode::NOT_FOUND, &msg),
         Error::BadId(msg) | Error::BadPath(msg) => err_response(StatusCode::BAD_REQUEST, &msg),

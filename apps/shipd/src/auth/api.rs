@@ -79,27 +79,25 @@ mod tests {
 
     #[test]
     fn auth_context_to_emit_context() {
-        // The daemon's space id is the sole scope. Setting it once here (the
-        // only reader of this set-once global in the shipd test binary) lets us
-        // assert the new behavior: `space_id` carries the SPACE id and is
-        // *independent* of the legacy branch-slug `workspace_id`.
-        ship_substrate::project::set_daemon_space_id("space-abc".into());
+        // Phase 2: the session is the sole binding minter. An MCP agent with no
+        // resolved space keys `None` — there is NO home-space fallback on the
+        // emit path. The branch-slug `workspace_id` never leaks into the key.
         let auth = AuthContext {
             caller_kind: CallerKind::Mcp,
             agent_id: Some("agent.test".into()),
-            // A branch slug that must NOT leak into space_id anymore.
             workspace_id: Some("ws-1".into()),
             space_id: None,
             session_id: Some("sess-1".into()),
             scopes: vec![Scope::Full],
             grants: vec![],
+            operator_cred: false,
         };
-        let ctx = auth.to_emit_context();
+        let ctx = auth.to_emit_context(CallerKind::Mcp);
         assert_eq!(ctx.caller_kind, CallerKind::Mcp);
         assert_eq!(
-            ctx.space_id,
-            Some("space-abc".into()),
-            "space_id must carry the daemon space id, not the branch slug"
+            ctx.space_key(),
+            None,
+            "no resolved space → keyed None (no home-space fallback)"
         );
         assert_eq!(ctx.session_id, Some("sess-1".into()));
     }
@@ -114,6 +112,7 @@ mod tests {
             session_id: None,
             scopes: vec![Scope::ReadWorkspace, Scope::LogProgress],
             grants: vec![],
+            operator_cred: false,
         };
         assert!(auth.has_scope(Scope::ReadWorkspace));
         assert!(!auth.has_scope(Scope::CreateRuns));

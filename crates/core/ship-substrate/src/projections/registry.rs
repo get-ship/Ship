@@ -49,37 +49,41 @@ impl EventBus {
 
     /// Dispatch an event to all matching projections.
     ///
-    /// Called synchronously after every event append in 0.2.0.
-    /// Handler errors are logged but do not fail the caller —
-    /// the event is already persisted. On success, the projection's cursor
-    /// in the `cursors` table is bumped to this event's id so an
-    /// incremental rebuild can resume from here.
-    pub fn dispatch(&self, event: &EventEnvelope, conn: &mut SqliteConnection) {
+    /// Called synchronously after every event append, on the SAME connection
+    /// (and inside the SAME transaction) as the event-row insert. A handler
+    /// error is propagated as `Err` to the caller — it does NOT get swallowed.
+    /// `SqliteEventStore::append` rolls the transaction back on that `Err`, so a
+    /// projection that rejects an event leaves no orphaned event row. The first
+    /// failing handler short-circuits dispatch; later projections do not run for
+    /// this event (the whole write is about to be rolled back anyway).
+    ///
+    /// On a successful `apply`, the projection's cursor in the `cursors` table
+    /// is bumped to this event's id so an incremental rebuild can resume from
+    /// here. The cursor write is bookkeeping, not part of the projection
+    /// contract, so a cursor-write failure is logged rather than failing the
+    /// write.
+    pub fn dispatch(&self, event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
         for proj in &self.projections {
             if !proj.event_types().contains(&event.event_type.as_str()) {
                 continue;
             }
-            match proj.apply(event, conn) {
-                Ok(()) => {
-                    if let Err(e) = bump_cursor_with_conn(conn, proj.name(), &event.id) {
-                        tracing::warn!(
-                            "[projection:{}] cursor write failed for {}: {}",
-                            proj.name(),
-                            event.id,
-                            e,
-                        );
-                    }
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        "[projection:{}] handler failed for {}: {}",
-                        proj.name(),
-                        event.event_type,
-                        e,
-                    );
-                }
+            proj.apply(event, conn).map_err(|e| {
+                e.context(format!(
+                    "projection '{}' failed to apply '{}'",
+                    proj.name(),
+                    event.event_type,
+                ))
+            })?;
+            if let Err(e) = bump_cursor_with_conn(conn, proj.name(), &event.id) {
+                tracing::warn!(
+                    "[projection:{}] cursor write failed for {}: {}",
+                    proj.name(),
+                    event.id,
+                    e,
+                );
             }
         }
+        Ok(())
     }
 
     /// Replay all events through registered projections.
@@ -87,6 +91,10 @@ impl EventBus {
     /// Truncates each projection first (and clears its cursor), then applies
     /// events in order. This is the correctness guarantee: projections are
     /// always rebuildable.
+    ///
+    /// A handler that errors on replay aborts the rebuild with `Err` — a
+    /// drifted projection that cannot apply a valid event must fail loud, not
+    /// silently report a partial rebuild as success.
     pub fn rebuild(
         &self,
         events: &[EventEnvelope],
@@ -105,7 +113,7 @@ impl EventBus {
         }
 
         for event in events {
-            self.dispatch(event, conn);
+            self.dispatch(event, conn)?;
             report.events_replayed += 1;
         }
 

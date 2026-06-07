@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::path::Path;
 
 use crate::profile::load_agent_profile;
-use ship_platform::services::compile::{load_permission_preset, load_skills, McpEntry, McpFile};
+use ship_agents::services::compile::{load_permission_preset, load_skills, McpEntry, McpFile};
 use crate::profile::find_agent_file;
 
 #[cfg(test)]
@@ -282,9 +282,44 @@ pub fn validate_agent(agent_id: &str, agent_path: &Path, agents_dir: &Path) -> A
         }
     }
 
+    // 5. Isolation block (if present) parses to a valid IsolationProfile.
+    // The schema is documented in ship-isolation::tier::IsolationProfile
+    // and consumed by ship-platform::isolation::parse_agent_override at
+    // run time. We catch malformed blocks here so users don't discover
+    // them at agent-launch time.
+    if let Some(detail) = check_isolation_field(agent_path) {
+        errors.push(ValidationError {
+            agent: agent_id.to_string(),
+            file: agent_file.clone(),
+            error: detail,
+        });
+    }
+
     AgentReport {
         agent_id: agent_id.to_string(),
         errors,
+    }
+}
+
+/// Read the agent jsonc, look for a top-level `isolation:` block, and
+/// try to parse it via `ship_platform::isolation::parse_agent_override`.
+/// Returns `None` when the field is absent or parses cleanly;
+/// `Some(error message)` when it's present and malformed.
+fn check_isolation_field(agent_path: &Path) -> Option<String> {
+    let raw = std::fs::read_to_string(agent_path).ok()?;
+    let stripped = ship_substrate::fs_util::strip_jsonc_comments(&raw);
+    let value: serde_json::Value = serde_json::from_str(&stripped).ok()?;
+    // `isolation:` lives at the top level of the canonical agent
+    // shape (sibling to `agent`, `mcp`, `skills`, `rules`).
+    let iso = value.get("isolation")?;
+    match ship_platform::isolation::parse_agent_override(Some(iso)) {
+        Ok(_) => None,
+        Err(e) => Some(format!(
+            "isolation: block is malformed — {e}. \
+             Expected: {{ tier?, strategy?, policy? }}. \
+             Tier ids: none|process|container|vm|cloud. \
+             Strategy ids: noop|harness_native|srt|docker|youki|wsl2|lima|fly."
+        )),
     }
 }
 

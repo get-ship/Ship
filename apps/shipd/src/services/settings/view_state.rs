@@ -94,10 +94,10 @@ fn detect_harnesses(default_id: &str) -> Vec<ProviderRow> {
     // Availability-only: `which <binary>` is sub-millisecond. Version
     // detection spawns the binary and blocks the render — keep off the
     // hot path.
-    ship_platform::agents::harnesses::HARNESSES
+    ship_agents::agent_domain::harnesses::HARNESSES
         .iter()
         .map(|d| {
-            let available = ship_platform::agents::harnesses::detect_binary(d.binary);
+            let available = ship_agents::agent_domain::harnesses::detect_binary(d.binary);
             let (label, glyph) = harness_meta(d.id);
             ProviderRow {
                 id: d.id.to_string(),
@@ -171,11 +171,8 @@ pub fn build_ctx() -> SettingsCtx {
 
     let harness_default = setting_string("harness.default");
     let harness_default_model = setting_string("harness.default_model");
-    let agent_session_auto_resume = ship_platform::config::resolve_bool(
-        "agent_session.auto_resume",
-        None,
-        &ship_platform::config::ProjectConfig::default(),
-    );
+    let agent_session_auto_resume =
+        ship_platform::config::resolve_bool("agent_session.auto_resume", None);
     let watcher_debounce_ms =
         ship_platform::config::get_setting_u64_or("watcher.debounce_ms", 200).to_string();
     let git_log_limit =

@@ -1,60 +1,101 @@
-// `account.*` as a hand-authored per-domain proto-SSOT service (#89),
-// mounted ADDITIVELY beside the generated ReadOpsService which keeps serving
-// account.* until the GUI flip (#72). Old path UNCHANGED.
+// Clean, typed `account.*` wire contract — the canonical proto-SSOT for Ship
+// Cloud identity (login / logout / state). Typed messages replace the former
+// opaque-JsonResponse surface; the `*Live` streaming twin is dropped (Watch is
+// the reactive surface and account state is coarse login/logout).
 //
-// Request message uses a fresh name (GetAccountStateReq) to avoid collision
-// with AccountStateRequest declared in reads.gen.proto in this same package.
-// Return type is opaque JsonResponse — AccountState embeds provider-specific
-// fields that vary by harness and are not stable enough to type in proto.
+// Served by the `ship-account` crate (`ship_account::AccountWire`); the shipd
+// mount lives in `apps/shipd/src/account_rpc.rs`.
+//
+// ALL 4 RPCs are operator-cred-gated (S6, #124): account ops are credential-
+// dangerous, so they require operator authority — granted SOLELY by a verified
+// operator cred. The Connect router runs no per-route auth middleware; the
+// daemon projects the resolved `ship_types::Authority` into the request and the
+// wire checks `Authority::Operator`. Agents/MCP and the bare CLI transport are
+// categorically denied — only the operator cred clears these ops.
 syntax = "proto3";
 
 package ship.ops.v1;
 
 import "ship/ops/v1/policy.proto";
-import "ship/ops/v1/ops.proto";
 
-message GetAccountStateReq {}
-message LogoutReq {}
+message StateRequest {}
+message LogoutRequest {}
 
-// PKCE login start: CLI passes its local-callback redirect_uri; daemon returns
+// PKCE login start — CLI passes its local-callback redirect_uri; daemon returns
 // the browser URL + a state_id.
-message LoginReq {
+message LoginRequest {
   string redirect_uri = 1;
 }
-// PKCE login finish: CLI passes the state_id + the code from its callback.
-message LoginCompleteReq {
+
+// PKCE login finish — CLI passes the state_id + the code from its callback.
+message LoginCompleteRequest {
   string state_id = 1;
   string code = 2;
 }
 
-// Ship Cloud account ops. ALL ops require user presence (CallerKind::Cli or
-// browser cookie) — MCP session tokens are categorically denied (SECURITY.md).
-// The Connect transport doesn't run the per-route `@auth cli` middleware, so
-// each impl enforces presence itself.
+// User identity. `image == ""` means None on the wire (the service maps
+// Option<String> <-> "").
+message Me {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  string image = 4;
+}
+
+// Account-state snapshot. The tag mirrors the AccountState enum:
+// pending carries state_id; logged_in carries user_id + optional me.
+message AccountState {
+  enum Status {
+    LOGGED_OUT = 0;
+    PENDING = 1;
+    LOGGED_IN = 2;
+  }
+  Status status = 1;
+  string user_id = 2;   // set when LOGGED_IN
+  string state_id = 3;  // set when PENDING
+  optional Me me = 4;   // best-effort identity when LOGGED_IN
+}
+
+message LoginStarted {
+  string state_id = 1;
+  string browser_url = 2;
+}
+
+message LoginCompleted {
+  string user_id = 1;
+  optional Me me = 2;
+}
+
+message LogoutResult {
+  bool had_token = 1;
+  bool key_revoked = 2;
+}
+
+// Ship Cloud account ops (typed). ALL ops require user presence.
 service AccountService {
-  rpc State(GetAccountStateReq) returns (JsonResponse) {
+  // Snapshot — logged_out / pending / logged_in. C0 read.
+  rpc State(StateRequest) returns (AccountState) {
     option (ship.ops.v1.description) = "Ship Cloud account snapshot — logged_out / pending / logged_in.";
     option (ship.ops.v1.capability) = "ship.account.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc StateLive(GetAccountStateReq) returns (stream JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.account.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  // Clear the daemon's stored gateway token (idempotent). C2 — account
-  // mutation requiring user presence.
-  rpc Logout(LogoutReq) returns (JsonResponse) {
+  // PKCE login start — CLI passes its local-callback redirect_uri; daemon
+  // returns the browser URL + state_id.
+  rpc Login(LoginRequest) returns (LoginStarted) {
+    option (ship.ops.v1.description) = "Start a PKCE login — returns the browser auth URL + a state_id.";
     option (ship.ops.v1.capability) = "ship.account.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
-  // Daemon-mediated PKCE login (replaces POST /api/v1/account/login{,/complete}).
-  // The daemon owns PKCE state + the gateway exchange; the CLI calls these with
-  // its daemon bearer, so they speak authenticated Connect.
-  rpc Login(LoginReq) returns (JsonResponse) {
+  // PKCE login finish — CLI passes state_id + callback code; daemon exchanges,
+  // stores the key, binds the owner.
+  rpc LoginComplete(LoginCompleteRequest) returns (LoginCompleted) {
+    option (ship.ops.v1.description) = "Finish a PKCE login — exchanges the code, stores the key, returns identity.";
     option (ship.ops.v1.capability) = "ship.account.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
-  rpc LoginComplete(LoginCompleteReq) returns (JsonResponse) {
+  // Revoke gateway key (best-effort) + clear local token. Idempotent. C2.
+  rpc Logout(LogoutRequest) returns (LogoutResult) {
+    option (ship.ops.v1.description) = "Revoke the gateway key (best-effort) and clear the local token. Idempotent.";
     option (ship.ops.v1.capability) = "ship.account.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }

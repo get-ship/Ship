@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "skill.failed",
-    "scope": "device",
+    "scope": "runtime",
     "retention": "durable",
     "stability": "deprecated",
     "payload_type": "SkillFailed",

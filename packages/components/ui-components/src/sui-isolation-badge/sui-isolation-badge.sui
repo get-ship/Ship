@@ -1,0 +1,95 @@
+<!--
+  <sui-isolation-badge> — compact tier label + status dot.
+
+  Drops into any actor / agent view as a single chip. Reads from
+  /api/v1/isolation/status when no props are supplied, or accepts
+  pre-resolved tier/strategy/downgraded via attributes for views
+  that already have the data.
+
+  Props
+  ─────────────────────────────────────────────────────────────────────
+  tier (none|process|container|vm|cloud|unknown, 'unknown')
+    The resolved isolation tier. 'unknown' triggers an auto-fetch
+    on mount (controller calls /api/v1/isolation/status).
+  strategy (string, '')
+    Resolved strategy id (noop, harness_native, srt, docker, ...).
+    Surfaced in the tooltip; doesn't affect color.
+  downgraded (boolean, false)
+    When true, the badge renders with a warning dot to signal that
+    the preferred tier was unavailable and the recommender fell back.
+  label (string, '')
+    Optional override for the visible label. Default uses a
+    user-friendly mapping per tier ('Sandboxed' / 'Not sandboxed' /
+    'Container' / etc).
+-->
+
+<prop name="tier" values="none|process|container|vm|cloud|unknown" default="unknown" reflect />
+<prop name="strategy" type="string" default="" reflect />
+<prop name="downgraded" values="false|true" default="false" reflect />
+<prop name="label" type="string" default="" />
+
+<style>
+  :host {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-body);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+  :host([hidden]) { display: none; }
+  :host([tier='none']) {
+    color: var(--muted-foreground);
+    border-color: var(--border);
+  }
+  :host([tier='process']) {
+    color: var(--info);
+    border-color: var(--tone-info-border);
+    background: var(--tone-info-bg);
+  }
+  :host([tier='container']),
+  :host([tier='vm']) {
+    color: var(--success);
+    border-color: var(--tone-success-border);
+    background: var(--tone-success-bg);
+  }
+  :host([tier='cloud']) {
+    color: var(--accent-foreground);
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+  :host([tier='unknown']) {
+    color: var(--muted-foreground);
+    opacity: 0.6;
+  }
+  :host([downgraded="true"]) {
+    border-color: var(--tone-warning-border);
+    background: var(--tone-warning-bg);
+    color: var(--warning);
+  }
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  .dot[data-downgraded='true'] {
+    background: var(--warning);
+  }
+</style>
+
+<span class="dot" aria-hidden="true" data-downgraded={downgraded()}></span>
+<span class="label">{label() ? label() :
+  tier() === 'none'      ? 'Not sandboxed' :
+  tier() === 'process'   ? 'Sandboxed' :
+  tier() === 'container' ? 'Container' :
+  tier() === 'vm'        ? 'Virtual machine' :
+  tier() === 'cloud'     ? 'Cloud' :
+                           '…'}</span>

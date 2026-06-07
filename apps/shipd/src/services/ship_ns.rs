@@ -17,7 +17,6 @@ use minijinja::{Error, ErrorKind, State};
 use std::sync::Arc;
 
 use crate::ship_runtime::ApiState;
-use crate::services::registry;
 
 /// Root `ship` namespace. Exposes service domains + request context.
 pub struct ShipNs {
@@ -60,7 +59,7 @@ impl Object for ShipNs {
             // whose callable methods dispatch to the registry.
             "agents" | "skills" | "rules" | "mcp" | "permissions"
             | "pipelines" | "git" | "collections" | "specs" | "events"
-            | "settings" | "dashboard" | "chat" | "sessions" | "actors" | "mesh" => {
+            | "settings" | "dashboard" | "chat" | "sessions" => {
                 Some(Value::from_object(Domain {
                     state: self.state.clone(),
                     name: k.to_string(),
@@ -111,25 +110,19 @@ impl Object for Domain {
             )
         })?;
         let full = format!("{}.{method}", self.name);
-        match registry::call(&full, &args_json, &self.state) {
-            Ok(value) => Ok(Value::from_serialize(&value)),
-            Err(e) => {
-                // Soft-fail mode wraps runtime conditions as an object
-                // templates can render. Author bugs always raise.
-                if self.soft && matches!(e.code, "not_found" | "service_error") {
-                    Ok(Value::from_serialize(serde_json::json!({
-                        "error": true,
-                        "code": e.code,
-                        "message": e.message,
-                        "op": format!("ship.{full}"),
-                    })))
-                } else {
-                    Err(Error::new(
-                        ErrorKind::InvalidOperation,
-                        format!("ship.{full}: [{code}] {msg}", code = e.code, msg = e.message),
-                    ))
-                }
-            }
+        // Registry string-dispatch removed (one rpc story). Template-side
+        // ship.* calls must migrate to typed data sources; for now, soft-fail
+        // mode returns an error object, strict mode raises InvalidOperation.
+        let msg = format!("registry dispatch removed: use typed Connect RPC for 'ship.{full}'");
+        if self.soft {
+            Ok(Value::from_serialize(serde_json::json!({
+                "error": true,
+                "code": "not_implemented",
+                "message": msg,
+                "op": format!("ship.{full}"),
+            })))
+        } else {
+            Err(Error::new(ErrorKind::InvalidOperation, msg))
         }
     }
 }
@@ -154,7 +147,7 @@ impl Object for TryNs {
         match k {
             "agents" | "skills" | "rules" | "mcp" | "permissions"
             | "pipelines" | "git" | "collections" | "specs" | "events"
-            | "settings" | "dashboard" | "chat" | "sessions" | "actors" | "mesh" => {
+            | "settings" | "dashboard" | "chat" | "sessions" => {
                 Some(Value::from_object(Domain {
                     state: self.state.clone(),
                     name: k.to_string(),

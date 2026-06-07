@@ -1,0 +1,33 @@
+[package]
+name = "ship-space"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "SpaceService — space identity + per-space config overlay + space registry (L1). Implements space.proto's 7 RPCs via DataStore + KernelLog; no direct sqlite/raw-fs access."
+
+[dependencies]
+ship-substrate = { path = "../../../ship-substrate" }
+ship-types = { path = "../../../ship-substrate/crates/ship-types" }
+ship-reactive = { path = "../ship-reactive" }
+ship-ops-rpc = { path = "../ship-ops-rpc" }
+
+async-trait = { workspace = true }
+async-stream = "0.3"
+connectrpc = { version = "0.4", features = ["axum"] }
+buffa = { version = "0.5" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+indexmap = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+futures-util = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt"] }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+tempfile = { workspace = true }
+ship-substrate = { path = "../../../ship-substrate" }
+
+[lints]
+workspace = true

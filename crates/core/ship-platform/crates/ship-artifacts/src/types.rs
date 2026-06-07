@@ -1,0 +1,66 @@
+/// Two-scope model — run artifacts are ephemeral, project are persistent.
+/// (A personal/account scope returns later as Account; there is no
+/// promote-to-global paradigm.)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ArtifactScope {
+    Run { space_id: String, run_id: String },
+    Project { space_id: String },
+}
+
+impl ArtifactScope {
+    pub fn kind_str(&self) -> &'static str {
+        match self {
+            ArtifactScope::Run { .. } => "run",
+            ArtifactScope::Project { .. } => "project",
+        }
+    }
+
+    pub fn space_id(&self) -> Option<&str> {
+        match self {
+            ArtifactScope::Run { space_id, .. } | ArtifactScope::Project { space_id } => {
+                Some(space_id.as_str())
+            }
+        }
+    }
+
+    pub fn run_id(&self) -> Option<&str> {
+        match self {
+            ArtifactScope::Run { run_id, .. } => Some(run_id.as_str()),
+            _ => None,
+        }
+    }
+
+    pub fn lock_key(&self) -> String {
+        match self {
+            ArtifactScope::Run { space_id, run_id } => format!("run:{space_id}:{run_id}"),
+            ArtifactScope::Project { space_id } => format!("project:{space_id}"),
+        }
+    }
+}
+
+/// Metadata record returned by service methods.
+///
+/// `Serialize` so daemon read/command surfaces (registry `artifacts.list`,
+/// `command::artifacts::patch/promote`, REST metadata) can emit it directly —
+/// the old record carried the same derive.
+#[derive(Debug, Clone, serde::Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ArtifactRecord {
+    pub id: String,
+    pub name: String,
+    pub mime: String,
+    pub size: u64,
+    /// Relative blob path (from global_dir). Internal — needed to locate bytes.
+    pub path: String,
+    pub scope: String,
+    pub space_id: Option<String>,
+    pub run_id: Option<String>,
+    pub user_id: Option<String>,
+    pub content_hash: Option<String>,
+    pub expires_at: Option<String>,
+    pub owner_actor: Option<String>,
+    /// Plain typed string — no ship-collection dependency.
+    pub collection_id: Option<String>,
+    pub item_id: Option<String>,
+    pub created_at: String,
+}

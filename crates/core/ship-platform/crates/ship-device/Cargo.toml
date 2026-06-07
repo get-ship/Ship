@@ -1,0 +1,33 @@
+[package]
+name = "ship-device"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "DeviceService — window management + device/isolation surface over substrate ports (L1). Owns the focus-vs-spawn decision, the window lifecycle (register/close), and the pid-bound session mint/revoke seam; no direct sqlite or raw-fs access."
+
+[dependencies]
+ship-substrate = { path = "../../../ship-substrate" }
+ship-types = { path = "../../../ship-substrate/crates/ship-types" }
+# Isolation types + recommender. The sandbox module (sandbox/dispatcher.rs)
+# consumes `ship_isolation::tier::{IsolationProfile, IsolationTier}` to
+# route actor spawns; default-features off keeps the youki / sidecar
+# backends opt-in (the daemon's feature flags layer them in).
+ship-isolation = { path = "../../../ship-isolation", default-features = false }
+ship-ops-rpc = { path = "../ship-ops-rpc" }
+connectrpc = { version = "0.4", features = ["axum"] }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+nanoid = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

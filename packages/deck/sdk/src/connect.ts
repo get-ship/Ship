@@ -15,8 +15,6 @@ import { createClient, type Client, type Interceptor } from "@connectrpc/connect
 import { createConnectTransport } from "@connectrpc/connect-web";
 
 import { OpsService } from "./gen/ship/ops/v1/ops_pb.js";
-import { ReadOpsService } from "./gen/ship/ops/v1/reads.gen_pb.js";
-import { CommandOpsService } from "./gen/ship/ops/v1/commands.gen_pb.js";
 import { StreamService } from "./gen/ship/ops/v1/stream_pb.js";
 // Per-domain proto-as-SSOT services (each its own service, not on ReadOps).
 import { AccountService } from "./gen/ship/ops/v1/account_pb.js";
@@ -40,8 +38,10 @@ import { ProjectService } from "./gen/ship/ops/v1/project_pb.js";
 import { RulesService } from "./gen/ship/ops/v1/rules_pb.js";
 import { RuntimeService } from "./gen/ship/ops/v1/runtime_pb.js";
 import { SessionsService } from "./gen/ship/ops/v1/sessions_pb.js";
-import { SettingsService } from "./gen/ship/ops/v1/settings_pb.js";
+import { SettingsService, SettingScope } from "./gen/ship/ops/v1/settings_pb.js";
+import type { Setting, SettingList } from "./gen/ship/ops/v1/settings_pb.js";
 import { SkillsService } from "./gen/ship/ops/v1/skills_pb.js";
+import { SpaceService } from "./gen/ship/ops/v1/space_pb.js";
 import { SpecsService } from "./gen/ship/ops/v1/specs_pb.js";
 import { ViewService } from "./gen/ship/ops/v1/view_pb.js";
 import { ViewErrorsService } from "./gen/ship/ops/v1/view_errors_pb.js";
@@ -62,10 +62,6 @@ export interface ShipConnectClient {
   meta: Client<typeof OpsService>;
   /** Live data stream (`StreamService`) — backs `<data live>`. */
   stream: Client<typeof StreamService>;
-  /** @deprecated old generated read monolith — use the per-domain client. */
-  reads: Client<typeof ReadOpsService>;
-  /** @deprecated old generated command monolith — use the per-domain client. */
-  commands: Client<typeof CommandOpsService>;
   // Per-domain clients — the flip target.
   account: Client<typeof AccountService>;
   agent: Client<typeof AgentService>;
@@ -90,6 +86,7 @@ export interface ShipConnectClient {
   sessions: Client<typeof SessionsService>;
   settings: Client<typeof SettingsService>;
   skills: Client<typeof SkillsService>;
+  space: Client<typeof SpaceService>;
   specs: Client<typeof SpecsService>;
   view: Client<typeof ViewService>;
   viewErrors: Client<typeof ViewErrorsService>;
@@ -117,8 +114,6 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
   return {
     meta: createClient(OpsService, transport),
     stream: createClient(StreamService, transport),
-    reads: createClient(ReadOpsService, transport),
-    commands: createClient(CommandOpsService, transport),
     account: createClient(AccountService, transport),
     agent: createClient(AgentService, transport),
     agents: createClient(AgentsService, transport),
@@ -142,6 +137,7 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
     sessions: createClient(SessionsService, transport),
     settings: createClient(SettingsService, transport),
     skills: createClient(SkillsService, transport),
+    space: createClient(SpaceService, transport),
     specs: createClient(SpecsService, transport),
     view: createClient(ViewService, transport),
     viewErrors: createClient(ViewErrorsService, transport),
@@ -151,8 +147,6 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
 
 export {
   OpsService,
-  ReadOpsService,
-  CommandOpsService,
   StreamService,
   AccountService,
   AgentService,
@@ -176,9 +170,13 @@ export {
   RuntimeService,
   SessionsService,
   SettingsService,
+  SettingScope,
   SkillsService,
+  SpaceService,
   SpecsService,
   ViewService,
   ViewErrorsService,
   WorkspacesService,
 };
+
+export type { Setting, SettingList };

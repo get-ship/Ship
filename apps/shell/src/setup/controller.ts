@@ -77,7 +77,7 @@ async function fetchInstalledProviders(): Promise<string[]> {
 
 async function postProject(name: string, path: string): Promise<{ ok: boolean; error?: string; warning?: string }> {
   try {
-    await ops.project.add({ path, name })
+    await ops.space.add({ path, name })
     return { ok: true }
   } catch (e) {
     const msg = (e as Error).message ?? 'add failed'

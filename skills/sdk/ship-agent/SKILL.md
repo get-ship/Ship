@@ -1,5 +1,6 @@
 ---
 name: ship-agent
+audience: public
 stable-id: ship-agent
 description: >-
   The `agent` capability (4 ops). Call any op over ConnectRPC with

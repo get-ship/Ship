@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "skill.updated",
-    "scope": "space",
+    "scope": "runtime",
     "retention": "durable",
     "stability": "stable",
     "payload_type": "SkillUpdated",

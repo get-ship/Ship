@@ -1,0 +1,32 @@
+# Ship Lima substrate — the macOS Tier-3 VM substrate.
+#
+# A Mac has no Linux kernel to run our Isolators in; Lima boots one, and the
+# sidecar runs inside (driven over ship.sidecar.v1, reached over a forwarded
+# loopback port). Start it as the Ship substrate instance:
+#
+#   limactl start --name ship-default contrib/lima/ship-substrate.yaml
+#
+# Inherits the default Lima image + the home mount (so a host-built sidecar is
+# visible in the VM). DEV template — Phase F bakes a pinned substrate image
+# with the sidecar already inside.
+
+base: template://default
+
+cpus: 2
+memory: "2GiB"
+disk: "20GiB"
+
+# Explicit port forwarding is REQUIRED, not optional: Lima's event-driven
+# auto-forward proved unreliable (verified on a WSL2/QEMU POC where it didn't
+# fire at all). Declaring the range the sidecar binds in makes the host reach
+# it deterministically on 127.0.0.1. The Isolator binds 0.0.0.0:<ephemeral> in
+# the guest (Lima forwards 0.0.0.0 guest ports to the host loopback), so cover
+# the ephemeral range.
+portForwards:
+  - guestPortRange: [1024, 65535]
+    hostIP: "127.0.0.1"
+
+# Headless substrate — no need for the host's ssh-agent, gui, etc. The home
+# mount stays read-write so copy-out of workspace edits can land (workspace
+# wiring is a follow-up; the sidecar runs from the mounted host path today).
+mountType: "9p"

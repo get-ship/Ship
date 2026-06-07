@@ -1,7 +1,7 @@
 //! HTTP-coupled scope helpers + `/api/session/register` handler.
 //!
 //! Pure scope policy + session-registry primitives moved to
-//! `ship_platform::auth::scopes`. This file holds only the bits that
+//! `ship_auth::scopes`. This file holds only the bits that
 //! depend on axum / shipd-side `AuthContext`.
 
 use axum::http::StatusCode;
@@ -9,29 +9,30 @@ use serde_json::json;
 
 // Re-export the platform's policy primitives so existing
 // `crate::auth::scopes::Scope` import paths continue to resolve.
-pub use ship_platform::auth::scopes::{
-    DaemonSession, McpAuth, RequiredAuth, Scope, SessionRegistry, generate_session_token,
-    hydrate_sessions, is_session_token, persist_session, remove_persisted_session,
+pub use ship_auth::scopes::{
+    DaemonSession, McpAuth, RequiredAuth, Scope, SessionRegistry, drop_session,
+    generate_session_token, hydrate_sessions, is_session_token, mint_session, persist_session,
+    remove_persisted_session,
     scopes_for_role,
 };
-pub use ship_platform::auth::sweeper::spawn_session_sweeper;
+pub use ship_auth::sweeper::spawn_session_sweeper;
 
 use axum::body::Body;
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use ship_substrate::events::CallerKind;
 
 /// Per-route auth enforcement middleware. Wraps the actual handler.
 ///
 /// Behavior:
 /// - `RequiredAuth::Public` — pass through (this branch should never be
 ///   hit because `ship_route` only wraps non-public routes).
-/// - `RequiredAuth::Cli` — require `AuthContext` in extensions AND
-///   `caller_kind == CallerKind::Cli`. MCP session tokens get 403 even
-///   when they hold `Scope::Full`.
 /// - `RequiredAuth::Scope(s)` — require `auth.has_scope(s)`.
 /// - `RequiredAuth::Handler` — pass through; the handler enforces.
+///
+/// The `Cli` arm was removed (S6, #124): "requires the CLI transport" was an
+/// elevation shortcut. Operator-only routes now enforce in-handler
+/// (`Scope::Full` / `require_scope`) or run through the gate (`command::call`).
 ///
 /// Missing `AuthContext` (the outer `auth_middleware` didn't run, or
 /// failed) returns 401. Insufficient privileges return 403 with the
@@ -43,23 +44,6 @@ pub async fn enforce_required_auth(
 ) -> Response {
     match required {
         RequiredAuth::Public | RequiredAuth::Handler => next.run(req).await,
-        RequiredAuth::Cli => {
-            let Some(auth) = req.extensions().get::<super::AuthContext>().cloned() else {
-                return (StatusCode::UNAUTHORIZED, "missing auth context").into_response();
-            };
-            if matches!(auth.caller_kind, CallerKind::Cli) {
-                next.run(req).await
-            } else {
-                (
-                    StatusCode::FORBIDDEN,
-                    axum::Json(crate::wire::MeshResponse {
-                        ok: false,
-                        data: json!("requires user-presence (CallerKind::Cli)"),
-                    }),
-                )
-                    .into_response()
-            }
-        }
         RequiredAuth::Scope(scope) => {
             let Some(auth) = req.extensions().get::<super::AuthContext>().cloned() else {
                 return (StatusCode::UNAUTHORIZED, "missing auth context").into_response();
@@ -91,7 +75,6 @@ pub fn can_read_artifacts(auth: &super::AuthContext, scope_kind: &str) -> bool {
     match scope_kind {
         "run" => auth.has_scope(Scope::ReadArtifactsRun),
         "project" => auth.has_scope(Scope::ReadArtifactsProject),
-        "user" => auth.has_scope(Scope::ReadArtifactsUser),
         _ => false,
     }
 }
@@ -103,7 +86,6 @@ pub fn can_write_artifacts(auth: &super::AuthContext, scope_kind: &str) -> bool 
     match scope_kind {
         "run" => auth.has_scope(Scope::WriteArtifactsRun),
         "project" => auth.has_scope(Scope::WriteArtifactsProject),
-        "user" => auth.has_scope(Scope::WriteArtifactsUser),
         _ => false,
     }
 }
@@ -115,7 +97,6 @@ pub fn can_delete_artifacts(auth: &super::AuthContext, scope_kind: &str) -> bool
     match scope_kind {
         "run" => auth.has_scope(Scope::DeleteArtifactsRun),
         "project" => auth.has_scope(Scope::DeleteArtifactsProject),
-        "user" => auth.has_scope(Scope::DeleteArtifactsUser),
         _ => false,
     }
 }
@@ -187,8 +168,12 @@ pub async fn session_register(
         }
         other => other,
     };
+    // Scopes from the role; grants are provisioned-baseline-aware
+    // (`resolve_grants` — provisioned-wins, role fallback). Built + inserted
+    // manually here rather than via `mint_session` so session_register gets the
+    // provisioned grants, not just the role defaults.
     let scopes = scopes_for_role(effective_role);
-    let grants = ship_platform::auth::scopes::resolve_grants(&req.agent_id, effective_role);
+    let grants = ship_auth::scopes::resolve_grants(&req.agent_id, effective_role);
     let token = match generate_session_token() {
         Ok(t) => t,
         Err(e) => {
@@ -214,6 +199,8 @@ pub async fn session_register(
         created_at: std::time::Instant::now(),
         expires_at_unix: None,
         ephemeral: true,
+        // A role-scoped MCP agent session is never the operator cred (S6).
+        is_operator_cred: false,
     };
 
     registry.lock().await.insert(token.clone(), session);

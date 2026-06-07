@@ -17,10 +17,7 @@
 //! [`Decision`]. Every write surface resolves through it via `command::call`,
 //! so there is one gate, not one per transport.
 
-use ship_substrate::events::CallerKind;
-
 use crate::auth::AuthContext;
-use crate::auth::scopes::Scope;
 
 /// Blast-radius class of an op — the human-vs-agent line. The canonical
 /// definition lives in `ship-ops-rpc` (next to the FDS policy reader that
@@ -56,13 +53,18 @@ pub struct Caller {
 }
 
 /// Map `AuthContext` onto the gate's [`Caller`]. `auth.grants` carries the
-/// agent's elevated services (the C2 set), provisioned per-agent (#85). The
-/// operator line reads `Scope::Full` (the operator marker, a separate axis that
-/// dies with the REST route-auth conversion in P4).
+/// agent's elevated services (the C2 set), provisioned per-agent (#85).
+///
+/// The operator decision reads the binding's `Authority` (S6, #124): an operator
+/// is `Authority::Operator`, granted SOLELY when the connection carries a
+/// verified operator cred (`AuthContext.operator_cred`, set only by a
+/// pid-attested operator session). The CLI transport, the daemon token, the
+/// browser cookie, and the local peer-uid no longer confer operator. The SDK
+/// token is capped at `Authority::Sdk` and is NEVER operator (#207).
+/// `Scope::Full` stays mintable for the dying REST route-auth axis (#78), but
+/// it does NOT drive the operator decision.
 pub fn caller_from_auth(auth: &AuthContext) -> Caller {
-    let is_operator = (matches!(auth.caller_kind, CallerKind::Cli) && auth.agent_id.is_none())
-        || auth.has_scope(Scope::Full);
-    Caller { is_operator, elevated_services: auth.grants.clone() }
+    Caller { is_operator: auth.is_operator(), elevated_services: auth.grants.clone() }
 }
 
 /// The decision. Pure — no I/O, no auth lookups. `service` is the op's domain
@@ -86,7 +88,7 @@ pub fn decide(blast: BlastRadius, service: &str, caller: &Caller) -> Decision {
     }
     match blast {
         BlastRadius::C3Critical => Decision::Deny("op requires a human-operator credential (2FA)"),
-        BlastRadius::C0Read | BlastRadius::C1Workspace => Decision::Allow,
+        BlastRadius::C0Read | BlastRadius::C1Space => Decision::Allow,
         BlastRadius::C2Elevated => {
             if caller.elevated_services.iter().any(|s| s == service) {
                 Decision::Allow
@@ -100,6 +102,7 @@ pub fn decide(blast: BlastRadius, service: &str, caller: &Caller) -> Decision {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ship_substrate::events::CallerKind;
 
     fn caller(is_operator: bool, elevated: &[&str]) -> Caller {
         Caller {
@@ -112,10 +115,10 @@ mod tests {
     fn unknown_blast_string_fails_closed_to_most_restrictive() {
         // Fail closed to the highest tier — a misdeclared op is operator-only.
         assert_eq!(BlastRadius::from_descriptor("nonsense"), BlastRadius::C3Critical);
-        assert_eq!(BlastRadius::from_descriptor("C1_WORKSPACE"), BlastRadius::C1Workspace);
+        assert_eq!(BlastRadius::from_descriptor("C1_WORKSPACE"), BlastRadius::C1Space);
         assert_eq!(BlastRadius::from_descriptor("C0_SAFE"), BlastRadius::C0Read);
         // Ordering: the gate's `blast <= ceiling` relies on this.
-        assert!(BlastRadius::C0Read < BlastRadius::C1Workspace);
+        assert!(BlastRadius::C0Read < BlastRadius::C1Space);
         assert!(BlastRadius::C2Elevated < BlastRadius::C3Critical);
     }
 
@@ -138,8 +141,8 @@ mod tests {
         // service, out of the box, with no elevated services.
         let worker = caller(false, &[]);
         assert_eq!(decide(BlastRadius::C0Read, "settings", &worker), Decision::Allow);
-        assert_eq!(decide(BlastRadius::C1Workspace, "git", &worker), Decision::Allow);
-        assert_eq!(decide(BlastRadius::C1Workspace, "pipelines", &worker), Decision::Allow);
+        assert_eq!(decide(BlastRadius::C1Space, "git", &worker), Decision::Allow);
+        assert_eq!(decide(BlastRadius::C1Space, "pipelines", &worker), Decision::Allow);
         // C2 needs elevation in that service; C3 is operator-only.
         assert!(matches!(decide(BlastRadius::C2Elevated, "pipelines", &worker), Decision::Deny(_)));
         assert!(matches!(decide(BlastRadius::C3Critical, "account", &worker), Decision::Deny(_)));
@@ -151,7 +154,7 @@ mod tests {
         // own elevated set) but is structurally incapable of C3. Build the
         // AuthContext exactly as the bearer middleware does from the minted
         // session, then run it through the real gate.
-        let session = ship_platform::auth::scopes::space_window_session(
+        let session = ship_auth::scopes::space_window_session(
             "acme-space",
             4242,
             "ship_sess_win".to_string(),
@@ -164,6 +167,8 @@ mod tests {
             session_id: None,
             scopes: session.scopes.clone(),
             grants: session.grants.clone(),
+            // A space window is C2-capped — never the operator cred.
+            operator_cred: session.is_operator_cred,
         };
         let caller = caller_from_auth(&auth);
         assert!(!caller.is_operator, "a space window is never the operator");
@@ -176,6 +181,38 @@ mod tests {
     }
 
     #[test]
+    fn caller_is_operator_only_with_a_verified_cred_not_the_cli_transport() {
+        // S6 (#124): the gate's operator verdict reads SOLELY the verified
+        // operator cred (`operator_cred`), never the CLI transport. A bare CLI
+        // connection with Scope::Full is NOT operator; the cred is.
+        let bare_cli = AuthContext {
+            caller_kind: CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            space_id: None,
+            session_id: None,
+            scopes: vec![crate::auth::Scope::Full],
+            grants: vec![],
+            operator_cred: false,
+        };
+        assert!(
+            !caller_from_auth(&bare_cli).is_operator,
+            "the CLI transport must NOT confer operator at the gate (S6)"
+        );
+
+        let cred = AuthContext { operator_cred: true, ..bare_cli };
+        assert!(
+            caller_from_auth(&cred).is_operator,
+            "a verified operator cred clears the gate at every tier"
+        );
+        // And it clears C3 — the operator-only tier.
+        assert_eq!(
+            decide(BlastRadius::C3Critical, "account", &caller_from_auth(&cred)),
+            Decision::Allow
+        );
+    }
+
+    #[test]
     fn c2_allowed_only_in_elevated_services() {
         // A commander elevated in `pipelines` can run that service's C2 ops
         // (dispatch) but not C2 elsewhere — per-service scoping.
@@ -184,7 +221,7 @@ mod tests {
         assert!(matches!(decide(BlastRadius::C2Elevated, "settings", &commander), Decision::Deny(_)));
         // C1 everywhere still holds (baseline); C3 still operator-only even in
         // an elevated service.
-        assert_eq!(decide(BlastRadius::C1Workspace, "settings", &commander), Decision::Allow);
+        assert_eq!(decide(BlastRadius::C1Space, "settings", &commander), Decision::Allow);
         assert!(matches!(decide(BlastRadius::C3Critical, "pipelines", &commander), Decision::Deny(_)));
     }
 
@@ -197,13 +234,13 @@ mod tests {
         // We check the grantable union (what `grants_for_role` confers), which
         // covers command-only authoring domains (`view`/`create`) the read-derived
         // registry doesn't carry.
-        use ship_platform::auth::scopes::grants_for_role;
+        use ship_auth::scopes::grants_for_role;
         let mut grantable: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
         for role in [Some("commander"), Some("designer"), Some("contributor")] {
             grantable.extend(grants_for_role(role));
         }
         // Operational domains (#95) are operator-surface, never agent-grantable.
-        let operational = |s: &str| matches!(s, "actor" | "mesh" | "meta" | "permissions");
+        let operational = |s: &str| matches!(s, "meta" | "permissions");
         for cmd in crate::services::schema::COMMANDS {
             if BlastRadius::from_descriptor(cmd.blast_radius) != BlastRadius::C2Elevated {
                 continue;

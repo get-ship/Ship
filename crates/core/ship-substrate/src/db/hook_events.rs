@@ -25,7 +25,7 @@ use crate::events::hooks::{
     event_types, HookSessionEndedPayload, HookSessionStartedPayload,
     HookToolUseStartedPayload, HookTurnObservedPayload,
 };
-use crate::persistence::event_store::{EventStore, SqliteEventStore};
+use crate::persistence::event_store::SqliteEventStore;
 
 fn now_iso8601() -> String {
     chrono::Utc::now().to_rfc3339()
@@ -38,11 +38,20 @@ fn emit<P: serde::Serialize>(
 ) -> Result<()> {
     let envelope = EventEnvelope::new(event_type, actor_id, payload)?
         .with_actor_id(actor_id);
-    let store = SqliteEventStore::new()?;
-    store.append(&envelope)?;
+    // hook.* is Runtime-scoped → write runtime.db (the analytics rollups' db).
+    let store = SqliteEventStore::new_for_scope(
+        &crate::project::get_global_dir()?,
+        ship_types::event_registry::EventScope::Runtime,
+        None,
+    )?;
+    // Enforced write: hook.* is a Runtime-scoped supervisor synthesis with no
+    // space binding. Stamp + enforce from the daemon-internal binding, persist,
+    // then deliver the stamped row.
+    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+    let stamped = store.append_enforced(&envelope, &binding)?;
     if let Some(kr) = crate::events::kernel_router() {
         let _ = block_on_anyhow(async {
-            kr.lock().await.deliver(&envelope);
+            kr.lock().await.deliver(&stamped);
             Ok(())
         });
     }

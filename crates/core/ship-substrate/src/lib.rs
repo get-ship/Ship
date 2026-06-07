@@ -6,7 +6,9 @@
 //! config schemas, or any L1 primitives.
 
 pub mod access;
+pub mod config_doc;
 pub mod data;
+pub mod ports;
 pub mod db;
 pub mod diagnostics;
 pub mod env;
@@ -15,18 +17,31 @@ pub mod events;
 pub mod fs_util;
 pub mod spawn_bounded;
 pub mod task_health;
-pub mod git;
 pub mod home;
+pub mod isolation;
 pub mod locate;
+pub mod sui_compiler;
 pub mod log;
 pub mod persistence;
 pub mod project;
 pub mod projections;
+pub mod security;
+pub mod query;
 pub mod services;
 pub mod supervisor;
 pub mod trash;
+pub mod path_layout;
+pub mod runtime_reads;
 
 pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
+
+pub use ports::{
+    is_safe_ident, AccountId, BlobBackendConfig, BlobError, BlobHash, BlobScope, BlobStore,
+    ByteStream, ColumnKind, ColumnSpec, CountQuery, Cursor, DataStore, DataStoreError, FilterOp,
+    FsBroker, FsCap, FsError, FsMode, FsRoot, KernelLog, LocalFsBlobStore, LocalFsBroker,
+    Predicate, PrimaryKey, Query, QueryResult, Row, S3BlobStore, SingleBackendDataStore, Sort,
+    SpaceContext, SpaceId, StepExecutor, StepExecutorError, StepOutput, TableSchema,
+};
 
 pub use events::{
     EventEnvelope, list_events_since, query_events_since, read_events, read_recent_events,

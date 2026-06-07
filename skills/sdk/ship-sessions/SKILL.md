@@ -1,5 +1,6 @@
 ---
 name: ship-sessions
+audience: public
 stable-id: ship-sessions
 description: >-
   The `sessions` capability (1 ops). Call any op over ConnectRPC with

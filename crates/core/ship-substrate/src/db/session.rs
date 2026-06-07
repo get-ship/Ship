@@ -4,7 +4,14 @@ use anyhow::Result;
 use sqlx::Row;
 
 use super::types::SessionDb;
-use super::{block_on, open_db};
+use super::block_on;
+
+/// Open the `sessions`-table db. The table is materialized by the
+/// `SessionProjection` from `session.*` events, which are Runtime-scoped → it
+/// lives in runtime.db. Shared with `session_drain.rs`.
+pub(super) fn open_sessions_db() -> Result<sqlx::SqliteConnection> {
+    crate::db::open_runtime_db(&crate::project::get_global_dir()?)
+}
 
 /// 28-column SELECT list for the `sessions` table. Shared with
 /// `session_drain.rs` — order must match [`parse_session_row`].
@@ -52,7 +59,7 @@ pub(super) fn parse_session_row(row: &sqlx::sqlite::SqliteRow) -> SessionDb {
 }
 
 pub fn get_session_db(session_id: &str) -> Result<Option<SessionDb>> {
-    let mut conn = open_db()?;
+    let mut conn = open_sessions_db()?;
     let sql = format!(
         "SELECT {SESSION_COLS} FROM sessions WHERE id = ?"
     );
@@ -70,7 +77,7 @@ pub fn get_session_db(session_id: &str) -> Result<Option<SessionDb>> {
 /// most one active session (space = one window = one app). See spec
 /// `.artifacts/specs/space/116-event-partition.md`.
 pub fn get_active_session_db(space_id: &str) -> Result<Option<SessionDb>> {
-    let mut conn = open_db()?;
+    let mut conn = open_sessions_db()?;
     let sql = format!(
         "SELECT {SESSION_COLS} FROM sessions \
          WHERE space_id = ? AND status = 'active' \
@@ -89,7 +96,7 @@ pub fn list_sessions_db(
     workspace_id: Option<&str>,
     limit: usize,
 ) -> Result<Vec<SessionDb>> {
-    let mut conn = open_db()?;
+    let mut conn = open_sessions_db()?;
     let clamped_limit = limit.clamp(1, 500) as i64;
     let rows = if let Some(workspace_id) = workspace_id {
         let sql = format!(

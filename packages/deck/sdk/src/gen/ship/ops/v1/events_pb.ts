@@ -11,7 +11,6 @@
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_ship_ops_v1_policy } from "./policy_pb.js";
-import type { EventsListResponseSchema } from "./types_pb.js";
 import { file_ship_ops_v1_types } from "./types_pb.js";
 import type { JsonResponseSchema } from "./ops_pb.js";
 import { file_ship_ops_v1_ops } from "./ops_pb.js";
@@ -21,49 +20,11 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/events.proto.
  */
 export const file_ship_ops_v1_events: GenFile = /*@__PURE__*/
-  fileDesc("ChhzaGlwL29wcy92MS9ldmVudHMucHJvdG8SC3NoaXAub3BzLnYxIlwKDUV2ZW50c0xpc3RSZXESDQoFbGltaXQYASABKAMSEgoKZXZlbnRfdHlwZRgCIAEoCRINCgVhY3RvchgDIAEoCRIOCgZlbnRpdHkYBCABKAkSCQoBcRgFIAEoCSJRCg1FdmVudHNQb2xsUmVxEhAKCHNpbmNlX2lkGAEgASgJEgwKBHNsdWcYAiABKAkSEQoJbmFtZXNwYWNlGAMgASgJEg0KBWxpbWl0GAQgASgDMtkCCg1FdmVudHNTZXJ2aWNlEo8BCgRMaXN0Ehouc2hpcC5vcHMudjEuRXZlbnRzTGlzdFJlcRofLnNoaXAub3BzLnYxLkV2ZW50c0xpc3RSZXNwb25zZSJKirUYEHNoaXAuZXZlbnRzLnJlYWSQtRgBorUYLktlcm5lbCBldmVudHMgd2l0aCBmaWx0ZXJzLCBncm91cGVkIGJ5IGVudGl0eS4SXQoITGlzdExpdmUSGi5zaGlwLm9wcy52MS5FdmVudHNMaXN0UmVxGhkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhiKtRgQc2hpcC5ldmVudHMucmVhZJC1GAEwARJXCgRQb2xsEhouc2hpcC5vcHMudjEuRXZlbnRzUG9sbFJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAuZXZlbnRzLnJlYWSQtRgBYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_types, file_ship_ops_v1_ops]);
-
-/**
- * @generated from message ship.ops.v1.EventsListReq
- */
-export type EventsListReq = Message<"ship.ops.v1.EventsListReq"> & {
-  /**
-   * @generated from field: int64 limit = 1;
-   */
-  limit: bigint;
-
-  /**
-   * @generated from field: string event_type = 2;
-   */
-  eventType: string;
-
-  /**
-   * @generated from field: string actor = 3;
-   */
-  actor: string;
-
-  /**
-   * @generated from field: string entity = 4;
-   */
-  entity: string;
-
-  /**
-   * @generated from field: string q = 5;
-   */
-  q: string;
-};
-
-/**
- * Describes the message ship.ops.v1.EventsListReq.
- * Use `create(EventsListReqSchema)` to create a new message.
- */
-export const EventsListReqSchema: GenMessage<EventsListReq> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_events, 0);
+  fileDesc("ChhzaGlwL29wcy92MS9ldmVudHMucHJvdG8SC3NoaXAub3BzLnYxIlEKDUV2ZW50c1BvbGxSZXESEAoIc2luY2VfaWQYASABKAkSDAoEc2x1ZxgCIAEoCRIRCgluYW1lc3BhY2UYAyABKAkSDQoFbGltaXQYBCABKAMyaAoNRXZlbnRzU2VydmljZRJXCgRQb2xsEhouc2hpcC5vcHMudjEuRXZlbnRzUG9sbFJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAuZXZlbnRzLnJlYWSQtRgBYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_types, file_ship_ops_v1_ops]);
 
 /**
  * Cursor-walk poll for `ship tail` (#141): replays the event log forward
- * from a ULID cursor. Distinct from List (a filtered query) — Poll is
- * incremental resume-from-cursor with slug/namespace filters.
+ * from a ULID cursor with slug/namespace filters.
  *
  * @generated from message ship.ops.v1.EventsPollReq
  */
@@ -94,7 +55,7 @@ export type EventsPollReq = Message<"ship.ops.v1.EventsPollReq"> & {
  * Use `create(EventsPollReqSchema)` to create a new message.
  */
 export const EventsPollReqSchema: GenMessage<EventsPollReq> = /*@__PURE__*/
-  messageDesc(file_ship_ops_v1_events, 1);
+  messageDesc(file_ship_ops_v1_events, 0);
 
 /**
  * Events read surface. Reads are C0 (edge-authenticated).
@@ -102,22 +63,6 @@ export const EventsPollReqSchema: GenMessage<EventsPollReq> = /*@__PURE__*/
  * @generated from service ship.ops.v1.EventsService
  */
 export const EventsService: GenService<{
-  /**
-   * @generated from rpc ship.ops.v1.EventsService.List
-   */
-  list: {
-    methodKind: "unary";
-    input: typeof EventsListReqSchema;
-    output: typeof EventsListResponseSchema;
-  },
-  /**
-   * @generated from rpc ship.ops.v1.EventsService.ListLive
-   */
-  listLive: {
-    methodKind: "server_streaming";
-    input: typeof EventsListReqSchema;
-    output: typeof JsonResponseSchema;
-  },
   /**
    * @generated from rpc ship.ops.v1.EventsService.Poll
    */

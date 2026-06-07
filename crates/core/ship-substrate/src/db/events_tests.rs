@@ -3,7 +3,6 @@
 use super::events::{
     list_all_events, list_events_since_time, list_recent_events, query_events_since,
 };
-use crate::db::ensure_db;
 use ship_types::envelope::EventEnvelope;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
@@ -15,8 +14,18 @@ use tempfile::tempdir;
 fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
     let tmp = tempdir().unwrap();
     let ship_dir = init_project(tmp.path()).unwrap();
-    ensure_db().unwrap();
     (tmp, ship_dir)
+}
+
+/// Seed events into the Runtime event log (runtime.db) — the db the typed
+/// queries (`list_all_events` etc.) read after the Phase-4d partition.
+fn runtime_store() -> SqliteEventStore {
+    SqliteEventStore::new_for_scope(
+        &crate::project::get_global_dir().unwrap(),
+        ship_types::event_registry::EventScope::Runtime,
+        None,
+    )
+    .unwrap()
 }
 
 fn make_log_event(action: &str) -> EventEnvelope {
@@ -41,7 +50,7 @@ fn list_all_events_starts_empty() {
 #[test]
 fn append_and_list_all() {
     let (_tmp, _ship_dir) = setup();
-    let store = SqliteEventStore::new().unwrap();
+    let store = runtime_store();
     store.append(&make_log_event("first")).unwrap();
     store.append(&make_log_event("second")).unwrap();
 
@@ -54,7 +63,7 @@ fn append_and_list_all() {
 #[test]
 fn list_since_filters_by_time() {
     let (_tmp, _ship_dir) = setup();
-    let store = SqliteEventStore::new().unwrap();
+    let store = runtime_store();
     store.append(&make_log_event("before")).unwrap();
 
     let future = Utc::now() + chrono::Duration::hours(1);
@@ -69,7 +78,7 @@ fn list_since_filters_by_time() {
 #[test]
 fn list_since_with_limit() {
     let (_tmp, _ship_dir) = setup();
-    let store = SqliteEventStore::new().unwrap();
+    let store = runtime_store();
     let past = Utc::now() - chrono::Duration::hours(1);
     for i in 0..5 {
         store.append(&make_log_event(&format!("event-{}", i))).unwrap();
@@ -81,7 +90,7 @@ fn list_since_with_limit() {
 #[test]
 fn list_recent_returns_in_asc_order() {
     let (_tmp, _ship_dir) = setup();
-    let store = SqliteEventStore::new().unwrap();
+    let store = runtime_store();
     let mut inserted_ids = Vec::new();
     for i in 0..5 {
         let ev = make_log_event(&format!("event-{}", i));
@@ -101,7 +110,7 @@ fn list_recent_returns_in_asc_order() {
 #[test]
 fn query_events_since_no_cursor_returns_all() {
     let (_tmp, _ship_dir) = setup();
-    let store = SqliteEventStore::new().unwrap();
+    let store = runtime_store();
     store.append(&make_log_event("a")).unwrap();
     store.append(&make_log_event("b")).unwrap();
     let all = query_events_since(None, false).unwrap();
@@ -111,7 +120,7 @@ fn query_events_since_no_cursor_returns_all() {
 #[test]
 fn query_events_since_cursor_returns_later_events() {
     let (_tmp, _ship_dir) = setup();
-    let store = SqliteEventStore::new().unwrap();
+    let store = runtime_store();
     let ev1 = make_log_event("first");
     let cursor = ev1.id.clone();
     store.append(&ev1).unwrap();
@@ -124,7 +133,7 @@ fn query_events_since_cursor_returns_later_events() {
 #[test]
 fn query_events_since_latest_cursor_returns_empty() {
     let (_tmp, _ship_dir) = setup();
-    let store = SqliteEventStore::new().unwrap();
+    let store = runtime_store();
     let ev = make_log_event("only");
     let cursor = ev.id.clone();
     store.append(&ev).unwrap();
@@ -136,7 +145,7 @@ fn query_events_since_latest_cursor_returns_empty() {
 fn query_events_since_elevated_only() {
     use crate::events::types::{WorkspaceActivated, event_types as et};
     let (_tmp, _ship_dir) = setup();
-    let store = SqliteEventStore::new().unwrap();
+    let store = runtime_store();
     // Non-elevated event
     store.append(&make_log_event("noise")).unwrap();
     // Elevated event

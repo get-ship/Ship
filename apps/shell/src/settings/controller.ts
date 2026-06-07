@@ -29,7 +29,7 @@ async function settingsUpdate(formData: FormData): Promise<{ key: string; value:
   const key = String(formData.get('key') ?? '')
   const value = String(formData.get('value') ?? '')
   if (!key) throw new Error('settings.update: missing "key" field')
-  await ops.settings.set({ key, valueJson: JSON.stringify(value) })
+  await writeSetting(key, value)
   return { key, value }
 }
 

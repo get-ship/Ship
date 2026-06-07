@@ -1,0 +1,24 @@
+[package]
+name = "ship-types"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Shared domain types across the Ship workspace — EventEnvelope, ActorIdentity, Scope, Vector, CallerKind. Zero internal dependencies; every other Ship crate may depend on this."
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+ulid = { workspace = true }
+inventory = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+ship-events-macro = { path = "../ship-events-macro" }
+specta = { workspace = true, features = ["chrono"], optional = true }
+
+[features]
+default = []
+specta = ["dep:specta"]
+
+[lints]
+workspace = true

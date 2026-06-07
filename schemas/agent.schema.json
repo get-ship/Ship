@@ -127,6 +127,11 @@
           "type": "array",
           "items": { "$ref": "#/$defs/ToolPattern" },
           "description": "Tool patterns requiring user confirmation. Merged on top of the preset's ask list."
+        },
+        "default_mode": {
+          "type": "string",
+          "enum": ["default", "plan", "acceptEdits", "dontAsk", "bypassPermissions"],
+          "description": "Default permission mode. plan: read-only. default: ask for writes. acceptEdits: auto-approve file edits. dontAsk: fully autonomous. bypassPermissions: no restrictions."
         }
       },
       "additionalProperties": false
@@ -138,6 +143,94 @@
         "inline": {
           "type": "string",
           "description": "Inline always-on rules. Use \\n for line breaks."
+        }
+      },
+      "additionalProperties": false
+    },
+    "hooks": {
+      "type": "object",
+      "description": "Hook commands declared on the agent. The compiler emits each into the active harness's hook registration (e.g. .claude/settings.json:hooks).",
+      "properties": {
+        "stop": {
+          "type": "string",
+          "description": "Command to run when the agent session ends (Claude Code Stop hook)."
+        },
+        "subagent_stop": {
+          "type": "string",
+          "description": "Command to run when a sub-agent session ends (SubagentStop hook)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "apps": {
+      "type": "object",
+      "description": "Ship app integrations for this agent.",
+      "properties": {
+        "studio": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, the compiler emits an HTTP MCP transport pointing at Studio's local endpoint instead of a stdio `ship mcp serve` entry."
+        }
+      },
+      "additionalProperties": false
+    },
+    "isolation": {
+      "type": "object",
+      "description": "Where this agent runs. File-authored; resolved at platform runtime by the isolation recommender (narrowest wins: agent < per-run < user defaults). Absent = inherit the next level.",
+      "properties": {
+        "tier": {
+          "type": "string",
+          "enum": ["none", "process", "container", "vm", "cloud"],
+          "description": "Preferred isolation tier (strength order). none: host process, no sandbox. process: per-process FS + syscall sandbox. container: OCI container. vm: microVM or full VM. cloud: vendor-served sandbox."
+        },
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "noop",
+            "harness_native",
+            "srt",
+            "harness",
+            "docker",
+            "youki",
+            "wsl2",
+            "lima",
+            "apple_container",
+            "firecracker",
+            "fly"
+          ],
+          "description": "Optional pin of a concrete strategy within the tier. noop: no sandbox. harness_native: harness sandboxes itself. srt: @anthropic-ai/sandbox-runtime wrapper. harness: legacy per-harness best-fit. docker/youki/wsl2: container. lima/apple_container/firecracker: vm. fly: cloud."
+        },
+        "policy": {
+          "type": "object",
+          "description": "Optional policy override (mounts, network, env, limits).",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Human-readable label for the resolved sandbox."
+            },
+            "mounts": {
+              "type": "array",
+              "items": { "type": "object" },
+              "description": "Extra filesystem mounts exposed inside the sandbox."
+            },
+            "network": {
+              "oneOf": [
+                { "type": "string" },
+                { "type": "object" }
+              ],
+              "description": "Network policy — a named preset string or an inline policy object."
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Environment variables injected into the sandbox."
+            },
+            "limits": {
+              "type": "object",
+              "description": "Resource limits (memory, CPU, process count) for the sandbox."
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -174,18 +267,6 @@
           ],
           "description": "Codex CLI config pass-through. Ship-managed keys (mcp_servers) must be set via Ship's own fields. Set `model` here."
         },
-        "gemini": {
-          "allOf": [
-            { "$ref": "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/schemas/settings.schema.json" },
-            {
-              "properties": {
-                "hooks": false,
-                "mcpServers": false
-              }
-            }
-          ],
-          "description": "Gemini CLI settings pass-through. Ship-managed keys (hooks, mcpServers) must be set via Ship's own fields. Set `model` here (gemini uses `model.name`)."
-        },
         "cursor": {
           "type": "object",
           "description": "Cursor settings. No upstream schema published.",
@@ -202,6 +283,11 @@
             }
           ],
           "description": "OpenCode config pass-through. Ship-managed keys (mcp, permission) must be set via Ship's own fields. Set `model` here."
+        },
+        "pi": {
+          "type": "object",
+          "description": "Pi settings. No upstream schema published — open pass-through.",
+          "additionalProperties": true
         }
       },
       "additionalProperties": false

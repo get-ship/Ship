@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "rule.created",
-    "scope": "space",
+    "scope": "runtime",
     "retention": "durable",
     "stability": "stable",
     "payload_type": "RuleCreated",
@@ -12,7 +12,7 @@
     "event_type": "rule.created",
     "entity_id": "test-entity-id",
     "actor_id": "test-actor-id",
-    "space_id": "test-space-id",
+    "space_id": "",
     "occurred_at": "2026-01-01T00:00:00Z",
     "payload": {
       "file_name": "test-rule.md",

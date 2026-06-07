@@ -9,7 +9,7 @@
 //! R0a ships only what the pipelines pilot (R0b) will consume. That is:
 //!
 //! - Pipeline definitions from `.ship/pipelines/*.jsonc`
-//! - Pipeline runs (via `ship_platform::projections::pipeline_run::load_pipeline_runs`)
+//! - Pipeline runs (via `ship_pipeline_runtime::projections::pipeline_run::load_pipeline_runs`)
 //! - A shared [`Filter`] struct for query-string-driven view filters
 //!
 //! Helpers for specs, git, and settings are intentionally absent. They
@@ -19,16 +19,16 @@
 // Agents + Skills state lives in sibling modules to respect the 300-line
 // cap on this file. Re-exports let callers use `views::state::list_agents`
 // without knowing about the split.
-pub use ship_platform::services::agents::view_state::{
+pub use ship_agents::services::agents::view_state::{
     AgentCatalogs, AgentDetail, AgentSummary, CatalogEntry, Permissions,
     ToolPatternEntry, list_agent_catalogs, list_agents, load_agent,
 };
-pub use ship_platform::services::skills::view_state::{
+pub use ship_agents::services::skills::view_state::{
     SkillDetail, SkillKind, SkillSummary, list_skills, load_skill,
     load_skill_file,
 };
 
-use ship_platform::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
+use ship_pipeline_runtime::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::ErrorKind;
@@ -195,7 +195,7 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
         let ship = ship_substrate::ShipHome::project_ship_dir(d);
         // Composed overlay (local + dep pipelines) when the space has deps; raw
         // `.ship/` otherwise — so dep pipelines list, not just load.
-        let cand = ship_platform::registry::compose::composed_root_for(&ship).join("pipelines");
+        let cand = ship_store::compose::composed_root_for(&ship).join("pipelines");
         if cand.is_dir() {
             project_local = Some(cand);
             break;
@@ -257,7 +257,7 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
 /// rate, and last-run fields get populated in place.
 pub fn aggregate_pipeline_stats<'a>(
     defs: &mut [PipelineDef],
-    jobs: impl IntoIterator<Item = &'a ship_platform::projections::pipeline_run::PipelineRun>,
+    jobs: impl IntoIterator<Item = &'a ship_pipeline_runtime::projections::pipeline_run::PipelineRun>,
 ) {
     let mut by_name: std::collections::HashMap<String, Vec<&PipelineRun>> =
         std::collections::HashMap::new();
@@ -378,7 +378,7 @@ fn parse_pipeline_meta(content: &str) -> (String, usize) {
 
 /// All known job records, filtered, sorted by `updated_at` descending.
 pub fn list_pipeline_runs(ship_dir: &Path, filter: &Filter) -> Vec<PipelineRun> {
-    let jobs = match ship_platform::projections::pipeline_run::load_pipeline_runs_at(ship_dir) {
+    let jobs = match ship_pipeline_runtime::projections::pipeline_run::load_pipeline_runs_at(ship_dir) {
         Ok(j) => j,
         Err(e) => {
             tracing::error!(error = %e, "load_pipeline_runs_at failed");

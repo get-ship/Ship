@@ -1,5 +1,6 @@
 ---
 name: ship-settings
+audience: public
 stable-id: ship-settings
 description: >-
   The `settings` capability (2 ops). Call any op over ConnectRPC with

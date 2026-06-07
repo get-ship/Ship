@@ -92,27 +92,28 @@ impl ShipRuntime {
 
     /// Spawn the artifact GC loop. Runs immediately on startup then every hour.
     ///
-    /// Best-effort: errors are logged but don't take down the daemon.
+    /// Best-effort: errors are logged but don't take down the daemon. No-op when
+    /// the daemon booted space-less (no active space → no artifact store to sweep).
     pub fn start_artifact_gc(&self) {
-        let ship_dir = self.ship_dir.clone();
-        let kernel = self.kernel.clone();
+        let Some(artifact_ctx) = self.artifact_ctx.clone() else {
+            tracing::info!("artifact GC: no active space, GC loop not started");
+            return;
+        };
+        let global_dir = self.global_blob_dir.clone();
         ship_substrate::task_health::spawn_supervised(
             &self.health_registry,
             "artifact-gc",
             move || {
-                let ship_dir = ship_dir.clone();
-                let kernel = kernel.clone();
+                let artifact_ctx = artifact_ctx.clone();
+                let global_dir = global_dir.clone();
                 async move {
                     loop {
-                        match ship_substrate::data::DataService::open(&ship_dir) {
-                            Ok(mut svc) => {
-                                if let Err(e) = ship_platform::artifacts::gc::collect_expired(
-                                    &ship_dir, &mut svc, &kernel,
-                                ).await {
-                                    tracing::warn!("artifact GC run failed: {e}");
-                                }
-                            }
-                            Err(e) => tracing::warn!("artifact GC: failed to open DataService: {e}"),
+                        let svc = ship_artifacts::gc::make_service_for_gc(
+                            artifact_ctx.clone(),
+                            global_dir.clone(),
+                        );
+                        if let Err(e) = ship_artifacts::gc::collect_expired(&svc).await {
+                            tracing::warn!("artifact GC run failed: {e}");
                         }
                         tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
                     }
@@ -156,6 +157,40 @@ impl ShipRuntime {
         );
     }
 
+    /// Start the sandbox reaper: periodically scans the dispatcher
+    /// for sandboxes idle past their timeout and tears them down.
+    ///
+    /// Reap = registry state transition only (Idle → Reaping →
+    /// Stopped). Per-sandbox backend teardown (Docker rm, youki
+    /// delete) folds in once SandboxOwner moves from per-actor to
+    /// per-sandbox (separate chunk). Today the registry's "idle
+    /// past timeout" decision is the load-bearing bit; the actual
+    /// container lifetime tracking happens in the existing
+    /// per-actor SandboxOwner.Drop path.
+    pub fn start_sandbox_reaper(&self) {
+        ship_substrate::task_health::spawn_supervised(
+            &self.health_registry,
+            "sandbox-reaper",
+            move || async move {
+                loop {
+                    let dispatcher = ship_device::sandbox::dispatcher();
+                    let now = chrono::Utc::now();
+                    let candidates = dispatcher.reap_candidates(now).await;
+                    for id in candidates {
+                        match dispatcher.reap(&id).await {
+                            Ok(_) => tracing::info!(sandbox_id = %id.0, "sandbox reaped (idle)"),
+                            Err(e) => tracing::warn!(
+                                sandbox_id = %id.0,
+                                "sandbox reap failed: {e}"
+                            ),
+                        }
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                }
+            },
+        );
+    }
+
     /// Start the hook engine: spawns external source adapters (webhook, file, cron)
     /// and the hot-reload watcher. Idempotent — subsequent calls are no-ops.
     pub async fn start_hook_engine(&self) {
@@ -166,15 +201,16 @@ impl ShipRuntime {
         // user-scope vector. Project-scope triggers are loaded by the hook
         // engine when a project workspace activates.
         let library_dir = ship_substrate::ShipHome::at(self.ship_dir.clone()).library_dir();
-        match ship_platform::triggers::engine::spawn_hook_service(
+        match ship_triggers::engine::spawn_hook_service(
             self.kernel.clone(),
             library_dir,
+            self.schemas.clone(),
         )
         .await
         {
             Ok(engine) => {
                 // Also start the filesystem watcher for hot-reload.
-                if let Err(e) = ship_platform::triggers::watcher::spawn_watcher(engine.clone()) {
+                if let Err(e) = ship_triggers::watcher::spawn_watcher(engine.clone()) {
                     tracing::warn!("hook watcher failed to start: {e}");
                 }
                 let _ = self.hook_engine.set(engine);
@@ -187,14 +223,14 @@ impl ShipRuntime {
     /// The running hook engine, if started.
     pub fn hook_engine(
         &self,
-    ) -> Option<&std::sync::Arc<ship_platform::triggers::engine::HookEngine>> {
+    ) -> Option<&std::sync::Arc<ship_triggers::engine::HookEngine>> {
         self.hook_engine.get()
     }
 
     /// The webhook source for the public webhook route, if the engine is running.
     pub fn webhook_source(
         &self,
-    ) -> Option<std::sync::Arc<ship_platform::triggers::sources::webhook::WebhookSource>> {
+    ) -> Option<std::sync::Arc<ship_triggers::sources::webhook::WebhookSource>> {
         self.hook_engine.get()?.webhook_source()
     }
 
@@ -219,16 +255,106 @@ impl ShipRuntime {
         }
     }
 
+    /// Mount the live agent-def index (agents arc S5). Builds the read-only
+    /// index over the active project space's `space.db` from the def files at
+    /// boot, then spawns the change consumer that keeps it live on
+    /// `agent.def.updated`. Both — plus the gated-write NOTIFY — ride ONE shared
+    /// `KernelLog` (`agent_def_kernel`) so the op-emit and the consumer's
+    /// `subscribe()` share a broadcast. No-op when the daemon booted space-less
+    /// (no workspace) or when already mounted. Idempotent.
+    pub async fn start_agent_def_index(&self) {
+        use ship_substrate::data::DataService;
+        use ship_substrate::ports::{KernelLog, SingleBackendDataStore};
+
+        if self.agent_def_kernel.get().is_some() {
+            return;
+        }
+        let Some(workspace) = self.workspace_dir.clone() else {
+            tracing::info!("agent-def index: no workspace — skipping live mount");
+            return;
+        };
+        let project_ship_dir = ship_substrate::ShipHome::project_ship_dir(&workspace);
+        let space_id = ship_substrate::home::path_hash(&workspace);
+
+        // The index read-model lives in the active space's per-scope db.
+        let space_db = ship_substrate::db::space_db_path(&project_ship_dir, &space_id);
+        let data_svc = match DataService::open_at(&space_db) {
+            Ok(svc) => svc,
+            Err(e) => {
+                tracing::warn!("agent-def index: open space.db failed: {e}");
+                return;
+            }
+        };
+        let store = std::sync::Arc::new(SingleBackendDataStore::new(data_svc, &space_id));
+        let index = std::sync::Arc::new(ship_platform::config::AgentDefIndex::new(store));
+        if let Err(e) = index.ensure_table().await {
+            tracing::warn!("agent-def index: ensure_table failed: {e}");
+            return;
+        }
+
+        // ONE shared KernelLog for emit + subscribe. Set it before spawning so
+        // the gated-write NOTIFY (`agent_def_kernel()`) routes through the same
+        // channel the consumer reads.
+        let kernel = std::sync::Arc::new(KernelLog::new(self.kernel.clone()));
+        let _ = self.agent_def_kernel.set(kernel.clone());
+
+        // Mount the agent `Watch` reactive registry on the SAME shared kernel —
+        // its resolvers subscribe to this log's broadcast, so every gated-CRUD
+        // `agent.def.updated` NOTIFY (which rides `agent_def_kernel`) re-runs the
+        // affected snapshot. Reuses the existing shared log (no parallel
+        // registry); mirrors how collection/space build a registry from their
+        // scope kernel.
+        let _ = self
+            .agent_reactive
+            .set(std::sync::Arc::new(ship_reactive::ReactiveRegistry::new(kernel.clone())));
+
+        // Boot rebuild: index every def file on disk for the project scope.
+        let fs = ship_substrate::ports::LocalFsBroker::new();
+        if let Err(e) =
+            ship_platform::config::agent_index::build_def_index(&index, &fs, &project_ship_dir, "project").await
+        {
+            tracing::warn!("agent-def index: boot rebuild failed: {e}");
+        }
+
+        // Spawn the live consumer over the shared KernelLog's broadcast.
+        ship_platform::config::agent_index::spawn_def_index_consumer(
+            index,
+            kernel.subscribe(),
+            project_ship_dir,
+            "project".to_string(),
+        );
+        tracing::info!("agent-def index: live mount started (space {space_id})");
+    }
+
+    /// The shared `KernelLog` the live agent-def index rides, when mounted. The
+    /// gated-write NOTIFY emits through this so the change reaches the consumer's
+    /// broadcast subscription.
+    pub fn agent_def_kernel(&self) -> Option<&std::sync::Arc<ship_substrate::ports::KernelLog>> {
+        self.agent_def_kernel.get()
+    }
+
+    /// The agent `Watch` reactive registry (agents-arc E5), when the live
+    /// def-index has been mounted. `None` in space-less boot — the Watch RPC
+    /// then returns Unavailable rather than fabricate a registry.
+    pub fn agent_reactive(&self) -> Option<&std::sync::Arc<ship_reactive::ReactiveRegistry>> {
+        self.agent_reactive.get()
+    }
+
     /// Persist event to platform.db and deliver through the kernel.
     ///
     /// Delegates to `KernelRouter::emit` — the single write path. A successful
     /// return means the event is durable on disk AND delivered to in-memory
     /// subscribers.
     pub async fn persist_and_route(&self, envelope: &EventEnvelope) -> anyhow::Result<()> {
+        // Relay: carry the envelope's own resolved space through the binding,
+        // preserving its session. Daemon-internal mint (trusted relay).
         let ctx = EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
-            space_id: envelope.space_id.clone(),
+            binding: ship_types::ScopeBinding::daemon_internal(
+                envelope.space_id().map(ship_types::SpaceId::new),
+                ship_types::Authority::Sdk,
+            ),
             session_id: envelope.session_id.clone(),
         };
         self.kernel

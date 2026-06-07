@@ -45,10 +45,6 @@ message GetPipelineRequest {
 
 message GetPipelinesSummariesRequest {}
 
-message FocusPipelineRequest {
-  string name = 1;
-}
-
 message RunPipelineRequest {
   string slug = 1;
 }
@@ -121,15 +117,6 @@ service PipelinesService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Focus(FocusPipelineRequest) returns (JsonResponse) {
-    option (ship.ops.v1.description) = "Per-pipeline detail with active + other runs precomputed.";
-    option (ship.ops.v1.capability) = "ship.pipelines.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc FocusLive(FocusPipelineRequest) returns (stream JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.pipelines.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
   rpc Run(RunPipelineRequest) returns (JsonResponse) {
     option (ship.ops.v1.description) = "Run detail with steps + timeline.";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
@@ -153,7 +140,7 @@ service PipelinesService {
   // runtime_api::run_pipeline, which self-gates on the CreateRuns scope.
   rpc Dispatch(DispatchPipelineReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.dispatch";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   // Signal that an agent turn ended for a dispatched job (#141) — the typed
   // Connect form of POST /api/v1/agent_sessions/end. Routes to
@@ -161,33 +148,33 @@ service PipelinesService {
   // pipelines or emits job.completed for single-step jobs.
   rpc EndTurn(EndTurnReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   // ── runtime writes (C1, ship.runtime.write) ───────────────────────────────
   rpc UpdateStatus(UpdatePipelineStatusRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.write";
     option (ship.ops.v1.description) = "Advance a pipeline run's lifecycle/gate state (the agent's own run).";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc StepDone(StepDoneRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.write";
     option (ship.ops.v1.description) = "Agent declares the current pipeline step complete.";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   // ── config writes (C1, ship.pipelines.write) ─────────────────────────────
   rpc Put(PutPipelineRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Create or replace a pipeline definition (by name).";
     option (ship.ops.v1.capability) = "ship.pipelines.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Patch(PatchPipelineRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Apply RFC-6902 ops to a pipeline definition.";
     option (ship.ops.v1.capability) = "ship.pipelines.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Delete(DeletePipelineRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Delete a pipeline definition (scope omitted walks project → user).";
     option (ship.ops.v1.capability) = "ship.pipelines.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 }

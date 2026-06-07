@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "supervisor.shutting_down",
-    "scope": "device",
+    "scope": "runtime",
     "retention": "durable",
     "stability": "stable",
     "payload_type": "SupervisorShuttingDown",

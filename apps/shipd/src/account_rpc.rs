@@ -1,127 +1,44 @@
-//! `AccountService` handler — proto-as-SSOT migration of `account.*` (#89, #141).
+//! `AccountService` handler — the typed `account.*` wire (account.proto).
 //!
-//! All account ops require **user presence** (CallerKind::Cli or browser
-//! cookie) — MCP session tokens are categorically denied (SECURITY.md
-//! "CallerKind gate on daemon account routes"). The REST routes enforced this
-//! via the per-route `@auth cli` middleware; the Connect `ops_rpc` router does
-//! NOT run that middleware, so every impl here calls `require_user_presence`.
+//! The wire surface lives in the `ship-account` crate (`ship_account::AccountWire`,
+//! the ship-artifacts / ship-collection precedent); this file is the thin shipd
+//! mount, built in `ops_rpc::router`. Account ops are credential-dangerous, so
+//! the wire gates on **operator authority** — granted SOLELY by a verified
+//! operator cred (S6, #124). The Connect router runs no per-route auth
+//! middleware; instead `auth::project_authority_middleware` (layered on the ops
+//! router) projects the resolved `ship_types::Authority` into the request, and
+//! the wire checks `Authority::Operator` — no coupling to shipd's `AuthContext`.
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
-use serde_json::{json, Value};
+use std::path::PathBuf;
+use std::sync::Arc;
 
-use ship_ops_rpc::{AccountService, JsonResponse};
+use ship_account::service::{AccountService, KernelOwnerBinder};
+use ship_account::store::FileTokenStore;
+use ship_account::AccountWire;
+use ship_substrate::ports::KernelLog;
 
-use crate::auth::AuthContext;
-use crate::ops_rpc::OpsImpl;
-
-/// Reject any caller that isn't user-present (CLI daemon token or browser
-/// cookie — both map to `CallerKind::Cli`). Mirrors `enforce_required_auth`
-/// `RequiredAuth::Cli` for the Connect surface.
-fn require_user_presence(ctx: &RequestContext) -> Result<(), ConnectError> {
-    let auth = ctx
-        .extensions
-        .get::<AuthContext>()
-        .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-    if matches!(auth.caller_kind, ship_substrate::events::CallerKind::Cli) {
-        Ok(())
-    } else {
-        Err(ConnectError::permission_denied(
-            "requires user-presence (CallerKind::Cli)",
-        ))
-    }
-}
-
-#[allow(refining_impl_trait)]
-impl AccountService for OpsImpl {
-    async fn state(
-        &self,
-        ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedGetAccountStateReqView,
-    ) -> ServiceResult<JsonResponse> {
-        require_user_presence(&ctx)?;
-        let value =
-            crate::services::registry::call("account.state", &Value::Null, self.state())
-                .map_err(|e| ConnectError::internal(format!("account.state: {e}")))?;
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
-    }
-
-    #[allow(refining_impl_trait)]
-    async fn state_live(
-        &self,
-        ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedGetAccountStateReqView,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        require_user_presence(&ctx)?;
-        self.live_read("account.state", json!({})).await
-    }
-
-    async fn logout(
-        &self,
-        ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedLogoutReqView,
-    ) -> ServiceResult<JsonResponse> {
-        require_user_presence(&ctx)?;
-        self.state()
-            .account()
-            .logout()
-            .await
-            .map_err(|e| ConnectError::internal(format!("account.logout: {e}")))?;
-        Ok(Response::new(JsonResponse {
-            json: json!({ "ok": true }).to_string(),
-            ..Default::default()
-        }))
-    }
-
-    async fn login(
-        &self,
-        ctx: RequestContext,
-        request: ship_ops_rpc::OwnedLoginReqView,
-    ) -> ServiceResult<JsonResponse> {
-        require_user_presence(&ctx)?;
-        let redirect_uri = request.redirect_uri;
-        if !redirect_uri.starts_with("http://127.0.0.1:")
-            && !redirect_uri.starts_with("http://localhost:")
-        {
-            return Err(ConnectError::invalid_argument(
-                "redirect_uri must be a localhost http URL",
-            ));
+/// Build the typed `AccountWire` over the substrate ports.
+///
+/// Single-own: `token_path` is `<daemon_dir>/account.jsonc` (the daemon-owned
+/// token doc), the SOLE holder of the gateway key. Owner binding
+/// (`daemon.owner.*`) and `account.*` audit both ride `account_kernel`
+/// (Account-scoped → `account.db`) via the `KernelLog` port — no
+/// `SqliteEventStore::append` bypass. `gateway_base` is the resolved gateway URL.
+///
+/// Returns `None` if the gateway client fails to build (bad base URL); the
+/// caller skips the mount and the four account RPCs return Unimplemented.
+pub fn build_account_wire(
+    account_kernel: Arc<KernelLog>,
+    token_path: PathBuf,
+    gateway_base: &str,
+) -> Option<Arc<AccountWire>> {
+    let store = Arc::new(FileTokenStore::new(token_path));
+    let owner = Arc::new(KernelOwnerBinder::new(account_kernel.clone()));
+    match AccountService::new(store, account_kernel, owner, gateway_base) {
+        Ok(svc) => Some(Arc::new(AccountWire::new(Arc::new(svc)))),
+        Err(e) => {
+            tracing::error!("account: failed to build AccountService: {e}");
+            None
         }
-        let resp = self
-            .state()
-            .account()
-            .start_login(redirect_uri)
-            .await
-            .map_err(|e| ConnectError::internal(format!("account.login: {e}")))?;
-        let value = json!({ "state_id": resp.state_id, "browser_url": resp.browser_url });
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
-    }
-
-    async fn login_complete(
-        &self,
-        ctx: RequestContext,
-        request: ship_ops_rpc::OwnedLoginCompleteReqView,
-    ) -> ServiceResult<JsonResponse> {
-        require_user_presence(&ctx)?;
-        let me = self
-            .state()
-            .account()
-            .complete_login(request.state_id, request.code)
-            .await
-            .map_err(|e| ConnectError::internal(format!("account.login_complete: {e}")))?;
-        let value = json!({ "user_id": me.id });
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::ops_rpc::policy_for;
-
-    #[test]
-    fn account_op_policy_is_c0_safe() {
-        let p = policy_for("ship.ops.v1.AccountService/State")
-            .expect("AccountService/State missing from policy map");
-        assert_eq!(p.capability, "ship.account.read");
-        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C0Read);
     }
 }

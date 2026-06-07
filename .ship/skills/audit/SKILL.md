@@ -1,5 +1,6 @@
 ---
 name: audit
+audience: internal
 stable-id: audit
 description: Per-module architecture audit — citation-backed, layer-appropriate, observation-accreting.
 tags: [audit, methodology, architecture]

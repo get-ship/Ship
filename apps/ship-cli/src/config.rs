@@ -12,22 +12,23 @@
 //! The store split is intentional: portable keys move with the user
 //! across machines; machine keys do not.
 //!
-//! `Credentials` is re-exported from the runtime for back-compat with
-//! `auth.rs` and `publish.rs`.
+//! Account secrets are NOT a tier here: the gateway key lives in the daemon's
+//! single owner doc (`machine/daemon/account.jsonc`, owned by `ship-account`),
+//! and the CLI reaches it through the daemon's typed `AccountService` — never
+//! a CLI-side `credentials.jsonc` mirror (retired in S5).
 
 use std::path::PathBuf;
 
 use anyhow::Result;
 
-pub use ship_platform::config::Credentials;
 pub use ship_platform::config::DiskBackedConfig;
 
 use ship_platform::config::library::{Cloud, Defaults, Identity, LibrarySettings};
 use ship_platform::config::local::{Dispatch, LocalSettings, Terminal, Worktrees};
 use ship_platform::config::set_setting;
 
-/// Daemon-KV-backed launch defaults — see
-/// `runtime_settings::setting_default` and `resolve_str/resolve_bool`.
+/// Daemon-KV-backed launch defaults — see `ship_config::settings`'s
+/// `setting_default` and `resolve_str` / `resolve_bool`.
 /// These do NOT live in the JSONC library/local files; the CLI just
 /// routes get/set through to the daemon_settings table so users have
 /// one tool (`ship config`) for everything.

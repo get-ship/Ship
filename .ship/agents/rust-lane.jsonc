@@ -9,10 +9,10 @@
     "description": "Full Rust implementation lane — compiler crate, runtime, MCP server. Use for cross-crate work.",
   },
   "skills": {
-    "refs": [
-      "ship-coordination",
-      "ship-schema-reference",
-    ],
+    // ship-coordination never existed on this line; ship-schema-reference was a
+    // code-mirror doc-skill retired in the docs cull. Rust Lane drives off its
+    // inline rules + the bundled SDK capability-skills + the `ship` MCP server.
+    "refs": [],
   },
   "mcp": {
     "servers": ["ship"],

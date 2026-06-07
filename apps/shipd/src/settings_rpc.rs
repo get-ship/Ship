@@ -1,89 +1,77 @@
-//! `SettingsService` handler — proto-as-SSOT migration of `settings.*` (#89),
-//! mounted additively beside the generated ReadOps/CommandOps until the GUI
-//! flip (#72).
+//! Thin transport for `ship-config`'s unified `SettingsService` (settings.proto).
 //!
-//! The read (C0) calls the sync read registry (`registry::call`) and wraps the
-//! result in `JsonResponse`. The write (C1) routes through
-//! `services::command::call`, the ONE gate, which enforces the grant and
-//! decodes the typed `SettingValue` return.
+//! Mirrors the `SpaceWire` / `CollectionWire` mounts in `ops_rpc.rs`: build the
+//! crate's `SettingsWire` with a per-request context factory and register it.
+//! shipd does NO product logic — it only resolves the per-request inputs the
+//! crate cannot own:
+//!
+//! - the shared kernel handle (the kernel routes `settings.changed` by the
+//!   chosen `EventScope`),
+//! - the per-account read-model store (`account.db`),
+//! - the connection's ACTIVE space (id + per-space `space.db` store), resolved
+//!   from the session's `AuthContext.space_id` — `None` when space-less (post-S2
+//!   there is no `global` fallback; SPACE ops then error cleanly in the crate),
+//! - the caller's operator verdict (`AuthContext.is_operator`) — the authority
+//!   gate input (SPACE writes are operator-only).
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
-use serde_json::{json, Value};
+use std::sync::Arc;
 
-use ship_ops_rpc::{JsonResponse, SettingValue, SettingsService};
+use ship_config::SettingsCtx;
+use ship_substrate::data::DataService;
+use ship_substrate::ports::{DataStore, KernelLog, SingleBackendDataStore};
 
-use crate::auth::AuthContext;
-use crate::ops_rpc::{command_error_to_connect, OpsImpl};
-use crate::services::command::{self, CommandCtx};
+use crate::ship_runtime::ApiState;
 
-/// Gated dispatch for settings writes. Free function to avoid naming collision
-/// with helpers on `impl OpsImpl` in other rpc modules.
-async fn settings_gated_call(
-    state: &crate::ship_runtime::ApiState,
-    ctx: &RequestContext,
-    op: &str,
-    args: Value,
-) -> Result<Value, ConnectError> {
-    let auth = ctx
-        .extensions
-        .get::<AuthContext>()
-        .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-    let cmd_ctx = CommandCtx { state, auth };
-    command::call(op, &args, &cmd_ctx).await.map_err(command_error_to_connect)
+/// Fixed partition key for `account.db` — account identity is process-global, so
+/// the read model lives under one stable partition.
+const ACCOUNT_PARTITION: &str = "account";
+
+/// Build a `DataStore` over `account.db` bound to the account partition.
+fn account_store(state: &ApiState) -> Arc<dyn DataStore> {
+    let account_db = ship_substrate::db::account_db_path(state.ship_dir());
+    let svc = DataService::open_at(&account_db).expect("data service over account.db");
+    Arc::new(SingleBackendDataStore::new(svc, ACCOUNT_PARTITION))
 }
 
-#[allow(refining_impl_trait)]
-impl SettingsService for OpsImpl {
-    async fn state(
-        &self,
-        _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedGetSettingsRequestView,
-    ) -> ServiceResult<JsonResponse> {
-        let value =
-            crate::services::registry::call("settings.state", &Value::Null, self.state())
-                .map_err(|e| ConnectError::internal(format!("settings.state: {e}")))?;
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
-    }
+/// Build a `DataStore` over the active space's `space.db` (the per-space overlay
+/// partition).
+fn space_store(state: &ApiState, space_id: &str) -> Arc<dyn DataStore> {
+    let space_db = ship_substrate::db::space_db_path(state.ship_dir(), space_id);
+    let svc = DataService::open_at(&space_db).expect("data service over space.db");
+    Arc::new(SingleBackendDataStore::new(svc, space_id))
+}
 
-    #[allow(refining_impl_trait)]
-    async fn state_live(
-        &self,
-        _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedGetSettingsRequestView,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        self.live_read("settings.state", json!({})).await
-    }
-
-    async fn set(
-        &self,
-        ctx: RequestContext,
-        request: ship_ops_rpc::OwnedSetSettingRequestView,
-    ) -> ServiceResult<SettingValue> {
-        let args = json!({ "key": request.key, "value_json": request.value_json });
-        let value = settings_gated_call(self.state(), &ctx, "settings.set", args).await?;
-        let msg = serde_json::from_value::<SettingValue>(value)
-            .map_err(|e| ConnectError::internal(format!("decode settings.set response: {e}")))?;
-        Ok(Response::new(msg))
+/// Resolve the per-request `SettingsCtx` from the connection's `AuthContext`.
+fn resolve_ctx(ctx: &connectrpc::RequestContext, state: &ApiState) -> SettingsCtx {
+    let auth = ctx.extensions.get::<crate::auth::AuthContext>();
+    let space_id = auth.and_then(|a| a.space_id.clone());
+    let is_operator = auth.map(|a| a.is_operator()).unwrap_or(false);
+    let kernel = Arc::new(KernelLog::new(state.kernel().clone()));
+    let space = space_id.map(|id| {
+        let store = space_store(state, &id);
+        (id, store)
+    });
+    SettingsCtx {
+        kernel,
+        account_store: account_store(state),
+        space,
+        is_operator,
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::ops_rpc::policy_for;
-
-    #[test]
-    fn settings_op_policy_read_is_c0_safe() {
-        let p = policy_for("ship.ops.v1.SettingsService/State")
-            .expect("SettingsService/State must carry a policy in the descriptor");
-        assert_eq!(p.capability, "ship.settings.read");
-        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C0Read);
-    }
-
-    #[test]
-    fn settings_op_policy_write_is_c1_workspace() {
-        let p = policy_for("ship.ops.v1.SettingsService/Set")
-            .expect("SettingsService/Set must carry a policy in the descriptor");
-        assert_eq!(p.capability, "ship.settings.write");
-        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C1Workspace);
-    }
+/// Construct the crate's `SettingsWire`. Registered by `ops_rpc::router` via
+/// `SettingsServiceExt::register`.
+pub fn settings_wire(
+    state: ApiState,
+) -> Arc<
+    ship_config::SettingsWire<
+        impl Fn(&connectrpc::RequestContext) -> SettingsCtx + Send + Sync + 'static,
+    >,
+> {
+    let kernel = Arc::new(KernelLog::new(state.kernel().clone()));
+    let ctx_state = state.clone();
+    Arc::new(ship_config::SettingsWire::new(
+        kernel,
+        move |ctx: &connectrpc::RequestContext| resolve_ctx(ctx, &ctx_state),
+    ))
 }

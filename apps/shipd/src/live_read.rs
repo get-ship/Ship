@@ -1,16 +1,10 @@
 //! Shared server-streaming helper for the typed live-read ops (#138).
 //!
-//! This is the typed replacement for the `/_sui/data?expr=` string-dispatch
-//! path. Each per-domain `<Op>Live` rpc calls `live_read(registry_name, args)`,
-//! which resolves the op through the sync read registry and re-resolves +
+//! Each per-domain `<Op>Live` rpc calls `live_read_with(resolve)`,
+//! which resolves the op via the supplied closure and re-resolves +
 //! re-pushes the full value on every `config.*` kernel event — the exact
 //! freshness loop the expr-SSE ran (full-value `set`, no deltas), now typed and
-//! keyed by the rpc method instead of a parsed expr string. The expr evaluator
-//! (`views::sui_data`) is deleted once every consumer is on these streams.
-//!
-//! Namespaces match the expr path's v1 behavior: every live read wakes on
-//! `config` (the coarse namespace `subscribe_namespaces` returned). Narrowing
-//! to per-op namespaces is a follow-up — a single change here + per-call arg.
+//! keyed by the rpc method instead of a parsed expr string.
 
 use connectrpc::{ConnectError, Response, ServiceResult, ServiceStream};
 use serde_json::Value;
@@ -20,20 +14,25 @@ use ship_substrate::events::ActorConfig;
 use crate::ops_rpc::OpsImpl;
 
 impl OpsImpl {
-    /// Open a live read: stream the registry op's full value now and again on
-    /// every `config` kernel event. `registry_name` is the dotted op
-    /// (`git.overview`, `dashboard.state`); `args` is the JSON object the
-    /// registry consumes (empty object for nullary reads).
-    pub(crate) async fn live_read(
+    /// Open a live read backed by an arbitrary resolver function.
+    pub(crate) async fn live_read_with<F>(
         &self,
-        registry_name: &'static str,
-        args: Value,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        let state = self.state().clone();
-        let resolve = move |st: &crate::ship_runtime::ApiState| -> Value {
-            crate::services::registry::call(registry_name, &args, st).unwrap_or(Value::Null)
-        };
+        resolve: F,
+    ) -> ServiceResult<ServiceStream<JsonResponse>>
+    where
+        F: Fn(&crate::ship_runtime::ApiState) -> Value + Send + Sync + 'static,
+    {
+        self.live_read_inner(self.state().clone(), resolve).await
+    }
 
+    async fn live_read_inner<F>(
+        &self,
+        state: crate::ship_runtime::ApiState,
+        resolve: F,
+    ) -> ServiceResult<ServiceStream<JsonResponse>>
+    where
+        F: Fn(&crate::ship_runtime::ApiState) -> Value + Send + Sync + 'static,
+    {
         let initial = resolve(&state);
 
         let actor_id = format!("live-read-{}", ship_substrate::gen_ulid());

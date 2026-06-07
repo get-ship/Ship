@@ -1,5 +1,6 @@
 // Re-exports from ship-types
 pub use ship_types::envelope::EventEnvelope;
+pub use ship_types::event_registry::EventScope;
 pub use ship_types::payload::*;
 pub use ship_types::{CallerKind, EmitContext, ActorConfig};
 pub mod types {
@@ -23,9 +24,15 @@ pub mod types {
         #[test]
         fn all_constants_have_expected_count() {
             // Spec 7a bumped from 88 → 111 by adding the 23 Spec-6 events to ALL.
+            // S3 adds `settings.changed` (the unified scope-discriminated keystone)
+            // → 113. S1 (agents-arc) adds `agent.def.updated` (the Format-2 def
+            // change notification) → 114. agents-arc E6 GUTS `studio.message`
+            // (the deprecated chat read-projection event, sole consumer was chat)
+            // → 113. Job `dead-events-cull` removes `project.changed` and
+            // `skill.attached_to_session` (zero producers, no consumers) → 111.
             // The hard count is enforced here to catch accidental removals.
             // When adding events: update ALL in event_types.rs AND payload_registry.rs.
-            assert_eq!(ALL.len(), 112, "exactly 112 event type constants required (Spec 7a)");
+            assert_eq!(ALL.len(), 111, "exactly 111 event type constants required (dead-events-cull removed project.changed + skill.attached_to_session)");
         }
 
         #[test]
@@ -80,13 +87,6 @@ pub use feedback::{
     AuthorKind, FeedbackEvent, FeedbackIntent, FeedbackKind, FeedbackTarget, Selection,
 };
 
-#[cfg(feature = "unstable")]
-pub mod permissions;
-#[cfg(feature = "unstable")]
-pub mod kernel_security;
-#[cfg(feature = "unstable")]
-pub(crate) mod replay_log;
-
 pub use filter::EventFilter;
 pub use kernel_router::KernelRouter;
 pub use payload_schema::PayloadSchemaValidator;
@@ -105,31 +105,19 @@ mod tests_actor;
 #[cfg(test)]
 mod kernel_router_tests;
 #[cfg(test)]
+mod kernel_router_enforce_tests;
+#[cfg(test)]
 mod cross_actor_tests;
 #[cfg(test)]
 mod snapshot_tests;
 #[cfg(test)]
 mod cli_routing_tests;
 #[cfg(test)]
-mod identity_tests;
-#[cfg(test)]
-mod permission_tests;
-#[cfg(test)]
-mod scoped_delivery_tests;
-#[cfg(test)]
-mod directed_delivery_tests;
-#[cfg(test)]
-mod cursor_tests;
-#[cfg(test)]
 mod validator_tests;
-#[cfg(test)]
-mod kernel_security_tests;
 #[cfg(test)]
 mod lifecycle_tests;
 #[cfg(test)]
 mod snapshot_edge_tests;
-#[cfg(test)]
-mod tests_mesh_scope;
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};

@@ -21,9 +21,10 @@
 //!    end-to-end: build a tiny `axum::Router` with `ship_route(route,
 //!    dummy)`, inject an `AuthContext` with no useful scopes, send a
 //!    request through the resulting service, and assert 403 for every
-//!    `Scope(_)` route. Public routes assert 200. Cli routes assert 403
-//!    for `CallerKind::Mcp`. Handler routes pass through (no router
-//!    check — handler enforces).
+//!    `Scope(_)` route. Public routes assert 200. Handler routes pass
+//!    through (no router check — handler enforces). The `Cli` route auth
+//!    was removed (S6, #124): operator-only routes enforce in-handler or
+//!    via the gate, never by a "requires the CLI transport" shortcut.
 
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
@@ -62,7 +63,7 @@ fn enum_is_well_formed() {
         {
             panic!(
                 "Route::{} ({} {}) declares @auth public but is a mutation method. \
-                 Add `@auth scope <Scope>` or `@auth cli` to routes.rs, or extend \
+                 Add `@auth scope <Scope>` or `@auth handler` to routes.rs, or extend \
                  PUBLIC_MUTATION_ALLOWLIST if the route genuinely needs to stay open.",
                 r.variant_name(),
                 method,
@@ -83,20 +84,28 @@ fn handler_tag_means_handler_enforces() {
         .map(|r| r.variant_name())
         .collect();
 
-    // Today the only Handler routes are the dynamic-scope artifact ops
-    // (upload/download/metadata — delete/patch/promote now serve over
-    // ArtifactsService on Connect). Their checks live in
-    // `apps/shipd/src/routes/artifacts_api.rs` via `can_read_artifacts` /
-    // `can_write_artifacts`.
+    // Handler routes today: the dynamic-scope artifact ops (upload/download/
+    // metadata) enforce via `can_*_artifacts` in `artifacts_api.rs`; and
+    // `Publish` (registry → gateway), retiered to `@auth handler` in S6 (#124)
+    // when the CLI-transport route auth was removed, enforces
+    // `require_scope(Scope::Full)` in `registry_api.rs`. A `Handler` annotation
+    // is never a license to skip enforcement — every Handler route's handler
+    // must contain a scope check.
     let artifacts_src = include_str!("artifacts_api.rs");
-    let mentions_check = artifacts_src.contains("can_read_artifacts")
+    let mentions_artifact_check = artifacts_src.contains("can_read_artifacts")
         && artifacts_src.contains("can_write_artifacts");
     assert!(
-        mentions_check,
+        mentions_artifact_check,
         "Handler-tagged routes ({handler_routes:?}) require dynamic scope \
          checks in apps/shipd/src/routes/artifacts_api.rs (can_*_artifacts), \
          but at least one is missing. A `Handler` annotation isn't a \
          license to skip enforcement."
+    );
+    let registry_src = include_str!("registry_api.rs");
+    assert!(
+        registry_src.contains("require_scope"),
+        "Publish is `@auth handler`, so its handler in registry_api.rs must \
+         enforce its own scope (require_scope) — found none."
     );
 }
 
@@ -113,6 +122,7 @@ fn mcp_no_scope() -> AuthContext {
         session_id: None,
         scopes: vec![],
         grants: vec![],
+        operator_cred: false,
     }
 }
 
@@ -125,18 +135,7 @@ fn mcp_with_full() -> AuthContext {
         session_id: None,
         scopes: vec![Scope::Full],
         grants: vec![],
-    }
-}
-
-fn cli_with_full() -> AuthContext {
-    AuthContext {
-        caller_kind: CallerKind::Cli,
-        agent_id: None,
-        workspace_id: None,
-        space_id: None,
-        session_id: None,
-        scopes: vec![Scope::Full],
-        grants: vec![],
+        operator_cred: false,
     }
 }
 
@@ -179,7 +178,7 @@ fn synthesize(template: &str) -> String {
         out.push_str(&rest[..start]);
         let after = &rest[start + 1..];
         let end = after.find('}').expect("matching brace");
-        out.push_str("x");
+        out.push('x');
         rest = &after[end + 1..];
     }
     out.push_str(rest);
@@ -205,27 +204,6 @@ async fn router_rejects_insufficient_scope() {
                     "Route::{variant} ({method} {path}) is Public but \
                      returned {} for an unauthenticated request",
                     resp.status()
-                );
-            }
-            RequiredAuth::Cli => {
-                // MCP caller with Full scope must still be denied.
-                let svc = router_for(clone_route(&route), Some(mcp_with_full()));
-                let resp = svc.oneshot(req_for(method, path)).await.unwrap();
-                assert_eq!(
-                    resp.status(),
-                    StatusCode::FORBIDDEN,
-                    "Route::{variant} ({method} {path}) is Cli but accepted \
-                     an MCP caller with Scope::Full"
-                );
-
-                // CLI caller passes through (handler returns 200).
-                let svc_ok = router_for(clone_route(&route), Some(cli_with_full()));
-                let resp_ok = svc_ok.oneshot(req_for(method, path)).await.unwrap();
-                assert_eq!(
-                    resp_ok.status(),
-                    StatusCode::OK,
-                    "Route::{variant} ({method} {path}) is Cli but rejected \
-                     a CLI caller"
                 );
             }
             RequiredAuth::Scope(required) => {

@@ -28,7 +28,7 @@ pub use init::default_worktree_resolver;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ship_platform::services::mesh::SharedMeshRegistry;
+use ship_substrate::services::mesh::SharedMeshRegistry;
 use crate::auth::SessionRegistry;
 use ship_substrate::task_health::HealthRegistry;
 use crate::supervisor::run_dispatch::DispatchHandle;
@@ -53,15 +53,21 @@ pub struct ShipRuntime {
     pub(super) session_registry: SessionRegistry,
     /// Health registry for supervised background tasks.
     pub(super) health_registry: HealthRegistry,
-    /// Diagnostic registry — aggregates per-subsystem `DiagnosticSnapshot`
-    /// impls. Built lazily via `diag_registry()` / `set_diag_registry()`
-    /// after the dispatch handle is set (supervisor snapshot depends on it).
-    pub(super) diag_registry: std::sync::OnceLock<ship_substrate::diagnostics::DiagnosticRegistry>,
-    /// Shared data service for collections and extensions. Arc-wrapped
-    /// so trait-bound service impls (`CollectionsService`,
-    /// `ArtifactsService`) can hold a clone of the same handle and see
-    /// the same lazily-opened DataService.
-    pub(super) data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>>,
+    /// Active-space `SpaceContext` for collections, bound to the active space's
+    /// per-scope `spaces/<id>/space.db`. `None` when the daemon booted space-less
+    /// (no discoverable project); the `collections()` accessor then errors cleanly
+    /// rather than fabricate a `global` partition (S2 home-space kill).
+    pub(super) collection_ctx: Option<Arc<ship_substrate::ports::SpaceContext>>,
+    /// Active-space `SpaceContext` for artifacts. `None` in space-less mode — the
+    /// `artifacts()` accessor errors cleanly.
+    pub(super) artifact_ctx: Option<Arc<ship_substrate::ports::SpaceContext>>,
+    /// The ONE shared collection schema registry — hydrated from the file
+    /// overlay at startup and shared across the collection wire, triggers,
+    /// and the internal `collections()` accessor so a wire-created schema is
+    /// visible everywhere (C-2 UD-7).
+    pub(super) schemas: Arc<ship_collection::projection::SchemaRegistry>,
+    /// Blob root for artifacts (global ship dir).
+    pub(super) global_blob_dir: std::path::PathBuf,
     /// Agent-owned view sessions (Phase 1 canvas framework).
     pub(super) view_sessions: crate::views::session::SharedViewSessionRegistry,
     /// PTY session registry — chat, pipelines, dock terminal all go
@@ -77,9 +83,26 @@ pub struct ShipRuntime {
     /// Wall-clock instant the daemon process started — used for uptime.
     pub(super) started_at: std::time::Instant,
     /// Hook engine (external source adapters + hot-reload watcher).
-    pub(super) hook_engine: std::sync::OnceLock<std::sync::Arc<ship_platform::triggers::engine::HookEngine>>,
+    pub(super) hook_engine: std::sync::OnceLock<std::sync::Arc<ship_triggers::engine::HookEngine>>,
     /// Declarative-tier config watcher (Phase 4) — emits domain.changed events.
     pub(super) config_watcher: std::sync::OnceLock<ship_platform::config::ConfigWatcher>,
+    /// Shared event-log handle for the live agent-def index (agents arc S5).
+    /// Set by `start_agent_def_index`: the boot rebuild + the change consumer +
+    /// the gated-write NOTIFY all ride THIS one `KernelLog` so the op-emit and
+    /// the consumer's `subscribe()` share a broadcast (each `KernelLog::new`
+    /// owns its own channel). `None` until the index is mounted (space-less boot
+    /// never mounts it).
+    pub(super) agent_def_kernel:
+        std::sync::OnceLock<std::sync::Arc<ship_substrate::ports::KernelLog>>,
+    /// Reactive registry for the unified agent `Watch` (agents-arc E5). Built
+    /// from the SAME shared `agent_def_kernel` the live def-index rides — N
+    /// subscribers on one `WatchKey` share one resolver + one kernel
+    /// subscription. `None` until `start_agent_def_index` mounts the shared
+    /// kernel (space-less boot never mounts it; the Watch RPC then errors
+    /// cleanly). Reuses the existing shared log rather than standing up a
+    /// parallel registry (one-way-to-do-things; mirrors collection/space).
+    pub(super) agent_reactive:
+        std::sync::OnceLock<std::sync::Arc<ship_reactive::ReactiveRegistry>>,
     /// In-process Rolldown bundler (#163) — owned here, lazily started on
     /// first access. `Bundler::start` is synchronous (it locates the
     /// `sui-compiler` binary and sets up channels, no child process), so
@@ -91,33 +114,22 @@ pub struct ShipRuntime {
     /// service-layer pattern. HTTP handlers in `services::rules` go
     /// through this trait so the cloud worker / browser embed / unit
     /// tests can swap implementations without standing up an HTTP server.
-    pub(super) rules: std::sync::Arc<dyn ship_platform::services::rules::service::RulesService>,
+    pub(super) rules: std::sync::Arc<dyn ship_agents::services::rules::service::RulesService>,
     /// `PermissionsService` impl — second mr-02 pilot, includes the
     /// cross-domain `tool_patterns` composition.
-    pub(super) permissions: std::sync::Arc<dyn ship_platform::services::permissions::service::PermissionsService>,
+    pub(super) permissions: std::sync::Arc<dyn ship_agents::services::permissions::service::PermissionsService>,
     /// `McpService` impl — third mr-02 pilot.
-    pub(super) mcp: std::sync::Arc<dyn ship_platform::services::mcp::service::McpService>,
+    pub(super) mcp: std::sync::Arc<dyn ship_agents::services::mcp::service::McpService>,
     /// `SkillsService` impl — fourth mr-02 migration.
-    pub(super) skills: std::sync::Arc<dyn ship_platform::services::skills::service::SkillsService>,
+    pub(super) skills: std::sync::Arc<dyn ship_agents::services::skills::service::SkillsService>,
     /// `AgentsService` impl — fifth mr-02 migration.
-    pub(super) agents: std::sync::Arc<dyn ship_platform::services::agents::service::AgentsService>,
+    pub(super) agents: std::sync::Arc<dyn ship_agents::services::agents::service::AgentsService>,
     /// `PipelinesService` impl — sixth mr-02 migration (definition CRUD only;
     /// dispatch / cancel / runs still flow through `runtime_api`).
-    pub(super) pipelines: std::sync::Arc<dyn ship_platform::services::pipelines::service::PipelinesService>,
+    pub(super) pipelines: std::sync::Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService>,
     /// `GitService` impl — seventh mr-02 migration. Project-bound; the
     /// SSE handler in `git/mod.rs` stays separate.
     pub(super) git: std::sync::Arc<dyn ship_platform::services::git::service::GitService>,
-    /// `CollectionsService` impl — eighth mr-02 migration. Db-bound;
-    /// shares the `data_service` Arc with the runtime.
-    pub(super) collections: std::sync::Arc<dyn ship_platform::services::collections::service::CollectionsService>,
-    /// `ArtifactsService` impl — ninth mr-02 migration. Db-bound;
-    /// shares the `data_service` Arc with the runtime.
-    pub(super) artifacts: std::sync::Arc<dyn ship_platform::services::artifacts::service::ArtifactsService>,
-    /// Account service — owns the gateway-bearer token store and the
-    /// PKCE state for in-flight logins. Constructed once per daemon and
-    /// shared between the REST routes (`account_api`) and the read-op
-    /// registry (`registry::account`).
-    pub(super) account: std::sync::Arc<ship_platform::account::AccountService>,
     /// Worktree resolver — production uses `git worktree list`; tests
     /// override with an in-memory map. See `resolve_worktree` method and
     /// `new_test_with_worktree_resolver` test ctor.

@@ -1,0 +1,81 @@
+// Isolation read surface — capability probe + recommender results + wizard
+// previews, authored under proto-as-SSOT (decision #67 a). These are the
+// agent-facing + GUI reads that previously lived as the `isolation_status` MCP
+// tool and the `/api/v1/isolation/{status,recommendations,preview,verify}` REST
+// reads; they move here so the surface survives the MCP cull and is reachable
+// transport-agnostically via `ship ops call isolation.*`.
+//
+// All four are pure C0 reads (capability "ship.isolation.read"): they probe the
+// host and run the recommender, mutating nothing the caller doesn't own. The
+// rich payloads (HostCapabilities, IsolationDecision, Recommendations,
+// VerifyResult) are owned by the `ship_isolation` crate's serde types — that
+// crate is their single source of truth, so they ride here as an opaque
+// `JsonResponse` rather than being re-typed field-for-field (which would split
+// the source of truth and drift on every new probe). Same open-payload contract
+// as the generated reads + collections.*.
+//
+// `isolation.init` (the install wizard's C1 daemon-settings write) is NOT here:
+// it is operator-only (never agent-facing) and a C1 write must route through the
+// one gate (services::command::call), which is a separable migration from this
+// read surface and is not threatened by the MCP cull.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+// JsonResponse lives in ops.proto (the base service file).
+import "ship/ops/v1/ops.proto";
+
+// Probe the host's sandbox capabilities + the strategy Ship would pick next.
+message IsolationStatusRequest {
+  // Force a fresh probe instead of the cached snapshot.
+  bool rescan = 1;
+}
+
+// Tier + strategy candidates with the recommender's resolved pick.
+message IsolationRecommendationsRequest {}
+
+// Resolve a decision for an explicitly chosen tier/strategy (wizard preview).
+message IsolationPreviewRequest {
+  // Tier id (e.g. "vm", "container"); unset = recommender's choice.
+  optional string tier = 1;
+  // Strategy id (e.g. "firecracker", "docker_engine"); unset = recommender's choice.
+  optional string strategy = 2;
+}
+
+// Dry-run the recommended decision end to end (does it actually stand up).
+message IsolationVerifyRequest {}
+
+// Capability probe + recommender results. Pure reads, C0 (edge-authenticated);
+// the gate reads "ship.isolation.read" from this descriptor set. Payloads are
+// the `ship_isolation` serde types, serialized opaquely into JsonResponse.json.
+service IsolationService {
+  // { capabilities: HostCapabilities, decision: IsolationDecision }
+  rpc Status(IsolationStatusRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.isolation.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+    option (ship.ops.v1.description) =
+        "Detected host sandbox capabilities + the strategy Ship would pick for the next agent run.";
+  }
+  // Recommendations { tiers: [TierRow], strategies: [StrategyRow], ... }
+  rpc Recommendations(IsolationRecommendationsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.isolation.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+    option (ship.ops.v1.description) =
+        "Per-tier isolation options with each strategy's availability and the recommended pick.";
+  }
+  // IsolationDecision for the requested (or recommended) tier/strategy.
+  rpc Preview(IsolationPreviewRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.isolation.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+    option (ship.ops.v1.description) =
+        "Resolve the isolation decision for an explicit tier/strategy without applying it.";
+  }
+  // VerifyResult { ok, steps: [VerifyStep] }
+  rpc Verify(IsolationVerifyRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.isolation.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+    option (ship.ops.v1.description) =
+        "Dry-run the recommended isolation decision end to end and report each check.";
+  }
+}

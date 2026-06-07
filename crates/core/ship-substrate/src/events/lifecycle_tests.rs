@@ -31,13 +31,13 @@ fn runtime_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        space_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
         session_id: None,
     }
 }
 
 fn kernel_event_count(router: &KernelRouter, event_type: &str) -> i64 {
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     block_on(async {
         sqlx::query_scalar("SELECT COUNT(*) FROM events WHERE event_type = ?")
             .bind(event_type)
@@ -47,7 +47,49 @@ fn kernel_event_count(router: &KernelRouter, event_type: &str) -> i64 {
     .unwrap()
 }
 
+fn actor_status(router: &KernelRouter, actor_id: &str) -> Option<String> {
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
+    block_on(async {
+        sqlx::query_scalar("SELECT status FROM actors WHERE id = ?")
+            .bind(actor_id)
+            .fetch_optional(&mut conn)
+            .await
+    })
+    .unwrap()
+}
+
 // ── handle_actor_crash ──────────────────────────────────────────────────────
+
+/// Acceptance: `actor.crashed` must fire the projection bus so the `actors`
+/// read model reflects the crash. Before the raw_append→persist fix this row
+/// stayed `active` because raw_append bypassed the bus.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn crash_updates_actor_projection() {
+    let (_tmp, mut router) = setup();
+    router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
+
+    // Seed the actors projection row via the canonical bus-firing path.
+    let created = EventEnvelope::new(
+        "actor.created",
+        "dispatch",
+        &serde_json::json!({ "kind": "test-worker", "environment_type": "local" }),
+    )
+    .unwrap();
+    router.emit(created, &runtime_ctx()).await.unwrap();
+    assert_eq!(
+        actor_status(&router, "dispatch").as_deref(),
+        Some("created"),
+        "actor.created must project a row"
+    );
+
+    router.handle_actor_crash("dispatch", "task panicked").unwrap();
+
+    assert_eq!(
+        actor_status(&router, "dispatch").as_deref(),
+        Some("crashed"),
+        "actor.crashed must update the projection (fired via the bus, not raw_append)"
+    );
+}
 
 #[test]
 fn crash_removes_mailbox_and_emits_event() {
@@ -115,7 +157,7 @@ fn crash_payload_contains_reason() {
 
     router.handle_actor_crash("dispatch", "task panicked: division by zero").unwrap();
 
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
     let payload: String = block_on(async {
         sqlx::query_scalar(
             "SELECT payload_json FROM events WHERE event_type = 'actor.crashed'"

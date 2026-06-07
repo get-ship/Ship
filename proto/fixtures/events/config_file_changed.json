@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "config.file_changed",
-    "scope": "space",
+    "scope": "runtime",
     "retention": "ephemeral",
     "stability": "stable",
     "payload_type": "ConfigFileChanged",

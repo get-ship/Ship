@@ -1,0 +1,34 @@
+[package]
+name = "ship-cloud"
+version = "0.1.0"
+edition = "2024"
+license-file = "LICENSE"
+publish = false
+description = "Ship Cloud sync transport — HTTP push/pull of elevated events to the cloud gateway. Lives as an independent sibling of ship-platform so the cloud integration can evolve without dragging platform rebuilds."
+
+[dependencies]
+ship-substrate = { path = "../ship-substrate" }
+ship-types = { path = "../ship-substrate/crates/ship-types" }
+ship-gateway-client = { path = "../ship-platform/crates/ship-gateway-client" }
+
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+# The HTTP client. `json` feature gates `send_json` and `read_json` (the
+# `Body` reader used by `SyncClient`); without it the `ureq 3` `RequestBuilder`
+# and `Body` APIs are byte-only.
+ureq = { workspace = true, features = ["json"] }
+tracing = { workspace = true }
+
+[features]
+# Enables SyncServiceHandler — the ServiceHandler actor that drives the push
+# cycle. Requires ship-substrate's unstable feature for the services runtime.
+unstable = ["ship-substrate/unstable"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls"] }
+
+[lints]
+workspace = true

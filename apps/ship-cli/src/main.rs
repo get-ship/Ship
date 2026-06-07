@@ -21,6 +21,7 @@ mod hook;
 mod http;
 mod init;
 mod install;
+mod isolation_cmd;
 mod procs;
 mod runtime_cmd;
 mod tail;
@@ -55,6 +56,7 @@ static DHAT_ALLOC: dhat::Alloc = dhat::Alloc;
 /// `SqliteEventStore` is constructed.
 fn try_init_kernel_router() {
     ship_platform::install_defaults();
+    ship_pipeline_runtime::install_projections();
     if let Ok(dir) = ship_substrate::project::get_global_dir() {
         let _ = ship_substrate::events::init_kernel_router(dir);
     }
@@ -80,6 +82,7 @@ fn main() {
     // Install platform projection factory + supervisor hooks before any
     // SqliteEventStore is constructed downstream. Idempotent.
     ship_platform::install_defaults();
+    ship_pipeline_runtime::install_projections();
     let _log_guard = logging::init();
     let cli = Cli::parse();
     if let Err(e) = dispatch(cli.command) {
@@ -162,6 +165,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             } => run_compile_cmd(harness.as_deref(), dry_run, path),
             Commands::Workspace { action } => dispatch_workspace(action),
             Commands::Mcp { action } => dispatch_mcp(action),
+            Commands::Isolation { action } => isolation_cmd::run(action),
             Commands::Convert { source } => convert::run_convert(&source),
             Commands::Docs { topic } => help_topics::run(topic.as_deref()),
             Commands::Publish {

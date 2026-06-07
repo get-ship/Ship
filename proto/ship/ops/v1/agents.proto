@@ -1,10 +1,29 @@
-// `agents.*` as a hand-authored, per-domain proto-SSOT service (#89).
-// Mounted ADDITIVELY beside the generated ReadOpsService/CommandOpsService
-// (which keep serving agents.* until the GUI flip, #72). Request messages
-// take fresh names (ListAgentsRequest, …) because the generated
-// reads.gen.proto/commands.gen.proto already declare AgentsListRequest et al.
-// in this same package — two definitions would collide. Return types reuse
-// the shared shapes in types.proto and JsonResponse from ops.proto.
+// `agents.*` — the ONE canonical agent surface (#89, agents-arc E4/E6). Collapsed
+// from the historic split: profile CRUD + view reads, orchestration
+// (dispatch/stop/steer/grant), and SessionsService (runtime-session read) all
+// fold into this single plural `AgentsService`.
+// Mounted ADDITIVELY beside the generated ReadOps/CommandOps (which keep serving
+// the legacy paths until the GUI flip, #72).
+//
+// Plural by convention: every sibling resource domain is plural
+// (SkillsService/PipelinesService/CollectionsService/…) → `skills.*`,
+// `pipelines.*`, etc. AgentsService → `agents.*` re-aligns the wire with the
+// registry/SDK/CLI/fixture-seed, which are all already `agents.*` (agents-arc E6
+// reverted E4's outlier singular rename).
+//
+// Two scopes meet here, deliberately kept distinct:
+//   * agent DEFS — space/account-scoped authored config (List/Detail/Get/… +
+//     the CRUD writes). Reads are C0; writes are C2 gated ops that write the
+//     source file.
+//   * sessions — RUNTIME-scoped runtime-instance reads (#283). Distinct from def
+//     scope; never conflated. (chat was gutted in E6 — a read-projection over the
+//     deprecated `studio.message` event with no real gated RPC.)
+//
+// Request messages take fresh names (ListAgentsRequest, DispatchAgentRequest,
+// ListSessionsReq, …) because the generated reads.gen.proto /
+// commands.gen.proto already declare AgentsListRequest et al. in this same
+// package — two definitions would collide. Return types reuse the shared shapes
+// in types.proto + JsonResponse from ops.proto.
 syntax = "proto3";
 
 package ship.ops.v1;
@@ -12,8 +31,9 @@ package ship.ops.v1;
 import "ship/ops/v1/ops.proto";
 import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/types.proto";
+import "ship/ops/v1/reactive.proto";
 
-// ── Read request messages ─────────────────────────────────────────────────
+// ── Profile read request messages ──────────────────────────────────────────
 
 message ListAgentsRequest {}
 
@@ -46,6 +66,120 @@ message ListAgentPermissionPresetsRequest {}
 message ListAgentHarnessesRequest {}
 
 message GetAgentCreateCtxRequest {}
+
+// ── Runtime-scoped read request messages (sessions) ─────────────────────────
+
+// Live runtime-session index. Fresh name (vs SessionsListRequest in
+// reads.gen.proto). RUNTIME-scoped — a runtime-instance read, not a def read.
+message ListSessionsReq {}
+
+// ── Watch request message (the ONE reactive surface — #138 / agents-arc E5) ──
+//
+// The single live watch over agent DEFS, replacing the six dropped *Live twins.
+// The local nullary `all` marker mirrors the space.proto Watch precedent (its
+// `registry` arm uses the domain's own request message, not a shared Empty —
+// the package has no shared `google.protobuf.Empty` and a second local
+// `message Empty {}` would collide with collection.proto's in this package).
+message AgentWatchAllReq {}
+
+message AgentWatchReq {
+  oneof scope {
+    // All agents — snapshots {summaries, catalogs}; wakes on the broad config
+    // namespace (skill/mcp/rule/preset edits affect catalogs, not just defs).
+    AgentWatchAllReq all = 1;
+    // One agent — snapshots {detail, wire, settings} for this id; wakes only on
+    // that agent's `agent.def.updated`.
+    string agent_id = 2;
+  }
+}
+
+// ── Typed read responses (S4: kill JsonResponse on the structured reads) ────
+//
+// Catalogs / Wire / Settings are field-by-field structured; Get stays
+// opaque-by-design — an agent def doc is arbitrary user JSONC, so the doc body
+// rides as a serialized JSON string (`doc_json`), the same open-payload
+// convention as CollectionItem.data_json / SettingValue.value_json. Only the
+// id + resolved scope around it are typed. These mirror the platform wire
+// structs in `ship-platform/services/agents/*`; the handler maps the existing
+// read output onto them (snake_case aliases on the generated messages decode
+// the registry's snake_case JSON unchanged).
+
+// One picker-catalog row (skill / mcp / rule / preset). Mirrors
+// `view_state::CatalogEntry`.
+message AgentCatalogEntry {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+}
+
+// One tool-pattern autocomplete row. Mirrors `view_state::ToolPatternEntry`.
+message AgentToolPattern {
+  string pattern = 1;
+  string label = 2;
+  string source = 3;
+}
+
+// The picker catalogs shared by the wire + settings panes. Mirrors
+// `view_state::AgentCatalogs`.
+message AgentCatalogsResponse {
+  repeated AgentCatalogEntry skills = 1;
+  repeated AgentCatalogEntry mcp = 2;
+  repeated AgentCatalogEntry rules = 3;
+  repeated AgentCatalogEntry presets = 4;
+  repeated AgentToolPattern tool_patterns = 5;
+}
+
+// The opaque-by-design agent-def read. `doc_json` is the raw def document
+// serialized as a JSON string (a def is arbitrary user JSONC — NOT field-by-
+// field typed); `id` + `scope` ("project" | "user") are the resolved envelope.
+message AgentDoc {
+  string id = 1;
+  string scope = 2;
+  string doc_json = 3;
+}
+
+// A positioned node on the wire canvas. Mirrors `wire::WireNode`.
+message AgentWireNode {
+  string kind = 1;
+  string id = 2;
+  string title = 3;
+  string sub = 4;
+  float x = 5;
+  float y = 6;
+  float w = 7;
+}
+
+// A bezier edge on the wire canvas. Mirrors `wire::WireEdge`.
+message AgentWireEdge {
+  string kind = 1;
+  string id = 2;
+  string path_d = 3;
+  bool dashed = 4;
+}
+
+// Graph payload for the agent-wire canvas. Mirrors `wire::AgentWireCtx`.
+message AgentWireResponse {
+  AgentDetail agent = 1;
+  repeated AgentWireNode nodes = 2;
+  repeated AgentWireEdge edges = 3;
+  AgentCatalogsResponse catalogs = 4;
+}
+
+// One permission-tier radio-card row. Mirrors `settings_view::TierRow`.
+message AgentTierRow {
+  string id = 1;
+  string label = 2;
+  string description = 3;
+  bool selected = 4;
+}
+
+// Tier list + catalogs for the per-agent settings pane. Mirrors
+// `settings_view::AgentSettingsCtx`.
+message AgentSettingsResponse {
+  AgentDetail agent = 1;
+  repeated AgentTierRow tiers = 2;
+  AgentCatalogsResponse catalogs = 3;
+}
 
 // ── Write request messages ────────────────────────────────────────────────
 
@@ -91,12 +225,117 @@ message MoveAgentScopeRequest {
   string to = 3;
 }
 
-// Agent profile CRUD and read-context surface. Reads are C0 (edge-
-// authenticated); writes are C1 workspace mutations gated through
-// services::command::call — the ONE gate — exactly as the generated
-// CommandOpsService does. Authoring agent profiles is restricted ship-
-// authoring (same blast radius as skills/rules).
+// ── Control request messages ──────────────────────────────────────────────
+
+message DispatchAgentRequest {
+  string agent = 1;
+  string spec = 2;
+  string prompt = 3;
+  optional bool resume = 4;
+  string harness = 5;
+  string model = 6;
+  optional bool open_tab = 7;
+  string invocation = 8;
+  optional bool keepalive = 9;
+  string workspace = 10;
+  string slug = 11;
+  string branch = 12;
+  string source_spec_path = 13;
+  repeated string depends_on = 14;
+  map<string, string> vars = 15;
+}
+
+message StopAgentRequest {
+  string slug = 1;
+}
+
+message SteerAgentRequest {
+  string slug = 1;
+  string message = 2;
+}
+
+message GrantAgentRequest {
+  string agent = 1;
+  repeated string grants = 2;
+}
+
+// ── Observation / canvas request messages ────────────────────────────────────
+
+// Post feedback from the live studio canvas. The body is the full
+// `FeedbackEvent` serialised as JSON — the open payload convention mirrors
+// CollectionItem.data_json / AnnotationEvent.
+message PostFeedbackRequest {
+  // `FeedbackEvent` serialised as a JSON string.
+  string event_json = 1;
+}
+
+message PostFeedbackResponse {
+  // ULID of the accepted feedback event.
+  string id = 1;
+}
+
+// Post an annotation (canvas/observation). Body is `AnnotationEvent` JSON.
+message PostAnnotationRequest {
+  // `AnnotationEvent` serialised as a JSON string.
+  string event_json = 1;
+}
+
+message PostAnnotationResponse {
+  // ULID of the accepted annotation event.
+  string id = 1;
+}
+
+// ── Typed control results (S4: kill JsonResponse on the control surface) ────
+//
+// Each result mirrors the structured value the command arm now threads through
+// (`services/command/agent.rs`). Stop/Steer previously handed back a flat JSON
+// STRING (`"stopped: <slug>"`); they now return a structured object so the
+// typed result is a real decode, not a re-wrap.
+
+// Result of agent.dispatch. `session_id` is the id of the emitted
+// `agent.session.started` event; `slug` is the control handle (stop/steer take
+// it); `studio_url` is the URL handle to reach the live session. The remaining
+// fields preserve the dispatch core's structured echo.
+message DispatchResult {
+  string session_id = 1;
+  string slug = 2;
+  string branch = 3;
+  bool resume = 4;
+  string studio_url = 5;
+  optional string billing_warning = 6;
+}
+
+// Result of agent.stop — the slug that was stopped.
+message StopResult {
+  string slug = 1;
+  bool stopped = 2;
+}
+
+// Result of agent.steer — the slug a message was injected into.
+message SteerResult {
+  string slug = 1;
+  bool steered = 2;
+}
+
+// Result of agent.grant (operator approval). `provisioned` is the persisted
+// effective baseline; `sessions_upgraded` counts the live sessions whose grant
+// set was raised in place.
+message GrantResult {
+  string agent = 1;
+  repeated string grants = 2;
+  repeated string provisioned = 3;
+  uint64 sessions_upgraded = 4;
+}
+
+// The ONE canonical agent service — profile reads (C0) + the unified reactive
+// Watch (replaces the six *Live twins) + profile CRUD (C2 gated) +
+// runtime-session reads (C0, RUNTIME-scoped) + orchestration control (C2/C3).
+// Reads are edge-authenticated; writes + control route through
+// services::command::call (the ONE gate) — this service only routes, never
+// reimplements gating. Per-op blast_radius preserved from the collapsed source
+// services.
 service AgentsService {
+  // ── Profile reads (C0) ──
   rpc List(ListAgentsRequest) returns (AgentIndexResponse) {
     option (ship.ops.v1.description) = "List all agents as minimal IndexEntry rows.";
     option (ship.ops.v1.capability) = "ship.agents.read";
@@ -107,49 +346,41 @@ service AgentsService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc SummariesLive(ListAgentsSummariesRequest) returns (stream JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.agents.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
   rpc Detail(GetAgentDetailRequest) returns (AgentDetail) {
     option (ship.ops.v1.description) = "Full view-shaped agent detail — catalogs, permissions, harnesses, tags.";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Catalogs(ListAgentsCatalogsRequest) returns (JsonResponse) {
+  rpc Catalogs(ListAgentsCatalogsRequest) returns (AgentCatalogsResponse) {
     option (ship.ops.v1.description) = "Catalog rows for the agents list (harnesses, skills, etc.).";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Get(GetAgentRequest) returns (JsonResponse) {
-    option (ship.ops.v1.description) = "Raw agent doc from disk at the requested scope.";
+  rpc Get(GetAgentRequest) returns (AgentDoc) {
+    option (ship.ops.v1.description) = "Raw agent doc from disk at the requested scope (opaque doc_json wrapper).";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Wire(GetAgentWireRequest) returns (JsonResponse) {
+  rpc Wire(GetAgentWireRequest) returns (AgentWireResponse) {
     option (ship.ops.v1.description) = "Graph payload (nodes + edges) for the agent-wire canvas.";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Settings(GetAgentSettingsRequest) returns (JsonResponse) {
+  rpc Settings(GetAgentSettingsRequest) returns (AgentSettingsResponse) {
     option (ship.ops.v1.description) = "Tier list + catalog rows for the per-agent settings pane.";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  // Live read variants (#138) — full value now + on every `config` event.
-  rpc CatalogsLive(ListAgentsCatalogsRequest) returns (stream JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.agents.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc DetailLive(GetAgentDetailRequest) returns (stream JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.agents.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc WireLive(GetAgentWireRequest) returns (stream JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.agents.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
-  rpc SettingsLive(GetAgentSettingsRequest) returns (stream JsonResponse) {
+  // Watch — the ONE reactive surface over agent DEFS (agents-arc E5), replacing
+  // the six dropped *Live twins (Summaries/Catalogs/Detail/Wire/Settings/
+  // CreateCtx Live). scope=all snapshots {summaries,catalogs} + patches on any
+  // config-namespace change; scope=agent_id snapshots {detail,wire,settings} +
+  // patches only on that agent's `agent.def.updated`. Carries the connection's
+  // bound space_id in its WatchKey so cross-space subscribers don't share a
+  // cohort. CreateCtxLive has NO Watch replacement — it watched templates/
+  // presets/harnesses (static, greenfield UI reads the non-Live CreateCtx).
+  rpc Watch(AgentWatchReq) returns (stream WatchEvent) {
+    option (ship.ops.v1.description) = "Live watch over agent defs — all agents (summaries+catalogs) or one agent (detail+wire+settings).";
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -173,17 +404,26 @@ service AgentsService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc CreateCtxLive(GetAgentCreateCtxRequest) returns (stream JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.agents.read";
+
+  // ── Runtime-scoped reads (sessions) — folded, C0 (#283) ──
+  rpc Sessions(ListSessionsReq) returns (SessionsListResponse) {
+    option (ship.ops.v1.description) = "All live PTY sessions (agent chats, pipeline runs, shells) — Mission Control data.";
+    option (ship.ops.v1.capability) = "ship.sessions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc SessionsLive(ListSessionsReq) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.sessions.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+
+  // ── Profile writes (C2) — each = a gated op that writes the source file ──
   rpc Create(CreateAgentRequest) returns (ScopedMutation) {
     option (ship.ops.v1.description) = "Create a new agent profile from a doc.";
     option (ship.ops.v1.capability) = "ship.agents.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
   rpc Put(PutAgentRequest) returns (ScopedMutation) {
-    option (ship.ops.v1.description) = "Replace an agent profile's doc (use agents.create for net-new).";
+    option (ship.ops.v1.description) = "Replace an agent profile's doc (use agent.create for net-new).";
     option (ship.ops.v1.capability) = "ship.agents.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
   }
@@ -211,5 +451,42 @@ service AgentsService {
     option (ship.ops.v1.description) = "Move an agent profile between project and user scope.";
     option (ship.ops.v1.capability) = "ship.agents.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+
+  // ── Orchestration control (C2/C3) — typed results ──
+  rpc Dispatch(DispatchAgentRequest) returns (DispatchResult) {
+    option (ship.ops.v1.description) = "Dispatch a single agent session (the canonical agent command).";
+    option (ship.ops.v1.capability) = "ship.runtime.dispatch";
+    // Spawns + controls another agent — orchestration. C2: granted to a
+    // commander (elevated in the `agent` service), denied to a bare worker.
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc Stop(StopAgentRequest) returns (StopResult) {
+    option (ship.ops.v1.description) = "Stop a running agent by slug.";
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc Steer(SteerAgentRequest) returns (SteerResult) {
+    option (ship.ops.v1.description) = "Inject a message into a running agent.";
+    option (ship.ops.v1.capability) = "ship.agents.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  rpc Grant(GrantAgentRequest) returns (GrantResult) {
+    option (ship.ops.v1.description) = "Grant restricted capabilities to an agent (operator approval). Upgrades the agent's live sessions; the next gated call passes. C3 — operator-only, the human-in-the-loop approval point.";
+    option (ship.ops.v1.capability) = "ship.agents.grant";
+    // Hands out authority — operator/2FA only, never an agent.
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C3_CRITICAL;
+  }
+
+  // ── Canvas / observation (C1) — moves feedback.post + annotation.post ──
+  rpc PostFeedback(PostFeedbackRequest) returns (PostFeedbackResponse) {
+    option (ship.ops.v1.description) = "Post a FeedbackEvent to the studio canvas (rate-limited for agents).";
+    option (ship.ops.v1.capability) = "ship.feedback.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
+  }
+  rpc PostAnnotation(PostAnnotationRequest) returns (PostAnnotationResponse) {
+    option (ship.ops.v1.description) = "Post an AnnotationEvent (canvas/observation) and persist to the annotations collection.";
+    option (ship.ops.v1.capability) = "ship.annotations.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 }

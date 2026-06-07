@@ -12,14 +12,10 @@ use anyhow::{Result, anyhow};
 use sqlx::QueryBuilder;
 use std::path::{Path, PathBuf};
 
-use crate::db::envelope::envelope_from_row;
+use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row};
 use crate::db::{block_on, open_db_at};
 use ship_types::envelope::EventEnvelope;
 use crate::events::EventFilter;
-
-const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-    causation_id, space_id, session_id, \
-    actor_id, parent_actor_id, elevated, created_at, target_actor_id";
 
 /// A scoped event handle bound to a single actor's SQLite DB.
 ///
@@ -49,17 +45,19 @@ impl ActorStore {
         }
     }
 
-    /// Open an ActorStore for the given actor, backed by platform.db.
+    /// Open an ActorStore for the given actor, backed by the Runtime-scope
+    /// `runtime.db` (actors are Runtime-owned).
     ///
-    /// `base_dir` is the global Ship directory (e.g. `~/.ship`). Platform.db
-    /// must have been initialised already (via `ship_substrate::db::ensure_db_at`).
+    /// `base_dir` is the global Ship directory (e.g. `~/.ship`) — NOT a
+    /// pre-resolved db path. The runtime.db schema is provisioned by the kernel
+    /// sink on first persist; replay reads here resolve the same file.
     pub fn open(
         actor_id: &str,
         base_dir: &Path,
         write_namespaces: Vec<String>,
         read_namespaces: Vec<String>,
     ) -> Result<Self> {
-        let db_path = crate::db::platform_db_path(base_dir);
+        let db_path = crate::db::runtime_db_path(base_dir);
         Ok(Self::new(actor_id, db_path, write_namespaces, read_namespaces))
     }
 
@@ -77,11 +75,38 @@ impl ActorStore {
     /// logical isolation requires every row in the shared events table know
     /// which actor wrote it. Any pre-existing `actor_id` on the envelope is
     /// overwritten so a store can't launder events for another actor.
+    ///
+    /// This is the persist primitive (namespace check only); live emit sites
+    /// must use [`ActorStore::append_enforced`] so scope is enforced too.
     pub fn append(&self, event: &EventEnvelope) -> Result<()> {
         self.check_write_namespace(&event.event_type)?;
         let mut stamped = event.clone();
         stamped.actor_id = Some(self.actor_id.clone());
         raw_append(&self.db_path, &stamped)
+    }
+
+    /// The enforced actor-write chokepoint.
+    ///
+    /// Off-kernel service handlers (e.g. the sync service) that hold an
+    /// `ActorStore` write through here, not the raw `append`, so scope is
+    /// enforced as well as the actor namespace. Runs the write-namespace check,
+    /// then the SAME stamp-or-reject rule the emit/append chokepoints run —
+    /// `ship_types::stamp_author` then `ship_types::enforce_scope` against the
+    /// authoritative `binding` — BEFORE persisting. The actor's own `actor_id`
+    /// is stamped (logical isolation) and the stamped envelope returned.
+    pub fn append_enforced(
+        &self,
+        event: &EventEnvelope,
+        binding: &ship_types::ScopeBinding,
+    ) -> Result<EventEnvelope> {
+        self.check_write_namespace(&event.event_type)?;
+        let mut stamped = event.clone();
+        stamped.actor_id = Some(self.actor_id.clone());
+        ship_types::stamp_author(&mut stamped, binding);
+        ship_types::enforce_scope(&mut stamped, binding)
+            .map_err(|e| anyhow!("{e}"))?;
+        raw_append(&self.db_path, &stamped)?;
+        Ok(stamped)
     }
 
     /// Query events owned by this actor.
@@ -155,8 +180,11 @@ fn query_db(db_path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>> 
     if let Some(ref v) = filter.event_type {
         qb.push(" AND event_type = ").push_bind(v.clone());
     }
-    if let Some(ref v) = filter.space_id {
-        qb.push(" AND space_id = ").push_bind(v.clone());
+    if let Some(ref v) = filter.scope {
+        qb.push(" AND scope = ").push_bind(v.clone());
+    }
+    if let Some(ref v) = filter.scope_key {
+        qb.push(" AND scope_key = ").push_bind(v.clone());
     }
     if let Some(ref v) = filter.session_id {
         qb.push(" AND session_id = ").push_bind(v.clone());

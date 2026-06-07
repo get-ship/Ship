@@ -185,10 +185,8 @@ pub fn project(events: &[EventEnvelope]) -> Vec<ProcessRecord> {
 
 /// Load all process events from the platform DB and return projected records.
 pub fn load_processes(slug: Option<&str>) -> Result<Vec<ProcessRecord>> {
-    use crate::db::{db_path, ensure_db, open_db_at};
-
-    ensure_db()?;
-    let mut conn = open_db_at(&db_path()?)?;
+    // process.* is Runtime-scoped → read the per-machine runtime.db.
+    let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     load_processes_from_conn(&mut conn, slug)
 }
 
@@ -197,11 +195,7 @@ fn load_processes_from_conn(
     slug: Option<&str>,
 ) -> Result<Vec<ProcessRecord>> {
     use crate::db::block_on;
-    use crate::db::envelope::envelope_from_row;
-
-    const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-        causation_id, space_id, session_id, \
-        actor_id, parent_actor_id, elevated, created_at";
+    use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row};
 
     let rows = block_on(async {
         sqlx::query(&format!(
@@ -213,7 +207,7 @@ fn load_processes_from_conn(
 
     let events: Vec<EventEnvelope> = rows
         .iter()
-        .map(|r| envelope_from_row(r, false))
+        .map(|r| envelope_from_row(r, true))
         .collect::<Result<Vec<_>>>()?;
 
     let mut records = project(&events);

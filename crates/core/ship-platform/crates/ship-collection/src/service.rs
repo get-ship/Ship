@@ -1,0 +1,296 @@
+//! Collection service — core business logic for all 10 RPCs.
+//!
+//! All storage goes through `SpaceContext.data()` (DataStore port).
+//! All events go through `SpaceContext.kernel()` (KernelLog port).
+//! No sqlite/rusqlite/sqlx types here.
+
+use std::sync::Arc;
+
+use ship_substrate::ports::{Predicate, Query, SpaceContext};
+use ship_types::envelope::EventEnvelope;
+use ship_types::payload::{
+    CollectionCreated, CollectionItemCreated, CollectionItemDeleted, CollectionItemUpdated,
+    CollectionSchemaChanged,
+};
+
+use crate::error::CollectionError;
+use crate::helpers::{emit_ctx, new_ulid, now_rfc3339, row_to_item};
+use crate::projection::{
+    SchemaRegistry, count_items, ensure_collection_table, ensure_registry_table, persist_schema,
+    update_schema_persistent,
+};
+use crate::schema::{parse_schema_doc, validate_item};
+use crate::types::{ItemRecord, SchemaDoc};
+
+/// Core service — stateless; all state lives in `SpaceContext` + `SchemaRegistry`.
+pub struct CollectionService {
+    pub ctx: Arc<SpaceContext>,
+    pub schemas: Arc<SchemaRegistry>,
+}
+
+impl CollectionService {
+    /// List all schemas including system ones.
+    pub fn list(&self) -> Vec<SchemaDoc> {
+        self.schemas.list()
+    }
+
+    /// Get a single schema with its item count.
+    pub async fn get(&self, id: &str) -> Result<(SchemaDoc, usize), CollectionError> {
+        let schema = self.schemas.get(id).ok_or_else(|| {
+            CollectionError::NotFound(format!("collection '{id}' not found"))
+        })?;
+        let count = count_items(self.ctx.data(), id).await.unwrap_or(0);
+        Ok((schema, count))
+    }
+
+    /// Get a single item by id.
+    pub async fn get_item(
+        &self,
+        collection: &str,
+        id: &str,
+    ) -> Result<ItemRecord, CollectionError> {
+        let _schema = self.schemas.get(collection).ok_or_else(|| {
+            CollectionError::NotFound(format!("collection '{collection}' not found"))
+        })?;
+        let q = Query {
+            table: format!("collection_{collection}"),
+            filters: vec![Predicate::eq("id", serde_json::Value::String(id.into()))],
+            limit: 1,
+            ..Default::default()
+        };
+        let result = self.ctx.data().query(q).await?;
+        let row = result.rows.into_iter().next().ok_or_else(|| {
+            CollectionError::NotFound(format!("item '{id}' not found in '{collection}'"))
+        })?;
+        Ok(row_to_item(row, collection))
+    }
+
+    /// Query items via DataStore::Query (from translated AST or direct).
+    pub async fn query_items_by_query(
+        &self,
+        q: Query,
+    ) -> Result<(Vec<ItemRecord>, Option<String>), CollectionError> {
+        let collection = q.table.strip_prefix("collection_").unwrap_or(&q.table).to_string();
+        let result = self.ctx.data().query(q).await?;
+        let next_cursor = result.next_cursor.clone();
+        let items = result.rows.into_iter().map(|r| row_to_item(r, &collection)).collect();
+        Ok((items, next_cursor))
+    }
+
+    /// Translate inline AST and run as a query.
+    pub async fn query_items_ast(
+        &self,
+        ast_bytes: &[u8],
+        cursor: Option<String>,
+        limit: u32,
+    ) -> Result<(Vec<ItemRecord>, Option<String>), CollectionError> {
+        let mut q = ship_substrate::query::translate_ast(ast_bytes, cursor, limit)
+            .map_err(|e| CollectionError::UnsupportedQuery(e.to_string()))?;
+        // The translator returns the logical table name; map it to the physical
+        // collection table here (the executor no longer applies the prefix).
+        q.table = format!("collection_{}", q.table);
+        self.query_items_by_query(q).await
+    }
+
+    /// Create a new item, validate against schema, emit event.
+    pub async fn create_item(
+        &self,
+        collection: &str,
+        data_json: &[u8],
+    ) -> Result<ItemRecord, CollectionError> {
+        let schema = self.schemas.get(collection).ok_or_else(|| {
+            CollectionError::NotFound(format!("collection '{collection}' not found"))
+        })?;
+        let data: serde_json::Value = serde_json::from_slice(data_json)
+            .map_err(|e| CollectionError::Validation(format!("invalid data JSON: {e}")))?;
+        validate_item(&schema, &data)?;
+
+        let id = new_ulid();
+        let now = now_rfc3339();
+
+        // EMIT-ONLY: validate, then emit the projection-complete event. The
+        // `CollectionProjection` on the per-scope event bus writes the row in
+        // the SAME append transaction, so the read path sees it immediately.
+        // No direct `ctx.data().insert` here — the projection is the sole
+        // table writer (ADR D6/D7).
+        let envelope = EventEnvelope::new(
+            "collection.item_created",
+            &id,
+            &CollectionItemCreated {
+                collection_id: collection.to_string(),
+                item_id: id.clone(),
+                item_type: None,
+                data: data.clone(),
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            },
+        )
+        .map_err(|e| CollectionError::Internal(e.to_string()))?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
+
+        Ok(ItemRecord {
+            id,
+            collection: collection.to_string(),
+            data: data.as_object().cloned().unwrap_or_default(),
+            created_at: now.clone(),
+            updated_at: now,
+        })
+    }
+
+    /// Update an item with merge/patch semantics — only provided fields are
+    /// written; untouched fields retain their existing values.
+    pub async fn update_item(
+        &self,
+        collection: &str,
+        id: &str,
+        data_json: &[u8],
+    ) -> Result<ItemRecord, CollectionError> {
+        let schema = self.schemas.get(collection).ok_or_else(|| {
+            CollectionError::NotFound(format!("collection '{collection}' not found"))
+        })?;
+        let patch: serde_json::Value = serde_json::from_slice(data_json)
+            .map_err(|e| CollectionError::Validation(format!("invalid data JSON: {e}")))?;
+
+        let now = now_rfc3339();
+        let original = self.get_item(collection, id).await?;
+
+        // Merge patch on top of existing data, then validate the merged result so
+        // required-field checks see the full document.
+        let mut merged = serde_json::Value::Object(original.data.clone());
+        if let (Some(merged_obj), Some(patch_obj)) = (merged.as_object_mut(), patch.as_object()) {
+            for (k, v) in patch_obj {
+                merged_obj.insert(k.clone(), v.clone());
+            }
+        }
+        validate_item(&schema, &merged)?;
+
+        // EMIT-ONLY: the patch (provided fields only) rides the event; the
+        // projection applies a partial column UPDATE in the append transaction
+        // and leaves untouched columns alone. No direct `ctx.data().update`.
+        let envelope = EventEnvelope::new(
+            "collection.item_updated",
+            id,
+            &CollectionItemUpdated {
+                collection_id: collection.to_string(),
+                item_id: id.to_string(),
+                data: patch.clone(),
+                updated_at: now.clone(),
+            },
+        )
+        .map_err(|e| CollectionError::Internal(e.to_string()))?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
+
+        Ok(ItemRecord {
+            id: id.to_string(),
+            collection: collection.to_string(),
+            data: merged.as_object().cloned().unwrap_or_default(),
+            created_at: original.created_at,
+            updated_at: now,
+        })
+    }
+
+    /// Delete an item, emit event.
+    pub async fn delete_item(
+        &self,
+        collection: &str,
+        id: &str,
+    ) -> Result<(), CollectionError> {
+        self.schemas.get(collection).ok_or_else(|| {
+            CollectionError::NotFound(format!("collection '{collection}' not found"))
+        })?;
+        // EMIT-ONLY: confirm the row exists against the projection (a delete of
+        // a missing item is a NotFound, not a silent no-op), then emit; the
+        // projection removes the row in the append transaction. No direct
+        // `ctx.data().delete`.
+        let _ = self.get_item(collection, id).await?;
+        let envelope = EventEnvelope::new(
+            "collection.item_deleted",
+            id,
+            &CollectionItemDeleted {
+                collection_id: collection.to_string(),
+                item_id: id.to_string(),
+            },
+        )
+        .map_err(|e| CollectionError::Internal(e.to_string()))?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
+        Ok(())
+    }
+
+    /// Create a new schema, ensure table, emit event.
+    pub async fn create_schema(
+        &self,
+        id: &str,
+        schema_json: &[u8],
+    ) -> Result<SchemaDoc, CollectionError> {
+        use crate::types::RESERVED_IDS;
+        if RESERVED_IDS.contains(&id) {
+            return Err(CollectionError::ReservedId(format!(
+                "id '{id}' is reserved and cannot be used for user schemas"
+            )));
+        }
+        if self.schemas.get(id).is_some() {
+            return Err(CollectionError::Validation(format!(
+                "collection '{id}' already exists"
+            )));
+        }
+        let mut doc = parse_schema_doc(schema_json)?;
+        doc.id = id.to_string();
+
+        // The `_schema_registry` table is the durable backing of the in-memory
+        // SchemaRegistry (schema metadata, not collection items) — the service
+        // owns it. We also DDL the collection table here (DDL, not an item
+        // write) so the read connection's schema cache stays current — the
+        // `CollectionProjection` independently DDLs it on the `collection.created`
+        // event for the rebuild path; both are idempotent CREATE-IF-NOT-EXISTS.
+        ensure_registry_table(self.ctx.data()).await?;
+        ensure_collection_table(self.ctx.data(), &doc).await?;
+        persist_schema(self.ctx.data(), &doc).await?;
+
+        let schema_str = serde_json::to_string(&doc)
+            .map_err(|e| CollectionError::Internal(e.to_string()))?;
+        let envelope = EventEnvelope::new(
+            "collection.created",
+            id,
+            &CollectionCreated { collection_id: id.to_string(), schema_json: schema_str },
+        )
+        .map_err(|e| CollectionError::Internal(e.to_string()))?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
+
+        self.schemas.insert(doc.clone());
+        Ok(doc)
+    }
+
+    /// Update a schema, update table, emit event.
+    pub async fn update_schema(
+        &self,
+        id: &str,
+        schema_json: &[u8],
+    ) -> Result<SchemaDoc, CollectionError> {
+        self.schemas.get(id).ok_or_else(|| {
+            CollectionError::NotFound(format!("collection '{id}' not found"))
+        })?;
+        let mut doc = parse_schema_doc(schema_json)?;
+        doc.id = id.to_string();
+
+        // DDL the table on the read connection (adds any new columns) so its
+        // schema cache stays current, then persist the registry row. The
+        // `CollectionProjection` independently DDLs on `collection.schema.changed`
+        // for the rebuild path; both are idempotent.
+        ensure_collection_table(self.ctx.data(), &doc).await?;
+        update_schema_persistent(self.ctx.data(), &doc).await?;
+
+        let schema_str = serde_json::to_string(&doc)
+            .map_err(|e| CollectionError::Internal(e.to_string()))?;
+        let envelope = EventEnvelope::new(
+            "collection.schema.changed",
+            id,
+            &CollectionSchemaChanged { collection_id: id.to_string(), schema_json: schema_str },
+        )
+        .map_err(|e| CollectionError::Internal(e.to_string()))?;
+        self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
+
+        self.schemas.update(doc.clone());
+        Ok(doc)
+    }
+}
+

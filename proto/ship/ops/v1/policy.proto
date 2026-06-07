@@ -14,7 +14,7 @@ enum BlastRadius {
   // Read / own-scope; harmless to Ship. Allowed on any authenticated surface.
   BLAST_RADIUS_C0_SAFE = 1;
   // Mutates the caller's own space — the user's own risk.
-  BLAST_RADIUS_C1_WORKSPACE = 2;
+  BLAST_RADIUS_C1_SPACE = 2;
   // Elevated — dispatch/control agents, settings, mcp, authoring. Off the
   // default agent surface; granted to trusted agents (e.g. commander) via a
   // raised per-service ceiling. Not human-only.

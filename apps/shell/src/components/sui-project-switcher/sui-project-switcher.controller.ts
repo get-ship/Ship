@@ -8,10 +8,6 @@ interface Project {
   name: string
   path: string
 }
-interface ProjectsResponse {
-  projects: Project[]
-  active?: string
-}
 
 // Deterministic per-project identity hue — the daemon exposes no colour field,
 // so derive one from the id (stable across reloads). Mirrors the palette in
@@ -53,9 +49,9 @@ export default controller({
 
     async function loadProjects(): Promise<void> {
       try {
-        const body = JSON.parse((await ops.project.listProjects({})).json) as ProjectsResponse
-        projects.set(body.projects ?? [])
-        if (body.active) activeId.set(body.active)
+        const resp = await ops.space.list({})
+        projects.set(resp.spaces.map((s) => ({ id: s.id, name: s.name, path: s.path })))
+        if (resp.activeId) activeId.set(resp.activeId)
       } catch {
         // offline — leave the trigger showing the placeholder name
       }
@@ -65,7 +61,7 @@ export default controller({
       internals.menu?.hidePopover?.()
       if (id === activeId()) return
       try {
-        await ops.project.activate({ id })
+        await ops.space.activate({ id })
         // Switching projects swaps the whole workspace; reload into the root so
         // every view re-resolves against the newly-active project.
         location.assign('/')

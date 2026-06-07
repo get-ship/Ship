@@ -24,7 +24,6 @@ tags: [storage, layout, scope, env, ship-home]
 - `config.toml` is the only TOML file in a codebase where every other config uses JSONC. It also mixes portable settings (`[dispatch]`, `[terminal]`) with machine-local state (`[worktrees].dir`).
 - Daemon IPC handshake files (`hook.token`, `network.pid`) sit at root, treated as peers of user content.
 - Code paths compute `~/.ship/…` ad hoc in 40+ call sites, with no central typed accessor. Environment variables (13+ `SHIP_*` vars) are scattered, undocumented, and referenced by string literal everywhere.
-- Dead architecture from the per-actor-DB era remains on disk: `~/.ship/kernel/events.db` and `~/.ship/actors/{id}/` still get created by init paths even though all events consolidated into `platform.db` (see `crates/core/runtime/src/persistence/snapshot.rs:10`, `docs/ship-kernel/references/docs/kernel.md:67`).
 - `crates/core/runtime/src/templates/` ships 10 stub templates (`ADR.md`, `FEATURE.md`, `ISSUE.md`, `MCP.toml`, `NOTE.md`, `PERMISSIONS.toml`, `RELEASE.md`, `RULE.md`, `SPEC.md`, `VISION.md`) with zero references in the codebase — leftover from a removed stub-generator flow.
 
 The result: a home directory that rewards the original customization vectors, disadvantages the new ones, and has no enforcement mechanism preventing further drift.

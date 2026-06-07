@@ -1,5 +1,6 @@
 ---
 name: diff-review
+audience: internal
 stable-id: diff-review
 description: Use when reviewing a git diff or PR. Renders an interactive diff view in Ship Studio's Session page with annotatable file changes.
 tags: [review, git, diff, workflow]

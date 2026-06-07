@@ -164,6 +164,20 @@ test-pkg pkg:
 check:
     cargo check --workspace --exclude ship-shell --all-targets --features unstable
 
+# THE GATE. Every dispatched job runs this before commit; the operator skims the
+# diff for taste only — the objective bar is proven here, not claimed. Composes
+# the existing check/lint/drift/test surface. If this is green, the mechanical
+# bar is met. See .artifacts/services/_docs-strategy.md (gate note).
+[group('daily')]
+gate:
+    @just check
+    @just lint
+    @just gen-contract-check
+    @just gen-events-check
+    @just gen-indexes-check
+    cargo test --workspace --exclude ship-shell --features unstable
+    @echo "✓ gate green — objective bar met (taste review still required)"
+
 # Rust clippy + home-layout grep guards. Hard-fail on raw .ship/ joins
 # (devx-06 Tier 6).
 [group('daily')]
@@ -448,6 +462,17 @@ gen-indexes:
 gen-indexes-check:
     cargo run -p xtask -- gen-indexes --check
 
+# Regenerate packages/deck/sdk/src/generated/collections.ts — the typed
+# Database interface derived from .ship/collections/*.jsonc (typed Kysely input).
+[group('occasional')]
+gen-collection-types:
+    cargo run -p xtask -- gen-collection-types
+
+# Verify generated collection types are up-to-date (CI gate — exits 1 on drift).
+[group('occasional')]
+gen-collection-types-check:
+    cargo run -p xtask -- gen-collection-types --check
+
 # Compile the active agent for the current project.
 [group('occasional')]
 compile:
@@ -500,7 +525,16 @@ check-raw:
     @scripts/lint/check-leaf-portability.sh
     @scripts/lint/check-runtime-access.sh
     @scripts/lint/check-module-dag.sh
+    @just lint-vocab
     @just check-migrations
+
+# Banned-vocabulary gate. Fails when a banned term (deleted concept) appears
+# in hand-authored source/proto/tests. Ban-list: .ship/lint/banned-vocab.txt
+# — a refactor step appends a term only once its last real use is deleted.
+# Empty list ⟹ no-op.
+[group('occasional')]
+lint-vocab:
+    @scripts/lint/check-banned-vocab.sh
 
 # Enforce platform.db migration naming + authoring discipline.
 [group('occasional')]

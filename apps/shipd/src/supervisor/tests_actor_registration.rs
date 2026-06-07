@@ -1,10 +1,9 @@
-//! Actor registration lifecycle tests.
+//! Actor registration lifecycle tests — KernelRouter primitives.
 //!
-//! Directly exercise KernelRouter to isolate failure modes: re-registration
-//! after disconnect, idempotent respawn, and subscription cleanup on stop.
-//! (The HTTP-level registration path is `POST /api/v1/actor/spawn`; its
-//! concurrency / idempotency is covered in `integration_tests`.)
+//! The mesh_register REST handler tests were removed with the mesh.*/actor.*
+//! op cut. These tests exercise KernelRouter directly.
 
+use std::sync::Arc;
 use tempfile::TempDir;
 
 use ship_substrate::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope, KernelRouter};
@@ -27,7 +26,12 @@ fn actor_config(id: &str) -> ActorConfig {
 }
 
 fn cli_ctx() -> EmitContext {
-    EmitContext { caller_kind: CallerKind::Cli, skill_id: None, space_id: None, session_id: None }
+    EmitContext {
+        caller_kind: CallerKind::Cli,
+        skill_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        session_id: None,
+    }
 }
 
 // ── KernelRouter primitives ─────────────────────────────────────────────────
@@ -74,7 +78,22 @@ async fn stop_removes_from_subscriptions() {
     );
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn spawn_actor_idempotent_via_stop_respawn() {
+    let dir = TempDir::new().unwrap();
+    let kernel = Arc::new(Mutex::new(make_kernel(&dir)));
+    for _ in 0..2 {
+        let mut k = kernel.lock().await;
+        let _ = k.stop_actor("agent.idem");
+        k.spawn_actor("agent.idem", actor_config("agent.idem")).unwrap();
+    }
+    assert!(
+        kernel.lock().await.has_actor("agent.idem"),
+        "actor must be registered after stop+respawn cycle"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stop_actor_cleans_subscriptions_completely() {
     let dir = TempDir::new().unwrap();
     let mut kernel = make_kernel(&dir);

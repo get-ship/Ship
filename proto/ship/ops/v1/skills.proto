@@ -109,6 +109,23 @@ message DeleteSkillVarRequest {
   string key = 2;
 }
 
+// Scaffold a new skill from a named shape template.
+message SkillScaffoldReq {
+  // Kebab-case id for the new skill directory.
+  string name = 1;
+  // Shape template ("task" | "reference" | "workflow").
+  string shape = 2;
+  // Optional one-line purpose written into the SKILL.md frontmatter.
+  string purpose = 3;
+}
+
+message SkillScaffoldResponse {
+  // Route where the new skill can be opened (e.g. "/skills/<name>").
+  string route = 1;
+  // Absolute path to the scaffolded SKILL.md.
+  string path = 2;
+}
+
 // Skill authoring CRUD. Reads are C0 (edge-authenticated); writes are C1
 // workspace mutations gated through services::command::call — the ONE gate —
 // exactly as the generated CommandOpsService does. Authoring a skill defines
@@ -207,5 +224,12 @@ service SkillsService {
     option (ship.ops.v1.description) = "Delete a KV variable from a skill.";
     option (ship.ops.v1.capability) = "ship.skills.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C2_ELEVATED;
+  }
+  // Scaffold a new skill from a shape template. Moves the create.surface/skill
+  // route-core into the owning crate's wire.
+  rpc Scaffold(SkillScaffoldReq) returns (SkillScaffoldResponse) {
+    option (ship.ops.v1.description) = "Scaffold a new skill directory from a named shape template.";
+    option (ship.ops.v1.capability) = "ship.skills.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 }

@@ -64,17 +64,21 @@ fn domain_catalog() -> Vec<DomainMeta> {
         DomainMeta {
             key: "agents",
             display: "Agents",
-            event_prefixes: vec!["agent."],
-            services: vec!["AgentsService", "AgentService"],
-            description: "Agent-profile semantic core: harness registry, four-way provider-settings merger, skill/rule/permission CRUD, and per-skill variable store.",
+            event_prefixes: vec!["agent.", "session."],
+            // The ONE canonical AgentsService (agents-arc E4/E6): the historic
+            // AgentsService / SessionsService folded in (chat gutted, E6).
+            services: vec!["AgentsService"],
+            description: "Agent semantic core: profile CRUD + view reads, runtime-session reads, and orchestration control (dispatch/stop/steer/grant).",
             coverage_audit_docs: vec![],
         },
         DomainMeta {
             key: "sessions",
             display: "Sessions",
-            event_prefixes: vec!["session.", "hook."],
-            services: vec!["SessionsService"],
-            description: "Session lifecycle facade: start/end/list/progress analytics rollup over actor activity.",
+            // session.* reads folded into AgentsService (agents-arc E4/E6); the
+            // session lifecycle + hook.* analytics rollup keep their event domain.
+            event_prefixes: vec!["hook."],
+            services: vec![],
+            description: "Session lifecycle analytics: start/end/list/progress rollup over actor activity (reads served by AgentsService).",
             coverage_audit_docs: vec![],
         },
         DomainMeta {
@@ -91,7 +95,7 @@ fn domain_catalog() -> Vec<DomainMeta> {
             event_prefixes: vec!["actor.", "process.", "executor.", "supervisor.", "kernel.actor.", "mesh."],
             services: vec!["RuntimeService"],
             description: "Actor lifecycle supervision, process management, mesh peer-discovery, and kernel snapshot primitives.",
-            coverage_audit_docs: vec!["docs/ship-kernel/SKILL.md", ".artifacts/specs/module-audits/L0-substrate/ship-kernel.md", ".artifacts/specs/module-audits/L0-substrate/ship-supervisor.md"],
+            coverage_audit_docs: vec![".artifacts/specs/module-audits/L0-substrate/ship-kernel.md", ".artifacts/specs/module-audits/L0-substrate/ship-supervisor.md"],
         },
         DomainMeta {
             key: "registry",
@@ -161,8 +165,8 @@ fn domain_catalog() -> Vec<DomainMeta> {
             key: "config",
             display: "Config",
             event_prefixes: vec!["config."],
-            services: vec!["SettingsService"],
-            description: "Configuration watcher: file-change events for .ship/ directory mutations.",
+            services: vec!["ConfigService"],
+            description: "Daemon settings KV: list/get/set + watch over the config.* tier.",
             coverage_audit_docs: vec![],
         },
         DomainMeta {
@@ -225,7 +229,9 @@ fn domain_catalog() -> Vec<DomainMeta> {
             key: "studio",
             display: "Studio",
             event_prefixes: vec!["studio.", "human."],
-            services: vec!["ChatService", "DashboardService", "FeedbackService", "AnnotationService"],
+            // chat gutted in agents-arc E6 (read-projection over the deprecated
+            // `studio.message` event, no real gated RPC).
+            services: vec!["DashboardService", "FeedbackService", "AnnotationService"],
             description: "Studio UI primitives: chat turns, agent replies, dashboard state, feedback, and annotation events.",
             coverage_audit_docs: vec![".artifacts/specs/module-audits/apps/shipd.md", ".artifacts/specs/module-audits/L1-platform/sessions.md", ".artifacts/specs/module-audits/L0-substrate/ship-substrate.md"],
         },
@@ -243,7 +249,10 @@ fn domain_catalog() -> Vec<DomainMeta> {
 // ── Parsing ───────────────────────────────────────────────────────────────────
 
 /// Parse all event registrations from payload_registry.rs.
-/// Extracts: register_event!("name", Scope, Retention, Stability, "Type")
+/// Extracts: register_event!("name", [Scope, ...], Retention, Stability, "Type")
+/// The scope argument is an allowed-SET (Model C); the contract page lists the
+/// primary (first) scope. The set may contain commas, so the bracket segment is
+/// peeled off before the remaining fields are split.
 fn parse_events(repo_root: &Path) -> Result<Vec<EventDef>> {
     let src = std::fs::read_to_string(repo_root.join(PAYLOAD_REGISTRY))
         .context("read payload_registry.rs")?;
@@ -254,19 +263,40 @@ fn parse_events(repo_root: &Path) -> Result<Vec<EventDef>> {
         if !line.starts_with("register_event!(") {
             continue;
         }
-        // register_event!("name", EventScope::X, Retention::Y, Stability::Z, "Type")
+        // register_event!("name", [EventScope::X, ...], Retention::Y, Stability::Z, "Type")
         let inner = line
             .trim_start_matches("register_event!(")
             .trim_end_matches(");");
-        let parts: Vec<&str> = inner.splitn(5, ',').collect();
-        if parts.len() < 5 {
+        // 1. name — up to the first comma.
+        let Some((name_part, rest)) = inner.split_once(',') else {
+            continue;
+        };
+        let name = name_part.trim().trim_matches('"').to_string();
+        // 2. allowed-set — the bracketed segment `[..]`. Peel it off so its
+        //    internal commas don't confuse the field split.
+        let rest = rest.trim_start();
+        let Some(rest) = rest.strip_prefix('[') else {
+            continue;
+        };
+        let Some((scope_set, rest)) = rest.split_once(']') else {
+            continue;
+        };
+        // Primary scope = first element of the set.
+        let scope = scope_set
+            .split(',')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .replace("EventScope::", "");
+        // 3. retention, stability, type — the remaining 3 fields after `], `.
+        let tail = rest.trim_start().trim_start_matches(',').trim_start();
+        let parts: Vec<&str> = tail.splitn(3, ',').collect();
+        if parts.len() < 3 {
             continue;
         }
-        let name = parts[0].trim().trim_matches('"').to_string();
-        let scope = parts[1].trim().replace("EventScope::", "");
-        let retention = parts[2].trim().replace("Retention::", "");
-        let stability = parts[3].trim().replace("Stability::", "");
-        let payload_type = parts[4].trim().trim_matches('"').to_string();
+        let retention = parts[0].trim().replace("Retention::", "");
+        let stability = parts[1].trim().replace("Stability::", "");
+        let payload_type = parts[2].trim().trim_matches('"').to_string();
         events.push(EventDef { name, scope, retention, stability, payload_type });
     }
     events.sort_by(|a, b| a.name.cmp(&b.name));

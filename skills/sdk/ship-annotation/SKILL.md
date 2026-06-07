@@ -1,5 +1,6 @@
 ---
 name: ship-annotation
+audience: public
 stable-id: ship-annotation
 description: >-
   The `annotation` capability (1 ops). Call any op over ConnectRPC with

@@ -29,6 +29,13 @@ pub enum Var {
     Home,
     ApiUrl,
     RegistryUrl,
+    /// `SHIP_DAEMON_URL` — the host daemon's HTTP base URL, injected into
+    /// sandboxed actors so the in-container agent can reach the daemon's
+    /// app plane (MCP / hooks / log_progress) with its scoped `SHIP_TOKEN`.
+    /// For container tiers the host is rewritten to a container-reachable
+    /// alias (`host.docker.internal`); Tier 0/1 actors share the host
+    /// network and get the loopback origin verbatim.
+    DaemonUrl,
     /// `SHIP_DAEMON_MODE=development|production` — daemon operating mode,
     /// a fallback for shipd's `--mode` flag. `production` enables immutable
     /// cache headers, disables HMR routes, enables the SSR cache, and
@@ -80,6 +87,7 @@ impl Var {
             Var::Home => "SHIP_HOME",
             Var::ApiUrl => "SHIP_API_URL",
             Var::RegistryUrl => "SHIP_REGISTRY_URL",
+            Var::DaemonUrl => "SHIP_DAEMON_URL",
             Var::DaemonMode => "SHIP_DAEMON_MODE",
             Var::ActorId => "SHIP_ACTOR_ID",
             Var::WorkspaceId => "SHIP_WORKSPACE_ID",
@@ -105,7 +113,7 @@ impl Var {
     /// Taxonomy category for this var.
     pub fn category(&self) -> Category {
         match self {
-            Var::Home | Var::ApiUrl | Var::RegistryUrl | Var::DaemonMode => {
+            Var::Home | Var::ApiUrl | Var::RegistryUrl | Var::DaemonUrl | Var::DaemonMode => {
                 Category::Configuration
             }
             Var::ActorId
@@ -225,6 +233,7 @@ mod tests {
             Var::Home,
             Var::ApiUrl,
             Var::RegistryUrl,
+            Var::DaemonUrl,
             Var::DaemonMode,
             Var::ActorId,
             Var::WorkspaceId,

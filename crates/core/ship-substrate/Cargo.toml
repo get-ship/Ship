@@ -9,11 +9,11 @@ publish = false
 unstable = []
 
 [dependencies]
-ship-kernel = { path = "../ship-kernel" }
-ship-host = { path = "../ship-host" }
-ship-types = { path = "../ship-types" }
-ship-events-macro = { path = "../ship-events-macro" }
-ship-pipelines = { path = "../ship-pipelines", features = ["specta"] }
+ship-kernel = { path = "crates/ship-kernel" }
+ship-host = { path = "crates/ship-host" }
+ship-types = { path = "crates/ship-types" }
+ship-events-macro = { path = "crates/ship-events-macro" }
+ship-pipelines = { path = "crates/ship-pipelines", features = ["specta"] }
 inventory = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
@@ -27,6 +27,9 @@ sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runti
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
 portable-pty = "0.9"
 async-trait = { workspace = true }
+object_store = { version = "0.13", features = ["aws"] }
+bytes = "1"
+futures-util = { workspace = true }
 sha2 = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
@@ -37,12 +40,18 @@ home = { workspace = true }
 reqwest = { workspace = true, features = ["json", "rustls-tls"] }
 sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 serde_yaml = { workspace = true }
+notify = { workspace = true }
+# Pure path-layout helper for composed traveling-artifact overlays. No ship
+# deps — compiler depends only on serde/serde_json/anyhow/minijinja/etc.
+compiler = { path = "../ship-platform/crates/compiler" }
+walkdir = "2.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
+proptest = "1"
 
 [lints]
 workspace = true

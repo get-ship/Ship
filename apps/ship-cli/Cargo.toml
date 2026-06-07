@@ -6,25 +6,30 @@ publish = false
 build = "build.rs"
 
 [build-dependencies]
-build-info = { path = "../../crates/core/build-info" }
+build-info = { path = "../../crates/build-info" }
 
 [[bin]]
 name = "ship"
 path = "src/main.rs"
 
 [dependencies]
-build-info = { path = "../../crates/core/build-info" }
+build-info = { path = "../../crates/build-info" }
 clap = { workspace = true }
 shipd = { path = "../shipd" }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
-compiler = { path = "../../crates/core/compiler" }
+compiler = { path = "../../crates/core/ship-platform/crates/compiler" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
-ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
+ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
+ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
+ship-kv = { path = "../../crates/core/ship-platform/crates/ship-kv" }
+ship-isolation = { path = "../../crates/core/ship-isolation", default-features = false }
+ship-ops-rpc = { path = "../../crates/core/ship-platform/crates/ship-ops-rpc" }
 connectrpc = { version = "0.4", features = ["client"] }
 http = "1"
-ship-pipelines = { path = "../../crates/core/ship-pipelines" }
-ship-types = { path = "../../crates/core/ship-types" }
+ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }
+ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
+ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

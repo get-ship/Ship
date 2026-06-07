@@ -24,7 +24,36 @@ fn full_auth() -> Extension<AuthContext> {
         session_id: None,
         scopes: vec![Scope::Full],
         grants: vec![],
+        // The dispatch REST handler gates on cross-project (mcp_workspace_violation),
+        // not the operator path — no operator cred needed.
+        operator_cred: false,
     })
+}
+
+fn mcp_auth(workspace: &str) -> Extension<AuthContext> {
+    Extension(AuthContext {
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
+        agent_id: Some("rust-lane".into()),
+        workspace_id: Some(workspace.into()),
+        space_id: None,
+        session_id: None,
+        scopes: vec![Scope::Full],
+        grants: vec![],
+        operator_cred: false,
+    })
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mcp_cross_project_dispatch_rejected() {
+    use axum::response::IntoResponse;
+    let dir = TempDir::new().unwrap();
+    let state = make_state(&dir);
+    // Session bound to proj-a; request dispatches into proj-b.
+    let req = bare_req("rust-lane", "proj-b");
+    let resp = dispatch_agent_session(State(state), mcp_auth("proj-a"), Json(req))
+        .await
+        .into_response();
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
 }
 
 async fn body_json(response: axum::response::Response) -> serde_json::Value {
@@ -218,7 +247,7 @@ fn dispatch_request_rejects_pipeline_field() {
     );
 }
 
-use ship_platform::services::harnesses::session_file::write_session_file;
+use ship_harnesses::harnesses::session_file::write_session_file;
 
 #[test]
 fn load_session_file_missing_returns_400() {
@@ -227,7 +256,7 @@ fn load_session_file_missing_returns_400() {
         .expect_err("absent session.json must 400");
     match err {
         ResumeResolveError::Status { status, message } => {
-            assert_eq!(status, StatusCode::BAD_REQUEST);
+            assert_eq!(status, 400u16);
             assert!(
                 message.contains("no .ship/session.json"),
                 "message was: {message}"
@@ -244,7 +273,7 @@ fn load_session_file_harness_mismatch_returns_400() {
         .expect_err("harness mismatch must 400");
     match err {
         ResumeResolveError::Status { status, message } => {
-            assert_eq!(status, StatusCode::BAD_REQUEST);
+            assert_eq!(status, 400u16);
             assert!(
                 message.contains("harness mismatch"),
                 "message was: {message}"
@@ -263,7 +292,7 @@ fn load_session_file_unsupported_harness_returns_400() {
         .expect_err("cursor resume must 400");
     match err {
         ResumeResolveError::Status { status, message } => {
-            assert_eq!(status, StatusCode::BAD_REQUEST);
+            assert_eq!(status, 400u16);
             assert!(
                 message.contains("does not support session resume"),
                 "message was: {message}"

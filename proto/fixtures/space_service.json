@@ -1,7 +1,28 @@
 {
+  "List": {
+    "response_ok": {
+      "spaces": [
+        {
+          "id": "harbor",
+          "path": "/home/dev/harbor",
+          "name": "Harbor",
+          "created_at": "2026-01-01T00:00:00Z",
+          "last_seen_at": "2026-05-24T18:30:00Z"
+        }
+      ],
+      "active_id": "harbor"
+    },
+    "request": {}
+  },
   "Active": {
     "response_ok": {
-      "id": "harbor"
+      "active": {
+        "id": "harbor",
+        "path": "/home/dev/harbor",
+        "name": "Harbor",
+        "created_at": "2026-01-01T00:00:00Z",
+        "last_seen_at": "2026-05-24T18:30:00Z"
+      }
     },
     "request": {}
   },
@@ -10,40 +31,9 @@
       "spaceId": "harbor",
       "root": "/home/dev/harbor",
       "name": "harbor",
-      "settingsJson": "{\"theme\":\"ship-dark\"}"
+      "settings_json": "{\"theme\":\"dark\"}"
     },
     "request": {}
-  },
-  "WindowIntent": {
-    "response_ok": {
-      "decision": "focus",
-      "actorId": "window-harbor-01"
-    },
-    "request": {
-      "space_id": "test-space-id"
-    }
-  },
-  "WindowList": {
-    "response_ok": {
-      "windows": [
-        {
-          "actorId": "window-harbor-01",
-          "spaceId": "harbor-space-id",
-          "pid": 4242,
-          "live": true
-        }
-      ]
-    },
-    "request": {}
-  },
-  "CloseWindow": {
-    "response_ok": {
-      "closed": true,
-      "tokenRevoked": true
-    },
-    "request": {
-      "actor_id": "test-actor_id"
-    }
   },
   "Add": {
     "response_ok": {
@@ -58,6 +48,20 @@
       "name": "test-name"
     }
   },
+  "Activate": {
+    "response_ok": {
+      "active": {
+        "id": "harbor",
+        "path": "/home/dev/harbor",
+        "name": "Harbor",
+        "created_at": "2026-01-01T00:00:00Z",
+        "last_seen_at": "2026-05-24T18:30:00Z"
+      }
+    },
+    "request": {
+      "id": "test-id"
+    }
+  },
   "SetSetting": {
     "response_ok": {
       "key": "theme",
@@ -66,6 +70,22 @@
     "request": {
       "key": "test-key",
       "value_json": "test-value_json"
+    }
+  },
+  "Watch": {
+    "response_ok": {
+      "patches": {
+        "patches": [
+          {
+            "op": "PATCH_OP_SET",
+            "value": "eyJzcGFjZXMiOltdfQ=="
+          }
+        ]
+      }
+    },
+    "request": {
+      "registry": {},
+      "space": "test-space"
     }
   }
 }

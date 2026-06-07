@@ -1,0 +1,52 @@
+[package]
+name = "ship-isolation"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Ship-specific isolation strategies. The Isolator trait + abstract policy types live in ship-substrate; this crate provides the concrete backends (Docker, Youki, SandboxRuntime, sidecar) plus the recommender + registry + settings layer. v1 proto bindings live in ship-sidecar-proto and are consumed via that crate."
+
+[features]
+default = []
+youki-backend = ["dep:libc"]
+# sidecar-mode pulls in the host-side youki_sidecar driver. The
+# generated ConnectRPC client (used to drive Processes/Events) is
+# always available; reqwest is here for the /v1/health probe only.
+sidecar-mode = ["dep:reqwest"]
+
+[dependencies]
+ship-substrate = { path = "../ship-substrate" }
+ship-sidecar-proto = { path = "../ship-sidecar-proto" }
+ship-config = { path = "../ship-platform/crates/ship-config" }
+ship-ops-rpc = { path = "../ship-platform/crates/ship-ops-rpc" }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["sync", "process", "io-util", "macros", "rt", "fs", "net"] }
+tracing = { workspace = true }
+nanoid = { workspace = true }
+libc = { version = "0.2", optional = true }
+reqwest = { version = "0.12", default-features = false, optional = true, features = ["json"] }
+# ConnectRPC runtime types still needed at the call sites that wire
+# clients (host driver). Proto-generated types come from
+# ship-sidecar-proto.
+connectrpc = { version = "0.4", features = ["client"] }
+buffa = { version = "0.5", features = ["json"] }
+http = "1"
+# Firecracker (Tier-3 microVM) host transport: a custom connectrpc
+# connector that dials firecracker's vsock uds + the `CONNECT <port>`
+# preamble. `tower::service_fn` builds it; `hyper_util::rt::TokioIo`
+# adapts the unix stream for connectrpc's h2 client.
+tower = { version = "0.5", features = ["util"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "process", "time"] }
+
+[[example]]
+name = "run_claude_sidecar"
+required-features = ["youki-backend", "sidecar-mode"]
+
+[lints]
+workspace = true

@@ -21,6 +21,7 @@ const MACHINE_DAEMON_DIR: &str = "daemon";
 const SETTINGS_FILE: &str = "settings.jsonc";
 const LOCAL_FILE: &str = "local.jsonc";
 const CREDENTIALS_FILE: &str = "credentials.jsonc";
+const ACCOUNT_TOKEN_FILE: &str = "account.jsonc";
 const RUNTIME_DIR: &str = "runtime";
 const RUNTIME_SUI_COMPILER: &str = "sui-compiler";
 
@@ -28,7 +29,12 @@ const RUNTIME_SUI_COMPILER: &str = "sui-compiler";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "kebab-case")]
 pub enum Db {
-    /// `platform.db` — authoritative event store and runtime state.
+    /// `platform.db` — LEGACY. The former single event/runtime store, dead
+    /// since the per-scope arc (events now live in `runtime.db`/`account.db`/
+    /// `spaces/<id>/space.db`). Retained only so the guarded one-time legacy
+    /// drain and the read-only `ship repair` drift diagnostic can still resolve
+    /// the old file when a pre-per-scope install carries one. Never created by
+    /// fresh installs; do not route a new production read/write through it.
     Platform,
     /// `data.db` — collection / content data.
     Data,
@@ -125,6 +131,14 @@ impl ShipHome {
     /// Path to a daemon IPC handshake file (singleton daemon).
     pub fn daemon_file(&self, file: DaemonFile) -> PathBuf {
         self.daemon_dir().join(file.as_str())
+    }
+
+    /// `machine/daemon/account.jsonc` — the daemon-owned Ship Cloud token
+    /// store (mode 0600). Narrower than the legacy `credentials.jsonc`: only
+    /// the daemon process reads it. The typed accessor the home-layout ADR
+    /// requires in place of a hand-joined `~/.ship` path.
+    pub fn account_token_path(&self) -> PathBuf {
+        self.daemon_dir().join(ACCOUNT_TOKEN_FILE)
     }
 
     /// Per-worktree daemon directory: `machine/daemons/<hash>/`.

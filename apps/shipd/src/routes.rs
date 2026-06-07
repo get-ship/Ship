@@ -35,7 +35,6 @@
 // Handler files live at `routes/<x>_api.rs`. Callers import them as
 // `crate::routes::<x>_api::*` (or `shipd::routes::<x>_api::*` externally).
 
-pub mod account_api;
 pub mod actor_api;
 #[cfg(test)]
 mod actor_api_tests;
@@ -44,24 +43,21 @@ pub mod agent_sessions_attach;
 #[cfg(test)]
 mod agent_sessions_attach_tests;
 pub mod mcp_registry;
-pub mod annotations_api;
 pub mod artifacts_api;
-pub mod commands_api;
-pub mod create_api;
-#[cfg(test)]
-mod create_api_tests;
-pub mod feedback_api;
 pub mod git_api;
 pub mod hooks_api;
 pub mod human_webhook;
+pub mod sandbox_api;
+#[cfg(test)]
+mod sandbox_api_tests;
 pub mod logs_api;
+// feedback_api and annotations_api removed (Batch A routes-cull):
+// domain logic relocated to ship-agents::services::agents::{feedback,annotation};
+// REST shells deleted; AgentsWire calls ship-agents directly.
 pub mod registry_api;
 pub mod rest_api;
 pub mod runtime_api;
 pub mod sdk_manifest;
-pub mod search_api;
-#[cfg(test)]
-mod search_api_tests;
 #[cfg(test)]
 mod scope_enforcement_tests;
 pub mod settings_api;
@@ -100,28 +96,8 @@ pub enum Route {
     /// @auth scope Full
     IssueSession,
 
-    // ── Account — gateway-mediated Ship Cloud identity ────────────────────
-    // All routes here require CallerKind::Cli (user-presence). MCP session
-    // tokens are categorically denied — see SECURITY.md. Daemon proxies to
-    // the gateway via ship-gateway-client; CLI never touches the gateway
-    // directly.
-
-    /// @route POST "/api/v1/account/login"
-    /// @auth cli
-    StartAccountLogin,
-
-    /// @route POST "/api/v1/account/login/complete"
-    /// @auth cli
-    CompleteAccountLogin,
-
-    /// @route GET "/api/v1/account/state"
-    /// @auth cli
-    GetAccountState,
-
-    /// @route POST "/api/v1/account/logout"
-    /// @auth cli
-    LogoutAccount,
-
+    // Account ops are served by the typed Connect `AccountService`
+    // (account.proto, `ship-account` crate) — there is no REST account surface.
 
     // ── Shared assets (unauthenticated) ──────────────────────────────────
 
@@ -196,7 +172,7 @@ pub enum Route {
     SuiData,
 
     /// @route POST "/_sui/mutation/{name}"
-    /// @auth public
+    /// @auth handler
     SuiMutation { name: String },
 
     /// @route POST "/_sui/views/{name}/patch-elements"
@@ -217,12 +193,6 @@ pub enum Route {
     /// @auth scope ReadRuns
     PipelineRunLogStream { slug: String },
 
-    // ── Chat (command-bar send) ──────────────────────────────────────────
-
-    /// @route POST "/api/v1/chat/send"
-    /// @auth scope ManageRuns
-    ChatSend,
-
     // ── Generic view serving ─────────────────────────────────────────────
 
     /// @route GET "/api/v1/ship/schema"
@@ -232,10 +202,6 @@ pub enum Route {
     /// @route GET "/api/v1/views/{name}/files"
     /// @auth scope ReadWorkspace
     ListViewFiles { name: String },
-
-    /// @route POST "/api/v1/create/{surface}"
-    /// @auth scope CreateRuns
-    CreateSurface { surface: String },
 
     /// @route PUT "/api/v1/views/{name}/template"
     /// @auth scope WriteWorkspace
@@ -334,18 +300,6 @@ pub enum Route {
     /// @route GET "/api/v1/view-sessions/{id}"
     /// @auth scope ReadWorkspace
     SubscribeViewSession { id: String },
-
-    // ── Feedback (agent-designed feedback ingress) ────────────────────────
-
-    /// @route POST "/api/v1/feedback"
-    /// @auth scope LogProgress
-    PostFeedback,
-
-    // ── Annotations (canvas overlay wire format) ─────────────────────────
-
-    /// @route POST "/api/v1/annotations"
-    /// @auth scope LogProgress
-    PostAnnotation,
 
     // ── Runtime listings ─────────────────────────────────────────────────
 
@@ -486,30 +440,7 @@ pub enum Route {
     // Workspace-scoped artifact status/promote removed — callers get 404.
     // Use the unified /api/artifacts/* surface instead.
 
-    // ── Mesh / actors ────────────────────────────────────────────────────
-    // `mesh/register` removed — the canonical actor-registration surface is
-    // `POST /api/v1/actor/spawn` (register-or-refine). The old REST shim was
-    // dead leftover the #137 cull missed.
-
-    /// @route POST "/api/v1/mesh/send"
-    /// @auth scope MeshSend
-    MeshSend,
-
-    /// @route POST "/api/v1/mesh/broadcast"
-    /// @auth scope MeshBroadcast
-    MeshBroadcast,
-
-    /// @route GET "/api/v1/mesh/discover"
-    /// @auth scope ReadWorkspace
-    MeshDiscover,
-
-    /// @route POST "/api/v1/mesh/status"
-    /// @auth scope MeshSend
-    MeshStatusUpdate,
-
-    /// @route GET "/api/v1/mesh/events/{agent_id}"
-    /// @auth scope ReadWorkspace
-    MeshEvents { agent_id: String },
+    // ── Actor kernel reads (L0 — not the deprecated mesh.* op surface) ─────
 
     /// @route POST "/api/v1/actor/spawn"
     /// @auth scope MeshSend
@@ -534,22 +465,6 @@ pub enum Route {
     /// @route GET "/api/v1/actors/{actor_id}/events"
     /// @auth scope ReadWorkspace
     ActorEvents { actor_id: String },
-
-    /// @route POST "/api/v1/actors/{actor_id}/input"
-    /// @auth scope MeshSend
-    ActorInput { actor_id: String },
-
-    /// @route GET "/api/v1/mesh/snapshot"
-    /// @auth scope ReadWorkspace
-    MeshSnapshot,
-
-    /// @route GET "/api/v1/mesh/events"
-    /// @auth scope ReadWorkspace
-    MeshEventsStream,
-
-    /// @route POST "/api/v1/actors/{actor_id}/kill-tree"
-    /// @auth scope MeshSend
-    KillTree { actor_id: String },
 
     // ── Artifacts ────────────────────────────────────────────────────────
     // The list/upload/download/metadata/patch/delete handlers compute the
@@ -579,17 +494,16 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     Capabilities,
 
-    // ── Command bar registry ─────────────────────────────────────────────
+    // Isolation reads moved to the proto IsolationService (ship.ops.v1);
+    // the REST routes were removed to avoid a parallel path.
 
-    /// @route GET "/api/v1/commands"
+    /// @route GET "/api/v1/sandboxes"
     /// @auth scope ReadWorkspace
-    ListCommands,
+    SandboxList,
 
-    // ── Unified search ───────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/search"
+    /// @route GET "/api/v1/sandboxes/{id}"
     /// @auth scope ReadWorkspace
-    SearchAll,
+    SandboxGet { id: String },
 
     // ── SDK manifest (read-side; generated by `just gen-sdk`) ────────────
 
@@ -647,7 +561,7 @@ pub enum Route {
     // longer talks to the gateway directly.
 
     /// @route POST "/api/v1/registry/publish"
-    /// @auth cli
+    /// @auth handler
     Publish,
 }
 

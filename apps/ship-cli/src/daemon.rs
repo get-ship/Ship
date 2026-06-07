@@ -4,7 +4,7 @@ use ship_substrate::events::daemon::{
     CrashedPayload, PidfileAcquiredPayload, PidfileStaleTakenPayload,
     ShutdownCompletedPayload, event_types as daemon_events,
 };
-use ship_substrate::events::{EventStore, SqliteEventStore};
+use ship_substrate::events::SqliteEventStore;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
@@ -552,14 +552,23 @@ fn emit_supervisor_event<P: Serialize>(
             return;
         }
     };
-    let store = match SqliteEventStore::new_at(global_dir) {
+    // daemon.* is Runtime-scoped → write runtime.db (not the dead platform.db).
+    let store = match SqliteEventStore::new_for_scope(
+        global_dir,
+        ship_substrate::events::EventScope::Runtime,
+        None,
+    ) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("shipd supervisor: cannot open event store: {e}");
             return;
         }
     };
-    if let Err(e) = store.append(&envelope) {
+    // Enforced write: daemon.* is Runtime-scoped and the supervisor process has
+    // no session, so stamp + enforce from the daemon-internal (Runtime) binding
+    // before persist.
+    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+    if let Err(e) = store.append_enforced(&envelope, &binding) {
         eprintln!("shipd supervisor: cannot append {event_type}: {e}");
     }
 }
@@ -862,7 +871,7 @@ fn daemon_repair_migrations(reset: bool) -> Result<()> {
 }
 
 fn daemon_cleanup() -> Result<()> {
-    use ship_platform::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
+    use ship_pipeline_runtime::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 
     let jobs = load_pipeline_runs().context("failed to load job projection")?;
 
@@ -1011,7 +1020,7 @@ fn announce_daemon_url() {
 }
 
 /// Try to read daemon info and verify it responds to /api/v1/health.
-fn daemon_info_if_healthy() -> Option<(u16, String)> {
+pub fn daemon_info_if_healthy() -> Option<(u16, String)> {
     let cwd = std::env::current_dir().ok()?;
     let handle = ship_substrate::home::discover_running_daemon(&cwd)?;
     let port = handle.port;

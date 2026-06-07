@@ -1,7 +1,7 @@
 {
   "_meta": {
     "event": "session.attached",
-    "scope": "device",
+    "scope": "runtime",
     "retention": "ephemeral",
     "stability": "stable",
     "payload_type": "SessionAttached",

@@ -3,7 +3,7 @@ import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { routes } from '../../../routes.gen'
 import { HUES, pickHue, pickInitials } from './hue'
-import { ops } from '../../../ops'
+import { readSetting, writeSetting } from '../../../ops'
 
 type Permissions = {
   preset?: string
@@ -37,16 +37,8 @@ type Banner = { ok: true; msg: string } | { ok: false; msg: string } | null
 
 
 async function readActiveAgent(): Promise<string> {
-  try {
-    const body = JSON.parse((await ops.settings.state({})).json) as {
-      data?: Record<string, unknown>
-    }
-    const value = body.data?.['shell.agent.active']
-    if (typeof value === 'string') return value
-    return ''
-  } catch {
-    return ''
-  }
+  const value = await readSetting<unknown>('shell.agent.active')
+  return typeof value === 'string' ? value : ''
 }
 
 export default controller({
@@ -213,10 +205,7 @@ export default controller({
       s.activating = true
       s.banner = null
       try {
-        await ops.settings.set({
-          key: 'shell.agent.active',
-          valueJson: JSON.stringify(s.agentId),
-        })
+        await writeSetting('shell.agent.active', s.agentId)
         s.activeAgentId = s.agentId
         s.banner = { ok: true, msg: 'Agent activated.' }
       } catch (err) {
@@ -230,7 +219,7 @@ export default controller({
       s.activating = true
       s.banner = null
       try {
-        await ops.settings.set({ key: 'shell.agent.active', valueJson: JSON.stringify('') })
+        await writeSetting('shell.agent.active', '')
         s.activeAgentId = ''
         s.banner = { ok: true, msg: 'Agent cleared.' }
       } catch (err) {

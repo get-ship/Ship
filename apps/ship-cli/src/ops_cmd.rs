@@ -43,22 +43,54 @@ fn resolve(name: &str) -> Option<(String, String)> {
 
 /// How to reach the daemon's op surface.
 enum OpTransport {
-    /// Host unix socket — agent path, identity via peer-cred, no token.
+    /// Injected HTTP endpoint + scoped token — the isolated-agent path. The
+    /// spawn path sets `SHIP_DAEMON_URL` (the host daemon, rewritten
+    /// sandbox-reachable) + a minted, scoped `SHIP_TOKEN`. There's no host
+    /// socket across the sandbox boundary and the operator/Full token must
+    /// never enter a container, so this is how an in-sandbox agent dials home.
+    Injected { base: String, token: String },
+    /// Host unix socket — local-agent path, identity via peer-cred, no token.
     #[cfg(unix)]
     Unix(std::path::PathBuf),
     /// TCP + operator token — operator path / platforms without the socket.
     Tcp { port: u16, token: String },
 }
 
-/// Choose the transport: the host socket if it exists (agent, tokenless),
-/// otherwise TCP+token via `ensure_daemon()` (operator).
+/// Choose the transport, in order: an injected endpoint (isolated agent), then
+/// the host socket if it exists (local agent, tokenless), then TCP+token via
+/// `ensure_daemon()` (operator). The injected case is first and never starts a
+/// daemon — inside a sandbox there's no local daemon to start.
 fn transport() -> Result<OpTransport> {
+    if let Ok(endpoint) = std::env::var("SHIP_DAEMON_URL") {
+        let base = endpoint.trim_end_matches('/').to_string();
+        if !base.is_empty() {
+            let token = std::env::var("SHIP_TOKEN").unwrap_or_default();
+            return Ok(OpTransport::Injected { base, token });
+        }
+    }
     #[cfg(unix)]
     if let Some(sock) = discover_socket() {
         return Ok(OpTransport::Unix(sock));
     }
     let (port, token) = crate::daemon::ensure_daemon()?;
     Ok(OpTransport::Tcp { port, token })
+}
+
+/// HTTP `method` to `base`+`path` with a bearer token (Injected/Tcp share this).
+fn token_http(base: &str, token: &str, method: &str, path: &str, body: Option<&str>) -> Result<(u16, String)> {
+    let url = format!("{base}{path}");
+    let client = reqwest::blocking::Client::new();
+    let req = match body {
+        Some(b) => client
+            .post(&url)
+            .header("content-type", "application/json")
+            .header("connect-protocol-version", "1")
+            .body(b.to_string()),
+        None => client.get(&url),
+    };
+    let _ = method; // POST iff body.is_some(); GET otherwise.
+    let resp = req.bearer_auth(token).send().context("calling op")?;
+    Ok((resp.status().as_u16(), resp.text().unwrap_or_default()))
 }
 
 /// The host socket for the daemon serving this cwd, if it's bound. Never starts
@@ -74,23 +106,14 @@ fn discover_socket() -> Option<std::path::PathBuf> {
 /// POST Connect-JSON to `path`, returning `(status, body)`.
 fn op_post(path: &str, body: &str) -> Result<(u16, String)> {
     match transport()? {
+        OpTransport::Injected { base, token } => token_http(&base, &token, "POST", path, Some(body)),
         #[cfg(unix)]
         OpTransport::Unix(sock) => {
             let (s, b) = unix_http(&sock, "POST", path, Some(body))?;
             Ok((s, String::from_utf8_lossy(&b).into_owned()))
         }
         OpTransport::Tcp { port, token } => {
-            let url = format!("http://127.0.0.1:{port}{path}");
-            let resp = reqwest::blocking::Client::new()
-                .post(&url)
-                .bearer_auth(token)
-                .header("content-type", "application/json")
-                .header("connect-protocol-version", "1")
-                .body(body.to_string())
-                .send()
-                .context("calling op")?;
-            let status = resp.status().as_u16();
-            Ok((status, resp.text().unwrap_or_default()))
+            token_http(&format!("http://127.0.0.1:{port}"), &token, "POST", path, Some(body))
         }
     }
 }
@@ -98,20 +121,14 @@ fn op_post(path: &str, body: &str) -> Result<(u16, String)> {
 /// GET `path`, returning `(status, body)`.
 fn op_get(path: &str) -> Result<(u16, String)> {
     match transport()? {
+        OpTransport::Injected { base, token } => token_http(&base, &token, "GET", path, None),
         #[cfg(unix)]
         OpTransport::Unix(sock) => {
             let (s, b) = unix_http(&sock, "GET", path, None)?;
             Ok((s, String::from_utf8_lossy(&b).into_owned()))
         }
         OpTransport::Tcp { port, token } => {
-            let url = format!("http://127.0.0.1:{port}{path}");
-            let resp = reqwest::blocking::Client::new()
-                .get(&url)
-                .bearer_auth(token)
-                .send()
-                .context("fetching op schema")?;
-            let status = resp.status().as_u16();
-            Ok((status, resp.text().unwrap_or_default()))
+            token_http(&format!("http://127.0.0.1:{port}"), &token, "GET", path, None)
         }
     }
 }
@@ -288,5 +305,49 @@ mod tests {
     #[test]
     fn missing_terminator_errors() {
         assert!(parse_http_response(b"HTTP/1.1 200 OK\r\nno-end").is_err());
+    }
+}
+
+#[cfg(test)]
+mod transport_tests {
+    use super::*;
+
+    // Serialize the two env vars `transport()` reads — parallel tests must not
+    // see each other's values.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn injected_endpoint_wins_with_scoped_token_no_daemon() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev_url = std::env::var_os("SHIP_DAEMON_URL");
+        let prev_tok = std::env::var_os("SHIP_TOKEN");
+        // SAFETY: serialized via ENV_LOCK; restored before the lock drops.
+        unsafe {
+            // Trailing slash must be trimmed so the path joins cleanly.
+            std::env::set_var("SHIP_DAEMON_URL", "http://host.docker.internal:4500/");
+            std::env::set_var("SHIP_TOKEN", "ship_sess_deadbeef");
+        }
+
+        // Injected wins over socket/ensure_daemon and carries the scoped token —
+        // never the operator/Full token, never starting a daemon.
+        match transport().expect("injected path resolves") {
+            OpTransport::Injected { base, token } => {
+                assert_eq!(base, "http://host.docker.internal:4500");
+                assert_eq!(token, "ship_sess_deadbeef");
+            }
+            _ => panic!("expected Injected transport when SHIP_DAEMON_URL is set"),
+        }
+
+        // SAFETY: still under ENV_LOCK.
+        unsafe {
+            match prev_url {
+                Some(v) => std::env::set_var("SHIP_DAEMON_URL", v),
+                None => std::env::remove_var("SHIP_DAEMON_URL"),
+            }
+            match prev_tok {
+                Some(v) => std::env::set_var("SHIP_TOKEN", v),
+                None => std::env::remove_var("SHIP_TOKEN"),
+            }
+        }
     }
 }

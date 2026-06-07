@@ -1,4 +1,4 @@
-use crate::db::{block_on, ensure_db, open_db_at};
+use crate::db::{block_on, open_db_at, runtime_db_path};
 use ship_types::envelope::EventEnvelope;
 use crate::events::filter::EventFilter;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
@@ -9,9 +9,8 @@ use tempfile::tempdir;
 
 fn setup() -> (tempfile::TempDir, SqliteEventStore) {
     let tmp = tempdir().unwrap();
-    let _ship = init_project(tmp.path()).unwrap();
-    ensure_db().unwrap();
-    let store = SqliteEventStore::new().unwrap();
+    let ship = init_project(tmp.path()).unwrap();
+    let store = SqliteEventStore::new_at_db_path(&runtime_db_path(&ship)).unwrap();
     (tmp, store)
 }
 
@@ -34,7 +33,8 @@ fn test_round_trip() -> anyhow::Result<()> {
     assert_eq!(got.actor, ev.actor);
     assert_eq!(got.payload_json, ev.payload_json);
     assert_eq!(got.version, ev.version);
-    assert_eq!(got.space_id, ev.space_id);
+    assert_eq!(got.scope, ev.scope);
+    assert_eq!(got.scope_key, ev.scope_key);
     assert_eq!(got.session_id, ev.session_id);
     Ok(())
 }
@@ -96,9 +96,9 @@ fn test_filter_by_workspace_id() -> anyhow::Result<()> {
     store.append(&ev)?;
     store.append(&EventEnvelope::new(event_types::SESSION_STARTED, "e2", &SessionStarted { goal: None, ..Default::default() })?)?;
 
-    let results = store.query(&EventFilter { space_id: Some("ws-scoped".into()), ..Default::default() })?;
+    let results = store.query(&EventFilter { scope_key: Some("ws-scoped".into()), ..Default::default() })?;
     assert_eq!(results.len(), 1);
-    assert_eq!(results[0].space_id.as_deref(), Some("ws-scoped"));
+    assert_eq!(results[0].space_id(), Some("ws-scoped"));
     Ok(())
 }
 
@@ -122,7 +122,7 @@ fn test_immutability() -> anyhow::Result<()> {
     let ev = EventEnvelope::new(event_types::SESSION_STARTED, "immut-entity", &SessionStarted { goal: None, ..Default::default() })?;
     store.append(&ev)?;
 
-    let db_p = crate::db::db_path()?;
+    let db_p = store.db_path().to_path_buf();
     let mut conn = open_db_at(&db_p)?;
     let result = block_on(async {
         sqlx::query("UPDATE events SET actor = 'hacked' WHERE id = ?")
@@ -262,11 +262,37 @@ fn test_property_event_ordering() -> anyhow::Result<()> {
 }
 
 #[test]
-fn registry_actor_created_is_device_ephemeral() {
+fn registry_actor_created_is_runtime_ephemeral() {
     let def = ship_types::event_registry::lookup("actor.created")
         .expect("actor.created must be in registry");
-    assert_eq!(def.scope, ship_types::event_registry::EventScope::Device);
+    // Model C: a single-scope event has a size-1 allowed-set whose sole (primary)
+    // element is the home scope. actor.* is Runtime-owned.
+    assert_eq!(
+        def.allowed_scopes,
+        &[ship_types::event_registry::EventScope::Runtime]
+    );
+    assert_eq!(def.primary_scope(), ship_types::event_registry::EventScope::Runtime);
     assert_eq!(def.retention, ship_types::event_registry::Retention::Ephemeral);
+}
+
+// S1: `agent.def.updated` is the Format-2 def change notification. It lives in a
+// space's `.ship/agents` → Space-scoped. It is a notification (Bucket-2), so it
+// is Ephemeral, never durable: the file is truth, the index re-reads on the ping.
+#[test]
+fn registry_agent_def_updated_is_space_ephemeral() {
+    let def = ship_types::event_registry::lookup("agent.def.updated")
+        .expect("agent.def.updated must be in registry");
+    assert_eq!(
+        def.allowed_scopes,
+        &[ship_types::event_registry::EventScope::Space],
+        "def change notification is Space-scoped (it lives in a space's .ship)"
+    );
+    assert_eq!(def.primary_scope(), ship_types::event_registry::EventScope::Space);
+    assert_eq!(
+        def.retention,
+        ship_types::event_registry::Retention::Ephemeral,
+        "Bucket-2 notification is ephemeral — the file is truth"
+    );
 }
 
 #[test]
