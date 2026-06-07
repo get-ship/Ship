@@ -2,6 +2,20 @@
   "_theme": "A single coherent demo Ship workspace — the 'harbor' project mid-feature on branch feat/checkout-flow, worked by agents rust-lane and code-reviewer. Every op fixture below draws from this ONE world so cross-references line up (the git author is an agent that exists; the staged file is the rule-governed checkout service). SSOT for example VALUES; the proto messages are SSOT for SHAPE — gen-fixtures decodes each value into its connectrpc type to validate, then emits proto/fixtures/<service>.json. Realistic enough for design handoffs, valid enough for contract tests, seed corpus for fuzzing.",
   "_authoring": "Add an entry under responses keyed by the dotted op name. Run `cargo run -p xtask -- gen-fixtures`. If the value drifts from the proto message, gen-fixtures fails with the field that broke.",
   "responses": {
+    "skills.scaffold": {
+      "route": "/skills/checkout-validator",
+      "path": "/home/dev/harbor/.ship/skills/checkout-validator/SKILL.md"
+    },
+    "agents.post_feedback": {
+      "id": "01J9Z3KQ8F7X2YB4MC6N0VTRWS"
+    },
+    "agents.post_annotation": {
+      "id": "01J9Z3KR5A8E1D9HFG2P7QXY3M"
+    },
+    "view.scaffold": {
+      "route": "/api/v1/v/checkout-summary",
+      "path": "/home/dev/harbor/.ship/views/checkout-summary"
+    },
     "account.login": {
       "state_id": "st_a1b2c3d4",
       "browser_url": "https://api.getship.dev/v1/auth/cli?code_challenge=Xq9&code_challenge_method=S256&redirect_uri=http%3A%2F%2F127.0.0.1%3A51763%2Fcallback&state=st_a1b2c3d4"
