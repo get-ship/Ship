@@ -228,38 +228,6 @@ impl KernelRouter {
     }
 
     pub fn stop_actor(&mut self, actor_id: &str) -> Result<(), KernelError> {
-        #[cfg(feature = "unstable")]
-        {
-            // Only RESTARTABLE/permissioned actors (those carrying `actor_meta`)
-            // can replay on re-spawn — `spawn_actor_with_permissions_inner` is
-            // the sole reader of `actor_cursors` (kernel_security.rs). Transient
-            // single-use ids (SSE-source `sui-sse-…-{ulid}`, git-signal updater
-            // `git-signal-updater-{ulid}`) are spawned via the legacy
-            // `spawn_actor` path, stopped on disconnect, and NEVER re-spawned —
-            // stranding a cursor for them is a #256-class leak (unbounded in
-            // connection churn). Mirror the `actor_meta.remove` discipline below:
-            // record a cursor only when the actor has permission metadata, and
-            // evict any stale cursor otherwise.
-            if self.actor_meta.contains_key(actor_id) {
-                let log_len =
-                    self.event_log.lock().unwrap_or_else(|e| e.into_inner()).logical_len();
-                self.actor_cursors.insert(actor_id.to_string(), log_len);
-            } else {
-                self.actor_cursors.remove(actor_id);
-            }
-            self.actor_meta.remove(actor_id);
-            self.unstable_senders.remove(actor_id);
-        }
-
-        // Evict the actor's rolling rate counter — `emit` inserts an entry
-        // per distinct originator/target id, so heavy fanout (short-lived
-        // lane / live-read ids) otherwise strands a permanent `RateCounter`
-        // for every id that ever emitted. Mirror the `actor_meta.remove` above.
-        self.rate_counters
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .remove(actor_id);
-
         let db_path = self.actor_db_path(actor_id);
         // Delegate to inner first to validate the actor exists.
         self.inner.stop_actor(actor_id)?;

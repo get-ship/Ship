@@ -259,6 +259,9 @@ pub async fn auth_middleware(
                 session_id: None,
                 scopes: crate::auth::pairing::paired_session_scopes(),
                 grants: vec![],
+                // A dev loopback paired-session is not a pid-attested operator
+                // cred — it grants no elevation (S6), same as a browser cookie.
+                operator_cred: false,
             };
             req.extensions_mut().insert(auth);
             return next.run(req).await;

@@ -32,23 +32,6 @@ impl KernelRouter {
             return Err(anyhow!("actor '{}' not found", actor_id));
         }
 
-        #[cfg(feature = "unstable")]
-        {
-            // Same #256-class discipline as `stop_actor`: only retain a replay
-            // cursor for restartable/permissioned actors (those with
-            // `actor_meta`, the sole readers of `actor_cursors` on re-spawn).
-            // A crashed single-use actor (SSE source / git-signal updater) is
-            // never re-spawned, so stranding its cursor leaks unboundedly.
-            if self.actor_meta.contains_key(actor_id) {
-                let log_len =
-                    self.event_log.lock().unwrap_or_else(|e| e.into_inner()).logical_len();
-                self.actor_cursors.insert(actor_id.to_string(), log_len);
-            } else {
-                self.actor_cursors.remove(actor_id);
-            }
-            self.actor_meta.remove(actor_id);
-        }
-
         // stop_actor removes the actor from inner's mailboxes and subscriptions.
         let _ = self.inner.stop_actor(actor_id);
 

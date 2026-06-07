@@ -46,7 +46,6 @@ pub mod static_assets;
 pub mod assets;
 pub mod discovery;
 pub mod resolve;
-pub mod error_overlay;
 pub mod handlers;
 #[cfg(test)]
 #[path = "views/views_tests.rs"]
