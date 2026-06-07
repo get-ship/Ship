@@ -9,7 +9,7 @@
 //! Layout produced:
 //! ```text
 //! ~/.ship/cache/composed/<input-hash>/
-//!   views/ pipelines/ triggers/ collections/
+//!   views/ pipelines/ triggers/ collections/ components/
 //! ```
 //! - **Layer 0** = the space's own `.ship/` traveling dirs (copied first).
 //! - **Layers 1..N** = each locked dep's exported artifacts, copied from
@@ -35,7 +35,7 @@ use compiler::manifest::ShipManifest;
 
 use super::hash::compute_tree_hash;
 
-/// The four non-library traveling types composed by slice 1.
+/// The non-library traveling types composed into the per-space root.
 ///
 /// `(manifest export selector, on-disk dir name, copy granularity)`. Skills and
 /// agents are deliberately excluded — see the module docs.
@@ -55,6 +55,13 @@ const COMPOSED_TYPES: &[ComposedType] = &[
     ComposedType {
         dir: "collections",
         granularity: Granularity::File,
+    },
+    // Components travel as directories (`<tag>/<tag>.sui` + optional controller/
+    // css), namespaced by package — so a space resolves a dep'd component's
+    // source from its composed root instead of the monorepo workspace.
+    ComposedType {
+        dir: "components",
+        granularity: Granularity::Dir,
     },
 ];
 
@@ -83,6 +90,7 @@ fn exports_for<'a>(
         "pipelines" => &manifest.exports.pipelines,
         "triggers" => &manifest.exports.triggers,
         "collections" => &manifest.exports.collections,
+        "components" => &manifest.exports.components,
         _ => &[],
     }
 }

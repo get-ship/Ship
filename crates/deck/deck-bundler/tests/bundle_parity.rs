@@ -69,11 +69,13 @@
 //! live simultaneously. This gate builds targets STRICTLY SEQUENTIALLY (a plain
 //! `for` loop awaiting one `bundle_target` at a time — never `join_all` /
 //! spawn-per-target), so exactly ONE module graph is live at any moment.
-//! `bundle_target` already `trim_arenas()` after each build (#256), returning
-//! the freed arenas to glibc before the next target starts. Each target build
-//! is wrapped in a per-target wall-clock `tokio::time::timeout`; a target that
-//! wedges aborts the gate rather than hanging. All scratch output + staging dirs
-//! are `TempDir`s dropped at end of scope (teardown on panic/early-return), so
+//! `bundle_target` no longer calls malloc_trim(0) per build — cut 4
+//! dropped crate::arena::trim_arenas() in favor of jemalloc (shipd's
+//! global allocator, which returns freed arenas to the OS by default).
+//! Each target build is wrapped in a per-target wall-clock
+//! `tokio::time::timeout`; a target that wedges aborts the gate rather
+//! than hanging. All scratch output + staging dirs are `TempDir`s
+//! dropped at end of scope (teardown on panic/early-return), so
 //! nothing leaks into the source tree or `/tmp`.
 //!
 //! ## Gating

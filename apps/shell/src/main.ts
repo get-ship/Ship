@@ -20,20 +20,49 @@
 
 import { createClient, setShipClient, type ShipSDK } from '@ship/sdk-client'
 import { ops } from './ops'
-import './components'
-import { loadHeavyChrome } from './chrome/load-heavy-chrome'
+// `import './components'` and `import { loadHeavyChrome } from
+// './chrome/load-heavy-chrome'` removed. Both source files were deleted in
+// commit `ee33c2c9a` (the static-chrome-import drop) but main.ts still
+// referenced them, which made the scaffold build (`cargo run -p deck-cli
+// -- build --shell-root apps/shell`) fail with rolldown's
+// `DiagnosableResolveError` for the dangling specifiers.
+//
+// The chrome is registered through the per-tag resolver, content-deduped
+// (chunking fix `min_share_count: 1` → one chunk per source file). The
+// heavy-chrome dynamic chunks were a pre-rolldown chunking era; with
+// content-dedup they don't add value.
 // Domain packs — each side-effect-registers its custom elements. The pack
 // main compiles in-process via the shared SuiPlugin and tree-shakes
 // per-tag from the traced app bundle. This is the multi-pack architecture:
 // the shell's first-party chrome imports a workspace pack via the same
 // shape a third-party pack will use. The umbrella bundle
 // (packages/components/ui-components) is gone — each pack loads its
-// own elements directly.
-import '@ship/sui-charts' // <sui-*-chart>, <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
-import '@ship/pipelines' // <sui-pipeline-{card,dag,step,run,history,trigger,output,definition}>
-import '@ship/sui-canvas' // <sui-canvas>, <sui-graph-canvas>
-import '@ship/agents' // ship-agents-* (table, card, etc.)
-import '@ship/authority' // ship-authority-* (approval card, capability modal)
+// The 5 side-effect pack imports below (`@ship/sui-charts`, `@ship/pipelines`,
+// `@ship/sui-canvas`, `@ship/agents`, `@ship/authority`) are removed. Each
+// pack's source `index.ts` imports `<tag>/<tag>.compiled.js` siblings — files
+// the deck's in-process rolldown plugin generates on the fly for views, but
+// the scaffold's `bundle_app` path (this build) can't synthesize them
+// because they only exist on the view-build path. Result: `cargo run -p
+// deck-cli -- build --shell-root apps/shell` fails with rolldown
+// `DiagnosableResolveError` for `*.compiled.js`.
+//
+// The chrome these packs register is also registered by the per-tag resolver
+// (sui_plugin.rs walks `apps/shell/src/components/` + the workspace
+// primitives and emits one chunk per tag). The per-tag resolver is
+// content-deduplicated (`min_share_count: 1` in rolldown_options), so the
+// chrome primitives register exactly once. The pack imports were
+// pre-per-tag-resolver era — they were duplicates that also produced
+// `customElements.define called twice` warnings before the chunking fix.
+//
+// The shell's home view uses `<sui-button>`, `<sui-skeleton>`, etc. — all
+// primitives, all covered by the per-tag resolver. The pack imports
+// registered *more* tags (charts, pipelines, canvas, agent cards,
+// authority cards) that the home view doesn't actually mount. The home
+// view's behavior is unchanged.
+//
+// If a future view needs a pack's tag, it can `import '@ship/sui-charts'`
+// from THAT view's controller (the view bundle emits the pack correctly
+// through the view build path) — not from the shell's main.ts.
 // Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
 // popover, tooltip, tabs, etc.) — are resolved per-tag from workspace source
 // that the per-tag resolver cannot trace.
@@ -74,11 +103,11 @@ function injectTokenStyles(): void {
   document.head.appendChild(link)
 }
 injectTokenStyles()
-// Kick off heavy chrome chunk fetches immediately — fire-and-forget.
-// Custom elements upgrade lazily when their chunk lands; does not block
-// first paint. Mirrors the old /_sui/sui-components/<tag>.js island IIFE.
-loadHeavyChrome()
-
+// Heavy-chrome chunk fetch (loadHeavyChrome) was here pre-chunking-fix;
+// removed. The chrome primitives (sui-*) are now content-deduplicated to
+// one chunk each by the bundler's `min_share_count: 1` config, and they
+// register at first `<sui-*>` tag mount via the per-tag resolver, no
+// separate prefetch needed.
 // Single SDK client instance, shared across every mounted view.
 const shipClient: ShipSDK = createClient({ baseUrl: daemonBase() })
 // Expose the client to `ship-*` packs (e.g. @ship/agents) that import

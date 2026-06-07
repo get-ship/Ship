@@ -140,7 +140,6 @@ export async function mount<Scope = Record<string, unknown>>(
     tmpl.innerHTML = payload.html
     target.replaceChildren(...Array.from(tmpl.content.childNodes))
   }
-
   // 2. Inject CSS.
   const styleEl = injectCss(target, payload.css, opts.cssScope ?? 'adjacent')
 
