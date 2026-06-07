@@ -43,7 +43,7 @@ serde_yaml = { workspace = true }
 notify = { workspace = true }
 # Pure path-layout helper for composed traveling-artifact overlays. No ship
 # deps — compiler depends only on serde/serde_json/anyhow/minijinja/etc.
-compiler = { path = "../ship-platform/crates/compiler" }
+compiler = { path = "../compiler" }
 walkdir = "2.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
