@@ -224,7 +224,12 @@ pub fn collect_ship_data_types() -> TypeCollection {
 
     // collections — list row + field record (was hand-written in ship-sdk.ts);
     // pulls in CollectionFieldRecord as a nested type.
-    c.register::<shipd::services::registry::wire::CollectionSummary>();
+    // FOLLOW-UP (window-actors merge): collections codegen diverged — our
+    // gen_ops/registry path vs their gen_collection_types module. The old
+    // shipd::services::registry::wire::CollectionSummary is gone and
+    // ship_ops_rpc::CollectionSummary is not specta-derived. Re-wire via the
+    // merged ship-collection codegen before re-enabling.
+    // c.register::<ship_ops_rpc::CollectionSummary>();
 
     c
 }
