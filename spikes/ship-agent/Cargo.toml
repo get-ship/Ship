@@ -18,6 +18,7 @@ anyhow = "1"
 thiserror = "2"
 async-trait = "0.1"
 deno_core = "0.403.0"
+parking_lot = "0.12"
 deno_error = "0.7"
 # Pinned to crates.io so the crate builds from any git worktree location,
 # including isolated subagent worktrees (the local eval checkout is gone).

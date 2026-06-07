@@ -29,12 +29,13 @@ mod spec;
 mod spine;
 mod dtsgen;
 mod lsp;
+mod orchestration;
 use std::sync::Arc;
 
 use serde_json::{json, Value};
-
 use auth::AuthContext;
 use gateway::{Gateway, GatewayError, InProcessGateway};
+use orchestration::OrchestrationDispatch;
 use spec::AgentSpec;
 use spine::SpineError;
 
@@ -232,6 +233,69 @@ async fn main() -> anyhow::Result<()> {
         }
     }
     println!();
-
+    // 12. Slice 5 (S14 spike): orchestration seam — the parent agent dispatches
+    //     a child via the `OrchestrationDispatch` trait. The child is an
+    //     in-process agent that runs through the gateway (so the gate runs on
+    //     every child-side op). The parent's tool result carries the child's
+    //     structured `ChildOutcome`. No daemon crates are involved; this proves
+    //     the contract and shape per S14 design §5.2.
+    println!("--- slice 5: orchestration seam (in-process child runner) ---");
+    let gw = Arc::new(InProcessGateway);
+    let orch = orchestration::InProcessOrchestrator::new(gw.clone());
+    let parent_ctx = orchestration::ParentContext::new("demo-parent", "demo");
+    let child_spec = AgentSpec::demo("child-1", "mock", &["collections"]);
+    // 12a. dispatch_agent: the child returns a structured outcome.
+    match orch
+        .dispatch_agent(
+            &child_spec,
+            "do work",
+            &parent_ctx,
+            orchestration::ChildBehavior::SucceedWithText("child output: 42".into()),
+        )
+        .await
+    {
+        Ok(out) => {
+            let child = out.child.expect("single dispatch has a child outcome");
+            println!(
+                "[slice5] dispatch_agent -> child={} ok={} text={:?}",
+                child.spec_id, child.ok, child.text,
+            );
+        }
+        Err(e) => println!("[slice5] dispatch_agent ERROR: {e}"),
+    }
+    // 12b. dispatch_parallel: three children, min_successful_lanes=2.
+    let specs = vec![
+        AgentSpec::demo("a", "mock", &["collections"]),
+        AgentSpec::demo("b", "mock", &["collections"]),
+        AgentSpec::demo("c", "mock", &["mcp"]),
+    ];
+    let behaviors = vec![
+        orchestration::ChildBehavior::SucceedWithText("a-ok".into()),
+        orchestration::ChildBehavior::SucceedWithText("b-ok".into()),
+        orchestration::ChildBehavior::CallUngrantedOp {
+            op: "runtime.dispatch".into(), // C2, ungranted for "c" (grants=["mcp"])
+            final_text: "c-deny".into(),
+        },
+    ];
+    match orch
+        .dispatch_parallel(specs, vec![], 2, &parent_ctx, behaviors)
+        .await
+    {
+        Ok(out) => {
+            let par = out.parallel.expect("parallel dispatch has a parallel result");
+            println!(
+                "[slice5] dispatch_parallel -> ok={}/{} decision={:?}",
+                par.ok_count, par.total, par.decision,
+            );
+            for lane in &par.lanes {
+                println!(
+                    "        lane {} ok={} denied_op={:?}",
+                    lane.spec_id, lane.ok, lane.denied_op,
+                );
+            }
+        }
+        Err(e) => println!("[slice5] dispatch_parallel ERROR: {e}"),
+    }
+    println!();
     Ok(())
 }
