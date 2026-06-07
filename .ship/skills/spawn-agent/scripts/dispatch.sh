@@ -326,28 +326,30 @@ fi
 # Runs in background — never blocks dispatch.
 auto_kickstart_tmux() {
   local session="$1"
+  local provider="${PROVIDER_CLI:-claude}"
   (
-    for i in $(seq 1 15); do
+    # Wait for the provider to be READY for input, THEN send the kickoff (split
+    # text → pause → Enter; a combined send collapses the CR into the buffer).
+    #   claude    → the channels-confirm prompt (accept with C-m, not Enter).
+    #   omp/other → the Pi CLI prompt box (the `π` glyph). omp shows NO channels
+    #               prompt and can take >15s to boot its TUI, so the old fixed
+    #               15s delay fired into a not-yet-ready input. Poll up to 60s.
+    for i in $(seq 1 60); do
       sleep 1
-      if tmux capture-pane -t "$session" -p 2>/dev/null | grep -q "I am using this for local development"; then
-        # C-m (literal CR), not Enter — claude's menu widget does not respond
-        # to the tmux Enter key name. Verified experimentally against a stuck
-        # session where `Enter` was a no-op and `C-m` advanced past the menu.
-        tmux send-keys -t "$session" C-m
-        sleep 1
-        # Send text and the submit key in SEPARATE send-keys invocations with
-        # a pause between. Combined into one call, Claude Code's paste handler
-        # collapses the trailing CR into the input buffer instead of firing
-        # submit — observed across multiple dispatches where the user had to
-        # press Enter manually. Splitting mimics human typing and submits.
-        tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously."
-        sleep 1
-        tmux send-keys -t "$session" Enter
-        exit 0
+      pane="$(tmux capture-pane -t "$session" -p 2>/dev/null)"
+      if [[ "$provider" == "claude" ]]; then
+        if grep -q "I am using this for local development" <<<"$pane"; then
+          tmux send-keys -t "$session" C-m   # advance past the channels menu
+          sleep 1
+          break
+        fi
+      else
+        if grep -qF 'π' <<<"$pane"; then      # Pi CLI prompt rendered ⇒ ready
+          break
+        fi
       fi
     done
-    # Prompt not found (non-claude provider or --dangerously-skip-permissions accepted it) —
-    # still send the autostart message (same split-send pattern).
+    # Best-effort even if readiness never showed: send the autostart message.
     tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously."
     sleep 1
     tmux send-keys -t "$session" Enter

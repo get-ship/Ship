@@ -1,2 +1,0 @@
-<prop name="label" type="string" default="hello" />
-<span>{label()}</span>
