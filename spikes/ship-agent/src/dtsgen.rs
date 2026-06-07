@@ -5,20 +5,20 @@
 //! grant — drift between them lets an agent type-check calls that won't
 //! resolve at runtime (or worse, makes ungranted ops look callable).
 //!
-//! The shared surface — `sdkgen::surface(grants)` — is the only place the
-//! set of exported names is computed. `generate_dts` consumes it; the test
-//! suite asserts the export sets agree. Adding a new service in
-//! `sdkgen::ops_for` shows up in BOTH the JS and the `.d.ts` automatically.
+//! The shared surface — `sdkgen::surface(grants)`, derived from
+//! `crate::registry` (S8: the SINGLE descriptor set) — is the only place
+//! the set of exported names is computed. `generate_dts` consumes it; the
+//! test suite asserts the export sets agree. Adding a new service in the
+//! descriptor set shows up in BOTH the JS and the `.d.ts` automatically.
 //!
 //! Typed args stay loose (`unknown`) for now: the spec calls out the surface
 //! shape as the load-bearing part; the per-op argument schemas can land
 //! alongside the proto descriptor set.
-
 use crate::sdkgen::{surface, SurfaceItem};
 
 /// Generate the scoped SDK `.d.ts` for a set of granted service domains.
-/// Mirrors `generate_sdk` exactly: the exported names, and the set of ops
-/// per service, are derived from the shared `surface(grants)`.
+/// Mirrors `generate_sdk` exactly: the exported names, and the set of
+/// methods per service, are derived from the shared `surface(grants)`.
 #[allow(dead_code)] // public API; consumed by the LSP host, not the spike binary
 pub fn generate_dts(grants: &[String]) -> String {
     render_dts(&surface(grants), &format!("{grants:?}"))
@@ -27,8 +27,8 @@ pub fn generate_dts(grants: &[String]) -> String {
 /// Render a `.d.ts` from an explicit surface list. The renderer is pure over
 /// `SurfaceItem`s — fed by the shared registry in production, fed by tests
 /// with hand-built surfaces that exercise the typed-args path (which the
-/// stub registry leaves as `None`).
-pub(crate) fn render_dts(items: &[SurfaceItem], grant_label: &str) -> String {
+/// stub descriptor set leaves as `None`).
+pub(crate) fn render_dts(items: &[SurfaceItem<'_>], grant_label: &str) -> String {
     let mut out = String::new();
     out.push_str("// AUTO-GENERATED scoped SDK typings — grant = ");
     out.push_str(grant_label);
@@ -36,7 +36,7 @@ pub(crate) fn render_dts(items: &[SurfaceItem], grant_label: &str) -> String {
     out.push_str("// The agent's COMPLETE op surface (typed). Soft layer; the gate enforces.\n");
     out.push_str("// Per-op args/returns: named types when the registry carries them,\n");
     out.push_str(
-        "// `unknown` otherwise (the stub registry; the proto descriptor will populate).\n",
+        "// `unknown` otherwise (the stub descriptor set; the proto descriptor will populate).\n",
     );
     out.push_str("declare module \"@ship/agent-sdk\" {\n");
 
@@ -52,15 +52,15 @@ pub(crate) fn render_dts(items: &[SurfaceItem], grant_label: &str) -> String {
                 }
                 SurfaceItem::Service(def) => {
                     out.push_str(&format!("  export const {}: {{\n", def.name));
-                    for op in def.ops {
+                    for method in def.methods {
                         // Args: render the named shape when the registry carries
                         // one; fall back to `unknown` when it doesn't (the stub
                         // populates `None` until the proto descriptor lands).
-                        let args_ty = op.args.unwrap_or("unknown");
-                        let ret_ty = op.returns.unwrap_or("unknown");
+                        let args_ty = method.args.unwrap_or("unknown");
+                        let ret_ty = method.returns.unwrap_or("unknown");
                         out.push_str(&format!(
                             "    {}(args?: {}): Promise<{}>;\n",
-                            op.name, args_ty, ret_ty
+                            method.name, args_ty, ret_ty
                         ));
                     }
                     out.push_str("  };\n");
@@ -76,7 +76,9 @@ pub(crate) fn render_dts(items: &[SurfaceItem], grant_label: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sdkgen::{generate_sdk, surface};
+    use crate::gate::Blast;
+    use crate::registry::{Method, Service};
+    use crate::sdkgen::generate_sdk;
 
     fn g(s: &[&str]) -> Vec<String> {
         s.iter().map(|x| x.to_string()).collect()
@@ -115,8 +117,9 @@ mod tests {
 
     // The set of exported names in the .d.ts must equal the set in the JS SDK
     // for the same grant. This is the anti-drift property — both generators
-    // consume `surface(grants)`, so the equality holds by construction. If you
-    // add a new grant mapping to `sdkgen::ops_for`, both pick it up.
+    // consume `surface(grants)` (derived from `registry`), so the equality
+    // holds by construction. If you add a new service to the descriptor set,
+    // both pick it up.
     #[test]
     fn dts_and_js_export_names_agree() {
         let grants = g(&["collections", "mcp", "runtime", "not_a_service"]);
@@ -151,9 +154,9 @@ mod tests {
         }
     }
 
-    // Every granted service's ops are typed in the .d.ts.
+    // Every granted service's methods are typed in the .d.ts.
     #[test]
-    fn service_ops_are_typed() {
+    fn service_methods_are_typed() {
         let dts = generate_dts(&g(&["collections"]));
         for op in ["read", "get", "items", "put", "patch", "delete"] {
             assert!(
@@ -163,29 +166,31 @@ mod tests {
         }
     }
 
-    // When the registry carries per-op args/returns, the renderer must render
-    // them as the named TS types (the path the proto descriptor wiring will
-    // take). Exercised via `render_dts` directly so the test can construct a
-    // surface with `Some(...)` — the stub `ops_for` only emits `None`.
+    // When the registry carries per-method args/returns, the renderer must
+    // render them as the named TS types (the path the proto descriptor
+    // wiring will take). Exercised via `render_dts` directly so the test
+    // can construct a surface with `Some(...)` — the stub descriptor set
+    // emits `None`.
     #[test]
     fn render_with_named_types_uses_them() {
-        use crate::sdkgen::{OpDef, ServiceDef, SurfaceItem};
-        let svc = ServiceDef {
+        let svc = Service {
             name: "collections",
-            ops: &[
-                OpDef {
+            methods: &[
+                Method {
                     name: "read",
                     args: Some("{ collection: string; }"),
                     returns: Some("CollectionDetail"),
+                    blast: Blast::C0Safe,
                 },
-                OpDef {
+                Method {
                     name: "delete",
                     args: Some("{ id: string; }"),
                     returns: None,
+                    blast: Blast::C1Space,
                 },
             ],
         };
-        let items = [SurfaceItem::Service(svc)];
+        let items = [SurfaceItem::Service(&svc)];
         let dts = render_dts(&items, "test");
 
         // Named args + return types render verbatim.
@@ -199,4 +204,39 @@ mod tests {
             "delete must keep the named args shape but fall back on the missing return; got:\n{dts}",
         );
     }
+
+    // S8 anti-drift: the JS SDK and the .d.ts both derive from the same
+    // `registry`. An op present in the descriptor set surfaces in BOTH for
+    // a grant that includes its service; an op NOT in the descriptor set
+    // surfaces in NEITHER. Cross-checks the full pipeline — registry ->
+    // surface -> generators -> strings.
+    #[test]
+    fn registry_op_surfaces_in_both_js_and_dts() {
+        // Grant includes `collections`; `collections.read` is in the
+        // descriptor set.
+        let grants = g(&["collections"]);
+        let sdk = generate_sdk(&grants);
+        let dts = generate_dts(&grants);
+        // The SDK exposes it as a method on the `collections` namespace;
+        // the .d.ts types it. Both must reference the op.
+        assert!(
+            sdk.contains("read: (args) => __call(\"collections.read\""),
+            "JS SDK must surface `collections.read` for grant `collections`; got:\n{sdk}",
+        );
+        assert!(
+            dts.contains("read(args?:"),
+            ".d.ts must surface `collections.read` for grant `collections`; got:\n{dts}",
+        );
+
+        // An op NOT in the descriptor set: neither the SDK nor the .d.ts
+        // can mention it. (Granting an unknown service drops it silently;
+        // the JS handler `__call("...")` is the only path an unknown op
+        // could leak in through.)
+        let grants = g(&["nope"]);
+        let sdk = generate_sdk(&grants);
+        let dts = generate_dts(&grants);
+        assert!(!sdk.contains("nope."));
+        assert!(!dts.contains("nope."));
+    }
 }
+

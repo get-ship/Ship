@@ -54,8 +54,7 @@ agent_loop.rs ─ run_step: rig drives the model turn
 |---|---|---|
 | Definition | `spec.rs`, `auth.rs`, `loader.rs` | four-facet agent + the credential it presents + `.ship/agents/<id>.jsonc` → `AgentSpec` projection |
 | Sessions | `session.rs` | multi-turn `Session` + `HistoryStore` seam (`InMemoryHistoryStore` stub) + `CompactionPolicy` (lossless projection; `KeepRecent` impl) |
-| Enforcement | `gateway.rs` → `gate.rs` → `spine.rs` | one door, one gate, post-verify |
-| Surface | `sdkgen.rs` + `dtsgen.rs` (shared registry), `module_loader.rs` | scoped SDK (JS + types) from `proto∩grant`; deny-by-default imports |
+| Surface | `sdkgen.rs` + `dtsgen.rs`, `registry.rs` (shared descriptor set), `module_loader.rs` | scoped SDK (JS + types) from `proto∩grant`; deny-by-default imports |
 | Execution | `runtime.rs`, `script_executor.rs` | deno_core isolate; the `!Send` VM-thread bridge |
 | Intelligence | `lsp.rs`, `agent_loop.rs` | dual-LSP-fed verify; rig loop + the two tools |
 | Events | `events.rs` | `AgentEvent` vocabulary (serde, internally-tagged); `EventSink` trait + `CollectingSink` / `TerminalSink`; `LoopItem` mirror + pure `translate` fn |
@@ -85,7 +84,7 @@ Execution → Loop all converge on Enforcement, never around it.
 | `Gateway` | `InProcessGateway` (echo + gate) | shipd `command::call` (refactor-gated swap) |
 | `LspBackend` | `TsgoStub` / `SuiLspStub` | tsgo + `crates/sui/lsp` (+ warmup/writethrough) |
 | model | `MockCompletionModel` (tests) | BYOK provider via rig |
-| op registry | hardcoded `ops_for` / `blast_of` | proto descriptor set |
+| op registry | `registry.rs` (in-process descriptor set, single SSOT) | proto descriptor set from shipd |
 | auth | locally-constructed `AuthContext` | handshake to shipd (peer-cred socket) |
 
 The arc builds against **contract-faithful fakes** so it is unblocked by the
@@ -95,7 +94,7 @@ refactor-gated slice.
 ## v1 arc
 
 ```
-PHASE 1 — make it real      S6 spec loader · S7 provider/BYOK · S8 scoped-SDK-from-proto · S5 auth handshake seam
+PHASE 1 — make it real      S6 spec loader · S7 provider/BYOK · **S8 scoped-SDK-from-proto ✓** · S5 auth handshake seam
 PHASE 2 — make it usable    S9 sessions+history+compaction · S10 AgentEvent stream · S11 approval+steer/cancel
 PHASE 3 — differentiators    S12 tsgo+SUI LSP real · S13 file ops + hashline
 PHASE 4 — customization      S-skills (the user-extension surface) · S-mcp (third-party integration, design-first)
@@ -123,7 +122,7 @@ primary user-customization surface. MCP needs a design pass before wiring.
 
 ```
 cd spikes/ship-agent
-cargo test          # 38 behavioral tests
+cargo test          # 91 behavioral tests
 cargo run           # demo: gate tiers, deno_core one-door, scoped SDK,
                     #       deny-by-default, model loop, code-mode, LSP verify
 ```

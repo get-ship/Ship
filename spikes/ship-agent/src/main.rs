@@ -22,6 +22,7 @@ mod gateway;
 mod loader;
 mod module_loader;
 mod runtime;
+mod registry;
 mod sdkgen;
 mod script_executor;
 mod spec;
