@@ -60,9 +60,9 @@ agent_loop.rs ─ run_step: rig drives the model turn
 | Intelligence | `lsp.rs`, `agent_loop.rs` | dual-LSP-fed verify; rig loop + the two tools; **`Ask`-stance approval handshake** (`Approver` trait, `HeadlessApprover` / `ScriptedApprover` impls) + `Steer` / `Cancel` supervisor handles |
 | Events | `events.rs` | `AgentEvent` vocabulary (serde, internally-tagged) incl. `ApprovalRequested` + `Cancelled`; `UserInput` (Approve / Deny) decision shape; `EventSink` trait + `CollectingSink` / `TerminalSink`; `LoopItem` mirror + pure `translate` fn |
 | Customization | `skills.rs` | skill discovery (`root/*/SKILL.md`), frontmatter parse, catalog injection, on-demand body load |
+| Orchestration | `orchestration.rs` | `OrchestrationDispatch` trait (`dispatch_agent` / `dispatch_parallel`) + `aggregate_lane_outcomes` shortcut decision (re-implements `ship-pipelines::fanout` semantics locally); spike-local `InProcessOrchestrator` runs a child `AgentSpec` through the existing gateway, with parent→child cancellation cascading. Two C2 ops on the `runtime` service — `runtime.dispatch` and `runtime.parallel`. |
 
 ## Invariants (must always hold)
-
 1. **One door** — every effect enters `gateway.call`. No side channel.
 2. **The gate is the only enforcement.** Scoped SDK + deny-by-default loader are
    *soft* (ergonomics/legibility); a raw `op_ship_call` to an ungranted op is
@@ -102,13 +102,12 @@ in-flight ops-SSOT refactor; swapping fakes for live shipd is a distinct,
 refactor-gated slice.
 
 ## v1 arc
-
 ```
 PHASE 1 — make it real      S6 spec loader · S7 provider/BYOK · **S8 scoped-SDK-from-proto ✓** · S5 auth handshake seam
 PHASE 2 — make it usable    S9 sessions+history+compaction · S10 AgentEvent stream · S11 approval+steer/cancel
 PHASE 3 — differentiators    S12 tsgo+SUI LSP real · S13 file ops + hashline
 PHASE 4 — customization      S-skills (the user-extension surface) · S-mcp (third-party integration, design-first)
-PHASE 5 — orchestration      S14 agent()/parallel — RECONCILED WITH SHIP PIPELINES (shared DAG/control-flow), not a parallel system
+PHASE 5 — orchestration      **S14 design ✓ · S14 v1 spike-local seam ✓** — agent()/parallel reconciled with ship pipelines (shared DAG/control-flow)
 PHASE 6 — harden + graduate  S15 resilience+event-log emit · S16 graduate to crates/+apps/ · S17 e2e harness
 ```
 
@@ -129,10 +128,10 @@ primary user-customization surface. MCP needs a design pass before wiring.
   branch when green," and "update README if invariants/module-map change."
 
 ## Run
-
 ```
 cd spikes/ship-agent
-cargo test          # 103 behavioral tests (S8 descriptor registry +4; S11 Ask/Deny/Headless/Steer/Cancel/ApprovalRequested/Cancelled +12)
-cargo run           # demo: gate tiers, deno_core one-door, scoped SDK,
-                    #       deny-by-default, model loop, code-mode, LSP verify
+cargo test          # 112 behavioral tests (87 base + S8 +4 + S11 +12 + S14 orchestration +9)
+cargo run           # demo: gate tiers, deno_core one-door, scoped SDK, deny-by-default,
+                    #       model loop, code-mode, LSP verify,
+                    #       orchestration seam (dispatch_agent + dispatch_parallel)
 ```

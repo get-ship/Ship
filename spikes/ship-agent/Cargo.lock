@@ -2199,6 +2199,7 @@ dependencies = [
  "deno_core",
  "deno_error",
  "json5",
+ "parking_lot",
  "rig-core",
  "serde",
  "serde_json",

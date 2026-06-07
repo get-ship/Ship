@@ -78,6 +78,7 @@ const RUNTIME: Service = Service {
     name: "runtime",
     methods: &[
         Method { name: "dispatch", args: None, returns: None, blast: Blast::C2Elevated },
+        Method { name: "parallel", args: None, returns: None, blast: Blast::C2Elevated },
     ],
 };
 
@@ -167,6 +168,7 @@ mod tests {
             "collections.put",    // C1
             "mcp.create",         // C2
             "runtime.dispatch",   // C2
+            "runtime.parallel",   // C2
             "account.rotate_key", // C3
         ];
         for op in known_ops {
@@ -201,6 +203,7 @@ mod tests {
         assert_eq!(blast_of("mcp.create"), Some(Blast::C2Elevated));
         assert_eq!(blast_of("mcp.delete"), Some(Blast::C2Elevated));
         assert_eq!(blast_of("runtime.dispatch"), Some(Blast::C2Elevated));
+        assert_eq!(blast_of("runtime.parallel"), Some(Blast::C2Elevated));
         // C3 operator-only
         assert_eq!(blast_of("account.rotate_key"), Some(Blast::C3Critical));
     }
