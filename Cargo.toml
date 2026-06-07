@@ -56,9 +56,9 @@ members = [
     "apps/shell/src-tauri",
     "tests/contract",
 ]
-# Throwaway spikes / build scratch under .artifacts declare their own
-# [workspace] and must not be pulled into this one.
-exclude = [".artifacts"]
+# Spike crates (tracked, under `spikes/`) and build scratch (gitignored, under
+# `.artifacts/`) declare their own [workspace] and must not be pulled into this one.
+exclude = [".artifacts", "spikes"]
 resolver = "2"
 
 # Hoisted dependency versions. Member crates inherit via `{ workspace = true, features = [...] }`.
