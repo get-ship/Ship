@@ -26,13 +26,38 @@ pub enum GatewayError {
     UnknownOp(String),
     #[error("dispatch failed: {0}")]
     Dispatch(String),
+    /// The op is `Ask`-stance: the gate would allow it, but a human must
+    /// approve this particular call. The tool layer routes this through
+    /// the `Approver` handshake. `request_id` correlates the eventual
+    /// `UserInput` decision back to this op.
+    #[error("ASK: {op} (id={request_id})")]
+    Ask { op: String, args: Value, request_id: String },
+}
+
+/// How a tool is invoking the gateway. First-time callers go through the
+/// ask-stance check; an approved re-dispatch (post-`Approver::request`)
+/// sets `Approved` so the gate's stance check is skipped — the approval
+/// has already been granted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GatewayCallKind {
+    /// First-time call: ask-stance ops return `Err(Ask)`.
+    First,
+    /// Re-dispatch after approval was granted: skip the ask-stance check
+    /// (the human already said yes); the gate still runs.
+    Approved,
 }
 
 /// The single door. Async because real dispatch is async (and ops fan out on
 /// Tokio under `parallel`).
 #[async_trait]
 pub trait Gateway: Send + Sync {
-    async fn call(&self, op: &str, args: Value, auth: &AuthContext) -> Result<Value, GatewayError>;
+    async fn call(
+        &self,
+        op: &str,
+        args: Value,
+        auth: &AuthContext,
+        kind: GatewayCallKind,
+    ) -> Result<Value, GatewayError>;
 }
 
 /// Stub gateway: the op, service, and blast all come from the in-process
@@ -42,10 +67,36 @@ pub trait Gateway: Send + Sync {
 /// the REAL gate decision, then echoes the result.
 pub struct InProcessGateway;
 
+impl InProcessGateway {
+    /// Intrinsic human-in-the-loop stance for an op (S11). Ops in this set are
+    /// allowed by the gate (when the capability is granted) but the
+    /// `Ask` layer must also approve them. This is policy of the *call*,
+    /// not of the agent — it never elevates the agent or clears C3.
+    fn is_ask_stance(op: &str) -> bool {
+        matches!(op, "mcp.create" | "mcp.delete" | "account.rotate_key")
+    }
+
+    /// Allocate a stable-ish request id for a pending `Ask`. Per-process
+    /// counter; unique within a single run. Production would key this
+    /// on the daemon's id minting — this is the seam, not the policy.
+    fn next_request_id(op: &str) -> String {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        format!("ask:{op}#{n}")
+    }
+}
+
 #[async_trait]
 impl Gateway for InProcessGateway {
-    async fn call(&self, op: &str, args: Value, auth: &AuthContext) -> Result<Value, GatewayError> {
-        // Intrinsic blast — read from the descriptor set, never claimed by
+    async fn call(
+        &self,
+        op: &str,
+        args: Value,
+        auth: &AuthContext,
+        kind: GatewayCallKind,
+    ) -> Result<Value, GatewayError> {
+        // Intrinsic blast — read from the descriptor set (S8), never claimed by
         // spec or request. `None` => unknown op (not in the descriptor set).
         let blast = registry::blast_of(op).ok_or_else(|| GatewayError::UnknownOp(op.to_string()))?;
         let service = gate::service_of(op);
@@ -54,6 +105,18 @@ impl Gateway for InProcessGateway {
         match gate::decide(blast, service, auth) {
             Decision::Deny(reason) => return Err(GatewayError::Denied(reason)),
             Decision::Allow => {}
+        }
+
+        // Ask stance: gate would allow, but a human must approve this call.
+        // Skip on a post-approval re-dispatch: the human already said yes.
+        // The op still passes through the gate; the Ask layer does not
+        // bypass it.
+        if kind == GatewayCallKind::First && Self::is_ask_stance(op) {
+            return Err(GatewayError::Ask {
+                op: op.to_string(),
+                args: args.clone(),
+                request_id: Self::next_request_id(op),
+            });
         }
 
         // Stub dispatch: a real gateway routes to the domain service. We echo so
@@ -82,7 +145,7 @@ mod tests {
     #[tokio::test]
     async fn baseline_op_succeeds() {
         let r = InProcessGateway
-            .call("collections.read", serde_json::json!({}), &agent(&[]))
+            .call("collections.read", serde_json::json!({}), &agent(&[]), GatewayCallKind::First)
             .await;
         assert!(r.is_ok());
     }
@@ -91,25 +154,40 @@ mod tests {
     #[tokio::test]
     async fn ungranted_elevated_op_is_denied() {
         let r = InProcessGateway
-            .call("mcp.create", serde_json::json!({}), &agent(&["collections"]))
+            .call("mcp.create", serde_json::json!({}), &agent(&["collections"]), GatewayCallKind::First)
             .await;
         assert!(matches!(r, Err(GatewayError::Denied(_))));
     }
 
-    // The same op is allowed once its service is granted.
+    // The same op, with the service granted, becomes `Ask`-stance: the gate
+    // allows the capability, but a human must approve this call. The op
+    // still passes through the gate; the ask is layered on top, not a
+    // bypass. A `mcp.create` is in the ask-stance set.
     #[tokio::test]
-    async fn granting_the_service_allows_the_op() {
+    async fn granting_the_service_makes_it_ask_stance() {
         let r = InProcessGateway
-            .call("mcp.create", serde_json::json!({}), &agent(&["mcp"]))
+            .call("mcp.create", serde_json::json!({}), &agent(&["mcp"]), GatewayCallKind::First)
             .await;
-        assert!(r.is_ok());
+        assert!(matches!(r, Err(GatewayError::Ask { ref op, .. }) if op == "mcp.create"));
+    }
+
+    // An approved re-dispatch SKIPS the ask-stance check: the gate still
+    // runs (and would deny an ungranted op), but the stance layer is
+    // already-resolved. This proves the Ask path is layered on top of
+    // the gate, not a bypass.
+    #[tokio::test]
+    async fn approved_redispatch_skips_ask_stance() {
+        let r = InProcessGateway
+            .call("mcp.create", serde_json::json!({}), &agent(&["mcp"]), GatewayCallKind::Approved)
+            .await;
+        assert!(r.is_ok(), "approved re-dispatch must succeed for a granted op");
     }
 
     // An unknown op is rejected, never silently accepted.
     #[tokio::test]
     async fn unknown_op_is_rejected() {
         let r = InProcessGateway
-            .call("nope.nope", serde_json::json!({}), &agent(&[]))
+            .call("nope.nope", serde_json::json!({}), &agent(&[]), GatewayCallKind::First)
             .await;
         assert!(matches!(r, Err(GatewayError::UnknownOp(_))));
     }

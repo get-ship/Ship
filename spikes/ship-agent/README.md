@@ -54,10 +54,11 @@ agent_loop.rs ─ run_step: rig drives the model turn
 |---|---|---|
 | Definition | `spec.rs`, `auth.rs`, `loader.rs` | four-facet agent + the credential it presents + `.ship/agents/<id>.jsonc` → `AgentSpec` projection |
 | Sessions | `session.rs` | multi-turn `Session` + `HistoryStore` seam (`InMemoryHistoryStore` stub) + `CompactionPolicy` (lossless projection; `KeepRecent` impl) |
+| Enforcement | `gateway.rs` → `gate.rs` → `spine.rs` | one door, one gate, post-verify |
 | Surface | `sdkgen.rs` + `dtsgen.rs`, `registry.rs` (shared descriptor set), `module_loader.rs` | scoped SDK (JS + types) from `proto∩grant`; deny-by-default imports |
 | Execution | `runtime.rs`, `script_executor.rs` | deno_core isolate; the `!Send` VM-thread bridge |
-| Intelligence | `lsp.rs`, `agent_loop.rs` | dual-LSP-fed verify; rig loop + the two tools |
-| Events | `events.rs` | `AgentEvent` vocabulary (serde, internally-tagged); `EventSink` trait + `CollectingSink` / `TerminalSink`; `LoopItem` mirror + pure `translate` fn |
+| Intelligence | `lsp.rs`, `agent_loop.rs` | dual-LSP-fed verify; rig loop + the two tools; **`Ask`-stance approval handshake** (`Approver` trait, `HeadlessApprover` / `ScriptedApprover` impls) + `Steer` / `Cancel` supervisor handles |
+| Events | `events.rs` | `AgentEvent` vocabulary (serde, internally-tagged) incl. `ApprovalRequested` + `Cancelled`; `UserInput` (Approve / Deny) decision shape; `EventSink` trait + `CollectingSink` / `TerminalSink`; `LoopItem` mirror + pure `translate` fn |
 | Customization | `skills.rs` | skill discovery (`root/*/SKILL.md`), frontmatter parse, catalog injection, on-demand body load |
 
 ## Invariants (must always hold)
@@ -65,14 +66,23 @@ agent_loop.rs ─ run_step: rig drives the model turn
 1. **One door** — every effect enters `gateway.call`. No side channel.
 2. **The gate is the only enforcement.** Scoped SDK + deny-by-default loader are
    *soft* (ergonomics/legibility); a raw `op_ship_call` to an ungranted op is
-   still denied at the door.
+   still denied at the door. The `Ask`-stance approval handshake is the
+   *Ask resolution* — it does not bypass the gate, it is layered on top of
+   it (`Approved` re-dispatches still go through `gateway.call`).
 3. **No self-elevation** — `operator=false` by construction ⇒ C3 unreachable.
+   Approval can never manufacture operator clearance; it approves a
+   particular call, it never elevates the caller.
 4. **Deny-by-default, twice** — imports (only `ship`) and capabilities (only
    granted services).
 5. **Nothing accepted blindly** — spine verify on ops; LSP diagnostics on edits.
 6. **Two tool categories, period** — gated ops + JS execution; JS reaches the
    world *only* through ops.
-7. **Denial is data** — consistent across the deno_core op and the rig tool.
+7. **Denial is data** — consistent across the deno_core op, the rig tool,
+   a denied approval, and a cooperative cancel. None of them throw.
+8. **Cancel is cooperative** — the `Cancel` flag is observed at every safe
+   point (before each rig prompt, at the top of every tool call, at the
+   start of every script-job dispatch). It is NEVER used to drop a future
+   mid-op; the `!Send` VM-thread bridge stays clean.
 
 Dependency arrows point inward toward the door — Definition → Surface →
 Execution → Loop all converge on Enforcement, never around it.
@@ -122,7 +132,7 @@ primary user-customization surface. MCP needs a design pass before wiring.
 
 ```
 cd spikes/ship-agent
-cargo test          # 91 behavioral tests
+cargo test          # 103 behavioral tests (S8 descriptor registry +4; S11 Ask/Deny/Headless/Steer/Cancel/ApprovalRequested/Cancelled +12)
 cargo run           # demo: gate tiers, deno_core one-door, scoped SDK,
                     #       deny-by-default, model loop, code-mode, LSP verify
 ```

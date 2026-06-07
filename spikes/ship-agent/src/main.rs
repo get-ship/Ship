@@ -48,7 +48,7 @@ async fn op_through_spine(
     args: Value,
 ) -> Result<String, SpineError> {
     let execute = async {
-        gw.call(op, args, auth).await.map_err(|e| match e {
+        gw.call(op, args, auth, gateway::GatewayCallKind::First).await.map_err(|e| match e {
             GatewayError::Denied(r) => SpineError::Denied(r),
             other => SpineError::Execute(other.to_string()),
         })
@@ -196,7 +196,15 @@ async fn main() -> anyhow::Result<()> {
     let gw = Arc::new(InProcessGateway);
     // The VM thread (the !Send bridge) — shared by run_script across runs.
     let executor = Arc::new(script_executor::ScriptExecutor::spawn(Arc::new(InProcessGateway)));
-    match agent_loop::run_step(model, &spec, gw, auth.clone(), executor.clone(), "How many leads?").await {
+    // A headless ToolCtx for the demo: no human (so any `Ask` is denied),
+    // no steers, no cancel. The demo exercises the loop's gate + spine paths.
+    let demo_ctx = agent_loop::ToolCtx {
+        sink: Arc::new(events::TerminalSink),
+        approver: Arc::new(agent_loop::HeadlessApprover),
+        steer: agent_loop::Steer::new(),
+        cancel: agent_loop::Cancel::new(),
+    };
+    match agent_loop::run_step(model, &spec, gw, auth.clone(), executor.clone(), demo_ctx.clone(), "How many leads?").await {
         Ok(out) => println!("[slice1.6] agent final: {}\n", out.text),
         Err(e) => println!("[slice1.6] ERROR: {e}\n"),
     }
@@ -214,7 +222,7 @@ async fn main() -> anyhow::Result<()> {
         ),
         rig::test_utils::MockTurn::text("Computed via code-mode."),
     ]);
-    match agent_loop::run_step(coder, &spec, Arc::new(InProcessGateway), auth.clone(), executor, "summarize leads").await {
+    match agent_loop::run_step(coder, &spec, Arc::new(InProcessGateway), auth.clone(), executor, demo_ctx, "summarize leads").await {
         Ok(out) => println!("[slice3] agent final: {}\n", out.text),
         Err(e) => println!("[slice3] ERROR: {e}\n"),
     }

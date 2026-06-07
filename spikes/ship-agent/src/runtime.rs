@@ -50,7 +50,7 @@ async fn op_ship_call(
         let env = s.borrow::<AgentEnv>();
         (env.gateway.clone(), env.auth.clone())
     };
-    match gateway.call(&op, args, &auth).await {
+    match gateway.call(&op, args, &auth, crate::gateway::GatewayCallKind::First).await {
         Ok(v) => v,
         Err(e) => serde_json::json!({ "error": e.to_string() }),
     }
