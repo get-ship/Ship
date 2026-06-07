@@ -593,7 +593,23 @@ impl SessionExecutor for ProcessExecutor {
         // Isolator lifecycle (prepare/shutdown) that the supervisor
         // doesn't own yet — they fall through with a warning.
         let ship_dir = ctx.work_dir.join(".ship");
-        let decision = ship_isolation::decision::decide_for_agent(&ship_dir, &ctx.agent, None);
+        // Resolve this agent's optional `isolation:` override from
+        // .ship/agents/<id>.jsonc here — L1 owns the config read so L0's
+        // `decide()` stays config-free (closes the ship-isolation→ship-config
+        // inversion; this is decide_for_agent's old body, inlined at its caller).
+        let agent_override = ship_config::project::get_config(Some(ship_dir.clone()))
+            .ok()
+            .and_then(|cfg| {
+                cfg.agents
+                    .iter()
+                    .find(|a| a.id == ctx.agent)
+                    .and_then(|a| {
+                        ship_isolation::decision::parse_agent_override(a.isolation.as_ref())
+                            .ok()
+                            .flatten()
+                    })
+            });
+        let decision = ship_isolation::decision::decide(agent_override.as_ref(), None);
         let enforce = ship_isolation::decision::enforcement_enabled();
         // Optional sandbox owner — attached to ActorHandle after spawn
         // so its Drop fires isolator.shutdown() when the actor dies.
