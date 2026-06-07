@@ -11,14 +11,13 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use specta::Type;
 
 pub use ship_substrate::project::PRIMARY_CONFIG_FILE;
 
 // ─── Hook + permission types ──────────────────────────────────────────────────
 
 /// Which lifecycle event triggers a hook.
-#[derive(Serialize, Deserialize, Debug, Clone, Type, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "PascalCase")]
 pub enum HookTrigger {
     SessionStart,
@@ -43,7 +42,7 @@ pub enum HookTrigger {
 }
 
 /// A shell command executed on a lifecycle event.
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct HookConfig {
     pub id: String,
     pub trigger: HookTrigger,
@@ -61,7 +60,7 @@ pub struct HookConfig {
 }
 
 /// Mode-scoped tool permission overrides.
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PermissionConfig {
     #[serde(default)]
     pub allow: Vec<String>,
@@ -69,7 +68,7 @@ pub struct PermissionConfig {
     pub deny: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AgentLayerConfig {
     /// Skill IDs to load for all sessions in this project.
     #[serde(default)]
@@ -93,7 +92,7 @@ pub fn is_agent_layer_empty(config: &AgentLayerConfig) -> bool {
 /// Richer than the write-view [`crate::types::AgentProfile`]: includes
 /// hooks, permissions, and the isolation override that the platform UI
 /// surfaces but that the agent-def write door preserves on disk separately.
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AgentProfile {
     pub id: String,
     pub name: String,
@@ -128,7 +127,7 @@ pub struct AgentProfile {
     pub isolation: Option<serde_json::Value>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Type, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum McpServerType {
     #[default]
@@ -137,7 +136,7 @@ pub enum McpServerType {
     Http,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct McpServerConfig {
     #[serde(default)]
     pub id: String,
@@ -167,19 +166,19 @@ fn default_scope() -> String {
     "global".to_string()
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct McpConfig {
     #[serde(default)]
     pub mcp: McpSection,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct McpSection {
     #[serde(default)]
     pub servers: HashMap<String, McpServerConfig>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct HarnessProjectOverrides {
     /// Project-level override for the user-KV `harness.default` setting.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -199,7 +198,7 @@ fn is_harness_overrides_empty(h: &Option<HarnessProjectOverrides>) -> bool {
     h.as_ref().map(|o| o.is_empty()).unwrap_or(true)
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProjectConfig {
     #[serde(default = "default_version")]
     pub version: String,
@@ -255,13 +254,11 @@ impl Default for ProjectConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProjectDiscovery {
     pub name: String,
-    #[specta(type = String)]
     pub path: PathBuf,
 }
-
 // ─── MCP IO ───────────────────────────────────────────────────────────────────
 
 pub fn get_mcp_config(ship_dir: &std::path::Path) -> Result<Vec<McpServerConfig>> {
