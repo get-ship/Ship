@@ -6,11 +6,10 @@ use tokio::sync::Mutex;
 
 use super::roles::{grants_for_role, scopes_for_role};
 use super::session::{
-    drop_session, generate_session_token, hex_encode, is_session_token, mint_session,
-    operator_session, session_registry, set_session_registry, space_window_session, DaemonSession,
-    SessionRegistry,
+    drop_session, generate_session_token, is_session_token, mint_session, operator_session,
+    session_registry, set_session_registry, space_window_session, DaemonSession, SessionRegistry,
 };
-use super::types::{McpAuth, RequiredAuth, Scope};
+use super::types::Scope;
 
 fn session_bound_to(pid: Option<u32>) -> DaemonSession {
     DaemonSession {
