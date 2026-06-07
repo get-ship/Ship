@@ -257,3 +257,7 @@ impl Drop for WindowDropGuard {
         self.registry.drop_window(&self.window_id);
     }
 }
+
+#[cfg(test)]
+#[path = "window_subscription_rpc_tests.rs"]
+mod tests;
