@@ -4,7 +4,6 @@
 use serde::Serialize;
 
 #[derive(Serialize, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ProviderRow {
     /// Stable id (e.g. "claude", "codex", "cursor").
     pub id: String,
@@ -23,7 +22,6 @@ pub struct ProviderRow {
 }
 
 #[derive(Serialize, Default, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct TerminalConfig {
     pub program: String,
     pub worktree_base: String,
@@ -31,14 +29,12 @@ pub struct TerminalConfig {
 }
 
 #[derive(Serialize, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SelectOption {
     pub value: String,
     pub label: String,
 }
 
 #[derive(Serialize, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct FeatureFlag {
     pub key: String,
     pub label: String,
@@ -47,7 +43,6 @@ pub struct FeatureFlag {
 }
 
 #[derive(Serialize, Default, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct AboutInfo {
     pub ship_version: String,
     pub daemon_version: String,
@@ -59,7 +54,6 @@ pub struct AboutInfo {
 }
 
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SettingsCtx {
     pub harnesses: Vec<ProviderRow>,
     pub default_harness: String,

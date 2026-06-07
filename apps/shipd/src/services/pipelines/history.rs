@@ -13,7 +13,6 @@ use crate::views::state::{
 use super::shape::{format_duration_between, run_state_token};
 
 #[derive(Serialize, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct HistoryRow {
     pub slug: String,
     pub pipeline: String,
@@ -26,7 +25,6 @@ pub struct HistoryRow {
 }
 
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct HistoryCtx {
     pub q: String,
     pub pipeline_filter: String,

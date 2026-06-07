@@ -12,7 +12,6 @@ use std::path::PathBuf;
 use super::view_state::{BranchStats, branch_stats};
 
 #[derive(Serialize, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct Stats {
     pub definitions: usize,
     pub active: usize,
@@ -22,7 +21,6 @@ pub struct Stats {
 }
 
 #[derive(Serialize, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct StatusPill {
     pub label: &'static str,
     pub tone: &'static str,
@@ -30,7 +28,6 @@ pub struct StatusPill {
 }
 
 #[derive(Serialize, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct StepView {
     pub id: String,
     pub step_type: String,
@@ -39,7 +36,6 @@ pub struct StepView {
 }
 
 #[derive(Serialize, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct RunView {
     #[serde(alias = "job_id")]
     pub pipeline_run_id: String,

@@ -21,8 +21,6 @@ use super::shape::{
 };
 
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[cfg_attr(feature = "specta", specta(rename = "PipelinesSummariesCtx"))]
 pub struct SummariesCtx {
     pub stats: Stats,
     pub stats_subtitle: String,

@@ -10,7 +10,6 @@ use std::path::Path;
 use super::shape::{RunView, to_run_view};
 
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct RunDetailCtx {
     pub slug: String,
     pub run: RunView,
@@ -19,7 +18,6 @@ pub struct RunDetailCtx {
 }
 
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct StepObservationRow {
     pub step_name: String,
     pub step_index: usize,
@@ -35,7 +33,6 @@ pub struct StepObservationRow {
 }
 
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct TimelineRow {
     pub event_type: String,
     pub at: String,
