@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::helpers;
+use ship_agents::runtime::helpers;
 
 /// Shipd's concrete implementation of `AgentPlatform`.
 ///
@@ -41,7 +41,7 @@ impl AgentPlatform for ShipdPlatform {
     }
 
     async fn graceful_agent_exit(&self, slug: &str, harness: Option<&str>) {
-        super::agent_lifecycle::graceful_agent_exit(slug, harness).await;
+        ship_agents::runtime::agent_lifecycle::graceful_agent_exit(slug, harness).await;
     }
 
     async fn cleanup_job(&self, slug: &str, branch: &str) {

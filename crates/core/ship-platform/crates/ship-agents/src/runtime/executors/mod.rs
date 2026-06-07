@@ -21,7 +21,7 @@ pub(crate) mod server;
 pub(crate) mod tmux_window;
 
 pub(crate) use process::ProcessExecutor;
-pub(crate) use routing::RoutingExecutor;
+pub use routing::RoutingExecutor;
 pub(crate) use server::ServerExecutor;
 pub(crate) use tmux_window::TmuxWindowExecutor;
 

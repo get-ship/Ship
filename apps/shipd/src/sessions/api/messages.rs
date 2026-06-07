@@ -222,7 +222,7 @@ pub async fn session_message(
             let registry = dh.registry.lock().await;
             registry
                 .get(&id)
-                .and_then(ship_supervisor::pty_actor_handle)
+                .and_then(ship_agents::runtime::pty_actor_handle)
         };
         // Distinguish "no session in registry" from "session present
         // but not PTY" by a second pass.

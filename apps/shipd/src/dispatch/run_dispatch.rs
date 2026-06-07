@@ -7,11 +7,14 @@
 //! `ship_agents::start_agents` (agent sessions).
 //!
 //! The two actors share ONE `ConfigSpawnPolicy` instance (cloned into both
-//! bundles) so role/token resolution is identical on every dispatch path. The
-//! agent-session actor is reached through the ship-platform facade
-//! (`services::agent_sessions`, a re-export of the L0-deps-only `ship-agents`
-//! crate) — this crate already depends on ship-platform, so wiring `start_agents`
-//! here adds no NEW direct crate dependency on ship-agents.
+//! bundles) so role/token resolution is identical on every dispatch path.
+//!
+//! This composition root lives in `shipd::dispatch` (not in `ship-agents` or
+//! `ship-supervisor`): it wires `ship_agents::runtime::executors` (the L1
+//! agent-run assembly) into `ship_pipeline_runtime`'s orchestrator and the
+//! `ship_agents` agent-session actor. Because `ship-pipeline-runtime` depends
+//! on `ship-agents`, this wiring can only live where both are available — the
+//! daemon (shipd) — without closing a dependency cycle.
 
 use ship_agents::{start_agents, AgentPorts};
 use ship_substrate::services::dispatch_ports::{SessionExecutor, SpawnPolicy};
@@ -58,7 +61,7 @@ pub async fn subscribe_job_events(
     // job with a single warning line.
     tracing::info!("job-dispatch: using RoutingExecutor (tmux-window default, headless on flag)");
     let executor: Arc<dyn SessionExecutor> =
-        Arc::new(super::executors::RoutingExecutor::new(Some(kernel.clone())));
+        Arc::new(ship_agents::runtime::executors::RoutingExecutor::new(Some(kernel.clone())));
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
 

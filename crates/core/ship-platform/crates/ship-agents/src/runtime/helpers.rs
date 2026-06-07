@@ -9,17 +9,17 @@ pub fn worktrees_dir() -> PathBuf {
         .and_then(|n| n.to_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| "ship".to_string());
-    ship_platform::config::worktrees_dir(&project)
+    ship_config::local::worktrees_dir(&project)
 }
 
-pub(crate) fn repo_dir() -> PathBuf {
+pub fn repo_dir() -> PathBuf {
     if let Ok(dir) = ship_substrate::env::read_raw(ship_substrate::env::Var::RepoDir) {
         return PathBuf::from(dir);
     }
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
-pub(crate) fn create_worktree(
+pub fn create_worktree(
     worktree_path: &std::path::Path,
     branch: &str,
     base_branch: Option<&str>,
@@ -60,7 +60,7 @@ pub(crate) fn create_worktree(
     Ok(())
 }
 
-pub(crate) fn compile_agent_config(
+pub fn compile_agent_config(
     worktree_path: &std::path::Path,
     agent_id: &str,
 ) -> Result<()> {
@@ -96,7 +96,7 @@ pub(crate) fn compile_agent_config(
 
 
 /// Kill a tmux session by name. No-op if session does not exist.
-pub(crate) fn kill_tmux_session(session_name: &str) -> Result<()> {
+pub fn kill_tmux_session(session_name: &str) -> Result<()> {
     let status = std::process::Command::new("tmux")
         .args(["kill-session", "-t", session_name])
         .status();
@@ -108,7 +108,7 @@ pub(crate) fn kill_tmux_session(session_name: &str) -> Result<()> {
 }
 
 /// Remove a git worktree. No-op if path does not exist.
-pub(crate) fn remove_worktree(worktree_path: &std::path::Path) -> Result<()> {
+pub fn remove_worktree(worktree_path: &std::path::Path) -> Result<()> {
     if !worktree_path.exists() {
         return Ok(());
     }
@@ -130,7 +130,7 @@ pub(crate) fn remove_worktree(worktree_path: &std::path::Path) -> Result<()> {
 }
 
 /// Delete a local git branch. No-op if branch does not exist.
-pub(crate) fn delete_branch(branch: &str) -> Result<()> {
+pub fn delete_branch(branch: &str) -> Result<()> {
     let status = std::process::Command::new("git")
         .args(["branch", "-D", branch])
         .current_dir(repo_dir())

@@ -3,51 +3,14 @@ name = "ship-supervisor"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "OS-level agent supervision — executors, isolation, terminal launching, graceful exit. Consumes the platform's orchestrator traits and provides the concrete daemon-side implementations."
+description = "L0 OS-level process primitives — terminal-tab launching and process-event emit. The agent-run assembly (executors, isolation, harness selection, token minting) moved up into ship-agents; the daemon composition root moved into apps/shipd."
 [dependencies]
 ship-substrate = { path = "../.." }
-ship-platform = { path = "../../../ship-platform" }
-# L0 auth primitives (P2 carve). The supervisor mints per-process agent
-# tokens through this seam — the role→scope tables and `DaemonSession`
-# constructor live here, not in the L1 platform.
-ship-auth-types = { path = "../ship-auth-types" }
-ship-agents = { path = "../../../ship-platform/crates/ship-agents" }
-ship-auth = { path = "../../../ship-platform/crates/ship-auth" }
-ship-files = { path = "../../../ship-platform/crates/ship-files" }
-ship-harnesses = { path = "../../../ship-platform/crates/ship-harnesses" }
-# Device domain — isolation-execution sandbox bookkeeping. The supervisor's
-# per-spawn path consults `ship_device::sandbox::dispatcher()` to ensure
-# the project's default sandbox exists, register actors, and notify on
-# exit. Moved here from `ship_platform::sandbox` as part of the
-# supervisor→platform cycle break (c2-sandbox-device).
-ship-device = { path = "../../../ship-platform/crates/ship-device" }
-# Pipeline runtime (orchestrator + PipelinesService carved out of
-# ship-platform — agents-arc P3 cut). The supervisor wires up the
-# `OrchestratorContext` for the runner and reaches into the pipeline
-# isolation helper.
-ship-pipeline-runtime = { path = "../../../../ship-pipeline-runtime" }
-# L0 runner mechanism (agents-arc S2). The supervisor emits process/executor
-# lifecycle events through the runner's kernel-emit helpers — an L0-to-L0 reach
-# that replaces the historic up-reach into `ship_platform::…::orchestrator::emit`
-# (the parked PHASE-3-TODO layer-direction violation in executors/process.rs).
+# L0 runner mechanism — process-event emit helpers re-exported by
+# `process_events`.
 ship-runner = { path = "../ship-runner" }
-ship-isolation = { path = "../../../ship-isolation", default-features = false }
-ship-types = { path = "../ship-types" }
 
-anyhow = { workspace = true }
-async-trait = { workspace = true }
-chrono = { workspace = true }
-futures-util = { workspace = true }
-libc = { workspace = true }
-nanoid = { workspace = true }
-portable-pty = "0.9"
-serde = { workspace = true }
-serde_json = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
-
-[dev-dependencies]
-tempfile = { workspace = true }
 
 [lints]
 workspace = true

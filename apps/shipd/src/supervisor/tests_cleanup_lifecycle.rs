@@ -102,7 +102,7 @@ fn run_failed_does_not_trigger_cleanup() {
 #[test]
 fn cleanup_tolerates_missing_worktree() {
     // remove_worktree in helpers.rs should check existence first
-    let source = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/helpers.rs");
+    let source = include_str!("../../../../crates/core/ship-platform/crates/ship-agents/src/runtime/helpers.rs");
     assert!(
         source.contains("exists()"),
         "remove_worktree must check if worktree exists before removal"
@@ -113,7 +113,7 @@ fn cleanup_tolerates_missing_worktree() {
 #[test]
 fn cleanup_tolerates_missing_branch() {
     // delete_branch should not propagate errors for non-existent branches
-    let source = include_str!("../../../../crates/core/ship-substrate/crates/ship-supervisor/src/helpers.rs");
+    let source = include_str!("../../../../crates/core/ship-platform/crates/ship-agents/src/runtime/helpers.rs");
     // The function logs but doesn't error on missing branches
     assert!(
         source.contains("may not exist"),

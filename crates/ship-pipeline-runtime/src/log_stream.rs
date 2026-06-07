@@ -4,8 +4,8 @@
 //! (Axum SSE wrapper) remains in shipd; this module provides the pure
 //! domain logic — slug validation, file discovery, byte-range reads, and
 //! ANSI stripping — through a `WorktreesDirPort` so shipd can inject its
-//! `ship_supervisor::helpers::worktrees_dir()` without this crate gaining a
-//! direct dependency on ship-supervisor.
+//! `ship_agents::runtime::worktrees_dir()` without this crate gaining a
+//! direct dependency on the agent-run assembly.
 //!
 //! SSE event shape (unchanged):
 //!   event: log

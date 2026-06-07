@@ -260,8 +260,8 @@ impl SessionExecutor for NoopJobExecutor {
     async fn send(&self, _handle: &ExecutorHandle, _msg: &str) -> anyhow::Result<()> { Ok(()) }
 }
 
-fn build_platform(kernel: Arc<Mutex<KernelRouter>>) -> ship_supervisor::platform::ShipdPlatform {
-    ship_supervisor::platform::ShipdPlatform {
+fn build_platform(kernel: Arc<Mutex<KernelRouter>>) -> crate::dispatch::platform::ShipdPlatform {
+    crate::dispatch::platform::ShipdPlatform {
         registry: Arc::new(Mutex::new(ProcessRegistry::new())),
         executor: Arc::new(NoopJobExecutor),
         kernel,
@@ -301,7 +301,7 @@ async fn cleanup_job_emits_executor_session_destroyed() {
 async fn cleanup_orphan_emits_executor_session_destroyed() {
     let (_dir, base, kernel) = setup();
 
-    ship_supervisor::orphan_cleanup::tests_only::cleanup_orphan_for_test("orphan-emit", &kernel).await;
+    crate::dispatch::orphan_cleanup::tests_only::cleanup_orphan_for_test("orphan-emit", &kernel).await;
 
     let events = list_recent_events_at(&base, 50).unwrap();
     let destroyed = events
