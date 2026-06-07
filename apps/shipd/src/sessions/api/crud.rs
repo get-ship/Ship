@@ -37,9 +37,10 @@ pub struct SessionListResponse {
     pub sessions: Vec<SessionMetaWire>,
 }
 
-/// Wire-format session meta. Mirrors `SessionMeta` but the internal
-/// type lives in `types::private` and we want to keep that module
-/// from leaking schemas via utoipa.
+/// Wire-format session meta. Mirrors `SessionMeta` but decoupled from
+/// the internal `types::private` representation: the wire shape is
+/// declared here so the private type can change without breaking the
+/// HTTP contract.
 #[derive(Serialize)]
 pub struct SessionMetaWire {
     pub id: String,
