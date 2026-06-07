@@ -10,7 +10,7 @@ name = "xtask"
 path = "src/main.rs"
 
 [dependencies]
-compiler = { path = "../core/ship-platform/crates/compiler", features = ["specta"] }
+compiler = { path = "../core/compiler", features = ["specta"] }
 ship-substrate = { path = "../core/ship-substrate" }
 # Collection schema parser SSOT — gen-collection-types reuses SchemaDoc/FieldKind
 # so the codegen never re-implements schema parsing.
