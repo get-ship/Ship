@@ -6,20 +6,17 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use specta::Type;
-
 use super::SHIP_DIR_NAME;
 use super::global::get_global_dir;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProjectRegistry {
     pub projects: Vec<ProjectEntry>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ProjectEntry {
     pub name: String,
-    #[specta(type = String)]
     pub path: PathBuf,
 }
 

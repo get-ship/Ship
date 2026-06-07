@@ -23,7 +23,6 @@
 //! the inversion arc is in flight.
 
 use serde::{Deserialize, Serialize};
-use specta::Type;
 use std::collections::HashMap;
 
 pub mod event_types {
@@ -72,8 +71,7 @@ pub mod event_types {
 ///   No keepalive. API-billed for claude post-2026-06-19.
 /// - `Stream`: server-mode JSON-RPC or REST session (codex
 ///   `app-server`, opencode REST). Long-lived; supports keepalive.
-///   Only codex and opencode support this today.
-#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq, Eq, Hash, Copy)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum InvocationMode {
     Pty,
@@ -102,8 +100,7 @@ impl InvocationMode {
 
 /// Payload for `agent.session.started`. Carries the full dispatch
 /// intent. The three orthogonal axes (`open_tab`, `invocation`,
-/// `keepalive`) replace the old single `headless: bool`.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentSessionStartedPayload {
     /// ULID. Primary key; stable for the life of the session.
     pub session_id: String,
@@ -173,8 +170,7 @@ pub struct AgentSessionStartedPayload {
 
 /// Payload for `agent.session.dispatched`. Emitted by the orchestrator
 /// once the executor returns a handle and the process is registered.
-/// Pair with `AgentSessionStartedPayload` via `session_id`.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentSessionDispatchedPayload {
     pub session_id: String,
     pub slug: String,
@@ -193,7 +189,7 @@ pub struct AgentSessionDispatchedPayload {
 }
 
 /// Payload for `agent.session.completed`. Clean terminal.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentSessionCompletedPayload {
     pub session_id: String,
     pub slug: String,
@@ -205,7 +201,7 @@ pub struct AgentSessionCompletedPayload {
 }
 
 /// Payload for `agent.session.failed`. Abnormal terminal.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentSessionFailedPayload {
     pub session_id: String,
     pub slug: String,
@@ -224,7 +220,7 @@ pub struct AgentSessionFailedPayload {
 }
 
 /// Payload for `agent.session.cancelled`. Operator stop.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentSessionCancelledPayload {
     pub session_id: String,
     pub slug: String,
@@ -238,7 +234,7 @@ pub struct AgentSessionCancelledPayload {
 /// the agent declared end-of-turn (Stop hook for claude; harness-
 /// specific sentinels for others) and is now idle, awaiting the next
 /// `push` from the operator.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentSessionTurnEndedPayload {
     pub session_id: String,
     pub slug: String,

@@ -11,7 +11,6 @@ use specta::Type;
 // DAG types re-exported at the module level; re-imported here so this
 // submodule compiles without relying on `super::*` import order.
 use ship_pipelines::types::{Pipeline, PipelinePhase};
-
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineRunStartedPayload {
     #[serde(alias = "job_id")]
@@ -173,8 +172,7 @@ pub struct PipelineRunFailedPayload {
 /// process never started. Distinct from PipelineRunFailedPayload because it
 /// carries the *stage* of dispatch that failed (isolation prepare,
 /// agent compile, executor spawn) so the operator can debug the
-/// right layer.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineStepSpawnFailedPayload {
     #[serde(alias = "job_id")]
     pub pipeline_run_id: String,
@@ -186,8 +184,7 @@ pub struct PipelineStepSpawnFailedPayload {
     pub error: String,
 }
 
-/// Emitted when an operator (or system policy) cancels a job. Terminal.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineRunCancelledPayload {
     #[serde(alias = "job_id")]
     pub pipeline_run_id: String,
@@ -222,7 +219,7 @@ pub struct PipelineStepStartedPayload {
 }
 
 /// Emitted when a pipeline step finishes successfully.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineStepCompletedPayload {
     #[serde(alias = "job_id")]
     pub pipeline_run_id: String,
@@ -231,7 +228,7 @@ pub struct PipelineStepCompletedPayload {
 }
 
 /// Emitted when a pipeline step fails. Halts pipeline advancement.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineStepFailedPayload {
     #[serde(alias = "job_id")]
     pub pipeline_run_id: String,
@@ -241,7 +238,7 @@ pub struct PipelineStepFailedPayload {
 }
 
 /// Emitted by run steps to capture stdout/stderr output.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineStepOutputPayload {
     #[serde(alias = "job_id")]
     pub pipeline_run_id: String,
@@ -251,7 +248,7 @@ pub struct PipelineStepOutputPayload {
 }
 
 /// Emitted by an agent via the `step_done` MCP tool to declare step completion.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineStepDoneDeclaredPayload {
     #[serde(alias = "job_id")]
     pub pipeline_run_id: String,

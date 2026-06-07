@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Category taxonomy for env vars — matches the ADR.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Category {
     /// User-facing configuration knobs (`SHIP_HOME`, `SHIP_API_URL`, …).
@@ -22,10 +22,10 @@ pub enum Category {
 }
 
 /// Every `SHIP_*` environment variable the runtime reads.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Var {
-    // ── Configuration ────────────────────────────────────────────────────
+    // ── Configuration ─────────────────────────────────────────────
     Home,
     ApiUrl,
     RegistryUrl,

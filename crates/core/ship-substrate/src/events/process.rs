@@ -3,8 +3,6 @@
 //! resource the supervisor must observe directly.
 
 use serde::{Deserialize, Serialize};
-use specta::Type;
-
 pub mod event_types {
     pub const PROCESS_SPAWNED: &str = "process.spawned";
     pub const PROCESS_EXITED: &str = "process.exited";
@@ -12,8 +10,7 @@ pub mod event_types {
     pub const PROCESS_ORPHANED: &str = "process.orphaned";
     pub const PROCESS_KILLED: &str = "process.killed";
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessSpawnedPayload {
     /// Slug of the job that owns this process.
     pub slug: String,
@@ -34,8 +31,7 @@ pub struct ProcessSpawnedPayload {
     /// None for non-pipeline jobs.
     pub step_id: Option<String>,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessExitedPayload {
     pub slug: String,
     pub pid: Option<u32>,
@@ -45,8 +41,7 @@ pub struct ProcessExitedPayload {
     pub wall_duration_ms: u64,
     pub executor_kind: String,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessSignalSentPayload {
     pub slug: String,
     pub pid: Option<u32>,
@@ -58,7 +53,7 @@ pub struct ProcessSignalSentPayload {
     pub actor: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessOrphanedPayload {
     pub pid: u32,
     pub cmd: String,
@@ -67,7 +62,7 @@ pub struct ProcessOrphanedPayload {
     pub detected_by: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessKilledPayload {
     /// Slug of the job whose process was killed.
     pub slug: String,

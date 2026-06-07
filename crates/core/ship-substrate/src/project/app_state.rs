@@ -5,12 +5,10 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use specta::Type;
-
 use super::global::get_global_dir;
 use super::registry::normalize_registry_project_path;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AppState {
     pub active_project: Option<PathBuf>,
     pub recent_projects: Vec<PathBuf>,

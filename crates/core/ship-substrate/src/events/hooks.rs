@@ -18,8 +18,6 @@
 //! already import from there.
 
 use serde::{Deserialize, Serialize};
-use specta::Type;
-
 pub mod event_types {
     pub const HOOK_SESSION_STARTED: &str = "hook.session_started";
     pub const HOOK_SESSION_ENDED: &str = "hook.session_ended";
@@ -41,8 +39,7 @@ pub mod event_types {
 
 /// Fired when a harness reports the start of an interactive session.
 /// Drives session-level analytics rollups (per-session duration,
-/// per-model token counts, cost).
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookSessionStartedPayload {
     /// Ship-side actor id this hook belongs to (typically the
     /// dispatched slug or the supervisor-generated ULID).
@@ -70,8 +67,7 @@ pub struct HookSessionStartedPayload {
 /// Fired when a harness reports the end of a session OR when Ship
 /// detects session teardown (cancel / executor.session_destroyed /
 /// process exit). Pair with HookSessionStartedPayload for duration
-/// rollups.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookSessionEndedPayload {
     pub actor_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -86,8 +82,7 @@ pub struct HookSessionEndedPayload {
 }
 
 /// Tool-use status carried on the completed payload. String form
-/// keeps the wire stable across serde versions / language clients.
-#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ToolStatus {
     Ok,
@@ -98,10 +93,10 @@ pub enum ToolStatus {
 
 /// Fired before a tool invocation. Carries the structured arguments
 /// so analytics can count "all bash commands" or "all file edits to
-/// X" — the legacy preview string couldn't support that.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookToolUseStartedPayload {
     pub actor_id: String,
+    /// Tool name as the harness reports it. Conventional set:
     /// Tool name as the harness reports it. Conventional set:
     /// "Bash", "Read", "Write", "Edit", "Grep", "Glob", "Task",
     /// "WebFetch", and any user-defined MCP tool name.
@@ -119,10 +114,8 @@ pub struct HookToolUseStartedPayload {
     pub started_at: String,
 }
 
-/// Fired after a tool invocation completes (success or failure).
-/// Pair with HookToolUseStartedPayload via (actor_id, tool, started_at)
 /// for duration computation in the AnalyticsProjection.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookToolUseCompletedPayload {
     pub actor_id: String,
     pub tool: String,
@@ -148,7 +141,7 @@ pub struct HookToolUseCompletedPayload {
 /// All counts are absolute for THIS turn (not cumulative). Zero is a
 /// valid value; null/missing means the harness didn't surface that
 /// category (e.g. claude pre-cache-API doesn't have cache_creation).
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookTurnObservedPayload {
     pub actor_id: String,
     /// Harness-native session id when available, else None.
@@ -193,7 +186,7 @@ pub struct HookTurnObservedPayload {
 /// the deny response is sent back to the harness so the tool never
 /// runs. Captured separately from hook.tool_use_* because the call
 /// never produced a started/completed pair.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookPermissionDeniedPayload {
     pub actor_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

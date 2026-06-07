@@ -7,13 +7,11 @@
 //! fire with a `DestructionCause`, and the liveness handler branches on it.
 
 use serde::{Deserialize, Serialize};
-use specta::Type;
-
 pub use ship_types::event_types::{EXECUTOR_SESSION_DESTROYED, EXECUTOR_WINDOW_DESTROYED};
 
 /// Why a session/window is gone. Drives the liveness handler's decision
 /// between `job.completed` and `job.failed`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DestructionCause {
     /// Agent process exited cleanly (we observed it).
@@ -25,7 +23,7 @@ pub enum DestructionCause {
     External,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutorSessionDestroyedPayload {
     pub executor_kind: String,
     pub session_name: String,
@@ -33,7 +31,7 @@ pub struct ExecutorSessionDestroyedPayload {
     pub cause: DestructionCause,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutorWindowDestroyedPayload {
     pub executor_kind: String,
     pub session_name: String,

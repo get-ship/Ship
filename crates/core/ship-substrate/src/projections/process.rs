@@ -12,12 +12,11 @@ use std::collections::HashMap;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use specta::Type;
 
 use crate::events::process::event_types;
 use crate::events::EventEnvelope;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProcessStatus {
     Running,
@@ -26,7 +25,7 @@ pub enum ProcessStatus {
     Orphaned,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignalEntry {
     pub signum: String,
     pub reason: String,
@@ -34,7 +33,7 @@ pub struct SignalEntry {
     pub at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessRecord {
     pub pid: Option<u32>,
     pub slug: String,
