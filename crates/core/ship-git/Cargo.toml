@@ -22,14 +22,6 @@ axum = { workspace = true }
 connectrpc = { version = "0.4", features = ["axum"] }
 async-stream = "0.3"
 
-[features]
-specta = ["dep:specta"]
-
-[dependencies.specta]
-workspace = true
-features = ["chrono", "serde_json"]
-optional = true
-
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "rt-multi-thread", "macros"] }
 tempfile = { workspace = true }

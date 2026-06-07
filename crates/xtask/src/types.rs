@@ -187,29 +187,15 @@ pub fn collect_framework_types() -> TypeCollection {
     c
 }
 
-/// Ship daemon-domain data types (git / agents / account). These belong to the
+/// Ship daemon-domain data types (agents / account / skills). These belong to the
 /// SDK layer, NOT the framework — `@ship/sui-runtime` names no host concept.
 /// Output: `packages/deck/sdk-client/src/generated.ts`.
 pub fn collect_ship_data_types() -> TypeCollection {
     let mut c = TypeCollection::default();
 
-    // git — overview, diff, status buckets.
-    c.register::<ship_platform::services::git::state::CommitSummary>();
-    c.register::<ship_platform::services::git::state::StatusFile>();
-    c.register::<ship_platform::services::git::state::StatusBuckets>();
-    c.register::<ship_platform::services::git::state::BranchSummary>();
-    c.register::<ship_platform::services::git::state::GitOverview>();
-    c.register::<ship_platform::services::git::state::GitDiff>();
-    c.register::<ship_platform::services::git::state::GitDiffArgs>();
-    c.register::<ship_platform::services::git::diff::DiffLine>();
-    c.register::<ship_platform::services::git::diff::DiffHunk>();
-    c.register::<ship_platform::services::git::diff::DiffFileView>();
-    c.register::<ship_platform::services::git::diff::ParsedDiff>();
-
     // agents — summary list payload.
     c.register::<ship_agents::services::agents::view_state::AgentSummary>();
     c.register::<ship_agents::services::agents::view_state::AgentsSummariesResponse>();
-
     // account — Ship Cloud account state for the chrome chip.
     c.register::<ship_account::types::AccountState>();
     c.register::<ship_account::types::MeView>();
