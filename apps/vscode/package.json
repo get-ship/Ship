@@ -59,7 +59,7 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -w -p ./",
-    "vscode:prepublish": "npm run compile"
+    "vscode:prepublish": "bun run compile"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"

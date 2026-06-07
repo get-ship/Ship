@@ -42,7 +42,7 @@ port=$(cat "$d/port")
 pass "daemon on port $port"
 
 step "view smoke (HTTP 200 per views.json)"
-node scripts/dev/smoke-views.mjs --port "$port" || fail "view smoke"
+bun scripts/dev/smoke-views.mjs --port "$port" || fail "view smoke"
 pass "view smoke"
 
 step "playwright visual"
