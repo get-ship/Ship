@@ -19,7 +19,7 @@ import { chromium, type ConsoleMessage, type Response } from 'playwright'
 import { execSync } from 'node:child_process'
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 
-interface Args { url: string; pid?: number; routes: string[]; iterations: number; out: string }
+interface Args { url: string; pid?: number; routes: string[]; iterations: number; out: string; settleMs: number }
 
 function parseArgs(): Args {
   const a = process.argv.slice(2)
@@ -36,6 +36,7 @@ function parseArgs(): Args {
     routes,
     iterations: Number(get('--iterations') ?? '20'),
     out: get('--out') ?? '.artifacts/perf',
+    settleMs: Number(get('--settle') ?? '0'),
   }
 }
 
@@ -104,8 +105,19 @@ async function main() {
       } catch (e) {
         consoleErrors.push({ route, text: `navigation failed: ${String(e).slice(0, 200)}` })
       }
+      // Settle window: async work (dock icons, live-data subscriptions, cmdk)
+      // happens AFTER `load` fires. Sample sockets repeatedly to catch the peak
+      // (the connection-ceiling pile-up) and let console errors accumulate.
+      let sockets = daemonSockets(port)
+      if (args.settleMs > 0) {
+        const end = performance.now() + args.settleMs
+        while (performance.now() < end) {
+          sockets = Math.max(sockets, daemonSockets(port))
+          await page.waitForTimeout(500)
+        }
+      }
       const heapBytes = await page.evaluate(() => (performance as any).memory?.usedJSHeapSize ?? null).catch(() => null)
-      samples.push({ iter, route, loadMs, heapBytes, rssKb: rssKb(pid), sockets: daemonSockets(port) })
+      samples.push({ iter, route, loadMs, heapBytes, rssKb: rssKb(pid), sockets })
     }
   }
 
