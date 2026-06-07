@@ -141,4 +141,10 @@ pub struct ShipRuntime {
     /// open until the client happens to disconnect (the ~10s SIGTERM→SIGKILL
     /// hang). Cleared/cancelled again in `shutdown()` as a belt-and-suspenders.
     pub(super) shutdown_token: std::sync::OnceLock<tokio_util::sync::CancellationToken>,
+    /// Per-window live-data subscription registry (ADR 0001). Backs the
+    /// `WindowSubscriptionService` multiplex: one `Stream` per webview fans out
+    /// to N logical reads keyed on `window_id`, collapsing the per-`<data live>`
+    /// connection fan-out that hit the browser's ~6/origin HTTP/1.1 ceiling.
+    pub(super) window_subscriptions:
+        std::sync::Arc<crate::window_subscriptions::WindowSubscriptionRegistry>,
 }

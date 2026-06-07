@@ -198,6 +198,47 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+/// Build the resolver for a `(domain, op)` live read, reusing the **same**
+/// builders the per-op `<Op>Live` Connect streams call — never a re-implemented
+/// copy. `git.overview` reuses the `git_signal` resolver (GitWire); `pipelines.*`
+/// reuse the shipd pipeline view builders (the same ones `pipelines_live_fn`
+/// drives). Returns `None` for an op the multiplex doesn't yet route — the
+/// `Subscribe` handler surfaces that as an explicit error rather than emit an
+/// empty value, so the client keeps that op on its per-op stream (no silent
+/// gap, no fabricated data).
+///
+/// Coverage grows by adding a match arm that calls the existing builder. The
+/// follow-up that makes this exhaustive is unifying the per-op live resolvers
+/// into one registry both the `<Op>Live` streams and this dispatch consume —
+/// recorded against the live-data-multiplex plan.
+pub fn resolver_for(domain: &str, op: &str, args: &Value) -> Option<ResolveFn> {
+    match (domain, op) {
+        ("git", "overview") => Some(Arc::new(|state: &ApiState| {
+            crate::views::git_signal::refresh(state);
+            crate::views::git_signal::git_overview_signal().peek()
+        })),
+        ("pipelines", "summaries") => Some(Arc::new(|state: &ApiState| {
+            use crate::services::pipelines::summaries;
+            use crate::views::state::Filter;
+            let ctx = summaries::build(state.ship_dir(), Filter::default(), None);
+            serde_json::to_value(&ctx).unwrap_or(Value::Null)
+        })),
+        ("pipelines", "run") => {
+            let slug = args
+                .get("slug")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            Some(Arc::new(move |state: &ApiState| {
+                use crate::services::pipelines::run_detail;
+                let ctx = run_detail::build(&slug, state.ship_dir());
+                serde_json::to_value(&ctx).unwrap_or(Value::Null)
+            }))
+        }
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

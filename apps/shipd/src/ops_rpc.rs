@@ -165,6 +165,15 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = StreamServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::RuntimeServiceExt::register(svc.clone(), router);
 
+    // window.* — the live-data multiplex (ADR 0001). One per-window server-stream
+    // + unary control plane, demuxed by subscription_id. Sibling impl (holds its
+    // own ApiState handle); the per-window registry lives in ApiState.
+    let window_sub_wire = Arc::new(
+        crate::window_subscription_rpc::WindowSubscriptionImpl::new(state.clone()),
+    );
+    let router =
+        ship_ops_rpc::WindowSubscriptionServiceExt::register(window_sub_wire, router);
+
     // ── Gate closure shared by all four crate-owned wires ──────────────────────
     // Reads the blast from the proto descriptor (the ONE policy source) and runs
     // gate::decide — the same enforcement that command::call did, now at the

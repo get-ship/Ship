@@ -271,4 +271,12 @@ impl ShipRuntime {
     pub fn workspace_dir(&self) -> Option<&Path> {
         self.workspace_dir.as_deref()
     }
+
+    /// Per-window live-data subscription registry (ADR 0001) — the server side
+    /// of the `WindowSubscriptionService` multiplex.
+    pub fn window_subscriptions(
+        &self,
+    ) -> &Arc<crate::window_subscriptions::WindowSubscriptionRegistry> {
+        &self.window_subscriptions
+    }
 }

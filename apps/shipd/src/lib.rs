@@ -16,8 +16,6 @@ fn install_test_platform_defaults() {
     ship_pipeline_runtime::install_projections();
 }
 
-#[cfg(test)]
-mod compose_component_seam;
 pub mod access;
 pub mod sessions;
 pub mod auth;
@@ -53,6 +51,7 @@ pub mod search_context;
 pub mod search_rpc;
 pub mod live_read;
 pub mod window_subscriptions;
+pub mod window_subscription_rpc;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;
