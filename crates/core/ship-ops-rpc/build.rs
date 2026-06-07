@@ -12,7 +12,7 @@
 // protoc is sourced via protoc-bin-vendored so fresh clones need no install.
 fn main() {
     let proto_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../../../proto")
+        .join("../../../proto")
         .canonicalize()
         .expect("proto root not found");
     let descriptor =

@@ -7,7 +7,7 @@ description = "Agent domain (L1) — agent-session dispatch, agent-domain policy
 
 [dependencies]
 # RPC wire layer (ConnectRPC trait impls for rules/mcp/permissions/skills/agents)
-ship-ops-rpc = { path = "../ship-ops-rpc" }
+ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 ship-reactive = { path = "../ship-reactive" }
 connectrpc = { version = "0.4", features = ["axum"] }
 async-stream = "0.3"
