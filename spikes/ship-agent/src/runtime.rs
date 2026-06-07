@@ -147,7 +147,7 @@ mod tests {
     use crate::auth::AuthContext;
     use crate::gateway::InProcessGateway;
 
-    fn gw() -> Arc<dyn Gateway> { Arc::new(InProcessGateway) }
+    fn gw() -> Arc<dyn Gateway> { Arc::new(InProcessGateway::default()) }
     fn auth(grants: &[&str]) -> AuthContext {
         AuthContext::in_process("t", grants.iter().map(|s| s.to_string()).collect())
     }
@@ -167,7 +167,9 @@ mod tests {
         let src = r#"
             import { collections } from "ship";
             const granted = await collections.read({});
-            const raw_ungranted = await Deno.core.ops.op_ship_call("mcp.create", {});
+            // raw attempt at an UNGRANTED C2 service — SDK never exposed
+            // it; the gate denies it.
+            const raw_ungranted = await Deno.core.ops.op_ship_call("runtime.dispatch", {});
             Deno.core.ops.op_emit({ granted, raw_ungranted });
         "#
         .to_string();

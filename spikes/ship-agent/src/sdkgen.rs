@@ -80,10 +80,22 @@ pub fn generate_sdk(grants: &[String]) -> String {
             SurfaceItem::Service(def) => {
                 out.push_str(&format!("export const {} = {{\n", def.name));
                 for method in def.methods {
-                    out.push_str(&format!(
-                        "  {}: (args) => __call(\"{}.{}\", args),\n",
-                        method.name, def.name, method.name
-                    ));
+                    // S-mcp v1 (design §1): `mcp.call(server, tool, args)`
+                    // — the single synthetic op for all MCP tool calls.
+                    // The body is named-positional so the JS surface
+                    // mirrors the registry's (server, tool) shape; the
+                    // gate still runs (registry seam) and the per-call
+                    // allow-list is enforced on the registry.
+                    if def.name == "mcp" && method.name == "call" {
+                        out.push_str(
+                            "  call: (server, tool, args) => __call(\"mcp.call\", { server, tool, args }),\n",
+                        );
+                    } else {
+                        out.push_str(&format!(
+                            "  {}: (args) => __call(\"{}.{}\", args),\n",
+                            method.name, def.name, method.name
+                        ));
+                    }
                 }
                 out.push_str("};\n");
             }
@@ -148,6 +160,39 @@ mod tests {
                 "JS SDK must expose `{needle}` for the granted surface",
             );
         }
+    }
+
+    // S-mcp v1: `mcp.call` is the single synthetic op for MCP tool calls
+    // (design §1). It MUST be exposed on the JS SDK iff the `mcp` grant
+    // is present (mirror the existing grant-gated emission), and its
+    // body MUST be the named-positional form
+    // `call: (server, tool, args) => __call("mcp.call", { server, tool, args })`
+    // — not the default `call: (args) => __call("mcp.call", args)` — so
+    // the JS ergonomic matches the registry's (server, tool) shape.
+    #[test]
+    fn mcp_call_emitted_only_with_mcp_grant_and_uses_named_positional_body() {
+        // Ungranted ⇒ no mcp.call at all.
+        let sdk = generate_sdk(&g(&["collections"]));
+        assert!(
+            !sdk.contains("export const mcp"),
+            "mcp must not be exposed without the mcp grant; got:\n{sdk}",
+        );
+        // Granted ⇒ the named-positional body shape, not the default.
+        let sdk = generate_sdk(&g(&["mcp"]));
+        assert!(
+            sdk.contains("export const mcp = {"),
+            "granted mcp must expose the mcp namespace; got:\n{sdk}",
+        );
+        assert!(
+            sdk.contains("call: (server, tool, args) => __call(\"mcp.call\", { server, tool, args })"),
+            "mcp.call body must be the named-positional form (design §1); got:\n{sdk}",
+        );
+        // The default per-method body MUST NOT appear for mcp.call (it
+        // would lose the (server, tool) shape).
+        assert!(
+            !sdk.contains("call: (args) => __call(\"mcp.call\""),
+            "mcp.call must not use the default `(args) =>` body; got:\n{sdk}",
+        );
     }
 
     // Unknown grants are silently dropped — same as the JS behavior. The

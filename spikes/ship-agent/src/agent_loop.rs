@@ -192,7 +192,7 @@ mod tests {
     // ── tool-level behavior (deterministic, no model) ──────────────────────
     #[tokio::test]
     async fn tool_returns_result_for_granted_op() {
-        let tool = ShipOpTool { gateway: Arc::new(InProcessGateway), auth: auth(&["collections"]) };
+        let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["collections"]) };
         let out = tool
             .call(OpArgs { op: "collections.read".into(), args: json!({}) })
             .await
@@ -202,10 +202,11 @@ mod tests {
 
     #[tokio::test]
     async fn tool_surfaces_denial_as_result_not_error() {
-        let tool = ShipOpTool { gateway: Arc::new(InProcessGateway), auth: auth(&["collections"]) };
-        // mcp is ungranted; the gate denies. The tool returns it as DATA.
+        let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["collections"]) };
+        // runtime is ungranted; the gate denies the C2 op. The tool
+        // returns it as DATA (`{ denied }`), not a thrown error.
         let out = tool
-            .call(OpArgs { op: "mcp.create".into(), args: json!({}) })
+            .call(OpArgs { op: "runtime.dispatch".into(), args: json!({}) })
             .await
             .expect("denial is a result, not a tool error");
         assert!(out.contains("denied"), "ungranted op must come back denied");
@@ -229,7 +230,7 @@ mod tests {
     #[tokio::test]
     async fn model_tool_call_routes_through_the_gate() {
         let seen = Arc::new(Mutex::new(Vec::new()));
-        let gw = Arc::new(RecordingGateway { inner: InProcessGateway, seen: seen.clone() });
+        let gw = Arc::new(RecordingGateway { inner: InProcessGateway::default(), seen: seen.clone() });
 
         // Scripted model: call ship_op once, then answer.
         let model = MockCompletionModel::new([
@@ -237,7 +238,7 @@ mod tests {
             MockTurn::text("done"),
         ]);
         let spec = AgentSpec::demo("t", "mock", &["collections"]);
-        let exec = Arc::new(ScriptExecutor::spawn(Arc::new(InProcessGateway)));
+        let exec = Arc::new(ScriptExecutor::spawn(Arc::new(InProcessGateway::default())));
 
         let out = run_step(model, &spec, gw, auth(&["collections"]), exec, "read the leads")
             .await
@@ -256,7 +257,7 @@ mod tests {
     //    tool future is Send (it compiles as a rig tool at all) ──────────────
     #[tokio::test]
     async fn run_script_tool_executes_js_through_gate_off_thread() {
-        let exec = Arc::new(ScriptExecutor::spawn(Arc::new(InProcessGateway)));
+        let exec = Arc::new(ScriptExecutor::spawn(Arc::new(InProcessGateway::default())));
         let tool = RunScriptTool {
             executor: exec,
             grants: vec!["collections".into()],
@@ -266,7 +267,7 @@ mod tests {
         let src = r#"
             import { collections } from "ship";
             const granted = await collections.read({});
-            const raw_ungranted = await Deno.core.ops.op_ship_call("mcp.create", {});
+            const raw_ungranted = await Deno.core.ops.op_ship_call("runtime.dispatch", {});
             Deno.core.ops.op_emit({ granted, raw_ungranted });
         "#
         .to_string();
@@ -284,7 +285,7 @@ mod tests {
     // through the bridge and the loop completes.
     #[tokio::test]
     async fn loop_drives_code_mode_via_run_script() {
-        let exec = Arc::new(ScriptExecutor::spawn(Arc::new(InProcessGateway)));
+        let exec = Arc::new(ScriptExecutor::spawn(Arc::new(InProcessGateway::default())));
         let model = MockCompletionModel::new([
             MockTurn::tool_call(
                 "1",
@@ -297,7 +298,7 @@ mod tests {
         let out = run_step(
             model,
             &spec,
-            Arc::new(InProcessGateway),
+            Arc::new(InProcessGateway::default()),
             auth(&["collections"]),
             exec,
             "how many leads?",

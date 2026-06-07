@@ -86,28 +86,26 @@ Execution → Loop all converge on Enforcement, never around it.
 | model | `MockCompletionModel` (tests) | BYOK provider via rig |
 | op registry | `registry.rs` (in-process descriptor set, single SSOT) | proto descriptor set from shipd |
 | auth | locally-constructed `AuthContext` | handshake to shipd (peer-cred socket) |
+| `McpClient` | `FakeMcpClient` (canned `tools/list` + canned `text` result) | `StdioMcpClient` (child + JSON-RPC) → `HttpMcpClient` (streamable HTTP) |
+| `McpRegistry` | `InMemoryMcpRegistry` (built from `McpServerSpec` + `Capability.mcp.allow` at boot) | `LiveMcpRegistry` (calls `list_tools` at boot, caches; refreshes on `listChanged`) |
 
 The arc builds against **contract-faithful fakes** so it is unblocked by the
 in-flight ops-SSOT refactor; swapping fakes for live shipd is a distinct,
 refactor-gated slice.
 
-## v1 arc
-
 ```
 PHASE 1 — make it real      S6 spec loader · S7 provider/BYOK · **S8 scoped-SDK-from-proto ✓** · S5 auth handshake seam
 PHASE 2 — make it usable    S9 sessions+history+compaction · S10 AgentEvent stream · S11 approval+steer/cancel
 PHASE 3 — differentiators    S12 tsgo+SUI LSP real · S13 file ops + hashline
-PHASE 4 — customization      S-skills (the user-extension surface) · S-mcp (third-party integration, design-first)
+PHASE 4 — customization      S-skills (the user-extension surface) · **S-mcp (third-party integration, design-first)** ✓
 PHASE 5 — orchestration      S14 agent()/parallel — RECONCILED WITH SHIP PIPELINES (shared DAG/control-flow), not a parallel system
 PHASE 6 — harden + graduate  S15 resilience+event-log emit · S16 graduate to crates/+apps/ · S17 e2e harness
 ```
-
 Orchestration and ship pipelines are the same capability (DAG + control flow +
 parallelization) at different altitudes and must share machinery. Skills are the
 primary user-customization surface. MCP needs a design pass before wiring.
 
 ## Conventions
-
 - **Docs:** this README is the SSOT (update the module map / invariants when they
   change); rustdoc `//!` headers carry per-module "why"; `jobs/*.md` are the slice
   + decision log. No scattered docs.
