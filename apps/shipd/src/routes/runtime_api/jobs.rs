@@ -1,4 +1,10 @@
-//! Split off from runtime_api.rs (mr-04 follow-up).
+//! Job list, detail, cancel, and end-turn handlers.
+//!
+//! Pure read helpers (`list_processes_at`, `load_recent_events_by_type`,
+//! `drift_active_for_slug`, `truncate`) have moved to
+//! `ship_substrate::runtime_reads`. This module re-exports them for
+//! backwards-compat with `runtime_rpc.rs` and `daemon.rs` callers, then
+//! owns the pipeline-runtime-dependent `annotate_job` and the HTTP handlers.
 
 use axum::{
     Extension, Json,
@@ -12,6 +18,11 @@ use serde::Deserialize;
 
 use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
+
+// Re-exports so existing callers resolve without source changes.
+pub use ship_substrate::runtime_reads::{
+    drift_active_for_slug, list_processes_at, load_recent_events_by_type, truncate,
+};
 
 
 /// GET /api/v1/runtime/jobs
@@ -55,6 +66,10 @@ pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
 }
 
 /// Annotate a job with `process_state` + `notes` for `ship jobs`.
+///
+/// Kept in shipd (not ship-substrate) because it depends on
+/// `ship_pipeline_runtime::projections::pipeline_run::PipelineRun`, which
+/// ship-substrate cannot import.
 pub(crate) fn annotate_job(
     job: &ship_pipeline_runtime::projections::pipeline_run::PipelineRun,
     processes: &[ship_substrate::projections::process::ProcessRecord],
@@ -96,74 +111,6 @@ pub(crate) fn annotate_job(
         map.insert("notes".into(), serde_json::json!(notes));
     }
     obj
-}
-
-/// True if the most recent supervisor.drift_detected for `slug` is newer
-/// than any subsequent supervisor.coherence_restored — i.e. the drift has
-/// not yet been resolved by a sweep action.
-pub(crate) fn drift_active_for_slug(slug: &str, events: &[ship_substrate::events::EventEnvelope]) -> bool {
-    let mut latest_drift: Option<chrono::DateTime<chrono::Utc>> = None;
-    let mut latest_restored: Option<chrono::DateTime<chrono::Utc>> = None;
-    for e in events {
-        if e.entity_id != slug {
-            continue;
-        }
-        match e.event_type.as_str() {
-            "supervisor.drift_detected" => {
-                latest_drift = Some(latest_drift.map_or(e.created_at, |d| d.max(e.created_at)));
-            }
-            "supervisor.coherence_restored" => {
-                latest_restored =
-                    Some(latest_restored.map_or(e.created_at, |d| d.max(e.created_at)));
-            }
-            _ => {}
-        }
-    }
-    match (latest_drift, latest_restored) {
-        (Some(d), Some(r)) => d > r,
-        (Some(_), None) => true,
-        _ => false,
-    }
-}
-
-pub(crate) fn truncate(s: &str, max: usize) -> String {
-    let chars: Vec<char> = s.chars().collect();
-    if chars.len() <= max {
-        s.to_string()
-    } else {
-        chars[..max.saturating_sub(1)].iter().collect::<String>() + "…"
-    }
-}
-
-/// Project process events from an explicit ship_dir without going through
-/// the global db_path. Mirrors `load_pipeline_runs_at` for jobs.
-pub(crate) fn list_processes_at(
-    ship_dir: &std::path::Path,
-    slug: Option<&str>,
-) -> anyhow::Result<Vec<ship_substrate::projections::process::ProcessRecord>> {
-    // Reads the Runtime partition (`runtime.db`); `list_recent_events_at`
-    // ensures that scope db's schema. No platform.db touch (per-scope, post-4d).
-    let events = ship_substrate::db::events::list_recent_events_at(ship_dir, 50_000)?;
-    let mut records = ship_substrate::projections::process::project(&events);
-    if let Some(s) = slug {
-        records.retain(|r| r.slug == s);
-    }
-    Ok(records)
-}
-
-/// Filter recent events by event_type set, against an explicit ship_dir.
-pub(crate) fn load_recent_events_by_type(
-    ship_dir: &std::path::Path,
-    types: &[&str],
-    limit: usize,
-) -> anyhow::Result<Vec<ship_substrate::events::EventEnvelope>> {
-    // Reads the Runtime partition (`runtime.db`); `list_recent_events_at`
-    // ensures that scope db's schema. No platform.db touch (per-scope, post-4d).
-    let events = ship_substrate::db::events::list_recent_events_at(ship_dir, limit)?;
-    Ok(events
-        .into_iter()
-        .filter(|e| types.contains(&e.event_type.as_str()))
-        .collect())
 }
 
 // ---- Job detail response types ----
@@ -269,6 +216,9 @@ pub(crate) fn default_cancel_reason() -> String {
 /// POST /api/v1/runtime/jobs/{slug}/cancel — emit `job.cancelled` for the
 /// job with this slug. Idempotent: returns 409 with the current status
 /// when the job is already in a terminal state, and emits no event.
+///
+/// Gate: cancel is a write — preserved here in the route; it must not be
+/// collapsed into the pure read surface in ship-substrate.
 pub async fn cancel_job(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -444,89 +394,34 @@ pub struct TurnEndRequest {
 
 /// POST /api/v1/runtime/jobs/end — signal that a harness turn ended for a job.
 ///
-/// Called by the session Stop hook when an agent finishes a response turn.
-/// For multi-step pipeline jobs, this sends a TurnEnded signal to the step
-/// monitor (which accumulates evidence before deciding to advance).
-/// For single-step jobs, emits job.completed directly.
+/// Thin HTTP transport adapter — delegates to
+/// `ship_pipeline_runtime::run_core::end_turn_core`.
 pub async fn end_job(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<TurnEndRequest>,
 ) -> impl IntoResponse {
-    // Slug isn't unique across job lifetimes, but the SQL projection
-    // returns the most-recently-updated row — that's the live one when a
-    // dispatched job exists. Filter by status to confirm before steering.
-    let job = match ship_pipeline_runtime::projections::pipeline_run::load_pipeline_run_by_slug(&req.slug) {
-        Ok(Some(j))
-            if j.status == ship_pipeline_runtime::projections::pipeline_run::PipelineRunStatus::Dispatched =>
-        {
-            j
-        }
-        Ok(_) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(format!(
-                        "no dispatched job with slug '{}'",
-                        req.slug
-                    )),
-                }),
-            );
-        }
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
-            );
-        }
-    };
+    use ship_pipeline_runtime::run_core::{EndTurnCoreError, EndTurnRequest, end_turn_core};
+    use crate::pipeline_ports::{PipelineDispatchAdapter, TurnSignalAdapter};
 
-    let is_pipeline = job.steps.as_ref().is_some_and(|s| s.steps.len() > 1);
-
-    // Multi-step pipeline: send TurnEnded to the step monitor.
-    // The monitor accumulates evidence and decides when to advance.
-    if is_pipeline {
-        if let Some(dh) = state.dispatch_handle() {
-            let txs = dh.activity_txs.lock().await;
-            if let Some(tx) = txs.get(&req.slug) {
-                let _ = tx.send(ship_pipeline_runtime::orchestrator::StepActivity::TurnEnded);
-                return (
-                    StatusCode::OK,
-                    Json(MeshResponse { ok: true, data: serde_json::json!(format!("turn ended for pipeline step '{}'", req.slug)) }),
-                );
-            }
-        }
-        // No active step monitor — fall through to job.completed for safety.
-        tracing::warn!(slug = req.slug, "end_job: pipeline step has no active step monitor, falling through to job.completed");
-    }
-
-    // Single-step job or fallback: emit job.completed directly.
-    let payload = ship_substrate::events::pipeline::PipelineRunCompletedPayload {
-        pipeline_run_id: job.pipeline_run_id.clone(),
-        slug: job.slug.clone(),
-    };
-
-    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_COMPLETED, &job.pipeline_run_id, &payload)
-        .map(|e| e.with_actor_id("hook"))
-    {
-        Ok(e) => e,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
-            );
-        }
-    };
-
-    match state.persist_and_route(&envelope).await {
-        Ok(()) => (
+    let dispatch_port = PipelineDispatchAdapter::new(state.clone());
+    let signal_port = TurnSignalAdapter::new(state);
+    match end_turn_core(&dispatch_port, &signal_port, EndTurnRequest { slug: req.slug }).await {
+        Ok(msg) => (
             StatusCode::OK,
-            Json(MeshResponse { ok: true, data: serde_json::json!(format!("job '{}' completed", req.slug)) }),
+            Json(MeshResponse { ok: true, data: serde_json::json!(msg) }),
         ),
-        Err(e) => (
+        Err(EndTurnCoreError::NotFound(m)) => (
+            StatusCode::NOT_FOUND,
+            Json(MeshResponse { ok: false, data: serde_json::json!(m) }),
+        ),
+        Err(EndTurnCoreError::BadRequest(m)) => (
+            StatusCode::BAD_REQUEST,
+            Json(MeshResponse { ok: false, data: serde_json::json!(m) }),
+        ),
+        Err(EndTurnCoreError::Internal(m)) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+            Json(MeshResponse { ok: false, data: serde_json::json!(m) }),
         ),
     }
 }

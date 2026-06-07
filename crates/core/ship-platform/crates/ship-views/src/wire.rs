@@ -57,26 +57,37 @@ pub type SignalFn =
 pub type ToolFn =
     Arc<dyn Fn(String, String, String, Value) -> BoxFuture<Result<String, ConnectError>> + Send + Sync>;
 
+/// Async closure for `scaffold`: (name, shape, purpose) → Result<(route, path)>.
+/// Captures `ship_dir` from shipd's `ApiState`. The sync fs work runs in
+/// `spawn_blocking` so the future is Send.
+pub type ScaffoldViewFn = Arc<
+    dyn Fn(String, String, Option<String>) -> BoxFuture<Result<(String, String), ConnectError>>
+        + Send
+        + Sync,
+>;
+
 // ── Wire struct ───────────────────────────────────────────────────────────────
 
 /// ConnectRPC wire for `ViewService`.
 pub struct ViewWire {
-    agent_fn:  AgentFn,
-    patch_fn:  PatchFn,
-    append_fn: AppendFn,
-    signal_fn: SignalFn,
-    tool_fn:   ToolFn,
+    agent_fn:    AgentFn,
+    patch_fn:    PatchFn,
+    append_fn:   AppendFn,
+    signal_fn:   SignalFn,
+    tool_fn:     ToolFn,
+    scaffold_fn: ScaffoldViewFn,
 }
 
 impl ViewWire {
     pub fn new(
-        agent_fn:  AgentFn,
-        patch_fn:  PatchFn,
-        append_fn: AppendFn,
-        signal_fn: SignalFn,
-        tool_fn:   ToolFn,
+        agent_fn:    AgentFn,
+        patch_fn:    PatchFn,
+        append_fn:   AppendFn,
+        signal_fn:   SignalFn,
+        tool_fn:     ToolFn,
+        scaffold_fn: ScaffoldViewFn,
     ) -> Self {
-        Self { agent_fn, patch_fn, append_fn, signal_fn, tool_fn }
+        Self { agent_fn, patch_fn, append_fn, signal_fn, tool_fn, scaffold_fn }
     }
 }
 
@@ -205,5 +216,25 @@ impl ViewServiceTrait for ViewWire {
         )
         .await?;
         Ok(Response::new(JsonResponse { json, ..Default::default() }))
+    }
+
+    async fn scaffold(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedViewScaffoldReqView,
+    ) -> ServiceResult<ship_ops_rpc::ViewScaffoldResponse> {
+        let name = request.name.to_string();
+        let shape = request.shape.to_string();
+        let purpose = if request.purpose.is_empty() {
+            None
+        } else {
+            Some(request.purpose.to_string())
+        };
+        let (route, path) = (self.scaffold_fn)(name, shape, purpose).await?;
+        Ok(Response::new(ship_ops_rpc::ViewScaffoldResponse {
+            route,
+            path,
+            ..Default::default()
+        }))
     }
 }

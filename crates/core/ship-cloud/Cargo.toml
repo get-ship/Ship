@@ -9,7 +9,7 @@ description = "Ship Cloud sync transport — HTTP push/pull of elevated events t
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
-ship-gateway-client = { path = "../ship-platform/crates/ship-gateway-client" }
+ship-gateway-client = { path = "../ship-gateway-client" }
 
 anyhow = { workspace = true }
 serde = { workspace = true }

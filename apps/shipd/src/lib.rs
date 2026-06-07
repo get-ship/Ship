@@ -28,7 +28,7 @@ pub mod project_api;
 pub mod routes;
 pub mod router;
 pub mod ops_rpc;
-pub mod diag_rpc;
+// diag_rpc: deleted — diagnostics.snapshot op cut; DiagnosticRegistry apparatus removed.
 pub mod runtime_rpc;
 pub mod pipelines_rpc;
 pub mod git_rpc;
@@ -36,6 +36,9 @@ pub mod git_rpc;
 // The impl AgentsService for OpsImpl is deleted — AgentsWire (ship-agents) is now
 // the sole handler, mounted via AgentsServiceExt::register in ops_rpc.rs.
 pub mod agent_rpc;
+pub mod agent_event_ports;
+pub mod pipeline_ports;
+pub mod view_ports;
 pub mod space_rpc;
 pub mod settings_rpc;
 pub mod device_ports;
@@ -50,9 +53,15 @@ pub mod live_read;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;
-// Production supervisor code lives in the `ship-supervisor` crate. The
-// existing `crate::supervisor::*` import path across shipd resolves
-// through this re-export so call sites don't churn.
+// Job + agent-session dispatch composition root — `ShipdPlatform`,
+// `GitWorktreeIsolation`, `run_dispatch::subscribe_job_events`, and orphan
+// cleanup. Lifted out of `ship-supervisor` in the supervisor split: this
+// wiring depends on `ship-pipeline-runtime`, which depends on `ship-agents`,
+// so it lives at the daemon composition layer (not in either L1 crate).
+pub mod dispatch;
+// `ship-supervisor` (L0) now holds only OS-level process primitives
+// (terminal launcher, process-event emit, graceful_shutdown re-export). The
+// existing `crate::supervisor::*` import path resolves through this re-export.
 pub use ship_supervisor as supervisor;
 // Tests for supervisor + shipd-internal integration (use ApiState,
 // ShipRuntime, etc.) live under `apps/shipd/src/supervisor/`.
@@ -253,9 +262,7 @@ pub async fn run_network(
     if let Some(dh) = run_mgr.dispatch_handle {
         rt.set_dispatch_handle(dh);
     }
-    // Build the diagnostic registry now that the dispatch handle (supervisor
-    // process registry) is populated. All subsystem Arcs are cloned cheaply.
-    rt.set_diag_registry(diag_rpc::build_registry(&rt));
+    // diagnostics.snapshot op deleted — no DiagnosticRegistry to build.
     // Start the abandoned session scanner.
     rt.session_scanner().await;
     // Start the artifact GC loop (runs now then every hour).

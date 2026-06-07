@@ -16,8 +16,7 @@ use ship_ops_rpc::{
 
 use crate::ship_runtime::ApiState;
 
-/// Daemon-side `OpsService`. Holds `ApiState` so ported ops can reach the
-/// registry dispatch (`services::registry::call`).
+/// Daemon-side `OpsService`. Holds `ApiState` so ported ops can reach runtime state.
 pub struct OpsImpl {
     state: ApiState,
 }
@@ -264,17 +263,85 @@ pub fn router(state: ApiState) -> axum::Router {
     let git_kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));
     let git_state_for_write = state.clone();
     let git_write: ship_git::wire::WriteFn = Arc::new(move |op, args, ctx| {
-        let st = git_state_for_write.clone();
+        let git = git_state_for_write.git_arc();
         Box::pin(async move {
-            let auth = ctx
+            let _auth = ctx
                 .extensions
                 .get::<crate::auth::AuthContext>()
                 .cloned()
                 .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-            let cmd_ctx = crate::services::command::CommandCtx { state: &st, auth: &auth };
-            crate::services::command::call(&op, &args, &cmd_ctx)
-                .await
-                .map_err(crate::ops_rpc::command_error_to_connect)
+            use ship_git::service::{CommitArgs, PushArgs, CheckoutArgs, BranchCreateArgs, BranchDeleteArgs};
+            fn opt_str(v: &serde_json::Value, k: &str) -> Option<String> {
+                v.get(k).and_then(|s| s.as_str()).filter(|s| !s.is_empty()).map(str::to_string)
+            }
+            fn str_list(v: &serde_json::Value, k: &str) -> Vec<String> {
+                v.get(k).and_then(|v| v.as_array())
+                    .map(|a| a.iter().filter_map(|s| s.as_str().map(str::to_string)).collect())
+                    .unwrap_or_default()
+            }
+            let ws = opt_str(&args, "workspace_id");
+            let result: Result<serde_json::Value, ship_git::state::GitError> = match op.as_str() {
+                "git.stage" => {
+                    let paths = str_list(&args, "paths");
+                    git.stage(ws.as_deref(), &paths).map(|n| serde_json::json!({ "staged": n }))
+                }
+                "git.unstage" => {
+                    let paths = str_list(&args, "paths");
+                    git.unstage(ws.as_deref(), &paths).map(|n| serde_json::json!({ "unstaged": n }))
+                }
+                "git.commit" => {
+                    let cargs = CommitArgs {
+                        workspace_id: ws,
+                        message: opt_str(&args, "message").unwrap_or_default(),
+                        author: opt_str(&args, "author"),
+                    };
+                    git.commit(cargs).map(|r| serde_json::json!({ "sha": r.sha, "branch": r.branch }))
+                }
+                "git.push" => {
+                    let pargs = PushArgs {
+                        workspace_id: ws,
+                        remote: opt_str(&args, "remote"),
+                        force: args.get("force").and_then(|v| v.as_bool()).unwrap_or(false),
+                    };
+                    git.push(pargs).map(|s| serde_json::json!({ "output": s }))
+                }
+                "git.fetch" => {
+                    git.fetch(ws.as_deref(), opt_str(&args, "remote").as_deref())
+                        .map(|s| serde_json::json!({ "output": s }))
+                }
+                "git.pull" => {
+                    git.pull(ws.as_deref(), opt_str(&args, "remote").as_deref())
+                        .map(|s| serde_json::json!({ "output": s }))
+                }
+                "git.checkout" => {
+                    let cargs = CheckoutArgs {
+                        workspace_id: ws,
+                        refname: opt_str(&args, "refname").unwrap_or_default(),
+                    };
+                    git.checkout(cargs).map(|s| serde_json::json!({ "output": s }))
+                }
+                "git.branch.create" => {
+                    let cargs = BranchCreateArgs {
+                        workspace_id: ws,
+                        name: opt_str(&args, "name").unwrap_or_default(),
+                        checkout: args.get("checkout").and_then(|v| v.as_bool()).unwrap_or(false),
+                    };
+                    git.branch_create(cargs).map(|s| serde_json::json!({ "output": s }))
+                }
+                "git.branch.delete" => {
+                    let dargs = BranchDeleteArgs {
+                        workspace_id: ws,
+                        name: opt_str(&args, "name").unwrap_or_default(),
+                        force: args.get("force").and_then(|v| v.as_bool()).unwrap_or(false),
+                    };
+                    git.branch_delete(dargs).map(|s| serde_json::json!({ "output": s }))
+                }
+                "git.init" => {
+                    git.init(ws.as_deref()).map(|_| serde_json::json!({ "initialized": true }))
+                }
+                other => return Err(ConnectError::internal(format!("unknown git write op: {other}"))),
+            };
+            result.map_err(|e| ConnectError::internal(e.to_string()))
         })
     });
     let git_state_for_ann = state.clone();
@@ -428,6 +495,8 @@ pub fn router(state: ApiState) -> axum::Router {
                     .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
                 match op.as_str() {
                     "pipelines.dispatch" => {
+                        use ship_pipeline_runtime::run_core::{PipelineRunRequest, RunPipelineCoreError, run_pipeline_core};
+                        use crate::pipeline_ports::PipelineDispatchAdapter;
                         let opt = |k: &str| {
                             args.get(k).and_then(|v| v.as_str())
                                 .filter(|s| !s.is_empty())
@@ -442,7 +511,7 @@ pub fn router(state: ApiState) -> axum::Router {
                                     .collect()
                             })
                             .unwrap_or_default();
-                        let req = crate::routes::runtime_api::PipelineRunRequest {
+                        let req = PipelineRunRequest {
                             pipeline: args.get("pipeline").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                             spec: opt("spec"),
                             vars: if vars.is_empty() { None } else { Some(vars) },
@@ -453,30 +522,40 @@ pub fn router(state: ApiState) -> axum::Router {
                             auto: args.get("auto").and_then(|v| v.as_bool()).unwrap_or(false),
                             source_spec_path: opt("source_spec_path"),
                         };
-                        let resp = crate::routes::runtime_api::run_pipeline(
-                            axum::extract::State(st.clone()),
-                            axum::Extension(auth),
-                            axum::Json(req),
-                        )
-                        .await
-                        .into_response();
-                        crate::services::command::response_to_value(resp)
-                            .await
-                            .map_err(crate::ops_rpc::command_error_to_connect)
+                        // Scope gate: require CreateRuns (same as the HTTP handler).
+                        use crate::auth::Scope;
+                        let _ = &auth; // scope check via auth fields
+                        if !auth.scopes.iter().any(|s| matches!(s, Scope::Full | Scope::CreateRuns)) {
+                            return Err(ConnectError::permission_denied("requires CreateRuns scope"));
+                        }
+                        let port = PipelineDispatchAdapter::new(st.clone());
+                        run_pipeline_core(&port, req).await
+                            .map(|outcome| serde_json::json!({
+                                "pipeline_run_id": outcome.pipeline_run_id,
+                                "slug": outcome.slug,
+                                "branch": outcome.branch,
+                                "resume": outcome.resume,
+                            }))
+                            .map_err(|e| match e {
+                                RunPipelineCoreError::NotFound(m) => ConnectError::not_found(m),
+                                RunPipelineCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                                RunPipelineCoreError::Internal(m) => ConnectError::internal(m),
+                            })
                     }
                     "pipelines.end_turn" => {
+                        use ship_pipeline_runtime::run_core::{EndTurnCoreError, EndTurnRequest, end_turn_core};
+                        use crate::pipeline_ports::{PipelineDispatchAdapter, TurnSignalAdapter};
                         let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                        let req = crate::routes::runtime_api::jobs::TurnEndRequest { slug };
-                        let resp = crate::routes::runtime_api::end_job(
-                            axum::extract::State(st.clone()),
-                            axum::Extension(auth),
-                            axum::Json(req),
-                        )
-                        .await
-                        .into_response();
-                        crate::services::command::response_to_value(resp)
+                        let dispatch_port = PipelineDispatchAdapter::new(st.clone());
+                        let signal_port = TurnSignalAdapter::new(st.clone());
+                        end_turn_core(&dispatch_port, &signal_port, EndTurnRequest { slug })
                             .await
-                            .map_err(crate::ops_rpc::command_error_to_connect)
+                            .map(|msg| serde_json::json!(msg))
+                            .map_err(|e| match e {
+                                EndTurnCoreError::NotFound(m) => ConnectError::not_found(m),
+                                EndTurnCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                                EndTurnCoreError::Internal(m) => ConnectError::internal(m),
+                            })
                     }
                     "pipeline.update_status" => {
                         let pipeline_run_id = args.get("pipeline_run_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -584,78 +663,8 @@ pub fn router(state: ApiState) -> axum::Router {
                 .await;
             })
         });
-    let dispatch_state = state.clone();
-    let dispatch_fn: ship_agents::services::agents::rpc_wire::DispatchFn =
-        Arc::new(move |args: serde_json::Value, ctx: connectrpc::RequestContext| {
-            let st = dispatch_state.clone();
-            Box::pin(async move {
-                use crate::routes::runtime_api::dispatch::DispatchRequest;
-                use ship_substrate::events::agent_session::InvocationMode;
-                let invocation = match args.get("invocation").and_then(|v| v.as_str()) {
-                    Some("print") => InvocationMode::Print,
-                    Some("stream") => InvocationMode::Stream,
-                    _ => InvocationMode::Pty,
-                };
-                let depends_on = {
-                    let v: Vec<String> = args.get("depends_on")
-                        .and_then(|v| v.as_array())
-                        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
-                        .unwrap_or_default();
-                    (!v.is_empty()).then_some(v)
-                };
-                let vars: std::collections::HashMap<String, String> = args
-                    .get("vars")
-                    .and_then(|v| v.as_object())
-                    .map(|m| {
-                        m.iter()
-                            .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                let vars = (!vars.is_empty()).then_some(vars);
-                fn opt_str(v: &serde_json::Value, key: &str) -> Option<String> {
-                    v.get(key).and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string)
-                }
-                let dreq = DispatchRequest {
-                    agent: args.get("agent").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    spec: opt_str(&args, "spec"),
-                    prompt: opt_str(&args, "prompt"),
-                    resume: args.get("resume").and_then(|v| v.as_bool()).unwrap_or(false),
-                    harness: opt_str(&args, "harness"),
-                    model: opt_str(&args, "model"),
-                    open_tab: args.get("open_tab").and_then(|v| v.as_bool()).unwrap_or(true),
-                    invocation,
-                    keepalive: args.get("keepalive").and_then(|v| v.as_bool()).unwrap_or(true),
-                    workspace: opt_str(&args, "workspace"),
-                    slug: opt_str(&args, "slug"),
-                    branch: opt_str(&args, "branch"),
-                    source_spec_path: opt_str(&args, "source_spec_path"),
-                    depends_on,
-                    vars,
-                };
-                // Enforce per-project workspace isolation (same as the REST handler).
-                let auth = ctx
-                    .extensions
-                    .get::<crate::auth::AuthContext>()
-                    .cloned()
-                    .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-                if let Some(msg) =
-                    crate::auth::identity::mcp_workspace_violation(&auth, dreq.workspace.as_deref())
-                {
-                    return Err(ConnectError::permission_denied(msg));
-                }
-                let (status, axum::Json(mesh)) =
-                    crate::routes::runtime_api::dispatch::dispatch_agent_session_core(&st, dreq)
-                        .await;
-                if status.is_success() {
-                    Ok(mesh.data)
-                } else if status.is_client_error() {
-                    Err(ConnectError::invalid_argument(mesh.data.to_string()))
-                } else {
-                    Err(ConnectError::internal(mesh.data.to_string()))
-                }
-            })
-        });
+    let dispatch_port: std::sync::Arc<dyn ship_agents::services::agents::dispatch_core::AgentDispatchPort> =
+        Arc::new(crate::agent_event_ports::AgentDispatchAdapter::new(state.clone()));
     let stop_state = state.clone();
     let stop_fn: ship_agents::services::agents::rpc_wire::StopFn =
         Arc::new(move |slug: String| {
@@ -746,6 +755,9 @@ pub fn router(state: ApiState) -> axum::Router {
                 }))
             })
         });
+    let feedback_auth = Arc::new(crate::agent_event_ports::FeedbackAuthAdapter);
+    let view_broadcast = Arc::new(crate::agent_event_ports::ViewBroadcastAdapter::new(state.clone()));
+    let collection = Arc::new(crate::agent_event_ports::CollectionPersistAdapter::new(state.clone()));
     let agents_wire = Arc::new(ship_agents::services::agents::AgentsWire::new(
         state.agents_arc(),
         state.ship_dir().to_path_buf(),
@@ -753,11 +765,14 @@ pub fn router(state: ApiState) -> axum::Router {
         gate,
         agents_sessions_fn,
         notify_saved_fn,
-        dispatch_fn,
+        dispatch_port,
         stop_fn,
         steer_fn,
         grant_fn,
         state.agent_reactive().cloned(),
+        feedback_auth,
+        view_broadcast,
+        collection,
     ));
     let router = ship_ops_rpc::AgentsServiceExt::register(agents_wire, router);
     // account.* — typed AccountService (account.proto), served by the
@@ -849,12 +864,27 @@ pub fn router(state: ApiState) -> axum::Router {
                 .and_then(|a| a.agent_id.clone())
                 .ok_or_else(|| ConnectError::permission_denied("agent identity required"))
         });
+    // scaffold_fn: moves scaffold_view route-core into the ViewWire.
+    // Runs synchronous fs I/O in spawn_blocking so the future is Send.
+    let scaffold_ship_dir = state.ship_dir().to_path_buf();
+    let view_scaffold_fn: ship_views::wire::ScaffoldViewFn =
+        Arc::new(move |name: String, shape: String, purpose: Option<String>| {
+            let ship_dir = scaffold_ship_dir.clone();
+            Box::pin(async move {
+                tokio::task::spawn_blocking(move || {
+                    scaffold_view_sync(&ship_dir, &name, &shape, purpose.as_deref())
+                })
+                .await
+                .map_err(|e| ConnectError::internal(format!("scaffold task: {e}")))?
+            })
+        });
     let view_wire = Arc::new(ship_views::wire::ViewWire::new(
         view_agent_fn,
         view_patch_fn,
         view_append_fn,
         view_signal_fn,
         view_tool_fn,
+        view_scaffold_fn,
     ));
     let router = ship_ops_rpc::ViewServiceExt::register(view_wire, router);
     let router = ship_ops_rpc::RegistryServiceExt::register(svc.clone(), router);
@@ -924,15 +954,121 @@ pub fn router(state: ApiState) -> axum::Router {
     router.into_axum_router()
 }
 
-/// Map a `CommandError` (from `services::command::call`) to a `ConnectError`,
-/// preserving the status → code mapping. Used by the generated `CommandOpsService`.
-pub fn command_error_to_connect(e: crate::services::command::CommandError) -> ConnectError {
-    use axum::http::StatusCode;
-    match e.status {
-        StatusCode::FORBIDDEN => ConnectError::permission_denied(e.message),
-        StatusCode::UNAUTHORIZED => ConnectError::unauthenticated(e.message),
-        s if s.is_client_error() => ConnectError::invalid_argument(e.message),
-        _ => ConnectError::internal(e.message),
+// ── scaffold_view_sync ────────────────────────────────────────────────────────
+// Synchronous scaffold logic for ViewService::Scaffold. Moved from
+// routes/create_api.rs::scaffold_view; runs in spawn_blocking from the closure.
+fn scaffold_view_sync(
+    ship_dir: &std::path::Path,
+    name: &str,
+    shape: &str,
+    _purpose: Option<&str>,
+) -> Result<(String, String), ConnectError> {
+    const KEBAB: &str = "abcdefghijklmnopqrstuvwxyz0123456789-";
+    let valid = !name.is_empty()
+        && name.len() <= 48
+        && name.starts_with(|c: char| c.is_ascii_lowercase())
+        && name.chars().all(|c| KEBAB.contains(c));
+    if !valid {
+        return Err(ConnectError::invalid_argument("name must be kebab-case (a-z0-9-, max 48 chars)"));
+    }
+
+    let scaffold_rel = std::path::PathBuf::from("skills")
+        .join("ship-views")
+        .join("scaffolds")
+        .join(shape);
+    let mut scaffold_src: Option<std::path::PathBuf> = None;
+    if let Ok(d) = ship_substrate::project::get_project_dir(None) {
+        let p = d.join(&scaffold_rel);
+        if p.is_dir() { scaffold_src = Some(p); }
+    }
+    if scaffold_src.is_none() {
+        let p = ship_dir.join(&scaffold_rel);
+        if p.is_dir() { scaffold_src = Some(p); }
+    }
+    let src = scaffold_src.ok_or_else(|| {
+        ConnectError::invalid_argument(format!("unknown shape '{shape}'"))
+    })?;
+
+    let views_dir = ship_dir.join("views");
+    std::fs::create_dir_all(&views_dir)
+        .map_err(|e| ConnectError::internal(format!("create views dir: {e}")))?;
+    let target = views_dir.join(name);
+    if target.exists() {
+        return Err(ConnectError::already_exists(format!("view '{name}' already exists")));
+    }
+
+    let title = title_case_view(name);
+    copy_scaffold_view(&src, &target, &title, name)
+        .map_err(|e| { let _ = std::fs::remove_dir_all(&target); e })?;
+
+    let route = format!("/api/v1/v/{name}");
+    let path = target.display().to_string();
+    Ok((route, path))
+}
+
+fn title_case_view(name: &str) -> String {
+    name.split('-')
+        .map(|s| {
+            let mut c = s.chars();
+            match c.next() {
+                Some(f) => f.to_ascii_uppercase().to_string() + c.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn copy_scaffold_view(
+    src: &std::path::Path,
+    dst: &std::path::Path,
+    title: &str,
+    name: &str,
+) -> Result<(), ConnectError> {
+    std::fs::create_dir_all(dst)
+        .map_err(|e| ConnectError::internal(format!("mkdir: {e}")))?;
+    for entry in std::fs::read_dir(src)
+        .map_err(|e| ConnectError::internal(format!("read src dir: {e}")))?
+    {
+        let entry = entry.map_err(|e| ConnectError::internal(format!("dir entry: {e}")))?;
+        let ty = entry.file_type().map_err(|e| ConnectError::internal(e.to_string()))?;
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+        if ty.is_dir() {
+            copy_scaffold_view(&from, &to, title, name)?;
+        } else if ty.is_file() {
+            let body = std::fs::read_to_string(&from).unwrap_or_default();
+            let substituted = body.replace("{{TITLE}}", title).replace("{{NAME}}", name);
+            std::fs::write(&to, substituted)
+                .map_err(|e| ConnectError::internal(format!("write file: {e}")))?;
+        }
+    }
+    Ok(())
+}
+
+/// Map an Axum `Response` body to a `serde_json::Value`, converting HTTP errors
+/// to `ConnectError`. Used by the pipelines write closure (replaces the deleted
+/// `services::command::response_to_value` + `command_error_to_connect` pair).
+async fn axum_response_to_value(
+    resp: axum::response::Response,
+) -> Result<serde_json::Value, ConnectError> {
+    let status = resp.status();
+    let bytes = axum::body::to_bytes(resp.into_body(), 4 << 20)
+        .await
+        .map_err(|e| ConnectError::internal(e.to_string()))?;
+    if status.is_success() {
+        serde_json::from_slice(&bytes).map_err(|e| ConnectError::internal(e.to_string()))
+    } else {
+        let msg = String::from_utf8_lossy(&bytes).into_owned();
+        if status == axum::http::StatusCode::FORBIDDEN {
+            Err(ConnectError::permission_denied(msg))
+        } else if status == axum::http::StatusCode::UNAUTHORIZED {
+            Err(ConnectError::unauthenticated(msg))
+        } else if status.is_client_error() {
+            Err(ConnectError::invalid_argument(msg))
+        } else {
+            Err(ConnectError::internal(msg))
+        }
     }
 }
 

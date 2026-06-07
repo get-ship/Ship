@@ -259,6 +259,32 @@ message GrantAgentRequest {
   repeated string grants = 2;
 }
 
+// ── Observation / canvas request messages ────────────────────────────────────
+
+// Post feedback from the live studio canvas. The body is the full
+// `FeedbackEvent` serialised as JSON — the open payload convention mirrors
+// CollectionItem.data_json / AnnotationEvent.
+message PostFeedbackRequest {
+  // `FeedbackEvent` serialised as a JSON string.
+  string event_json = 1;
+}
+
+message PostFeedbackResponse {
+  // ULID of the accepted feedback event.
+  string id = 1;
+}
+
+// Post an annotation (canvas/observation). Body is `AnnotationEvent` JSON.
+message PostAnnotationRequest {
+  // `AnnotationEvent` serialised as a JSON string.
+  string event_json = 1;
+}
+
+message PostAnnotationResponse {
+  // ULID of the accepted annotation event.
+  string id = 1;
+}
+
 // ── Typed control results (S4: kill JsonResponse on the control surface) ────
 //
 // Each result mirrors the structured value the command arm now threads through
@@ -450,5 +476,17 @@ service AgentsService {
     option (ship.ops.v1.capability) = "ship.agents.grant";
     // Hands out authority — operator/2FA only, never an agent.
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C3_CRITICAL;
+  }
+
+  // ── Canvas / observation (C1) — moves feedback.post + annotation.post ──
+  rpc PostFeedback(PostFeedbackRequest) returns (PostFeedbackResponse) {
+    option (ship.ops.v1.description) = "Post a FeedbackEvent to the studio canvas (rate-limited for agents).";
+    option (ship.ops.v1.capability) = "ship.feedback.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
+  }
+  rpc PostAnnotation(PostAnnotationRequest) returns (PostAnnotationResponse) {
+    option (ship.ops.v1.description) = "Post an AnnotationEvent (canvas/observation) and persist to the annotations collection.";
+    option (ship.ops.v1.capability) = "ship.annotations.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
 }

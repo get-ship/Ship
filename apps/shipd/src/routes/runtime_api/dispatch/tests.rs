@@ -256,7 +256,7 @@ fn load_session_file_missing_returns_400() {
         .expect_err("absent session.json must 400");
     match err {
         ResumeResolveError::Status { status, message } => {
-            assert_eq!(status, StatusCode::BAD_REQUEST);
+            assert_eq!(status, 400u16);
             assert!(
                 message.contains("no .ship/session.json"),
                 "message was: {message}"
@@ -273,7 +273,7 @@ fn load_session_file_harness_mismatch_returns_400() {
         .expect_err("harness mismatch must 400");
     match err {
         ResumeResolveError::Status { status, message } => {
-            assert_eq!(status, StatusCode::BAD_REQUEST);
+            assert_eq!(status, 400u16);
             assert!(
                 message.contains("harness mismatch"),
                 "message was: {message}"
@@ -292,7 +292,7 @@ fn load_session_file_unsupported_harness_returns_400() {
         .expect_err("cursor resume must 400");
     match err {
         ResumeResolveError::Status { status, message } => {
-            assert_eq!(status, StatusCode::BAD_REQUEST);
+            assert_eq!(status, 400u16);
             assert!(
                 message.contains("does not support session resume"),
                 "message was: {message}"

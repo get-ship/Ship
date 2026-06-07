@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
-use crate::supervisor::run_dispatch::DispatchHandle;
+use crate::dispatch::run_dispatch::DispatchHandle;
 
 use super::{
     ShipRuntime, RuntimeConfig, SharedKernel, AgentMailboxes, PtyConnections,
@@ -243,19 +243,6 @@ impl ShipRuntime {
 
     pub fn health_registry(&self) -> &HealthRegistry {
         &self.health_registry
-    }
-
-    /// Store a pre-built diagnostic registry. Called once after the dispatch
-    /// handle is set so the supervisor snapshot has a live process registry.
-    /// Idempotent — a second call is a no-op.
-    pub fn set_diag_registry(&self, reg: ship_substrate::diagnostics::DiagnosticRegistry) {
-        let _ = self.diag_registry.set(reg);
-    }
-
-    /// Return the diagnostic registry. Returns `None` before
-    /// `set_diag_registry` is called (i.e., before full startup).
-    pub fn diag_registry(&self) -> Option<&ship_substrate::diagnostics::DiagnosticRegistry> {
-        self.diag_registry.get()
     }
 
     pub fn view_sessions(&self) -> &crate::views::session::SharedViewSessionRegistry {

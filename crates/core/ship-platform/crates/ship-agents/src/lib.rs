@@ -20,6 +20,9 @@ pub mod cancel;
 pub mod dispatch;
 pub mod hooks;
 pub mod ports;
+// Agent-run assembly (executors, helpers, agent_lifecycle) — lifted out of the
+// L0 `ship-supervisor` crate in the supervisor split.
+pub mod runtime;
 pub mod services;
 // Runtime-scoped session records (agents-arc E4 fold).
 pub mod sessions;

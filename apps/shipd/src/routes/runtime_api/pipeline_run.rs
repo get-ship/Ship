@@ -1,12 +1,9 @@
 //! Pipeline runs — `POST /api/v1/pipelines/run`.
 //!
-//! Owns the multi-step concern. Loads the named pipeline JSONC from
-//! `.ship/pipelines/<name>.jsonc`, builds a `PipelineRunStartedPayload`
-//! seeded with the parsed steps, and hands it to the shared `dispatch_one`
-//! primitive. The orchestrator walks the DAG from there.
-//!
-//! Distinct from `POST /api/v1/agent_sessions/dispatch`, which dispatches
-//! a SINGLE agent and does no pipeline loading — see `dispatch.rs`.
+//! Thin HTTP transport adapter. Domain logic lives in
+//! `ship_pipeline_runtime::run_core::run_pipeline_core`.
+//! This handler enforces the `CreateRuns` scope gate (transport concern)
+//! then delegates to the crate core.
 
 use axum::{
     Extension, Json,
@@ -14,56 +11,11 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use ship_substrate::events::pipeline::PipelineRunStartedPayload;
-use serde::Deserialize;
+use ship_pipeline_runtime::run_core::{PipelineRunRequest, RunPipelineCoreError, run_pipeline_core};
 
 use crate::auth::{AuthContext, Scope, require_scope};
+use crate::pipeline_ports::PipelineDispatchAdapter;
 use crate::routes::rest_api::{ApiState, MeshResponse};
-
-use super::dispatch::dispatch_one;
-
-/// Wire shape for `POST /api/v1/pipelines/run`. `pipeline` names a file
-/// under `.ship/pipelines/<name>.jsonc`.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PipelineRunRequest {
-    /// Pipeline name (file in `.ship/pipelines/<name>.jsonc`).
-    pub pipeline: String,
-
-    /// Inline spec body. Written to `.artifacts/job-spec.md` for the first
-    /// agent; per-step bodies come from the pipeline file's `step_specs:`.
-    #[serde(default)]
-    pub spec: Option<String>,
-
-    /// Pipeline-level `{{ var }}` overrides. Merged over the file's defaults.
-    #[serde(default)]
-    pub vars: Option<std::collections::HashMap<String, String>>,
-
-    /// Harness override applied to every step that does not declare its own.
-    #[serde(default)]
-    pub harness: Option<String>,
-
-    /// Model override applied to every step that does not declare its own.
-    #[serde(default)]
-    pub model: Option<String>,
-
-    /// Workspace label (used for slug generation). Defaults to the
-    /// pipeline name.
-    #[serde(default)]
-    pub workspace: Option<String>,
-
-    /// Explicit slug override.
-    #[serde(default)]
-    pub slug: Option<String>,
-
-    /// Autonomous (headless) vs interactive. Default false (interactive).
-    #[serde(default)]
-    pub auto: bool,
-
-    /// Operator-facing path to the spec file (for `ship jobs` display).
-    #[serde(default)]
-    pub source_spec_path: Option<String>,
-}
 
 /// POST /api/v1/pipelines/run
 pub async fn run_pipeline(
@@ -75,123 +27,33 @@ pub async fn run_pipeline(
         return e;
     }
 
-    // Locate the pipeline JSONC. Matches the resolution strategy used by
-    // `pipeline_loader::load_pipeline_file` so `ensure_pipeline` (called
-    // inside `dispatch_one`) will find the same file.
-    let pipeline_path = {
-        let mut dir = std::env::current_dir().ok();
-        let mut found = None;
-        while let Some(d) = dir.as_ref() {
-            let ship = ship_substrate::ShipHome::project_ship_dir(d);
-            // Composed overlay (local + dep pipelines) when the space has deps;
-            // raw `.ship/` otherwise — dispatch can run a dep-shipped pipeline.
-            let pipelines_dir =
-                ship_store::compose::composed_root_for(&ship).join("pipelines");
-            if pipelines_dir.is_dir() {
-                let candidate = pipelines_dir.join(format!("{}.jsonc", req.pipeline));
-                if candidate.exists() {
-                    found = Some(candidate);
-                }
-                break;
-            }
-            dir = d.parent().map(|p| p.to_path_buf());
-        }
-        found
-    };
-    let Some(pipeline_path) = pipeline_path else {
-        return (
-            StatusCode::NOT_FOUND,
+    let port = PipelineDispatchAdapter::new(state);
+    match run_pipeline_core(&port, req).await {
+        Ok(outcome) => (
+            StatusCode::OK,
             Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(format!("pipeline '{}' not found", req.pipeline)),
+                ok: true,
+                data: serde_json::json!({
+                    "pipeline_run_id": outcome.pipeline_run_id,
+                    "slug": outcome.slug,
+                    "branch": outcome.branch,
+                    "resume": outcome.resume,
+                }),
             }),
-        );
-    };
-    let raw = match std::fs::read_to_string(&pipeline_path) {
-        Ok(s) => s,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(format!("read pipeline: {e}")),
-                }),
-            );
-        }
-    };
-    let (normalized, meta) = match ship_pipelines::normalize_pipeline(&raw) {
-        Ok(n) => n,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(format!("pipeline parse: {e}")),
-                }),
-            );
-        }
-    };
-
-    let steps = match normalized.get("steps").and_then(|v| v.as_array()) {
-        Some(s) => s,
-        None => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!("pipeline has no steps"),
-                }),
-            );
-        }
-    };
-
-    // Run-level default agent = the first step's agent. A pure-shell
-    // (run) first step has none; leave it empty rather than falling back
-    // to a bogus "default" profile — worktree prep skips agent
-    // compilation for empty agents (a real agent step always names one).
-    let first_agent = steps
-        .first()
-        .and_then(|s| s.get("agent"))
-        .and_then(|a| a.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    let pipeline_name = meta.name.clone().unwrap_or_else(|| req.pipeline.clone());
-    let workspace_label = req.workspace.unwrap_or_else(|| pipeline_name.clone());
-    let slug = req.slug.unwrap_or_else(|| {
-        // Random-tail suffix; a ULID prefix is pure timestamp and
-        // collides for rapid same-workspace dispatches (gen_slug_suffix).
-        format!("{}-{}", workspace_label, ship_substrate::gen_slug_suffix())
-    });
-    let branch = format!("job/{slug}");
-    let pipeline_run_id = ship_substrate::gen_ulid();
-
-    let payload = PipelineRunStartedPayload {
-        pipeline_run_id: pipeline_run_id.clone(),
-        slug,
-        agent: first_agent,
-        branch,
-        spec_path: ".artifacts/job-spec.md".to_string(),
-        source_spec_path: req.source_spec_path,
-        plan_id: None,
-        model: req.model,
-        harness: req.harness,
-        depends_on: None,
-        pipeline: None,
-        steps: None,
-        pipeline_name: Some(pipeline_name),
-        vars: req.vars,
-        spec_content: req.spec,
-        step_specs: None,
-        headless: req.auto,
-        keepalive: false,
-        prompt: None,
-        resume: false,
-        resume_session_id: None,
-        baseline_sha: super::resolve_project_head_sha(),
-    };
-
-    dispatch_one(&state, payload, &pipeline_run_id).await
+        ),
+        Err(RunPipelineCoreError::NotFound(m)) => (
+            StatusCode::NOT_FOUND,
+            Json(MeshResponse { ok: false, data: serde_json::json!(m) }),
+        ),
+        Err(RunPipelineCoreError::BadRequest(m)) => (
+            StatusCode::BAD_REQUEST,
+            Json(MeshResponse { ok: false, data: serde_json::json!(m) }),
+        ),
+        Err(RunPipelineCoreError::Internal(m)) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse { ok: false, data: serde_json::json!(m) }),
+        ),
+    }
 }
 
 #[cfg(test)]
@@ -228,7 +90,6 @@ mod tests {
             session_id: None,
             scopes: vec![Scope::Full],
             grants: vec![],
-            // The operator stand-in: a verified operator cred clears the gate (S6).
             operator_cred: true,
         })
     }
@@ -247,8 +108,6 @@ mod tests {
     async fn pipeline_run_missing_pipeline_returns_404() {
         let _g = cwd_guard();
         let dir = TempDir::new().unwrap();
-        // Create the `.ship/` dir so the handler's upward walk stops here
-        // instead of climbing into the repo's own `.ship/`.
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(ship_dir.join("pipelines")).unwrap();
         let prev = std::env::current_dir().unwrap();

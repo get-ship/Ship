@@ -129,5 +129,16 @@
       "path": "test/path.md",
       "scope": "test-scope"
     }
+  },
+  "Scaffold": {
+    "response_ok": {
+      "route": "/skills/checkout-validator",
+      "path": "/home/dev/harbor/.ship/skills/checkout-validator/SKILL.md"
+    },
+    "request": {
+      "name": "test-name",
+      "shape": "test-shape",
+      "purpose": "test-purpose"
+    }
   }
 }

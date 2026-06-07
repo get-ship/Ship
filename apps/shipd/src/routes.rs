@@ -43,12 +43,7 @@ pub mod agent_sessions_attach;
 #[cfg(test)]
 mod agent_sessions_attach_tests;
 pub mod mcp_registry;
-pub mod annotations_api;
 pub mod artifacts_api;
-pub mod create_api;
-#[cfg(test)]
-mod create_api_tests;
-pub mod feedback_api;
 pub mod git_api;
 pub mod hooks_api;
 pub mod human_webhook;
@@ -56,6 +51,9 @@ pub mod sandbox_api;
 #[cfg(test)]
 mod sandbox_api_tests;
 pub mod logs_api;
+// feedback_api and annotations_api removed (Batch A routes-cull):
+// domain logic relocated to ship-agents::services::agents::{feedback,annotation};
+// REST shells deleted; AgentsWire calls ship-agents directly.
 pub mod registry_api;
 pub mod rest_api;
 pub mod runtime_api;
@@ -225,10 +223,6 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     ListViewFiles { name: String },
 
-    /// @route POST "/api/v1/create/{surface}"
-    /// @auth scope CreateRuns
-    CreateSurface { surface: String },
-
     /// @route PUT "/api/v1/views/{name}/template"
     /// @auth scope WriteWorkspace
     WriteViewTemplate { name: String },
@@ -326,18 +320,6 @@ pub enum Route {
     /// @route GET "/api/v1/view-sessions/{id}"
     /// @auth scope ReadWorkspace
     SubscribeViewSession { id: String },
-
-    // ── Feedback (agent-designed feedback ingress) ────────────────────────
-
-    /// @route POST "/api/v1/feedback"
-    /// @auth scope LogProgress
-    PostFeedback,
-
-    // ── Annotations (canvas overlay wire format) ─────────────────────────
-
-    /// @route POST "/api/v1/annotations"
-    /// @auth scope LogProgress
-    PostAnnotation,
 
     // ── Runtime listings ─────────────────────────────────────────────────
 
@@ -478,31 +460,7 @@ pub enum Route {
     // Workspace-scoped artifact status/promote removed — callers get 404.
     // Use the unified /api/artifacts/* surface instead.
 
-    // ── Mesh / actors ────────────────────────────────────────────────────
-
-    /// @route POST "/api/v1/mesh/register"
-    /// @auth scope MeshSend
-    MeshRegister,
-
-    /// @route POST "/api/v1/mesh/send"
-    /// @auth scope MeshSend
-    MeshSend,
-
-    /// @route POST "/api/v1/mesh/broadcast"
-    /// @auth scope MeshBroadcast
-    MeshBroadcast,
-
-    /// @route GET "/api/v1/mesh/discover"
-    /// @auth scope ReadWorkspace
-    MeshDiscover,
-
-    /// @route POST "/api/v1/mesh/status"
-    /// @auth scope MeshSend
-    MeshStatusUpdate,
-
-    /// @route GET "/api/v1/mesh/events/{agent_id}"
-    /// @auth scope ReadWorkspace
-    MeshEvents { agent_id: String },
+    // ── Actor kernel reads (L0 — not the deprecated mesh.* op surface) ─────
 
     /// @route POST "/api/v1/actor/spawn"
     /// @auth scope MeshSend
@@ -527,22 +485,6 @@ pub enum Route {
     /// @route GET "/api/v1/actors/{actor_id}/events"
     /// @auth scope ReadWorkspace
     ActorEvents { actor_id: String },
-
-    /// @route POST "/api/v1/actors/{actor_id}/input"
-    /// @auth scope MeshSend
-    ActorInput { actor_id: String },
-
-    /// @route GET "/api/v1/mesh/snapshot"
-    /// @auth scope ReadWorkspace
-    MeshSnapshot,
-
-    /// @route GET "/api/v1/mesh/events"
-    /// @auth scope ReadWorkspace
-    MeshEventsStream,
-
-    /// @route POST "/api/v1/actors/{actor_id}/kill-tree"
-    /// @auth scope MeshSend
-    KillTree { actor_id: String },
 
     // ── Artifacts ────────────────────────────────────────────────────────
     // The list/upload/download/metadata/patch/delete handlers compute the

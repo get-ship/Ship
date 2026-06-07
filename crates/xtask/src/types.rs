@@ -222,9 +222,11 @@ pub fn collect_ship_data_types() -> TypeCollection {
     // struct disambiguates it from the other domains' IndexEntry.
     c.register::<ship_agents::services::skills::state::IndexEntry>();
 
-    // collections — list row + field record (was hand-written in ship-sdk.ts);
-    // pulls in CollectionFieldRecord as a nested type.
-    c.register::<shipd::services::registry::wire::CollectionSummary>();
+    // collections — proto-only since #81. `CollectionSummary` and friends
+    // ship from the buf-generated `ship_ops_rpc::collections` client; the TS
+    // shape lives in `packages/deck/sdk/src/gen/ship/ops/v1/collection_pb.ts`.
+    // Do not re-add a specta registration here without first confirming the
+    // Rust definition is still specta-derived (it isn't).
 
     c
 }

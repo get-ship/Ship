@@ -36,6 +36,10 @@ use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
 use ship_substrate::events::EventFilter;
 use ship_substrate::ports::KernelLog;
 
+use crate::services::agents::dispatch_core::{
+    AgentDispatchPort, DispatchCoreError, dispatch_agent_session_core,
+};
+use crate::services::agents::dispatch_request::DispatchRequest;
 use crate::services::agents::service::AgentsService;
 use crate::services::agents::{state, view_state};
 use crate::services::agents::watch as agent_watch;
@@ -56,12 +60,6 @@ pub type SessionsFn = Arc<dyn Fn() -> Value + Send + Sync>;
 pub type NotifySavedFn =
     Arc<dyn Fn(String, String) -> BoxFuture<()> + Send + Sync>;
 
-/// Async dispatch closure: serialised request args (JSON) + request context →
-/// Result<DispatchResult JSON, ConnectError>. Shipd wires this to
-/// `dispatch_agent_session_core`.
-pub type DispatchFn =
-    Arc<dyn Fn(Value, RequestContext) -> BoxFuture<Result<Value, ConnectError>> + Send + Sync>;
-
 /// Async stop closure: (slug) → Result<StopResult JSON, ConnectError>.
 pub type StopFn =
     Arc<dyn Fn(String) -> BoxFuture<Result<Value, ConnectError>> + Send + Sync>;
@@ -76,37 +74,55 @@ pub type SteerFn =
 pub type GrantFn =
     Arc<dyn Fn(String, Vec<String>, RequestContext) -> BoxFuture<Result<Value, ConnectError>> + Send + Sync>;
 
+/// Extracts feedback/annotation auth info from a ConnectRPC `RequestContext`.
+/// Shipd implements this; ship-agents calls it to get the emit context and agent
+/// id without importing the shipd `AuthContext` type.
+pub trait FeedbackAuthPort: Send + Sync {
+    /// Returns `(agent_id, emit_ctx)` or `ConnectError::unauthenticated` if the
+    /// auth extension is missing from the context.
+    fn extract(
+        &self,
+        ctx: &RequestContext,
+    ) -> Result<(Option<String>, ship_substrate::events::validator::EmitContext), ConnectError>;
+}
+
 // ── Wire struct ───────────────────────────────────────────────────────────────
 
 /// ConnectRPC wire for `AgentsService`.
 pub struct AgentsWire {
-    svc:            Arc<dyn AgentsService>,
-    ship_dir:       PathBuf,
-    kernel:         Arc<KernelLog>,
-    gate:           GateFn,
-    sessions_fn:    SessionsFn,
-    notify_saved:   NotifySavedFn,
-    dispatch_fn:    DispatchFn,
-    stop_fn:        StopFn,
-    steer_fn:       SteerFn,
-    grant_fn:       GrantFn,
-    agent_reactive: Option<Arc<ReactiveRegistry>>,
+    svc:              Arc<dyn AgentsService>,
+    ship_dir:         PathBuf,
+    kernel:           Arc<KernelLog>,
+    gate:             GateFn,
+    sessions_fn:      SessionsFn,
+    notify_saved:     NotifySavedFn,
+    dispatch_port:    Arc<dyn AgentDispatchPort>,
+    stop_fn:          StopFn,
+    steer_fn:         SteerFn,
+    grant_fn:         GrantFn,
+    agent_reactive:   Option<Arc<ReactiveRegistry>>,
+    feedback_auth:    Arc<dyn FeedbackAuthPort>,
+    view_broadcast:   Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
+    collection:       Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
 }
 
 impl AgentsWire {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        svc:            Arc<dyn AgentsService>,
-        ship_dir:       PathBuf,
-        kernel:         Arc<KernelLog>,
-        gate:           GateFn,
-        sessions_fn:    SessionsFn,
-        notify_saved:   NotifySavedFn,
-        dispatch_fn:    DispatchFn,
-        stop_fn:        StopFn,
-        steer_fn:       SteerFn,
-        grant_fn:       GrantFn,
-        agent_reactive: Option<Arc<ReactiveRegistry>>,
+        svc:              Arc<dyn AgentsService>,
+        ship_dir:         PathBuf,
+        kernel:           Arc<KernelLog>,
+        gate:             GateFn,
+        sessions_fn:      SessionsFn,
+        notify_saved:     NotifySavedFn,
+        dispatch_port:    Arc<dyn AgentDispatchPort>,
+        stop_fn:          StopFn,
+        steer_fn:         SteerFn,
+        grant_fn:         GrantFn,
+        agent_reactive:   Option<Arc<ReactiveRegistry>>,
+        feedback_auth:    Arc<dyn FeedbackAuthPort>,
+        view_broadcast:   Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
+        collection:       Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
     ) -> Self {
         Self {
             svc,
@@ -115,11 +131,14 @@ impl AgentsWire {
             gate,
             sessions_fn,
             notify_saved,
-            dispatch_fn,
+            dispatch_port,
             stop_fn,
             steer_fn,
             grant_fn,
             agent_reactive,
+            feedback_auth,
+            view_broadcast,
+            collection,
         }
     }
 }
@@ -607,34 +626,73 @@ impl AgentsServiceTrait for AgentsWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedDispatchAgentRequestView,
     ) -> ServiceResult<DispatchResult> {
+        use ship_substrate::events::agent_session::InvocationMode;
         (self.gate)(&ctx, "agent.dispatch")?;
-        let mut args = serde_json::Map::new();
-        args.insert("agent".to_string(), json!(request.agent));
-        args.insert("spec".to_string(), json!(request.spec));
-        args.insert("prompt".to_string(), json!(request.prompt));
-        if let Some(b) = request.resume { args.insert("resume".to_string(), json!(b)); }
-        args.insert("harness".to_string(), json!(request.harness));
-        args.insert("model".to_string(), json!(request.model));
-        if let Some(b) = request.open_tab { args.insert("open_tab".to_string(), json!(b)); }
-        args.insert("invocation".to_string(), json!(request.invocation));
-        if let Some(b) = request.keepalive { args.insert("keepalive".to_string(), json!(b)); }
-        args.insert("workspace".to_string(), json!(request.workspace));
-        args.insert("slug".to_string(), json!(request.slug));
-        args.insert("branch".to_string(), json!(request.branch));
-        args.insert("source_spec_path".to_string(), json!(request.source_spec_path));
-        args.insert(
-            "depends_on".to_string(),
-            json!(request.depends_on.iter().collect::<Vec<_>>()),
-        );
-        let mut vars = serde_json::Map::new();
-        for (k, v) in request.vars.iter() {
-            vars.insert(k.to_string(), json!(v));
+
+        // Per-project workspace isolation: MCP session bound to project A cannot
+        // dispatch into project B. Trusted (CLI/SDK) callers pass through.
+        let claimed_workspace = if request.workspace.is_empty() {
+            None
+        } else {
+            Some(request.workspace)
+        };
+        if let Some(msg) = self.dispatch_port.check_workspace_violation(&ctx, claimed_workspace) {
+            return Err(ConnectError::permission_denied(msg));
         }
-        args.insert("vars".to_string(), Value::Object(vars));
-        let result = (self.dispatch_fn)(Value::Object(args), ctx).await?;
-        serde_json::from_value::<DispatchResult>(result)
-            .map(Response::new)
-            .map_err(|e| ConnectError::internal(format!("decode agent.dispatch response: {e}")))
+
+        fn opt_str(s: &str) -> Option<String> {
+            if s.is_empty() { None } else { Some(s.to_string()) }
+        }
+
+        let invocation = match request.invocation {
+            "print" => InvocationMode::Print,
+            "stream" => InvocationMode::Stream,
+            _ => InvocationMode::Pty,
+        };
+        let depends_on = {
+            let v: Vec<String> = request.depends_on.iter().map(|s| s.to_string()).collect();
+            (!v.is_empty()).then_some(v)
+        };
+        let vars: std::collections::HashMap<String, String> = request.vars
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        let vars = (!vars.is_empty()).then_some(vars);
+
+        let dreq = DispatchRequest {
+            agent: request.agent.to_string(),
+            spec: opt_str(request.spec),
+            prompt: opt_str(request.prompt),
+            resume: request.resume.unwrap_or(false),
+            harness: opt_str(request.harness),
+            model: opt_str(request.model),
+            open_tab: request.open_tab.unwrap_or(true),
+            invocation,
+            keepalive: request.keepalive.unwrap_or(true),
+            workspace: claimed_workspace.map(str::to_string),
+            slug: opt_str(request.slug),
+            branch: opt_str(request.branch),
+            source_spec_path: opt_str(request.source_spec_path),
+            depends_on,
+            vars,
+        };
+
+        let outcome = dispatch_agent_session_core(self.dispatch_port.as_ref(), dreq)
+            .await
+            .map_err(|e| match e {
+                DispatchCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                DispatchCoreError::Internal(m) => ConnectError::internal(m),
+            })?;
+
+        Ok(Response::new(DispatchResult {
+            session_id: outcome.session_id,
+            slug: outcome.slug,
+            branch: outcome.branch,
+            resume: outcome.resume,
+            studio_url: outcome.studio_url,
+            billing_warning: outcome.billing_warning,
+            ..Default::default()
+        }))
     }
 
     async fn stop(
@@ -760,5 +818,91 @@ impl AgentsServiceTrait for AgentsWire {
             }
         };
         Ok(Response::new(Box::pin(stream)))
+    }
+
+    // ── Canvas / observation ─────────────────────────────────────────────────
+
+    async fn post_feedback(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedPostFeedbackRequestView,
+    ) -> ServiceResult<ship_ops_rpc::PostFeedbackResponse> {
+        let ev: ship_substrate::events::feedback::FeedbackEvent =
+            serde_json::from_str(&request.event_json)
+                .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
+        let (agent_id, emit_ctx) = self.feedback_auth.extract(&ctx)?;
+        let guard = crate::services::agents::feedback::shared_guard();
+        let id = crate::services::agents::feedback::post_feedback(
+            &self.kernel,
+            emit_ctx,
+            self.view_broadcast.as_ref(),
+            guard,
+            agent_id.as_deref(),
+            ev,
+        )
+        .await
+        .map_err(|e| feedback_err_to_connect(e))?;
+        Ok(Response::new(ship_ops_rpc::PostFeedbackResponse { id, ..Default::default() }))
+    }
+
+    async fn post_annotation(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedPostAnnotationRequestView,
+    ) -> ServiceResult<ship_ops_rpc::PostAnnotationResponse> {
+        let ev: ship_substrate::events::annotation::AnnotationEvent =
+            serde_json::from_str(&request.event_json)
+                .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
+        let (_agent_id, emit_ctx) = self.feedback_auth.extract(&ctx)?;
+        let id = crate::services::agents::annotation::post_annotation(
+            &self.kernel,
+            emit_ctx,
+            self.view_broadcast.as_ref(),
+            self.collection.as_ref(),
+            ev,
+        )
+        .await
+        .map_err(|e| annotation_err_to_connect(e))?;
+        Ok(Response::new(ship_ops_rpc::PostAnnotationResponse { id, ..Default::default() }))
+    }
+}
+
+fn feedback_err_to_connect(e: crate::services::agents::feedback::FeedbackError) -> ConnectError {
+    use crate::services::agents::feedback::FeedbackError;
+    match e {
+        FeedbackError::RateLimited => ConnectError::resource_exhausted(e.to_string()),
+        FeedbackError::ViewNotFound(_) => ConnectError::not_found(e.to_string()),
+        FeedbackError::InvalidId
+        | FeedbackError::SelectorRequired
+        | FeedbackError::RectForbidden
+        | FeedbackError::RectRequired
+        | FeedbackError::RectInvalid
+        | FeedbackError::NoteTooLarge
+        | FeedbackError::SelectionTooLarge
+        | FeedbackError::DuplicateId => ConnectError::invalid_argument(e.to_string()),
+        FeedbackError::SerializeFailed(_) | FeedbackError::EmitFailed(_) => {
+            ConnectError::internal(e.to_string())
+        }
+    }
+}
+
+fn annotation_err_to_connect(e: crate::services::agents::annotation::AnnotationError) -> ConnectError {
+    use crate::services::agents::annotation::AnnotationError;
+    match e {
+        AnnotationError::SelectorRequired
+        | AnnotationError::RectInvalid
+        | AnnotationError::NoteTooLarge
+        | AnnotationError::SelectionTooLarge => ConnectError::invalid_argument(e.to_string()),
+        AnnotationError::Collection(ref ce) => match ce {
+            crate::services::agents::annotation::CollectionError::NoActiveSpace(_) => {
+                ConnectError::failed_precondition(e.to_string())
+            }
+            crate::services::agents::annotation::CollectionError::PersistFailed(_) => {
+                ConnectError::internal(e.to_string())
+            }
+        },
+        AnnotationError::SerializeFailed(_) | AnnotationError::EmitFailed(_) => {
+            ConnectError::internal(e.to_string())
+        }
     }
 }

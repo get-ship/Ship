@@ -57,30 +57,6 @@ impl TestDaemon {
 
         let api_routes = Router::new()
             .route(
-                "/mesh/register",
-                axum::routing::post(crate::routes::rest_api::mesh_register),
-            )
-            .route(
-                "/mesh/send",
-                axum::routing::post(crate::routes::rest_api::mesh_send),
-            )
-            .route(
-                "/mesh/broadcast",
-                axum::routing::post(crate::routes::rest_api::mesh_broadcast),
-            )
-            .route(
-                "/mesh/discover",
-                axum::routing::get(crate::routes::rest_api::mesh_discover),
-            )
-            .route(
-                "/mesh/status",
-                axum::routing::post(crate::routes::rest_api::mesh_status_update),
-            )
-            .route(
-                "/mesh/events/{agent_id}",
-                axum::routing::get(crate::routes::rest_api::mesh_events),
-            )
-            .route(
                 "/actor/spawn",
                 axum::routing::post(crate::routes::actor_api::actor_spawn),
             )
@@ -336,43 +312,4 @@ impl TestDaemon {
         self.router.clone().oneshot(req).await.unwrap()
     }
 
-    /// Register an agent via POST /api/v1/mesh/register.
-    pub async fn register_agent(&self, agent_id: &str, caps: &[&str]) -> TestResponse {
-        self.post(
-            "/api/v1/mesh/register",
-            &serde_json::json!({
-                "agent_id": agent_id,
-                "capabilities": caps,
-            }),
-        )
-        .await
-    }
-
-    /// Send a mesh message via POST /api/v1/mesh/send.
-    pub async fn mesh_send(
-        &self,
-        from: &str,
-        to: &str,
-        body: serde_json::Value,
-    ) -> TestResponse {
-        self.post(
-            "/api/v1/mesh/send",
-            &serde_json::json!({ "from": from, "to": to, "body": body }),
-        )
-        .await
-    }
-
-    /// Broadcast via POST /api/v1/mesh/broadcast.
-    pub async fn mesh_broadcast(
-        &self,
-        from: &str,
-        body: serde_json::Value,
-        cap_filter: Option<&str>,
-    ) -> TestResponse {
-        let mut payload = serde_json::json!({ "from": from, "body": body });
-        if let Some(cap) = cap_filter {
-            payload["capability_filter"] = serde_json::json!(cap);
-        }
-        self.post("/api/v1/mesh/broadcast", &payload).await
-    }
 }

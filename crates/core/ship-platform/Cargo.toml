@@ -57,7 +57,7 @@ ship-harnesses = { path = "crates/ship-harnesses" }
 ship-files = { path = "crates/ship-files" }
 ship-kv = { path = "crates/ship-kv" }
 ship-store = { path = "crates/ship-store" }
-ship-gateway-client = { path = "crates/ship-gateway-client" }
+ship-gateway-client = { path = "../ship-gateway-client" }
 # Cloud sync transport — `SyncClient` + `PushRequest`/`PushResponse`/`PullResponse`
 # live in the `ship-cloud` crate. The wrapping `services::sync::SyncServiceHandler`
 # stays here (it needs the platform-local `ServiceHandler` from substrate) but
@@ -68,7 +68,7 @@ ship-cloud = { path = "../ship-cloud", optional = true }
 # Isolation types + recommender. Default-features off — youki and
 # sidecar backends stay opt-in (the daemon's feature flags layer them in).
 ship-isolation = { path = "../ship-isolation", default-features = false }
-compiler = { path = "crates/compiler", features = ["specta"] }
+compiler = { path = "../compiler", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde_yaml = { workspace = true }

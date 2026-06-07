@@ -9,8 +9,8 @@ description = "SettingsService home — unified scope-discriminated settings (SP
 ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
-ship-ops-rpc = { path = "../ship-ops-rpc" }
-compiler = { path = "../compiler" }
+ship-ops-rpc = { path = "../../../ship-ops-rpc" }
+compiler = { path = "../../../compiler" }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }

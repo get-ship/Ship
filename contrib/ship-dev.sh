@@ -7,7 +7,7 @@
 #
 # Config via env vars (or edit defaults below):
 #   SHIP_REPO          — path to Ship repo (default: ~/dev/Ship)
-#   SHIP_CONTAINERFILE — path to Containerfile (default: $SHIP_REPO/.artifacts/Containerfile)
+#   SHIP_CONTAINERFILE — path to Containerfile (default: $SHIP_REPO/contrib/Containerfile)
 
 set -euo pipefail
 
@@ -20,10 +20,10 @@ CONTAINER_NAME="ship"
 # --- Volumes (named = persist across rebuilds, bind = host dirs) ---
 VOLUMES=(
   # Named volumes — cargo + bun caches
-  -v shipdev-cargo-registry:/home/dev/.cargo/registry:Z
-  -v shipdev-cargo-git:/home/dev/.cargo/git:Z
-  -v shipdev-target:/workspaces/ship/target:Z
-  -v shipdev-bun-cache:/home/dev/.bun/install/cache:Z
+  -v ship-cargo-registry:/home/dev/.cargo/registry:Z
+  -v ship-cargo-git:/home/dev/.cargo/git:Z
+  -v ship-target:/workspaces/ship/target:Z
+  -v ship-bun-cache:/home/dev/.bun/install/cache:Z
 
   # Bind mounts — repo + host config
   -v "$REPO_DIR:/workspaces/ship:Z"

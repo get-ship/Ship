@@ -19,7 +19,6 @@ use serde_json::Value;
 use sui_signals::Signal;
 
 use crate::ship_runtime::ApiState;
-use crate::services::registry;
 
 /// The canonical git.overview signal. `Null` until first resolver run.
 static GIT_OVERVIEW: OnceLock<Signal<Value>> = OnceLock::new();
@@ -37,13 +36,32 @@ pub const REGISTRY_NAME: &str = "git.overview";
 
 /// Resolve git.overview and push the result into the signal.
 /// Called once at SSE startup (for the initial value) and by the background
-/// task on each kernel event.
+/// task on each kernel event. Calls the GitService trait directly (registry
+/// apparatus deleted — git.overview is now served by GitWire).
 pub fn refresh(state: &ApiState) {
-    let args = serde_json::json!({});
-    match registry::call(REGISTRY_NAME, &args, state) {
-        Ok(value) => git_overview_signal().set_unchecked(value),
-        Err(e) => tracing::warn!(error = %e, "git_signal: refresh failed"),
-    }
+    let svc = state.git_arc();
+    let status = match svc.status(None) {
+        Ok(s) => s,
+        Err(e) => { tracing::warn!(error = %e, "git_signal: status failed"); return; }
+    };
+    let commits = svc.log(None, None, 20).unwrap_or_default();
+    let branches = svc.branches(None).unwrap_or_default();
+    let (ahead, behind) = branches.iter().find(|b| b.active).map(|b| (b.ahead, b.behind)).unwrap_or((0, 0));
+    let value = serde_json::json!({
+        "workspace_id": null,
+        "branch": status.branch,
+        "head_short": status.head,
+        "clean": status.clean,
+        "total_changed": status.total,
+        "staged": status.staged,
+        "modified": status.modified,
+        "untracked": status.untracked,
+        "commits": commits,
+        "branches": branches,
+        "ahead": ahead,
+        "behind": behind,
+    });
+    git_overview_signal().set_unchecked(value);
 }
 
 /// Ensure the background kernel-event → signal-update task is running.

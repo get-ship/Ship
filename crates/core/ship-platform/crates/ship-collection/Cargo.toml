@@ -9,7 +9,7 @@ description = "CollectionService — schema registry + thin RPC facade over subs
 ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
-ship-ops-rpc = { path = "../ship-ops-rpc" }
+ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 
 async-trait = { workspace = true }
 async-stream = "0.3"

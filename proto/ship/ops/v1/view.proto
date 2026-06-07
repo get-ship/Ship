@@ -51,8 +51,25 @@ message ViewToolReq {
   string args_json = 4;
 }
 
+// Scaffold a new view from a named shape template.
+message ViewScaffoldReq {
+  // Kebab-case id for the new view directory.
+  string name = 1;
+  // Shape template (e.g. "list" | "form" | "dashboard" | "blank").
+  string shape = 2;
+  // Optional one-line purpose written into the scaffold.
+  string purpose = 3;
+}
+
+message ViewScaffoldResponse {
+  // Browsable route for the new view (e.g. "/api/v1/v/<name>").
+  string route = 1;
+  // Absolute path to the scaffolded view directory.
+  string path = 2;
+}
+
 // View-authoring writes for an agent's own SUI session. Every rpc is a C1
-// workspace write gated on `ship.views.write`.
+// workspace write gated on `ship.views.write`. Scaffold is C1 (workspace write).
 service ViewService {
   rpc PatchSession(ViewPatchReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.views.write";
@@ -75,6 +92,13 @@ service ViewService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Tool(ViewToolReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
+  }
+  // Scaffold a new view from a shape template. Moves the create.surface/view
+  // route-core into the owning crate's wire.
+  rpc Scaffold(ViewScaffoldReq) returns (ViewScaffoldResponse) {
+    option (ship.ops.v1.description) = "Scaffold a new view directory from a named shape template.";
     option (ship.ops.v1.capability) = "ship.views.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }

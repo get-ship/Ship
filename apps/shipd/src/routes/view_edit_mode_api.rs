@@ -1,12 +1,11 @@
-//! REST handlers for the view-edit-mode handshake.
+//! Thin transport shell for view-edit-mode REST endpoints.
+//!
+//! Domain logic (capability grants) is in `ship_views::view_authoring::capability`.
+//! These handlers were already delegating there; the file now exists purely
+//! as an axum adapter with no logic of its own.
 //!
 //!   POST /api/v1/views/{name}/edit-mode/enter   body: { session_id }
 //!   POST /api/v1/views/{name}/edit-mode/exit    body: { session_id }
-//!
-//! Grants the calling session access to the `view.*` MCP tools scoped to
-//! this view. State is in-memory (process-singleton in `ship_platform::
-//! view_authoring::capability`) — cleared on daemon restart, on `/exit`,
-//! and on explicit session end.
 
 use axum::{
     Extension, Json,
@@ -15,20 +14,12 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-use crate::auth::{AuthContext};
+use crate::auth::AuthContext;
 use ship_views::view_authoring::{self, ViewEditModeAck};
+use ship_views::view_authoring::tool_dispatch::is_valid_view_name;
 
-pub fn is_valid_view_name_pub(name: &str) -> bool {
-    is_valid_view_name(name)
-}
-
-fn is_valid_view_name(name: &str) -> bool {
-    !name.is_empty()
-        && name.len() <= 128
-        && name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-}
+/// Re-exported for callers that need the name-validation predicate.
+pub use ship_views::view_authoring::tool_dispatch::is_valid_view_name as is_valid_view_name_pub;
 
 fn err(status: StatusCode, code: &str, message: &str) -> Response {
     (
@@ -58,11 +49,7 @@ pub async fn enter_edit_mode(
         );
     }
     view_authoring::grant(&session_id, &name);
-    let ack = ViewEditModeAck {
-        view: name,
-        session_id,
-        granted: true,
-    };
+    let ack = ViewEditModeAck { view: name, session_id, granted: true };
     (StatusCode::OK, Json(ack)).into_response()
 }
 
@@ -82,19 +69,11 @@ pub async fn exit_edit_mode(
             "session_id must be a non-empty string",
         );
     }
-    // Idempotent — revoking a missing grant is fine.
     view_authoring::revoke(&session_id, &name);
-    let ack = ViewEditModeAck {
-        view: name,
-        session_id,
-        granted: false,
-    };
+    let ack = ViewEditModeAck { view: name, session_id, granted: false };
     (StatusCode::OK, Json(ack)).into_response()
 }
 
-// Wire bodies are local newtypes around the contract structs so axum's
-// JSON extractor matches `Deserialize` without dragging the contract
-// crate's serde derives into a code-gen path.
 #[derive(serde::Deserialize)]
 pub struct ViewEditModeEnterBody {
     pub session_id: String,

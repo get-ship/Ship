@@ -1,109 +1,103 @@
 #!/usr/bin/env bash
-# Ship dev setup — run once on a fresh machine
-# Works on Linux and macOS (Intel + Apple Silicon)
+# Ship dev setup — the single host bootstrap. Run once on a fresh machine.
+# Idempotent: safe to re-run.
+#
+#   bash scripts/setup.sh
+#
+# Installs, in order:
+#   1. System build deps      (scripts/system-deps.txt — shared with Containerfile)
+#   2. Rust                   (pinned by rust-toolchain.toml; + rustfmt/clippy/wasm32)
+#   3. bun                    (the ONE JS runtime for all of Ship)
+#   4. wasm-pack              (for `bun run wasm` in bootstrap)
+#   5. node                   (OPTIONAL — Playwright e2e/visual only; SHIP_WITH_E2E=1)
+#   6. just bootstrap         (the canonical post-toolchain asset build)
+#   7. ship CLI on PATH       (convenience)
+#
+# Works on Linux (apt) and macOS (brew, best-effort). protoc is NOT needed —
+# it is vendored via protoc-bin-vendored.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORKTREES_DIR="$HOME/dev/worktrees"
-
-echo "==> Ship dev setup"
-echo "    Repo: $REPO_ROOT"
-echo ""
-
-# ── 1. Rust ─────────────────────────────────────────────────────────────────
-if ! command -v cargo &>/dev/null; then
-  echo "==> Installing Rust..."
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
-  source "$HOME/.cargo/env"
-fi
-echo "==> Rust: $(rustc --version)"
-
-# rust-toolchain.toml will pin the correct version on first cargo invocation
-
-# ── 2. Bun ───────────────────────────────────────────────────────────────────
-if ! command -v bun &>/dev/null; then
-  echo "==> Installing bun..."
-  curl -fsSL https://bun.sh/install | bash
-  export PATH="$HOME/.bun/bin:$PATH"
-fi
-echo "==> bun: $(bun --version)"
-
-# ── 3. Install ship binary from source ───────────────────────────────────────
-echo "==> Building + installing ship binary..."
-cargo install --path "$REPO_ROOT/apps/ship-cli" --locked --force
-echo "==> ship: $(ship --version)"
-
-# ── 4. bun install ───────────────────────────────────────────────────────────
-echo "==> Installing JS dependencies..."
-cd "$REPO_ROOT" && bun install
-
-# ── 5. Claude Code plugins (superpowers + tools) ─────────────────────────────
-if command -v claude &>/dev/null; then
-  echo "==> Installing Claude Code plugins (user scope)..."
-  claude plugin install superpowers@claude-plugins-official 2>/dev/null || echo "  superpowers: already installed or unavailable"
-  claude plugin install frontend-design@claude-plugins-official 2>/dev/null || echo "  frontend-design: already installed or unavailable"
-  claude plugin install rust-analyzer-lsp@claude-plugins-official 2>/dev/null || echo "  rust-analyzer-lsp: already installed or unavailable"
-else
-  echo "  (claude CLI not found — install Claude Code to get plugin support)"
-fi
-
-# ── 6. Worktrees ─────────────────────────────────────────────────────────────
-echo ""
-echo "==> Setting up worktrees..."
 cd "$REPO_ROOT"
-git fetch --all --quiet
+say() { printf '\n==> %s\n' "$*"; }
 
-mkdir -p "$WORKTREES_DIR"
-
-setup_worktree() {
-  local name="$1"
-  local branch="$2"
-  local dir="$WORKTREES_DIR/$name"
-  if [ -d "$dir" ]; then
-    echo "  $name: already exists, pulling..."
-    cd "$dir" && git pull --quiet && cd "$REPO_ROOT"
-  else
-    echo "  $name: creating at $dir..."
-    git worktree add "$dir" "$branch"
-  fi
-}
-
-setup_worktree "ship-cli"    "feat/cli-init"
-setup_worktree "ship-server" "feat/server-auth"
-setup_worktree "ship-web"    "feat/web-import"
-
-# ── 7. Clean stale Claude config ─────────────────────────────────────────────
-echo ""
-echo "==> Checking Claude config..."
-CLAUDE_SETTINGS="$HOME/.claude/settings.json"
-if [ -f "$CLAUDE_SETTINGS" ]; then
-  # Check for stale MCP entries from old ship binary (the workflow-layer binary)
-  if python3 -c "
-import json, sys
-with open('$CLAUDE_SETTINGS') as f:
-    d = json.load(f)
-mcp = d.get('mcpServers', {})
-stale = [k for k in mcp if 'ship' in k.lower()]
-if stale:
-    print('STALE: ' + ', '.join(stale))
-    sys.exit(1)
-" 2>/dev/null; then
-    echo "  Claude settings: clean"
-  else
-    echo "  WARNING: stale MCP entries found in $CLAUDE_SETTINGS"
-    echo "  Remove old ship MCP server entries — the new binary uses 'ship mcp' directly"
-  fi
+# ── 1. System build deps ──────────────────────────────────────────────────────
+PKGS="$(grep -vE '^[[:space:]]*#|^[[:space:]]*$' scripts/system-deps.txt | tr '\n' ' ')"
+if command -v apt-get >/dev/null 2>&1; then
+  say "Installing system deps (apt): ${PKGS}"
+  sudo apt-get update -y
+  sudo apt-get install -y ${PKGS}
+elif command -v brew >/dev/null 2>&1; then
+  say "Installing system deps (brew, best-effort)"
+  xcode-select -p >/dev/null 2>&1 || xcode-select --install || true
+  brew install cmake pkg-config openssl@3 git curl || true
+else
+  echo "!! No apt-get or brew. Install manually: ${PKGS}" >&2
 fi
 
-echo ""
-echo "✓ Setup complete"
-echo ""
-echo "Worktrees:"
-git worktree list
-echo ""
-echo "Next:"
-echo "  cd ~/dev/worktrees/ship-cli    — CLI lane (feat/cli-init)"
-echo "  cd ~/dev/worktrees/ship-server — Server lane (feat/server-auth)"
-echo "  cd ~/dev/worktrees/ship-web    — Web lane (feat/web-import)"
-echo ""
-echo "Open each worktree in Claude Code and say: 'Read BRIEF.md then execute all tasks in priority order.'"
+# ── 2. Rust (pinned by rust-toolchain.toml) ───────────────────────────────────
+if ! command -v rustup >/dev/null 2>&1; then
+  say "Installing rustup"
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --no-modify-path --default-toolchain none
+  # shellcheck disable=SC1091
+  [ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
+fi
+export PATH="$HOME/.cargo/bin:$PATH"
+CHANNEL="$(sed -nE 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' rust-toolchain.toml)"
+say "Installing Rust ${CHANNEL} (+ rustfmt, clippy, wasm32-unknown-unknown)"
+rustup toolchain install "${CHANNEL}" --profile minimal -c rustfmt -c clippy -t wasm32-unknown-unknown
+echo "    rust: $(rustc --version 2>/dev/null || echo 'resolves on first cargo run in-repo')"
+
+# ── 3. bun (the one JS runtime) ───────────────────────────────────────────────
+if ! command -v bun >/dev/null 2>&1; then
+  say "Installing bun"
+  curl -fsSL https://bun.sh/install | bash
+fi
+export PATH="$HOME/.bun/bin:$PATH"
+echo "    bun: $(bun --version 2>/dev/null || echo 'restart shell to pick up PATH')"
+
+# ── 4. wasm-pack ──────────────────────────────────────────────────────────────
+if ! command -v wasm-pack >/dev/null 2>&1; then
+  say "Installing wasm-pack"
+  curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+fi
+
+# ── 5. Node — OPTIONAL, Playwright e2e/visual only ────────────────────────────
+# Bun runs everything Ship owns. @playwright/test forks node worker processes
+# internally, so the e2e/visual suites (`just visual`, `just smoke-deploy`) are
+# the SOLE node holdout. Opt in with SHIP_WITH_E2E=1; otherwise we stay bun-only.
+if [ "${SHIP_WITH_E2E:-0}" = "1" ]; then
+  if ! command -v node >/dev/null 2>&1; then
+    say "Installing node (Playwright e2e workers)"
+    command -v apt-get >/dev/null 2>&1 && sudo apt-get install -y nodejs npm \
+      || command -v brew >/dev/null 2>&1 && brew install node \
+      || echo "!! install node manually for Playwright e2e" >&2
+  fi
+else
+  echo "    node: skipped (bun-only). SHIP_WITH_E2E=1 to install it for Playwright suites."
+fi
+
+# ── 6. Project assets (canonical post-toolchain step) ─────────────────────────
+say "Building project assets (just bootstrap)"
+just bootstrap
+
+# ── 7. ship CLI on PATH ───────────────────────────────────────────────────────
+say "Installing the ship CLI"
+cargo install --path apps/ship-cli --locked --force
+echo "    ship: $(ship --version 2>/dev/null || echo 'ensure ~/.cargo/bin is on PATH')"
+
+cat <<'EOF'
+
+✓ Setup complete.
+
+  PATH (add to your shell rc if missing):
+    export PATH="$HOME/.cargo/bin:$HOME/.bun/bin:$HOME/.local/bin:$PATH"
+
+  Next:
+    just dev          # build + start the dev daemon for this worktree
+    just init-worktree <branch>   # spin up an isolated worktree
+
+  Backup reminder: verify `ssh -T git@github.com` works, then push your work —
+  a fresh clone is your off-machine safety net.
+EOF

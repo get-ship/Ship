@@ -2,64 +2,23 @@
 
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::process::{event_types as process_event_types, ProcessKilledPayload};
-use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
+use ship_substrate::events::EventEnvelope;
 use ship_substrate::services::dispatch_ports::AgentPlatform;
 use ship_runner::emit::persist_and_route;
 use crate::orchestrator::OrchestratorContext;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-/// Forward `job.update` messages to the agent via mesh routing.
+/// `pipeline.run.updated` — deprecated event; the mesh.send forward path was
+/// removed with the mesh.* op surface cut. Log and discard.
 pub async fn handle_pipeline_run_updated(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    _kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     envelope: &EventEnvelope,
 ) {
-    let entity_id = &envelope.entity_id;
-    let payload: serde_json::Value = match serde_json::from_str(&envelope.payload_json) {
-        Ok(v) => v,
-        Err(e) => {
-            tracing::warn!("job-dispatch: malformed job.update payload: {e}");
-            return;
-        }
-    };
-
-    let slug = payload
-        .get("slug")
-        .and_then(|v| v.as_str())
-        .unwrap_or(entity_id);
-
-    let mesh_envelope = match EventEnvelope::new(
-        "mesh.send",
-        "service.orchestrator",
-        &serde_json::json!({
-            "from": "service.orchestrator",
-            "to": slug,
-            "body": {
-                "type": "pipeline.run.updated",
-                "pipeline_run_id": entity_id,
-                "payload": payload,
-            }
-        }),
-    ) {
-        Ok(e) => e.with_actor_id("service.orchestrator"),
-        Err(e) => {
-            tracing::warn!(entity_id, "job-dispatch: failed to build mesh.send: {e}");
-            return;
-        }
-    };
-
-    // Directed mesh.send — space absent by design. Daemon-internal binding for
-    // shape consistency; caller_kind preserved (Mcp) to keep routing behavior.
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Mcp,
-        skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
-        session_id: None,
-    };
-    match kernel.lock().await.emit(mesh_envelope, &ctx).await {
-        Ok(_) => tracing::info!(entity_id, "job-dispatch: forwarded job.update to agent"),
-        Err(e) => tracing::warn!(entity_id, "job-dispatch: mesh forward failed: {e}"),
-    }
+    tracing::debug!(
+        entity_id = %envelope.entity_id,
+        "job-dispatch: pipeline.run.updated received (deprecated — no-op)"
+    );
 }
 
 /// Clean up worktree, tmux session, and branch for a completed/merged job.

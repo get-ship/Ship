@@ -17,6 +17,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 
+pub mod demo;
 pub mod events;
 pub mod op_requests;
 pub mod ops;
@@ -51,6 +52,9 @@ pub fn run_with_args(args: &[&str]) -> Result<()> {
     // 3. Event payload + envelope fixtures (from registry)
     let events_report = events::run(&fixtures_dir, check_mode)?;
 
+    // 4. Demo fixtures from per-domain seeds (proto/fixtures/seeds/ → demo/)
+    let demo_count = demo::run(&fixtures_dir, check_mode)?;
+
     let scaffold_dups = ops::scaffold_dup_count();
 
     if check_mode {
@@ -60,6 +64,7 @@ pub fn run_with_args(args: &[&str]) -> Result<()> {
             events_report.auto_generated,
             events_report.needs_author,
         );
+        eprintln!("gen-fixtures: {demo_count} demo fixtures up-to-date → proto/fixtures/demo/");
     } else {
         eprintln!(
             "gen-fixtures: {op_count} op response fixtures → proto/fixtures/<service>.json"
@@ -73,6 +78,7 @@ pub fn run_with_args(args: &[&str]) -> Result<()> {
             events_report.auto_generated,
             events_report.needs_author,
         );
+        eprintln!("gen-fixtures: {demo_count} demo fixtures → proto/fixtures/demo/");
         eprintln!(
             "gen-fixtures: scaffold dup — {scaffold_dups} ops double-exposed on umbrella + per-domain (retires to 0 with umbrella, #78)"
         );

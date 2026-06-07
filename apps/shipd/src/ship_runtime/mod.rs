@@ -31,7 +31,7 @@ use std::sync::Arc;
 use ship_substrate::services::mesh::SharedMeshRegistry;
 use crate::auth::SessionRegistry;
 use ship_substrate::task_health::HealthRegistry;
-use crate::supervisor::run_dispatch::DispatchHandle;
+use crate::dispatch::run_dispatch::DispatchHandle;
 
 /// Central runtime for shipd. Owns the kernel, mesh registry, and config.
 /// Managers (mesh, jobs) are lazily initialized on first access.
@@ -53,10 +53,6 @@ pub struct ShipRuntime {
     pub(super) session_registry: SessionRegistry,
     /// Health registry for supervised background tasks.
     pub(super) health_registry: HealthRegistry,
-    /// Diagnostic registry — aggregates per-subsystem `DiagnosticSnapshot`
-    /// impls. Built lazily via `diag_registry()` / `set_diag_registry()`
-    /// after the dispatch handle is set (supervisor snapshot depends on it).
-    pub(super) diag_registry: std::sync::OnceLock<ship_substrate::diagnostics::DiagnosticRegistry>,
     /// Active-space `SpaceContext` for collections, bound to the active space's
     /// per-scope `spaces/<id>/space.db`. `None` when the daemon booted space-less
     /// (no discoverable project); the `collections()` accessor then errors cleanly

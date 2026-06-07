@@ -1,0 +1,125 @@
+use anyhow::{Context, Result};
+use std::path::{Path, PathBuf};
+
+use crate::daemon::ensure::announce_daemon_url;
+use crate::daemon::paths::ship_dir;
+use crate::daemon::pidfile;
+use crate::daemon::repair::daemon_repair_migrations;
+use crate::daemon::service_registration;
+use crate::daemon::status::daemon_status;
+use crate::daemon::cleanup::daemon_cleanup;
+use crate::daemon::supervise::daemon_supervise;
+use crate::daemon::supervision::StartContext;
+
+pub enum DaemonCommand {
+    Start { host: String, dev: bool },
+    Stop,
+    Restart { host: String, dev: bool },
+    Status,
+    /// Print the daemon IPC directory for cwd. Powers `just status` /
+    /// `scripts/dev/*` without those reaching into ShipHome internals.
+    Dir,
+    Cleanup,
+    /// Read-only migration drift diagnostic by default. With `reset: true`,
+    /// backs up and recreates `platform.db` when a checksum mismatch is
+    /// detected (pre-launch escape hatch for edited baseline migrations).
+    RepairMigrations { reset: bool },
+    Run { host: String, port: u16, dev: bool },
+    /// Internal: supervisor loop that watches and restarts the daemon.
+    Supervise { host: String, dev: bool },
+    /// Internal: called by native installer post-install hooks to
+    /// register shipd with the OS service manager. Not user-facing.
+    InstallService { shipd_path: Option<PathBuf>, no_start: bool, no_autostart: bool },
+    /// Internal: called by uninstall flows to undo `InstallService`.
+    UninstallService,
+}
+
+pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
+    match cmd {
+        DaemonCommand::Start { host, dev } => {
+            let ctx = start_context(host, dev)?;
+            check_version_mismatch(&ctx.global_dir)?;
+            crate::daemon::supervision::select().start(&ctx)?;
+            announce_daemon_url();
+            Ok(())
+        }
+        DaemonCommand::Stop => crate::daemon::supervision::select().stop(),
+        DaemonCommand::Restart { host, dev } => {
+            let ctx = start_context(host, dev)?;
+            crate::daemon::supervision::select().restart(&ctx)?;
+            announce_daemon_url();
+            Ok(())
+        }
+        DaemonCommand::Status => daemon_status(),
+        DaemonCommand::Dir => {
+            println!("{}", ship_substrate::home::current_daemon_dir().display());
+            Ok(())
+        }
+        DaemonCommand::Cleanup => daemon_cleanup(),
+        DaemonCommand::RepairMigrations { reset } => daemon_repair_migrations(reset),
+        DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),
+        DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
+        DaemonCommand::InstallService { shipd_path, no_start, no_autostart } => {
+            let report = service_registration::install_service(
+                service_registration::InstallOptions {
+                    start_now: !no_start,
+                    enable_autostart: !no_autostart,
+                    shipd_path,
+                },
+            )?;
+            println!("{}", report.message);
+            Ok(())
+        }
+        DaemonCommand::UninstallService => {
+            let report = service_registration::uninstall_service()?;
+            println!("{}", report.message);
+            Ok(())
+        }
+    }
+}
+
+pub(super) fn start_context(host: String, dev: bool) -> Result<StartContext> {
+    // Dev mode pins the bind to localhost regardless of --host so that
+    // the relaxed auth surface is never exposed on a LAN. Applied here
+    // so both adapters see the same final host.
+    let host = if dev { "127.0.0.1".to_string() } else { host };
+    Ok(StartContext {
+        host,
+        dev,
+        global_dir: ship_dir()?,
+    })
+}
+
+/// Refuse `ship daemon start` when a live daemon is running a different
+/// version than the CLI we're invoking. This catches the "copy a fresh
+/// shipd into ~/.local/bin and forget to restart" footgun, where the
+/// stale process keeps serving old code while the operator thinks the
+/// new one is live.
+///
+/// Only `start` checks. `restart` is the remediation, so version mismatch
+/// during restart is expected — we *want* to replace the old process.
+/// `stop` doesn't care: shutting down a stale daemon is never wrong.
+pub(super) fn check_version_mismatch(global_dir: &Path) -> Result<()> {
+    let Some((record, true)) = pidfile::read(global_dir)? else {
+        return Ok(());
+    };
+    let installed = env!("CARGO_PKG_VERSION");
+    if record.version != installed {
+        anyhow::bail!(
+            "shipd version mismatch: running {} (pid {}), installed {}.\n\
+             Use `ship daemon restart` to replace the running daemon.",
+            record.version,
+            record.pid,
+            installed
+        );
+    }
+    Ok(())
+}
+
+pub(super) fn daemon_run(host: String, port: u16, dev: bool) -> Result<()> {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("cannot build tokio runtime")?;
+    rt.block_on(shipd::run_network(host, Some(port), dev, None, shipd::DaemonMode::Development))
+}

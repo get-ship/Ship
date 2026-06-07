@@ -8,7 +8,7 @@ description = "Git domain — repository operations, status, diffs. git2-backed 
 
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
-ship-ops-rpc = { path = "../ship-platform/crates/ship-ops-rpc" }
+ship-ops-rpc = { path = "../ship-ops-rpc" }
 
 git2 = "0.19"
 serde = { workspace = true }
@@ -18,6 +18,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["rt"] }
+axum = { workspace = true }
 connectrpc = { version = "0.4", features = ["axum"] }
 async-stream = "0.3"
 

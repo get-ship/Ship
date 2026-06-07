@@ -123,12 +123,9 @@ impl ShipdSearchWire {
     /// Default (unset) is included, so only an explicit `false` opts out.
     async fn opted_out_spaces(&self, spaces: &[String]) -> std::collections::HashSet<String> {
         let svc = SpaceService::new(self.runtime_ctx());
-        let global_settings = crate::services::registry::call(
-            "settings.state",
-            &serde_json::Value::Null,
-            &self.state,
-        )
-        .unwrap_or(serde_json::Value::Null);
+        // settings.state op removed with the string-dispatch apparatus; the
+        // settings overlay is read directly by the crate-owned SettingsWire.
+        let global_settings = serde_json::Value::Null;
 
         let mut out = std::collections::HashSet::new();
         for space_id in spaces {

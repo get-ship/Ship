@@ -16,6 +16,6 @@ path = "src/roundtrip.rs"
 [dependencies]
 anyhow = { workspace = true }
 serde_json = { workspace = true }
-ship-ops-rpc = { path = "../../crates/core/ship-platform/crates/ship-ops-rpc" }
+ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }

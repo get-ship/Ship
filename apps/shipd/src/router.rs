@@ -14,8 +14,8 @@ use crate::{
     sessions, views,
 };
 use crate::routes::{
-    actor_api, actors_api, annotations_api,
-    artifacts_api, create_api, feedback_api, git_api,
+    actor_api, actors_api,
+    artifacts_api, git_api,
     hooks_api, human_webhook, logs_api,
     registry_api, rest_api, runtime_api,
     sandbox_api, sdk_manifest, settings_api, themes_api,
@@ -211,7 +211,6 @@ pub fn build_router(
         async move { session::issue_session_handler(reg, auth.0).await }
     };
 
-    let feedback_guard = feedback_api::FeedbackGuard::new();
     let registry_state = mcp_registry::McpRegistryState::new();
 
     // MCP registry proxy is a public, read-only endpoint — match the
@@ -242,7 +241,6 @@ pub fn build_router(
             crate::ops_rpc::router(rt.clone())
                 .layer(axum::middleware::from_fn(auth::project_authority_middleware)),
         )
-        .layer(axum::Extension(feedback_guard))
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with
         // auth) so requests must carry a valid bearer before short-circuit.
@@ -345,23 +343,13 @@ async fn build_header_middleware(
 fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     Router::new()
-        // Mesh / actors
-        .ship_route(Route::MeshRegister, rest_api::mesh_register)
-        .ship_route(Route::MeshSend, rest_api::mesh_send)
-        .ship_route(Route::MeshBroadcast, rest_api::mesh_broadcast)
-        .ship_route(Route::MeshDiscover, rest_api::mesh_discover)
-        .ship_route(Route::MeshStatusUpdate, rest_api::mesh_status_update)
-        .ship_route(Route::MeshEvents_template(), rest_api::mesh_events)
+        // Actor reads (L0 kernel — not the deprecated mesh.* op surface)
         .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
         .ship_route(Route::EventRoute, actor_api::event_route)
         .ship_route(Route::ListActors, actors_api::list_actors_handler)
         .ship_route(Route::ListMesh, actors_api::list_mesh_handler)
         .ship_route(Route::GetActor_template(), actors_api::get_actor_handler)
         .ship_route(Route::ActorEvents_template(), actors_api::list_actor_events_handler)
-        .ship_route(Route::ActorInput_template(), actors_api::actor_input_handler)
-        .ship_route(Route::MeshSnapshot, actors_api::mesh_snapshot_handler)
-        .ship_route(Route::MeshEventsStream, actors_api::mesh_events_handler)
-        .ship_route(Route::KillTree_template(), actors_api::kill_tree_handler)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Isolation reads are served by the proto IsolationService
@@ -390,7 +378,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Views — list + source now served by DiscoveryService (Connect, #139).
         .ship_route(Route::ShipSchema, services::schema::serve_schema)
         .ship_route(Route::ListViewFiles_template(), views::files_api::list_view_files)
-        .ship_route(Route::CreateSurface_template(), create_api::create_surface)
         .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
         .ship_route(Route::WriteViewManifestApi_template(), views::write_api::write_view_manifest)
         .ship_route(Route::ForkView_template(), views::write_api::fork_view)
@@ -435,9 +422,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::SignalViewSession_template(), view_sessions_api::signal_session)
         .ship_route(Route::CloseViewSession_template(), view_sessions_api::close_session)
         .ship_route(Route::SubscribeViewSession_template(), view_sessions_api::subscribe_session)
-        // Feedback ingress
-        .ship_route(Route::PostFeedback, feedback_api::post_feedback)
-        .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
         // View authoring — chrome edit-mode handshake + agent tool dispatch.
         .ship_route(Route::EnterViewEditMode_template(), view_edit_mode_api::enter_edit_mode)
         .ship_route(Route::ExitViewEditMode_template(), view_edit_mode_api::exit_edit_mode)
@@ -471,16 +455,24 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListProjectAgents_template(), project_api::list_agents)
         // GitService — canonical `/api/v1/git/*` surface. Consolidates the
         // old workspace- and project-scoped git endpoints into one.
-        .ship_route(Route::GitStage, git_api::stage_handler)
-        .ship_route(Route::GitUnstage, git_api::unstage_handler)
-        .ship_route(Route::GitCommit, git_api::commit_handler)
-        .ship_route(Route::GitPush, git_api::push_handler)
-        .ship_route(Route::GitFetch, git_api::fetch_handler)
-        .ship_route(Route::GitPull, git_api::pull_handler)
-        .ship_route(Route::GitCheckout, git_api::checkout_handler)
-        .ship_route(Route::GitBranchCreate, git_api::branch_create_handler)
-        .ship_route(Route::GitBranchDelete, git_api::branch_delete_handler)
-        .ship_route(Route::GitInit, git_api::init_handler)
+        // Write handlers live in `ship_git::rest_handlers`; they take
+        // `State<Arc<dyn GitService>>` and are mounted via a state-scoped
+        // sub-router. The SSE handler is daemon-edge (ViewSse) and keeps
+        // `State<ApiState>`.
+        .merge(
+            Router::<std::sync::Arc<dyn ship_git::service::GitService>>::new()
+                .ship_route(Route::GitStage, git_api::stage_handler)
+                .ship_route(Route::GitUnstage, git_api::unstage_handler)
+                .ship_route(Route::GitCommit, git_api::commit_handler)
+                .ship_route(Route::GitPush, git_api::push_handler)
+                .ship_route(Route::GitFetch, git_api::fetch_handler)
+                .ship_route(Route::GitPull, git_api::pull_handler)
+                .ship_route(Route::GitCheckout, git_api::checkout_handler)
+                .ship_route(Route::GitBranchCreate, git_api::branch_create_handler)
+                .ship_route(Route::GitBranchDelete, git_api::branch_delete_handler)
+                .ship_route(Route::GitInit, git_api::init_handler)
+                .with_state(st.git_arc()),
+        )
         .ship_route(Route::GitSse, git_api::sse_handler)
         .ship_route(Route::EmitEvent, project_api::emit_event)
         // Artifacts platform (three-scope)
@@ -500,7 +492,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // SDK manifest (read-side)
         .ship_route(Route::ViewMeta_template(), sdk_manifest::get_view_meta)
         .ship_route(Route::SdkRoot, sdk_manifest::get_sdk_root)
-        .ship_route(Route::SdkQuery, sdk_manifest::query_sdk)
+        .ship_route(Route::SdkQuery, sdk_manifest::query_sdk_handler)
         // Client-side view error capture — GET/POST/DELETE on one path,
         // merged into a single MethodRouter (axum panics on duplicate paths
         // across `.route()` calls). Canonical path comes from the Route enum

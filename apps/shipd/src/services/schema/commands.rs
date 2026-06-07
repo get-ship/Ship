@@ -340,45 +340,6 @@ pub const COMMANDS: &[CommandDescriptor] = &[
     // self-gated wires that bypass the command dispatch table.
     // project.add + project.activate retired — SpaceService.Add / .Activate
     // (ship-space) are the SSOT; they route through the ConnectRPC wire.
-    // ── mesh ──────────────────────────────────────────────────────
-    CommandDescriptor {
-        name: "mesh.send",
-        description: "Send a directed mesh message to another actor (caller-as-self).",
-        args: &[
-            ArgDescriptor { name: "from", kind: "string", required: true },
-            ArgDescriptor { name: "to", kind: "string", required: true },
-            ArgDescriptor { name: "body_json", kind: "string?", required: false },
-        ],
-        permission: "ship.mesh.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "mesh.broadcast",
-        description: "Broadcast a mesh message (optional capability filter; caller-as-self).",
-        args: &[
-            ArgDescriptor { name: "from", kind: "string", required: true },
-            ArgDescriptor { name: "body_json", kind: "string?", required: false },
-            ArgDescriptor { name: "capability_filter", kind: "string?", required: false },
-        ],
-        permission: "ship.mesh.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "mesh.status",
-        description: "Update the caller's own mesh liveness status (caller-as-self).",
-        args: &[
-            ArgDescriptor { name: "agent_id", kind: "string", required: true },
-            ArgDescriptor { name: "status", kind: "string", required: true },
-        ],
-        permission: "ship.mesh.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
     // ── git (caller's worktree) ───────────────────────────────────
     CommandDescriptor {
         name: "git.push",
@@ -512,27 +473,6 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         sensitive: false,
     },
     CommandDescriptor {
-        name: "actor.input",
-        description: "Deliver a text turn to a live actor's mailbox (operator/debug).",
-        args: &[
-            ArgDescriptor { name: "actor_id", kind: "string", required: true },
-            ArgDescriptor { name: "text", kind: "string", required: true },
-        ],
-        permission: "ship.actor.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "actor.kill_tree",
-        description: "Stop an actor and its descendants (operator/debug).",
-        args: &[ArgDescriptor { name: "actor_id", kind: "string", required: true }],
-        permission: "ship.actor.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
-    CommandDescriptor {
         name: "agent.grant",
         description: "Grant restricted capabilities to an agent (operator approval). \
                       Upgrades the agent's live sessions; the next gated call passes. \
@@ -583,38 +523,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         response_type: "",
         sensitive: false,
     },
-    // ── surfaces (authoring) ──────────────────────────────────────
-    CommandDescriptor {
-        name: "create.surface",
-        description: "Scaffold a new surface (view | skill).",
-        args: &[
-            ArgDescriptor { name: "surface", kind: "string", required: true },
-            ArgDescriptor { name: "name", kind: "string", required: true },
-            ArgDescriptor { name: "shape", kind: "string", required: true },
-            ArgDescriptor { name: "purpose", kind: "string?", required: false },
-        ],
-        permission: "ship.surfaces.write",
-        blast_radius: "C2_ELEVATED",
-        response_type: "",
-        sensitive: false,
-    },
-    // ── canvas / observation ──────────────────────────────────────
-    CommandDescriptor {
-        name: "annotation.post",
-        description: "Post an annotation (canvas/observation).",
-        args: &[ArgDescriptor { name: "event_json", kind: "string", required: true }],
-        permission: "ship.annotations.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
-    CommandDescriptor {
-        name: "feedback.post",
-        description: "Post feedback (canvas/observation; rate-limited).",
-        args: &[ArgDescriptor { name: "event_json", kind: "string", required: true }],
-        permission: "ship.feedback.write",
-        blast_radius: "C1_WORKSPACE",
-        response_type: "",
-        sensitive: false,
-    },
 ];
+// create.surface, annotation.post, feedback.post removed:
+// rehomed to ViewService::Scaffold, AgentsService::PostAnnotation,
+// AgentsService::PostFeedback (crate-owned wires, one rpc story).

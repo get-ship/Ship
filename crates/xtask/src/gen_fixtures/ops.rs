@@ -61,6 +61,9 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         // account.* (typed AccountService — ship-account crate): Ship Cloud
         // identity. State snapshot + the PKCE login/logout lifecycle results.
         v!(AccountState), v!(LoginStarted), v!(LoginCompleted), v!(LogoutResult),
+        // Scaffold + feedback/annotation typed results (proto-added; fixtures backfilled).
+        v!(SkillScaffoldResponse), v!(ViewScaffoldResponse),
+        v!(PostFeedbackResponse), v!(PostAnnotationResponse),
     ]
     .into_iter()
     .collect()
