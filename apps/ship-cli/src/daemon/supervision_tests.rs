@@ -104,7 +104,7 @@ fn systemd_adapter_name_reports_systemd() {
 fn version_check_skipped_when_no_live_daemon() {
     let tmp = TempDir::new().unwrap();
     // No pidfile exists → guard is a no-op, regardless of installed version.
-    super::check_version_mismatch(tmp.path()).expect("no pidfile → ok");
+    super::commands::check_version_mismatch(tmp.path()).expect("no pidfile → ok");
 }
 
 #[test]
@@ -121,7 +121,7 @@ fn version_check_skipped_when_pidfile_stale() {
     )
     .unwrap();
 
-    super::check_version_mismatch(tmp.path())
+    super::commands::check_version_mismatch(tmp.path())
         .expect("stale pidfile (no lock) → ok, takeover is legal");
 }
 
@@ -136,7 +136,7 @@ fn version_mismatch_refuses_start() {
         _ => panic!("expected Fresh"),
     };
 
-    let err = super::check_version_mismatch(tmp.path())
+    let err = super::commands::check_version_mismatch(tmp.path())
         .expect_err("version mismatch must Err");
     let msg = format!("{err}");
     assert!(msg.contains("version mismatch"), "msg: {msg}");
@@ -156,7 +156,7 @@ fn version_match_allows_start() {
         _ => panic!("expected Fresh"),
     };
 
-    super::check_version_mismatch(tmp.path())
+    super::commands::check_version_mismatch(tmp.path())
         .expect("matching version → ok");
 
     drop(guard);
