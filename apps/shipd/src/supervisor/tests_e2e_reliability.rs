@@ -140,7 +140,7 @@ fn orphan_worktrees_detectable_from_projection() {
 /// Shutdown must have a timeout — it cannot hang indefinitely.
 #[test]
 fn shutdown_has_bounded_timeout() {
-    let registry_src = include_str!("../../../../crates/core/ship-platform/src/services/process_registry.rs");
+    let registry_src = include_str!("../../../../crates/core/ship-substrate/src/services/process_registry.rs");
     assert!(
         registry_src.contains("timeout") || registry_src.contains("Duration"),
         "shutdown_all must have a timeout to prevent hanging on unresponsive agents"

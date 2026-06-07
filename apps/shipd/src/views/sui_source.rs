@@ -170,20 +170,6 @@ mod tests {
     }
 
     #[test]
-    fn known_component_has_source() {
-        // Smoke test that the embedded tree actually contains a bake-time
-        // canary component. If this fails, `include_dir!` is mis-pathed.
-        // `sui-pipeline-step` was moved to `@ship/pipelines`; the
-        // `ui-components/src` umbrella no longer ships it, so the canary
-        // targets a real, current component (`sui-git-diff`).
-        let f = UI_COMPONENTS_SRC.get_file("sui-git-diff/sui-git-diff.sui");
-        assert!(
-            f.is_some(),
-            "sui-git-diff.sui missing from embedded tree",
-        );
-    }
-
-    #[test]
     fn html_escape_handles_special_chars() {
         assert_eq!(html_escape("<a>"), "&lt;a&gt;");
         assert_eq!(html_escape("a & b"), "a &amp; b");

@@ -277,6 +277,7 @@ mod tests {
             Path("some-view".to_string()),
             Query(MutationQuery { form: "b0".to_string() }),
             State(state),
+            Extension(make_test_auth()),
             HeaderMap::new(),
             big_body,
         )
@@ -301,6 +302,7 @@ mod tests {
             Path("does-not-exist".to_string()),
             Query(MutationQuery { form: "b0".to_string() }),
             State(state),
+            Extension(make_test_auth()),
             HeaderMap::new(),
             at_limit,
         )
