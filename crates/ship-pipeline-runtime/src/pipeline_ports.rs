@@ -32,7 +32,7 @@ pub trait TurnSignalPort: Send + Sync {
 }
 
 /// Resolves the worktrees directory path.
-/// Shipd implements this via `ship_supervisor::helpers::worktrees_dir()`.
+/// Shipd implements this via `ship_agents::runtime::worktrees_dir()`.
 pub trait WorktreesDirPort: Send + Sync {
     fn worktrees_dir(&self) -> PathBuf;
 }

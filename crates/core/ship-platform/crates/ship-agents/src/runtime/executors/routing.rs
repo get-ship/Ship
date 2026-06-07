@@ -70,7 +70,7 @@ impl ServerSessionRegistry {
 
 /// Routes each `spawn` to Server, TmuxWindow, or Process per the rules
 /// in the module docs.
-pub(crate) struct RoutingExecutor {
+pub struct RoutingExecutor {
     kernel: Option<Arc<Mutex<KernelRouter>>>,
     tmux_window: Option<TmuxWindowExecutor>,
     process: ProcessExecutor,

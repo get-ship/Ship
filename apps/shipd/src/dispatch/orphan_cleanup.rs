@@ -12,7 +12,7 @@ use ship_pipeline_runtime::projections::pipeline_run::{load_pipeline_runs, Pipel
 use ship_runner::emit::emit_executor_session_destroyed;
 use tokio::sync::Mutex;
 
-use super::helpers::worktrees_dir;
+use ship_agents::runtime::helpers::worktrees_dir;
 
 /// Scan for orphaned worktrees from previous daemon runs.
 ///
@@ -65,7 +65,7 @@ pub(crate) async fn cleanup_orphaned_worktrees(kernel: &Arc<Mutex<KernelRouter>>
 
 /// Clean up a single orphaned job's resources.
 async fn cleanup_orphan(slug: &str, kernel: &Arc<Mutex<KernelRouter>>) {
-    use super::helpers::{delete_branch, kill_tmux_session, remove_worktree};
+    use ship_agents::runtime::helpers::{delete_branch, kill_tmux_session, remove_worktree};
 
     let tmux_session = format!("job-{slug}");
     let worktree_path = worktrees_dir().join(slug);

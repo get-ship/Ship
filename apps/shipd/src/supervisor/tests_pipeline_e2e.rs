@@ -21,7 +21,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use ship_supervisor::platform::MockPlatform;
+use crate::dispatch::platform::MockPlatform;
 use ship_substrate::services::process_registry::{ProcessRegistry, SharedRegistry};
 
 // ── Mock infrastructure ─────────────────────────────────────────────────────

@@ -110,7 +110,7 @@ impl AgentDispatchPort for AgentDispatchAdapter {
     }
 
     fn worktrees_dir(&self) -> std::path::PathBuf {
-        ship_supervisor::helpers::worktrees_dir()
+        ship_agents::runtime::worktrees_dir()
     }
 
     fn check_workspace_violation(

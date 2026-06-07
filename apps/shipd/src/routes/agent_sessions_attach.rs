@@ -73,7 +73,7 @@ pub async fn attach_agent_session(
             )
                 .into_response();
         };
-        match ship_supervisor::pty_actor_handle(exec_handle) {
+        match ship_agents::runtime::pty_actor_handle(exec_handle) {
             Some(h) => h,
             None => {
                 return (

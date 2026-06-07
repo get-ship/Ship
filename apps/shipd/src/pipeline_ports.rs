@@ -70,6 +70,6 @@ pub struct WorktreesDirAdapter;
 
 impl WorktreesDirPort for WorktreesDirAdapter {
     fn worktrees_dir(&self) -> PathBuf {
-        ship_supervisor::helpers::worktrees_dir()
+        ship_agents::runtime::worktrees_dir()
     }
 }

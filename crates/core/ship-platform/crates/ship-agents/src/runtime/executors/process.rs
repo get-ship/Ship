@@ -192,7 +192,7 @@ struct PreparedSandbox {
 /// container. Prefers the explicit settings path, then a binary next
 /// to the running daemon, then the conventional install location.
 fn resolve_sidecar_bin() -> std::path::PathBuf {
-    if let Ok(s) = ship_platform::isolation::strategies_settings()
+    if let Ok(s) = ship_isolation::decision::strategies_settings()
         && !s.docker.sidecar_bin.is_empty()
     {
         return std::path::PathBuf::from(s.docker.sidecar_bin);
@@ -222,7 +222,7 @@ async fn prepare_docker_sandbox(
     use ship_isolation::backends::{Docker, DockerConfig};
     use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
 
-    let settings = ship_platform::isolation::strategies_settings()
+    let settings = ship_isolation::decision::strategies_settings()
         .map_err(ship_substrate::isolation::IsolatorError::Other)?;
     let cfg = DockerConfig {
         engine_bin: settings.docker.engine_bin.clone(),
@@ -294,7 +294,7 @@ async fn prepare_firecracker_sandbox(
     use ship_isolation::backends::{Firecracker, FirecrackerConfig};
     use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
 
-    let settings = ship_platform::isolation::strategies_settings()
+    let settings = ship_isolation::decision::strategies_settings()
         .map_err(ship_substrate::isolation::IsolatorError::Other)?;
     let fc = &settings.firecracker;
     let firecracker_bin = if !fc.bin.is_empty() {
@@ -309,7 +309,7 @@ async fn prepare_firecracker_sandbox(
     // App-plane: splice the in-VM proxy to the daemon's host:port (scheme
     // stripped) so a no-network microVM agent reaches MCP / hooks /
     // log_progress. None when there's no daemon (tests wire it directly).
-    let app_plane_daemon = ship_platform::isolation::daemon_origin().and_then(|o| {
+    let app_plane_daemon = ship_isolation::decision::daemon_origin().and_then(|o| {
         o.strip_prefix("http://")
             .or_else(|| o.strip_prefix("https://"))
             .map(|s| s.trim_end_matches('/').to_string())
@@ -361,7 +361,7 @@ async fn prepare_lima_sandbox(
     use ship_isolation::backends::{Lima, LimaConfig};
     use ship_substrate::isolation::SandboxPolicy;
 
-    let settings = ship_platform::isolation::strategies_settings()
+    let settings = ship_isolation::decision::strategies_settings()
         .map_err(ship_substrate::isolation::IsolatorError::Other)?;
     let lima = &settings.lima;
     let cfg = LimaConfig {
@@ -393,7 +393,7 @@ async fn prepare_wsl_sandbox(
     use ship_isolation::backends::{Wsl, WslConfig};
     use ship_substrate::isolation::SandboxPolicy;
 
-    let settings = ship_platform::isolation::strategies_settings()
+    let settings = ship_isolation::decision::strategies_settings()
         .map_err(ship_substrate::isolation::IsolatorError::Other)?;
     let wsl = &settings.wsl;
     let cfg = WslConfig {
@@ -540,7 +540,7 @@ where
     // sandboxed agent resolves the host. With SHIP_TOKEN this is the agent's
     // authenticated path to MCP / hooks / log_progress. None when there's no
     // daemon (tests) or no in-sandbox reachability (no-network microVM).
-    if let Some(origin) = ship_platform::isolation::daemon_origin() {
+    if let Some(origin) = ship_isolation::decision::daemon_origin() {
         if let Some(url) = daemon_url(&origin) {
             launch.env.insert("SHIP_DAEMON_URL".into(), url);
         }
@@ -593,8 +593,8 @@ impl SessionExecutor for ProcessExecutor {
         // Isolator lifecycle (prepare/shutdown) that the supervisor
         // doesn't own yet — they fall through with a warning.
         let ship_dir = ctx.work_dir.join(".ship");
-        let decision = ship_platform::isolation::decide_for_agent(&ship_dir, &ctx.agent, None);
-        let enforce = ship_platform::isolation::enforcement_enabled();
+        let decision = ship_isolation::decision::decide_for_agent(&ship_dir, &ctx.agent, None);
+        let enforce = ship_isolation::decision::enforcement_enabled();
         // Optional sandbox owner — attached to ActorHandle after spawn
         // so its Drop fires isolator.shutdown() when the actor dies.
         // (Tier 1 wrap path only; Tier 2+ owner lives on the dispatcher.)
@@ -1417,7 +1417,7 @@ mod tests {
             eprintln!("skipping: set SHIP_TMUX_TESTS=1 to run real-PTY integration test");
             return;
         }
-        let _spawn_guard = crate::executors::real_spawn_guard();
+        let _spawn_guard = crate::runtime::executors::real_spawn_guard();
         let (_dir, kernel, db) = setup_kernel();
         let (_tmp, state) = spawn_sleep_state("proc-sigterm");
 

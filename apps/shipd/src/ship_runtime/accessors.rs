@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
-use crate::supervisor::run_dispatch::DispatchHandle;
+use crate::dispatch::run_dispatch::DispatchHandle;
 
 use super::{
     ShipRuntime, RuntimeConfig, SharedKernel, AgentMailboxes, PtyConnections,

@@ -31,7 +31,7 @@ use std::sync::Arc;
 use ship_substrate::services::mesh::SharedMeshRegistry;
 use crate::auth::SessionRegistry;
 use ship_substrate::task_health::HealthRegistry;
-use crate::supervisor::run_dispatch::DispatchHandle;
+use crate::dispatch::run_dispatch::DispatchHandle;
 
 /// Central runtime for shipd. Owns the kernel, mesh registry, and config.
 /// Managers (mesh, jobs) are lazily initialized on first access.

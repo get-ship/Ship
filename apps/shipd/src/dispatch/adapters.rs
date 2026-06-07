@@ -1,7 +1,8 @@
 //! Concrete adapters for job isolation.
 //!
 //! `GitWorktreeIsolation` — creates git worktrees, writes phase specs, compiles agent config.
-//! Executor implementations live in the `executors` submodule.
+//! The git/tmux/worktree subprocess helpers it calls live in
+//! `ship_agents::runtime::helpers`; the executors in `ship_agents::runtime::executors`.
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -9,7 +10,7 @@ use ship_substrate::services::dispatch_ports::{IsolationStrategy, SessionContext
 use ship_pipeline_runtime::orchestrator::isolation::write_phase_spec_from_context;
 use std::path::PathBuf;
 
-use super::helpers::{compile_agent_config, create_worktree, worktrees_dir};
+use ship_agents::runtime::helpers::{compile_agent_config, create_worktree, worktrees_dir};
 
 /// Serializes `git worktree add` across concurrent dispatches. git takes a
 /// lock on the main repo's index/worktrees during `worktree add`, so two
@@ -50,9 +51,9 @@ impl IsolationStrategy for GitWorktreeIsolation {
     async fn cleanup(&self, job: &SessionContext) -> Result<()> {
         let worktree_path = worktrees_dir().join(&job.slug);
         if worktree_path.exists() {
-            super::helpers::remove_worktree(&worktree_path)?;
+            ship_agents::runtime::helpers::remove_worktree(&worktree_path)?;
         }
-        super::helpers::delete_branch(&job.branch)?;
+        ship_agents::runtime::helpers::delete_branch(&job.branch)?;
         Ok(())
     }
 }
