@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub enum SkillKind {
     Smart,
     Docs,
@@ -29,7 +28,6 @@ pub struct SkillSummary {
 }
 
 #[derive(Clone, Debug, Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SkillDetail {
     pub id: String,
     pub name: String,

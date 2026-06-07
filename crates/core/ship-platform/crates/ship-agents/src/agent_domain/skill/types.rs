@@ -7,7 +7,6 @@ use anyhow::{Result, anyhow};
 use jsonschema::Validator;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use specta::Type;
 
 /// Canonical SKILL.md frontmatter schema (embedded at compile time).
 ///
@@ -56,7 +55,7 @@ pub(super) fn validate_against_schema(value: &Value, path: &Path) -> Result<()> 
 }
 
 /// Origin of a skill document.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Type, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum SkillSource {
     #[default]
@@ -75,8 +74,7 @@ pub enum SkillSource {
 /// - project scope: `.ship/agents/skills/<id>/SKILL.md`
 /// - user scope: `~/.ship/skills/<id>/SKILL.md`
 ///
-/// Uses Agent Skills spec format.
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Skill {
     pub id: String,
     pub name: String,

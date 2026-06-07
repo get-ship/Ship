@@ -4,7 +4,6 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use ship_types::event_types::PERMISSIONS_UPDATED;
 use ship_types::payload::PermissionsUpdated;
-use specta::Type;
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -62,24 +61,21 @@ fn emit_permissions_updated(ship_dir: &Path, json: &str) {
 }
 
 // ─── Data types ───────────────────────────────────────────────────────────────
-
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ToolPermissions {
     #[serde(default = "default_tool_allow")]
     pub allow: Vec<String>,
     #[serde(default = "default_tool_deny")]
     pub deny: Vec<String>,
 }
-
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FsPermissions {
     #[serde(default = "default_filesystem_allow")]
     pub allow: Vec<String>,
     #[serde(default = "default_filesystem_deny")]
     pub deny: Vec<String>,
 }
-
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CommandPermissions {
     #[serde(default = "default_command_allow")]
     pub allow: Vec<String>,
@@ -87,7 +83,7 @@ pub struct CommandPermissions {
     pub deny: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum NetworkPolicy {
     #[default]
@@ -97,7 +93,7 @@ pub enum NetworkPolicy {
     Unrestricted,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkPermissions {
     #[serde(default)]
     pub policy: NetworkPolicy,
@@ -105,13 +101,13 @@ pub struct NetworkPermissions {
     pub allow_hosts: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AgentLimits {
     #[serde(default = "default_require_confirmation")]
     pub require_confirmation: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Permissions {
     #[serde(default)]
     pub tools: ToolPermissions,

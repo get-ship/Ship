@@ -7,14 +7,12 @@ use super::state::{IndexEntry, ScopeTag};
 
 /// Wire shape of `ship.permissions.list()`.
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct PermissionsIndexResponse {
     pub items: Vec<IndexEntry>,
 }
 
 /// Wire shape of `ship.permissions.get()` — raw preset at a resolved scope.
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct PermissionGetResponse {
     pub id: String,
     pub scope: ScopeTag,
@@ -23,7 +21,6 @@ pub struct PermissionGetResponse {
 
 /// One tool-pattern capability row for the agent builder autocomplete.
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ToolPattern {
     pub pattern: String,
     pub label: String,
@@ -32,7 +29,6 @@ pub struct ToolPattern {
 
 /// Wire shape of `ship.permissions.tool_patterns()`.
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ToolPatternsResponse {
     pub patterns: Vec<ToolPattern>,
 }

@@ -10,7 +10,6 @@ pub type SessionId = String;
 /// harness adapter, how the parser runs, and how the UI labels it.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub enum SessionKind {
     /// A Ship agent running a harness CLI (Claude, Codex, …). Has an
     /// agent id and a harness id, output parses through the harness
@@ -28,9 +27,6 @@ pub enum SessionKind {
 /// the reader thread / lifecycle machinery.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-// TS name disambiguated from the retired `sessions::SessionStatus`.
-#[cfg_attr(feature = "specta", specta(rename = "PtySessionStatus"))]
 pub enum SessionStatus {
     /// Process spawning but not yet running. Transient.
     Spawning,
@@ -46,7 +42,6 @@ pub enum SessionStatus {
 /// live `PtySession` struct holds non-serializable bits (master handle,
 /// child, subscribers) that the API never returns verbatim.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SessionMeta {
     pub id: SessionId,
     pub kind: SessionKind,
