@@ -105,12 +105,12 @@ refactor-gated slice.
 
 ## v1 arc
 ```
-PHASE 1 — make it real      S6 spec loader · S7 provider/BYOK · **S8 scoped-SDK-from-proto ✓** · S5 auth handshake seam
-PHASE 2 — make it usable    S9 sessions+history+compaction · S10 AgentEvent stream · S11 approval+steer/cancel
-PHASE 3 — differentiators    S12 tsgo+SUI LSP real · S13 file ops + hashline
-PHASE 4 — customization      S-skills ✓ · **S-mcp (third-party integration): design ✓ + v1 impl ✓** (mcp.call op + FakeMcpClient/InMemoryMcpRegistry seam)
+PHASE 1 — make it real      **S6 ✓ · S7 ✓ · S8 ✓ · S5 ✓** — spec loader · provider/BYOK · scoped-SDK-from-proto · auth handshake seam
+PHASE 2 — make it usable    **S9 ✓ · S10 ✓ · S11 ✓** — sessions+history+compaction · AgentEvent stream · approval+steer/cancel
+PHASE 3 — differentiators    **S12 design ✓** (real tsgo+SUI LSP — impl pending) · **S13 ✓** file ops + hashline
+PHASE 4 — customization      **S-skills ✓** · **S-mcp design ✓ + v1 impl ✓** (mcp.call op + FakeMcpClient/InMemoryMcpRegistry seam)
 PHASE 5 — orchestration      **S14 design ✓ · S14 v1 spike-local seam ✓** — agent()/parallel reconciled with ship pipelines (shared DAG/control-flow)
-PHASE 6 — harden + graduate  S15 resilience+event-log emit · S16 graduate to crates/+apps/ · S17 e2e harness
+PHASE 6 — harden + graduate  S15 resilience+event-log emit · S16 graduate to crates/+apps/ · S17 e2e harness   ← NEXT (none started)
 ```
 Orchestration and ship pipelines are the same capability (DAG + control flow +
 parallelization) at different altitudes and must share machinery. Skills are the
