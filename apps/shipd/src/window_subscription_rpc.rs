@@ -27,7 +27,7 @@ use ship_ops_rpc::{
 use ship_substrate::events::ActorConfig;
 
 use crate::ship_runtime::ApiState;
-use crate::window_subscriptions::{resolver_for, WindowSubscriptionRegistry};
+use crate::window_subscriptions::WindowSubscriptionRegistry;
 
 /// Server heartbeat interval, advertised in `OpenResponse.heartbeat_ms` and the
 /// cadence of the top-level `MultiplexEvent` heartbeat on the stream. The idle
@@ -83,11 +83,15 @@ impl WindowSubscriptionService for WindowSubscriptionImpl {
                 .map_err(|e| ConnectError::invalid_argument(format!("args_json: {e}")))?
         };
 
-        let resolve = resolver_for(&domain, &op, &args).ok_or_else(|| {
-            ConnectError::invalid_argument(format!(
-                "multiplex has no resolver for {domain}.{op}"
-            ))
-        })?;
+        let resolve = self
+            .state
+            .live_resolvers()
+            .resolve_fn(&domain, &op, &args)
+            .ok_or_else(|| {
+                ConnectError::invalid_argument(format!(
+                    "multiplex has no resolver for {domain}.{op}"
+                ))
+            })?;
 
         // Resolve the initial value before handing the closure to the registry
         // so the ack can carry it (the client renders immediately, then the

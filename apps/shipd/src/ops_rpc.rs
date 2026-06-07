@@ -416,79 +416,22 @@ pub fn router(state: ApiState) -> axum::Router {
     });
     let pipelines_state_for_live = state.clone();
     let pipelines_svc_for_live = svc.clone();
+    // Live reads resolve through the ONE live-resolver registry and stream over
+    // the shared `live_read_with` loop (no inlined per-domain actor loop). The
+    // registry is keyed `domain.op` — the same key the wire passes here — and the
+    // multiplex resolves through the same table, so coverage is declared once.
     let pipelines_live_fn: ship_pipeline_runtime::wire::LiveReadFn = Arc::new(move |op, args| {
         let st = pipelines_state_for_live.clone();
         let svc = pipelines_svc_for_live.clone();
         Box::pin(async move {
-            // Build a temporary OpsImpl-equivalent live_read using the kernel.
-            use connectrpc::{ConnectError, Response, ServiceResult, ServiceStream};
-            use ship_substrate::events::ActorConfig;
-            use ship_ops_rpc::JsonResponse;
-            let resolve: Box<dyn Fn(&crate::ship_runtime::ApiState) -> serde_json::Value + Send + Sync> = match op {
-                "pipelines.summaries" => {
-                    Box::new(move |st| {
-                        use crate::services::pipelines::summaries;
-                        use crate::views::state::Filter;
-                        let ctx = summaries::build(st.ship_dir(), Filter::default(), None);
-                        serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
-                    })
-                }
-                "pipelines.run" => {
-                    let slug = args.get("slug").and_then(|v| v.as_str())
-                        .unwrap_or("").to_string();
-                    Box::new(move |st| {
-                        use crate::services::pipelines::run_detail;
-                        let ctx = run_detail::build(&slug, st.ship_dir());
-                        serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
-                    })
-                }
-                "pipelines.history" => {
-                    let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(50) as usize;
-                    let offset = args.get("offset").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-                    let pipeline = args.get("pipeline").and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty()).map(str::to_string);
-                    let q = args.get("q").and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty()).map(str::to_string);
-                    Box::new(move |st| {
-                        use crate::services::pipelines::history;
-                        let ctx = history::build(st.ship_dir(), q.clone(), pipeline.clone(), offset, limit);
-                        serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
-                    })
-                }
-                _ => Box::new(|_| serde_json::Value::Null),
-            };
-            let initial = resolve(&st);
-            let actor_id = format!("live-read-{}", ship_substrate::gen_ulid());
-            let config = ActorConfig {
-                namespace: actor_id.clone(),
-                write_namespaces: vec![],
-                read_namespaces: vec![],
-                subscribe_namespaces: vec!["config".to_string()],
-                see_directed_events: false,
-            };
-            let mailbox = {
-                let mut kernel = st.kernel().lock().await;
-                kernel
-                    .spawn_actor(&actor_id, config)
-                    .map(|(_store, mb)| mb)
-                    .map_err(|e| ConnectError::internal(e.to_string()))?
-            };
-            let guard = crate::ship_runtime::ActorGuard { actor_id, kernel: st.kernel().clone() };
-            let stream = async_stream::stream! {
-                let _guard = guard;
-                let mut mb = mailbox;
-                if let Ok(json) = serde_json::to_string(&initial) {
-                    yield Ok::<JsonResponse, ConnectError>(JsonResponse { json, ..Default::default() });
-                }
-                while let Some(_ev) = mb.recv().await {
-                    while mb.try_recv().is_ok() {}
-                    let value = resolve(&st);
-                    if let Ok(json) = serde_json::to_string(&value) {
-                        yield Ok(JsonResponse { json, ..Default::default() });
-                    }
-                }
-            };
-            Ok(Response::new(Box::pin(stream) as ServiceStream<JsonResponse>))
+            let sub = op.strip_prefix("pipelines.").unwrap_or(op);
+            let resolve = st
+                .live_resolvers()
+                .resolve_fn("pipelines", sub, &args)
+                .ok_or_else(|| {
+                    ConnectError::invalid_argument(format!("no live resolver for {op}"))
+                })?;
+            svc.live_read_with(resolve).await
         })
     });
     let pipelines_state_for_write = state.clone();

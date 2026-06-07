@@ -285,6 +285,7 @@ impl ShipRuntime {
             window_subscriptions: Arc::new(
                 crate::window_subscriptions::WindowSubscriptionRegistry::default(),
             ),
+            live_resolvers: Arc::new(crate::live_resolvers::build()),
         })
     }
 

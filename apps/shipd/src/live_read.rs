@@ -7,32 +7,29 @@
 //! keyed by the rpc method instead of a parsed expr string.
 
 use connectrpc::{ConnectError, Response, ServiceResult, ServiceStream};
-use serde_json::Value;
 use ship_ops_rpc::JsonResponse;
 use ship_substrate::events::ActorConfig;
 
 use crate::ops_rpc::OpsImpl;
+use crate::window_subscriptions::ResolveFn;
 
 impl OpsImpl {
-    /// Open a live read backed by an arbitrary resolver function.
-    pub(crate) async fn live_read_with<F>(
+    /// Open a live read backed by a resolver from the live-resolver registry.
+    /// Takes the shared `ResolveFn` (`Arc<dyn Fn(&ApiState) -> Value>`) so the
+    /// per-op `<Op>Live` streams and the multiplex feed this one loop from the
+    /// same `(domain, op)` table.
+    pub(crate) async fn live_read_with(
         &self,
-        resolve: F,
-    ) -> ServiceResult<ServiceStream<JsonResponse>>
-    where
-        F: Fn(&crate::ship_runtime::ApiState) -> Value + Send + Sync + 'static,
-    {
+        resolve: ResolveFn,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
         self.live_read_inner(self.state().clone(), resolve).await
     }
 
-    async fn live_read_inner<F>(
+    async fn live_read_inner(
         &self,
         state: crate::ship_runtime::ApiState,
-        resolve: F,
-    ) -> ServiceResult<ServiceStream<JsonResponse>>
-    where
-        F: Fn(&crate::ship_runtime::ApiState) -> Value + Send + Sync + 'static,
-    {
+        resolve: ResolveFn,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
         let initial = resolve(&state);
 
         let actor_id = format!("live-read-{}", ship_substrate::gen_ulid());

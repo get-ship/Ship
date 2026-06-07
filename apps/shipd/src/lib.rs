@@ -50,6 +50,7 @@ pub mod sui_rpc;
 pub mod search_context;
 pub mod search_rpc;
 pub mod live_read;
+pub mod live_resolvers;
 pub mod window_subscriptions;
 pub mod window_subscription_rpc;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)

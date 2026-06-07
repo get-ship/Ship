@@ -147,4 +147,8 @@ pub struct ShipRuntime {
     /// connection fan-out that hit the browser's ~6/origin HTTP/1.1 ceiling.
     pub(super) window_subscriptions:
         std::sync::Arc<crate::window_subscriptions::WindowSubscriptionRegistry>,
+    /// The live-read resolver registry — SSOT for `(domain, op) -> value` in the
+    /// snapshot family. Both the per-op `<Op>Live` streams (via `live_read_with`)
+    /// and the multiplex resolve through this one table.
+    pub(super) live_resolvers: std::sync::Arc<crate::live_resolvers::LiveResolverRegistry>,
 }
