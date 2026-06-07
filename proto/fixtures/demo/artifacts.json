@@ -1,0 +1,294 @@
+{
+  "_meta": {
+    "generated_by": "cargo xtask gen-fixtures",
+    "source_seed": "proto/fixtures/seeds/artifacts.jsonc",
+    "kind": "demo"
+  },
+  "List.response": {
+    "items": [
+      {
+        "id": "art-arch-png",
+        "name": "architecture.png",
+        "mime": "image/png",
+        "size": 184320,
+        "path": ".artifacts/architecture.png",
+        "scope": "run",
+        "space_id": "harbor",
+        "run_id": "job-checkout-flow-a1b2c3d",
+        "user_id": null,
+        "content_hash": "sha256:4a8f2c1d9e3b7f6a0c5d2e1f8a3b9c4d7e2f1a0b5c8d3e6f9a4b7c0d1e2f3a48",
+        "expires_at": null,
+        "owner_actor": "rust-lane",
+        "collection_id": null,
+        "item_id": null,
+        "created_at": "2026-05-31T20:10:00Z"
+      },
+      {
+        "id": "art-spike-md",
+        "name": "kysely-spike-findings.md",
+        "mime": "text/markdown",
+        "size": 6144,
+        "path": ".artifacts/kysely-spike-findings.md",
+        "scope": "space",
+        "space_id": "harbor",
+        "run_id": "job-checkout-flow-a1b2c3d",
+        "user_id": null,
+        "content_hash": "sha256:b3c1d9e2f4a7b0c5d8e3f1a4b7c0d2e5f8a1b4c7d0e3f6a9b2c5d8e1f4a7b0c5",
+        "expires_at": null,
+        "owner_actor": "rust-lane",
+        "collection_id": "notes",
+        "item_id": "note-kysely",
+        "created_at": "2026-05-31T19:00:00Z"
+      },
+      {
+        "id": "art-cov-json",
+        "name": "coverage-report.json",
+        "mime": "application/json",
+        "size": 20480,
+        "path": ".artifacts/coverage-report.json",
+        "scope": "run",
+        "space_id": "harbor",
+        "run_id": "job-checkout-flow-a1b2c3d",
+        "user_id": null,
+        "content_hash": "sha256:c7d5e3f1a2b0c4d8e6f3a1b5c9d7e2f4a8b2c6d0e4f8a3b7c1d5e9f2a6b0c4d8",
+        "expires_at": null,
+        "owner_actor": "rust-lane",
+        "collection_id": null,
+        "item_id": null,
+        "created_at": "2026-05-30T11:00:00Z"
+      },
+      {
+        "id": "art-mod-wasm",
+        "name": "module.wasm",
+        "mime": "application/wasm",
+        "size": 1048576,
+        "path": ".artifacts/module.wasm",
+        "scope": "run",
+        "space_id": "harbor",
+        "run_id": "job-checkout-flow-a1b2c3d",
+        "user_id": null,
+        "content_hash": "sha256:d9e7f5a3b1c8d6e4f2a0b7c5d3e1f8a6b4c2d0e8f6a4b2c0d8e6f4a2b0c8d6e4",
+        "expires_at": "2026-06-07T00:00:00Z",
+        "owner_actor": null,
+        "collection_id": null,
+        "item_id": null,
+        "created_at": "2026-05-24T08:00:00Z"
+      },
+      {
+        "id": "art-gate-diff",
+        "name": "gate.diff",
+        "mime": "text/plain",
+        "size": 3072,
+        "path": ".artifacts/gate.diff",
+        "scope": "run",
+        "space_id": "harbor",
+        "run_id": "job-checkout-flow-a1b2c3d",
+        "user_id": null,
+        "content_hash": "sha256:e2f0a8b6c4d2e0f8a6b4c2d0e8f6a4b2c0d8e6f4a2b0c8d6e4f2a0b8c6d4e2f0",
+        "expires_at": null,
+        "owner_actor": "code-reviewer",
+        "collection_id": null,
+        "item_id": null,
+        "created_at": "2026-05-31T22:00:00Z"
+      }
+    ],
+    "count": 5,
+    "scope": "run:job-checkout-flow-a1b2c3d"
+  },
+  "Patch.response": {
+    "id": "art-spike-md",
+    "name": "kysely-findings-final.md",
+    "mime": "text/markdown",
+    "size": 6144,
+    "path": ".artifacts/kysely-findings-final.md",
+    "scope": "space",
+    "space_id": "harbor",
+    "run_id": "job-checkout-flow-a1b2c3d",
+    "user_id": null,
+    "content_hash": "sha256:b3c1d9e2f4a7b0c5d8e3f1a4b7c0d2e5f8a1b4c7d0e3f6a9b2c5d8e1f4a7b0c5",
+    "expires_at": null,
+    "owner_actor": "rust-lane",
+    "collection_id": "notes",
+    "item_id": "note-kysely",
+    "created_at": "2026-05-31T19:00:00Z"
+  },
+  "Promote.response": {
+    "id": "art-cov-json",
+    "name": "coverage-report.json",
+    "mime": "application/json",
+    "size": 20480,
+    "path": ".artifacts/coverage-report.json",
+    "scope": "space",
+    "space_id": "harbor",
+    "run_id": "job-checkout-flow-a1b2c3d",
+    "user_id": "usr_7Fk2Qd",
+    "content_hash": "sha256:c7d5e3f1a2b0c4d8e6f3a1b5c9d7e2f4a8b2c6d0e4f8a3b7c1d5e9f2a6b0c4d8",
+    "expires_at": null,
+    "owner_actor": "rust-lane",
+    "collection_id": null,
+    "item_id": null,
+    "created_at": "2026-05-30T11:00:00Z"
+  },
+  "Delete.response": {
+    "id": "art-mod-wasm",
+    "deleted": true
+  },
+  "Delete.already_gone": {
+    "id": "art-mod-wasm",
+    "deleted": false
+  },
+  "Watch.stream": {
+    "frames": [
+      {
+        "seq": 1,
+        "kind": "snapshot",
+        "patches": [
+          {
+            "op": "PATCH_OP_SET",
+            "path": "",
+            "value": {
+              "items": [
+                {
+                  "id": "art-arch-png",
+                  "name": "architecture.png",
+                  "mime": "image/png",
+                  "size": 184320,
+                  "scope": "run",
+                  "owner_actor": "rust-lane",
+                  "created_at": "2026-05-31T20:10:00Z"
+                },
+                {
+                  "id": "art-spike-md",
+                  "name": "kysely-spike-findings.md",
+                  "mime": "text/markdown",
+                  "size": 6144,
+                  "scope": "space",
+                  "owner_actor": "rust-lane",
+                  "created_at": "2026-05-31T19:00:00Z"
+                },
+                {
+                  "id": "art-cov-json",
+                  "name": "coverage-report.json",
+                  "mime": "application/json",
+                  "size": 20480,
+                  "scope": "run",
+                  "owner_actor": "rust-lane",
+                  "created_at": "2026-05-30T11:00:00Z"
+                },
+                {
+                  "id": "art-mod-wasm",
+                  "name": "module.wasm",
+                  "mime": "application/wasm",
+                  "size": 1048576,
+                  "scope": "run",
+                  "owner_actor": null,
+                  "expires_at": "2026-06-07T00:00:00Z",
+                  "created_at": "2026-05-24T08:00:00Z"
+                },
+                {
+                  "id": "art-gate-diff",
+                  "name": "gate.diff",
+                  "mime": "text/plain",
+                  "size": 3072,
+                  "scope": "run",
+                  "owner_actor": "code-reviewer",
+                  "created_at": "2026-05-31T22:00:00Z"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "seq": 2,
+        "kind": "patch",
+        "patches": [
+          {
+            "op": "PATCH_OP_APPEND",
+            "path": "items",
+            "value": {
+              "id": "art-build-log",
+              "name": "build.log",
+              "mime": "text/plain",
+              "size": 9280,
+              "path": ".artifacts/build.log",
+              "scope": "run",
+              "space_id": "harbor",
+              "run_id": "job-checkout-flow-a1b2c3d",
+              "user_id": null,
+              "content_hash": "sha256:f1a3b5c7d9e2f4a6b8c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2b4c6d8e0f2a4",
+              "expires_at": null,
+              "owner_actor": "rust-lane",
+              "collection_id": null,
+              "item_id": null,
+              "created_at": "2026-05-31T22:45:00Z"
+            }
+          }
+        ]
+      },
+      {
+        "seq": 3,
+        "kind": "patch",
+        "patches": [
+          {
+            "op": "PATCH_OP_MERGE",
+            "path": "items[2]",
+            "value": {
+              "scope": "space",
+              "user_id": "usr_7Fk2Qd"
+            }
+          }
+        ]
+      },
+      {
+        "seq": 4,
+        "kind": "patch",
+        "patches": [
+          {
+            "op": "PATCH_OP_REMOVE",
+            "path": "items[3]"
+          }
+        ]
+      },
+      {
+        "seq": 5,
+        "kind": "heartbeat",
+        "ts": "2026-05-31T22:50:00Z"
+      }
+    ]
+  },
+  "errors": {
+    "patch_not_found": {
+      "rpc": "Patch",
+      "tone": "destructive",
+      "message": "Artifact 'art-missing' not found."
+    },
+    "promote_already_retained": {
+      "rpc": "Promote",
+      "tone": "warning",
+      "message": "Artifact 'art-spike-md' is already at space scope and cannot be promoted further."
+    },
+    "delete_permission_denied": {
+      "rpc": "Delete",
+      "tone": "destructive",
+      "message": "Only the owning actor or an operator may delete 'architecture.png'."
+    },
+    "watch_stream_error": {
+      "rpc": "Watch",
+      "tone": "destructive",
+      "message": "Stream disconnected: space 'harbor' was restarted. Reconnecting..."
+    }
+  },
+  "empty_states": {
+    "no_artifacts": {
+      "title": "No artifacts yet",
+      "body": "Run a workflow, or drop a file here to upload one.",
+      "cta": "Upload"
+    },
+    "empty_filtered": {
+      "title": "No matches",
+      "body": "5 artifacts stored — none match the current filters.",
+      "cta": "Clear filters"
+    }
+  }
+}

@@ -1,0 +1,595 @@
+{
+  "_meta": {
+    "generated_by": "cargo xtask gen-fixtures",
+    "source_seed": "proto/fixtures/seeds/collections.jsonc",
+    "kind": "demo"
+  },
+  "List.response": {
+    "collections": [
+      {
+        "id": "notes",
+        "title": "Notes",
+        "item_count": 3,
+        "system": false
+      },
+      {
+        "id": "tasks",
+        "title": "Tasks",
+        "item_count": 5,
+        "system": false
+      },
+      {
+        "id": "contacts",
+        "title": "Contacts",
+        "item_count": 2,
+        "system": false
+      },
+      {
+        "id": "feedback",
+        "title": "Feedback",
+        "item_count": 8,
+        "system": true
+      },
+      {
+        "id": "annotations",
+        "title": "Annotations",
+        "item_count": 14,
+        "system": true
+      }
+    ]
+  },
+  "Get.notes": {
+    "id": "notes",
+    "schema_json": {
+      "title": "Notes",
+      "fields": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "content",
+          "type": "text"
+        },
+        {
+          "name": "priority",
+          "type": "integer",
+          "default": 1,
+          "indexed": true
+        },
+        {
+          "name": "pinned",
+          "type": "bool",
+          "default": false
+        }
+      ]
+    },
+    "item_count": 3
+  },
+  "Get.tasks": {
+    "id": "tasks",
+    "schema_json": {
+      "title": "Tasks",
+      "fields": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "default": "todo",
+          "indexed": true
+        },
+        {
+          "name": "estimate_h",
+          "type": "real"
+        },
+        {
+          "name": "priority",
+          "type": "integer",
+          "default": 2,
+          "indexed": true
+        },
+        {
+          "name": "done",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "name": "due",
+          "type": "timestamp",
+          "indexed": true
+        },
+        {
+          "name": "labels",
+          "type": "json"
+        },
+        {
+          "name": "external_id",
+          "type": "text",
+          "unique": true
+        }
+      ]
+    },
+    "item_count": 5
+  },
+  "Get.contacts": {
+    "id": "contacts",
+    "schema_json": {
+      "title": "Contacts",
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "company",
+          "type": "text"
+        }
+      ]
+    },
+    "item_count": 2
+  },
+  "Get.feedback": {
+    "id": "feedback",
+    "schema_json": {
+      "title": "Feedback",
+      "system": true,
+      "fields": [
+        {
+          "name": "target",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "rating",
+          "type": "integer"
+        }
+      ]
+    },
+    "item_count": 8
+  },
+  "Get.annotations": {
+    "id": "annotations",
+    "schema_json": {
+      "title": "Annotations",
+      "system": true,
+      "fields": [
+        {
+          "name": "target",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "kind",
+          "type": "text",
+          "default": "comment"
+        },
+        {
+          "name": "line",
+          "type": "integer"
+        },
+        {
+          "name": "actor",
+          "type": "text"
+        }
+      ]
+    },
+    "item_count": 14
+  },
+  "GetItem.note": {
+    "id": "note-jwt",
+    "collection": "notes",
+    "data_json": {
+      "title": "Auth via JWT",
+      "content": "Rotate signing key per space. Verify aud claim on every request.",
+      "priority": 5,
+      "pinned": true
+    },
+    "created_at": "2026-05-20T09:10:00Z",
+    "updated_at": "2026-05-31T21:00:00Z"
+  },
+  "GetItem.task_in_progress": {
+    "id": "task-collection",
+    "collection": "tasks",
+    "data_json": {
+      "title": "ship-collection integrator",
+      "status": "in_progress",
+      "estimate_h": 6.5,
+      "priority": 1,
+      "done": false,
+      "due": "2026-06-01T00:00:00Z",
+      "labels": [
+        "collections"
+      ],
+      "external_id": "SHIP-210"
+    },
+    "created_at": "2026-05-31T21:36:00Z",
+    "updated_at": "2026-05-31T22:25:00Z"
+  },
+  "QueryItems.notes_all": {
+    "items": [
+      {
+        "id": "note-checkout",
+        "collection": "notes",
+        "data_json": {
+          "title": "Checkout notes",
+          "content": "Auth via JWT. Idempotency key on POST /checkout.",
+          "priority": 3,
+          "pinned": true
+        },
+        "created_at": "2026-05-24T18:35:00Z",
+        "updated_at": "2026-05-31T21:58:00Z"
+      },
+      {
+        "id": "note-jwt",
+        "collection": "notes",
+        "data_json": {
+          "title": "Auth via JWT",
+          "content": "Rotate signing key per space.",
+          "priority": 5,
+          "pinned": true
+        },
+        "created_at": "2026-05-20T09:10:00Z",
+        "updated_at": "2026-05-31T21:00:00Z"
+      },
+      {
+        "id": "note-kysely",
+        "collection": "notes",
+        "data_json": {
+          "title": "Spike kysely",
+          "content": "AST to Rust executor works.",
+          "priority": 1,
+          "pinned": false
+        },
+        "created_at": "2026-05-31T12:00:00Z",
+        "updated_at": "2026-05-31T19:00:00Z"
+      }
+    ],
+    "next_cursor": ""
+  },
+  "QueryItems.tasks_open_page1": {
+    "items": [
+      {
+        "id": "task-collection",
+        "collection": "tasks",
+        "data_json": {
+          "title": "ship-collection integrator",
+          "status": "in_progress",
+          "priority": 1,
+          "done": false,
+          "due": "2026-06-01T00:00:00Z",
+          "labels": [
+            "collections"
+          ],
+          "external_id": "SHIP-210"
+        },
+        "created_at": "2026-05-31T21:36:00Z",
+        "updated_at": "2026-05-31T22:25:00Z"
+      },
+      {
+        "id": "task-cutover",
+        "collection": "tasks",
+        "data_json": {
+          "title": "Cutover + 27 consumers",
+          "status": "todo",
+          "priority": 2,
+          "done": false,
+          "due": null,
+          "labels": [
+            "collections",
+            "supervised"
+          ],
+          "external_id": "SHIP-211"
+        },
+        "created_at": "2026-05-31T22:30:00Z",
+        "updated_at": "2026-05-31T22:30:00Z"
+      },
+      {
+        "id": "task-toolchain",
+        "collection": "tasks",
+        "data_json": {
+          "title": "@ship/db TS type gen",
+          "status": "todo",
+          "priority": 3,
+          "done": false,
+          "due": null,
+          "labels": [
+            "toolchain"
+          ],
+          "external_id": "SHIP-212"
+        },
+        "created_at": "2026-05-31T22:31:00Z",
+        "updated_at": "2026-05-31T22:31:00Z"
+      }
+    ],
+    "next_cursor": "dGFzay11aS1wYWdlMg=="
+  },
+  "CreateItem.response": {
+    "id": "note-gate",
+    "collection": "notes",
+    "data_json": {
+      "title": "Gate ship-collection",
+      "content": "Run cargo test -p ship-collection before merging.",
+      "priority": 4,
+      "pinned": false
+    },
+    "created_at": "2026-05-31T22:45:00Z",
+    "updated_at": "2026-05-31T22:45:00Z"
+  },
+  "UpdateItem.response": {
+    "id": "note-kysely",
+    "collection": "notes",
+    "data_json": {
+      "title": "Spike kysely",
+      "content": "AST to Rust executor works.",
+      "priority": 1,
+      "pinned": true
+    },
+    "created_at": "2026-05-31T12:00:00Z",
+    "updated_at": "2026-05-31T22:50:00Z"
+  },
+  "DeleteItem.response": {
+    "id": "note-checkout",
+    "deleted": true
+  },
+  "CreateSchema.response": {
+    "id": "decisions",
+    "schema_json": {
+      "title": "Decisions",
+      "fields": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "body",
+          "type": "text"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "default": "open"
+        },
+        {
+          "name": "decided_at",
+          "type": "timestamp"
+        }
+      ]
+    },
+    "item_count": 0
+  },
+  "UpdateSchema.response": {
+    "id": "tasks",
+    "schema_json": {
+      "title": "Tasks",
+      "fields": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "default": "todo",
+          "indexed": true
+        },
+        {
+          "name": "estimate_h",
+          "type": "real"
+        },
+        {
+          "name": "priority",
+          "type": "integer",
+          "default": 2,
+          "indexed": true
+        },
+        {
+          "name": "done",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "name": "due",
+          "type": "timestamp",
+          "indexed": true
+        },
+        {
+          "name": "labels",
+          "type": "json"
+        },
+        {
+          "name": "external_id",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "assignee",
+          "type": "text"
+        }
+      ]
+    },
+    "item_count": 5
+  },
+  "Watch.collection_notes": {
+    "frames": [
+      {
+        "patches": {
+          "patches": [
+            {
+              "op": "PATCH_OP_SET",
+              "path": "",
+              "value": {
+                "items": [
+                  {
+                    "id": "note-checkout",
+                    "collection": "notes",
+                    "data_json": {
+                      "title": "Checkout notes",
+                      "priority": 3,
+                      "pinned": true
+                    }
+                  },
+                  {
+                    "id": "note-jwt",
+                    "collection": "notes",
+                    "data_json": {
+                      "title": "Auth via JWT",
+                      "priority": 5,
+                      "pinned": true
+                    }
+                  },
+                  {
+                    "id": "note-kysely",
+                    "collection": "notes",
+                    "data_json": {
+                      "title": "Spike kysely",
+                      "priority": 1,
+                      "pinned": false
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "patches": {
+          "patches": [
+            {
+              "op": "PATCH_OP_APPEND",
+              "path": "items",
+              "value": {
+                "id": "note-gate",
+                "collection": "notes",
+                "data_json": {
+                  "title": "Gate ship-collection",
+                  "priority": 4,
+                  "pinned": false
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "patches": {
+          "patches": [
+            {
+              "op": "PATCH_OP_MERGE",
+              "path": "items[2]",
+              "value": {
+                "data_json": {
+                  "pinned": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "patches": {
+          "patches": [
+            {
+              "op": "PATCH_OP_REMOVE",
+              "path": "items[0]"
+            }
+          ]
+        }
+      },
+      {
+        "hb": {
+          "ts": "2026-05-31T22:45:00Z"
+        }
+      },
+      {
+        "err": {
+          "message": "Watch connection lost: daemon restarted. Reconnecting."
+        }
+      }
+    ]
+  },
+  "errors": {
+    "validation_unknown_field": {
+      "rpc": "CreateItem",
+      "tone": "warning",
+      "message": "Field 'piority' is not in the notes schema. Did you mean 'priority'?"
+    },
+    "validation_type_mismatch": {
+      "rpc": "UpdateItem",
+      "tone": "warning",
+      "message": "Field 'priority' expects integer, got \"high\"."
+    },
+    "query_unsupported_ast": {
+      "rpc": "QueryItems",
+      "tone": "destructive",
+      "message": "Query rejected: JOINs are not supported. Collections query a single table."
+    },
+    "schema_reserved_id": {
+      "rpc": "CreateSchema",
+      "tone": "destructive",
+      "message": "'feedback' is a reserved system collection id."
+    },
+    "reproject_warning": {
+      "rpc": "UpdateSchema",
+      "tone": "warning",
+      "message": "Removing field 'estimate_h' will rebuild the projection from the event log. Existing item data is preserved; the column is dropped from the table. Continue?"
+    },
+    "item_not_found": {
+      "rpc": "GetItem",
+      "tone": "destructive",
+      "message": "Item 'note-missing' not found in collection 'notes'."
+    },
+    "collection_not_found": {
+      "rpc": "Get",
+      "tone": "destructive",
+      "message": "Collection 'sprints' does not exist."
+    }
+  },
+  "empty_states": {
+    "no_collections": {
+      "title": "No collections yet",
+      "body": "Create one to start storing structured data.",
+      "cta": "New collection"
+    },
+    "empty_collection": {
+      "title": "No items in tasks",
+      "body": "Add the first item, or edit the schema.",
+      "cta": "New item"
+    },
+    "empty_filtered": {
+      "title": "No matches",
+      "body": "5 items stored, none match the current filters.",
+      "cta": "Clear filters"
+    },
+    "query_no_results": {
+      "title": "0 rows",
+      "body": "The query ran in 0.6 ms and matched nothing.",
+      "cta": null
+    }
+  }
+}

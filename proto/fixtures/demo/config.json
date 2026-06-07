@@ -1,0 +1,263 @@
+{
+  "_meta": {
+    "generated_by": "cargo xtask gen-fixtures",
+    "source_seed": "proto/fixtures/seeds/config.jsonc",
+    "kind": "demo"
+  },
+  "List.runtime": {
+    "settings": [
+      {
+        "key": "terminal.program",
+        "value_json": "zsh",
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": false
+      },
+      {
+        "key": "watcher.debounce_ms",
+        "value_json": 150,
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": false
+      },
+      {
+        "key": "agent_session.auto_resume",
+        "value_json": true,
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": false
+      },
+      {
+        "key": "harness.default",
+        "value_json": "claude-code",
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": false
+      },
+      {
+        "key": "git.log_limit",
+        "value_json": 200,
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": true
+      },
+      {
+        "key": "hooks.max_depth",
+        "value_json": 5,
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": true
+      },
+      {
+        "key": "harness.default_model",
+        "value_json": "claude-sonnet-4-6",
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": true
+      },
+      {
+        "key": "daemon.port",
+        "value_json": 4310,
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": true
+      }
+    ]
+  },
+  "List.account": {
+    "settings": [
+      {
+        "key": "ui.theme",
+        "value_json": "dark",
+        "scope": "SETTING_SCOPE_ACCOUNT",
+        "is_default": false
+      },
+      {
+        "key": "ui.font_size",
+        "value_json": 13,
+        "scope": "SETTING_SCOPE_ACCOUNT",
+        "is_default": false
+      },
+      {
+        "key": "notifications.agent_done",
+        "value_json": true,
+        "scope": "SETTING_SCOPE_ACCOUNT",
+        "is_default": true
+      }
+    ]
+  },
+  "List.space": {
+    "settings": [
+      {
+        "key": "isolation.allow_network",
+        "value_json": false,
+        "scope": "SETTING_SCOPE_SPACE",
+        "is_default": false
+      },
+      {
+        "key": "isolation.allowed_hosts",
+        "value_json": [
+          "api.getship.dev"
+        ],
+        "scope": "SETTING_SCOPE_SPACE",
+        "is_default": false
+      },
+      {
+        "key": "isolation.max_agent_procs",
+        "value_json": 4,
+        "scope": "SETTING_SCOPE_SPACE",
+        "is_default": true
+      }
+    ]
+  },
+  "List.space_empty": {
+    "settings": [
+      {
+        "key": "isolation.allow_network",
+        "value_json": false,
+        "scope": "SETTING_SCOPE_SPACE",
+        "is_default": true
+      },
+      {
+        "key": "isolation.allowed_hosts",
+        "value_json": [],
+        "scope": "SETTING_SCOPE_SPACE",
+        "is_default": true
+      },
+      {
+        "key": "isolation.max_agent_procs",
+        "value_json": 4,
+        "scope": "SETTING_SCOPE_SPACE",
+        "is_default": true
+      }
+    ]
+  },
+  "Get.terminal_program": {
+    "key": "terminal.program",
+    "value_json": "zsh",
+    "scope": "SETTING_SCOPE_RUNTIME",
+    "is_default": false
+  },
+  "Set.terminal_program": {
+    "key": "terminal.program",
+    "value_json": "tmux",
+    "scope": "SETTING_SCOPE_RUNTIME",
+    "is_default": false
+  },
+  "Watch.runtime_stream": {
+    "frames": [
+      {
+        "seq": 1,
+        "kind": "snapshot",
+        "body": {
+          "patches": {
+            "patches": [
+              {
+                "op": "PATCH_OP_SET",
+                "path": "",
+                "value": {
+                  "settings": [
+                    {
+                      "key": "terminal.program",
+                      "value_json": "zsh",
+                      "scope": "SETTING_SCOPE_RUNTIME",
+                      "is_default": false
+                    },
+                    {
+                      "key": "watcher.debounce_ms",
+                      "value_json": 150,
+                      "scope": "SETTING_SCOPE_RUNTIME",
+                      "is_default": false
+                    },
+                    {
+                      "key": "agent_session.auto_resume",
+                      "value_json": true,
+                      "scope": "SETTING_SCOPE_RUNTIME",
+                      "is_default": false
+                    },
+                    {
+                      "key": "harness.default",
+                      "value_json": "claude-code",
+                      "scope": "SETTING_SCOPE_RUNTIME",
+                      "is_default": false
+                    },
+                    {
+                      "key": "git.log_limit",
+                      "value_json": 200,
+                      "scope": "SETTING_SCOPE_RUNTIME",
+                      "is_default": true
+                    },
+                    {
+                      "key": "hooks.max_depth",
+                      "value_json": 5,
+                      "scope": "SETTING_SCOPE_RUNTIME",
+                      "is_default": true
+                    },
+                    {
+                      "key": "harness.default_model",
+                      "value_json": "claude-sonnet-4-6",
+                      "scope": "SETTING_SCOPE_RUNTIME",
+                      "is_default": true
+                    },
+                    {
+                      "key": "daemon.port",
+                      "value_json": 4310,
+                      "scope": "SETTING_SCOPE_RUNTIME",
+                      "is_default": true
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "seq": 2,
+        "kind": "patch",
+        "_why": "rust-lane called Set(watcher.debounce_ms, 200, RUNTIME) from session sess-rust-lane-1",
+        "body": {
+          "patches": {
+            "patches": [
+              {
+                "op": "PATCH_OP_MERGE",
+                "path": "settings[1]",
+                "value": {
+                  "value_json": 200,
+                  "is_default": false
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "seq": 3,
+        "kind": "heartbeat",
+        "body": {
+          "hb": {
+            "ts": "2026-05-31T22:45:00Z"
+          }
+        }
+      },
+      {
+        "seq": 4,
+        "kind": "error",
+        "_why": "daemon restarted (SIGTERM from OS); client transitions to retryable error state",
+        "body": {
+          "err": {
+            "message": "stream disconnected: daemon shutdown (SIGTERM)"
+          }
+        }
+      }
+    ]
+  },
+  "errors": {
+    "space_no_active_space": {
+      "rpc": "List",
+      "scope": "SETTING_SCOPE_SPACE",
+      "tone": "warning",
+      "message": "No active space — open a space to view or edit space-scoped settings.",
+      "_note": "Distinct from daemon-unreachable: daemon is reachable but the connection carries no active space_id. Rendered as a soft warning (not a retry-button error) inside the Space scope panel."
+    },
+    "daemon_unreachable": {
+      "rpc": "List",
+      "scope": "SETTING_SCOPE_RUNTIME",
+      "tone": "destructive",
+      "message": "Could not reach daemon on port 4310. Is shipd running?",
+      "_note": "Hard failure — sui-error-state variant=default with retry action. Applies to any scope when the daemon socket is down."
+    }
+  }
+}

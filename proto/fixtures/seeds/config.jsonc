@@ -1,0 +1,257 @@
+// Config domain seed — realistic demo values for the ship-config-* component pack.
+// World: 'harbor' project on feat/checkout-flow; operator = Ada Lovelace; agents rust-lane + code-reviewer.
+// value_json shown DECODED (actual JSON type, not base64) — generator encodes to bytes on the wire.
+// Generator strips full-line // comments and emits proto/fixtures/demo/config.json.
+{
+  "_meta": {
+    "domain": "config",
+    "description": "SettingsService across three scopes (Runtime / Account / Space). Covers List (all three scopes + all-defaults empty variant), Get, Set, Watch stream (snapshot → merge patch → heartbeat → stream error), and two error states (no-active-space vs daemon-unreachable)."
+  },
+
+  // ── List.runtime ──────────────────────────────────────────────────────────────
+  // Eight well-known runtime keys: four stored rows (no is_default badge), four defaults.
+  // Stored rows first — designer decides final sort order.
+
+  "List.runtime": {
+    "settings": [
+      {
+        "key": "terminal.program",
+        "value_json": "zsh",
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": false
+      },
+      {
+        "key": "watcher.debounce_ms",
+        "value_json": 150,
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": false
+      },
+      {
+        "key": "agent_session.auto_resume",
+        "value_json": true,
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": false
+      },
+      {
+        "key": "harness.default",
+        "value_json": "claude-code",
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": false
+      },
+      {
+        "key": "git.log_limit",
+        "value_json": 200,
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": true
+      },
+      {
+        "key": "hooks.max_depth",
+        "value_json": 5,
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": true
+      },
+      {
+        "key": "harness.default_model",
+        "value_json": "claude-sonnet-4-6",
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": true
+      },
+      {
+        "key": "daemon.port",
+        "value_json": 4310,
+        "scope": "SETTING_SCOPE_RUNTIME",
+        "is_default": true
+      }
+    ]
+  },
+
+  // ── List.account ──────────────────────────────────────────────────────────────
+  // Ada's stored preferences + one default row to exercise the is_default badge.
+
+  "List.account": {
+    "settings": [
+      {
+        "key": "ui.theme",
+        "value_json": "dark",
+        "scope": "SETTING_SCOPE_ACCOUNT",
+        "is_default": false
+      },
+      {
+        "key": "ui.font_size",
+        "value_json": 13,
+        "scope": "SETTING_SCOPE_ACCOUNT",
+        "is_default": false
+      },
+      {
+        "key": "notifications.agent_done",
+        "value_json": true,
+        "scope": "SETTING_SCOPE_ACCOUNT",
+        "is_default": true
+      }
+    ]
+  },
+
+  // ── List.space ────────────────────────────────────────────────────────────────
+  // Harbor space overlay: two stored isolation keys + one default-only row.
+  // isolation.allowed_hosts is an array — exercises the sui-json-value-input (read-only display path).
+
+  "List.space": {
+    "settings": [
+      {
+        "key": "isolation.allow_network",
+        "value_json": false,
+        "scope": "SETTING_SCOPE_SPACE",
+        "is_default": false
+      },
+      {
+        "key": "isolation.allowed_hosts",
+        "value_json": ["api.getship.dev"],
+        "scope": "SETTING_SCOPE_SPACE",
+        "is_default": false
+      },
+      {
+        "key": "isolation.max_agent_procs",
+        "value_json": 4,
+        "scope": "SETTING_SCOPE_SPACE",
+        "is_default": true
+      }
+    ]
+  },
+
+  // ── List.space_empty ──────────────────────────────────────────────────────────
+  // All rows is_default: true — no stored rows in this space.
+  // Drives the "Using all defaults" empty state: rows still render, but the panel
+  // shows a subtle note rather than an error.
+
+  "List.space_empty": {
+    "settings": [
+      {
+        "key": "isolation.allow_network",
+        "value_json": false,
+        "scope": "SETTING_SCOPE_SPACE",
+        "is_default": true
+      },
+      {
+        "key": "isolation.allowed_hosts",
+        "value_json": [],
+        "scope": "SETTING_SCOPE_SPACE",
+        "is_default": true
+      },
+      {
+        "key": "isolation.max_agent_procs",
+        "value_json": 4,
+        "scope": "SETTING_SCOPE_SPACE",
+        "is_default": true
+      }
+    ]
+  },
+
+  // ── Get ───────────────────────────────────────────────────────────────────────
+  // Single-key read: Get(key="terminal.program", scope=RUNTIME).
+
+  "Get.terminal_program": {
+    "key": "terminal.program",
+    "value_json": "zsh",
+    "scope": "SETTING_SCOPE_RUNTIME",
+    "is_default": false
+  },
+
+  // ── Set ───────────────────────────────────────────────────────────────────────
+  // Response for Set(key="terminal.program", value_json="tmux", scope=RUNTIME).
+  // The row's save-badge flashes on this response; the Watch MERGE patch confirms.
+
+  "Set.terminal_program": {
+    "key": "terminal.program",
+    "value_json": "tmux",
+    "scope": "SETTING_SCOPE_RUNTIME",
+    "is_default": false
+  },
+
+  // ── Watch stream (RUNTIME scope) ──────────────────────────────────────────────
+  // Frame 1: root snapshot (PATCH_OP_SET, path="") — full SettingList delivered on connect.
+  // Frame 2: MERGE patch — rust-lane called Set(watcher.debounce_ms, 200) from a session;
+  //          the row updates in place with a brief flash.
+  // Frame 3: Heartbeat — keepalive; sui-watch-badge stays in "live" state.
+  // Frame 4: StreamError — daemon shutdown; transitions panel to retryable error state.
+
+  "Watch.runtime_stream": {
+    "frames": [
+      {
+        "seq": 1,
+        "kind": "snapshot",
+        "body": {
+          "patches": {
+            "patches": [
+              {
+                "op": "PATCH_OP_SET",
+                "path": "",
+                "value": {
+                  "settings": [
+                    { "key": "terminal.program",       "value_json": "zsh",             "scope": "SETTING_SCOPE_RUNTIME", "is_default": false },
+                    { "key": "watcher.debounce_ms",    "value_json": 150,               "scope": "SETTING_SCOPE_RUNTIME", "is_default": false },
+                    { "key": "agent_session.auto_resume", "value_json": true,            "scope": "SETTING_SCOPE_RUNTIME", "is_default": false },
+                    { "key": "harness.default",        "value_json": "claude-code",     "scope": "SETTING_SCOPE_RUNTIME", "is_default": false },
+                    { "key": "git.log_limit",          "value_json": 200,               "scope": "SETTING_SCOPE_RUNTIME", "is_default": true  },
+                    { "key": "hooks.max_depth",        "value_json": 5,                 "scope": "SETTING_SCOPE_RUNTIME", "is_default": true  },
+                    { "key": "harness.default_model",  "value_json": "claude-sonnet-4-6", "scope": "SETTING_SCOPE_RUNTIME", "is_default": true },
+                    { "key": "daemon.port",            "value_json": 4310,              "scope": "SETTING_SCOPE_RUNTIME", "is_default": true  }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "seq": 2,
+        "kind": "patch",
+        "_why": "rust-lane called Set(watcher.debounce_ms, 200, RUNTIME) from session sess-rust-lane-1",
+        "body": {
+          "patches": {
+            "patches": [
+              {
+                "op": "PATCH_OP_MERGE",
+                "path": "settings[1]",
+                "value": { "value_json": 200, "is_default": false }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "seq": 3,
+        "kind": "heartbeat",
+        "body": {
+          "hb": { "ts": "2026-05-31T22:45:00Z" }
+        }
+      },
+      {
+        "seq": 4,
+        "kind": "error",
+        "_why": "daemon restarted (SIGTERM from OS); client transitions to retryable error state",
+        "body": {
+          "err": { "message": "stream disconnected: daemon shutdown (SIGTERM)" }
+        }
+      }
+    ]
+  },
+
+  // ── Error states ──────────────────────────────────────────────────────────────
+
+  "errors": {
+    "space_no_active_space": {
+      "rpc": "List",
+      "scope": "SETTING_SCOPE_SPACE",
+      "tone": "warning",
+      "message": "No active space — open a space to view or edit space-scoped settings.",
+      "_note": "Distinct from daemon-unreachable: daemon is reachable but the connection carries no active space_id. Rendered as a soft warning (not a retry-button error) inside the Space scope panel."
+    },
+    "daemon_unreachable": {
+      "rpc": "List",
+      "scope": "SETTING_SCOPE_RUNTIME",
+      "tone": "destructive",
+      "message": "Could not reach daemon on port 4310. Is shipd running?",
+      "_note": "Hard failure — sui-error-state variant=default with retry action. Applies to any scope when the daemon socket is down."
+    }
+  }
+}
