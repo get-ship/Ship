@@ -222,14 +222,10 @@ pub fn collect_ship_data_types() -> TypeCollection {
     // struct disambiguates it from the other domains' IndexEntry.
     c.register::<ship_agents::services::skills::state::IndexEntry>();
 
-    // collections — list row + field record (was hand-written in ship-sdk.ts);
-    // pulls in CollectionFieldRecord as a nested type.
-    // FOLLOW-UP (window-actors merge): collections codegen diverged — our
-    // gen_ops/registry path vs their gen_collection_types module. The old
-    // shipd::services::registry::wire::CollectionSummary is gone and
-    // ship_ops_rpc::CollectionSummary is not specta-derived. Re-wire via the
-    // merged ship-collection codegen before re-enabling.
-    // c.register::<ship_ops_rpc::CollectionSummary>();
+    // collections — typed row/Database codegen moved to `gen_collection_types`
+    // (schema→TS via the ship_collection SSOT). The old specta registration of
+    // shipd::services::registry::wire::CollectionSummary is gone with the
+    // services::registry cull; nothing specta-derived replaces it here.
 
     c
 }

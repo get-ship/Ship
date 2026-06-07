@@ -6,8 +6,9 @@ use specta::TypeCollection;
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
 use crate::{
-    coverage, gen_audit_readme, gen_contract, gen_events, gen_fixtures, gen_icons,
-    gen_indexes, gen_ops, gen_skills, gen_sdk, lint_imports, lint_layers, types,
+    build_assets, coverage, gen_audit_readme, gen_collection_types, gen_contract, gen_events,
+    gen_fixtures, gen_icons, gen_indexes, gen_skills, gen_sdk, lint_imports, lint_layers,
+    port_descriptions, types,
 };
 
 pub fn repo_root() -> PathBuf {
@@ -20,6 +21,12 @@ pub fn repo_root() -> PathBuf {
 
 pub fn dispatch(cmd: &str, args: &[String]) {
     match cmd {
+        "build-assets" => {
+            if let Err(e) = build_assets::run(&repo_root()) {
+                eprintln!("build-assets failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "gen-types" => {
             let check = args.iter().any(|a| a == "--check");
             gen_types(check);
@@ -83,12 +90,6 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
-        "gen-ops" => {
-            if let Err(e) = gen_ops::run() {
-                eprintln!("gen-ops failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
         "gen-skills" => {
             if let Err(e) = gen_skills::run() {
                 eprintln!("gen-skills failed: {e:#}");
@@ -115,6 +116,19 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
+        "gen-collection-types" => {
+            let check = args.iter().any(|a| a == "--check");
+            if let Err(e) = gen_collection_types::run(&repo_root(), check) {
+                eprintln!("gen-collection-types failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        "port-descriptions" => {
+            if let Err(e) = port_descriptions::run() {
+                eprintln!("port-descriptions failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "coverage" => {
             let trailing: Vec<&str> = args.iter().map(String::as_str).collect();
             if let Err(e) = coverage::run(&trailing) {
@@ -136,21 +150,23 @@ fn print_help() {
     eprintln!("Usage: cargo xtask <command>");
     eprintln!();
     eprintln!("Commands:");
+    eprintln!("  build-assets          Bake framework bundles via in-process Rolldown (replaces bun bundler/index.ts --all)");
     eprintln!("  gen-types             Regenerate packages/deck/sdk/src/generated.ts");
     eprintln!("  gen-types --check     Verify generated file is up-to-date (CI)");
     eprintln!("  gen-sdk               Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
-    eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/theme.json");
+    eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/fixture-seed.json");
     eprintln!("  gen-icons             Bake lucide-icons.json from node_modules/lucide-static");
     eprintln!("  lint-layers           Verify substrate/platform/application boundaries (Cargo dep level)");
     eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");
     eprintln!("  gen-events            Generate tier-filtered proto + TS from the event registry");
     eprintln!("  gen-events --check    Verify generated files are up-to-date (CI)");
-    eprintln!("  gen-ops               Generate the read-op Connect surface from schema::OPS");
     eprintln!("  gen-contract          Generate docs/contract/<domain>.md consumer guides");
     eprintln!("  gen-contract --check  Verify generated contract docs are up-to-date (CI)");
     eprintln!("  gen-audit-readme      Regenerate .artifacts/specs/module-audits/README.md");
     eprintln!("  gen-indexes           Regenerate emit-sites.md + substrate-fns.md indexes");
     eprintln!("  gen-indexes --check   Verify indexes are up-to-date (CI)");
+    eprintln!("  gen-collection-types  Emit packages/deck/sdk/src/generated/collections.ts (typed Database from .ship/collections)");
+    eprintln!("  gen-collection-types --check  Verify generated collection types are up-to-date (CI)");
     eprintln!("  coverage              Run workspace tests; emit .artifacts/coverage/report.md");
     eprintln!("  coverage --stdout     Print coverage report to stdout");
     eprintln!("  coverage --report-only  Skip test run; read test JSON from stdin");
@@ -228,7 +244,7 @@ fn build_cloud_types(ts: &Typescript, root: &Path) -> String {
         .export(&c)
         .expect("specta-typescript export failed (cloud)");
 
-    let event_types_src = root.join("crates/core/ship-types/src/event_types/mod.rs");
+    let event_types_src = root.join("crates/core/ship-substrate/crates/ship-types/src/event_types/mod.rs");
     let src = std::fs::read_to_string(&event_types_src)
         .unwrap_or_else(|e| panic!("read {}: {e}", event_types_src.display()));
     let mut consts = String::new();
@@ -248,5 +264,5 @@ fn build_cloud_types(ts: &Typescript, root: &Path) -> String {
         ));
     }
 
-    format!("{struct_ts}\n// ── Event-type constants (mirrored from crates/core/ship-types/src/event_types/mod.rs) ──\n\n{consts}")
+    format!("{struct_ts}\n// ── Event-type constants (mirrored from crates/core/ship-substrate/crates/ship-types/src/event_types/mod.rs) ──\n\n{consts}")
 }
