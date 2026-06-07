@@ -15,7 +15,8 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 
 use crate::auth::AuthContext;
-use crate::gate::{self, Blast, Decision};
+use crate::gate::{self, Decision};
+use crate::registry;
 
 #[derive(Debug, thiserror::Error)]
 pub enum GatewayError {
@@ -34,31 +35,19 @@ pub trait Gateway: Send + Sync {
     async fn call(&self, op: &str, args: Value, auth: &AuthContext) -> Result<Value, GatewayError>;
 }
 
-/// Stub gateway: mirrors the proto op registry just enough to demonstrate the
-/// gate. In production (op, service, blast) come from the proto descriptor set;
-/// here a tiny table stands in. It runs the REAL gate decision, then echoes.
+/// Stub gateway: the op, service, and blast all come from the in-process
+/// `registry` module — the SAME descriptor set the SDK + `.d.ts` surface use
+/// (S8). In production the descriptor set is loaded from shipd's
+/// `FileDescriptorSet`; the seam is the same lookup helpers. The gateway runs
+/// the REAL gate decision, then echoes the result.
 pub struct InProcessGateway;
-
-impl InProcessGateway {
-    /// Intrinsic blast for an op — in production read from the proto method
-    /// option, never from the caller.
-    fn blast_of(op: &str) -> Option<Blast> {
-        Some(match op {
-            "collections.read" | "collections.get" | "collections.items" => Blast::C0Safe,
-            "lsp.diagnostics" | "lsp.hover" => Blast::C0Safe, // read-only analysis — baseline
-            "collections.put" | "collections.patch" | "collections.delete" => Blast::C1Space,
-            "mcp.create" | "mcp.put" | "mcp.delete" => Blast::C2Elevated,
-            "runtime.dispatch" => Blast::C2Elevated,
-            "account.rotate_key" => Blast::C3Critical,
-            _ => return None,
-        })
-    }
-}
 
 #[async_trait]
 impl Gateway for InProcessGateway {
     async fn call(&self, op: &str, args: Value, auth: &AuthContext) -> Result<Value, GatewayError> {
-        let blast = Self::blast_of(op).ok_or_else(|| GatewayError::UnknownOp(op.to_string()))?;
+        // Intrinsic blast — read from the descriptor set, never claimed by
+        // spec or request. `None` => unknown op (not in the descriptor set).
+        let blast = registry::blast_of(op).ok_or_else(|| GatewayError::UnknownOp(op.to_string()))?;
         let service = gate::service_of(op);
 
         // THE GATE — the only enforcement point.
