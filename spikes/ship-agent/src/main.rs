@@ -31,6 +31,7 @@ mod spine;
 mod dtsgen;
 mod lsp;
 mod orchestration;
+mod resilience;
 use std::sync::Arc;
 
 use serde_json::{json, Value};
@@ -380,6 +381,42 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Err(e) => println!("[slice5] dispatch_parallel ERROR: {e}"),
+    }
+    println!();
+
+    // 13. Slice 15 (Phase 6): resilience + event-log emit. A flaky op fails
+    //     once then succeeds; `run_resilient` retries the TRANSIENT failure
+    //     (a Denied/Unverified would NOT be retried) and narrates it into a
+    //     durable EventLog, which we replay — the event-sourced run record.
+    println!("--- slice 15: resilience + event-log (retry transient, never terminal) ---");
+    let log = events::EventLog::new();
+    let attempts = std::sync::atomic::AtomicU32::new(0);
+    let r = resilience::run_resilient(
+        &log,
+        "demo.flaky",
+        resilience::RetryPolicy::new(3),
+        || {
+            let n = attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            async move {
+                if n == 0 {
+                    Err(SpineError::Execute("transient blip".into()))
+                } else {
+                    Ok::<_, SpineError>(json!({ "ok": true }))
+                }
+            }
+        },
+        |v: &Value| {
+            if v.get("ok").and_then(Value::as_bool) == Some(true) {
+                Ok("verified".into())
+            } else {
+                Err("missing ok".into())
+            }
+        },
+    )
+    .await;
+    println!("[slice15] resilient result: {r:?}");
+    for entry in log.replay() {
+        println!("        log[{}] {:?}", entry.seq, entry.event);
     }
     println!();
     Ok(())

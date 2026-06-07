@@ -8,6 +8,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
 // ---------------------------------------------------------------------------
@@ -96,6 +97,50 @@ impl EventSink for TerminalSink {
             AgentEvent::Cancelled { reason } => println!("[cancelled] {reason}"),
         }
 
+    }
+}
+
+// ---------------------------------------------------------------------------
+// EventLog — durable, append-only, replayable emit (S15)
+// ---------------------------------------------------------------------------
+
+/// A single recorded event with its monotonic sequence number.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LoggedEvent {
+    pub seq: u64,
+    pub event: AgentEvent,
+}
+
+/// Durable, append-only event sink. Stamps each event with a monotonic
+/// sequence number — deterministic, NO wall-clock, so order is the only thing
+/// that matters — and stores it. `replay()` returns the ordered record.
+///
+/// This is the event-sourcing seam: in the daemon it becomes a persistent log
+/// (`ship_subscriber`), here it is in-memory behind the SAME `EventSink` trait,
+/// so every existing emit path feeds it unchanged. S14's design awaits child
+/// runs over exactly this log; S15 gives it a concrete, replayable shape.
+#[derive(Default)]
+pub struct EventLog {
+    seq: AtomicU64,
+    entries: Mutex<Vec<LoggedEvent>>,
+}
+
+impl EventLog {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The ordered event record so far. Replaying the same run yields the same
+    /// sequence — the foundation for recovery/reconciliation.
+    pub fn replay(&self) -> Vec<LoggedEvent> {
+        self.entries.lock().unwrap().clone()
+    }
+}
+
+impl EventSink for EventLog {
+    fn emit(&self, ev: &AgentEvent) {
+        let seq = self.seq.fetch_add(1, Ordering::SeqCst);
+        self.entries.lock().unwrap().push(LoggedEvent { seq, event: ev.clone() });
     }
 }
 
@@ -337,5 +382,27 @@ mod tests {
             }
             _ => panic!("expected Deny"),
         }
+    }
+
+    // EventLog (S15): replays in emission order with strictly increasing seq.
+    #[test]
+    fn event_log_replays_in_order_with_increasing_seq() {
+        let log = EventLog::new();
+        log.emit(&AgentEvent::Status { message: "a".into() });
+        log.emit(&AgentEvent::Status { message: "b".into() });
+        let replayed = log.replay();
+        assert_eq!(replayed.len(), 2);
+        assert!(replayed[0].seq < replayed[1].seq, "seq must strictly increase");
+        assert_eq!(replayed[0].event, AgentEvent::Status { message: "a".into() });
+        assert_eq!(replayed[1].event, AgentEvent::Status { message: "b".into() });
+    }
+
+    // EventLog is an EventSink — usable through the seam, object-safe, so every
+    // existing emit path can feed the durable log unchanged.
+    #[test]
+    fn event_log_is_an_event_sink() {
+        let log: Box<dyn EventSink> = Box::new(EventLog::new());
+        log.emit(&AgentEvent::Completed { turns: 1 });
+        // no panic = the durable log slots in behind the trait
     }
 }

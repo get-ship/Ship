@@ -58,9 +58,10 @@ agent_loop.rs ─ run_step: rig drives the model turn
 | Surface | `sdkgen.rs` + `dtsgen.rs`, `registry.rs` (shared descriptor set), `module_loader.rs` | scoped SDK (JS + types) from `proto∩grant`; deny-by-default imports |
 | Execution | `runtime.rs`, `script_executor.rs` | deno_core isolate; the `!Send` VM-thread bridge |
 | Intelligence | `lsp.rs`, `agent_loop.rs` | dual-LSP-fed verify; rig loop + the two tools; **`Ask`-stance approval handshake** (`Approver` trait, `HeadlessApprover` / `ScriptedApprover` impls) + `Steer` / `Cancel` supervisor handles |
-| Events | `events.rs` | `AgentEvent` vocabulary (serde, internally-tagged) incl. `ApprovalRequested` + `Cancelled`; `UserInput` (Approve / Deny) decision shape; `EventSink` trait + `CollectingSink` / `TerminalSink`; `LoopItem` mirror + pure `translate` fn |
+| Events | `events.rs` | `AgentEvent` vocabulary (serde, internally-tagged) incl. `ApprovalRequested` + `Cancelled`; `UserInput` (Approve / Deny) decision shape; `EventSink` trait + `CollectingSink` / `TerminalSink` / **`EventLog`** (durable, seq-stamped, replayable record — S15); `LoopItem` mirror + pure `translate` fn |
 | Customization | `skills.rs` | skill discovery (`root/*/SKILL.md`), frontmatter parse, catalog injection, on-demand body load |
 | Orchestration | `orchestration.rs` | `OrchestrationDispatch` trait (`dispatch_agent` / `dispatch_parallel`) + `aggregate_lane_outcomes` shortcut decision (re-implements `ship-pipelines::fanout` semantics locally); spike-local `InProcessOrchestrator` runs a child `AgentSpec` through the existing gateway, with parent→child cancellation cascading. Two C2 ops on the `runtime` service — `runtime.dispatch` and `runtime.parallel`. |
+| Resilience | `resilience.rs` | `run_resilient` (S15): retries ONLY transient `spine::Execute` failures up to a `RetryPolicy`; `Denied` / `Unverified` are terminal (never retried — a denial is data, an unverified result is a refusal). Each retry + the exhausted-run failure are narrated into the event log. |
 
 ## Invariants (must always hold)
 1. **One door** — every effect enters `gateway.call`. No side channel.
@@ -98,6 +99,7 @@ Execution → Loop all converge on Enforcement, never around it.
 | auth | locally-constructed `AuthContext` | handshake to shipd (peer-cred socket) |
 | `McpClient` | `FakeMcpClient` (canned `tools/list` + canned `text` result) | `StdioMcpClient` (child + JSON-RPC) → `HttpMcpClient` (streamable HTTP) |
 | `McpRegistry` | `InMemoryMcpRegistry` (built from `McpServerSpec` + `Capability.mcp.allow` at boot) | `LiveMcpRegistry` (calls `list_tools` at boot, caches; refreshes on `listChanged`) |
+| event log | `EventLog` (in-memory, seq-stamped, replayable) | persistent `ship_subscriber` log (real clocks; replay / reconciliation) |
 
 The arc builds against **contract-faithful fakes** so it is unblocked by the
 in-flight ops-SSOT refactor; swapping fakes for live shipd is a distinct,
@@ -110,7 +112,7 @@ PHASE 2 — make it usable    **S9 ✓ · S10 ✓ · S11 ✓** — sessions+hist
 PHASE 3 — differentiators    **S12 design ✓** (real tsgo+SUI LSP — impl pending) · **S13 ✓** file ops + hashline
 PHASE 4 — customization      **S-skills ✓** · **S-mcp design ✓ + v1 impl ✓** (mcp.call op + FakeMcpClient/InMemoryMcpRegistry seam)
 PHASE 5 — orchestration      **S14 design ✓ · S14 v1 spike-local seam ✓** — agent()/parallel reconciled with ship pipelines (shared DAG/control-flow)
-PHASE 6 — harden + graduate  S15 resilience+event-log emit · S16 graduate to crates/+apps/ · S17 e2e harness   ← NEXT (none started)
+PHASE 6 — harden + graduate  **S15 resilience+event-log emit ✓** · S16 graduate to crates/+apps/ · S17 e2e harness   ← S16 NEXT
 ```
 Orchestration and ship pipelines are the same capability (DAG + control flow +
 parallelization) at different altitudes and must share machinery. Skills are the
