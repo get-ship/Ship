@@ -294,6 +294,16 @@ async fn run_child(
     // For the spin case: the child runs ONE model turn, then awaits the
     // cancel. The property tested is that the child future resolves
     // promptly on cancel (no hang), not that the model truly loops.
+    // Headless ToolCtx for the child turn (S11's run_step signature): no human
+    // (Ask → deny), no steers, a fresh loop-cancel. The parent→child cancel
+    // cascade is the orchestration `CancelSignal` (cancel.wait() below), NOT
+    // this loop-level flag — the two cancel mechanisms are deliberately separate.
+    let child_ctx = agent_loop::ToolCtx {
+        sink: Arc::new(crate::events::TerminalSink),
+        approver: Arc::new(agent_loop::HeadlessApprover),
+        steer: agent_loop::Steer::new(),
+        cancel: agent_loop::Cancel::new(),
+    };
     let outcome = if is_spin {
         let _ = agent_loop::run_step(
             model,
@@ -301,6 +311,7 @@ async fn run_child(
             gateway.clone(),
             auth.clone(),
             executor.clone(),
+            child_ctx.clone(),
             &prompt,
         )
         .await;
@@ -308,7 +319,7 @@ async fn run_child(
         cancel.wait().await;
         AgentOutput { text: String::new(), json: None }
     } else {
-        match agent_loop::run_step(model, spec, gateway.clone(), auth.clone(), executor, &prompt).await {
+        match agent_loop::run_step(model, spec, gateway.clone(), auth.clone(), executor, child_ctx, &prompt).await {
             Ok(o) => o,
             Err(_e) => AgentOutput { text: String::new(), json: None },
         }
@@ -329,7 +340,7 @@ async fn run_child(
     // effect. The probe is gated by the child's OWN grants — so if a
     // parent has a grant, the child does NOT inherit it (invariant 5).
     let denied = if let Some(op) = denied_probe {
-        match gateway.call(&op, json!({}), &auth).await {
+        match gateway.call(&op, json!({}), &auth, crate::gateway::GatewayCallKind::First).await {
             Err(crate::gateway::GatewayError::Denied(reason)) => {
                 Some(DeniedOp { op, reason })
             }
