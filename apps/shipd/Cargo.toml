@@ -45,6 +45,12 @@ futures-util = { workspace = true }
 anyhow = { workspace = true }
 getrandom = { workspace = true }
 libc = { workspace = true }
+# jemalloc global allocator — replaces the glibc malloc_trim(0) FFI the
+# bundler was calling per build (crates/deck/deck-bundler/src/arena.rs,
+# deleted as part of cut 4). jemalloc returns freed arenas to the OS
+# by default; the trim-arenas workaround was a glibc-only band-aid
+# for the bundler's transient module-graph allocations.
+tikv-jemallocator = "0.6"
 serde = { workspace = true }
 base64 = { workspace = true }
 serde_yaml = { workspace = true }
