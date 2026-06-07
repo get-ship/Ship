@@ -7,9 +7,10 @@
 //! `apps/site`) or a Ship-specific identifier (`sui-chrome`, `sui-marketing`,
 //! `sui-arcade`, `sui-pdf`, `__SHIP_APP_ID__`) in PRODUCTION source lines.
 //!
-//! The four deck-own singleton bundle names (sui-runtime, sui-dom,
-//! sui-sdk-client, sui-components) are legitimately hardcoded in deck-bundler
-//! and ARE expected.
+//! The three deck-own singleton bundle names (sui-runtime, sui-dom,
+//! sui-sdk-client) are legitimately hardcoded in deck-bundler and ARE expected.
+//! (`sui-components` is no longer a singleton — the umbrella was retired
+//! (#221/#269); `sui-components/<tag>` is now the per-tag resolver namespace.)
 //!
 //! Exclusions:
 //!   - Lines starting with `//` (doc/line comments — may cite paths as examples)
@@ -165,11 +166,13 @@ fn zero_config_discovers_views_only() {
     let targets: Vec<BundleTarget> = layout.all_targets();
     let names: Vec<&str> = targets.iter().map(|t| t.name.as_str()).collect();
 
-    // Framework singletons are always present.
+    // Framework singletons are always present (the 3 deck-own bundles).
+    // sui-components is NOT one — the umbrella was retired (#221/#269); the
+    // `sui-components/<tag>` prefix is now the per-tag resolver namespace, not a
+    // singleton target. Asserting its presence would resurrect a deleted thing.
     assert!(names.contains(&"sui-runtime"), "sui-runtime present");
     assert!(names.contains(&"sui-dom"), "sui-dom present");
     assert!(names.contains(&"sui-sdk-client"), "sui-sdk-client present");
-    assert!(names.contains(&"sui-components"), "sui-components present");
 
     // Discovered view.
     assert!(names.contains(&"views/foo/view"), "views/foo/view discovered");
