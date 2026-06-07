@@ -237,6 +237,30 @@ mod tests {
         let dts = generate_dts(&grants);
         assert!(!sdk.contains("nope."));
         assert!(!dts.contains("nope."));
+
+    }
+
+    // S-mcp v1: `mcp.call` is typed in the .d.ts iff the `mcp` grant is
+    // present, mirroring the JS SDK's grant-gated emission. The typed
+    // shape comes from the registry's `Method.args` (the named-positional
+    // args literal) so the .d.ts and the JS SDK agree.
+    #[test]
+    fn mcp_call_is_typed_iff_mcp_grant_is_present() {
+        // Ungranted ⇒ no mcp namespace, no mcp.call.
+        let dts = generate_dts(&g(&["collections"]));
+        assert!(
+            !dts.contains("export const mcp:"),
+            "mcp must not be declared without the mcp grant; got:\n{dts}",
+        );
+        // Granted ⇒ typed mcp.call with the named shape.
+        let dts = generate_dts(&g(&["mcp"]));
+        assert!(
+            dts.contains("export const mcp: {"),
+            "granted mcp must declare the mcp namespace; got:\n{dts}",
+        );
+        assert!(
+            dts.contains("call(args?: { server: string; tool: string; args?: unknown; }): Promise<unknown>;"),
+            "mcp.call must be typed with the named (server, tool, args) shape from the registry; got:\n{dts}",
+        );
     }
 }
-

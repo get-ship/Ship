@@ -496,7 +496,7 @@ mod tests {
     }
 
     fn orchestrator() -> InProcessOrchestrator {
-        InProcessOrchestrator::new(Arc::new(InProcessGateway))
+        InProcessOrchestrator::new(Arc::new(InProcessGateway::default()))
     }
 
     // Invariant 1 — one agent → one child: child ran, parent tool result

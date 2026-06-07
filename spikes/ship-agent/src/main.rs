@@ -20,6 +20,7 @@ mod session;
 mod gate;
 mod gateway;
 mod loader;
+mod mcp;
 mod module_loader;
 mod runtime;
 mod registry;
@@ -90,7 +91,7 @@ async fn main() -> anyhow::Result<()> {
 
     // The credential presented at the one door = the spec's grants, operator=false.
     let auth = AuthContext::in_process(&spec.identity.id, spec.capability.grants.clone());
-    let gw = InProcessGateway;
+    let gw = InProcessGateway::default();
 
     // 1. C0 read — baseline, allowed for any agent.
     report(
@@ -104,29 +105,105 @@ async fn main() -> anyhow::Result<()> {
         op_through_spine(&gw, &auth, "put", "collections.put", json!({"collection": "leads", "data": {}})).await,
     );
 
-    // 3. C2 in an UNGRANTED service — denied at the gate (agent lacks `mcp`).
-    report(
-        "mcp.create (C2, not granted)",
-        op_through_spine(&gw, &auth, "mcp", "mcp.create", json!({"id": "x"})).await,
-    );
-
-    // 4. C2 dispatch (spawn a sub-agent) — denied: this agent lacks `runtime`.
+    // 3. C2 in an UNGRANTED service — denied at the gate (agent lacks `runtime`).
     report(
         "runtime.dispatch (C2, not granted) — spawning is a capability",
         op_through_spine(&gw, &auth, "dispatch", "runtime.dispatch", json!({"agent": "child"})).await,
     );
 
-    // 5. Same dispatch, but for an agent GRANTED `runtime` — now allowed.
+    // 4. Same dispatch, but for an agent GRANTED `runtime` — now allowed.
     let orchestrator = AuthContext::in_process("commander", vec!["collections".into(), "runtime".into()]);
     report(
         "runtime.dispatch (C2, granted) — orchestrator may spawn",
         op_through_spine(&gw, &orchestrator, "dispatch", "runtime.dispatch", json!({"agent": "child"})).await,
     );
 
-    // 6. C3 — operator-only. No in-process agent can ever clear it.
+    // 5. C3 — operator-only. No in-process agent can ever clear it.
     report(
         "account.rotate_key (C3 critical) — operator-only",
         op_through_spine(&gw, &orchestrator, "rotate", "account.rotate_key", json!({})).await,
+    );
+
+    // 6. S-mcp v1 — the MCP gate, in three branches (design §5).
+    //    Single synthetic op `mcp.call({server, tool, args})`, dispatched
+    //    through the one door; the per-call blast comes from the registry,
+    //    not the static table. The fake client returns a canned text
+    //    result that passes spine verify.
+    println!("--- S-mcp v1: mcp.call — three branches (denied, denied, allowed) ---\n");
+    use std::collections::HashMap;
+    use mcp::{InMemoryMcpRegistry, McpServerSpec, McpToolDef, McpTransport};
+    let fs_spec = McpServerSpec {
+        id: "fs".into(),
+        transport: McpTransport::Stdio { cmd: "echo".into(), args: vec![], env: vec![] },
+        tools: vec![McpToolDef {
+            server: "fs".into(),
+            name: "read".into(),
+            title: None,
+            description: String::new(),
+            blast: gate::Blast::C2Elevated,
+        }],
+    };
+    let net_spec = McpServerSpec {
+        id: "net".into(),
+        transport: McpTransport::Stdio { cmd: "echo".into(), args: vec![], env: vec![] },
+        tools: vec![McpToolDef {
+            server: "net".into(),
+            name: "fetch".into(),
+            title: None,
+            description: String::new(),
+            blast: gate::Blast::C2Elevated,
+        }],
+    };
+    let mcp_registry = std::sync::Arc::new(InMemoryMcpRegistry::new(
+        vec![fs_spec, net_spec],
+        vec!["fs".into()],            // net is configured but not on this agent's allow-list
+        HashMap::new(),
+    ));
+    let mcp_gw = InProcessGateway::with_mcp(mcp_registry.clone());
+
+    // 6a. Denied at the gate: agent lacks the `mcp` grant. Service-grant
+    //     gate runs FIRST, names the missing service.
+    let no_mcp = AuthContext::in_process("lead-tracker", vec!["collections".into()]);
+    report(
+        "mcp.call (no `mcp` grant) — denied at the gate",
+        op_through_spine(
+            &mcp_gw,
+            &no_mcp,
+            "mcp-no-grant",
+            "mcp.call",
+            json!({"server": "fs", "tool": "read", "args": {"path": "/x"}}),
+        )
+        .await,
+    );
+
+    // 6b. Allowed through the gate (mcp grant present) but the requested
+    //     server is not on `mcp.allow`. Registry-layer denial names the
+    //     server (design §5).
+    let with_mcp = AuthContext::in_process("lead-tracker", vec!["collections".into(), "mcp".into()]);
+    report(
+        "mcp.call (granted but server not in mcp.allow) — denied at the registry",
+        op_through_spine(
+            &mcp_gw,
+            &with_mcp,
+            "mcp-no-allow",
+            "mcp.call",
+            json!({"server": "net", "tool": "fetch", "args": {"url": "https://x"}}),
+        )
+        .await,
+    );
+
+    // 6c. Granted + allowed + on the allow-list + the tool exists on the
+    //     server. Canned result returns and is verified by the spine.
+    report(
+        "mcp.call (granted, allowed, declared) — allowed, canned result verified",
+        op_through_spine(
+            &mcp_gw,
+            &with_mcp,
+            "mcp-allowed",
+            "mcp.call",
+            json!({"server": "fs", "tool": "read", "args": {"path": "/x"}}),
+        )
+        .await,
     );
 
     // 7. Through deno_core: a V8 isolate whose only effect is the one-door op.
@@ -136,12 +213,12 @@ async fn main() -> anyhow::Result<()> {
     let script = r#"
         (async () => {
           const ok      = await ship_call("collections.read", { collection: "leads" });
-          const denied  = await ship_call("mcp.create", { id: "x" });
+          const denied  = await ship_call("runtime.dispatch", { agent: "child" });
           return { granted_call: ok, ungranted_call: denied };
         })()
     "#
     .to_string();
-    let gw = Arc::new(InProcessGateway);
+    let gw = Arc::new(InProcessGateway::default());
     match runtime::run_script(gw, auth.clone(), script).await {
         Ok(v) => println!("[deno_core] JS result:\n{}\n", serde_json::to_string_pretty(&v)?),
         Err(e) => println!("[deno_core] ERROR: {e}\n"),
@@ -150,19 +227,19 @@ async fn main() -> anyhow::Result<()> {
     // 8. Slice 2: agent as an ES MODULE importing the SCOPED SDK.
     //    The SDK is generated from grants ["collections"] — so `collections` is
     //    importable but `mcp`/`agent` are not even in the module. The raw
-    //    `op_ship_call("mcp.create")` shows the GATE still guards what the SDK
-    //    narrows: soft layer (SDK) + hard layer (gate).
+    //    `op_ship_call("runtime.dispatch")` shows the GATE still guards what
+    //    the SDK narrows: soft layer (SDK) + hard layer (gate).
     println!("--- slice 2: scoped SDK module (grant=[collections]) ---");
     println!("generated SDK:\n{}", sdkgen::generate_sdk(&spec.capability.grants));
     let agent_src = r#"
         import { collections } from "ship";
         const via_sdk = await collections.read({ collection: "leads" });
         // raw attempt at an UNGRANTED service — SDK never exposed it; the gate denies it.
-        const raw_ungranted = await Deno.core.ops.op_ship_call("mcp.create", { id: "x" });
+        const raw_ungranted = await Deno.core.ops.op_ship_call("runtime.dispatch", { agent: "child" });
         Deno.core.ops.op_emit({ via_sdk, raw_ungranted });
     "#
     .to_string();
-    let gw = Arc::new(InProcessGateway);
+    let gw = Arc::new(InProcessGateway::default());
     match runtime::run_module(gw, auth.clone(), spec.capability.grants.clone(), agent_src).await {
         Ok(emitted) => println!(
             "[slice2] agent emitted:\n{}\n",
@@ -175,7 +252,7 @@ async fn main() -> anyhow::Result<()> {
     println!("--- slice 2: deny-by-default import ---");
     let evil_src = r#"import { readFileSync } from "fs"; Deno.core.ops.op_emit({ escaped: true });"#
         .to_string();
-    let gw = Arc::new(InProcessGateway);
+    let gw = Arc::new(InProcessGateway::default());
     match runtime::run_module(gw, auth.clone(), spec.capability.grants.clone(), evil_src).await {
         Ok(_) => println!("[slice2] ✖ FORBIDDEN import was allowed — deny-by-default FAILED\n"),
         Err(e) => println!("[slice2] ✓ blocked: {e}\n"),
@@ -194,9 +271,9 @@ async fn main() -> anyhow::Result<()> {
         ),
         rig::test_utils::MockTurn::text("Read the leads collection."),
     ]);
-    let gw = Arc::new(InProcessGateway);
+    let gw = Arc::new(InProcessGateway::default());
     // The VM thread (the !Send bridge) — shared by run_script across runs.
-    let executor = Arc::new(script_executor::ScriptExecutor::spawn(Arc::new(InProcessGateway)));
+    let executor = Arc::new(script_executor::ScriptExecutor::spawn(Arc::new(InProcessGateway::default())));
     // A headless ToolCtx for the demo: no human (so any `Ask` is denied),
     // no steers, no cancel. The demo exercises the loop's gate + spine paths.
     let demo_ctx = agent_loop::ToolCtx {
@@ -223,7 +300,7 @@ async fn main() -> anyhow::Result<()> {
         ),
         rig::test_utils::MockTurn::text("Computed via code-mode."),
     ]);
-    match agent_loop::run_step(coder, &spec, Arc::new(InProcessGateway), auth.clone(), executor, demo_ctx, "summarize leads").await {
+    match agent_loop::run_step(coder, &spec, Arc::new(InProcessGateway::default()), auth.clone(), executor, demo_ctx, "summarize leads").await {
         Ok(out) => println!("[slice3] agent final: {}\n", out.text),
         Err(e) => println!("[slice3] ERROR: {e}\n"),
     }
@@ -248,7 +325,7 @@ async fn main() -> anyhow::Result<()> {
     //     structured `ChildOutcome`. No daemon crates are involved; this proves
     //     the contract and shape per S14 design §5.2.
     println!("--- slice 5: orchestration seam (in-process child runner) ---");
-    let gw = Arc::new(InProcessGateway);
+    let gw = Arc::new(InProcessGateway::default());
     let orch = orchestration::InProcessOrchestrator::new(gw.clone());
     let parent_ctx = orchestration::ParentContext::new("demo-parent", "demo");
     let child_spec = AgentSpec::demo("child-1", "mock", &["collections"]);

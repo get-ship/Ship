@@ -66,10 +66,28 @@ const COLLECTIONS: Service = Service {
 const MCP: Service = Service {
     name: "mcp",
     methods: &[
-        Method { name: "list", args: None, returns: None, blast: Blast::C0Safe },
-        Method { name: "get", args: None, returns: None, blast: Blast::C0Safe },
+        // The single synthetic op for MCP tool calls (S-mcp v1, design §1).
+        // Per-server / per-tool blast is dynamic — looked up at dispatch on
+        // `McpRegistry`, not in this static table. The blast on the wire is
+        // intrinsic to the method, and `mcp.call` is always C2 (v1 default;
+        // v2 reads MCP `annotations`). The second deny-by-default axis
+        // (per-server allow-list) is enforced on the registry, not the
+        // gate.
+        Method {
+            name: "call",
+            // The op is dispatched with `{ server, tool, args }`. The
+            // typed-args literal mirrors the registry's (server, tool)
+            // shape so the .d.ts and the JS SDK agree.
+            args: Some("{ server: string; tool: string; args?: unknown; }"),
+            returns: None,
+            blast: Blast::C2Elevated,
+        },
+        // MCP server config-management ops (C2, ask-stance). Registering or
+        // removing a third-party MCP server is sensitive, so the gateway's
+        // S11 Ask layer (`is_ask_stance`) requires human approval for these.
+        // Distinct from `mcp.call` (tool invocation, free — its second
+        // deny-by-default axis is the per-server allow-list, not approval).
         Method { name: "create", args: None, returns: None, blast: Blast::C2Elevated },
-        Method { name: "put", args: None, returns: None, blast: Blast::C2Elevated },
         Method { name: "delete", args: None, returns: None, blast: Blast::C2Elevated },
     ],
 };
@@ -166,7 +184,7 @@ mod tests {
         let known_ops = [
             "collections.read",   // C0
             "collections.put",    // C1
-            "mcp.create",         // C2
+            "mcp.call",           // C2 (synthetic, dynamic blast from registry)
             "runtime.dispatch",   // C2
             "runtime.parallel",   // C2
             "account.rotate_key", // C3
@@ -200,8 +218,7 @@ mod tests {
         assert_eq!(blast_of("collections.put"), Some(Blast::C1Space));
         assert_eq!(blast_of("collections.delete"), Some(Blast::C1Space));
         // C2 elevated
-        assert_eq!(blast_of("mcp.create"), Some(Blast::C2Elevated));
-        assert_eq!(blast_of("mcp.delete"), Some(Blast::C2Elevated));
+        assert_eq!(blast_of("mcp.call"), Some(Blast::C2Elevated));
         assert_eq!(blast_of("runtime.dispatch"), Some(Blast::C2Elevated));
         assert_eq!(blast_of("runtime.parallel"), Some(Blast::C2Elevated));
         // C3 operator-only

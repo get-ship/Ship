@@ -51,6 +51,12 @@ pub struct Disposition {
 /// role-derivation. Blast is NEVER written here: it is intrinsic to the op in
 /// the proto, looked up by the gateway. The author can grant a domain; they can
 /// never claim a blast tier.
+///
+/// `mcp` is a service domain like any other (granting it is the first
+/// axis of the MCP gate). Within that grant, `mcp.allow` is the
+/// SECOND deny-by-default axis: a per-server list the spec author uses
+/// to pin the agent to exactly the configured servers it may call.
+/// The list is enforced on the registry, not the gate.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Capability {
     /// Granted service domains (= elevated_services for C2). C0/C1 are baseline.
@@ -59,6 +65,11 @@ pub struct Capability {
     /// Skill refs — ecosystem/procedural bundles, trigger-loaded. Not gated here.
     #[serde(default)]
     pub skills: Vec<String>,
+    /// MCP per-server allow-list. The agent's `mcp` grant must also
+    /// exist for MCP to be reachable. When present, this list pins
+    /// the agent to a subset of the configured MCP servers.
+    #[serde(default)]
+    pub mcp_allow: Vec<String>,
 }
 
 /// 4 · Memory — binding to the memento product (Space-scoped `decisions`
@@ -108,8 +119,20 @@ impl AgentSpec {
             capability: Capability {
                 grants: grants.iter().map(|s| s.to_string()).collect(),
                 skills: vec![],
+                mcp_allow: vec![],
             },
             memory: Memory { enabled: false },
         }
+    }
+
+    /// Convenience for the S-mcp demo: an agent that has the `mcp`
+    /// grant plus an explicit `mcp_allow` list (the second
+    /// deny-by-default axis). Returns a spec the main demo uses to
+    /// show the three branches: denied-no-grant, denied-no-allow,
+    /// allowed.
+    pub fn demo_mcp(id: &str, model: &str, grants: &[&str], mcp_allow: &[&str]) -> Self {
+        let mut s = Self::demo(id, model, grants);
+        s.capability.mcp_allow = mcp_allow.iter().map(|s| s.to_string()).collect();
+        s
     }
 }

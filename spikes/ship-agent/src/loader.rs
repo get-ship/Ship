@@ -61,6 +61,9 @@ struct RulesBlock {
 #[serde(default)]
 struct CapabilityBlock {
     grants: Option<Vec<String>>,
+    /// Per-server MCP allow-list (the second deny-by-default axis on
+    /// the S-mcp registry). Mirrors `spec::Capability::mcp_allow`.
+    mcp_allow: Option<Vec<String>>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -131,22 +134,23 @@ fn project(doc: SupersetDoc) -> AgentSpec {
         temperature: None,
         max_turns: None,
     };
-
     // Grants come ONLY from the native `capability.grants` block. `permissions`
     // (ToolPatterns) are harness-only and must never be reinterpreted as grants.
     let grants = doc
         .capability
-        .and_then(|c| c.grants)
+        .as_ref()
+        .and_then(|c| c.grants.clone())
         .unwrap_or_default();
-
     let skills = doc.skills.and_then(|s| s.refs).unwrap_or_default();
-
-    let capability = crate::spec::Capability { grants, skills };
-
+    let mcp_allow = doc
+        .capability
+        .as_ref()
+        .and_then(|c| c.mcp_allow.clone())
+        .unwrap_or_default();
+    let capability = crate::spec::Capability { grants, skills, mcp_allow };
     let memory = crate::spec::Memory {
         enabled: doc.memory.and_then(|m| m.enabled).unwrap_or(false),
     };
-
     AgentSpec {
         identity,
         disposition,
