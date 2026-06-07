@@ -7723,7 +7723,6 @@ dependencies = [
  "ship-reactive",
  "ship-substrate",
  "ship-types",
- "specta",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",

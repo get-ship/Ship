@@ -44,7 +44,6 @@ impl ArtifactScope {
 /// `command::artifacts::patch/promote`, REST metadata) can emit it directly —
 /// the old record carried the same derive.
 #[derive(Debug, Clone, serde::Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ArtifactRecord {
     pub id: String,
     pub name: String,
