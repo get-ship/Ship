@@ -15,16 +15,15 @@ pub fn serve_catalog_workspace(mode: DaemonMode) -> DeckResponse {
 const EMPTY_CATALOG: &str = "{\"schemaVersion\":\"1\",\"count\":0,\"entries\":[]}\n";
 
 fn serve_catalog_file(name: &str, mode: DaemonMode) -> DeckResponse {
-    // deck-core lives at crates/deck/deck-core. Repo root is three parents up.
-    let repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .and_then(|p| p.parent())
-        .and_then(|p| p.parent())
-        .map(std::path::PathBuf::from);
-    let Some(repo) = repo else {
+    // The bundler bakes catalogs to <project>/.deck/catalogs (deck-bundler
+    // build_all). Resolve the SAME runtime root every other asset endpoint uses
+    // (deck_out_root = <project>/.deck) — never the build machine's
+    // CARGO_MANIFEST_DIR, which an installed or external-workspace daemon would
+    // resolve to a nonexistent path, always returning EMPTY_CATALOG.
+    let Some(path) = crate::resolver::deck_out_root().map(|root| root.join("catalogs").join(name))
+    else {
         return DeckResponse::json_asset(EMPTY_CATALOG.as_bytes().to_vec(), mode);
     };
-    let path = repo.join(".deck/catalogs").join(name);
     match std::fs::read(&path) {
         Ok(bytes) => DeckResponse::json_asset(bytes, mode),
         Err(_) => DeckResponse::json_asset(EMPTY_CATALOG.as_bytes().to_vec(), mode),
@@ -40,5 +39,43 @@ mod tests {
         let resp = serve_catalog_workspace(DaemonMode::Development);
         assert_eq!(resp.status, 200);
         assert!(resp.content_type.contains("application/json"));
+    }
+
+    /// Contract: the catalog is read from the RUNTIME-resolved `.deck/catalogs`
+    /// root (deck_out_root), not a build-time path — so an installed/external
+    /// daemon serves the real baked catalog. Fails with the old
+    /// CARGO_MANIFEST_DIR resolution (which ignores DECK_PROJECT_DIR).
+    #[test]
+    fn catalog_served_from_resolved_deck_root() {
+        let _lock = crate::test_lock::lock();
+        let prev_deck = std::env::var_os("DECK_PROJECT_DIR");
+        let prev_dev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join(".deck/catalogs")).unwrap();
+        std::fs::write(
+            tmp.path().join(".deck/catalogs/workspace.json"),
+            "{\"schemaVersion\":\"1\",\"count\":1,\"entries\":[\"sentinel-tag\"]}",
+        )
+        .unwrap();
+        unsafe {
+            std::env::set_var("DECK_PROJECT_DIR", tmp.path());
+            std::env::remove_var("SHIP_DEV_PROJECT_DIR");
+        }
+        let body = String::from_utf8(serve_catalog_workspace(DaemonMode::Development).body).unwrap();
+        // Restore env before asserting so a failure can't leak into other tests.
+        unsafe {
+            match prev_deck {
+                Some(v) => std::env::set_var("DECK_PROJECT_DIR", v),
+                None => std::env::remove_var("DECK_PROJECT_DIR"),
+            }
+            match prev_dev {
+                Some(v) => std::env::set_var("SHIP_DEV_PROJECT_DIR", v),
+                None => std::env::remove_var("SHIP_DEV_PROJECT_DIR"),
+            }
+        }
+        assert!(
+            body.contains("sentinel-tag"),
+            "catalog must be read from the resolved .deck/catalogs root; got: {body}"
+        );
     }
 }
