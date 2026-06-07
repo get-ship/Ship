@@ -264,3 +264,36 @@ fn view_payload_dev_compile_error_includes_detail() {
     assert!(body["line"].as_u64().unwrap() >= 1, "dev must include line number; got: {v}");
     assert!(!body["message"].as_str().unwrap_or("").is_empty(), "dev must include message; got: {v}");
 }
+
+/// The payload compile (parse + build + render_split) is mtime-cached on the
+/// source `.sui` (SPLIT_CACHE). Behavior contract: an edited source (mtime
+/// advanced) is picked up — never stale-pinned to the first compile. Asserts the
+/// OUTPUT, not a hit-count, so it holds even if the cache is later changed or
+/// removed (it guards against a cache that pins stale output, the real risk).
+#[test]
+fn payload_split_cache_revalidates_on_source_mtime() {
+    let tmp = tempfile::tempdir().unwrap();
+    let _g = lock_with_dir(tmp.path());
+    let view_name = "split-cache-revalidate";
+    let view_dir = tmp.path().join(format!(".ship/views/{view_name}"));
+    fs::create_dir_all(&view_dir).unwrap();
+    let src = view_dir.join("index.sui");
+    fs::write(&src, "<p>split-v1</p>").unwrap();
+    crate::view_payload::evict_split_cache(view_name);
+
+    // First serve compiles + caches v1. No dist/.ssr.html exists, so the payload
+    // html field comes from split.html — i.e. the cached compile output.
+    let resp = serve_view_payload(DaemonMode::Production, view_name);
+    assert_eq!(resp.status, 200);
+    assert!(body_str(&resp).contains("split-v1"), "first serve must render source v1");
+
+    // Edit the source and advance its mtime — must be a MISS that recompiles.
+    fs::write(&src, "<p>split-v2</p>").unwrap();
+    let now = fs::metadata(&src).and_then(|m| m.modified()).unwrap();
+    let bumped = now + std::time::Duration::from_secs(5);
+    filetime::set_file_mtime(&src, filetime::FileTime::from_system_time(bumped)).unwrap();
+
+    let body = body_str(&serve_view_payload(DaemonMode::Production, view_name));
+    assert!(body.contains("split-v2"), "edited source (advanced mtime) must be picked up; got: {body}");
+    assert!(!body.contains("split-v1"), "must not stale-pin the first compile");
+}

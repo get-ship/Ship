@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+use std::time::SystemTime;
+
 use serde::Serialize;
 use sui_compiler::{bindings, parse, render};
 pub use deck_host::view_payload::ViewPayload;
@@ -7,6 +11,48 @@ use crate::{CachePolicy, DaemonMode, DeckResponse};
 use crate::form_inject::inject_form_actions;
 use crate::resolver::resolve;
 use crate::routes::subscribe_url;
+
+/// Memoizes the per-request compile (`parse` + `bindings::build` +
+/// `render_split`) keyed on the source `.sui`'s mtime. Same pattern as
+/// `view_host::SSR_CACHE`: a hit re-stats the source and only reuses the split
+/// when the mtime is unchanged, so an edited view (advanced mtime) is a MISS and
+/// is never stale-pinned. Without this, every page load re-lexes/parses/renders
+/// the view on the hot path, so CPU/latency scaled with traffic, not with edits.
+struct SplitEntry {
+    mtime: SystemTime,
+    split: render::RenderSplit,
+}
+
+static SPLIT_CACHE: OnceLock<Mutex<HashMap<String, SplitEntry>>> = OnceLock::new();
+
+fn split_cache() -> &'static Mutex<HashMap<String, SplitEntry>> {
+    SPLIT_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn clone_split(s: &render::RenderSplit) -> render::RenderSplit {
+    render::RenderSplit { html: s.html.clone(), init: s.init.clone(), has_live_data: s.has_live_data }
+}
+
+/// Cache hit only when we have a source mtime AND it matches the cached entry.
+fn split_cache_get(key: &str, mtime: Option<SystemTime>) -> Option<render::RenderSplit> {
+    let mt = mtime?;
+    let cache = split_cache().lock().unwrap_or_else(|e| e.into_inner());
+    let entry = cache.get(key)?;
+    (entry.mtime == mt).then(|| clone_split(&entry.split))
+}
+
+fn split_cache_put(key: &str, mtime: SystemTime, split: &render::RenderSplit) {
+    let mut cache = split_cache().lock().unwrap_or_else(|e| e.into_inner());
+    cache.insert(key.to_string(), SplitEntry { mtime, split: clone_split(split) });
+}
+
+/// Test-only: drop a cached split so a fresh fixture isn't shadowed by a prior
+/// test's entry. Production invalidation is automatic via the mtime gate.
+#[cfg(test)]
+pub(crate) fn evict_split_cache(key: &str) {
+    let mut cache = split_cache().lock().unwrap_or_else(|e| e.into_inner());
+    cache.remove(key);
+}
 
 pub fn serve_view_payload(mode: DaemonMode, name: &str) -> DeckResponse {
     serve(name, None, mode)
@@ -26,23 +72,39 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
             return json_error(404, PayloadErrorBody::ViewNotFound { name: name.to_string() });
         }
     };
-    let program = match parse::parse(&resolved.source) {
-        Ok(p) => p,
-        Err(err) => return compile_error_response(name, &resolved.source, err, mode),
-    };
-    let registry = bindings::build(&program);
     // For a nested route (e.g. /studio/agents) the live-data SSE channel lives
     // at /_sui/views/<name>/<sub>/sse, not /_sui/views/<name>/sse. Fold the sub
     // into the resolved view_name so render_split emits the right __subscribe__
-    // URL (mirrors the module_url ?sub= handling just below).
+    // URL (mirrors the module_url ?sub= handling below) and the cache keys per
+    // (name, sub).
     let view_name = match sub_path {
         Some(s) => format!("{name}/{s}"),
         None => name.to_string(),
     };
-    let opts = render::RenderOpts { view_name: view_name.clone() };
-    let split = match render::render_split(&program, &registry, &opts) {
-        Ok(r) => r,
-        Err(err) => return compile_error_response(name, &resolved.source, err, mode),
+    // Hot path: compile is mtime-cached on the source (see SPLIT_CACHE). A hit
+    // skips parse/build/render_split entirely; a source whose mtime advanced is
+    // a MISS, so an edited view is never stale-pinned.
+    let source_mtime = resolved
+        .source_path
+        .as_deref()
+        .and_then(|p| std::fs::metadata(p).and_then(|m| m.modified()).ok());
+    let split = if let Some(hit) = split_cache_get(&view_name, source_mtime) {
+        hit
+    } else {
+        let program = match parse::parse(&resolved.source) {
+            Ok(p) => p,
+            Err(err) => return compile_error_response(name, &resolved.source, err, mode),
+        };
+        let registry = bindings::build(&program);
+        let opts = render::RenderOpts { view_name: view_name.clone() };
+        let split = match render::render_split(&program, &registry, &opts) {
+            Ok(r) => r,
+            Err(err) => return compile_error_response(name, &resolved.source, err, mode),
+        };
+        if let Some(mt) = source_mtime {
+            split_cache_put(&view_name, mt, &split);
+        }
+        split
     };
     let css = collect_view_css(name, resolved.source_path.as_deref());
     let module_url = crate::routes::view_module_url(name, sub_path);
