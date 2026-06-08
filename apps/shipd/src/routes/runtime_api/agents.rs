@@ -8,7 +8,7 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::auth::{AuthContext};
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // ---- Agent control ----
@@ -23,9 +23,13 @@ pub struct SteerAgentRequest {
 /// Uses the process registry and executor to terminate the agent process.
 pub async fn stop_agent(
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
+    // ship.agents.write (AgentsService.Stop) — agents that can stop other agents.
+    if let Err(e) = require_scope(&auth, Scope::ManageRuns) {
+        return e;
+    }
     let dh = match state.dispatch_handle() {
         Some(dh) => dh,
         None => {
@@ -64,10 +68,14 @@ pub async fn stop_agent(
 /// POST /api/v1/runtime/agents/{slug}/steer — inject a message into a running agent.
 pub async fn steer_agent(
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Path(slug): Path<String>,
     Json(req): Json<SteerAgentRequest>,
 ) -> impl IntoResponse {
+    // ship.agents.write (AgentsService.Steer) — agents that can steer other agents.
+    if let Err(e) = require_scope(&auth, Scope::ManageRuns) {
+        return e;
+    }
     let dh = match state.dispatch_handle() {
         Some(dh) => dh,
         None => {

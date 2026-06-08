@@ -16,7 +16,7 @@ use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResp
 use ship_substrate::events::{EmitContext, EventEnvelope};
 use serde::Deserialize;
 
-use crate::auth::{AuthContext};
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 #[derive(Deserialize)]
@@ -46,6 +46,11 @@ pub async fn actor_spawn(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<ActorSpawnReq>,
 ) -> impl IntoResponse {
+    // L0 kernel write — actor registration. Requires MeshSend (the same
+    // restrictive scope the route declares; no proto equivalent exists).
+    if let Err(e) = require_scope(&auth, Scope::MeshSend) {
+        return e;
+    }
 
     // Resolve the actor id. Daemon is the only minter — clients
     // either send the ULID a daemon-spawn already minted (propagated
@@ -194,6 +199,11 @@ pub async fn event_route(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<EventRouteReq>,
 ) -> impl IntoResponse {
+    // L0 kernel write — event routing. Requires EmitEvents (the same
+    // restrictive scope the route declares; no proto equivalent exists).
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e;
+    }
     // MCP tools route through the daemon's HTTP API. The MCP server is a
     // trusted Ship component — it validates caller permissions before emitting.
     // Use the authenticated caller kind but allow CLI callers (default) to route

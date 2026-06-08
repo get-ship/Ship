@@ -8,7 +8,7 @@ use axum::response::IntoResponse;
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 
-use crate::auth::{AuthContext};
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::ApiState;
 
 use super::super::lifecycle;
@@ -137,9 +137,13 @@ pub async fn installed_harnesses(
 
 pub async fn spawn_session(
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<SpawnBody>,
 ) -> axum::response::Response {
+    // ship.sessions.write — session lifecycle write.
+    if let Err(e) = require_scope(&auth, Scope::ManageRuns) {
+        return e.into_response();
+    }
     let registry = state.pty_sessions();
     let log_dir = state.ship_dir().join("logs").join("sessions");
     let work_dir = work_dir_for(&state, &req.workspace_id);
@@ -284,9 +288,13 @@ pub async fn get_session(
 
 pub async fn stop_session(
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
+    // ship.sessions.write — session lifecycle write.
+    if let Err(e) = require_scope(&auth, Scope::ManageRuns) {
+        return e.into_response();
+    }
     if super::super::shell_actor::stop(state.actor_sessions(), &id)
         || lifecycle::stop(state.pty_sessions(), &id)
     {

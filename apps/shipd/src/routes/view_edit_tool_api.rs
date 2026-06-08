@@ -14,7 +14,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::ApiState;
 use crate::view_ports::ViewToolAdapter;
 use ship_views::view_authoring::tool_dispatch::{DispatchResult, dispatch};
@@ -34,9 +34,13 @@ fn default_args() -> serde_json::Value {
 pub async fn dispatch_tool(
     Path(name): Path<String>,
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Json(body): Json<ToolBody>,
 ) -> Response {
+    // ship.views.write (ViewService.Tool) — view-authoring write.
+    if let Err(e) = require_scope(&auth, Scope::ManageRuns) {
+        return e.into_response();
+    }
     dispatch_tool_core(&state, name, body).await
 }
 

@@ -7,7 +7,7 @@ use axum::{
     response::IntoResponse,
 };
 
-use crate::auth::{AuthContext};
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
@@ -69,8 +69,13 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
 /// POST /api/v1/runtime/rebuild-projections — rebuild all projections from events.
 pub async fn rebuild_projections(
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
 ) -> impl IntoResponse {
+    // Destructive admin op — requires AdminDaemon (the most restrictive
+    // operator/admin scope used for daemon-level maintenance ops in shipd).
+    if let Err(e) = require_scope(&auth, Scope::AdminDaemon) {
+        return e;
+    }
     match ship_substrate::db::rebuild::rebuild_projections(state.ship_dir()) {
         Ok(report) => (
             StatusCode::OK,
