@@ -8364,6 +8364,7 @@ dependencies = [
  "ship-host",
  "ship-kernel",
  "ship-pipelines",
+ "ship-runner",
  "ship-types",
  "specta",
  "sqlx",
