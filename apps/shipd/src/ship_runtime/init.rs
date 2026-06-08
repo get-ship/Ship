@@ -14,18 +14,16 @@ use super::{ShipRuntime, RuntimeConfig, AppMetadata, WorktreeResolver};
 
 /// Production worktree resolver: branch name → worktree path via
 /// `git worktree list`, falling back to the current project root if the
-/// id matches the current branch. Replaces the legacy free function
-/// `crate::project_api::resolve_worktree` lookup; both share the
-/// `worktree_path_for_branch` + `current_branch_at` helpers in
-/// `project_api/mod.rs`.
+/// id matches the current branch. Uses the `worktree_path_for_branch` +
+/// `current_branch_at` helpers in `super::worktree`.
 pub fn default_worktree_resolver() -> WorktreeResolver {
     Arc::new(|id: &str| {
-        if let Some(path) = crate::project_api::worktree_path_for_branch(id) {
+        if let Some(path) = super::worktree::worktree_path_for_branch(id) {
             return Some(path);
         }
         if let Ok(project_ship) = ship_substrate::project::get_project_dir(None)
             && let Some(root) = project_ship.parent()
-            && let Some(current_branch) = crate::project_api::current_branch_at(root)
+            && let Some(current_branch) = super::worktree::current_branch_at(root)
             && current_branch == id
         {
             return Some(root.to_path_buf());

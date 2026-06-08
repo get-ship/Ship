@@ -12,6 +12,7 @@ pub mod types;
 pub(crate) mod init;
 mod accessors;
 mod tasks;
+mod worktree;
 #[cfg(test)]
 mod test_ctors;
 

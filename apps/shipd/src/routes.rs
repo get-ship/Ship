@@ -390,16 +390,6 @@ pub enum Route {
 
     // ── Supervisor ───────────────────────────────────────────────────────
 
-    // ── Project-scoped ───────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/projects/{id}/session-files"
-    /// @auth scope ReadWorkspace
-    ListSessionFiles { id: String },
-
-    /// @route GET "/api/v1/projects/{id}/agents"
-    /// @auth scope ReadWorkspace
-    ListProjectAgents { id: String },
-
     // ── GitService — canonical `/api/git/*` surface ──────────────────────
 
     /// @route POST "/api/v1/git/stage"
@@ -445,10 +435,6 @@ pub enum Route {
     /// @route GET "/api/v1/git/sse"
     /// @auth scope ReadWorkspace
     GitSse,
-
-    /// @route POST "/api/v1/events/emit"
-    /// @auth scope EmitEvents
-    EmitEvent,
 
     // Workspace-scoped artifact status/promote removed — callers get 404.
     // Use the unified /api/artifacts/* surface instead.

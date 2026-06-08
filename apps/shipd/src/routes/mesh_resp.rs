@@ -2,9 +2,8 @@
 //!
 //! `ok_response`/`err_response` are the single source of truth for the
 //! `(StatusCode, Json<MeshResponse>)` success/error envelope returned by the
-//! `/api/v1/*` JSON handlers. Extracted from `project_api/mod.rs` so every
-//! handler — the ones relocated out of `project_api` and the ones still
-//! resident — imports them from one place.
+//! `/api/v1/*` JSON handlers across `routes/` (e.g. the relocated jobs-status
+//! handlers in `runtime_api`), so every handler imports them from one place.
 
 use axum::{Json, http::StatusCode};
 use serde_json::json;

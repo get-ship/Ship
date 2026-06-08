@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    auth, project_api, services, ship_runtime,
+    auth, services, ship_runtime,
     sessions, views,
 };
 use crate::routes::{
@@ -327,10 +327,6 @@ async fn build_header_middleware(
 /// the canonical `Route` enum. Paths come from `routes.rs` — this function
 /// only binds handlers.
 ///
-/// Two preserved non-enum `.route()` paths:
-/// - `/api/v1/projects/{id}/session-files/{*path}` — glob param, specific to
-///   project_api's recursive file handler. Kept alongside the enum variant
-///   that exposes the non-glob listing endpoint.
 fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     Router::new()
@@ -439,9 +435,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
         // Settings
         .ship_route(Route::ListProviders, settings_api::list_harnesses)
-        // Project
-        .ship_route(Route::ListSessionFiles_template(), project_api::list_session_files)
-        .ship_route(Route::ListProjectAgents_template(), project_api::list_agents)
         // GitService — canonical `/api/v1/git/*` surface. Consolidates the
         // old workspace- and project-scoped git endpoints into one.
         // Write handlers live in `ship_git::rest_handlers`; they take
@@ -463,7 +456,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
                 .with_state(st.git_arc()),
         )
         .ship_route(Route::GitSse, git_api::sse_handler)
-        .ship_route(Route::EmitEvent, project_api::emit_event)
         // Artifacts platform (three-scope)
         .merge(
             Router::<rest_api::ApiState>::new()
@@ -491,14 +483,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             axum::routing::post(view_errors_api::post_error)
                 .get(view_errors_api::list_errors)
                 .delete(view_errors_api::clear_errors),
-        )
-        // Glob-param file handlers (not in enum — glob syntax is project_api
-        // internal; keep flat).
-        .route(
-            "/api/v1/projects/{id}/session-files/{*path}",
-            axum::routing::get(project_api::read_session_file)
-                .put(project_api::write_session_file)
-                .delete(project_api::delete_session_file),
         )
         .with_state(st)
 }

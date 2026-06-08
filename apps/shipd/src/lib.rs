@@ -24,7 +24,6 @@ pub mod transport;
 mod daemon;
 pub mod services;
 pub mod managers;
-pub mod project_api;
 pub mod routes;
 pub mod router;
 pub mod ops_rpc;
