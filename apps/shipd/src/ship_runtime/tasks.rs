@@ -44,37 +44,6 @@ impl ShipRuntime {
         Some(ship_substrate::project::project_slug_from_ship_dir(&project_ship))
     }
 
-    /// Lazily initialize and return the mesh manager.
-    pub async fn mesh(&self) -> &crate::managers::MeshManager {
-        self.mesh
-            .get_or_init(|| async {
-                crate::managers::MeshManager::new(self.mesh_registry.clone())
-            })
-            .await
-    }
-
-    /// Lazily initialize and return the job manager.
-    ///
-    /// On first call, subscribes to job events and reconciles orphaned
-    /// dispatched jobs from previous daemon runs.
-    pub async fn jobs(&self) -> &crate::managers::RunManager {
-        let hr = self.health_registry.clone();
-        let registry = self.session_registry.clone();
-        let daemon_url = self.daemon_origin();
-        self.jobs
-            .get_or_init(|| async {
-                crate::managers::RunManager::init(
-                    self.kernel.clone(),
-                    self.ship_dir.clone(),
-                    &hr,
-                    registry,
-                    daemon_url,
-                )
-                .await
-            })
-            .await
-    }
-
     /// Lazily initialize and return the session scanner.
     ///
     /// On first call, starts a background task that scans for abandoned sessions.

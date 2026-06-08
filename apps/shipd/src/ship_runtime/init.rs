@@ -218,8 +218,6 @@ impl ShipRuntime {
                     None => home.daemon_dir(),
                 }
             },
-            mesh: tokio::sync::OnceCell::new(),
-            jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),

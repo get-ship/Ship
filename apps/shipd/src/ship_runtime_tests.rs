@@ -98,24 +98,6 @@ async fn api_state_is_arc_ship_runtime() {
     let _state: crate::ship_runtime::AppState = Arc::new(rt);
 }
 
-// ── Manager access ──────────────────────────────────────────────────────
-
-#[tokio::test(flavor = "multi_thread")]
-async fn mesh_manager_accessible() {
-    let (_dir, rt) = make_runtime().await;
-    let mesh = rt.mesh().await;
-    // MeshManager exists and is returned — exact assertions are for
-    // the mesh manager's own tests.
-    let _ = mesh;
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_manager_accessible() {
-    let (_dir, rt) = make_runtime().await;
-    let jobs = rt.jobs().await;
-    let _ = jobs;
-}
-
 // ── Shutdown ────────────────────────────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread")]
