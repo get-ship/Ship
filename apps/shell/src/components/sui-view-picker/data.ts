@@ -72,10 +72,11 @@ const HIDDEN_VIEWS = new Set([
 ])
 
 export async function fetchViews(_url?: string): Promise<ApiView[]> {
-  try {
-    const body = JSON.parse((await ops.discovery.list({})).json) as { views?: ApiView[] }
-    return (body.views ?? []).filter((v) => !HIDDEN_VIEWS.has(v.name))
-  } catch { return [] }
+  // Views are client-side routes (routing IS the catalog); the daemon discovery
+  // op was quarantined (06153c1a5) — deleted stays deleted, no sneak-restore.
+  // Cut the dead call; empty until the router→view-list integration lands. The
+  // component picker's needs are served by the `search` RPC, not a views catalog.
+  return ([] as ApiView[]).filter((v) => !HIDDEN_VIEWS.has(v.name))
 }
 
 export async function fetchProject(_url?: string): Promise<Project | null> {
