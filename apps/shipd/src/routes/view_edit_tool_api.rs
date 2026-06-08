@@ -75,19 +75,6 @@ fn err(status: StatusCode, code: &str, message: &str) -> Response {
         .into_response()
 }
 
-/// Kept public for apps/shipd/src/lib.rs bundler-watcher path.
-pub fn schedule_annotation_clear(view_name: String) {
-    use crate::views::sui_view_edit_sse::{AnnotationClearPayload, publish_annotation_clear};
-    tokio::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-        let _ = publish_annotation_clear(
-            &view_name,
-            &AnnotationClearPayload { annotation_id: None, view_name: view_name.clone() },
-        )
-        .await;
-    });
-}
-
 #[cfg(test)]
 #[path = "view_edit_tool_api_tests.rs"]
 mod tests;

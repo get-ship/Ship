@@ -26,7 +26,6 @@ pub mod pipelines;
 pub mod projections;
 pub mod run_core;
 pub mod status_core;
-pub mod view;
 pub mod wire;
 
 use std::sync::Once;

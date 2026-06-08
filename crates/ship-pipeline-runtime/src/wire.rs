@@ -16,7 +16,6 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::{Value, json};
 use ship_ops_rpc::{
@@ -29,22 +28,9 @@ use crate::pipelines::state;
 // ── Closure type aliases ──────────────────────────────────────────────────────
 
 /// Gate closure: (request_context, op_name) → Ok or PermissionDenied.
-/// Shipd supplies this from `gate::decide` + proto descriptor.
 pub type GateFn = Arc<dyn Fn(&RequestContext, &str) -> Result<(), ConnectError> + Send + Sync>;
 
 type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
-
-/// Sync read resolver: (op_name, args) → JSON Value.
-/// Shipd wires this to its `services/pipelines` view helpers
-/// (`summaries::build`, `run_detail::build`, `history::build`) which need
-/// the daemon's `ship_dir` + projection layer.
-pub type ReadFn = Arc<dyn Fn(&str, &Value) -> Value + Send + Sync>;
-
-/// Async live-read opener: (op_name, args) → server-sent stream of JSON.
-/// Shipd wires this to `live_read::OpsImpl::live_read` (kernel subscriber
-/// loop). The stream yields one snapshot + re-yields on every `config` event.
-pub type LiveReadFn =
-    Arc<dyn Fn(&'static str, Value) -> BoxFuture<ServiceResult<ServiceStream<JsonResponse>>> + Send + Sync>;
 
 /// Async write closure: (op, args, ctx) → Result<Value, ConnectError>.
 /// Shipd captures `ApiState` here for `run_pipeline`, `end_job`,
@@ -55,23 +41,26 @@ pub type WriteFn =
 // ── Wire struct ───────────────────────────────────────────────────────────────
 
 /// ConnectRPC wire for `PipelinesService`.
+///
+/// The view-backed reads (`summaries` / `run` / `history` / `focus`) and their
+/// `*_live` twins previously took injected `read_fn` / `live_read_fn`
+/// closures that called shipd's view helpers. The view coupling
+/// (`ship_pipeline_runtime::view::*`) was retired in job/livedata-collapse —
+/// those methods now return `Unimplemented`. The pipelines DOMAIN service is
+/// being reworked elsewhere; do not rebuild a replacement here.
 pub struct PipelinesWire {
-    svc:          Arc<dyn PipelinesService>,
-    gate:         GateFn,
-    read_fn:      ReadFn,
-    live_read_fn: LiveReadFn,
-    write_fn:     WriteFn,
+    svc:      Arc<dyn PipelinesService>,
+    gate:     GateFn,
+    write_fn: WriteFn,
 }
 
 impl PipelinesWire {
     pub fn new(
-        svc:          Arc<dyn PipelinesService>,
-        gate:         GateFn,
-        read_fn:      ReadFn,
-        live_read_fn: LiveReadFn,
-        write_fn:     WriteFn,
+        svc:      Arc<dyn PipelinesService>,
+        gate:     GateFn,
+        write_fn: WriteFn,
     ) -> Self {
-        Self { svc, gate, read_fn, live_read_fn, write_fn }
+        Self { svc, gate, write_fn }
     }
 }
 
@@ -139,91 +128,80 @@ impl PipelinesServiceTrait for PipelinesWire {
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedGetPipelinesSummariesRequestView,
     ) -> ServiceResult<JsonResponse> {
-        let value = (self.read_fn)("pipelines.summaries", &json!({}));
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+        Err(ConnectError::unimplemented(
+            "pipelines.summaries: view builder retired (job/livedata-collapse); pipelines DOMAIN service is being reworked elsewhere",
+        ))
     }
-
     #[allow(refining_impl_trait)]
     async fn summaries_live(
         &self,
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedGetPipelinesSummariesRequestView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        (self.live_read_fn)("pipelines.summaries", json!({})).await
+        Err(ConnectError::unimplemented(
+            "pipelines.summaries_live: view builder retired (job/livedata-collapse)",
+        ))
     }
 
     #[allow(refining_impl_trait)]
     async fn run_live(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedRunPipelineRequestView,
+        _request: ship_ops_rpc::OwnedRunPipelineRequestView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        (self.live_read_fn)("pipelines.run", json!({ "slug": request.slug })).await
+        Err(ConnectError::unimplemented(
+            "pipelines.run_live: view builder retired (job/livedata-collapse)",
+        ))
     }
-
     async fn run(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedRunPipelineRequestView,
+        _request: ship_ops_rpc::OwnedRunPipelineRequestView,
     ) -> ServiceResult<JsonResponse> {
-        let value = (self.read_fn)("pipelines.run", &json!({ "slug": request.slug }));
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+        Err(ConnectError::unimplemented(
+            "pipelines.run: view builder retired (job/livedata-collapse)",
+        ))
     }
 
     async fn history(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedListPipelinesHistoryRequestView,
+        _request: ship_ops_rpc::OwnedListPipelinesHistoryRequestView,
     ) -> ServiceResult<JsonResponse> {
-        let args = json!({
-            "limit": request.limit,
-            "offset": request.offset,
-            "pipeline": request.pipeline,
-            "q": request.q,
-        });
-        let value = (self.read_fn)("pipelines.history", &args);
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+        Err(ConnectError::unimplemented(
+            "pipelines.history: view builder retired (job/livedata-collapse)",
+        ))
     }
 
     async fn focus(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedPipelineFocusRequestView,
+        _request: ship_ops_rpc::OwnedPipelineFocusRequestView,
     ) -> ServiceResult<JsonResponse> {
-        // 404 (not_found) when no pipeline file resolves to `name` — the
-        // studio focus page renders that as an error envelope, never a
-        // null `ok` value (the wire yields a `null` json which the
-        // controller's `read()` envelope-guard rejects).
-        let value = (self.read_fn)("pipelines.focus", &json!({ "name": request.name }));
-        if value.is_null() {
-            return Err(ConnectError::not_found(format!(
-                "no pipeline named `{}`",
-                request.name
-            )));
-        }
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+        Err(ConnectError::unimplemented(
+            "pipelines.focus: view builder retired (job/livedata-collapse)",
+        ))
     }
 
     #[allow(refining_impl_trait)]
     async fn focus_live(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedPipelineFocusRequestView,
+        _request: ship_ops_rpc::OwnedPipelineFocusRequestView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        (self.live_read_fn)("pipelines.focus", json!({ "name": request.name })).await
+        Err(ConnectError::unimplemented(
+            "pipelines.focus_live: view builder retired (job/livedata-collapse)",
+        ))
     }
-
     #[allow(refining_impl_trait)]
     async fn history_live(
         &self,
         _ctx: RequestContext,
-        request: ship_ops_rpc::OwnedListPipelinesHistoryRequestView,
+        _request: ship_ops_rpc::OwnedListPipelinesHistoryRequestView,
     ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        let args = json!({
-            "limit": request.limit, "offset": request.offset,
-            "pipeline": request.pipeline, "q": request.q,
-        });
-        (self.live_read_fn)("pipelines.history", args).await
+        Err(ConnectError::unimplemented(
+            "pipelines.history_live: view builder retired (job/livedata-collapse)",
+        ))
     }
 
     // ── dispatch + end_turn (shipd route cores via write_fn) ─────────────────

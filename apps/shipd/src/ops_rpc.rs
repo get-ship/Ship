@@ -368,84 +368,12 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::GitServiceExt::register(git_wire, router);
     // pipelines.* — crate-owned PipelinesWire (ship-pipeline-runtime).
     // Replaces `impl PipelinesService for OpsImpl` in pipelines_rpc.rs (deleted).
-    // Reads (C0): list/get call the crate service directly; summaries/run/history
-    // go through the read_fn closure (shipd view helpers). Writes (C1): all config
-    // + runtime writes go through the write_fn closure (shipd route cores + gated
-    // command calls). Live-read streams go through the live_read_fn closure (shipd
-    // kernel subscriber loop).
-    let pipelines_state_for_read = state.clone();
-    let pipelines_read_fn: ship_pipeline_runtime::wire::ReadFn = Arc::new(move |op, args| {
-        match op {
-            "pipelines.summaries" => {
-                use crate::services::pipelines::summaries;
-                use crate::views::state::Filter;
-                let filter = Filter {
-                    agent: args.get("agent").and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty()).map(str::to_string),
-                    status: args.get("status").and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty()).map(str::to_string),
-                    pipeline: args.get("pipeline").and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty()).map(str::to_string),
-                    q: args.get("q").and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty()).map(str::to_string),
-                };
-                let active_tab = args.get("active_tab").and_then(|v| v.as_str())
-                    .filter(|s| !s.is_empty()).map(str::to_string);
-                let ctx = summaries::build(pipelines_state_for_read.ship_dir(), filter, active_tab);
-                serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
-            }
-            "pipelines.run" => {
-                use crate::services::pipelines::run_detail;
-                let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("");
-                let ctx = run_detail::build(slug, pipelines_state_for_read.ship_dir());
-                serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
-            }
-            "pipelines.history" => {
-                use crate::services::pipelines::history;
-                let q = args.get("q").and_then(|v| v.as_str())
-                    .filter(|s| !s.is_empty()).map(str::to_string);
-                let pipeline = args.get("pipeline").and_then(|v| v.as_str())
-                    .filter(|s| !s.is_empty()).map(str::to_string);
-                let offset = args.get("offset").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-                let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(50) as usize;
-                let ctx = history::build(pipelines_state_for_read.ship_dir(), q, pipeline, offset, limit);
-                serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
-            }
-            "pipelines.focus" => {
-                use crate::services::pipelines::focus;
-                let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                // `null` when the pipeline file doesn't exist — the
-                // generated `PipelinesService::focus` impl below lifts that
-                // into `ConnectError::not_found`, which the SDK surfaces
-                // as an error envelope.
-                match focus::build(name, pipelines_state_for_read.ship_dir()) {
-                    Some(ctx) => serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null),
-                    None => serde_json::Value::Null,
-                }
-            }
-            _ => serde_json::Value::Null,
-        }
-    });
-    let pipelines_state_for_live = state.clone();
-    let pipelines_svc_for_live = svc.clone();
-    // Live reads resolve through the ONE live-resolver registry and stream over
-    // the shared `live_read_with` loop (no inlined per-domain actor loop). The
-    // registry is keyed `domain.op` — the same key the wire passes here — and the
-    // multiplex resolves through the same table, so coverage is declared once.
-    let pipelines_live_fn: ship_pipeline_runtime::wire::LiveReadFn = Arc::new(move |op, args| {
-        let st = pipelines_state_for_live.clone();
-        let svc = pipelines_svc_for_live.clone();
-        Box::pin(async move {
-            let sub = op.strip_prefix("pipelines.").unwrap_or(op);
-            let resolve = st
-                .live_resolvers()
-                .resolve_fn("pipelines", sub, &args)
-                .ok_or_else(|| {
-                    ConnectError::invalid_argument(format!("no live resolver for {op}"))
-                })?;
-            svc.live_read_with(resolve).await
-        })
-    });
+    // The read_fn + live_read_fn closures that previously served the view-backed
+    // reads/live-reads were retired with the L1 view coupling (job/livedata-collapse).
+    // The wire's summaries/run/history/focus + their *_live twins now return
+    // `Unimplemented` — the pipelines DOMAIN service is being reworked elsewhere;
+    // do not rebuild a replacement here. Writes (C1) still go through the
+    // write_fn closure (shipd route cores + gated command calls).
     let pipelines_state_for_write = state.clone();
     let pipelines_write_fn: ship_pipeline_runtime::wire::WriteFn =
         Arc::new(move |op: String, args: serde_json::Value, ctx: connectrpc::RequestContext| {
@@ -574,8 +502,6 @@ pub fn router(state: ApiState) -> axum::Router {
     let pipelines_wire = Arc::new(ship_pipeline_runtime::wire::PipelinesWire::new(
         state.pipelines_arc(),
         gate.clone(),
-        pipelines_read_fn,
-        pipelines_live_fn,
         pipelines_write_fn,
     ));
     let router = ship_ops_rpc::PipelinesServiceExt::register(pipelines_wire, router);

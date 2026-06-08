@@ -156,10 +156,6 @@ pub enum Route {
     /// @auth public
     SuiViewPayload { name: String },
 
-    /// @route GET "/_sui/views/{name}/sse"
-    /// @auth public
-    SuiViewSse { name: String },
-
     /// @route GET "/_sui/view/{name}"
     /// @auth public
     SuiViewHost { name: String },
@@ -167,10 +163,6 @@ pub enum Route {
     /// @route GET "/_sui/dev/hmr"
     /// @auth public
     SuiDevHmr,
-
-    /// @route POST "/_sui/views/{name}/patch-elements"
-    /// @auth scope Full
-    SuiPatchElements { name: String },
 
     /// @route GET "/_sui/source/{tag}"
     /// @auth public

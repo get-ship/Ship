@@ -7,7 +7,7 @@ use ship_views::view_authoring;
 
 #[test]
 fn unknown_op_rejected_by_dispatch_string_match() {
-    // Sanity test: the dispatch arms exist for all 10 contract ops.
+    // Sanity test: the dispatch arms exist for all 9 contract ops (annotate retired).
     // The strings are duplicated in the MCP tool layer; assert here so a
     // typo on one side surfaces in CI before the MCP runtime swallows it.
     let ops = [
@@ -18,7 +18,6 @@ fn unknown_op_rejected_by_dispatch_string_match() {
         "list_siblings",
         "theme_tokens",
         "preview_snapshot",
-        "annotate",
         "list_snapshots",
         "restore_snapshot",
     ];

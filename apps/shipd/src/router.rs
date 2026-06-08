@@ -124,7 +124,6 @@ pub fn build_router(
         // — is mounted as ONE unit via `deck::router()` in the root
         // assembly below. deck-axum is the single source of truth for
         // those paths; shipd no longer hand-lists them here.
-        .ship_public_route(Route::SuiViewSse_template(), views::sui_sse::serve_sui_sse)
         .ship_public_route(Route::SuiSource_template(), views::sui_source::serve_sui_source)
         // The HMR route (SuiDevHmr) is NOT wired here — it stays
         // development-only and is merged into `root` inside the
@@ -140,8 +139,8 @@ pub fn build_router(
         // Registered AFTER Index/Setup so /setup and / keep their existing
         // handlers — the {file} is the catch-all single-segment path.
         .route("/{file}", axum::routing::get(views::static_assets::serve_shell_static))
-        // SUI state-using handlers (sui_sse, sui_data, sui_mutation, sui_agent_push) extract `State<ApiState>`. Bind the state here
-        // so the resulting `Router<()>` merges cleanly with the root
+        // Bind the runtime state here so the resulting `Router<()>` merges
+        // cleanly with the root assembly below.
         .with_state(rt.clone());
 
     let auth_token = token;
@@ -418,14 +417,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .route(
             "/_sui/mutation/{name}",
             axum::routing::post(|| async { axum::http::StatusCode::GONE }),
-        )
-        // `POST /_sui/views/{name}/patch-elements` — agent-push DOM patches.
-        // Authenticated (requires `Scope::Full`); the rest of the `/_sui/*`
-        // surface is public and lives in `public_routes`. The handler takes
-        // no router state, so it composes cleanly into this stateful group.
-        .ship_route(
-            Route::SuiPatchElements_template(),
-            views::sui_agent_push::serve_patch_elements,
         )
         // Agent-owned view sessions
         .ship_route(Route::OpenViewSession, view_sessions_api::open_session)
