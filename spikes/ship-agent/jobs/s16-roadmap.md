@@ -63,11 +63,23 @@ context-projection, all green. The hard, novel work is done before the trunk.
 core + a verified transport.
 
 ## Phase C — Workspace foundation (commits deno + the engine to the trunk)
-- **C1 · ship-js → deno.** Graduate the spike's `runtime`/`script_executor`/
-  `module_loader` into `ship-js` (rquickjs out, deno_core in). Risk-free —
-  `ship-js` has zero consumers (`s16a-shipjs-deno-blast-radius.md`). Adds
-  `deno_core`/`deno_error` to the workspace; **gate behind a `deno` feature** so
-  the default daemon build doesn't pay V8 until embedded agents are on.
+- **C1 · ship-js → deno.** ✅ DONE (`c85454aa4`,`dc7a36a70`). The spike's
+  `runtime`/`script_executor`/`module_loader` graduated into `ship-js/src/deno/`
+  behind a non-default **`deno` feature** — `cargo build --workspace` (default)
+  pays no V8; deno_core/V8 (~200 crates, +614 lock entries) compile only under
+  `--features deno`. The L0 coupling was severed by a ship-js-owned **`HostDispatch`
+  seam** (`dispatch(op,args) -> Result<Value,HostError>`): the agent's
+  Gateway/AuthContext/grants/sdkgen stay host-side, captured in the impl — ship-js
+  never imports an agent type. `run_module` takes a pre-generated `sdk_src` (host
+  resolves grants→SDK). rquickjs `eval` kept as the default lightweight surface
+  (untouched, 6 tests green); rquickjs retirement deferred to Phase D (when an
+  agent runtime consumes the deno path). 5 deno behavioral tests green. Two
+  deno_core realities resolved: op2 `#[serde]` needs the literal `serde_json::Value`;
+  isolates are thread-bound + not await-reentrant, so the executor runs jobs
+  **sequentially per VM thread** (many-agents = a *pool* of threads, Phase D — NOT
+  many isolates interleaved on one thread, which aborts V8). **Seam-vs-real-gateway
+  end-to-end proof + spike de-dup deferred to Phase D** (the agent runtime consuming
+  ship-js is D's job, not C1's).
 - **C2 · the engine → its home.** The Phase-A engine lands as an L0 crate (or in
   `ship-js`); pull `ship-pipelines` DAG/`aggregate_lane_outcomes` types where they
   fit (pure data); leave `ship-runner`'s spawn machinery behind (it's one op).
