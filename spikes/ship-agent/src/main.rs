@@ -33,6 +33,7 @@ mod lsp;
 mod orchestration;
 mod resilience;
 mod engine;
+mod projection;
 use std::sync::Arc;
 
 use serde_json::{json, Value};
