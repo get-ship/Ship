@@ -80,9 +80,17 @@ core + a verified transport.
   many isolates interleaved on one thread, which aborts V8). **Seam-vs-real-gateway
   end-to-end proof + spike de-dup deferred to Phase D** (the agent runtime consuming
   ship-js is D's job, not C1's).
-- **C2 · the engine → its home.** The Phase-A engine lands as an L0 crate (or in
-  `ship-js`); pull `ship-pipelines` DAG/`aggregate_lane_outcomes` types where they
-  fit (pure data); leave `ship-runner`'s spawn machinery behind (it's one op).
+- **C2 · the engine → its home.** ✅ DONE (`9ef975411`). The Phase-A engine landed
+  as a new L0 crate **`durable-execution`** (`crates/core/ship-substrate/crates/`;
+  deps serde_json/thiserror/async-trait/futures-util — thin). Graduated
+  `engine.rs` + `projection.rs`; `orchestration.rs`/`resilience.rs` stay in the
+  spike (agent-altitude — they re-center onto this engine in E3, not L0). L0
+  coupling severed by the crate-owned **`OpDispatch`** seam (`call(op,args) ->
+  Result<Value, DispatchError>`, `DispatchError = Transient|Terminal`); the host
+  captures gateway+credential in the impl. `JournalingGateway` → `JournalingDispatch`.
+  12 behavioral tests green. The ship-js-script-is-durable integration test moves
+  to D (engine + ship-js wired against a real gateway). `ship-pipelines` types
+  un-pulled for now — folded in at E3 when pipelines re-center on the engine.
 - **C3 · RPC-as-IPC.** The in-process tower transport (per B's proven shape); the
   scoped SDK as a **codegen'd Connect client**; `op_ship_call` → Connect-request
   marshaller. One proto SSOT → services + gate policy + SDK + `.d.ts`.
