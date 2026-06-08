@@ -979,6 +979,7 @@ mod tests {
                     active_tools: vec![],
                     icon: None,
                 },
+                capabilities: Vec::new(),
                 skills: SkillRefs::default(),
                 mcp: McpRefs::default(),
                 plugins: PluginRefs::default(),

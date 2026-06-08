@@ -296,6 +296,7 @@ fn make_agent_profile(id: &str, description: &str) -> AgentProfile {
             active_tools: vec![],
             icon: None,
         },
+        capabilities: Vec::new(),
         skills: SkillRefs::default(),
         mcp: McpRefs::default(),
         plugins: PluginRefs::default(),

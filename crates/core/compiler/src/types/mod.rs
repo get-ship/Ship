@@ -1,4 +1,5 @@
 pub mod agent_profile;
+pub mod capability;
 pub mod catalog;
 pub mod config;
 pub mod permissions;
@@ -10,6 +11,7 @@ pub mod transfer;
 pub use agent_profile::{
     AgentProfile, McpRefs, PluginRefs, ProfileMeta, ProfilePermissions, ProfileRules, SkillRefs,
 };
+pub use capability::{BlastRadius, Capability};
 pub use catalog::{
     CatalogCategory, CatalogEntry, CatalogKind, list_catalog, list_catalog_by_kind, search_catalog,
 };
