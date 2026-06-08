@@ -68,7 +68,6 @@ Each handler logic lives in `deck-core` and returns a `DeckResponse`; the matchi
 | sui-runtime bundle | `GET /_sui/runtime.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_runtime` | Deck's own baked runtime singleton. |
 | sui-dom bundle | `GET /_sui/dom.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_dom` | Deck's own baked DOM module. |
 | sdk-client bundle | `GET /_sui/sdk-client.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_sdk_client` | Deck's own baked SDK client. |
-| components umbrella | `GET /_sui/components.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_components` | Deck's own baked component umbrella bundle. |
 | Per-icon SVG | `GET /_sui/icons/{name}.svg` | `crates/deck/deck-core/src/assets.rs::serve_sui_icon` | One lucide icon per request, alias-resolved server-side, from the embedded set. |
 | Shared chunk | `GET /_sui/{file}` | `crates/deck/deck-core/src/assets.rs::serve_sui_chunk` | Content-addressed shared chunk from the multi-entry view build, served from `.deck/`. |
 | Scaffold shell | `GET /` and `GET /space/{id}` | `crates/deck/deck-core/src/assets.rs::serve_scaffold` | Serves an HTML scaffold (shell/space), rewriting asset hrefs and injecting validated globals. |
