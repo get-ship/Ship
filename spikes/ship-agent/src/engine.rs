@@ -157,6 +157,54 @@ impl ExecCtx {
             .append(reason, OpRecord::Suspended { reason: reason.to_string() });
         Err(EngineError::Suspended)
     }
+
+    /// Fan-out: run K ops concurrently as one node, journaling results in INPUT
+    /// order (deterministic → replay returns the same vector, re-executing
+    /// nothing). All-or-nothing: a failed lane fails the node (it re-runs on
+    /// resume, with nothing journaled). For min-successful tolerance, pair the
+    /// returned values with [`aggregate`].
+    pub async fn parallel(&mut self, calls: Vec<(String, Value)>) -> Result<Vec<Value>, EngineError> {
+        let k = calls.len();
+        let start = self.cursor;
+        self.cursor += k;
+        // Replay: the K slots are already journaled → return them in order.
+        if k > 0 && self.journal.get(start).is_some() {
+            let mut out = Vec::with_capacity(k);
+            for i in 0..k {
+                match self.journal.get(start + i).map(|e| &e.record) {
+                    Some(OpRecord::Completed(v)) => out.push(v.clone()),
+                    _ => return Err(EngineError::Suspended),
+                }
+            }
+            return Ok(out);
+        }
+        // Live frontier: execute all lanes concurrently (the gateway is shared).
+        let gw = self.gateway.clone();
+        let auth = self.auth.clone();
+        let futs = calls.into_iter().map(|(op, args)| {
+            let gw = gw.clone();
+            let auth = auth.clone();
+            async move {
+                let res = gw.call(&op, args, &auth, GatewayCallKind::First).await;
+                (op, res)
+            }
+        });
+        let settled = futures::future::join_all(futs).await;
+        // Collect all first (fail-fast, NO partial journaling), then journal in
+        // input order so replay is deterministic.
+        let mut vals = Vec::with_capacity(k);
+        for (op, res) in settled {
+            match res {
+                Ok(v) => vals.push((op, v)),
+                Err(e) => return Err(EngineError::Gateway { op, reason: e.to_string() }),
+            }
+        }
+        let out: Vec<Value> = vals.iter().map(|(_, v)| v.clone()).collect();
+        for (op, v) in vals {
+            self.journal.append(&op, OpRecord::Completed(v));
+        }
+        Ok(out)
+    }
 }
 
 /// A program the engine can run and replay. Implemented by a ship-js script in
@@ -196,6 +244,25 @@ pub async fn resume(
 ) -> (RunStatus, Journal) {
     journal.resolve_suspended(decision);
     execute(journal, gateway, auth, program).await
+}
+
+/// The min-successful fan-out verdict (mirrors
+/// `ship-pipelines::aggregate_lane_outcomes`): advance when at least `min_ok`
+/// lanes succeeded, else fail.
+#[derive(Debug, Clone, PartialEq)]
+pub enum AggregateDecision {
+    Advance { ok: usize },
+    Fail { ok: usize, needed: usize },
+}
+
+/// Pure fan-out decision over per-lane outcomes.
+pub fn aggregate(results: &[Result<Value, String>], min_ok: usize) -> AggregateDecision {
+    let ok = results.iter().filter(|r| r.is_ok()).count();
+    if ok >= min_ok {
+        AggregateDecision::Advance { ok }
+    } else {
+        AggregateDecision::Fail { ok, needed: min_ok }
+    }
 }
 
 #[cfg(test)]
@@ -322,5 +389,48 @@ mod tests {
         let gw = Arc::new(InProcessGateway::default());
         let (status, _) = execute(Journal::new(), gw, agent(&[]), &OperatorOnlyDenied).await;
         assert!(matches!(status, RunStatus::Failed(_)), "a gate denial fails the run, surfaced as data");
+    }
+
+    // Fan-out: K lanes journal in INPUT order (deterministic, not completion
+    // order) and replay re-executes nothing.
+    #[tokio::test]
+    async fn parallel_journals_in_order_and_replays() {
+        let calls = Arc::new(AtomicU32::new(0));
+        let gw = Arc::new(CountingGateway {
+            inner: InProcessGateway::default(),
+            calls: calls.clone(),
+            seen: Arc::new(Mutex::new(Vec::new())),
+        });
+        struct ThreeReads;
+        #[async_trait]
+        impl Program for ThreeReads {
+            async fn run(&self, ctx: &mut ExecCtx) -> Result<Value, EngineError> {
+                let vs = ctx
+                    .parallel(vec![
+                        ("collections.read".into(), json!({})),
+                        ("collections.get".into(), json!({})),
+                        ("collections.items".into(), json!({})),
+                    ])
+                    .await?;
+                Ok(json!(vs))
+            }
+        }
+        let (s1, journal) = execute(Journal::new(), gw.clone(), agent(&["collections"]), &ThreeReads).await;
+        assert!(matches!(s1, RunStatus::Completed(_)));
+        assert_eq!(calls.load(Ordering::SeqCst), 3, "three lanes execute live");
+        let ops: Vec<&str> = journal.entries().iter().map(|e| e.op.as_str()).collect();
+        assert_eq!(ops, vec!["collections.read", "collections.get", "collections.items"], "journaled in input order");
+
+        let (s2, _) = execute(journal, gw, agent(&["collections"]), &ThreeReads).await;
+        assert_eq!(calls.load(Ordering::SeqCst), 3, "replay re-executes nothing");
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn aggregate_min_successful() {
+        let ok = || Ok::<Value, String>(json!(1));
+        let err = || Err::<Value, String>("boom".into());
+        assert_eq!(aggregate(&[ok(), ok(), err()], 2), AggregateDecision::Advance { ok: 2 });
+        assert_eq!(aggregate(&[ok(), err(), err()], 2), AggregateDecision::Fail { ok: 1, needed: 2 });
     }
 }
