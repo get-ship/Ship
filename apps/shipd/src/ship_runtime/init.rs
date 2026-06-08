@@ -270,7 +270,6 @@ impl ShipRuntime {
             skills: ship_agents::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
             agents: ship_agents::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
             pipelines: ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
-            git: ship_platform::services::git::service::GitServiceImpl::arc(global_dir.clone()),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),

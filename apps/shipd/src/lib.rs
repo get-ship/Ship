@@ -30,7 +30,6 @@ pub mod ops_rpc;
 // diag_rpc: deleted — diagnostics.snapshot op cut; DiagnosticRegistry apparatus removed.
 pub mod runtime_rpc;
 pub mod pipelines_rpc;
-pub mod git_rpc;
 // agent_rpc: policy + gate conformance tests for AgentsService.
 // The impl AgentsService for OpsImpl is deleted — AgentsWire (ship-agents) is now
 // the sole handler, mounted via AgentsServiceExt::register in ops_rpc.rs.

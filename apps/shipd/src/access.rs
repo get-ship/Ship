@@ -22,7 +22,6 @@ pub use ship_substrate::access::{ConfigAccess, KernelAccess, MeshAccess, SharedK
 
 use crate::auth::SessionRegistry;
 use ship_agents::services::agents::service::AgentsService;
-use ship_platform::services::git::service::GitService;
 use ship_agents::services::mcp::service::McpService;
 use ship_agents::services::permissions::service::PermissionsService;
 use ship_pipeline_runtime::pipelines::service::PipelinesService;
@@ -41,7 +40,6 @@ pub trait ServicesAccess: Send + Sync {
     fn skills(&self) -> &dyn SkillsService;
     fn agents(&self) -> &dyn AgentsService;
     fn pipelines(&self) -> &dyn PipelinesService;
-    fn git(&self) -> &dyn GitService;
     /// Build a `CollectionService` over the active-space `SpaceContext` + shared
     /// schema registry (C-2 §3.1). Errors cleanly when the daemon is space-less
     /// (no active space) rather than fabricate a `global` partition (S2).
@@ -91,9 +89,6 @@ impl ServicesAccess for ShipRuntime {
     }
     fn pipelines(&self) -> &dyn PipelinesService {
         ShipRuntime::pipelines(self)
-    }
-    fn git(&self) -> &dyn GitService {
-        ShipRuntime::git(self)
     }
     fn collections(&self) -> anyhow::Result<ship_collection::service::CollectionService> {
         ShipRuntime::collections(self)

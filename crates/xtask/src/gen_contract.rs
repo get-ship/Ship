@@ -170,14 +170,6 @@ fn domain_catalog() -> Vec<DomainMeta> {
             coverage_audit_docs: vec![],
         },
         DomainMeta {
-            key: "git",
-            display: "Git",
-            event_prefixes: vec![],
-            services: vec!["GitService"],
-            description: "Git operations: status, log, diff, branches, stage/unstage, commit, push, pull, checkout.",
-            coverage_audit_docs: vec![],
-        },
-        DomainMeta {
             key: "view_authoring",
             display: "View Authoring",
             event_prefixes: vec!["view."],

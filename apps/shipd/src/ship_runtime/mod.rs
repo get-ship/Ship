@@ -128,9 +128,6 @@ pub struct ShipRuntime {
     /// `PipelinesService` impl — sixth mr-02 migration (definition CRUD only;
     /// dispatch / cancel / runs still flow through `runtime_api`).
     pub(super) pipelines: std::sync::Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService>,
-    /// `GitService` impl — seventh mr-02 migration. Project-bound; the
-    /// SSE handler in `git/mod.rs` stays separate.
-    pub(super) git: std::sync::Arc<dyn ship_platform::services::git::service::GitService>,
     /// Worktree resolver — production uses `git worktree list`; tests
     /// override with an in-memory map. See `resolve_worktree` method and
     /// `new_test_with_worktree_resolver` test ctor.

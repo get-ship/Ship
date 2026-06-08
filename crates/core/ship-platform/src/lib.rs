@@ -93,10 +93,6 @@ pub mod services {
         pub use ship_substrate::services::process_registry::*;
     }
 
-    /// Re-exported from `ship-git` for back-compat with downstream callers
-    /// that still import `ship_platform::services::git::*`.
-    pub use ship_git as git;
-
     /// Aggregated `ship.<domain>.<op>` → example-JSON pairs across every
     /// domain migrated to the typed-op single source. Drives
     /// `cargo xtask gen-fixtures`. Behind the `fixtures` feature.

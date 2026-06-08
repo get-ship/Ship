@@ -21,7 +21,6 @@ impl ShipRuntime {
         let agents = ship_agents::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
             ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
-        let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
         // Test fixture binds a concrete space (`test-space`) — there is no daemon
         // home space / `global` partition to fall back onto (S2). Production boot
         // leaves these `None` in space-less mode.
@@ -69,7 +68,6 @@ impl ShipRuntime {
             skills,
             agents,
             pipelines,
-            git,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -95,7 +93,6 @@ impl ShipRuntime {
         let agents = ship_agents::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
             ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
-        let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
         // Test fixture binds a concrete space (`test-space`) — there is no daemon
         // home space / `global` partition to fall back onto (S2). Production boot
         // leaves these `None` in space-less mode.
@@ -143,7 +140,6 @@ impl ShipRuntime {
             skills,
             agents,
             pipelines,
-            git,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),

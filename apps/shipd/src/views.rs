@@ -29,7 +29,6 @@ pub mod sui_expr;
 pub mod sui_hmr;
 pub mod sui_source;
 pub mod sui_sse;
-pub mod git_signal;
 pub mod sui_patches;
 pub mod sui_patch_channel;
 pub mod sui_view_edit_sse;

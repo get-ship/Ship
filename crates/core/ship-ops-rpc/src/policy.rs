@@ -384,9 +384,8 @@ mod capability_tests {
         let caps = capabilities();
         assert!(!caps.is_empty(), "capability registry must derive domains from proto");
         // Known domains present; sdk-skill id is exactly ship-<id>.
-        let git = caps.iter().find(|c| c.id == "git").expect("git capability");
-        assert_eq!(git.sdk_skill, "ship-git");
-        assert!(caps.iter().any(|c| c.id == "pipelines"));
+        let pipelines = caps.iter().find(|c| c.id == "pipelines").expect("pipelines capability");
+        assert_eq!(pipelines.sdk_skill, "ship-pipelines");
         // Operational domains (#95) and the umbrella scaffold are NOT capabilities.
         assert!(!caps.iter().any(|c| c.id == "actor"));
         assert!(!caps.iter().any(|c| c.id == "mesh"));

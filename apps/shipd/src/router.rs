@@ -15,7 +15,7 @@ use crate::{
 };
 use crate::routes::{
     actor_api, actors_api,
-    artifacts_api, git_api,
+    artifacts_api,
     hooks_api, human_webhook, logs_api,
     registry_api, rest_api, runtime_api,
     sandbox_api, sdk_manifest, settings_api, themes_api,
@@ -435,27 +435,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
         // Settings
         .ship_route(Route::ListProviders, settings_api::list_harnesses)
-        // GitService — canonical `/api/v1/git/*` surface. Consolidates the
-        // old workspace- and project-scoped git endpoints into one.
-        // Write handlers live in `ship_git::rest_handlers`; they take
-        // `State<Arc<dyn GitService>>` and are mounted via a state-scoped
-        // sub-router. The SSE handler is daemon-edge (ViewSse) and keeps
-        // `State<ApiState>`.
-        .merge(
-            Router::<std::sync::Arc<dyn ship_git::service::GitService>>::new()
-                .ship_route(Route::GitStage, git_api::stage_handler)
-                .ship_route(Route::GitUnstage, git_api::unstage_handler)
-                .ship_route(Route::GitCommit, git_api::commit_handler)
-                .ship_route(Route::GitPush, git_api::push_handler)
-                .ship_route(Route::GitFetch, git_api::fetch_handler)
-                .ship_route(Route::GitPull, git_api::pull_handler)
-                .ship_route(Route::GitCheckout, git_api::checkout_handler)
-                .ship_route(Route::GitBranchCreate, git_api::branch_create_handler)
-                .ship_route(Route::GitBranchDelete, git_api::branch_delete_handler)
-                .ship_route(Route::GitInit, git_api::init_handler)
-                .with_state(st.git_arc()),
-        )
-        .ship_route(Route::GitSse, git_api::sse_handler)
         // Artifacts platform (three-scope)
         .merge(
             Router::<rest_api::ApiState>::new()

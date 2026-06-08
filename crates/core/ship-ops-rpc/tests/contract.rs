@@ -14,13 +14,11 @@ use serde_json::Value;
 use ship_ops_rpc::{
     AgentCatalogsResponse, AgentDetail, AgentDoc, AgentSettingsResponse, AgentWireResponse,
     AgentsSummariesResponse, AnalyticsSessionsResponse, AnalyticsSessionTurnsResponse,
-    AnalyticsToolUsageResponse, GitBranchesResponse, GitDiffResponse, GitLogResponse,
-    GitOverviewResponse, RuleGetResponse, RulesIndexResponse, StatusBuckets,
+    AnalyticsToolUsageResponse, RuleGetResponse, RulesIndexResponse,
 };
 
 const AGENTS: &str = include_str!("../../../../proto/fixtures/agents_service.json");
 const ANALYTICS: &str = include_str!("../../../../proto/fixtures/analytics_service.json");
-const GIT: &str = include_str!("../../../../proto/fixtures/git_service.json");
 const RULES: &str = include_str!("../../../../proto/fixtures/rules_service.json");
 
 /// The `response_ok` body for a method, as a `Value` ready to decode via
@@ -50,55 +48,6 @@ fn rules_get_parses() {
         serde_json::from_value(response_ok(RULES, "Get")).expect("parse RuleGetResponse");
     assert_eq!(r.id, "no-placeholders");
     assert!(r.body.starts_with("# No placeholders"));
-}
-
-#[test]
-fn git_status_parses_nested_files() {
-    let s: StatusBuckets =
-        serde_json::from_value(response_ok(GIT, "Status")).expect("parse StatusBuckets");
-    assert!(!s.clean);
-    assert_eq!(s.total, 3);
-    assert_eq!(s.staged.len(), 1);
-    assert_eq!(s.staged[0].basename, "checkout.rs");
-}
-
-#[test]
-fn git_log_parses_commits() {
-    let l: GitLogResponse =
-        serde_json::from_value(response_ok(GIT, "Log")).expect("parse GitLogResponse");
-    assert_eq!(l.commits.len(), 2);
-    assert_eq!(l.commits[0].author, "rust-lane");
-    assert_eq!(l.commits[0].additions, 142);
-}
-
-#[test]
-fn git_branches_parses_upstream_and_counts() {
-    let b: GitBranchesResponse =
-        serde_json::from_value(response_ok(GIT, "Branches")).expect("parse GitBranchesResponse");
-    assert_eq!(b.branches.len(), 2);
-    assert!(b.branches[0].active);
-    assert_eq!(b.branches[0].upstream.as_deref(), Some("origin/feat/checkout-flow"));
-    assert_eq!(b.ahead, 2);
-}
-
-#[test]
-fn git_overview_parses_the_aggregate() {
-    let o: GitOverviewResponse =
-        serde_json::from_value(response_ok(GIT, "Overview")).expect("parse GitOverviewResponse");
-    assert_eq!(o.branch.as_deref(), Some("feat/checkout-flow"));
-    assert_eq!(o.total_changed, 3);
-    assert_eq!(o.commits.len(), 1);
-}
-
-#[test]
-fn git_diff_parses_parsed_diff() {
-    let d: GitDiffResponse =
-        serde_json::from_value(response_ok(GIT, "Diff")).expect("parse GitDiffResponse");
-    assert_eq!(d.short_sha, "a1b2c3d");
-    assert!(!d.is_working);
-    assert_eq!(d.parsed.total_additions, 3);
-    assert_eq!(d.parsed.files.len(), 1);
-    assert_eq!(d.parsed.files[0].hunks[0].lines.len(), 3);
 }
 
 #[test]

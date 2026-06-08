@@ -1,14 +1,9 @@
-//! Git domain — repository operations, status, diffs.
-//!
-//! HTTP handlers binding axum to this trait live in
-//! `apps/shipd/src/services/git/mod.rs` (or the routes/ layer).
+//! Git — an L0 library wrapping `git2`: repository status, diffs, reads, writes.
+//! Consumed in-process by pipelines, agents, and the CLI. Not an RPC service.
 
 pub mod diff;
 pub mod read;
-pub mod rest_handlers;
-pub mod service;
 pub mod state;
-pub mod wire;
 pub mod write;
 
 #[cfg(test)]
