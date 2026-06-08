@@ -8044,6 +8044,7 @@ dependencies = [
  "sha2",
  "shell-words",
  "ship-auth",
+ "ship-code",
  "ship-config",
  "ship-device",
  "ship-files",
@@ -8209,6 +8210,27 @@ dependencies = [
  "tempfile",
  "tracing",
  "ureq",
+]
+
+[[package]]
+name = "ship-code"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "libc",
+ "serde_json",
+ "ship-auth",
+ "ship-config",
+ "ship-device",
+ "ship-files",
+ "ship-harnesses",
+ "ship-isolation",
+ "ship-runner",
+ "ship-substrate",
+ "tempfile",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

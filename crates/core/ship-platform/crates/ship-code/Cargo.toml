@@ -1,0 +1,30 @@
+[package]
+name = "ship-code"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L1: ship-code — drivers that adapt third-party agent harnesses to Ship's control plane / governance / isolation. The harness/isolation/token-aware run-assembly (SessionExecutor impls: Process / TmuxWindow / Server / Routing) that turns a SessionContext into a running harness process. Carved from ship-agents (Floki D3); its fate (fold-in / spin-off / abandon) stays a localized decision because it's siloed behind one boundary."
+
+[lints]
+workspace = true
+
+[dependencies]
+ship-substrate = { path = "../../../ship-substrate" }
+ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }
+ship-harnesses = { path = "../ship-harnesses" }
+ship-auth = { path = "../ship-auth" }
+ship-isolation = { path = "../../../ship-isolation", default-features = false }
+ship-device = { path = "../ship-device" }
+ship-files = { path = "../ship-files" }
+ship-config = { path = "../ship-config" }
+
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+serde_json = { workspace = true }
+libc = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "time", "macros", "process", "io-util"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time", "test-util"] }

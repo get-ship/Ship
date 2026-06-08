@@ -23,9 +23,11 @@ pub mod cancel;
 pub mod dispatch;
 pub mod hooks;
 pub mod ports;
-// Agent-run assembly (executors, helpers, agent_lifecycle) — lifted out of the
-// L0 `ship-supervisor` crate in the supervisor split.
-pub mod runtime;
+// Agent-run assembly (executors, helpers, agent_lifecycle) moved to the `ship-code`
+// crate (Floki carve D3) — the third-party-harness driver box. Re-exported as
+// `runtime` so every `ship_agents::runtime::*` caller (shipd, ship-supervisor,
+// ship-pipeline-runtime) keeps resolving with zero churn — back-compat shim.
+pub use ship_code as runtime;
 pub mod services;
 // Runtime-scoped session records (agents-arc E4 fold).
 pub mod sessions;

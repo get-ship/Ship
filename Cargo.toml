@@ -32,6 +32,7 @@ members = [
     "crates/core/ship-platform/crates/ship-triggers",
     "crates/core/ship-platform/crates/ship-account",
     "crates/core/ship-platform/crates/agent-def",
+    "crates/core/ship-platform/crates/ship-code",
     "crates/core/ship-platform/crates/ship-agents",
     "crates/core/ship-platform/crates/ship-harnesses",
     "crates/core/ship-platform/crates/ship-files",

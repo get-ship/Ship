@@ -1417,7 +1417,7 @@ mod tests {
             eprintln!("skipping: set SHIP_TMUX_TESTS=1 to run real-PTY integration test");
             return;
         }
-        let _spawn_guard = crate::runtime::executors::real_spawn_guard();
+        let _spawn_guard = crate::executors::real_spawn_guard();
         let (_dir, kernel, db) = setup_kernel();
         let (_tmp, state) = spawn_sleep_state("proc-sigterm");
 
