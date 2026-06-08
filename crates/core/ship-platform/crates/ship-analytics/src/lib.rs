@@ -22,7 +22,6 @@
 //! runner manages the platform.db. Adding a new analytics table = new
 //! file in that dir.
 
-pub mod mining;
 pub mod projection;
 pub mod queries;
 pub mod service;

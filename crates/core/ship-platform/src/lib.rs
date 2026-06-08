@@ -88,11 +88,6 @@ pub mod services {
         };
     }
 
-    /// Process registry — moved to ship-substrate (SSOT).
-    pub mod process_registry {
-        pub use ship_substrate::services::process_registry::*;
-    }
-
     /// Aggregated `ship.<domain>.<op>` → example-JSON pairs across every
     /// domain migrated to the typed-op single source. Drives
     /// `cargo xtask gen-fixtures`. Behind the `fixtures` feature.
