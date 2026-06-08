@@ -61,6 +61,12 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         // account.* (typed AccountService — ship-account crate): Ship Cloud
         // identity. State snapshot + the PKCE login/logout lifecycle results.
         v!(AccountState), v!(LoginStarted), v!(LoginCompleted), v!(LogoutResult),
+        // isolation.* (typed IsolationService — ship-isolation crate): capability
+        // probe + recommender results + wizard previews. The data-bearing
+        // `IsolationResolutionReason` is a proto `oneof`; the conformance gate
+        // decodes the oneof arm's payload via buffa's generated serde impl.
+        v!(IsolationStatusResponse), v!(IsolationRecommendationsResponse),
+        v!(IsolationPreviewResponse), v!(IsolationVerifyResponse),
         // Scaffold + feedback/annotation typed results (proto-added; fixtures backfilled).
         v!(SkillScaffoldResponse), v!(ViewScaffoldResponse),
         v!(PostFeedbackResponse), v!(PostAnnotationResponse),

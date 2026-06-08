@@ -4,7 +4,7 @@
     "source_seed": "proto/fixtures/seeds/isolation.jsonc",
     "kind": "demo"
   },
-  "Status.response.linux_docker": {
+  "isolation.status": {
     "capabilities": {
       "os": "linux",
       "in_sandbox": false,
@@ -28,8 +28,9 @@
         "strategy": "docker",
         "tier": "container",
         "reason": {
-          "kind": "os_default",
-          "os": "linux"
+          "os_default": {
+            "os": "linux"
+          }
         },
         "downgraded": false
       },
@@ -56,161 +57,7 @@
       }
     }
   },
-  "Status.response.linux_downgraded": {
-    "capabilities": {
-      "os": "linux",
-      "in_sandbox": false,
-      "docker": false,
-      "podman": false,
-      "youki": null,
-      "youki_rootfs": null,
-      "lima": null,
-      "tart": null,
-      "wsl2": false,
-      "srt": false,
-      "sandbox_exec": false,
-      "vz_framework": false,
-      "firecracker": false,
-      "apple_container": false,
-      "fly_cli": false,
-      "fly_authed": false
-    },
-    "decision": {
-      "resolved": {
-        "strategy": "harness_native",
-        "tier": "process",
-        "reason": {
-          "kind": "downgrade",
-          "from": "container",
-          "why": "no container strategy available"
-        },
-        "downgraded": true
-      },
-      "capabilities": {
-        "os": "linux",
-        "in_sandbox": false,
-        "docker": false,
-        "podman": false,
-        "youki": null,
-        "youki_rootfs": null,
-        "lima": null,
-        "tart": null,
-        "wsl2": false,
-        "srt": false,
-        "sandbox_exec": false,
-        "vz_framework": false,
-        "firecracker": false,
-        "apple_container": false,
-        "fly_cli": false,
-        "fly_authed": false
-      },
-      "user_profile_used": {
-        "tier": "container"
-      }
-    }
-  },
-  "Status.response.macos_arm": {
-    "capabilities": {
-      "os": "macos_arm",
-      "in_sandbox": false,
-      "docker": false,
-      "podman": false,
-      "youki": null,
-      "youki_rootfs": null,
-      "lima": "/opt/homebrew/bin/limactl",
-      "tart": null,
-      "wsl2": false,
-      "srt": false,
-      "sandbox_exec": true,
-      "vz_framework": true,
-      "firecracker": false,
-      "apple_container": false,
-      "fly_cli": false,
-      "fly_authed": false
-    },
-    "decision": {
-      "resolved": {
-        "strategy": "harness_native",
-        "tier": "process",
-        "reason": {
-          "kind": "os_default",
-          "os": "macos_arm"
-        },
-        "downgraded": false
-      },
-      "capabilities": {
-        "os": "macos_arm",
-        "in_sandbox": false,
-        "docker": false,
-        "podman": false,
-        "youki": null,
-        "youki_rootfs": null,
-        "lima": "/opt/homebrew/bin/limactl",
-        "tart": null,
-        "wsl2": false,
-        "srt": false,
-        "sandbox_exec": true,
-        "vz_framework": true,
-        "firecracker": false,
-        "apple_container": false,
-        "fly_cli": false,
-        "fly_authed": false
-      },
-      "user_profile_used": {}
-    }
-  },
-  "Status.response.ci_sandbox": {
-    "capabilities": {
-      "os": "linux",
-      "in_sandbox": true,
-      "docker": true,
-      "podman": false,
-      "youki": null,
-      "youki_rootfs": null,
-      "lima": null,
-      "tart": null,
-      "wsl2": false,
-      "srt": false,
-      "sandbox_exec": false,
-      "vz_framework": false,
-      "firecracker": false,
-      "apple_container": false,
-      "fly_cli": false,
-      "fly_authed": false
-    },
-    "decision": {
-      "resolved": {
-        "strategy": "noop",
-        "tier": "none",
-        "reason": {
-          "kind": "already_in_sandbox"
-        },
-        "downgraded": false
-      },
-      "capabilities": {
-        "os": "linux",
-        "in_sandbox": true,
-        "docker": true,
-        "podman": false,
-        "youki": null,
-        "youki_rootfs": null,
-        "lima": null,
-        "tart": null,
-        "wsl2": false,
-        "srt": false,
-        "sandbox_exec": false,
-        "vz_framework": false,
-        "firecracker": false,
-        "apple_container": false,
-        "fly_cli": false,
-        "fly_authed": false
-      },
-      "user_profile_used": {
-        "tier": "container"
-      }
-    }
-  },
-  "Recommendations.response": {
+  "isolation.recommendations": {
     "host_os": "linux",
     "os_default_tier": "container",
     "tiers": [
@@ -221,14 +68,14 @@
           {
             "strategy": "noop",
             "available": true,
-            "unavailable_reason": null
+            "unavailable_reason": ""
           }
         ],
         "would_resolve_to": {
           "strategy": "noop",
           "tier": "none",
           "reason": {
-            "kind": "run_override"
+            "run_override": {}
           },
           "downgraded": false
         },
@@ -241,7 +88,7 @@
           {
             "strategy": "harness_native",
             "available": true,
-            "unavailable_reason": null
+            "unavailable_reason": ""
           },
           {
             "strategy": "srt",
@@ -253,7 +100,7 @@
           "strategy": "harness_native",
           "tier": "process",
           "reason": {
-            "kind": "run_override"
+            "run_override": {}
           },
           "downgraded": false
         },
@@ -266,7 +113,7 @@
           {
             "strategy": "docker",
             "available": true,
-            "unavailable_reason": null
+            "unavailable_reason": ""
           },
           {
             "strategy": "youki",
@@ -278,7 +125,7 @@
           "strategy": "docker",
           "tier": "container",
           "reason": {
-            "kind": "run_override"
+            "run_override": {}
           },
           "downgraded": false
         },
@@ -312,125 +159,13 @@
       }
     ]
   },
-  "Preview.response.container": {
-    "resolved": {
-      "strategy": "docker",
-      "tier": "container",
-      "reason": {
-        "kind": "run_override"
-      },
-      "downgraded": false
-    },
-    "capabilities": {
-      "os": "linux",
-      "in_sandbox": false,
-      "docker": true,
-      "podman": false,
-      "youki": null,
-      "youki_rootfs": null,
-      "lima": null,
-      "tart": null,
-      "wsl2": false,
-      "srt": false,
-      "sandbox_exec": false,
-      "vz_framework": false,
-      "firecracker": false,
-      "apple_container": false,
-      "fly_cli": false,
-      "fly_authed": false
-    },
-    "user_profile_used": {
-      "tier": "container"
-    }
-  },
-  "Preview.response.process": {
-    "resolved": {
-      "strategy": "harness_native",
-      "tier": "process",
-      "reason": {
-        "kind": "run_override"
-      },
-      "downgraded": false
-    },
-    "capabilities": {
-      "os": "linux",
-      "in_sandbox": false,
-      "docker": true,
-      "podman": false,
-      "youki": null,
-      "youki_rootfs": null,
-      "lima": null,
-      "tart": null,
-      "wsl2": false,
-      "srt": false,
-      "sandbox_exec": false,
-      "vz_framework": false,
-      "firecracker": false,
-      "apple_container": false,
-      "fly_cli": false,
-      "fly_authed": false
-    },
-    "user_profile_used": {
-      "tier": "container"
-    }
-  },
-  "Preview.response.noop": {
-    "resolved": {
-      "strategy": "noop",
-      "tier": "none",
-      "reason": {
-        "kind": "run_override"
-      },
-      "downgraded": false
-    },
-    "capabilities": {
-      "os": "linux",
-      "in_sandbox": false,
-      "docker": true,
-      "podman": false,
-      "youki": null,
-      "youki_rootfs": null,
-      "lima": null,
-      "tart": null,
-      "wsl2": false,
-      "srt": false,
-      "sandbox_exec": false,
-      "vz_framework": false,
-      "firecracker": false,
-      "apple_container": false,
-      "fly_cli": false,
-      "fly_authed": false
-    },
-    "user_profile_used": {
-      "tier": "container"
-    }
-  },
-  "Verify.response.passing": {
-    "ok": true,
-    "steps": [
-      {
-        "name": "decision_resolves",
-        "ok": true,
-        "detail": "resolved to docker (container); reason: OsDefault { os: Linux }"
-      },
-      {
-        "name": "backend_implemented",
-        "ok": true,
-        "detail": "backend for docker is implemented"
-      },
-      {
-        "name": "no_silent_downgrade",
-        "ok": true,
-        "detail": "decision matches the configured tier"
-      }
-    ],
-    "resolved": {
+  "isolation.preview": {
+    "decision": {
       "resolved": {
         "strategy": "docker",
         "tier": "container",
         "reason": {
-          "kind": "os_default",
-          "os": "linux"
+          "run_override": {}
         },
         "downgraded": false
       },
@@ -457,40 +192,40 @@
       }
     }
   },
-  "Verify.response.downgrade_fail": {
-    "ok": false,
+  "isolation.verify": {
+    "ok": true,
     "steps": [
       {
         "name": "decision_resolves",
         "ok": true,
-        "detail": "resolved to harness_native (process); reason: Downgrade { from: Container, why: \"no container strategy available\" }"
+        "detail": "resolved to docker (container); reason: OsDefault { os: Linux }"
       },
       {
         "name": "backend_implemented",
         "ok": true,
-        "detail": "backend for harness_native is implemented"
+        "detail": "backend for docker is implemented"
       },
       {
         "name": "no_silent_downgrade",
-        "ok": false,
-        "detail": "decision was downgraded: Downgrade { from: Container, why: \"no container strategy available\" } — enforcement would refuse to launch"
+        "ok": true,
+        "detail": "decision matches the configured tier"
       }
     ],
     "resolved": {
       "resolved": {
-        "strategy": "harness_native",
-        "tier": "process",
+        "strategy": "docker",
+        "tier": "container",
         "reason": {
-          "kind": "downgrade",
-          "from": "container",
-          "why": "no container strategy available"
+          "os_default": {
+            "os": "linux"
+          }
         },
-        "downgraded": true
+        "downgraded": false
       },
       "capabilities": {
         "os": "linux",
         "in_sandbox": false,
-        "docker": false,
+        "docker": true,
         "podman": false,
         "youki": null,
         "youki_rootfs": null,

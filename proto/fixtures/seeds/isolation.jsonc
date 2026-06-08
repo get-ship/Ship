@@ -1,26 +1,20 @@
 // Isolation domain seed — realistic demo values for the ship-isolation-* component pack.
 // World: 'harbor' project on feat/checkout-flow, Linux dev host with Docker (primary).
 // Agents rust-lane + code-reviewer from fixture-seed.json.
-// Generator strips full-line // comments and emits proto/fixtures/demo/isolation.json.
+//
+// Shape: each top-level key is the proto METHOD name (e.g. `isolation.status`),
+// value is the proto MESSAGE shape — the same JSON form the wire returns and
+// the conformance gate decodes. UI metadata (error_states / empty_states) lives
+// at the bottom; the wire surfaces it as ConnectError / empty status response.
+//
+// Generator: `proto/fixtures/seeds/isolation.jsonc` → `proto/fixtures/demo/isolation.json`
+// (full-line `//` comments are stripped; the rest is verbatim).
 {
   "_meta": {
     "domain": "isolation",
-    "description": "IsolationService demo seed — Status (Linux+docker nominal, Linux downgraded, macOS ARM, CI/in_sandbox), Recommendations (all 5 tiers; Cloud + VM unavailable on stock Linux), Preview (container, process, noop), Verify (passing, failing at no_silent_downgrade), error states, and empty states. World: harbor project, Ada Lovelace dev on Linux + Docker; rust-lane configured for container isolation."
+    "description": "IsolationService demo seed \u2014 Status (4 host variants), Recommendations (linux_docker), Preview (3 picks), Verify (passing + downgrade_fail). All entries mirror the typed proto shape: response fields are nested under the proto message name (NOT wrapped in a JsonResponse blob), and `resolution_reason` is a proto `oneof` keyed by the variant arm (e.g. `os_default.os`, `downgrade.from`+`why`). Error / empty UI states (carrier of UI copy + affordances) are kept verbatim under their metadata keys; the wire surfaces them as `ConnectError` (error) or empty `IsolationStatusResponse` (empty)."
   },
-
-  // ── Status.response ──────────────────────────────────────────────────────────
-  // IsolationStatusRequest → JsonResponse.json =
-  //   { capabilities: Capabilities, decision: IsolationDecision | { error: string } }
-  //
-  // IsolationDecision = { resolved: ResolvedIsolation, capabilities: Capabilities,
-  //                       user_profile_used: IsolationProfile }
-  // The inner decision.capabilities mirrors the outer capabilities (both come from
-  // cached_capabilities()). Rendered in ship-isolation-status-card +
-  // ship-isolation-capabilities-grid.
-
-  // Case A — primary harbor Linux host; Docker running; user default = container.
-  // Nominal state; the status card shows: OS=linux, tier=container, docker strategy.
-  "Status.response.linux_docker": {
+  "isolation.status": {
     "capabilities": {
       "os": "linux",
       "in_sandbox": false,
@@ -43,170 +37,16 @@
       "resolved": {
         "strategy": "docker",
         "tier": "container",
-        "reason": { "kind": "os_default", "os": "linux" },
-        "downgraded": false
-      },
-      "capabilities": {
-        "os": "linux",
-        "in_sandbox": false,
-        "docker": true,
-        "podman": false,
-        "youki": null,
-        "youki_rootfs": null,
-        "lima": null,
-        "tart": null,
-        "wsl2": false,
-        "srt": false,
-        "sandbox_exec": false,
-        "vz_framework": false,
-        "firecracker": false,
-        "apple_container": false,
-        "fly_cli": false,
-        "fly_authed": false
-      },
-      "user_profile_used": { "tier": "container" }
-    }
-  },
-
-  // Case B — same Linux host but Docker daemon is stopped; user still wants container.
-  // Resolution downgrades: container unavailable → falls back to process/harness_native.
-  // The status card shows the downgrade callout; tier picker highlights the mismatch.
-  // ship-isolation-verify-panel's no_silent_downgrade step will fail for this state.
-  "Status.response.linux_downgraded": {
-    "capabilities": {
-      "os": "linux",
-      "in_sandbox": false,
-      "docker": false,
-      "podman": false,
-      "youki": null,
-      "youki_rootfs": null,
-      "lima": null,
-      "tart": null,
-      "wsl2": false,
-      "srt": false,
-      "sandbox_exec": false,
-      "vz_framework": false,
-      "firecracker": false,
-      "apple_container": false,
-      "fly_cli": false,
-      "fly_authed": false
-    },
-    "decision": {
-      "resolved": {
-        "strategy": "harness_native",
-        "tier": "process",
         "reason": {
-          "kind": "downgrade",
-          "from": "container",
-          "why": "no container strategy available"
+          "os_default": {
+            "os": "linux"
+          }
         },
-        "downgraded": true
-      },
-      "capabilities": {
-        "os": "linux",
-        "in_sandbox": false,
-        "docker": false,
-        "podman": false,
-        "youki": null,
-        "youki_rootfs": null,
-        "lima": null,
-        "tart": null,
-        "wsl2": false,
-        "srt": false,
-        "sandbox_exec": false,
-        "vz_framework": false,
-        "firecracker": false,
-        "apple_container": false,
-        "fly_cli": false,
-        "fly_authed": false
-      },
-      "user_profile_used": { "tier": "container" }
-    }
-  },
-
-  // Case C — macOS ARM (M3) developer machine; no Docker; Lima installed.
-  // OS default = process tier; harness_native is the standard mac path.
-  // status-card shows: OS=macos_arm, tier=process, harness_native strategy.
-  "Status.response.macos_arm": {
-    "capabilities": {
-      "os": "macos_arm",
-      "in_sandbox": false,
-      "docker": false,
-      "podman": false,
-      "youki": null,
-      "youki_rootfs": null,
-      "lima": "/opt/homebrew/bin/limactl",
-      "tart": null,
-      "wsl2": false,
-      "srt": false,
-      "sandbox_exec": true,
-      "vz_framework": true,
-      "firecracker": false,
-      "apple_container": false,
-      "fly_cli": false,
-      "fly_authed": false
-    },
-    "decision": {
-      "resolved": {
-        "strategy": "harness_native",
-        "tier": "process",
-        "reason": { "kind": "os_default", "os": "macos_arm" },
-        "downgraded": false
-      },
-      "capabilities": {
-        "os": "macos_arm",
-        "in_sandbox": false,
-        "docker": false,
-        "podman": false,
-        "youki": null,
-        "youki_rootfs": null,
-        "lima": "/opt/homebrew/bin/limactl",
-        "tart": null,
-        "wsl2": false,
-        "srt": false,
-        "sandbox_exec": true,
-        "vz_framework": true,
-        "firecracker": false,
-        "apple_container": false,
-        "fly_cli": false,
-        "fly_authed": false
-      },
-      "user_profile_used": {}
-    }
-  },
-
-  // Case D — CI environment (GitHub Actions); already inside a Docker container.
-  // in_sandbox=true → recommender picks noop + AlreadyInSandbox (no double-wrap).
-  // status-card renders an informational badge: "Running inside existing sandbox".
-  "Status.response.ci_sandbox": {
-    "capabilities": {
-      "os": "linux",
-      "in_sandbox": true,
-      "docker": true,
-      "podman": false,
-      "youki": null,
-      "youki_rootfs": null,
-      "lima": null,
-      "tart": null,
-      "wsl2": false,
-      "srt": false,
-      "sandbox_exec": false,
-      "vz_framework": false,
-      "firecracker": false,
-      "apple_container": false,
-      "fly_cli": false,
-      "fly_authed": false
-    },
-    "decision": {
-      "resolved": {
-        "strategy": "noop",
-        "tier": "none",
-        "reason": { "kind": "already_in_sandbox" },
         "downgraded": false
       },
       "capabilities": {
         "os": "linux",
-        "in_sandbox": true,
+        "in_sandbox": false,
         "docker": true,
         "podman": false,
         "youki": null,
@@ -222,22 +62,12 @@
         "fly_cli": false,
         "fly_authed": false
       },
-      "user_profile_used": { "tier": "container" }
+      "user_profile_used": {
+        "tier": "container"
+      }
     }
   },
-
-  // ── Recommendations.response ─────────────────────────────────────────────────
-  // IsolationRecommendationsRequest → JsonResponse.json = Recommendations
-  // { host_os, os_default_tier, tiers: TierRow[] }
-  //
-  // TierRow = { tier, label, strategies: StrategyRow[], would_resolve_to, recommended }
-  // StrategyRow = { strategy, available, unavailable_reason: string | null }
-  //
-  // Context: linux_docker host (harbor primary). All five tiers present.
-  // VM + Cloud show no available strategy → would_resolve_to = null.
-  // strategies_for_tier() on Linux returns [lima] for VM, [fly] for Cloud.
-
-  "Recommendations.response": {
+  "isolation.recommendations": {
     "host_os": "linux",
     "os_default_tier": "container",
     "tiers": [
@@ -245,12 +75,18 @@
         "tier": "none",
         "label": "Not sandboxed",
         "strategies": [
-          { "strategy": "noop", "available": true, "unavailable_reason": null }
+          {
+            "strategy": "noop",
+            "available": true,
+            "unavailable_reason": ""
+          }
         ],
         "would_resolve_to": {
           "strategy": "noop",
           "tier": "none",
-          "reason": { "kind": "run_override" },
+          "reason": {
+            "run_override": {}
+          },
           "downgraded": false
         },
         "recommended": false
@@ -259,13 +95,23 @@
         "tier": "process",
         "label": "Process sandbox",
         "strategies": [
-          { "strategy": "harness_native", "available": true, "unavailable_reason": null },
-          { "strategy": "srt", "available": false, "unavailable_reason": "sandbox-runtime not installed (bun add -g @anthropic-ai/sandbox-runtime)" }
+          {
+            "strategy": "harness_native",
+            "available": true,
+            "unavailable_reason": ""
+          },
+          {
+            "strategy": "srt",
+            "available": false,
+            "unavailable_reason": "sandbox-runtime not installed (bun add -g @anthropic-ai/sandbox-runtime)"
+          }
         ],
         "would_resolve_to": {
           "strategy": "harness_native",
           "tier": "process",
-          "reason": { "kind": "run_override" },
+          "reason": {
+            "run_override": {}
+          },
           "downgraded": false
         },
         "recommended": false
@@ -274,13 +120,23 @@
         "tier": "container",
         "label": "Container",
         "strategies": [
-          { "strategy": "docker", "available": true, "unavailable_reason": null },
-          { "strategy": "youki", "available": false, "unavailable_reason": "youki binary not installed" }
+          {
+            "strategy": "docker",
+            "available": true,
+            "unavailable_reason": ""
+          },
+          {
+            "strategy": "youki",
+            "available": false,
+            "unavailable_reason": "youki binary not installed"
+          }
         ],
         "would_resolve_to": {
           "strategy": "docker",
           "tier": "container",
-          "reason": { "kind": "run_override" },
+          "reason": {
+            "run_override": {}
+          },
           "downgraded": false
         },
         "recommended": true
@@ -302,125 +158,51 @@
         "tier": "cloud",
         "label": "Cloud sandbox",
         "strategies": [
-          { "strategy": "fly", "available": false, "unavailable_reason": "flyctl not installed" }
+          {
+            "strategy": "fly",
+            "available": false,
+            "unavailable_reason": "flyctl not installed"
+          }
         ],
         "would_resolve_to": null,
         "recommended": false
       }
     ]
   },
-
-  // ── Preview.response ─────────────────────────────────────────────────────────
-  // IsolationPreviewRequest → JsonResponse.json = IsolationDecision
-  // (same shape as IsolationDecision inside Status.response.decision)
-  //
-  // These represent what Preview(tier, strategy?) returns for explicit choices.
-  // Preview uses run_override internally, so reason=RunOverride for direct picks.
-  // An unavailable tier returns an error (see error_states.preview_vm_unavailable).
-
-  // Preview A — tier="container" (default pick via wizard).
-  // Nominal: docker is the resolved strategy; no downgrade.
-  "Preview.response.container": {
-    "resolved": {
-      "strategy": "docker",
-      "tier": "container",
-      "reason": { "kind": "run_override" },
-      "downgraded": false
-    },
-    "capabilities": {
-      "os": "linux",
-      "in_sandbox": false,
-      "docker": true,
-      "podman": false,
-      "youki": null,
-      "youki_rootfs": null,
-      "lima": null,
-      "tart": null,
-      "wsl2": false,
-      "srt": false,
-      "sandbox_exec": false,
-      "vz_framework": false,
-      "firecracker": false,
-      "apple_container": false,
-      "fly_cli": false,
-      "fly_authed": false
-    },
-    "user_profile_used": { "tier": "container" }
+  "isolation.preview": {
+    "decision": {
+      "resolved": {
+        "strategy": "docker",
+        "tier": "container",
+        "reason": {
+          "run_override": {}
+        },
+        "downgraded": false
+      },
+      "capabilities": {
+        "os": "linux",
+        "in_sandbox": false,
+        "docker": true,
+        "podman": false,
+        "youki": null,
+        "youki_rootfs": null,
+        "lima": null,
+        "tart": null,
+        "wsl2": false,
+        "srt": false,
+        "sandbox_exec": false,
+        "vz_framework": false,
+        "firecracker": false,
+        "apple_container": false,
+        "fly_cli": false,
+        "fly_authed": false
+      },
+      "user_profile_used": {
+        "tier": "container"
+      }
+    }
   },
-
-  // Preview B — tier="process" (operator browsing a lighter option).
-  // harness_native resolves; no downgrade. Useful for the preview panel to show
-  // "this is what would happen before you commit".
-  "Preview.response.process": {
-    "resolved": {
-      "strategy": "harness_native",
-      "tier": "process",
-      "reason": { "kind": "run_override" },
-      "downgraded": false
-    },
-    "capabilities": {
-      "os": "linux",
-      "in_sandbox": false,
-      "docker": true,
-      "podman": false,
-      "youki": null,
-      "youki_rootfs": null,
-      "lima": null,
-      "tart": null,
-      "wsl2": false,
-      "srt": false,
-      "sandbox_exec": false,
-      "vz_framework": false,
-      "firecracker": false,
-      "apple_container": false,
-      "fly_cli": false,
-      "fly_authed": false
-    },
-    "user_profile_used": { "tier": "container" }
-  },
-
-  // Preview C — tier="none" (explicit noop; operator knowingly opts out).
-  // Shows the preview panel's warning callout for no-sandbox mode.
-  "Preview.response.noop": {
-    "resolved": {
-      "strategy": "noop",
-      "tier": "none",
-      "reason": { "kind": "run_override" },
-      "downgraded": false
-    },
-    "capabilities": {
-      "os": "linux",
-      "in_sandbox": false,
-      "docker": true,
-      "podman": false,
-      "youki": null,
-      "youki_rootfs": null,
-      "lima": null,
-      "tart": null,
-      "wsl2": false,
-      "srt": false,
-      "sandbox_exec": false,
-      "vz_framework": false,
-      "firecracker": false,
-      "apple_container": false,
-      "fly_cli": false,
-      "fly_authed": false
-    },
-    "user_profile_used": { "tier": "container" }
-  },
-
-  // ── Verify.response ──────────────────────────────────────────────────────────
-  // IsolationVerifyRequest → JsonResponse.json = VerifyResult
-  // { ok, steps: VerifyStep[], resolved: IsolationDecision | null }
-  // VerifyStep = { name, ok, detail }
-  //
-  // Three fixed step names: "decision_resolves", "backend_implemented",
-  // "no_silent_downgrade". The panel renders them as a pass/fail checklist.
-  // detail strings use Rust Display + Debug formatting from the runtime.
-
-  // Verify A — fully passing; harbor Linux host + Docker running.
-  // All three steps ok=true; summary callout renders green.
-  "Verify.response.passing": {
+  "isolation.verify": {
     "ok": true,
     "steps": [
       {
@@ -443,7 +225,11 @@
       "resolved": {
         "strategy": "docker",
         "tier": "container",
-        "reason": { "kind": "os_default", "os": "linux" },
+        "reason": {
+          "os_default": {
+            "os": "linux"
+          }
+        },
         "downgraded": false
       },
       "capabilities": {
@@ -464,145 +250,57 @@
         "fly_cli": false,
         "fly_authed": false
       },
-      "user_profile_used": { "tier": "container" }
-    }
-  },
-
-  // Verify B — no_silent_downgrade fails; Docker not running, enforcement is on.
-  // decision_resolves + backend_implemented pass (harness_native is implemented).
-  // no_silent_downgrade fails because the decision was downgraded from container.
-  // Summary callout renders red; enforcement message shown.
-  "Verify.response.downgrade_fail": {
-    "ok": false,
-    "steps": [
-      {
-        "name": "decision_resolves",
-        "ok": true,
-        "detail": "resolved to harness_native (process); reason: Downgrade { from: Container, why: \"no container strategy available\" }"
-      },
-      {
-        "name": "backend_implemented",
-        "ok": true,
-        "detail": "backend for harness_native is implemented"
-      },
-      {
-        "name": "no_silent_downgrade",
-        "ok": false,
-        "detail": "decision was downgraded: Downgrade { from: Container, why: \"no container strategy available\" } — enforcement would refuse to launch"
+      "user_profile_used": {
+        "tier": "container"
       }
-    ],
-    "resolved": {
-      "resolved": {
-        "strategy": "harness_native",
-        "tier": "process",
-        "reason": {
-          "kind": "downgrade",
-          "from": "container",
-          "why": "no container strategy available"
-        },
-        "downgraded": true
-      },
-      "capabilities": {
-        "os": "linux",
-        "in_sandbox": false,
-        "docker": false,
-        "podman": false,
-        "youki": null,
-        "youki_rootfs": null,
-        "lima": null,
-        "tart": null,
-        "wsl2": false,
-        "srt": false,
-        "sandbox_exec": false,
-        "vz_framework": false,
-        "firecracker": false,
-        "apple_container": false,
-        "fly_cli": false,
-        "fly_authed": false
-      },
-      "user_profile_used": { "tier": "container" }
     }
   },
-
-  // ── error_states ─────────────────────────────────────────────────────────────
-  // Error payloads from each of the four RPC paths. The component maps these to
-  // the "unavailable", "error (retryable)", and "error" states from §5.
-
   "error_states": {
-    // Returned by Status.response.decision when decide() fails with a TierUnavailable.
-    // Rendered as the "unavailable" state on ship-isolation-status-card.
-    // Trigger: operator has isolation.default_tier pinned to "vm" but no KVM/Lima.
     "status_tier_unavailable": {
       "rpc": "Status",
       "tone": "unavailable",
       "message": "tier 'vm' is pinned but no strategy in that tier is available"
     },
-
-    // Returned by Status.response.decision when allow_tier_0=false and no viable strategy.
-    // Rendered as the "unavailable" state with a harder prompt: change allow_tier_0 or install a strategy.
     "status_no_fallback": {
       "rpc": "Status",
       "tone": "unavailable",
       "message": "no strategy available and Tier 0 is forbidden by isolation.allow_tier_0 = false"
     },
-
-    // Preview with tier="vm" on a Linux host without KVM → TierUnavailable error.
-    // ship-isolation-preview-panel renders this as an "unavailable" callout for the
-    // chosen tier, prompting the operator to pick a different tier or install KVM.
     "preview_vm_unavailable": {
       "rpc": "Preview",
       "tone": "unavailable",
       "message": "isolation: tier 'vm' is pinned but no strategy in that tier is available"
     },
-
-    // Preview with tier="cloud" and flyctl not installed.
     "preview_cloud_unavailable": {
       "rpc": "Preview",
       "tone": "unavailable",
       "message": "isolation: tier 'cloud' is pinned but no strategy in that tier is available"
     },
-
-    // Transport error: daemon not running or unreachable. All four RPCs may return this.
-    // ship-isolation-status-card renders the "empty" state (prompt to start daemon + Rescan).
     "transport_daemon_unreachable": {
       "rpc": "Status",
       "tone": "error",
-      "message": "connection refused — is shipd running? (ship daemon start)"
+      "message": "connection refused \u2014 is shipd running? (ship daemon start)"
     },
-
-    // Retryable internal error: capability probe failed (disk read error, signal).
     "status_probe_failed": {
       "rpc": "Status",
       "tone": "error",
       "message": "isolation: capability probe failed: failed to read /proc/1/cgroup"
     }
   },
-
-  // ── empty_states ─────────────────────────────────────────────────────────────
-  // Text + affordances for the empty/loading states on each component.
-
   "empty_states": {
-    // status-card when daemon not yet reached (first load, before Status RPC returns).
     "no_cached_snapshot": {
       "title": "Isolation status unknown",
       "body": "Start the Ship daemon to probe this host's sandbox capabilities.",
       "cta": "Start daemon"
     },
-
-    // status-card while Status(rescan=true) is in flight (live/rescan state).
-    // Existing data held; pulse animation on the card.
     "rescan_in_flight": {
-      "title": "Rescanning host capabilities…",
+      "title": "Rescanning host capabilities\u2026",
       "body": "The previous snapshot is shown below while the probe runs."
     },
-
-    // tier-picker when Recommendations RPC hasn't resolved yet.
     "recommendations_loading": {
       "title": "Loading available isolation tiers",
       "body": "Probing this host's sandbox capabilities."
     },
-
-    // preview-panel when no tier has been selected in the tier-picker yet.
     "preview_no_selection": {
       "title": "Select a tier to preview",
       "body": "Pick an isolation tier on the left to see what strategy would resolve."
