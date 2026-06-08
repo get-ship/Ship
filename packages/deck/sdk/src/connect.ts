@@ -21,14 +21,10 @@ import { AccountService } from "./gen/ship/ops/v1/account_pb.js";
 import { AgentService } from "./gen/ship/ops/v1/agent_pb.js";
 import { AgentsService } from "./gen/ship/ops/v1/agents_pb.js";
 import { AnalyticsService } from "./gen/ship/ops/v1/analytics_pb.js";
-import { AnnotationService } from "./gen/ship/ops/v1/annotation_pb.js";
 import { ArtifactsService } from "./gen/ship/ops/v1/artifacts_pb.js";
 import { CollectionsService } from "./gen/ship/ops/v1/collections_pb.js";
-import { CreateService } from "./gen/ship/ops/v1/create_pb.js";
 import { DashboardService } from "./gen/ship/ops/v1/dashboard_pb.js";
-import { DiscoveryService } from "./gen/ship/ops/v1/discovery_pb.js";
 import { EventsService } from "./gen/ship/ops/v1/events_pb.js";
-import { FeedbackService } from "./gen/ship/ops/v1/feedback_pb.js";
 import { GitService } from "./gen/ship/ops/v1/git_pb.js";
 import { McpService } from "./gen/ship/ops/v1/mcp_pb.js";
 import { PermissionsService } from "./gen/ship/ops/v1/permissions_pb.js";
@@ -43,7 +39,6 @@ import { SkillsService } from "./gen/ship/ops/v1/skills_pb.js";
 import { SpaceService } from "./gen/ship/ops/v1/space_pb.js";
 import { SpecsService } from "./gen/ship/ops/v1/specs_pb.js";
 import { ViewService } from "./gen/ship/ops/v1/view_pb.js";
-import { ViewErrorsService } from "./gen/ship/ops/v1/view_errors_pb.js";
 import { WorkspacesService } from "./gen/ship/ops/v1/workspaces_pb.js";
 
 export interface ShipConnectOptions {
@@ -66,14 +61,10 @@ export interface ShipConnectClient {
   agent: Client<typeof AgentService>;
   agents: Client<typeof AgentsService>;
   analytics: Client<typeof AnalyticsService>;
-  annotation: Client<typeof AnnotationService>;
   artifacts: Client<typeof ArtifactsService>;
   collections: Client<typeof CollectionsService>;
-  create: Client<typeof CreateService>;
   dashboard: Client<typeof DashboardService>;
-  discovery: Client<typeof DiscoveryService>;
   events: Client<typeof EventsService>;
-  feedback: Client<typeof FeedbackService>;
   git: Client<typeof GitService>;
   mcp: Client<typeof McpService>;
   permissions: Client<typeof PermissionsService>;
@@ -87,7 +78,6 @@ export interface ShipConnectClient {
   space: Client<typeof SpaceService>;
   specs: Client<typeof SpecsService>;
   view: Client<typeof ViewService>;
-  viewErrors: Client<typeof ViewErrorsService>;
   workspaces: Client<typeof WorkspacesService>;
 }
 
@@ -116,14 +106,10 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
     agent: createClient(AgentService, transport),
     agents: createClient(AgentsService, transport),
     analytics: createClient(AnalyticsService, transport),
-    annotation: createClient(AnnotationService, transport),
     artifacts: createClient(ArtifactsService, transport),
     collections: createClient(CollectionsService, transport),
-    create: createClient(CreateService, transport),
     dashboard: createClient(DashboardService, transport),
-    discovery: createClient(DiscoveryService, transport),
     events: createClient(EventsService, transport),
-    feedback: createClient(FeedbackService, transport),
     git: createClient(GitService, transport),
     mcp: createClient(McpService, transport),
     permissions: createClient(PermissionsService, transport),
@@ -137,7 +123,6 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
     space: createClient(SpaceService, transport),
     specs: createClient(SpecsService, transport),
     view: createClient(ViewService, transport),
-    viewErrors: createClient(ViewErrorsService, transport),
     workspaces: createClient(WorkspacesService, transport),
   };
 }
@@ -149,14 +134,10 @@ export {
   AgentService,
   AgentsService,
   AnalyticsService,
-  AnnotationService,
   ArtifactsService,
   CollectionsService,
-  CreateService,
   DashboardService,
-  DiscoveryService,
   EventsService,
-  FeedbackService,
   GitService,
   McpService,
   PermissionsService,
@@ -171,7 +152,6 @@ export {
   SpaceService,
   SpecsService,
   ViewService,
-  ViewErrorsService,
   WorkspacesService,
 };
 
