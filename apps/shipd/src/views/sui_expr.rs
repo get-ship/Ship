@@ -1,38 +1,28 @@
-//! Schema source for the `data live` SSE endpoint.
+//! Expression parsing and resolution helpers for `<data live />` sources.
 //!
-//! Every `ship.<domain>.<op>(...)` expression resolves through the
-//! existing service registry (`apps/shipd/src/services/registry.rs`).
-//! That registry is the single source of truth for read-side domain
-//! services — minijinja templates already use it via the `ship.*`
-//! globals; this module wires the same calls into Sail's data layer
-//! so authors get the same vocabulary in `.set` files.
-//!
-//! `serve_data` parses the incoming `?expr=...`, calls
-//! `services::registry::call` with `<domain>.<op>` and the parsed
-//! args, sends the result as the initial patch, then subscribes to a
-//! coarse kernel namespace (currently `config`) and re-resolves on
-//! each event. Domain-specific subscription scopes can replace the
-//! coarse subscription as we narrow the wake-up surface.
+//! Every `ship.<domain>.<op>(...)` expression used in a `.sui` template's
+//! live-data section is parsed here. The `resolve` function is intentionally
+//! a stub that always returns an error — registry string-dispatch was removed
+//! as part of the one-RPC refactor. Signal-backed sources (`git.overview`,
+//! etc.) bypass this path entirely via `run_signal_data_source` in `sui_sse`.
+//! Non-converted sources will surface a `{"kind":"loading"}` envelope until
+//! they are ported to typed Connect RPCs.
 
 use crate::ship_runtime::ApiState;
 use serde_json::Value;
 
-/// A parsed `ship.<domain>.<op>(<args>)` expression. Owns its strings
-/// so it can travel through `'static` SSE streams.
+/// A parsed `ship.<domain>.<op>(...)` expression. Owns its strings so it
+/// can travel through `'static` SSE streams.
 #[derive(Debug, Clone)]
 pub struct ParsedExpr {
-    /// Registry name (without the `ship.` prefix) — e.g. `agents.summaries`,
-    /// `dashboard.state`, `actors.mesh.snapshot`.
+    /// Registry name without the `ship.` prefix — e.g. `agents.summaries`.
     pub registry_name: String,
     /// Verbatim argument string between the parens, possibly empty.
-    /// Currently passed as-is — non-empty args are rejected at the
-    /// dispatcher level until argument parsing lands.
     pub args: String,
 }
 
-/// Parse `ship.foo.bar(args)`. Permissive on the arg payload — does
-/// not validate the JS expression; the dispatcher decides what to do
-/// with it.
+/// Parse `ship.foo.bar(args)`. Permissive on the arg payload — does not
+/// validate the JS expression; the dispatcher decides what to do with it.
 pub fn parse_expr(expr: &str) -> Option<ParsedExpr> {
     let (head, args) = expr.split_once('(')?;
     let args = args.strip_suffix(')')?;
@@ -46,17 +36,9 @@ pub fn parse_expr(expr: &str) -> Option<ParsedExpr> {
     })
 }
 
-/// Resolve a `ship.*` expression by delegating to the service
-/// registry.
-///
-/// Args grammar: a single JSON object literal between the parens, or
-/// nothing. Empty args become an empty JSON object. Anything else
-/// (positional args, identifier-only args, JS expressions) is rejected
-/// — clients are expected to substitute identifiers and serialize a
-/// JSON literal before opening the SSE channel.
-/// Resolve a `ship.*` expression. Registry string-dispatch was removed (one rpc story);
-/// this returns an error for any expression — the SSE `data live` endpoint surfaces
-/// it as a 400. Clients should migrate to typed Connect RPCs.
+/// Resolve a `ship.*` expression. Registry string-dispatch was removed (one
+/// RPC story); this always returns an error. SSE surfaces it as
+/// `{"kind":"loading"}`. Clients should migrate to typed Connect RPCs.
 pub fn resolve(parsed: &ParsedExpr, _state: &ApiState) -> Result<Value, String> {
     let _ = parse_args(&parsed.args)?; // still validate args syntax
     Err(format!(
@@ -65,18 +47,16 @@ pub fn resolve(parsed: &ParsedExpr, _state: &ApiState) -> Result<Value, String> 
     ))
 }
 
-/// Parse the argument string of a `ship.<x>(...)` expression into a
-/// JSON object the registry can consume. Three accepted forms:
-///
-///   - Empty / whitespace → `{}`
-///   - Bare object literal — `{ "id": "abc-1" }`
-///   - Quoted/encoded object literal — same shape after URL decoding
-///
-/// Anything else surfaces as a 400-shaped error string. Keeping the
-/// grammar this narrow is deliberate: the client side controls
-/// serialization and never needs anything richer; loosening this
-/// silently invites injection-shaped behavior into a server-evaluated
-/// expression.
+/// Kernel namespaces to subscribe to for live updates. Every resolved
+/// expression listens on `config` — filesystem changes under `.ship/` plus
+/// agent / pipeline / collection edits all fire `config.*` events.
+pub fn subscribe_namespaces(_parsed: &ParsedExpr) -> Vec<String> {
+    vec!["config".to_string()]
+}
+
+/// Parse the argument string of a `ship.<x>(...)` expression into a JSON
+/// object. Accepted forms: empty/whitespace → `{}`; bare object literal.
+/// Anything else is a 400-shaped error.
 fn parse_args(raw: &str) -> Result<Value, String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -93,18 +73,6 @@ fn parse_args(raw: &str) -> Result<Value, String> {
         ));
     }
     Ok(parsed)
-}
-
-/// Kernel namespaces to subscribe to for live updates. v1: every
-/// resolved expression listens on `config`. Filesystem changes under
-/// `.ship/` plus agent / pipeline / collection edits all fire
-/// `config.*` events; the resolver re-fetches and emits a patch.
-///
-/// Domain-specific scopes (e.g. just `run.*` for pipeline-state
-/// queries) can replace this when we want to narrow the wake-up
-/// surface — single function to update.
-pub fn subscribe_namespaces(_parsed: &ParsedExpr) -> Vec<String> {
-    vec!["config".to_string()]
 }
 
 #[cfg(test)]
@@ -142,7 +110,6 @@ mod tests {
 
     #[test]
     fn rejects_top_level_ship() {
-        // `ship.summaries()` — registry names are always `<domain>.<op>`.
         assert!(parse_expr("ship.summaries()").is_none());
     }
 
@@ -179,12 +146,11 @@ mod tests {
 
     #[test]
     fn parse_args_rejects_array_literal() {
-        // Registries take object args, not arrays.
         assert!(parse_args("[1,2,3]").is_err());
     }
 
     #[test]
     fn parse_args_rejects_partial_json() {
-        assert!(parse_args("{commit:abc}").is_err()); // unquoted keys
+        assert!(parse_args("{commit:abc}").is_err());
     }
 }

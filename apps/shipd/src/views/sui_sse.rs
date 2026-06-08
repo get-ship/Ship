@@ -30,7 +30,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use sui_signals;
 
 use crate::ship_runtime::ApiState;
-use super::sui_data_resolvers::{parse_expr, resolve as resolve_value, subscribe_namespaces};
+use super::sui_expr::{parse_expr, resolve as resolve_value, subscribe_namespaces};
 use super::sui_patch_channel;
 use super::sui_patches::format_patch_signals;
 use super::git_signal;
@@ -223,7 +223,7 @@ async fn run_data_source(
 /// Falls back to `{"kind":"loading"}` on error so the runtime never sees
 /// a transport-level failure for an authoring mistake.
 fn resolve_initial(
-    parsed: &super::sui_data_resolvers::ParsedExpr,
+    parsed: &super::sui_expr::ParsedExpr,
     state: &ApiState,
     expr: &str,
 ) -> serde_json::Value {
