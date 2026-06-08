@@ -13,6 +13,11 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 futures-util = { workspace = true }
+# The op-execution contract (`Dispatch` + `DispatchError`) is shared with the JS
+# engine — durable-execution CONSUMES ship-js. `default-features = false` takes
+# only the dispatch seam (no deno/V8); the `code-mode` feature (later) turns on
+# ship-js's `deno` to run JS scripts as durable programs.
+ship-js = { path = "../ship-js", default-features = false }
 
 [dev-dependencies]
 # Only the tests need a runtime (`#[tokio::test]`); the engine itself is

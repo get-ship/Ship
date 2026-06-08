@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
-use crate::dispatch::{DispatchError, OpDispatch};
+use ship_js::{Dispatch, DispatchError};
 
 /// One recorded op outcome in the journal.
 #[derive(Debug, Clone, PartialEq)]
@@ -110,12 +110,12 @@ pub enum RunStatus {
 /// returned, on the live frontier the op runs through the one door and is logged.
 pub struct ExecCtx {
     journal: Journal,
-    dispatch: Arc<dyn OpDispatch>,
+    dispatch: Arc<dyn Dispatch>,
     cursor: usize,
 }
 
 impl ExecCtx {
-    fn new(journal: Journal, dispatch: Arc<dyn OpDispatch>) -> Self {
+    fn new(journal: Journal, dispatch: Arc<dyn Dispatch>) -> Self {
         Self { journal, dispatch, cursor: 0 }
     }
 
@@ -273,7 +273,7 @@ pub trait Program: Send + Sync {
 /// Returns the terminal status plus the (advanced) journal to persist.
 pub async fn execute(
     journal: Journal,
-    dispatch: Arc<dyn OpDispatch>,
+    dispatch: Arc<dyn Dispatch>,
     program: &dyn Program,
 ) -> (RunStatus, Journal) {
     let mut ctx = ExecCtx::new(journal, dispatch);
@@ -291,7 +291,7 @@ pub async fn execute(
 pub async fn resume(
     mut journal: Journal,
     decision: Value,
-    dispatch: Arc<dyn OpDispatch>,
+    dispatch: Arc<dyn Dispatch>,
     program: &dyn Program,
 ) -> (RunStatus, Journal) {
     journal.resolve_suspended(decision);
@@ -317,19 +317,19 @@ pub fn aggregate(results: &[Result<Value, String>], min_ok: usize) -> AggregateD
     }
 }
 
-/// An [`OpDispatch`] decorator that turns any externally-driven op stream into a
+/// An [`Dispatch`] decorator that turns any externally-driven op stream into a
 /// durable one: it journals each op result and replays logged ones without
 /// re-executing. Wrap the host dispatch a ship-js `run_module` is handed and the
 /// script becomes replayable with **no change to the JS layer** (`op_ship_call`
 /// just calls whatever dispatch it was given). This is the bridge between
 /// code-mode and durable execution.
 ///
-/// The journal lives behind interior mutability because `OpDispatch::call` is
+/// The journal lives behind interior mutability because `Dispatch::call` is
 /// `&self`; ops within one program are sequential (the script `await`s each), so
 /// the cursor advances deterministically. (Concurrent sub-runs each get their own
 /// `JournalingDispatch` — the context-compartmentalization story.)
 pub struct JournalingDispatch {
-    inner: Arc<dyn OpDispatch>,
+    inner: Arc<dyn Dispatch>,
     state: std::sync::Mutex<JournalCursor>,
 }
 
@@ -339,7 +339,7 @@ struct JournalCursor {
 }
 
 impl JournalingDispatch {
-    pub fn new(inner: Arc<dyn OpDispatch>, journal: Journal) -> Self {
+    pub fn new(inner: Arc<dyn Dispatch>, journal: Journal) -> Self {
         Self { inner, state: std::sync::Mutex::new(JournalCursor { journal, cursor: 0 }) }
     }
 
@@ -350,7 +350,7 @@ impl JournalingDispatch {
 }
 
 #[async_trait::async_trait]
-impl OpDispatch for JournalingDispatch {
+impl Dispatch for JournalingDispatch {
     async fn call(&self, op: &str, args: Value) -> Result<Value, DispatchError> {
         // Reserve this op's journal slot and peek it (lock dropped before await).
         let replayed = {
@@ -389,7 +389,7 @@ mod tests {
     /// journaling, not policy — so a trivial echo is the whole host it needs.
     struct Echo;
     #[async_trait]
-    impl OpDispatch for Echo {
+    impl Dispatch for Echo {
         async fn call(&self, op: &str, args: Value) -> Result<Value, DispatchError> {
             Ok(json!({ "op": op, "args": args, "ok": true }))
         }
@@ -398,7 +398,7 @@ mod tests {
     /// A host that fails every op TERMINALLY (a denial as the engine sees it).
     struct DenyAll;
     #[async_trait]
-    impl OpDispatch for DenyAll {
+    impl Dispatch for DenyAll {
         async fn call(&self, op: &str, _args: Value) -> Result<Value, DispatchError> {
             Err(DispatchError::Terminal(format!("denied: {op}")))
         }
@@ -407,12 +407,12 @@ mod tests {
     /// Counts real dispatches + records the op order, to prove replay does not
     /// re-execute.
     struct Counting {
-        inner: Arc<dyn OpDispatch>,
+        inner: Arc<dyn Dispatch>,
         calls: Arc<AtomicU32>,
         seen: Arc<Mutex<Vec<String>>>,
     }
     #[async_trait]
-    impl OpDispatch for Counting {
+    impl Dispatch for Counting {
         async fn call(&self, op: &str, args: Value) -> Result<Value, DispatchError> {
             self.calls.fetch_add(1, Ordering::SeqCst);
             self.seen.lock().unwrap().push(op.to_string());
@@ -546,12 +546,12 @@ mod tests {
     #[tokio::test]
     async fn retry_recovers_transient_then_replays_clean() {
         struct Flaky {
-            inner: Arc<dyn OpDispatch>,
+            inner: Arc<dyn Dispatch>,
             fail_until: u32,
             calls: Arc<AtomicU32>,
         }
         #[async_trait]
-        impl OpDispatch for Flaky {
+        impl Dispatch for Flaky {
             async fn call(&self, op: &str, args: Value) -> Result<Value, DispatchError> {
                 let n = self.calls.fetch_add(1, Ordering::SeqCst);
                 if n < self.fail_until {
@@ -585,7 +585,7 @@ mod tests {
         let calls = Arc::new(AtomicU32::new(0));
         struct CountingDeny(Arc<AtomicU32>);
         #[async_trait]
-        impl OpDispatch for CountingDeny {
+        impl Dispatch for CountingDeny {
             async fn call(&self, op: &str, _args: Value) -> Result<Value, DispatchError> {
                 self.0.fetch_add(1, Ordering::SeqCst);
                 Err(DispatchError::Terminal(format!("denied: {op}")))

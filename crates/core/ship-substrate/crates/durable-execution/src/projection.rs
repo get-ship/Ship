@@ -76,14 +76,14 @@ impl ContextProjector for KeepRecent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dispatch::{DispatchError, OpDispatch};
+    use ship_js::{Dispatch, DispatchError};
     use crate::engine::{execute, ExecCtx, EngineError, Program, RunStatus};
     use async_trait::async_trait;
     use std::sync::Arc;
 
     struct Echo;
     #[async_trait]
-    impl OpDispatch for Echo {
+    impl Dispatch for Echo {
         async fn call(&self, op: &str, args: Value) -> Result<Value, DispatchError> {
             Ok(json!({ "op": op, "args": args, "ok": true }))
         }

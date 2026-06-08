@@ -2225,6 +2225,7 @@ dependencies = [
  "async-trait",
  "futures-util",
  "serde_json",
+ "ship-js",
  "thiserror 2.0.18",
  "tokio",
 ]
