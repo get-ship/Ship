@@ -4,9 +4,10 @@ use axum::{Json, extract::{Path, State}, http::StatusCode};
 use serde::Deserialize;
 
 use crate::auth::{AuthContext, Scope, require_scope};
+use crate::routes::mesh_resp::{err_response, ok_response};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
-use super::{err_response, ok_response, safe_resolve};
+use super::safe_resolve;
 
 pub(crate) fn file_type_from_ext(path: &std::path::Path) -> &'static str {
     match path.extension().and_then(|e| e.to_str()) {

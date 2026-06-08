@@ -51,6 +51,7 @@ pub mod sandbox_api;
 #[cfg(test)]
 mod sandbox_api_tests;
 pub mod logs_api;
+pub mod mesh_resp;
 // feedback_api and annotations_api removed (Batch A routes-cull):
 // domain logic relocated to ship-agents::services::agents::{feedback,annotation};
 // REST shells deleted; AgentsWire calls ship-agents directly.

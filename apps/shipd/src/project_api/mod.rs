@@ -5,10 +5,7 @@
 //! Routes are mounted under `/api` in lib.rs.
 
 pub mod agents_skills;
-pub mod jobs_status;
 pub mod session_files;
-
-pub use jobs_status::{RunStatusReq, StepDoneReq, step_done, update_job_status};
 
 pub use agents_skills::list_agents;
 pub use session_files::{
@@ -20,6 +17,7 @@ use serde::Deserialize;
 use serde_json::json;
 use std::path::PathBuf;
 
+use crate::routes::mesh_resp::{err_response, ok_response};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // ---- Shared helpers ----
@@ -82,23 +80,6 @@ pub(crate) fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
             && b == branch { return Some(PathBuf::from(p)); }
     }
     None
-}
-
-pub(crate) fn ok_response(data: serde_json::Value) -> (StatusCode, Json<MeshResponse>) {
-    (StatusCode::OK, Json(MeshResponse { ok: true, data }))
-}
-
-pub(crate) fn err_response(
-    status: StatusCode,
-    msg: &str,
-) -> (StatusCode, Json<MeshResponse>) {
-    (
-        status,
-        Json(MeshResponse {
-            ok: false,
-            data: json!(msg),
-        }),
-    )
 }
 
 /// Resolve `target` under `base` safely, rejecting any path that escapes `base`
@@ -264,6 +245,10 @@ pub async fn emit_event(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "emit_tests.rs"]
+mod emit_tests;
 
 #[cfg(test)]
 mod tests_inline {

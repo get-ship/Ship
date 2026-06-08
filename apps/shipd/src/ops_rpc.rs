@@ -558,8 +558,10 @@ pub fn router(state: ApiState) -> axum::Router {
                             })
                     }
                     "pipeline.update_status" => {
+                        use ship_pipeline_runtime::status_core::{RunStatusReq, StatusCoreError, update_job_status_core};
+                        use crate::pipeline_ports::PipelineDispatchAdapter;
                         let pipeline_run_id = args.get("pipeline_run_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                        let body = crate::project_api::RunStatusReq {
+                        let body = RunStatusReq {
                             status: args.get("status").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                             worktree: args.get("worktree").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
                             pid: args.get("pid").and_then(|v| v.as_u64()).map(|n| n as u32),
@@ -567,20 +569,18 @@ pub fn router(state: ApiState) -> axum::Router {
                             blocker: args.get("blocker").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
                             error: args.get("error").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
                         };
-                        crate::project_api::jobs_status::update_job_status_core(&st, &pipeline_run_id, body)
+                        let port = PipelineDispatchAdapter::new(st.clone());
+                        update_job_status_core(&port, &pipeline_run_id, body)
                             .await
-                            .map_err(|(status, msg)| {
-                                use axum::http::StatusCode;
-                                if status == StatusCode::NOT_FOUND {
-                                    ConnectError::not_found(msg)
-                                } else if status.is_client_error() {
-                                    ConnectError::invalid_argument(msg)
-                                } else {
-                                    ConnectError::internal(msg)
-                                }
+                            .map_err(|e| match e {
+                                StatusCoreError::NotFound(m) => ConnectError::not_found(m),
+                                StatusCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                                StatusCoreError::Internal(m) => ConnectError::internal(m),
                             })
                     }
                     "pipeline.step_done" => {
+                        use ship_pipeline_runtime::status_core::{StatusCoreError, StepDoneReq, step_done_core};
+                        use crate::pipeline_ports::PipelineDispatchAdapter;
                         let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
                         let outputs: std::collections::BTreeMap<String, String> =
                             args.get("outputs").and_then(|v| v.as_object())
@@ -590,21 +590,17 @@ pub fn router(state: ApiState) -> axum::Router {
                                         .collect()
                                 })
                                 .unwrap_or_default();
-                        let body = crate::project_api::StepDoneReq {
+                        let body = StepDoneReq {
                             summary: args.get("summary").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
                             outputs,
                         };
-                        crate::project_api::jobs_status::step_done_core(&st, &slug, body)
+                        let port = PipelineDispatchAdapter::new(st.clone());
+                        step_done_core(&port, &slug, body)
                             .await
-                            .map_err(|(status, msg)| {
-                                use axum::http::StatusCode;
-                                if status == StatusCode::NOT_FOUND {
-                                    ConnectError::not_found(msg)
-                                } else if status.is_client_error() {
-                                    ConnectError::invalid_argument(msg)
-                                } else {
-                                    ConnectError::internal(msg)
-                                }
+                            .map_err(|e| match e {
+                                StatusCoreError::NotFound(m) => ConnectError::not_found(m),
+                                StatusCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                                StatusCoreError::Internal(m) => ConnectError::internal(m),
                             })
                     }
                     _ => Err(ConnectError::internal(format!("unknown pipelines write op: {op}"))),
@@ -1202,8 +1198,10 @@ mod tests {
     // exercises that core (refactor preserved behavior + it's transport-neutral).
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn update_job_status_core_is_shared_and_emits() {
+        use ship_pipeline_runtime::status_core::{RunStatusReq, update_job_status_core};
+        use crate::pipeline_ports::PipelineDispatchAdapter;
         let harness = crate::test_harness::TestDaemon::new().await;
-        let body = crate::project_api::jobs_status::RunStatusReq {
+        let body = RunStatusReq {
             status: "gate_passed".to_string(),
             worktree: None,
             pid: None,
@@ -1211,13 +1209,10 @@ mod tests {
             blocker: None,
             error: None,
         };
-        let v = crate::project_api::jobs_status::update_job_status_core(
-            &harness.state,
-            "run-test",
-            body,
-        )
-        .await
-        .expect("gate_passed has no required fields");
+        let port = PipelineDispatchAdapter::new(harness.state.clone());
+        let v = update_job_status_core(&port, "run-test", body)
+            .await
+            .expect("gate_passed has no required fields");
         assert_eq!(v["pipeline_run_id"], "run-test");
         assert_eq!(v["status"], "gate_passed");
     }

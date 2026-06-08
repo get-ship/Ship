@@ -2,9 +2,8 @@
 
 use axum::{Json, extract::{Path, State}, http::StatusCode};
 
+use crate::routes::mesh_resp::{err_response, ok_response};
 use crate::routes::rest_api::{ApiState, MeshResponse};
-
-use super::{err_response, ok_response};
 
 /// GET /api/v1/projects/{id}/agents
 pub async fn list_agents(

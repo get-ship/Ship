@@ -60,6 +60,7 @@ pub mod daemon;
 pub mod dispatch;
 pub mod events;
 pub mod jobs;
+pub mod jobs_status;
 pub mod pipeline_run;
 
 pub use agents::{SteerAgentRequest, steer_agent, stop_agent};
@@ -70,6 +71,7 @@ pub use jobs::{
     CancelJobRequest, EventSummary, PipelineRunDetailResponse, TurnEndRequest,
     cancel_job, end_job, get_job_detail, list_jobs,
 };
+pub use jobs_status::{step_done, update_job_status};
 pub use pipeline_run::run_pipeline;
 pub use ship_pipeline_runtime::run_core::PipelineRunRequest;
 
