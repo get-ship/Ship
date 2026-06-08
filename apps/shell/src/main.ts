@@ -77,6 +77,10 @@ import { initChromeRegistry } from './chrome/registry'
 import { initEditModeChrome, setEditModeView, toggleEditMode, toggleAnnotationMode } from './chrome/edit-mode'
 import { bridgeDockTerminal, disposeDockTerminal } from './chrome/terminal-bridge'
 import { registerKeymap } from './chrome/keymap'
+// Seed the static index.html chrome (`<sui-nav-top>` etc.) into the app graph
+// so the per-tag resolver compiles + registers them — they live outside any
+// compiled `.sui` it scans, so without this the shell paints a blank skeleton.
+import './components'
 
 
 // The daemon's base origin. Empty in a browser/vite context (same-origin; the
