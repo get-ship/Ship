@@ -139,10 +139,10 @@ impl StreamService for OpsImpl {
 /// Wire paths: `/ship.ops.v1.OpsService/<Method>`.
 ///
 /// No transport-level gate: enforcement lives at the dispatch chokepoint
-/// (`services::gate::decide`, invoked by `services::command::call`), so commands
-/// are gated identically on every transport — REST and Connect — rather than
-/// once per surface. Reads are C0 (authenticated at the edge). This is the "one
-/// gate" of `.artifacts/auth-gate-synthesis.md`.
+/// (`auth::gate::decide`, invoked by the `GateFn` closure built in `router`
+/// below), so commands are gated identically on every transport — REST and
+/// Connect — rather than once per surface. Reads are C0 (authenticated at the
+/// edge). This is the "one gate" of `.artifacts/auth-gate-synthesis.md`.
 /// Extract the kernel-attested pid from a request context.
 /// `PeerPid` is inserted only over the Unix host socket (SO_PEERCRED); TCP and
 /// non-Unix builds always return `None`, which the device crate refuses at the
@@ -167,8 +167,8 @@ pub fn router(state: ApiState) -> axum::Router {
 
     // ── Gate closure shared by all four crate-owned wires ──────────────────────
     // Reads the blast from the proto descriptor (the ONE policy source) and runs
-    // gate::decide — the same enforcement that command::call did, now at the
-    // transport handler for crate-owned wires (#94).
+    // gate::decide — the one capability enforcement seam, now at the transport
+    // handler for crate-owned wires (#94).
     let gate: ship_agents::services::rules::wire::GateFn = Arc::new({
         move |ctx: &RequestContext, op: &str| {
             let auth = ctx
@@ -177,13 +177,13 @@ pub fn router(state: ApiState) -> axum::Router {
                 .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
             let pol = ship_ops_rpc::policy::policy_for(op)
                 .ok_or_else(|| ConnectError::internal(format!("no policy for {op}")))?;
-            let caller = crate::services::gate::caller_from_auth(auth);
-            match crate::services::gate::decide(
+            let caller = crate::auth::gate::caller_from_auth(auth);
+            match crate::auth::gate::decide(
                 pol.blast,
-                crate::services::gate::service_of(op),
+                crate::auth::gate::service_of(op),
                 &caller,
             ) {
-                crate::services::gate::Decision::Deny(m) => {
+                crate::auth::gate::Decision::Deny(m) => {
                     Err(ConnectError::permission_denied(m.to_string()))
                 }
                 _ => Ok(()),
@@ -259,7 +259,7 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::DeviceServiceExt::register(device_wire, router);
     // git.* — crate-owned GitWire (ship-git).
     // Replaces impl GitService for OpsImpl in git_rpc.rs (deleted).
-    // C0 reads + C1 writes (via command::call write_dispatch closure).
+    // C0 reads + C1 writes (via the git `WriteFn` write-dispatch closure below).
     let git_kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));
     let git_state_for_write = state.clone();
     let git_write: ship_git::wire::WriteFn = Arc::new(move |op, args, ctx| {
@@ -1074,7 +1074,7 @@ async fn axum_response_to_value(
 
 // ── Policy introspection (not the enforcement path) ───────────────────────────
 //
-// Enforcement is `services::gate` via `command::call`. The map below reads the
+// Enforcement is `auth::gate` via the `GateFn` closure in `router`. The map below reads the
 // capability / blast-radius / sensitive method options that `gen-ops` projects
 // into the proto `FileDescriptorSet` — kept so the contract is visible to every
 // generated client (TS/docs/SDK) and conformance-tested here, NOT to gate calls.
@@ -1164,7 +1164,7 @@ mod tests {
         }
     }
 
-    // Gate enforcement moved to `services::gate` (invoked by `command::call`);
+    // Gate enforcement moved to `auth::gate` (invoked by the `GateFn` closure);
     // its decision is unit-tested there. This module keeps only the proto-policy
     // introspection + projection conformance above.
 

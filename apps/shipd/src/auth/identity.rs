@@ -21,7 +21,7 @@ use crate::auth::{AuthContext, Scope};
 /// host-socket transport's auth source, parallel to the token/session branches
 /// of `auth_middleware` but anchored in the connection's peer credentials, not
 /// a presented secret. One `AuthContext` shape, one gate: the result flows to
-/// `services::gate` exactly like a token-derived context.
+/// `auth::gate` exactly like a token-derived context.
 ///
 /// - [`PeerIdentity::Operator`] → a **non-elevated** local-owner context (`Cli`
 ///   transport label + the dying `Scope::Full` REST axis). S6 elevation-source

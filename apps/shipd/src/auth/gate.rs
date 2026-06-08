@@ -14,8 +14,9 @@
 //! boundary is C2 (credential-location) + attenuation at mint (slice B).
 //!
 //! This module is pure: [`decide`] takes a policy + a [`Caller`] and returns a
-//! [`Decision`]. Every write surface resolves through it via `command::call`,
-//! so there is one gate, not one per transport.
+//! [`Decision`]. Every write surface resolves through it via the `GateFn`
+//! closure built in `ops_rpc::router`, so there is one gate, not one per
+//! transport.
 
 use crate::auth::AuthContext;
 
