@@ -308,12 +308,10 @@ export default controller({
     }
 
     async function loadViews(): Promise<void> {
-      try {
-        const body = JSON.parse((await ops.discovery.list({})).json) as {
-          views?: Array<{ name: string }>
-        }
-        views.set((body.views ?? []).map((v) => v.name).sort())
-      } catch { /* empty */ }
+      // Views are client-side routes; the daemon discovery catalog was quarantined
+      // (06153c1a5). Cut the dead op — the palette's view list stays empty until
+      // the router→view-list integration lands.
+      views.set([])
     }
 
     // ── Keyboard navigation helpers ────────────────────────────────

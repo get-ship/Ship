@@ -19,10 +19,10 @@ async function savePins(pins: string[]): Promise<void> {
 }
 
 async function fetchViews(): Promise<ApiView[]> {
-  try {
-    const body = JSON.parse((await ops.discovery.list({})).json) as { views?: ApiView[] }
-    return body.views ?? []
-  } catch { return [] }
+  // Views are client-side routes; the daemon discovery catalog was quarantined
+  // (06153c1a5). Cut the dead op — empty until the router→view-list integration
+  // lands (search RPC backs component/schema needs).
+  return []
 }
 
 async function fetchProject(): Promise<Project | null> {
