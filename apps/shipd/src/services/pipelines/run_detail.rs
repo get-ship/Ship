@@ -89,13 +89,9 @@ pub fn build(slug: &str, ship_dir: &Path) -> Option<RunDetailCtx> {
     let jobs = ship_pipeline_runtime::projections::pipeline_run::load_pipeline_runs_at(ship_dir).ok()?;
     let job = jobs.values().find(|j| j.slug == slug)?;
     let run = to_run_view(job, true);
-    // pipeline.step.* are Runtime-scoped → read the run's step events from runtime.db.
-    let events = ship_substrate::db::events::query_recent_events_for_entity_at(
-        &ship_substrate::db::runtime_db_path(ship_dir),
-        &job.pipeline_run_id,
-        500,
-    )
-    .unwrap_or_default();
+    // pipeline.step.* are Runtime-scoped → read the run's step events via the L1 API.
+    let events = ship_pipeline_runtime::projections::load_run_events_at(ship_dir, &job.pipeline_run_id, 500)
+        .unwrap_or_default();
 
     let mut observations: Vec<StepObservationRow> = events
         .iter()
