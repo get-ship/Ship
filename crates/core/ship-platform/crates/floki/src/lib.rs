@@ -33,17 +33,33 @@
 pub mod agent_loop;
 pub mod auth;
 pub mod dispatch;
+pub mod durable;
+pub mod dtsgen;
 pub mod events;
 pub mod gate;
 pub mod gateway;
+pub mod lsp;
+pub mod provider;
 pub mod registry;
+pub mod resilience;
 pub mod sdkgen;
+pub mod session;
 pub mod spine;
+
+// NOTE: orchestration (the recursive spawn-agent seam) is intentionally NOT
+// graduated here. The spike's `OrchestrationDispatch` trait is shaped around a
+// mock-turn `ChildBehavior` test fake; the real seam is "spawn-agent = recursive
+// Run", which belongs to the control-plane verb design (D5). Graduating the
+// test-shaped trait now would bake in an API D5 must immediately break.
 
 pub use agent_def::Agent;
 pub use agent_loop::{AgentOutput, Approver, Cancel, HeadlessApprover, Steer, ToolCtx, run_step};
 pub use auth::AuthContext;
 pub use dispatch::GatewayDispatch;
+pub use durable::run_durable_script;
 pub use events::{AgentEvent, EventSink, UserInput};
 pub use gateway::{Gateway, GatewayCallKind, GatewayError, InProcessGateway};
+pub use provider::{BuiltModel, Credential, Provider, build_model};
+pub use resilience::{RetryPolicy, run_resilient};
+pub use session::{HistoryStore, InMemoryHistoryStore, Session, Turn};
 pub use spine::SpineError;

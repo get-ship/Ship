@@ -347,6 +347,15 @@ impl JournalingDispatch {
     pub fn into_journal(self) -> Journal {
         self.state.into_inner().unwrap().journal
     }
+
+    /// Clone the current journal WITHOUT consuming the dispatch. For observing /
+    /// persisting the log after a run driven through a shared `Arc<dyn Dispatch>`
+    /// (where `into_journal`'s by-value recovery is impossible). Safe at any
+    /// point: ops within one program are sequential, so a snapshot taken after
+    /// the run reflects every appended entry.
+    pub fn snapshot(&self) -> Journal {
+        self.state.lock().unwrap().journal.clone()
+    }
 }
 
 #[async_trait::async_trait]
