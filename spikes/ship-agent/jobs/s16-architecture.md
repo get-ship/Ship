@@ -169,6 +169,52 @@ ship-code (parked)          spawned-harness strategy — its own box, sidecar-pa
 - **S16.h — graduate + app skin.** The library lands in the tree; the `apps/ship-agent`
   binary skin; S12/S14-real unblocked.
 
-Cleanup that can start now (low-risk): delete the two dead orphan files in
-`ship-agents::runtime` (`run_dispatch.rs`, `adapters.rs` — uncompiled, zero
-callers per orchestration-entry §1.2).
+Cleanup already started: the two dead orphan files
+(`ship-agents::runtime::{run_dispatch,adapters}.rs`) are **deleted** (commit
+`ddfd5dc61`). S16.a is **de-risked** — `ship-js` has zero consumers, so the deno
+swap is risk-free (`s16a-shipjs-deno-blast-radius.md`).
+
+## 11 · Reasoning log — why these calls (the forks we worked through)
+This is the SSOT for the *why*, so the build doesn't re-litigate settled forks.
+
+1. **deno, not QuickJS.** Tauri/V8 alignment, V8's security maturity, and —
+   load-bearing for this engine — mature Rust interop/FFI. The many-agents-per-
+   process density concern is handled by **isolate pooling + startup snapshot**,
+   not by switching to a lighter engine. (ship-js is unused today, so the swap
+   costs nothing.)
+2. **RPC-as-IPC, NOT a core `invoke`.** A core `invoke(op,args,auth)` chokepoint
+   would re-create the string-dispatch ops registry that was deliberately gutted
+   when REST/MCP/CLI collapsed onto ConnectRPC. ConnectRPC *is* the SSOT dispatch.
+   The embedded caller reaches ops via an **in-process tower `oneshot`** of the
+   same Connect router — same interceptor, same gate, same services. rpc=external,
+   ipc=internal, one serving stack. The gate does **not** move; shipd stays the gate.
+3. **Everything is an op.** No step taxonomy. Human-in-the-loop = a suspending
+   review op (artifacts payload); spawn-agent = an op; a fetcher = `http.fetch`.
+   The human-vs-agent capability difference is **grants, not tools**. The only
+   non-ops are the engine itself: DAG/control-flow + suspend/resume.
+4. **Durable execution via deterministic replay, not a lighter scheme.** Code-mode
+   (dynamic JS) AND resumability is only achievable by replay: ops are journaled,
+   resume re-runs the program and completed ops (incl. **LLM calls**) return their
+   *logged* results. **Replay never re-burns tokens** — the worry argues *for*
+   replay: the lighter option (static-DAG durability, scripts run-to-completion)
+   re-burns everything on any crash and makes code-mode the non-durable path. The
+   determinism boundary is the price: all non-determinism must be a journaled op.
+5. **Context = projection, not accumulation.** The message array is a cache; the
+   journal is the truth. Compaction is *re-rendering a view*, repeatable
+   arbitrarily, because the journal is lossless. The **runtime** owns projection
+   (swappable strategies); sub-agents compartmentalize context for free (own
+   journal, parent sees only the result); LLM-driven compaction is itself a
+   journaled op (replay-safe). Forward-projection (token savings) and
+   replay-memoization (crash-resume) are distinct levers.
+6. **Library + app, NOT an L1-service module.** The agent is a self-contained
+   runtime behind ports — library (many-per-process embedded) + app (isolation
+   skin). `ship-agents` L1 is a thin **control plane** that exposes the methods and
+   knows nothing of the loop. **Agents is the prime name.**
+
+## 12 · Doc status
+**This doc is the single design SSOT.** The four investigation docs
+(`s16-shipcode-boundary`, `s16-orchestration-entry`, `s16-daemon-integration`,
+`s16a-shipjs-deno-blast-radius`) are **evidence only** — their file:line maps feed
+the build; their design framings are superseded by §9 above where they differ.
+`s16-graduate.md` (the original "reconcile into L1" plan) is **deleted** — fully
+superseded by this doc.
