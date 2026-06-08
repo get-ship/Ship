@@ -6,7 +6,7 @@
 //! mount any selected file in a single editor. Pre-fix the tab returned
 //! only `page.sui` + `manifest.jsonc` stacked.
 //!
-//! Resolution mirrors `source_api`: look up the view dir via the SUI
+//! Resolution: look up the view dir via the SUI
 //! resolver, then walk top-level + one nested `[id]/` level.
 
 use axum::extract::{Path, State};

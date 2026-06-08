@@ -15,7 +15,6 @@
 
 pub mod mcp_apps_embed;
 pub mod files_api;
-pub mod source_api;
 pub mod write_api;
 pub mod stream;
 pub mod state;
@@ -33,7 +32,6 @@ pub mod sui_source;
 pub mod sui_sse;
 pub mod sui_sse_sources;
 pub mod git_signal;
-pub mod sui_patches;
 pub mod sui_patch_channel;
 pub mod sui_view_edit_sse;
 pub mod sui_agent_push;
