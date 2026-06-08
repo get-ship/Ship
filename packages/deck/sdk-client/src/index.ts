@@ -236,9 +236,6 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       doc:  (args) => sse('canvas', 'doc', args),
       list:    () => sse('canvas', 'list'),
     },
-    chat: {
-      state: (args) => sse('chat', 'state', args),
-    },
     collections: {
       state:  (args) => sse('collections', 'state', args),
       detail: (args) => sse('collections', 'detail', args),

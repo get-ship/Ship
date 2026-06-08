@@ -23,7 +23,6 @@ import { AgentsService } from "./gen/ship/ops/v1/agents_pb.js";
 import { AnalyticsService } from "./gen/ship/ops/v1/analytics_pb.js";
 import { AnnotationService } from "./gen/ship/ops/v1/annotation_pb.js";
 import { ArtifactsService } from "./gen/ship/ops/v1/artifacts_pb.js";
-import { ChatService } from "./gen/ship/ops/v1/chat_pb.js";
 import { CollectionsService } from "./gen/ship/ops/v1/collections_pb.js";
 import { CreateService } from "./gen/ship/ops/v1/create_pb.js";
 import { DashboardService } from "./gen/ship/ops/v1/dashboard_pb.js";
@@ -69,7 +68,6 @@ export interface ShipConnectClient {
   analytics: Client<typeof AnalyticsService>;
   annotation: Client<typeof AnnotationService>;
   artifacts: Client<typeof ArtifactsService>;
-  chat: Client<typeof ChatService>;
   collections: Client<typeof CollectionsService>;
   create: Client<typeof CreateService>;
   dashboard: Client<typeof DashboardService>;
@@ -120,7 +118,6 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
     analytics: createClient(AnalyticsService, transport),
     annotation: createClient(AnnotationService, transport),
     artifacts: createClient(ArtifactsService, transport),
-    chat: createClient(ChatService, transport),
     collections: createClient(CollectionsService, transport),
     create: createClient(CreateService, transport),
     dashboard: createClient(DashboardService, transport),
@@ -154,7 +151,6 @@ export {
   AnalyticsService,
   AnnotationService,
   ArtifactsService,
-  ChatService,
   CollectionsService,
   CreateService,
   DashboardService,
