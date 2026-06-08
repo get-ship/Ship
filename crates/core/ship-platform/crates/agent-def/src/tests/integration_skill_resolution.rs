@@ -6,7 +6,7 @@
 use anyhow::Result;
 use tempfile::tempdir;
 
-use crate::agent_domain::skill::{
+use crate::skill::{
     create_skill, create_user_skill, delete_skill, delete_user_skill, get_effective_skill,
     get_skill, get_user_skill, list_effective_skills, list_skills, list_user_skills, update_skill,
 };

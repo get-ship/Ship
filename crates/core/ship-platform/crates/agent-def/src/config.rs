@@ -11,9 +11,9 @@ pub struct WorkspaceAgentSettings {
     pub harnesses: Vec<String>,
 }
 
-use crate::agent_domain::permissions::{Permissions, get_permissions};
-use crate::agent_domain::rule::{Rule, list_rules};
-use crate::agent_domain::skill::{Skill, list_effective_skills};
+use crate::permissions::{Permissions, get_permissions};
+use crate::rule::{Rule, list_rules};
+use crate::skill::{Skill, list_effective_skills};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -222,8 +222,8 @@ mod tests {
     use super::*;
     use ship_config::project::{AgentProfile, McpServerType, ProjectConfig, save_config};
     use crate::testutil::init_project;
-    use crate::agent_domain::rule::create_rule;
-    use crate::agent_domain::skill::create_skill;
+    use crate::rule::create_rule;
+    use crate::skill::create_skill;
     use std::collections::HashMap;
     use tempfile::tempdir;
 

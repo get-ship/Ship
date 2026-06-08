@@ -14,9 +14,9 @@ use ship_types::event_types::{
 };
 use tempfile::tempdir;
 
-use crate::agent_domain::skill::{create_skill, get_skill, update_skill, delete_skill, list_skills};
-use crate::agent_domain::rule::{create_rule, get_rule, update_rule, delete_rule, list_rules};
-use crate::agent_domain::permissions::{get_permissions, save_permissions, Permissions};
+use crate::skill::{create_skill, get_skill, update_skill, delete_skill, list_skills};
+use crate::rule::{create_rule, get_rule, update_rule, delete_rule, list_rules};
+use crate::permissions::{get_permissions, save_permissions, Permissions};
 use crate::testutil::init_project;
 
 fn query_events(event_type: &str) -> Vec<ship_types::envelope::EventEnvelope> {

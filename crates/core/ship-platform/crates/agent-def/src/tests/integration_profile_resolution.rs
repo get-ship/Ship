@@ -7,12 +7,12 @@
 use anyhow::Result;
 use tempfile::tempdir;
 
-use crate::agent_domain::config::{
+use crate::config::{
     ProviderSettings, WorkspaceAgentSettings, resolve_harness_settings,
     resolve_harness_settings_with_agent_override,
 };
-use crate::agent_domain::rule::create_rule;
-use crate::agent_domain::skill::create_skill;
+use crate::rule::create_rule;
+use crate::skill::create_skill;
 use ship_config::project::{AgentProfile, McpServerConfig, McpServerType, ProjectConfig, save_config};
 use crate::testutil::init_project;
 use std::collections::HashMap;

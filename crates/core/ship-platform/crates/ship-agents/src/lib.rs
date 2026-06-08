@@ -15,7 +15,10 @@ pub mod testutil;
 
 pub mod active_agent;
 pub mod actor;
-pub mod agent_domain;
+// The agent-definition domain moved to the `agent-def` crate (Floki carve D2a).
+// Re-exported here so every `crate::agent_domain::*` and `ship_agents::agent_domain::*`
+// caller keeps resolving with zero churn — a back-compat shim during the carve.
+pub use agent_def as agent_domain;
 pub mod cancel;
 pub mod dispatch;
 pub mod hooks;

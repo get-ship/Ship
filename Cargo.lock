@@ -15,6 +15,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "agent-def"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "home",
+ "jsonschema",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "ship-config",
+ "ship-harnesses",
+ "ship-kv",
+ "ship-platform",
+ "ship-substrate",
+ "ship-types",
+ "specta",
+ "tempfile",
+ "tokio",
+ "toml 0.8.2",
+ "tracing",
+ "walkdir",
+]
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7987,6 +8013,7 @@ dependencies = [
 name = "ship-agents"
 version = "0.1.0"
 dependencies = [
+ "agent-def",
  "anyhow",
  "async-stream",
  "async-trait",

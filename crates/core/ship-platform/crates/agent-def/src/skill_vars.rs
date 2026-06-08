@@ -62,7 +62,7 @@ struct VarMeta {
 /// Returns `None` if the file is absent in all paths.
 fn parse_vars_schema(ship_dir: &Path, skill_id: &str) -> Option<HashMap<String, VarMeta>> {
     let project_root = ship_dir.parent().unwrap_or(ship_dir);
-    let content = crate::agent_domain::skill_paths::read_skill_paths(ship_dir, project_root)
+    let content = crate::skill_paths::read_skill_paths(ship_dir, project_root)
         .into_iter()
         .map(|dir| dir.join(skill_id).join("assets").join("vars.json"))
         .find_map(|path| std::fs::read_to_string(&path).ok())?;
@@ -201,7 +201,7 @@ pub fn list_skill_vars(ship_dir: &Path) -> Result<Vec<(String, HashMap<String, V
     let mut result = Vec::new();
 
     let project_root = ship_dir.parent().unwrap_or(ship_dir);
-    for skills_path in crate::agent_domain::skill_paths::read_skill_paths(ship_dir, project_root) {
+    for skills_path in crate::skill_paths::read_skill_paths(ship_dir, project_root) {
         if !skills_path.exists() {
             continue;
         }

@@ -15,7 +15,7 @@ use specta::Type;
 /// the schema string embedded means the runtime can validate every SKILL.md
 /// without depending on an installed copy at runtime.
 const SKILL_SCHEMA_JSON: &str =
-    include_str!("../../../../../../../../schemas/skill.schema.json");
+    include_str!("../../../../../../../schemas/skill.schema.json");
 
 fn skill_schema_validator() -> &'static Validator {
     static VALIDATOR: OnceLock<Validator> = OnceLock::new();

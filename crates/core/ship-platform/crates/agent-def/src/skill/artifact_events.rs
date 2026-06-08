@@ -17,7 +17,7 @@
 //!   them. `artifact_created` / `artifact_deleted` are therefore NOT subscription
 //!   topics — they are emit topics.
 
-use crate::agent_domain::skill::Skill;
+use crate::skill::Skill;
 
 /// Maps an artifact type to the Studio-emitted event suffixes applicable to it.
 ///
@@ -72,7 +72,7 @@ pub fn skill_custom_namespaces(skills: &[Skill]) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent_domain::skill::{Skill, SkillSource};
+    use crate::skill::{Skill, SkillSource};
 
     fn make_skill(id: &str, artifacts: &[&str]) -> Skill {
         Skill {

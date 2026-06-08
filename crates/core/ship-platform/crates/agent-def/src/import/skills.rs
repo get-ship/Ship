@@ -20,7 +20,7 @@ pub fn import_skills_from_harness(harness_id: &str, project_dir: PathBuf) -> Res
         return Ok(0);
     }
 
-    let mut existing_ids: HashSet<String> = crate::agent_domain::skill::list_skills(&project_dir)?
+    let mut existing_ids: HashSet<String> = crate::skill::list_skills(&project_dir)?
         .into_iter()
         .map(|skill| skill.id)
         .collect();
@@ -61,7 +61,7 @@ pub fn import_skills_from_harness(harness_id: &str, project_dir: PathBuf) -> Res
                 continue;
             }
 
-            if crate::agent_domain::skill::create_skill(&project_dir, &draft.id, &draft.name, &draft.content)
+            if crate::skill::create_skill(&project_dir, &draft.id, &draft.name, &draft.content)
                 .is_ok()
             {
                 existing_ids.insert(draft.id);

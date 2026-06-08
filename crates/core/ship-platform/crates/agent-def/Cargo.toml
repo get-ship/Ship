@@ -1,0 +1,41 @@
+[package]
+name = "agent-def"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L1: the unified agent-definition domain — config / harnesses / rules / permissions / skills / imports. The ONE definition both Floki and ship-code read; the control plane + shipd depend on it for config CRUD without pulling a runtime. (Carved from ship-agents.)"
+
+[lints]
+workspace = true
+
+[dependencies]
+ship-substrate = { path = "../../../ship-substrate" }
+ship-types = { path = "../../../ship-substrate/crates/ship-types" }
+ship-config = { path = "../ship-config" }
+ship-harnesses = { path = "../ship-harnesses" }
+ship-kv = { path = "../ship-kv" }
+
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+specta = { workspace = true, features = ["chrono", "serde_json"] }
+jsonschema = { version = "0.46", default-features = false }
+tempfile = { workspace = true }
+tracing = { workspace = true }
+sha2 = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true, features = ["preserve_order"] }
+home = { workspace = true }
+
+[dev-dependencies]
+# Test helper (`testutil::init_project`) installs platform defaults; this is a
+# dev-only edge (Cargo permits the dev-dependency cycle through ship-platform).
+ship-platform = { path = "../.." }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+tempfile = { workspace = true }
+chrono = { workspace = true }
+walkdir = "2.3"
+
+[features]
+fixtures = []
+specta = []

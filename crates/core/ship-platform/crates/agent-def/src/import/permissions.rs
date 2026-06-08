@@ -17,7 +17,7 @@
 //! local. Helpers (`dedupe_strings`, TOML/Starlark accessors) are
 //! private to this module since no other importer needs them.
 
-use crate::agent_domain::permissions::{
+use crate::permissions::{
     NetworkPolicy, Permissions, ToolPermissions, save_permissions,
 };
 use anyhow::{Result, anyhow};

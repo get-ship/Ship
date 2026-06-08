@@ -7,7 +7,7 @@
 use anyhow::Result;
 use tempfile::tempdir;
 
-use crate::agent_domain::harnesses::{
+use crate::harnesses::{
     detect_binary, disable_harness, enable_harness, get_harness, list_harnesses,
 };
 use ship_harnesses::harness_adapter::adapter_for;
