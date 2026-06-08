@@ -44,12 +44,10 @@ mod tests {
     /// Contract: the catalog is read from the RUNTIME-resolved `.deck/catalogs`
     /// root (deck_out_root), not a build-time path — so an installed/external
     /// daemon serves the real baked catalog. Fails with the old
-    /// CARGO_MANIFEST_DIR resolution (which ignores DECK_PROJECT_DIR).
+    /// CARGO_MANIFEST_DIR resolution.
     #[test]
     fn catalog_served_from_resolved_deck_root() {
-        let _lock = crate::test_lock::lock();
-        let prev_deck = std::env::var_os("DECK_PROJECT_DIR");
-        let prev_dev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
+        use crate::test_lock::ProjectRootGuard;
         let tmp = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(tmp.path().join(".deck/catalogs")).unwrap();
         std::fs::write(
@@ -57,22 +55,8 @@ mod tests {
             "{\"schemaVersion\":\"1\",\"count\":1,\"entries\":[\"sentinel-tag\"]}",
         )
         .unwrap();
-        unsafe {
-            std::env::set_var("DECK_PROJECT_DIR", tmp.path());
-            std::env::remove_var("SHIP_DEV_PROJECT_DIR");
-        }
+        let _root = ProjectRootGuard::new(tmp.path());
         let body = String::from_utf8(serve_catalog_workspace(DaemonMode::Development).body).unwrap();
-        // Restore env before asserting so a failure can't leak into other tests.
-        unsafe {
-            match prev_deck {
-                Some(v) => std::env::set_var("DECK_PROJECT_DIR", v),
-                None => std::env::remove_var("DECK_PROJECT_DIR"),
-            }
-            match prev_dev {
-                Some(v) => std::env::set_var("SHIP_DEV_PROJECT_DIR", v),
-                None => std::env::remove_var("SHIP_DEV_PROJECT_DIR"),
-            }
-        }
         assert!(
             body.contains("sentinel-tag"),
             "catalog must be read from the resolved .deck/catalogs root; got: {body}"

@@ -1,33 +1,17 @@
 use std::fs;
 
 use crate::DaemonMode;
+use crate::test_lock::ProjectRootGuard;
 use crate::view_host::{evict_ssr_cache, serve_view_host};
-use crate::view_payload::{serve_view_payload, serve_view_payload_subpath};
-
-const VAR: &str = "SHIP_DEV_PROJECT_DIR";
-
-struct EnvGuard {
-    _lock: std::sync::MutexGuard<'static, ()>,
-    prev: Option<std::ffi::OsString>,
-}
-impl Drop for EnvGuard {
-    fn drop(&mut self) {
-        match self.prev.take() {
-            Some(v) => unsafe { std::env::set_var(VAR, v) },
-            None => unsafe { std::env::remove_var(VAR) },
-        }
-    }
-}
-fn lock_with_dir(p: &std::path::Path) -> EnvGuard {
-    let lock = crate::test_lock::lock();
-    let prev = std::env::var_os(VAR);
-    unsafe { std::env::set_var(VAR, p); }
-    EnvGuard { _lock: lock, prev }
+use crate::view_payload::serve_view_payload;
+fn lock_with_dir(p: &std::path::Path) -> ProjectRootGuard {
+    ProjectRootGuard::new(p)
 }
 
 fn body_str(resp: &crate::DeckResponse) -> String {
     String::from_utf8(resp.body.clone()).unwrap()
 }
+
 
 /// When a pre-compiled `.ssr.html` file exists in `dist/`, the payload
 /// endpoint must return its contents in the `html` field rather than

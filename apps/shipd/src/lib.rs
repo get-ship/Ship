@@ -213,13 +213,13 @@ pub async fn run_network(
     })?;
     if let Some(ref w) = workspace_dir {
         tracing::info!(workspace = %w.display(), daemon_dir = %daemon_dir.display(), "shipd: project-scoped mode");
-        // Make `--workspace` authoritative for the SUI resolver chain
-        // (deck-core's resolver consults `SHIP_DEV_PROJECT_DIR`
-        // first; without this it falls back to CWD + worktree-aware
-        // resolution, which redirects into the parent checkout's
-        // `views/` when the workspace lives inside a git worktree).
-        // The explicit env var lets test fixtures and per-project
-        // daemons stay scoped to their own `views/` directory.
+        // Make `--workspace` authoritative for the SUI resolver chain.
+        // deck-core's resolver consults an in-process global set by
+        // `deck::resolver::set_project_root` (the SAFE path) — see the
+        // call below. The `Var::DevProjectDir` env var is kept for
+        // non-deck readers (apps/shipd/src/views/discovery.rs, ship-agents
+        // view_state.rs) that still key off it; deck-core no longer
+        // reads it.
         //
         // Leave any pre-existing value alone — callers that need a
         // different SUI resolver root than the daemon workspace
@@ -235,9 +235,19 @@ pub async fn run_network(
             // SAFETY: pre-async-runtime, no concurrent env access.
             unsafe { env::set(Var::DevProjectDir, w); }
         }
-    } else {
-        tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
-    }
+        // Authoritative project-root override for deck-core's resolver. Same
+        // value the router reads at DeckConfig::load time (router.rs's
+        // `rt.workspace_dir()`/cwd fallback) so the resolver and the
+        // bundler agree on where `<root>/.deck` lives. Non-deck readers
+        // (apps/shipd/src/views/discovery.rs, ship-agents view_state.rs)
+        // still rely on the env var above.
+        let repo_root = Some(w.clone()).or_else(|| std::env::current_dir().ok());
+        if let Some(r) = repo_root {
+            deck::resolver::set_project_root(r);
+        }
+     } else {
+         tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
+     }
 
     // Resolve the desired port. Caller-supplied --port wins; otherwise we
     // derive from the worktree root (path-hash + local.jsonc:worktrees.ports

@@ -191,19 +191,12 @@ mod tests {
     fn unresolvable_view_serves_html_not_found_page() {
         // A named view the daemon can't resolve must now render the styled
         // 404 page (text/html, status 404) instead of a 200 shell that boots
-        // only to dump the payload endpoint's raw JSON into a div. Point the
+        // only to dump the payload endpoint's raw JSON into a div. Pin the
         // resolver at an empty tempdir so the view is deterministically absent.
-        let _lock = crate::test_lock::lock();
         let tmp = tempfile::tempdir().unwrap();
-        let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
-        unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", tmp.path()); }
+        let _root = crate::test_lock::ProjectRootGuard::new(tmp.path());
 
         let resp = serve_view_host(DaemonMode::Development, "/_sui/view/no-such-view-xyzzy");
-
-        match prev {
-            Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
-            None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
-        }
 
         assert_eq!(resp.status, 404);
         assert!(resp.content_type.contains("text/html"));
@@ -222,22 +215,14 @@ mod tests {
         // A view that resolves on disk still serves the 200 shell, with the
         // root advertising the view name. The bare `/_sui/view/` landing (no
         // view in URL) keeps serving the shell with an empty name.
-        let _lock = crate::test_lock::lock();
         let tmp = tempfile::tempdir().unwrap();
-        let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
-        unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", tmp.path()); }
-
+        let _root = crate::test_lock::ProjectRootGuard::new(tmp.path());
         let view_dir = tmp.path().join(".ship/views/some-view");
         std::fs::create_dir_all(&view_dir).unwrap();
         std::fs::write(view_dir.join("page.sui"), "<p>hi</p>").unwrap();
 
         let resp = serve_view_host(DaemonMode::Development, "/_sui/view/some-view/sub");
         let bare = serve_view_host(DaemonMode::Development, "/_sui/view/");
-
-        match prev {
-            Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
-            None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
-        }
 
         assert_eq!(resp.status, 200);
         let body = std::str::from_utf8(&resp.body).unwrap();
@@ -256,11 +241,8 @@ mod tests {
 
     #[test]
     fn ssr_file_spliced_into_root() {
-        let _lock = crate::test_lock::lock();
         let tmp = tempfile::tempdir().unwrap();
-        let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
-        unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", tmp.path()); }
-
+        let _root = crate::test_lock::ProjectRootGuard::new(tmp.path());
         let view_dir = tmp.path().join(".ship/views/ssr-host-splice");
         let dist_dir = view_dir.join("dist");
         std::fs::create_dir_all(&dist_dir).unwrap();
@@ -272,11 +254,6 @@ mod tests {
         evict_ssr_cache("ssr-host-splice");
 
         let resp = serve_view_host(DaemonMode::Development, "/_sui/view/ssr-host-splice");
-        match prev {
-            Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
-            None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
-        }
-
         assert_eq!(resp.status, 200);
         let body = std::str::from_utf8(&resp.body).unwrap();
         assert!(
@@ -295,11 +272,8 @@ mod tests {
         // name and never invalidated, so an edited/re-emitted `.ssr.html` served
         // the old HTML until restart. The mtime-keyed cache must pick up the new
         // artifact once its mtime advances.
-        let _lock = crate::test_lock::lock();
         let tmp = tempfile::tempdir().unwrap();
-        let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
-        unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", tmp.path()); }
-
+        let _root = crate::test_lock::ProjectRootGuard::new(tmp.path());
         let view_dir = tmp.path().join(".ship/views/ssr-cache-bust");
         let dist_dir = view_dir.join("dist");
         std::fs::create_dir_all(&dist_dir).unwrap();
@@ -322,11 +296,6 @@ mod tests {
             second.contains("v2-pre-rendered"),
             "changed artifact must invalidate the cache (was serving stale forever); got: {second}"
         );
-
-        match prev {
-            Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
-            None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
-        }
     }
 
     #[test]
@@ -335,11 +304,8 @@ mod tests {
         // empty string, pinning the view to an empty #sui-root even after its
         // artifact landed. Empty/absent must be a MISS — once the real artifact
         // appears, the next request must serve it.
-        let _lock = crate::test_lock::lock();
         let tmp = tempfile::tempdir().unwrap();
-        let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
-        unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", tmp.path()); }
-
+        let _root = crate::test_lock::ProjectRootGuard::new(tmp.path());
         let view_dir = tmp.path().join(".ship/views/ssr-late-artifact");
         let dist_dir = view_dir.join("dist");
         std::fs::create_dir_all(&dist_dir).unwrap();
@@ -357,11 +323,6 @@ mod tests {
             after.contains("landed"),
             "empty must never be cached; the landed artifact must be served; got: {after}"
         );
-
-        match prev {
-            Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
-            None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
-        }
     }
 
     #[test]

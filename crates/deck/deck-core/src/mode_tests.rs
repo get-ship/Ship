@@ -31,21 +31,16 @@ fn asset_dev_mode_no_etag() {
 
 #[test]
 fn chunk_serves_from_deck_root_and_rejects_bad_input() {
-    let _lock = crate::test_lock::lock();
+    use crate::test_lock::ProjectRootGuard;
     let tmp = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(tmp.path().join(".deck")).unwrap();
     std::fs::write(tmp.path().join(".deck/shared-abc123.js"), "export const x=1\n").unwrap();
-    let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
-    unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", tmp.path()); }
+    let _root = ProjectRootGuard::new(tmp.path());
     let ok = crate::assets::serve_sui_chunk(DaemonMode::Production, "shared-abc123.js");
     let traversal = crate::assets::serve_sui_chunk(DaemonMode::Production, "../etc/passwd");
     let nested = crate::assets::serve_sui_chunk(DaemonMode::Production, "sub/x.js");
     let nonjs = crate::assets::serve_sui_chunk(DaemonMode::Production, "evil.txt");
     let missing = crate::assets::serve_sui_chunk(DaemonMode::Production, "nope.js");
-    match prev {
-        Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
-        None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
-    }
     assert_eq!(ok.status, 200, "a real shared chunk serves");
     assert!(ok.cache_control.contains("immutable"), "content-addressed → immutable; got {}", ok.cache_control);
     assert_eq!(traversal.status, 404, "path traversal rejected");

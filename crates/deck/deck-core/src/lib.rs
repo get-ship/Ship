@@ -42,6 +42,25 @@ pub(crate) mod test_lock {
     pub fn lock() -> std::sync::MutexGuard<'static, ()> {
         TEST_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())
     }
+
+    /// Test-only guard that pins the resolver's project root to `dir` for
+    /// its lifetime. On Drop, the override is cleared. Holds the env lock
+    /// so two tests can't race on the resolver.
+    pub struct ProjectRootGuard {
+        _lock: std::sync::MutexGuard<'static, ()>,
+    }
+    impl ProjectRootGuard {
+        pub fn new(dir: &std::path::Path) -> Self {
+            let lock = lock();
+            super::resolver::set_project_root(dir.to_path_buf());
+            Self { _lock: lock }
+        }
+    }
+    impl Drop for ProjectRootGuard {
+        fn drop(&mut self) {
+            super::resolver::reset_project_root_override_for_test();
+        }
+    }
 }
 
 pub use response::{CachePolicy, DeckResponse, compute_etag};

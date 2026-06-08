@@ -427,27 +427,21 @@ mod tests {
         assert_eq!(result, "hello/world");
     }
     /// serve_scaffold with a real (tmpdir) HTML source rewrites asset hrefs
-    /// and injects globals. Uses the env-var resolver (no caching — the resolver
-    /// reads DECK_PROJECT_DIR on every call). The env var is restored after the
-    /// test so other tests that rely on it being absent are not affected.
+    /// and injects globals. The resolver's project root is pinned to the
+    /// tmpdir via the test-only `ProjectRootGuard` so the resolver
+    /// deterministically sees our fixture.
     #[test]
     fn serve_scaffold_rewrites_assets_and_injects_globals() {
-        use crate::test_lock;
-        let _lock = test_lock::lock();
-
-        // Capture the previous value so we can restore it after the test.
-        let prev = std::env::var("DECK_PROJECT_DIR").ok();
-
+        use crate::test_lock::ProjectRootGuard;
         let dir = tempfile::tempdir().unwrap();
-        // deck_out_root() = DECK_PROJECT_DIR/.deck
+        let _root = ProjectRootGuard::new(dir.path());
+
+        // deck_out_root() = <project_root>/.deck
         let dot_deck = dir.path().join(".deck");
         let scaffold_dir = dot_deck.join("my-scaffold");
         std::fs::create_dir_all(&scaffold_dir).unwrap();
         let html = r#"<!doctype html><html><head></head><body><script src="/assets/main.js"></script></body></html>"#;
         std::fs::write(scaffold_dir.join("index.html"), html).unwrap();
-
-        // Point the resolver at the tmpdir.
-        unsafe { std::env::set_var("DECK_PROJECT_DIR", dir.path()) };
 
         let mut globals = std::collections::BTreeMap::new();
         globals.insert("DECK_APP_ID".to_string(), "$id".to_string());
@@ -459,14 +453,6 @@ mod tests {
             inject_globals: globals,
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[("id", "my-space")]);
-
-        // Restore env before asserting — a panic below still cleans up.
-        unsafe {
-            match prev {
-                Some(v) => std::env::set_var("DECK_PROJECT_DIR", v),
-                None => std::env::remove_var("DECK_PROJECT_DIR"),
-            }
-        }
 
         assert_eq!(resp.status, 200);
         let body = std::str::from_utf8(&resp.body).unwrap();
@@ -482,11 +468,9 @@ mod tests {
     /// needs to commit a `.deck/` artifact to serve a scaffold.
     #[test]
     fn serve_scaffold_falls_back_to_source_when_unbuilt() {
-        use crate::test_lock;
-        let _lock = test_lock::lock();
-        let prev = std::env::var("DECK_PROJECT_DIR").ok();
-
+        use crate::test_lock::ProjectRootGuard;
         let dir = tempfile::tempdir().unwrap();
+        let _root = ProjectRootGuard::new(dir.path());
         // SOURCE location: <root>/my-scaffold/index.html — NOT under .deck/.
         let src_dir = dir.path().join("my-scaffold");
         std::fs::create_dir_all(&src_dir).unwrap();
@@ -496,8 +480,6 @@ mod tests {
         )
         .unwrap();
         // Deliberately NO .deck/my-scaffold — only the source exists.
-        unsafe { std::env::set_var("DECK_PROJECT_DIR", dir.path()) };
-
         let scaffold = ScaffoldDecl {
             name: "space".to_string(),
             route: "/space/{id}".to_string(),
@@ -506,21 +488,11 @@ mod tests {
             inject_globals: std::collections::BTreeMap::new(),
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[("id", "x")]);
-
-        unsafe {
-            match prev {
-                Some(v) => std::env::set_var("DECK_PROJECT_DIR", v),
-                None => std::env::remove_var("DECK_PROJECT_DIR"),
-            }
-        }
-
         assert_eq!(resp.status, 200, "source-fallback must serve the unbuilt scaffold");
         let body = std::str::from_utf8(&resp.body).unwrap();
         assert!(body.contains("sui-root"), "served source HTML, got: {body}");
     }
-
     // ── serve_scaffold_asset path validation ─────────────────────────────────
-
     #[test]
     fn scaffold_asset_dotdot_rejected() {
         let scaffold = make_scaffold("test", "/test/_assets/", vec![]);
@@ -573,17 +545,13 @@ mod tests {
     /// includes valid keys.
     #[test]
     fn inject_globals_invalid_key_skipped_not_injected() {
-        use crate::test_lock;
-        let _lock = test_lock::lock();
-        let prev = std::env::var("DECK_PROJECT_DIR").ok();
-
+        use crate::test_lock::ProjectRootGuard;
         let dir = tempfile::tempdir().unwrap();
+        let _root = ProjectRootGuard::new(dir.path());
         let dot_deck = dir.path().join(".deck").join("safe-scaffold");
         std::fs::create_dir_all(&dot_deck).unwrap();
         let html = r#"<!doctype html><html><head></head><body></body></html>"#;
         std::fs::write(dot_deck.join("index.html"), html).unwrap();
-
-        unsafe { std::env::set_var("DECK_PROJECT_DIR", dir.path()) };
 
         let mut globals = std::collections::BTreeMap::new();
         // Invalid key: would inject `alert(1)` if not validated.
@@ -599,13 +567,6 @@ mod tests {
             inject_globals: globals,
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[]);
-
-        unsafe {
-            match prev {
-                Some(v) => std::env::set_var("DECK_PROJECT_DIR", v),
-                None => std::env::remove_var("DECK_PROJECT_DIR"),
-            }
-        }
 
         assert_eq!(resp.status, 200);
         let body = std::str::from_utf8(&resp.body).unwrap();

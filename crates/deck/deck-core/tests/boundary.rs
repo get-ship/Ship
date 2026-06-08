@@ -183,3 +183,70 @@ fn zero_config_discovers_views_only() {
         "zero consumer targets with defaults"
     );
 }
+
+/// Boundary invariant I2 (extension) — deck-core and deck-config declare
+/// no `ship-substrate` dependency. The project-root resolver in
+/// `deck_core::resolver` and the JSONC parser in `deck-config` must
+/// operate on std alone (override + nearest-ancestor marker detection +
+/// inlined stripper). Any re-introduction of `ship-substrate` into
+/// either crate's `Cargo.toml` re-threads the up-leak this slice cut.
+#[test]
+fn deck_core_and_deck_config_have_no_ship_substrate_dep() {
+    let deck_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    for crate_name in ["deck-core", "deck-config"] {
+        let toml_path = deck_dir.join(crate_name).join("Cargo.toml");
+        let contents = fs::read_to_string(&toml_path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", toml_path.display()));
+        // Search production `[dependencies]` + `[dev-dependencies]` tables
+        // only — `[workspace.dependencies]` and any in-comment mentions
+        // do not count as a dep declaration.
+        assert!(
+            !contents.contains("ship-substrate"),
+            "{} declares a `ship-substrate` dependency — cut the up-leak \
+             by inlining (deck-config) or replacing with std (deck-core)",
+            toml_path.display(),
+        );
+    }
+}
+
+/// Belt-and-suspenders: also assert the production source itself has no
+/// references to the deleted resolver helpers, the legacy project-root
+/// env vars, or the `deck_substrate::*` paths. The Cargo.toml check above
+/// catches the dep, this catches a residual dead-code reference that the
+/// compiler might not warn about. Scans `deck-core` only (deck-config
+/// is a tiny types crate with no FS coupling to worry about).
+#[test]
+fn deck_core_source_has_no_deleted_resolver_helpers_or_project_dir_env() {
+    let deck_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    let src = deck_dir.join("deck-core").join("src");
+    let mut files = Vec::new();
+    collect_rs(&src, &mut files);
+    let forbidden = [
+        "DECK_PROJECT_DIR",
+        "SHIP_DEV_PROJECT_DIR",
+        "resolve_project_ship_dir",
+        "daemon_dir_for",
+        "workspace_from_daemon_file",
+    ];
+    let mut violations = Vec::new();
+    for f in &files {
+        let body = fs::read_to_string(f).unwrap();
+        for token in &forbidden {
+            if body.contains(token) {
+                violations.push(format!("{}: contains `{}`", f.display(), token));
+            }
+        }
+    }
+    assert!(
+        violations.is_empty(),
+        "deck-core production source must not name the legacy project-root \
+         envs or the deleted resolver helpers:\n{}",
+        violations.join("\n"),
+    );
+}

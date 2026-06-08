@@ -9,26 +9,12 @@ use crate::DaemonMode;
 use crate::view_host::serve_view_host;
 use crate::view_payload::{serve_view_payload, serve_view_payload_subpath};
 
-const VAR: &str = "SHIP_DEV_PROJECT_DIR";
+use crate::test_lock::ProjectRootGuard;
 
-struct EnvGuard {
-    _lock: std::sync::MutexGuard<'static, ()>,
-    prev: Option<std::ffi::OsString>,
+fn lock_with_dir(p: &std::path::Path) -> ProjectRootGuard {
+    ProjectRootGuard::new(p)
 }
-impl Drop for EnvGuard {
-    fn drop(&mut self) {
-        match self.prev.take() {
-            Some(v) => unsafe { std::env::set_var(VAR, v) },
-            None => unsafe { std::env::remove_var(VAR) },
-        }
-    }
-}
-fn lock_with_dir(p: &std::path::Path) -> EnvGuard {
-    let lock = crate::test_lock::lock();
-    let prev = std::env::var_os(VAR);
-    unsafe { std::env::set_var(VAR, p); }
-    EnvGuard { _lock: lock, prev }
-}
+
 
 fn body_str(resp: &crate::DeckResponse) -> String {
     String::from_utf8(resp.body.clone()).unwrap()

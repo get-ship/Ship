@@ -55,16 +55,14 @@ pub fn default_app_dir() -> PathBuf {
 
 /// Construct the bundler for `app_dir`, pointing deck's resolver at it.
 fn make_bundler(app_dir: &Path) -> Bundler {
-    // DECK_PROJECT_DIR is deck's canonical project-root env var; deck-core also
-    // accepts the legacy SHIP_DEV_PROJECT_DIR as a fallback.
-    // SAFETY: set once during single-threaded setup, before any request.
-    unsafe {
-        std::env::set_var("DECK_PROJECT_DIR", app_dir);
-    }
+    // Authoritative project-root override for deck-core's resolver. Set
+    // ONCE at startup — deck serves one root per process, so a single
+    // global is sound (see `deck_core::resolver::set_project_root` doc).
+    // repo_root == app_dir so bundle output (`<root>/.deck`) lands where
+    // the resolver reads it (`<root>/.deck`). Zero-config host: no
+    // deck.jsonc — use defaults (no consumer targets, .deck output root).
+    deck::resolver::set_project_root(app_dir.to_path_buf());
     let home = ship_substrate::ShipHome::from_env();
-    // repo_root == app_dir so bundle output (`<root>/.deck`) lands where the
-    // resolver reads it (`SHIP_DEV_PROJECT_DIR/.deck`). Zero-config host:
-    // no deck.jsonc — use defaults (no consumer targets, .deck output root).
     let cfg = deck::config::DeckConfig::load(app_dir);
     Bundler::start(&home, app_dir.to_path_buf(), None, cfg)
 }

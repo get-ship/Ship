@@ -18,7 +18,6 @@ deck-config = { path = "../deck-config" }
 deck-host = { path = "../deck-host" }
 sui-compiler = { path = "../../sui/compiler" }
 sui-signals = { path = "../../sui/signals" }
-ship-substrate = { path = "../../core/ship-substrate" }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
