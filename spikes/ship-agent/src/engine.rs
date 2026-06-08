@@ -21,7 +21,7 @@ use std::sync::Arc;
 use serde_json::Value;
 
 use crate::auth::AuthContext;
-use crate::gateway::{Gateway, GatewayCallKind};
+use crate::gateway::{Gateway, GatewayCallKind, GatewayError};
 
 /// One recorded op outcome in the journal.
 #[derive(Debug, Clone, PartialEq)]
@@ -204,6 +204,39 @@ impl ExecCtx {
             self.journal.append(&op, OpRecord::Completed(v));
         }
         Ok(out)
+    }
+
+    /// A journaled op with retry. On the live frontier, retry a TRANSIENT failure
+    /// (a `Dispatch` blip) up to `max_attempts`; a terminal `Denied`/`UnknownOp`
+    /// is never retried (a denial is data). Only the final success is journaled —
+    /// replay returns it directly and never replays the retries.
+    pub async fn op_with_retry(
+        &mut self,
+        op: &str,
+        args: Value,
+        max_attempts: u32,
+    ) -> Result<Value, EngineError> {
+        let idx = self.cursor;
+        self.cursor += 1;
+        if let Some(entry) = self.journal.get(idx) {
+            return match &entry.record {
+                OpRecord::Completed(v) => Ok(v.clone()),
+                OpRecord::Suspended { .. } => Err(EngineError::Suspended),
+            };
+        }
+        let mut last = String::new();
+        for _ in 0..max_attempts.max(1) {
+            match self.gateway.call(op, args.clone(), &self.auth, GatewayCallKind::First).await {
+                Ok(v) => {
+                    self.journal.append(op, OpRecord::Completed(v.clone()));
+                    return Ok(v);
+                }
+                // Transient: retry. Terminal: stop (a denial is data).
+                Err(GatewayError::Dispatch(reason)) => last = reason,
+                Err(e) => return Err(EngineError::Gateway { op: op.to_string(), reason: e.to_string() }),
+            }
+        }
+        Err(EngineError::Gateway { op: op.to_string(), reason: format!("exhausted retries: {last}") })
     }
 }
 
@@ -432,5 +465,52 @@ mod tests {
         let err = || Err::<Value, String>("boom".into());
         assert_eq!(aggregate(&[ok(), ok(), err()], 2), AggregateDecision::Advance { ok: 2 });
         assert_eq!(aggregate(&[ok(), err(), err()], 2), AggregateDecision::Fail { ok: 1, needed: 2 });
+    }
+
+    // Retry recovers a transient blip and journals ONLY the final result; replay
+    // never replays the retries.
+    #[tokio::test]
+    async fn retry_recovers_transient_then_replays_clean() {
+        struct FlakyGateway {
+            inner: InProcessGateway,
+            fail_until: u32,
+            calls: Arc<AtomicU32>,
+        }
+        #[async_trait]
+        impl Gateway for FlakyGateway {
+            async fn call(
+                &self,
+                op: &str,
+                args: Value,
+                a: &AuthContext,
+                kind: GatewayCallKind,
+            ) -> Result<Value, GatewayError> {
+                let n = self.calls.fetch_add(1, Ordering::SeqCst);
+                if n < self.fail_until {
+                    return Err(GatewayError::Dispatch("flaky".into()));
+                }
+                self.inner.call(op, args, a, kind).await
+            }
+        }
+        let calls = Arc::new(AtomicU32::new(0));
+        let gw = Arc::new(FlakyGateway {
+            inner: InProcessGateway::default(),
+            fail_until: 2,
+            calls: calls.clone(),
+        });
+        struct RetryRead;
+        #[async_trait]
+        impl Program for RetryRead {
+            async fn run(&self, ctx: &mut ExecCtx) -> Result<Value, EngineError> {
+                ctx.op_with_retry("collections.read", json!({}), 5).await
+            }
+        }
+        let (s1, journal) = execute(Journal::new(), gw.clone(), agent(&["collections"]), &RetryRead).await;
+        assert!(matches!(s1, RunStatus::Completed(_)), "recovers after 2 transient failures");
+        assert_eq!(calls.load(Ordering::SeqCst), 3, "2 failures + 1 success");
+        assert_eq!(journal.entries().len(), 1, "only the final result journaled");
+
+        let (_s2, _) = execute(journal, gw, agent(&["collections"]), &RetryRead).await;
+        assert_eq!(calls.load(Ordering::SeqCst), 3, "replay re-executes nothing — retries are not replayed");
     }
 }
