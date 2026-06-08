@@ -64,10 +64,12 @@ impl LiveResolverRegistry {
 /// Each entry calls the SAME builder its per-op `<Op>Live` stream calls — reuse,
 /// not a re-implemented copy.
 ///
-/// Cross-crate snapshot builders (`agents.summaries`/`agents.wire`,
-/// `collections.list`, `account.state`) and ghost ops with no builder
-/// (`dashboard.state`, `mesh.snapshot`) are NOT yet registered — see the
-/// live-data-multiplex plan for the per-domain registration follow-up.
+/// `account.state` is intentionally NOT registered: the wire's
+/// `AccountService::state` is async (a future `StateLive` rpc needs a sync
+/// facade first), and inventing a sync read here would be new resolution
+/// logic. `dashboard.state` / `mesh.snapshot` are ghost ops with no builder
+/// at all. See `.artifacts/live-data-coverage.md` for the full coverage
+/// table + GAP list.
 pub fn build() -> LiveResolverRegistry {
     let mut reg = LiveResolverRegistry::default();
 
@@ -133,6 +135,50 @@ pub fn build() -> LiveResolverRegistry {
             serde_json::to_value(&ctx).unwrap_or(Value::Null)
         }),
     );
+    // agents.summaries — reuses the agents-wire `Summaries` builder. The
+    // wire's `AgentsService::Summaries` rpc calls the same `list_agents`
+    // helper; the multiplex's re-resolution loop runs the same call. The
+    // view consumes `AgentsSummariesResponse { items: [...] }` (the proto
+    // wire shape), so we wrap the list under `items`.
+    reg.register(
+        "agents",
+        "summaries",
+        Arc::new(|state: &ApiState, _args: &Value| {
+            let items = crate::views::state::list_agents(state.ship_dir());
+            serde_json::to_value(serde_json::json!({ "items": items })).unwrap_or(Value::Null)
+        }),
+    );
+
+    // collections.list — reuses the collections-wire `List` builder. The
+    // wire's `CollectionsService::List` rpc calls the same `SchemaRegistry::list`
+    // and maps each `SchemaDoc` to a proto `CollectionSummary`; the multiplex
+    // re-resolution loop runs the same map. `state.collections()` errors
+    // cleanly when the daemon is space-less (S2 home-space kill) — surface
+    // that as `null` so the SDK renders an `error` envelope rather than a
+    // fabricated `global` partition. The view consumes `{ items: [...] }`
+    // per the SDK's `ShipSDK.collections.list` contract.
+    reg.register(
+        "collections",
+        "list",
+        Arc::new(|state: &ApiState, _args: &Value| {
+            let Ok(svc) = state.collections() else { return Value::Null };
+            let summaries: Vec<Value> = svc
+                .list()
+                .into_iter()
+                .map(|s| {
+                    serde_json::json!({
+                        "id": s.id,
+                        "title": s.title.unwrap_or_default(),
+                        // The wire's `List` handler leaves this at 0; counts
+                        // are surfaced on the per-collection detail read.
+                        "item_count": 0u32,
+                        "system": s.system,
+                    })
+                })
+                .collect();
+            serde_json::json!({ "items": summaries })
+        }),
+    );
 
     reg
 }
@@ -148,6 +194,8 @@ mod tests {
         assert!(reg.has("pipelines", "summaries"));
         assert!(reg.has("pipelines", "run"));
         assert!(reg.has("pipelines", "focus"));
+        assert!(reg.has("agents", "summaries"), "agents.summaries registered (job/livedata-coverage)");
+        assert!(reg.has("collections", "list"), "collections.list registered (job/livedata-coverage)");
         assert!(!reg.has("nonsense", "void"), "unregistered op has no resolver");
         assert!(
             reg.resolve_fn("nonsense", "void", &Value::Null).is_none(),
