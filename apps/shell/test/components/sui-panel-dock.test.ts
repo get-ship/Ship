@@ -26,13 +26,13 @@ describe('<sui-panel-dock>', () => {
     expect(bodies(el)).not.toBeNull()
   })
 
-  it('renders 5 default tab buttons', async () => {
+  it('renders 4 default tab buttons', async () => {
     const { el } = mount(reg, 'sui-panel-dock')
     await flush()
     const btns = tabstrip(el).querySelectorAll('[data-tab]')
-    expect(btns.length).toBe(5)
+    expect(btns.length).toBe(4)
     const ids = Array.from(btns).map(b => (b as HTMLElement).dataset.tab)
-    expect(ids).toEqual(['terminal', 'source', 'signals', 'schema', 'components'])
+    expect(ids).toEqual(['terminal', 'source', 'signals', 'components'])
   })
 
   it('active-tab defaults to "terminal" — first tab aria-selected=true', async () => {
@@ -48,7 +48,7 @@ describe('<sui-panel-dock>', () => {
   it('other tabs have aria-selected=false', async () => {
     const { el } = mount(reg, 'sui-panel-dock')
     await flush()
-    for (const id of ['source', 'signals', 'schema', 'components']) {
+    for (const id of ['source', 'signals', 'components']) {
       expect(tabBtn(el, id)?.getAttribute('aria-selected')).toBe('false')
     }
   })
@@ -75,13 +75,13 @@ describe('<sui-panel-dock>', () => {
     const events: CustomEvent[] = []
     el.addEventListener('sui:dock:activate', e => events.push(e as CustomEvent))
 
-    tabBtn(el, 'schema')?.click()
+    tabBtn(el, 'components')?.click()
     await flush()
 
-    expect(el.getAttribute('active-tab')).toBe('schema')
+    expect(el.getAttribute('active-tab')).toBe('components')
     expect(events).toHaveLength(1)
-    expect(events[0]!.detail.tab).toBe('schema')
-    expect(activeSlot(el)?.getAttribute('name')).toBe('schema')
+    expect(events[0]!.detail.tab).toBe('components')
+    expect(activeSlot(el)?.getAttribute('name')).toBe('components')
   })
 
   it('clicking active tab does not re-fire event', async () => {
@@ -150,11 +150,11 @@ describe('<sui-panel-dock>', () => {
     const events: CustomEvent[] = []
     el.addEventListener('sui:dock:activate', e => events.push(e as CustomEvent))
     const dock = el as Dock
-    dock.activate('schema')
+    dock.activate('components')
     await flush()
-    expect(el.getAttribute('active-tab')).toBe('schema')
+    expect(el.getAttribute('active-tab')).toBe('components')
     expect(events).toHaveLength(1)
-    expect(events[0]!.detail.tab).toBe('schema')
+    expect(events[0]!.detail.tab).toBe('components')
   })
 
   it('tabs property setter rebuilds tabstrip', async () => {
@@ -169,11 +169,11 @@ describe('<sui-panel-dock>', () => {
     expect((btns[0] as HTMLElement).dataset.tab).toBe('custom')
   })
 
-  it('renders 5 toolbar slots for toolbar:* names', async () => {
+  it('renders 4 toolbar slots for toolbar:* names', async () => {
     const { el } = mount(reg, 'sui-panel-dock')
     await flush()
     const sr = shadow(el)
-    const ids = ['terminal', 'source', 'signals', 'schema', 'components']
+    const ids = ['terminal', 'source', 'signals', 'components']
     for (const id of ids) {
       expect(sr.querySelector(`slot[name="toolbar:${id}"]`)).not.toBeNull()
     }
@@ -222,17 +222,17 @@ describe('<sui-panel-dock>', () => {
   it('clicking a tab writes the new active tab to localStorage', async () => {
     const { el } = mount(reg, 'sui-panel-dock')
     await flush()
-    tabBtn(el, 'schema')?.click()
+    tabBtn(el, 'components')?.click()
     await flush()
-    expect(localStorage.getItem('ship-dock-active')).toBe('schema')
+    expect(localStorage.getItem('ship-dock-active')).toBe('components')
   })
 
   it('imperative activate() also writes the new tab to localStorage', async () => {
     const { el } = mount(reg, 'sui-panel-dock')
     await flush()
-    ;(el as Dock).activate('schema')
+    ;(el as Dock).activate('components')
     await flush()
-    expect(localStorage.getItem('ship-dock-active')).toBe('schema')
+    expect(localStorage.getItem('ship-dock-active')).toBe('components')
   })
 
   it('storage-key prop scopes the persisted key', async () => {
@@ -245,11 +245,11 @@ describe('<sui-panel-dock>', () => {
   })
 
   it('hydrates active tab from localStorage on mount', async () => {
-    localStorage.setItem('ship-dock-active', 'schema')
+    localStorage.setItem('ship-dock-active', 'components')
     const { el } = mount(reg, 'sui-panel-dock')
     await flush()
-    expect(el.getAttribute('active-tab')).toBe('schema')
-    expect(activeSlot(el)?.getAttribute('name')).toBe('schema')
+    expect(el.getAttribute('active-tab')).toBe('components')
+    expect(activeSlot(el)?.getAttribute('name')).toBe('components')
   })
 
   it('hydration ignores unknown tab ids', async () => {

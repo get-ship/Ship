@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import '../../src/components/sui-devtools/sui-devtools-source.compiled.js'
 import '../../src/components/sui-devtools/sui-devtools-components.compiled.js'
-import '../../src/components/sui-devtools/sui-devtools-schema.compiled.js'
 import '../../src/components/sui-devtools/sui-devtools-signals.compiled.js'
 import { createContainerRegistry, flush, mount } from '../test-utils'
 
@@ -130,40 +129,6 @@ describe('<sui-devtools-components>', () => {
     expect(calledUrl).toContain('/_sui/catalog/workspace')
     expect(calledUrl).not.toContain('/api/assets/sui-custom-elements.json')
     globalThis.fetch = origFetch
-  })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-describe('<sui-devtools-schema>', () => {
-  it('registers as a custom element', () => {
-    expect(customElements.get('sui-devtools-schema')).toBeDefined()
-  })
-
-  it('renders toolbar and body containers in shadow DOM', () => {
-    const { el } = mount(reg, 'sui-devtools-schema')
-    expect(shadow(el).querySelector('.toolbar')).not.toBeNull()
-    expect(shadow(el).querySelector('.body')).not.toBeNull()
-  })
-
-  it('shows no-reference empty-state when source has no ship.* ops (with view path)', async () => {
-    const fetchSpy = vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ ok: true, data: { ops: [] } }) })
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ template: 'Hello world', manifest: null }) })
-    const origFetch = globalThis.fetch
-    const origShip = (window as unknown as { ship?: unknown }).ship
-    ;(window as unknown as { ship: unknown }).ship = { current: () => ({ path: '/api/v/myview' }) }
-    globalThis.fetch = fetchSpy
-    const { el } = mount(reg, 'sui-devtools-schema')
-    await flush(); await flush(); await flush(); await flush()
-    expect(body(el).innerHTML).toContain('sui-empty-state')
-    globalThis.fetch = origFetch
-    ;(window as unknown as { ship: unknown }).ship = origShip
-  })
-
-  it('refresh() method is exposed on host', async () => {
-    const { el } = mount(reg, 'sui-devtools-schema')
-    await flush()
-    expect(typeof (el as unknown as { refresh?: unknown }).refresh).toBe('function')
   })
 })
 

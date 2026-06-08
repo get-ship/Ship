@@ -76,7 +76,6 @@ const VA_TABS: DockTabDef[] = [
 const DEFAULT_TABS: DockTabDef[] = [
   { id: 'source',     label: 'Source',     icon: 'file-code' },
   { id: 'signals',    label: 'Signals',    icon: 'radio', live: true },
-  { id: 'schema',     label: 'Schema',     icon: 'network' },
   { id: 'terminal',   label: 'Terminal',   icon: 'terminal', live: true },
 ]
 
