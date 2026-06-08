@@ -12,6 +12,21 @@
 //! the op, never claimed by spec or request). The real proto descriptor
 //! wiring to shipd is a later, refactor-gated slice — this module is the seam
 //! it will replace.
+//!
+//! ⚠️ SSOT-DRIFT (tracked debt — the proto-wiring slice closes it). The method
+//! names and even the *op set* here are ILLUSTRATIVE STAND-INS, NOT a mirror of
+//! the real proto. They diverge on purpose-of-shape, not contract:
+//!   - names differ from the proto rpcs (e.g. `collections.read` here vs the
+//!     proto's `List`/`Get`/`QueryItems`);
+//!   - some ops are spike conveniences with no proto rpc yet (`runtime.dispatch`/
+//!     `runtime.parallel`, `account.rotate_key`);
+//!   - the set is a SUBSET (only what the spike's gate/SDK demos exercise).
+//! The blast TIERS, by contrast, do follow the canonical policy (read=C0,
+//! space-write=C1, elevated=C2, operator-only=C3) — that is the invariant the
+//! gate depends on. When the real `FileDescriptorSet` is wired, this `static`
+//! disappears and a test asserts every floki op against the proto rpc + blast
+//! (the equivalent of shipd's `reflected_policy_matches_declared_commands`).
+//! Until then, do NOT treat these names as the wire contract.
 
 use crate::gate::Blast;
 

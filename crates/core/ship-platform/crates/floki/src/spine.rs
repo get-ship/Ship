@@ -47,3 +47,66 @@ pub async fn run<T>(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    // execute ok + verify ok → the verified value is accepted.
+    #[tokio::test]
+    async fn verify_accepts_a_confirmed_result() {
+        let out = run(
+            "ok",
+            async { Ok::<i32, SpineError>(42) },
+            |v| if *v == 42 { Ok("accepted".into()) } else { Err("bad".into()) },
+        )
+        .await
+        .expect("a confirmed result is accepted");
+        assert_eq!(out, "accepted");
+    }
+
+    // execute ok + verify err → refused as Unverified (NOT folded in as success).
+    #[tokio::test]
+    async fn verify_refuses_an_unverifiable_result() {
+        let r = run("bad", async { Ok::<i32, SpineError>(1) }, |_v| Err("nope".into())).await;
+        assert!(
+            matches!(r, Err(SpineError::Unverified(_))),
+            "an unverifiable result must be refused, not accepted",
+        );
+    }
+
+    // execute err → short-circuit: verify MUST NOT run (nothing to verify), and
+    // the original error propagates unchanged.
+    #[tokio::test]
+    async fn execute_failure_short_circuits_before_verify() {
+        let verified = AtomicBool::new(false);
+        let r = run::<i32>(
+            "fail",
+            async { Err(SpineError::Execute("boom".into())) },
+            |_v| {
+                verified.store(true, Ordering::SeqCst);
+                Ok("should never run".into())
+            },
+        )
+        .await;
+        assert!(matches!(r, Err(SpineError::Execute(_))));
+        assert!(
+            !verified.load(Ordering::SeqCst),
+            "verify must NOT run when execute fails — there is nothing to verify",
+        );
+    }
+
+    // A gate denial passes through the spine unchanged (denial is data; the spine
+    // doesn't re-classify it as Unverified).
+    #[tokio::test]
+    async fn denial_propagates_as_denied() {
+        let r = run::<i32>(
+            "denied",
+            async { Err(SpineError::Denied("not granted".into())) },
+            |_v| Ok("x".into()),
+        )
+        .await;
+        assert!(matches!(r, Err(SpineError::Denied(_))));
+    }
+}

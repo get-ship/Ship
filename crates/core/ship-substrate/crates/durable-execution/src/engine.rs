@@ -95,6 +95,18 @@ pub enum EngineError {
     /// Not a failure — the run parked on a suspend. The driver catches this.
     #[error("suspended")]
     Suspended,
+    /// Replay diverged from the journal: at this cursor slot the journal recorded
+    /// one step but the program asked for a different one. A program MUST be
+    /// deterministic given the journal; this surfaces a non-deterministic program
+    /// loudly instead of silently returning the wrong logged result.
+    #[error(
+        "non-deterministic replay at journal slot {idx}: recorded `{expected}`, program called `{got}`"
+    )]
+    NonDeterministic {
+        idx: usize,
+        expected: String,
+        got: String,
+    },
 }
 
 /// The terminal state of one execution attempt.
@@ -103,6 +115,21 @@ pub enum RunStatus {
     Completed(Value),
     Suspended,
     Failed(String),
+}
+
+/// Replay determinism guard: the journal slot's recorded label MUST match the
+/// step the program is now asking for. A mismatch means the program took a
+/// different path than the recorded run (a non-deterministic branch). Surface it
+/// loudly — never silently return the wrong logged result.
+fn check_replay(idx: usize, recorded: &str, requested: &str) -> Result<(), EngineError> {
+    if recorded != requested {
+        return Err(EngineError::NonDeterministic {
+            idx,
+            expected: recorded.to_string(),
+            got: requested.to_string(),
+        });
+    }
+    Ok(())
 }
 
 /// The context threaded through a program. Each `op`/`suspend` call advances a
@@ -123,19 +150,25 @@ impl ExecCtx {
     /// frontier → execute through `dispatch` (the one door) and log it.
     pub async fn op(&mut self, op: &str, args: Value) -> Result<Value, EngineError> {
         let idx = self.cursor;
-        self.cursor += 1;
         if let Some(entry) = self.journal.get(idx) {
-            return match &entry.record {
+            check_replay(idx, &entry.op, op)?;
+            let out = match &entry.record {
                 OpRecord::Completed(v) => Ok(v.clone()),
                 OpRecord::Suspended { .. } => Err(EngineError::Suspended),
             };
+            self.cursor += 1; // commit: this slot is consumed by replay
+            return out;
         }
+        // Live frontier: run FIRST. On failure the cursor is NOT advanced and
+        // nothing is journaled, so a re-run retries this same op at this same slot
+        // (no slot is silently consumed by a failed op).
         let result = self
             .dispatch
             .call(op, args)
             .await
             .map_err(|e| EngineError::Dispatch { op: op.to_string(), reason: e.to_string() })?;
         self.journal.append(op, OpRecord::Completed(result.clone()));
+        self.cursor += 1;
         Ok(result)
     }
 
@@ -144,15 +177,20 @@ impl ExecCtx {
     /// Live frontier → journal a `Suspended` entry and park the run.
     pub async fn suspend(&mut self, reason: &str) -> Result<Value, EngineError> {
         let idx = self.cursor;
-        self.cursor += 1;
         if let Some(entry) = self.journal.get(idx) {
-            return match &entry.record {
+            check_replay(idx, &entry.op, reason)?;
+            let out = match &entry.record {
                 OpRecord::Completed(v) => Ok(v.clone()),
                 OpRecord::Suspended { .. } => Err(EngineError::Suspended),
             };
+            self.cursor += 1; // commit
+            return out;
         }
+        // Live frontier: park here. The suspend IS the recorded step, so it is
+        // appended and the cursor advances (a parked suspend is durable state).
         self.journal
             .append(reason, OpRecord::Suspended { reason: reason.to_string() });
+        self.cursor += 1;
         Err(EngineError::Suspended)
     }
 
@@ -164,16 +202,23 @@ impl ExecCtx {
     pub async fn parallel(&mut self, calls: Vec<(String, Value)>) -> Result<Vec<Value>, EngineError> {
         let k = calls.len();
         let start = self.cursor;
-        self.cursor += k;
-        // Replay: the K slots are already journaled → return them in order.
+        // Replay: the K slots are already journaled (all-or-nothing) → validate
+        // each against its input op and return them in order, then commit.
         if k > 0 && self.journal.get(start).is_some() {
             let mut out = Vec::with_capacity(k);
-            for i in 0..k {
-                match self.journal.get(start + i).map(|e| &e.record) {
-                    Some(OpRecord::Completed(v)) => out.push(v.clone()),
-                    _ => return Err(EngineError::Suspended),
+            for (i, (op, _)) in calls.iter().enumerate() {
+                match self.journal.get(start + i) {
+                    Some(entry) => {
+                        check_replay(start + i, &entry.op, op)?;
+                        match &entry.record {
+                            OpRecord::Completed(v) => out.push(v.clone()),
+                            OpRecord::Suspended { .. } => return Err(EngineError::Suspended),
+                        }
+                    }
+                    None => return Err(EngineError::Suspended),
                 }
             }
+            self.cursor += k; // commit
             return Ok(out);
         }
         // Live frontier: execute all lanes concurrently (the dispatch is shared).
@@ -186,8 +231,9 @@ impl ExecCtx {
             }
         });
         let settled = futures_util::future::join_all(futs).await;
-        // Collect all first (fail-fast, NO partial journaling), then journal in
-        // input order so replay is deterministic.
+        // Collect all first (fail-fast, NO partial journaling): a lane failure
+        // returns Err WITHOUT advancing the cursor or journaling, so the whole
+        // node re-runs on resume.
         let mut vals = Vec::with_capacity(k);
         for (op, res) in settled {
             match res {
@@ -199,6 +245,7 @@ impl ExecCtx {
         for (op, v) in vals {
             self.journal.append(&op, OpRecord::Completed(v));
         }
+        self.cursor += k; // commit after all K are journaled
         Ok(out)
     }
 
@@ -213,21 +260,25 @@ impl ExecCtx {
         max_attempts: u32,
     ) -> Result<Value, EngineError> {
         let idx = self.cursor;
-        self.cursor += 1;
         if let Some(entry) = self.journal.get(idx) {
-            return match &entry.record {
+            check_replay(idx, &entry.op, op)?;
+            let out = match &entry.record {
                 OpRecord::Completed(v) => Ok(v.clone()),
                 OpRecord::Suspended { .. } => Err(EngineError::Suspended),
             };
+            self.cursor += 1; // commit
+            return out;
         }
         let mut last = String::new();
         for _ in 0..max_attempts.max(1) {
             match self.dispatch.call(op, args.clone()).await {
                 Ok(v) => {
                     self.journal.append(op, OpRecord::Completed(v.clone()));
+                    self.cursor += 1; // commit only the final success
                     return Ok(v);
                 }
-                // Transient: retry. Terminal: stop (a denial is data).
+                // Transient: retry. Terminal: stop (a denial is data). Neither
+                // advances the cursor — an exhausted/denied op re-runs on resume.
                 Err(DispatchError::Transient(reason)) => last = reason,
                 Err(DispatchError::Terminal(reason)) => {
                     return Err(EngineError::Dispatch { op: op.to_string(), reason });
@@ -248,15 +299,18 @@ impl ExecCtx {
         Fut: Future<Output = Value>,
     {
         let idx = self.cursor;
-        self.cursor += 1;
         if let Some(entry) = self.journal.get(idx) {
-            return match &entry.record {
+            check_replay(idx, &entry.op, key)?;
+            let out = match &entry.record {
                 OpRecord::Completed(v) => Ok(v.clone()),
                 OpRecord::Suspended { .. } => Err(EngineError::Suspended),
             };
+            self.cursor += 1; // commit
+            return out;
         }
         let v = compute().await;
         self.journal.append(key, OpRecord::Completed(v.clone()));
+        self.cursor += 1;
         Ok(v)
     }
 }
@@ -361,14 +415,25 @@ impl JournalingDispatch {
 #[async_trait::async_trait]
 impl Dispatch for JournalingDispatch {
     async fn call(&self, op: &str, args: Value) -> Result<Value, DispatchError> {
-        // Reserve this op's journal slot and peek it (lock dropped before await).
-        let replayed = {
-            let mut st = self.state.lock().unwrap();
-            let idx = st.cursor;
-            st.cursor += 1;
-            st.journal.get(idx).map(|e| e.record.clone())
+        // Peek this op's journal slot WITHOUT advancing (lock dropped before the
+        // await). The cursor is only committed on a replay-hit or a live success,
+        // so a failed op never silently consumes a slot.
+        let peeked = {
+            let st = self.state.lock().unwrap();
+            st.journal
+                .get(st.cursor)
+                .map(|e| (e.op.clone(), e.record.clone()))
         };
-        if let Some(rec) = replayed {
+        if let Some((recorded_op, rec)) = peeked {
+            // Determinism guard: the slot's recorded op MUST match this call. A
+            // mismatch means the script took a non-deterministic branch — surface
+            // it as terminal data, never return the wrong logged result.
+            if recorded_op != op {
+                return Err(DispatchError::Terminal(format!(
+                    "non-deterministic replay: journal slot recorded `{recorded_op}`, script called `{op}`"
+                )));
+            }
+            self.state.lock().unwrap().cursor += 1; // commit the replay advance
             return match rec {
                 OpRecord::Completed(v) => Ok(v),
                 // A replay that reaches an unresolved suspend cannot proceed — and
@@ -378,9 +443,13 @@ impl Dispatch for JournalingDispatch {
                 }
             };
         }
-        // Live frontier: execute through the inner door, journal the result.
+        // Live frontier: execute through the inner door. On failure (`?`) the
+        // cursor is NOT advanced and nothing is journaled, so a re-run retries
+        // this op at this slot — no slot is consumed by a failed op.
         let r = self.inner.call(op, args).await?;
-        self.state.lock().unwrap().journal.append(op, OpRecord::Completed(r.clone()));
+        let mut st = self.state.lock().unwrap();
+        st.journal.append(op, OpRecord::Completed(r.clone()));
+        st.cursor += 1; // commit
         Ok(r)
     }
 }
@@ -674,5 +743,89 @@ mod tests {
         let (s2, _) = resume(journal, json!(true), Arc::new(Echo), &prog).await;
         assert!(matches!(s2, RunStatus::Completed(_)), "completes after approval");
         assert_eq!(model_calls.load(Ordering::SeqCst), 1, "resume does NOT re-call the model — no token re-burn");
+    }
+
+    // ── replay correctness: the two bugs the graduation review surfaced ──────
+
+    /// A host that fails ONE named op terminally and echoes everything else.
+    struct FailOne(&'static str);
+    #[async_trait]
+    impl Dispatch for FailOne {
+        async fn call(&self, op: &str, args: Value) -> Result<Value, DispatchError> {
+            if op == self.0 {
+                Err(DispatchError::Terminal("nope".into()))
+            } else {
+                Ok(json!({ "op": op, "args": args, "ok": true }))
+            }
+        }
+    }
+
+    // A failed op must NOT consume its journal slot. A script that tries a failing
+    // op (and "catches" it, like a JS try/catch) then runs a successful op must
+    // journal the success at the slot the failure tried — otherwise replay shifts
+    // and a later op gets the wrong logged result.
+    #[tokio::test]
+    async fn journaling_dispatch_failed_op_consumes_no_slot() {
+        let jd = JournalingDispatch::new(Arc::new(FailOne("a.fail")), Journal::new());
+        let _ = jd.call("a.fail", json!({})).await; // Err — ignored, as a script's catch would
+        let r = jd.call("b.ok", json!({})).await.expect("b.ok succeeds");
+        assert_eq!(r["op"], "b.ok");
+        let j = jd.snapshot();
+        assert_eq!(j.entries().len(), 1, "the failed op consumed no journal slot");
+        assert_eq!(j.entries()[0].op, "b.ok", "the success is journaled at slot 0, not slot 1");
+    }
+
+    // Replay against a journal whose recorded op differs from the program's call
+    // MUST surface a non-deterministic error — never the wrong logged result —
+    // and the inner door must not be touched.
+    #[tokio::test]
+    async fn journaling_dispatch_rejects_nondeterministic_replay() {
+        // Live run records "a.op" at slot 0.
+        let live = JournalingDispatch::new(Arc::new(Echo), Journal::new());
+        live.call("a.op", json!({})).await.unwrap();
+        let journal = live.snapshot();
+
+        // Replay, but the program now calls a DIFFERENT op at slot 0.
+        let (counting, calls, _seen) = counting();
+        let replay = JournalingDispatch::new(counting, journal);
+        let err = replay
+            .call("b.op", json!({}))
+            .await
+            .expect_err("a divergent replay must error, not silently return a.op's result");
+        assert!(matches!(err, DispatchError::Terminal(_)));
+        assert!(
+            format!("{err}").contains("non-deterministic"),
+            "the error names the divergence: {err}"
+        );
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            0,
+            "the inner door must NOT be called on a divergent replay"
+        );
+    }
+
+    /// A program that asks for one named op — used to force a replay divergence.
+    struct OneOp(&'static str);
+    #[async_trait]
+    impl Program for OneOp {
+        async fn run(&self, ctx: &mut ExecCtx) -> Result<Value, EngineError> {
+            ctx.op(self.0, json!({})).await
+        }
+    }
+
+    // The same determinism guard at the ExecCtx/Program layer: a resumed program
+    // that takes a different branch than the recorded run fails loudly.
+    #[tokio::test]
+    async fn execctx_replay_rejects_divergent_op() {
+        let (s1, journal) = execute(Journal::new(), Arc::new(Echo), &OneOp("x.op")).await;
+        assert!(matches!(s1, RunStatus::Completed(_)));
+        let (s2, _) = execute(journal, Arc::new(Echo), &OneOp("y.op")).await;
+        match s2 {
+            RunStatus::Failed(msg) => assert!(
+                msg.contains("non-deterministic"),
+                "divergent replay must fail loudly; got: {msg}"
+            ),
+            other => panic!("expected Failed(non-deterministic), got {other:?}"),
+        }
     }
 }

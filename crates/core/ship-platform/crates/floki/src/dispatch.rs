@@ -121,14 +121,36 @@ mod tests {
         assert!(matches!(err, DispatchError::Terminal(_)));
     }
 
-    // The captured credential is what the gate sees: the SAME op is denied for an
-    // ungranted credential and allowed for a granted one — proving auth lives
-    // inside the impl, not on the seam.
+    // The captured credential is what the gate sees: the SAME op takes DIFFERENT
+    // gate paths under different auth. Asserted at the source — the underlying
+    // GatewayError *variant* differs (Denied vs Ask) — not just the flattened
+    // message, so this can't pass on coincidentally-different strings.
     #[tokio::test]
     async fn captured_credential_governs_the_decision() {
-        // mcp.create is C2 + ask-stance; without the grant it's a flat gate
-        // denial, with the grant it becomes an Ask — both terminal here, but the
-        // reasons differ, proving the captured auth is consulted.
+        use crate::gateway::{Gateway, GatewayCallKind};
+
+        // Behavioral proof at the gateway: no `mcp` grant → Denied; `mcp` grant →
+        // Ask (ask-stance). Two distinct variants from the SAME op, by auth alone.
+        let gw = InProcessGateway::default();
+        let no_grant = gw
+            .call("mcp.create", json!({}), &auth(&["collections"]), GatewayCallKind::First)
+            .await
+            .expect_err("no mcp grant");
+        let with_grant = gw
+            .call("mcp.create", json!({}), &auth(&["mcp"]), GatewayCallKind::First)
+            .await
+            .expect_err("mcp grant");
+        assert!(
+            matches!(no_grant, GatewayError::Denied(_)),
+            "ungranted → a flat gate denial; got {no_grant:?}",
+        );
+        assert!(
+            matches!(with_grant, GatewayError::Ask { .. }),
+            "granted → ask-stance; got {with_grant:?}",
+        );
+
+        // And through the seam: both flatten to a Terminal (a script step can't do
+        // interactive approval), proving GatewayDispatch captured and consulted auth.
         let denied = dispatch(&["collections"])
             .call("mcp.create", json!({}))
             .await

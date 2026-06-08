@@ -1,14 +1,22 @@
-//! The gate — faithful mirror of shipd `services::gate::decide`.
+//! The gate — faithful mirror of shipd's real gate (`apps/shipd/src/auth/gate.rs`,
+//! `decide`).
 //!
 //! Pure decision logic, no I/O. The single enforcement point. In production this
-//! lives in the daemon and is reached through `command::call`; here it is mirrored
-//! so the shape is exercised. A JS sandbox escape cannot bypass it because the
-//! real one runs in a separate process behind the gateway.
+//! lives in the daemon and is reached through the ops router (RPC-as-IPC); here it
+//! is mirrored so the shape is exercised. A JS sandbox escape cannot bypass it
+//! because the real one runs behind the gateway/daemon, not in the isolate.
 //!
 //!   operator        -> Allow (all tiers)
 //!   C0 / C1         -> Allow (baseline for any authenticated agent)
 //!   C2 Elevated     -> Allow only if caller granted the op's SERVICE domain
 //!   C3 Critical     -> operator-only (human 2FA); an agent never clears it
+//!
+//! ⚠️ MIRROR-DRIFT (tracked): this hand-written `decide` MUST stay
+//! tier-for-tier identical to shipd's `auth::gate::decide`. The two are
+//! independent copies today; when the gateway routes to the real in-process gate
+//! (RPC-as-IPC, the Phase B seam), this mirror collapses into a thin client and
+//! the drift risk goes away. Until then, any change to shipd's decision policy
+//! must be reflected here (and vice-versa).
 
 use crate::auth::AuthContext;
 

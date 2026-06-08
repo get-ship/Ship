@@ -164,20 +164,34 @@ mod tests {
     }
 
     // A persistently-transient Execute exhausts retries, returns Err(Execute),
-    // and the log ends with an Error event.
+    // and — crucially — actually RETRIED: both attempts ran and a retry Status
+    // was logged before the terminal Error. (Without this, the test would pass
+    // even if the retry loop were removed.)
     #[tokio::test]
     async fn persistent_transient_exhausts_and_errors() {
         let sink = CollectingSink::new();
+        let calls = AtomicU32::new(0);
         let r = run_resilient(
             &sink,
             "op",
             RetryPolicy::new(2),
-            || async { Err::<String, _>(SpineError::Execute("always flaky".into())) },
+            || {
+                calls.fetch_add(1, Ordering::SeqCst);
+                async { Err::<String, _>(SpineError::Execute("always flaky".into())) }
+            },
             |_v: &String| Ok("x".to_string()),
         )
         .await;
         assert!(matches!(r, Err(SpineError::Execute(_))));
+        // Proof of retry: both attempts of RetryPolicy::new(2) executed.
+        assert_eq!(calls.load(Ordering::SeqCst), 2, "both attempts must run before exhausting");
         let evs = sink.collected();
+        // A retry Status (attempt 1 < 2) precedes the terminal Error.
+        assert!(
+            evs.iter()
+                .any(|e| matches!(e, AgentEvent::Status { message } if message.contains("retry") && message.contains("1/2"))),
+            "a retry on attempt 1/2 must be logged; got {evs:?}",
+        );
         assert!(
             matches!(evs.last(), Some(AgentEvent::Error { .. })),
             "an exhausted run ends with an Error event; got {evs:?}",

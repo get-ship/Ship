@@ -314,12 +314,20 @@ mod tests {
         assert_eq!(v["text"], "chunk");
     }
 
-    // Sink is usable through a trait object (object-safe)
+    // Sink is object-safe AND records through the trait object: emitting via a
+    // `&dyn EventSink` view actually lands in the underlying CollectingSink.
     #[test]
-    fn sink_as_trait_object() {
-        let sink: Box<dyn EventSink> = Box::new(CollectingSink::new());
-        sink.emit(&AgentEvent::Error { message: "test".into() });
-        // no panic = success
+    fn sink_records_through_a_trait_object() {
+        let sink = CollectingSink::new();
+        {
+            let dyn_sink: &dyn EventSink = &sink;
+            dyn_sink.emit(&AgentEvent::Error { message: "boom".into() });
+            dyn_sink.emit(&AgentEvent::Completed { turns: 1 });
+        }
+        let collected = sink.collected();
+        assert_eq!(collected.len(), 2, "both events emitted via the trait object are recorded");
+        assert_eq!(collected[0], AgentEvent::Error { message: "boom".into() });
+        assert_eq!(collected[1], AgentEvent::Completed { turns: 1 });
     }
 
     // ApprovalRequested serde round-trip — request_id must survive.

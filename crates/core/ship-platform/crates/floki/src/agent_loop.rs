@@ -133,12 +133,22 @@ impl ScriptedApprover {
 
 #[async_trait]
 impl Approver for ScriptedApprover {
-    async fn request(&self, _op: &str, _args: &Value, _request_id: &str) -> UserInput {
+    async fn request(&self, _op: &str, _args: &Value, request_id: &str) -> UserInput {
+        // Stamp the decision with the request_id we were asked about — an approver
+        // decides about THIS request, so its response must carry THIS id (the tool
+        // validates the correlation). The scripted test pushes the decision *kind*;
+        // the id is always the one passed in, never a stale value from the channel.
         match self.rx.lock().await.recv().await {
-            Some(input) => input,
+            Some(UserInput::Approve { .. }) => UserInput::Approve {
+                request_id: request_id.to_string(),
+            },
+            Some(UserInput::Deny { reason, .. }) => UserInput::Deny {
+                request_id: request_id.to_string(),
+                reason,
+            },
             // Fail-closed: the channel closing means no human is listening.
             None => UserInput::Deny {
-                request_id: String::new(),
+                request_id: request_id.to_string(),
                 reason: "approver channel closed".into(),
             },
         }
@@ -242,7 +252,24 @@ impl Tool for ShipOpTool {
             // result on Deny. The op is NEVER dispatched before approval.
             Err(GatewayError::Ask { op, args, request_id }) => {
                 self.ctx.emit_approval_requested(&op, &args, &request_id);
-                match self.ctx.approver.request(&op, &args, &request_id).await {
+                let decision = self.ctx.approver.request(&op, &args, &request_id).await;
+                // Correlation guard: the decision MUST be about the request we
+                // raised. A response carrying a different id (a buggy/hostile
+                // approver) is fail-closed as a denial — never re-dispatched.
+                let decision_id = match &decision {
+                    UserInput::Approve { request_id } => request_id,
+                    UserInput::Deny { request_id, .. } => request_id,
+                };
+                if decision_id != &request_id {
+                    return Ok(annotate_with_steer(
+                        &self.ctx,
+                        json!({ "denied": format!(
+                            "approval response id `{decision_id}` did not match request `{request_id}`"
+                        ) })
+                        .to_string(),
+                    ));
+                }
+                match decision {
                     UserInput::Approve { .. } => match self.gateway.call(&op, args, &self.auth, crate::gateway::GatewayCallKind::Approved).await {
                         Ok(v) => {
                             if v.get("ok").and_then(Value::as_bool) == Some(true) {
@@ -816,5 +843,74 @@ mod tests {
         assert!(out.text.is_empty());
         assert_eq!(model.request_count(), 0, "model must not be invoked when cancel is pre-set");
         assert!(sink.collected().iter().any(|e| matches!(e, AgentEvent::Cancelled { .. })));
+    }
+
+    // Code-mode cannot run the interactive approval handshake, so an ask-stance
+    // op (granted service, but human-approval-required) comes back to the script
+    // as a TERMINAL denial it reads as data — not an approval prompt, not success.
+    #[tokio::test]
+    async fn run_script_tool_ask_stance_surfaces_as_terminal_denial() {
+        let exec = Arc::new(ScriptExecutor::spawn());
+        let (ctx, _sink) = test_ctx();
+        let tool = RunScriptTool {
+            executor: exec,
+            gateway: Arc::new(InProcessGateway::default()),
+            grants: vec!["mcp".into()],
+            auth: auth(&["mcp"]),
+            ctx,
+        };
+        // mcp.create is granted (mcp in grants) but ask-stance. In code-mode the
+        // gate's Ask flattens to a terminal denial mentioning approval.
+        let src = r#"
+            import { mcp } from "ship";
+            const r = await mcp.create({ name: "x" });
+            Deno.core.ops.op_emit(r);
+        "#
+        .to_string();
+        let out = tool
+            .call(ScriptArgs { src })
+            .await
+            .expect("script runs")
+            .to_lowercase();
+        assert!(
+            out.contains("approval"),
+            "an ask-stance op in code-mode must surface as a terminal denial mentioning approval: {out}",
+        );
+    }
+
+    // The whole-loop denial path: a model tool call for an UNGRANTED op is denied
+    // as DATA (not an exception), so the loop does not error — it completes and
+    // the model takes its next turn. (An exception would propagate as Err here.)
+    #[tokio::test]
+    async fn model_tool_call_for_ungranted_op_does_not_break_the_loop() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let gw = Arc::new(RecordingGateway {
+            inner: InProcessGateway::default(),
+            seen: seen.clone(),
+        });
+        let model = MockCompletionModel::new([
+            // runtime.dispatch is C2, ungranted for a collections-only agent.
+            MockTurn::tool_call("1", "ship_op", json!({ "op": "runtime.dispatch", "args": {} })),
+            MockTurn::text("that was denied — adjusting"),
+        ]);
+        let agent = demo_agent("mock", &["collections"]);
+        let exec = Arc::new(ScriptExecutor::spawn());
+        let (ctx, _sink) = test_ctx();
+        let out = run_step(
+            model,
+            &agent,
+            gw,
+            auth(&["collections"]),
+            exec,
+            ctx,
+            "spawn a child",
+        )
+        .await
+        .expect("the loop completes even though the requested op was denied");
+        assert!(out.text.contains("adjusting"), "the model continues after the denial");
+        assert!(
+            seen.lock().unwrap().iter().any(|op| op == "runtime.dispatch"),
+            "the ungranted op still crossed the gateway (and was denied as data)",
+        );
     }
 }
