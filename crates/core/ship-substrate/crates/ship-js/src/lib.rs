@@ -1,6 +1,21 @@
-//! QuickJS-backed JS bundle evaluator — the single workspace owner of rquickjs.
+//! The Ship JS engine (L0). Two backends, one crate:
+//!
+//! - **Default** — a QuickJS (`rquickjs`) bundle evaluator: [`eval`]/[`eval_global`]
+//!   run a self-contained bundle and return its JSON result. Lightweight, `Sync`,
+//!   no V8; this is the stateless batch-eval surface.
+//! - **`deno` feature** — a deno_core/V8 [`deno`] runtime: a locked-down isolate
+//!   whose only effect is the [`deno::HostDispatch`] wire, with a deny-by-default
+//!   module loader and an `!Send` VM-thread bridge. This is the agent JS runtime
+//!   (S16 Phase C1). It's opt-in because deno_core pulls ~200 transitive crates
+//!   incl. V8, so the default build pays nothing.
 
 use rquickjs::{Context, Runtime};
+
+/// The deno_core / V8 backend — the agent JS engine. Gated behind the `deno`
+/// feature; the whole subtree (runtime, module loader, `!Send` bridge, the
+/// `HostDispatch` seam) is absent from the default build.
+#[cfg(feature = "deno")]
+pub mod deno;
 
 #[derive(Debug, thiserror::Error)]
 pub enum JsError {

@@ -3,12 +3,27 @@ name = "ship-js"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "L0: QuickJS-backed JS eval — eval(bundle) → serde_json::Value. Single workspace owner of rquickjs."
+description = "L0: the Ship JS engine. Default: QuickJS `eval(bundle) → Value`. `deno` feature: a deno_core/V8 isolate with a one-wire host-dispatch seam (the agent JS runtime)."
 
 [lints]
 workspace = true
+
+[features]
+default = []
+# The deno_core / V8 backend — the agent's JS engine (S16 Phase C1). Opt-in
+# because deno_core + deno_error pull ~200 transitive crates incl. V8 (a slow,
+# heavy build): the default workspace build and any non-agent consumer pay
+# nothing. rquickjs stays the default lightweight `eval` surface until an agent
+# runtime consumes the deno path (S16 Phase D), at which point rquickjs retires.
+deno = ["dep:deno_core", "dep:deno_error", "dep:async-trait", "dep:tokio", "dep:anyhow"]
 
 [dependencies]
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 rquickjs = { version = "0.9", features = ["loader", "macro"] }
+# deno backend (feature = "deno"). Versions pinned to the spike that proved them.
+deno_core = { version = "0.403.0", optional = true }
+deno_error = { version = "0.7", optional = true }
+async-trait = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["rt", "sync", "macros"] }
+anyhow = { workspace = true, optional = true }
