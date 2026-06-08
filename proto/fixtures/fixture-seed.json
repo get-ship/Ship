@@ -956,6 +956,11 @@
       "id": "allow-bash-read",
       "scope": "project"
     },
+    "permissions.get": {
+      "id": "allow-bash-read",
+      "scope": "project",
+      "preset_json": "{\"default_mode\":\"ship-standard\",\"rules\":[{\"type\":\"allow\",\"tools\":[\"Bash(git *)\",\"Read\",\"Write\",\"Edit\"]}]}"
+    },
     "permissions.delete": {
       "id": "deny-rm-rf",
       "scope": "project"

@@ -4,6 +4,18 @@
 //! It implements `ship_ops_rpc::PermissionsService` so shipd can mount it via
 //! `PermissionsServiceExt::register`, replacing the `impl PermissionsService
 //! for OpsImpl` that lived in `apps/shipd/src/permissions_rpc.rs`.
+//!
+//! ## Wire mapping
+//!
+//! Per ADR `rpc-is-the-typed-contract`, `Get` returns a typed proto message
+//! (`GetPermissionResponse`) rather than an opaque `JsonResponse`. The wire
+//! maps the crate's `PermissionEntry` serde struct onto the proto message by
+//! hand: `scope` rides as a lowercase string id ("project" | "user"), and the
+//! open `preset` value rides as a JSON string in `preset_json` — same
+//! open-payload convention as `RuleGetResponse.body`. A serde round-trip
+//! self-check on the proto response catches any drift introduced by
+//! hand-mapping. The conformance gate (`cargo xtask gen-fixtures --check`) is
+//! the upstream guard.
 
 use std::sync::Arc;
 
@@ -11,7 +23,7 @@ use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_files::files::Scope;
 
 use ship_ops_rpc::{
-    IndexEntry, JsonResponse, PermissionsIndexResponse,
+    GetPermissionResponse, IndexEntry, PermissionsIndexResponse,
     PermissionsService as PermissionsServiceTrait, ScopedMutation,
     ToolPattern, ToolPatternsResponse,
 };
@@ -102,15 +114,31 @@ impl PermissionsServiceTrait for PermissionsWire {
         &self,
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGetPermissionRequestView,
-    ) -> ServiceResult<JsonResponse> {
+    ) -> ServiceResult<GetPermissionResponse> {
         let scope = parse_scope(request.scope)?;
         let entry = self.svc.get(request.id, scope).map_err(|e| match e {
             state::Error::NotFound(m) => ConnectError::not_found(m),
             other => ConnectError::internal(other.to_string()),
         })?;
-        let json = serde_json::to_string(&entry)
-            .map_err(|e| ConnectError::internal(format!("serialize permissions.get: {e}")))?;
-        Ok(Response::new(JsonResponse { json, ..Default::default() }))
+        let preset_json = serde_json::to_string(&entry.preset).map_err(|e| {
+            ConnectError::internal(format!("permissions.get: serialize preset: {e}"))
+        })?;
+        let resp = GetPermissionResponse {
+            id: entry.id,
+            scope: scope_str(entry.scope),
+            preset_json,
+            ..Default::default()
+        };
+        // Round-trip self-check: verify the proto message serialises and
+        // deserialises cleanly. Catches any drift between the hand-mapped
+        // field assignment and the proto message schema.
+        let v = serde_json::to_value(&resp).map_err(|e| {
+            ConnectError::internal(format!("permissions.get self-check (to_value): {e}"))
+        })?;
+        serde_json::from_value::<GetPermissionResponse>(v).map_err(|e| {
+            ConnectError::internal(format!("permissions wire self-check (get): {e}"))
+        })?;
+        Ok(Response::new(resp))
     }
 
     async fn tool_patterns(

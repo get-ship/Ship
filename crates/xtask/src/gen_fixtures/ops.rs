@@ -46,7 +46,7 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(StatusBuckets), v!(GitLogResponse), v!(GitBranchesResponse),
         v!(GitOverviewResponse), v!(GitDiffResponse),
         v!(McpIndexResponse), v!(MetaResponse),
-        v!(PermissionsIndexResponse), v!(ToolPatternsResponse),
+        v!(PermissionsIndexResponse), v!(GetPermissionResponse), v!(ToolPatternsResponse),
         v!(PipelinesIndexResponse),
         v!(WorkspaceActiveResponse), v!(ProjectRecord),
         v!(RulesIndexResponse), v!(RuleGetResponse),
