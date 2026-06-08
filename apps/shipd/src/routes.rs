@@ -35,38 +35,19 @@
 // Handler files live at `routes/<x>_api.rs`. Callers import them as
 // `crate::routes::<x>_api::*` (or `shipd::routes::<x>_api::*` externally).
 
-pub mod actor_api;
-#[cfg(test)]
-mod actor_api_tests;
-pub mod actors_api;
 pub mod agent_sessions_attach;
 #[cfg(test)]
 mod agent_sessions_attach_tests;
-pub mod mcp_registry;
 pub mod artifacts_api;
-pub mod git_api;
 pub mod hooks_api;
 pub mod human_webhook;
+pub mod rest_api;
+pub mod runtime_api;
 pub mod sandbox_api;
 #[cfg(test)]
 mod sandbox_api_tests;
-pub mod logs_api;
-pub mod mesh_resp;
-// feedback_api and annotations_api removed (Batch A routes-cull):
-// domain logic relocated to ship-agents::services::agents::{feedback,annotation};
-// REST shells deleted; AgentsWire calls ship-agents directly.
-pub mod registry_api;
-pub mod rest_api;
-pub mod runtime_api;
-pub mod sdk_manifest;
 #[cfg(test)]
 mod scope_enforcement_tests;
-pub mod settings_api;
-pub mod themes_api;
-pub mod view_edit_mode_api;
-pub mod view_edit_tool_api;
-pub mod view_errors_api;
-pub mod view_sessions_api;
 pub mod webhook_ext;
 
 // The build script writes generated impls into OUT_DIR. We include them here
@@ -174,35 +155,11 @@ pub enum Route {
     /// @auth scope CreateRuns
     PipelinesRun,
 
-    /// @route GET "/api/v1/pipelines/runs/{slug}/log/stream"
-    /// @auth scope ReadRuns
-    PipelineRunLogStream { slug: String },
-
     // ── Generic view serving ─────────────────────────────────────────────
 
     /// @route GET "/api/v1/ship/schema"
     /// @auth scope ReadWorkspace
     ShipSchema,
-
-    /// @route GET "/api/v1/views/{name}/files"
-    /// @auth scope ReadWorkspace
-    ListViewFiles { name: String },
-
-    /// @route PUT "/api/v1/views/{name}/template"
-    /// @auth scope WriteWorkspace
-    WriteViewTemplate { name: String },
-
-    /// @route PUT "/api/v1/views/{name}/manifest"
-    /// @auth scope WriteWorkspace
-    WriteViewManifestApi { name: String },
-
-    /// @route POST "/api/v1/views/{name}/fork"
-    /// @auth scope WriteWorkspace
-    ForkView { name: String },
-
-    /// @route POST "/api/v1/themes/contrast"
-    /// @auth scope ReadWorkspace
-    ThemeContrast,
 
     /// @route POST "/api/v1/sessions/spawn"
     /// @auth scope ManageRuns
@@ -252,88 +209,6 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     ListSessionsAcrossProjects,
 
-    /// @route GET "/api/v1/view/{name}/manifest"
-    /// @auth scope ReadWorkspace
-    ServeViewManifest { name: String },
-
-    /// @route GET "/api/v1/view/{name}/bundle"
-    /// @auth scope ReadWorkspace
-    ServeViewBundle { name: String },
-
-    // ── Agent-owned view sessions (Phase 1 canvas framework) ─────────────
-
-    /// @route POST "/api/v1/view-sessions"
-    /// @auth scope ManageRuns
-    OpenViewSession,
-
-    /// @route POST "/api/v1/view-sessions/{id}/patch"
-    /// @auth scope ManageRuns
-    PatchViewSession { id: String },
-
-    /// @route POST "/api/v1/view-sessions/{id}/append"
-    /// @auth scope ManageRuns
-    AppendViewSession { id: String },
-
-    /// @route POST "/api/v1/view-sessions/{id}/signal"
-    /// @auth scope ManageRuns
-    SignalViewSession { id: String },
-
-    /// @route DELETE "/api/v1/view-sessions/{id}"
-    /// @auth scope ManageRuns
-    CloseViewSession { id: String },
-
-    /// @route GET "/api/v1/view-sessions/{id}"
-    /// @auth scope ReadWorkspace
-    SubscribeViewSession { id: String },
-
-    // ── Runtime listings ─────────────────────────────────────────────────
-
-    /// @route POST "/api/v1/agents/{slug}/stop"
-    /// @auth scope ManageRuns
-    StopAgent { slug: String },
-
-    /// @route POST "/api/v1/agents/{slug}/steer"
-    /// @auth scope ManageRuns
-    SteerAgent { slug: String },
-
-    // ── Jobs ─────────────────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/agent_sessions"
-    /// @auth scope ReadRuns
-    ListJobs,
-
-    /// @route POST "/api/v1/agent_sessions/dispatch"
-    /// @auth scope CreateRuns
-    DispatchPipeline,
-
-    /// @route GET "/api/v1/agent_sessions/{pipeline_run_id}"
-    /// @auth scope ReadRuns
-    GetJob { pipeline_run_id: String },
-
-    /// @route POST "/api/v1/agent_sessions/end"
-    /// @auth scope ManageRuns
-    EndJob,
-
-    /// @route POST "/api/v1/agent_sessions/{slug}/cancel"
-    /// @auth scope ManageRuns
-    CancelJob { slug: String },
-
-    /// @route POST "/api/v1/agent_sessions/{pipeline_run_id}/status"
-    /// @auth scope EmitEvents
-    RunStatusUpdate { pipeline_run_id: String },
-
-    /// @route POST "/api/v1/agent_sessions/{slug}/step-done"
-    /// @auth scope EmitEvents
-    StepDoneSignal { slug: String },
-
-    /// @route GET "/api/v1/agent_sessions/{slug}/log/stream"
-    /// @auth scope ReadRuns
-    StreamJobLog { slug: String },
-
-    /// @route GET "/api/v1/agent_sessions/{slug}/attach"
-    /// @auth scope WriteWorkspace
-    AttachAgentSession { slug: String },
-
     // ── Process projection / events polling / daemon status (slice 6) ────
 
     /// @route GET "/daemon/status"
@@ -354,88 +229,8 @@ pub enum Route {
     /// @auth scope ManageRuns
     ProjectPty { id: String },
 
-    // ── Settings / harnesses ─────────────────────────────────────────────
-
-    /// @route GET "/api/v1/harnesses"
-    /// @auth scope ReadWorkspace
-    ListProviders,
-
-    // ── Supervisor ───────────────────────────────────────────────────────
-
-    // ── GitService — canonical `/api/git/*` surface ──────────────────────
-
-    /// @route POST "/api/v1/git/stage"
-    /// @auth scope WriteWorkspace
-    GitStage,
-
-    /// @route POST "/api/v1/git/unstage"
-    /// @auth scope WriteWorkspace
-    GitUnstage,
-
-    /// @route POST "/api/v1/git/commit"
-    /// @auth scope WriteWorkspace
-    GitCommit,
-
-    /// @route POST "/api/v1/git/push"
-    /// @auth scope WriteWorkspace
-    GitPush,
-
-    /// @route POST "/api/v1/git/fetch"
-    /// @auth scope ReadWorkspace
-    GitFetch,
-
-    /// @route POST "/api/v1/git/pull"
-    /// @auth scope WriteWorkspace
-    GitPull,
-
-    /// @route POST "/api/v1/git/checkout"
-    /// @auth scope WriteWorkspace
-    GitCheckout,
-
-    /// @route POST "/api/v1/git/branch"
-    /// @auth scope WriteWorkspace
-    GitBranchCreate,
-
-    /// @route DELETE "/api/v1/git/branch"
-    /// @auth scope WriteWorkspace
-    GitBranchDelete,
-
-    /// @route POST "/api/v1/git/init"
-    /// @auth scope WriteWorkspace
-    GitInit,
-
-    /// @route GET "/api/v1/git/sse"
-    /// @auth scope ReadWorkspace
-    GitSse,
-
     // Workspace-scoped artifact status/promote removed — callers get 404.
     // Use the unified /api/artifacts/* surface instead.
-
-    // ── Actor kernel reads (L0 — not the deprecated mesh.* op surface) ─────
-
-    /// @route POST "/api/v1/actor/spawn"
-    /// @auth scope MeshSend
-    ActorSpawn,
-
-    /// @route POST "/api/v1/events/route"
-    /// @auth scope EmitEvents
-    EventRoute,
-
-    /// @route GET "/api/v1/actors"
-    /// @auth scope ReadWorkspace
-    ListActors,
-
-    /// @route GET "/api/v1/mesh"
-    /// @auth scope ReadWorkspace
-    ListMesh,
-
-    /// @route GET "/api/v1/actors/{actor_id}"
-    /// @auth scope ReadWorkspace
-    GetActor { actor_id: String },
-
-    /// @route GET "/api/v1/actors/{actor_id}/events"
-    /// @auth scope ReadWorkspace
-    ActorEvents { actor_id: String },
 
     // ── Artifacts ────────────────────────────────────────────────────────
     // The list/upload/download/metadata/patch/delete handlers compute the
@@ -475,65 +270,6 @@ pub enum Route {
     /// @route GET "/api/v1/sandboxes/{id}"
     /// @auth scope ReadWorkspace
     SandboxGet { id: String },
-
-    // ── SDK manifest (read-side; generated by `just gen-sdk`) ────────────
-
-    /// @route GET "/api/v1/views/{name}/meta"
-    /// @auth scope ReadWorkspace
-    ViewMeta { name: String },
-
-    /// @route GET "/api/v1/sdk"
-    /// @auth scope ReadWorkspace
-    SdkRoot,
-
-    /// @route GET "/api/v1/sdk/query"
-    /// @auth scope ReadWorkspace
-    SdkQuery,
-
-    // ── View client-error capture ────────────────────────────────────────
-
-    /// @route POST "/api/v1/view-errors"
-    /// @auth scope ReadWorkspace
-    PostViewError,
-
-    /// @route GET "/api/v1/view-errors"
-    /// @auth scope ReadWorkspace
-    ListViewErrors,
-
-    /// @route DELETE "/api/v1/view-errors"
-    /// @auth scope ReadWorkspace
-    ClearViewErrors,
-
-    // ── MCP registry proxy ────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/mcp/servers"
-    /// @auth public
-    McpServers,
-
-    // ── View authoring (chrome edit-mode + agent tool dispatch) ──────────
-
-    /// @route POST "/api/v1/views/{name}/edit-mode/enter"
-    /// @auth scope WriteWorkspace
-    EnterViewEditMode { name: String },
-
-    /// @route POST "/api/v1/views/{name}/edit-mode/exit"
-    /// @auth scope WriteWorkspace
-    ExitViewEditMode { name: String },
-
-    /// @route POST "/api/v1/views/{name}/edit/tool"
-    /// @auth scope ManageRuns
-    DispatchViewEditTool { name: String },
-
-    // ── Registry (gateway-forwarded) ─────────────────────────────────────
-    //
-    // The daemon is the single hop to the gateway: CLI hits the daemon
-    // here, the daemon attaches the user's stored API key and forwards
-    // to `<cloud.base_url>/api/v1/registry/publish`. `ship publish` no
-    // longer talks to the gateway directly.
-
-    /// @route POST "/api/v1/registry/publish"
-    /// @auth handler
-    Publish,
 }
 
 #[cfg(test)]

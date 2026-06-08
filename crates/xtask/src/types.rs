@@ -144,15 +144,12 @@ pub fn collect_framework_types() -> TypeCollection {
     c.register::<deck::resolver::ResolvedView>();
     c.register::<deck::resolver::ResolveError>();
 
-    // shipd::views — view list / manifest / source / write APIs.
+    // shipd::views — view list / manifest / source. Write paths and lint
+    // moved to DiscoveryService / view-edit Connect wire; the REST
+    // surfaces here are read-only.
     c.register::<shipd::views::ViewManifest>();
     c.register::<shipd::views::ViewListEntry>();
     c.register::<shipd::views::RailMeta>();
-    c.register::<shipd::views::write_api::WriteTemplateRequest>();
-    c.register::<shipd::views::write_api::WriteManifestRequest>();
-    c.register::<shipd::views::write_api::WriteResponse>();
-    c.register::<shipd::views::write_api::WriteDiagnostics>();
-    c.register::<shipd::views::write_api::LintFinding>();
     c.register::<shipd::views::resolve::ManifestRail>();
 
     // view-authoring — contract types shared with the chrome edit-mode UI.

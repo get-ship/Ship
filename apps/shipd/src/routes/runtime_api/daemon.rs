@@ -31,9 +31,16 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
     }
 
     // Most recent sweep_completed and the drift count it recorded.
+    // `load_recent_events_by_type` lives in `ship_substrate::runtime_reads`
+    // (the canonical read surface) — it was previously re-exported through
+    // the now-cut `routes::runtime_api::jobs` façade.
     let sweep_events =
-        super::jobs::load_recent_events_by_type(ship_dir, &["supervisor.sweep_completed"], 100)
-            .unwrap_or_default();
+        ship_substrate::runtime_reads::load_recent_events_by_type(
+            ship_dir,
+            &["supervisor.sweep_completed"],
+            100,
+        )
+        .unwrap_or_default();
     let last_sweep = sweep_events.iter().max_by_key(|e| e.created_at);
     let last_sweep_at = last_sweep.map(|e| e.created_at.to_rfc3339());
     let last_sweep_drift = last_sweep

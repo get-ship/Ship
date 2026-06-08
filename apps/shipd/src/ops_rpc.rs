@@ -713,33 +713,41 @@ pub fn router(state: ApiState) -> axum::Router {
                     .map_err(|e| ConnectError::internal(e.to_string()))
             })
         });
+    // `ViewService.Tool` — inlined from the now-cut
+    // `routes::view_edit_tool_api::dispatch_tool_core`. The handler body
+    // was a 3-line wrapper around
+    // `ship_views::view_authoring::tool_dispatch::dispatch(&adapter, …)`;
+    // with the REST shell gone, the Connect closure calls `dispatch`
+    // directly and maps `DispatchResult` to the Connect surface.
+    use ship_views::view_authoring::tool_dispatch::DispatchResult as DR;
     let view_state_for_tool = state.clone();
     let view_tool_fn: ship_views::wire::ToolFn =
         Arc::new(move |view, session_id, op, args| {
             let st = view_state_for_tool.clone();
             Box::pin(async move {
-                let body = crate::routes::view_edit_tool_api::ToolBody {
-                    session_id,
-                    op,
-                    args,
-                };
-                let resp = crate::routes::view_edit_tool_api::dispatch_tool_core(
-                    &st, view, body,
-                )
-                .await;
-                let status = resp.status();
-                let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
-                    .await
-                    .map_err(|e| ConnectError::internal(e.to_string()))?;
-                if status.is_success() {
-                    Ok(String::from_utf8_lossy(&bytes).into_owned())
-                } else {
-                    let msg = String::from_utf8_lossy(&bytes).into_owned();
-                    if status.is_client_error() {
-                        Err(ConnectError::invalid_argument(msg))
-                    } else {
-                        Err(ConnectError::internal(msg))
+                let adapter = crate::view_ports::ViewToolAdapter::new(st);
+                let result =
+                    ship_views::view_authoring::tool_dispatch::dispatch(
+                        &adapter, view, session_id, op, args,
+                    )
+                    .await;
+                match result {
+                    DR::Ok(v) => Ok(v.to_string()),
+                    DR::BadRequest { code, message }
+                    | DR::NotFound { code, message }
+                    | DR::Conflict { code, message } => {
+                        Err(ConnectError::invalid_argument(format!(
+                            "{code}: {message}"
+                        )))
                     }
+                    DR::Forbidden { code, message } => {
+                        Err(ConnectError::permission_denied(format!(
+                            "{code}: {message}"
+                        )))
+                    }
+                    DR::Internal { code, message } => Err(ConnectError::internal(format!(
+                        "{code}: {message}"
+                    ))),
                 }
             })
         });

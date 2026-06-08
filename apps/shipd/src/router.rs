@@ -15,17 +15,14 @@ use crate::{
     sessions, views,
 };
 use crate::routes::{
-    actor_api, actors_api,
-    artifacts_api, git_api,
-    hooks_api, human_webhook, logs_api,
-    registry_api, rest_api, runtime_api,
-    sandbox_api, sdk_manifest, settings_api, themes_api,
-    view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
+    artifacts_api,
+    hooks_api, human_webhook,
+    rest_api, runtime_api,
+    sandbox_api,
     webhook_ext,
 };
 use crate::auth::{attest, pairing, session};
 use crate::transport::{cors, pty as pty_handler};
-use crate::routes::mcp_registry as mcp_registry;
 use axum::routing;
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -38,11 +35,6 @@ pub fn build_router(
     daemon_mode: deck::DaemonMode,
 ) -> Router {
     use crate::routes::{Route, ShipRouterExt};
-    // Internal MCP server retired (#75):
-    // via `ship ops` + capability-skills; external MCP clients use the
-    // standalone `apps/mcp` adapter. The registry browser (`mcp_registry`) and
-    // the `mcp.*` catalog reads stay.
-
     let st = rt.clone();
     // Non-enumerated third-party routes (telegram webhook + hooks) stay on
     // `.route()` — they predate the canonical `Route` enum. Leave flat.
@@ -192,15 +184,6 @@ pub fn build_router(
         async move { session::issue_session_handler(reg, auth.0).await }
     };
 
-    let registry_state = mcp_registry::McpRegistryState::new();
-
-    // MCP registry proxy is a public, read-only endpoint — match the
-    // original Cloudflare Worker handler's "no auth required" contract
-    // so the shell's agent builder can query it before pairing.
-    let mcp_registry_routes = Router::new()
-        .ship_public_route(Route::McpServers, mcp_registry::list_mcp_servers)
-        .layer(axum::Extension(registry_state));
-
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
@@ -240,12 +223,9 @@ pub fn build_router(
         // read `Option<Extension<DaemonMode>>`, not `State`), so it merges
         // straight into the stateless root. deck-axum owns these paths.
         .merge(deck::router())
-        .merge(mcp_registry_routes)
         .merge(webhook_source_route)
         .merge(authenticated_routes);
     // The HMR firehose is development-only; not registered in production. Its
-    // SSE stream is cancelled on shutdown via a child of the daemon token
-    // (#256) so it can't hold the graceful-shutdown drain open past SIGTERM.
     if daemon_mode == deck::DaemonMode::Development {
         // The HMR firehose is short-lived (SSE per client; closed by
         // network when the daemon shuts down). Cut 5: drop the
@@ -356,13 +336,6 @@ async fn build_header_middleware(
 fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     Router::new()
-        // Actor reads (L0 kernel — not the deprecated mesh.* op surface)
-        .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
-        .ship_route(Route::EventRoute, actor_api::event_route)
-        .ship_route(Route::ListActors, actors_api::list_actors_handler)
-        .ship_route(Route::ListMesh, actors_api::list_mesh_handler)
-        .ship_route(Route::GetActor_template(), actors_api::get_actor_handler)
-        .ship_route(Route::ActorEvents_template(), actors_api::list_actor_events_handler)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Isolation reads are served by the proto IsolationService
@@ -371,30 +344,17 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // path; init's gated-op migration lands at the connect cutover.
         .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
         .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
-        // Runtime
-        .ship_route(Route::StopAgent_template(), runtime_api::stop_agent)
-        .ship_route(Route::SteerAgent_template(), runtime_api::steer_agent)
-        .ship_route(Route::ListJobs, runtime_api::list_jobs)
-        .ship_route(Route::DispatchPipeline, runtime_api::dispatch_agent_session)
-        .ship_route(Route::PipelinesRun, runtime_api::run_pipeline)
-        .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
-        .ship_route(Route::EndJob, runtime_api::end_job)
-        .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)
-        .ship_route(Route::RunStatusUpdate_template(), runtime_api::update_job_status)
-        .ship_route(Route::StepDoneSignal_template(), runtime_api::step_done)
-        .ship_route(Route::StreamJobLog_template(), logs_api::stream_job_log)
-        .ship_route(
-            Route::AttachAgentSession_template(),
-            crate::routes::agent_sessions_attach::attach_agent_session,
-        )
+        // Runtime — read-side only (daemon status, projections, event stream).
+        // Agent stop/steer, pipeline dispatch, job lifecycle, log stream, and
+        // pipeline run log stream all moved to typed Connect wires
+        // (AgentsService / PipelinesService / agent.Dispatch).
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
-        // Views — list + source now served by DiscoveryService (Connect, #139).
+        // View schema (ship.*) — read-side. Manifest / bundle / file-list /
+        // write paths moved to DiscoveryService / Connect view-edit wire
+        // (view-sessions via ViewService; edit-mode grants via
+        // ship_views::view_authoring).
         .ship_route(Route::ShipSchema, services::schema::serve_schema)
-        .ship_route(Route::ListViewFiles_template(), views::files_api::list_view_files)
-        .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
-        .ship_route(Route::WriteViewManifestApi_template(), views::write_api::write_view_manifest)
-        .ship_route(Route::ForkView_template(), views::write_api::fork_view)
-        .ship_route(Route::ThemeContrast, themes_api::theme_contrast)
+        // Sessions (PTY).
         .ship_route(Route::SpawnPtySession, sessions::api::spawn_session)
         .ship_route(Route::ListPtySessions, sessions::api::list_pty_sessions)
         .ship_route(Route::GetPtySession_template(), sessions::api::get_session)
@@ -407,8 +367,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
         .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses)
         .ship_route(Route::ListSessionsAcrossProjects, runtime_api::list_sessions_across_projects)
-        .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
-        .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         // `POST /_sui/mutation/{name}` — tombstoned PE form endpoint.
         // The server-side string dispatch was removed; JS-attached mutations
         // call the SDK directly. The SUI compiler still writes this URL as
@@ -418,29 +376,11 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             "/_sui/mutation/{name}",
             axum::routing::post(|| async { axum::http::StatusCode::GONE }),
         )
-        // Agent-owned view sessions
-        .ship_route(Route::OpenViewSession, view_sessions_api::open_session)
-        .ship_route(Route::PatchViewSession_template(), view_sessions_api::patch_session)
-        .ship_route(Route::AppendViewSession_template(), view_sessions_api::append_session)
-        .ship_route(Route::SignalViewSession_template(), view_sessions_api::signal_session)
-        .ship_route(Route::CloseViewSession_template(), view_sessions_api::close_session)
-        .ship_route(Route::SubscribeViewSession_template(), view_sessions_api::subscribe_session)
-        // View authoring — chrome edit-mode handshake + agent tool dispatch.
-        .ship_route(Route::EnterViewEditMode_template(), view_edit_mode_api::enter_edit_mode)
-        .ship_route(Route::ExitViewEditMode_template(), view_edit_mode_api::exit_edit_mode)
-        .ship_route(
-            Route::DispatchViewEditTool_template(),
-            view_edit_tool_api::dispatch_tool,
-        )
-        // Registry — gateway proxy. The daemon attaches the user's API key
-        // and forwards to the gateway. CLI never talks to the gateway.
-        .ship_route(Route::Publish, registry_api::publish)
         // AgentsService — generic CRUD + lifecycle. First-party and
         // third-party views use this surface equally.
         // PipelineService — CRUD + run ops. Dispatch / cancel / log-stream
         // wrap the existing kernel-backed handlers so the write paths stay
         // single-sourced.
-        .ship_route(Route::PipelineRunLogStream_template(), logs_api::stream_job_log)
         // RuleService — markdown rules.
         // PermissionService — preset entries + composed tool-patterns.
         // SkillService — service-shaped CRUD + file tree + vars. Replaces
@@ -451,29 +391,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::EventStream, runtime_api::event_stream)
         .ship_route(Route::RebuildProjections, runtime_api::rebuild_projections)
         .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
-        // Settings
-        .ship_route(Route::ListProviders, settings_api::list_harnesses)
-        // GitService — canonical `/api/v1/git/*` surface. Consolidates the
-        // old workspace- and project-scoped git endpoints into one.
-        // Write handlers live in `ship_git::rest_handlers`; they take
-        // `State<Arc<dyn GitService>>` and are mounted via a state-scoped
-        // sub-router. The SSE handler is daemon-edge (ViewSse) and keeps
-        // `State<ApiState>`.
-        .merge(
-            Router::<std::sync::Arc<dyn ship_git::service::GitService>>::new()
-                .ship_route(Route::GitStage, git_api::stage_handler)
-                .ship_route(Route::GitUnstage, git_api::unstage_handler)
-                .ship_route(Route::GitCommit, git_api::commit_handler)
-                .ship_route(Route::GitPush, git_api::push_handler)
-                .ship_route(Route::GitFetch, git_api::fetch_handler)
-                .ship_route(Route::GitPull, git_api::pull_handler)
-                .ship_route(Route::GitCheckout, git_api::checkout_handler)
-                .ship_route(Route::GitBranchCreate, git_api::branch_create_handler)
-                .ship_route(Route::GitBranchDelete, git_api::branch_delete_handler)
-                .ship_route(Route::GitInit, git_api::init_handler)
-                .with_state(st.git_arc()),
-        )
-        .ship_route(Route::GitSse, git_api::sse_handler)
         // Artifacts platform (three-scope)
         .merge(
             Router::<rest_api::ApiState>::new()
@@ -488,20 +405,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             routing::head(artifacts_api::head_artifact),
         )
         .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
-        // SDK manifest (read-side)
-        .ship_route(Route::ViewMeta_template(), sdk_manifest::get_view_meta)
-        .ship_route(Route::SdkRoot, sdk_manifest::get_sdk_root)
-        .ship_route(Route::SdkQuery, sdk_manifest::query_sdk_handler)
-        // Client-side view error capture — GET/POST/DELETE on one path,
-        // merged into a single MethodRouter (axum panics on duplicate paths
-        // across `.route()` calls). Canonical path comes from the Route enum
-        // so URL builders (TS, Jinja) stay consistent.
-        .route(
-            "/api/v1/view-errors",
-            axum::routing::post(view_errors_api::post_error)
-                .get(view_errors_api::list_errors)
-                .delete(view_errors_api::clear_errors),
-        )
         .with_state(st)
 }
 

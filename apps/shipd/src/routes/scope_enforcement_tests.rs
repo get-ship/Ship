@@ -85,12 +85,12 @@ fn handler_tag_means_handler_enforces() {
         .collect();
 
     // Handler routes today: the dynamic-scope artifact ops (upload/download/
-    // metadata) enforce via `can_*_artifacts` in `artifacts_api.rs`; and
-    // `Publish` (registry → gateway), retiered to `@auth handler` in S6 (#124)
-    // when the CLI-transport route auth was removed, enforces
-    // `require_scope(Scope::Full)` in `registry_api.rs`. A `Handler` annotation
-    // is never a license to skip enforcement — every Handler route's handler
-    // must contain a scope check.
+    // metadata) enforce via `can_*_artifacts` in `artifacts_api.rs`. The
+    // previous `Publish` (registry → gateway) Handler route is gone — the
+    // gateway proxy moved to a typed Connect wire, so the
+    // `routes::registry_api` source no longer exists. A `Handler`
+    // annotation is never a license to skip enforcement — every Handler
+    // route's handler must contain a scope check; only artifacts remain.
     let artifacts_src = include_str!("artifacts_api.rs");
     let mentions_artifact_check = artifacts_src.contains("can_read_artifacts")
         && artifacts_src.contains("can_write_artifacts");
@@ -100,12 +100,6 @@ fn handler_tag_means_handler_enforces() {
          checks in apps/shipd/src/routes/artifacts_api.rs (can_*_artifacts), \
          but at least one is missing. A `Handler` annotation isn't a \
          license to skip enforcement."
-    );
-    let registry_src = include_str!("registry_api.rs");
-    assert!(
-        registry_src.contains("require_scope"),
-        "Publish is `@auth handler`, so its handler in registry_api.rs must \
-         enforce its own scope (require_scope) — found none."
     );
 }
 
@@ -249,12 +243,12 @@ async fn router_rejects_insufficient_scope() {
 fn ship_public_route_rejects_non_public_at_registration() {
     let result = std::panic::catch_unwind(|| {
         let _: axum::Router = axum::Router::new()
-            .ship_public_route(Route::ListJobs, dummy_handler);
+            .ship_public_route(Route::SpawnPtySession, dummy_handler);
     });
     assert!(
         result.is_err(),
         "ship_public_route must panic when given a non-Public route \
-         (Route::ListJobs declares Scope(ReadRuns))"
+         (Route::SpawnPtySession declares Scope(ManageRuns))"
     );
 }
 
