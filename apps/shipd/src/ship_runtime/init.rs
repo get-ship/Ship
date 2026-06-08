@@ -219,7 +219,6 @@ impl ShipRuntime {
                 }
             },
             dispatch_handle: std::sync::OnceLock::new(),
-            session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             collection_ctx,

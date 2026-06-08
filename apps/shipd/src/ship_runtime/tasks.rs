@@ -44,18 +44,6 @@ impl ShipRuntime {
         Some(ship_substrate::project::project_slug_from_ship_dir(&project_ship))
     }
 
-    /// Lazily initialize and return the session scanner.
-    ///
-    /// On first call, starts a background task that scans for abandoned sessions.
-    pub async fn session_scanner(&self) -> &crate::managers::SessionScanner {
-        let hr = self.health_registry.clone();
-        self.session_scanner
-            .get_or_init(|| async {
-                crate::managers::SessionScanner::start(self.kernel.clone(), &hr)
-            })
-            .await
-    }
-
     /// Spawn the artifact GC loop. Runs immediately on startup then every hour.
     ///
     /// Best-effort: errors are logged but don't take down the daemon. No-op when

@@ -33,7 +33,6 @@ use ship_substrate::task_health::HealthRegistry;
 use crate::dispatch::run_dispatch::DispatchHandle;
 
 /// Central runtime for shipd. Owns the kernel, mesh registry, and config.
-/// Subsystem managers (session scanner) are lazily initialized on first access.
 pub struct ShipRuntime {
     pub(super) config: RuntimeConfig,
     pub(super) kernel: SharedKernel,
@@ -45,7 +44,6 @@ pub struct ShipRuntime {
     /// `<root>/machine/daemons/<hash>/` per devx-04.
     pub(super) daemon_dir: PathBuf,
     pub(super) dispatch_handle: std::sync::OnceLock<DispatchHandle>,
-    pub(super) session_scanner: tokio::sync::OnceCell<crate::managers::SessionScanner>,
     /// Scoped session registry — maps session tokens to DaemonSession.
     pub(super) session_registry: SessionRegistry,
     /// Health registry for supervised background tasks.
