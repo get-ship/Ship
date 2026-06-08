@@ -119,9 +119,9 @@ set -eu
 # gets installed alongside the docs so admins can re-run it manually.
 
 [dev-dependencies]
-# Internal ship-agents sub-crate — used only by tests/registry_e2e.rs (skill-vars
+# Internal agent-def sub-crate — used only by tests/registry_e2e.rs (skill-vars
 # KV round-trip). That test should migrate into ship-skill-vars itself.
-ship-skill-vars = { path = "../../crates/core/ship-platform/crates/ship-agents/crates/ship-skill-vars" }
+ship-skill-vars = { path = "../../crates/core/ship-platform/crates/agent-def/crates/ship-skill-vars" }
 tempfile = { workspace = true }
 assert_cmd = "2"
 predicates = "3"

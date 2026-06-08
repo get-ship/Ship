@@ -3,7 +3,7 @@ name = "ship-skill-vars"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Skill-variable persistence for ship-agents — namespaced JSON values backed by kv.db (physically separate from the event log so writes never compete for WAL locks). Internal sub-crate of ship-agents."
+description = "Skill-variable persistence — namespaced JSON values backed by kv.db (physically separate from the event log so writes never compete for WAL locks). An agent-def-internal sub-crate: its KvNamespace is skill-scoped and agent-def's skill_vars module is the sole consumer."
 
 [dependencies]
 ship-substrate = { path = "../../../../../ship-substrate" }
