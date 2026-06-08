@@ -216,34 +216,6 @@ pub fn serve_scaffold_asset(mode: DaemonMode, scaffold: &ScaffoldDecl, file: &st
     }
 }
 
-/// Default `ScaffoldDecl` for the shell (hub). Used as a fallback when no
-/// `deck.jsonc` scaffolds entry matches, so a zero-config host still serves.
-pub fn default_shell_scaffold() -> ScaffoldDecl {
-    use std::collections::BTreeMap;
-    ScaffoldDecl {
-        name: "shell".to_string(),
-        route: "/".to_string(),
-        source: "hub-scaffold".to_string(),
-        asset_prefix: "/shell/_assets/".to_string(),
-        inject_globals: BTreeMap::new(),
-    }
-}
-
-/// Default `ScaffoldDecl` for a space window. Used as a fallback when no
-/// `deck.jsonc` scaffolds entry matches.
-pub fn default_space_scaffold() -> ScaffoldDecl {
-    use std::collections::BTreeMap;
-    let mut inject = BTreeMap::new();
-    inject.insert("DECK_APP_ID".to_string(), "$id".to_string());
-    ScaffoldDecl {
-        name: "space".to_string(),
-        route: "/space/{id}".to_string(),
-        source: "space-scaffold".to_string(),
-        asset_prefix: "/space/_assets/".to_string(),
-        inject_globals: inject,
-    }
-}
-
 /// Validate that `key` is a safe JS identifier: `[A-Za-z_][A-Za-z0-9_]*`.
 ///
 /// This is called before using a key verbatim in `window.{key}=...` in the
@@ -269,16 +241,6 @@ fn substitute_params(value: &str, params: &[(&str, &str)]) -> String {
     }
     out
 }
-
-pub fn serve_space_asset(mode: DaemonMode, file: &str) -> DeckResponse {
-    serve_scaffold_asset(mode, &default_space_scaffold(), file)
-}
-
-pub fn serve_shell_asset(mode: DaemonMode, file: &str) -> DeckResponse {
-    serve_scaffold_asset(mode, &default_shell_scaffold(), file)
-}
-
-// Framework bundle handlers
 //
 // Hot-path: read from `.deck/framework/` (the canonical bake target, updated
 // on every `build-assets` run and by the daemon's watch-rebuild).
@@ -464,23 +426,6 @@ mod tests {
         let result = substitute_params("$a/$b", &[("a", "hello"), ("b", "world")]);
         assert_eq!(result, "hello/world");
     }
-
-    #[test]
-    fn default_space_scaffold_has_deck_app_id_global() {
-        let scaffold = default_space_scaffold();
-        assert_eq!(scaffold.inject_globals.get("DECK_APP_ID").map(String::as_str), Some("$id"));
-        assert_eq!(scaffold.source, "space-scaffold");
-        assert_eq!(scaffold.asset_prefix, "/space/_assets/");
-    }
-
-    #[test]
-    fn default_shell_scaffold_has_no_globals() {
-        let scaffold = default_shell_scaffold();
-        assert!(scaffold.inject_globals.is_empty());
-        assert_eq!(scaffold.source, "hub-scaffold");
-        assert_eq!(scaffold.asset_prefix, "/shell/_assets/");
-    }
-
     /// serve_scaffold with a real (tmpdir) HTML source rewrites asset hrefs
     /// and injects globals. Uses the env-var resolver (no caching — the resolver
     /// reads DECK_PROJECT_DIR on every call). The env var is restored after the

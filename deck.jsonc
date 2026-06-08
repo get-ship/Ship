@@ -52,5 +52,5 @@
   "sourceRoots": ["."],
   "watch": ["packages", "apps/shell/src"],
   "hostAssetsRoot": ".deck",
-  "firstPartyApp": { "root": "apps/shell", "label": "app:shell" }
+  "firstPartyApp": { "root": "apps/shell/src", "label": "app:shell" }
 }

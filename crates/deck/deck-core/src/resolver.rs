@@ -1,24 +1,56 @@
 use std::path::PathBuf;
-
+use deck_host::resolver::ViewLayout;
 pub use deck_host::resolver::{ResolvedView, ResolveError, render_resolved};
-
-/// First-party view root, supplied by the ship host via `SHIP_FIRST_PARTY_VIEWS`
-/// (e.g. `<repo>/apps/shell/src`). deck never hardcodes the app's layout — when
-/// the env is unset (a non-ship host) there is no first-party bucket.
+/// First-party view root, in resolution order:
+///
+/// 1. `DeckConfig.first_party_app.root` from `<project_root>/deck.jsonc`
+///    (the canonical config-driven source — deck never names the app).
+/// 2. `DECK_FIRST_PARTY_VIEWS` env var (canonical, replaces the legacy
+///    `SHIP_FIRST_PARTY_VIEWS`).
+/// 3. `SHIP_FIRST_PARTY_VIEWS` env var (legacy fallback while hosts migrate).
+///
+/// When none of the above is set, the host is non-ship and there is no
+/// first-party bucket. See .artifacts/asset-architecture.md.
 fn first_party_root() -> Option<PathBuf> {
-    // `DECK_FIRST_PARTY_VIEWS` is canonical; `SHIP_FIRST_PARTY_VIEWS` is the
-    // legacy name, kept as a fallback until hosts migrate (deck is app-agnostic
-    // and shouldn't name its app — see the deck-demo decoupling finding).
+    if let Some(root) = resolve_project_root() {
+        let cfg = deck_config::DeckConfig::load(&root);
+        if let Some(fpa) = cfg.first_party_app {
+            // `fpa.root` is repo-relative (e.g. `apps/shell/src`); the host
+            // resolver expects an absolute path so its `canonicalize`
+            // containment guard has a stable root. The relative-path form
+            // would resolve against cwd, which is not what callers mean.
+            return Some(root.join(fpa.root));
+        }
+    }
     std::env::var("DECK_FIRST_PARTY_VIEWS")
         .or_else(|_| std::env::var("SHIP_FIRST_PARTY_VIEWS"))
         .ok()
         .map(PathBuf::from)
 }
-
+/// Build a [`ViewLayout`] from the project-root `deck.jsonc` (when present)
+/// or fall back to the conventional `["views", ".ship/views"]` buckets with
+/// a single `page.sui` leaf. The leaf is unified across all buckets
+/// (fixes the #254 `index.sui` vs `page.sui` divergence); the bucket
+/// list is config-driven so a host with a different layout can override
+/// it via `viewDirs` in `deck.jsonc`.
+fn view_layout() -> ViewLayout {
+    let mut layout = ViewLayout::conventional();
+    if let Some(root) = resolve_project_root() {
+        let cfg = deck_config::DeckConfig::load(&root);
+        if !cfg.view_dirs.is_empty() {
+            layout.view_dirs = cfg.view_dirs.clone();
+        }
+        if let Some(leaf) = cfg.view_leaf {
+            layout.view_leaf = leaf;
+        }
+    }
+    layout
+}
 pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, ResolveError> {
-    let fp = first_party_root();
+    let mut layout = view_layout();
+    layout.first_party_root = first_party_root();
     if let Some(dir) = resolve_project_root() {
-        deck_host::resolver::resolve(&dir, fp.as_deref(), name, sub_path)
+        deck_host::resolver::resolve(&dir, &layout, name, sub_path)
     } else {
         let cwd = match std::env::current_dir() {
             Ok(c) => c,
@@ -30,7 +62,7 @@ pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, Resol
         };
         if let Some(ship_dir) = ship_substrate::project::resolve_project_ship_dir(&cwd) { // LAYER_EXCEPTION: deck-core requires project-root resolution to locate user views on disk; no higher-layer indirection is available without a circular dep
             let project_root = ship_dir.parent().unwrap_or(&ship_dir).to_path_buf();
-            deck_host::resolver::resolve(&project_root, fp.as_deref(), name, sub_path)
+            deck_host::resolver::resolve(&project_root, &layout, name, sub_path)
         } else {
             Err(ResolveError {
                 message: format!(
@@ -87,19 +119,23 @@ fn join_request(name: &str, sub_path: Option<&str>) -> String {
 
 /// Best-effort list of top-level view names servable on this daemon, for the
 /// human-facing not-found page. Scans the same on-disk roots the resolver
-/// consults — the first-party bucket (`SHIP_FIRST_PARTY_VIEWS`), the project's
-/// `views/`, and `.ship/views/`. Cheap (one shallow `read_dir` per root, no
-/// compilation) and graceful: any missing root contributes nothing, and with
-/// no project root at all the list is simply empty. Names are deduped and
-/// sorted so the page renders deterministically.
+/// consults — the first-party bucket (config-driven via
+/// `first_party_app.root` or the legacy env-var fallback) plus every
+/// bucket in the host's `view_dirs` (default `["views", ".ship/views"]`).
+/// Cheap (one shallow `read_dir` per root, no compilation) and graceful:
+/// any missing root contributes nothing, and with no project root at
+/// all the list is simply empty. Names are deduped and sorted so the
+/// page renders deterministically.
 pub fn list_view_names() -> Vec<String> {
     let mut names: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
-    if let Some(fp) = first_party_root() {
-        collect_view_dirs(&fp, &mut names);
+    let layout = view_layout();
+    if let Some(fp) = layout.first_party_root.as_deref() {
+        collect_view_dirs(fp, &mut names);
     }
     if let Some(root) = resolve_project_root() {
-        collect_view_dirs(&root.join("views"), &mut names);
-        collect_view_dirs(&root.join(".ship").join("views"), &mut names);
+        for bucket in &layout.view_dirs {
+            collect_view_dirs(&root.join(bucket), &mut names);
+        }
     }
     names.into_iter().collect()
 }

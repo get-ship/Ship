@@ -83,6 +83,10 @@ pub struct FirstPartyApp {
 ///
 /// All fields carry `#[serde(default)]` so a minimal (or missing) `deck.jsonc`
 /// falls back gracefully to [`DeckConfig::defaults`].
+/// The parsed contents of `deck.jsonc`.
+///
+/// All fields carry `#[serde(default)]` so a minimal (or missing) `deck.jsonc`
+/// falls back gracefully to [`DeckConfig::defaults`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct DeckConfig {
@@ -111,6 +115,20 @@ pub struct DeckConfig {
     /// change for existing projects).
     #[serde(default)]
     pub packs: Vec<String>,
+    /// Per-source-root view bucket names. The resolver and bundler scan
+    /// `<source_root>/<view_dir>/<name>/<view_leaf>` for each `view_dir` in
+    /// this list. Defaults to the conventional `["views", ".ship/views"]`,
+    /// so a zero-config host still resolves from both top-level and
+    /// project-scoped view buckets. Hosts with a different layout override
+    /// this list; deck no longer bakes the bucket names.
+    #[serde(default)]
+    pub view_dirs: Vec<String>,
+    /// The leaf filename for view artifacts under each `view_dir/<name>/`.
+    /// Defaults to `"page.sui"`. A single leaf convention across all
+    /// `view_dirs` fixes the #254 leaf-name divergence (`page.sui` vs
+    /// `index.sui`) that broke `.ship/views/<name>/index.sui` resolution.
+    #[serde(default)]
+    pub view_leaf: Option<String>,
 }
 
 impl Default for DeckConfig {
@@ -131,6 +149,11 @@ impl DeckConfig {
             host_assets_root: PathBuf::from(".deck"),
             first_party_app: None,
             packs: Vec::new(),
+            // Conventional view buckets. Override per-host in deck.jsonc.
+            view_dirs: vec!["views".into(), ".ship/views".into()],
+            // Single leaf convention — fixes the #254 `index.sui`/`page.sui`
+            // divergence. Both buckets look up `<name>/<view_leaf>`.
+            view_leaf: Some("page.sui".into()),
         }
     }
 
@@ -219,37 +242,29 @@ mod tests {
   "sourceRoots": ["."],
   "watch": ["packages", "apps/shell/src"],
   "hostAssetsRoot": ".deck",
-  "firstPartyApp": { "root": "apps/shell", "label": "app:shell" }
+  "firstPartyApp": { "root": "apps/shell/src", "label": "app:shell" }
 }"#;
-
     #[test]
     fn parse_example_jsonc() {
         let cfg: DeckConfig =
             serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(EXAMPLE_JSONC))
                 .expect("example deck.jsonc must parse");
-
         assert_eq!(cfg.targets.len(), 3);
-
         let arcade = &cfg.targets[1];
         assert_eq!(arcade.kind, TargetKind::LazyPack);
-
         let pdf = &cfg.targets[2];
         assert_eq!(pdf.out_file.as_deref(), Some("sui-pdf.js"));
-
         assert_eq!(cfg.scaffolds.len(), 2);
         let space = &cfg.scaffolds[1];
         assert_eq!(space.route, "/space/{id}");
         assert_eq!(space.inject_globals.get("DECK_APP_ID").map(String::as_str), Some("$id"));
-
         assert_eq!(cfg.source_roots, vec![PathBuf::from(".")]);
         assert_eq!(cfg.watch, vec![PathBuf::from("packages"), PathBuf::from("apps/shell/src")]);
         assert_eq!(cfg.host_assets_root, PathBuf::from(".deck"));
-
          let app = cfg.first_party_app.as_ref().unwrap();
-        assert_eq!(app.root, PathBuf::from("apps/shell"));
+        assert_eq!(app.root, PathBuf::from("apps/shell/src"));
         assert_eq!(app.label, "app:shell");
     }
-
     #[test]
     fn defaults_round_trip() {
         let d = DeckConfig::defaults();
@@ -264,6 +279,9 @@ mod tests {
         assert_eq!(d.host_assets_root, PathBuf::from(".deck"));
         assert!(d.first_party_app.is_none());
         assert!(d.packs.is_empty(), "defaults declare no packs → global resolution");
+        // View layout defaults match the conventional buckets.
+        assert_eq!(d.view_dirs, vec!["views".to_string(), ".ship/views".to_string()]);
+        assert_eq!(d.view_leaf.as_deref(), Some("page.sui"));
     }
 
     /// `packs` is optional and additive — an absent field parses to empty,

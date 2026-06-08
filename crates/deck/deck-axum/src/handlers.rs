@@ -93,82 +93,88 @@ pub async fn serve_view_host(
 // ── Scaffold handlers ─────────────────────────────────────────────────────────
 //
 // Both the shell (`/`) and space (`/space/{id}`) routes read their scaffold
-// declaration from the host-supplied `Extension<Arc<DeckConfig>>`. When the
-// extension is absent (zero-config hosts / deck-demo with no scaffolds) the
-// handlers fall back to the built-in defaults so a host with no `deck.jsonc`
-// still serves correctly.
-//
-// No matching scaffold in the config → styled 404 (never a panic).
-
-/// Resolve the scaffold for the given route name from config, or return the
-/// built-in default for that name (provided by `fallback()`).
-fn resolve_scaffold<'a, F>(
-    cfg: Option<&'a DeckConfig>,
-    name: &str,
-    fallback: F,
-) -> std::borrow::Cow<'a, deck_config::ScaffoldDecl>
-where
-    F: FnOnce() -> deck_config::ScaffoldDecl,
-{
-    if let Some(cfg) = cfg {
-        if !cfg.scaffolds.is_empty() {
-            if let Some(sc) = cfg.scaffolds.iter().find(|s| s.name == name) {
-                return std::borrow::Cow::Borrowed(sc);
-            }
-            // Config present with scaffolds but no match → caller gets a
-            // not-found response; return the fallback so the 404 message makes
-            // sense, but the host-configured case is flagged via the absence of
-            // the source artifact anyway.
-        }
+// declaration from the host-supplied `Extension<Arc<DeckConfig>>`. When
+// the scaffold is missing from the config (the `cfg` extension absent OR
+// the scaffolds list empty OR no matching name) the handlers return a
+// styled 404 — never a panic. deck ships no baked default scaffold
+// (no `default_shell_scaffold` / `default_space_scaffold`); a host that
+// wants to serve `/` or `/space/{id}` MUST declare the scaffold in
+// `deck.jsonc` under `scaffolds[]` (#273 — deck is a principled host,
+// it hardcodes no app names).
+/// Resolve the scaffold for the given route name from `cfg.scaffolds`.
+///
+/// Returns `None` when the scaffold is not declared in the config — the
+/// caller turns that into a 404.
+fn resolve_scaffold<'a>(cfg: Option<&'a DeckConfig>, name: &str) -> Option<&'a deck_config::ScaffoldDecl> {
+    let cfg = cfg?;
+    if cfg.scaffolds.is_empty() {
+        return None;
     }
-    std::borrow::Cow::Owned(fallback())
+    cfg.scaffolds.iter().find(|s| s.name == name)
 }
-
+/// Build a 404 `DeckResponse` for a missing scaffold — names the requested
+/// route so the author sees why deck refused. Reuses the standard
+/// `not_found` shape so the daemon's error styling is consistent.
+fn scaffold_not_found(name: &str, mode: DaemonMode) -> deck_core::DeckResponse {
+    deck_core::DeckResponse::not_found(
+        format!("scaffold '{name}' not declared in deck.jsonc"),
+        mode,
+    )
+}
 /// `GET /space/{id}` — serve the space scaffold with `DECK_APP_ID` injected.
 pub async fn serve_space(
     mode: Option<Extension<DaemonMode>>,
     cfg: Option<Extension<Arc<DeckConfig>>>,
     Path(id): Path<String>,
 ) -> Response {
+    let mode_val = mode_from_ext(mode.clone());
     let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let scaffold = resolve_scaffold(cfg_ref, "space", deck_core::default_space_scaffold);
+    let Some(scaffold) = resolve_scaffold(cfg_ref, "space") else {
+        return into_axum(scaffold_not_found("space", mode_val));
+    };
     into_axum(deck_core::serve_scaffold(
-        mode_from_ext(mode),
-        &scaffold,
+        mode_val,
+        scaffold,
         &[("id", &id)],
     ))
 }
-
 /// `GET /space/_assets/{file}` — space scaffold static assets.
 pub async fn serve_space_asset(
     mode: Option<Extension<DaemonMode>>,
     cfg: Option<Extension<Arc<DeckConfig>>>,
     Path(file): Path<String>,
 ) -> Response {
+    let mode_val = mode_from_ext(mode.clone());
     let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let scaffold = resolve_scaffold(cfg_ref, "space", deck_core::default_space_scaffold);
-    into_axum(deck_core::serve_scaffold_asset(mode_from_ext(mode), &scaffold, &file))
+    let Some(scaffold) = resolve_scaffold(cfg_ref, "space") else {
+        return into_axum(scaffold_not_found("space", mode_val));
+    };
+    into_axum(deck_core::serve_scaffold_asset(mode_val, scaffold, &file))
 }
-
 /// `GET /` — serve the shell scaffold (the Ship platform app).
 pub async fn serve_shell(
     mode: Option<Extension<DaemonMode>>,
     cfg: Option<Extension<Arc<DeckConfig>>>,
 ) -> Response {
+    let mode_val = mode_from_ext(mode.clone());
     let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let scaffold = resolve_scaffold(cfg_ref, "shell", deck_core::default_shell_scaffold);
-    into_axum(deck_core::serve_scaffold(mode_from_ext(mode), &scaffold, &[]))
+    let Some(scaffold) = resolve_scaffold(cfg_ref, "shell") else {
+        return into_axum(scaffold_not_found("shell", mode_val));
+    };
+    into_axum(deck_core::serve_scaffold(mode_val, scaffold, &[]))
 }
-
 /// `GET /shell/_assets/{file}` — shell scaffold static assets.
 pub async fn serve_shell_asset(
     mode: Option<Extension<DaemonMode>>,
     cfg: Option<Extension<Arc<DeckConfig>>>,
     Path(file): Path<String>,
 ) -> Response {
+    let mode_val = mode_from_ext(mode.clone());
     let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let scaffold = resolve_scaffold(cfg_ref, "shell", deck_core::default_shell_scaffold);
-    into_axum(deck_core::serve_scaffold_asset(mode_from_ext(mode), &scaffold, &file))
+    let Some(scaffold) = resolve_scaffold(cfg_ref, "shell") else {
+        return into_axum(scaffold_not_found("shell", mode_val));
+    };
+    into_axum(deck_core::serve_scaffold_asset(mode_val, scaffold, &file))
 }
 
 // ── View-payload handlers ─────────────────────────────────────────────────────

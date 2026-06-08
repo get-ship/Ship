@@ -42,7 +42,7 @@ fn payload_injects_mutation_action_into_html() {
     let view_dir = tmp.path().join(".ship/views/host-inject-form");
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(
-        view_dir.join("index.sui"),
+        view_dir.join("page.sui"),
         r#"<form mutation="ship.demo.create"><button type="submit">Go</button></form>"#,
     )
     .unwrap();
@@ -76,7 +76,7 @@ fn payload_leaves_author_action_untouched() {
     let view_dir = tmp.path().join(".ship/views/host-inject-form-author");
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(
-        view_dir.join("index.sui"),
+        view_dir.join("page.sui"),
         r#"<form action="/custom" mutation="ship.demo.create"></form>"#,
     )
     .unwrap();
@@ -104,7 +104,7 @@ fn payload_injects_subscribe_into_scope_for_live_view() {
     let view_dir = tmp.path().join(".ship/views/host-inject-live");
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(
-        view_dir.join("index.sui"),
+        view_dir.join("page.sui"),
         r#"<data name="t" source="ship.demo.clock()" live /><p>hello</p>"#,
     )
     .unwrap();
@@ -132,9 +132,9 @@ fn payload_subpath_injects_subscribe_with_sub() {
     let view_dir = tmp.path().join(".ship/views/host-inject-live-sub");
     let sub_dir = view_dir.join("[id]");
     fs::create_dir_all(&sub_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<p>root</p>").unwrap();
+    fs::write(view_dir.join("page.sui"), "<p>root</p>").unwrap();
     fs::write(
-        sub_dir.join("index.sui"),
+        sub_dir.join("page.sui"),
         r#"<data name="t" source="ship.demo.clock()" live /><p>hello</p>"#,
     )
     .unwrap();
@@ -157,7 +157,7 @@ fn view_host_injects_mutation_action_into_ssr() {
     let view_dir = tmp.path().join(".ship/views/host-host-inject-form");
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(
-        view_dir.join("index.sui"),
+        view_dir.join("page.sui"),
         r#"<form mutation="ship.demo.create"><button type="submit">Go</button></form>"#,
     )
     .unwrap();
@@ -186,10 +186,10 @@ fn view_host_injects_into_precompiled_ssr_html() {
     let view_dir = tmp.path().join(".ship/views/host-host-precompiled-inject");
     let dist_dir = view_dir.join("dist");
     fs::create_dir_all(&dist_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
+    fs::write(view_dir.join("page.sui"), "<p>hi</p>").unwrap();
     // Pre-baked .ssr.html with only the mutation marker (no action/method yet).
     let ssr_content = r#"<form mutation="b0"><button>Go</button></form>"#;
-    fs::write(dist_dir.join("index.ssr.html"), ssr_content).unwrap();
+    fs::write(dist_dir.join("page.ssr.html"), ssr_content).unwrap();
     evict_ssr_cache("host-host-precompiled-inject");
 
     let resp = serve_view_host(DaemonMode::Development, "/_sui/view/host-host-precompiled-inject");

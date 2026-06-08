@@ -22,7 +22,6 @@ pub struct ResolvedView {
 pub struct ResolveError {
     pub message: String,
 }
-
 /// Hard ceiling on a single view artifact read+compiled per request (source
 /// `.sui` and any co-located CSS). Each request reads from disk and compiles in
 /// process with no size bound otherwise — a multi-MB file would let one request
@@ -30,6 +29,35 @@ pub struct ResolveError {
 /// rejects pathological inputs. Exposed so deck-core's CSS reads share one
 /// ceiling (one source of truth).
 pub const MAX_VIEW_SOURCE_BYTES: u64 = 4 * 1024 * 1024;
+/// Config-driven view resolution layout (#273 — deck hardcodes no path).
+///
+/// `view_dirs` are the bucket names appended to the project root
+/// (e.g. `["views", ".ship/views"]`). For each `view_dirs[i]`, the
+/// resolver looks for `<root>/<view_dirs[i]>/<name>/<view_leaf>`. All
+/// buckets share one `view_leaf` (defaults to `page.sui`), which fixes
+/// the #254 `index.sui` vs `page.sui` divergence between the two
+/// buckets. `first_party_root`, when set, takes precedence over the
+/// `view_dirs` buckets — the host declares its own first-party app
+/// source root (e.g. `apps/shell/src`) and that bucket wins for any
+/// matching view name.
+#[derive(Debug, Clone)]
+pub struct ViewLayout {
+    pub view_dirs: Vec<String>,
+    pub view_leaf: String,
+    pub first_party_root: Option<PathBuf>,
+}
+impl ViewLayout {
+    /// Conventional defaults — the two view buckets and the
+    /// `page.sui` leaf. Matches the zero-config behaviour of the
+    /// previous hardcoded layout.
+    pub fn conventional() -> Self {
+        Self {
+            view_dirs: vec!["views".into(), ".ship/views".into()],
+            view_leaf: "page.sui".into(),
+            first_party_root: None,
+        }
+    }
+}
 
 /// Read a view artifact to a string, capped at [`MAX_VIEW_SOURCE_BYTES`].
 ///
@@ -47,7 +75,7 @@ pub fn read_view_artifact(path: &Path) -> Option<String> {
 
 pub fn resolve(
     project_root: &Path,
-    first_party_root: Option<&Path>,
+    layout: &ViewLayout,
     name: &str,
     sub_path: Option<&str>,
 ) -> Result<ResolvedView, ResolveError> {
@@ -56,67 +84,52 @@ pub fn resolve(
         .split('/')
         .filter(|s| !s.is_empty() && *s != "..")
         .collect();
-
     let mut attempts: Vec<String> = Vec::new();
-
-    // First-party views: the HOST supplies their root (deck is app-agnostic and
-    // knows no app layout — see .artifacts/asset-architecture.md). When set,
-    // they take precedence over project `views/` (reference) and `.ship/views`
-    // (user). When unset (a non-ship host), there is no first-party bucket.
-    if let Some(fp_base) = first_party_root {
+    // First-party views: the HOST supplies their root (deck is app-agnostic
+    // and knows no app layout — see .artifacts/asset-architecture.md). When
+    // set, it takes precedence over the configured `view_dirs` buckets.
+    // When unset (a non-ship host), there is no first-party bucket.
+    if let Some(fp_base) = layout.first_party_root.as_deref() {
         let fp_root = fp_base.join(name);
         let mut fp_params: HashMap<String, String> = HashMap::new();
         let mut fp_tried: Vec<PathBuf> = Vec::new();
-        if let Some(found) =
-            walk_disk_with_leaf(&fp_root, &segments, "page.sui", &mut fp_params, &mut fp_tried)
-        {
+        if let Some(found) = walk_disk_with_leaf(
+            &fp_root,
+            &segments,
+            &layout.view_leaf,
+            &mut fp_params,
+            &mut fp_tried,
+        ) {
             return read_resolved(found, fp_base, fp_params);
         }
     }
-
-    let new_root = project_root.join("views").join(name);
-    let mut params: HashMap<String, String> = HashMap::new();
-    let mut tried: Vec<PathBuf> = Vec::new();
-    let leaf = walk_disk_with_leaf(&new_root, &segments, "page.sui", &mut params, &mut tried);
-    let new_views_root = project_root.join("views");
-    for p in &tried {
-        let rel = p
-            .strip_prefix(&new_views_root)
-            .map(|r| format!("views/{}", r.display()))
-            .unwrap_or_else(|_| p.display().to_string());
-        attempts.push(rel);
-    }
-
-    if leaf.is_none() {
-        params.clear();
-        tried.clear();
-        let views_dir = project_root.join(".ship").join("views");
-        let root = views_dir.join(name);
-        if let Some(found) =
-            walk_disk_with_leaf(&root, &segments, "index.sui", &mut params, &mut tried)
-        {
-            for p in &tried {
-                let rel = p
-                    .strip_prefix(&views_dir)
-                    .map(|r| format!(".ship/views/{}", r.display()))
-                    .unwrap_or_else(|_| p.display().to_string());
-                attempts.push(rel);
-            }
-            return read_resolved(found, &views_dir, params);
+    // Walk every configured view-dir bucket in order. First hit wins; the
+    // rest are reported as "tried" so a 404 names every bucket consulted.
+    // A single leaf convention (`layout.view_leaf`) replaces the old
+    // `page.sui` for `views/` and `index.sui` for `.ship/views/` divergence
+    // (#254).
+    for bucket in &layout.view_dirs {
+        let bucket_root = project_root.join(bucket);
+        let view_root = bucket_root.join(name);
+        let mut params: HashMap<String, String> = HashMap::new();
+        let mut tried: Vec<PathBuf> = Vec::new();
+        if let Some(found) = walk_disk_with_leaf(
+            &view_root,
+            &segments,
+            &layout.view_leaf,
+            &mut params,
+            &mut tried,
+        ) {
+            return read_resolved(found, &bucket_root, params);
         }
         for p in &tried {
             let rel = p
-                .strip_prefix(&views_dir)
-                .map(|r| format!(".ship/views/{}", r.display()))
+                .strip_prefix(&bucket_root)
+                .map(|r| format!("{bucket}/{}", r.display()))
                 .unwrap_or_else(|_| p.display().to_string());
             attempts.push(rel);
         }
     }
-
-    if let Some(leaf) = leaf {
-        return read_resolved(leaf, &new_views_root, params);
-    }
-
     Err(ResolveError {
         message: format!(
             "view not found: {} — looked at: {}",
