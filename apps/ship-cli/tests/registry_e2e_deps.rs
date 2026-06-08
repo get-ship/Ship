@@ -155,6 +155,7 @@ fn profile(id: &str, _harnesses: &[&str], refs: &[&str]) -> AgentProfile {
             active_tools: vec![],
             icon: None,
         },
+        capabilities: Vec::new(),
         skills: SkillRefs {
             refs: refs.iter().map(|s| s.to_string()).collect(),
         },
